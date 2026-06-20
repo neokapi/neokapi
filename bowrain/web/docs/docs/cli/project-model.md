@@ -89,7 +89,7 @@ server:
 
 # Top-level lifecycle policy:
 hooks:
-  pre-push: [qa-check]
+  pre-push: [qa]
   post-pull: [update-stats]
 
 automations:
@@ -238,7 +238,7 @@ automations:
     actions:
       - type: run_flow
         config:
-          flow: qa-check
+          flow: qa
       - type: wait_translate
 
   - name: auto-pull-after-push

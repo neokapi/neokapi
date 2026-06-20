@@ -35,7 +35,7 @@ func init() {
 }
 
 // newLLMSegmenter builds the LLM engine from a resolved [segment.Config]. The
-// provider id defaults to the same default as ai-translate (anthropic) when
+// provider id defaults to the same default as translate (anthropic) when
 // cfg.Provider is empty. Credential resolution (keychain → cfg.APIKey) is the
 // integrator's responsibility; this constructor only consumes the resolved
 // APIKey / Provider / Model / BaseURL fields.

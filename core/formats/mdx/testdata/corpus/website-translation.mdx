@@ -58,18 +58,18 @@ kapi tools
 kapi flows
 
 # Run AI translation (top-level tool command)
-kapi ai-translate
+kapi translate
 
 # Or create a custom flow with QA checks
 # .kapi/flows/translate-website.yaml:
 # name: translate-website
 # description: Translate website content with AI and QA
 # steps:
-#   - tool: ai-translate
+#   - tool: translate
 #     config:
 #       provider: anthropic
 #       model: claude-sonnet-4.5
-#   - tool: qa-check
+#   - tool: qa
 #   - tool: term-enforce
 
 kapi run translate-website
@@ -79,9 +79,9 @@ kapi run translate-website
 
 Bowrain CLI tools and flows are composable pipelines that run on your local files:
 
-- **`kapi ai-translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
+- **`kapi translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
 - **`kapi tm-leverage`**: Pre-fill translations from translation memory
-- **`kapi qa-check`**: Rule-based quality checks (whitespace, punctuation, placeholders)
+- **`kapi qa`**: Rule-based quality checks (whitespace, punctuation, placeholders)
 - **`kapi run <flow>`**: Execute a composed or custom multi-tool flow
 
 Tools and flows automatically process all files matching your recipe's `content:` collections.

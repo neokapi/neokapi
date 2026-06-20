@@ -943,7 +943,7 @@ func blockKey(b *model.Block) string {
 	return b.ID
 }
 
-// runCheckTool runs an annotate-only block tool (qa-check / term-check) over a
+// runCheckTool runs an annotate-only block tool (qa / term-check) over a
 // single block in place. The tool records its findings on block.Properties.
 func runCheckTool(ctx context.Context, t interface {
 	Process(context.Context, <-chan *model.Part, chan<- *model.Part) error

@@ -157,7 +157,7 @@ function toTemplateMessages(messages: WireMessage[]) {
 /**
  * installGemmaBridge wires globalThis.kapiGemmaGenerate so the in-wasm Gemma
  * provider (kapi --provider gemma) runs the real model on this page. Call once
- * before issuing a `kapi ai-translate --provider gemma` (or any gemma-backed
+ * before issuing a `kapi translate --provider gemma` (or any gemma-backed
  * flow) from the wasm CLI.
  */
 export interface GemmaResult {

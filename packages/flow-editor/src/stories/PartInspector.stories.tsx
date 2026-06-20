@@ -81,7 +81,7 @@ const multiBlockParts: Record<string, PartSnapshotSet> = {
 export const SingleBlock: Story = {
   args: {
     nodeId: "tool-0",
-    nodeName: "ai-translate",
+    nodeName: "translate",
     parts: singleBlockParts,
   },
 };
@@ -89,7 +89,7 @@ export const SingleBlock: Story = {
 export const MultipleBlocks: Story = {
   args: {
     nodeId: "tool-0",
-    nodeName: "ai-translate",
+    nodeName: "translate",
     parts: multiBlockParts,
   },
 };
@@ -97,7 +97,7 @@ export const MultipleBlocks: Story = {
 export const Empty: Story = {
   args: {
     nodeId: "tool-0",
-    nodeName: "ai-translate",
+    nodeName: "translate",
     parts: {},
   },
 };

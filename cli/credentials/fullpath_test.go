@@ -43,14 +43,14 @@ func TestEnvFallback_FullInjectResolveRun(t *testing.T) {
 
 	reg := registry.NewToolRegistry()
 	rec := &recordingTool{}
-	reg.RegisterWithSchema("ai-translate", func() tool.Tool { return rec }, &schema.ComponentSchema{
+	reg.RegisterWithSchema("translate", func() tool.Tool { return rec }, &schema.ComponentSchema{
 		Title: "AI Translate",
 		ToolMeta: &schema.ToolMeta{
-			ID:       "ai-translate",
+			ID:       "translate",
 			Requires: []string{"credentials"},
 		},
 	})
-	reg.SetConfigFactory("ai-translate", func(config map[string]any, _ string) (tool.Tool, error) {
+	reg.SetConfigFactory("translate", func(config map[string]any, _ string) (tool.Tool, error) {
 		rec.apiKey, _ = config["apiKey"].(string)
 		rec.provider, _ = config["provider"].(string)
 		return rec, nil
@@ -61,7 +61,7 @@ func TestEnvFallback_FullInjectResolveRun(t *testing.T) {
 	})
 
 	// No inline key, no --credential — only the env var is present.
-	built, err := reg.NewToolWithConfig("ai-translate", map[string]any{"provider": "anthropic"}, "fr")
+	built, err := reg.NewToolWithConfig("translate", map[string]any{"provider": "anthropic"}, "fr")
 	require.NoError(t, err)
 	require.NotNil(t, built)
 
@@ -80,10 +80,10 @@ func TestEnvFallback_FullInjectResolveRun(t *testing.T) {
 	assert.Same(t, part, got)
 }
 
-// TestEnvFallback_FullPathMTProviderFromToolName verifies the same full path for
-// an MT tool, where the provider id is encoded in the tool name (deepl-translate
-// → deepl) rather than carried in config.
-func TestEnvFallback_FullPathMTProviderFromToolName(t *testing.T) {
+// TestEnvFallback_FullPathMTProvider verifies the same full path for the
+// unified translate tool routed to an MT engine via config["provider"]:
+// DEEPL_API_KEY is injected from the environment.
+func TestEnvFallback_FullPathMTProvider(t *testing.T) {
 	clearProviderEnv(t)
 	t.Setenv("DEEPL_API_KEY", "dl-fullpath")
 
@@ -91,14 +91,14 @@ func TestEnvFallback_FullPathMTProviderFromToolName(t *testing.T) {
 
 	reg := registry.NewToolRegistry()
 	rec := &recordingTool{}
-	reg.RegisterWithSchema("deepl-translate", func() tool.Tool { return rec }, &schema.ComponentSchema{
-		Title: "DeepL Translate",
+	reg.RegisterWithSchema("translate", func() tool.Tool { return rec }, &schema.ComponentSchema{
+		Title: "Translate",
 		ToolMeta: &schema.ToolMeta{
-			ID:       "deepl-translate",
+			ID:       "translate",
 			Requires: []string{"credentials"},
 		},
 	})
-	reg.SetConfigFactory("deepl-translate", func(config map[string]any, _ string) (tool.Tool, error) {
+	reg.SetConfigFactory("translate", func(config map[string]any, _ string) (tool.Tool, error) {
 		rec.apiKey, _ = config["apiKey"].(string)
 		rec.provider, _ = config["provider"].(string)
 		return rec, nil
@@ -107,12 +107,12 @@ func TestEnvFallback_FullPathMTProviderFromToolName(t *testing.T) {
 		return ResolveCredentials(store, toolName, requires, config)
 	})
 
-	// MT tools carry no provider in config; the resolver infers "deepl" from the
-	// tool name and injects DEEPL_API_KEY.
-	built, err := reg.NewToolWithConfig("deepl-translate", map[string]any{}, "fr")
+	// The MT engine is selected via config["provider"]; the resolver injects
+	// DEEPL_API_KEY for it.
+	built, err := reg.NewToolWithConfig("translate", map[string]any{"provider": "deepl"}, "fr")
 	require.NoError(t, err)
 	require.NotNil(t, built)
 
-	assert.Equal(t, "dl-fullpath", rec.apiKey, "DEEPL_API_KEY must reach the MT tool's factory")
-	assert.Equal(t, "deepl", rec.provider, "provider inferred from tool name")
+	assert.Equal(t, "dl-fullpath", rec.apiKey, "DEEPL_API_KEY must reach the translate tool's factory")
+	assert.Equal(t, "deepl", rec.provider, "provider carried from config")
 }

@@ -1,7 +1,7 @@
 // Shared fixtures for the PreviewKit stories. These mirror the real `kapi
 // inspect` ContentTree shapes (verified against the engine) for every structural
 // family FormatPreview targets, each with a fr-FR target and stand-off overlays
-// (terms / entities / qa-check / brand-voice) so the annotation highlighting,
+// (terms / entities / qa / brand-voice) so the annotation highlighting,
 // source↔target toggle and transitions can be exercised without booting WASM.
 import type { ContentNode, ContentTree, OverlayView, Run } from "@neokapi/ui-primitives/preview";
 
@@ -42,7 +42,7 @@ function entity(text: string, side = "source"): OverlayView {
 }
 function qa(text: string, side: string, rule: string): OverlayView {
   return {
-    type: "qa-check",
+    type: "qa",
     side,
     spans: [{ id: "q-" + text, range: zero(), text, props: { rule, severity: "warning" } }],
   };

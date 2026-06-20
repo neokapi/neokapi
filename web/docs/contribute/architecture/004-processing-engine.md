@@ -118,7 +118,7 @@ The CLI applies auto-parallelism to IO-bound flows:
 
 | Flow                              | Default Parallel Blocks |
 | --------------------------------- | ----------------------- |
-| `ai-translate`, `ai-translate-qa` | 5                       |
+| `translate`, `translate-qa`       | 5                       |
 | All other flows                   | 1 (sequential)          |
 
 Users override with `--parallel-blocks N` or disable with
@@ -218,16 +218,16 @@ Built-in flow definitions include:
 
 | Name               | Description                                              |
 | ------------------ | ------------------------------------------------------- |
-| `ai-translate`     | AI-powered translation using configured provider        |
-| `ai-translate-qa`  | AI translation followed by QA validation                |
+| `translate`        | Translation using the configured provider               |
+| `translate-qa`     | Translation followed by QA validation                   |
 | `pseudo-translate` | Pseudo-translation for internationalization testing     |
-| `qa-check`         | Quality assurance checks on existing translations       |
+| `qa`               | Quality assurance checks on existing translations       |
 | `tm-leverage`      | Translation memory leveraging from Sievepen TM          |
 | `secure-translate` | Redact sensitive content, AI-translate, then restore the originals locally ([AD-020](020-redaction.md)) |
 
 `kapi flows` lists only the *composed* (multi-tool) built-in flows —
-`ai-translate-qa` and `secure-translate` — because single-tool definitions
-(`ai-translate`, `pseudo-translate`, `qa-check`, `tm-leverage`) are surfaced as
+`translate-qa` and `secure-translate` — because single-tool definitions
+(`translate`, `pseudo-translate`, `qa`, `tm-leverage`) are surfaced as
 top-level tool commands rather than as flows.
 
 `FlowStore` persists user-created flow definitions as JSON files on disk.
@@ -251,9 +251,9 @@ spec:
   steps:
     - tool: tm-leverage
       config: { fuzzyThreshold: 75 }
-    - tool: ai-translate
+    - tool: translate
       config: { provider: anthropic }
-    - tool: qa-check
+    - tool: qa
 ```
 
 Steps are sequential by default. `parallel:` blocks provide fan-out. The

@@ -4,7 +4,7 @@
 // FlowSpec on `node.data` — `stepIndex` (+ optional `branchIndex` for a
 // parallel branch). Resolving selection/edit/delete by these indices instead
 // of by tool name is what makes duplicate-tool nodes addressable: selecting
-// the 2nd `ai-translate` node edits the 2nd step, and deleting it removes only
+// the 2nd `translate` node edits the 2nd step, and deleting it removes only
 // that step (or branch), never every step that happens to use the same tool.
 
 import type { FlowSpec, FlowStep } from "./types";

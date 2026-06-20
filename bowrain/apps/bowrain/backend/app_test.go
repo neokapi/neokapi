@@ -48,8 +48,8 @@ func TestListTools(t *testing.T) {
 	for _, tl := range tools {
 		names[tl.Name] = true
 	}
-	assert.True(t, names["ai-translate"])
-	assert.True(t, names["ai-qa"])
+	assert.True(t, names["translate"])
+	assert.True(t, names["qa"])
 	assert.True(t, names["pseudo-translate"])
 	assert.True(t, names["word-count"])
 	assert.True(t, names["char-count"])
@@ -58,14 +58,14 @@ func TestListTools(t *testing.T) {
 	assert.True(t, names["term-check"])
 	assert.True(t, names["segmentation"])
 	assert.True(t, names["tm-leverage"])
-	assert.True(t, names["qa-check"])
+	assert.True(t, names["qa"])
 
 	// Verify category is set on all tools.
 	for _, tl := range tools {
 		assert.NotEmpty(t, tl.Category, "tool %q should have a category", tl.Name)
 	}
 
-	// Verify IsSourceTransform is populated (redact should be true; ai-translate false).
+	// Verify IsSourceTransform is populated (redact should be true; translate false).
 	toolMap := make(map[string]ToolInfo)
 	for _, tl := range tools {
 		toolMap[tl.Name] = tl
@@ -73,9 +73,9 @@ func TestListTools(t *testing.T) {
 	if redact, ok := toolMap["redact"]; ok {
 		assert.True(t, redact.IsSourceTransform, "redact tool should report IsSourceTransform=true")
 	}
-	// ai-translate is an AI tool added manually — it correctly does not set the flag.
-	if aiTranslate, ok := toolMap["ai-translate"]; ok {
-		assert.False(t, aiTranslate.IsSourceTransform, "ai-translate should not be source-transform capable")
+	// translate is an AI tool added manually — it correctly does not set the flag.
+	if aiTranslate, ok := toolMap["translate"]; ok {
+		assert.False(t, aiTranslate.IsSourceTransform, "translate should not be source-transform capable")
 	}
 }
 

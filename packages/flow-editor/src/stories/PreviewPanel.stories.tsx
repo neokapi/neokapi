@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { PreviewPanel, type PreviewResult } from "../PreviewPanel";
 
 const nodeNames = new Map([
-  ["tool-0", "ai-translate"],
-  ["tool-1", "qa-check"],
+  ["tool-0", "translate"],
+  ["tool-1", "qa"],
 ]);
 
 const mockResult: PreviewResult = {

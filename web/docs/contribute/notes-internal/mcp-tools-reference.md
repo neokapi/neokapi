@@ -115,7 +115,7 @@ Count translatable words in a file.
 
 ### `run_flow`
 
-Execute a processing flow on a file. The flow name is any built-in flow from `list_flows` (e.g. `pseudo-translate`, `qa-check`, `tm-leverage`, `ai-translate-qa`, `secure-translate`). AI-powered flows (e.g. `ai-translate`, `ai-translate-qa`) run only when the required provider API keys are configured.
+Execute a processing flow on a file. The flow name is any built-in flow from `list_flows` (e.g. `pseudo-translate`, `qa`, `tm-leverage`, `translate-qa`, `secure-translate`). AI-powered flows (e.g. `translate`, `translate-qa`) run only when the required provider API keys are configured.
 
 **Input:**
 | Parameter | Type | Required | Description |
@@ -162,8 +162,8 @@ List all available processing flows.
 {
   "flows": [
     { "name": "pseudo-translate", "description": "Generate pseudo-translations for testing" },
-    { "name": "qa-check", "description": "Run rule-based quality checks on translations" },
-    { "name": "ai-translate", "description": "Translate content using AI/LLM" }
+    { "name": "qa", "description": "Run rule-based quality checks on translations" },
+    { "name": "translate", "description": "Translate content using AI/LLM" }
     // …one entry per built-in flow
   ],
   "total": 0 // = len(flow.BuiltInFlows()), runtime-dependent

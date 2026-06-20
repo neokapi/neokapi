@@ -78,7 +78,7 @@ func AIEntityExtractSchema() *schema.ComponentSchema {
 }
 
 // NewAIEntityExtractFromConfig creates an entity-extraction tool from a config
-// map, resolving the LLM provider the same way ai-translate does. With
+// map, resolving the LLM provider the same way translate does. With
 // `engine: ner` no LLM provider is resolved at all — extraction runs on the
 // registered local NER model (ner.LocalProvider) and nothing leaves the
 // machine; `hybrid` resolves both.

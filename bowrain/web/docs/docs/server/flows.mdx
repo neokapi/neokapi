@@ -42,7 +42,7 @@ Example: automatically translate content when it arrives from a connector push:
   "action": {
     "type": "run_flow",
     "config": {
-      "flow": "ai-translate",
+      "flow": "translate",
       "target_locales": ["fr-FR", "de-DE", "ja-JP"]
     }
   }
@@ -59,7 +59,7 @@ curl -X POST https://bowrain.cloud/api/v1/projects/:id/flows/run \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "flow": "ai-translate",
+    "flow": "translate",
     "config": {
       "target_locales": ["fr-FR"],
       "provider": "anthropic",
@@ -71,7 +71,7 @@ curl -X POST https://bowrain.cloud/api/v1/projects/:id/flows/run \
 # {
 #   "execution_id": "exec-abc123",
 #   "status": "running",
-#   "flow": "ai-translate",
+#   "flow": "translate",
 #   "started_at": "2026-03-09T14:30:00Z"
 # }
 ```
@@ -108,7 +108,7 @@ curl https://bowrain.cloud/api/v1/projects/:id/flows/executions/:execId \
 # {
 #   "execution_id": "exec-abc123",
 #   "status": "completed",
-#   "flow": "ai-translate",
+#   "flow": "translate",
 #   "started_at": "2026-03-09T14:30:00Z",
 #   "completed_at": "2026-03-09T14:30:42Z",
 #   "blocks_processed": 47,
@@ -137,7 +137,7 @@ curl https://bowrain.cloud/api/v1/projects/:id/flows/executions \
   -H "Authorization: Bearer $TOKEN"
 
 # Filter by flow name
-curl "https://bowrain.cloud/api/v1/projects/:id/flows/executions?flow=ai-translate" \
+curl "https://bowrain.cloud/api/v1/projects/:id/flows/executions?flow=translate" \
   -H "Authorization: Bearer $TOKEN"
 
 # Filter by status
@@ -158,9 +158,9 @@ A typical end-to-end flow involving CLI push, server-side translation, and CLI p
   messages={[
     { from: 0, to: 1, label: "kapi push" },
     { from: 1, to: 1, label: "Event: connector.push.completed" },
-    { from: 1, to: 1, label: "Automation: run ai-translate", detail: "read → translate → write" },
+    { from: 1, to: 1, label: "Automation: run translate", detail: "read → translate → write" },
     { from: 1, to: 1, label: "Event: flow.completed" },
-    { from: 1, to: 1, label: "Automation: run qa-check", detail: "validate → write annotations" },
+    { from: 1, to: 1, label: "Automation: run qa", detail: "validate → write annotations" },
     { from: 1, to: 1, label: "Event: flow.completed → quality.gate.pass" },
     { from: 1, to: 0, label: "kapi pull" },
     { from: 2, to: 1, label: "Open editor, review, approve" },
@@ -196,14 +196,14 @@ curl -X POST https://bowrain.cloud/api/v1/acme/proj-1/flows \
     "description": "Translate then run quality checks",
     "nodes": [
       {"id": "reader", "type": "reader", "name": "auto", "position": {"x": 0, "y": 0}},
-      {"id": "ai-translate", "type": "tool", "name": "ai-translate", "position": {"x": 250, "y": 0}},
-      {"id": "qa-check", "type": "tool", "name": "qa-check", "position": {"x": 500, "y": 0}},
+      {"id": "translate", "type": "tool", "name": "translate", "position": {"x": 250, "y": 0}},
+      {"id": "qa", "type": "tool", "name": "qa", "position": {"x": 500, "y": 0}},
       {"id": "writer", "type": "writer", "name": "auto", "position": {"x": 750, "y": 0}}
     ],
     "edges": [
-      {"id": "e1", "source": "reader", "target": "ai-translate"},
-      {"id": "e2", "source": "ai-translate", "target": "qa-check"},
-      {"id": "e3", "source": "qa-check", "target": "writer"}
+      {"id": "e1", "source": "reader", "target": "translate"},
+      {"id": "e2", "source": "translate", "target": "qa"},
+      {"id": "e3", "source": "qa", "target": "writer"}
     ]
   }'
 ```
@@ -219,9 +219,9 @@ Server-side flows can be chained through automation rules. When one flow complet
   channelLabel=""
   stages={[
     { label: "connector", sub: "push.completed" },
-    { label: "ai-translate", role: "translate" },
+    { label: "translate", role: "translate" },
     { label: "flow.completed" },
-    { label: "qa-check", role: "qa" },
+    { label: "qa", role: "qa" },
     { label: "flow.completed" },
     { label: "quality", sub: "gate.pass", role: "io" },
   ]}

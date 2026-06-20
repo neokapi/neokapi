@@ -10,7 +10,7 @@ const (
 	Monolingual LocaleCardinality = "monolingual"
 
 	// Bilingual — tool operates on exactly two locales as a pair.
-	// Examples: ai-translate (source→target), qa-check (source vs target),
+	// Examples: translate (source→target), qa (source vs target),
 	// pivot comparison (de vs es).
 	Bilingual LocaleCardinality = "bilingual"
 

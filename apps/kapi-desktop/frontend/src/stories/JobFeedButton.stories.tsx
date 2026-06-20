@@ -239,7 +239,7 @@ export const MultipleJobs: Story = {
       },
       {
         id: "3",
-        flowName: "qa-check",
+        flowName: "qa",
         status: "error",
         progress: { current: 2, total: 10 },
         error: "Provider unavailable",

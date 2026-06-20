@@ -127,7 +127,7 @@ func (t *MyTool) handle(sess blockstore.Session, ra bool, kind string, part *mod
 
 | Kind prefix          | Used by                                                                  | Payload shape                        |
 | -------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
-| `targets/<locale>`   | translators (ai-translate, mt-translate, pseudo-translate, human editor) | `{"text": "...", "provider": "..."}` |
+| `targets/<locale>`   | translators (translate, pseudo-translate, human editor) | `{"text": "...", "provider": "..."}` |
 | `annotations/<name>` | term-lookup, tm-leverage, qa checks                                      | tool-specific JSON                   |
 | `skeletons/<format>` | format writers (round-trip skeletons)                                    | opaque payload                       |
 
@@ -147,7 +147,7 @@ pattern in `core/tools/pseudo.go` and
 
 ## Batching + concurrency
 
-If your tool has a concurrent / batched path (like `ai-translate`
+If your tool has a concurrent / batched path (like `translate`
 with `batchSize > 1` or `concurrency > 1`), wrap the batched path
 with session filtering at the **input** (skip cached) and
 overlay-write at the **output**. Example:
@@ -166,7 +166,7 @@ constructs the one it wants and hands it to the executor:
   `.kapi/cache/blocks.db`. The default for kapi projects. Full ACID, persistent
   across runs.
 - `NewFormatReaderStore(factory)` — wraps a `format.DataFormatReader` factory as
-  a read-only store. Useful for ad-hoc CLI flows (`kapi ai-translate -i
+  a read-only store. Useful for ad-hoc CLI flows (`kapi translate -i
   file.xliff`): RandomAccess=true, Writable=false. Its `PutOverlay` returns
   `blockstore.ErrReadOnly`.
 

@@ -125,7 +125,7 @@ export interface KapiRuntime {
    * Appends `--trace <tmp>` to argv, runs it, and reads the trace back from the
    * in-memory filesystem. The caller supplies the command plus its input and
    * output args, e.g. ["pseudo-translate", "/p/in.json", "-o", "/p/out.json"]
-   * or ["run", "ai-translate-qa", "-i", "/p/in.json", "-o", "/p/out.json"].
+   * or ["run", "translate-qa", "-i", "/p/in.json", "-o", "/p/out.json"].
    */
   runWithTrace(argv: string[]): Promise<TraceRunResult>;
   cwd(): string;

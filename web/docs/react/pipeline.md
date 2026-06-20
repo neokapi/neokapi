@@ -19,7 +19,7 @@ Three phases, one contract: the KLF directory archive. A fourth optional phase �
       sub: "KLF archive",
       role: "io",
       edge: "kapi-react extract",
-      loop: ["kapi ai-translate / pseudo-translate / qa / ai-review", "accumulate target locales in place"],
+      loop: ["kapi translate / pseudo-translate / qa / ai-review", "accumulate target locales in place"],
     },
     {
       label: "public/translations/{locale}.json",
@@ -126,12 +126,12 @@ The `.klf` is the translator's deliverable. Three common paths:
 
 ### Path A: AI translation
 
-Run a full translation pass with `kapi ai-translate`:
+Run a full translation pass with `kapi translate`:
 
 ```bash
-kapi ai-translate i18n/ --target-lang fr
-kapi ai-translate i18n/ --target-lang de
-kapi ai-translate i18n/ --target-lang ja
+kapi translate i18n/ --target-lang fr
+kapi translate i18n/ --target-lang de
+kapi translate i18n/ --target-lang ja
 ```
 
 Each run **accumulates** a target locale into the same `.klf`. The writer is locale-additive by design — existing targets stay put, the requested locale is added or updated in place. No `-o` needed unless you want to redirect output.
@@ -195,7 +195,7 @@ content:
 kapi extract -p translation.kapi
 
 # 2. Translate — run a composed flow over the project for each target language.
-kapi run ai-translate-qa -p translation.kapi
+kapi run translate-qa -p translation.kapi
 ```
 
 The `command` string picks the package manager — `vp`, `pnpm`, `npm`, `yarn`, or a direct binary path — so the project declares its preferences explicitly without kapi making assumptions. `kapi run` then executes the named [flow](/framework/flows) against the project's extracted blocks for each target language.
@@ -293,7 +293,7 @@ Apps that ship a single bundle don't need this phase at all — keep using `load
       sub: 'hash "aB3" · source + targets',
       edge: "kapi-react extract (source only)",
       role: "io",
-      loop: ["kapi ai-translate --target-lang fr", "then de … (additive, in place)"],
+      loop: ["kapi translate --target-lang fr", "then de … (additive, in place)"],
     },
     {
       label: "public/translations/{locale}.json",

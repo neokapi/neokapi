@@ -54,7 +54,7 @@ automations:
     actions:
       - type: run_flow
         config:
-          flow: qa-check
+          flow: qa
 
   - name: sync-on-push
     trigger: post-push
@@ -96,11 +96,11 @@ automations:
     actions:
       - type: run_flow
         config:
-          flow: qa-check
+          flow: qa
           fail_on_error: true
 ```
 
-If `qa-check` finds issues and `fail_on_error` is `true`, the push is aborted.
+If `qa` finds issues and `fail_on_error` is `true`, the push is aborted.
 
 ### Example: Full sync after push
 

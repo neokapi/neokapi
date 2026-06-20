@@ -269,7 +269,7 @@ not a runtime flag. Annotations are reached through the
 | Terminology      | overlay `term`             | term-lookup           | Matched terminology with target terms  |
 | Term candidates  | overlay `term-candidate`   | ai-terminology        | Term extraction candidates from an LLM |
 | Entities         | overlay `entity`           | ai-entity-extract     | Named entities (people, places, dates) |
-| QA findings      | overlay `qa`               | qa-check              | Quality findings with severity         |
+| QA findings      | overlay `qa`               | qa                    | Quality findings with severity         |
 | Alignment        | overlay `alignment`        | aligner, readers      | Source-span ↔ target-span links        |
 | Alt-translations | annotation `alt-translation` | TM leverage, AI tools | Candidate translations with scores     |
 

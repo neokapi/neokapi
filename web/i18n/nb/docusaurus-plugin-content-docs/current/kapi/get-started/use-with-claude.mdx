@@ -70,7 +70,7 @@ kjører en strukturert pipeline — de samme stegene hver gang grensesnittet end
 ```bash
 npm run extract                                # kapi-react collects the UI strings from the JSX → i18n/
 kapi pseudo-translate i18n/  # readiness check: surfaces anything not localizable yet
-kapi ai-translate i18n/ --target-lang ja       # translate; interpolation placeholders preserved
+kapi translate i18n/ --target-lang ja       # translate; interpolation placeholders preserved
 npm run compile                                # → public/translations/ja.json (loaded at runtime)
 ```
 
@@ -98,13 +98,13 @@ bevart — og anvender ordlisten og oversettelsesminnet ditt underveis.
 />
 
 ```bash
-kapi ai-translate announcement.docx --target-lang ja -o announcement.ja.docx
+kapi translate announcement.docx --target-lang ja -o announcement.ja.docx
 ```
 
 Only the text changes; the document's structure comes through intact.
 The same one command works across the office formats, mobile catalogs (Apple
 `.xcstrings`, Android `strings.xml`, Flutter `.arb`), Markdown, and more — native,
-offline readers, no plugin. For vendor or human translation, swap `ai-translate` for
+offline readers, no plugin. For vendor or human translation, swap `translate` for
 a bilingual `kapi extract` → `kapi merge` round-trip; see
 [Bilingual Workflow](/kapi/bilingual-workflow).
 

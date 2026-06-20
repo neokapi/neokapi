@@ -40,13 +40,10 @@ export const Default: Story = {
       ],
       flows: {
         translate: {
-          steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }],
+          steps: [{ tool: "translate", config: { provider: "anthropic" } }],
         },
         "translate-and-qa": {
-          steps: [
-            { tool: "ai-translate", config: { provider: "anthropic" } },
-            { tool: "qa-check" },
-          ],
+          steps: [{ tool: "translate", config: { provider: "anthropic" } }, { tool: "qa" }],
         },
       },
     },

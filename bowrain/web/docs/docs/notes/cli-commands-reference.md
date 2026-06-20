@@ -38,7 +38,7 @@ kapi
 |   +-- status       # Show current user, server URL
 |   +-- claim        # Claim anonymous project
 +-- run FLOW         # Execute a flow (inline on recipe, .kapi/flows/, or built-in)
-+-- <tool>           # Run a tool directly (pseudo-translate, ai-translate, qa-check, etc.)
++-- <tool>           # Run a tool directly (pseudo-translate, translate, qa, etc.)
 +-- flows            # List available flows
 +-- tools            # List available tools
 +-- sync             # Sync operations (push + translate + pull)
@@ -60,8 +60,8 @@ kapi
 
 ```
 kapi
-+-- <tool>           # Run a tool directly (pseudo-translate, ai-translate, qa-check, etc.)
-+-- run FLOW         # Execute a composed multi-tool flow (ai-translate-qa, etc.)
++-- <tool>           # Run a tool directly (pseudo-translate, translate, qa, etc.)
++-- run FLOW         # Execute a composed multi-tool flow (translate-qa, etc.)
 +-- tools            # List available tools
 +-- flows            # List available flows
 +-- formats          # Format listing
@@ -122,7 +122,7 @@ All paths support `--json` output for CI/CD integration.
 ## `kapi push` Algorithm
 
 1. Read the recipe (content collections)
-2. Run `pre-push` hooks (qa-check, term-enforce, etc.)
+2. Run `pre-push` hooks (qa, term-enforce, etc.)
    - If any hook fails, abort push
 3. Read local files via FormatRegistry
 4. Compute block hashes

@@ -164,16 +164,16 @@ preset: nextjs
 flows:
   translate:
     steps:
-      - tool: ai-translate
+      - tool: translate
         config:
           provider: anthropic
           model: claude-sonnet-4-5-20241022
   full-pipeline:
     steps:
-      - tool: ai-translate
+      - tool: translate
         config:
           provider: anthropic
-      - tool: qa-check
+      - tool: qa
       - tool: pseudo-translate
         config:
           expansion_rate: 1.3
@@ -206,13 +206,13 @@ flows:
 	translate := proj.Flow("translate")
 	require.NotNil(t, translate)
 	assert.Len(t, translate.Steps, 1)
-	assert.Equal(t, "ai-translate", translate.Steps[0].Tool)
+	assert.Equal(t, "translate", translate.Steps[0].Tool)
 	assert.Equal(t, "anthropic", translate.Steps[0].Config["provider"])
 
 	pipeline := proj.Flow("full-pipeline")
 	require.NotNil(t, pipeline)
 	assert.Len(t, pipeline.Steps, 3)
-	assert.Equal(t, "qa-check", pipeline.Steps[1].Tool)
+	assert.Equal(t, "qa", pipeline.Steps[1].Tool)
 	assert.Equal(t, 1.3, pipeline.Steps[2].Config["expansion_rate"])
 
 	// Defaults

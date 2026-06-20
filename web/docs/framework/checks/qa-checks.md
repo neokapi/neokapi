@@ -35,8 +35,9 @@ caught in CI, or in an assistant's fix-loop, the same way a failing test is.
 
 ## Rule-based checks
 
-The `qa-check` tool runs a battery of deterministic rules over each block,
-comparing source and target. It records each finding as a structured issue with a
+By default — with no `--provider` — the `qa` tool runs a battery of
+deterministic rules over each block, comparing source and target. It needs no
+API key. It records each finding as a structured issue with a
 type and a severity (error or warning) and marks whether the block passed. The
 checks span several concerns:
 
@@ -59,17 +60,17 @@ Run it from the CLI against a bilingual file. The command below parses an XLIFF
 file and reports its findings as JSON:
 
 <RunnableSnippet
-  cmd="kapi qa-check app.xliff --target-lang fr --json"
+  cmd="kapi qa app.xliff --target-lang fr --json"
   seed={["app.xliff"]}
 />
 
-In a flow, `qa-check` is just another step after translation:
+In a flow, `qa` is just another step after translation:
 
 ```yaml
 steps:
-  - tool: ai-translate
+  - tool: translate
     config: { provider: anthropic }
-  - tool: qa-check
+  - tool: qa
     label: Quality checks
 ```
 
@@ -82,15 +83,15 @@ translated differently across a batch, and the terminology validators
 
 ## LLM-assisted review
 
-Where rule-based checks catch the mechanical errors, the `ai-qa` tool uses an
-[LLM provider](/framework/ai-translation) to assess qualities a rule cannot
-easily express — fluency, accuracy against the source, and terminology
-appropriateness — and attaches its assessment to each block. It is the natural
-companion to `ai-translate`: the built-in `ai-translate-qa` flow runs translation
-and then this review in one pass.
+Where rule-based checks catch the mechanical errors, running `qa` with an LLM
+`--provider` uses that [LLM provider](/framework/ai-translation) to assess
+qualities a rule cannot easily express — fluency, accuracy against the source,
+and terminology appropriateness — and attaches its assessment to each block. It
+is the natural companion to `translate`: the built-in `translate-qa` flow runs
+translation and then this review in one pass.
 
 ```bash
-kapi run ai-translate-qa -i app.xliff --target-lang fr
+kapi run translate-qa -i app.xliff --target-lang fr
 ```
 
 ## Findings travel with the block

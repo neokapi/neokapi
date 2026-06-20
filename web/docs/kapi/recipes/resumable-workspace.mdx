@@ -30,7 +30,7 @@ working copy, not editing inside the file.
 
 ```bash
 kapi extract src/*.json -o work.klz --target-lang fr,qps   # ingest
-kapi ai-translate work.klz --target-lang fr                 # transform in place
+kapi translate work.klz --target-lang fr                 # transform in place
 kapi pseudo-translate work.klz --target-lang qps           # …accumulates
 kapi merge work.klz -o l10n/                               # emit → l10n/<lang>/<name>
 ```
@@ -84,9 +84,9 @@ work (per-block overlays). It does **not** write output documents — that is
 `merge`'s job. Transforms are repeatable and composable, and locales accumulate:
 
 ```bash
-kapi ai-translate    work.klz --target-lang fr
+kapi translate    work.klz --target-lang fr
 kapi pseudo-translate work.klz --target-lang qps
-kapi run ai-translate-qa -i work.klz --target-lang fr
+kapi run translate-qa -i work.klz --target-lang fr
 ```
 
 Re-running a transform reuses the work already done instead of recomputing it, so
@@ -108,7 +108,7 @@ kapi pack work.klz     # eject the cache → work.klz (for sharing)
 transform to eject immediately:
 
 ```bash
-kapi ai-translate work.klz --target-lang fr --pack   # transform AND eject
+kapi translate work.klz --target-lang fr --pack   # transform AND eject
 ```
 
 Receive a packed `.klz` on another machine and the first command rebuilds the

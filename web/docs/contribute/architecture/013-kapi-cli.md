@@ -65,7 +65,7 @@ subcommands:
 
 ```
 kapi
-├── <tool>                   # run a tool directly (pseudo-translate, ai-translate, …)
+├── <tool>                   # run a tool directly (pseudo-translate, translate, …)
 ├── run FLOW                 # execute a composed flow
 ├── extract                  # emit a bilingual file for a translator/reviewer — native .klz or XLIFF/PO (AD-017)
 ├── merge                    # apply a translator's returned bilingual file (AD-017)
@@ -102,15 +102,16 @@ kapi
 Commands fall into categories:
 
 - **Format operations** — `kapi formats`, `kapi extract`, `kapi merge`
-- **Tools** — `kapi pseudo-translate`, `kapi word-count`, `kapi ai-translate`;
-  MT tools register per provider as `kapi <provider>-translate`
-  (e.g. `kapi deepl-translate`); `kapi run <flow>`
+- **Tools** — `kapi pseudo-translate`, `kapi word-count`, `kapi translate`;
+  every LLM and MT engine is selected on the single `kapi translate` command
+  with `--provider` (e.g. `kapi translate --provider deepl`) rather than a
+  per-engine command; `kapi run <flow>`
 - **Plugins** — `kapi plugin list/install/update`
 - **Presets** — `kapi presets list`
 - **Terminology and TM** — `kapi termbase`, `kapi tm`
 
 Tools run as top-level commands (`kapi pseudo-translate`); composed
-multi-tool flows run under `kapi run` (`kapi run ai-translate-qa`). Both
+multi-tool flows run under `kapi run` (`kapi run translate-qa`). Both
 single tools and composed flows appear in `kapi flows` and `kapi tools`
 listings depending on where they were defined.
 
@@ -119,7 +120,7 @@ listings depending on where they were defined.
 Most commands are one-shot by default:
 
 ```bash
-kapi ai-translate file.xliff --target-lang fr
+kapi translate file.xliff --target-lang fr
 kapi pseudo-translate file.json
 kapi word-count file.json
 ```
@@ -130,7 +131,7 @@ project mode, loading a `.kapi` recipe
 
 ```bash
 kapi run translate -p myproject.kapi
-kapi run ai-translate-qa --project myproject.kapi --target-lang de
+kapi run translate-qa --project myproject.kapi --target-lang de
 kapi extract --project myproject.kapi
 ```
 
@@ -166,9 +167,9 @@ once and is reused by the project-aware commands — `run`, `extract`,
 The `-p` shorthand binds to `--project` **only** on the project-aware
 commands listed above (`run`, `extract`, `merge`, `brand`, `verify`),
 where `AddProjectFlag` registers it. On ad-hoc tool commands (such as
-`kapi ai-translate` or `kapi pseudo-translate`), there is no `--project`
+`kapi translate` or `kapi pseudo-translate`), there is no `--project`
 flag — the same `-p` shorthand is already taken by `--progress` (the
-progress-bar flag). So `kapi ai-translate -p my.kapi` is parsed as
+progress-bar flag). So `kapi translate -p my.kapi` is parsed as
 `--progress` with `my.kapi` left as a positional argument, **not** as a
 load-project request. Tool commands pick up project context (TM, glossary,
 defaults) through git-style discovery instead — run them from inside the

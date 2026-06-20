@@ -1,7 +1,7 @@
 [
   {
-    "name": "ai-translate",
-    "description": "Translate content using AI/LLM",
+    "name": "translate",
+    "description": "Translate with an LLM or MT provider",
     "category": "translation",
     "has_schema": false,
     "inputs": ["block"],
@@ -10,23 +10,6 @@
     "produces": [
       {
         "type": "target",
-        "side": "target"
-      }
-    ],
-    "side_effects": ["api-call"],
-    "cardinality": "bilingual"
-  },
-  {
-    "name": "ai-qa",
-    "description": "AI-powered quality assessment",
-    "category": "quality",
-    "has_schema": false,
-    "inputs": ["block"],
-    "tags": ["ai-powered", "quality"],
-    "requires": ["target-language", "credentials", "retryable"],
-    "produces": [
-      {
-        "type": "qa",
         "side": "target"
       }
     ],
@@ -61,7 +44,7 @@
     "cardinality": "bilingual"
   },
   {
-    "name": "qa-check",
+    "name": "qa",
     "description": "Run rule-based quality checks",
     "category": "quality",
     "has_schema": true,

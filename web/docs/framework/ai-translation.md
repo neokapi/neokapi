@@ -2,7 +2,7 @@
 sidebar_position: 15
 title: AI Translation
 description: neokapi integrates LLM-based translation, QA, and terminology extraction via a provider interface supporting Anthropic Claude, OpenAI, Google Gemini, Azure OpenAI, and Ollama for local models.
-keywords: [AI translation, LLM, Anthropic Claude, OpenAI, Gemini, Ollama, ai-translate, localization AI]
+keywords: [AI translation, LLM, Anthropic Claude, OpenAI, Gemini, Ollama, translate, localization AI]
 ---
 
 # AI Translation
@@ -31,7 +31,7 @@ a flow step, while the key — a secret — is kept out of the committable recip
 Pass `--provider` and `--model` on the command line:
 
 ```bash
-kapi ai-translate -i input.html --source-lang en --target-lang fr \
+kapi translate -i input.html --source-lang en --target-lang fr \
   --provider anthropic --model claude-sonnet-4-20250514
 ```
 
@@ -40,13 +40,15 @@ safe to commit):
 
 ```yaml
 steps:
-  - tool: ai-translate
+  - tool: translate
     config:
       provider: anthropic
       model: claude-sonnet-4-20250514
 ```
 
-When `--provider` is omitted, `ai-translate` defaults to Anthropic. Each
+`translate` is a single command across every backend; the provider — an LLM such
+as Anthropic or an [MT engine](/framework/mt-services) — is chosen with
+`--provider`. When `--provider` is omitted it defaults to Anthropic. Each
 provider ships a sensible default model.
 
 ### Supplying the API key
@@ -61,14 +63,14 @@ the environment variable):
 
    ```bash
    kapi credentials add my-anthropic --provider anthropic --api-key sk-…
-   kapi ai-translate -i input.html --target-lang fr --credential my-anthropic
+   kapi translate -i input.html --target-lang fr --credential my-anthropic
    ```
 
 2. **Inline flag** — pass the key directly with `--api-key` (useful for one-off
    runs):
 
    ```bash
-   kapi ai-translate -i input.html --target-lang fr \
+   kapi translate -i input.html --target-lang fr \
      --provider openai --api-key sk-…
    ```
 
@@ -78,7 +80,7 @@ the environment variable):
 
    ```bash
    export ANTHROPIC_API_KEY=sk-…
-   kapi ai-translate -i input.html --target-lang fr --provider anthropic
+   kapi translate -i input.html --target-lang fr --provider anthropic
    ```
 
 If no key is found by any of these means, the command reports a clear
@@ -91,7 +93,7 @@ reasoning as translation proceeds. Select it like any other provider:
 
 ```bash
 export GEMINI_API_KEY=…
-kapi ai-translate -i input.html --target-lang fr --provider gemini
+kapi translate -i input.html --target-lang fr --provider gemini
 ```
 
 The default model is `gemini-3-flash-preview`.
@@ -103,8 +105,8 @@ composes into [flows](/framework/flows) like any other stage:
 
 | Tool             | Purpose                                               |
 | ---------------- | ----------------------------------------------------- |
-| `ai-translate`   | Translate untranslated Blocks using an LLM            |
-| `ai-qa`          | Check translations for fluency, accuracy, terminology |
+| `translate`      | Translate untranslated Blocks using an LLM (or MT) provider |
+| `qa --provider`  | LLM-judged check of translations for fluency, accuracy, terminology |
 | `ai-terminology` | Extract terminology from source Blocks                |
 | `ai-review`      | Review translations with explanations                 |
 
@@ -116,13 +118,13 @@ parameters.
 ### Translate a file
 
 ```bash
-kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+kapi translate -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 ### Translate and quality-check
 
 ```bash
-kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
+kapi run translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 ## Prompt Engineering
@@ -197,14 +199,14 @@ No API key is required:
 
 ```bash
 ollama pull llama3
-kapi ai-translate -i input.html --target-lang fr --provider ollama --model llama3
+kapi translate -i input.html --target-lang fr --provider ollama --model llama3
 ```
 
 The same selection works as flow-step config:
 
 ```yaml
 steps:
-  - tool: ai-translate
+  - tool: translate
     config:
       provider: ollama
       model: llama3

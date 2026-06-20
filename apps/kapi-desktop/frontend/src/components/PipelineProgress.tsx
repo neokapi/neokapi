@@ -9,7 +9,7 @@ import type { StepSnapshot } from "../context/JobFeedContext";
 export type StepState = "pending" | "active" | "done";
 
 export interface PipelineStep {
-  /** Tool name (e.g., "ai-translate"). */
+  /** Tool name (e.g., "translate"). */
   tool: string;
 }
 

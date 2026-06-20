@@ -15,12 +15,12 @@ func sampleDef(id, name string) *flow.FlowDefinition {
 		Description: "a project flow",
 		Nodes: []flow.FlowNode{
 			{ID: "reader", Type: flow.NodeReader, Name: "auto", Position: flow.NodePosition{X: 0, Y: 0}},
-			{ID: "ai-translate", Type: flow.NodeTool, Name: "ai-translate", Position: flow.NodePosition{X: 250, Y: 0}},
+			{ID: "translate", Type: flow.NodeTool, Name: "translate", Position: flow.NodePosition{X: 250, Y: 0}},
 			{ID: "writer", Type: flow.NodeWriter, Name: "auto", Position: flow.NodePosition{X: 500, Y: 0}},
 		},
 		Edges: []flow.FlowEdge{
-			{ID: "e1", Source: "reader", Target: "ai-translate"},
-			{ID: "e2", Source: "ai-translate", Target: "writer"},
+			{ID: "e1", Source: "reader", Target: "translate"},
+			{ID: "e2", Source: "translate", Target: "writer"},
 		},
 	}
 }

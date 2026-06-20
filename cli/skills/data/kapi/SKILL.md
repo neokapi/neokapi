@@ -68,7 +68,7 @@ kapi verify --json        # whole project; or: kapi verify <files> [--brand|--te
 - No AI provider credential is required when you translate or rewrite the text
   yourself within kapi's guardrails. A saved credential (`kapi credentials add`)
   is only needed for kapi to call a provider directly — unattended translation
-  (`kapi ai-translate`) or the optional `--ai` checks. The rule-based brand and
+  (`kapi translate`) or the optional `--ai` checks. The rule-based brand and
   terminology checks need no credential.
 
 The English source text is always the key — don't introduce message IDs.

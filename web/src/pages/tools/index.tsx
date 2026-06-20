@@ -40,7 +40,7 @@ export default function Tools() {
             <li>
               <strong>Built-in</strong> (<ReferenceCount kind="tool" source="built-in" />) — the
               native processing tools maintained in neokapi, such as <code>word-count</code>,{" "}
-              <code>pseudo-translate</code>, and <code>qa-check</code>.
+              <code>pseudo-translate</code>, and <code>qa</code>.
             </li>
             <li>
               <strong>Okapi bridge</strong> (<ReferenceCount kind="tool" source="okapi" />) — the

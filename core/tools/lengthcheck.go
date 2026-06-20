@@ -10,7 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 )
 
-// Default length-ratio thresholds shared between length-check and qa-check.
+// Default length-ratio thresholds shared between length-check and qa.
 // These mirror the Okapi Framework bridge length-checker defaults.
 const (
 	DefaultLengthBreak      = 20  // character count dividing "short" from "long" text

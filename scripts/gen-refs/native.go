@@ -10,7 +10,6 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	fschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
-	mttools "github.com/neokapi/neokapi/core/mt/tools"
 	"github.com/neokapi/neokapi/core/registry"
 	coreschema "github.com/neokapi/neokapi/core/schema"
 	libtools "github.com/neokapi/neokapi/core/tools"
@@ -53,7 +52,6 @@ func nativeRegistries() (*registry.FormatRegistry, *registry.ToolRegistry) {
 	treg := registry.NewToolRegistry()
 	libtools.RegisterAll(treg)
 	tools.RegisterAll(treg)
-	mttools.RegisterAll(treg)
 	return freg, treg
 }
 

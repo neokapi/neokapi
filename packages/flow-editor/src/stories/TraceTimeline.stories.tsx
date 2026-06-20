@@ -34,8 +34,8 @@ const completedEvents: TraceEvent[] = [
 ];
 
 const nodeNames = new Map([
-  ["tool-0", "ai-translate"],
-  ["tool-1", "qa-check"],
+  ["tool-0", "translate"],
+  ["tool-1", "qa"],
   ["tool-2", "word-count"],
 ]);
 

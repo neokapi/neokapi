@@ -32,7 +32,7 @@ const multipleOrigins: OriginDTO[] = [
   },
   {
     source: "tool",
-    key: "ai-translate",
+    key: "translate",
     reference: "job-42",
     added_at: now,
     added_by: "kapi",

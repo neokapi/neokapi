@@ -30,7 +30,7 @@ server:
   stream: $auto
 hooks:
   pre-push:
-    - qa-check
+    - qa
 automations:
   - name: auto-translate
     trigger: post-push
@@ -60,7 +60,7 @@ brand_voice:
 	require.NotNil(t, r.Server)
 	assert.Equal(t, "https://bowrain.example.com/team/proj", r.Server.URL)
 	assert.Equal(t, "$auto", r.Server.Stream)
-	assert.Equal(t, []string{"qa-check"}, r.Hooks["pre-push"])
+	assert.Equal(t, []string{"qa"}, r.Hooks["pre-push"])
 	require.Len(t, r.Automations, 1)
 	assert.Equal(t, "auto-translate", r.Automations[0].Name)
 	require.Len(t, r.Automations[0].Actions, 2)
@@ -81,7 +81,7 @@ func TestSaveRecipe_RoundTripPreservesBowrainFields(t *testing.T) {
 			Stream: "main",
 		},
 		Hooks: HooksSpec{
-			"pre-push":  []string{"qa-check"},
+			"pre-push":  []string{"qa"},
 			"post-pull": []string{"update-stats"},
 		},
 		Automations: []AutomationSpec{
@@ -100,7 +100,7 @@ func TestSaveRecipe_RoundTripPreservesBowrainFields(t *testing.T) {
 	require.NotNil(t, r2.Server)
 	assert.Equal(t, "https://bowrain.example.com/team/proj", r2.Server.URL)
 	assert.Equal(t, "main", r2.Server.Stream)
-	assert.Equal(t, []string{"qa-check"}, r2.Hooks["pre-push"])
+	assert.Equal(t, []string{"qa"}, r2.Hooks["pre-push"])
 	assert.Equal(t, []string{"update-stats"}, r2.Hooks["post-pull"])
 	require.Len(t, r2.Automations, 1)
 }

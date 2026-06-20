@@ -10,8 +10,8 @@ import (
 func TestStepsToGraph_Linear(t *testing.T) {
 	spec := &StepsSpec{
 		Steps: []FlowStep{
-			{Tool: "ai-translate", Config: map[string]any{"provider": "anthropic"}},
-			{Tool: "qa-check"},
+			{Tool: "translate", Config: map[string]any{"provider": "anthropic"}},
+			{Tool: "qa"},
 		},
 	}
 
@@ -21,10 +21,10 @@ func TestStepsToGraph_Linear(t *testing.T) {
 	// Tool-only graph: 2 tool nodes, no reader/writer (AD-026).
 	require.Len(t, nodes, 2)
 	assert.Equal(t, NodeTool, nodes[0].Type)
-	assert.Equal(t, "ai-translate", nodes[0].Name)
+	assert.Equal(t, "translate", nodes[0].Name)
 	assert.Equal(t, map[string]any{"provider": "anthropic"}, nodes[0].Config)
 	assert.Equal(t, NodeTool, nodes[1].Type)
-	assert.Equal(t, "qa-check", nodes[1].Name)
+	assert.Equal(t, "qa", nodes[1].Name)
 
 	// One edge: translate -> qa. The first tool has no incoming edge.
 	require.Len(t, edges, 1)
@@ -37,11 +37,11 @@ func TestStepsToGraph_Parallel(t *testing.T) {
 		Steps: []FlowStep{
 			{
 				Parallel: []FlowStep{
-					{Tool: "ai-translate"},
+					{Tool: "translate"},
 					{Tool: "word-count"},
 				},
 			},
-			{Tool: "qa-check"},
+			{Tool: "qa"},
 		},
 	}
 
@@ -53,7 +53,7 @@ func TestStepsToGraph_Parallel(t *testing.T) {
 
 	var parallelIDs []string
 	for _, n := range nodes {
-		if n.Name == "ai-translate" || n.Name == "word-count" {
+		if n.Name == "translate" || n.Name == "word-count" {
 			parallelIDs = append(parallelIDs, n.ID)
 		}
 	}
@@ -64,10 +64,10 @@ func TestStepsToGraph_Parallel(t *testing.T) {
 		assert.Empty(t, filterEdges(edges, "", id), "parallel root %s should have no incoming edge", id)
 	}
 
-	// Both branches fan in to qa-check.
+	// Both branches fan in to qa.
 	var qaNode FlowNode
 	for _, n := range nodes {
-		if n.Name == "qa-check" {
+		if n.Name == "qa" {
 			qaNode = n
 			break
 		}
@@ -97,7 +97,7 @@ func TestStepsToGraph_SourceTransformsRejected(t *testing.T) {
 	// stage — transformers are ordinary ordered steps.
 	spec := &StepsSpec{
 		SourceTransforms: []FlowStep{{Tool: "redact"}},
-		Steps:            []FlowStep{{Tool: "ai-translate"}},
+		Steps:            []FlowStep{{Tool: "translate"}},
 	}
 
 	_, _, err := StepsToGraph(spec)
@@ -107,7 +107,7 @@ func TestStepsToGraph_SourceTransformsRejected(t *testing.T) {
 
 func TestStepsToGraph_TransformerAsOrderedStep(t *testing.T) {
 	spec := &StepsSpec{
-		Steps: []FlowStep{{Tool: "redact"}, {Tool: "ai-translate"}},
+		Steps: []FlowStep{{Tool: "redact"}, {Tool: "translate"}},
 	}
 
 	nodes, edges, err := StepsToGraph(spec)
@@ -115,8 +115,8 @@ func TestStepsToGraph_TransformerAsOrderedStep(t *testing.T) {
 
 	require.Len(t, nodes, 2)
 	assert.Equal(t, "redact", nodes[0].Name)
-	assert.Equal(t, "ai-translate", nodes[1].Name)
-	// redact -> ai-translate; redact is the root.
+	assert.Equal(t, "translate", nodes[1].Name)
+	// redact -> translate; redact is the root.
 	require.Len(t, edges, 1)
 	assert.Equal(t, nodes[0].ID, edges[0].Source)
 	assert.Equal(t, nodes[1].ID, edges[0].Target)
@@ -147,11 +147,11 @@ func TestStepsToGraph_ValidTopology(t *testing.T) {
 			{Tool: "tm-leverage"},
 			{
 				Parallel: []FlowStep{
-					{Tool: "ai-translate"},
+					{Tool: "translate"},
 					{Tool: "word-count"},
 				},
 			},
-			{Tool: "qa-check"},
+			{Tool: "qa"},
 		},
 	}
 
@@ -177,7 +177,7 @@ steps:
   - tool: pseudo-translate
     config:
       expansion: 30
-  - tool: qa-check
+  - tool: qa
 `
 	def, err := parseFlowYAML([]byte(yaml))
 	require.NoError(t, err)

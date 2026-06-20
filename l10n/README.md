@@ -25,7 +25,7 @@ gitignored).
 
 Workflow for a new or changed surface string:
 
-1. Translate it (human, or `kapi ai-translate` with credentials — the brand
+1. Translate it (human, or `kapi translate` with credentials — the brand
    voice profile and termbase are bound project-wide) and merge the pair
    into the surface's seed: import the seed plus the new pairs (any
    supported form, e.g. a small TMX) into a scratch TM, then

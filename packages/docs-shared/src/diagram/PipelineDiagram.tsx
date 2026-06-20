@@ -11,8 +11,8 @@ import "./diagram.css";
         stages={[
           { label: "Reader", sub: "DataFormat", role: "io" },
           { label: "segmentation", role: "annotate" },
-          { label: "ai-translate", role: "translate" },
-          { label: "qa-check", role: "qa" },
+          { label: "translate", role: "translate" },
+          { label: "qa", role: "qa" },
           { label: "Writer", sub: "DataFormat", role: "io" },
         ]}
       />

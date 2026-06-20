@@ -97,9 +97,9 @@ func TestToolsListOutputGroupsByCategory(t *testing.T) {
 	var buf bytes.Buffer
 	out := ToolsListOutput{
 		Tools: []ToolInfo{
-			{Name: "ai-translate", Description: "Translate with AI", Category: "translation"},
+			{Name: "translate", Description: "Translate with AI", Category: "translation"},
 			{Name: "pseudo-translate", Description: "Pseudo-translate", Category: "translation"},
-			{Name: "qa-check", Description: "Run QA checks", Category: "quality"},
+			{Name: "qa", Description: "Run QA checks", Category: "quality"},
 			{Name: "word-count", Description: "Count words", Category: "analysis"},
 			{Name: "search-replace", Description: "Find and replace", Category: "text-processing"},
 		},
@@ -113,8 +113,8 @@ func TestToolsListOutputGroupsByCategory(t *testing.T) {
 	assert.Contains(t, text, "Quality:")
 	assert.Contains(t, text, "Analysis:")
 	assert.Contains(t, text, "Text Processing:")
-	assert.Contains(t, text, "ai-translate")
-	assert.Contains(t, text, "qa-check")
+	assert.Contains(t, text, "translate")
+	assert.Contains(t, text, "qa")
 	assert.Contains(t, text, "word-count")
 	assert.Contains(t, text, "search-replace")
 	assert.Contains(t, text, "Total: 5 tool(s)")
@@ -124,7 +124,7 @@ func TestToolsListOutputUncategorizedToolsInOther(t *testing.T) {
 	var buf bytes.Buffer
 	out := ToolsListOutput{
 		Tools: []ToolInfo{
-			{Name: "ai-translate", Description: "Translate with AI", Category: "translation"},
+			{Name: "translate", Description: "Translate with AI", Category: "translation"},
 			{Name: "span-classify", Description: "Classify spans", Category: ""},
 		},
 		Total: 2,
@@ -149,7 +149,7 @@ func TestToolsListOutputEmpty(t *testing.T) {
 func TestToolsListOutputJSON(t *testing.T) {
 	out := ToolsListOutput{
 		Tools: []ToolInfo{
-			{Name: "qa-check", Description: "Run QA", Category: "quality", Source: "builtin"},
+			{Name: "qa", Description: "Run QA", Category: "quality", Source: "builtin"},
 		},
 		Total: 1,
 	}

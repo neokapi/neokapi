@@ -18,7 +18,6 @@ import (
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/i18n"
-	mttools "github.com/neokapi/neokapi/core/mt/tools"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -188,9 +187,10 @@ func (a *App) InitRegistries() {
 	})
 
 	a.ToolReg = registry.NewToolRegistry()
+	// libtools first: it registers the deterministic `qa`; aitools then overlays
+	// the unified `translate`/`qa` (which dispatch to MT and LLM backends).
 	libtools.RegisterAll(a.ToolReg)
 	aitools.RegisterAll(a.ToolReg)
-	mttools.RegisterAll(a.ToolReg)
 }
 
 // InitPluginHost discovers plugins (manifest.json sidecar model) from

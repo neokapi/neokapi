@@ -242,7 +242,7 @@ func scaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 # flows:
 #   translate:
 #     steps:
-#       - tool: ai-translate
+#       - tool: translate
 #
 # Tip: 'kapi init --framework <stack>' pre-fills content for a known stack.
 content: []

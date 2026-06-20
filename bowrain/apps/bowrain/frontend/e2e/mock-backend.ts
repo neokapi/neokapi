@@ -246,15 +246,15 @@ export async function injectMockBackend(page: Page) {
     ];
 
     mock[IDS.ListTools] = () => [
-      { name: "ai-translate", description: "Translate content using AI" },
+      { name: "translate", description: "Translate content using AI" },
       { name: "pseudo-translate", description: "Generate pseudo-translations" },
       { name: "word-count", description: "Count words" },
     ];
 
     // --- Flow definition storage ---
     const builtInFlowDefs: Record<string, any> = {
-      "ai-translate": {
-        id: "ai-translate",
+      translate: {
+        id: "translate",
         name: "AI Translate",
         description: "Translate content using AI/LLM",
         source: "built-in",
@@ -267,9 +267,9 @@ export async function injectMockBackend(page: Page) {
             position: { x: 0, y: 100 },
           },
           {
-            id: "ai-translate",
+            id: "translate",
             type: "tool",
-            name: "ai-translate",
+            name: "translate",
             label: "AI Translate",
             position: { x: 250, y: 100 },
           },
@@ -282,8 +282,8 @@ export async function injectMockBackend(page: Page) {
           },
         ],
         edges: [
-          { id: "e-reader-translate", source: "reader", target: "ai-translate" },
-          { id: "e-translate-writer", source: "ai-translate", target: "writer" },
+          { id: "e-reader-translate", source: "reader", target: "translate" },
+          { id: "e-translate-writer", source: "translate", target: "writer" },
         ],
       },
       "pseudo-translate": {

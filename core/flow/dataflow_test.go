@@ -37,14 +37,14 @@ func TestValidateDataFlow_NilRegistrySkips(t *testing.T) {
 		ID:   "x",
 		Name: "x",
 		Nodes: []flow.FlowNode{
-			{ID: "qa", Type: flow.NodeTool, Name: "qa-check"},
+			{ID: "qa", Type: flow.NodeTool, Name: "qa"},
 		},
 		Binding: &flow.FlowBinding{Source: "file"},
 	}
 	assert.NoError(t, def.ValidateDataFlow(nil))
 }
 
-// qa-check requires a target. Against a monolingual file source with no
+// qa requires a target. Against a monolingual file source with no
 // upstream translate step, the flow is rejected.
 func TestValidateDataFlow_QAOnFileSourceRejected(t *testing.T) {
 	t.Parallel()
@@ -53,17 +53,17 @@ func TestValidateDataFlow_QAOnFileSourceRejected(t *testing.T) {
 		ID:   "qa-only",
 		Name: "QA only",
 		Nodes: []flow.FlowNode{
-			{ID: "qa", Type: flow.NodeTool, Name: "qa-check"},
+			{ID: "qa", Type: flow.NodeTool, Name: "qa"},
 		},
 		Binding: &flow.FlowBinding{Source: "file"},
 	}
 	err := def.ValidateDataFlow(reg)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "qa-check")
+	assert.Contains(t, err.Error(), "qa")
 	assert.Contains(t, err.Error(), "target@target")
 }
 
-// The same qa-check is valid against a bilingual interchange source, which
+// The same qa is valid against a bilingual interchange source, which
 // provides the target.
 func TestValidateDataFlow_QAOnInterchangeSourcePasses(t *testing.T) {
 	t.Parallel()
@@ -72,14 +72,14 @@ func TestValidateDataFlow_QAOnInterchangeSourcePasses(t *testing.T) {
 		ID:   "qa-xliff",
 		Name: "QA xliff",
 		Nodes: []flow.FlowNode{
-			{ID: "qa", Type: flow.NodeTool, Name: "qa-check"},
+			{ID: "qa", Type: flow.NodeTool, Name: "qa"},
 		},
 		Binding: &flow.FlowBinding{Source: "xliff"},
 	}
 	assert.NoError(t, def.ValidateDataFlow(reg))
 }
 
-// A translate step upstream produces the target qa-check needs, so the flow is
+// A translate step upstream produces the target qa needs, so the flow is
 // valid even against a monolingual file source.
 func TestValidateDataFlow_TranslateThenQAPasses(t *testing.T) {
 	t.Parallel()
@@ -89,7 +89,7 @@ func TestValidateDataFlow_TranslateThenQAPasses(t *testing.T) {
 		Name: "Pseudo then QA",
 		Nodes: []flow.FlowNode{
 			{ID: "p", Type: flow.NodeTool, Name: "pseudo-translate"},
-			{ID: "qa", Type: flow.NodeTool, Name: "qa-check"},
+			{ID: "qa", Type: flow.NodeTool, Name: "qa"},
 		},
 		Edges: []flow.FlowEdge{
 			{ID: "e", Source: "p", Target: "qa"},
@@ -108,7 +108,7 @@ func TestValidateDataFlow_QABeforeTranslateRejected(t *testing.T) {
 		ID:   "qa-then-pseudo",
 		Name: "QA then pseudo",
 		Nodes: []flow.FlowNode{
-			{ID: "qa", Type: flow.NodeTool, Name: "qa-check"},
+			{ID: "qa", Type: flow.NodeTool, Name: "qa"},
 			{ID: "p", Type: flow.NodeTool, Name: "pseudo-translate"},
 		},
 		Edges: []flow.FlowEdge{

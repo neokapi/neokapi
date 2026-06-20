@@ -25,7 +25,7 @@ Run quality checks directly on source files without any server connection:
 
 ```bash
 # Run QA checks on source content
-kapi qa-check -i src/locales/en/ --source-lang en
+kapi qa -i src/locales/en/ --source-lang en
 
 # Check terminology consistency
 kapi term-check -i src/locales/en/ --termbase glossary.tbx
@@ -36,7 +36,7 @@ kapi xml-validation -i src/locales/en/
 
 ### Built-In QA Rules
 
-The `qa-check` tool validates:
+The `qa` tool validates:
 
 | Rule           | What It Checks                                                 |
 | -------------- | -------------------------------------------------------------- |
@@ -63,7 +63,7 @@ steps:
     config:
       target_locale: en-US
 
-  - tool: qa-check
+  - tool: qa
     config:
       rules:
         - whitespace

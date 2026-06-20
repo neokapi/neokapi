@@ -68,20 +68,15 @@ func apiKeyFromEnv(providerType string) (string, bool) {
 
 // inferProviderID determines the provider id to resolve credentials for.
 //
-// The config map's explicit "provider" wins when set. Otherwise the provider is
-// derived from the tool name: MT tools are registered as "<provider>-translate"
-// (e.g. "deepl-translate") and carry no provider field, so the id is the prefix.
-// AI tools (ai-translate, ai-qa, …) default to "anthropic" — the same default
-// their schema applies — so the common `kapi ai-translate` (no --provider) path
-// can still pick up ANTHROPIC_API_KEY from the environment.
-func inferProviderID(toolName string, config map[string]any) string {
+// The config map's explicit "provider" wins when set — the unified `translate`
+// and `qa` tools (and every other AI tool) carry the chosen LLM/MT provider id
+// there. With no explicit provider the id defaults to "anthropic" — the same
+// default the schema applies — so the common `kapi translate` (no --provider)
+// path can still pick up ANTHROPIC_API_KEY from the environment.
+func inferProviderID(_ string, config map[string]any) string {
 	if p, ok := config["provider"].(string); ok && p != "" {
 		return p
 	}
-	if toolName != "" && toolName != "ai-translate" && strings.HasSuffix(toolName, "-translate") {
-		return strings.TrimSuffix(toolName, "-translate")
-	}
-	// AI tools with no explicit provider default to anthropic (schema default).
 	return "anthropic"
 }
 
@@ -89,10 +84,9 @@ func inferProviderID(toolName string, config map[string]any) string {
 // It looks for a "credential" key in the config, resolves it from the store,
 // and injects provider/apiKey/model into the config map.
 //
-// toolName is the registered tool id (e.g. "ai-translate", "deepl-translate").
-// It lets the resolver infer the provider for the env-var fallback when the
-// config carries no explicit provider — MT tools encode the provider in their
-// name and AI tools default to anthropic.
+// toolName is the registered tool id (e.g. "translate", "qa"); it is no longer
+// used to infer the provider — the provider id is read from config["provider"]
+// (defaulting to anthropic) for the env-var fallback.
 //
 // Resolution order (highest precedence first):
 //  1. If the tool doesn't require "credentials" → return config unchanged

@@ -260,7 +260,7 @@ A full pipeline looks like:
     { label: "ai-entity-extract", role: "annotate" },
     { label: "term-lookup", role: "annotate" },
     { label: "tm-leverage", role: "translate" },
-    { label: "ai-translate", role: "translate" },
+    { label: "translate", role: "translate" },
     { label: "term-enforce", role: "qa" },
     { label: "Sink", role: "io" },
   ]}

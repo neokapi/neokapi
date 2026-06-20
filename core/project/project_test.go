@@ -45,13 +45,13 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 		Flows: map[string]*flow.StepsSpec{
 			"translate": {
 				Steps: []flow.FlowStep{
-					{Tool: "ai-translate", Config: map[string]any{"provider": "anthropic"}},
+					{Tool: "translate", Config: map[string]any{"provider": "anthropic"}},
 				},
 			},
 			"translate-and-qa": {
 				Steps: []flow.FlowStep{
-					{Tool: "ai-translate", Config: map[string]any{"provider": "anthropic"}},
-					{Tool: "qa-check"},
+					{Tool: "translate", Config: map[string]any{"provider": "anthropic"}},
+					{Tool: "qa"},
 				},
 			},
 		},
@@ -104,7 +104,7 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 	assert.Equal(t, "nextjs", loaded.Preset)
 	assert.Len(t, loaded.Flows, 2)
 	assert.Len(t, loaded.Flows["translate"].Steps, 1)
-	assert.Equal(t, "ai-translate", loaded.Flows["translate"].Steps[0].Tool)
+	assert.Equal(t, "translate", loaded.Flows["translate"].Steps[0].Tool)
 	assert.Len(t, loaded.Flows["translate-and-qa"].Steps, 2)
 }
 
@@ -422,7 +422,7 @@ func TestValidation(t *testing.T) {
 			proj: KapiProject{
 				Version: "v1",
 				Flows: map[string]*flow.StepsSpec{
-					"translate": {Steps: []flow.FlowStep{{Tool: "ai-translate"}}},
+					"translate": {Steps: []flow.FlowStep{{Tool: "translate"}}},
 				},
 			},
 		},
@@ -445,7 +445,7 @@ func TestGetFlow(t *testing.T) {
 	proj := &KapiProject{
 		Version: "v1",
 		Flows: map[string]*flow.StepsSpec{
-			"translate": {Steps: []flow.FlowStep{{Tool: "ai-translate"}}},
+			"translate": {Steps: []flow.FlowStep{{Tool: "translate"}}},
 		},
 	}
 
@@ -506,8 +506,8 @@ func TestParallelSteps(t *testing.T) {
 				Steps: []flow.FlowStep{
 					{
 						Parallel: []flow.FlowStep{
-							{Tool: "qa-check"},
-							{Tool: "ai-qa"},
+							{Tool: "qa"},
+							{Tool: "qa"},
 						},
 					},
 				},

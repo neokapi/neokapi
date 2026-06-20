@@ -6,7 +6,7 @@
     {
       "id": "tool-0",
       "type": "tool",
-      "name": "ai-translate",
+      "name": "translate",
       "label": "AI Translate",
       "concurrency": 3
     },

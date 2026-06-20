@@ -34,7 +34,7 @@ export const richBlock: ContentNode = {
     "fr-FR": {
       status: "reviewed",
       score: 0.98,
-      origin: { kind: "ai", engine: "anthropic", tool: "ai-translate" },
+      origin: { kind: "ai", engine: "anthropic", tool: "translate" },
     },
   },
   segments: [

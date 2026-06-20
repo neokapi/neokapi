@@ -80,7 +80,7 @@ const simpleSchema: ComponentSchema = {
 const groupedSchema: ComponentSchema = {
   title: "Quality Check",
   type: "object",
-  toolMeta: { id: "qa-check", category: "validate" },
+  toolMeta: { id: "qa", category: "validate" },
   "ui:groups": [
     {
       id: "whitespace",

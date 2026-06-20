@@ -25,7 +25,7 @@ const SAMPLE_ORIGINS: OriginDTO[] = [
   },
   {
     source: "tool",
-    key: "ai-translate",
+    key: "translate",
     reference: "job-42",
     added_at: new Date().toISOString(),
     added_by: "kapi",

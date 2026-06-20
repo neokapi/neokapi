@@ -230,7 +230,7 @@ steps:
           part.block.source[0].content.text = text;
           emit(part);
         }
-  - tool: ai-translate
+  - tool: translate
 ```
 
 ### Log and pass through

@@ -44,7 +44,7 @@ const aiTranslateWithCredentials: ComponentSchema = {
   description: "Translate content using an LLM provider",
   type: "object",
   toolMeta: {
-    id: "ai-translate",
+    id: "translate",
     category: "translate",
     requires: ["target-language", "credentials"],
   },

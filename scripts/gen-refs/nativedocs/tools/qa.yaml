@@ -1,8 +1,10 @@
-# Native reference doc for the built-in `qa-check` tool.
-# Schema source: core/tools/qacheck.go (QACheckConfig).
-description: Run a suite of rule-based quality checks comparing source and target text.
+# Native reference doc for the built-in `qa` tool.
+# Schema source: core/ai/tools/unified.go (QASchema, over core/tools QACheckConfig
+# plus the LLM provider fields). With no --provider, qa runs the deterministic
+# rule-based checks below; with --provider it runs LLM-judged QA.
+description: Check translation quality with rule-based checks, or an LLM when a provider is set.
 overview: |
-  The **QA Check** tool runs a battery of rule-based checks over each
+  The **Quality Check** tool runs a battery of rule-based checks over each
   translation and records the findings on the block's properties as a JSON array
   of QA issues, along with a pass/fail flag. The checks span several categories:
   general text issues (empty target, whitespace mismatches, double spaces,
@@ -11,11 +13,37 @@ overview: |
   ratios. A target locale is required; when a block has no translation, only the
   empty-target check applies.
 
-  Every check can be toggled independently, and the length checks share the
-  long/short ratio model used by the dedicated length-check tool. This tool is
-  the rule-based counterpart to the LLM-based AI QA check: it is deterministic and
-  needs no credentials.
+  With no `--provider`, the checks are deterministic and need no credentials.
+  Setting `--provider` instead runs LLM-judged QA: the chosen model reviews each
+  translation for terminology, fluency, and accuracy. The rule-based toggles
+  below apply to the deterministic mode; `model` and `checks` apply to the LLM
+  mode. Every rule check can be toggled independently, and the length checks
+  share the long/short ratio model used by the dedicated length-check tool.
 parameters:
+  provider:
+    description: LLM provider for AI-judged QA (omit for rule-based checks).
+    help: |
+      When set, QA runs as an LLM judge using this provider instead of the
+      deterministic rule checks. Options are populated from the provider
+      registry. Leave empty to run the rule-based checks with no credentials.
+    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (default: unset → rule-based)"
+  apiKey:
+    description: API key for the LLM provider (LLM mode).
+    help: |
+      Credential for the chosen hosted provider when `--provider` selects one.
+    values: "string"
+  model:
+    description: The model name to request (LLM mode).
+    help: |
+      The provider-specific model identifier for LLM-judged QA. When omitted, the
+      provider's default model is used.
+    values: "string"
+  checks:
+    description: Quality dimensions for the LLM judge (LLM mode).
+    help: |
+      The list of quality dimensions the LLM evaluates, e.g. terminology,
+      fluency, accuracy, consistency. Defaults to terminology, fluency, accuracy.
+    values: "list of strings"
   checkLeadingWhitespace:
     description: Check for leading-whitespace mismatches between source and target.
     help: |

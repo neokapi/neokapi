@@ -35,12 +35,12 @@ func (s *stubTranslator) Locale() model.LocaleID { return "fr-FR" }
 
 func TestLocalizeComponentSchema_TranslatesToolMetaAndProperties(t *testing.T) {
 	tr := newStub(
-		[3]string{"tools.ai-translate.displayName", "AI Translate", "Traduction IA"},
-		[3]string{"tools.ai-translate.description", "Translate content", "Traduire le contenu"},
-		[3]string{"tools.ai-translate.title", "AI Translate Tool", "Outil de Traduction IA"},
-		[3]string{"tools.ai-translate.properties.target-lang.title", "Target language", "Langue cible"},
-		[3]string{"tools.ai-translate.properties.target-lang.description", "BCP-47 locale", "Locale BCP-47"},
-		[3]string{"tools.ai-translate.groups.advanced.label", "Advanced", "Avancé"},
+		[3]string{"tools.translate.displayName", "AI Translate", "Traduction IA"},
+		[3]string{"tools.translate.description", "Translate content", "Traduire le contenu"},
+		[3]string{"tools.translate.title", "AI Translate Tool", "Outil de Traduction IA"},
+		[3]string{"tools.translate.properties.target-lang.title", "Target language", "Langue cible"},
+		[3]string{"tools.translate.properties.target-lang.description", "BCP-47 locale", "Locale BCP-47"},
+		[3]string{"tools.translate.groups.advanced.label", "Advanced", "Avancé"},
 	)
 
 	s := &schema.ComponentSchema{
@@ -48,7 +48,7 @@ func TestLocalizeComponentSchema_TranslatesToolMetaAndProperties(t *testing.T) {
 		Description: "Translate content",
 		Type:        "object",
 		ToolMeta: &schema.ToolMeta{
-			ID:          "ai-translate",
+			ID:          "translate",
 			DisplayName: "AI Translate",
 			Description: "Translate content",
 		},
@@ -78,10 +78,10 @@ func TestLocalizeComponentSchema_TranslatesToolMetaAndProperties(t *testing.T) {
 
 func TestLocalizeComponentSchema_DoesNotMutateInput(t *testing.T) {
 	tr := newStub(
-		[3]string{"tools.ai-translate.displayName", "AI Translate", "Traduction IA"},
+		[3]string{"tools.translate.displayName", "AI Translate", "Traduction IA"},
 	)
 	s := &schema.ComponentSchema{
-		ToolMeta: &schema.ToolMeta{ID: "ai-translate", DisplayName: "AI Translate"},
+		ToolMeta: &schema.ToolMeta{ID: "translate", DisplayName: "AI Translate"},
 	}
 	LocalizeComponentSchema(s, tr)
 	assert.Equal(t, "AI Translate", s.ToolMeta.DisplayName,

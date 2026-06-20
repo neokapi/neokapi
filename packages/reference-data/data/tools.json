@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T15:13:41Z",
+  "generatedAt": "2026-06-20T17:52:53Z",
   "kind": "tool",
   "entries": [
     {
@@ -382,175 +382,6 @@
       }
     },
     {
-      "id": "ai-qa",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "AI QA Check",
-      "description": "Check translation quality with an LLM and record the issues it finds.",
-      "category": "quality",
-      "tags": [
-        "ai-powered"
-      ],
-      "requires": [
-        "target-language",
-        "credentials"
-      ],
-      "cardinality": "bilingual",
-      "produces": [
-        "qa@target"
-      ],
-      "sideEffects": [
-        "api-call",
-        "remote-source-egress"
-      ],
-      "schema": {
-        "$id": "ai-qa",
-        "title": "AI QA Check",
-        "description": "Check translation quality using an LLM provider",
-        "type": "object",
-        "toolMeta": {
-          "id": "ai-qa",
-          "category": "quality",
-          "displayName": "AI QA Check",
-          "description": "Check translation quality using an LLM provider",
-          "tags": [
-            "ai-powered"
-          ],
-          "requires": [
-            "target-language",
-            "credentials"
-          ],
-          "cardinality": "bilingual",
-          "produces": [
-            {
-              "type": "qa",
-              "side": "target"
-            }
-          ],
-          "sideEffects": [
-            "api-call",
-            "remote-source-egress"
-          ],
-          "writesOutput": true,
-          "defaultParallelBlocks": 5
-        },
-        "ui:groups": [
-          {
-            "id": "provider",
-            "label": "Provider",
-            "fields": [
-              "provider",
-              "apiKey",
-              "model"
-            ]
-          }
-        ],
-        "properties": {
-          "apiKey": {
-            "type": "string",
-            "title": "API Key",
-            "description": "API key for the AI provider"
-          },
-          "checks": {
-            "type": "array",
-            "title": "Quality Checks",
-            "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)",
-            "items": {
-              "type": "string"
-            }
-          },
-          "model": {
-            "type": "string",
-            "title": "Model",
-            "description": "AI model name"
-          },
-          "provider": {
-            "type": "string",
-            "title": "AI Provider",
-            "description": "AI provider",
-            "default": "anthropic",
-            "options": [
-              {
-                "value": "anthropic",
-                "label": "Anthropic"
-              },
-              {
-                "value": "openai",
-                "label": "OpenAI"
-              },
-              {
-                "value": "gemini",
-                "label": "Gemini"
-              },
-              {
-                "value": "azureopenai",
-                "label": "Azure OpenAI"
-              },
-              {
-                "value": "ollama",
-                "label": "Ollama"
-              },
-              {
-                "value": "demo",
-                "label": "Demo (illustrative)"
-              },
-              {
-                "value": "gemma",
-                "label": "Gemma (local)"
-              }
-            ]
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **AI QA Check** tool sends each source/target pair to a configured LLM\nprovider and asks it to identify quality issues — by default terminology,\nfluency, and accuracy. The model returns structured findings, each with a type,\nseverity, description, and suggestion, which are recorded on the block's\nproperties as QA issues along with the provider name and the checks performed.\nBlocks without a translation for the target locale are skipped.\n\nBoth a target locale and provider credentials are required, since the tool makes\nan external API call per block. It is the LLM-based counterpart to the\nrule-based QA check: it can catch meaning and fluency problems that pattern\nrules cannot, at the cost of latency and API usage.\n",
-        "parameters": {
-          "apiKey": {
-            "description": "API key for the AI provider.",
-            "help": "Credential for the selected provider. Local providers such as Ollama may not\nrequire a key. Prefer the credential store or environment over committing\nkeys to a recipe.\n",
-            "values": "string"
-          },
-          "checks": {
-            "description": "The quality dimensions the model should check.",
-            "help": "A list of dimensions for the model to evaluate (for example `terminology`,\n`fluency`, `accuracy`, `consistency`). When omitted, the tool checks\nterminology, fluency, and accuracy.\n",
-            "values": "list of strings (default `terminology`, `fluency`, `accuracy`)"
-          },
-          "model": {
-            "description": "The model name to request from the provider.",
-            "help": "The provider-specific model identifier. When omitted, the provider's default\nmodel is used.\n",
-            "values": "string"
-          },
-          "provider": {
-            "description": "The LLM provider backend to use.",
-            "help": "Selects which model backend performs the quality check.\n",
-            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
-          }
-        },
-        "limitations": [
-          "Requires AI provider credentials and a target locale; makes an external API call per block.",
-          "Findings are model output and reflect the chosen model's judgement; review before acting on them.",
-          "Blocks without a translation for the target locale are skipped."
-        ],
-        "processingNotes": [
-          "Operates on blocks that have a translation for the target locale.",
-          "Blocks are processed in parallel by default for throughput.",
-          "Findings are stored on the block as a JSON array of QA issues."
-        ],
-        "examples": [
-          {
-            "title": "Check accuracy and fluency",
-            "description": "Restrict the model to the dimensions you care about.",
-            "config": "provider: anthropic\nchecks:\n  - accuracy\n  - fluency\n"
-          },
-          {
-            "title": "Use a local Ollama model",
-            "description": "Run the check against a locally hosted model.",
-            "config": "provider: ollama\nmodel: llama3\n"
-          }
-        ]
-      }
-    },
-    {
       "id": "ai-review",
       "source": "built-in",
       "kind": "tool",
@@ -856,203 +687,6 @@
             "title": "Use a local Ollama model",
             "description": "Run extraction against a locally hosted model.",
             "config": "provider: ollama\nmodel: llama3\n"
-          }
-        ]
-      }
-    },
-    {
-      "id": "ai-translate",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "AI Translate",
-      "description": "Translate block content using a configured LLM provider.",
-      "category": "translation",
-      "tags": [
-        "ai-powered"
-      ],
-      "requires": [
-        "target-language",
-        "credentials"
-      ],
-      "cardinality": "bilingual",
-      "produces": [
-        "target@target"
-      ],
-      "sideEffects": [
-        "api-call",
-        "remote-source-egress"
-      ],
-      "aliases": [
-        "translate"
-      ],
-      "schema": {
-        "$id": "ai-translate",
-        "title": "AI Translate",
-        "description": "Translate content using an LLM provider",
-        "type": "object",
-        "toolMeta": {
-          "id": "ai-translate",
-          "category": "translation",
-          "displayName": "AI Translate",
-          "description": "Translate content using an LLM provider",
-          "tags": [
-            "ai-powered"
-          ],
-          "requires": [
-            "target-language",
-            "credentials"
-          ],
-          "cardinality": "bilingual",
-          "produces": [
-            {
-              "type": "target",
-              "side": "target"
-            }
-          ],
-          "sideEffects": [
-            "api-call",
-            "remote-source-egress"
-          ],
-          "writesOutput": true,
-          "defaultParallelBlocks": 5,
-          "aliases": [
-            "translate"
-          ]
-        },
-        "ui:groups": [
-          {
-            "id": "provider",
-            "label": "Provider",
-            "fields": [
-              "provider",
-              "apiKey",
-              "model"
-            ]
-          }
-        ],
-        "properties": {
-          "apiKey": {
-            "type": "string",
-            "title": "API Key",
-            "description": "API key for the AI provider"
-          },
-          "batchConcurrency": {
-            "type": "integer",
-            "title": "Batch Concurrency",
-            "description": "Number of concurrent batch calls (0 or 1 = sequential)",
-            "default": 1,
-            "minimum": 1
-          },
-          "batchSize": {
-            "type": "integer",
-            "title": "Batch Size",
-            "description": "Number of blocks per LLM call",
-            "default": 100,
-            "minimum": 1
-          },
-          "model": {
-            "type": "string",
-            "title": "Model",
-            "description": "AI model name"
-          },
-          "provider": {
-            "type": "string",
-            "title": "AI Provider",
-            "description": "AI provider",
-            "default": "anthropic",
-            "options": [
-              {
-                "value": "anthropic",
-                "label": "Anthropic"
-              },
-              {
-                "value": "openai",
-                "label": "OpenAI"
-              },
-              {
-                "value": "gemini",
-                "label": "Gemini"
-              },
-              {
-                "value": "azureopenai",
-                "label": "Azure OpenAI"
-              },
-              {
-                "value": "ollama",
-                "label": "Ollama"
-              },
-              {
-                "value": "demo",
-                "label": "Demo (illustrative)"
-              },
-              {
-                "value": "gemma",
-                "label": "Gemma (local)"
-              }
-            ]
-          },
-          "skipMatched": {
-            "type": "boolean",
-            "title": "Skip Matched",
-            "description": "Skip blocks that already have a target translation",
-            "default": false
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **AI Translate** tool translates untranslated block content with a large\nlanguage model. It supports several providers (Anthropic, OpenAI, Gemini,\nAzure OpenAI, Ollama, and Gemma) and writes the result as the target text,\nrecording an alternate-translation annotation with the originating provider. A\ntarget language is required, and provider credentials are required for hosted\nproviders — the local providers (`ollama`, and `gemma` via the `kapi-llm`\nplugin) run on-device with no API key, a free and private alternative.\n\nBlocks that contain inline codes are sent through a placeholder-preserving\nprompt so tags survive translation, then reconstructed from the response.\nBlocks can be translated one at a time or grouped into batches sent in a\nsingle structured call; batches can run concurrently. When run with a session\ncache, already-translated targets are reused and fresh translations are\nwritten back, so repeat runs skip work already done.\n",
-        "parameters": {
-          "apiKey": {
-            "description": "API key for the provider.",
-            "help": "Credential for the chosen hosted provider. Required for hosted providers;\nnot needed for a local Ollama backend.\n",
-            "values": "string"
-          },
-          "batchConcurrency": {
-            "description": "Number of batch calls to run in parallel.",
-            "help": "How many batches are translated concurrently. A value of 0 or 1 runs\nbatches sequentially.\n",
-            "values": "integer ≥ 1 (default `1`)"
-          },
-          "batchSize": {
-            "description": "Number of blocks per LLM call.",
-            "help": "Blocks are grouped into batches of this size and translated in a single\nstructured call per batch. A value of 1 translates block by block.\n",
-            "values": "integer ≥ 1 (default `100`)"
-          },
-          "model": {
-            "description": "The model name to request.",
-            "help": "The provider-specific model identifier. When omitted, the provider's\ndefault model is used.\n",
-            "values": "string"
-          },
-          "provider": {
-            "description": "The LLM provider to use.",
-            "help": "Selects the backend. Hosted providers require an API key and a model;\nOllama runs locally. The available options are populated from the\nprovider registry.\n",
-            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `gemma` (local, no key) (default `anthropic`)"
-          },
-          "skipMatched": {
-            "description": "Skip blocks that already have a target translation.",
-            "help": "When enabled, a block that already has a target for the locale is left\nuntouched, so only untranslated content is sent to the model.\n",
-            "values": "`true` / `false` (default `false`)"
-          }
-        },
-        "limitations": [
-          "Requires a target language and, for hosted providers, valid credentials.",
-          "Hosted providers make network API calls; cost and latency scale with content volume.",
-          "Session-cache reuse applies on the block-by-block path; the batched path writes overlays on output but does not pre-skip via the per-block cache."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks with non-empty source; other parts pass through unchanged.",
-          "Blocks with inline codes are translated through a placeholder-preserving prompt and reconstructed from the response.",
-          "Each translation is recorded as an alternate-translation annotation tagged with the provider."
-        ],
-        "examples": [
-          {
-            "title": "Translate with Anthropic",
-            "description": "Translate untranslated blocks using an Anthropic model.",
-            "config": "provider: anthropic\nmodel: claude-sonnet-4-5\n"
-          },
-          {
-            "title": "Translate only new content",
-            "description": "Skip blocks that already have a translation.",
-            "config": "provider: openai\nskipMatched: true\n"
           }
         ]
       }
@@ -1758,148 +1392,6 @@
       }
     },
     {
-      "id": "deepl-translate",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "DeepL Translate",
-      "description": "Translate block content using DeepL.",
-      "category": "translation",
-      "tags": [
-        "mt",
-        "machine-translation"
-      ],
-      "requires": [
-        "target-language",
-        "credentials"
-      ],
-      "cardinality": "bilingual",
-      "produces": [
-        "target@target"
-      ],
-      "sideEffects": [
-        "api-call",
-        "remote-source-egress"
-      ],
-      "schema": {
-        "$id": "deepl-translate",
-        "title": "DeepL Translate",
-        "description": "Translate content using DeepL",
-        "type": "object",
-        "toolMeta": {
-          "id": "deepl-translate",
-          "category": "translation",
-          "displayName": "DeepL Translate",
-          "description": "Translate content using DeepL",
-          "tags": [
-            "mt",
-            "machine-translation"
-          ],
-          "requires": [
-            "target-language",
-            "credentials"
-          ],
-          "cardinality": "bilingual",
-          "produces": [
-            {
-              "type": "target",
-              "side": "target"
-            }
-          ],
-          "sideEffects": [
-            "api-call",
-            "remote-source-egress"
-          ],
-          "writesOutput": true,
-          "defaultParallelBlocks": 5
-        },
-        "ui:groups": [
-          {
-            "id": "provider",
-            "label": "Provider",
-            "fields": [
-              "apiKey",
-              "subscriptionKey",
-              "region",
-              "email",
-              "projectId"
-            ]
-          }
-        ],
-        "properties": {
-          "apiKey": {
-            "type": "string",
-            "title": "API Key",
-            "description": "API key for the MT provider",
-            "ui:widget": "password"
-          },
-          "email": {
-            "type": "string",
-            "title": "Email",
-            "description": "Account email for higher rate limits (mymemory)"
-          },
-          "projectId": {
-            "type": "string",
-            "title": "Project ID",
-            "description": "Google Cloud project ID (google)"
-          },
-          "region": {
-            "type": "string",
-            "title": "Region",
-            "description": "Azure region (microsoft)"
-          },
-          "subscriptionKey": {
-            "type": "string",
-            "title": "Subscription Key",
-            "description": "Azure subscription key (microsoft)",
-            "ui:widget": "password"
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **DeepL Translate** tool translates untranslated block content with the\nDeepL API. The provider is fixed by the tool name, so there is no provider\nfield — only the DeepL credential applies. A target language is required and a\nDeepL API key must be supplied (resolved from the OS keychain by the CLI, or\nset inline in a recipe step).\n\nBlocks that carry inline codes are round-tripped through semantic HTML so DeepL\npreserves the tags natively, then reconstructed from the response. With a\nsession cache, targets already translated in a previous run are reused, so\nrepeat runs skip blocks that are already done. When constructed without\ncredentials the tool falls back to an offline demo provider so it remains\nlistable and runnable for illustration.\n",
-        "parameters": {
-          "apiKey": {
-            "description": "DeepL API key.",
-            "help": "The DeepL authentication key. Required to call the real DeepL API; without\nit the tool falls back to the offline demo provider. Resolved from the OS\nkeychain by the CLI credential preprocessor, or set inline.\n",
-            "values": "string"
-          },
-          "email": {
-            "description": "Not used by DeepL.",
-            "help": "Part of the shared MT credential schema; consumed only by the MyMemory tool."
-          },
-          "projectId": {
-            "description": "Not used by DeepL.",
-            "help": "Part of the shared MT credential schema; consumed only by the Google Translate tool."
-          },
-          "region": {
-            "description": "Not used by DeepL.",
-            "help": "Part of the shared MT credential schema; consumed only by the Microsoft Translator tool."
-          },
-          "subscriptionKey": {
-            "description": "Not used by DeepL.",
-            "help": "Part of the shared MT credential schema; consumed only by the Microsoft Translator tool."
-          }
-        },
-        "limitations": [
-          "Requires a target language and a DeepL API key; without a key the tool runs the offline demo provider, not DeepL.",
-          "DeepL makes a network round-trip per block; cost and latency scale with content volume.",
-          "The provider is fixed to DeepL by the tool name and cannot be changed through configuration."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks with non-empty source; other parts pass through unchanged.",
-          "Blocks with inline codes round-trip through semantic HTML so tags survive translation.",
-          "With a session cache, already-translated targets are reused and fresh translations are cached."
-        ],
-        "examples": [
-          {
-            "title": "Translate with DeepL",
-            "description": "Translate untranslated blocks using a DeepL API key.",
-            "config": "apiKey: your-deepl-key\n"
-          }
-        ]
-      }
-    },
-    {
       "id": "diff-leverage",
       "source": "built-in",
       "kind": "tool",
@@ -2572,149 +2064,6 @@
             "title": "Convert half-width to full-width",
             "description": "Render ASCII characters in their full-width forms.",
             "config": "mode: to-full\napplyTarget: true\ntargetLocale: ja-JP\n"
-          }
-        ]
-      }
-    },
-    {
-      "id": "google-translate",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Google Translate",
-      "description": "Translate block content using Google Translate.",
-      "category": "translation",
-      "tags": [
-        "mt",
-        "machine-translation"
-      ],
-      "requires": [
-        "target-language",
-        "credentials"
-      ],
-      "cardinality": "bilingual",
-      "produces": [
-        "target@target"
-      ],
-      "sideEffects": [
-        "api-call",
-        "remote-source-egress"
-      ],
-      "schema": {
-        "$id": "google-translate",
-        "title": "Google Translate Translate",
-        "description": "Translate content using Google Translate",
-        "type": "object",
-        "toolMeta": {
-          "id": "google-translate",
-          "category": "translation",
-          "displayName": "Google Translate Translate",
-          "description": "Translate content using Google Translate",
-          "tags": [
-            "mt",
-            "machine-translation"
-          ],
-          "requires": [
-            "target-language",
-            "credentials"
-          ],
-          "cardinality": "bilingual",
-          "produces": [
-            {
-              "type": "target",
-              "side": "target"
-            }
-          ],
-          "sideEffects": [
-            "api-call",
-            "remote-source-egress"
-          ],
-          "writesOutput": true,
-          "defaultParallelBlocks": 5
-        },
-        "ui:groups": [
-          {
-            "id": "provider",
-            "label": "Provider",
-            "fields": [
-              "apiKey",
-              "subscriptionKey",
-              "region",
-              "email",
-              "projectId"
-            ]
-          }
-        ],
-        "properties": {
-          "apiKey": {
-            "type": "string",
-            "title": "API Key",
-            "description": "API key for the MT provider",
-            "ui:widget": "password"
-          },
-          "email": {
-            "type": "string",
-            "title": "Email",
-            "description": "Account email for higher rate limits (mymemory)"
-          },
-          "projectId": {
-            "type": "string",
-            "title": "Project ID",
-            "description": "Google Cloud project ID (google)"
-          },
-          "region": {
-            "type": "string",
-            "title": "Region",
-            "description": "Azure region (microsoft)"
-          },
-          "subscriptionKey": {
-            "type": "string",
-            "title": "Subscription Key",
-            "description": "Azure subscription key (microsoft)",
-            "ui:widget": "password"
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **Google Translate** tool translates untranslated block content with the\nGoogle Cloud Translation API. The provider is fixed by the tool name, so there\nis no provider field. A target language is required and a Google API key must\nbe supplied (resolved from the OS keychain by the CLI, or set inline); a Google\nCloud project ID may also be provided.\n\nBlocks that carry inline codes are round-tripped through semantic HTML so the\nAPI preserves the tags natively, then reconstructed from the response. With a\nsession cache, targets already translated in a previous run are reused, so\nrepeat runs skip blocks that are already done. When constructed without\ncredentials the tool falls back to an offline demo provider so it remains\nlistable and runnable for illustration.\n",
-        "parameters": {
-          "apiKey": {
-            "description": "Google Cloud API key.",
-            "help": "The Google Cloud Translation API key. Required to call the real API;\nwithout it the tool falls back to the offline demo provider. Resolved from\nthe OS keychain by the CLI credential preprocessor, or set inline.\n",
-            "values": "string"
-          },
-          "email": {
-            "description": "Not used by Google Translate.",
-            "help": "Part of the shared MT credential schema; consumed only by the MyMemory tool."
-          },
-          "projectId": {
-            "description": "Google Cloud project ID.",
-            "help": "The optional Google Cloud project ID associated with the API key.",
-            "values": "string"
-          },
-          "region": {
-            "description": "Not used by Google Translate.",
-            "help": "Part of the shared MT credential schema; consumed only by the Microsoft Translator tool."
-          },
-          "subscriptionKey": {
-            "description": "Not used by Google Translate.",
-            "help": "Part of the shared MT credential schema; consumed only by the Microsoft Translator tool."
-          }
-        },
-        "limitations": [
-          "Requires a target language and a Google API key; without a key the tool runs the offline demo provider, not Google Translate.",
-          "Google makes a network round-trip per block; cost and latency scale with content volume.",
-          "The provider is fixed to Google Translate by the tool name and cannot be changed through configuration."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks with non-empty source; other parts pass through unchanged.",
-          "Blocks with inline codes round-trip through semantic HTML so tags survive translation.",
-          "With a session cache, already-translated targets are reused and fresh translations are cached."
-        ],
-        "examples": [
-          {
-            "title": "Translate with Google",
-            "description": "Translate untranslated blocks using a Google Cloud API key.",
-            "config": "apiKey: your-google-key\nprojectId: my-gcp-project\n"
           }
         ]
       }
@@ -3437,434 +2786,6 @@
       }
     },
     {
-      "id": "microsoft-translate",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Microsoft Translator Translate",
-      "description": "Translate block content using Microsoft Translator.",
-      "category": "translation",
-      "tags": [
-        "mt",
-        "machine-translation"
-      ],
-      "requires": [
-        "target-language",
-        "credentials"
-      ],
-      "cardinality": "bilingual",
-      "produces": [
-        "target@target"
-      ],
-      "sideEffects": [
-        "api-call",
-        "remote-source-egress"
-      ],
-      "schema": {
-        "$id": "microsoft-translate",
-        "title": "Microsoft Translator Translate",
-        "description": "Translate content using Microsoft Translator",
-        "type": "object",
-        "toolMeta": {
-          "id": "microsoft-translate",
-          "category": "translation",
-          "displayName": "Microsoft Translator Translate",
-          "description": "Translate content using Microsoft Translator",
-          "tags": [
-            "mt",
-            "machine-translation"
-          ],
-          "requires": [
-            "target-language",
-            "credentials"
-          ],
-          "cardinality": "bilingual",
-          "produces": [
-            {
-              "type": "target",
-              "side": "target"
-            }
-          ],
-          "sideEffects": [
-            "api-call",
-            "remote-source-egress"
-          ],
-          "writesOutput": true,
-          "defaultParallelBlocks": 5
-        },
-        "ui:groups": [
-          {
-            "id": "provider",
-            "label": "Provider",
-            "fields": [
-              "apiKey",
-              "subscriptionKey",
-              "region",
-              "email",
-              "projectId"
-            ]
-          }
-        ],
-        "properties": {
-          "apiKey": {
-            "type": "string",
-            "title": "API Key",
-            "description": "API key for the MT provider",
-            "ui:widget": "password"
-          },
-          "email": {
-            "type": "string",
-            "title": "Email",
-            "description": "Account email for higher rate limits (mymemory)"
-          },
-          "projectId": {
-            "type": "string",
-            "title": "Project ID",
-            "description": "Google Cloud project ID (google)"
-          },
-          "region": {
-            "type": "string",
-            "title": "Region",
-            "description": "Azure region (microsoft)"
-          },
-          "subscriptionKey": {
-            "type": "string",
-            "title": "Subscription Key",
-            "description": "Azure subscription key (microsoft)",
-            "ui:widget": "password"
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **Microsoft Translator** tool translates untranslated block content with\nthe Microsoft Translator (Azure Cognitive Services) API. The provider is fixed\nby the tool name, so there is no provider field. A target language is required\nand an Azure subscription key must be supplied; the Azure region of the\nTranslator resource may also be required depending on how the resource is\nprovisioned. If the dedicated subscription key is empty, the shared `apiKey`\nfield is used as a fallback so keychain-based credential resolution works\nuniformly.\n\nBlocks that carry inline codes are round-tripped through semantic HTML so the\nAPI preserves the tags natively, then reconstructed from the response. With a\nsession cache, targets already translated in a previous run are reused. When\nconstructed without credentials the tool falls back to an offline demo\nprovider so it remains listable and runnable for illustration.\n",
-        "parameters": {
-          "apiKey": {
-            "description": "Fallback credential used as the subscription key when subscriptionKey is empty.",
-            "help": "Part of the shared MT credential schema. For Microsoft Translator it is\nused as the subscription key only when `subscriptionKey` is not set, so\nkeychain credential resolution (which injects `apiKey`) works uniformly.\n",
-            "values": "string"
-          },
-          "email": {
-            "description": "Not used by Microsoft Translator.",
-            "help": "Part of the shared MT credential schema; consumed only by the MyMemory tool."
-          },
-          "projectId": {
-            "description": "Not used by Microsoft Translator.",
-            "help": "Part of the shared MT credential schema; consumed only by the Google Translate tool."
-          },
-          "region": {
-            "description": "Azure region of the Translator resource.",
-            "help": "The Azure region (for example `westeurope`) of the Translator resource.\nRequired when the resource is provisioned to a specific region rather than\nthe global endpoint.\n",
-            "values": "Azure region identifier"
-          },
-          "subscriptionKey": {
-            "description": "Azure subscription key for the Translator resource.",
-            "help": "The Azure Cognitive Services subscription key. Required to call the real\nAPI; without it (and without the `apiKey` fallback) the tool falls back to\nthe offline demo provider.\n",
-            "values": "string"
-          }
-        },
-        "limitations": [
-          "Requires a target language and an Azure subscription key; without a key the tool runs the offline demo provider, not Microsoft Translator.",
-          "The region must match the Translator resource when it is provisioned to a specific Azure region.",
-          "The provider makes a network round-trip per block; cost and latency scale with content volume."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks with non-empty source; other parts pass through unchanged.",
-          "Blocks with inline codes round-trip through semantic HTML so tags survive translation.",
-          "When subscriptionKey is empty the shared apiKey field is used as the subscription key."
-        ],
-        "examples": [
-          {
-            "title": "Translate with Microsoft Translator",
-            "description": "Translate untranslated blocks using an Azure subscription key and region.",
-            "config": "subscriptionKey: your-azure-key\nregion: westeurope\n"
-          }
-        ]
-      }
-    },
-    {
-      "id": "modernmt-translate",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "ModernMT Translate",
-      "description": "Translate block content using ModernMT.",
-      "category": "translation",
-      "tags": [
-        "mt",
-        "machine-translation"
-      ],
-      "requires": [
-        "target-language",
-        "credentials"
-      ],
-      "cardinality": "bilingual",
-      "produces": [
-        "target@target"
-      ],
-      "sideEffects": [
-        "api-call",
-        "remote-source-egress"
-      ],
-      "schema": {
-        "$id": "modernmt-translate",
-        "title": "ModernMT Translate",
-        "description": "Translate content using ModernMT",
-        "type": "object",
-        "toolMeta": {
-          "id": "modernmt-translate",
-          "category": "translation",
-          "displayName": "ModernMT Translate",
-          "description": "Translate content using ModernMT",
-          "tags": [
-            "mt",
-            "machine-translation"
-          ],
-          "requires": [
-            "target-language",
-            "credentials"
-          ],
-          "cardinality": "bilingual",
-          "produces": [
-            {
-              "type": "target",
-              "side": "target"
-            }
-          ],
-          "sideEffects": [
-            "api-call",
-            "remote-source-egress"
-          ],
-          "writesOutput": true,
-          "defaultParallelBlocks": 5
-        },
-        "ui:groups": [
-          {
-            "id": "provider",
-            "label": "Provider",
-            "fields": [
-              "apiKey",
-              "subscriptionKey",
-              "region",
-              "email",
-              "projectId"
-            ]
-          }
-        ],
-        "properties": {
-          "apiKey": {
-            "type": "string",
-            "title": "API Key",
-            "description": "API key for the MT provider",
-            "ui:widget": "password"
-          },
-          "email": {
-            "type": "string",
-            "title": "Email",
-            "description": "Account email for higher rate limits (mymemory)"
-          },
-          "projectId": {
-            "type": "string",
-            "title": "Project ID",
-            "description": "Google Cloud project ID (google)"
-          },
-          "region": {
-            "type": "string",
-            "title": "Region",
-            "description": "Azure region (microsoft)"
-          },
-          "subscriptionKey": {
-            "type": "string",
-            "title": "Subscription Key",
-            "description": "Azure subscription key (microsoft)",
-            "ui:widget": "password"
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **ModernMT Translate** tool translates untranslated block content with the\nModernMT API. The provider is fixed by the tool name, so there is no provider\nfield — only the ModernMT credential applies. A target language is required and\na ModernMT API key must be supplied (resolved from the OS keychain by the CLI,\nor set inline in a recipe step).\n\nBlocks that carry inline codes are round-tripped through semantic HTML so the\nAPI preserves the tags natively, then reconstructed from the response. With a\nsession cache, targets already translated in a previous run are reused, so\nrepeat runs skip blocks that are already done. When constructed without\ncredentials the tool falls back to an offline demo provider so it remains\nlistable and runnable for illustration.\n",
-        "parameters": {
-          "apiKey": {
-            "description": "ModernMT API key.",
-            "help": "The ModernMT authentication key. Required to call the real ModernMT API;\nwithout it the tool falls back to the offline demo provider. Resolved from\nthe OS keychain by the CLI credential preprocessor, or set inline.\n",
-            "values": "string"
-          },
-          "email": {
-            "description": "Not used by ModernMT.",
-            "help": "Part of the shared MT credential schema; consumed only by the MyMemory tool."
-          },
-          "projectId": {
-            "description": "Not used by ModernMT.",
-            "help": "Part of the shared MT credential schema; consumed only by the Google Translate tool."
-          },
-          "region": {
-            "description": "Not used by ModernMT.",
-            "help": "Part of the shared MT credential schema; consumed only by the Microsoft Translator tool."
-          },
-          "subscriptionKey": {
-            "description": "Not used by ModernMT.",
-            "help": "Part of the shared MT credential schema; consumed only by the Microsoft Translator tool."
-          }
-        },
-        "limitations": [
-          "Requires a target language and a ModernMT API key; without a key the tool runs the offline demo provider, not ModernMT.",
-          "ModernMT makes a network round-trip per block; cost and latency scale with content volume.",
-          "The provider is fixed to ModernMT by the tool name and cannot be changed through configuration."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks with non-empty source; other parts pass through unchanged.",
-          "Blocks with inline codes round-trip through semantic HTML so tags survive translation.",
-          "With a session cache, already-translated targets are reused and fresh translations are cached."
-        ],
-        "examples": [
-          {
-            "title": "Translate with ModernMT",
-            "description": "Translate untranslated blocks using a ModernMT API key.",
-            "config": "apiKey: your-modernmt-key\n"
-          }
-        ]
-      }
-    },
-    {
-      "id": "mymemory-translate",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "MyMemory Translate",
-      "description": "Translate block content using MyMemory.",
-      "category": "translation",
-      "tags": [
-        "mt",
-        "machine-translation"
-      ],
-      "requires": [
-        "target-language",
-        "credentials"
-      ],
-      "cardinality": "bilingual",
-      "produces": [
-        "target@target"
-      ],
-      "sideEffects": [
-        "api-call",
-        "remote-source-egress"
-      ],
-      "schema": {
-        "$id": "mymemory-translate",
-        "title": "MyMemory Translate",
-        "description": "Translate content using MyMemory",
-        "type": "object",
-        "toolMeta": {
-          "id": "mymemory-translate",
-          "category": "translation",
-          "displayName": "MyMemory Translate",
-          "description": "Translate content using MyMemory",
-          "tags": [
-            "mt",
-            "machine-translation"
-          ],
-          "requires": [
-            "target-language",
-            "credentials"
-          ],
-          "cardinality": "bilingual",
-          "produces": [
-            {
-              "type": "target",
-              "side": "target"
-            }
-          ],
-          "sideEffects": [
-            "api-call",
-            "remote-source-egress"
-          ],
-          "writesOutput": true,
-          "defaultParallelBlocks": 5
-        },
-        "ui:groups": [
-          {
-            "id": "provider",
-            "label": "Provider",
-            "fields": [
-              "apiKey",
-              "subscriptionKey",
-              "region",
-              "email",
-              "projectId"
-            ]
-          }
-        ],
-        "properties": {
-          "apiKey": {
-            "type": "string",
-            "title": "API Key",
-            "description": "API key for the MT provider",
-            "ui:widget": "password"
-          },
-          "email": {
-            "type": "string",
-            "title": "Email",
-            "description": "Account email for higher rate limits (mymemory)"
-          },
-          "projectId": {
-            "type": "string",
-            "title": "Project ID",
-            "description": "Google Cloud project ID (google)"
-          },
-          "region": {
-            "type": "string",
-            "title": "Region",
-            "description": "Azure region (microsoft)"
-          },
-          "subscriptionKey": {
-            "type": "string",
-            "title": "Subscription Key",
-            "description": "Azure subscription key (microsoft)",
-            "ui:widget": "password"
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **MyMemory Translate** tool translates untranslated block content with the\nMyMemory API. The provider is fixed by the tool name, so there is no provider\nfield. MyMemory can be used anonymously; supplying an account email raises the\nrequest rate limit. A target language is required.\n\nBlocks that carry inline codes are round-tripped through semantic HTML so the\nAPI preserves the tags natively, then reconstructed from the response. With a\nsession cache, targets already translated in a previous run are reused, so\nrepeat runs skip blocks that are already done. When constructed without\nconfiguration the tool falls back to an offline demo provider so it remains\nlistable and runnable for illustration.\n",
-        "parameters": {
-          "apiKey": {
-            "description": "Not used by MyMemory.",
-            "help": "Part of the shared MT credential schema; consumed by other MT tools (e.g. DeepL, ModernMT)."
-          },
-          "email": {
-            "description": "Account email for higher rate limits.",
-            "help": "An optional MyMemory account email. When set, it is sent with each request\nto raise the rate limit; MyMemory otherwise works anonymously.\n",
-            "values": "email address"
-          },
-          "projectId": {
-            "description": "Not used by MyMemory.",
-            "help": "Part of the shared MT credential schema; consumed only by the Google Translate tool."
-          },
-          "region": {
-            "description": "Not used by MyMemory.",
-            "help": "Part of the shared MT credential schema; consumed only by the Microsoft Translator tool."
-          },
-          "subscriptionKey": {
-            "description": "Not used by MyMemory.",
-            "help": "Part of the shared MT credential schema; consumed only by the Microsoft Translator tool."
-          }
-        },
-        "limitations": [
-          "Requires a target language; an account email is optional and only affects the rate limit.",
-          "MyMemory makes a network round-trip per block; the anonymous tier is rate-limited.",
-          "The provider is fixed to MyMemory by the tool name and cannot be changed through configuration."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks with non-empty source; other parts pass through unchanged.",
-          "Blocks with inline codes round-trip through semantic HTML so tags survive translation.",
-          "With a session cache, already-translated targets are reused and fresh translations are cached."
-        ],
-        "examples": [
-          {
-            "title": "Translate with MyMemory",
-            "description": "Translate untranslated blocks, supplying an account email for a higher rate limit.",
-            "config": "email: you@example.com\n"
-          }
-        ]
-      }
-    },
-    {
       "id": "pattern-check",
       "source": "built-in",
       "kind": "tool",
@@ -4207,17 +3128,18 @@
       }
     },
     {
-      "id": "qa-check",
+      "id": "qa",
       "source": "built-in",
       "kind": "tool",
-      "displayName": "QA Check",
-      "description": "Run a suite of rule-based quality checks comparing source and target text.",
+      "displayName": "Quality Check",
+      "description": "Check translation quality with rule-based checks, or an LLM when a provider is set.",
       "category": "quality",
       "tags": [
         "quality"
       ],
       "requires": [
-        "target-language"
+        "target-language",
+        "credentials"
       ],
       "cardinality": "bilingual",
       "consumes": [
@@ -4226,22 +3148,26 @@
       "produces": [
         "qa@target"
       ],
-      "aliases": [
-        "qa"
+      "sideEffects": [
+        "api-call",
+        "remote-source-egress"
       ],
       "schema": {
-        "$id": "qa-check",
-        "title": "QA Check",
+        "$id": "qa",
+        "title": "Quality Check",
+        "description": "Check translation quality with rule-based checks, or an LLM when --provider is set",
         "type": "object",
         "toolMeta": {
-          "id": "qa-check",
+          "id": "qa",
           "category": "quality",
-          "displayName": "QA Check",
+          "displayName": "Quality Check",
+          "description": "Check translation quality with rule-based checks, or an LLM when --provider is set",
           "tags": [
             "quality"
           ],
           "requires": [
-            "target-language"
+            "target-language",
+            "credentials"
           ],
           "cardinality": "bilingual",
           "consumes": [
@@ -4256,10 +3182,12 @@
               "side": "target"
             }
           ],
+          "sideEffects": [
+            "api-call",
+            "remote-source-egress"
+          ],
           "writesOutput": true,
-          "aliases": [
-            "qa"
-          ]
+          "defaultParallelBlocks": 5
         },
         "ui:groups": [
           {
@@ -4316,6 +3244,15 @@
               "checkAbsoluteMaxCharLength",
               "absoluteMaxCharLength"
             ]
+          },
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "provider",
+              "apiKey",
+              "model"
+            ]
           }
         ],
         "properties": {
@@ -4324,6 +3261,11 @@
             "title": "Absolute Maximum Characters",
             "description": "Maximum number of characters allowed in any target segment",
             "default": 255
+          },
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the AI provider"
           },
           "checkAbsoluteMaxCharLength": {
             "type": "boolean",
@@ -4415,6 +3357,14 @@
             "description": "Check for trailing whitespace mismatches between source and target",
             "default": true
           },
+          "checks": {
+            "type": "array",
+            "title": "Quality Checks",
+            "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)",
+            "items": {
+              "type": "string"
+            }
+          },
           "doubledWordExceptions": {
             "type": "string",
             "title": "Doubled Word Exceptions",
@@ -4457,6 +3407,47 @@
             "description": "Character count above which text is considered long for the minimum length check",
             "default": 20
           },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "AI model name"
+          },
+          "provider": {
+            "type": "string",
+            "title": "AI Provider",
+            "description": "LLM provider for AI-judged QA (omit for rule-based checks)",
+            "default": "",
+            "options": [
+              {
+                "value": "anthropic",
+                "label": "Anthropic"
+              },
+              {
+                "value": "openai",
+                "label": "OpenAI"
+              },
+              {
+                "value": "gemini",
+                "label": "Gemini"
+              },
+              {
+                "value": "azureopenai",
+                "label": "Azure OpenAI"
+              },
+              {
+                "value": "ollama",
+                "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
+              },
+              {
+                "value": "gemma",
+                "label": "Gemma (local)"
+              }
+            ]
+          },
           "strictCodeOrder": {
             "type": "boolean",
             "title": "Enforce Strict Code Order",
@@ -4478,7 +3469,7 @@
         }
       },
       "doc": {
-        "overview": "The **QA Check** tool runs a battery of rule-based checks over each\ntranslation and records the findings on the block's properties as a JSON array\nof QA issues, along with a pass/fail flag. The checks span several categories:\ngeneral text issues (empty target, whitespace mismatches, double spaces,\ndoubled words, target identical to source, corrupted characters), inline-code\nconsistency, span constraint violations, regex pattern preservation, and length\nratios. A target locale is required; when a block has no translation, only the\nempty-target check applies.\n\nEvery check can be toggled independently, and the length checks share the\nlong/short ratio model used by the dedicated length-check tool. This tool is\nthe rule-based counterpart to the LLM-based AI QA check: it is deterministic and\nneeds no credentials.\n",
+        "overview": "The **Quality Check** tool runs a battery of rule-based checks over each\ntranslation and records the findings on the block's properties as a JSON array\nof QA issues, along with a pass/fail flag. The checks span several categories:\ngeneral text issues (empty target, whitespace mismatches, double spaces,\ndoubled words, target identical to source, corrupted characters), inline-code\nconsistency, span constraint violations, regex pattern preservation, and length\nratios. A target locale is required; when a block has no translation, only the\nempty-target check applies.\n\nWith no `--provider`, the checks are deterministic and need no credentials.\nSetting `--provider` instead runs LLM-judged QA: the chosen model reviews each\ntranslation for terminology, fluency, and accuracy. The rule-based toggles\nbelow apply to the deterministic mode; `model` and `checks` apply to the LLM\nmode. Every rule check can be toggled independently, and the length checks\nshare the long/short ratio model used by the dedicated length-check tool.\n",
         "parameters": {
           "absoluteMaxCharLength": {
             "description": "Maximum number of characters allowed in any target segment.",
@@ -4490,6 +3481,11 @@
                 "condition": "must be enabled for this limit to take effect"
               }
             ]
+          },
+          "apiKey": {
+            "description": "API key for the LLM provider (LLM mode).",
+            "help": "Credential for the chosen hosted provider when `--provider` selects one.\n",
+            "values": "string"
           },
           "checkAbsoluteMaxCharLength": {
             "description": "Flag target segments that exceed an absolute character count limit.",
@@ -4572,6 +3568,11 @@
             "help": "Flags a warning when the trailing whitespace of the target differs from that\nof the source.\n",
             "values": "`true` / `false` (default `true`)"
           },
+          "checks": {
+            "description": "Quality dimensions for the LLM judge (LLM mode).",
+            "help": "The list of quality dimensions the LLM evaluates, e.g. terminology,\nfluency, accuracy, consistency. Defaults to terminology, fluency, accuracy.\n",
+            "values": "list of strings"
+          },
           "doubledWordExceptions": {
             "description": "Words allowed to repeat consecutively.",
             "help": "A semicolon-separated list of words that may legitimately appear twice in a\nrow (for example certain pronouns), so they are not flagged by the\ndoubled-word check.\n",
@@ -4612,6 +3613,16 @@
             "description": "Character count above which text is considered long (min check).",
             "help": "Source text longer than this is treated as long for the minimum-ratio check;\nshorter text is treated as short.\n",
             "values": "integer (default `20`)"
+          },
+          "model": {
+            "description": "The model name to request (LLM mode).",
+            "help": "The provider-specific model identifier for LLM-judged QA. When omitted, the\nprovider's default model is used.\n",
+            "values": "string"
+          },
+          "provider": {
+            "description": "LLM provider for AI-judged QA (omit for rule-based checks).",
+            "help": "When set, QA runs as an LLM judge using this provider instead of the\ndeterministic rule checks. Options are populated from the provider\nregistry. Leave empty to run the rule-based checks with no credentials.\n",
+            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (default: unset → rule-based)"
           },
           "strictCodeOrder": {
             "description": "Flag differences when codes appear in a different order.",
@@ -5966,6 +4977,267 @@
             "title": "Leverage and export to TMX",
             "description": "Lower the fuzzy threshold and write matches to a TMX file.",
             "config": "fuzzyThreshold: 60\nmakeTmx: true\ntmxPath: ./leverage.tmx\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "translate",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Translate",
+      "description": "Translate block content with an LLM or machine-translation provider.",
+      "category": "translation",
+      "tags": [
+        "translation"
+      ],
+      "requires": [
+        "target-language",
+        "credentials"
+      ],
+      "cardinality": "bilingual",
+      "produces": [
+        "target@target"
+      ],
+      "sideEffects": [
+        "api-call",
+        "remote-source-egress"
+      ],
+      "schema": {
+        "$id": "translate",
+        "title": "Translate",
+        "description": "Translate content with an LLM or machine-translation provider (select with --provider)",
+        "type": "object",
+        "toolMeta": {
+          "id": "translate",
+          "category": "translation",
+          "displayName": "Translate",
+          "description": "Translate content with an LLM or machine-translation provider (select with --provider)",
+          "tags": [
+            "translation"
+          ],
+          "requires": [
+            "target-language",
+            "credentials"
+          ],
+          "cardinality": "bilingual",
+          "produces": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
+          "sideEffects": [
+            "api-call",
+            "remote-source-egress"
+          ],
+          "writesOutput": true,
+          "defaultParallelBlocks": 5
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "provider",
+              "apiKey",
+              "model",
+              "subscriptionKey",
+              "region",
+              "email",
+              "projectId"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the AI provider"
+          },
+          "batchConcurrency": {
+            "type": "integer",
+            "title": "Batch Concurrency",
+            "description": "Number of concurrent batch calls (0 or 1 = sequential)",
+            "default": 1,
+            "minimum": 1
+          },
+          "batchSize": {
+            "type": "integer",
+            "title": "Batch Size",
+            "description": "Number of blocks per LLM call",
+            "default": 100,
+            "minimum": 1
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Account email for higher rate limits (mymemory)"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "AI model name"
+          },
+          "projectId": {
+            "type": "string",
+            "title": "Project ID",
+            "description": "Google Cloud project ID (google)"
+          },
+          "provider": {
+            "type": "string",
+            "title": "AI Provider",
+            "description": "AI provider",
+            "default": "anthropic",
+            "options": [
+              {
+                "value": "anthropic",
+                "label": "Anthropic"
+              },
+              {
+                "value": "openai",
+                "label": "OpenAI"
+              },
+              {
+                "value": "gemini",
+                "label": "Gemini"
+              },
+              {
+                "value": "azureopenai",
+                "label": "Azure OpenAI"
+              },
+              {
+                "value": "ollama",
+                "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
+              },
+              {
+                "value": "gemma",
+                "label": "Gemma (local)"
+              },
+              {
+                "value": "deepl",
+                "label": "DeepL"
+              },
+              {
+                "value": "google",
+                "label": "Google Translate"
+              },
+              {
+                "value": "microsoft",
+                "label": "Microsoft Translator"
+              },
+              {
+                "value": "modernmt",
+                "label": "ModernMT"
+              },
+              {
+                "value": "mymemory",
+                "label": "MyMemory"
+              }
+            ]
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "description": "Azure region (microsoft)"
+          },
+          "skipMatched": {
+            "type": "boolean",
+            "title": "Skip Matched",
+            "description": "Skip blocks that already have a target translation",
+            "default": false
+          },
+          "subscriptionKey": {
+            "type": "string",
+            "title": "Subscription Key",
+            "description": "Azure subscription key (microsoft)",
+            "ui:widget": "password"
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Translate** tool translates untranslated block content. A single\n`--provider` selects the backend: a large-language-model provider (Anthropic,\nOpenAI, Gemini, Azure OpenAI, Ollama) or a machine-translation engine (DeepL,\nGoogle, Microsoft, ModernMT, MyMemory). LLM and MT engines are not separate\ncommands — they are values of `--provider`. The result is written as the target\ntext, with an alternate-translation annotation recording the originating\nprovider. A target language is required, and credentials are required for\nhosted providers (local Ollama and the offline demo need none).\n\nBlocks that contain inline codes are sent through a placeholder-preserving\nprompt so tags survive translation, then reconstructed from the response.\nBlocks can be translated one at a time or grouped into batches sent in a\nsingle structured call; batches can run concurrently. When run with a session\ncache, already-translated targets are reused and fresh translations are\nwritten back, so repeat runs skip work already done.\n",
+        "parameters": {
+          "apiKey": {
+            "description": "API key for the provider.",
+            "help": "Credential for the chosen hosted LLM provider or MT engine. Required for\nhosted providers; not needed for a local Ollama backend.\n",
+            "values": "string"
+          },
+          "batchConcurrency": {
+            "description": "Number of batch calls to run in parallel.",
+            "help": "How many batches are translated concurrently. A value of 0 or 1 runs\nbatches sequentially.\n",
+            "values": "integer ≥ 1 (default `1`)"
+          },
+          "batchSize": {
+            "description": "Number of blocks per LLM call.",
+            "help": "Blocks are grouped into batches of this size and translated in a single\nstructured call per batch (LLM providers). A value of 1 translates block by\nblock.\n",
+            "values": "integer ≥ 1 (default `100`)"
+          },
+          "email": {
+            "description": "Account email for higher rate limits (MyMemory).",
+            "help": "An optional MyMemory account email that raises the engine's rate limit.\n",
+            "values": "string"
+          },
+          "model": {
+            "description": "The model name to request (LLM providers).",
+            "help": "The provider-specific model identifier for an LLM provider. When omitted,\nthe provider's default model is used. Ignored by MT engines.\n",
+            "values": "string"
+          },
+          "projectId": {
+            "description": "Google Cloud project ID (Google Translate).",
+            "help": "The Google Cloud project id used by the `google` engine.\n",
+            "values": "string"
+          },
+          "provider": {
+            "description": "The translation provider to use.",
+            "help": "Selects the backend. LLM providers (`anthropic`, `openai`, `gemini`,\n`azureopenai`, `ollama`) and MT engines (`deepl`, `google`, `microsoft`,\n`modernmt`, `mymemory`) are all chosen here. Hosted providers require an\nAPI key; Ollama runs locally. The available options are populated from the\nprovider registry.\n",
+            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `deepl` / `google` / `microsoft` / `modernmt` / `mymemory` (default `anthropic`)"
+          },
+          "region": {
+            "description": "Azure region (Microsoft Translator).",
+            "help": "The Azure region for the `microsoft` engine.\n",
+            "values": "string"
+          },
+          "skipMatched": {
+            "description": "Skip blocks that already have a target translation.",
+            "help": "When enabled, a block that already has a target for the locale is left\nuntouched, so only untranslated content is sent to the provider.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "subscriptionKey": {
+            "description": "Azure subscription key (Microsoft Translator).",
+            "help": "The Azure subscription key used by the `microsoft` engine.\n",
+            "values": "string"
+          }
+        },
+        "limitations": [
+          "Requires a target language and, for hosted providers, valid credentials.",
+          "Hosted providers make network API calls; cost and latency scale with content volume.",
+          "Session-cache reuse applies on the block-by-block path; the batched path writes overlays on output but does not pre-skip via the per-block cache."
+        ],
+        "processingNotes": [
+          "Operates on translatable blocks with non-empty source; other parts pass through unchanged.",
+          "Blocks with inline codes are translated through a placeholder-preserving prompt and reconstructed from the response.",
+          "Each translation is recorded as an alternate-translation annotation tagged with the provider."
+        ],
+        "examples": [
+          {
+            "title": "Translate with Anthropic",
+            "description": "Translate untranslated blocks using an Anthropic model.",
+            "config": "provider: anthropic\nmodel: claude-sonnet-4-5\n"
+          },
+          {
+            "title": "Translate with DeepL",
+            "description": "Use the DeepL machine-translation engine instead of an LLM.",
+            "config": "provider: deepl\n"
+          },
+          {
+            "title": "Translate only new content",
+            "description": "Skip blocks that already have a translation.",
+            "config": "provider: openai\nskipMatched: true\n"
           }
         ]
       }

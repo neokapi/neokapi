@@ -44,7 +44,7 @@ This writes `<dir-name>.kapi` (the recipe) and `.kapi/` (state, including `flows
 Run the built-in AI translation tool:
 
 ```bash
-kapi ai-translate
+kapi translate
 ```
 
 kapi automatically:
@@ -82,8 +82,8 @@ name: my-flow
 description: Translate with AI and run QA checks
 
 steps:
-  - tool: ai-translate
-  - tool: qa-check
+  - tool: translate
+  - tool: qa
 ```
 
 Run it:
@@ -98,9 +98,9 @@ kapi run my-flow
 | -------------------------- | --------------------------------- |
 | `kapi init`             | Initialize a project              |
 | `kapi status`           | Show sync state                   |
-| `kapi ai-translate`     | Translate with AI                 |
+| `kapi translate`     | Translate with AI                 |
 | `kapi pseudo-translate` | Generate pseudo-translations      |
-| `kapi qa-check`         | Run quality checks                |
+| `kapi qa`         | Run quality checks                |
 | `kapi run <flow>`       | Execute a composed or custom flow |
 | `kapi flows`            | List available flows              |
 | `kapi tools`            | List available tools              |

@@ -13,7 +13,7 @@ project found"). Just round-trip it:
 
 ```bash
 kapi pseudo-translate <file> --target-lang qps        # quick readiness pre-flight
-kapi ai-translate <file> --target-lang <lang> -o <out>  # reads the format, translates, writes it back
+kapi translate <file> --target-lang <lang> -o <out>  # reads the format, translates, writes it back
 ```
 
 kapi preserves structure, tags, and placeholders (round-trip). Add `--credential
@@ -70,7 +70,7 @@ kapi term-check ./locales/fr.json    # one-off, no project: terminology check on
 
 `kapi verify` is the gate inside a project — read its findings, fix them, and re-run
 until it passes. For a one-off file with no project, `kapi term-check` (plus the QA in
-`kapi run ai-translate-qa`) plays the same role. Either way, a clean result, not a
+`kapi run translate-qa`) plays the same role. Either way, a clean result, not a
 written file, is the finish line.
 
 ## Or have kapi call a provider (unattended / CI)
@@ -79,8 +79,8 @@ When no assistant is in the loop, kapi can translate via a configured provider.
 This needs a saved credential (`kapi credentials add`) or `--api-key`:
 
 ```bash
-kapi run ai-translate-qa -i ./locales/en.json --target-lang fr --json   # translate + QA
-kapi ai-translate ./deck.pptx --target-lang ja -o ./out/deck.ja.pptx
+kapi run translate-qa -i ./locales/en.json --target-lang fr --json   # translate + QA
+kapi translate ./deck.pptx --target-lang ja -o ./out/deck.ja.pptx
 ```
 
 `--target-lang` is single-valued, so run one command per locale. A bound brand
@@ -109,7 +109,7 @@ Direct round-trip, or a bilingual extract → translate → merge cycle for vend
 or human translation:
 
 ```bash
-kapi ai-translate ./report.docx --target-lang fr -o ./out/report.fr.docx
+kapi translate ./report.docx --target-lang fr -o ./out/report.fr.docx
 kapi extract -p project.kapi --target-lang fr --format xliff2          # emit XLIFF
 kapi merge -i ./out/*.fr.xlf -p project.kapi                          # merge back
 ```

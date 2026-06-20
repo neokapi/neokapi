@@ -144,7 +144,7 @@ Two non-network providers round out the registry: a mock provider
 output so the browser playground can run AI commands with no API keys. The
 provider list is generated from the registry in `providers/ai/provider.go`
 (`Providers()`), not hardcoded — the live set surfaces as the `provider`
-option in the [`ai-translate` reference](/reference/tools/ai-translate).
+option in the [`translate` reference](/reference/tools/translate).
 
 Each provider takes a `Config` struct with API key, base URL, model name,
 and generation parameters (temperature, max tokens, etc.). Azure OpenAI
@@ -188,7 +188,7 @@ assertion.
 AI tools call the provider directly — `provider.Translate()` for a single
 block, `provider.ChatStructured()` for a batch. There is no intervening
 worker pool, rate limiter, or circuit breaker in the framework. Throughput is
-a property of the tool's own configuration, illustrated by `ai-translate`
+a property of the tool's own configuration, illustrated by `translate`
 (`core/ai/tools/translate.go`):
 
 ```go
@@ -234,12 +234,16 @@ call.
 ### AI tools
 
 AI capabilities reach the pipeline as ordinary Tools
-([AD-006: Tool System](006-tool-system.md)):
+([AD-006: Tool System](006-tool-system.md)). On the CLI surface, translation is
+a single `translate` command across every backend, and QA a single `qa`
+command — the LLM is selected with `--provider` (the per-provider commands have
+collapsed into that one flag), while the underlying `LLMProvider` interface is
+unchanged:
 
 | Tool                | Purpose                                                 |
 | ------------------- | ------------------------------------------------------- |
-| `ai-translate`      | Translate untranslated Blocks using an LLM              |
-| `ai-qa`             | Check translations for fluency, accuracy, terminology   |
+| `translate`         | Translate untranslated Blocks using an LLM              |
+| `qa --provider`     | LLM-judged check of translations for fluency, accuracy, terminology |
 | `ai-terminology`    | Extract terminology candidates from source Blocks       |
 | `ai-review`         | Review translations with explanations                   |
 | `ai-entity-extract` | Extract entities and term candidates (hybrid LLM + NER) |
@@ -251,9 +255,9 @@ Because AI tools are ordinary Tools, they compose naturally:
     { label: "Source", role: "io" },
     { label: "tm-leverage", role: "translate" },
     { label: "term-lookup", role: "annotate" },
-    { label: "ai-translate", role: "translate" },
+    { label: "translate", role: "translate" },
     { label: "term-enforce", role: "qa" },
-    { label: "ai-qa", role: "qa" },
+    { label: "qa", role: "qa" },
     { label: "Sink", role: "io" },
   ]}
 />
@@ -276,7 +280,7 @@ it actively guides AI translation quality from the start.
 
 ### Structured batch output
 
-The batched `ai-translate` path relies on `ChatStructured()` to make a
+The batched `translate` path relies on `ChatStructured()` to make a
 multi-block response unambiguous. The tool sends a numbered prompt
 (`[1] …`, `[2] …`) and constrains the response to a JSON Schema that returns
 `{ translations: [{ index, text }] }` with `additionalProperties: false` and

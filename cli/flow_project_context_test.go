@@ -15,14 +15,14 @@ func TestResolveParallelBlocks_ProjectOverride(t *testing.T) {
 	}
 	// Project setting should win over flow defaults.
 	assert.Equal(t, 10, app.resolveParallelBlocks("pseudo-translate"))
-	assert.Equal(t, 10, app.resolveParallelBlocks("ai-translate"))
+	assert.Equal(t, 10, app.resolveParallelBlocks("translate"))
 }
 
 func TestResolveParallelBlocks_NoProject(t *testing.T) {
 	app := newTestApp()
 	// Without project, falls back to flow defaults.
 	assert.Equal(t, 0, app.resolveParallelBlocks("pseudo-translate"))
-	assert.Greater(t, app.resolveParallelBlocks("ai-translate"), 0)
+	assert.Greater(t, app.resolveParallelBlocks("translate"), 0)
 }
 
 func TestResolveParallelBlocks_ProjectZero(t *testing.T) {
@@ -31,5 +31,5 @@ func TestResolveParallelBlocks_ProjectZero(t *testing.T) {
 		ParallelBlocks: 0, // zero = use flow default
 	}
 	// Zero in project means "use flow default".
-	assert.Greater(t, app.resolveParallelBlocks("ai-translate"), 0)
+	assert.Greater(t, app.resolveParallelBlocks("translate"), 0)
 }

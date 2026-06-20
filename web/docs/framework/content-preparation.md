@@ -112,8 +112,8 @@ steps:
   - tool: term-lookup         # match the termbase
   - tool: ai-entity-extract   # recognize entities
   - tool: tm-leverage         # reuse prior segment translations
-  - tool: ai-translate        # translate the remainder
-  - tool: qa-check            # gate on findings
+  - tool: translate           # translate the remainder
+  - tool: qa                  # gate on findings
 ```
 
 In a [`.kapi` project](/reference/project-file) this lives as a named flow so

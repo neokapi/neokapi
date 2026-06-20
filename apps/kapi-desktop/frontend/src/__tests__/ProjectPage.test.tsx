@@ -12,7 +12,7 @@ describe("ProjectPage", () => {
     },
     content: [{ path: "src/locales/*.json", format: { name: "json" } }],
     flows: {
-      translate: { steps: [{ tool: "ai-translate" }] },
+      translate: { steps: [{ tool: "translate" }] },
     },
     preset: "nextjs",
     plugins: {

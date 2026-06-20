@@ -91,8 +91,9 @@ var toolExamples = map[string]string{
   kapi repetition-analysis app.xliff`,
 
 	// ── Quality ─────────────────────────────────────────────────────────
-	"qa-check": `  kapi qa-check app.xliff --target-lang fr
-  kapi qa-check app.xliff --target-lang de --json`,
+	"qa": `  kapi qa app.xliff --target-lang fr
+  kapi qa app.xliff --target-lang fr --provider anthropic
+  kapi qa app.xliff --target-lang de --json`,
 	"term-check": `  kapi term-check app.xliff --source-lang en --target-lang fr
   kapi term-check messages.json --source-lang en --target-lang fr`,
 	"inconsistency-check": `  kapi inconsistency-check app.xliff --target-lang fr
@@ -109,8 +110,9 @@ var toolExamples = map[string]string{
 	// ── Translation ─────────────────────────────────────────────────────
 	"pseudo-translate": `  kapi pseudo-translate messages.json -o messages.pseudo.json
   kapi pseudo-translate app.xliff -o app.pseudo.xliff --target-lang qps`,
-	"ai-translate": `  kapi ai-translate messages.json --target-lang fr
-  kapi ai-translate app.xliff --target-lang de -o app.de.xliff`,
+	"translate": `  kapi translate messages.json --target-lang fr
+  kapi translate app.xliff --target-lang de --provider deepl
+  kapi translate app.xliff --target-lang de -o app.de.xliff`,
 	"tm-leverage": `  kapi tm-leverage app.xliff --target-lang fr
   kapi tm-leverage messages.json --target-lang de`,
 
@@ -123,8 +125,6 @@ var toolExamples = map[string]string{
   kapi segmentation app.xliff`,
 
 	// ── AI Quality ───────────────────────────────────────────────────────
-	"ai-qa": `  kapi ai-qa app.xliff --target-lang fr
-  kapi ai-qa app.xliff --target-lang de`,
 	"ai-review": `  kapi ai-review app.xliff --target-lang fr
   kapi ai-review messages.json --target-lang de`,
 	"brand-voice-check": `  kapi brand-voice-check messages.json --target-lang fr

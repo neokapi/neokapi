@@ -134,7 +134,7 @@ const CHAPTERS: Chapter[] = [
     id: "audio",
     title: "Audio — speech → subtitles",
     blurb:
-      "kapi-asr transcribes speech into timing-anchored cues; ai-translate fills the target, and the audio-to-subtitles flow writes a translated .vtt/.srt.",
+      "kapi-asr transcribes speech into timing-anchored cues; translate fills the target, and the audio-to-subtitles flow writes a translated .vtt/.srt.",
     durationMs: 8000,
     render: (ms) => <SubtitleTimeline tree={audioTree} currentTimeMs={ms} className="w-full" />,
   },

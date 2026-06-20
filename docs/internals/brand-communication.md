@@ -99,9 +99,9 @@ the source of truth. Specifics that have bitten us:
   `providers/ai` (package `aiprovider`) and `providers/mt` (package
   `mtprovider`); pipeline tools are `core/ai/tools`, `core/mt/tools`; brand
   voice is `core/brand`.
-- **Built-in flows** are `ai-translate`, `ai-translate-qa`, `pseudo-translate`,
-  `qa-check`. There is **no** `translate` flow — `kapi run translate` only works
-  with a project file that defines one.
+- **Built-in flows** include `translate`, `translate-qa`, `pseudo-translate`,
+  and `qa`. `kapi run translate` runs the built-in single-step translate flow;
+  a project file can define additional named flows.
 - **`--target-lang` is single-valued** for `run` and tool commands; only
   `extract` accepts a comma-separated list. Don't show `--target-lang fr,de,ja`
   fanning out to multiple files.

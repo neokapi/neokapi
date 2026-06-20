@@ -1,9 +1,11 @@
 package tools
 
 import (
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
+	libtools "github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -12,17 +14,22 @@ import (
 // The registry receives metadata and config factories; actual provider
 // injection happens at tool creation time via NewToolFromConfig.
 func RegisterAll(reg *registry.ToolRegistry) {
-	// AI Translate
-	reg.RegisterWithSchema("ai-translate", func() tool.Tool {
+	// Translate — one verb across LLM and MT engines; --provider selects the
+	// backend (see unified.go). Replaces the former ai-translate command and the
+	// per-engine <provider>-translate commands.
+	reg.RegisterWithSchema("translate", func() tool.Tool {
 		return NewAITranslateTool(aiprovider.NewMockProvider(), AITranslateConfig{})
-	}, AITranslateSchema())
-	reg.SetConfigFactory("ai-translate", NewAITranslateFromConfig)
+	}, TranslateSchema())
+	reg.SetConfigFactory("translate", NewTranslateFromConfig)
+	reg.SetContractResolver("translate", ResolveAIEgressContract)
 
-	// AI QA Check
-	reg.RegisterWithSchema("ai-qa", func() tool.Tool {
-		return NewAIQACheckTool(aiprovider.NewMockProvider(), AIQAConfig{})
-	}, AIQASchema())
-	reg.SetConfigFactory("ai-qa", NewAIQAFromConfig)
+	// QA — rule-based checks by default; --provider opts into LLM-judged QA
+	// (see unified.go). Replaces the former qa-check and ai-qa commands.
+	reg.RegisterWithSchema("qa", func() tool.Tool {
+		return libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleEnglish))
+	}, QASchema())
+	reg.SetConfigFactory("qa", NewQAFromConfig)
+	reg.SetContractResolver("qa", ResolveQAContract)
 
 	// AI Review
 	reg.RegisterWithSchema("ai-review", func() tool.Tool {
@@ -57,8 +64,11 @@ func RegisterAll(reg *registry.ToolRegistry) {
 
 	// Every AI tool's remote-source-egress side effect is config-dependent: a
 	// local provider (Ollama, the offline demo) keeps content on the machine.
+	// translate and qa register their own contract resolvers above (translate
+	// reuses ResolveAIEgressContract; qa uses ResolveQAContract for its
+	// provider-optional contract).
 	for _, name := range []registry.ToolID{
-		"ai-translate", "ai-qa", "ai-review", "brand-voice-check",
+		"ai-review", "brand-voice-check",
 		"ai-terminology", "media-refine",
 	} {
 		reg.SetContractResolver(name, ResolveAIEgressContract)

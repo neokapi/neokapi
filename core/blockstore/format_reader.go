@@ -23,7 +23,7 @@ type FormatReaderFactory func() (format.DataFormatReader, *model.RawDocument, er
 // sessions share the same in-memory snapshot.
 //
 // Intended use: ad-hoc CLI flows that take a single file as input
-// (`kapi ai-translate -i file.xliff`). Construct the store from the
+// (`kapi translate -i file.xliff`). Construct the store from the
 // file's reader, run the flow, emit output via a format writer.
 //
 // Capabilities: RandomAccess=true (the snapshot is a map, GetBlock

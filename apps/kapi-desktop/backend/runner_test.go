@@ -28,7 +28,7 @@ func TestRunFlowNoInputs(t *testing.T) {
 	app := NewApp()
 	tab := newTestProject(t, app, "RunTest2")
 	_ = app.SaveFlow(tab.ID, "qa", &flow.StepsSpec{
-		Steps: []flow.FlowStep{{Tool: "qa-check"}},
+		Steps: []flow.FlowStep{{Tool: "qa"}},
 	})
 
 	err := app.RunFlow(tab.ID, "qa", nil, []string{"fr"})

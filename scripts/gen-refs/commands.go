@@ -20,11 +20,10 @@ import (
 // offlineCapable=false (conservative: assume they need something the browser
 // cannot provide).
 var offlineOverride = map[string]bool{
-	// Network / AI / MT — require API keys + outbound TLS.
-	"ai-translate":       false,
-	"mt-translate":       false,
-	"ai-quality-check":   false,
-	"mt-quality-check":   false,
+	// Network / AI / MT — require API keys + outbound TLS. (qa is offline by
+	// default — rule-based — so it is left to the conservative default rather
+	// than force-marked here; with --provider it needs network at run time.)
+	"translate":          false,
 	"brand-voice-check":  false,
 	"brand-voice-review": false,
 	// verify is project-oriented and can invoke an AI-backed QA gate (needs a

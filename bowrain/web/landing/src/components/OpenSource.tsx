@@ -92,7 +92,7 @@ export function OpenSource() {
             </div>
             <div>
               {" "}
-              - <span className="text-brand-400">ai-translate</span>:{" "}
+              - <span className="text-brand-400">translate</span>:{" "}
               <span className="text-neutral-300">provider: claude</span>
             </div>
             <div>
@@ -101,7 +101,7 @@ export function OpenSource() {
             </div>
             <div>
               {" "}
-              - <span className="text-brand-400">qa-check</span>
+              - <span className="text-brand-400">qa</span>
             </div>
           </div>
         </div>

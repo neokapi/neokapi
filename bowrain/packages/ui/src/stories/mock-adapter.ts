@@ -539,7 +539,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     // --- Flow definitions -----------------------------------------------
     listFlowDefinitions: async () => [
       {
-        id: "ai-translate",
+        id: "translate",
         name: "AI Translate",
         description: "Translate content using AI/LLM",
         source: "built-in",
@@ -551,9 +551,9 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
             position: { x: 0, y: 100 },
           },
           {
-            id: "ai-translate",
+            id: "translate",
             type: "tool",
-            name: "ai-translate",
+            name: "translate",
             position: { x: 250, y: 100 },
           },
           {
@@ -564,8 +564,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
           },
         ],
         edges: [
-          { id: "e1", source: "reader", target: "ai-translate" },
-          { id: "e2", source: "ai-translate", target: "writer" },
+          { id: "e1", source: "reader", target: "translate" },
+          { id: "e2", source: "translate", target: "writer" },
         ],
       },
     ],

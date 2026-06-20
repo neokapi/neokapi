@@ -23,7 +23,7 @@ func sampleRecipe(t *testing.T) *project.KapiProject {
 			TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"},
 		},
 		Flows: map[string]*flow.StepsSpec{
-			"translate": {Steps: []flow.FlowStep{{Tool: "ai-translate"}}},
+			"translate": {Steps: []flow.FlowStep{{Tool: "translate"}}},
 		},
 	}
 	// Side-effecting Extras that SanitizeRecipe must strip.
@@ -64,7 +64,7 @@ func TestRecipeRoundTrip(t *testing.T) {
 	assert.Equal(t, []model.LocaleID{"fr-FR", "de-DE"}, got.Recipe.Defaults.TargetLanguages)
 	require.Contains(t, got.Recipe.Flows, "translate")
 	require.Len(t, got.Recipe.Flows["translate"].Steps, 1)
-	assert.Equal(t, "ai-translate", got.Recipe.Flows["translate"].Steps[0].Tool)
+	assert.Equal(t, "translate", got.Recipe.Flows["translate"].Steps[0].Tool)
 
 	// Inert extra survived; side-effecting ones did not.
 	assert.Contains(t, got.Recipe.Extras, "custom")

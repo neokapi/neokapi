@@ -172,7 +172,7 @@ steps:
     config:
       engine: srx
   - tool: tm-leverage        # reuse prior sentence translations
-  - tool: ai-translate       # translate the remainder
+  - tool: translate          # translate the remainder
 ```
 
 In a [`.kapi` project](/reference/project-file) the same stage lives in a named

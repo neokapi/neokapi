@@ -28,7 +28,7 @@ func processOne(t *testing.T, tl interface {
 }
 
 // TestSecureTranslate_InProcessNoLeak proves the in-process workflow's core
-// guarantee: redact → ai-translate → unredact restores the originals, and the
+// guarantee: redact → translate → unredact restores the originals, and the
 // LLM provider never receives the sensitive text.
 func TestSecureTranslate_InProcessNoLeak(t *testing.T) {
 	const secretA, secretB = "Mr Bean", "King of England"

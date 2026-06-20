@@ -40,8 +40,8 @@ transformers as ordered steps.
 ```yaml
 steps:
   - tool: redact          # applied inline; later steps see the redacted source
-  - tool: ai-translate
-  - tool: qa-check
+  - tool: translate
+  - tool: qa
 ```
 
 Transformer ordering is validated by the placement pass
@@ -73,8 +73,8 @@ at run time ([AD-026](../architecture/026-flow-io-binding.md)), not nodes.
 steps:
   - tool: tm-leverage
     config: { fuzzyThreshold: 75 }
-  - tool: ai-translate
-  - tool: qa-check
+  - tool: translate
+  - tool: qa
 ```
 
 ### Fan-out
@@ -82,9 +82,9 @@ steps:
 ```yaml
 steps:
   - parallel:
-      - tool: ai-translate
+      - tool: translate
       - tool: word-count
-  - tool: qa-check
+  - tool: qa
 ```
 
 ### Script step

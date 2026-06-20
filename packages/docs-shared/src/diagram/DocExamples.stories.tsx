@@ -78,7 +78,7 @@ export const ReactRoundTrip: Story = {
           sub: 'hash "aB3" · source + targets',
           edge: "kapi-react extract (source only)",
           role: "io",
-          loop: ["kapi ai-translate --target-lang fr", "then de … (additive, in place)"],
+          loop: ["kapi translate --target-lang fr", "then de … (additive, in place)"],
         },
         {
           label: "public/translations/{locale}.json",

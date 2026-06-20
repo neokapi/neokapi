@@ -5,7 +5,7 @@ import type { FlowSpec, ToolInfo } from "../types";
 describe("stepsToGraph", () => {
   it("converts single-step flow to a single tool node with no I/O nodes", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "ai-translate" }],
+      steps: [{ tool: "translate" }],
     };
 
     const { nodes, edges } = stepsToGraph(spec);
@@ -13,7 +13,7 @@ describe("stepsToGraph", () => {
     // A flow owns no I/O (AD-026): tool nodes only, no reader/writer.
     expect(nodes).toHaveLength(1);
     expect(nodes[0].type).toBe("tool");
-    expect(nodes[0].data.toolName).toBe("ai-translate");
+    expect(nodes[0].data.toolName).toBe("translate");
 
     // The single tool has no incoming/outgoing edge (it is both first and last).
     expect(edges).toHaveLength(0);
@@ -21,7 +21,7 @@ describe("stepsToGraph", () => {
 
   it("converts multi-step flow with correct chaining", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }, { tool: "pseudo-translate" }],
+      steps: [{ tool: "translate" }, { tool: "qa" }, { tool: "pseudo-translate" }],
     };
 
     const { nodes, edges } = stepsToGraph(spec);
@@ -35,7 +35,7 @@ describe("stepsToGraph", () => {
 
   it("carries source/sink binding locators through graphToSteps", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "ai-translate" }],
+      steps: [{ tool: "translate" }],
       source: "xliff",
       sink: "store",
     };
@@ -60,7 +60,7 @@ describe("stepsToGraph", () => {
 
   it("preserves step labels and configs", () => {
     const { nodes } = stepsToGraph({
-      steps: [{ tool: "ai-translate", label: "Translate", config: { provider: "anthropic" } }],
+      steps: [{ tool: "translate", label: "Translate", config: { provider: "anthropic" } }],
     });
 
     const toolNode = nodes.find((n) => n.type === "tool")!;
@@ -77,9 +77,9 @@ describe("stepsToGraph", () => {
   it("enriches tool nodes with category and description from toolMap", () => {
     const toolMap = new Map<string, ToolInfo>([
       [
-        "ai-translate",
+        "translate",
         {
-          name: "ai-translate",
+          name: "translate",
           description: "Translate with AI",
           category: "translate",
           has_schema: false,
@@ -90,7 +90,7 @@ describe("stepsToGraph", () => {
       ],
     ]);
 
-    const { nodes } = stepsToGraph({ steps: [{ tool: "ai-translate" }] }, toolMap);
+    const { nodes } = stepsToGraph({ steps: [{ tool: "translate" }] }, toolMap);
 
     const toolNode = nodes.find((n) => n.type === "tool")!;
     expect(toolNode.data.category).toBe("translate");
@@ -127,16 +127,16 @@ describe("graphToSteps", () => {
 
   it("roundtrips a flow spec", () => {
     const original: FlowSpec = {
-      steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }, { tool: "qa-check" }],
+      steps: [{ tool: "translate", config: { provider: "anthropic" } }, { tool: "qa" }],
     };
 
     const { nodes } = stepsToGraph(original);
     const result = graphToSteps(nodes);
 
     expect(result.steps).toHaveLength(2);
-    expect(result.steps[0].tool).toBe("ai-translate");
+    expect(result.steps[0].tool).toBe("translate");
     expect(result.steps[0].config).toEqual({ provider: "anthropic" });
-    expect(result.steps[1].tool).toBe("qa-check");
+    expect(result.steps[1].tool).toBe("qa");
   });
 
   it("reconstructs steps from tool nodes only", () => {
@@ -176,9 +176,9 @@ describe("stepsToGraph IO contract fields", () => {
   it("passes cardinality to parallel branch node data", () => {
     const toolMap = new Map<string, ToolInfo>([
       [
-        "ai-translate",
+        "translate",
         {
-          name: "ai-translate",
+          name: "translate",
           description: "AI Translate",
           category: "translate",
           cardinality: "bilingual",
@@ -197,7 +197,7 @@ describe("stepsToGraph IO contract fields", () => {
     ]);
 
     const spec: FlowSpec = {
-      steps: [{ parallel: [{ tool: "ai-translate" }, { tool: "pseudo-translate" }] }],
+      steps: [{ parallel: [{ tool: "translate" }, { tool: "pseudo-translate" }] }],
     };
     const { nodes } = stepsToGraph(spec, toolMap);
 
@@ -205,7 +205,7 @@ describe("stepsToGraph IO contract fields", () => {
     const group = nodes.find((n) => n.type === "parallel")!;
     expect(group).toBeDefined();
     const branches = group.data.branches as Array<{ toolName: string }>;
-    expect(branches.map((b) => b.toolName)).toEqual(["ai-translate", "pseudo-translate"]);
+    expect(branches.map((b) => b.toolName)).toEqual(["translate", "pseudo-translate"]);
   });
 
   it("renders an empty parallel route as a composite node with no branches", () => {

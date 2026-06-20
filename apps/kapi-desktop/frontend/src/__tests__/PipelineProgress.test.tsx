@@ -43,31 +43,31 @@ describe("deriveStepState", () => {
 
 describe("StepBadge", () => {
   it("renders the tool name", () => {
-    render(<StepBadge name="ai-translate" state="pending" />);
-    expect(screen.getByText("ai-translate")).toBeInTheDocument();
+    render(<StepBadge name="translate" state="pending" />);
+    expect(screen.getByText("translate")).toBeInTheDocument();
   });
 
   it("shows spinner when active", () => {
-    const { container } = render(<StepBadge name="ai-translate" state="active" />);
+    const { container } = render(<StepBadge name="translate" state="active" />);
     expect(container.querySelector(".animate-spin")).not.toBeNull();
   });
 
   it("does not show spinner when pending", () => {
-    const { container } = render(<StepBadge name="ai-translate" state="pending" />);
+    const { container } = render(<StepBadge name="translate" state="pending" />);
     expect(container.querySelector(".animate-spin")).toBeNull();
   });
 
   it("does not show spinner when done", () => {
-    const { container } = render(<StepBadge name="ai-translate" state="done" />);
+    const { container } = render(<StepBadge name="translate" state="done" />);
     expect(container.querySelector(".animate-spin")).toBeNull();
   });
 
   it("shows part counts when snapshot has parts_in > 0", () => {
     render(
       <StepBadge
-        name="qa-check"
+        name="qa"
         state="active"
-        snapshot={{ name: "qa-check", parts_in: 120, parts_out: 87 }}
+        snapshot={{ name: "qa", parts_in: 120, parts_out: 87 }}
       />,
     );
     expect(screen.getByText("87/120")).toBeInTheDocument();
@@ -75,11 +75,7 @@ describe("StepBadge", () => {
 
   it("does not show counts when parts_in is 0", () => {
     render(
-      <StepBadge
-        name="qa-check"
-        state="pending"
-        snapshot={{ name: "qa-check", parts_in: 0, parts_out: 0 }}
-      />,
+      <StepBadge name="qa" state="pending" snapshot={{ name: "qa", parts_in: 0, parts_out: 0 }} />,
     );
     expect(screen.queryByText("0/0")).not.toBeInTheDocument();
   });
@@ -90,12 +86,12 @@ describe("StepBadge", () => {
 // ---------------------------------------------------------------------------
 
 describe("PipelineProgress", () => {
-  const steps = [{ tool: "ai-translate" }, { tool: "qa-check" }, { tool: "term-enforce" }];
+  const steps = [{ tool: "translate" }, { tool: "qa" }, { tool: "term-enforce" }];
 
   it("renders all step names", () => {
     render(<PipelineProgress steps={steps} />);
-    expect(screen.getByText("ai-translate")).toBeInTheDocument();
-    expect(screen.getByText("qa-check")).toBeInTheDocument();
+    expect(screen.getByText("translate")).toBeInTheDocument();
+    expect(screen.getByText("qa")).toBeInTheDocument();
     expect(screen.getByText("term-enforce")).toBeInTheDocument();
   });
 
@@ -116,8 +112,8 @@ describe("PipelineProgress", () => {
         steps={steps}
         runState="running"
         snapshots={[
-          { name: "ai-translate", parts_in: 50, parts_out: 30 },
-          { name: "qa-check", parts_in: 0, parts_out: 0 },
+          { name: "translate", parts_in: 50, parts_out: 30 },
+          { name: "qa", parts_in: 0, parts_out: 0 },
           { name: "term-enforce", parts_in: 0, parts_out: 0 },
         ]}
       />,
@@ -132,8 +128,8 @@ describe("PipelineProgress", () => {
         steps={steps}
         runState="complete"
         snapshots={[
-          { name: "ai-translate", parts_in: 100, parts_out: 100 },
-          { name: "qa-check", parts_in: 100, parts_out: 100 },
+          { name: "translate", parts_in: 100, parts_out: 100 },
+          { name: "qa", parts_in: 100, parts_out: 100 },
           { name: "term-enforce", parts_in: 100, parts_out: 100 },
         ]}
       />,

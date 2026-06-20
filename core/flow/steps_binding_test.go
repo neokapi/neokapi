@@ -4,7 +4,7 @@ import "testing"
 
 func TestStepsSpecBindingLocators(t *testing.T) {
 	t.Run("declared sink none", func(t *testing.T) {
-		spec := &StepsSpec{Sink: "none", Steps: []FlowStep{{Tool: "qa-check"}}}
+		spec := &StepsSpec{Sink: "none", Steps: []FlowStep{{Tool: "qa"}}}
 		if _, ok := spec.SourceLocator(); ok {
 			t.Errorf("SourceLocator() ok = true, want false (no source declared)")
 		}
@@ -18,7 +18,7 @@ func TestStepsSpecBindingLocators(t *testing.T) {
 	})
 
 	t.Run("declared source store", func(t *testing.T) {
-		spec := &StepsSpec{Source: "store:", Steps: []FlowStep{{Tool: "ai-translate"}}}
+		spec := &StepsSpec{Source: "store:", Steps: []FlowStep{{Tool: "translate"}}}
 		src, ok := spec.SourceLocator()
 		if !ok {
 			t.Fatalf("SourceLocator() ok = false, want true")
@@ -29,7 +29,7 @@ func TestStepsSpecBindingLocators(t *testing.T) {
 	})
 
 	t.Run("binding-agnostic flow declares nothing", func(t *testing.T) {
-		spec := &StepsSpec{Steps: []FlowStep{{Tool: "ai-translate"}}}
+		spec := &StepsSpec{Steps: []FlowStep{{Tool: "translate"}}}
 		if _, ok := spec.SourceLocator(); ok {
 			t.Errorf("SourceLocator() ok = true, want false")
 		}

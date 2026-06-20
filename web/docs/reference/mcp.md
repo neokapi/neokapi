@@ -173,7 +173,7 @@ The assistant calls `pseudo_translate`, generates a pseudo-translated file with 
 
 > Run quality checks on my French translation at `src/locales/fr.json`
 
-The assistant calls `run_flow` with `flow_name: "qa-check"` and returns the output file path.
+The assistant calls `run_flow` with `flow_name: "qa"` and returns the output file path.
 
 ## Tool Reference
 
@@ -193,7 +193,7 @@ Execute a processing flow on a file.
 
 | Parameter     | Type   | Required | Description                                                              |
 | ------------- | ------ | -------- | ------------------------------------------------------------------------ |
-| `flow_name`   | string | yes      | Flow name: `pseudo-translate`, `qa-check`, `tm-leverage`, `ai-translate-qa` |
+| `flow_name`   | string | yes      | Flow name: `pseudo-translate`, `qa`, `tm-leverage`, `translate-qa` |
 | `path`        | string | yes      | Input file path                                                          |
 | `source_lang` | string | no       | Source language (default: `en`)                                          |
 | `target_lang` | string | yes\*    | Target language (\*optional for `pseudo-translate`, defaults to `qps`)   |
@@ -230,7 +230,7 @@ Kapi MCP uses the same infrastructure as the CLI commands — `FormatRegistry` f
 No server process, ports, or authentication needed. Your AI tool launches `kapi mcp` as a child process, communicates over stdin/stdout, and shuts it down when the session ends.
 
 :::note
-LLM-backed tools like `ai-translate` need API keys and run from the CLI, not over MCP: `kapi ai-translate -i file.json --target-lang fr`. The `brand_check`, `brand_rewrite`, `term_lookup`, and `tm_search` tools above are rule-based and need no key.
+LLM-backed tools like `translate` need API keys and run from the CLI, not over MCP: `kapi translate -i file.json --target-lang fr`. The `brand_check`, `brand_rewrite`, `term_lookup`, and `tm_search` tools above are rule-based and need no key.
 :::
 
 ## Related

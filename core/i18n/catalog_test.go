@@ -55,16 +55,16 @@ func itoa(i int) string {
 
 func TestTranslator_HitReturnsTarget(t *testing.T) {
 	cat := buildMoCatalog(t, "fr-FR",
-		[3]string{"tools.ai-translate.displayName", "AI Translate", "Traduction IA"},
+		[3]string{"tools.translate.displayName", "AI Translate", "Traduction IA"},
 	)
 	tr := NewTranslator("fr-FR", cat)
 	assert.Equal(t, "Traduction IA",
-		tr.T("tools.ai-translate.displayName", "AI Translate"))
+		tr.T("tools.translate.displayName", "AI Translate"))
 }
 
 func TestTranslator_MissReturnsSource(t *testing.T) {
 	cat := buildMoCatalog(t, "fr-FR",
-		[3]string{"tools.ai-translate.displayName", "AI Translate", "Traduction IA"},
+		[3]string{"tools.translate.displayName", "AI Translate", "Traduction IA"},
 	)
 	tr := NewTranslator("fr-FR", cat)
 	// Unknown scope → miss → source
@@ -72,17 +72,17 @@ func TestTranslator_MissReturnsSource(t *testing.T) {
 		tr.T("tools.unknown.description", "Some Description"))
 	// Unknown source text in a known scope → miss → source
 	assert.Equal(t, "Different source",
-		tr.T("tools.ai-translate.displayName", "Different source"))
+		tr.T("tools.translate.displayName", "Different source"))
 }
 
 func TestTranslator_ScopeIsolation_SameSourceDifferentScopes(t *testing.T) {
 	cat := buildMoCatalog(t, "fr-FR",
-		[3]string{"tools.ai-translate.description", "Description", "Description de l'outil"},
+		[3]string{"tools.translate.description", "Description", "Description de l'outil"},
 		[3]string{"formats.okf_html.description", "Description", "Description du filtre"},
 	)
 	tr := NewTranslator("fr-FR", cat)
 	assert.Equal(t, "Description de l'outil",
-		tr.T("tools.ai-translate.description", "Description"))
+		tr.T("tools.translate.description", "Description"))
 	assert.Equal(t, "Description du filtre",
 		tr.T("formats.okf_html.description", "Description"))
 }

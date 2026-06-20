@@ -278,7 +278,7 @@ func TestAIQACheckToolAddsProperties(t *testing.T) {
 	require.NotNil(t, result)
 	resultBlock := result.Resource.(*model.Block)
 
-	// ai-qa maps the model's structured output onto the unified check findings.
+	// the LLM qa maps the model's structured output onto the unified check findings.
 	findings := check.Findings(coretool.NewBlockView(resultBlock))
 	require.Len(t, findings, 1)
 	assert.Equal(t, "fluency", findings[0].Category)

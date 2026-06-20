@@ -39,10 +39,10 @@ Built-in tools run as top-level commands, and composed flows run via `kapi run`:
 
 ```bash
 # Run built-in AI translation tool
-kapi ai-translate
+kapi translate
 
 # Run a composed multi-tool flow
-kapi run ai-translate-qa
+kapi run translate-qa
 
 # Create custom flows in .kapi/flows/my-flow.yaml
 # Run custom flow
@@ -112,7 +112,7 @@ cd my-app/
 kapi init --name "My App" --source en-US --targets fr-FR,de-DE
 
 # Run AI translation
-kapi ai-translate
+kapi translate
 
 # Check status
 kapi status

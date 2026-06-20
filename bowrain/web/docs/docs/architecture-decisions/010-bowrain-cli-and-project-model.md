@@ -239,7 +239,7 @@ server:
 
 # Top-level lifecycle policy:
 hooks:
-  pre-push: [qa-check]
+  pre-push: [qa]
   post-pull: [update-stats]
 
 automations:

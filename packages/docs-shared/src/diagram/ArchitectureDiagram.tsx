@@ -303,7 +303,7 @@ export function ArchitectureDiagram({
             <Channel x1={622} x2={654} />
 
             {/* ── QA ── */}
-            <Stage x={654} w={96} role="qa" title="QA" sub="qa-check · enforce" />
+            <Stage x={654} w={96} role="qa" title="QA" sub="qa · enforce" />
 
             <Channel x1={750} x2={786} />
             <FlowDot path="M750,196 L786,196" dur={1.5} begin={0.4} cls="kdx-dot--io" />

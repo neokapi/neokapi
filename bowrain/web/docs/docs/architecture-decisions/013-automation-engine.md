@@ -51,7 +51,7 @@ automations:
     actions:
       - type: run_flow
         config:
-          flow: qa-check
+          flow: qa
       - type: notify
         config:
           channel: "#localization"
@@ -126,7 +126,7 @@ quality_gates:
 
   - name: qa-pass-rate
     type: advisory
-    check: qa-check
+    check: qa
     threshold: 0.90
     scope: per-document
     applies_to: [push]

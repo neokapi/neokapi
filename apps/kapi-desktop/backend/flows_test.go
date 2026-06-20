@@ -55,7 +55,7 @@ func TestAdoptUserFlowDedupesName(t *testing.T) {
 	tab := newTestProject(t, app, "AdoptDup")
 
 	// Project already declares a flow named "Dup".
-	require.NoError(t, app.SaveFlow(tab.ID, "Dup", &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "qa-check"}}}))
+	require.NoError(t, app.SaveFlow(tab.ID, "Dup", &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "qa"}}}))
 
 	require.NoError(t, app.SaveUserFlow(SaveUserFlowRequest{
 		ID:    "dup-src",
@@ -71,7 +71,7 @@ func TestAdoptUserFlowDedupesName(t *testing.T) {
 	// Original flow is untouched.
 	orig := app.GetFlow(tab.ID, "Dup")
 	require.NotNil(t, orig)
-	assert.Equal(t, "qa-check", orig.Steps[0].Tool)
+	assert.Equal(t, "qa", orig.Steps[0].Tool)
 
 	// Deduped flow holds the adopted steps.
 	adopted := app.GetFlow(tab.ID, "Dup-2")

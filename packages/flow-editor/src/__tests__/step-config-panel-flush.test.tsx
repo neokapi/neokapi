@@ -45,8 +45,8 @@ function renderPanel(onConfigChange: (c: Record<string, unknown>) => void) {
   act(() => {
     root.render(
       createElement(StepConfigPanel, {
-        step: { tool: "ai-translate" },
-        toolInfo: { name: "ai-translate", description: "", category: "translate" },
+        step: { tool: "translate" },
+        toolInfo: { name: "translate", description: "", category: "translate" },
         schema: SCHEMA,
         doc: null,
         config: {},
