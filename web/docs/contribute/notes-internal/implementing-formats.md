@@ -434,14 +434,29 @@ produces ~101 entries instead of ~10,000.
 
 ### What Goes Where
 
-| Content                                           | Skeleton             | Block       |
-| ------------------------------------------------- | -------------------- | ----------- |
-| Structural tokens (`\{`, `}`, `[`, `]`, `,`, `:`) | Text                 | --          |
-| Whitespace, comments, formatting                  | Text                 | --          |
-| Non-translatable values                           | Text                 | --          |
-| Object keys                                       | Text                 | --          |
-| Translatable string values                        | Ref (block ID)       | Source text |
-| Embedded/subfiltered content                      | Ref (`layer:<path>`) | Child layer |
+| Content                                           | Skeleton             | Block / Data                                  |
+| ------------------------------------------------- | -------------------- | --------------------------------------------- |
+| Structural tokens (`\{`, `}`, `[`, `]`, `,`, `:`) | Text                 | --                                            |
+| Whitespace, formatting                            | Text                 | --                                            |
+| Object keys                                       | Text                 | --                                            |
+| Translatable string values                        | Ref (block ID)       | Source text                                   |
+| Non-translatable contextual values (code, captions, formulas, do-not-translate, config-excluded) | Ref (block ID) | `Block{Translatable:false}` + `SemanticRole` |
+| Comments / non-content metadata                   | Text or Ref          | `Data` (`PartData`) or a `NoteAnnotation`     |
+| Embedded/subfiltered content                      | Ref (`layer:<path>`) | Child layer                                   |
+
+The last two rows are the **content-fidelity surfacing** convention
+([AD-031](/contribute/architecture/031-content-fidelity-surfacing), default-ON
+per-format opt-out `extractNonTranslatableContent`): contextual non-translatable
+content is surfaced for LLM/RAG ingestion instead of being buried in skeleton.
+The body still rides a skeleton **Ref** so the round-trip stays byte-exact and
+the writer re-emits it from the (non-translatable) block; MT skips it because
+`Translatable` is false. With the flag off, these rows collapse back to plain
+skeleton `Text` — the configuration parity pins
+([AD-018](/contribute/architecture/018-parity-testing)). See
+[Content-Fidelity Surfacing](/contribute/notes-internal/content-fidelity) for the
+implementation recipe. Translatable prose embedded *inside* an opaque payload
+(e.g. `<m:nor/>` text in a Word equation) uses the **sub-skeleton** pattern
+([Skeleton Store](/contribute/notes-internal/skeleton-store)).
 
 The skeleton ref replaces the **entire encoded value** (e.g., including JSON
 quotes), and the writer is responsible for re-encoding the block text in the

@@ -98,6 +98,16 @@ Two part streams are compared on a **canonical projection**
 - Target locale text in the same shape.
 - Layer / group / data / media identity fields.
 
+The projection deliberately **excludes** several fields, which makes them
+**parity-safe carriers** — a native reader may populate them with richer
+information than the bridge emits without ever tripping parity: placeholder
+`Equiv`/`Disp` (used to carry portable LaTeX/MathML for equations,
+[AD-032](032-math-and-equations.md)), the block `SemanticRole` /
+`StructureAnnotation`, dynamic `Properties`, and stand-off `Annotations`
+([AD-002](002-content-model.md)). Anything a reader wants to add for
+downstream consumers — ingestion, the editor, cross-format export — rides one
+of these carriers precisely because the comparator does not look at it.
+
 Inline-code data is intentionally hidden from the default comparison.
 Different implementations represent paired codes differently — Okapi
 serializes them as display markers like `[#$dp2]`, the Go HTML reader
@@ -107,6 +117,28 @@ bar of "same translatable text + same code structure".
 
 For tests that DO want byte-level fidelity, `CompareBytes` is
 available — typically used against the round-trip output of a writer.
+
+### Same semantic config → same results
+
+Parity is faithfulness to the bridge **under the same semantic
+configuration**, not faithfulness to the bridge's *defaults*. A native reader
+is free to pick a richer default than Okapi when the matching configuration
+still reproduces the bridge's output — the contract is "same semantic config →
+same results", not "same defaults".
+
+The load-bearing instance is content-fidelity surfacing
+([AD-031](031-content-fidelity-surfacing.md)): native readers default
+`extractNonTranslatableContent` ON, surfacing code, captions, formulas, and
+other non-translatable context as `Block{Translatable:false}` for LLM/RAG
+ingestion — content the bridge has no notion of. The bridge keeps that content
+in skeleton, so a head-to-head with surfacing on would diverge by construction.
+The spec runner therefore forces the matching config: `runNative`
+(`cli/parity/spec/runner.go`) duck-types the reader config's
+`SetExtractNonTranslatableContent(bool)` setter and sets it **false** before
+reading, so the native stream is byte-identical to the bridge.
+Surfacing is an opt-in ingestion convenience layered on top of a parity-faithful
+core, never a divergence from it. New format options that change *defaults*
+rather than *semantics* must offer the same off-switch so parity can pin them.
 
 ### Reporting
 

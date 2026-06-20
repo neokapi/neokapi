@@ -17,7 +17,9 @@ notes describe the implementation.
 | Note                                                       | Parent AD                                      | Content                                             |
 | ---------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------- |
 | [Implementing Formats](implementing-formats.md)            | [AD-005](/contribute/architecture/005-format-system)      | Step-by-step guide for new format readers/writers   |
-| [Skeleton Store](skeleton-store.md)                        | [AD-005](/contribute/architecture/005-format-system)      | SkeletonStore binary format, streaming HTML support |
+| [Skeleton Store](skeleton-store.md)                        | [AD-005](/contribute/architecture/005-format-system)      | SkeletonStore binary format, streaming HTML support, sub-skeleton |
+| [Content-Fidelity Surfacing](content-fidelity.md)          | [AD-031](/contribute/architecture/031-content-fidelity-surfacing) | Surfacing non-translatable context: the inverted toggle, channels, parity force-off |
+| [OMML Math Conversion](omml-math.md)                       | [AD-032](/contribute/architecture/032-math-and-equations) | core/math Exp AST, OMML reader, nor-splice algorithm, coverage ledger |
 | [Flow Steps Format](flow-steps-format.md)                  | [AD-006](/contribute/architecture/006-tool-system)        | YAML step list, fan-out, script steps               |
 | [Session-Scoped Tool Authoring](session-tool-authoring.md) | [AD-006](/contribute/architecture/006-tool-system)        | Guide for writing tools against BlockStore          |
 | [Plugin Model](plugin-model.md)                            | [AD-007](/contribute/architecture/007-plugin-system)      | In-process registry contract for plugin binaries    |
