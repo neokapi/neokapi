@@ -43,6 +43,18 @@ export function asrLoaded(): boolean {
   return pipe !== null;
 }
 
+/**
+ * ensureASRModel proactively downloads + loads the Whisper model so the plugin
+ * manager's "Download" action can warm ASR before the first transcription.
+ * Idempotent; progress (0..1) flows through onProgress.
+ */
+export async function ensureASRModel(
+  onProgress?: (frac: number) => void,
+  model: string = DEFAULT_MODEL,
+): Promise<void> {
+  await ensureASR(model, onProgress);
+}
+
 async function ensureASR(model: string, onProgress?: (frac: number) => void): Promise<Transcriber> {
   if (!pipe) {
     pipe = (async () => {

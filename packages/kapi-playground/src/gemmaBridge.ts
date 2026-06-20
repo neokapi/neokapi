@@ -274,3 +274,14 @@ export function uninstallGemmaBridge(): void {
 export function isGemmaModelLoaded(): boolean {
   return loadPromise !== null;
 }
+
+/**
+ * ensureGemma proactively downloads + loads the Gemma model AND installs the
+ * wasm host hook, so a caller (e.g. the plugin manager's "Download" action) can
+ * warm the plugin before the first `kapi --provider gemma` run. Idempotent: a
+ * second call reuses the cached model. Progress flows through opts.onProgress.
+ */
+export async function ensureGemma(opts: InstallGemmaOptions = {}): Promise<void> {
+  await loadModel(opts);
+  installGemmaBridge(opts);
+}

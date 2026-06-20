@@ -42,6 +42,15 @@ export function ffmpegLoaded(): boolean {
   return ffmpeg !== null;
 }
 
+/**
+ * ensureAV proactively downloads + loads the ffmpeg.wasm core so the plugin
+ * manager's "Download" action can warm A/V before the first demux. Idempotent;
+ * load progress (0..1) flows through onProgress where the core reports it.
+ */
+export async function ensureAV(onProgress?: (frac: number) => void): Promise<void> {
+  await ensureFFmpeg(onProgress);
+}
+
 async function ensureFFmpeg(onProgress?: (frac: number) => void): Promise<FFmpeg> {
   if (!ffmpeg) {
     ffmpeg = (async () => {

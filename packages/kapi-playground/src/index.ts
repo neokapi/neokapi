@@ -72,6 +72,38 @@ export {
   installGemmaBridge,
   uninstallGemmaBridge,
   isGemmaModelLoaded,
+  ensureGemma,
   runGemmaImageOCR,
 } from "./gemmaBridge";
 export type { InstallGemmaOptions, GemmaProgress, GemmaResult } from "./gemmaBridge";
+
+// Plugin manager — the shared "what is loaded in this tab" store read by the
+// navbar status widget and every lab (SSR-clean; heavy bridges are lazy). Prefer
+// the light "@neokapi/kapi-playground/plugins" subpath in bundle-sensitive hosts.
+export {
+  PLUGIN_DESCRIPTORS,
+  configurePlugins,
+  bootEngine,
+  engineBooted,
+  ensurePlugin,
+  subscribePlugins,
+  getPluginState,
+  pluginCounts,
+  usePluginManager,
+} from "./plugins";
+export type {
+  PluginId,
+  PluginPhase,
+  EnginePhase,
+  Progress,
+  EngineState,
+  PluginState,
+  LabState,
+  PluginDescriptor,
+  UsePluginManager,
+} from "./plugins";
+
+// SaT segmentation — the real wtpsplit "Segment any Text" model on
+// onnxruntime-web (opt-in, lazy ~428 MB download), mirroring the native kapi-sat.
+export { segmentSat, ensureSat, satLoaded } from "./satBridge";
+export type { SatSegmentResult } from "./satBridge";

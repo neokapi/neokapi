@@ -166,6 +166,11 @@ let ocrModels: Promise<{
 }> | null = null;
 let layoutModel: Promise<ort.InferenceSession> | null = null;
 
+/** Whether the OCR (detect+recognize) models have started loading. */
+export function ocrLoaded(): boolean {
+  return ocrModels !== null;
+}
+
 async function fetchBuf(url: string, onProgress?: (frac: number) => void): Promise<ArrayBuffer> {
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`vision: fetch ${url}: ${resp.status}`);
