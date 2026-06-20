@@ -1,0 +1,34 @@
+{
+  // Cloudflare Worker that serves PR previews straight out of the R2 bucket
+  // (the same bucket that backs cdn.bowrain.cloud), under the `previews/`
+  // key prefix. R2 has no per-file size limit, so the previews can carry the
+  // full wasm (~73 MB) + vision model (~132 MB) payload that GitHub Pages and
+  // Cloudflare Pages/Workers-Static-Assets (25 MiB/file cap) cannot.
+  //
+  // Previews used to be committed into the neokapi.github.io org Pages repo,
+  // which bloated it to multiple GB of git history. They now live only in R2;
+  // CI syncs them (scripts/publish-pr-preview.sh) and prunes them on PR close
+  // (scripts/prune-pr-preview.sh). Nothing about previews touches git anymore.
+  "name": "neokapi-pr-previews",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "observability": { "enabled": true },
+
+  // Bound to the existing docs CDN bucket. The Worker only ever reads keys under
+  // `previews/`; production CDN assets (kapi/…, bowrain/…) are untouched.
+  "r2_buckets": [
+    { "binding": "PREVIEWS", "bucket_name": "neokapi-docs-cdn" }
+  ],
+
+  // Serve at a dedicated host so the baked absolute base URLs
+  // (/web/prs/<N>/neokapi/docs/, /storybook/prs/<N>/kapi/, …) resolve from the
+  // host root exactly as they did on neokapi.github.io — zero build changes.
+  //
+  // custom_domain:true makes wrangler provision the DNS record AND the edge TLS
+  // cert for this hostname on deploy — no manual DNS step. (A plain route would
+  // need a pre-existing proxied DNS record.) After deploying, set the
+  // DOCS_PREVIEW_URL repo variable to https://<this host>.
+  "routes": [
+    { "pattern": "preview.bowrain.cloud", "custom_domain": true }
+  ]
+}
