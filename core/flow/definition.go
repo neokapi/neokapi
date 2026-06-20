@@ -260,6 +260,37 @@ func BuiltInFlows() []FlowDefinition {
 			},
 		},
 		{
+			ID:          "audio-to-subtitles",
+			Name:        "Audio to Subtitles",
+			Description: "Transcribe an audio file (ASR) and AI-translate the cues — pair with a subtitle output (.vtt/.srt) to produce a translated subtitle track",
+			Source:      registry.SourceBuiltIn,
+			Nodes: []FlowNode{
+				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 0, Y: 100}},
+			},
+		},
+		{
+			ID:          "video-to-subtitles",
+			Name:        "Video to Subtitles",
+			Description: "Demux a video, keep only the spoken (timing-anchored) cues, then AI-translate them — drops on-screen frame text so the subtitle track stays clean",
+			Source:      registry.SourceBuiltIn,
+			Nodes: []FlowNode{
+				{ID: "subtitle-filter", Type: NodeTool, Name: "subtitle-filter", Label: "Subtitle Filter", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 250, Y: 100}},
+			},
+			Edges: []FlowEdge{
+				{ID: "e-filter-translate", Source: "subtitle-filter", Target: "ai-translate"},
+			},
+		},
+		{
+			ID:          "image-ocr-translate",
+			Name:        "Image OCR Translate",
+			Description: "AI-translate the text OCR'd from an image — round-trips translated alt-text to the image's sidecar (the whole image is also replaceable per locale)",
+			Source:      registry.SourceBuiltIn,
+			Nodes: []FlowNode{
+				{ID: "ai-translate", Type: NodeTool, Name: "ai-translate", Label: "AI Translate", Position: NodePosition{X: 0, Y: 100}},
+			},
+		},
+		{
 			ID:          "secure-translate",
 			Name:        "Secure Translate",
 			Description: "Redact sensitive content, AI-translate, then restore the originals locally",

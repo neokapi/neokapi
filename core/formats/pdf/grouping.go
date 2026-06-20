@@ -11,8 +11,8 @@ import (
 // by the native plugin reader (go-pdfium responses) and the browser wasm bridge
 // (JS values), so the line-grouping logic lives in one place.
 type RectIn struct {
-	Text             string
-	L, T, R, B       float64
+	Text       string
+	L, T, R, B float64
 }
 
 // RunOut is a grouped line-run: the merged text of one visual run plus its union

@@ -342,7 +342,7 @@ func TestToolNodeNames(t *testing.T) {
 
 func TestBuiltInFlows(t *testing.T) {
 	flows := BuiltInFlows()
-	require.Len(t, flows, 7)
+	require.Len(t, flows, 10)
 
 	ids := make(map[string]bool)
 	for _, f := range flows {
@@ -359,6 +359,9 @@ func TestBuiltInFlows(t *testing.T) {
 	assert.True(t, ids["tm-leverage"])
 	assert.True(t, ids["secure-translate"])
 	assert.True(t, ids["redact-pii"])
+	assert.True(t, ids["audio-to-subtitles"])
+	assert.True(t, ids["video-to-subtitles"])
+	assert.True(t, ids["image-ocr-translate"])
 }
 
 func TestFlowDefinitionJSON(t *testing.T) {

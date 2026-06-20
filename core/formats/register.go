@@ -437,7 +437,9 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("mosestext", func() format.DataFormatWriter { return mosestext.NewWriter() })
 
 	// Audio — transcribed to timing-anchored Blocks when the kapi-asr plugin is
-	// available (AD-030); otherwise emitted as a Media asset. Read-only.
+	// available (AD-030); otherwise emitted as a Media asset. The writer emits the
+	// (possibly per-locale replacement) audio bytes — the whole-audio
+	// localization sink (a binary asset, see project.IsBinaryAssetFormat).
 	reg.RegisterReader("audio",
 		func() format.DataFormatReader { return audio.NewReader() },
 		format.FormatSignature{
@@ -445,15 +447,19 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			Extensions: []string{".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus"},
 			MagicBytes: [][]byte{[]byte("RIFF"), []byte("ID3"), []byte("OggS"), []byte("fLaC")},
 		}, "Audio")
+	reg.RegisterWriter("audio", func() format.DataFormatWriter { return audio.NewWriter() })
 
 	// Video — demuxed (ffmpeg) into an audio track (→ kapi-asr) and sampled
-	// frames (→ kapi-vision OCR), each a child Layer (AD-030). Read-only.
+	// frames (→ kapi-vision OCR), each a child Layer (AD-030). The writer emits
+	// the (possibly per-locale replacement) video bytes — the whole-video
+	// localization sink (a binary asset, see project.IsBinaryAssetFormat).
 	reg.RegisterReader("video",
 		func() format.DataFormatReader { return video.NewReader() },
 		format.FormatSignature{
 			MIMETypes:  []string{"video/mp4", "video/quicktime", "video/x-matroska", "video/webm"},
 			Extensions: []string{".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"},
 		}, "Video")
+	reg.RegisterWriter("video", func() format.DataFormatWriter { return video.NewWriter() })
 
 	// SRT Subtitles
 	reg.RegisterReader("srt",

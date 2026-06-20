@@ -133,6 +133,7 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 		block.Name = "subtitle." + entry.sequence
 		block.Properties["timecode"] = entry.timecode
 		block.Properties["sequence"] = entry.sequence
+		setBlockTiming(block, entry.timecode)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return
 		}
@@ -204,6 +205,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		block.Name = "subtitle." + sequence
 		block.Properties["timecode"] = timecode
 		block.Properties["sequence"] = sequence
+		setBlockTiming(block, timecode)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return false
 		}

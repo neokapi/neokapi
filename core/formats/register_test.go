@@ -72,6 +72,11 @@ func TestRegisterAllWriters(t *testing.T) {
 		// "image" has a writer: it emits the (possibly localized, e.g.
 		// pseudo-localized) image bytes — the whole-image localization sink.
 		"image",
+		// "audio"/"video" have passthrough writers: the whole-asset replace-asset
+		// sink (AD-030) — a per-locale media file the user/connector supplies is
+		// written out as-is. Extraction (ASR/OCR) Blocks carry no replacement
+		// bytes and pass through.
+		"audio", "video",
 		// Note: "docling" is intentionally absent — it is read-only (extraction
 		// only), so it registers a reader but no writer. "pdf" is absent on
 		// native builds entirely (read out-of-core by the kapi-pdfium plugin).
