@@ -138,6 +138,13 @@ func (r *Reader) parseAndEmitSkeleton(ctx context.Context, ch chan<- model.PartR
 	noteDepth := 0
 	paragraphStyle := ""
 
+	// Note extraction (gated by cfg.ExtractNotes). Editorial <Note> content is
+	// surfaced as a parity-safe NoteAnnotation on the next emitted Block rather
+	// than as a translatable Block — the Note bytes stay in skeleton untouched.
+	inNoteContent := false
+	var noteText strings.Builder
+	var pendingNotes []*model.NoteAnnotation
+
 	var ranges []icmlContentRange
 
 	for {
@@ -162,6 +169,9 @@ func (r *Reader) parseAndEmitSkeleton(ctx context.Context, ch chan<- model.PartR
 				continue
 			}
 			if noteDepth > 0 {
+				if r.cfg.ExtractNotes && name == "Content" {
+					inNoteContent = true
+				}
 				noteDepth++
 				continue
 			}
@@ -194,7 +204,15 @@ func (r *Reader) parseAndEmitSkeleton(ctx context.Context, ch chan<- model.PartR
 				continue
 			}
 			if noteDepth > 0 {
+				if r.cfg.ExtractNotes && name == "Content" {
+					inNoteContent = false
+				}
 				noteDepth--
+				if noteDepth == 0 && r.cfg.ExtractNotes {
+					if n := finalizeNote(&noteText); n != nil {
+						pendingNotes = append(pendingNotes, n)
+					}
+				}
 				continue
 			}
 
@@ -208,7 +226,13 @@ func (r *Reader) parseAndEmitSkeleton(ctx context.Context, ch chan<- model.PartR
 			}
 
 		case xml.CharData:
-			if nonTranslatableDepth > 0 || noteDepth > 0 {
+			if nonTranslatableDepth > 0 {
+				continue
+			}
+			if noteDepth > 0 {
+				if r.cfg.ExtractNotes && inNoteContent {
+					noteText.WriteString(string(el))
+				}
 				continue
 			}
 			text := string(el)
@@ -225,6 +249,12 @@ func (r *Reader) parseAndEmitSkeleton(ctx context.Context, ch chan<- model.PartR
 				}
 				if paragraphStyle != "" {
 					block.Properties["paragraphStyle"] = paragraphStyle
+				}
+				if r.cfg.ExtractNotes && len(pendingNotes) > 0 {
+					for _, n := range pendingNotes {
+						block.AddNote(n)
+					}
+					pendingNotes = pendingNotes[:0]
 				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return
@@ -287,6 +317,22 @@ func (r *Reader) parseAndEmit(ctx context.Context, ch chan<- model.PartResult, d
 	// Track Note elements (depth-based to handle nested elements inside Notes).
 	noteDepth := 0
 
+	// Note extraction (gated by cfg.ExtractNotes). Editorial <Note> content is
+	// surfaced as a parity-safe NoteAnnotation on the next emitted Block rather
+	// than as a translatable Block — the Note bytes stay in skeleton untouched.
+	inNoteContent := false
+	var noteText strings.Builder
+	var pendingNotes []*model.NoteAnnotation
+	attachPendingNotes := func(block *model.Block) {
+		if !r.cfg.ExtractNotes || len(pendingNotes) == 0 {
+			return
+		}
+		for _, n := range pendingNotes {
+			block.AddNote(n)
+		}
+		pendingNotes = pendingNotes[:0]
+	}
+
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
@@ -308,8 +354,12 @@ func (r *Reader) parseAndEmit(ctx context.Context, ch chan<- model.PartResult, d
 				continue
 			}
 
-			// If inside a Note, just track depth.
+			// If inside a Note, just track depth (and capture its <Content> text
+			// when note extraction is on).
 			if noteDepth > 0 {
+				if r.cfg.ExtractNotes && name == "Content" {
+					inNoteContent = true
+				}
 				noteDepth++
 				continue
 			}
@@ -336,6 +386,7 @@ func (r *Reader) parseAndEmit(ctx context.Context, ch chan<- model.PartResult, d
 						if paragraphStyle != "" {
 							block.Properties["paragraphStyle"] = paragraphStyle
 						}
+						attachPendingNotes(block)
 						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 							return
 						}
@@ -365,6 +416,7 @@ func (r *Reader) parseAndEmit(ctx context.Context, ch chan<- model.PartResult, d
 							if paragraphStyle != "" {
 								block.Properties["paragraphStyle"] = paragraphStyle
 							}
+							attachPendingNotes(block)
 							if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 								return
 							}
@@ -386,9 +438,18 @@ func (r *Reader) parseAndEmit(ctx context.Context, ch chan<- model.PartResult, d
 				continue
 			}
 
-			// If inside a Note, just track depth.
+			// If inside a Note, just track depth; on close, drain the captured
+			// note text into a pending NoteAnnotation.
 			if noteDepth > 0 {
+				if r.cfg.ExtractNotes && name == "Content" {
+					inNoteContent = false
+				}
 				noteDepth--
+				if noteDepth == 0 && r.cfg.ExtractNotes {
+					if n := finalizeNote(&noteText); n != nil {
+						pendingNotes = append(pendingNotes, n)
+					}
+				}
 				continue
 			}
 
@@ -407,6 +468,7 @@ func (r *Reader) parseAndEmit(ctx context.Context, ch chan<- model.PartResult, d
 						if paragraphStyle != "" {
 							block.Properties["paragraphStyle"] = paragraphStyle
 						}
+						attachPendingNotes(block)
 						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 							return
 						}
@@ -424,6 +486,7 @@ func (r *Reader) parseAndEmit(ctx context.Context, ch chan<- model.PartResult, d
 						block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
 						block.Name = fmt.Sprintf("cell.%d", blockCounter)
 						block.Properties["table"] = "true"
+						attachPendingNotes(block)
 						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 							return
 						}
@@ -441,6 +504,9 @@ func (r *Reader) parseAndEmit(ctx context.Context, ch chan<- model.PartResult, d
 				continue
 			}
 			if noteDepth > 0 {
+				if r.cfg.ExtractNotes && inNoteContent {
+					noteText.WriteString(string(el))
+				}
 				continue
 			}
 			text := string(el)
@@ -448,6 +514,24 @@ func (r *Reader) parseAndEmit(ctx context.Context, ch chan<- model.PartResult, d
 				textSegments = append(textSegments, text)
 			}
 		}
+	}
+}
+
+// finalizeNote drains the accumulated <Note> text into a NoteAnnotation,
+// resetting the buffer. It returns nil when the note carried no text. ICML
+// Notes are editorial annotations, so the text rides along as block-scoped
+// metadata (parity-safe; not in the canonical part stream) rather than as a
+// translatable Block.
+func finalizeNote(buf *strings.Builder) *model.NoteAnnotation {
+	txt := strings.TrimSpace(buf.String())
+	buf.Reset()
+	if txt == "" {
+		return nil
+	}
+	return &model.NoteAnnotation{
+		Text:      txt,
+		From:      "icml",
+		Annotates: "general",
 	}
 }
 

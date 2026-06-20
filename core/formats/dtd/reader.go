@@ -147,7 +147,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		if strings.HasPrefix(text[pos:], "<!--") {
 			endIdx := strings.Index(text[pos:], "-->")
 			if endIdx == -1 {
-				// Unclosed comment — treat rest as data
+				// Unclosed comment — treat rest as data. The comment bytes
+				// still ride the skeleton (round-trip stays byte-exact), but
+				// the prose was previously dropped: carry it on the Data part
+				// so ingestion can surface it as developer/translator context.
+				// Parity canonicalises Data parts by ID only, so the
+				// Properties payload is parity-safe and needs no flag.
+				commentText := strings.TrimSpace(text[pos+4:])
 				r.skelText(text[skelPos:])
 				skelPos = len(text)
 				dataCounter++
@@ -155,12 +161,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					ID:   fmt.Sprintf("d%d", dataCounter),
 					Name: "comment",
 				}
+				if commentText != "" {
+					d.Properties = map[string]string{"text": commentText}
+				}
 				r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: d})
 				break
 			}
-			commentText := text[pos+4 : pos+endIdx]
-			commentText = strings.TrimSpace(commentText)
-			pendingComment = commentText
+			commentText := strings.TrimSpace(text[pos+4 : pos+endIdx])
+			// Accumulate consecutive comments rather than letting a later
+			// comment overwrite (and silently drop) an earlier one. The joined
+			// prose later attaches to the next ENTITY block as a note or to
+			// the next declaration's Data part.
+			pendingComment = appendComment(pendingComment, commentText)
 			pos += endIdx + 3
 			continue
 		}
@@ -181,11 +193,20 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 			name, value, ok := parseEntityDecl(entityDecl)
 			if !ok {
-				// Non-entity declaration (ELEMENT, ATTLIST, etc.) — emit as data
+				// Non-entity declaration (parameter/external entity, etc.) —
+				// emit as data.
 				dataCounter++
 				d := &model.Data{
 					ID:   fmt.Sprintf("d%d", dataCounter),
 					Name: "declaration",
+				}
+				// A comment immediately preceding this declaration would
+				// otherwise be dropped (there is no Block to annotate); carry
+				// its prose on the declaration's Data part instead. Parity
+				// compares only Data.ID, so this is parity-safe; the comment
+				// bytes stay in the skeleton.
+				if pendingComment != "" {
+					d.Properties = map[string]string{"text": pendingComment}
 				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: d}) {
 					return
@@ -252,6 +273,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			d := &model.Data{
 				ID:   fmt.Sprintf("d%d", dataCounter),
 				Name: "declaration",
+			}
+			// Carry a preceding comment's prose on the declaration's Data part
+			// instead of dropping it (parity-safe — only Data.ID is canonical;
+			// the comment bytes remain in the skeleton).
+			if pendingComment != "" {
+				d.Properties = map[string]string{"text": pendingComment}
 			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: d}) {
 				return
@@ -322,6 +349,20 @@ func findEntityValuePos(decl string) (int, int) {
 		return -1, -1
 	}
 	return valueStart, valueStart + valueEnd
+}
+
+// appendComment joins consecutive DTD comments so a later comment does not
+// overwrite (and silently drop) an earlier one before either is attached to
+// the following declaration's Data part or the following entity's note.
+func appendComment(existing, next string) string {
+	switch {
+	case existing == "":
+		return next
+	case next == "":
+		return existing
+	default:
+		return existing + "\n" + next
+	}
 }
 
 // parseEntityDecl parses an ENTITY declaration and returns (name, value, ok).

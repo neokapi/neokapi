@@ -615,3 +615,140 @@ func TestRoundTripFile_Simple(t *testing.T) {
 	assert.Contains(t, output, "farewell")
 	assert.Contains(t, output, "thanks")
 }
+
+// --- Comment-context surfacing (#928 treatment B) ---
+
+// dataParts returns every model.Data resource emitted in the part stream.
+func dataParts(parts []*model.Part) []*model.Data {
+	var out []*model.Data
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			if d, ok := p.Resource.(*model.Data); ok {
+				out = append(out, d)
+			}
+		}
+	}
+	return out
+}
+
+// dataByName returns the first Data part with the given Name.
+func dataByName(datas []*model.Data, name string) *model.Data {
+	for _, d := range datas {
+		if d.Name == name {
+			return d
+		}
+	}
+	return nil
+}
+
+// An unclosed `<!--` (no `-->`) is consumed as a single Data part. Previously
+// its prose was dropped; it must now ride on the Data part's Properties so
+// ingestion can surface the comment as context. The part stream is unchanged
+// (still one comment Data), so this is parity-safe.
+func TestUnclosedCommentCarriesProse(t *testing.T) {
+	ctx := t.Context()
+	reader := dtd.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString("<!-- a comment that never closes", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	datas := dataParts(parts)
+	d := dataByName(datas, "comment")
+	require.NotNil(t, d, "unclosed comment should produce a comment Data part")
+	assert.Equal(t, "a comment that never closes", d.Properties["text"])
+
+	// No translatable block is introduced.
+	assert.Empty(t, testutil.FilterBlocks(parts), "comment must not become a translatable block")
+}
+
+// A comment that is NOT immediately followed by a parseable <!ENTITY> — here a
+// structural <!ELEMENT> declaration — must not lose its prose. It rides on the
+// declaration's Data part Properties. Round-trip stays byte-exact (bytes live
+// in the skeleton).
+func TestCommentBeforeElementDeclarationCarriesProse(t *testing.T) {
+	ctx := t.Context()
+	input := "<!--describe the element-->\n<!ELEMENT note (to,from)>\n"
+	reader := dtd.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	d := dataByName(dataParts(parts), "declaration")
+	require.NotNil(t, d, "ELEMENT declaration should produce a declaration Data part")
+	assert.Equal(t, "describe the element", d.Properties["text"])
+	assert.Empty(t, testutil.FilterBlocks(parts), "no translatable block for an ELEMENT declaration")
+
+	// Round-trip is byte-exact — the comment + declaration stay in skeleton.
+	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input))
+}
+
+// A comment preceding a parameter entity (`<!ENTITY % ... >`, which parseEntityDecl
+// rejects and routes through the non-entity declaration branch) carries its
+// prose on that declaration's Data part rather than being dropped.
+func TestCommentBeforeParameterEntityCarriesProse(t *testing.T) {
+	ctx := t.Context()
+	input := "<!--macro doc-->\n<!ENTITY % evilstring '(#PCDATA | byte)*' >\n"
+	reader := dtd.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	d := dataByName(dataParts(parts), "declaration")
+	require.NotNil(t, d, "parameter entity should produce a declaration Data part")
+	assert.Equal(t, "macro doc", d.Properties["text"])
+	assert.Empty(t, testutil.FilterBlocks(parts), "parameter entity must not be translatable")
+
+	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input))
+}
+
+// Consecutive comments before one entity accumulate instead of the later
+// comment overwriting (and dropping) the earlier one. The joined prose lands
+// on the entity's note annotation (parity-safe; annotations are not in the
+// canonical stream).
+func TestConsecutiveCommentsAccumulateAsNote(t *testing.T) {
+	ctx := t.Context()
+	input := "<!--first comment-->\n<!--second comment-->\n<!ENTITY greeting \"Hello\">"
+	reader := dtd.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	b := blockByName(blocks, "greeting")
+	require.NotNil(t, b)
+	notes := b.Notes()
+	require.Len(t, notes, 1)
+	assert.Equal(t, "first comment\nsecond comment", notes[0].Text)
+}
+
+// When the only difference is comment-context surfacing, the emitted Data ID
+// sequence is unchanged from the pre-change behavior — proving the part stream
+// (what parity compares) is byte-identical regardless of the Properties text.
+func TestCommentBeforeDeclarationDataIDStable(t *testing.T) {
+	ctx := t.Context()
+	// Two declarations preceded by comments + one without; IDs must be d1, d2, d3.
+	input := "<!--c1-->\n<!ELEMENT a EMPTY>\n<!ELEMENT b EMPTY>\n<!--c3-->\n<!ATTLIST b x CDATA #IMPLIED>\n"
+	reader := dtd.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	var decls []*model.Data
+	for _, d := range dataParts(parts) {
+		if d.Name == "declaration" {
+			decls = append(decls, d)
+		}
+	}
+	require.Len(t, decls, 3)
+	assert.Equal(t, "d1", decls[0].ID)
+	assert.Equal(t, "d2", decls[1].ID)
+	assert.Equal(t, "d3", decls[2].ID)
+	// Comment prose carried only where a comment preceded the declaration.
+	assert.Equal(t, "c1", decls[0].Properties["text"])
+	assert.Empty(t, decls[1].Properties["text"])
+	assert.Equal(t, "c3", decls[2].Properties["text"])
+}

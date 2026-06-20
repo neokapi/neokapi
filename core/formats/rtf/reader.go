@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -137,6 +138,57 @@ var bookmarkDestinations = map[string]bool{
 	"bkmkend":   true,
 }
 
+// entcHardSkipDestinations are destinations always skipped on the
+// ExtractNonTranslatableContent (ENTC) path. It deliberately omits "info",
+// "xe", and "tc" (which alwaysSkipDestinations skips on the legacy path) because
+// ENTC surfaces their text, and omits "field"/"fldrslt" (which carry field
+// result text). "rxe" stays — a reverse/run-in index identifier, not copy.
+var entcHardSkipDestinations = map[string]bool{
+	"fonttbl":    true,
+	"colortbl":   true,
+	"stylesheet": true,
+	"pict":       true,
+	"object":     true,
+	"fldinst":    true,
+	"rxe":        true,
+}
+
+// annotationIDDestinations are annotation/revision identifiers (not user copy)
+// that stay in skeleton on the ENTC path. \atnid/\atnref/\atndate carry IDs and
+// timestamps; \atrfstart/\atrfend bracket the annotated span.
+var annotationIDDestinations = map[string]bool{
+	"atnid":     true,
+	"atnref":    true,
+	"atndate":   true,
+	"atrfstart": true,
+	"atrfend":   true,
+}
+
+// contentKind selects how a captured non-translatable destination is surfaced.
+type contentKind int
+
+const (
+	ckBlock  contentKind = iota // emit a Translatable:false content Block (+ skeleton refs)
+	ckNote                      // carry the text as a NoteAnnotation on the next body block
+	ckAuthor                    // capture the text as the pending note author (\atnauthor)
+)
+
+// tokenRange is a half-open byte range of a text token in the raw input.
+type tokenRange struct {
+	start, end int
+}
+
+// contentFrame accumulates the decoded text of a non-translatable destination
+// (header/footer, \info title/doccomm, \xe/\tc, \annotation, \atnauthor) while
+// its group is open. On group end it is flushed per its kind.
+type contentFrame struct {
+	kind   contentKind
+	role   string
+	name   string
+	text   strings.Builder
+	ranges []tokenRange
+}
+
 // isSkipDestination returns whether the given destination should be skipped
 // based on the reader config.
 func (r *Reader) isSkipDestination(dest string) bool {
@@ -194,6 +246,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Build skeleton if needed
 	if r.skeletonStore != nil && len(textRefs) > 0 {
+		// Non-translatable content blocks (e.g. a \xe index entry mid-paragraph)
+		// flush before the body paragraph that surrounds them, so their refs are
+		// appended out of byte order. The skeleton builder walks refs in
+		// ascending offset, so sort first. Block-index mapping is unaffected —
+		// each ref still names its own block. With no content blocks the slice
+		// is already ordered and the sort is a no-op.
+		sort.SliceStable(textRefs, func(i, j int) bool {
+			return textRefs[i].startOffset < textRefs[j].startOffset
+		})
 		skelPos := 0
 		for _, tr := range textRefs {
 			if tr.startOffset > skelPos {
@@ -216,31 +277,40 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
+// groupInfo tracks per-group parse state on the group stack.
+type groupInfo struct {
+	skip           bool
+	destinationTag string
+	prevInBody     bool // saved inBody state to restore on group end
+	setInBody      bool // did this group set inBody?
+
+	// ENTC-path fields (zero on the legacy path):
+	sawStar       bool // group opened with the \* ignorable-destination marker
+	isInfo        bool // this is the \info container (transparent, children scoped)
+	contentPushed bool // this group pushed a contentFrame to be flushed on its end
+}
+
 // emitParts walks the token stream and emits Part events.
 func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, tokens []token, textRefs *[]textRef) {
 	blockCounter := 0
 	dataCounter := 0
 
-	// Track group depth and which groups to skip.
-	type groupInfo struct {
-		skip           bool
-		destinationTag string
-		prevInBody     bool // saved inBody state to restore on group end
-		setInBody      bool // did this group set inBody?
-	}
+	entc := r.cfg.ExtractNonTranslatableContent()
+
 	var groupStack []groupInfo
 	depth := 0
 
 	// Accumulate text for the current paragraph.
 	var paraText strings.Builder
-	// Accumulate text token byte ranges for the current paragraph.
-	type tokenRange struct {
-		start, end int
-	}
 	var paraTokenRanges []tokenRange
 	// Accumulate raw RTF for data parts.
 	var rawRTF strings.Builder
 	inBody := false
+
+	// ENTC: non-translatable content/annotation capture state.
+	var contentStack []*contentFrame
+	var pendingNotes []*model.NoteAnnotation
+	pendingNoteAuthor := ""
 
 	flushData := func() {
 		if rawRTF.Len() > 0 {
@@ -259,6 +329,20 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 		}
 	}
 
+	recordRefs := func(blockIdx int, ranges []tokenRange) {
+		if r.skeletonStore == nil {
+			return
+		}
+		for i, tr := range ranges {
+			*textRefs = append(*textRefs, textRef{
+				startOffset: tr.start,
+				endOffset:   tr.end,
+				blockIdx:    blockIdx,
+				tokenIdx:    i,
+			})
+		}
+	}
+
 	flushParagraph := func() {
 		text := paraText.String()
 		ranges := paraTokenRanges
@@ -271,18 +355,51 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 		blockCounter++
 		block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
 		block.Name = fmt.Sprintf("para.%d", blockCounter)
+		// Attach any captured review-comment notes to the paragraph they sit in.
+		for _, n := range pendingNotes {
+			block.AddNote(n)
+		}
+		pendingNotes = nil
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+		recordRefs(blockCounter-1, ranges)
+	}
 
-		// Record text references for skeleton
-		if r.skeletonStore != nil {
-			for i, tr := range ranges {
-				*textRefs = append(*textRefs, textRef{
-					startOffset: tr.start,
-					endOffset:   tr.end,
-					blockIdx:    blockCounter - 1, // 0-based
-					tokenIdx:    i,
-				})
+	// flushContent disposes of a content frame per its kind.
+	flushContent := func(cf *contentFrame) {
+		text := cf.text.String()
+		switch cf.kind {
+		case ckAuthor:
+			pendingNoteAuthor = strings.TrimSpace(text)
+		case ckNote:
+			t := strings.TrimSpace(text)
+			if t == "" {
+				return
 			}
+			from := pendingNoteAuthor
+			if from == "" {
+				from = "reviewer"
+			}
+			pendingNotes = append(pendingNotes, &model.NoteAnnotation{
+				Text:      t,
+				From:      from,
+				Annotates: "general",
+			})
+			pendingNoteAuthor = ""
+		case ckBlock:
+			if strings.TrimSpace(text) == "" {
+				return
+			}
+			flushData()
+			blockCounter++
+			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
+			block.Name = fmt.Sprintf("%s.%d", cf.name, blockCounter)
+			block.Translatable = false
+			block.PreserveWhitespace = true
+			if cf.role != "" {
+				block.SetSemanticRole(cf.role, 0)
+			}
+			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+			recordRefs(blockCounter-1, cf.ranges)
 		}
 	}
 
@@ -295,6 +412,111 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 		return false
 	}
 
+	// parentIsInfo reports whether the immediate parent group is the \info
+	// container \u2014 used to scope which \info children become content vs skeleton.
+	parentIsInfo := func() bool {
+		if len(groupStack) < 2 {
+			return false
+		}
+		return groupStack[len(groupStack)-2].isInfo
+	}
+
+	// pushContent opens a content frame on the current group.
+	pushContent := func(gi *groupInfo, kind contentKind, role, name string) bool {
+		contentStack = append(contentStack, &contentFrame{kind: kind, role: role, name: name})
+		gi.contentPushed = true
+		return true
+	}
+
+	// openDest classifies a freshly-seen destination on the ENTC path. It
+	// returns true when the destination token is fully handled (the shared
+	// special-character switch is then skipped for this token).
+	openDest := func(gi *groupInfo, dest string) bool {
+		// Review comments and their author ride as note metadata (treatment B):
+		// the comment text is semantic annotation, not shippable copy. On this
+		// (ENTC) path that holds regardless of ExtractAnnotations, which only
+		// governs the legacy skeleton path. \atnid/\atnref/\atndate identifiers
+		// stay in skeleton (handled below).
+		switch dest {
+		case "annotation":
+			return pushContent(gi, ckNote, "", "annotation")
+		case "atnauthor":
+			return pushContent(gi, ckAuthor, "", "atnauthor")
+		}
+		// Any other \*-ignorable destination is content we don't translate \u2014
+		// the correct RTF behavior is to skip it (this also keeps \*\themedata,
+		// \*\atnref, \*\datastore, \u2026 out of the block stream).
+		if gi.sawStar {
+			gi.skip = true
+			return true
+		}
+		if entcHardSkipDestinations[dest] || annotationIDDestinations[dest] {
+			gi.skip = true
+			return true
+		}
+		// Inside \info only the title and doc-comment carry prose; everything
+		// else (author, operator, creatim, \u2026) stays skeleton.
+		if parentIsInfo() {
+			switch dest {
+			case "title":
+				return pushContent(gi, ckBlock, model.RoleTitle, "title")
+			case "doccomm":
+				return pushContent(gi, ckBlock, "comment", "doccomm")
+			default:
+				gi.skip = true
+				return true
+			}
+		}
+		if dest == "info" {
+			gi.isInfo = true
+			return true
+		}
+		if dest == "xe" {
+			return pushContent(gi, ckBlock, model.RoleIndex, "index")
+		}
+		if dest == "tc" {
+			return pushContent(gi, ckBlock, model.RoleIndex, "toc")
+		}
+		if headerFooterDestinations[dest] {
+			if r.cfg.ExtractHeadersFooters {
+				gi.prevInBody = inBody
+				gi.setInBody = true
+				inBody = true
+				return false
+			}
+			role := model.RolePageHeader
+			name := "header"
+			if strings.HasPrefix(dest, "footer") {
+				role = model.RolePageFooter
+				name = "footer"
+			}
+			return pushContent(gi, ckBlock, role, name)
+		}
+		if bookmarkDestinations[dest] {
+			if !r.cfg.ExtractBookmarks {
+				gi.skip = true
+				return true
+			}
+			return false
+		}
+		return false
+	}
+
+	// addInline routes a decoded inline fragment (text/hex/unicode/special char)
+	// to the active content frame, else to the body paragraph when in body.
+	addInline := func(s string, tok token) {
+		if len(contentStack) > 0 {
+			cf := contentStack[len(contentStack)-1]
+			cf.text.WriteString(s)
+			cf.ranges = append(cf.ranges, tokenRange{tok.byteStart, tok.byteEnd})
+			return
+		}
+		if inBody {
+			paraText.WriteString(s)
+			paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
+		}
+	}
+
 	for _, tok := range tokens {
 		switch tok.typ {
 		case tokenGroupStart:
@@ -305,6 +527,11 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			if depth > 0 {
 				depth--
 				gi := groupStack[len(groupStack)-1]
+				if gi.contentPushed && len(contentStack) > 0 {
+					cf := contentStack[len(contentStack)-1]
+					contentStack = contentStack[:len(contentStack)-1]
+					flushContent(cf)
+				}
 				if gi.setInBody {
 					flushParagraph()
 					inBody = gi.prevInBody
@@ -316,18 +543,30 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			// Check if this is a destination control word at the start of a group.
 			if len(groupStack) > 0 {
 				gi := &groupStack[len(groupStack)-1]
+				if entc && gi.destinationTag == "" && !gi.sawStar && tok.text == "*" {
+					// \* marks an ignorable destination; the real destination is
+					// the next control word. Consume the marker.
+					gi.sawStar = true
+					continue
+				}
 				if gi.destinationTag == "" {
 					gi.destinationTag = tok.text
-					if r.isSkipDestination(tok.text) {
-						gi.skip = true
-						continue
-					}
-					// For header/footer/annotation groups that are NOT skipped,
-					// set inBody so their text content is extracted.
-					if headerFooterDestinations[tok.text] || annotationDestinations[tok.text] {
-						gi.prevInBody = inBody
-						gi.setInBody = true
-						inBody = true
+					if entc {
+						if openDest(gi, tok.text) {
+							continue
+						}
+					} else {
+						if r.isSkipDestination(tok.text) {
+							gi.skip = true
+							continue
+						}
+						// For header/footer/annotation groups that are NOT
+						// skipped, set inBody so their text content is extracted.
+						if headerFooterDestinations[tok.text] || annotationDestinations[tok.text] {
+							gi.prevInBody = inBody
+							gi.setInBody = true
+							inBody = true
+						}
 					}
 				}
 			}
@@ -338,55 +577,37 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 
 			switch tok.text {
 			case "par", "line":
-				// Paragraph or line break - flush current paragraph.
-				flushParagraph()
-				inBody = true
+				// Paragraph or line break - flush current paragraph. Inside a
+				// content frame, a break does not split the content block.
+				if len(contentStack) == 0 {
+					flushParagraph()
+					inBody = true
+				}
 			case "pard":
-				// Paragraph reset - signals we're in the document body.
-				inBody = true
+				// Paragraph reset - signals we're in the document body. A reset
+				// inside a content frame must not leak into the outer body state.
+				if len(contentStack) == 0 {
+					inBody = true
+				}
 			case "tab":
-				if inBody {
-					paraText.WriteRune('\t')
-					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
-				}
+				addInline("\t", tok)
 			case "lquote":
-				if inBody {
-					paraText.WriteRune('\u2018')
-					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
-				}
+				addInline("\u2018", tok)
 			case "rquote":
-				if inBody {
-					paraText.WriteRune('\u2019')
-					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
-				}
+				addInline("\u2019", tok)
 			case "ldblquote":
-				if inBody {
-					paraText.WriteRune('\u201C')
-					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
-				}
+				addInline("\u201C", tok)
 			case "rdblquote":
-				if inBody {
-					paraText.WriteRune('\u201D')
-					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
-				}
+				addInline("\u201D", tok)
 			case "emdash":
-				if inBody {
-					paraText.WriteRune('\u2014')
-					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
-				}
+				addInline("\u2014", tok)
 			case "endash":
-				if inBody {
-					paraText.WriteRune('\u2013')
-					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
-				}
+				addInline("\u2013", tok)
 			case "bullet":
-				if inBody {
-					paraText.WriteRune('\u2022')
-					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
-				}
+				addInline("\u2022", tok)
 			default:
 				// Store formatting control words as raw RTF data.
-				if !inBody {
+				if len(contentStack) == 0 && !inBody {
 					rawRTF.WriteString("\\")
 					rawRTF.WriteString(tok.text)
 					if tok.hasParam {
@@ -399,7 +620,11 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			if shouldSkip() {
 				continue
 			}
-			if inBody || depth <= 1 {
+			if len(contentStack) > 0 {
+				cf := contentStack[len(contentStack)-1]
+				cf.text.WriteString(tok.text)
+				cf.ranges = append(cf.ranges, tokenRange{tok.byteStart, tok.byteEnd})
+			} else if inBody || depth <= 1 {
 				inBody = true
 				paraText.WriteString(tok.text)
 				paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
@@ -411,19 +636,13 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			if shouldSkip() {
 				continue
 			}
-			if inBody {
-				paraText.WriteString(tok.text)
-				paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
-			}
+			addInline(tok.text, tok)
 
 		case tokenUnicode:
 			if shouldSkip() {
 				continue
 			}
-			if inBody {
-				paraText.WriteString(tok.text)
-				paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
-			}
+			addInline(tok.text, tok)
 		}
 	}
 

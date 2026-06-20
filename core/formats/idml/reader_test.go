@@ -481,10 +481,9 @@ func TestFootnotes(t *testing.T) {
 
 	// Footnote <Content> text is always extracted as a translatable
 	// Block — matching okapi's IDML round-trip, which translates
-	// footnote bodies regardless of the ExtractNotes flag.
-	// ExtractNotes controls whether the note is also exposed as a
-	// separate NoteAnnotation (we don't emit that today, so the flag
-	// is currently a no-op for text extraction).
+	// footnote bodies regardless of the ExtractNotes flag. ExtractNotes
+	// gates the InDesign editor sticky <Note>, not footnotes/endnotes
+	// (see TestStickyNotes), so it is a no-op for footnote text here.
 	parts := readIDMLBytes(t, data)
 	blocks := testutil.FilterBlocks(parts)
 	require.Len(t, blocks, 2)
@@ -502,6 +501,95 @@ func TestFootnotes(t *testing.T) {
 	texts2 := testutil.BlockTexts(blocks2)
 	assert.Contains(t, texts2, "Main text")
 	assert.Contains(t, texts2, "Footnote text")
+}
+
+// TestStickyNotes covers the InDesign editor sticky <Note> handling.
+//
+// When ExtractNotes=false (the default), a sticky note's body is NOT a
+// translatable Block (upstream keeps it in skeleton, untranslated). The
+// reader carries the note body as a parity-safe NoteAnnotation on the
+// adjacent (following) translatable Block so the comment text is still
+// visible to ingestion without becoming MT payload, while the note text
+// stays byte-exact in the skeleton on round-trip. When ExtractNotes=true,
+// the note body becomes its own translatable Block (the prior behavior)
+// and no NoteAnnotation is emitted.
+func TestStickyNotes(t *testing.T) {
+	storyXML := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<idPkg:Story xmlns:idPkg="http://ns.adobe.com/AdobeInDesign/idml/1.0/packaging">
+  <Story Self="u1">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content xml:space="preserve">Before note</Content>
+        <Note Collapsed="false">
+          <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+            <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+              <Content>Reviewer comment here</Content>
+            </CharacterStyleRange>
+          </ParagraphStyleRange>
+        </Note>
+        <Content xml:space="preserve">After note</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</idPkg:Story>`
+	data := createIDML(t, map[string]string{"Story_u1.xml": storyXML})
+
+	// ExtractNotes=false (default): two translatable blocks; the sticky
+	// note body rides along as a NoteAnnotation on the following block.
+	parts := readIDMLBytes(t, data)
+	blocks := testutil.FilterBlocks(parts)
+	require.Len(t, blocks, 2)
+	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "Before note")
+	assert.Contains(t, texts, "After note")
+	assert.NotContains(t, texts, "Reviewer comment here",
+		"sticky note body must not be a translatable block when ExtractNotes=false")
+
+	// The note attaches to the FOLLOWING block ("After note"); the
+	// preceding block ("Before note") carries no note.
+	require.Empty(t, blocks[0].Notes(), "preceding block should carry no sticky note")
+	notes := blocks[1].Notes()
+	require.Len(t, notes, 1, "following block should carry the sticky note")
+	assert.Equal(t, "Reviewer comment here", notes[0].Text)
+	assert.Equal(t, "idml-note", notes[0].From)
+	assert.Equal(t, "general", notes[0].Annotates)
+
+	// ExtractNotes=true: the note body becomes its own translatable
+	// block and no NoteAnnotation is emitted (prior behavior preserved).
+	cfg := &Config{}
+	cfg.Reset()
+	cfg.ExtractNotes = true
+	parts2 := readIDMLBytesWithConfig(t, data, cfg)
+	blocks2 := testutil.FilterBlocks(parts2)
+	require.Len(t, blocks2, 3)
+	texts2 := testutil.BlockTexts(blocks2)
+	assert.Contains(t, texts2, "Reviewer comment here")
+	for _, b := range blocks2 {
+		assert.Empty(t, b.Notes(),
+			"ExtractNotes=true must not also emit a NoteAnnotation")
+	}
+
+	// Round-trip (ExtractNotes=false, no translation): the note body must
+	// survive byte-exact in the skeleton — its <Content> stays verbatim
+	// (no xml:space="preserve" rewrite, which is reserved for translatable
+	// content). This proves the annotation path adds no part-stream change
+	// and the round-trip is unchanged.
+	out := roundtripIDML(t, data)
+	outZR, err := zip.NewReader(bytes.NewReader(out), int64(len(out)))
+	require.NoError(t, err)
+	var story string
+	for _, f := range outZR.File {
+		if f.Name == "Stories/Story_u1.xml" {
+			content, err := readZipFile(f)
+			require.NoError(t, err)
+			story = string(content)
+		}
+	}
+	require.NotEmpty(t, story, "output should contain the story file")
+	assert.Contains(t, story, "<Content>Reviewer comment here</Content>",
+		"sticky note <Content> must stay verbatim in skeleton on round-trip")
+	assert.Contains(t, story, "Before note")
+	assert.Contains(t, story, "After note")
 }
 
 func TestSpecialCharacters(t *testing.T) {

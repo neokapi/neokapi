@@ -380,6 +380,24 @@ func buildDOCXParts(info *containerInfo, cfg *Config) []string {
 // appends them (de-duplicated against `parts`). The same chart can be
 // referenced from multiple parts (e.g. linked across header + body),
 // so de-duplication is essential.
+// isCommentPartPath reports whether the ZIP entry path is a reviewer-comment
+// part whose body text is surfaced as informational Data (#928): PowerPoint
+// ppt/comments/comment*.xml (legacy <p:cm><p:text>) or Excel xl/comments*.xml
+// (<comment><text>). Threaded comments (xl/threadedComments/, modern PPTX
+// comments) use a different schema and are not handled. Excludes /_rels/.
+func isCommentPartPath(name string) bool {
+	if !strings.HasSuffix(name, ".xml") || strings.Contains(name, "/_rels/") {
+		return false
+	}
+	switch {
+	case strings.HasPrefix(name, "ppt/comments/"):
+		return true
+	case strings.HasPrefix(name, "xl/comments"):
+		return true
+	}
+	return false
+}
+
 func appendChartAndDiagramParts(parts []string, info *containerInfo) []string {
 	seen := make(map[string]struct{}, len(parts))
 	for _, p := range parts {

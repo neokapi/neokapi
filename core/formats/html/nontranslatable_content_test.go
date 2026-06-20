@@ -37,6 +37,19 @@ func hasDataNamed(parts []*model.Part, name string) bool {
 	return false
 }
 
+// commentDataParts returns the Data parts named "comment" among parts.
+func commentDataParts(parts []*model.Part) []*model.Data {
+	var out []*model.Data
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			if d, ok := p.Resource.(*model.Data); ok && d.Name == "comment" {
+				out = append(out, d)
+			}
+		}
+	}
+	return out
+}
+
 // By default (ExtractNonTranslatableContent on) a <noscript> fallback subtree
 // surfaces as a non-translatable RoleCode content block — visible to ingestion,
 // skipped by MT — instead of opaque Data, while the translatable payload is
@@ -185,6 +198,61 @@ func TestSkeletonRead_NoscriptAsContent(t *testing.T) {
 	assert.Equal(t, model.RoleCode, content[0].SemanticRole())
 	assert.True(t, content[0].PreserveWhitespace)
 	assert.Equal(t, "<p>No JS here</p>", content[0].SourceText())
+}
+
+// Block-/document-level <!-- ... --> comments are emitted as opaque
+// non-translatable Data, but their verbatim markup is now carried on
+// Properties["raw"] (treatment B.2) so the comment text is reachable
+// downstream. This is parity-safe (parity compares only Data.ID) and needs no
+// flag. The translatable payload is untouched.
+func TestRead_BlockCommentCarriesRawText(t *testing.T) {
+	ctx := t.Context()
+	input := `<html><body><!-- nav menu --><p>Welcome</p><!-- footer --></body></html>`
+
+	reader := htmlfmt.NewReader()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+
+	comments := commentDataParts(parts)
+	require.Len(t, comments, 2, "both block-level comments surface as Data")
+	assert.Equal(t, "<!-- nav menu -->", comments[0].Properties["raw"])
+	assert.Equal(t, "<!-- footer -->", comments[1].Properties["raw"])
+
+	// Comments stay non-translatable Data — no extra translatable blocks.
+	var translatable []*model.Block
+	for _, b := range testutil.FilterBlocks(parts) {
+		if b.Translatable {
+			translatable = append(translatable, b)
+		}
+	}
+	require.Len(t, translatable, 1)
+	assert.Equal(t, "Welcome", translatable[0].SourceText())
+}
+
+// The tokenizer/skeleton path carries the same verbatim comment markup on
+// Properties["raw"], and the document still round-trips byte-exact (the bytes
+// ride the skeleton, the property is incidental).
+func TestSkeletonRead_BlockCommentCarriesRawText(t *testing.T) {
+	ctx := t.Context()
+	input := `<html><body><!-- nav menu --><p>Welcome</p></body></html>`
+
+	reader := htmlfmt.NewReader()
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+
+	comments := commentDataParts(parts)
+	require.Len(t, comments, 1)
+	assert.Equal(t, "<!-- nav menu -->", comments[0].Properties["raw"])
+
+	// Byte-exact round-trip is unaffected by the carried property.
+	assert.Equal(t, input, roundtripWithSkeleton(t, input))
 }
 
 // With the flag off, the skeleton path keeps the old opaque behavior: a

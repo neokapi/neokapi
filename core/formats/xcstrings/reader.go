@@ -175,27 +175,88 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	blockCounter := 0
+	noteCounter := 0
 	for _, key := range cat.keys {
 		e := cat.entries[key]
 		if e.ExtractionState == "stale" && !r.cfg.ExtractStale {
+			// Stale entries are not emitted as translatable leaves. When
+			// non-translatable content surfacing is on, still surface the
+			// developer comment via an entry-level fallback block so it stays
+			// reachable; otherwise skip entirely so the part stream is
+			// byte-identical to the prior behavior.
+			r.emitCommentFallback(ctx, ch, key, e, srcLocale, &noteCounter)
 			continue
 		}
-		r.emitEntry(ctx, ch, cat, key, e, srcLocale, &blockCounter)
+		r.emitEntry(ctx, ch, cat, key, e, srcLocale, &blockCounter, &noteCounter)
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-// emitEntry emits one Block per translatable leaf value in the entry.
+// emitEntry emits one Block per translatable leaf value in the entry. When the
+// entry yields no leaf (no localizations, an empty localizations object, or
+// localizations with no stringUnit/variations), its developer comment would
+// otherwise be unreachable — so a non-translatable entry-level fallback block
+// carrying the comment is emitted instead (gated behind the content-surfacing
+// opt-out).
 func (r *Reader) emitEntry(ctx context.Context, ch chan<- model.PartResult,
-	cat *catalog, key string, e *entry, srcLocale model.LocaleID, counter *int) {
+	cat *catalog, key string, e *entry, srcLocale model.LocaleID, counter, noteCounter *int) {
 
 	srcLang := cat.SourceLanguage
 
+	before := *counter
 	for _, lang := range e.langOrder {
 		loc := e.localizations[lang]
 		r.emitLocalization(ctx, ch, key, e, lang, loc, srcLang, srcLocale, counter)
 	}
+	if *counter == before {
+		r.emitCommentFallback(ctx, ch, key, e, srcLocale, noteCounter)
+	}
+}
+
+// emitCommentFallback surfaces an entry's developer comment for entries that
+// produced no translatable leaf block. The comment is carried as a developer
+// NoteAnnotation on a non-translatable fallback block whose source is the entry
+// key (the catalog is keyed by the source string). The block is skipped by MT
+// (Translatable=false) and carries no value reference, so the byte-faithful
+// writer ignores it entirely and round-trips stay byte-exact.
+//
+// It is gated behind ExtractNonTranslatableContent: when off (and always when
+// there is no comment to carry), it is a no-op so the emitted part stream is
+// byte-identical to the prior behavior — the contract parity depends on.
+func (r *Reader) emitCommentFallback(ctx context.Context, ch chan<- model.PartResult,
+	key string, e *entry, srcLocale model.LocaleID, noteCounter *int) {
+
+	if e.Comment == "" || !r.cfg.ExtractNonTranslatableContent() {
+		return
+	}
+
+	*noteCounter++
+	block := &model.Block{
+		// "tu-note"+N never collides with the "tu"+N leaf IDs (which the
+		// skeleton walk assigns in lockstep) and is never referenced by the
+		// skeleton stream.
+		ID:           "tu-note" + strconv.Itoa(*noteCounter),
+		Name:         key,
+		Translatable: false,
+		SourceLocale: srcLocale,
+		Source:       runsFromValue(key),
+		Properties:   make(map[string]string),
+	}
+	// Deliberately not "xcstrings.key": that property drives the writer's
+	// value-splice path. The fallback carries no document value, so it uses a
+	// distinct property and the writer leaves it untouched.
+	block.Properties["xcstrings.entryKey"] = key
+	if e.ExtractionState != "" {
+		block.Properties["xcstrings.extractionState"] = e.ExtractionState
+	}
+	block.AddNote(&model.NoteAnnotation{
+		Text:      e.Comment,
+		From:      "developer",
+		Annotates: "general",
+	})
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
 // emitLocalization emits the leaf blocks for a single language's localization.

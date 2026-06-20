@@ -139,10 +139,10 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 		captions = r.mergeCaptions(captions)
 	}
 
-	// Surface non-translatable head metadata (ttm:copyright, ttm:agent) for
-	// ingestion/LLM consumers. The original bytes are preserved verbatim in the
-	// "ttml-document" Data part above (the non-skeleton writer only swaps <p>
-	// caption text), so these blocks are purely informational here.
+	// Surface non-translatable head metadata (ttm:title, ttm:desc, ttm:copyright,
+	// ttm:agent) for ingestion/LLM consumers. The original bytes are preserved
+	// verbatim in the "ttml-document" Data part above (the non-skeleton writer
+	// only swaps <p> caption text), so these blocks are purely informational here.
 	if r.cfg.ExtractNonTranslatableContent() {
 		r.emitHeadMetadataBlocks(ctx, ch, r.findHeadMetadataRanges(data), data)
 	}
@@ -164,10 +164,11 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		return
 	}
 
-	// Non-translatable head metadata (ttm:copyright, ttm:agent) is carved out of
-	// the opaque head skeleton and surfaced as content blocks riding their own
-	// skeleton refs. Gated so that, when off, the skeleton stream is byte-for-byte
-	// what it was before (the head stays one verbatim text chunk).
+	// Non-translatable head metadata (ttm:title, ttm:desc, ttm:copyright,
+	// ttm:agent) is carved out of the opaque head skeleton and surfaced as content
+	// blocks riding their own skeleton refs. Gated so that, when off, the skeleton
+	// stream is byte-for-byte what it was before (the head stays one verbatim text
+	// chunk).
 	var headRanges []headMetaRange
 	if r.cfg.ExtractNonTranslatableContent() {
 		headRanges = r.findHeadMetadataRanges(data)
@@ -350,14 +351,21 @@ func headSlice(data []byte) ([]byte, int) {
 }
 
 // findHeadMetadataRanges locates the inner-content byte ranges of the
-// ttm:copyright and ttm:agent metadata elements inside <head>. ttm:title and
-// ttm:desc are intentionally excluded (arguably translatable; out of scope).
+// ttm:title, ttm:desc, ttm:copyright and ttm:agent metadata elements inside
+// <head>. These all carry renderable contextual content (#928): title/desc are
+// prose, copyright/agent are attribution. They surface as non-translatable
+// content blocks (see emitHeadMetadataBlocks); the remaining head structure
+// (okp:/styling/layout) stays opaque skeleton.
 //
 // Parsing is scoped to the <head> slice and tolerant of malformed markup: the
 // okapi reference fixtures ship non-conformant head XML (e.g. <okp:foo> closed
 // by </lilt:foo>) that fails Go's xml.Decoder. On any decode error we stop and
 // return whatever was found so far (typically nothing), so extraction degrades
 // gracefully rather than aborting.
+//
+// Only top-level matches get their own range: when a matched element is
+// consumed to its close tag, any nested title/desc/copyright/agent inside it is
+// swallowed and rides the parent's single verbatim ref (no double-counting).
 func (r *Reader) findHeadMetadataRanges(data []byte) []headMetaRange {
 	head, off := headSlice(data)
 	if head == nil {
@@ -375,7 +383,7 @@ func (r *Reader) findHeadMetadataRanges(data []byte) []headMetaRange {
 		if !ok {
 			continue
 		}
-		if start.Name.Local != "copyright" && start.Name.Local != "agent" {
+		if !isHeadMetadataElement(start.Name.Local) {
 			continue
 		}
 		local := start.Name.Local
@@ -439,11 +447,40 @@ func lastCloseTagStart(data []byte, start, end int) int {
 	return start + idx
 }
 
+// isHeadMetadataElement reports whether a head element's local name is one of
+// the renderable ttm metadata elements neokapi surfaces (#928): title and desc
+// (prose) plus copyright and agent (attribution).
+func isHeadMetadataElement(local string) bool {
+	switch local {
+	case "title", "desc", "copyright", "agent":
+		return true
+	default:
+		return false
+	}
+}
+
+// headMetaRole maps a head metadata element local name to its semantic role.
+// title/desc are prose (RoleTitle / RoleCaption); copyright/agent are treated as
+// opaque attribution content (RoleCode), matching the previously shipped shape.
+func headMetaRole(elem string) string {
+	switch elem {
+	case "title":
+		return model.RoleTitle
+	case "desc":
+		return model.RoleCaption
+	default: // copyright, agent
+		return model.RoleCode
+	}
+}
+
 // emitHeadMetadataBlocks emits one NON-translatable content block per head
-// metadata range (ttm:copyright, ttm:agent). Each block carries the element's
-// verbatim inner content as a single run (no inline parse), is anchored to the
-// document layer, and is tagged RoleCode / LayerMetadata so ingestion/LLM
-// consumers see the contextual content while MT skips it (Translatable=false).
+// metadata range (ttm:title, ttm:desc, ttm:copyright, ttm:agent). Each block
+// carries the element's verbatim inner content as a single run (no inline
+// parse), is anchored to the document layer, and is tagged with a semantic role
+// (see headMetaRole) plus LayerMetadata so ingestion/LLM consumers see the
+// contextual content while MT skips it (Translatable=false). title/desc are
+// surfaced as Translatable=false for now (#928) even though they are arguably
+// translatable, to avoid changing the MT payload or parity stream.
 // In the skeleton path these blocks ride their own refs (meta1, meta2, …) so the
 // round-trip stays byte-exact; in the non-skeleton path their bytes live in the
 // preserved document Data and the blocks are purely informational.
@@ -461,7 +498,7 @@ func (r *Reader) emitHeadMetadataBlocks(ctx context.Context, ch chan<- model.Par
 		block.Type = hr.elem
 		block.Translatable = false
 		block.PreserveWhitespace = true
-		block.SetSemanticRole(model.RoleCode, 0)
+		block.SetSemanticRole(headMetaRole(hr.elem), 0)
 		block.SetLayoutLayer(model.LayerMetadata)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return

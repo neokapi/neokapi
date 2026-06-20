@@ -43,8 +43,14 @@ func readAllMalformed(t *testing.T, input string, withSkeleton bool) (foundError
 			if result.Error != nil {
 				foundError = true
 			}
+			// Count only translatable Blocks: the reader surfaces skipped,
+			// non-source-locale instances as Translatable:false content
+			// blocks by default, which these robustness cases don't care
+			// about (the contract is "no translatable extraction").
 			if result.Part != nil && result.Part.Type == model.PartBlock {
-				blocks++
+				if blk, ok := result.Part.Resource.(*model.Block); ok && blk.Translatable {
+					blocks++
+				}
 			}
 		}
 	})

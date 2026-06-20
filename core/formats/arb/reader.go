@@ -323,15 +323,47 @@ func (r *Reader) blockFor(res *resource, locale model.LocaleID, counter int) *mo
 	}
 	block.Properties["arb.key"] = res.id
 
-	if res.description != "" && r.cfg.DescriptionNotes {
-		block.AddNote(&model.NoteAnnotation{
-			Text:      res.description,
-			From:      "developer",
-			Annotates: "general",
-		})
+	if r.cfg.DescriptionNotes {
+		if res.description != "" {
+			block.AddNote(&model.NoteAnnotation{
+				Text:      res.description,
+				From:      "developer",
+				Annotates: "general",
+			})
+		}
+		// Per-placeholder example/description hints become additional developer
+		// notes (in document order). The placeholders' structural fields (type,
+		// format, …) are not surfaced — they stay in the byte-faithful skeleton.
+		for _, ph := range res.placeholders {
+			if text := placeholderNoteText(ph); text != "" {
+				block.AddNote(&model.NoteAnnotation{
+					Text:      text,
+					From:      "developer",
+					Annotates: "general",
+				})
+			}
+		}
 	}
 
 	return block
+}
+
+// placeholderNoteText renders a placeholder's example/description hint as a
+// single developer-note line, e.g. "count: number of items (example: 42)".
+// It returns "" when the placeholder carries neither a description nor an
+// example (so the reader emits no note for it).
+func placeholderNoteText(ph placeholderHint) string {
+	if ph.description == "" && ph.example == "" {
+		return ""
+	}
+	text := ph.name
+	if ph.description != "" {
+		text += ": " + ph.description
+	}
+	if ph.example != "" {
+		text += " (example: " + ph.example + ")"
+	}
+	return text
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

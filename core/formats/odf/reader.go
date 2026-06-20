@@ -28,6 +28,7 @@ const (
 	nsXLink        = "http://www.w3.org/1999/xlink"
 	nsMeta         = "urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
 	nsDC           = "http://purl.org/dc/elements/1.1/"
+	nsForm         = "urn:oasis:names:tc:opendocument:xmlns:form:1.0"
 )
 
 // Span type constants for inline formatting.
@@ -531,9 +532,22 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 			}
 
 		case xml.CharData:
-			if inTranslatable {
+			switch {
+			case inTranslatable:
 				b.AddText(string(t))
-			} else {
+			case r.cfg.ExtractNonTranslatableContent() &&
+				isAccessibilityTextParent(elementStack) &&
+				strings.TrimSpace(string(t)) != "":
+				// Image accessibility text (<svg:title>/<svg:desc> alt-text
+				// and long descriptions on drawing frames, e.g. page-anchored
+				// ODP/ODG frames). Surface it as a non-translatable RoleCaption
+				// content block and ride the body via a skeleton ref so the
+				// round-trip stays byte-exact. The enclosing <svg:title>/
+				// <svg:desc> start tag was already written to skeleton by
+				// emitElementWithAttrExtraction; the end tag follows it.
+				elem := elementStack[len(elementStack)-1].Local
+				r.emitAccessibilityContent(ctx, ch, p, string(t), elem, partPath, frameStack, pageNum, blockCounter)
+			default:
 				p.skelText(odfXMLEscape(string(t)))
 			}
 
@@ -780,6 +794,36 @@ func (r *Reader) emitElementWithAttrExtraction(ctx context.Context, ch chan<- mo
 			continue
 		}
 
+		// Form-control display strings (form:label / form:title /
+		// form:help-text) are UI text that upstream Okapi's ODFFilter does NOT
+		// extract. Surface them as NON-translatable content blocks (visible to
+		// ingestion, skipped by MT) — gated behind ExtractNonTranslatableContent
+		// — riding the attribute value via a skeleton ref so the round-trip
+		// stays byte-exact. Parity forces the flag off, leaving the literal
+		// path below byte-identical to before.
+		if r.cfg.ExtractNonTranslatableContent() && isFormDisplayAttribute(a.Name) && hasTrueText(a.Value) {
+			*blockCounter++
+			blockID := fmt.Sprintf("tu%d", *blockCounter)
+			block := model.NewBlock(blockID, a.Value)
+			block.Translatable = false
+			block.Properties["partPath"] = partPath
+			block.Properties["element"] = t.Name.Local
+			block.Properties["attribute"] = a.Name.Local
+			if a.Name.Space != "" {
+				block.Properties["attributeNS"] = a.Name.Space
+			}
+			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+
+			var pre strings.Builder
+			pre.WriteString(" ")
+			odfWriteAttrName(&pre, a.Name)
+			pre.WriteString(`="`)
+			p.skelText(pre.String())
+			p.skelRef(blockID)
+			p.skelText(`"`)
+			continue
+		}
+
 		// Non-translatable: write literally.
 		var attr strings.Builder
 		attr.WriteString(" ")
@@ -810,6 +854,59 @@ func isTranslatableAttribute(name xml.Name, docType odfDocType) bool {
 		if name.Local == "name" {
 			return docType == odfTypeSpreadsheet
 		}
+	}
+	return false
+}
+
+// emitAccessibilityContent surfaces image accessibility text (the inner
+// CharData of an <svg:title> or <svg:desc> on a drawing frame/shape) as a
+// NON-translatable, RoleCaption content block: a single verbatim run (no
+// inline parse), visible to ingestion/LLM consumers but skipped by MT
+// (Translatable=false). The body rides via a skeleton ref so the byte-exact
+// round-trip is preserved; the enclosing frame's geometry (and presentation
+// page) is attached when available. Caller gates this behind
+// ExtractNonTranslatableContent.
+func (r *Reader) emitAccessibilityContent(ctx context.Context, ch chan<- model.PartResult,
+	p *odfParser, text, element, partPath string, frameStack []frameBox, pageNum int, blockCounter *int) bool {
+
+	*blockCounter++
+	blockID := fmt.Sprintf("tu%d", *blockCounter)
+	block := model.NewBlock(blockID, text) // single verbatim source run
+	block.Translatable = false
+	block.SetSemanticRole(model.RoleCaption, 0)
+	block.Properties["partPath"] = partPath
+	block.Properties["element"] = element
+	applyFrameGeometry(block, frameStack, pageNum)
+
+	p.skelRef(blockID)
+	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// isAccessibilityTextParent reports whether the immediate enclosing element is
+// an <svg:title> or <svg:desc> — the SVG accessibility text (alt-text /
+// long description) carried on draw:frame and other ODF drawing shapes.
+func isAccessibilityTextParent(stack []xml.Name) bool {
+	if len(stack) == 0 {
+		return false
+	}
+	top := stack[len(stack)-1]
+	return top.Space == nsSvg && (top.Local == "title" || top.Local == "desc")
+}
+
+// isFormDisplayAttribute reports whether an attribute holds a form control's
+// human-facing display string — form:label (visible label), form:title
+// (tooltip), or form:help-text (status/help text). Upstream Okapi's ODFFilter
+// does not extract these, so the native reader surfaces them only as
+// non-translatable content when ExtractNonTranslatableContent is on. Other
+// form:* attributes (e.g. form:apply-design-mode, form:automatic-focus) are
+// non-display and excluded.
+func isFormDisplayAttribute(name xml.Name) bool {
+	if name.Space != nsForm {
+		return false
+	}
+	switch name.Local {
+	case "label", "title", "help-text":
+		return true
 	}
 	return false
 }

@@ -157,19 +157,41 @@ func TestExtraction(t *testing.T) {
 		"weekdays[0]", "weekdays[1]", "weekdays[2]",
 	}
 	for _, n := range wantNames {
-		assert.Contains(t, by, n, "expected block %q", n)
+		require.Contains(t, by, n, "expected block %q", n)
+		assert.Truef(t, by[n].Translatable, "block %q is translatable", n)
 	}
 
-	dontWant := []string{
-		"do_not_translate", "alias_ref",
-		"config_values[0]", "config_values[1]",
-	}
-	for _, n := range dontWant {
-		assert.NotContains(t, by, n, "block %q must not be extracted", n)
-	}
+	// translatable="false" entries are now surfaced as NON-translatable content
+	// blocks (issue #928 A): visible to ingestion, skipped by MT, value preserved
+	// verbatim. A bare resource reference (@string/foo) stays skeleton — it is an
+	// alias, not content — so it is still not extracted.
+	assert.NotContains(t, by, "alias_ref", "a bare resource reference is not extracted")
 
-	require.Len(t, blocks(parts), len(wantNames),
-		"exactly the translatable entries are extracted")
+	nonTranslatable := []string{"do_not_translate", "config_values[0]", "config_values[1]"}
+	for _, n := range nonTranslatable {
+		b := by[n]
+		require.NotNilf(t, b, "translatable=\"false\" entry %q is surfaced as content", n)
+		assert.Falsef(t, b.Translatable, "%q must be non-translatable content", n)
+		assert.Truef(t, b.PreserveWhitespace, "%q preserves whitespace", n)
+		assert.Emptyf(t, b.SemanticRole(), "%q is a plain do-not-translate value, no role", n)
+	}
+	assert.Equal(t, "DEBUG_BUILD_MARKER", by["do_not_translate"].SourceText(),
+		"the non-translatable value is surfaced as visible content text")
+	assert.Equal(t, "string", by["do_not_translate"].Properties["androidxml.kind"])
+	assert.Equal(t, "string-array", by["config_values[0]"].Properties["androidxml.kind"])
+
+	// Exactly the translatable entries plus the three surfaced non-translatable
+	// entries are extracted (the alias reference stays skeleton).
+	require.Len(t, blocks(parts), len(wantNames)+len(nonTranslatable),
+		"translatable entries plus surfaced translatable=\"false\" entries are extracted")
+	var translatable int
+	for _, b := range blocks(parts) {
+		if b.Translatable {
+			translatable++
+		}
+	}
+	assert.Equal(t, len(wantNames), translatable,
+		"exactly the translatable entries carry Translatable=true")
 
 	// Comment immediately preceding an entry becomes a developer note.
 	app := by["app_name"]

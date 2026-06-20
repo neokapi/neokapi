@@ -31,6 +31,17 @@ type Config struct {
 
 	// CodeFinderRules defines regex patterns for detecting inline codes.
 	CodeFinderRules []string
+
+	// disableNonTranslatableContent, when set, keeps non-translatable
+	// contextual content (headers/footers, \info title/doccomm metadata, and
+	// \xe/\tc index/TOC entries) in opaque skeleton instead of surfacing it as
+	// role-tagged, non-translatable content Blocks (visible to ingestion,
+	// skipped by MT). It also disables carrying \annotation review comments as
+	// note metadata and the proper \* ignorable-destination handling. Zero
+	// value = surfacing ON (the opt-out default). The parity runner type-asserts
+	// SetExtractNonTranslatableContent and forces this OFF so the canonical part
+	// stream stays byte-identical to the skeleton-only baseline.
+	disableNonTranslatableContent bool
 }
 
 // FormatName returns the format this config applies to.
@@ -51,6 +62,21 @@ func (c *Config) Reset() {
 
 // Validate checks configuration validity.
 func (c *Config) Validate() error { return nil }
+
+// ExtractNonTranslatableContent reports whether non-translatable contextual
+// content (headers/footers, \info title/doccomm, \xe/\tc entries) is surfaced
+// as role-tagged content Blocks. Default true.
+func (c *Config) ExtractNonTranslatableContent() bool {
+	return !c.disableNonTranslatableContent
+}
+
+// SetExtractNonTranslatableContent toggles surfacing of non-translatable
+// contextual content as content blocks. The parity runner type-asserts this and
+// turns it off to keep its canonical stream skeleton-only (byte-identical to the
+// pre-feature baseline).
+func (c *Config) SetExtractNonTranslatableContent(v bool) {
+	c.disableNonTranslatableContent = !v
+}
 
 // ApplyMap applies configuration values from a map.
 func (c *Config) ApplyMap(values map[string]any) error {
@@ -74,6 +100,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("extractBookmarks: expected bool, got %T", val)
 			}
 			c.ExtractBookmarks = b
+		case "extractNonTranslatableContent":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+			}
+			c.disableNonTranslatableContent = !b
 		case "useCodeFinder":
 			b, ok := val.(bool)
 			if !ok {

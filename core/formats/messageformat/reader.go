@@ -187,6 +187,28 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	blockCounter := 0
+	contentCounter := 0
+
+	// emitFrames surfaces the literal prose that frames a plural/select branch
+	// (the sentence frame around a picker) as non-translatable content blocks —
+	// visible to ingestion, skipped by MT. It is a no-op when
+	// ExtractNonTranslatableContent is off, keeping the part stream (and thus
+	// parity) byte-identical to the prior behavior. The framing text rides only
+	// the skeleton's raw line, so these blocks carry no skeleton ref and the
+	// write round-trip stays byte-exact.
+	emitFrames := func(pl parsedLine) bool {
+		if !r.cfg.ExtractNonTranslatableContent() {
+			return true
+		}
+		for _, lit := range extractLiteralSiblings(pl.nodes) {
+			contentCounter++
+			block := newContentBlock(fmt.Sprintf("txt%d", contentCounter), lit, pl.lineNum)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return false
+			}
+		}
+		return true
+	}
 
 	for i, pl := range r.parsedLines {
 		lineEnding := ""
@@ -204,7 +226,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		segments := extractSegments(pl.nodes, "")
 
 		if r.skeletonStore != nil && len(segments) == 1 {
-			// Simple case: one block per line, use skeleton ref
+			// Simple case: one block per line, use skeleton ref. A single
+			// segment is a branchless leaf, so there is no framing prose to
+			// surface and the raw line is not preserved in the skeleton — leave
+			// this path untouched.
 			blockCounter++
 			blockID := fmt.Sprintf("tu%d", blockCounter)
 			r.skelRef(blockID)
@@ -219,6 +244,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			// Store entire line as skeleton text for byte-exact roundtrip.
 			r.skelText(pl.raw + lineEnding)
 
+			if !emitFrames(pl) {
+				return
+			}
 			for _, seg := range segments {
 				blockCounter++
 				blockID := fmt.Sprintf("tu%d", blockCounter)
@@ -228,6 +256,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				}
 			}
 		} else {
+			if !emitFrames(pl) {
+				return
+			}
 			for _, seg := range segments {
 				blockCounter++
 				blockID := fmt.Sprintf("tu%d", blockCounter)
@@ -242,6 +273,26 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	r.skelFlush()
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// newContentBlock builds a non-translatable content block carrying literal
+// prose that frames a plural/select branch. The text rides as a single verbatim
+// run (no inline placeholder parse) with PreserveWhitespace set so the
+// surrounding spacing stays faithful; being plain prose, it carries no semantic
+// role. Translatable=false keeps it out of the MT payload while remaining
+// visible to ingestion.
+func newContentBlock(id, text string, lineNum int) *model.Block {
+	block := &model.Block{
+		ID:                 id,
+		Translatable:       false,
+		PreserveWhitespace: true,
+		Source:             []model.Run{{Text: &model.TextRun{Text: text}}},
+		Targets:            make(map[model.VariantKey]*model.Target),
+		Properties:         make(map[string]string),
+		Name:               fmt.Sprintf("line.%d.frame", lineNum),
+	}
+	block.Properties["line"] = strconv.Itoa(lineNum)
+	return block
 }
 
 // createBlock builds a Block from a segment, optionally with inline spans

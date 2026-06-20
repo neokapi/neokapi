@@ -6427,7 +6427,7 @@ func (p *wmlParser) copyAndExtractDrawing(dec *xml.Decoder, out *strings.Builder
 		case xml.StartElement:
 			switch {
 			case isDrawingPropertyElement(t):
-				p.writeStartElementWithTranslatableAttrTo(out, t, "name", "drawing-name", partPath, emitBlock)
+				p.writeDrawingPropertyElementTo(out, t, partPath, emitBlock)
 			case t.Name.Local == "textpath":
 				p.writeStartElementWithTranslatableAttrTo(out, t, "string", "vml-textpath-string", partPath, emitBlock)
 			case t.Name.Local == "txbxContent":
@@ -6881,6 +6881,94 @@ func writeRawEndElementTo(out *strings.Builder, t xml.EndElement) {
 	out.WriteString("</")
 	writeElementName(out, t.Name)
 	out.WriteString(">")
+}
+
+// writeDrawingPropertyElementTo emits a <wp:docPr> / <pic:cNvPr> (and friends)
+// drawing-property start element, substituting drawingMarkerProp comment markers
+// for the attribute values it surfaces.
+//
+//   - name= — the graphic object name — is ALWAYS extracted as a TRANSLATABLE
+//     "property" Block (mirroring Okapi's getTranslateWordGraphicName, default
+//     true; see drawingNameAttrRE for the citation).
+//   - descr= (accessibility alt text) and title= (object title) carry
+//     human-readable prose describing the image/shape (ECMA-376-1 §20.4.2.5
+//     CT_NonVisualDrawingProps). When ExtractNonTranslatableContent is on (the
+//     default) they are surfaced as Translatable:false RoleCaption "property"
+//     Blocks — visible to an ingestion/LLM consumer but skipped by machine
+//     translation (#928). When the flag is off they pass through verbatim, so
+//     the emitted XML is byte-identical to the prior name-only behaviour and
+//     the canonical parity stream is unchanged.
+//
+// Both surfaced values ride the same drawingMarkerProp mechanism as name=, so
+// the writer (skeleton flush and in-block TypeImage paths) expands them back
+// to xml-attr-escaped text; an untranslated Translatable:false block expands to
+// its source value, keeping the round-trip byte-exact.
+func (p *wmlParser) writeDrawingPropertyElementTo(
+	out *strings.Builder,
+	t xml.StartElement,
+	partPath string,
+	emitBlock func(*model.Block),
+) {
+	surface := p.cfg != nil && p.cfg.ExtractNonTranslatableContent()
+	nameDone := false
+
+	out.WriteString("<")
+	writeElementName(out, t.Name)
+	for _, a := range t.Attr {
+		out.WriteString(" ")
+		writeAttrName(out, a.Name)
+		out.WriteString(`="`)
+		switch {
+		case !nameDone && a.Name.Local == "name" && a.Name.Space == "" && strings.TrimSpace(a.Value) != "":
+			nameDone = true
+			p.emitDrawingPropMarker(out, a.Value, partPath, "drawing-name", true, emitBlock)
+		case surface && a.Name.Space == "" && strings.TrimSpace(a.Value) != "" && a.Name.Local == "descr":
+			p.emitDrawingPropMarker(out, a.Value, partPath, "drawing-descr", false, emitBlock)
+		case surface && a.Name.Space == "" && strings.TrimSpace(a.Value) != "" && a.Name.Local == "title":
+			p.emitDrawingPropMarker(out, a.Value, partPath, "drawing-title", false, emitBlock)
+		default:
+			out.WriteString(xmlEscapeAttr(a.Value))
+		}
+		out.WriteString(`"`)
+	}
+	out.WriteString(">")
+}
+
+// emitDrawingPropMarker writes a drawingMarkerProp comment marker for the next
+// block id, then emits a "property" Block carrying value as a single verbatim
+// run. translatable selects the MT-visible (name=) vs MT-skipped, RoleCaption
+// (descr=/title= alt text) treatment; a non-translatable block carries the
+// caption role so ingestion/exporters can identify the alt text.
+func (p *wmlParser) emitDrawingPropMarker(
+	out *strings.Builder,
+	value, partPath, element string,
+	translatable bool,
+	emitBlock func(*model.Block),
+) {
+	*p.blockCounter++
+	refID := fmt.Sprintf("tu%d", *p.blockCounter)
+	out.WriteString(drawingMarkerPropPrefix)
+	out.WriteString(refID)
+	out.WriteString(drawingMarkerSuffix)
+
+	block := &model.Block{
+		ID:           refID,
+		Type:         "property",
+		Translatable: translatable,
+		Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
+		Properties: map[string]string{
+			"partPath": partPath,
+			"element":  element,
+		},
+	}
+	if !translatable {
+		// Alt text / object title: descriptive prose for an image or shape.
+		// RoleCaption is the closest canonical role; it lets semantic export
+		// and the editor identify the alt text without treating it as MT input.
+		block.SetSemanticRole(model.RoleCaption, 0)
+	}
+	emitBlock(block)
 }
 
 // writeStartElementWithTranslatableAttrTo emits a start element to

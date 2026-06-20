@@ -132,9 +132,12 @@ export default function X() {}
 	assert.Contains(t, string(out), `import "./side-effect";`)
 }
 
-// TestJSXPreservedOpaque verifies block-level JSX (elements with children,
-// self-closing elements, fragments) is opaque and round-trips verbatim,
-// and that component/attribute names are never extracted.
+// TestJSXPreservedOpaque verifies block-level JSX handling: a self-closing
+// element (no text children) stays opaque, while an element-with-children and a
+// fragment surface their text children as NON-translatable content blocks
+// (#928) — visible to ingestion, skipped by MT — with tags/attributes kept in
+// the skeleton. Component/attribute names are never surfaced, and the
+// untranslated round-trip stays byte-for-byte.
 func TestJSXPreservedOpaque(t *testing.T) {
 	src := []byte(`# Title
 
@@ -144,7 +147,7 @@ func TestJSXPreservedOpaque(t *testing.T) {
 />
 
 <Callout type="warning">
-  Children prose stays inside the opaque region in v1.
+  Children prose is surfaced as non-translatable content.
 </Callout>
 
 <>
@@ -156,12 +159,20 @@ Done.
 	parts, store := readParts(t, src)
 
 	var jsxData []string
+	var jsxChildren []string
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
 			txt := b.SourceText()
 			assert.NotContains(t, txt, "ThemedVideo", "component name leaked into block")
 			assert.NotContains(t, txt, "maxWidth", "attribute name leaked into block")
+			assert.NotContains(t, txt, "Callout", "component name leaked into block")
+			assert.NotContains(t, txt, "<", "a tag leaked into a content block")
+			if b.Type == "jsx-text" {
+				assert.False(t, b.Translatable, "JSX text children must be non-translatable")
+				assert.True(t, b.PreserveWhitespace, "JSX text children ride verbatim")
+				jsxChildren = append(jsxChildren, txt)
+			}
 		}
 		if p.Type == model.PartData {
 			if d := p.Resource.(*model.Data); strings.HasPrefix(d.Name, "mdx-jsx") {
@@ -169,7 +180,12 @@ Done.
 			}
 		}
 	}
-	require.Len(t, jsxData, 3, "expected 3 opaque JSX regions (self-closing, element-with-children, fragment)")
+	// Only the self-closing <ThemedVideo /> stays opaque (no text children).
+	require.Len(t, jsxData, 1, "expected the self-closing JSX element to stay opaque")
+	assert.Contains(t, jsxData[0], "ThemedVideo")
+	// The element-with-children and the fragment surface their text children.
+	assert.Contains(t, jsxChildren, "Children prose is surfaced as non-translatable content.")
+	assert.Contains(t, jsxChildren, "Fragment children.")
 
 	out := writeParts(t, parts, store, "")
 	assert.Equal(t, string(src), string(out))

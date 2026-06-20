@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-06-20T08:09:33Z",
+  "generatedAt": "2026-06-20T09:21:22Z",
   "summary": {
     "built-in/format/description": 3,
-    "built-in/format/doc.examples": 3,
+    "built-in/format/doc.examples": 5,
     "built-in/format/doc.overview": 3,
     "built-in/tool/doc.overview": 1,
     "plugin/format/doc.overview": 1,
-    "total": 11
+    "total": 13
   },
   "gaps": [
     {
@@ -53,10 +53,24 @@
     },
     {
       "kind": "format",
+      "source": "built-in",
+      "id": "odf",
+      "field": "doc.examples",
+      "detail": "configurable but no worked examples"
+    },
+    {
+      "kind": "format",
       "source": "plugin",
       "id": "pdf",
       "field": "doc.overview",
       "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "format",
+      "source": "built-in",
+      "id": "rtf",
+      "field": "doc.examples",
+      "detail": "configurable but no worked examples"
     },
     {
       "kind": "format",

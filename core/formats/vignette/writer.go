@@ -130,6 +130,15 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 // The CDATA wrap toggle is honored only for valueCLOB content (matching
 // the upstream `useCDATA` parameter).
 func (w *Writer) payloadFor(block *model.Block) string {
+	// Non-translatable content blocks (surfaced for ingestion from skipped,
+	// non-source-locale instances) carry the literal source bytes of their
+	// payload region. Write them back verbatim — no re-encoding — so the
+	// skeleton ref round-trips byte-for-byte exactly as the prior skeleton
+	// text did.
+	if block.Properties["rawVerbatim"] == "true" {
+		return block.SourceText()
+	}
+
 	text := block.SourceText()
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		text = block.TargetText(w.Locale)

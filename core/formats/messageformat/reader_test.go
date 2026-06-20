@@ -708,6 +708,19 @@ func TestSelectOrdinalBranches(t *testing.T) {
 func TestNestedSelectPluralDepth(t *testing.T) {
 	input := "{gender, select, male {He ate {count, plural, one {# apple} other {# apples}}} female {She ate {count, plural, one {# apple} other {# apples}}}}"
 	blocks := readBlocks(t, input)
-	// male branch has 2 plural sub-branches, female has 2 = 4 total
-	assert.Len(t, blocks, 4, "nested select+plural should produce blocks for each leaf branch")
+
+	// male branch has 2 plural sub-branches, female has 2 = 4 translatable
+	// leaf blocks. The "He ate " / "She ate " prose that frames each nested
+	// plural is surfaced as non-translatable content blocks (default on).
+	var translatable, content []*model.Block
+	for _, b := range blocks {
+		if b.Translatable {
+			translatable = append(translatable, b)
+		} else {
+			content = append(content, b)
+		}
+	}
+	assert.Len(t, translatable, 4, "nested select+plural should produce translatable blocks for each leaf branch")
+	assert.Equal(t, []string{"He ate ", "She ate "}, blockTexts(content),
+		"framing prose around the nested plurals should surface as content blocks")
 }

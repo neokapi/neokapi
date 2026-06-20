@@ -25,10 +25,11 @@ var (
 // toggles; the bulk of its behaviour is dictated by the structure rather than
 // by user configuration.
 type Config struct {
-	// DescriptionNotes controls whether the "description" field of a resource's
-	// sibling "@<id>" attributes object is surfaced as a translator note on the
-	// emitted block. Defaults to true. The attributes object is always preserved
-	// byte-faithfully on round-trip regardless of this setting.
+	// DescriptionNotes controls whether the human-facing context in a resource's
+	// sibling "@<id>" attributes object is surfaced as developer notes on the
+	// emitted block: the resource-level "description" plus each placeholder's
+	// "example"/"description" hint. Defaults to true. The attributes object is
+	// always preserved byte-faithfully on round-trip regardless of this setting.
 	DescriptionNotes bool
 }
 

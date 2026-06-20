@@ -538,6 +538,106 @@ func TestExtract_CommentsAfterScalars(t *testing.T) {
 	assert.Equal(t, "other", blocks[1].SourceText())
 }
 
+// noteTexts returns the note (comment-context) texts attached to a block.
+func noteTexts(b *model.Block) []string {
+	var out []string
+	for _, n := range b.Notes() {
+		out = append(out, n.Text)
+	}
+	return out
+}
+
+// #928 (treatment B): YAML comments are surfaced as parity-safe
+// NoteAnnotations on the adjacent translatable block — never as translatable
+// content and never leaking into the extracted value. A trailing inline
+// `value # …` comment attaches to that value's own block.
+func TestExtract_InlineCommentSurfacedAsNote(t *testing.T) {
+	t.Parallel()
+	blocks := readYAML(t, "key: value # important comment\n")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "value", blocks[0].SourceText())
+	assert.Equal(t, []string{"important comment"}, noteTexts(blocks[0]))
+}
+
+// A full-line head comment above a mapping entry attaches to that entry's
+// value block, in document order.
+func TestExtract_HeadCommentSurfacedAsNote(t *testing.T) {
+	t.Parallel()
+	input := "# top head comment\n" +
+		"key1: value1  # inline on key1\n" +
+		"# head for key2\n" +
+		"key2: value2\n"
+	blocks := readYAML(t, input)
+	require.Len(t, blocks, 2)
+
+	b1 := blockByName(blocks, "key1")
+	require.NotNil(t, b1)
+	assert.Equal(t, "value1", b1.SourceText())
+	assert.Equal(t, []string{"top head comment", "inline on key1"}, noteTexts(b1))
+
+	b2 := blockByName(blocks, "key2")
+	require.NotNil(t, b2)
+	assert.Equal(t, "value2", b2.SourceText())
+	assert.Equal(t, []string{"head for key2"}, noteTexts(b2))
+}
+
+// A head comment above a container-valued key (its value is a sequence/map,
+// not a scalar) has no scalar block of its own; it flows in document order to
+// the first translatable block in that subtree. A sequence item's own head
+// comment attaches to that item's block.
+func TestExtract_HeadCommentOnContainerFlowsToFirstBlock(t *testing.T) {
+	t.Parallel()
+	input := "# section comment\n" +
+		"list:\n" +
+		"  - item1  # inline on item1\n" +
+		"  # head on item2\n" +
+		"  - item2\n"
+	blocks := readYAML(t, input)
+	require.Len(t, blocks, 2)
+
+	assert.Equal(t, "item1", blocks[0].SourceText())
+	assert.Equal(t, []string{"section comment", "inline on item1"}, noteTexts(blocks[0]))
+
+	assert.Equal(t, "item2", blocks[1].SourceText())
+	assert.Equal(t, []string{"head on item2"}, noteTexts(blocks[1]))
+}
+
+// Multi-line head comments are joined into one note with markers stripped.
+func TestExtract_MultiLineHeadCommentNote(t *testing.T) {
+	t.Parallel()
+	input := "# line one\n# line two\nkey: value\n"
+	blocks := readYAML(t, input)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "value", blocks[0].SourceText())
+	assert.Equal(t, []string{"line one\nline two"}, noteTexts(blocks[0]))
+}
+
+// Comments must surface only as annotations: they add no Data parts and no
+// translatable blocks, so the part stream is unchanged (treatment B.1).
+func TestExtract_CommentsAddNoDataParts(t *testing.T) {
+	t.Parallel()
+	parts := readYAMLParts(t, "# head\nkey: value # inline\n# foot\n")
+	var dataParts, blocks int
+	for _, p := range parts {
+		switch p.Type {
+		case model.PartData:
+			dataParts++
+		case model.PartBlock:
+			blocks++
+		}
+	}
+	assert.Zero(t, dataParts, "comments must not add Data parts (treatment B.1)")
+	assert.Equal(t, 1, blocks, "comments must not add translatable blocks")
+}
+
+// A document with only comments still yields no block to attach to, so the
+// comments are dropped (no adjacent block; no part-stream change).
+func TestExtract_CommentsOnlyYieldNoNotes(t *testing.T) {
+	t.Parallel()
+	blocks := readYAML(t, "# just a comment\n# and another\n")
+	assert.Empty(t, blocks)
+}
+
 // okapi: YmlFilterTest#testRoundTripSubFilterProcessLiteralAsBlock
 func TestExtract_RoundTripSubFilterProcessLiteralAsBlock(t *testing.T) {
 	t.Parallel()

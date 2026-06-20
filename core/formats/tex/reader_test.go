@@ -550,10 +550,12 @@ Cell one & Cell two
 // Upstream feeds a full float table (\begin{table}[] ... \centering ...
 // \begin{tabular}{|lcc|} ... \multicolumn ... \caption ... \label ...
 // \end{table}) and asserts exactly ONE document part holding the entire
-// table span verbatim and ZERO text units. The native reader registers
-// table/table*/figure as non-translatable environments, so the whole
-// \begin{table}...\end{table} span is captured as a single opaque Data
-// part — matching upstream's "the whole table is data" contract.
+// table span verbatim and ZERO text units. With the Okapi-faithful config
+// (ExtractNonTranslatableContent off), the native reader captures the whole
+// \begin{table}...\end{table} span as a single opaque Data part — matching
+// upstream's "the whole table is data" contract. (With the flag on, the
+// nested \caption is surfaced as a RoleCaption content block; see
+// TestTableCaptionAsContent.)
 func TestTable(t *testing.T) {
 	snippet := "\\begin{table}[]\n" +
 		"\\centering\n" +
@@ -568,7 +570,7 @@ func TestTable(t *testing.T) {
 		"\\label{data-table}\n" +
 		"\\end{table}"
 
-	parts := readString(t, snippet)
+	parts := readStringWithConfig(t, snippet, disableNonTranslatableContent)
 	blocks := testutil.FilterBlocks(parts)
 	assert.Empty(t, blocks, "table environment yields no translatable units")
 
@@ -586,10 +588,11 @@ func TestTable(t *testing.T) {
 // okapi: TEXFilterTest#testTable2
 // A second float-table variant (different column spec, math cells like
 // 46.57$\pm$1.46, trailing newline). Upstream again asserts one
-// document part for the whole span and no text units. The native reader
-// captures the entire \begin{table}...\end{table} span as one opaque
-// Data part; the trailing "\n" after \end{table} is folded into the
-// inter-part skeleton, so no spurious block appears.
+// document part for the whole span and no text units. With the
+// Okapi-faithful config (surfacing off), the native reader captures the
+// entire \begin{table}...\end{table} span as one opaque Data part; the
+// trailing "\n" after \end{table} is folded into the inter-part skeleton,
+// so no spurious block appears.
 func TestTable2(t *testing.T) {
 	snippet := "\\begin{table}[]\n" +
 		"\\centering\n" +
@@ -603,7 +606,7 @@ func TestTable2(t *testing.T) {
 		"\\label{mt-eval-table}\n" +
 		"\\end{table}\n"
 
-	parts := readString(t, snippet)
+	parts := readStringWithConfig(t, snippet, disableNonTranslatableContent)
 	blocks := testutil.FilterBlocks(parts)
 	assert.Empty(t, blocks, "table environment yields no translatable units")
 
@@ -617,6 +620,112 @@ func TestTable2(t *testing.T) {
 	// The whole table span (sans trailing newline, which lands in
 	// skeleton) is captured verbatim in the first Data part.
 	assert.Equal(t, strings.TrimRight(snippet, "\n"), data[0].Properties["content"])
+}
+
+// By default (ExtractNonTranslatableContent on), a nested \caption inside a
+// table/figure float is surfaced as a non-translatable RoleCaption content
+// block — visible to ingestion/LLM consumers, skipped by MT — while the rest
+// of the float (tabular grid, \label, \centering, the \begin/\end tags, and
+// the \caption{ / } delimiters themselves) stays skeleton, so the whole span
+// round-trips byte-exact. No translatable unit is produced.
+func TestTableCaptionAsContent(t *testing.T) {
+	snippet := "\\begin{table}[]\n" +
+		"\\centering\n" +
+		"\\begin{tabular}{|lrrr|}\n" +
+		"\\hline\n" +
+		"SMT & 46.57 & 9.45 & 0.7586 \\\\ \\hline\n" +
+		"\\end{tabular}\n" +
+		"\\caption{Automatic evaluation results}\n" +
+		"\\label{mt-eval-table}\n" +
+		"\\end{table}"
+
+	parts := readString(t, snippet)
+	assert.Empty(t, translatableBlocks(parts),
+		"table float yields no translatable units")
+
+	content := nonTranslatableContentBlocks(parts)
+	require.Len(t, content, 1, "the nested \\caption is surfaced as one content block")
+	capt := content[0]
+	assert.False(t, capt.Translatable)
+	assert.Equal(t, model.RoleCaption, capt.SemanticRole())
+	assert.Equal(t, "Automatic evaluation results", capt.SourceText(),
+		"caption body is the verbatim text between \\caption{ and }")
+	// The tabular grid / label never leak into any block.
+	for _, b := range testutil.FilterBlocks(parts) {
+		assert.NotContains(t, b.SourceText(), "tabular")
+		assert.NotContains(t, b.SourceText(), "mt-eval-table")
+	}
+
+	assert.Equal(t, snippet, snippetRoundtripWithSkeleton(t, snippet),
+		"round-trip stays byte-exact")
+}
+
+// A figure float with a caption behaves the same way: the caption surfaces as
+// a RoleCaption content block and the span round-trips byte-exact. A
+// caption containing inline markup is carried as a single verbatim run (no
+// inline parse), matching the content-block contract.
+func TestFigureCaptionAsContent(t *testing.T) {
+	snippet := "\\begin{figure}\n" +
+		"\\centering\n" +
+		"\\includegraphics{plot.png}\n" +
+		"\\caption{Influence of \\textbf{word order} on BLEU}\n" +
+		"\\label{wo}\n" +
+		"\\end{figure}"
+
+	parts := readString(t, snippet)
+	assert.Empty(t, translatableBlocks(parts))
+
+	content := nonTranslatableContentBlocks(parts)
+	require.Len(t, content, 1)
+	assert.Equal(t, model.RoleCaption, content[0].SemanticRole())
+	assert.Equal(t, "Influence of \\textbf{word order} on BLEU", content[0].SourceText())
+
+	assert.Equal(t, snippet, snippetRoundtripWithSkeleton(t, snippet),
+		"round-trip stays byte-exact")
+}
+
+// With surfacing disabled, table/figure floats stay opaque Data — no caption
+// content block, the whole span in one Data part, exactly as before.
+func TestFloatCaption_DisabledStaysData(t *testing.T) {
+	snippet := "\\begin{figure}\n\\caption{A caption}\n\\end{figure}"
+
+	parts := readStringWithConfig(t, snippet, disableNonTranslatableContent)
+	assert.Empty(t, testutil.FilterBlocks(parts), "no blocks when surfacing is off")
+
+	var data []*model.Data
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			data = append(data, p.Resource.(*model.Data))
+		}
+	}
+	require.Len(t, data, 1)
+	assert.Equal(t, snippet, data[0].Properties["content"])
+}
+
+// A float with no \caption stays fully opaque even with surfacing on — there
+// is nothing to surface, so the whole span round-trips byte-exact via the
+// opaque path and yields no block.
+func TestFloatWithoutCaption_StaysOpaque(t *testing.T) {
+	snippet := "\\begin{table}\n\\begin{tabular}{cc}a & b\\end{tabular}\n\\end{table}"
+
+	parts := readString(t, snippet)
+	assert.Empty(t, testutil.FilterBlocks(parts), "caption-less float yields no block")
+	assert.Equal(t, snippet, snippetRoundtripWithSkeleton(t, snippet),
+		"round-trip stays byte-exact")
+}
+
+// A commented-out \caption inside a float must NOT be surfaced.
+func TestFloatCommentedCaptionNotSurfaced(t *testing.T) {
+	snippet := "\\begin{figure}\n" +
+		"% \\caption{Disabled caption}\n" +
+		"\\caption{Real caption}\n" +
+		"\\end{figure}"
+
+	parts := readString(t, snippet)
+	content := nonTranslatableContentBlocks(parts)
+	require.Len(t, content, 1, "only the live \\caption is surfaced")
+	assert.Equal(t, "Real caption", content[0].SourceText())
+	assert.Equal(t, snippet, snippetRoundtripWithSkeleton(t, snippet))
 }
 
 // neokapi-only: probes that inline math $...$ scripts are excluded from

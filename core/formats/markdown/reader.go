@@ -93,6 +93,14 @@ type Reader struct {
 	blockCounter int
 	dataCounter  int
 
+	// nonTranslatableDepth, when >0, marks every Block emitted as
+	// Translatable:false. It is raised while walking a sub-tree whose
+	// content is contextual rather than translatable (e.g. a blockquote
+	// surfaced as non-translatable content under
+	// ExtractNonTranslatableContent). A counter (not a bool) so nested
+	// regions restore the outer state correctly on exit.
+	nonTranslatableDepth int
+
 	// visibleRefs is the case-sensitive set of reference labels that
 	// appear as the displayed text of a shortcut or collapsed LinkRef
 	// (`[text]` or `[text][]`). When the matching link reference
@@ -277,6 +285,15 @@ func (r *Reader) handleFrontMatter(ctx context.Context, ch chan<- model.PartResu
 		r.emitFrontMatterBlocks(ctx, ch, yamlContent)
 		endMarker := string(content[closingIdx:endOfFrontMatter])
 		r.skelText(endMarker)
+	} else if r.cfg.ExtractNonTranslatableContent() {
+		// Surface the known prose scalars (title/description/summary) as
+		// non-translatable content; keys, dates, slugs, and the `---`
+		// fences stay skeleton. Byte-identical round-trip to the Data path.
+		yamlContent := string(content[searchStart:closingIdx])
+		r.skelText(string(content[:searchStart]))
+		r.emitFrontMatterContentBlocks(ctx, ch, yamlContent)
+		endMarker := string(content[closingIdx:endOfFrontMatter])
+		r.skelText(endMarker)
 	} else {
 		r.dataCounter++
 		data := &model.Data{
@@ -294,6 +311,17 @@ func (r *Reader) handleFrontMatter(ctx context.Context, ch chan<- model.PartResu
 	return endOfFrontMatter
 }
 
+// frontMatterProseKeys are the front-matter scalar keys whose values are
+// human prose worth surfacing as non-translatable content (visible to
+// ingestion, skipped by MT) when TranslateFrontMatter is off but
+// ExtractNonTranslatableContent is on. Everything else — dates, slugs,
+// numbers, tag lists, identifiers — stays opaque skeleton.
+var frontMatterProseKeys = map[string]bool{
+	"title":       true,
+	"description": true,
+	"summary":     true,
+}
+
 // emitFrontMatterBlocks emits each YAML value as a translatable block.
 func (r *Reader) emitFrontMatterBlocks(ctx context.Context, ch chan<- model.PartResult, yaml string) {
 	// Optional key allowlist: when FrontMatterKeys is set, only those keys
@@ -302,6 +330,26 @@ func (r *Reader) emitFrontMatterBlocks(ctx context.Context, ch chan<- model.Part
 	for _, k := range r.cfg.FrontMatterKeys {
 		allow[k] = true
 	}
+	r.emitFrontMatterScalars(ctx, ch, yaml, allow, true)
+}
+
+// emitFrontMatterContentBlocks surfaces the known prose front-matter
+// scalars (title/description/summary) as non-translatable content blocks,
+// keeping every other key — and the `key:` markers themselves — as
+// skeleton. The block stream/skeleton layout matches the translatable
+// path exactly (the writer restores YAML quoting from block.Type), so the
+// round-trip stays byte-exact whether the value is translated or not.
+func (r *Reader) emitFrontMatterContentBlocks(ctx context.Context, ch chan<- model.PartResult, yaml string) {
+	r.emitFrontMatterScalars(ctx, ch, yaml, frontMatterProseKeys, false)
+}
+
+// emitFrontMatterScalars splits YAML front matter into per-key skeleton +
+// blocks. A key becomes a Block (with the given translatable flag) when it
+// is allowed (empty allow = every scalar, the historical translate-all
+// behavior); otherwise the line stays skeleton. The `key:` prefix and any
+// leading value whitespace always ride the skeleton so only the scalar
+// value travels in the block.
+func (r *Reader) emitFrontMatterScalars(ctx context.Context, ch chan<- model.PartResult, yaml string, allow map[string]bool, translatable bool) {
 	// strings.Split (not SplitSeq): the trailing empty element after the
 	// final newline must be dropped or the skeleton gains a blank line.
 	lines := strings.Split(yaml, "\n")
@@ -334,6 +382,7 @@ func (r *Reader) emitFrontMatterBlocks(ctx context.Context, ch chan<- model.Part
 		block := model.NewBlock(blockID, unquoted)
 		block.Name = "fm_" + key
 		block.Type = "front-matter"
+		block.Translatable = translatable
 		block.Properties["key"] = key
 		if quote != "" {
 			block.Properties[BlockPropFrontMatterQuote] = quote
@@ -418,6 +467,8 @@ func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node 
 		case *ast.Blockquote:
 			if r.cfg.TranslateBlockQuotes() {
 				r.walkNode(ctx, ch, child, source, baseOffset)
+			} else if r.cfg.ExtractNonTranslatableContent() {
+				r.emitBlockquoteAsContent(ctx, ch, child, source, baseOffset)
 			} else {
 				r.emitBlockquoteAsData(ctx, ch, n, source, baseOffset)
 			}
@@ -1602,6 +1653,8 @@ func (r *Reader) walkSingle(ctx context.Context, ch chan<- model.PartResult, chi
 	case *ast.Blockquote:
 		if r.cfg.TranslateBlockQuotes() {
 			r.walkNode(ctx, ch, child, source, baseOffset)
+		} else if r.cfg.ExtractNonTranslatableContent() {
+			r.emitBlockquoteAsContent(ctx, ch, child, source, baseOffset)
 		} else {
 			r.emitBlockquoteAsData(ctx, ch, n, source, baseOffset)
 		}
@@ -1889,15 +1942,64 @@ func (r *Reader) processHTMLBlockSubfilter(ctx context.Context, ch chan<- model.
 	z := xhtml.NewTokenizer(bytes.NewReader(content))
 	z.SetMaxBuf(0)
 
-	excludeDepth := 0 // >0 when inside math/script/style — text becomes skeleton
+	extractMath := r.cfg.ExtractNonTranslatableContent()
+	excludeDepth := 0 // >0 when inside script/style — text becomes skeleton
+	mathDepth := 0    // >0 when accumulating a <math> body as RoleFormula content
+	var mathBuf strings.Builder
+	// flushMath emits the accumulated <math> body as a non-translatable
+	// RoleFormula content block (visible to ingestion, skipped by MT); a
+	// whitespace-only body rides the skeleton verbatim so round-trip stays
+	// byte-exact.
+	flushMath := func() {
+		body := mathBuf.String()
+		mathBuf.Reset()
+		if hasNonWhitespace([]byte(body)) {
+			r.emitMathFormulaBlock(ctx, ch, body)
+		} else {
+			r.skelText(body)
+		}
+	}
 	for {
 		tt := z.Next()
 		if tt == xhtml.ErrorToken {
+			// Unterminated <math> at EOF: flush whatever accumulated so the
+			// bytes still round-trip rather than vanishing.
+			if mathDepth > 0 {
+				flushMath()
+			}
 			return
 		}
 		raw := z.Raw()
 		// Copy raw because subsequent Next() calls invalidate the slice.
 		rawBytes := append([]byte(nil), raw...)
+
+		// While inside a surfaced <math> element, every token's bytes
+		// accumulate into the formula body until the matching close. The
+		// opening <math…> and closing </math> tags themselves stay
+		// skeleton (delimiters), so only the body rides the content block.
+		if mathDepth > 0 {
+			if tt == xhtml.StartTagToken || tt == xhtml.EndTagToken {
+				tagBytes, _ := z.TagName()
+				if strings.EqualFold(string(tagBytes), "math") {
+					if tt == xhtml.StartTagToken {
+						mathDepth++
+						mathBuf.Write(rawBytes)
+						continue
+					}
+					// End </math>.
+					mathDepth--
+					if mathDepth == 0 {
+						flushMath()
+						r.skelText(string(rawBytes))
+						continue
+					}
+					mathBuf.Write(rawBytes)
+					continue
+				}
+			}
+			mathBuf.Write(rawBytes)
+			continue
+		}
 
 		switch tt {
 		case xhtml.TextToken:
@@ -1915,6 +2017,15 @@ func (r *Reader) processHTMLBlockSubfilter(ctx context.Context, ch chan<- model.
 					excludeDepth--
 				}
 				r.skelText(string(rawBytes))
+				continue
+			}
+			// Open <math>: surface the MathML body as a RoleFormula content
+			// block. The tag stays skeleton; the body accumulates until the
+			// matching close. When extraction is off, fall through to the
+			// generic excluded-element path (body → skeleton).
+			if tt == xhtml.StartTagToken && tag == "math" && extractMath {
+				r.skelText(string(rawBytes))
+				mathDepth = 1
 				continue
 			}
 			// Start or self-closing tag: maybe extract attributes.
@@ -1970,6 +2081,24 @@ func (r *Reader) emitHTMLSubfilterTextBlock(ctx context.Context, ch chan<- model
 	block.Name = fmt.Sprintf("html%d", r.blockCounter)
 	block.Type = "html-text"
 
+	r.skelRef(blockID)
+	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// emitMathFormulaBlock emits the verbatim MathML body of an HTML-block
+// <math> element as a non-translatable RoleFormula content block: visible
+// to ingestion, skipped by MT. The body is a single verbatim run (no
+// inline parse, whitespace preserved) and rides the skeleton via a ref so
+// the <math>…</math> delimiters round-trip byte-exact.
+func (r *Reader) emitMathFormulaBlock(ctx context.Context, ch chan<- model.PartResult, body string) {
+	r.blockCounter++
+	blockID := fmt.Sprintf("tu%d", r.blockCounter)
+	block := model.NewBlock(blockID, body)
+	block.Name = fmt.Sprintf("math%d", r.blockCounter)
+	block.Type = "math"
+	block.Translatable = false
+	block.PreserveWhitespace = true
+	block.SetSemanticRole(model.RoleFormula, 0)
 	r.skelRef(blockID)
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -2080,6 +2209,20 @@ func (r *Reader) emitThematicBreak(ctx context.Context, ch chan<- model.PartResu
 	// (non-translatable), we don't need a ref — skelEmitGap from the next
 	// node will capture this gap as skeleton text.
 	r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
+}
+
+// emitBlockquoteAsContent surfaces a non-translatable blockquote
+// (TranslateBlockQuotes off) as contextual content rather than an opaque
+// Data part: it walks the blockquote's children exactly like the
+// translatable path — one Block per paragraph/list-item, the `>` marker
+// and continuation prefixes preserved in skeleton — but every emitted
+// Block is demoted to Translatable:false (visible to ingestion, skipped
+// by MT). Gated by the caller on ExtractNonTranslatableContent so the
+// flag-off path keeps emitting the byte-identical Data part.
+func (r *Reader) emitBlockquoteAsContent(ctx context.Context, ch chan<- model.PartResult, node ast.Node, source []byte, baseOffset int) {
+	r.nonTranslatableDepth++
+	r.walkNode(ctx, ch, node, source, baseOffset)
+	r.nonTranslatableDepth--
 }
 
 func (r *Reader) emitBlockquoteAsData(ctx context.Context, ch chan<- model.PartResult, n *ast.Blockquote, source []byte, baseOffset int) {
@@ -3005,6 +3148,15 @@ func strikethroughFences(node ast.Node, source []byte) (string, string) {
 // --- Emit helper ---
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
+	// Within a non-translatable sub-tree (e.g. a blockquote surfaced as
+	// contextual content), demote every Block to non-translatable. The
+	// block still rides the skeleton via its ref, so round-trip is
+	// unchanged — only the MT/translation contract flips.
+	if part.Type == model.PartBlock && r.nonTranslatableDepth > 0 {
+		if block, ok := part.Resource.(*model.Block); ok {
+			block.Translatable = false
+		}
+	}
 	// Apply inline code finder to blocks if enabled
 	if part.Type == model.PartBlock && r.cfg.UseCodeFinder {
 		if block, ok := part.Resource.(*model.Block); ok {

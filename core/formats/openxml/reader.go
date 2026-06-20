@@ -165,6 +165,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	blockCounter := 0
+	dataCounter := 0
 
 	// Initialize code finder if configured
 	var cf *codeFinder
@@ -246,6 +247,25 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		}
 
+		// emitData emits a non-translatable Data part carrying contextual text
+		// (PPTX/XLSX comment bodies, #928). The Data part is purely informational
+		// — it carries no skeleton ref, so the writer ignores it and the comment
+		// part round-trips verbatim (PPTX) or via verbatim copy (XLSX). Gated by
+		// the caller behind ExtractNonTranslatableContent so the flag-off part
+		// stream stays byte-identical for parity.
+		emitData := func(name, text, ref string) {
+			dataCounter++
+			props := map[string]string{"partPath": partPath, "text": text}
+			if ref != "" {
+				props["ref"] = ref
+			}
+			r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: &model.Data{
+				ID:         fmt.Sprintf("comment%d", dataCounter),
+				Name:       name,
+				Properties: props,
+			}})
+		}
+
 		// DocProps/core.xml is format-independent
 		if partPath == "docProps/core.xml" {
 			parseCoreProperties(partData, partPath, &blockCounter, emitBlock, r.skeletonStore)
@@ -322,6 +342,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				return
 			}
 			parser.skelFlush()
+			// Surface PowerPoint comment bodies (<p:text>) as informational
+			// Data parts (#928). The comment part itself round-trips verbatim
+			// through the skeleton above; this only adds context for ingestion.
+			if r.cfg.ExtractNonTranslatableContent() && isCommentPartPath(partPath) {
+				emitPPTXCommentData(partData, emitData)
+			}
 
 		case docTypeXLSX:
 			parser := &smlParser{
@@ -336,6 +362,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				return
 			}
 			parser.skelFlush()
+			// Surface Excel comment bodies (<comment><text>) as informational
+			// Data parts (#928). The comment part is not parsed for skeleton (it
+			// is copied verbatim by the writer), so this only adds context.
+			if r.cfg.ExtractNonTranslatableContent() && isCommentPartPath(partPath) {
+				emitXLSXCommentData(partData, emitData)
+			}
 		}
 
 		r.skelPartEnd(partPath)

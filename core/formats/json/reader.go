@@ -124,6 +124,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 // same object scope.
 type readState struct {
 	pendingNote     string // note text to attach to next block
+	pendingNotePath string // key path of pendingNote (used to name a dangling-note Data part)
 	pendingID       string // ID to use as name for next block
 	pendingMeta     map[string]string
 	pendingMaxwidth int // -1 = not set
@@ -228,6 +229,7 @@ func (r *Reader) walkTokenObject(ctx context.Context, ch chan<- model.PartResult
 	// Save and reset pending state for this object scope
 	savedState := *state
 	state.pendingNote = ""
+	state.pendingNotePath = ""
 	state.pendingID = ""
 	state.pendingMeta = nil
 	state.pendingMaxwidth = -1
@@ -263,6 +265,26 @@ func (r *Reader) walkTokenObject(ctx context.Context, ch chan<- model.PartResult
 
 		// Walk the value (skeleton writing handled by value/handle functions)
 		r.walkTokenValue(ctx, ch, tokens, pos, key, childPath, parentLayerID, blockCounter, dataCounter, state)
+	}
+
+	// Flush a dangling note: a configured note/description/comment whose owning
+	// object scope closed with no following translatable block to attach it to.
+	// (Consumed notes ride along as a NoteAnnotation via consumePendingState;
+	// only the unconsumed remainder reaches here.) The note key + delimiters
+	// already live in the skeleton, but the text would otherwise be dropped — so
+	// surface it as a non-translatable Data part carrying the text, visible to
+	// ingestion/LLM consumers. Gated behind ExtractNonTranslatableContent so the
+	// flag-off (parity) path emits the exact same part stream as before. A
+	// dangling pendingID is deliberately NOT flushed: identifiers stay in the
+	// skeleton only.
+	if state.pendingNote != "" && r.cfg.ExtractNonTranslatableContent() {
+		*dataCounter++
+		data := &model.Data{
+			ID:         "d" + strconv.Itoa(*dataCounter),
+			Name:       state.pendingNotePath,
+			Properties: map[string]string{"text": state.pendingNote},
+		}
+		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 	}
 
 	// Restore parent state
@@ -348,6 +370,7 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 	// Check metadata rules first — these consume the value without emitting a block
 	if r.cfg.isNote(keyName, fullPath) {
 		state.pendingNote = value
+		state.pendingNotePath = path
 		r.skelToken(tok)
 		return
 	}
@@ -542,6 +565,7 @@ func (r *Reader) consumePendingState(state *readState, block *model.Block) {
 		}
 	}
 	state.pendingNote = ""
+	state.pendingNotePath = ""
 	state.pendingID = ""
 	state.pendingMeta = nil
 	state.pendingMaxwidth = -1

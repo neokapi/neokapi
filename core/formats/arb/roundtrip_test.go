@@ -33,6 +33,22 @@ func readParts(t *testing.T, path string) ([]*model.Part, []byte) {
 	return parts, data
 }
 
+// readBlocksWithConfig reads ARB bytes through a reader whose Config is first
+// mutated by apply (nil for defaults), returning the emitted blocks.
+func readBlocksWithConfig(t *testing.T, data []byte, apply func(*arb.Config)) []*model.Block {
+	t.Helper()
+	r := arb.NewReader()
+	if apply != nil {
+		cfg, ok := r.Config().(*arb.Config)
+		require.True(t, ok, "reader config must be *arb.Config")
+		apply(cfg)
+	}
+	doc := &model.RawDocument{URI: "mem", Encoding: "UTF-8", Reader: nopReadCloser(data)}
+	require.NoError(t, r.Open(t.Context(), doc))
+	defer r.Close()
+	return testutil.CollectBlocks(t, r.Read(t.Context()))
+}
+
 func nopReadCloser(data []byte) *nopCloser {
 	return &nopCloser{Reader: bytes.NewReader(data)}
 }
@@ -399,4 +415,155 @@ func TestConfigApplyMap(t *testing.T) {
 
 	require.NoError(t, cfg.Validate())
 	assert.Equal(t, "arb", cfg.FormatName())
+}
+
+// noteTexts returns a block's note texts in order.
+func noteTexts(b *model.Block) []string {
+	var out []string
+	for _, n := range b.Notes() {
+		out = append(out, n.Text)
+	}
+	return out
+}
+
+// TestPlaceholderNotesFromFixtures verifies that the per-placeholder
+// "example"/"description" hints inside an "@<id>" attributes object surface as
+// developer notes on the owning block, alongside the resource-level description,
+// in document order — and that a placeholder carrying only structural fields
+// (type/format) produces no note.
+func TestPlaceholderNotesFromFixtures(t *testing.T) {
+	blocks := readBlocksWithConfig(t, mustRead(t, filepath.Join("testdata", "icu_en.arb")), nil)
+	byName := blocksByName(blocks)
+
+	// greeting: resource description + placeholder "name" with an example.
+	greeting := byName["greeting"]
+	require.NotNil(t, greeting)
+	assert.Equal(t, []string{
+		"A friendly greeting.",
+		"name (example: Alice)",
+	}, noteTexts(greeting))
+
+	// itemCount: resource description, but its only placeholder ("count") carries
+	// just type/format → no placeholder note.
+	itemCount := byName["itemCount"]
+	require.NotNil(t, itemCount)
+	assert.Equal(t, []string{"The number of items in a list."}, noteTexts(itemCount))
+
+	// lastUpdated: no resource description and its "date" placeholder is purely
+	// structural → no notes at all.
+	lastUpdated := byName["lastUpdated"]
+	require.NotNil(t, lastUpdated)
+	assert.Empty(t, noteTexts(lastUpdated))
+
+	// simple_en.arb: a placeholder with only an example, no resource example.
+	simple := blocksByName(readBlocksWithConfig(t, mustRead(t, filepath.Join("testdata", "simple_en.arb")), nil))
+	githubRepo := simple["githubRepo"]
+	require.NotNil(t, githubRepo)
+	assert.Equal(t, []string{
+		"Represents a link to a GitHub repository.",
+		"repoName (example: Flutter Gallery)",
+	}, noteTexts(githubRepo))
+}
+
+// TestPlaceholderNoteFormatting checks the rendered note text for a placeholder
+// that carries both a description and an example, and confirms placeholder notes
+// follow the resource description in document order.
+func TestPlaceholderNoteFormatting(t *testing.T) {
+	doc := []byte(`{
+  "@@locale": "en",
+  "welcome": "Welcome {userName}, you have {count} messages",
+  "@welcome": {
+    "description": "Greeting on the home screen.",
+    "placeholders": {
+      "userName": {
+        "type": "String",
+        "example": "Alice",
+        "description": "The signed-in user's display name"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+}`)
+	blocks := readBlocksWithConfig(t, doc, nil)
+	byName := blocksByName(blocks)
+	welcome := byName["welcome"]
+	require.NotNil(t, welcome)
+	// Resource description first, then the userName hint (description + example);
+	// "count" is structural-only and contributes no note.
+	assert.Equal(t, []string{
+		"Greeting on the home screen.",
+		"userName: The signed-in user's display name (example: Alice)",
+	}, noteTexts(welcome))
+	for _, n := range welcome.Notes() {
+		assert.Equal(t, "developer", n.From)
+		assert.Equal(t, "general", n.Annotates)
+	}
+}
+
+// TestPlaceholderNotesDisabled verifies the DescriptionNotes toggle suppresses
+// both the resource description and the per-placeholder hints, and that turning
+// it off does not change the emitted blocks otherwise.
+func TestPlaceholderNotesDisabled(t *testing.T) {
+	data := mustRead(t, filepath.Join("testdata", "icu_en.arb"))
+	off := func(c *arb.Config) { c.DescriptionNotes = false }
+
+	on := blocksByName(readBlocksWithConfig(t, data, nil))
+	disabled := blocksByName(readBlocksWithConfig(t, data, off))
+
+	require.Len(t, disabled, len(on))
+	for name, b := range disabled {
+		assert.Empty(t, noteTexts(b), "block %q must carry no notes when DescriptionNotes is off", name)
+		// Source content is unaffected by the toggle.
+		assert.Equal(t, on[name].SourceText(), b.SourceText(), "source for %q", name)
+	}
+}
+
+// TestPlaceholderNotesTolerateUnusualShapes verifies that unusual-but-valid JSON
+// shapes inside the placeholders object (non-string example, non-object
+// placeholder definition) neither break parsing nor the byte-faithful round-trip,
+// and that only the well-formed hints surface as notes.
+func TestPlaceholderNotesTolerateUnusualShapes(t *testing.T) {
+	doc := []byte(`{
+  "@@locale": "en",
+  "msg": "Hello {name}",
+  "@msg": {
+    "description": "A message.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": 42,
+        "description": "The recipient name"
+      },
+      "weird": "not-an-object"
+    }
+  }
+}`)
+	blocks := readBlocksWithConfig(t, doc, nil)
+	byName := blocksByName(blocks)
+	msg := byName["msg"]
+	require.NotNil(t, msg)
+	// The non-string example is dropped; the description still surfaces. The
+	// non-object "weird" placeholder yields no note.
+	assert.Equal(t, []string{
+		"A message.",
+		"name: The recipient name",
+	}, noteTexts(msg))
+
+	// Byte-faithful round-trip is unaffected by the richer attribute parsing.
+	r := arb.NewReader()
+	require.NoError(t, r.Open(t.Context(), &model.RawDocument{URI: "mem", Encoding: "UTF-8", Reader: nopReadCloser(doc)}))
+	defer r.Close()
+	parts := testutil.CollectParts(t, r.Read(t.Context()))
+	out := writeParts(t, parts, "")
+	assert.Equal(t, string(doc), string(out))
+}
+
+// mustRead reads a file or fails the test.
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	return data
 }

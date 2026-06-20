@@ -44,6 +44,15 @@ type Config struct {
 	// CodeFinderRules defines inline code patterns.
 	CodeFinderRules []string
 
+	// disableNonTranslatableContent, when set, keeps the value text of
+	// excluded entries (keys that fail the key condition, or entries under
+	// `#_skip` / `#_bskip` directives) in opaque skeleton instead of
+	// surfacing it as a non-translatable content Block (visible to
+	// ingestion, skipped by MT). Zero value = surfacing ON (the opt-out
+	// default). Orthogonal to the key condition / directives, which decide
+	// whether an entry is *translatable*.
+	disableNonTranslatableContent bool
+
 	// compiled regex caches
 	compiledKeyCondition *regexp.Regexp
 	compiledCodeFinder   []*regexp.Regexp
@@ -65,6 +74,19 @@ func (c *Config) Reset() {
 
 // Validate checks configuration validity.
 func (c *Config) Validate() error { return nil }
+
+// ExtractNonTranslatableContent reports whether the value text of excluded
+// entries is surfaced as non-translatable content Blocks. Default true.
+func (c *Config) ExtractNonTranslatableContent() bool {
+	return !c.disableNonTranslatableContent
+}
+
+// SetExtractNonTranslatableContent toggles surfacing of excluded-entry value
+// text as content Blocks (used by the parity runner to match the Okapi bridge,
+// which keeps such content in skeleton).
+func (c *Config) SetExtractNonTranslatableContent(v bool) {
+	c.disableNonTranslatableContent = !v
+}
 
 // ApplyMap applies configuration values from a map.
 func (c *Config) ApplyMap(values map[string]any) error {
@@ -114,6 +136,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("commentsAreNotes: expected bool, got %T", val)
 			}
 			c.CommentsAreNotes = b
+		case "extractNonTranslatableContent":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+			}
+			c.disableNonTranslatableContent = !b
 		case "escapeExtendedChars":
 			b, ok := val.(bool)
 			if !ok {

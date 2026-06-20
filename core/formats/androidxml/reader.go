@@ -273,22 +273,39 @@ func (r *Reader) walkSpan(ctx context.Context, ch chan<- model.PartResult, toks 
 					r.skelText(t.raw)
 					continue
 				}
-				if r.isTranslatable(t) && !r.isReferenceValue(toks[i+1:end]) {
+				switch {
+				case r.isTranslatable(t) && !r.isReferenceValue(toks[i+1:end]):
 					*counter++
 					// Skeleton: start tag verbatim, a ref for the inner content,
 					// then the end tag verbatim.
 					r.skelText(t.raw)
 					r.skelRef(blockID(*counter))
 					r.skelText(toks[end].raw)
-					if !r.emitString(ctx, ch, t, toks[i+1:end], pendingComment, *counter) {
+					if !r.emitString(ctx, ch, t, toks[i+1:end], pendingComment, *counter, true) {
 						return
 					}
-				} else {
-					// Non-translatable <string> (translatable="false" or a bare
-					// resource reference): the whole entry round-trips verbatim.
+					pendingComment = ""
+				case !r.isTranslatable(t) && r.cfg.ExtractNonTranslatableContent():
+					// translatable="false" → surface the value as non-translatable
+					// content (visible to ingestion, skipped by MT). The skeleton
+					// shape is identical to the translatable path, so an untranslated
+					// round-trip stays byte-exact; only Translatable differs.
+					*counter++
+					r.skelText(t.raw)
+					r.skelRef(blockID(*counter))
+					r.skelText(toks[end].raw)
+					if !r.emitString(ctx, ch, t, toks[i+1:end], pendingComment, *counter, false) {
+						return
+					}
+					pendingComment = ""
+				default:
+					// A bare resource reference (an alias, not content), or a
+					// translatable="false" entry with surfacing turned off: the whole
+					// entry round-trips verbatim in the skeleton. A pending comment is
+					// carried forward (not cleared) so it can attach to the next
+					// surfaced entry rather than being dropped (issue #928 B).
 					r.skelTokens(toks[i : end+1])
 				}
-				pendingComment = ""
 				i = end
 			case "string-array":
 				end := matchEnd(toks, i, "string-array")
@@ -296,18 +313,28 @@ func (r *Reader) walkSpan(ctx context.Context, ch chan<- model.PartResult, toks 
 					r.skelText(t.raw)
 					continue
 				}
-				if r.isTranslatable(t) {
+				switch {
+				case r.isTranslatable(t):
 					// Container start tag verbatim; emitArray emits per-item
 					// structure + refs; the matching end tag is verbatim.
 					r.skelText(t.raw)
-					if !r.emitArray(ctx, ch, t, toks[i+1:end], pendingComment, counter) {
+					if !r.emitArray(ctx, ch, t, toks[i+1:end], pendingComment, counter, true) {
 						return
 					}
 					r.skelText(toks[end].raw)
-				} else {
+					pendingComment = ""
+				case r.cfg.ExtractNonTranslatableContent():
+					// translatable="false" → surface each item as non-translatable
+					// content, preserving the byte-exact skeleton shape.
+					r.skelText(t.raw)
+					if !r.emitArray(ctx, ch, t, toks[i+1:end], pendingComment, counter, false) {
+						return
+					}
+					r.skelText(toks[end].raw)
+					pendingComment = ""
+				default:
 					r.skelTokens(toks[i : end+1])
 				}
-				pendingComment = ""
 				i = end
 			case "plurals":
 				end := matchEnd(toks, i, "plurals")
@@ -315,16 +342,26 @@ func (r *Reader) walkSpan(ctx context.Context, ch chan<- model.PartResult, toks 
 					r.skelText(t.raw)
 					continue
 				}
-				if r.isTranslatable(t) {
+				switch {
+				case r.isTranslatable(t):
 					r.skelText(t.raw)
-					if !r.emitPlurals(ctx, ch, t, toks[i+1:end], pendingComment, counter) {
+					if !r.emitPlurals(ctx, ch, t, toks[i+1:end], pendingComment, counter, true) {
 						return
 					}
 					r.skelText(toks[end].raw)
-				} else {
+					pendingComment = ""
+				case r.cfg.ExtractNonTranslatableContent():
+					// translatable="false" → surface each item as non-translatable
+					// content, preserving the byte-exact skeleton shape.
+					r.skelText(t.raw)
+					if !r.emitPlurals(ctx, ch, t, toks[i+1:end], pendingComment, counter, false) {
+						return
+					}
+					r.skelText(toks[end].raw)
+					pendingComment = ""
+				default:
 					r.skelTokens(toks[i : end+1])
 				}
-				pendingComment = ""
 				i = end
 			case "resources":
 				// The document container: descend into its children. (A nested
@@ -407,22 +444,24 @@ func (r *Reader) isReferenceValue(innerToks []token) bool {
 // (mirroring how plurals/arrays use name[quantity]/name[index]), and the product
 // is recorded in Properties so the writer can match the exact element.
 func (r *Reader) emitString(ctx context.Context, ch chan<- model.PartResult,
-	start token, innerToks []token, comment string, counter int) bool {
+	start token, innerToks []token, comment string, counter int, translatable bool) bool {
 
 	name, _ := start.attrValue("name")
 	blockName := name
 	if product, ok := start.attrValue("product"); ok && product != "" {
 		blockName = name + "@" + product
 	}
-	block := r.newBlock(counter, blockName, buildRuns(innerToks))
+	block := r.newBlock(counter, blockName, buildRuns(innerToks), translatable)
 	r.applyEntryProps(block, start, "string")
 	r.applyComment(block, comment)
 	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
-// emitArray emits one Block per <item> in a <string-array> entry.
+// emitArray emits one Block per <item> in a <string-array> entry. translatable
+// is false when the array is marked translatable="false" and surfaced as
+// non-translatable content.
 func (r *Reader) emitArray(ctx context.Context, ch chan<- model.PartResult,
-	start token, innerToks []token, comment string, counter *int) bool {
+	start token, innerToks []token, comment string, counter *int, translatable bool) bool {
 
 	name, _ := start.attrValue("name")
 	idx := 0
@@ -446,7 +485,7 @@ func (r *Reader) emitArray(ctx context.Context, ch chan<- model.PartResult,
 		r.skelRef(blockID(*counter))
 		r.skelText(innerToks[end].raw)
 		blockName := name + "[" + strconv.Itoa(idx) + "]"
-		block := r.newBlock(*counter, blockName, buildRuns(innerToks[i+1:end]))
+		block := r.newBlock(*counter, blockName, buildRuns(innerToks[i+1:end]), translatable)
 		r.applyEntryProps(block, start, "string-array")
 		block.Properties["androidxml.arrayName"] = name
 		block.Properties["androidxml.index"] = strconv.Itoa(idx)
@@ -464,8 +503,10 @@ func (r *Reader) emitArray(ctx context.Context, ch chan<- model.PartResult,
 }
 
 // emitPlurals emits one Block per <item quantity="…"> in a <plurals> entry.
+// translatable is false when the plurals entry is marked translatable="false"
+// and surfaced as non-translatable content.
 func (r *Reader) emitPlurals(ctx context.Context, ch chan<- model.PartResult,
-	start token, innerToks []token, comment string, counter *int) bool {
+	start token, innerToks []token, comment string, counter *int, translatable bool) bool {
 
 	name, _ := start.attrValue("name")
 	first := true
@@ -488,7 +529,7 @@ func (r *Reader) emitPlurals(ctx context.Context, ch chan<- model.PartResult,
 		r.skelRef(blockID(*counter))
 		r.skelText(innerToks[end].raw)
 		blockName := name + "[" + quantity + "]"
-		block := r.newBlock(*counter, blockName, buildRuns(innerToks[i+1:end]))
+		block := r.newBlock(*counter, blockName, buildRuns(innerToks[i+1:end]), translatable)
 		r.applyEntryProps(block, start, "plurals")
 		block.Properties["androidxml.pluralsName"] = name
 		block.Properties["androidxml.quantity"] = quantity
@@ -504,17 +545,24 @@ func (r *Reader) emitPlurals(ctx context.Context, ch chan<- model.PartResult,
 	return true
 }
 
-// newBlock constructs a translatable Block from a run sequence.
-func (r *Reader) newBlock(counter int, name string, runs []model.Run) *model.Block {
-	return &model.Block{
+// newBlock constructs a Block from a run sequence. When translatable is false
+// the block surfaces a translatable="false" entry as non-translatable contextual
+// content: visible to ingestion but skipped by MT, with PreserveWhitespace set so
+// its verbatim value is never reflowed.
+func (r *Reader) newBlock(counter int, name string, runs []model.Run, translatable bool) *model.Block {
+	b := &model.Block{
 		ID:           "tu" + strconv.Itoa(counter),
 		Name:         name,
-		Translatable: true,
+		Translatable: translatable,
 		SourceLocale: r.docLocale(),
 		Source:       runs,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
 	}
+	if !translatable {
+		b.PreserveWhitespace = true
+	}
+	return b
 }
 
 // applyEntryProps records the entry kind on the Block so the writer and tooling

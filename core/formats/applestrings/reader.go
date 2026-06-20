@@ -181,17 +181,58 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		layer.Properties[propBOM] = "1"
 	}
 
+	// Parse the document up front. Comments that are not attached to any
+	// translatable entry — trailing/orphan or superseded comments in a .strings
+	// table, and XML comments inside a .stringsdict plist — are surfaced as
+	// layer-scoped NoteAnnotations. These MUST be attached before the layer
+	// pointer is published on the channel (PartLayerStart): a consumer holds the
+	// same pointer, so mutating the layer afterwards would race. Layer
+	// annotations are not part of the canonical part stream, so this is
+	// parity-safe and leaves the emitted Block/Data/Group stream unchanged (no
+	// extraction flag needed). The comment bytes still round-trip in the skeleton.
+	var (
+		strDoc   *stringsDoc
+		dictDoc  *stringsdictDoc
+		comments []string
+	)
+	switch kind {
+	case kindStringsdict:
+		dictDoc, err = parseStringsdict(content)
+		if err == nil {
+			comments = dictDoc.commentTexts()
+		}
+	default:
+		strDoc, err = parseStringsFile(content)
+		if err == nil {
+			comments = strDoc.orphanComments
+		}
+	}
+	if err != nil {
+		select {
+		case ch <- model.PartResult{Error: err}:
+		case <-ctx.Done():
+		}
+		return
+	}
+	// Honour the same ExtractComments toggle that governs per-block comment
+	// notes: when it is off, no comment surfaces as a note anywhere.
+	if r.cfg.ExtractComments {
+		if notes := commentNotes(comments); notes != nil {
+			layer.SetAnno(model.AnnoNote, notes)
+		}
+	}
+
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 		return
 	}
 
 	switch kind {
 	case kindStringsdict:
-		if !r.emitStringsdict(ctx, ch, content, locale) {
+		if !r.emitStringsdict(ctx, ch, locale, dictDoc) {
 			return
 		}
 	default:
-		if !r.emitStrings(ctx, ch, content, locale) {
+		if !r.emitStrings(ctx, ch, content, locale, strDoc) {
 			return
 		}
 	}
@@ -220,6 +261,30 @@ func (r *Reader) detectKind(content string) fileKind {
 		return kindStringsdict
 	}
 	return kindStrings
+}
+
+// commentNotes builds a layer-scoped note collection from comment text that is
+// not attached to any translatable entry (superseded/trailing .strings comments
+// or XML comments inside a .stringsdict). Empty texts are skipped. Returns nil
+// when there is nothing to surface, so the caller avoids setting an empty
+// annotation. These are developer/context comments, so they are surfaced as
+// semantic metadata (NoteAnnotation), never as translatable content.
+func commentNotes(texts []string) *model.Notes {
+	var notes *model.Notes
+	for _, t := range texts {
+		if t == "" {
+			continue
+		}
+		if notes == nil {
+			notes = &model.Notes{}
+		}
+		notes.Items = append(notes.Items, &model.NoteAnnotation{
+			Text:      t,
+			From:      "developer",
+			Annotates: "general",
+		})
+	}
+	return notes
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

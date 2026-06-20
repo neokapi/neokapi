@@ -113,7 +113,9 @@ func TestExtractHeadersFootersDisabled(t *testing.T) {
 	ctx := t.Context()
 	reader := rtf.NewReader()
 
-	// Default config: headers/footers disabled
+	// Default config: headers/footers not extracted as TRANSLATABLE content,
+	// but ExtractNonTranslatableContent is on by default so header text now
+	// surfaces as a non-translatable, page-header-roled content block.
 	input := `{\rtf1\ansi\deff0
 {\header This is header text}
 \pard Body paragraph\par
@@ -125,14 +127,45 @@ func TestExtractHeadersFootersDisabled(t *testing.T) {
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 
-	// With headers disabled, should only extract body text
-	var foundHeader bool
+	var headerBlock, bodyBlock *model.Block
 	for _, b := range blocks {
-		if b.SourceText() == "This is header text" {
-			foundHeader = true
+		switch b.SourceText() {
+		case "This is header text":
+			headerBlock = b
+		case "Body paragraph":
+			bodyBlock = b
 		}
 	}
-	assert.False(t, foundHeader, "should NOT extract header text when disabled")
-	// Should have at least the body paragraph
-	require.GreaterOrEqual(t, len(blocks), 1)
+	require.NotNil(t, bodyBlock, "should extract body text as a translatable block")
+	assert.True(t, bodyBlock.Translatable)
+
+	// Header text is surfaced for ingestion but NOT translatable.
+	require.NotNil(t, headerBlock, "header text should surface as a content block")
+	assert.False(t, headerBlock.Translatable, "header text must not be translatable when extraction is disabled")
+	assert.Equal(t, model.RolePageHeader, headerBlock.SemanticRole())
+	assert.True(t, headerBlock.PreserveWhitespace)
+}
+
+// TestExtractHeadersFootersDisabledAndNoNonTranslatable verifies that with the
+// ExtractNonTranslatableContent opt-out, header text stays entirely in skeleton
+// (no header block at all) — the parity/byte-identical baseline.
+func TestExtractHeadersFootersDisabledAndNoNonTranslatable(t *testing.T) {
+	ctx := t.Context()
+	reader := rtf.NewReader()
+	cfg := reader.Config().(*rtf.Config)
+	cfg.SetExtractNonTranslatableContent(false)
+
+	input := `{\rtf1\ansi\deff0
+{\header This is header text}
+\pard Body paragraph\par
+}`
+
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Body paragraph", blocks[0].SourceText())
+	assert.True(t, blocks[0].Translatable)
 }

@@ -86,8 +86,12 @@ func pseudoTranslate(b *model.Block, locale model.LocaleID) string {
 //   - the re-parsed opaque-region set is identical to the source's, proving the
 //     translation touched only prose.
 func TestInvariantProseTranslatedStructurePreserved(t *testing.T) {
-	// Pick a corpus file rich in opaque constructs (imports + tables + code).
-	path := filepath.Join("testdata", "corpus", "website-translation.mdx")
+	// Pick a corpus file rich in opaque constructs that stay opaque: an ESM
+	// import and a self-closing JSX component (which has no text children to
+	// surface). GFM table cell prose is now surfaced as NON-translatable
+	// content (#928) rather than opaque, so a translation tool that respects
+	// Translatable leaves it byte-identical — exactly what we assert below.
+	path := filepath.Join("testdata", "corpus", "kapi-cli-bilingual-workflow.mdx")
 	src, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -104,8 +108,9 @@ func TestInvariantProseTranslatedStructurePreserved(t *testing.T) {
 			continue
 		}
 		b := p.Resource.(*model.Block)
-		// Only translate prose that contains a letter (skip pure-symbol blocks).
-		if strings.ContainsAny(b.SourceText(), "abcdefghijklmnopqrstuvwxyz") {
+		// Translate prose only: a real MT tool skips Translatable:false content
+		// (surfaced JSX text children, table cells). Skip pure-symbol blocks.
+		if b.Translatable && strings.ContainsAny(b.SourceText(), "abcdefghijklmnopqrstuvwxyz") {
 			translated = append(translated, pseudoTranslate(b, fr))
 		}
 	}
@@ -175,7 +180,11 @@ func TestInvariantCodeFenceAndTableByteIdentical(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			b := p.Resource.(*model.Block)
-			if strings.ContainsAny(b.SourceText(), "abcdefghijklmnopqrstuvwxyz") {
+			// Translate prose only. Table cell prose is surfaced as
+			// Translatable:false content (#928); a translation tool that
+			// respects Translatable leaves the table — pipes, padding, and
+			// cell text — byte-identical, which is what we assert below.
+			if b.Translatable && strings.ContainsAny(b.SourceText(), "abcdefghijklmnopqrstuvwxyz") {
 				pseudoTranslate(b, fr)
 			}
 		}

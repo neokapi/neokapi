@@ -222,6 +222,40 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 	assert.Contains(t, buf.String(), "<target>A &amp; B &lt; C</target>")
 }
 
+// TestSkeletonStore_ByteExact_NotesAndContext proves that surfacing
+// header <note>, <context-group> prose, and <alt-trans> <note> as
+// annotations (#928 treatment B) leaves the byte-exact skeleton
+// round-trip untouched: those elements ride in the skeleton verbatim and
+// are never re-serialized from the annotations on the skeleton path.
+func TestSkeletonStore_ByteExact_NotesAndContext(t *testing.T) {
+	t.Parallel()
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file original="hello.txt" source-language="en" target-language="fr" datatype="plaintext">
+    <header>
+      <note from="pm" priority="2">Release blocker context</note>
+    </header>
+    <body>
+      <trans-unit id="1">
+        <source>Hello World</source>
+        <target>Bonjour le monde</target>
+        <context-group name="x-pos" purpose="location">
+          <context context-type="sourcefile">test.properties</context>
+          <context context-type="paramnotes">Shown on the home screen</context>
+        </context-group>
+        <alt-trans match-quality="100" origin="tm">
+          <source>Hello World</source>
+          <target>Salut le monde</target>
+          <note from="reviewer">Prefer informal tone</note>
+        </alt-trans>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "notes/context-group/alt-trans must round-trip byte-exact")
+}
+
 func TestSkeletonStore_ByteExact_SourceOnly(t *testing.T) {
 	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>

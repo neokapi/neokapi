@@ -703,6 +703,138 @@ func TestReadExcludedValueAsContent(t *testing.T) {
 	assert.Empty(t, data, "excluded value no longer falls through to textless Data")
 }
 
+// A configured note whose object scope closes with no following translatable
+// block to attach it to (a "dangling note") would otherwise be silently
+// dropped. By default (extractNonTranslatableContent on) the reader flushes the
+// note text as a non-translatable Data part at object-scope close so
+// ingestion/LLM consumers can still see it. The note key + delimiters stay in
+// the skeleton, so the document still round-trips byte-exact.
+func TestReadDanglingNoteFlushedAsData(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"noteRules": "^_note$",
+	}))
+	input := `{"text": "Hello", "_note": "trailing hint"}`
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	translatable, content, data := partsByKind(parts)
+
+	require.Len(t, translatable, 1)
+	assert.Equal(t, "Hello", translatable[0].SourceText())
+	assert.Empty(t, translatable[0].Notes(), "the note trails the block, so it never attaches as an annotation")
+	assert.Empty(t, content, "a dangling note is not surfaced as a translatable/content block")
+
+	require.Len(t, data, 1, "the dangling note text is flushed as one Data part")
+	assert.Equal(t, "trailing hint", data[0].Properties["text"])
+	assert.Equal(t, "_note", data[0].Name)
+}
+
+// The dangling-note Data part rides on the same flag as the rest of the
+// non-translatable content surfacing: with extractNonTranslatableContent off
+// (the Okapi-faithful / parity config) the part stream is byte-identical to the
+// prior behavior — the note text stays skeleton-only and no Data is emitted.
+func TestReadDanglingNoteSuppressedWhenDisabled(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"noteRules":                     "^_note$",
+		"extractNonTranslatableContent": false,
+	}))
+	input := `{"text": "Hello", "_note": "trailing hint"}`
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	translatable, content, data := partsByKind(parts)
+
+	require.Len(t, translatable, 1)
+	assert.Equal(t, "Hello", translatable[0].SourceText())
+	assert.Empty(t, content)
+	assert.Empty(t, data, "no Data is emitted for the dangling note when surfacing is disabled")
+}
+
+// A note that DOES have a following translatable block still attaches as a
+// NoteAnnotation (the established behavior) and is therefore not also flushed as
+// a dangling Data part.
+func TestReadConsumedNoteIsAnnotationNotData(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"noteRules": "^_note$",
+	}))
+	input := `{"_note": "hint", "text": "Hello"}`
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	translatable, content, data := partsByKind(parts)
+
+	require.Len(t, translatable, 1)
+	notes := translatable[0].Notes()
+	require.Len(t, notes, 1, "the note attaches to the following block")
+	assert.Equal(t, "hint", notes[0].Text)
+	assert.Empty(t, content)
+	assert.Empty(t, data, "a consumed note is not also flushed as a dangling Data part")
+}
+
+// Only dangling NOTES are flushed; a dangling ID stays skeleton-only. An
+// identifier with no following block to name leaves no Data part behind.
+func TestReadDanglingIDNotFlushed(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"idRules": "^_id$",
+	}))
+	input := `{"text": "Hi", "_id": "abc"}`
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	translatable, content, data := partsByKind(parts)
+
+	require.Len(t, translatable, 1)
+	assert.Equal(t, "text", translatable[0].Name, "the id trails the block, so it is not used as a name")
+	assert.Empty(t, content)
+	assert.Empty(t, data, "a dangling id is never flushed as Data")
+}
+
+// A note dangling inside a NESTED object scope is flushed at that inner scope's
+// close (mid-document), before the parent's later translatable block, and the
+// document still round-trips byte-exact through the skeleton store.
+func TestReadDanglingNoteInNestedScope(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"noteRules": "_note$",
+	}))
+	input := `{"meta": {"_note": "section note"}, "text": "Hello"}`
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	translatable, _, data := partsByKind(parts)
+
+	require.Len(t, translatable, 1)
+	assert.Equal(t, "Hello", translatable[0].SourceText())
+	require.Len(t, data, 1)
+	assert.Equal(t, "section note", data[0].Properties["text"])
+	assert.Equal(t, "meta._note", data[0].Name)
+
+	// The note key + delimiters stay in the skeleton, so the round-trip is
+	// byte-exact even though the note text is now surfaced as a Data part.
+	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input, map[string]any{
+		"noteRules": "_note$",
+	}))
+}
+
 // TestWriterTerminatesOnUnexpectedObjectToken guards against a writer hang:
 // when leniently-parsed malformed input leaves a non-string, non-comma,
 // non-close token at the head of an object, writeTokenObject must still advance

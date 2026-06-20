@@ -33,7 +33,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Type:        "boolean",
 				Title:       "Surface descriptions as notes",
 				Default:     true,
-				Description: "Surface the \"description\" field of a resource's sibling \"@<id>\" attributes object as a translator note. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting.",
+				Description: "Surface the human-facing context in a resource's sibling \"@<id>\" attributes object as developer notes: the resource \"description\" plus each placeholder's \"example\"/\"description\" hint. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting.",
 			}),
 		},
 	}

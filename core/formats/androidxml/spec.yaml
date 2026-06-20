@@ -12,7 +12,8 @@
 #     native reader produces under default config; numbers were verified
 #     against the live reader (go test ./core/formats/androidxml -run TestSpec).
 #   - Config keys mirror Config.ApplyMap (config.go) 1:1: extractComments,
-#     skipNonTranslatable, skipResourceReferences.
+#     skipNonTranslatable, skipResourceReferences,
+#     extractNonTranslatableContent.
 #   - The byte_faithful feature carries a #847 expected.roundtrip view
 #     (mode: byte_exact) — the reader stores the original document bytes on
 #     the root layer so the writer reproduces unchanged input byte-for-byte.
@@ -52,6 +53,15 @@ config:
       Exclude <string> values that are a bare resource reference
       (e.g. @string/foo, ?attr/bar). A reference is an alias, not
       translatable UI text.
+  - key: extractNonTranslatableContent
+    type: boolean
+    default: true
+    description: |
+      Surface entries marked translatable="false" as non-translatable
+      content blocks (Translatable:false) — visible to ingestion, skipped
+      by MT — instead of burying them in opaque skeleton. When false such
+      entries stay skeleton and round-trip verbatim. Bare resource
+      references are always skeleton, regardless of this setting.
 
 features:
   - id: string_extraction
@@ -86,10 +96,13 @@ features:
   - id: nontranslatable
     name: Non-translatable entries skipped
     description: |
-      Entries marked translatable="false" (when skipNonTranslatable) and
-      <string> values that are a bare resource reference (when
-      skipResourceReferences) are excluded from extraction and round-trip
-      verbatim.
+      Entries marked translatable="false" (when skipNonTranslatable) are
+      never translated; by default (extractNonTranslatableContent) they are
+      still surfaced as non-translatable content blocks — visible to
+      ingestion, skipped by MT — and round-trip verbatim, so they are absent
+      from the translatable block set. <string> values that are a bare
+      resource reference (when skipResourceReferences) are excluded entirely
+      and round-trip as skeleton.
     spec_refs:
       - "Android Developers — Localization: translatable attribute and resource aliases (https://developer.android.com/guide/topics/resources/localization)"
     native_refs:

@@ -267,6 +267,16 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 	var contentDepth int    // >0 when inside a <Content> element
 	var noteDepth int       // >0 when inside a Note/Footnote/Endnote element
 	var stickyNoteDepth int // >0 when inside a <Note> (InDesign editor sticky note, not Footnote/Endnote)
+	// pendingStickyNotes holds the bodies of unextracted InDesign sticky
+	// <Note> elements seen since the last translatable Block. They ride
+	// along on the next translatable Block as parity-safe NoteAnnotations
+	// so the comment text is visible to ingestion without becoming MT
+	// payload (and without changing the emitted part stream — annotations
+	// are not part of the parity canonical stream). The text also stays in
+	// the skeleton, keeping round-trip byte-exact. Scoped per story, so a
+	// trailing note never leaks onto the next story's first block; a note
+	// with no following block in its story stays skeleton-only (as before).
+	var pendingStickyNotes []string
 	var textBuf strings.Builder
 	// rootOpened tracks whether the root element start tag has been
 	// emitted. Whitespace between the `<?xml ?>` declaration and the
@@ -1374,6 +1384,16 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 						// Non-translatable: write to skeleton as text
 						commitPending()
 						r.skelText(&skelBuf, xmlEscape(text))
+
+						// Capture the sticky <Note> body so it rides along
+						// on the next translatable Block as a NoteAnnotation
+						// (developer/translator context, not MT payload).
+						// The text stays in the skeleton above, so round-trip
+						// is unchanged; the annotation is not part of the
+						// parity canonical stream, so no flag is needed.
+						if inUnextractedStickyNote && trimmed != "" {
+							pendingStickyNotes = append(pendingStickyNotes, trimmed)
+						}
 					} else {
 						// Translatable content: emit block
 						*blockCounter++
@@ -1393,6 +1413,16 @@ func (r *Reader) parseStory(ctx context.Context, ch chan<- model.PartResult,
 								"characterStyle": currentStyle.charStyle,
 							},
 						}
+						// Attach any pending sticky-note bodies as
+						// parity-safe NoteAnnotations on the adjacent block.
+						for _, note := range pendingStickyNotes {
+							block.AddNote(&model.NoteAnnotation{
+								Text:      note,
+								From:      "idml-note",
+								Annotates: "general",
+							})
+						}
+						pendingStickyNotes = nil
 						applyStoryGeometry(block, geom)
 						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 							return nil

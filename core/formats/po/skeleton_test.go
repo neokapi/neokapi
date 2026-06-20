@@ -84,6 +84,46 @@ msgstr ""
 	assert.Equal(t, input, output, "multiline msgstr roundtrip should be byte-exact")
 }
 
+// #928: in skeleton mode, comments still surface as block notes while the
+// byte-exact round-trip is unaffected — notes never touch the skeleton.
+func TestSkeletonStore_CommentsAsNotes(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	input := "# Translator comment\n#. Extracted comment\nmsgid \"Save\"\nmsgstr \"Enregistrer\"\n"
+
+	reader := po.NewReader()
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+
+	doc := testutil.RawDocFromString(input, model.LocaleEnglish)
+	doc.TargetLocale = model.LocaleFrench
+	require.NoError(t, reader.Open(ctx, doc))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	blocks := testutil.FilterBlocks(parts)
+	require.Len(t, blocks, 1)
+
+	var dev, tr *model.NoteAnnotation
+	for _, n := range blocks[0].Notes() {
+		switch n.From {
+		case "developer":
+			dev = n
+		case "translator":
+			tr = n
+		}
+	}
+	require.NotNil(t, dev)
+	assert.Equal(t, "Extracted comment", dev.Text)
+	require.NotNil(t, tr)
+	assert.Equal(t, "Translator comment", tr.Text)
+
+	// The byte-exact round-trip is unaffected by the added notes.
+	assert.Equal(t, input, skeletonRoundtrip(t, input))
+}
+
 func TestSkeletonStore_ByteExact_Comments(t *testing.T) {
 	t.Parallel()
 	input := `# Translator comment

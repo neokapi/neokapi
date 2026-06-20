@@ -12,18 +12,25 @@
 # single block whose joined text is `"Hello  world"` (the empty gap
 # where `{0}` lived is preserved as adjacent spaces). Plural / select
 # bodies extract as one block per leaf branch; the surrounding
-# scaffolding ("Text … End", "He has …") is discarded by the native
-# `extractSegments` walk and is therefore not asserted on.
+# scaffolding ("Text … End", "He has …") stays in the skeleton. Its
+# prose part — the literal text framing a picker — is surfaced as a
+# *non-translatable* content block (default on, opt out via
+# `extractNonTranslatableContent`). `BlockTexts` counts only
+# translatable blocks, so these framing blocks are not asserted on here
+# and parity (which forces the flag off) is unaffected.
 #
-# Config surface is intentionally empty. Upstream Okapi exposes
-# `addPluralForms`, `normalize`, `prettyPrint`, and an `inlineCodes`
-# group, but these shape upstream output — they don't change the
-# extraction contract verified here, the native reader doesn't honour
-# them, and the bridge ships no composite schema for okf_messageformat
-# yet (versions.json carries an empty list). Declaring keys would
-# either fail native ApplyMap or fail bridge-schema drift; leaving the
-# surface empty keeps both runners green and is honest about the
-# current state.
+# The spec-declared config surface is intentionally empty. Upstream
+# Okapi exposes `addPluralForms`, `normalize`, `prettyPrint`, and an
+# `inlineCodes` group, but these shape upstream output — they don't
+# change the extraction contract verified here, the native reader
+# doesn't honour them, and the bridge ships no composite schema for
+# okf_messageformat yet (versions.json carries an empty list).
+# Declaring those keys would either fail native ApplyMap or fail
+# bridge-schema drift; leaving the spec surface empty keeps both
+# runners green. The native reader's lone parameter,
+# `extractNonTranslatableContent`, is a neokapi-only ingestion toggle
+# (not an Okapi param), so it lives in the native schema only and is
+# deliberately not declared here.
 #
 # okapi_refs are pinned to the upstream class+method names. Drift
 # detection asserts each ref still exists in the bridge's pinned

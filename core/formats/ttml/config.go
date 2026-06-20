@@ -33,11 +33,11 @@ type Config struct {
 	SplitWords bool `json:"splitWords"`
 
 	// disableNonTranslatableContent, when set, keeps non-translatable contextual
-	// content from the document head (the ttm:copyright and ttm:agent metadata)
-	// in opaque skeleton instead of surfacing it as RoleCode content blocks
-	// (visible to ingestion/LLM consumers, skipped by MT). Zero value = surfacing
-	// ON (the opt-out default). Inverted so the default is ON regardless of how
-	// the Config is constructed. No json tag: it is driven solely via the
+	// content from the document head (the ttm:title, ttm:desc, ttm:copyright and
+	// ttm:agent metadata) in opaque skeleton instead of surfacing it as content
+	// blocks (visible to ingestion/LLM consumers, skipped by MT). Zero value =
+	// surfacing ON (the opt-out default). Inverted so the default is ON regardless
+	// of how the Config is constructed. No json tag: it is driven solely via the
 	// extractNonTranslatableContent ApplyMap key / SetExtractNonTranslatableContent.
 	disableNonTranslatableContent bool
 }
@@ -60,8 +60,8 @@ func (c *Config) Reset() {
 func (c *Config) Validate() error { return nil }
 
 // ExtractNonTranslatableContent reports whether non-translatable contextual
-// head metadata (ttm:copyright, ttm:agent) is surfaced as RoleCode content
-// blocks. Default true.
+// head metadata (ttm:title, ttm:desc, ttm:copyright, ttm:agent) is surfaced as
+// content blocks. Default true.
 func (c *Config) ExtractNonTranslatableContent() bool {
 	return !c.disableNonTranslatableContent
 }
