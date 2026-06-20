@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ensurePlugin, usePluginManager } from "@neokapi/kapi-playground/plugins";
+import type { PluginState } from "@neokapi/kapi-playground/plugins";
 
 // MlSegmentationCompare — the ML and LLM segmenters, side by side with a browser
 // baseline, on text you can edit. The rule-based (SRX) and ICU (UAX-29) engines
@@ -28,6 +29,35 @@ function browserSegment(text: string): string[] {
   if (!Seg) return text.split(/(?<=[.!?])\s+/).filter(Boolean);
   const seg = new Seg("en", { granularity: "sentence" });
   return Array.from(seg.segment(text), (s) => s.segment.trim()).filter(Boolean);
+}
+
+function fmtBytes(n?: number): string {
+  if (!n) return "";
+  if (n >= 1e9) return `${(n / 1e9).toFixed(1)} GB`;
+  if (n >= 1e6) return `${Math.round(n / 1e6)} MB`;
+  return `${Math.round(n / 1e3)} KB`;
+}
+
+// DownloadBar renders a live model-download progress bar from the shared plugin
+// state — shown whether the download was triggered from the navbar widget or by
+// pressing a Run button here. Handles both progress shapes: a plain fraction
+// (SaT/onnxruntime) and aggregate bytes (the LLM's many shards).
+function DownloadBar({ st }: { st?: PluginState }): React.ReactElement | null {
+  if (!st || st.phase !== "downloading") return null;
+  const p = st.progress;
+  const frac = p?.frac ?? (p?.total ? (p.loaded ?? 0) / p.total : 0);
+  const pct = Math.round(Math.min(1, Math.max(0, frac)) * 100);
+  return (
+    <div className="mb-2">
+      <div className="h-2 w-full overflow-hidden rounded bg-muted">
+        <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Downloading model · {pct}%
+        {p?.total ? ` · ${fmtBytes(p.loaded)} of ${fmtBytes(p.total)}` : ""}
+      </p>
+    </div>
+  );
 }
 
 function SentenceList({
@@ -119,7 +149,6 @@ export default function MlSegmentationCompare(): React.ReactElement {
 
   const satState = mgr.state.plugins.sat;
   const llmState = mgr.state.plugins.llm;
-  const dlPct = (frac?: number) => (frac != null ? `${Math.round(frac * 100)}%` : "");
 
   return (
     <div className="kapi-reference flex flex-col gap-3 text-foreground">
@@ -168,9 +197,8 @@ export default function MlSegmentationCompare(): React.ReactElement {
           </div>
           <p className="mb-2 text-xs text-muted-foreground">
             wtpsplit sat-3l-sm via onnxruntime-web.
-            {satState?.phase === "downloading" &&
-              ` Downloading model ${dlPct(satState.progress?.frac)}…`}
           </p>
+          <DownloadBar st={satState} />
           <SentenceList result={sat} busy={satBusy && !sat} error={satErr} />
         </div>
 
@@ -186,11 +214,8 @@ export default function MlSegmentationCompare(): React.ReactElement {
               {llmBusy ? "Running…" : "Run"}
             </button>
           </div>
-          <p className="mb-2 text-xs text-muted-foreground">
-            Gemma 4 prompted to split sentences.
-            {llmState?.phase === "downloading" &&
-              ` Downloading model ${dlPct(llmState.progress?.frac)}…`}
-          </p>
+          <p className="mb-2 text-xs text-muted-foreground">Gemma 4 prompted to split sentences.</p>
+          <DownloadBar st={llmState} />
           <SentenceList result={llm} busy={llmBusy && !llm} error={llmErr} />
         </div>
       </div>

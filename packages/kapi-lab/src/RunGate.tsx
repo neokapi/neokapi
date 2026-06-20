@@ -90,12 +90,25 @@ export default function RunGate({
               style={{ width: engineFrac !== null ? `${Math.round(engineFrac * 100)}%` : "40%" }}
             />
           </div>
-          {downloading.map((p) => (
-            <div key={p.id} className="w-full text-xs text-muted-foreground">
-              Downloading {pluginLabel(p.id)}…{" "}
-              {p.st.progress?.frac != null ? `${Math.round(p.st.progress.frac * 100)}%` : ""}
-            </div>
-          ))}
+          {downloading.map((p) => {
+            const pr = p.st.progress;
+            const frac = pr?.frac ?? (pr?.total ? (pr.loaded ?? 0) / pr.total : 0);
+            const pct = Math.round(Math.min(1, Math.max(0, frac)) * 100);
+            return (
+              <div key={p.id} className="w-full">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-primary transition-[width] duration-200"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  Downloading {pluginLabel(p.id)} · {pct}%
+                  {pr?.total ? ` · ${fmtSize(pr.loaded)} of ${fmtSize(pr.total)}` : ""}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
