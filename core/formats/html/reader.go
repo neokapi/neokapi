@@ -615,7 +615,7 @@ func codeLanguageFromPre(pre *html.Node) string {
 				if strings.ToLower(a.Key) != "class" {
 					continue
 				}
-				for _, cls := range strings.Fields(a.Val) {
+				for cls := range strings.FieldsSeq(a.Val) {
 					for _, pfx := range []string{"language-", "lang-"} {
 						if strings.HasPrefix(cls, pfx) {
 							return cls[len(pfx):]
