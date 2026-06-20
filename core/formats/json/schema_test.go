@@ -19,26 +19,27 @@ func TestSchemaMatchesApplyMap(t *testing.T) {
 
 	// All ApplyMap keys that Config accepts.
 	applyMapKeys := map[string]bool{
-		"extractAllPairs":          true,
-		"exceptions":               true,
-		"extractIsolatedStrings":   true,
-		"extractArrayStrings":      true, // alias for extractIsolatedStrings
-		"useKeyAsName":             true,
-		"useFullKeyPath":           true,
-		"useLeadingSlashOnKeyPath": true,
-		"escapeForwardSlashes":     true,
-		"subfilters":               true,
-		"subfilter":                true,
-		"subfilterRules":           true,
-		"noteRules":                true,
-		"idRules":                  true,
-		"useIdStack":               true,
-		"genericMetaRules":         true,
-		"extractionRules":          true,
-		"maxwidthRules":            true,
-		"maxwidthSizeUnit":         true,
-		"useCodeFinder":            true,
-		"codeFinderRules":          true,
+		"extractAllPairs":               true,
+		"exceptions":                    true,
+		"extractIsolatedStrings":        true,
+		"extractArrayStrings":           true, // alias for extractIsolatedStrings
+		"extractNonTranslatableContent": true,
+		"useKeyAsName":                  true,
+		"useFullKeyPath":                true,
+		"useLeadingSlashOnKeyPath":      true,
+		"escapeForwardSlashes":          true,
+		"subfilters":                    true,
+		"subfilter":                     true,
+		"subfilterRules":                true,
+		"noteRules":                     true,
+		"idRules":                       true,
+		"useIdStack":                    true,
+		"genericMetaRules":              true,
+		"extractionRules":               true,
+		"maxwidthRules":                 true,
+		"maxwidthSizeUnit":              true,
+		"useCodeFinder":                 true,
+		"codeFinderRules":               true,
 	}
 
 	// Every schema property must be accepted by ApplyMap.

@@ -528,6 +528,9 @@ func TestCommentsWithApostrophe(t *testing.T) {
 func TestSkipDirective(t *testing.T) {
 	ctx := t.Context()
 	reader := phpcontent.NewReader()
+	// Assert directive scoping over the translatable set; keep skipped strings
+	// as Data (off) rather than non-translatable content blocks.
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
 	input := "<?php\n//_skip_\n$text = 'Skip this';\n$other = 'Keep this';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -542,6 +545,7 @@ func TestSkipDirective(t *testing.T) {
 func TestSkipDirectiveOnConcat(t *testing.T) {
 	ctx := t.Context()
 	reader := phpcontent.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
 	input := "<?php\n//_skip_\n$text = 'Skip' . ' this';\n$other = 'Keep';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -556,6 +560,7 @@ func TestSkipDirectiveOnConcat(t *testing.T) {
 func TestTextInBSkipDirective(t *testing.T) {
 	ctx := t.Context()
 	reader := phpcontent.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
 	input := "<?php\n//_bskip_\n$a = 'Skip1';\n$b = 'Skip2';\n//_eskip_\n$c = 'Keep';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -570,6 +575,7 @@ func TestTextInBSkipDirective(t *testing.T) {
 func TestESkipDirective(t *testing.T) {
 	ctx := t.Context()
 	reader := phpcontent.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
 	input := "<?php\n//_bskip_\n$a = 'Skip';\n//_eskip_\n$b = 'Keep';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -584,6 +590,7 @@ func TestESkipDirective(t *testing.T) {
 func TestDirectiveInMultilineComment(t *testing.T) {
 	ctx := t.Context()
 	reader := phpcontent.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
 	input := "<?php\n/* _bskip_ */\n$a = 'Skip';\n/* _eskip_ */\n$b = 'Keep';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -627,6 +634,7 @@ func TestETextDirective(t *testing.T) {
 func TestSkipOutsideDirective(t *testing.T) {
 	ctx := t.Context()
 	reader := phpcontent.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
 	input := "<?php\n$a = 'Before';\n//_bskip_\n$b = 'Skip';\n//_eskip_\n$c = 'After';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -661,6 +669,7 @@ func TestDisabledDirectives(t *testing.T) {
 func TestDirectiveScope(t *testing.T) {
 	ctx := t.Context()
 	reader := phpcontent.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
 	input := "<?php\n//_bskip_\n$a = 'Skip1';\n$b = 'Skip2';\n//_eskip_\n$c = 'Keep1';\n$d = 'Keep2';"
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)

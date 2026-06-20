@@ -569,10 +569,22 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 					return
 				}
 				i++
-				// Skip the next string token(s) — write their raw content as skeleton text
+				// Skip the next string token(s). When surfacing is on, the
+				// skipped string literal(s) become non-translatable RoleCode
+				// content blocks (visible to ingestion, skipped by MT) with the
+				// quote/delimiter framing kept in skeleton; otherwise their raw
+				// content is written verbatim as skeleton text (the prior
+				// byte-identical behavior).
 				nextI := r.skipNextString(tokens, i)
 				for k := i; k < nextI; k++ {
-					r.skelText(content[tokens[k].startPos:tokens[k].endPos])
+					t2 := tokens[k]
+					if r.cfg.ExtractNonTranslatableContent() && t2.typ == tokString && strings.TrimSpace(t2.value) != "" {
+						if !r.emitSkippedContentBlock(ctx, ch, content, t2, &blockCounter) {
+							return
+						}
+						continue
+					}
+					r.skelText(content[t2.startPos:t2.endPos])
 				}
 				i = nextI
 				continue
@@ -632,6 +644,19 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 		// Handle string (possibly concatenated)
 		if tok.typ == tokString {
 			if skipMode || !textMode {
+				// When surfacing is on, a skipped string literal becomes a
+				// non-translatable RoleCode content block (visible to
+				// ingestion, skipped by MT); the quote/delimiter framing
+				// stays in skeleton and the verbatim body rides a ref, so the
+				// round trip is byte-exact. Empty / whitespace-only literals
+				// carry no renderable content, so they keep the prior path.
+				if r.cfg.ExtractNonTranslatableContent() && strings.TrimSpace(tok.value) != "" {
+					if !r.emitSkippedContentBlock(ctx, ch, content, tok, &blockCounter) {
+						return
+					}
+					i++
+					continue
+				}
 				r.skelText(content[tok.startPos:tok.endPos])
 				dataCounter++
 				if !r.emit(ctx, ch, &model.Part{
@@ -797,6 +822,84 @@ func (r *Reader) skipNextString(tokens []token, i int) int {
 		break
 	}
 	return i
+}
+
+// emitSkippedContentBlock surfaces a skipped PHP string literal as a
+// non-translatable RoleCode content block: the literal is visible to an
+// ingestion/LLM consumer but skipped by MT (Translatable=false). The opening
+// and closing quote/delimiter stay in the skeleton and the verbatim body rides
+// a ref, so the byte-exact round trip is preserved. The body is a single
+// verbatim run (no inline parse). The original quote style is recorded so the
+// non-skeleton writer can re-emit a parseable literal.
+func (r *Reader) emitSkippedContentBlock(ctx context.Context, ch chan<- model.PartResult, content string, tok token, blockCounter *int) bool {
+	prefix, body, suffix := rawStringParts(content, tok)
+
+	*blockCounter++
+	blockID := fmt.Sprintf("tu%d", *blockCounter)
+
+	r.skelText(prefix)
+	r.skelRef(blockID)
+	r.skelText(suffix)
+
+	block := model.NewBlock(blockID, body)
+	block.Translatable = false
+	block.PreserveWhitespace = true
+	block.SetSemanticRole(model.RoleCode, 0)
+	setPHPQuoteProps(block, tok)
+
+	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// rawStringParts splits a string token's raw bytes into the opening delimiter,
+// the inner body (verbatim — escapes intact, unlike token.value which the
+// single-quoted parser unescapes), and the closing delimiter. Their
+// concatenation always equals the original raw bytes, so riding the body via a
+// skeleton ref while keeping the delimiters as skeleton text yields a byte-exact
+// round trip regardless of quote style.
+func rawStringParts(content string, tok token) (prefix, body, suffix string) {
+	raw := content[tok.startPos:tok.endPos]
+	switch tok.quoteType {
+	case '\'', '"':
+		if len(raw) >= 2 {
+			return raw[:1], raw[1 : len(raw)-1], raw[len(raw)-1:]
+		}
+		return raw, "", ""
+	case 'h', 'n':
+		// Heredoc/nowdoc: prefix is <<<LABEL up to and including the first
+		// newline; the value content follows; the closing label line is the
+		// suffix. Mirrors skelTextStringPrefix / skelTextStringSuffix.
+		idx := strings.Index(raw, "\n")
+		if idx < 0 {
+			return raw, "", ""
+		}
+		bodyStart := idx + 1
+		bodyEnd := min(bodyStart+len(tok.value), len(raw))
+		return raw[:bodyStart], raw[bodyStart:bodyEnd], raw[bodyEnd:]
+	default:
+		return "", raw, ""
+	}
+}
+
+// setPHPQuoteProps records the source string's quote style on a block so the
+// non-skeleton writer can re-emit a parseable PHP literal. Mirrors the metadata
+// the translatable string path records.
+func setPHPQuoteProps(block *model.Block, tok token) {
+	switch tok.quoteType {
+	case '\'':
+		block.Properties["phpQuoteType"] = "single"
+	case '"':
+		block.Properties["phpQuoteType"] = "double"
+	case 'h':
+		block.Properties["phpQuoteType"] = "heredoc"
+		if tok.label != "" {
+			block.Properties["phpHeredocLabel"] = tok.label
+		}
+	case 'n':
+		block.Properties["phpQuoteType"] = "nowdoc"
+		if tok.label != "" {
+			block.Properties["phpHeredocLabel"] = tok.label
+		}
+	}
 }
 
 // buildRuns builds a Run sequence from one or more string tokens, adding inline codes

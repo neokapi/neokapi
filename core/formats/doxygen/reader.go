@@ -29,6 +29,14 @@ type Reader struct {
 	// lose every interior CR on round-trip (one CR per body line of every
 	// translatable comment, e.g. ~15 bytes for the doxygen lists.h fixture).
 	lineEnding string
+
+	// verbatimCounter numbers the non-translatable RoleCode content blocks
+	// surfaced for \code/\verbatim/\dot/… region bodies (IDs "tv1", "tv2", …).
+	// A dedicated counter keeps blockCounter — and therefore the skeleton's
+	// "tu{n}" refs — byte-identical to the non-surfacing path, so the
+	// byte-exact round-trip is unaffected regardless of how many regions
+	// are surfaced.
+	verbatimCounter int
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
@@ -776,14 +784,48 @@ func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResul
 	translatableLines := r.extractTranslatable(cb.textLines)
 
 	if len(translatableLines) == 0 {
-		// No translatable text — emit entire comment as Data
+		// No translatable text. Reserve the Data ID slot unconditionally so
+		// the IDs of every *other* Data part stay byte-identical whether or
+		// not we surface a content block here.
 		*dataCounter++
+		raw := strings.Join(cb.rawLines, "\n")
+		// When the comment's only body is a verbatim/code/exclude region,
+		// surface that body as a non-translatable RoleCode content block
+		// (visible to ingestion/LLM, skipped by MT) instead of one opaque
+		// Data. The block carries the full raw comment so the no-skeleton
+		// writer reproduces it byte-for-byte exactly as the Data did; the
+		// skeleton path leaves the whole comment as skeleton text and never
+		// references the block, so both round-trips stay byte-exact.
+		if r.cfg.ExtractNonTranslatableContent() {
+			if regions := r.collectExcludeRegions(cb.textLines); len(regions) > 0 {
+				bodies := make([]string, len(regions))
+				for i, rg := range regions {
+					bodies[i] = rg.body
+				}
+				r.verbatimCounter++
+				block := model.NewBlock(fmt.Sprintf("tv%d", r.verbatimCounter), strings.Join(bodies, "\n"))
+				block.Name = fmt.Sprintf("verbatim.%d", r.verbatimCounter)
+				block.Type = "verbatim-block"
+				block.Translatable = false
+				block.PreserveWhitespace = true
+				block.SetSemanticRole(model.RoleCode, 0)
+				block.Properties["style"] = cb.style
+				block.Properties["raw"] = raw
+				// Marks the no-skeleton writer to reproduce raw verbatim
+				// (mirroring the retired Data path) rather than re-styling.
+				block.Properties["doxygen.verbatimBlock"] = "raw"
+				r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+				return
+			}
+		}
+		// No surfaceable region (e.g. pure-metadata comment) or surfacing
+		// disabled — emit the entire comment as Data, exactly as before.
 		data := &model.Data{
 			ID:   fmt.Sprintf("d%d", *dataCounter),
 			Name: fmt.Sprintf("comment.%d", *dataCounter),
 			Properties: map[string]string{
 				"style": cb.style,
-				"raw":   strings.Join(cb.rawLines, "\n"),
+				"raw":   raw,
 			},
 		}
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
@@ -883,6 +925,81 @@ func (r *Reader) emitCommentBlock(ctx context.Context, ch chan<- model.PartResul
 			return
 		}
 	}
+
+	// Surface any \code/\verbatim/\dot/… region bodies embedded in this
+	// translatable comment as non-translatable RoleCode content blocks
+	// (visible to ingestion/LLM, skipped by MT). These are emitted AFTER the
+	// translatable group blocks so the first group block keeps ID
+	// "tu{blockCounter+1}" that the skeleton ref points at. They carry no
+	// round-trip responsibility: the byte-exact reproduction stays with the
+	// first block's lineLayout (no-skeleton path) / the comment-group ref
+	// (skeleton path), and the writer skips these view blocks. So the
+	// round-trip is byte-identical whether or not they are emitted.
+	if r.cfg.ExtractNonTranslatableContent() {
+		for _, rg := range r.collectExcludeRegions(cb.textLines) {
+			r.verbatimCounter++
+			vb := model.NewBlock(fmt.Sprintf("tv%d", r.verbatimCounter), rg.body)
+			vb.Name = fmt.Sprintf("verbatim.%d", r.verbatimCounter)
+			vb.Type = "verbatim-block"
+			vb.Translatable = false
+			vb.PreserveWhitespace = true
+			vb.SetSemanticRole(model.RoleCode, 0)
+			vb.Properties["style"] = cb.style
+			// Marks the no-skeleton writer to skip this block entirely (the
+			// round-trip carrier is the comment group's lineLayout).
+			vb.Properties["doxygen.verbatimBlock"] = "view"
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: vb}) {
+				return
+			}
+		}
+	}
+}
+
+// excludeRegion holds the body of a Doxygen exclude region (\code…\endcode,
+// \verbatim…\endverbatim, \dot, \msc, \htmlonly, …) — non-translatable but
+// renderable content surfaced as a RoleCode block.
+type excludeRegion struct {
+	// body is the region's inner lines joined with "\n", with the
+	// delimiter command markers (\code, \endcode, …) excluded.
+	body string
+}
+
+// collectExcludeRegions scans a comment's text lines for exclude regions and
+// returns each region's inner body. The detection mirrors extractTranslatable's
+// inExclude handling exactly, so the surfaced content matches the lines that
+// extractTranslatable skips. Delimiter marker lines stay out of the body
+// (they remain in skeleton/lineLayout for byte-exact round-trip).
+func (r *Reader) collectExcludeRegions(textLines []string) []excludeRegion {
+	var regions []excludeRegion
+	var cur []string
+	inExclude := false
+	for _, line := range textLines {
+		trimmed := strings.TrimSpace(line)
+		if cmd := r.extractCommand(trimmed); cmd != "" {
+			if isExcludeStart(cmd) {
+				inExclude = true
+				cur = nil
+				continue
+			}
+			if isExcludeEnd(cmd) {
+				if inExclude {
+					regions = append(regions, excludeRegion{body: strings.Join(cur, "\n")})
+				}
+				inExclude = false
+				cur = nil
+				continue
+			}
+		}
+		if inExclude {
+			cur = append(cur, line)
+		}
+	}
+	// Unterminated region (no \end… marker): extractTranslatable skips every
+	// line after the start marker, so surface it too rather than drop it.
+	if inExclude && len(cur) > 0 {
+		regions = append(regions, excludeRegion{body: strings.Join(cur, "\n")})
+	}
+	return regions
 }
 
 // buildLineLayout produces a layout descriptor for a comment group

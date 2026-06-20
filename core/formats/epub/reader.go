@@ -403,6 +403,16 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 		"blockquote": true, "title": true,
 	}
 
+	// verbatimElements are preformatted/code listings that are NOT in
+	// blockElements (so their bodies currently fall straight to skeleton when
+	// they appear standalone, i.e. not inside a translatable block). When
+	// ExtractNonTranslatableContent() is on we surface their text body as a
+	// non-translatable RoleCode content block instead of burying it in opaque
+	// skeleton — visible to ingestion/LLM consumers, skipped by MT.
+	verbatimElements := map[string]bool{
+		"pre": true, "code": true, "kbd": true, "samp": true,
+	}
+
 	// writeSkelToken serializes a token to skeleton-format XML text.
 	writeSkelToken := func(tok xml.Token) {
 		if r.skeletonStore == nil {
@@ -494,6 +504,119 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 		}
 	}
 
+	// consumeVerbatim handles a standalone verbatim element (<pre>/<code>/
+	// <kbd>/<samp> when not already inside a translatable block and the
+	// surfacing flag is on). It consumes the element subtree and, when the
+	// content is a clean text body wrapped only in opening/closing delimiter
+	// tags, surfaces that body as a single non-translatable RoleCode content
+	// block: the delimiter tags stay in skeleton and the body rides as a Ref,
+	// so the round-trip is byte-identical to the prior skeleton-only path.
+	// Mixed/nested non-text markup, comments, an unterminated element, or an
+	// unexpected block element inside fall back to the exact prior behavior
+	// (serialize every token to skeleton) without ever swallowing a
+	// translatable block.
+	consumeVerbatim := func(start xml.StartElement) {
+		consumed := []xml.Token{xml.CopyToken(start)}
+		opens := []xml.Token{consumed[0]}
+		var body strings.Builder
+		var closes []xml.Token
+		phase := 0 // 0 = collecting opens, 1 = body, 2 = closes
+		shapeOK := true
+		elemDepth := 1
+
+		for elemDepth > 0 {
+			tok, err := decoder.Token()
+			if err != nil {
+				// Unterminated — fall back without swallowing any siblings.
+				for _, c := range consumed {
+					writeSkelToken(c)
+				}
+				return
+			}
+			switch tt := tok.(type) {
+			case xml.StartElement:
+				if blockElements[tt.Name.Local] {
+					// A translatable block element appeared (malformed or
+					// unclosed verbatim). Emit what we collected as skeleton,
+					// then hand the block element to the normal block path so
+					// the translatable payload is preserved exactly.
+					for _, c := range consumed {
+						writeSkelToken(c)
+					}
+					inBlock = true
+					depth = 1
+					pendingTokens = append(pendingTokens, xml.CopyToken(tt))
+					return
+				}
+				elemDepth++
+				c := xml.CopyToken(tok)
+				consumed = append(consumed, c)
+				if phase == 0 {
+					opens = append(opens, c)
+				} else {
+					shapeOK = false
+				}
+			case xml.EndElement:
+				elemDepth--
+				c := xml.CopyToken(tok)
+				consumed = append(consumed, c)
+				if phase < 2 {
+					phase = 2
+				}
+				closes = append(closes, c)
+			case xml.CharData:
+				c := xml.CopyToken(tok)
+				consumed = append(consumed, c)
+				if phase == 0 {
+					phase = 1
+				}
+				if phase == 1 {
+					body.Write(tt)
+				} else {
+					shapeOK = false
+				}
+			default:
+				// ProcInst/Comment/Directive inside — not a clean body.
+				consumed = append(consumed, xml.CopyToken(tok))
+				shapeOK = false
+			}
+		}
+
+		if shapeOK && len(opens) >= 1 && len(opens) == len(closes) &&
+			strings.TrimSpace(body.String()) != "" {
+			*blockCounter++
+			blockID := fmt.Sprintf("tu%d", *blockCounter)
+			block := model.NewBlock(blockID, body.String())
+			block.Name = itemPath
+			block.Translatable = false
+			block.PreserveWhitespace = true
+			block.SetSemanticRole(model.RoleCode, 0)
+			block.Properties["entry"] = itemPath
+
+			if r.skeletonStore != nil {
+				for _, c := range opens {
+					writeSkelToken(c)
+				}
+				if skelBuf.Len() > 0 {
+					_ = r.skeletonStore.WriteText(skelBuf.Bytes())
+					skelBuf.Reset()
+				}
+				_ = r.skeletonStore.WriteRef(blockID)
+				for _, c := range closes {
+					writeSkelToken(c)
+				}
+			}
+
+			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+			return
+		}
+
+		// Mixed content — preserve the exact prior skeleton-only behavior.
+		for _, c := range consumed {
+			writeSkelToken(c)
+		}
+	}
+
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
@@ -513,6 +636,8 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 			} else if inBlock {
 				depth++
 				pendingTokens = append(pendingTokens, xml.CopyToken(t))
+			} else if verbatimElements[localName] && r.cfg.ExtractNonTranslatableContent() {
+				consumeVerbatim(t)
 			} else {
 				writeSkelToken(t)
 			}

@@ -49,8 +49,14 @@ description: |
       friends → non-translatable Data,
     - %-line comments → non-translatable Data,
     - Inline math ($...$, $$...$$, \[...\]) and math environments
-      (equation, align, gather, …) → non-translatable Data,
-    - verbatim / lstlisting environments → non-translatable Data.
+      (equation, align, gather, …) → non-translatable content (a
+      RoleFormula Block by default, surfaced for ingestion but skipped
+      by MT; opaque Data when extractNonTranslatableContent is off),
+    - verbatim / lstlisting environments → non-translatable content (a
+      RoleCode Block by default; opaque Data when
+      extractNonTranslatableContent is off).
+  Either way the math/code source is never translatable, and the
+  begin/end tags and $ / \[ \] delimiters round-trip byte-for-byte.
   The reader emits LayerStart/LayerEnd around every document.
 
 features:
@@ -148,13 +154,17 @@ features:
 
   # ── Math mode: inline + display ───────────────────────────────────
   - id: math_mode_non_translatable
-    name: Inline and display math are non-translatable Data
+    name: Inline and display math are non-translatable
     description: |
       Math mode content — `$…$` inline math, `$$…$$` and `\[…\]`
       display math, and the `equation` / `align` / `gather` /
       `multline` / `eqnarray` environments (with starred variants) —
-      is non-translatable. The reader emits the math source as Data
-      so it round-trips byte-for-byte.
+      is non-translatable. By default the reader surfaces the formula
+      body as a non-translatable RoleFormula Block (visible to
+      ingestion/LLM consumers, skipped by MT) with the delimiters in
+      skeleton; with extractNonTranslatableContent off it stays opaque
+      Data. Either way the math source round-trips byte-for-byte and
+      never appears in a translatable Block.
     spec_refs:
       - "LaTeX2e Reference §16 Math formulas (https://latexref.xyz/Math-formulas.html)"
       - "Wikibooks: LaTeX/Mathematics — math environments (https://en.wikibooks.org/wiki/LaTeX/Mathematics)"
@@ -221,9 +231,12 @@ features:
       - TEXFilterTest#testEquation
     native_refs:
       - tex.TestMathMode
+      - tex.TestMathMode_InlineAsContent
       - tex.TestMathMode_DisplayDollar
+      - tex.TestMathMode_DisplayDollarAsContent
       - tex.TestMathMode_DisplayBracket
-      - tex.TestEquationEnvironment
+      - tex.TestMathMode_DisplayBracketAsContent
+      - tex.TestEquation
 
   # ── Sectioning commands (paragraph-text) ──────────────────────────
   - id: sectioning_commands
@@ -411,13 +424,21 @@ features:
 
   # ── Non-translatable environments (verbatim, lstlisting, math) ────
   - id: non_translatable_environments
-    name: verbatim / lstlisting / math environments preserved as Data
+    name: verbatim / lstlisting / math environments are non-translatable
     description: |
       A fixed list of environments are non-translatable: verbatim,
       lstlisting, equation, equation*, align, align*, gather, gather*,
-      multline, multline*, eqnarray, eqnarray*, math, displaymath.
-      The reader emits the entire `\begin{name}…\end{name}` block as
-      Data; surrounding paragraphs still extract as Blocks.
+      multline, multline*, eqnarray, eqnarray*, math, displaymath
+      (table / table* / figure / figure* stay opaque Data — they are
+      structural floats, covered separately). By default the reader
+      surfaces the environment body as a non-translatable content Block
+      (RoleCode for verbatim/lstlisting, RoleFormula for the math
+      environments) — visible to ingestion/LLM consumers, skipped by MT
+      — keeping `\begin{name}` / `\end{name}` in skeleton so the span
+      round-trips byte-for-byte; with extractNonTranslatableContent off
+      the whole `\begin{name}…\end{name}` block is opaque Data instead.
+      Surrounding paragraphs still extract as translatable Blocks either
+      way.
     spec_refs:
       - "LaTeX2e Reference §8 Environments (https://latexref.xyz/Environments.html)"
     examples:
@@ -443,7 +464,9 @@ features:
       - TEXFilterTest#testTable
       - TEXFilterTest#testEquation
     native_refs:
-      - tex.TestEquationEnvironment
+      - tex.TestEquation
+      - tex.TestEquationEnvironmentAsContent
+      - tex.TestVerbatimEnvironmentAsContent
 
   # ── Special character escapes ─────────────────────────────────────
   - id: special_character_escapes

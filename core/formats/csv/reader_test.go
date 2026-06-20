@@ -205,21 +205,55 @@ func TestReadSpecificColumns(t *testing.T) {
 	})
 	blocks := collectBlocks(parts)
 
-	// Only column 1 (description) should be a block
+	// Only column 1 (description) should be a translatable block
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "A useful widget", blocks[0].SourceText())
 
-	// Columns 0 and 2 should be Data
+	// With extractNonTranslatableContent on (default), columns 0 and 2 surface
+	// as non-translatable RoleTableCell content blocks (visible to ingestion,
+	// skipped by MT) rather than opaque Data parts.
+	var nonTrans []*model.Block
 	dataCount := 0
 	for _, p := range parts {
-		if p.Type == model.PartData {
-			data := p.Resource.(*model.Data)
-			if data.Name != "header-row" {
+		switch p.Type {
+		case model.PartBlock:
+			b := p.Resource.(*model.Block)
+			if !b.Translatable && b.SemanticRole() == model.RoleTableCell {
+				nonTrans = append(nonTrans, b)
+			}
+		case model.PartData:
+			if p.Resource.(*model.Data).Name != "header-row" {
 				dataCount++
 			}
 		}
 	}
-	assert.Equal(t, 2, dataCount, "non-translatable columns should be Data")
+	assert.Equal(t, 0, dataCount, "non-translatable columns are no longer Data with extraction on")
+	require.Len(t, nonTrans, 2)
+	assert.Equal(t, "Widget", nonTrans[0].SourceText())
+	assert.Equal(t, "100", nonTrans[1].SourceText())
+}
+
+func TestReadSpecificColumns_ExtractionOff(t *testing.T) {
+	t.Parallel()
+	parts := readCSVWithConfig(t, "name,description,value\nWidget,A useful widget,100", func(c *csvfmt.Config) {
+		c.TranslatableColumns = []int{1} // Only description column
+		c.SetExtractNonTranslatableContent(false)
+	})
+	blocks := collectBlocks(parts)
+
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "A useful widget", blocks[0].SourceText())
+
+	// With extraction off the legacy contract holds: columns 0 and 2 are Data.
+	dataCount := 0
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			if p.Resource.(*model.Data).Name != "header-row" {
+				dataCount++
+			}
+		}
+	}
+	assert.Equal(t, 2, dataCount, "non-translatable columns should be Data when extraction is off")
 }
 
 func TestReadEmpty(t *testing.T) {

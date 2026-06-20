@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T23:22:40Z",
+  "generatedAt": "2026-06-20T08:09:33Z",
   "kind": "format",
   "entries": [
     {
@@ -570,7 +570,8 @@
               "translatableColumns",
               "keyColumns",
               "commentColumns",
-              "trimValues"
+              "trimValues",
+              "extractNonTranslatableContent"
             ]
           },
           {
@@ -603,6 +604,12 @@
             "type": "array",
             "title": "Comment Columns",
             "description": "Column indices (0-based) that contain comments or notes"
+          },
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts.",
+            "default": true
           },
           "hasHeader": {
             "type": "boolean",
@@ -908,7 +915,8 @@
             "id": "parser",
             "label": "Parser Settings",
             "fields": [
-              "preserveWhitespace"
+              "preserveWhitespace",
+              "extractNonTranslatableContent"
             ]
           },
           {
@@ -930,6 +938,12 @@
               "field": "useCodeFinder",
               "eq": true
             }
+          },
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as \\code…\\endcode and \\verbatim…\\endverbatim region bodies is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "default": true
           },
           "preserveWhitespace": {
             "type": "boolean",
@@ -1034,6 +1048,39 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": "EPUB Format",
+        "description": "Configuration for the EPUB e-book format reader/writer",
+        "type": "object",
+        "formatMeta": {
+          "id": "epub",
+          "extensions": [
+            ".epub"
+          ],
+          "mimeTypes": [
+            "application/epub+zip"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "extraction",
+            "label": "Content Extraction",
+            "fields": [
+              "extractNonTranslatableContent"
+            ]
+          }
+        ],
+        "properties": {
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as verbatim code listings (\u003cpre\u003e/\u003ccode\u003e/\u003ckbd\u003e/\u003csamp\u003e) in the direct-XHTML fallback extractor is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "default": true
+          }
+        }
+      },
       "doc": {
         "overview": "EPUB is the open e-book format: a ZIP container (OCF) packaging XHTML and\nSVG content documents alongside a Package Document (OPF) that lists the\nmanifest and the reading-order spine. neokapi reads the\n`META-INF/container.xml` entry to locate the OPF, parses the OPF to resolve\nthe spine, and walks each spine item as a child layer of the document.\n\nneokapi reads and writes EPUB, round-tripping the container so the\ntranslated output remains a valid e-book. Content documents are parsed as\nembedded XHTML: when an HTML sub-format reader is wired, each spine item is\ndelegated to it; otherwise neokapi falls back to a direct XHTML walk that\ntreats common block elements (paragraphs, headings, list items, table cells,\nfigure and table captions, blockquotes, and the document title) as\ntranslatable. The OPF, container metadata, and non-content resources are\npreserved as skeleton. This format has no configurable JSON schema in this\nreference.\n",
         "limitations": [
@@ -1223,6 +1270,7 @@
             "id": "extraction",
             "label": "Extraction Rules",
             "fields": [
+              "extractNonTranslatableContent",
               "elements",
               "attributes"
             ]
@@ -1259,6 +1307,13 @@
             "title": "Element Rules",
             "description": "Element extraction rules -- maps element names to their rule configuration (ruleTypes, conditions, idAttributes, translatableAttributes)",
             "x-okapi-flatten-path": "elements"
+          },
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), renderable non-translatable contextual content -- the \u003cnoscript\u003e fallback subtree and JSON data islands (\u003cscript type=\"application/ld+json\"|\"application/json\"\u003e) -- is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Generic executable \u003cscript\u003e and \u003cstyle\u003e always stay opaque.",
+            "default": true,
+            "x-okapi-flatten-path": "extractNonTranslatableContent"
           },
           "parser": {
             "type": "object",
@@ -1841,6 +1896,7 @@
               "extractAllPairs",
               "exceptions",
               "extractIsolatedStrings",
+              "extractNonTranslatableContent",
               "extractionRules"
             ]
           },
@@ -1924,6 +1980,12 @@
             "title": "Extract strings without associated key",
             "description": "Extract string values in arrays (without keys) as translatable blocks.",
             "default": false
+          },
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable string content — isolated array strings and values excluded by the extraction rules — is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "default": true
           },
           "extractionRules": {
             "type": "string",
@@ -2263,6 +2325,7 @@
             "label": "Content Extraction",
             "fields": [
               "translateCodeBlocks",
+              "extractNonTranslatableContent",
               "translateFrontMatter",
               "frontMatterKeys",
               "translateImageAlt",
@@ -2304,6 +2367,12 @@
               "field": "useCodeFinder",
               "eq": true
             }
+          },
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as code blocks is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "default": true
           },
           "frontMatterKeys": {
             "type": "array",
@@ -3354,11 +3423,18 @@
             "label": "Extraction settings",
             "fields": [
               "useDirectives",
-              "extractOutsideDirectives"
+              "extractOutsideDirectives",
+              "extractNonTranslatableContent"
             ]
           }
         ],
         "properties": {
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), skipped PHP string literals are surfaced as non-translatable content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep them in skeleton.",
+            "default": true
+          },
           "extractOutsideDirectives": {
             "type": "boolean",
             "title": "Extract outside the scope of the directives",
@@ -3845,6 +3921,41 @@
       ],
       "hasReader": true,
       "hasWriter": true,
+      "schema": {
+        "$id": "",
+        "$version": "",
+        "title": "TeX/LaTeX Format",
+        "description": "Configuration for the TeX/LaTeX format reader/writer",
+        "type": "object",
+        "formatMeta": {
+          "id": "tex",
+          "extensions": [
+            ".tex",
+            ".latex"
+          ],
+          "mimeTypes": [
+            "application/x-tex",
+            "text/x-tex"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "extraction",
+            "label": "Content Extraction",
+            "fields": [
+              "extractNonTranslatableContent"
+            ]
+          }
+        ],
+        "properties": {
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as verbatim/lstlisting code and math is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it opaque.",
+            "default": true
+          }
+        }
+      },
       "doc": {
         "overview": "TeX/LaTeX is a markup-based typesetting language. neokapi reads the LaTeX2e\ndocument syntax — preamble, body, command sequences, environments, math\nmode, and comments — and extracts the prose that should be translated while\nleaving the command structure intact.\n\nneokapi reads and writes TeX/LaTeX. Body paragraphs inside\n`\\begin{document}` … `\\end{document}` become translatable Blocks, one per\nparagraph (paragraphs are separated by blank lines; a soft line break inside\na paragraph collapses to a space). Visible-text header commands such as\n`\\title`, `\\author`, and `\\date`, and paragraph-level commands such as\n`\\section`, `\\chapter`, and `\\caption`, are translatable. Inline formatting\ncommands such as `\\textbf`, `\\emph`, and `\\footnote` fold into the\nsurrounding paragraph. Structural commands (`\\label`, `\\ref`, `\\cite`,\n`\\usepackage`, `\\documentclass`), comments, math (inline and environment),\nand verbatim/listing environments are non-translatable and preserved as\nskeleton. This format has no configurable JSON schema in this reference.\n",
         "limitations": [
@@ -4147,7 +4258,8 @@
               "translatableColumns",
               "keyColumns",
               "commentColumns",
-              "trimValues"
+              "trimValues",
+              "extractNonTranslatableContent"
             ]
           },
           {
@@ -4180,6 +4292,12 @@
             "type": "array",
             "title": "Comment Columns",
             "description": "Column indices (0-based) that contain comments or notes"
+          },
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts.",
+            "default": true
           },
           "hasHeader": {
             "type": "boolean",
@@ -4359,7 +4477,8 @@
             "label": "Extraction",
             "fields": [
               "mergeAdjacentCaptions",
-              "escapeBR"
+              "escapeBR",
+              "extractNonTranslatableContent"
             ]
           },
           {
@@ -4384,6 +4503,12 @@
             "type": "boolean",
             "title": "Escape line breaks",
             "description": "When true, \u003cbr/\u003e elements are removed and text is joined with spaces; when false, \u003cbr/\u003e is preserved as literal text.",
+            "default": true
+          },
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable head metadata such as ttm:copyright and ttm:agent is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
             "default": true
           },
           "maxCharsPerLine": {
@@ -4593,6 +4718,13 @@
         },
         "ui:groups": [
           {
+            "id": "extraction",
+            "label": "Content Extraction",
+            "fields": [
+              "extractNonTranslatableContent"
+            ]
+          },
+          {
             "id": "output",
             "label": "Output settings",
             "fields": [
@@ -4609,6 +4741,12 @@
             "title": "Max characters per line for CJK",
             "description": "Maximum number of characters per line for CJK languages. Set to 0 to disable.",
             "default": 0
+          },
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as a STYLE block's embedded CSS is surfaced as a content block (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden. Disable to keep the legacy opaque behavior.",
+            "default": true
           },
           "maxCharsPerLine": {
             "type": "integer",
@@ -4720,11 +4858,18 @@
             "label": "Syntax",
             "fields": [
               "variant",
-              "preserveWhitespace"
+              "preserveWhitespace",
+              "extractNonTranslatableContent"
             ]
           }
         ],
         "properties": {
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as DokuWiki \u003ccode\u003e/\u003cfile\u003e/\u003chtml\u003e/\u003cphp\u003e block bodies and indented code blocks is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "default": true
+          },
           "preserveWhitespace": {
             "type": "boolean",
             "title": "Preserve Whitespace",
@@ -5335,7 +5480,8 @@
               "excludedElements",
               "preserveWhitespaceElements",
               "groupElements",
-              "idAttributes"
+              "idAttributes",
+              "extractNonTranslatableContent"
             ]
           },
           {
@@ -5399,6 +5545,12 @@
             "type": "array",
             "title": "Excluded elements",
             "description": "Element names whose content is excluded from extraction"
+          },
+          "extractNonTranslatableContent": {
+            "type": "boolean",
+            "title": "Extract non-translatable content",
+            "description": "If true (default), non-translatable contextual content such as whitelist-excluded element text and verbatim code/pre subtrees is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+            "default": true
           },
           "groupElements": {
             "type": "array",

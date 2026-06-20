@@ -35,7 +35,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Label: "Extraction",
 				Fields: []string{
 					"extractAllPairs", "exceptions", "extractIsolatedStrings",
-					"extractionRules",
+					"extractNonTranslatableContent", "extractionRules",
 				},
 			},
 			{
@@ -93,6 +93,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Extract strings without associated key",
 				Default:     false,
 				Description: "Extract string values in arrays (without keys) as translatable blocks.",
+			}),
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     true,
+				Title:       "Extract non-translatable content",
+				Description: "If true (default), non-translatable string content — isolated array strings and values excluded by the extraction rules — is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
 			}),
 			"extractionRules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",

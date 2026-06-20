@@ -17,6 +17,29 @@ type Config struct {
 	// directives is extracted. Only relevant when UseDirectives is true.
 	// Defaults to true.
 	ExtractOutsideDirectives bool
+
+	// disableNonTranslatableContent, when set, keeps skipped PHP string
+	// literals (the _skip_/_bskip_ targets, or strings outside a _btext_
+	// region when ExtractOutsideDirectives is false) in opaque skeleton +
+	// Data instead of surfacing them as RoleCode content blocks (visible to
+	// ingestion/LLM consumers, skipped by MT). Zero value = surfacing ON
+	// (the opt-out default), so the flag defaults ON however the Config is
+	// constructed. Orthogonal to the directive flags, which only decide
+	// which strings are *translatable*.
+	disableNonTranslatableContent bool
+}
+
+// ExtractNonTranslatableContent reports whether skipped PHP string literals
+// are surfaced as non-translatable RoleCode content blocks. Default true.
+func (c *Config) ExtractNonTranslatableContent() bool {
+	return !c.disableNonTranslatableContent
+}
+
+// SetExtractNonTranslatableContent toggles surfacing of skipped string
+// literals as content blocks (used by the parity runner to match the Okapi
+// bridge, which keeps such content in skeleton).
+func (c *Config) SetExtractNonTranslatableContent(v bool) {
+	c.disableNonTranslatableContent = !v
 }
 
 // FormatName returns the format this config applies to.
@@ -47,6 +70,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return errors.New("phpcontent: extractOutsideDirectives must be a boolean")
 			}
 			c.ExtractOutsideDirectives = b
+		case "extractNonTranslatableContent":
+			b, ok := val.(bool)
+			if !ok {
+				return errors.New("phpcontent: extractNonTranslatableContent must be a boolean")
+			}
+			c.disableNonTranslatableContent = !b
 		default:
 			return fmt.Errorf("phpcontent: unknown parameter: %s", key)
 		}
@@ -71,6 +100,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Label: "Extraction settings",
 				Fields: []string{
 					"useDirectives", "extractOutsideDirectives",
+					"extractNonTranslatableContent",
 				},
 			},
 		},
@@ -87,6 +117,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Default:     true,
 				Description: "Extract translatable strings found outside directive-controlled regions.",
 				Visible:     &coreschema.ConditionExpr{Field: "useDirectives", Eq: true},
+			}),
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Title:       "Extract non-translatable content",
+				Default:     true,
+				Description: "If true (default), skipped PHP string literals are surfaced as non-translatable content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep them in skeleton.",
 			}),
 		},
 	}

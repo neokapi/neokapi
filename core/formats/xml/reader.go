@@ -548,7 +548,19 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 	}
 
 	if !s.isTranslatable(frame) {
-		// Emit as data part
+		if s.reader.cfg.ExtractNonTranslatableContent() {
+			// Surface the non-translatable text as a content block
+			// (visible to ingestion/LLM consumers, skipped by MT) instead
+			// of discarding the runs into a contentless Data part (#928).
+			// Byte-exact round-trip is preserved: the body rides a
+			// skeleton content range when its rendered runs reproduce the
+			// source verbatim, otherwise the bytes stay in skeleton and
+			// the block is purely informational.
+			s.emitNonTranslatableBlock(frame, path, finalRuns, endTagOffset, interimEnd)
+			return
+		}
+		// Flag off: byte-identical prior behavior — emit a contentless
+		// Data part, leaving the element's bytes in skeleton verbatim.
 		s.dataCounter++
 		data := &model.Data{
 			ID:   "d" + strconv.Itoa(s.dataCounter),
@@ -653,6 +665,108 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 	}
 
 	frame.resetRuns()
+}
+
+// emitNonTranslatableBlock surfaces a non-translatable element's accumulated
+// text as a Block{Translatable:false} so ingestion / LLM consumers can see the
+// contextual content while machine translation skips it (#928). It is used for
+// whitelist-excluded element text (flushBlock's !isTranslatable branch) and for
+// config-excluded code/pre subtrees (handleEndElement). Whitespace-preserving
+// (code/pre) elements carry RoleCode + PreserveWhitespace; other
+// non-translatable text is surfaced verbatim without a code role.
+//
+// Byte-exact round-trip: the body rides a skeleton content range only when the
+// block's rendered runs reproduce the source byte range exactly (leaf / inline
+// content). When they don't — non-inline children, CDATA, inline-attribute
+// reference markers — the bytes stay in skeleton verbatim and the block is
+// purely informational (the skeleton writer ignores unreferenced blocks). In
+// either case the skeleton output is unchanged from leaving the content in
+// skeleton, so the round-trip stays byte-exact.
+func (s *xmlParseState) emitNonTranslatableBlock(frame *elementFrame, path string, finalRuns []model.Run, endTagOffset, interimEnd int) {
+	s.blockCounter++
+	blockID := "tu" + strconv.Itoa(s.blockCounter)
+	block := &model.Block{
+		ID:                 blockID,
+		Translatable:       false,
+		Source:             finalRuns,
+		Targets:            make(map[model.VariantKey]*model.Target),
+		Properties:         make(map[string]string),
+		Name:               path,
+		PreserveWhitespace: frame.preserveWS,
+	}
+	block.Type = s.reader.cfg.getBlockType(frame.name)
+	if frame.preserveWS {
+		// Whitespace-preserving content is verbatim code / pre / CSS — the
+		// RoleCode role marks it as renderable-but-non-translatable.
+		block.SetSemanticRole(model.RoleCode, 0)
+	}
+
+	s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
+
+	// Attach a skeleton content range only when the rendered runs reproduce
+	// the source bytes verbatim. Otherwise leave the bytes in skeleton.
+	if s.contentRanges != nil && frame.contentByteStart > 0 {
+		start := frame.contentByteStart
+		end := -1
+		switch {
+		case interimEnd > 0 && interimEnd > start:
+			end = interimEnd
+		case endTagOffset > 0:
+			closeName := frame.qname
+			if closeName == "" {
+				closeName = frame.name
+			}
+			end = findCloseTagStart(s.content, start, endTagOffset, closeName)
+		}
+		if end > start && end <= len(s.content) {
+			if renderRunsForRoundtripCheck(finalRuns, block.Type) == string(s.content[start:end]) {
+				*s.contentRanges = append(*s.contentRanges, skelContentRange{
+					blockID: blockID,
+					start:   start,
+					end:     end,
+				})
+			}
+		}
+	}
+
+	frame.resetRuns()
+}
+
+// renderRunsForRoundtripCheck renders runs the way the XML writer renders a
+// source (untranslated) block — XML-escaping TextRun content and writing
+// inline / placeholder Data verbatim — so emitNonTranslatableBlock can verify a
+// non-translatable block's runs reproduce the source byte range before it rides
+// a skeleton ref. It returns "" (forcing the caller to keep the bytes in
+// skeleton) for any run shape it cannot faithfully reproduce: inline-attribute
+// reference markers (which the writer expands against the block map) and
+// Sub/Plural/Select runs that never occur in this path.
+func renderRunsForRoundtripCheck(runs []model.Run, blockType string) string {
+	escape := xmlEscapeString
+	if blockType == "attribute" {
+		escape = xmlEscapeAttrValue
+	}
+	var b strings.Builder
+	for _, r := range runs {
+		switch {
+		case r.Text != nil:
+			b.WriteString(escape(r.Text.Text))
+		case r.Ph != nil:
+			if strings.ContainsRune(r.Ph.Data, '\x01') {
+				return ""
+			}
+			b.WriteString(r.Ph.Data)
+		case r.PcOpen != nil:
+			if strings.ContainsRune(r.PcOpen.Data, '\x01') {
+				return ""
+			}
+			b.WriteString(r.PcOpen.Data)
+		case r.PcClose != nil:
+			b.WriteString(r.PcClose.Data)
+		default:
+			return ""
+		}
+	}
+	return b.String()
 }
 
 // inlineAttrRef pairs a translatable attribute name with the block ID
@@ -1203,6 +1317,14 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 	} else if !frame.isExcluded {
 		// Flush accumulated text as a block
 		s.flushBlock(frame, path, endTagOffset, 0)
+	} else if frame.preserveWS && frame.hasRuns && !frame.strongExclude &&
+		s.reader.cfg.ExtractNonTranslatableContent() {
+		// Config-excluded code/pre subtree: surface its verbatim text as a
+		// non-translatable RoleCode block (#928). Runs are only present here
+		// when handleCharData kept them (config exclusion + preserveWS, not
+		// ITS translate="no"); flushBlock routes through its !isTranslatable
+		// branch, which emits the content block.
+		s.flushBlock(frame, path, endTagOffset, 0)
 	}
 
 	// When a non-inline child closed inside a text-bearing parent
@@ -1240,16 +1362,28 @@ func (s *xmlParseState) handleCharData(t xml.CharData) {
 	if s.isInExcludedScope() {
 		textFrame := s.findTextFrame()
 		if textFrame == nil || textFrame.isExcluded {
-			return
-		}
-		// The text frame is not excluded, but an inline ancestor is.
-		// Skip text from any excluded inline element in the ancestor chain.
-		for i := len(s.stack) - 1; i >= 0; i-- {
-			if !s.stack[i].isInline {
-				break
-			}
-			if s.stack[i].isExcluded {
+			// A config-excluded code/pre subtree carries renderable
+			// verbatim content (e.g. an EXCLUDE'd <pre>/<code> kept out of
+			// translation). When non-translatable-content surfacing is on,
+			// keep accumulating so handleEndElement's flushBlock emits a
+			// RoleCode Block{Translatable:false} (#928). ITS translate="no"
+			// (strongExclude) subtrees were already dropped above
+			// (hasStrongExcludeAncestor), so this stays conservative.
+			if textFrame == nil || !textFrame.preserveWS || textFrame.strongExclude ||
+				!s.reader.cfg.ExtractNonTranslatableContent() {
 				return
+			}
+			// fall through to accumulate into the excluded code/pre frame
+		} else {
+			// The text frame is not excluded, but an inline ancestor is.
+			// Skip text from any excluded inline element in the ancestor chain.
+			for i := len(s.stack) - 1; i >= 0; i-- {
+				if !s.stack[i].isInline {
+					break
+				}
+				if s.stack[i].isExcluded {
+					return
+				}
 			}
 		}
 	}

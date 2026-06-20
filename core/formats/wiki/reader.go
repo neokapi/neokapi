@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -248,6 +249,73 @@ var dokuWikiUntranslatableBlocks = []struct {
 	{tag: "file", startRe: regexp.MustCompile(`(?i)^\s*<file\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</file>`), anyRe: regexp.MustCompile(`(?i)<file\b[^>]*>`)},
 	{tag: "html", startRe: regexp.MustCompile(`(?i)^\s*<html\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</html>`), anyRe: regexp.MustCompile(`(?i)<html\b[^>]*>`)},
 	{tag: "php", startRe: regexp.MustCompile(`(?i)^\s*<php\b[^>]*>`), endRe: regexp.MustCompile(`(?i)</php>`), anyRe: regexp.MustCompile(`(?i)<php\b[^>]*>`)},
+}
+
+// dokuWikiTagAttrsRe captures the attribute region of an untranslatable block
+// opener so the language / filename hints carried on the tag (DokuWiki's
+// `<code php somefile.php>` / `<file php list.php>` forms) can be promoted to
+// the surfaced content block's Properties.
+var dokuWikiTagAttrsRe = regexp.MustCompile(`(?i)^\s*<(?:code|file|html|php)\b([^>]*)>`)
+
+// dokuWikiTagProps extracts the language and optional name hints from an
+// untranslatable block opener line. The first whitespace-delimited token after
+// the tag name is the highlight language; an optional second token is the file
+// name. Returns nil when the opener carries no attributes.
+func dokuWikiTagProps(line string) map[string]string {
+	m := dokuWikiTagAttrsRe.FindStringSubmatch(line)
+	if m == nil {
+		return nil
+	}
+	fields := strings.Fields(m[1])
+	if len(fields) == 0 {
+		return nil
+	}
+	props := map[string]string{"language": fields[0]}
+	if len(fields) >= 2 {
+		props["name"] = fields[1]
+	}
+	return props
+}
+
+// newDokuWikiCodeBlock builds a non-translatable RoleCode content block (a
+// single verbatim run, whitespace-significant, NOT inline-parsed) carrying the
+// raw bytes of a DokuWiki tagged or indented code construct. It is surfaced so
+// ingestion/LLM consumers see the contextual content while machine translation
+// skips it (Translatable=false).
+func (r *Reader) newDokuWikiCodeBlock(ps *parseState, text string, props map[string]string) *model.Block {
+	ps.blockID++
+	block := model.NewBlock(fmt.Sprintf("tu%d", ps.blockID), text)
+	block.Name = "code-block"
+	block.Translatable = false
+	block.PreserveWhitespace = true
+	block.SetSemanticRole(model.RoleCode, 0)
+	maps.Copy(block.Properties, props)
+	return block
+}
+
+// emitDokuWikiSkelCode surfaces `text` as a RoleCode content block on the
+// skeleton path: the body rides a skeleton ref (so the open/close markers stay
+// skeleton and the round-trip is byte-exact). An empty body emits nothing.
+func (r *Reader) emitDokuWikiSkelCode(ctx context.Context, ch chan<- model.PartResult,
+	ps *parseState, text string, props map[string]string) bool {
+	if text == "" {
+		return true
+	}
+	block := r.newDokuWikiCodeBlock(ps, text, props)
+	r.skelRef(block.ID)
+	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// emitDokuWikiCode surfaces `text` as a RoleCode content block on the
+// no-skeleton path (no skeleton ref; the writer reconstructs normalized
+// output). An empty body emits nothing.
+func (r *Reader) emitDokuWikiCode(ctx context.Context, ch chan<- model.PartResult,
+	ps *parseState, text string, props map[string]string) bool {
+	if text == "" {
+		return true
+	}
+	block := r.newDokuWikiCodeBlock(ps, text, props)
+	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
 // matchDokuWikiUntranslatableOpener reports whether `line` opens an
@@ -1712,13 +1780,52 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 	// matching closer (e.g. `</code>`) is seen.
 	var untranslatableEnd *regexp.Regexp
 
+	// tagBody accumulates the verbatim body of an open tagged block when
+	// ExtractNonTranslatableContent() is on; tagProps carries the lang/name
+	// hints from the opener. codeBuf accumulates consecutive indented code
+	// lines into a single RoleCode block. All are nil in the opt-out
+	// (flag-off) mode, where behaviour is byte-identical to before.
+	var (
+		tagBody  *strings.Builder
+		tagProps map[string]string
+		codeBuf  *strings.Builder
+	)
+	// flushCode surfaces any accumulated indented-code block before the
+	// next non-code construct is emitted. No-op (and zero stream change)
+	// when not accumulating.
+	flushCode := func() bool {
+		if codeBuf == nil {
+			return true
+		}
+		text := codeBuf.String()
+		codeBuf = nil
+		return r.emitDokuWikiCode(ctx, ch, ps, text, nil)
+	}
+
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Inside an untranslatable block: emit a Data part per line so
-		// the no-skeleton path still surfaces structural separators,
-		// and watch for the matching closer to leave the block.
+		// Inside an untranslatable block. With surfacing on, accumulate
+		// the verbatim body and emit it as one RoleCode block at the
+		// closer; otherwise emit a Data part per line so the no-skeleton
+		// path still surfaces structural separators.
 		if untranslatableEnd != nil {
+			if tagBody != nil {
+				if untranslatableEnd.MatchString(line) {
+					if !r.emitDokuWikiCode(ctx, ch, ps, tagBody.String(), tagProps) {
+						return
+					}
+					tagBody = nil
+					tagProps = nil
+					untranslatableEnd = nil
+				} else {
+					if tagBody.Len() > 0 {
+						tagBody.WriteByte('\n')
+					}
+					tagBody.WriteString(line)
+				}
+				continue
+			}
 			if !ps.emitData(ctx, r, ch) {
 				return
 			}
@@ -1728,12 +1835,24 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 			continue
 		}
 
-		// Open an untranslatable block when the line introduces one.
-		// The opener line itself is treated as Data; subsequent lines
-		// route through the branch above until the closer is seen.
+		// Open an untranslatable block when the line introduces one. With
+		// surfacing on, a multi-line block's body is accumulated for a
+		// RoleCode block (the opener/closer markers are dropped on this
+		// normalized path); otherwise the opener is a Data marker and
+		// subsequent lines route through the branch above until the
+		// closer is seen.
 		if endRe, _ := matchDokuWikiUntranslatableOpener(line); endRe != nil {
+			if !flushCode() {
+				return
+			}
 			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
+			}
+			if r.cfg.ExtractNonTranslatableContent() && !endRe.MatchString(line) {
+				untranslatableEnd = endRe
+				tagBody = &strings.Builder{}
+				tagProps = dokuWikiTagProps(line)
+				continue
 			}
 			if !ps.emitData(ctx, r, ch) {
 				return
@@ -1749,6 +1868,9 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 
 		// Check for header
 		if m := dokuWikiHeaderRe.FindStringSubmatch(line); m != nil {
+			if !flushCode() {
+				return
+			}
 			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
@@ -1764,6 +1886,9 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 
 		// DokuWiki table row (well-formed: leading + trailing delimiter)
 		if dokuWikiTableRe.MatchString(line) {
+			if !flushCode() {
+				return
+			}
 			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
@@ -1780,6 +1905,9 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 		// extra cell whitespace is collapsed (mirroring okapi's
 		// WhitespaceAdjustingEventBuilder).
 		if dokuWikiOpenTableRowRe.MatchString(line) {
+			if !flushCode() {
+				return
+			}
 			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
@@ -1799,11 +1927,25 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 			continue
 		}
 
-		// Code block (indented two-or-more spaces) — emit a Data part
-		// per line so the line stays out of the translatable surface
-		// while the no-skeleton write path still serialises a
-		// structural separator.
+		// Code block (indented two-or-more spaces). With surfacing on,
+		// consecutive indented lines accumulate into one RoleCode block;
+		// otherwise each line is a Data part so it stays out of the
+		// translatable surface while the no-skeleton write path still
+		// serialises a structural separator.
 		if dokuWikiCodeStartRe.MatchString(line) {
+			if r.cfg.ExtractNonTranslatableContent() {
+				if codeBuf == nil {
+					if !ps.flushParagraph(ctx, r, ch, nil) {
+						return
+					}
+					codeBuf = &strings.Builder{}
+				}
+				if codeBuf.Len() > 0 {
+					codeBuf.WriteByte('\n')
+				}
+				codeBuf.WriteString(line)
+				continue
+			}
 			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
@@ -1820,6 +1962,9 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 		// folded into one paragraph and whitespace-collapsed to
 		// `* a * b * c`.
 		if m := dokuWikiListItemRe.FindStringSubmatch(line); m != nil {
+			if !flushCode() {
+				return
+			}
 			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
@@ -1845,6 +1990,9 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 
 		// Blank line separates paragraphs
 		if strings.TrimSpace(line) == "" {
+			if !flushCode() {
+				return
+			}
 			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
@@ -1857,6 +2005,9 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 		// Mid-line untranslatable block opener (`<file>` / `<code>` /
 		// `<html>` / `<php>`): cut the text unit off at the opener.
 		if start, closeRe, ok := findDokuWikiUntranslatableInLine(line); ok {
+			if !flushCode() {
+				return
+			}
 			open, cont := r.handleMidLineUntranslatable(ctx, ch, ps, line, "", start, closeRe, nil)
 			if !cont {
 				return
@@ -1866,10 +2017,16 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 		}
 
 		// Regular text -- accumulate into paragraph
+		if !flushCode() {
+			return
+		}
 		ps.paraLines = append(ps.paraLines, line)
 	}
 
-	// Flush remaining paragraph
+	// Flush remaining code / paragraph
+	if !flushCode() {
+		return
+	}
 	ps.flushParagraph(ctx, r, ch, nil)
 }
 
@@ -1879,10 +2036,28 @@ func (r *Reader) readDokuWikiLines(ctx context.Context, ch chan<- model.PartResu
 	// untranslatableEnd: see readDokuWiki for rationale. Skeleton-mode
 	// equivalent — each verbatim line goes straight to the skeleton
 	// buffer so the round-trip writer reproduces the block bytes
-	// exactly.
+	// exactly. Used only in the opt-out (flag-off) mode; with surfacing
+	// on, tagged and indented code regions are consumed by look-ahead so
+	// the body rides a single ref while the markers stay skeleton.
 	var untranslatableEnd *regexp.Regexp
 
+	// resumeAt skips lines already consumed by a look-ahead (the body and
+	// closer of a tagged block, or the trailing lines of an indented code
+	// run). isIndentedCode mirrors the per-line precedence: a tag opener
+	// (handled earlier) is never folded into an indented code run.
+	resumeAt := -1
+	isIndentedCode := func(s string) bool {
+		if !dokuWikiCodeStartRe.MatchString(s) {
+			return false
+		}
+		endRe, _ := matchDokuWikiUntranslatableOpener(s)
+		return endRe == nil
+	}
+
 	for i, rl := range rLines {
+		if i < resumeAt {
+			continue
+		}
 		line := rl.content
 
 		if untranslatableEnd != nil {
@@ -1901,6 +2076,27 @@ func (r *Reader) readDokuWikiLines(ctx context.Context, ch chan<- model.PartResu
 				return
 			}
 			r.skelText(rl.content + rl.lineEnding)
+			if r.cfg.ExtractNonTranslatableContent() && !endRe.MatchString(line) {
+				// Surface the multi-line body as one non-translatable
+				// RoleCode block riding a ref; opener/closer markers
+				// stay in the skeleton so the round-trip is byte-exact.
+				j := i + 1
+				for j < len(rLines) && !endRe.MatchString(rLines[j].content) {
+					j++
+				}
+				var buf strings.Builder
+				for k := i + 1; k < j && k < len(rLines); k++ {
+					buf.WriteString(rLines[k].content + rLines[k].lineEnding)
+				}
+				if !r.emitDokuWikiSkelCode(ctx, ch, ps, buf.String(), dokuWikiTagProps(line)) {
+					return
+				}
+				if j < len(rLines) {
+					r.skelText(rLines[j].content + rLines[j].lineEnding)
+				}
+				resumeAt = j + 1
+				continue
+			}
 			if !ps.emitData(ctx, r, ch) {
 				return
 			}
@@ -1985,13 +2181,28 @@ func (r *Reader) readDokuWikiLines(ctx context.Context, ch chan<- model.PartResu
 			continue
 		}
 
-		// Code block — same rationale as readDokuWiki above. The
-		// entire raw line (including its indent) goes to skeleton, so
-		// the round-trip writer outputs it verbatim with no pseudo
-		// pass touching the contents.
+		// Code block. With surfacing on, consecutive indented lines are
+		// gathered into one non-translatable RoleCode block whose verbatim
+		// body rides a single ref (byte-exact round-trip). Otherwise the
+		// entire raw line (including its indent) goes to skeleton so the
+		// round-trip writer outputs it verbatim with no pseudo pass
+		// touching the contents.
 		if dokuWikiCodeStartRe.MatchString(line) {
 			if !ps.flushParagraph(ctx, r, ch, rLines) {
 				return
+			}
+			if r.cfg.ExtractNonTranslatableContent() {
+				var buf strings.Builder
+				j := i
+				for j < len(rLines) && isIndentedCode(rLines[j].content) {
+					buf.WriteString(rLines[j].content + rLines[j].lineEnding)
+					j++
+				}
+				if !r.emitDokuWikiSkelCode(ctx, ch, ps, buf.String(), nil) {
+					return
+				}
+				resumeAt = j
+				continue
 			}
 			r.skelText(rl.content + rl.lineEnding)
 			if !ps.emitData(ctx, r, ch) {

@@ -117,10 +117,189 @@ func TestReadWithTranslatableConfig(t *testing.T) {
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 	blocks := testutil.FilterBlocks(parts)
 
-	assert.Len(t, blocks, 2)
+	// The whitelist narrows the TRANSLATABLE payload to <title> + <description>.
+	var translatable []*model.Block
+	for _, b := range blocks {
+		if b.Translatable {
+			translatable = append(translatable, b)
+		}
+	}
+	require.Len(t, translatable, 2)
+	texts := testutil.BlockTexts(translatable)
+	assert.Contains(t, texts, "Hello")
+	assert.Contains(t, texts, "World")
+
+	// With extractNonTranslatableContent on (the default, #928), the
+	// whitelist-excluded <id> is surfaced as a non-translatable content block
+	// rather than being discarded into a contentless Data part.
+	var nonTrans []*model.Block
+	for _, b := range blocks {
+		if !b.Translatable {
+			nonTrans = append(nonTrans, b)
+		}
+	}
+	require.Len(t, nonTrans, 1)
+	assert.Equal(t, "123", nonTrans[0].SourceText())
+	assert.False(t, nonTrans[0].Translatable)
+}
+
+// TestNonTranslatableContent_FlagOff verifies that disabling
+// extractNonTranslatableContent restores the prior behavior: whitelist-excluded
+// element text is dropped into a contentless Data part, never surfaced as a
+// block.
+func TestNonTranslatableContent_FlagOff(t *testing.T) {
+	ctx := t.Context()
+	reader := xmlfmt.NewReader()
+
+	cfg := &xmlfmt.Config{
+		TranslatableElements: []string{"title", "description"},
+	}
+	cfg.SetExtractNonTranslatableContent(false)
+	require.NoError(t, reader.SetConfig(cfg))
+
+	input := `<?xml version="1.0"?><root><title>Hello</title><id>123</id><description>World</description></root>`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+
+	// Only the two whitelisted, translatable blocks — <id> stays Data.
+	require.Len(t, blocks, 2)
+	for _, b := range blocks {
+		assert.True(t, b.Translatable)
+	}
 	texts := testutil.BlockTexts(blocks)
 	assert.Contains(t, texts, "Hello")
 	assert.Contains(t, texts, "World")
+	assert.NotContains(t, texts, "123")
+
+	// The excluded <id> is present as a contentless Data part.
+	var dataNames []string
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			if d, ok := p.Resource.(*model.Data); ok {
+				dataNames = append(dataNames, d.Name)
+			}
+		}
+	}
+	assert.Contains(t, dataNames, "root.id")
+}
+
+// TestNonTranslatableContent_CodeElementRole verifies that a whitelist-excluded
+// whitespace-preserving (code/pre) element is surfaced as a RoleCode,
+// PreserveWhitespace, non-translatable block (#928).
+func TestNonTranslatableContent_CodeElementRole(t *testing.T) {
+	ctx := t.Context()
+	reader := xmlfmt.NewReader()
+
+	cfg := &xmlfmt.Config{
+		TranslatableElements:       []string{"msg"},
+		PreserveWhitespaceElements: []string{"code"},
+	}
+	require.NoError(t, reader.SetConfig(cfg))
+
+	input := `<?xml version="1.0"?><root><msg>Hello</msg><code>foo( )  bar</code></root>`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+
+	var code *model.Block
+	for _, b := range blocks {
+		if !b.Translatable {
+			code = b
+		}
+	}
+	require.NotNil(t, code)
+	assert.Equal(t, "foo( )  bar", code.SourceText())
+	assert.False(t, code.Translatable)
+	assert.True(t, code.PreserveWhitespace)
+	assert.Equal(t, model.RoleCode, code.SemanticRole())
+}
+
+// TestNonTranslatableContent_ByteExact verifies a byte-exact skeleton
+// round-trip with extractNonTranslatableContent on (the default): the
+// surfaced non-translatable content rides the skeleton without altering output.
+func TestNonTranslatableContent_ByteExact(t *testing.T) {
+	cfg := &xmlfmt.Config{
+		TranslatableElements: []string{"title", "description"},
+	}
+	input := `<?xml version="1.0"?>
+<root>
+  <title>Hello</title>
+  <id>123</id>
+  <description>World</description>
+</root>`
+	output := xmlSkeletonRoundtripCfg(t, input, cfg)
+	assert.Equal(t, input, output, "non-translatable content surfacing should keep round-trip byte-exact")
+}
+
+// TestNonTranslatableContent_ExcludedCodePre verifies finding #928's second
+// case: a config-excluded code/pre subtree's verbatim text is surfaced as a
+// RoleCode non-translatable block, and round-trips byte-exact.
+func TestNonTranslatableContent_ExcludedCodePre(t *testing.T) {
+	ctx := t.Context()
+	reader := xmlfmt.NewReader()
+
+	cfg := &xmlfmt.Config{
+		ExcludedElements:           []string{"pre"},
+		PreserveWhitespaceElements: []string{"pre"},
+	}
+	require.NoError(t, reader.SetConfig(cfg))
+
+	input := `<?xml version="1.0"?><root><pre>verbatim  code()</pre><msg>Hello</msg></root>`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+
+	var pre *model.Block
+	for _, b := range blocks {
+		if !b.Translatable {
+			pre = b
+		}
+	}
+	require.NotNil(t, pre, "excluded code/pre subtree should surface a non-translatable block")
+	assert.Equal(t, "verbatim  code()", pre.SourceText())
+	assert.True(t, pre.PreserveWhitespace)
+	assert.Equal(t, model.RoleCode, pre.SemanticRole())
+
+	// Byte-exact round-trip with the flag on.
+	output := xmlSkeletonRoundtripCfg(t, input, cfg)
+	assert.Equal(t, input, output, "excluded code/pre surfacing should keep round-trip byte-exact")
+}
+
+// TestNonTranslatableContent_ExcludedCodePre_FlagOff verifies the excluded
+// code/pre text stays dropped (no block) when the flag is off.
+func TestNonTranslatableContent_ExcludedCodePre_FlagOff(t *testing.T) {
+	ctx := t.Context()
+	reader := xmlfmt.NewReader()
+
+	cfg := &xmlfmt.Config{
+		ExcludedElements:           []string{"pre"},
+		PreserveWhitespaceElements: []string{"pre"},
+	}
+	cfg.SetExtractNonTranslatableContent(false)
+	require.NoError(t, reader.SetConfig(cfg))
+
+	input := `<?xml version="1.0"?><root><pre>verbatim  code()</pre><msg>Hello</msg></root>`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+
+	for _, b := range blocks {
+		assert.True(t, b.Translatable, "no non-translatable block should be emitted when the flag is off")
+		assert.NotContains(t, b.SourceText(), "verbatim")
+	}
 }
 
 func TestReaderSignature(t *testing.T) {

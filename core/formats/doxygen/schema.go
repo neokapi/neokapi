@@ -22,7 +22,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "parser",
 				Label: "Parser Settings",
 				Fields: []string{
-					"preserveWhitespace",
+					"preserveWhitespace", "extractNonTranslatableContent",
 				},
 			},
 			{
@@ -40,6 +40,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Default:     false,
 				Title:       "Preserve whitespace",
 				Description: "Preserve original whitespace in extracted comment text instead of normalizing it",
+			}),
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     true,
+				Title:       "Extract non-translatable content",
+				Description: "If true (default), non-translatable contextual content such as \\code…\\endcode and \\verbatim…\\endverbatim region bodies is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
 			}),
 
 			// Inline codes

@@ -26,6 +26,28 @@ type Config struct {
 	HasHeader bool
 	// TrimValues if true, leading and trailing whitespace is trimmed from values.
 	TrimValues bool
+
+	// disableNonTranslatableContent, when set, keeps non-translatable contextual
+	// content (header row + non-translatable column cells) in opaque skeleton /
+	// model.Data instead of surfacing it as Block{Translatable:false} content
+	// (visible to ingestion/LLM consumers, skipped by MT). Zero value =
+	// surfacing ON (the opt-out default).
+	disableNonTranslatableContent bool
+}
+
+// ExtractNonTranslatableContent reports whether non-translatable contextual
+// content (the header row and non-translatable column cells) is surfaced as
+// Block{Translatable:false} content rather than hidden in skeleton / Data.
+// Default true.
+func (c *Config) ExtractNonTranslatableContent() bool {
+	return !c.disableNonTranslatableContent
+}
+
+// SetExtractNonTranslatableContent toggles surfacing of non-translatable
+// contextual content as content blocks (used by the parity runner to match the
+// Okapi bridge, which keeps such content in skeleton / Data).
+func (c *Config) SetExtractNonTranslatableContent(v bool) {
+	c.disableNonTranslatableContent = !v
 }
 
 // FormatName returns the format this config applies to.
@@ -36,6 +58,7 @@ func (c *Config) Reset() {
 	c.Columns = nil
 	c.HasHeader = false
 	c.TrimValues = false
+	c.disableNonTranslatableContent = false
 }
 
 // Validate checks configuration validity.
@@ -79,6 +102,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("trimValues: expected bool, got %T", val)
 			}
 			c.TrimValues = b
+		case "extractNonTranslatableContent":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+			}
+			c.disableNonTranslatableContent = !b
 		default:
 			return fmt.Errorf("fixedwidth: unknown parameter: %s", key)
 		}

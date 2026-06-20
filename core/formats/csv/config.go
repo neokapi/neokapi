@@ -26,6 +26,13 @@ type Config struct {
 	CommentColumns []int
 	// TrimValues if true, leading and trailing whitespace is removed from cell values.
 	TrimValues bool
+	// disableNonTranslatableContent, when set, keeps non-translatable contextual
+	// content (preamble rows, non-translatable column cells) in opaque
+	// model.Data parts instead of surfacing it as non-translatable content
+	// Blocks (visible to ingestion/LLM consumers, skipped by MT). Zero value =
+	// surfacing ON (the opt-out default). Independent of TranslatableColumns,
+	// which only decides which cells are *translatable*.
+	disableNonTranslatableContent bool
 	// ValuesStartRow is the 1-based row number where data values begin.
 	// Default is 0 (auto: row after header, or row 1 if no header).
 	ValuesStartRow int
@@ -64,6 +71,20 @@ func (c *Config) Validate() error {
 		return errors.New("csv: separator must not be zero")
 	}
 	return nil
+}
+
+// ExtractNonTranslatableContent reports whether non-translatable contextual
+// content (preamble rows, non-translatable column cells) is surfaced as
+// non-translatable content Blocks. Default true.
+func (c *Config) ExtractNonTranslatableContent() bool {
+	return !c.disableNonTranslatableContent
+}
+
+// SetExtractNonTranslatableContent toggles surfacing of non-translatable
+// contextual content as content Blocks (used by the parity runner to match the
+// Okapi bridge, which keeps such content in skeleton/Data).
+func (c *Config) SetExtractNonTranslatableContent(v bool) {
+	c.disableNonTranslatableContent = !v
 }
 
 // ApplyMap applies configuration values from a map.
@@ -120,6 +141,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("trimValues: expected bool, got %T", val)
 			}
 			c.TrimValues = b
+		case "extractNonTranslatableContent":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+			}
+			c.disableNonTranslatableContent = !b
 		case "valuesStartRow":
 			n, err := parseIntValue(val, key)
 			if err != nil {

@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/fixedwidth"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
@@ -35,8 +36,30 @@ func readFWWithConfig(t *testing.T, input string, cols []fixedwidth.ColumnDef, c
 	return testutil.CollectParts(t, reader.Read(ctx))
 }
 
+// collectBlocks returns only the TRANSLATABLE blocks. Non-translatable
+// contextual content (header row, non-translatable column cells) is surfaced as
+// Block{Translatable:false} when ExtractNonTranslatableContent is on (the
+// default); these tests assert the translatable extraction payload, so they
+// filter those out (see collectNonTranslatableBlocks for the inverse).
 func collectBlocks(parts []*model.Part) []*model.Block {
-	return testutil.FilterBlocks(parts)
+	var out []*model.Block
+	for _, b := range testutil.FilterBlocks(parts) {
+		if b.Translatable {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// collectNonTranslatableBlocks returns only the non-translatable blocks.
+func collectNonTranslatableBlocks(parts []*model.Part) []*model.Block {
+	var out []*model.Block
+	for _, b := range testutil.FilterBlocks(parts) {
+		if !b.Translatable {
+			out = append(out, b)
+		}
+	}
+	return out
 }
 
 func blockTexts(blocks []*model.Block) []string {
@@ -171,7 +194,40 @@ func TestFW_WithHeader(t *testing.T) {
 		cfg.HasHeader = true
 	})
 
-	// Check header Data part
+	// With ExtractNonTranslatableContent on (default), the header / column-label
+	// line surfaces as a non-translatable caption block, not Data.
+	var headerBlock *model.Block
+	for _, b := range collectNonTranslatableBlocks(parts) {
+		if b.Name == "header-row" {
+			headerBlock = b
+		}
+	}
+	require.NotNil(t, headerBlock, "header row should surface as a non-translatable block")
+	assert.False(t, headerBlock.Translatable)
+	assert.Contains(t, headerBlock.SourceText(), "ID")
+	assert.Equal(t, model.RoleCaption, headerBlock.SemanticRole())
+	assert.True(t, headerBlock.PreserveWhitespace)
+
+	// No header-row Data part remains.
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			data := p.Resource.(*model.Data)
+			assert.NotEqual(t, "header-row", data.Name, "header should not be Data when extraction is on")
+		}
+	}
+
+	blocks := collectBlocks(parts)
+	require.Len(t, blocks, 1)
+}
+
+func TestFW_WithHeader_ExtractionOff(t *testing.T) {
+	input := "ID   Text           \nid001Hello World    \n"
+	parts := readFWWithConfig(t, input, twoCols, func(cfg *fixedwidth.Config) {
+		cfg.HasHeader = true
+		cfg.SetExtractNonTranslatableContent(false)
+	})
+
+	// With extraction off, behaviour is unchanged: header is Data.
 	hasHeaderData := false
 	for _, p := range parts {
 		if p.Type == model.PartData {
@@ -182,15 +238,50 @@ func TestFW_WithHeader(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, hasHeaderData, "header row should be emitted as Data")
+	assert.True(t, hasHeaderData, "header row should be emitted as Data when extraction is off")
 
 	blocks := collectBlocks(parts)
 	require.Len(t, blocks, 1)
 }
 
-func TestFW_NonTranslatableAsData(t *testing.T) {
+// With ExtractNonTranslatableContent on (the default), the non-translatable
+// column surfaces as a Block{Translatable:false} keeping its column/row/width
+// properties — visible to ingestion/LLM consumers, skipped by MT.
+func TestFW_NonTranslatableAsBlock(t *testing.T) {
 	input := "id001Hello World    \n"
 	parts := readFW(t, input, twoCols)
+
+	var idBlock *model.Block
+	for _, b := range collectNonTranslatableBlocks(parts) {
+		if b.Properties["column"] == "id" {
+			idBlock = b
+		}
+	}
+	require.NotNil(t, idBlock, "non-translatable column should surface as a block")
+	assert.False(t, idBlock.Translatable)
+	assert.True(t, idBlock.PreserveWhitespace)
+	assert.Equal(t, "id001", idBlock.SourceText())
+	assert.Equal(t, "id", idBlock.Properties["column"])
+	assert.Equal(t, "1", idBlock.Properties["row"])
+	assert.Equal(t, "0", idBlock.Properties["start"])
+	assert.Equal(t, "5", idBlock.Properties["width"])
+
+	// No id Data part remains.
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			data := p.Resource.(*model.Data)
+			assert.NotEqual(t, "id", data.Properties["column"])
+		}
+	}
+}
+
+// With the flag off, the non-translatable column stays Data, byte-identical to
+// the prior behaviour (this is what the parity runner forces).
+func TestFW_NonTranslatableAsData_ExtractionOff(t *testing.T) {
+	input := "id001Hello World    \n"
+	parts := readFWWithConfig(t, input, twoCols, func(cfg *fixedwidth.Config) {
+		cfg.SetExtractNonTranslatableContent(false)
+	})
 
 	hasIDData := false
 	for _, p := range parts {
@@ -202,7 +293,8 @@ func TestFW_NonTranslatableAsData(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, hasIDData, "non-translatable column should be emitted as Data")
+	assert.True(t, hasIDData, "non-translatable column should be emitted as Data when extraction is off")
+	assert.Empty(t, collectNonTranslatableBlocks(parts), "no content blocks when extraction is off")
 }
 
 func TestFW_MultipleTranslatableColumns(t *testing.T) {
@@ -411,7 +503,11 @@ func TestFW_RoundTripWithTranslation(t *testing.T) {
 	for _, p := range parts {
 		if p.Type == model.PartBlock {
 			block := p.Resource.(*model.Block)
-			block.SetTargetText(model.LocaleFrench, "Bonjour Monde")
+			// Only translate translatable blocks; the non-translatable id
+			// column now surfaces as a Block{Translatable:false} too.
+			if block.Translatable {
+				block.SetTargetText(model.LocaleFrench, "Bonjour Monde")
+			}
 		}
 	}
 
@@ -466,9 +562,30 @@ func TestFW_AllNonTranslatable(t *testing.T) {
 	input := "AAAAABBBBB\n"
 	parts := readFW(t, input, cols)
 	blocks := collectBlocks(parts)
-	assert.Empty(t, blocks, "all non-translatable columns should produce no blocks")
+	assert.Empty(t, blocks, "all non-translatable columns should produce no translatable blocks")
 
-	// But we should have Data parts
+	// With ExtractNonTranslatableContent on (default), the two non-translatable
+	// cells surface as non-translatable content blocks (skipped by MT).
+	nonTrans := collectNonTranslatableBlocks(parts)
+	require.Len(t, nonTrans, 2)
+	assert.Equal(t, "AAAAA", nonTrans[0].SourceText())
+	assert.Equal(t, "BBBBB", nonTrans[1].SourceText())
+}
+
+func TestFW_AllNonTranslatable_ExtractionOff(t *testing.T) {
+	cols := []fixedwidth.ColumnDef{
+		{Name: "first", Start: 0, Width: 5, Translatable: false},
+		{Name: "second", Start: 5, Width: 5, Translatable: false},
+	}
+	input := "AAAAABBBBB\n"
+	parts := readFWWithConfig(t, input, cols, func(cfg *fixedwidth.Config) {
+		cfg.SetExtractNonTranslatableContent(false)
+	})
+	blocks := collectBlocks(parts)
+	assert.Empty(t, blocks, "all non-translatable columns should produce no blocks")
+	assert.Empty(t, collectNonTranslatableBlocks(parts))
+
+	// With the flag off, behaviour is unchanged: two Data parts.
 	dataCount := 0
 	for _, p := range parts {
 		if p.Type == model.PartData {
@@ -476,6 +593,95 @@ func TestFW_AllNonTranslatable(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 2, dataCount)
+}
+
+// --- ExtractNonTranslatableContent flag ---
+
+func TestFW_ExtractNonTranslatableContent_Default(t *testing.T) {
+	cfg := &fixedwidth.Config{}
+	assert.True(t, cfg.ExtractNonTranslatableContent(), "default must be on regardless of construction")
+}
+
+func TestFW_SetExtractNonTranslatableContent(t *testing.T) {
+	cfg := &fixedwidth.Config{}
+	cfg.SetExtractNonTranslatableContent(false)
+	assert.False(t, cfg.ExtractNonTranslatableContent())
+	cfg.SetExtractNonTranslatableContent(true)
+	assert.True(t, cfg.ExtractNonTranslatableContent())
+}
+
+func TestFW_ConfigApplyMap_ExtractNonTranslatableContent(t *testing.T) {
+	cfg := &fixedwidth.Config{}
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": false}))
+	assert.False(t, cfg.ExtractNonTranslatableContent())
+	require.NoError(t, cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": true}))
+	assert.True(t, cfg.ExtractNonTranslatableContent())
+
+	err := cfg.ApplyMap(map[string]any{"extractNonTranslatableContent": "nope"})
+	require.Error(t, err)
+}
+
+// skelRoundtripFW reads input with a wired skeleton store and writes it back
+// through the same store, returning the reconstructed bytes. With locale empty
+// the output is the untouched source projection (byte-exact when reading is
+// lossless).
+func skelRoundtripFW(t *testing.T, input string, cols []fixedwidth.ColumnDef, cfgFn func(*fixedwidth.Config)) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := fixedwidth.NewReader()
+	cfg := reader.Config().(*fixedwidth.Config)
+	cfg.Columns = cols
+	if cfgFn != nil {
+		cfgFn(cfg)
+	}
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	writer := fixedwidth.NewWriter()
+	writer.SetColumns(cols)
+	writer.SetSkeletonStore(store)
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts)))
+	writer.Close()
+	return buf.String()
+}
+
+// With ExtractNonTranslatableContent on (default), the header and the
+// non-translatable column ride skeleton refs but the document still round-trips
+// byte-exact.
+func TestFW_SkeletonRoundTrip_ExtractionOn(t *testing.T) {
+	input := "ID   Text           \nid001Hello World    \nid002Goodbye World  \n"
+	out := skelRoundtripFW(t, input, twoCols, func(cfg *fixedwidth.Config) {
+		cfg.HasHeader = true
+	})
+	assert.Equal(t, input, out, "round-trip must be byte-exact with extraction on")
+}
+
+func TestFW_SkeletonRoundTrip_ExtractionOn_CRLF(t *testing.T) {
+	input := "ID   Text           \r\nid001Hello World    \r\n"
+	out := skelRoundtripFW(t, input, twoCols, func(cfg *fixedwidth.Config) {
+		cfg.HasHeader = true
+	})
+	assert.Equal(t, input, out, "CRLF line endings must round-trip byte-exact")
+}
+
+// With the flag off the skeleton form is unchanged and still byte-exact.
+func TestFW_SkeletonRoundTrip_ExtractionOff(t *testing.T) {
+	input := "ID   Text           \nid001Hello World    \nid002Goodbye World  \n"
+	out := skelRoundtripFW(t, input, twoCols, func(cfg *fixedwidth.Config) {
+		cfg.HasHeader = true
+		cfg.SetExtractNonTranslatableContent(false)
+	})
+	assert.Equal(t, input, out, "round-trip must be byte-exact with extraction off")
 }
 
 func TestFW_ContextCancellation(t *testing.T) {

@@ -14,9 +14,17 @@ import (
 
 func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
+	return snippetRoundtripWithSkeletonConfig(t, input, nil)
+}
+
+func snippetRoundtripWithSkeletonConfig(t *testing.T, input string, configure func(*doxygen.Config)) string {
+	t.Helper()
 	ctx := t.Context()
 
 	reader := doxygen.NewReader()
+	if configure != nil {
+		configure(reader.Config().(*doxygen.Config))
+	}
 	writer := doxygen.NewWriter()
 
 	store, err := format.NewSkeletonStore()
