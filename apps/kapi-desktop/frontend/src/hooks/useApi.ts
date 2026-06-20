@@ -248,7 +248,8 @@ export const api = {
 
   // Credentials
   listProviders: () => call<ProviderConfig[]>("ListProviders"),
-  listProviderTypes: () => call<Array<{ name: string; label: string }>>("ListProviderTypes"),
+  listProviderTypes: () =>
+    call<Array<{ name: string; label: string; local: boolean }>>("ListProviderTypes"),
   saveProvider: (req: unknown) => call<ProviderConfig>("SaveProvider", req),
   deleteProvider: (id: string) => call<void>("DeleteProvider", id),
   testProvider: (id: string) => call<boolean>("TestProvider", id),

@@ -18,6 +18,11 @@ import (
 	"sync"
 	"time"
 
+	// Blank-import the cli package so its init() registrations run in the desktop
+	// too — notably the "Gemma (local)" AI provider (cli/llm_plugin.go), which is
+	// registered there because it drives the kapi-llm plugin subprocess. Without
+	// this the desktop's provider list would omit Gemma.
+	_ "github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"

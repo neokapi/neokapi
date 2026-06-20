@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T12:34:19Z",
+  "generatedAt": "2026-06-20T15:13:41Z",
   "kind": "tool",
   "entries": [
     {
@@ -110,6 +110,10 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
+              },
+              {
+                "value": "gemma",
+                "label": "Gemma (local)"
               }
             ]
           }
@@ -136,7 +140,7 @@
           "provider": {
             "description": "The LLM provider backend to use.",
             "help": "Selects which model backend performs the brand voice check.\n",
-            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`"
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
           }
         },
         "limitations": [
@@ -304,6 +308,10 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
+              },
+              {
+                "value": "gemma",
+                "label": "Gemma (local)"
               }
             ]
           }
@@ -345,7 +353,7 @@
           "provider": {
             "description": "The LLM provider to use.",
             "help": "Selects the backend. Hosted providers require an API key and a model;\nOllama runs locally. The available options are populated from the provider\nregistry.\n",
-            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (default `anthropic`)"
+            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `gemma` (local, no key) (default `anthropic`)"
           }
         },
         "limitations": [
@@ -485,6 +493,10 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
+              },
+              {
+                "value": "gemma",
+                "label": "Gemma (local)"
               }
             ]
           }
@@ -511,7 +523,7 @@
           "provider": {
             "description": "The LLM provider backend to use.",
             "help": "Selects which model backend performs the quality check.\n",
-            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`"
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
           }
         },
         "limitations": [
@@ -633,6 +645,10 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
+              },
+              {
+                "value": "gemma",
+                "label": "Gemma (local)"
               }
             ]
           }
@@ -654,7 +670,7 @@
           "provider": {
             "description": "The LLM provider backend to use.",
             "help": "Selects which model backend performs the review.\n",
-            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`"
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
           }
         },
         "limitations": [
@@ -788,6 +804,10 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
+              },
+              {
+                "value": "gemma",
+                "label": "Gemma (local)"
               }
             ]
           }
@@ -814,7 +834,7 @@
           "provider": {
             "description": "The LLM provider backend to use.",
             "help": "Selects which model backend performs the extraction.\n",
-            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`"
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
           }
         },
         "limitations": [
@@ -964,6 +984,10 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
+              },
+              {
+                "value": "gemma",
+                "label": "Gemma (local)"
               }
             ]
           },
@@ -976,7 +1000,7 @@
         }
       },
       "doc": {
-        "overview": "The **AI Translate** tool translates untranslated block content with a large\nlanguage model. It supports several providers (Anthropic, OpenAI, Gemini,\nAzure OpenAI, Ollama) and writes the result as the target text, recording an\nalternate-translation annotation with the originating provider. A target\nlanguage is required, and provider credentials are required for hosted\nproviders.\n\nBlocks that contain inline codes are sent through a placeholder-preserving\nprompt so tags survive translation, then reconstructed from the response.\nBlocks can be translated one at a time or grouped into batches sent in a\nsingle structured call; batches can run concurrently. When run with a session\ncache, already-translated targets are reused and fresh translations are\nwritten back, so repeat runs skip work already done.\n",
+        "overview": "The **AI Translate** tool translates untranslated block content with a large\nlanguage model. It supports several providers (Anthropic, OpenAI, Gemini,\nAzure OpenAI, Ollama, and Gemma) and writes the result as the target text,\nrecording an alternate-translation annotation with the originating provider. A\ntarget language is required, and provider credentials are required for hosted\nproviders — the local providers (`ollama`, and `gemma` via the `kapi-llm`\nplugin) run on-device with no API key, a free and private alternative.\n\nBlocks that contain inline codes are sent through a placeholder-preserving\nprompt so tags survive translation, then reconstructed from the response.\nBlocks can be translated one at a time or grouped into batches sent in a\nsingle structured call; batches can run concurrently. When run with a session\ncache, already-translated targets are reused and fresh translations are\nwritten back, so repeat runs skip work already done.\n",
         "parameters": {
           "apiKey": {
             "description": "API key for the provider.",
@@ -1001,7 +1025,7 @@
           "provider": {
             "description": "The LLM provider to use.",
             "help": "Selects the backend. Hosted providers require an API key and a model;\nOllama runs locally. The available options are populated from the\nprovider registry.\n",
-            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (default `anthropic`)"
+            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `gemma` (local, no key) (default `anthropic`)"
           },
           "skipMatched": {
             "description": "Skip blocks that already have a target translation.",
@@ -3396,6 +3420,10 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
+              },
+              {
+                "value": "gemma",
+                "label": "Gemma (local)"
               }
             ]
           },

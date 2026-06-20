@@ -71,9 +71,16 @@ Translate a file with an LLM, then run a QA check in the same flow:
 kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
-This needs a provider credential, so install first and add one with
-`kapi credentials add` — see [Installation](/kapi/get-started/installation). When a
-brand voice profile is bound on the flow, its guide is injected into the
+Hosted providers need a credential, so install first and add one with
+`kapi credentials add` — see [Installation](/kapi/get-started/installation). For a
+**free, private, no-key** option, run it locally with Gemma:
+
+```bash
+kapi plugins install llm   # one-time; the model downloads on first use
+kapi run ai-translate-qa -i input.html --source-lang en --target-lang fr --provider gemma
+```
+
+When a brand voice profile is bound on the flow, its guide is injected into the
 translation prompt, so output is on-brand at generation time.
 
 ## Keep AI output on-brand

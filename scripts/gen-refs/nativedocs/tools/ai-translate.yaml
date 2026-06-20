@@ -4,10 +4,11 @@ description: Translate block content using a configured LLM provider.
 overview: |
   The **AI Translate** tool translates untranslated block content with a large
   language model. It supports several providers (Anthropic, OpenAI, Gemini,
-  Azure OpenAI, Ollama) and writes the result as the target text, recording an
-  alternate-translation annotation with the originating provider. A target
-  language is required, and provider credentials are required for hosted
-  providers.
+  Azure OpenAI, Ollama, and Gemma) and writes the result as the target text,
+  recording an alternate-translation annotation with the originating provider. A
+  target language is required, and provider credentials are required for hosted
+  providers — the local providers (`ollama`, and `gemma` via the `kapi-llm`
+  plugin) run on-device with no API key, a free and private alternative.
 
   Blocks that contain inline codes are sent through a placeholder-preserving
   prompt so tags survive translation, then reconstructed from the response.
@@ -22,7 +23,7 @@ parameters:
       Selects the backend. Hosted providers require an API key and a model;
       Ollama runs locally. The available options are populated from the
       provider registry.
-    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (default `anthropic`)"
+    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `gemma` (local, no key) (default `anthropic`)"
   apiKey:
     description: API key for the provider.
     help: |

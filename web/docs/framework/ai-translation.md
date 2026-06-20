@@ -18,6 +18,7 @@ neokapi provides first-class LLM integration for translation, quality assurance,
 | **Azure OpenAI**  | OpenAI models hosted on Azure                           |
 | **Google Gemini** | Gemini models with streaming and live thinking progress |
 | **Ollama**        | Local models (no API key needed)                        |
+| **Gemma (local)** | On-device Google Gemma 4 via the `kapi-llm` plugin — no API key, runs in-process (free, private) |
 
 ## Setup
 
@@ -141,10 +142,35 @@ The variables follow each provider's own conventions:
 | `GEMINI_API_KEY` (then `GOOGLE_API_KEY`) | Google Gemini     |
 | `AZURE_OPENAI_API_KEY`                  | Azure OpenAI      |
 
-Ollama runs local models and requires no key. The
+Ollama and Gemma run local models and require no key. The
 [machine translation services](/framework/mt-services#environment-variables)
 page lists the equivalent variables for the MT providers. For the full set of
 provider parameters, see the generated [Tool Reference](/tools).
+
+## Local models with Gemma
+
+The `gemma` provider runs Google's **Gemma 4** on-device, in-process, with no API
+key and nothing sent to a server — a free, private alternative to the paid
+providers. It is delivered by the `kapi-llm` plugin (the heavy onnxruntime stack
+stays in the plugin, not the `kapi` binary):
+
+```bash
+kapi plugins install llm          # or: brew install neokapi/tap/kapi-llm
+kapi ai-translate -i input.html --target-lang fr --provider gemma
+```
+
+The model downloads on demand on first use and is cached. As a flow-step config:
+
+```yaml
+steps:
+  - tool: ai-translate
+    config:
+      provider: gemma
+```
+
+The same `gemma` provider works across the AI tools (`ai-qa`, `brand-voice-check`,
+…) and in the browser — see the [Gemma Lab](/lab/gemma), which runs the same model
+via WebGPU. (Text is supported today; image/audio input is experimental.)
 
 ## Local models with Ollama
 
