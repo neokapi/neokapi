@@ -36,10 +36,13 @@ type FormatInfo struct {
 	// content model alone — so this format is a valid cross-format conversion
 	// target (`kconv --to`). False = skeleton-bound (writes back into its own
 	// original file only). Declarative; resolved without loading any plugin.
-	Generative bool     `json:"generative,omitempty"`
-	Source     string   `json:"source,omitempty"`
-	Extensions []string `json:"extensions,omitempty"`
-	MimeTypes  []string `json:"mime_types,omitempty"`
+	Generative bool `json:"generative,omitempty"`
+	// Interchange reports a bilingual translation-interchange format (XLIFF, PO,
+	// TMX, …) — the extract/merge loop, excluded as a `convert` target.
+	Interchange bool     `json:"interchange,omitempty"`
+	Source      string   `json:"source,omitempty"`
+	Extensions  []string `json:"extensions,omitempty"`
+	MimeTypes   []string `json:"mime_types,omitempty"`
 }
 
 // FormatsListOutput represents the list of formats.

@@ -45,4 +45,18 @@ func TestWriterGenerativeCapability(t *testing.T) {
 			t.Errorf("%s: expected Generative=true (valid conversion target)", id)
 		}
 	}
+
+	// Bilingual interchange formats: generative-capable, but flagged Interchange
+	// so `convert` excludes them (the extract→translate→merge loop owns them).
+	interchange := []string{"xliff", "xliff2", "po", "tmx", "mo", "ttx", "txml", "transtable", "mosestext", "klf"}
+	for _, id := range interchange {
+		info := reg.FormatInfo(registry.FormatID(id))
+		if info == nil || !info.HasWriter {
+			t.Errorf("%s: expected a registered writer", id)
+			continue
+		}
+		if !info.Interchange {
+			t.Errorf("%s: expected Interchange=true (extract/merge format, not a convert target)", id)
+		}
+	}
 }

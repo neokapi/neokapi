@@ -57,6 +57,7 @@ func RegisterModeCFormats(host *Host, pool *DaemonPool, reg *registry.FormatRegi
 			HasReader:   f.HasCapability("read"),
 			HasWriter:   f.HasCapability("write"),
 			Generative:  f.HasCapability("generative"),
+			Interchange: f.HasCapability("interchange"),
 		})
 		reg.SetFormatSource(formatID, plugin.Name())
 

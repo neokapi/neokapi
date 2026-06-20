@@ -139,6 +139,22 @@ func TestConvToSkeletonTargetFails(t *testing.T) {
 	require.Error(t, err, "expected openxml (skeleton-driven) to reject generation from markdown")
 }
 
+// TestConvToInterchangeTargetFails: a bilingual interchange target (xliff2/po)
+// is not a convert target — converting to it would produce a file that cannot
+// be merged back. kconv rejects it and points to `kapi extract`.
+func TestConvToInterchangeTargetFails(t *testing.T) {
+	app := newToolboxApp(t)
+	dir := t.TempDir()
+	path := writeToolboxFile(t, dir, "in.md", "# Title\n")
+	for _, fmtID := range []string{"xliff2", "po"} {
+		// convertDocument returns the real per-file error (runConv reports it to
+		// stderr and returns a silent-exit sentinel).
+		err := app.convertDocument(context.Background(), path, registry.FormatID(fmtID), "", "")
+		require.Error(t, err, "%s is interchange — convert must reject it", fmtID)
+		require.Contains(t, err.Error(), "kapi extract", "error should point to extract")
+	}
+}
+
 // TestConvToFile: -o writes the converted document to a file, format inferred
 // from the extension.
 func TestConvToFile(t *testing.T) {

@@ -38,16 +38,23 @@ new format.
 ## Supported output formats
 
 You can read (convert **from**) any supported format. You can write (convert
-**to**) the formats that can be produced from content alone:
+**to**) the document and data formats that are produced from content alone:
 
 - **Documents** — Markdown, HTML, DocLang, AsciiDoc, plain text
-- **Interchange** — XLIFF, PO, TMX
 - **Data & catalogs** — JSON, YAML, and the resource-string formats
 
-Formats that wrap content in a fixed package — Word (`.docx`), ODT, InDesign,
-EPUB — and read-only formats such as PDF can be converted **from**, but not
-**to**. Run `kapi formats list` for the full set, or try the
+Run `kapi formats list` for the full set, or try the
 [Conversion Lab](/lab/convert) to convert in your browser.
+
+**Not conversion targets:**
+
+- **Bilingual interchange** — XLIFF, PO, TMX, KLF — use
+  [`kapi extract`](/kapi/cli) instead. Extract captures the source skeleton so
+  [`kapi merge`](/kapi/cli) can round-trip translations back into the original
+  file; a converted interchange file has no skeleton and cannot be merged back.
+- **Packaged formats** — Word (`.docx`), ODT, InDesign, EPUB — and read-only
+  formats such as PDF can be converted **from**, but not **to** (they are written
+  by updating an existing file of that format).
 
 ## Examples
 

@@ -29,7 +29,8 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 func NewWriter() *Writer {
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "tmx",
+			FormatName:  "tmx",
+			Interchange: true,
 		},
 		headerProps: make(map[string]string),
 	}

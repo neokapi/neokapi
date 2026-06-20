@@ -342,3 +342,11 @@ func WireSkeleton(store *SkeletonStore, reader DataFormatReader, writer DataForm
 type GenerativeWriter interface {
 	Generative() bool
 }
+
+// InterchangeWriter is implemented by bilingual translation-interchange writers
+// (XLIFF, PO, TMX, …). The registry records it on FormatInfo.Interchange so
+// `convert` can exclude them — they belong to the extract/merge loop, not to
+// document conversion. BaseFormatWriter implements it via the Interchange field.
+type InterchangeWriter interface {
+	IsInterchange() bool
+}

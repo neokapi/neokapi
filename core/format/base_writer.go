@@ -23,6 +23,13 @@ type BaseFormatWriter struct {
 	// target. Default false: a writer is generative (writes standalone) unless it
 	// declares the need. See AD-005 "Writer output modes".
 	RequiresSkeleton bool
+	// Interchange declares that this is a bilingual translation-interchange
+	// format (XLIFF, PO, TMX, …). These belong to the extract→translate→merge
+	// loop — `kapi extract` captures the source skeleton so `kapi merge` can
+	// round-trip translations back into the original format — so they are NOT
+	// offered as `convert` targets (a converted interchange file carries no
+	// skeleton and cannot be merged back). See AD-005 "Writer output modes".
+	Interchange bool
 }
 
 // Name returns the format identifier.
@@ -33,6 +40,10 @@ func (b *BaseFormatWriter) Name() string { return b.FormatName }
 // declared RequiresSkeleton need. A generative writer is a valid cross-format
 // conversion target; a skeleton-bound one (RequiresSkeleton) is not.
 func (b *BaseFormatWriter) Generative() bool { return !b.RequiresSkeleton }
+
+// IsInterchange reports whether this is a bilingual translation-interchange
+// format (the extract/merge workflow), which is excluded from `convert` targets.
+func (b *BaseFormatWriter) IsInterchange() bool { return b.Interchange }
 
 // SetOutput configures the output destination by file path.
 func (b *BaseFormatWriter) SetOutput(path string) error {

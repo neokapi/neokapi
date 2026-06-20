@@ -145,8 +145,13 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	// idml, epub, …) writes back into its own original file and cannot be a
 	// target. Check the declared capability (no plugin load) and fail cleanly.
 	if !sameFormat {
-		if info := a.FormatReg.FormatInfo(toFmt); info != nil && info.HasWriter && !info.Generative {
-			return fmt.Errorf("cannot convert to %q: it is a packaged format that can only be written by updating an existing %s file, not generated from %s", toFmt, toFmt, inFmt)
+		if info := a.FormatReg.FormatInfo(toFmt); info != nil && info.HasWriter {
+			if info.Interchange {
+				return fmt.Errorf("cannot convert to %q: it is a bilingual translation-interchange format — use `kapi extract --format %s` (it captures the source skeleton so `kapi merge` can round-trip translations back into the original), not `convert`", toFmt, toFmt)
+			}
+			if !info.Generative {
+				return fmt.Errorf("cannot convert to %q: it is a packaged format that can only be written by updating an existing %s file, not generated from %s", toFmt, toFmt, inFmt)
+			}
 		}
 	}
 	// Same-format conversion is a faithful round-trip through the typed skeleton.

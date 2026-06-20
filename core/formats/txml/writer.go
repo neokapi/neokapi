@@ -40,7 +40,8 @@ func NewWriter() *Writer {
 	cfg.Reset()
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "txml",
+			FormatName:  "txml",
+			Interchange: true,
 		},
 		cfg: cfg,
 	}

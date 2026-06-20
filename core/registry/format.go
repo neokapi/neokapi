@@ -36,9 +36,13 @@ type FormatInfo struct {
 	// once from the writer's GenerativeWriter capability at registration; for
 	// plugin formats it comes from the cached manifest ("generative" capability),
 	// never by loading the plugin. Meaningful only when HasWriter is true.
-	Generative bool   `json:"generative,omitempty"`
-	Source     string `json:"source"`   // SourceBuiltIn or plugin name
-	Priority   int    `json:"priority"` // higher = preferred when multiple formats match
+	Generative bool `json:"generative,omitempty"`
+	// Interchange reports a bilingual translation-interchange format (XLIFF, PO,
+	// TMX, …). These belong to the extract→translate→merge loop and are excluded
+	// as `convert` targets. Declarative, like Generative.
+	Interchange bool   `json:"interchange,omitempty"`
+	Source      string `json:"source"`   // SourceBuiltIn or plugin name
+	Priority    int    `json:"priority"` // higher = preferred when multiple formats match
 }
 
 // FormatRegistry manages available DataFormats and their configurations.
@@ -162,8 +166,12 @@ func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFacto
 	// so we never instantiate a plugin writer here. This keeps capability
 	// resolution plugin-load-free (AD-005 "Writer output modes").
 	if info.Source == "" || info.Source == SourceBuiltIn {
-		if gw, ok := factory().(format.GenerativeWriter); ok {
+		w := factory()
+		if gw, ok := w.(format.GenerativeWriter); ok {
 			info.Generative = gw.Generative()
+		}
+		if iw, ok := w.(format.InterchangeWriter); ok {
+			info.Interchange = iw.IsInterchange()
 		}
 	}
 }
@@ -242,10 +250,14 @@ func (r *FormatRegistry) RegisterFormatInfo(name FormatID, info FormatInfo) {
 	if info.HasWriter {
 		existing.HasWriter = true
 	}
-	// Generative is declared by plugins in the cached manifest; carry it onto the
-	// seeded info so the conversion-target query needs no plugin load.
+	// Generative / Interchange are declared by plugins in the cached manifest;
+	// carry them onto the seeded info so the conversion-target query needs no
+	// plugin load.
 	if info.Generative {
 		existing.Generative = true
+	}
+	if info.Interchange {
+		existing.Interchange = true
 	}
 
 	// Register detection signature so bridge/plugin formats participate in

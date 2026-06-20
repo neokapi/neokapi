@@ -34,14 +34,15 @@ export interface ConversionTarget {
 // the lab replaces it with the authoritative generative-writer list queried from
 // `kapi formats list --json` (the declared capability — no hardcoding, no plugin
 // load). It is also the SSR/not-ready fallback.
+// convert is for document/data projection. Bilingual interchange formats
+// (XLIFF, PO, TMX, KLF) are deliberately absent — they belong to the
+// extract→translate→merge loop (a converted interchange file carries no
+// skeleton and cannot be merged back); see AD-005.
 export const GENERATIVE_TARGETS: ConversionTarget[] = [
   { id: "doclang", label: "DocLang", ext: "dclg.xml" },
   { id: "markdown", label: "Markdown", ext: "md" },
   { id: "html", label: "HTML", ext: "html" },
   { id: "asciidoc", label: "AsciiDoc", ext: "adoc" },
-  { id: "xliff", label: "XLIFF", ext: "xliff" },
-  { id: "po", label: "Gettext PO", ext: "po" },
-  { id: "klf", label: "KLF", ext: "klf" },
   { id: "json", label: "JSON", ext: "json" },
   { id: "yaml", label: "YAML", ext: "yaml" },
   { id: "plaintext", label: "Plain text", ext: "txt" },
@@ -140,11 +141,14 @@ export default function ConversionExplorer({
             display_name?: string;
             has_writer?: boolean;
             generative?: boolean;
+            interchange?: boolean;
             extensions?: string[];
           }[];
         };
+        // convert targets: generative document/data writers, excluding bilingual
+        // interchange formats (those are the extract/merge loop, not convert).
         const list = (data.formats ?? [])
-          .filter((f) => f.has_writer && f.generative)
+          .filter((f) => f.has_writer && f.generative && !f.interchange)
           .map((f) => ({
             id: f.name,
             label: targetLabel(f.name, f.display_name),

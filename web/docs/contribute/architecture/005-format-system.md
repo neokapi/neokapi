@@ -198,31 +198,42 @@ Two capabilities, deliberately **orthogonal**, capture this:
   byte-exact fidelity), via the `SkeletonStoreConsumer` interface. This is about
   *using* a skeleton, not *requiring* one.
 
-These compose into the two writer classes that matter for conversion:
+These compose into three writer classes:
 
-- **Generative writers** (`generative`, skeleton-consuming optional). HTML is the
-  archetype: with the source file's skeleton it round-trips losslessly to HTML,
-  and **without** one it still writes a clean document — so it can also be a
-  target for content that arrived from a different format. Generative-but-not-
-  skeleton formats (e.g. DocLang) behave the same, minus the same-format fidelity
-  path.
-- **Skeleton-bound writers** (not generative). OpenXML (`.docx`), ODF, IDML, and
-  EPUB wrap content in a fixed package that cannot be regenerated from the model;
-  they only ever write back into their *own* skeleton. They are same-format /
-  merge writers, never a cross-format conversion target.
+- **Generative document/data writers** (`generative`, not interchange). HTML is
+  the archetype: with the source file's skeleton it round-trips losslessly, and
+  **without** one it still writes a clean document — so it is also a target for
+  content that arrived from a different format. Markdown, DocLang, AsciiDoc,
+  plain text, and the data/catalog formats behave the same. **These are the
+  `convert` targets.**
+- **Bilingual interchange writers** (`generative` **and** `interchange`). XLIFF,
+  PO, TMX, MO, and KLF are generative *files*, but they belong to the
+  extract→translate→merge loop, not to document conversion: `kapi extract`
+  captures the source skeleton (in the project/batch cache, with a batch-id note
+  in the file) so `kapi merge` can round-trip translations back into the
+  *original* format. A `convert`-produced interchange file carries no skeleton
+  and cannot be merged back — a dead end — so interchange formats are **excluded
+  as `convert` targets** and reached via `extract`/`merge`
+  ([AD-017](017-bilingual-format-interop.md)).
+- **Skeleton-bound writers** (not generative). OpenXML (`.docx`), ODF, IDML,
+  ICML, MIF, EPUB, and image wrap content in a fixed package that cannot be
+  regenerated from the model; they only ever write back into their *own*
+  skeleton. Same-format / merge writers, never a cross-format target.
 
 **Cross-format conversion** ([AD-023: Toolbox — `kconv`](023-toolbox-utilities.md))
 reconstructs the target from the content model and never carries a foreign
-skeleton into the writer. A writer is therefore a valid conversion *target* iff
-it is **generative**. This eligibility is a **declared writer capability** — the
-writer states "what I can write" via `GenerativeWriter.Generative()` (the inverse
-of `BaseFormatWriter.RequiresSkeleton`). The registry records it on
-`FormatInfo.Generative`: probed once from the built-in writer at registration,
-and for plugin formats taken from the cached manifest's `generative` capability —
-so `kconv`, the [Conversion Lab](/lab/convert), and `kapi formats` read one
-authoritative source **without loading any plugin**. It is **not** derived from
-`SkeletonStoreConsumer` (nearly every writer consumes a skeleton if offered, so
-that bit does not distinguish a target) nor probed empirically.
+skeleton into the writer. A writer is a valid conversion *target* iff it is
+**generative and not interchange**. Both are **declared writer capabilities** —
+the writer states "what I can write" via `GenerativeWriter.Generative()` (the
+inverse of `BaseFormatWriter.RequiresSkeleton`) and
+`InterchangeWriter.IsInterchange()`. The registry records them on
+`FormatInfo.Generative` / `FormatInfo.Interchange`: probed once from the built-in
+writer at registration, and for plugin formats taken from the cached manifest's
+`generative` / `interchange` capabilities — so `kconv`, the
+[Conversion Lab](/lab/convert), and `kapi formats` read one authoritative source
+**without loading any plugin**. Neither is derived from `SkeletonStoreConsumer`
+(nearly every writer consumes a skeleton if offered, so that bit does not
+distinguish a target) nor probed empirically.
 
 **Skeletons are typed per format.** A `SkeletonStore` carries an `OriginFormat`
 stamp, and `format.WireSkeleton(store, reader, writer)` connects a reader's

@@ -25,7 +25,8 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 func NewWriter() *Writer {
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "mosestext",
+			FormatName:  "mosestext",
+			Interchange: true,
 		},
 		firstBlock: true,
 	}

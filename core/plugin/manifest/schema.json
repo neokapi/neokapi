@@ -103,7 +103,7 @@
               "mime_types": { "type": "array", "items": { "type": "string" } },
               "capabilities": {
                 "type": "array",
-                "items": { "type": "string", "enum": ["read", "write", "generative"] }
+                "items": { "type": "string", "enum": ["read", "write", "generative", "interchange"] }
               },
               "schema": { "type": "string" }
             }

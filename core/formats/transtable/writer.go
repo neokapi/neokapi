@@ -27,7 +27,8 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 func NewWriter() *Writer {
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
-			FormatName: "transtable",
+			FormatName:  "transtable",
+			Interchange: true,
 		},
 		lineEnd: "\n",
 	}
