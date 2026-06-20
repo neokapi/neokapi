@@ -151,6 +151,15 @@ without `--unsafe`.
   binary into `share/kapi/plugins/<plugin>/`.
 - **okapi-bridge** — a JVM-backed Mode-C daemon exposing the Okapi Framework's
   filter library to neokapi. See [Okapi Bridge](/contribute/java-bridge).
+- **On-device ML sidecars** — cgo plugins that run native ML in their own
+  subprocess so the heavy stack (onnxruntime, whisper.cpp, PDFium, ffmpeg) never
+  enters the portable `kapi` binary: `kapi-sat` (segmentation), `kapi-vision`
+  (OCR/layout), `kapi-asr` (speech-to-text), `kapi-av` (audio/video), `kapi-pdfium`
+  (PDF), and **`kapi-llm`** — a local **Gemma 4** LLM for on-device text
+  generation (translation, chat, QA, brand-voice), a free and private alternative
+  to the paid cloud providers (selected with `--provider gemma`; vision/audio
+  input is wired but experimental). The same Gemma 4 ONNX model also runs in the
+  browser via transformers.js — see the [Gemma Lab](/lab/gemma).
 
 A minimal Go reference plugin in
 [`examples/plugins/hello/`](https://github.com/neokapi/neokapi/tree/main/examples/plugins/hello)

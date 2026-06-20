@@ -65,3 +65,8 @@ export {
   tmxOf,
 } from "./samples";
 export type { LooseSample, ProjectSample, WorkspaceSample, HeroSample, TrySample } from "./samples";
+
+// Gemma bridge — installs the host hook so `kapi --provider gemma` runs the real
+// Gemma 4 model in-browser via transformers.js/WebGPU (opt-in, lazy download).
+export { installGemmaBridge, uninstallGemmaBridge, isGemmaModelLoaded } from "./gemmaBridge";
+export type { InstallGemmaOptions, GemmaProgress } from "./gemmaBridge";

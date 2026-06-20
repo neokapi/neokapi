@@ -1,0 +1,47 @@
+{
+  "manifest_version": "1",
+  "plugin": "llm",
+  "version": "0.1.0",
+  "description": "Local LLM plugin — runs Google Gemma 4 (E2B) ONNX models in-process for on-device text generation (translate, chat, QA, brand-voice), speaking a line-delimited JSON protocol on stdin/stdout. A free, private alternative to paid cloud models. (Vision/audio input is wired but experimental, pending validation.)",
+  "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/llm",
+  "author": "Neokapi <hello@neokapi.dev>",
+  "license": "Apache-2.0",
+  "binary": "kapi-llm",
+  "min_kapi_version": "0.0.1",
+  "group": "neokapi",
+  "capabilities": {
+    "commands": [
+      {
+        "name": "llm",
+        "short": "Local Gemma 4 LLM self-check",
+        "long": "Construct the in-process Gemma 4 engine and list the supported models. The host Gemma AI provider drives the plugin over the stdin/stdout generation protocol (kapi-llm serve); this command is for interactive verification."
+      }
+    ]
+  },
+  "metadata": {
+    "llm": {
+      "protocol": "llmproto-line-json-v1",
+      "transport": "stdin-stdout",
+      "invocation": ["kapi-llm", "serve"],
+      "protocol_package": "github.com/neokapi/neokapi/plugins/llm/llmproto",
+      "ops": ["generate", "ping", "info"],
+      "modalities": ["text"],
+      "models": [
+        {
+          "name": "gemma-4-e2b",
+          "default": true,
+          "source": "onnx-community/gemma-4-E2B-it-ONNX",
+          "variant": "q4",
+          "license": "Apache-2.0",
+          "context_length": 131072,
+          "on_demand": true,
+          "files": [
+            "onnx/embed_tokens_q4.onnx",
+            "onnx/decoder_model_merged_q4.onnx",
+            "tokenizer.json"
+          ]
+        }
+      ]
+    }
+  }
+}

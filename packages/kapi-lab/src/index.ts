@@ -32,6 +32,8 @@ export { default as VideoExplorer } from "./VideoExplorer";
 export type { VideoExplorerProps, VideoSampleSpec } from "./VideoExplorer";
 export { default as PipelineExplorer } from "./PipelineExplorer";
 export type { PipelineExplorerProps } from "./PipelineExplorer";
+export { default as GemmaExplorer } from "./GemmaExplorer";
+export type { GemmaExplorerProps } from "./GemmaExplorer";
 export { default as ToolLab } from "./ToolLab";
 export { default as RoundTripExplorer } from "./RoundTripExplorer";
 export { default as ConversionExplorer, GENERATIVE_TARGETS } from "./ConversionExplorer";

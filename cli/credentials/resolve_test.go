@@ -100,6 +100,21 @@ func TestResolveCredentials_AutoDetectMultiple(t *testing.T) {
 	assert.Contains(t, err.Error(), "multiple credentials")
 }
 
+func TestResolveCredentials_KeylessLocalProviders(t *testing.T) {
+	clearProviderEnv(t)
+	store := newTestStore(t) // empty: a remote provider would error here
+	for _, provider := range []string{"gemma", "ollama", "demo"} {
+		t.Run(provider, func(t *testing.T) {
+			config := map[string]any{"provider": provider}
+			got, err := ResolveCredentials(store, "ai-translate", []string{"credentials"}, config)
+			require.NoError(t, err, "keyless local provider must not require a credential")
+			assert.Equal(t, provider, got["provider"])
+			_, hasKey := got["apiKey"]
+			assert.False(t, hasKey, "no apiKey injected for keyless provider")
+		})
+	}
+}
+
 func TestMergeCredentials(t *testing.T) {
 	config := map[string]any{
 		"credential": "my-cred",

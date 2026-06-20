@@ -72,6 +72,15 @@ func forceDemoProviders(reg *registry.ToolRegistry) {
 		if config == nil {
 			config = map[string]any{}
 		}
+		// Explicit `--provider gemma` runs the real Gemma 4 model in-browser via
+		// the transformers.js bridge (gemma_bridge.go). Let it through untouched
+		// (drop only any stray key) so the demo coercion below does not override
+		// it. The model downloads on demand on the page, so this is opt-in — the
+		// default stays the keyless demo provider.
+		if prov, _ := config["provider"].(string); prov == string(aiprovider.Gemma) {
+			delete(config, "apiKey")
+			return config, nil
+		}
 		// A tool that requires credentials is provider-backed (AI/MT). Coerce it
 		// to the deterministic demo provider even when no provider was selected —
 		// which is the case inside a flow or recipe, where buildFlowTools omits

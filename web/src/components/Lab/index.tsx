@@ -28,6 +28,11 @@ const LazyVision = React.lazy(async () => {
   return { default: mod.VisionExplorer };
 });
 
+const LazyGemma = React.lazy(async () => {
+  const mod = await import("@neokapi/kapi-lab");
+  return { default: mod.GemmaExplorer };
+});
+
 const LazyMultimodalShowcase = React.lazy(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.MultimodalShowcase };
@@ -121,6 +126,29 @@ export function PdfExplorer(props: PdfExplorerProps): React.ReactElement {
           return (
             <Suspense fallback={<Loading />}>
               <LazyPdf assets={assets} {...props} />
+            </Suspense>
+          );
+        }
+        return <Inner />;
+      }}
+    </BrowserOnly>
+  );
+}
+
+export interface GemmaExplorerProps {
+  defaultText?: string;
+  defaultTargetLang?: string;
+}
+
+export function GemmaExplorer(props: GemmaExplorerProps): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => {
+        function Inner(): React.ReactElement {
+          const assets = useKapiPlaygroundConfig();
+          return (
+            <Suspense fallback={<Loading />}>
+              <LazyGemma assets={assets} {...props} />
             </Suspense>
           );
         }
