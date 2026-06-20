@@ -9,12 +9,12 @@
   },
   "dependencies": {
     "@react-email/components": "1.0.12",
-    "@react-email/render": "2.0.8",
+    "@react-email/render": "2.0.9",
     "react": "^19.2.7"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
-    "react-email": "6.6.0",
+    "react-email": "6.6.3",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   }
