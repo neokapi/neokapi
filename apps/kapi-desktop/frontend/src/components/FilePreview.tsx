@@ -8,8 +8,21 @@ import {
   SheetDescription,
 } from "@neokapi/ui-primitives";
 import { DocumentViewer } from "@neokapi/ui-primitives/preview";
-import type { ContentTree } from "@neokapi/ui-primitives/preview";
+import type { ContentTree, ContentNode } from "@neokapi/ui-primitives/preview";
 import { api } from "../hooks/useApi";
+
+// collectMediaNodes walks the tree for media nodes that carry a resolvable URI
+// (the image/audio/video readers emit the asset by URI). Each needs its bytes
+// served to the frontend before the DocumentViewer can render it.
+function collectMediaNodes(tree: ContentTree): ContentNode[] {
+  const out: ContentNode[] = [];
+  const walk = (n: ContentNode) => {
+    if (n.kind === "media" && n.media?.uri) out.push(n);
+    n.children?.forEach(walk);
+  };
+  tree.root.forEach(walk);
+  return out;
+}
 
 export interface FilePreviewProps {
   /** Tab ID of the open project (used for the inspect bindings). */
@@ -52,6 +65,8 @@ export function FilePreview({
   const [tree, setTree] = useState<ContentTree | null>(presetTree ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Backend-served data: URLs for the tree's media nodes, keyed by node id.
+  const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!filePath) return;
@@ -63,15 +78,32 @@ export function FilePreview({
     setLoading(true);
     setError(null);
     setTree(null);
+    setMediaUrls({});
     api
       .inspectFileAnnotated(tabID, filePath)
-      .then((json) => {
+      .then(async (json) => {
         if (cancelled) return;
         if (!json) {
           setError("Preview is unavailable in this environment.");
           return;
         }
-        setTree(JSON.parse(json) as ContentTree);
+        const parsed = JSON.parse(json) as ContentTree;
+        setTree(parsed);
+        // Serve each media node's bytes so the viewer can render image/audio/video.
+        const nodes = collectMediaNodes(parsed);
+        if (nodes.length > 0) {
+          const pairs = await Promise.all(
+            nodes.map(async (n) => {
+              const url = await api.mediaDataURL(n.media!.uri!);
+              return url ? ([n.id, url] as const) : null;
+            }),
+          );
+          if (!cancelled) {
+            setMediaUrls(
+              Object.fromEntries(pairs.filter((p): p is [string, string] => p !== null)),
+            );
+          }
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
@@ -109,7 +141,13 @@ export function FilePreview({
               {error}
             </div>
           )}
-          {!loading && !error && tree && <DocumentViewer tree={tree} filename={filename} />}
+          {!loading && !error && tree && (
+            <DocumentViewer
+              tree={tree}
+              filename={filename}
+              resolveMediaUrl={(node) => mediaUrls[node.id] ?? node.media?.uri}
+            />
+          )}
         </div>
       </SheetContent>
     </Sheet>

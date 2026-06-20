@@ -1344,6 +1344,19 @@ export function MatchContent(tabID) {
 }
 
 /**
+ * MediaDataURL reads a media file (image / audio / video) referenced by a content
+ * tree's media node and returns it as a base64 `data:` URL the frontend can put
+ * straight into an <img>/<audio>/<video> element. The desktop is a local working
+ * copy, so media is read directly from disk; `path` is the media node's URI as
+ * emitted by the image/audio/video readers (MediaView.uri in the ContentTree).
+ * @param {string} path
+ * @returns {$CancellablePromise<string>}
+ */
+export function MediaDataURL(path) {
+    return $Call.ByID(1870161853, path);
+}
+
+/**
  * NewProject creates a new project, saves it to disk, and opens it as a tab.
  * If savePath is empty, defaults to ~/KapiProjects/{name}/project.kapi.
  * The name is not stored in the YAML — the display name is derived from the

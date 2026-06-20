@@ -45,6 +45,16 @@ describe("useApi", () => {
     expect(api.checkPluginUpdates).toBeDefined();
   });
 
+  it("exposes inspect + media methods", () => {
+    expect(api.inspectFile).toBeDefined();
+    expect(api.inspectFileAnnotated).toBeDefined();
+    expect(api.mediaDataURL).toBeDefined();
+  });
+
+  it("mediaDataURL returns null without a Wails backend", async () => {
+    await expect(api.mediaDataURL("/tmp/x.png")).resolves.toBeNull();
+  });
+
   it("exposes all credential methods", () => {
     expect(api.listProviders).toBeDefined();
     expect(api.saveProvider).toBeDefined();

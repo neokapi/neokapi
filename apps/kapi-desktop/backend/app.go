@@ -1303,6 +1303,10 @@ func (a *App) RunFormatReader(formatName string, filePath string, config map[str
 	// yet (e.g. PDF via kapi-pdfium on a Linux/Windows desktop), fetch it from
 	// the registry now so the reader below resolves. No-op once installed.
 	a.ensureFormatPlugin(formatName)
+	// For media formats the in-core reader exists, but OCR/ASR/demux need the
+	// engine plugin (kapi-vision/asr/av) — install it on first open. No-op once
+	// the engine is available or for non-media formats.
+	a.ensureMediaEngine(formatName)
 
 	reader, err := a.formatReg.NewReader(registry.FormatID(formatName))
 	if err != nil {
