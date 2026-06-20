@@ -110,7 +110,7 @@ export default function ReferenceDetail({ entry }: Props) {
     if (!runOptions) return;
     // Defer the heavy kit import to browser context (openKapi is SSR-clean but
     // the dynamic import keeps the bundle split clean for SSR paths).
-    import("@neokapi/kapi-playground").then(({ openKapi }) => {
+    void import("@neokapi/kapi-playground").then(({ openKapi }) => {
       const opts = { ...runOptions };
       // Ensure the user's selected fixture is seeded.
       if (!opts.seed?.includes(selectedFixture)) {

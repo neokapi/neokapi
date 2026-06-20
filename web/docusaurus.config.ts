@@ -462,6 +462,13 @@ const config: Config = {
           ],
         },
         {
+          // Neokapi WebAssembly Lab status widget — engine + plugin state for
+          // this browser tab, with explicit per-plugin Download (custom type
+          // registered in src/theme/NavbarItem/ComponentTypes.tsx).
+          type: "custom-kapiStatus",
+          position: "right",
+        },
+        {
           type: "localeDropdown",
           position: "right",
         },
