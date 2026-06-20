@@ -8,12 +8,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
+	"unicode/utf8"
 
+	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	pluginreg "github.com/neokapi/neokapi/cli/pluginhost/registry"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 // NewPluginCmd creates the manifest-driven plugin command tree
@@ -293,7 +297,24 @@ func (a *App) newPluginSearchCmd() *cobra.Command {
 				return err
 			}
 			platform := pluginreg.PlatformKey()
-			for name, entry := range idx.Plugins {
+
+			// Sort by name for stable, scannable output (the index is a map).
+			names := make([]string, 0, len(idx.Plugins))
+			for name := range idx.Plugins {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+
+			// Word-wrap the description column to the terminal width with a
+			// hanging indent, so long descriptions don't break the layout. When
+			// output isn't a terminal (piped/redirected) descWidth is 0 and each
+			// description prints in full on one line.
+			const prefixWidth = 32 // "%-20s %-10s " → 20 + 1 + 10 + 1
+			descWidth := descriptionWidth(cmd.OutOrStdout(), prefixWidth)
+			indent := strings.Repeat(" ", prefixWidth)
+
+			for _, name := range names {
+				entry := idx.Plugins[name]
 				if query != "" && !strings.Contains(strings.ToLower(name), query) && !strings.Contains(strings.ToLower(entry.Description), query) {
 					continue
 				}
@@ -303,14 +324,19 @@ func (a *App) newPluginSearchCmd() *cobra.Command {
 						latest = v
 					}
 				}
-				line := fmt.Sprintf("%-20s %-10s %s", name, latest, entry.Description)
+				desc := entry.Description
 				// Flag plugins with no installable build for this OS/arch, mirroring
 				// the install path's resolution — so `install` won't fail with a raw
 				// "no version ... for platform" error after a misleading listing.
 				if _, _, err := idx.Resolve(name, "", "stable", version.Version); err != nil {
-					line += fmt.Sprintf("  (no build for %s)", platform)
+					desc += fmt.Sprintf(" (no build for %s)", platform)
 				}
-				fmt.Fprintln(cmd.OutOrStdout(), line)
+
+				wrapped := wrapText(desc, descWidth)
+				fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-10s %s\n", name, latest, wrapped[0])
+				for _, cont := range wrapped[1:] {
+					fmt.Fprintf(cmd.OutOrStdout(), "%s%s\n", indent, cont)
+				}
 			}
 			return nil
 		},
@@ -555,6 +581,59 @@ func writeDoctorReport(w io.Writer, p *pluginhost.Plugin, res doctorResult) {
 // (or the binary could not be run).
 func runSelfCheckProbe(ctx context.Context, binPath string) ([]byte, error) {
 	return exec.CommandContext(ctx, binPath, "doctor").CombinedOutput()
+}
+
+// descriptionWidth returns the width available for the wrapped description
+// column: the terminal width minus prefixWidth. It returns 0 when w is not a
+// terminal (piped/redirected output) or the width can't be determined, or when
+// the remaining column would be too narrow to wrap usefully — callers treat 0 as
+// "don't wrap, print the description in full on one line".
+func descriptionWidth(w io.Writer, prefixWidth int) int {
+	f, ok := w.(interface{ Fd() uintptr })
+	if !ok || !isatty.IsTerminal(f.Fd()) {
+		return 0
+	}
+	cols, _, err := term.GetSize(int(f.Fd()))
+	if err != nil {
+		return 0
+	}
+	avail := cols - prefixWidth
+	if avail < 24 { // too narrow to wrap into; print full lines instead
+		return 0
+	}
+	return avail
+}
+
+// wrapText word-wraps s into lines no wider than width runes, breaking only at
+// spaces. A width of 0 (or a single word longer than width) yields the text
+// unbroken. It always returns at least one line.
+func wrapText(s string, width int) []string {
+	if width <= 0 {
+		return []string{s}
+	}
+	var lines []string
+	var line string
+	lineLen := 0
+	for _, word := range strings.Fields(s) {
+		wl := utf8.RuneCountInString(word)
+		switch {
+		case lineLen == 0:
+			line, lineLen = word, wl
+		case lineLen+1+wl > width:
+			lines = append(lines, line)
+			line, lineLen = word, wl
+		default:
+			line += " " + word
+			lineLen += 1 + wl
+		}
+	}
+	if line != "" {
+		lines = append(lines, line)
+	}
+	if len(lines) == 0 {
+		return []string{""}
+	}
+	return lines
 }
 
 // parsePluginRef splits "name@^1.0" → ("name", "^1.0").
