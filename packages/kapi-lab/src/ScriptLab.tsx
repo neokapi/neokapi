@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
@@ -54,7 +56,8 @@ export default function ScriptLab({
   defaultSampleId,
   sampleIds,
 }: ScriptLabProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
 
   const initial = SAMPLES.find((s) => s.id === defaultSampleId) ?? SAMPLES[0];
   const [file, setFile] = useState<FileSourceValue>({
@@ -110,6 +113,15 @@ export default function ScriptLab({
     ? Object.values(trace.parts).filter((ss) => ss.initial.type === "Block").length
     : 0;
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="Script lab"
+        description="Author and run a kapi flow script in the browser."
+      />
+    );
+  }
   return (
     <div className={shared.explorer}>
       <FileSource value={file} onChange={setFile} sampleIds={sampleIds} />

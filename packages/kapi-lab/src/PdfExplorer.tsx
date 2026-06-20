@@ -5,6 +5,8 @@ import ActiveFileSwitcher from "./ActiveFileSwitcher";
 import FileSelectorField from "./FileSelectorField";
 import { resolveSelection, useFileLibrary, type FileSelection } from "./fileLibrary";
 import { useLabRuntime, type LabRuntimeAssets } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 
 /** A bundled sample PDF the explorer fetches and seeds on first load. */
 export interface PdfSampleSpec {
@@ -40,7 +42,8 @@ export default function PdfExplorer({
   sampleName,
   samples,
 }: PdfExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
   const library = useFileLibrary({ sampleIds: [] }); // no text samples; we seed PDFs
 
   const [selection, setSelection] = useState<FileSelection>({ mode: "multi", paths: [] });
@@ -118,6 +121,15 @@ export default function PdfExplorer({
     };
   }, [runtime.ready, runtime.inspect, file?.path, file?.changedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="PDF extraction"
+        description="Extract text and geometry from a PDF with PDFium in your browser."
+      />
+    );
+  }
   return (
     <div className="kapi-reference flex flex-col gap-3 text-foreground">
       <FileSelectorField

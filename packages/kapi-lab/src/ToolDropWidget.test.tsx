@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import ToolDropWidget, { parseWordCountStat } from "./ToolDropWidget";
 import PseudoTranslateWidget from "./PseudoTranslateWidget";
 import StatsWidget from "./StatsWidget";
@@ -77,7 +77,11 @@ describe("parseWordCountStat", () => {
 // ── Idle render (assets=null → no WASM boot) ─────────────────────────────────
 
 describe("ToolDropWidget (idle)", () => {
-  it("renders the drop-zone and sample chips without booting WASM", () => {
+  // The lab gates work behind an explicit Run; assets=null means pressing Run
+  // arms the gate (revealing the body) without actually booting WASM.
+  const pressRun = () => fireEvent.click(screen.getByRole("button", { name: /run/i }));
+
+  it("gates the widget behind an explicit Run (nothing on page load)", () => {
     render(
       <ToolDropWidget
         assets={null}
@@ -86,6 +90,20 @@ describe("ToolDropWidget (idle)", () => {
         autoRun={false}
       />,
     );
+    expect(screen.getByRole("button", { name: /run/i })).toBeTruthy();
+    expect(screen.queryByText(/Drop or choose a file/i)).toBeNull();
+  });
+
+  it("renders the drop-zone and sample chips after Run, without booting WASM", () => {
+    render(
+      <ToolDropWidget
+        assets={null}
+        tool="pseudo-translate"
+        buildArgv={(i, o) => ["pseudo-translate", i, "-o", o]}
+        autoRun={false}
+      />,
+    );
+    pressRun();
     expect(screen.getByText(/Drop or choose a file/i)).toBeTruthy();
     expect(screen.getByText(/Try a sample/i)).toBeTruthy();
     // Both hero samples are offered as chips. "messages.json" also appears in the
@@ -105,6 +123,7 @@ describe("ToolDropWidget (idle)", () => {
         autoRun={false}
       />,
     );
+    pressRun();
     expect(screen.getAllByText("messages.json").length).toBeGreaterThan(0);
     expect(screen.queryByText("welcome.docx")).toBeNull();
   });
@@ -113,13 +132,17 @@ describe("ToolDropWidget (idle)", () => {
 // ── Variants render at idle ──────────────────────────────────────────────────
 
 describe("per-tool variants (idle)", () => {
-  it("PseudoTranslateWidget renders", () => {
+  const pressRun = () => fireEvent.click(screen.getByRole("button", { name: /run/i }));
+
+  it("PseudoTranslateWidget renders after Run", () => {
     render(<PseudoTranslateWidget assets={null} />);
+    pressRun();
     expect(screen.getByText(/Try a sample/i)).toBeTruthy();
   });
 
-  it("StatsWidget renders", () => {
+  it("StatsWidget renders after Run", () => {
     render(<StatsWidget assets={null} />);
+    pressRun();
     expect(screen.getByText(/Try a sample/i)).toBeTruthy();
   });
 

@@ -4,6 +4,8 @@ import { CodeView } from "@neokapi/ui-primitives/preview";
 // CodeView's highlight languages (mirrors ui-primitives highlight.Lang).
 type Lang = "json" | "xml" | "yaml" | "properties" | "po" | "markdown" | "csv" | "text";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
@@ -104,7 +106,8 @@ export default function ConversionExplorer({
   sampleIds,
   defaultTarget,
 }: ConversionExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
   const offered = sampleIds ?? DEFAULT_SAMPLE_IDS;
 
   const initial =
@@ -211,6 +214,15 @@ export default function ConversionExplorer({
     if (runtime.ready) void runConversion();
   }, [runtime.ready, runConversion]);
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="File conversion"
+        description="Convert a document from one format to another."
+      />
+    );
+  }
   return (
     <div className={shared.explorer}>
       <div className={styles.controls}>

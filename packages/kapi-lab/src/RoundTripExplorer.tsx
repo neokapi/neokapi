@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
@@ -28,7 +30,8 @@ export default function RoundTripExplorer({
   defaultSampleId,
   sampleIds,
 }: RoundTripExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
 
   const initial = SAMPLES.find((s) => s.id === defaultSampleId) ?? SAMPLES[0];
   const [file, setFile] = useState<FileSourceValue>({
@@ -80,6 +83,15 @@ export default function RoundTripExplorer({
     if (runtime.ready) void runRoundTrip();
   }, [runtime.ready, runRoundTrip]);
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="Round-trip"
+        description="Read, translate and write a file back, all in the browser."
+      />
+    );
+  }
   return (
     <div className={shared.explorer}>
       <FileSource value={file} onChange={setFile} sampleIds={sampleIds} />

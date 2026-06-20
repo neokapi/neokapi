@@ -7,6 +7,8 @@ import {
 } from "@neokapi/kapi-format";
 import type { AnnotationAnchor, Block, File, Run } from "@neokapi/kapi-format";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntime, LabRuntimeAssets } from "./useLabRuntime";
 import {
   emailBody,
@@ -57,7 +59,8 @@ interface CaseResult {
 // canonical Go engine only (the TypeScript mirror does not expose an identical
 // API surface for those), and are labelled accordingly.
 export default function KlfConformance({ assets }: KlfConformanceProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
   const [results, setResults] = useState<CaseResult[] | null>(null);
   const [running, setRunning] = useState(false);
 
@@ -100,6 +103,15 @@ export default function KlfConformance({ assets }: KlfConformanceProps): React.R
   const dual = results?.filter((r) => r.agree != null) ?? [];
   const agreed = dual.filter((r) => r.agree).length;
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="KLF conformance"
+        description="Run the KLF conformance suite in your browser."
+      />
+    );
+  }
   return (
     <div className={styles.lab}>
       <div className={styles.summary}>

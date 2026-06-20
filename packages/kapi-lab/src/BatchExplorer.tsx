@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Play } from "lucide-react";
 import { Button, ToggleGroup, ToggleGroupItem } from "@neokapi/ui-primitives";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import { useFileLibrary, resolveSelection } from "./fileLibrary";
 import type { FileSelection } from "./fileLibrary";
@@ -46,7 +48,8 @@ export default function BatchExplorer({
   sampleIds,
   defaultPattern = "*.json",
 }: BatchExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
   const library = useFileLibrary({ sampleIds });
   const [selection, setSelection] = useState<FileSelection>({
     mode: "glob",
@@ -102,6 +105,9 @@ export default function BatchExplorer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runtime.ready]);
 
+  if (!gate.armed) {
+    return <RunGate gate={gate} title="Batch" description="Run a tool across a batch of files." />;
+  }
   return (
     <div className="kapi-reference flex flex-col gap-3 text-foreground">
       <div className="flex flex-wrap items-end gap-3">

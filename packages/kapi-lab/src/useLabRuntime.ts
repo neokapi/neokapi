@@ -44,8 +44,9 @@ const noop = () => {};
 export interface UseLabRuntimeOptions {
   /**
    * Boot the engine immediately on mount. Labs that gate work behind an explicit
-   * Run pass `false` and call {@link LabRuntime.boot} from the Run action, so
-   * nothing is fetched on page load. Defaults to `true` for back-compat.
+   * Run pass `false` (the default) and call {@link LabRuntime.boot} from the Run
+   * action — usually via {@link useRunGate}/`RunGate` — so nothing is fetched on
+   * page load. Stories/tests/embeds that want the lab live on mount pass `true`.
    */
   autoBoot?: boolean;
 }
@@ -122,7 +123,7 @@ export function useLabRuntime(
   assets: LabRuntimeAssets | null,
   opts: UseLabRuntimeOptions = {},
 ): LabRuntime {
-  const autoBoot = opts.autoBoot ?? true;
+  const autoBoot = opts.autoBoot ?? false;
   const [status, setStatus] = useState<LabStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [bootProgress, setBootProgress] = useState<BootProgress | null>(null);
