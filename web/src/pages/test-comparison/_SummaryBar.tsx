@@ -225,7 +225,10 @@ export default function SummaryBar({
               <div className={`${styles.statValue} ${styles.statGreen}`}>{stats.implemented}</div>
               <div className={styles.statLabel}>Implemented</div>
             </div>
-            <div className={styles.statCard} title="Share of Okapi tests that are accounted for: mapped to a native test, in progress, or reviewed as not-applicable (i.e. not a bare gap).">
+            <div
+              className={styles.statCard}
+              title="Share of Okapi tests that are accounted for: mapped to a native test, in progress, or reviewed as not-applicable (i.e. not a bare gap)."
+            >
               <div className={`${styles.statValue} ${styles.statGreen}`}>
                 {stats.total > 0
                   ? `${(((stats.total - stats.unmapped) / stats.total) * 100).toFixed(1)}%`

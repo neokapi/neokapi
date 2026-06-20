@@ -72,33 +72,21 @@ function StatColumn({ result }: { result: FilterResult | null }) {
           </>
         ) : (
           <>
-            <span
-              className="badge badge--success"
-              title={`${result.passed} passed`}
-            >
+            <span className="badge badge--success" title={`${result.passed} passed`}>
               {result.passed}
             </span>
             {result.failed > 0 && (
-              <span
-                className="badge badge--danger"
-                title={`${result.failed} failed`}
-              >
+              <span className="badge badge--danger" title={`${result.failed} failed`}>
                 {result.failed}
               </span>
             )}
             {result.errors > 0 && (
-              <span
-                className="badge badge--danger"
-                title={`${result.errors} errors`}
-              >
+              <span className="badge badge--danger" title={`${result.errors} errors`}>
                 {result.errors} err
               </span>
             )}
             {result.skipped > 0 && (
-              <span
-                className="badge badge--warning"
-                title={`${result.skipped} skipped`}
-              >
+              <span className="badge badge--warning" title={`${result.skipped} skipped`}>
                 {result.skipped}
               </span>
             )}
@@ -113,10 +101,7 @@ function StatColumn({ result }: { result: FilterResult | null }) {
           {hasFuncs ? (
             <>
               {result.funcs}
-              <span
-                className={styles.subtestCount}
-                title={`${result.total} including subtests`}
-              >
+              <span className={styles.subtestCount} title={`${result.total} including subtests`}>
                 ({result.total})
               </span>
             </>
@@ -163,10 +148,7 @@ function CoverageBar({ filter }: { filter: FilterComparison }) {
     return (
       <div className={styles.coverageMini}>
         <div className={styles.coverageMiniBar}>
-          <div
-            className={styles.coverageMiniBarFill}
-            style={{ width: `${Math.min(pct, 100)}%` }}
-          />
+          <div className={styles.coverageMiniBarFill} style={{ width: `${Math.min(pct, 100)}%` }} />
         </div>
         <span className={styles.coverageMiniLabel}>{pct.toFixed(0)}%</span>
       </div>
@@ -261,9 +243,7 @@ export default function FilterCard({
             </span>
           )}
           <CoverageBar filter={filter} />
-          <span className={styles.expandIcon}>
-            {expanded ? "\u25BE" : "\u25B8"}
-          </span>
+          <span className={styles.expandIcon}>{expanded ? "\u25BE" : "\u25B8"}</span>
         </div>
         <div className={styles.filterHeaderRight}>
           <StatColumn result={filter.okapi} />

@@ -56,9 +56,7 @@ const LazyExplorer = React.lazy(async () => {
               <FileText size={15} aria-hidden="true" />
               Loose files (ad-hoc)
             </h2>
-            <p className="kapi-pgx__group-sub">
-              One file. Run a single command against it.
-            </p>
+            <p className="kapi-pgx__group-sub">One file. Run a single command against it.</p>
             <ul className="kapi-pgx__list">
               {LOOSE_SAMPLES.map((s) => (
                 <li key={s.id}>

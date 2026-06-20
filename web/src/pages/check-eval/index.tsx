@@ -116,7 +116,9 @@ export default function CheckEval(): ReactElement {
                 minWidth: 120,
               }}
             >
-              <div style={{ fontSize: "0.8rem", color: "var(--ifm-color-emphasis-600)" }}>{s.k}</div>
+              <div style={{ fontSize: "0.8rem", color: "var(--ifm-color-emphasis-600)" }}>
+                {s.k}
+              </div>
               <div
                 style={{
                   fontSize: "1.5rem",
@@ -196,8 +198,8 @@ export default function CheckEval(): ReactElement {
         </table>
         <p style={{ fontSize: "0.85rem", color: "var(--ifm-color-emphasis-600)" }}>
           The <strong>Score</strong> column is the rolled-up compliance score (0–100) for the case.
-          Calibrated cases pin this value, so a change to the severity weights (neutral 0 / minor 1 /
-          major 5 / critical 25) or to a checker&rsquo;s severity choice is caught as score drift,
+          Calibrated cases pin this value, so a change to the severity weights (neutral 0 / minor 1
+          / major 5 / critical 25) or to a checker&rsquo;s severity choice is caught as score drift,
           not just a finding change (issue #758).
         </p>
 
@@ -208,11 +210,11 @@ export default function CheckEval(): ReactElement {
               The loop&rsquo;s premise is that a correction made repeatedly should become a check
               that catches the mistake. This measures exactly that: a simulated correction stream is
               aggregated and promoted through the real promotion path, then the resulting brand
-              check is run on every correction&rsquo;s original (the off-brand phrasing the team kept
-              fixing) and its corrected form. A promoted rule must <strong>flag the original</strong>{" "}
-              and <strong>never flag the fix</strong>; a below-threshold correction must stay silent.
-              Swap the simulated stream for an export of a real workspace&rsquo;s corrections to track
-              the loop on live data.
+              check is run on every correction&rsquo;s original (the off-brand phrasing the team
+              kept fixing) and its corrected form. A promoted rule must{" "}
+              <strong>flag the original</strong> and <strong>never flag the fix</strong>; a
+              below-threshold correction must stay silent. Swap the simulated stream for an export
+              of a real workspace&rsquo;s corrections to track the loop on live data.
             </p>
             <div style={{ display: "flex", gap: 16, margin: "1rem 0", flexWrap: "wrap" }}>
               {[
@@ -235,7 +237,11 @@ export default function CheckEval(): ReactElement {
                     {s.k}
                   </div>
                   <div
-                    style={{ fontSize: "1.4rem", fontWeight: 700, color: s.bad ? "#d65a5a" : undefined }}
+                    style={{
+                      fontSize: "1.4rem",
+                      fontWeight: 700,
+                      color: s.bad ? "#d65a5a" : undefined,
+                    }}
                   >
                     {s.v}
                   </div>
@@ -260,7 +266,9 @@ export default function CheckEval(): ReactElement {
                     </td>
                     <td style={cell}>{c.count}&times;</td>
                     <td style={left}>{c.promoted ? "yes" : "below threshold"}</td>
-                    <td style={left}>{c.promoted ? (c.original_flagged ? "✓" : "✗ missed") : "—"}</td>
+                    <td style={left}>
+                      {c.promoted ? (c.original_flagged ? "✓" : "✗ missed") : "—"}
+                    </td>
                     <td style={{ ...left, color: c.corrected_flagged ? "#d65a5a" : undefined }}>
                       {c.corrected_flagged ? "✗ over-flagged" : "✓"}
                     </td>
@@ -273,14 +281,14 @@ export default function CheckEval(): ReactElement {
 
         <h2>How this grows</h2>
         <p>
-          The seed corpus is small and gold-labeled, so the deterministic checks score a perfect
-          F1 and any regression is caught immediately. The plan (issue #759) extends it with public
+          The seed corpus is small and gold-labeled, so the deterministic checks score a perfect F1
+          and any regression is caught immediately. The plan (issue #759) extends it with public
           datasets (XFORMAL for formality, MQM-annotated MT, a placeholder/DNT error set) and, most
-          importantly, with a real <strong>correction stream</strong>: every human correction
-          is a labeled example — the check should have flagged the original and should not flag the
-          fix — so the eval set, and the calibration of thresholds like <code>--voice-min</code>,
-          improve precisely where real content exercises them. Calibration curves and the ML proxy
-          checks are tracked next.
+          importantly, with a real <strong>correction stream</strong>: every human correction is a
+          labeled example — the check should have flagged the original and should not flag the fix —
+          so the eval set, and the calibration of thresholds like <code>--voice-min</code>, improve
+          precisely where real content exercises them. Calibration curves and the ML proxy checks
+          are tracked next.
         </p>
       </main>
     </Layout>

@@ -37,16 +37,14 @@ const ENGINES: {
     id: "hybrid",
     label: "Hybrid",
     needsICU: true,
-    title:
-      "ICU4X UAX-29 base + SRX exceptions — how neokapi segments natively (Okapi-compatible)",
+    title: "ICU4X UAX-29 base + SRX exceptions — how neokapi segments natively (Okapi-compatible)",
   },
   {
     id: "sat",
     label: "SaT (ML plugin)",
     needsICU: false,
     nativeOnly: true,
-    title:
-      "wtpsplit ML model via the kapi-sat plugin — native only, not available in the browser",
+    title: "wtpsplit ML model via the kapi-sat plugin — native only, not available in the browser",
   },
 ];
 
@@ -76,10 +74,7 @@ export default function SegmentationPreviewInner({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const selected = useMemo(
-    () => resolveSelection(selection, library),
-    [selection, library],
-  );
+  const selected = useMemo(() => resolveSelection(selection, library), [selection, library]);
   const file = useMemo(
     () => selected.find((f) => f.path === activePath) ?? selected[0],
     [selected, activePath],
@@ -125,13 +120,7 @@ export default function SegmentationPreviewInner({
     return () => {
       cancelled = true;
     };
-  }, [
-    runtime.ready,
-    runtime.inspectAnnotated,
-    file?.path,
-    file?.changedAt,
-    engine,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [runtime.ready, runtime.inspectAnnotated, file?.path, file?.changedAt, engine]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="kapi-reference flex flex-col gap-3 text-foreground">
@@ -142,11 +131,7 @@ export default function SegmentationPreviewInner({
         onSelectionChange={setSelection}
         sampleIds={sampleIds}
       />
-      <ActiveFileSwitcher
-        files={selected}
-        activePath={file?.path}
-        onChange={setActivePath}
-      />
+      <ActiveFileSwitcher files={selected} activePath={file?.path} onChange={setActivePath} />
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-muted-foreground">Engine</span>
@@ -177,25 +162,16 @@ export default function SegmentationPreviewInner({
       </div>
 
       <div
-        className={cn(
-          "min-h-[1.4rem] text-sm text-muted-foreground",
-          error && "text-destructive",
-        )}
+        className={cn("min-h-[1.4rem] text-sm text-muted-foreground", error && "text-destructive")}
       >
-        {runtime.status === "booting" &&
-          "Booting kapi (first run downloads ~13 MB)…"}
+        {runtime.status === "booting" && "Booting kapi (first run downloads ~13 MB)…"}
         {runtime.status === "error" && `Failed to start: ${runtime.error}`}
         {runtime.ready && busy && "Segmenting…"}
         {runtime.ready && !busy && error && `Error: ${error}`}
       </div>
 
       {tree && file && (
-        <DocumentViewer
-          tree={tree}
-          filename={file.name}
-          bytes={file.bytes}
-          defaultTab="blocks"
-        />
+        <DocumentViewer tree={tree} filename={file.name} bytes={file.bytes} defaultTab="blocks" />
       )}
     </div>
   );

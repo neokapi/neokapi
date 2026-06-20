@@ -20,13 +20,11 @@ export default function KlfLabPage(): React.ReactElement {
         <div className={styles.hero}>
           <h1>KLF Lab</h1>
           <p className={styles.lede}>
-            Edit a <Link to="/reference/klf/spec">.klf</Link> document below and
-            watch the real <code>core/klf</code> engine — compiled to
-            WebAssembly — work on it live: it canonicalizes the bytes, renders
-            each block to its preview, validates the run structure, and resolves
-            a companion <code>.klfl</code> annotation overlay anchor by anchor.
-            Nothing is mocked; this is the same engine the{" "}
-            <Link to="/playground-cli">kapi CLI</Link> runs.
+            Edit a <Link to="/reference/klf/spec">.klf</Link> document below and watch the real{" "}
+            <code>core/klf</code> engine — compiled to WebAssembly — work on it live: it
+            canonicalizes the bytes, renders each block to its preview, validates the run structure,
+            and resolves a companion <code>.klfl</code> annotation overlay anchor by anchor. Nothing
+            is mocked; this is the same engine the <Link to="/playground-cli">kapi CLI</Link> runs.
           </p>
         </div>
 
@@ -36,9 +34,8 @@ export default function KlfLabPage(): React.ReactElement {
 
         <p className={styles.footnote}>
           Want to see the two reference implementations agree? The{" "}
-          <Link to="/klf-tests">KLF conformance suite</Link> runs the spec tests
-          against both the Go engine and the TypeScript mirror in your browser.
-          For the full schema, see the{" "}
+          <Link to="/klf-tests">KLF conformance suite</Link> runs the spec tests against both the Go
+          engine and the TypeScript mirror in your browser. For the full schema, see the{" "}
           <Link to="/reference/klf/spec">specification</Link>.
         </p>
       </main>

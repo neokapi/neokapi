@@ -296,5 +296,9 @@ export interface KapiGuidedEmbedProps {
 export default function KapiGuidedEmbed({ id }: KapiGuidedEmbedProps): React.ReactElement {
   // The launcher itself is light, but it must stay client-only because the modal
   // it lazy-loads (and the wasm config hook) are browser-only.
-  return <BrowserOnly fallback={<p>Loading the walkthrough…</p>}>{() => <GuidedById id={id} />}</BrowserOnly>;
+  return (
+    <BrowserOnly fallback={<p>Loading the walkthrough…</p>}>
+      {() => <GuidedById id={id} />}
+    </BrowserOnly>
+  );
 }

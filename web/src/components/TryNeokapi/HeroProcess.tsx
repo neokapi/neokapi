@@ -128,10 +128,7 @@ export default function HeroProcess({ onOpen }: HeroProcessProps): React.ReactEl
             <span className={styles.deckBackFar} aria-hidden="true" />
             <span className={styles.deckBackNear} aria-hidden="true" />
             <div
-              className={clsx(
-                styles.heroStage,
-                shownStage.key === "read" && styles.heroStageRead,
-              )}
+              className={clsx(styles.heroStage, shownStage.key === "read" && styles.heroStageRead)}
             >
               <span className={styles.deckLabel} aria-hidden="true">
                 <span className={styles.deckLabelLocale}>{stageLocale}</span>/{HERO_FILENAME}

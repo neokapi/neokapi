@@ -52,15 +52,23 @@ function PluginRow({
         <div className={styles.rowDesc}>{d.description}</div>
       </div>
       <div className={styles.rowControl}>
-        {st.phase === "ready" && <span className={`${styles.dot} ${styles.dotReady}`} aria-label="loaded" />}
-        {unavailable && <span className={`${styles.dot} ${styles.dotHollow}`} aria-label="unavailable" />}
+        {st.phase === "ready" && (
+          <span className={`${styles.dot} ${styles.dotReady}`} aria-label="loaded" />
+        )}
+        {unavailable && (
+          <span className={`${styles.dot} ${styles.dotHollow}`} aria-label="unavailable" />
+        )}
         {st.phase === "idle" && (
           <button type="button" className={styles.downloadBtn} onClick={onDownload}>
             Download
           </button>
         )}
         {st.phase === "error" && (
-          <button type="button" className={`${styles.downloadBtn} ${styles.retryBtn}`} onClick={onDownload}>
+          <button
+            type="button"
+            className={`${styles.downloadBtn} ${styles.retryBtn}`}
+            onClick={onDownload}
+          >
             Retry
           </button>
         )}
@@ -143,7 +151,11 @@ export default function StatusWidget(): React.ReactElement {
           <span className={styles.pillSub}>WebAssembly Lab</span>
         </span>
         <span className={`${styles.dot} ${engineDotClass(engine)}`} />
-        {total > 0 && ready > 0 && <span className={styles.count}>{ready}/{total}</span>}
+        {total > 0 && ready > 0 && (
+          <span className={styles.count}>
+            {ready}/{total}
+          </span>
+        )}
         <span className={`${styles.chevron} ${open ? styles.chevronOpen : ""}`} aria-hidden>
           ⌄
         </span>
@@ -157,15 +169,24 @@ export default function StatusWidget(): React.ReactElement {
               <div className={styles.panelTitle}>Neokapi</div>
               <div className={styles.panelSub}>WebAssembly Lab</div>
             </div>
-            <span className={`${styles.dot} ${engineDotClass(engine)}`} title={`engine: ${engine.phase}`} />
+            <span
+              className={`${styles.dot} ${engineDotClass(engine)}`}
+              title={`engine: ${engine.phase}`}
+            />
           </div>
 
           <div className={styles.engineLine}>
             {engine.phase === "ready" && <span>Engine ready</span>}
             {engine.phase === "booting" && <span>Booting engine…</span>}
-            {engine.phase === "error" && <span className={styles.engineErr}>Engine error: {engine.error}</span>}
+            {engine.phase === "error" && (
+              <span className={styles.engineErr}>Engine error: {engine.error}</span>
+            )}
             {engine.phase === "idle" && (
-              <button type="button" className={styles.bootBtn} onClick={() => void mgr.bootEngine()}>
+              <button
+                type="button"
+                className={styles.bootBtn}
+                onClick={() => void mgr.bootEngine()}
+              >
                 Boot engine
               </button>
             )}

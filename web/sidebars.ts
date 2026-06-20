@@ -58,7 +58,14 @@ const sidebars: SidebarsConfig = {
       label: "Kapi Desktop",
       collapsible: false,
       className: "sidebar-section-heading",
-      items: [{ type: "doc", id: "kapi/desktop/overview", label: "Overview", key: "kapi-desktop-overview" }],
+      items: [
+        {
+          type: "doc",
+          id: "kapi/desktop/overview",
+          label: "Overview",
+          key: "kapi-desktop-overview",
+        },
+      ],
     },
   ],
 
@@ -164,7 +171,13 @@ const sidebars: SidebarsConfig = {
     },
   ],
 
-  toolboxSidebar: ["toolbox/overview", "toolbox/kgrep", "toolbox/ksed", "toolbox/kcat", "toolbox/kconv"],
+  toolboxSidebar: [
+    "toolbox/overview",
+    "toolbox/kgrep",
+    "toolbox/ksed",
+    "toolbox/kcat",
+    "toolbox/kconv",
+  ],
 
   reactSidebar: [
     "react/introduction",

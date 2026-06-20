@@ -217,8 +217,8 @@ function VerificationBanner({ experiments }: { experiments: Experiment[] }) {
     <div className={styles.verifyBanner}>
       <strong>⚠ Verification warning:</strong>{" "}
       {flagged.length === 1 ? "One engine" : `${flagged.length} engines`} succeeded on most files
-      but produced output with zero pseudo-translated runes. The timings for these engines
-      benchmark silent no-ops, not real pseudo work:
+      but produced output with zero pseudo-translated runes. The timings for these engines benchmark
+      silent no-ops, not real pseudo work:
       <ul>
         {flagged.map((r) => (
           <li key={r.engine}>

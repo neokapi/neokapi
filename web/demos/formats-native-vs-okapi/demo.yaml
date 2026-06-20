@@ -10,4 +10,4 @@ summary: >-
   built-in native reader and through the okapi-bridge okf_html filter. Same
   translatable content; kapi reads and writes the format either way.
 expect:
-  both_ok: true   # each reader extracts content and round-trips the asset
+  both_ok: true # each reader extracts content and round-trips the asset

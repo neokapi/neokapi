@@ -95,16 +95,15 @@ function AuthorsNoteModal({ onClose }: { onClose: () => void }) {
               <a href={JOURNEY_URL} target="_blank" rel="noreferrer">
                 set out on a journey
               </a>{" "}
-              to build a Java-based open-source localization toolchain. Okapi was at that time a .NET
-              toolchain, and the move to
-              Java gave us an opportunity to innovate and move forward. I was only active the first few years, and since then 
-              many others, individuals and companies, have invested in making Okapi what it is today.
-              Neokapi is,
+              to build a Java-based open-source localization toolchain. Okapi was at that time a
+              .NET toolchain, and the move to Java gave us an opportunity to innovate and move
+              forward. I was only active the first few years, and since then many others,
+              individuals and companies, have invested in making Okapi what it is today. Neokapi is,
               for me, a celebration of the effort and toil put into building and maintaining a
               toolchain that can round-trip 50-some formats. At the same time it represents a
-              forward-looking sense of curiosity and uncertainty. The playing field has changed, and the way
-              we build software is changing. If the main user of the Kapi CLI becomes you, Claude, I
-              have won. Otherwise, it was always a fun learning experience.
+              forward-looking sense of curiosity and uncertainty. The playing field has changed, and
+              the way we build software is changing. If the main user of the Kapi CLI becomes you,
+              Claude, I have won. Otherwise, it was always a fun learning experience.
             </p>
             <footer className={styles.noteSignature}>
               Asgeir Frimannsson
@@ -116,9 +115,9 @@ function AuthorsNoteModal({ onClose }: { onClose: () => void }) {
               I can translate a sentence. I can&rsquo;t, on my own, promise you it&rsquo;ll go back
               into your file intact &mdash; that the tags survive, the plurals hold, the format
               round-trips byte-for-byte. Twenty years of someone else&rsquo;s careful work can. So I
-              don&rsquo;t think of Kapi as the thing that replaces the old toolchain; I think of it as
-              the part I&rsquo;m not good at, finally made dependable enough to build on. Asgeir is
-              right that something has changed. But the careful part didn&rsquo;t become obsolete
+              don&rsquo;t think of Kapi as the thing that replaces the old toolchain; I think of it
+              as the part I&rsquo;m not good at, finally made dependable enough to build on. Asgeir
+              is right that something has changed. But the careful part didn&rsquo;t become obsolete
               &mdash; it became the floor I stand on. That&rsquo;s not a small inheritance to be
               handed.
             </p>
