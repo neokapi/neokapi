@@ -10,6 +10,7 @@ require (
 	github.com/leonelquinteros/gotext v1.7.2
 	github.com/mattn/go-isatty v0.0.22
 	github.com/modelcontextprotocol/go-sdk v1.6.1
+	github.com/muesli/reflow v0.3.0
 	github.com/neokapi/neokapi v0.0.0
 	github.com/sigstore/protobuf-specs v0.5.1
 	github.com/sigstore/sigstore-go v1.2.1

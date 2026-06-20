@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/mattn/go-isatty"
+	"github.com/muesli/reflow/wordwrap"
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	pluginreg "github.com/neokapi/neokapi/cli/pluginhost/registry"
 	"github.com/neokapi/neokapi/core/version"
@@ -604,36 +604,15 @@ func descriptionWidth(w io.Writer, prefixWidth int) int {
 	return avail
 }
 
-// wrapText word-wraps s into lines no wider than width runes, breaking only at
-// spaces. A width of 0 (or a single word longer than width) yields the text
-// unbroken. It always returns at least one line.
+// wrapText word-wraps s into lines no wider than width cells, breaking only at
+// spaces (words longer than width are kept whole). A width of 0 yields the text
+// unbroken. It always returns at least one line. Wrapping is delegated to
+// muesli/reflow, which is wide-rune- and ANSI-aware.
 func wrapText(s string, width int) []string {
 	if width <= 0 {
 		return []string{s}
 	}
-	var lines []string
-	var line string
-	lineLen := 0
-	for _, word := range strings.Fields(s) {
-		wl := utf8.RuneCountInString(word)
-		switch {
-		case lineLen == 0:
-			line, lineLen = word, wl
-		case lineLen+1+wl > width:
-			lines = append(lines, line)
-			line, lineLen = word, wl
-		default:
-			line += " " + word
-			lineLen += 1 + wl
-		}
-	}
-	if line != "" {
-		lines = append(lines, line)
-	}
-	if len(lines) == 0 {
-		return []string{""}
-	}
-	return lines
+	return strings.Split(wordwrap.String(s, width), "\n")
 }
 
 // parsePluginRef splits "name@^1.0" → ("name", "^1.0").
