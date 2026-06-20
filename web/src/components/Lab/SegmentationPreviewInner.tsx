@@ -41,13 +41,9 @@ const ENGINES: {
     needsICU: true,
     title: "ICU4X UAX-29 base + SRX exceptions — how neokapi segments natively (Okapi-compatible)",
   },
-  {
-    id: "sat",
-    label: "SaT (ML plugin)",
-    needsICU: false,
-    nativeOnly: true,
-    title: "wtpsplit ML model via the kapi-sat plugin — native only, not available in the browser",
-  },
+  // SaT (the wtpsplit ML model) and LLM segmentation run in the separate
+  // ML & LLM compare section below — they segment off-engine in the browser
+  // (onnxruntime-web / Gemma), not through the wasm engine's inspect path.
 ];
 
 // SegmentationPreviewInner segments a real document in the browser and shows the

@@ -73,6 +73,7 @@ export {
   uninstallGemmaBridge,
   isGemmaModelLoaded,
   ensureGemma,
+  generateGemmaText,
   runGemmaImageOCR,
 } from "./gemmaBridge";
 export type { InstallGemmaOptions, GemmaProgress, GemmaResult } from "./gemmaBridge";

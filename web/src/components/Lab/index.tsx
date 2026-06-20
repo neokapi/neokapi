@@ -52,6 +52,10 @@ const LazyVideo = React.lazy(async () => {
 // `icu` package for the browser UAX-29 option, kept out of the shared kapi-lab).
 const LazySegmentation = React.lazy(() => import("./SegmentationPreviewInner"));
 
+// ML/LLM segmentation compare (SaT + Gemma + browser baseline) — docs-local; it
+// pulls the sat/gemma bridges on demand via the plugin manager.
+const LazyMlSegmentation = React.lazy(() => import("./MlSegmentationCompare"));
+
 const LazyPipeline = React.lazy(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.PipelineExplorer };
@@ -244,6 +248,18 @@ export function SegmentationPreview(props: SegmentationPreviewProps): React.Reac
         }
         return <Inner />;
       }}
+    </BrowserOnly>
+  );
+}
+
+export function MlSegmentationCompare(): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<Loading />}>
+      {() => (
+        <Suspense fallback={<Loading />}>
+          <LazyMlSegmentation />
+        </Suspense>
+      )}
     </BrowserOnly>
   );
 }

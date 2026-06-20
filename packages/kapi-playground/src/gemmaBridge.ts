@@ -285,3 +285,23 @@ export async function ensureGemma(opts: InstallGemmaOptions = {}): Promise<void>
   await loadModel(opts);
   installGemmaBridge(opts);
 }
+
+/**
+ * generateGemmaText runs a single text prompt through the (cached) Gemma model
+ * and returns the decoded continuation — a direct React-side call (not via the
+ * wasm host hook). Used by labs that want the LLM directly, e.g. LLM-assisted
+ * sentence segmentation. The model loads on first use (gate it behind an
+ * explicit action); `temperature` defaults to 0 (greedy) for deterministic tasks.
+ */
+export async function generateGemmaText(
+  prompt: string,
+  opts: InstallGemmaOptions & GenOpts = {},
+): Promise<string> {
+  const loaded = await loadModel(opts);
+  const res = await generate(loaded, [{ role: "user", text: prompt }], {
+    maxTokens: opts.maxTokens ?? 512,
+    temperature: opts.temperature ?? 0,
+    topP: opts.topP,
+  });
+  return res.text;
+}
