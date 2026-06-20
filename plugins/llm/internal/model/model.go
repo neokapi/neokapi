@@ -257,9 +257,15 @@ func (d *Downloader) Ensure(name string) (Paths, error) {
 		return Paths{}, fmt.Errorf("model: create cache dir: %w", err)
 	}
 
-	for _, f := range spec.allFiles() {
+	// Gemma's ONNX files total several GB, so report progress per file and across
+	// the whole set ("[2/13] file: 45%"). The other ML plugins log a single line
+	// per (much smaller) file; this is the same Logf→stderr→host channel, just
+	// progress-aware to match the larger multi-file download.
+	files := spec.allFiles()
+	for i, f := range files {
 		dst := filepath.Join(dir, f.Base())
-		if err := d.ensureFile(dst, hfURL(spec.Repo, f.RepoPath), expected{sha256: f.SHA256, size: f.Size}); err != nil {
+		label := fmt.Sprintf("[%d/%d] %s", i+1, len(files), f.Base())
+		if err := d.ensureFile(dst, hfURL(spec.Repo, f.RepoPath), label, expected{sha256: f.SHA256, size: f.Size}); err != nil {
 			return Paths{}, fmt.Errorf("model: %s: %w", f.RepoPath, err)
 		}
 	}
@@ -291,8 +297,10 @@ type expected struct {
 }
 
 // ensureFile downloads url to dst if dst is missing or empty, serialized by a
-// sibling lock file so two processes cannot corrupt the cache.
-func (d *Downloader) ensureFile(dst, url string, want expected) error {
+// sibling lock file so two processes cannot corrupt the cache. label is a
+// human-readable prefix (e.g. "[2/13] decoder_model_merged_q4.onnx") used in
+// progress logs.
+func (d *Downloader) ensureFile(dst, url, label string, want expected) error {
 	if fileNonEmpty(dst) {
 		return nil
 	}
@@ -305,7 +313,7 @@ func (d *Downloader) ensureFile(dst, url string, want expected) error {
 	if fileNonEmpty(dst) {
 		return nil
 	}
-	return d.download(url, dst, want)
+	return d.download(url, dst, label, want)
 }
 
 func fileNonEmpty(p string) bool {
@@ -340,8 +348,12 @@ func (d *Downloader) acquireLock(lockPath string) (func(), error) {
 
 // download streams url to a temp file, verifies its integrity, then atomically
 // renames it to dst so a reader never sees a half-written or unverified file.
-func (d *Downloader) download(url, dst string, want expected) error {
-	d.logf("downloading %s -> %s", url, dst)
+// label prefixes progress logs (e.g. "[2/13] decoder_model_merged_q4.onnx").
+func (d *Downloader) download(url, dst, label string, want expected) error {
+	if label == "" {
+		label = path.Base(dst)
+	}
+	d.logf("downloading %s", label)
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil) //nolint:gosec // URL built from a fixed registry of HuggingFace repos
 	if err != nil {
 		return fmt.Errorf("request %s: %w", url, err)
@@ -366,10 +378,14 @@ func (d *Downloader) download(url, dst string, want expected) error {
 	}()
 
 	h := sha256.New()
-	n, err := io.Copy(io.MultiWriter(tmp, h), resp.Body)
+	// Stream through a progress reader so the host sees percentage updates for
+	// the large (multi-hundred-MB) model files, throttled to avoid log spam.
+	pr := &progressReader{r: resp.Body, total: resp.ContentLength, label: label, logf: d.logf}
+	n, err := io.Copy(io.MultiWriter(tmp, h), pr)
 	if err != nil {
 		return fmt.Errorf("copy body: %w", err)
 	}
+	pr.done(n)
 	if n == 0 {
 		return fmt.Errorf("get %s: empty response body", url)
 	}
@@ -397,4 +413,66 @@ func (d *Downloader) download(url, dst string, want expected) error {
 		return fmt.Errorf("rename temp into place: %w", err)
 	}
 	return nil
+}
+
+// progressReader wraps a download body and emits throttled percent/byte progress
+// through logf, so the host (and ultimately the user) sees movement during the
+// multi-GB Gemma download instead of a silent stall. Updates are rate-limited to
+// at most once per second and only when the integer percent changes.
+type progressReader struct {
+	r       io.Reader
+	total   int64
+	read    int64
+	label   string
+	logf    func(string, ...any)
+	lastLog time.Time
+	lastPct int
+}
+
+func (p *progressReader) Read(b []byte) (int, error) {
+	n, err := p.r.Read(b)
+	p.read += int64(n)
+	p.maybeLog(false)
+	return n, err
+}
+
+func (p *progressReader) maybeLog(force bool) {
+	now := time.Now()
+	if !force && now.Sub(p.lastLog) < time.Second {
+		return
+	}
+	p.lastLog = now
+	if p.total > 0 {
+		pct := int(p.read * 100 / p.total)
+		if !force && pct == p.lastPct {
+			return
+		}
+		p.lastPct = pct
+		p.logf("  %s: %d%% (%s / %s)", p.label, pct, humanBytes(p.read), humanBytes(p.total))
+		return
+	}
+	p.logf("  %s: %s", p.label, humanBytes(p.read))
+}
+
+// done emits a final 100% line.
+func (p *progressReader) done(n int64) {
+	p.read = n
+	if p.total <= 0 {
+		p.total = n
+	}
+	p.maybeLog(true)
+}
+
+// humanBytes formats a byte count as a short human-readable string.
+func humanBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%dB", n)
+	}
+	div, exp := int64(unit), 0
+	for x := n / unit; x >= unit; x /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f%cB", float64(n)/float64(div), "KMGTPE"[exp])
 }

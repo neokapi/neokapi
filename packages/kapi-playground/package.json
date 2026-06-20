@@ -12,6 +12,7 @@
     "./runtime": "./src/runtime.ts",
     "./samples": "./src/samples.ts",
     "./visionBridge": "./src/visionBridge.ts",
+    "./gemmaBridge": "./src/gemmaBridge.ts",
     "./asrBridge": "./src/asrBridge.ts",
     "./avBridge": "./src/avBridge.ts",
     "./ooxml": "./src/ooxml.ts",

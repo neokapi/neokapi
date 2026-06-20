@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -127,6 +128,31 @@ func TestEnsureDownloadsAndCaches(t *testing.T) {
 	_, err = dl.Ensure("tiny")
 	require.NoError(t, err)
 	assert.Equal(t, first, atomic.LoadInt64(&hits), "cache hit makes no requests")
+}
+
+func TestHumanBytes(t *testing.T) {
+	assert.Equal(t, "512B", humanBytes(512))
+	assert.Equal(t, "1.0KB", humanBytes(1024))
+	assert.Equal(t, "1.5KB", humanBytes(1536))
+	assert.Equal(t, "2.0GB", humanBytes(2*1024*1024*1024))
+}
+
+func TestProgressReaderEmitsFinalLine(t *testing.T) {
+	var logs []string
+	pr := &progressReader{
+		r:     strings.NewReader("hello world"),
+		total: 11,
+		label: "[1/1] file.onnx",
+		logf:  func(f string, a ...any) { logs = append(logs, fmt.Sprintf(f, a...)) },
+	}
+	b, err := io.ReadAll(pr)
+	require.NoError(t, err)
+	pr.done(int64(len(b)))
+	require.NotEmpty(t, logs)
+	// The forced final line reports 100%.
+	last := logs[len(logs)-1]
+	assert.Contains(t, last, "[1/1] file.onnx")
+	assert.Contains(t, last, "100%")
 }
 
 // rewriteHost sends every request to base, preserving the path, so the test can

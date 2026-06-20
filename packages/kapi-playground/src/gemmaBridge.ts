@@ -15,10 +15,7 @@
 // return visit is instant. Because the download is large, the lab gates it behind
 // an explicit "use local Gemma" action and surfaces progress via onProgress.
 
-import {
-  AutoProcessor,
-  Gemma4ForConditionalGeneration,
-} from "@huggingface/transformers";
+import { AutoProcessor, Gemma4ForConditionalGeneration } from "@huggingface/transformers";
 
 const MODEL_ID = "onnx-community/gemma-4-E2B-it-ONNX";
 
@@ -59,9 +56,29 @@ interface WirePayload {
   schema?: unknown;
 }
 
+// Minimal structural types for the transformers.js surface we use. The library's
+// published types model apply_chat_template as non-Promise and inputs as a tensor
+// container; we pin the exact runtime shapes we rely on so the bridge typechecks
+// without depending on the library's (imperfect) generic typings.
+interface EncodedInputs {
+  input_ids: { dims: number[] };
+  [key: string]: unknown;
+}
+interface GemmaProcessor {
+  apply_chat_template(messages: unknown, opts: unknown): Promise<EncodedInputs>;
+  batch_decode(tokens: unknown, opts: unknown): string[];
+}
+interface GeneratedSequence {
+  dims: number[];
+  slice(...args: unknown[]): unknown;
+}
+interface GemmaModel {
+  generate(opts: Record<string, unknown>): Promise<GeneratedSequence>;
+}
+
 type LoadedModel = {
-  processor: Awaited<ReturnType<typeof AutoProcessor.from_pretrained>>;
-  model: Awaited<ReturnType<typeof Gemma4ForConditionalGeneration.from_pretrained>>;
+  processor: GemmaProcessor;
+  model: GemmaModel;
 };
 
 let loadPromise: Promise<LoadedModel> | null = null;
@@ -81,12 +98,14 @@ function loadModel(opts: InstallGemmaOptions): Promise<LoadedModel> {
     : undefined;
 
   loadPromise = (async () => {
-    const processor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback });
-    const model = await Gemma4ForConditionalGeneration.from_pretrained(MODEL_ID, {
+    const processor = (await AutoProcessor.from_pretrained(MODEL_ID, {
+      progress_callback,
+    })) as unknown as GemmaProcessor;
+    const model = (await Gemma4ForConditionalGeneration.from_pretrained(MODEL_ID, {
       dtype,
       device,
       progress_callback,
-    });
+    })) as unknown as GemmaModel;
     opts.onProgress?.({ status: "ready" });
     return { processor, model };
   })().catch((err) => {
@@ -144,14 +163,10 @@ export function installGemmaBridge(opts: InstallGemmaOptions = {}): void {
     });
 
     // Slice off the prompt tokens, decode only the newly generated continuation.
-    const promptLen = (inputs as { input_ids: { dims: number[] } }).input_ids.dims.at(-1) ?? 0;
-    const seq = generated as { dims: number[]; slice: (...a: unknown[]) => unknown };
-    const totalLen = seq.dims.at(-1) ?? promptLen;
-    const newTokens = seq.slice(null, [promptLen, null]);
-    const text = (processor as { batch_decode: (t: unknown, o: unknown) => string[] }).batch_decode(
-      newTokens,
-      { skip_special_tokens: true },
-    )[0];
+    const promptLen = inputs.input_ids.dims.at(-1) ?? 0;
+    const totalLen = generated.dims.at(-1) ?? promptLen;
+    const newTokens = generated.slice(null, [promptLen, null]);
+    const text = processor.batch_decode(newTokens, { skip_special_tokens: true })[0];
 
     return {
       text: (text ?? "").trim(),
