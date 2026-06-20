@@ -140,40 +140,85 @@ function toChatMessages(messages: WireMessage[]) {
  * before issuing a `kapi ai-translate --provider gemma` (or any gemma-backed
  * flow) from the wasm CLI.
  */
+export interface GemmaResult {
+  text: string;
+  input_tokens: number;
+  output_tokens: number;
+}
+
+interface GenOpts {
+  maxTokens?: number;
+  temperature?: number;
+  topP?: number;
+}
+
+// generate runs one chat completion on the (cached) model and returns the
+// decoded continuation. Shared by the wasm bridge and the direct-call helpers.
+async function generate(
+  loaded: LoadedModel,
+  wire: WireMessage[],
+  gen: GenOpts,
+): Promise<GemmaResult> {
+  const { processor, model } = loaded;
+  const chat = toChatMessages(wire);
+  const inputs = await processor.apply_chat_template(chat, {
+    add_generation_prompt: true,
+    tokenize: true,
+    return_dict: true,
+  });
+
+  const doSample = (gen.temperature ?? 0) > 0;
+  const generated = await model.generate({
+    ...inputs,
+    max_new_tokens: gen.maxTokens && gen.maxTokens > 0 ? gen.maxTokens : 256,
+    do_sample: doSample,
+    ...(doSample ? { temperature: gen.temperature, top_p: gen.topP } : {}),
+  });
+
+  // Slice off the prompt tokens, decode only the newly generated continuation.
+  const promptLen = inputs.input_ids.dims.at(-1) ?? 0;
+  const totalLen = generated.dims.at(-1) ?? promptLen;
+  const newTokens = generated.slice(null, [promptLen, null]);
+  const text = processor.batch_decode(newTokens, { skip_special_tokens: true })[0];
+
+  return {
+    text: (text ?? "").trim(),
+    input_tokens: promptLen,
+    output_tokens: Math.max(0, totalLen - promptLen),
+  };
+}
+
 export function installGemmaBridge(opts: InstallGemmaOptions = {}): void {
   (globalThis as Record<string, unknown>).kapiGemmaGenerate = async (
     payloadJSON: string,
-  ): Promise<{ text: string; input_tokens: number; output_tokens: number }> => {
+  ): Promise<GemmaResult> => {
     const payload: WirePayload = JSON.parse(payloadJSON);
-    const { processor, model } = await loadModel(opts);
-
-    const chat = toChatMessages(payload.messages ?? []);
-    const inputs = await processor.apply_chat_template(chat, {
-      add_generation_prompt: true,
-      tokenize: true,
-      return_dict: true,
+    const loaded = await loadModel(opts);
+    return generate(loaded, payload.messages ?? [], {
+      maxTokens: payload.max_tokens,
+      temperature: payload.temperature,
+      topP: payload.top_p,
     });
-
-    const doSample = (payload.temperature ?? 0) > 0;
-    const generated = await model.generate({
-      ...inputs,
-      max_new_tokens: payload.max_tokens && payload.max_tokens > 0 ? payload.max_tokens : 256,
-      do_sample: doSample,
-      ...(doSample ? { temperature: payload.temperature, top_p: payload.top_p } : {}),
-    });
-
-    // Slice off the prompt tokens, decode only the newly generated continuation.
-    const promptLen = inputs.input_ids.dims.at(-1) ?? 0;
-    const totalLen = generated.dims.at(-1) ?? promptLen;
-    const newTokens = generated.slice(null, [promptLen, null]);
-    const text = processor.batch_decode(newTokens, { skip_special_tokens: true })[0];
-
-    return {
-      text: (text ?? "").trim(),
-      input_tokens: promptLen,
-      output_tokens: Math.max(0, totalLen - promptLen),
-    };
   };
+}
+
+/**
+ * runGemmaImageOCR runs Gemma 4 directly on an image (from React, not via the
+ * wasm global) and returns its transcription. Used by the Vision Lab to compare
+ * Gemma's generative OCR against the PP-OCRv5 ML pipeline on the same image. The
+ * model is the same cached instance loadModel() shares with the bridge.
+ */
+export async function runGemmaImageOCR(
+  imageDataURL: string,
+  prompt: string,
+  opts: InstallGemmaOptions = {},
+): Promise<GemmaResult> {
+  const loaded = await loadModel(opts);
+  const wire: WireMessage[] = [
+    { role: "user", text: prompt, media: [{ kind: "image", data_url: imageDataURL }] },
+  ];
+  // OCR wants faithful transcription, not creativity → greedy, generous budget.
+  return generate(loaded, wire, { maxTokens: 1024, temperature: 0 });
 }
 
 /** uninstallGemmaBridge removes the host hook (e.g. on component unmount). */

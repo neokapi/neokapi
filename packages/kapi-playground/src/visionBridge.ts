@@ -561,9 +561,10 @@ export function handwritingLoaded(): boolean {
   return hwRecognizer !== null;
 }
 
-// Encode a line crop as a PNG data URL — the most robust input for transformers.js
-// (it handles decode + the model's own preprocessing).
-function rgbaToDataURL(img: RGBA): string {
+// Encode an RGBA raster as a PNG data URL — the most robust input for
+// transformers.js (it handles decode + the model's own preprocessing). Exported
+// so the Vision Lab can hand the same raster to Gemma for the OCR comparison.
+export function rgbaToDataURL(img: RGBA): string {
   const canvas = document.createElement("canvas");
   canvas.width = img.width;
   canvas.height = img.height;
