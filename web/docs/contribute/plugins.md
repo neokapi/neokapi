@@ -159,7 +159,7 @@ without `--unsafe`.
   generation (translation, chat, QA, brand-voice), a free and private alternative
   to the paid cloud providers (selected with `--provider gemma`; vision/audio
   input is wired but experimental). The same Gemma 4 ONNX model also runs in the
-  browser via transformers.js — see the [Gemma Lab](/lab/gemma).
+  browser via transformers.js — see the [Core Framework lab](/lab).
 
 A minimal Go reference plugin in
 [`examples/plugins/hello/`](https://github.com/neokapi/neokapi/tree/main/examples/plugins/hello)

@@ -409,17 +409,18 @@ const config: Config = {
           label: "Labs",
           position: "left",
           items: [
-            { label: "Neokapi Lab", to: "/lab" },
-            { label: "Segmentation Lab", to: "/lab/segmentation" },
-            { label: "PDF Lab", to: "/lab/pdf" },
-            { label: "Vision Lab", to: "/lab/vision" },
-            { label: "Gemma Lab", to: "/lab/gemma" },
-            { label: "Audio Lab", to: "/lab/audio" },
-            { label: "Video Lab", to: "/lab/video" },
-            { label: "Multimodal Lab", to: "/lab/multimodal" },
-            { label: "Conversion Lab", to: "/lab/convert" },
+            // Consolidated into natural categories. AI/ML (local LLM, OCR, ASR)
+            // is embedded inside the relevant labs rather than split into its own
+            // Gemma/Multimodal pages; plugins load on demand from the navbar
+            // status widget. Old per-topic routes redirect to their new home.
+            { label: "Core Framework", to: "/lab" },
+            { label: "Segmentation", to: "/lab/segmentation" },
+            { label: "File Conversion", to: "/lab/convert" },
+            { label: "Structure & Layout", to: "/lab/structure" },
+            { label: "Kapi Vision", to: "/lab/vision" },
+            { label: "Audio & Video", to: "/lab/media" },
             { label: "CLI Playground", to: "/playground-cli" },
-            { label: "KLF Lab", to: "/klf-lab" },
+            { label: "Kapi L10N Format", to: "/klf-lab" },
           ],
         },
         {
