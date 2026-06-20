@@ -237,7 +237,10 @@ export default function KapiModal(): React.ReactElement | null {
             binaryFiles={initialReq.binaryFiles}
             cmd={initialReq.cmd}
             steps={initialReq.steps}
-            autoRun={initialReq.autoRun}
+            // Opening the modal is itself an explicit user action (a snippet's
+            // Run, "Run this config", …), so default to running unless the
+            // request opted out (e.g. an editable snippet stages the command).
+            autoRun={initialReq.autoRun ?? true}
             showToolbar={false}
             fill
           />

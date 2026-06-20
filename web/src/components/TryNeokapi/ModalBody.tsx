@@ -132,7 +132,8 @@ export default function ModalBody(): React.ReactElement {
   const assets = useKapiPlaygroundConfig();
   // The modal owns the engine for its whole lifetime — booting on open is fine
   // (the page hero stays zero-wasm; only opening the modal pulls the engine).
-  const runtime = useLabRuntime(assets);
+  // Opening the modal is itself the explicit user action, so autoBoot:true.
+  const runtime = useLabRuntime(assets, { autoBoot: true });
 
   const [files, setFiles] = useState<BrowserFile[]>([]);
   const [busy, setBusy] = useState(true);

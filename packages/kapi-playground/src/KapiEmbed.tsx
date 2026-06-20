@@ -20,7 +20,11 @@ export interface KapiRunRequest {
   cmd?: string;
   /** Additional commands to run in sequence after `cmd`. */
   steps?: string[];
-  /** Run `cmd`/`steps` automatically (vs. leaving them ready at the prompt). */
+  /**
+   * Run `cmd`/`steps` automatically (vs. leaving them staged at the prompt for
+   * the reader to execute). Defaults to `false` so nothing runs without an
+   * explicit user action.
+   */
   autoRun?: boolean;
 }
 
@@ -173,7 +177,7 @@ export default function KapiEmbed({
   binaryFiles,
   cmd,
   steps,
-  autoRun = true,
+  autoRun = false,
   showToolbar = true,
   fill = false,
   ref,

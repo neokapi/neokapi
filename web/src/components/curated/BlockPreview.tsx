@@ -98,7 +98,7 @@ const LazyBlockPreview = React.lazy(async () => {
   }
 
   function BlockPreviewInner({ sample, title, caption }: BlockPreviewProps): React.ReactElement {
-    const { runtime, error, cold } = useCuratedRuntime();
+    const { runtime, error, cold, armed, arm } = useCuratedRuntime();
     const [data, setData] = React.useState<PreviewResult | null>(null);
     const [resolvedPath, setResolvedPath] = React.useState<string>("");
     const [seedError, setSeedError] = React.useState<string>("");
@@ -147,7 +147,18 @@ const LazyBlockPreview = React.lazy(async () => {
               <p className="kapi-cur-error">Could not read the file: {error || seedError}</p>
             )}
 
-            {!error && !seedError && !data && (
+            {!error && !seedError && !armed && (
+              <div className="kapi-cur-run">
+                <button type="button" className="kapi-cur-btn kapi-cur-btn--primary" onClick={arm}>
+                  ▶ Read with kapi
+                </button>
+                <p className="kapi-cur-meta">
+                  Parses {fileName} with the real engine. Nothing loads until you press it.
+                </p>
+              </div>
+            )}
+
+            {!error && !seedError && armed && !data && (
               <div className="kapi-cur-loading">
                 <span className="kapi-cur-spinner" aria-hidden="true" />
                 <span>

@@ -4,6 +4,8 @@ import { DocumentViewer } from "@neokapi/ui-primitives/preview";
 import type { ContentTree } from "@neokapi/ui-primitives/preview";
 import {
   useLabRuntime,
+  useRunGate,
+  RunGate,
   FileSelectorField,
   ActiveFileSwitcher,
   useFileLibrary,
@@ -59,7 +61,8 @@ export default function SegmentationPreviewInner({
   defaultSampleId,
   sampleIds,
 }: SegmentationPreviewInnerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
   const library = useFileLibrary({ sampleIds });
 
   const initial = SAMPLES.find((s) => s.id === defaultSampleId) ?? SAMPLES[0];
@@ -121,6 +124,16 @@ export default function SegmentationPreviewInner({
       cancelled = true;
     };
   }, [runtime.ready, runtime.inspectAnnotated, file?.path, file?.changedAt, engine]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="Segmentation"
+        description="Segment text with the real engine (SRX / ICU4X) in your browser."
+      />
+    );
+  }
 
   return (
     <div className="kapi-reference flex flex-col gap-3 text-foreground">

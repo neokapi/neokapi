@@ -63,7 +63,7 @@ const LazyBeforeAfter = React.lazy(async () => {
     caption,
     autoRun = true,
   }: BeforeAfterProps): React.ReactElement {
-    const { runtime, error, cold } = useCuratedRuntime();
+    const { runtime, error, cold, armed, arm } = useCuratedRuntime();
     const [before, setBefore] = React.useState<string>("");
     const [after, setAfter] = React.useState<string>("");
     const [running, setRunning] = React.useState<boolean>(false);
@@ -117,10 +117,10 @@ const LazyBeforeAfter = React.lazy(async () => {
           <button
             type="button"
             className="kapi-cur-btn kapi-cur-btn--primary"
-            onClick={() => void run()}
-            disabled={!runtime || running}
+            onClick={() => (armed ? void run() : arm())}
+            disabled={running || (armed && !runtime)}
           >
-            {running ? "Running…" : "Run"}
+            {running ? "Running…" : armed && !runtime ? "Starting…" : "Run"}
           </button>
         </div>
 
@@ -128,7 +128,11 @@ const LazyBeforeAfter = React.lazy(async () => {
 
         {(error || runError) && <p className="kapi-cur-error">{error || runError}</p>}
 
-        {!error && !runtime && (
+        {!error && !armed && (
+          <p className="kapi-cur-meta">Press Run to execute this in the real engine.</p>
+        )}
+
+        {!error && armed && !runtime && (
           <div className="kapi-cur-loading">
             <span className="kapi-cur-spinner" aria-hidden="true" />
             <span>{cold ? "Starting kapi for the first time…" : "Getting kapi ready…"}</span>
