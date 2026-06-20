@@ -22,6 +22,11 @@ type modelConfig struct {
 	AudioTokenID int
 	BOSTokenID   int
 	EOSTokenIDs  []int
+	// Chat turn-marker token ids. The Gemma tokenizer does NOT parse the literal
+	// strings "<start_of_turn>"/"<end_of_turn>" as single tokens (it splits them
+	// into characters), so the prompt is assembled at the id level using these.
+	StartOfTurnID int
+	EndOfTurnID   int
 
 	// MMTokensPerImage is the fixed number of soft tokens one image expands to
 	// in the prompt (Gemma uses a constant). Zero means "derive from the vision
@@ -102,6 +107,8 @@ func loadConfig(configPath, genPath string) (modelConfig, error) {
 		VocabSize:     262144,
 		BOSTokenID:    2,
 		EOSTokenIDs:   []int{1, 106}, // <eos>, <end_of_turn>
+		StartOfTurnID: 105,           // <start_of_turn> (stable across Gemma 2/3/4)
+		EndOfTurnID:   106,           // <end_of_turn>
 	}
 
 	if configPath != "" {

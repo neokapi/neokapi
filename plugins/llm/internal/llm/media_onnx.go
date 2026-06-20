@@ -81,28 +81,25 @@ func openMultiSession(path string) (ins, outs []string, err error) {
 	return ins, outs, nil
 }
 
-// hasMedia reports whether any message carries a media attachment.
-func hasMediaMessages(messages []Message) bool {
-	for _, m := range messages {
-		if len(m.Media) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// buildPromptIDs tokenizes the Gemma chat prompt. With no media it is exactly
-// renderPrompt → tokenize. With media it assembles the stream per turn, running
-// each encoder and inserting that media's placeholder tokens (recorded as
-// mediaSlots) so their embeddings can be overwritten after embed_tokens.
+// buildPromptIDs assembles the Gemma chat prompt as a token-id stream. Because
+// the tokenizer does not parse the literal "<start_of_turn>"/"<end_of_turn>"
+// strings as single tokens, the turn markers (and <bos>) are inserted by id;
+// only the role label, content text, and newlines are tokenized. Media items
+// contribute a run of placeholder tokens (recorded as mediaSlots) whose
+// embeddings are overwritten with the encoder outputs after embed_tokens.
+//
+// Canonical Gemma turn: <bos> then, per turn,
+// <start_of_turn>{role}\n{content}<end_of_turn>\n, ending with an open
+// <start_of_turn>model\n to prime generation.
 func (m *loadedModel) buildPromptIDs(messages []Message) ([]int64, []mediaSlot, error) {
-	if !hasMediaMessages(messages) {
-		return m.encodeText(renderPrompt(messages)), nil, nil
-	}
+	bos := int64(m.cfg.BOSTokenID)
+	sot := int64(m.cfg.StartOfTurnID)
+	eot := int64(m.cfg.EndOfTurnID)
+	nl := m.encodeText("\n")
 
 	var ids []int64
 	var slots []mediaSlot
-	ids = append(ids, m.encodeText(tokBOS)...)
+	ids = append(ids, bos)
 
 	system := collectSystem(messages)
 	firstUser := true
@@ -111,15 +108,16 @@ func (m *loadedModel) buildPromptIDs(messages []Message) ([]int64, []mediaSlot, 
 			continue
 		}
 		role := mapRole(msg.Role)
-		ids = append(ids, m.encodeText(tokStartTurn+role+"\n")...)
-
 		text := msg.Text
 		if role == roleUser && firstUser && system != "" {
 			text = system + "\n\n" + text
 			firstUser = false
 		}
 
-		// Media leads the user turn (placeholder tokens then the text).
+		ids = append(ids, sot)
+		ids = append(ids, m.encodeText(role+"\n")...)
+
+		// Media leads the turn content (placeholder tokens then the text).
 		for _, md := range msg.Media {
 			feats, count, tokID, err := m.encodeMedia(md)
 			if err != nil {
@@ -132,9 +130,12 @@ func (m *loadedModel) buildPromptIDs(messages []Message) ([]int64, []mediaSlot, 
 		}
 
 		ids = append(ids, m.encodeText(text)...)
-		ids = append(ids, m.encodeText(tokEndTurn+"\n")...)
+		ids = append(ids, eot)
+		ids = append(ids, nl...)
 	}
-	ids = append(ids, m.encodeText(tokStartTurn+roleModel+"\n")...)
+	// Prime the model's turn.
+	ids = append(ids, sot)
+	ids = append(ids, m.encodeText(roleModel+"\n")...)
 	return ids, slots, nil
 }
 
@@ -167,17 +168,16 @@ func collectSystem(messages []Message) string {
 // returns its feature rows (count*hiddenSize), the row count, and the
 // placeholder token id to repeat in the prompt.
 func (m *loadedModel) encodeMedia(md Media) ([]float32, int, int, error) {
+	// v0.1.0 is text-only. Gemma 4's vision/audio encoders are wired and load,
+	// but their preprocessing is not yet numerically validated (the vision tower
+	// wants native-resolution patchified pixel_values [N,768] with [N,2] position
+	// ids — not [1,3,H,W] — and audio wants log-mel [B,frames,128] with a bool
+	// mask). Gating off here keeps the release honest: a clear message instead of
+	// unverified output. encodeImage/encodeAudio retain the wiring for the
+	// validation follow-up.
 	switch md.Kind {
-	case "image":
-		if m.vision == nil {
-			return nil, 0, 0, fmt.Errorf("llm: model has no vision encoder")
-		}
-		return m.encodeImage(md.Path)
-	case "audio":
-		if m.audio == nil {
-			return nil, 0, 0, fmt.Errorf("llm: model has no audio encoder")
-		}
-		return m.encodeAudio(md.Path)
+	case "image", "audio":
+		return nil, 0, 0, fmt.Errorf("llm: %s input is experimental and not yet enabled in the native engine (text generation is fully supported); see the kapi-llm multimodal-validation follow-up", md.Kind)
 	case "video":
 		return nil, 0, 0, fmt.Errorf("llm: video input requires frame extraction (use the kapi-av plugin to extract frames, then pass them as images)")
 	default:

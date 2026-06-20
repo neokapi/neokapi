@@ -121,21 +121,20 @@ var Registry = []Spec{
 		Name:    "gemma-4-e2b",
 		Repo:    onnxRepo,
 		Default: true,
+		// v0.1.0 is text-only: only the embed + decoder graphs are fetched, so a
+		// text user never downloads the (not-yet-validated) vision/audio encoders.
+		// The Vision/Audio fields and their *.onnx_data siblings are intentionally
+		// omitted here; the engine's encoder wiring stays in place for the
+		// multimodal-validation follow-up, which re-adds these files.
 		Embed:   File{RepoPath: "onnx/embed_tokens_q4.onnx"},
 		Decoder: File{RepoPath: "onnx/decoder_model_merged_q4.onnx"},
-		Vision:  File{RepoPath: "onnx/vision_encoder_q4.onnx"},
-		Audio:   File{RepoPath: "onnx/audio_encoder_q4.onnx"},
 		Data: []File{
 			{RepoPath: "onnx/embed_tokens_q4.onnx_data"},
 			{RepoPath: "onnx/decoder_model_merged_q4.onnx_data"},
-			{RepoPath: "onnx/vision_encoder_q4.onnx_data"},
-			{RepoPath: "onnx/audio_encoder_q4.onnx_data"},
 		},
-		Tokenizer:          File{RepoPath: "tokenizer.json"},
-		Config:             File{RepoPath: "config.json"},
-		GenerationConfig:   File{RepoPath: "generation_config.json"},
-		PreprocessorConfig: File{RepoPath: "preprocessor_config.json"},
-		ProcessorConfig:    File{RepoPath: "processor_config.json"},
+		Tokenizer:        File{RepoPath: "tokenizer.json"},
+		Config:           File{RepoPath: "config.json"},
+		GenerationConfig: File{RepoPath: "generation_config.json"},
 	},
 }
 

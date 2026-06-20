@@ -57,12 +57,27 @@ tests with **no native dependency**: `GOWORK=off go test ./...`.
 ## Validation status
 
 The **text** path (tokenize → embed → KV-cache decode → sample → detokenize) is
-structurally complete and compiles under `-tags onnx`. The **multimodal** path
-(vision/audio encoder runs + embed-row splice) is fully wired. Exact numerics —
-tensor dtypes, the `num_logits_to_keep` rank, image size / normalization, and
-audio mel parameters — are validated **on-device** against the real q4 weights,
-mirroring how the `kapi-vision` ONNX engine landed. Until validated on a given
-platform, treat generation quality as provisional.
+**validated on-device** against the real q4 weights (macOS arm64) and produces
+correct translations, matching the in-browser transformers.js path. Getting
+there surfaced three model-contract details the engine now handles:
+
+- **Per-layer KV-cache head_dim** — Gemma 4's hybrid attention gives
+  sliding-window layers a wider KV head_dim (512) than full-attention layers
+  (256), so the empty cache is built per-input from the model's declared dims
+  (`ort.GetInputOutputInfo`), not one config value.
+- **`num_logits_to_keep` is a rank-0 scalar** — it feeds `Neg→Unsqueeze→Slice`
+  in the lm_head, so it must be an `ort.Scalar`, not a 1-D `[1]` tensor.
+- **Chat turn markers by id** — the tokenizer does not parse the literal
+  `<start_of_turn>`/`<end_of_turn>` strings as single tokens, so the prompt is
+  assembled at the token-id level (`<start_of_turn>`=105, `<end_of_turn>`=106).
+
+The **vision and audio** encoders are wired (sessions load, the embed-splice
+works), but their preprocessing — Gemma's native-resolution patchified
+`pixel_values` (`[N, 768]` 16×16×3 patches + `[N, 2]` position ids) and the
+log-mel audio features (`[B, frames, 128]` + bool mask) — is **not yet validated
+against reference outputs**, so multimodal input is gated off (a clear
+"experimental" message). v0.1.0 ships **text-only**; multimodal is a tracked
+follow-up.
 
 ## Runtime configuration
 

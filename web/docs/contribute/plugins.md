@@ -155,10 +155,11 @@ without `--unsafe`.
   subprocess so the heavy stack (onnxruntime, whisper.cpp, PDFium, ffmpeg) never
   enters the portable `kapi` binary: `kapi-sat` (segmentation), `kapi-vision`
   (OCR/layout), `kapi-asr` (speech-to-text), `kapi-av` (audio/video), `kapi-pdfium`
-  (PDF), and **`kapi-llm`** — a local **Gemma 4** LLM for on-device translation,
-  chat, QA, and brand-voice, a free and private alternative to the paid cloud
-  providers (selected with `--provider gemma`). The same Gemma 4 ONNX model also
-  runs in the browser via transformers.js — see the [Gemma Lab](/lab/gemma).
+  (PDF), and **`kapi-llm`** — a local **Gemma 4** LLM for on-device text
+  generation (translation, chat, QA, brand-voice), a free and private alternative
+  to the paid cloud providers (selected with `--provider gemma`; vision/audio
+  input is wired but experimental). The same Gemma 4 ONNX model also runs in the
+  browser via transformers.js — see the [Gemma Lab](/lab/gemma).
 
 A minimal Go reference plugin in
 [`examples/plugins/hello/`](https://github.com/neokapi/neokapi/tree/main/examples/plugins/hello)

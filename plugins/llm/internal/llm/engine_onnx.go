@@ -83,6 +83,11 @@ type loadedModel struct {
 	logitsOut string
 	// pastToPresent maps a past_key_values.* input name to its present.* output.
 	presentToPast map[string]string
+	// pastDims holds each past_key_values.* input's declared shape. Gemma 4's
+	// hybrid attention gives sliding-window layers a wider KV head_dim than
+	// full-attention layers (e.g. 512 vs 256), so the empty cache must be built
+	// per-input from the model, not from a single config head_dim.
+	pastDims map[string][]int64
 
 	// vision/audio I/O names.
 	visionIn, visionOut []string
@@ -131,7 +136,14 @@ func (e *onnxEngine) Loaded(name string) bool {
 	return ok
 }
 
-func (e *onnxEngine) Modalities() []string { return []string{"image", "audio"} }
+// Modalities advertises only text for v0.1.0. Gemma 4's vision and audio
+// encoders are wired (engine sessions load and the embed-splice works), but
+// their preprocessing — Gemma's native-resolution patchified pixel_values
+// ([N,768] 16×16×3 patches + [N,2] position ids) and the log-mel audio features
+// ([B,frames,128] + bool mask) — is not yet numerically validated against
+// reference outputs, so image/audio input is gated off (see encodeMedia). The
+// text generation path is validated on-device. Tracked for a follow-up.
+func (e *onnxEngine) Modalities() []string { return nil }
 
 func (e *onnxEngine) Close() error {
 	e.mu.Lock()
@@ -251,9 +263,14 @@ func (m *loadedModel) openDecoder(path string) error {
 		return fmt.Errorf("llm: inspect decoder: %w", err)
 	}
 	m.decInRole = map[string]inputRole{}
+	m.pastDims = map[string][]int64{}
 	for _, in := range ins {
+		role := classifyDecoderInput(in.Name)
 		m.decIn = append(m.decIn, in.Name)
-		m.decInRole[in.Name] = classifyDecoderInput(in.Name)
+		m.decInRole[in.Name] = role
+		if role == rolePastKV {
+			m.pastDims[in.Name] = append([]int64(nil), in.Dimensions...)
+		}
 	}
 	m.presentToPast = map[string]string{}
 	for _, out := range outs {

@@ -107,8 +107,11 @@ func (m *loadedModel) decodeStep(embeds, ple ort.Value, positions []int64, total
 	}
 	defer posT.Destroy()
 
-	// num_logits_to_keep = 1 (only the final position's logits). Shape [1].
-	numLogits, err := ort.NewTensor(ort.NewShape(1), []int64{1})
+	// num_logits_to_keep = 1 (keep only the final position's logits). The export
+	// declares it as a rank-0 scalar and uses it as Neg→Unsqueeze→Slice in the
+	// lm_head; a 1-D [1] tensor makes the Slice's starts the wrong rank, so it
+	// must be a true 0-D scalar (ort.Scalar), not ort.NewTensor.
+	numLogits, err := ort.NewScalar[int64](1)
 	if err != nil {
 		return nil, nil, fmt.Errorf("llm: num_logits_to_keep: %w", err)
 	}
@@ -220,11 +223,16 @@ func (m *loadedModel) embedTokens(ids []int64) (ort.Value, ort.Value, error) {
 }
 
 // emptyPast builds the initial (empty) KV cache: one zero-length tensor per
-// past_key_values.* input, shaped [1, num_kv_heads, 0, head_dim].
+// past_key_values.* input, shaped from the model's DECLARED dims for that input
+// (Gemma 4's hybrid attention gives sliding-window layers a wider KV head_dim
+// than full-attention layers, so the shape is per-input, not one config value).
+// Each dynamic dim (-1) becomes the batch size at index 0 and 0 at the sequence
+// position (so the cache is empty); concrete dims (kv-heads, head_dim) are kept.
 func (m *loadedModel) emptyPast() map[string]ort.Value {
 	past := make(map[string]ort.Value, len(m.presentToPast))
-	shape := ort.NewShape(1, int64(m.cfg.NumKVHeads), 0, int64(m.cfg.HeadDim))
 	for _, pastName := range m.presentToPast {
+		dims := m.pastDims[pastName]
+		shape := emptyKVShape(dims, m.cfg.NumKVHeads, m.cfg.HeadDim)
 		t, err := ort.NewTensor(shape, []float32{})
 		if err != nil {
 			// Extremely unlikely; leave the slot empty and let decodeStep error.
@@ -233,6 +241,29 @@ func (m *loadedModel) emptyPast() map[string]ort.Value {
 		past[pastName] = t
 	}
 	return past
+}
+
+// emptyKVShape resolves a past_key_values declared shape to a concrete empty
+// shape. KV caches are [batch, kv_heads, seq, head_dim]: batch and seq are
+// dynamic (the model declares -1), so batch→1 and seq→0 (empty); kv_heads and
+// head_dim are concrete and kept verbatim. When the model gives no usable dims
+// (introspection unavailable), it falls back to config values.
+func emptyKVShape(declared []int64, kvHeads, headDim int) ort.Shape {
+	if len(declared) != 4 {
+		return ort.NewShape(1, int64(kvHeads), 0, int64(headDim))
+	}
+	out := make([]int64, 4)
+	for i, d := range declared {
+		switch {
+		case d > 0:
+			out[i] = d // concrete (kv_heads, head_dim)
+		case i == 2:
+			out[i] = 0 // sequence position → empty cache
+		default:
+			out[i] = 1 // batch
+		}
+	}
+	return ort.NewShape(out...)
 }
 
 // destroyValues frees every tensor in the map.

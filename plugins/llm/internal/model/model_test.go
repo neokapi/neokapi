@@ -29,8 +29,9 @@ func TestLookup(t *testing.T) {
 	assert.True(t, s.Default)
 	assert.NotEmpty(t, s.Embed.RepoPath)
 	assert.NotEmpty(t, s.Decoder.RepoPath)
-	assert.NotEmpty(t, s.Vision.RepoPath)
-	assert.NotEmpty(t, s.Audio.RepoPath)
+	// v0.1.0 is text-only: vision/audio encoders are not fetched yet.
+	assert.Empty(t, s.Vision.RepoPath)
+	assert.Empty(t, s.Audio.RepoPath)
 
 	_, ok = Lookup("nope")
 	assert.False(t, ok)
@@ -48,12 +49,14 @@ func TestAllFilesCoversComponentsDataAndConfigs(t *testing.T) {
 	for _, f := range files {
 		bases = append(bases, f.Base())
 	}
-	// 4 components + 4 data siblings + tokenizer + 4 configs = 13.
-	assert.Len(t, files, 13)
+	// Text-only v0.1.0: embed + decoder (2 graphs) + 2 data siblings + tokenizer
+	// + config + generation_config = 7.
+	assert.Len(t, files, 7)
 	assert.Contains(t, bases, "embed_tokens_q4.onnx")
 	assert.Contains(t, bases, "decoder_model_merged_q4.onnx_data")
 	assert.Contains(t, bases, "tokenizer.json")
 	assert.Contains(t, bases, "generation_config.json")
+	assert.NotContains(t, bases, "vision_encoder_q4.onnx")
 }
 
 func TestCacheRootPrecedence(t *testing.T) {
