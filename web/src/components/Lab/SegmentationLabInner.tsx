@@ -68,21 +68,21 @@ const ENGINES: EngineDef[] = [
     label: "SRX rules",
     kind: "engine",
     engineArg: "",
-    note: "Pure-Go SRX 2.0 rules (the default).",
+    note: "Fast rule-based splitting — neokapi's default.",
   },
   {
     id: "uax29",
     label: "UAX-29 (ICU4X)",
     kind: "engine",
     engineArg: "uax29",
-    note: "Raw Unicode baseline via ICU4X, a companion WebAssembly module.",
+    note: "The Unicode standard's sentence rules — a plain baseline.",
   },
   {
     id: "hybrid",
     label: "Hybrid",
     kind: "engine",
     engineArg: "hybrid",
-    note: "ICU4X base refined by SRX exceptions — how neokapi segments natively.",
+    note: "The Unicode rules, refined for real-world abbreviations and the like.",
   },
   {
     id: "intl",
@@ -96,14 +96,14 @@ const ENGINES: EngineDef[] = [
     label: "SaT (ML)",
     kind: "sat",
     plugin: "sat",
-    note: "wtpsplit sat-3l-sm on onnxruntime-web (the kapi-sat model).",
+    note: "A small machine-learning model trained to find sentence breaks.",
   },
   {
     id: "llm",
     label: "LLM (Gemma)",
     kind: "llm",
     plugin: "llm",
-    note: "Gemma 4 (the kapi-llm model) prompted to split sentences.",
+    note: "A local language model asked to split the text into sentences.",
   },
 ];
 
