@@ -30,6 +30,12 @@ export interface GemmaProgress {
   file?: string;
   /** 0–100 fraction for the current file, when known. */
   progress?: number;
+  /** Aggregate bytes downloaded across all shards seen so far. */
+  loaded?: number;
+  /** Aggregate byte total across all shards seen so far (grows as new shards are
+   *  discovered). Derive a smooth overall percentage from loaded/total rather
+   *  than the per-file `progress`, which restarts at 0 for each shard. */
+  total?: number;
 }
 
 export interface InstallGemmaOptions {
@@ -91,12 +97,42 @@ function loadModel(opts: InstallGemmaOptions): Promise<LoadedModel> {
   if (loadPromise) return loadPromise;
   const dtype = opts.dtype ?? "q4f16";
   const device = opts.device ?? "webgpu";
+  // Gemma downloads many shards; transformers.js reports progress PER FILE, so a
+  // naive per-file fraction makes the bar jump back to 0 on each shard. Track
+  // bytes per file (shared across the processor + model loads) and report the
+  // AGGREGATE loaded/total, so the overall percentage is smooth and ~monotonic
+  // (the total grows as new shards are discovered).
+  const fileBytes = new Map<string, { loaded: number; total: number }>();
   const progress_callback = opts.onProgress
-    ? (p: { status?: string; file?: string; progress?: number }) => {
+    ? (p: {
+        status?: string;
+        file?: string;
+        name?: string;
+        loaded?: number;
+        total?: number;
+        progress?: number;
+      }) => {
+        const key = p.file ?? p.name;
+        if (key) {
+          if (p.status === "done") {
+            const prev = fileBytes.get(key);
+            if (prev) fileBytes.set(key, { loaded: prev.total, total: prev.total });
+          } else if (typeof p.total === "number" && p.total > 0) {
+            fileBytes.set(key, { loaded: p.loaded ?? 0, total: p.total });
+          }
+        }
+        let loaded = 0;
+        let total = 0;
+        for (const b of fileBytes.values()) {
+          loaded += b.loaded;
+          total += b.total;
+        }
         opts.onProgress!({
           status: p.status === "ready" || p.status === "done" ? "ready" : "downloading",
           file: p.file,
           progress: p.progress,
+          loaded: total > 0 ? loaded : undefined,
+          total: total > 0 ? total : undefined,
         });
       }
     : undefined;

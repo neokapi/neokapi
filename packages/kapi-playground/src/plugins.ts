@@ -272,7 +272,17 @@ const adapters: Partial<Record<PluginId, (report: (p: Progress) => void) => Prom
   llm: async (report) => {
     const { ensureGemma } = await import("./gemmaBridge");
     await ensureGemma({
-      onProgress: (p) => report({ frac: p.status === "ready" ? 1 : (p.progress ?? 0) / 100 }),
+      onProgress: (p) => {
+        if (p.status === "ready") {
+          report({ frac: 1 });
+        } else if (typeof p.loaded === "number" && typeof p.total === "number" && p.total > 0) {
+          // Prefer the aggregate byte total across all shards — a smooth,
+          // ~monotonic percentage instead of the per-shard fraction.
+          report({ loaded: p.loaded, total: p.total });
+        } else {
+          report({ frac: (p.progress ?? 0) / 100 });
+        }
+      },
     });
   },
   pdfium: async () => {
