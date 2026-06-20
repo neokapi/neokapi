@@ -1,6 +1,7 @@
 package openxml
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -8,6 +9,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// findFormulaBlock returns the first RoleFormula block in the part stream.
+func findFormulaBlock(parts []*model.Part) *model.Block {
+	for _, p := range parts {
+		if p.Type != model.PartBlock {
+			continue
+		}
+		if b, ok := p.Resource.(*model.Block); ok && b.SemanticRole() == model.RoleFormula {
+			return b
+		}
+	}
+	return nil
+}
 
 // findOMathPh returns the first OMML placeholder run across all blocks.
 func findOMathPh(parts []*model.Part) *model.PlaceholderRun {
@@ -71,4 +85,42 @@ func TestOMMLOpaqueWhenDisabled(t *testing.T) {
 	assert.Contains(t, ph.Data, "<m:oMath", "raw OMML still preserved")
 	assert.Empty(t, ph.Equiv, "no cross-format LaTeX when surfacing is off")
 	assert.Empty(t, ph.Disp)
+}
+
+// A standalone display equation (an equation-only paragraph) — previously
+// dropped to skeleton with no block — now also surfaces a detached
+// non-translatable RoleFormula block carrying the portable math, so
+// cross-format export renders it. Fixture: equation.docx ((x+a)^n = ∑…).
+func TestOMMLStandaloneSurfaced(t *testing.T) {
+	blk := findFormulaBlock(readFile(t, "testdata/math_block.docx"))
+	require.NotNil(t, blk, "standalone equation should surface as a RoleFormula block")
+	assert.False(t, blk.Translatable, "math is non-translatable")
+	require.Len(t, blk.Source, 1)
+	ph := blk.Source[0].Ph
+	require.NotNil(t, ph, "the formula block carries an OMML placeholder run")
+	assert.True(t, strings.HasPrefix(ph.Equiv, "$$"), "display math wrapped in $$: %q", ph.Equiv)
+	assert.Contains(t, ph.Disp, `\sum`, "bare LaTeX carries the summation")
+	assert.Contains(t, ph.Data, "<m:oMath", "opaque OMML preserved for docx round-trip")
+}
+
+// Disabling surfacing yields no formula block for a standalone equation.
+func TestOMMLStandaloneOpaqueWhenDisabled(t *testing.T) {
+	blk := findFormulaBlock(readFileWithConfig(t, "testdata/math_block.docx", func(c *Config) {
+		c.SetExtractNonTranslatableContent(false)
+	}))
+	assert.Nil(t, blk, "no RoleFormula block when surfacing is off")
+}
+
+// The detached formula block is NOT skeleton-referenced, so surfacing has zero
+// effect on the docx→docx output: the round-trip is byte-identical whether math
+// surfacing is on or off. (This fixture does not itself round-trip byte-exact to
+// source — the writer normalizes it — but my change must not alter that output.)
+func TestOMMLStandaloneRoundtripUnaffected(t *testing.T) {
+	input, err := os.ReadFile("testdata/math_block.docx")
+	require.NoError(t, err)
+	on := roundtripUntranslatedConfig(t, input, "math_block.docx", nil)
+	off := roundtripUntranslatedConfig(t, input, "math_block.docx", func(c *Config) {
+		c.SetExtractNonTranslatableContent(false)
+	})
+	assert.Equal(t, off, on, "math surfacing must not change the docx round-trip output")
 }
