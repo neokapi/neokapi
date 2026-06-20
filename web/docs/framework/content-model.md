@@ -169,6 +169,10 @@ The built-in stand-off types:
 | Overlay        | `entity`            | run ranges  | recognized named-entity spans                     |
 | Overlay        | `qa`                | run ranges  | quality-check findings                            |
 | Overlay        | `alignment`         | run ranges  | links source spans to target spans                |
+| Annotation     | `structure`         | whole block | logical role (heading, table cell, form field, …), layout layer, level, table-cell spans |
+| Annotation     | `geometry`          | whole block | page + bounding box + (per-axis) resolution for content from a rendered medium |
+| Annotation     | `timing`            | whole block | time span for content from timed media (audio, video) |
+| Annotation     | `relations`         | whole block | typed cross-block edges (caption-of, footnote-of, continues, …) |
 | Annotation     | `note`              | whole block | translator / reviewer note                        |
 | Annotation     | `alt-translation`   | whole block | alternative-translation candidates                |
 | Annotation     | `tm-match`          | whole block | translation-memory match metadata                 |

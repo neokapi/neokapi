@@ -9,16 +9,20 @@ description: |
   Docling, emits DocLang, and neokapi reads it.
 
   Coverage (v0.6): document root + head; the block-level semantic elements
-  heading, text, footnote, page_header, page_footer, code, formula; list (with
-  ldiv-delimited items); group; table/index OTSL cells (fcel, ched, rhed, ecel,
-  srow, corn) with nl row terminators; the element-head properties layer and the
-  4-value location block (mapped to page geometry); and inline formatting
-  (bold, italic, underline, strikethrough, superscript, subscript).
+  heading, text, footnote, page_header, page_footer, code, formula, marker; the
+  forms cluster field_region, field_heading, field_item, key, value, hint,
+  checkbox (with fillable + checked state); list (with ldiv-delimited items);
+  group; picture (with chart subclass); table/index OTSL cells (fcel, ched, rhed,
+  ecel, srow, corn) with nl row terminators and merged-cell span continuations
+  (lcel/ucel/xcel mapped to ColSpan/RowSpan); the element-head properties layer,
+  the 4-value location block (mapped to page geometry with per-axis resolution),
+  label (mapped to code language), and thread (mapped to RelContinues); page_break
+  (mapped to page geometry); and inline formatting (bold, italic, underline,
+  strikethrough, superscript, subscript, rtl, handwriting). Read+write — the
+  writer projects the model back to faithful DocLang.
 
-  Not yet mapped (skipped without losing surrounding content): OTSL span
-  continuations (lcel/ucel/xcel), picture/field/marker/checkbox constructs, and
-  thread/xref/href continuity. Read-only for now — the writer (model -> DocLang)
-  lands in a follow-up.
+  Not yet mapped (skipped without losing surrounding content): xref/href
+  continuity and nested table-cell semantics.
 
 features:
   - id: block_elements
@@ -66,8 +70,10 @@ features:
     description: |
       A <table> becomes a Group of row Groups; each OTSL cell token (fcel/ched/
       rhed/...) starts a cell Block whose content runs until the next cell token
-      or <nl/>. Header tokens carry the table-header role; fcel the table-cell
-      role. Span continuations (lcel/ucel/xcel) are not yet mapped.
+      or <nl/>. Header tokens carry the table-header role plus the OTSL header
+      sub-kind (ched=column, rhed=row, corn=corner, srow=section); fcel the
+      table-cell role. Span continuations (lcel/ucel/xcel) merge cells: the grid
+      is resolved before emission so each origin cell carries ColSpan/RowSpan.
     spec_refs:
       - "DocLang v0.6 spec — OTSL table model (https://doclang.ai)"
     examples:

@@ -51,6 +51,60 @@ func TestGeometryAccessors(t *testing.T) {
 	}
 }
 
+func TestGeometryPerAxisResolution(t *testing.T) {
+	b := NewBlock("b2y", "asymmetric grid")
+	b.SetGeometry(&GeometryAnnotation{BBox: Rect{X: 0, Y: 0, W: 800, H: 400}, Resolution: 1000, ResolutionY: 512})
+	got, _ := b.Geometry()
+	if got.Resolution != 1000 || got.ResolutionY != 512 {
+		t.Fatalf("per-axis resolution mismatch: x=%d y=%d, want 1000/512", got.Resolution, got.ResolutionY)
+	}
+}
+
+func TestStructureColRowSpan(t *testing.T) {
+	b := NewBlock("cell", "merged")
+	b.SetStructure(&StructureAnnotation{Role: RoleTableCell, ColSpan: 3, RowSpan: 2})
+	s, _ := b.Structure()
+	if s.ColSpan != 3 || s.RowSpan != 2 {
+		t.Fatalf("span mismatch: col=%d row=%d, want 3/2", s.ColSpan, s.RowSpan)
+	}
+}
+
+func TestBlockPropertyConventions(t *testing.T) {
+	b := NewBlock("field", "Status")
+	if b.CheckboxChecked() || b.FieldFillable() {
+		t.Fatal("new block should default to unchecked / read-only")
+	}
+	b.SetCheckboxChecked(true)
+	b.SetFieldFillable(true)
+	b.SetCodeLanguage("Python")
+	b.SetPictureSubclass("bar_chart")
+	b.SetTableHeaderKind(TableHeaderColumn)
+	if !b.CheckboxChecked() {
+		t.Errorf("checkbox checked = false, want true (%q)", b.Properties[PropCheckboxChecked])
+	}
+	if !b.FieldFillable() {
+		t.Errorf("field fillable = false, want true")
+	}
+	if b.CodeLanguage() != "Python" {
+		t.Errorf("code language = %q, want Python", b.CodeLanguage())
+	}
+	if b.PictureSubclass() != "bar_chart" {
+		t.Errorf("picture subclass = %q, want bar_chart", b.PictureSubclass())
+	}
+	if b.TableHeaderKind() != TableHeaderColumn {
+		t.Errorf("header kind = %q, want column", b.TableHeaderKind())
+	}
+}
+
+func TestContinuesRelation(t *testing.T) {
+	b := NewBlock("frag2", "…continued paragraph")
+	b.AddRelation(RelContinues, "frag1")
+	r, ok := b.Relations()
+	if !ok || len(r.Relations) != 1 || r.Relations[0].Type != RelContinues || r.Relations[0].Target != "frag1" {
+		t.Fatalf("continues relation = %+v", r)
+	}
+}
+
 func TestVisibilityAccessors(t *testing.T) {
 	b := NewBlock("b3", "modal body")
 	if got := b.Visibility(); got != VisibilityVisible {

@@ -41,12 +41,18 @@ plugin:
     G1: "PDF Info dictionary (document metadata)"
     G3: "tagged StructTreeRoot -> roles + reading order + table grids (tier 1); geometric/ML fallback (tier 2/3)"
     G4: "page bbox geometry per block; per-glyph geometry at the top sub-rung (the \"glyphs\" option)"
-  certified_by: kapi-pdfium plugin path   # certify the ceiling out-of-core, not by grep
+  # Certified out-of-core, not by grep: the nightly kapi-pdfium job records a
+  # green "pdf-structure" entry in the ops ledger, which promotes the published
+  # level to this ceiling (rubric §2.7). Until then the published grade is the
+  # in-core floor and this ceiling is only the promotable target.
+  certified_by: kapi-pdfium plugin path (nightly) -> ops-ledger pdf-structure
 
 notes: >-
   read-only consume boundary (no native writer; nothing to round-trip — Engine
   L is N/A on the writer cell). pdf is excluded from the in-core grep universe
   (no reader.go) but stays on the /format-maturity dashboard via the
   structure.yaml allowlist seat, since it is the axis's best example. Its
-  PUBLISHED G grade is the conservative in-core grep floor; the tagged-tree
-  ceiling is a plugin capability, asserted here rather than promoted by the grep.
+  PUBLISHED G grade is the conservative in-core grep floor (G0) with the
+  tagged-tree/geometry G4 ceiling here as the promotable target; it is PROMOTED
+  to the ceiling only when the nightly kapi-pdfium job records a green
+  pdf-structure certification in the ops ledger, never by the grep.

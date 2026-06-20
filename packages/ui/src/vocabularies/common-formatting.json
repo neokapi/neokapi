@@ -171,6 +171,34 @@
       },
       "equiv": "",
       "constraints": { "deletable": false, "cloneable": false, "reorderable": false }
+    },
+    "fmt:bidi": {
+      "category": "formatting",
+      "label": "Bidi isolate (RTL)",
+      "html": { "open": "<bdi dir=\"rtl\">", "close": "</bdi>" },
+      "display": { "open": "[RTL]", "close": "[/RTL]" },
+      "chipLabel": { "open": "rtl>", "close": "/rtl", "placeholder": "rtl" },
+      "color": {
+        "bg": "rgba(20,184,166,0.15)",
+        "border": "rgba(20,184,166,0.5)",
+        "text": "rgb(20,184,166)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": false, "cloneable": false, "reorderable": false }
+    },
+    "fmt:handwriting": {
+      "category": "formatting",
+      "label": "Handwriting",
+      "html": { "open": "<span class=\"handwriting\">", "close": "</span>" },
+      "display": { "open": "[HW]", "close": "[/HW]" },
+      "chipLabel": { "open": "hw>", "close": "/hw", "placeholder": "hw" },
+      "color": {
+        "bg": "rgba(217,70,239,0.15)",
+        "border": "rgba(217,70,239,0.5)",
+        "text": "rgb(217,70,239)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     }
   },
   "fallback": {

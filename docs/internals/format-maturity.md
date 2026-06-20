@@ -509,18 +509,22 @@ richest structural format — see `docs/internals/research/format-ops/sharpen/`)
   proves a reader recovers table grids (rows/cells/headers); it does **not**
   prove merged cells (`colspan`/`rowspan`) survive. Span extents have a typed
   home — `StructureAnnotation.ColSpan`/`RowSpan` (DocLang `lcel`/`ucel`/`xcel`) —
-  but reading them is a per-reader quality detail tracked separately, not gated
-  by G3.
+  and a reader that populates them + proves it with a span test reads as the
+  display-only **`span_fidelity`** sub-signal (a per-reader quality detail
+  surfaced beside the rung, still not part of the G3 gate).
 - **G3 relation recovery is OR-lenient.** The signal accepts table Groups *or*
   `AddRelation`, so a roles+tables reader reaches G3 with no cross-block relation
   graph. Cross-block continuation/threading (DocLang `<thread>`, the
   `RelContinues` relation) is therefore a noted sub-capability, not a G3
-  guarantee.
+  guarantee. Recovery of the canonical forms cluster (key/value/hint/checkbox
+  roles + fillable/checked state) likewise reads as the display-only **`forms`**
+  sub-signal, not a rung.
 - **G2 reading-order is grep-lenient.** The `readingorder` signal accepts
   emitting `PartGroupStart`, which most grouped formats do trivially — it proves
   the reader *can* express order, not that the order is *correct*. True
-  reading-order fidelity is a corpus-level check (a Corpus/C-axis follow-up),
-  not the G2 grep.
+  reading-order *correctness* is a corpus-level oracle: a fixture whose logical
+  order is known by construction, asserting the recovered block sequence matches
+  exactly (`doclang.TestCorpus_ReadingOrder`), independent of the G2 grep.
 
 **Authority is an orthogonal qualifier, not a rung.** The AD-028 provenance
 tiers (1 tagged tree / 2 geometric inference / 3 ML layout) are
@@ -530,6 +534,21 @@ authoritative tags or an ML guess — same depth, different trust
 as a per-format qualifier in the new `core/formats/<id>/structure.yaml` artifact
 (which also countersigns the `na` geometry cell) and render its badge later;
 never collapse richness (the rung) and authority (the tier) into one number.
+
+**Plugin-provided G is certified out-of-core, like Corpus acceptance.** The two
+spatial flagships whose real depth lives in a plugin — `pdf` (kapi-pdfium) and
+`image` (kapi-vision) — have a thin in-core grep floor (pdf G0, image G1) but a
+high declared ceiling (G4) recorded in their `structure.yaml` `plugin:` block.
+The published level stays at the conservative in-core floor **until a nightly
+plugin job certifies the out-of-core path**: a green `<fmt>`-`structure`
+evidence entry in the ops ledger (the kapi-pdfium / vision-onnx nightly), checked
+exactly like the Corpus `acceptance` signal. Without the signal the declared
+ceiling is only the promotable ceiling the dashboard shows (floor → ceiling);
+with it, the audit fills the published cells up to the declared plugin ceiling so
+the gate publishes it. This certifies the plugin's tagged-tree G3 / geometry G4
+from the plugin path + CI, never by the in-core grep (which cannot see the
+plugin). The mechanism is deterministic (the ledger is a committed file), so the
+floor-ladder's spread-0 reproducibility holds.
 
 **Non-gating, for now.** Like Security, Structure & Geometry is a **display
 axis**: it does *not* enter the headline-tier minimum (§1) and does not cap a

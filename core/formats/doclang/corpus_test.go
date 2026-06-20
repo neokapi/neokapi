@@ -3,6 +3,7 @@ package doclang_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	doclangfmt "github.com/neokapi/neokapi/core/formats/doclang"
@@ -149,4 +150,46 @@ func TestCorpus_Roles(t *testing.T) {
 			t.Errorf("expected a furniture-layer block (page_header); roles=%v", roleSet(blocks))
 		}
 	})
+}
+
+// TestCorpus_ReadingOrder is a reading-order *correctness* oracle (not the
+// lenient G2 grep, which only proves a reader CAN express order via
+// PartGroupStart): it asserts the exact document/logical order of the recovered
+// translatable blocks against a fixture whose order is known by construction —
+// including content threaded across a column break and across a <page_break/>.
+// A regression that reorders, drops, or interleaves blocks fails here.
+func TestCorpus_ReadingOrder(t *testing.T) {
+	blocks := readFeatures(t)
+	var got []string
+	for _, b := range blocks {
+		if txt := strings.TrimSpace(b.SourceText()); txt != "" {
+			got = append(got, txt)
+		}
+	}
+	want := []string{
+		"Feature Coverage",
+		"Hebrew שלום and a signature here.",
+		`print("hi")`,
+		"Application",
+		"Name",
+		"Ada",
+		"Enter your full name",
+		"Region", "Q1", "Q2",
+		"North", "10", "20",
+		"Wide", "both",
+		"tall", "a",
+		"b",
+		"First part of a paragraph that",
+		"continues across a column break.",
+		"Positioned on a 1000x512 grid.",
+		"Content on the second page.",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("reading-order block count = %d, want %d\ngot:  %v\nwant: %v", len(got), len(want), got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("reading order [%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
 }

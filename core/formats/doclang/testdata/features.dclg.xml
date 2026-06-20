@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doclang xmlns="https://www.doclang.ai/ns/v0" version="0.6">
+  <heading level="1">Feature Coverage</heading>
+  <text>Hebrew <rtl>שלום</rtl> and a <handwriting>signature</handwriting> here.</text>
+  <code><label value="Python"/>print("hi")</code>
+  <field_region>
+    <field_heading level="2">Application</field_heading>
+    <field_item>
+      <key>Name</key>
+      <value class="fillable">Ada</value>
+      <hint>Enter your full name</hint>
+      <checkbox class="selected"/>
+    </field_item>
+  </field_region>
+  <table>
+    <corn/>Region<ched/>Q1<ched/>Q2<nl/>
+    <rhed/>North<fcel/>10<fcel/>20<nl/>
+    <rhed/>Wide<fcel/>both<lcel/><nl/>
+  </table>
+  <table>
+    <fcel/>tall<fcel/>a<nl/>
+    <ucel/><fcel/>b<nl/>
+  </table>
+  <text><thread thread_id="1"/>First part of a paragraph that</text>
+  <text><thread thread_id="1"/>continues across a column break.</text>
+  <text><location value="0" resolution="1000"/><location value="0" resolution="512"/><location value="800" resolution="1000"/><location value="400" resolution="512"/>Positioned on a 1000x512 grid.</text>
+  <page_break/>
+  <text>Content on the second page.</text>
+</doclang>

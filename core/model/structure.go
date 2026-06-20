@@ -1,5 +1,7 @@
 package model
 
+import "strconv"
+
 // Structural metadata layer (WS1 of the Docling/DocLang scope).
 //
 // A document's logical structure — what each block *is* (heading, caption,
@@ -53,6 +55,53 @@ const (
 	RolePageFooter  = "page-footer"
 	RoleFormField   = "form-field"
 	RoleSection     = "section"
+	RoleIndex       = "index"  // a table of contents / index / glossary (DocLang <index>; OTSL-celled like a table)
+	RoleMarker      = "marker" // a visible list/field glyph or number (DocLang <marker>)
+
+	// Forms cluster — the canonical roles for AcroForm-style key/value/hint
+	// fields (DocLang field_region/field_heading/field_item/key/value/hint/
+	// checkbox). RoleFormField stays the coarse catch-all; these name the parts.
+	RoleFieldRegion  = "field-region"  // a form-scoping container (DocLang <field_region>)
+	RoleFieldHeading = "field-heading" // a heading scoped inside a field region (DocLang <field_heading>)
+	RoleFieldItem    = "field-item"    // one key/value grouping inside a field region (DocLang <field_item>)
+	RoleKey          = "key"           // a field's key/label text (DocLang <key>)
+	RoleValue        = "value"         // a field's value text, read-only or fillable (DocLang <value>)
+	RoleHint         = "hint"          // guidance text for a fillable field (DocLang <hint>)
+	RoleCheckbox     = "checkbox"      // a selection control with a checked state (DocLang <checkbox>)
+)
+
+// Block.Properties convention keys for fine subtype / form state that has no
+// typed home on StructureAnnotation but is faithfully carried as a string
+// property. These are an open, normalized convention — readers populate them,
+// writers and the editor consume them. Boolean-valued keys use "true"/"false".
+const (
+	// PropCheckboxChecked is "true" when a RoleCheckbox block is selected
+	// (DocLang <checkbox class="selected">), "false"/absent when unselected.
+	PropCheckboxChecked = "checkbox.checked"
+	// PropFieldFillable is "true" when a RoleValue block is an editable/fillable
+	// field, "false"/absent when read-only (DocLang <value class="fillable">).
+	PropFieldFillable = "field.fillable"
+	// PropCodeLanguage is the programming-language key of a RoleCode block
+	// (DocLang <code> with a <label value="Python">; GitHub Linguist keys). A
+	// do-not-translate / syntax-relevant signal for localization.
+	PropCodeLanguage = "code.language"
+	// PropPictureSubclass is the fine subclass of a RolePicture block — e.g. a
+	// chart kind (bar/pie/line/…) (DocLang <picture class="chart"> + <label>).
+	PropPictureSubclass = "picture.subclass"
+	// PropTableHeaderKind names the OTSL header sub-kind of a RoleTableHeader
+	// cell: TableHeaderColumn (ched), TableHeaderRow (rhed), TableHeaderCorner
+	// (corn), or TableHeaderSection (srow). Absent = an unqualified header.
+	PropTableHeaderKind = "table.header-kind"
+)
+
+// OTSL table-header sub-kinds — the values PropTableHeaderKind takes. DocLang
+// distinguishes column (ched), row (rhed), corner (corn), and section (srow)
+// headers; the coarse RoleTableHeader role plus this property names which.
+const (
+	TableHeaderColumn  = "column"
+	TableHeaderRow     = "row"
+	TableHeaderCorner  = "corner"
+	TableHeaderSection = "section"
 )
 
 // Layout layers — the PLANE axis: which visual stratum a block belongs to.
@@ -141,8 +190,14 @@ type GeometryAnnotation struct {
 	// BBox is the bounding box (x_min, y_min, width, height) from the top-left.
 	BBox Rect `json:"bbox"`
 	// Resolution is the edge length of the normalized coordinate grid (DocLang
-	// uses 512). 0 = coordinates are absolute pixels/points.
+	// uses 512). 0 = coordinates are absolute pixels/points. When ResolutionY
+	// is unset, Resolution is the bound on both axes.
 	Resolution int `json:"resolution,omitempty"`
+	// ResolutionY is the per-axis vertical bound when the grid is not square
+	// (DocLang location@resolution defaults to default_resolution@width|height,
+	// which may differ). 0 = the grid is square and Resolution bounds both axes;
+	// when set, Resolution bounds X and ResolutionY bounds Y.
+	ResolutionY int `json:"resolutionY,omitempty"`
 	// Origin names the coordinate origin; "" defaults to "top-left".
 	Origin string `json:"origin,omitempty"`
 	// Z is the stacking order within the plane (higher = nearer the viewer). 0 =
@@ -296,6 +351,48 @@ func (b *Block) SetTiming(t *TimingAnnotation) { b.SetAnno(AnnoTiming, t) }
 func (b *Block) Relations() (*RelationAnnotation, bool) {
 	return AnnoAs[*RelationAnnotation](b, AnnoRelations)
 }
+
+// setProp upserts a Block.Properties entry, allocating the map if needed.
+func (b *Block) setProp(key, val string) {
+	if b.Properties == nil {
+		b.Properties = map[string]string{}
+	}
+	b.Properties[key] = val
+}
+
+// CheckboxChecked reports whether a RoleCheckbox block is selected.
+func (b *Block) CheckboxChecked() bool { return b.Properties[PropCheckboxChecked] == "true" }
+
+// SetCheckboxChecked records a checkbox's selected state (PropCheckboxChecked).
+func (b *Block) SetCheckboxChecked(checked bool) {
+	b.setProp(PropCheckboxChecked, strconv.FormatBool(checked))
+}
+
+// FieldFillable reports whether a RoleValue block is an editable/fillable field.
+func (b *Block) FieldFillable() bool { return b.Properties[PropFieldFillable] == "true" }
+
+// SetFieldFillable records a value field's fillable-vs-read-only state.
+func (b *Block) SetFieldFillable(fillable bool) {
+	b.setProp(PropFieldFillable, strconv.FormatBool(fillable))
+}
+
+// CodeLanguage returns a RoleCode block's language key, or "".
+func (b *Block) CodeLanguage() string { return b.Properties[PropCodeLanguage] }
+
+// SetCodeLanguage records a code block's programming-language key.
+func (b *Block) SetCodeLanguage(lang string) { b.setProp(PropCodeLanguage, lang) }
+
+// PictureSubclass returns a RolePicture block's fine subclass (e.g. chart kind).
+func (b *Block) PictureSubclass() string { return b.Properties[PropPictureSubclass] }
+
+// SetPictureSubclass records a picture's fine subclass.
+func (b *Block) SetPictureSubclass(sub string) { b.setProp(PropPictureSubclass, sub) }
+
+// TableHeaderKind returns a RoleTableHeader cell's OTSL sub-kind, or "".
+func (b *Block) TableHeaderKind() string { return b.Properties[PropTableHeaderKind] }
+
+// SetTableHeaderKind records a header cell's OTSL sub-kind (TableHeader* consts).
+func (b *Block) SetTableHeaderKind(kind string) { b.setProp(PropTableHeaderKind, kind) }
 
 // AddRelation appends a typed edge from this block to the target ID (upserting
 // the relation annotation). Duplicate (type,target) pairs are ignored.

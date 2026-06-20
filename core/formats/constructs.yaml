@@ -103,7 +103,7 @@
 #                     diffs in vocabulary.yaml are mostly evidence-backed
 #                     `true` upgrades, not reviewed `false` walk-backs.
 
-version: 1
+version: 2
 
 pack_additions_needed:
   # Emitted by core/formats/html/reader.go ("button" → "ui:button") but
@@ -336,6 +336,45 @@ constructs:
       rich-markup: true
       office-doc: false
       bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: inline.bidi
+    name: Inline directionality (bidi isolate)
+    category: inline-format
+    canonical_types: ["fmt:bidi"]
+    model_mapping: run:pc
+    its_category: directionality
+    xliff_module: core
+    notes: >-
+      An inline right-to-left / bidi-isolate span inside otherwise LTR text
+      (DocLang <rtl>; HTML <bdi>/dir; Unicode bidi isolates). Distinct from the
+      block-level meta.directionality property — this is a run-level isolate.
+    default_expressibility:
+      rich-markup: true
+      office-doc: true
+      bilingual-interchange: true
+      catalog-keyvalue: false
+      subtitle-timedtext: false
+      plain-text: false
+      data-config: false
+      binary-readonly: false
+
+  - id: inline.handwriting
+    name: Handwriting span
+    category: inline-format
+    canonical_types: ["fmt:handwriting"]
+    model_mapping: run:pc
+    notes: >-
+      An inline handwritten-text span (DocLang <handwriting>). Modeled as
+      inline formatting, not provenance, mirroring the DocLang spec.
+    default_expressibility:
+      rich-markup: false
+      office-doc: false
+      bilingual-interchange: false
       catalog-keyvalue: false
       subtitle-timedtext: false
       plain-text: false

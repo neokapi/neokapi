@@ -88,6 +88,9 @@ AXIS_GRADES = {
     "structure": ["G0", "G1", "G2", "G3", "G4"],
 }
 
+# Rank lookup for the structure (G) grades, for ceiling comparisons.
+RANK_STRUCT = {g: i for i, g in enumerate(AXIS_GRADES["structure"])}
+
 # Consume-only boundaries: a reader but no native writer. Generalizes the old
 # hardcoded 'pdf' so docling — and any future consume-only / OCR ingestion
 # boundary — also gets the read-only `na` writer/writecells patch
@@ -962,11 +965,17 @@ _STRUCT_ROLE_TEST_RE = re.compile(
     r"func\s+Test\w*(Role|Structure|Heading|Table|ReadingOrder)")
 _STRUCT_GEOM_TEST_RE = re.compile(r"func\s+Test\w*(Geometr|BBox|Glyph)")
 _STRUCT_TABLE_RE = re.compile(r'Type:\s*"table(-row)?"')
+_STRUCT_SPAN_TEST_RE = re.compile(r"func\s+Test\w*(Span|ColSpan|RowSpan)")
+# Canonical form-cluster roles / state conventions (core/model/structure.go).
+_STRUCT_FORMS_RE = re.compile(
+    r"\b(RoleKey|RoleValue|RoleHint|RoleFieldItem|RoleFieldHeading|"
+    r"RoleFieldRegion|RoleCheckbox|PropFieldFillable|PropCheckboxChecked)\b")
 
 
-def _structure_axis(d: str, fmt: str, ftype: str) -> dict:
+def _structure_axis(d: str, fmt: str, ftype: str, ledger=None) -> dict:
     metaplane = readingorder = roles_setter = table_or_rel = geometry_setter = False
     roles_test = geometry_test = False
+    span_setter = span_test = forms_setter = False
     if os.path.isdir(d):
         for name in sorted(os.listdir(d)):
             if not name.endswith(".go"):
@@ -977,6 +986,8 @@ def _structure_axis(d: str, fmt: str, ftype: str) -> dict:
                     roles_test = True
                 if _STRUCT_GEOM_TEST_RE.search(src):
                     geometry_test = True
+                if _STRUCT_SPAN_TEST_RE.search(src) or "ColSpan" in src or "RowSpan" in src:
+                    span_test = True
                 continue
             if (re.search(r"SetLayoutLayer\([^)]*LayerMetadata", src)
                     or "core/docmeta" in src
@@ -993,6 +1004,17 @@ def _structure_axis(d: str, fmt: str, ftype: str) -> dict:
                 table_or_rel = True
             if "SetGeometry(" in src:
                 geometry_setter = True
+            if "ColSpan" in src or "RowSpan" in src:
+                span_setter = True
+            if _STRUCT_FORMS_RE.search(src):
+                forms_setter = True
+
+    # Sub-signals (display only, not gated): G3 span fidelity (a reader that
+    # populates ColSpan/RowSpan AND proves it) and forms recovery (canonical
+    # key/value/hint/checkbox roles + fillable/checked state). They refine what a
+    # G3 grade means — G3 certifies table TOPOLOGY, not span/forms fidelity.
+    span_fidelity = span_setter and span_test
+    forms = forms_setter
 
     # rung completeness per the floor-signals table
     meta_c = metaplane
@@ -1028,9 +1050,11 @@ def _structure_axis(d: str, fmt: str, ftype: str) -> dict:
     else:
         base = "G4"
 
-    # structure.yaml: authority tier + countersigned na geometry cell.
+    # structure.yaml: authority tier + countersigned na geometry cell + a
+    # PLUGIN-PROVIDED ceiling (pdf/image, whose real depth lives out-of-core).
     authority = None
     geometry_na = False
+    plugin_declared_ceiling = None
     sdoc = _load_yaml(os.path.join(d, "structure.yaml"))
     if isinstance(sdoc, dict):
         authority = sdoc.get("authority") or sdoc.get("tier")
@@ -1040,6 +1064,12 @@ def _structure_axis(d: str, fmt: str, ftype: str) -> dict:
                 geometry_na = True
         elif str(geo).lower() == "na":
             geometry_na = True
+        # A `plugin:` block means the depth is realized out-of-core; its declared
+        # ceiling is the promotable target the nightly plugin job certifies.
+        if isinstance(sdoc.get("plugin"), dict):
+            dc = str(sdoc.get("ceiling", "")).upper()
+            if dc in RANK_STRUCT:
+                plugin_declared_ceiling = dc
 
     # ceiling: floor-only ⇒ base. na-as-ceiling — a non-spatial format (no
     # geometry capability, or a countersigned na) cannot climb to G4, so the
@@ -1048,8 +1078,28 @@ def _structure_axis(d: str, fmt: str, ftype: str) -> dict:
     ceiling = base
     spatial = geom_c or geometry_setter
     if geometry_na or not spatial:
-        if AXIS_GRADES["structure"].index(ceiling) > AXIS_GRADES["structure"].index("G3"):
+        if RANK_STRUCT[ceiling] > RANK_STRUCT["G3"]:
             ceiling = "G3"
+
+    # Plugin-provided G certification (rubric §2.7; issue #916). pdf/image publish
+    # the conservative IN-CORE grep floor until a NIGHTLY plugin job (kapi-pdfium /
+    # vision-onnx) records a green structure-certification in the ledger — exactly
+    # like the Corpus acceptance signal. Without that signal the declared plugin
+    # ceiling is only the promotable ceiling (dashboard shows floor→ceiling); with
+    # it, the published cells (and base) rise to the certified plugin ceiling.
+    plugin_certified = False
+    if plugin_declared_ceiling and RANK_STRUCT[plugin_declared_ceiling] > RANK_STRUCT[ceiling]:
+        ceiling = plugin_declared_ceiling  # declared/promotable ceiling
+        if _ledger_check(ledger, fmt, ("structure",)) == "green":
+            plugin_certified = True
+            # Fill the published cells up to the certified plugin ceiling so the
+            # gate (gateStructure over signals.cells) publishes it.
+            want = RANK_STRUCT[plugin_declared_ceiling]
+            cells["metaplane"] = "complete"
+            cells["readingorder"] = "complete"
+            cells["roles"] = "complete" if want >= RANK_STRUCT["G3"] else cells["roles"]
+            cells["geometry"] = "complete" if want >= RANK_STRUCT["G4"] else cells["geometry"]
+            base = plugin_declared_ceiling
 
     sig = {
         "metaplane": metaplane,
@@ -1059,8 +1109,12 @@ def _structure_axis(d: str, fmt: str, ftype: str) -> dict:
         "roles_test": roles_test,
         "geometry_setter": geometry_setter,
         "geometry_test": geometry_test,
+        "span_fidelity": span_fidelity,
+        "forms": forms,
         "authority": authority,
         "geometry_na": geometry_na,
+        "plugin_ceiling": plugin_declared_ceiling,
+        "plugin_certified": plugin_certified,
         "cells": cells,
     }
     return {"base": base, "ceiling": ceiling, "signals": sig}
@@ -1075,7 +1129,7 @@ def _axes_block(d: str, fmt: str, has: dict, kinds: list[str], ftype: str,
         "knowledge": _knowledge_axis(d, fmt, has, kinds, ftype, ledger),
         "corpus": _corpus_axis(d, fmt, kinds, ledger),
         "security": _security_axis(d, fmt, ledger),
-        "structure": _structure_axis(d, fmt, ftype),
+        "structure": _structure_axis(d, fmt, ftype, ledger),
     }
 
 

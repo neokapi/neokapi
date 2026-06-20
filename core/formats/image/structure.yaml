@@ -38,11 +38,16 @@ plugin:
     G2: "OCR plain text in reading order (vision.BlocksFromOCR)"
     G3: "tier-2 geometric structure (structure.Analyze/ToParts) or tier-3 ML layout regions + reading order (vision.PartsFromLayout)"
     G4: "per-line/region bbox geometry (and glyph geometry at the top sub-rung)"
-  certified_by: nightly vision-onnx job   # certify the ceiling out-of-core, not by grep
+  # Certified out-of-core, not by grep: the nightly vision-onnx job records a
+  # green "image-structure" entry in the ops ledger, which promotes the published
+  # level to this ceiling (rubric §2.7). Until then the published grade is the
+  # in-core G1 floor and this ceiling is only the promotable target.
+  certified_by: nightly vision-onnx job -> ops-ledger image-structure
 
 notes: >-
   binary-asset boundary (IsBinaryAssetFormat): the writer emits image bytes plus
   a per-locale alt-text sidecar (whole-asset replacement, not a structural
   round-trip — Engine's read-only writer-cell path, NOT the G axis, covers that).
   Without kapi-vision the image is still a valid G1 document (Media + metadata +
-  caption); OCR/structure/geometry are opt-in enrichment.
+  caption); OCR/structure/geometry are opt-in enrichment, published only when the
+  nightly vision-onnx job certifies the plugin path in the ops ledger.
