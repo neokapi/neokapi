@@ -133,8 +133,8 @@ web/
 ├── walkthroughs/            # authored prompts: {id}.md + {id}.scene.yaml
 ├── scenes/                  # per-walkthrough WASM-embed fixtures: {id}/ (seeded in-browser)
 └── static/
-    ├── img/                 # static images (logos, favicons, staged)
-    └── video/               # harness explainer videos (staged from the release)
+    ├── img/                 # local images (logos, favicons); screenshots → CDN
+    └── video/               # explainer videos served from the R2 CDN (not git)
 ```
 
 A single `@docusaurus/plugin-content-docs` instance serves all content
@@ -152,7 +152,12 @@ subsystems evolve, rather than appended chronologically. Implementation
 notes live in `contribute/notes-internal/` for tactical details (schemas,
 algorithms, API routes) that would otherwise bloat the decision documents.
 
-Hosting is GitHub Pages, deployed via GitHub Actions on push to `main`.
+Production is hosted on GitHub Pages, deployed via GitHub Actions on push to
+`main`. Large assets (videos, screenshots, ONNX models, the wasm engine) and
+per-PR previews are served from a Cloudflare R2 CDN rather than committed to the
+Pages repo — a delivery/operational detail intentionally left out of this
+decision and documented in
+[cdn-assets.md](../notes-internal/cdn-assets.md).
 
 ### Walkthrough/embed engine
 
