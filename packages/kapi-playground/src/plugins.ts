@@ -83,7 +83,11 @@ export const PLUGIN_DESCRIPTORS: PluginDescriptor[] = [
     id: "llm",
     label: "llm",
     description: "Local LLM with Gemma 4",
-    sizeBytes: 2_500_000_000,
+    // Approximate hint shown before download — the widget switches to the live
+    // aggregate ("X of Y") once shards start arriving. Reflects the per-component
+    // quantization in gemmaBridge's DEFAULT_DTYPE (q4f16 decoder + q8/q4 rest);
+    // a bare q4f16 string would fp16-fallback the encoders and roughly double it.
+    sizeBytes: 3_000_000_000,
     browserSupported: true,
     needsEngine: true,
   },
