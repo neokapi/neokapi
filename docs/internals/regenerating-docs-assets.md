@@ -5,14 +5,16 @@ asset embedded on the three public surfaces:
 
 | Surface | Path | Asset home |
 |---|---|---|
-| kapi docs + landing | `web` (baseUrl `/web/neokapi/`) | `docs-assets` GitHub release |
+| kapi docs + landing | `web` (baseUrl `/web/neokapi/`) | Cloudflare R2 (`kapi/{video,img,models}/`) |
 | bowrain landing | `bowrain/web/landing` | committed in `bowrain/web/landing/public/` |
-| bowrain docs | `bowrain/web/docs` (baseUrl `/web/bowrain/docs/`) | `bowrain-docs-assets` GitHub release |
+| bowrain docs | `bowrain/web/docs` (baseUrl `/web/bowrain/docs/`) | Cloudflare R2 (`bowrain/{video,img}/`) |
 
 **Landing pages** carry their own committed images — nothing to regenerate
 unless a screenshot in `public/` is replaced. Everything below is about the two
-Docusaurus docs sites, whose video/image assets are **gitignored** and shipped
-through a GitHub release that CI stages at build time (CI never records).
+Docusaurus docs sites, whose video/image assets are **gitignored** and published
+to the Cloudflare R2 CDN (served at `$DOCS_CDN_URL`); the sites reference them by
+URL via `ThemedVideo` / `ThemedImage` / the Vision Lab (CI never records, never
+stages — see `web/docs/contribute/notes-internal/cdn-assets.md`).
 
 ## 0. One-time setup
 
@@ -65,8 +67,8 @@ vpx tsx src/cli/run.ts 05-ai-checks-guardrail --force --theme=both
 vpx tsx src/cli/run.ts 09-toolbox-find-replace --force --theme=both
 cd ..
 
-# publish → docs-assets release (merges, never drops), then make it live
-make publish-docs-assets
+# publish → R2 CDN (videos + images), then make it live
+make publish-cdn-videos publish-cdn-images
 gh workflow run docs-kapi.yml --ref main   # pages-deploy.yml auto-deploys on success
 ```
 
@@ -131,20 +133,19 @@ cd ../../..
 ### 2e. publish + deploy
 
 ```bash
-make publish-bowrain-docs-assets
+make publish-cdn-bowrain-videos publish-cdn-bowrain-images
 gh workflow run docs-bowrain.yml --ref main
 ```
 
 ## 3. Verify live
 
-CDN edges can serve a stale tarball for ~15–25 min after a release upload, even
-when a local `gh release download` already has the fresh one. **Verify by byte
-size, not HTTP 200**: compare the live `Content-Length` against the local file
-and re-trigger the workflow until they match.
+R2 + Cloudflare edges can serve a stale object briefly after an overwrite.
+**Verify by byte size, not HTTP 200**: compare the live `Content-Length` on the
+CDN against the local file and re-publish until they match.
 
 ```bash
-# example: compare one asset
-live=$(curl -sI https://neokapi.github.io/web/neokapi/video/kapi/kapi-desktop-projects-dark.webm | awk '/content-length/{print $2}' | tr -d '\r')
+# example: compare one asset on the CDN
+live=$(curl -sI https://cdn.bowrain.cloud/kapi/video/kapi/kapi-desktop-projects-dark.webm | awk '/content-length/{print $2}' | tr -d '\r')
 local=$(stat -f%z web/static/video/kapi/kapi-desktop-projects-dark.webm)
 echo "live=$live local=$local"
 ```

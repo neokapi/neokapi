@@ -238,33 +238,32 @@ change that breaks a documented command fails the contract.
 
 ### Asset generation and staging
 
-Videos are rendered on the desktop (not in CI) and published to a GitHub
-release named `docs-assets`. The Makefile exposes only the targets that exist:
+Videos, screenshots, and ONNX vision models are produced on the desktop (not in
+CI) and published to the Cloudflare R2 CDN (`$DOCS_CDN_URL`); the sites reference
+them by URL. The Makefile exposes only the targets that exist:
 
 ```bash
 make harness-videos       # render the narrated explainer videos (light + dark)
                           #   → web/static/video/kapi/
 make harness-videos-staged # full pass: stack up → seed → record → narrate → package
-make publish-docs-assets  # merge web/static/{img,video} into the
-                          #   docs-assets release (never drops existing assets)
-make fetch-docs-assets    # download the docs-assets tarball into static/
-                          #   (transitional, until the engine covers everything)
+make publish-cdn-all      # publish videos + images + models (kapi & bowrain) → R2
+make publish-cdn-videos   # just the kapi videos → R2 (kapi/video/)
 make web-wasm-cli         # build the in-browser kapi CLI → static/wasm/kapi-cli.wasm.gz
 ```
 
 The interactive embeds need no recording step: their generated
 `embeds/*.embed.ts` are committed, and they render live against the WASM CLI.
-Videos are not stored in git. CI **does not record or render**: the
-`docs-kapi.yml` deploy workflow downloads the `docs-assets` tarball and copies
-its `video/` into `web/static/video/` before building the site (the wasm
-playground is built separately and downloaded as a workflow artifact). A
-developer who only edits documentation text can rely on the prebuilt tarball
-via `make fetch-docs-assets`.
+Videos/models/screenshots are not stored in git or in GitHub releases. CI **does
+not record, render, or stage**: the sites build with `DOCS_CDN_URL` set (for push
+and same-repo PRs) and reference the assets on R2 (the wasm playground is built
+in CI and published to R2 by sha). A developer editing only documentation text
+relies on the live CDN assets; to preview assets locally without the CDN, stage
+them same-origin on demand (e.g. `make fetch-vision-models`).
 
 To regenerate an embed after editing its `.scene.yaml`, run
 `scripts/walkthrough-gen/gen.ts <id>` by hand (see above); to refresh a video,
 render it with the `harness-*` targets and republish with
-`make publish-docs-assets`.
+`make publish-cdn-videos`.
 
 ### Verification checklist for CLI/UI changes
 
@@ -278,7 +277,7 @@ Before committing a change that affects documented behavior:
    `make docs-verify-snippets` (the commands run in the WASM CLI).
 6. Affected embeds are regenerated (`scripts/walkthrough-gen/gen.ts <id>`) and,
    when a demo video changed, re-rendered on the desktop (`make harness-videos`)
-   and republished (`make publish-docs-assets`).
+   and republished (`make publish-cdn-videos`).
 
 ## Consequences
 

@@ -426,7 +426,7 @@ See `harness/` (and its Makefile) for the phased seed → record → narrate →
 
 ### In CI
 
-The docs build workflows (`.github/workflows/docs-kapi.yml`, `docs-bowrain.yml`) **stage** the `.webm` assets from the `docs-assets` / `bowrain-docs-assets` GitHub releases rather than recording in CI — recording happens on the desktop and is pushed to a release via the `publish-*-docs-assets` targets. Assets are not stored in git.
+The docs build workflows (`.github/workflows/docs-kapi.yml`, `docs-bowrain.yml`) **reference** the `.webm` videos, screenshots, and ONNX models from the Cloudflare R2 CDN (`$DOCS_CDN_URL`) rather than recording or staging them in CI — recording happens on the desktop and is published to R2 via the `publish-cdn-*` targets. Assets are not stored in git or in GitHub releases. PR previews (served from R2) reference the same CDN assets, so they stay small.
 
 ### Real systems, not mocks
 

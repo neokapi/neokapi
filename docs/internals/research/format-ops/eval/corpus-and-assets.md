@@ -199,7 +199,15 @@ fails only when the validator runs and rejects kapi output."*
 
 ## 3. The docs-assets release pattern (template to replicate)
 
-### Makefile targets (`Makefile:1083-1106`)
+> **Retired (2026-06).** The `docs-assets` / `bowrain-docs-assets` releases and
+> their `fetch/publish-docs-assets` targets + scripts no longer exist: docs
+> videos, screenshots, and ONNX models now live on the Cloudflare R2 CDN
+> (`make publish-cdn-*`, served at `$DOCS_CDN_URL`). The merge-never-drop idiom
+> described below survives in `scripts/publish-corpus.sh` (the canonical live
+> implementation); the snippets here are kept as the historical template that
+> informed the format-corpus design.
+
+### Makefile targets (historical)
 
 ```make
 fetch-docs-assets:
@@ -343,7 +351,7 @@ The repo already has all three storage idioms; a format corpus store should comp
    `go.work`, pick latest version dir; introduce a `corpus:` input_file scheme alongside
    `okapi:` in `ResolveFilePath` (`helpers.go:42-49`). Tests **skip with the fetch
    command in the message** (wiki/openxml pattern), never fail on absence.
-3. **publish-corpus** = clone of `scripts/publish-docs-assets.sh` merge-never-drop:
+3. **publish-corpus** (`scripts/publish-corpus.sh`) = merge-never-drop:
    download current tarball → extract to mktemp → `rsync -a` local trees over it
    (additive, local wins) → repack → `gh release upload --clobber`. This lets per-format
    contributions land independently without clobbering other formats' corpus files.

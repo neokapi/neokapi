@@ -358,8 +358,8 @@ issue — the bug→corpus flywheel is mandatory, not aspirational.
   command in the skip message**, never fail.
 - Storage: a single release tag `format-corpus-vN` on neokapi/neokapi with
   **per-format assets** `corpus-<id>.tar.gz` (a one-format respin does not
-  re-ship every binary), published merge-never-drop
-  (`scripts/publish-corpus.sh`, the `publish-docs-assets.sh` idiom with the
+  re-ship every binary), published merge-never-drop by
+  `scripts/publish-corpus.sh` (download → overlay → repack → `--clobber`, with a
   first-publish auto-create guard); fetched by `scripts/fetch-corpus.sh`
   (`make fetch-corpus [FORMAT=<id>]`) into `corpus/<version>/<id>/`
   (gitignored, next to the `okapi-testdata/` entry).
