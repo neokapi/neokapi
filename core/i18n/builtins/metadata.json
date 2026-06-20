@@ -1157,6 +1157,10 @@
           "title": "Extract comments as notes",
           "description": "Surface an XML comment immediately preceding an entry as a translator note on the emitted block. Comments always round-trip verbatim regardless of this setting."
         },
+        "extractNonTranslatableContent": {
+          "title": "Surface non-translatable content",
+          "description": "Surface \u003cstring\u003e/\u003cstring-array\u003e/\u003cplurals\u003e entries marked translatable=\"false\" as non-translatable content blocks (visible to ingestion, skipped by MT). When off, such entries stay in opaque skeleton and round-trip verbatim. Bare resource references are always skeleton."
+        },
         "skipNonTranslatable": {
           "title": "Skip translatable=\"false\" entries",
           "description": "Exclude \u003cstring\u003e/\u003cstring-array\u003e/\u003cplurals\u003e entries marked translatable=\"false\" from extraction. Such resources are developer-owned and round-trip verbatim."
@@ -1192,7 +1196,7 @@
       "properties": {
         "descriptionNotes": {
           "title": "Surface descriptions as notes",
-          "description": "Surface the \"description\" field of a resource's sibling \"@\u003cid\u003e\" attributes object as a translator note. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting."
+          "description": "Surface the human-facing context in a resource's sibling \"@\u003cid\u003e\" attributes object as developer notes: the resource \"description\" plus each placeholder's \"example\"/\"description\" hint. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting."
         }
       }
     },
@@ -1670,6 +1674,10 @@
           "title": "Code Finder Rules",
           "description": "Regex patterns that match inline codes within translatable text."
         },
+        "extractNonTranslatableContent": {
+          "title": "Surface Non-Translatable Content",
+          "description": "If true, MDX-specific non-translatable content (block-level JSX text children, GFM table cell prose, and markdown spans that cannot be reconstructed faithfully) is surfaced as non-translatable content blocks (visible to ingestion, skipped by MT) while staying byte-faithful on round-trip. If false, those constructs stay opaque."
+        },
         "frontMatterKeys": {
           "title": "Front Matter Keys",
           "description": "Front matter keys to extract when translateFrontMatter is on (empty = every scalar value). Set the prose-bearing keys, e.g. title and description."
@@ -1811,6 +1819,10 @@
         "excludedSheets": {
           "title": "Excluded sheets",
           "description": "Sheet names to exclude from extraction."
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content is surfaced — image/shape alt-text (descr/title on docPr/cNvPr) as content blocks (visible to ingestion/LLM consumers, skipped by machine translation), and PowerPoint/Excel comment text as data parts — instead of being hidden in opaque skeleton. Disable to keep it opaque."
         },
         "extractRunFontsInfo": {
           "title": "Extract run fonts info",
@@ -2013,6 +2025,10 @@
           "title": "Additional Comment Markers",
           "description": "Recognize semicolon and double-slash comment styles in addition to standard # and ! markers"
         },
+        "extractNonTranslatableContent": {
+          "title": "Surface Excluded Values",
+          "description": "Surface the value text of excluded entries (keys filtered out, or under #_skip / #_bskip) as non-translatable content blocks visible to ingestion but skipped by translation"
+        },
         "extractOnlyMatchingKey": {
           "title": "Extract Only Matching Keys",
           "description": "When enabled, extract only entries whose keys match the condition; otherwise exclude matching keys"
@@ -2078,7 +2094,33 @@
       "mimeTypes": [
         "application/rtf",
         "text/rtf"
-      ]
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Code Finder Rules",
+          "description": "Regex patterns that match inline codes within extracted text."
+        },
+        "extractAnnotations": {
+          "title": "Translate Annotations",
+          "description": "If true, text in \\annotation (review comment) destinations is extracted as translatable content. If false (default), the comment text rides as block note metadata when extractNonTranslatableContent is on."
+        },
+        "extractBookmarks": {
+          "title": "Translate Bookmarks",
+          "description": "If true, \\bkmkstart / \\bkmkend bookmark labels are extracted as translatable text. Off by default — bookmarks are structural anchors, not user-visible copy."
+        },
+        "extractHeadersFooters": {
+          "title": "Translate Headers and Footers",
+          "description": "If true, text in \\header* and \\footer* destinations is extracted as translatable content. If false (default), it is surfaced as non-translatable content when extractNonTranslatableContent is on, otherwise kept in skeleton."
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content — headers/footers, \\info title/doccomm metadata, and \\xe/\\tc index/TOC entries — is surfaced as role-tagged content blocks (visible to ingestion/LLM consumers, skipped by machine translation) and \\annotation review comments ride as note metadata. Disable to keep all of it in skeleton."
+        },
+        "useCodeFinder": {
+          "title": "Enable Inline Code Detection",
+          "description": "Enable regex-based inline code detection within extracted text."
+        }
+      }
     },
     "splicedlines": {
       "displayName": "Spliced Lines"
@@ -2181,7 +2223,7 @@
         },
         "extractNonTranslatableContent": {
           "title": "Extract non-translatable content",
-          "description": "If true (default), non-translatable head metadata such as ttm:copyright and ttm:agent is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+          "description": "If true (default), non-translatable head metadata such as ttm:title, ttm:desc, ttm:copyright and ttm:agent is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
         },
         "maxCharsPerLine": {
           "title": "Max characters per line",
@@ -2317,6 +2359,10 @@
         "application/json"
       ],
       "properties": {
+        "extractNonTranslatableContent": {
+          "title": "Surface non-translatable content",
+          "description": "Surface an entry's developer comment via a non-translatable fallback block when the entry has no translatable leaf (no localizations, an empty localizations object, or a stale entry skipped because extractStale is off). When off, the part stream is byte-identical to the prior behavior."
+        },
         "extractStale": {
           "title": "Extract stale entries",
           "description": "Emit entries whose extractionState is \"stale\" (the source string no longer appears in the code base) as translatable blocks."

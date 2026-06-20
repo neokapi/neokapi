@@ -300,6 +300,7 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 			if r.cfg.UseCodeFinder {
 				r.applyCodeFinder(block)
 			}
+			attachComments(block, entry)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -376,7 +377,38 @@ func (r *Reader) newPluralBlock(entry *poEntry, pf pluralForm, targetLocale mode
 	if r.cfg.UseCodeFinder {
 		r.applyCodeFinder(block)
 	}
+	attachComments(block, entry)
 	return block
+}
+
+// attachComments surfaces a PO entry's developer/translator comments on
+// the owning Block as NoteAnnotations. PO's `#.` lines are extracted
+// (developer) comments produced by xgettext from the source code; `# `
+// lines are free-form translator notes. Per #928 these are semantic
+// context, not translatable content, so they ride as block-scoped
+// annotations rather than translatable Blocks.
+//
+// Annotations live outside the parity canonical block-event stream (see
+// core/format/spec/blockevents.go, which excludes Annotations by design)
+// and don't change the emitted part stream, so this is parity-safe and
+// needs no extraction flag. It also recovers the `#.` extracted comments,
+// which the reader previously dropped entirely in normal mode and left as
+// opaque skeleton text in skeleton mode.
+func attachComments(block *model.Block, entry *poEntry) {
+	if len(entry.extractedComments) > 0 {
+		block.AddNote(&model.NoteAnnotation{
+			Text:      strings.Join(entry.extractedComments, "\n"),
+			From:      "developer",
+			Annotates: "general",
+		})
+	}
+	if len(entry.translatorComments) > 0 {
+		block.AddNote(&model.NoteAnnotation{
+			Text:      strings.Join(entry.translatorComments, "\n"),
+			From:      "translator",
+			Annotates: "general",
+		})
+	}
 }
 
 // readContentSkeleton does a single-pass parse of the PO file, simultaneously
@@ -801,6 +833,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			if r.cfg.UseCodeFinder {
 				r.applyCodeFinder(block)
 			}
+			attachComments(block, entry)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}

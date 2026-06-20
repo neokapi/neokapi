@@ -144,6 +144,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// Use a Decoder to support multi-document YAML (--- separators).
 	decoder := yamlv3.NewDecoder(strings.NewReader(string(content)))
 
+	// notes accumulates YAML comments in document order so they attach as
+	// parity-safe NoteAnnotations to the adjacent translatable block.
+	notes := &noteState{}
+
 	if r.skeletonStore != nil {
 		// Skeleton mode: collect translatable scalar byte ranges, then
 		// build skeleton from raw bytes.
@@ -159,7 +163,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				ch <- model.PartResult{Error: fmt.Errorf("yaml: parsing: %w", err)}
 				return
 			}
-			r.collectScalarRanges(ctx, ch, &node, nil, &blockCounter, content, lineOffsets, &ranges, nil, false)
+			r.collectScalarRanges(ctx, ch, &node, nil, &blockCounter, content, lineOffsets, &ranges, nil, false, notes)
 		}
 
 		// Build skeleton from raw bytes and collected ranges.
@@ -174,7 +178,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				ch <- model.PartResult{Error: fmt.Errorf("yaml: parsing: %w", err)}
 				return
 			}
-			r.walkNode(ctx, ch, &node, nil, &blockCounter, nil)
+			r.walkNode(ctx, ch, &node, nil, &blockCounter, nil, notes)
 		}
 	}
 
@@ -187,6 +191,92 @@ type scalarRange struct {
 	end     int    // byte offset past the scalar
 	blockID string // block ID (e.g. "tu1")
 	style   yamlv3.Style
+}
+
+// noteState accumulates YAML comments in document order so they can be
+// attached as NoteAnnotations to the adjacent translatable block.
+//
+// yaml.v3 records comments on three node fields: HeadComment (the full-line
+// `# …` lines ABOVE a mapping entry, stored on the entry's KEY node — or
+// directly on a sequence-item / document scalar), LineComment (the trailing
+// inline `value # …` comment, stored on the value node), and FootComment
+// (the full-line `# …` lines BELOW an entry). The reader previously never
+// read any of these fields, so this context was dropped on ingestion (the
+// raw `#` text still rides the skeleton, so round-trip was — and stays —
+// byte-exact).
+//
+// Comments are markup that stays verbatim in the skeleton; the note is an
+// ingestion-only copy of the comment prose. Annotations are NOT part of the
+// parity canonical part stream, so this is parity-safe and needs no opt-out
+// flag (treatment B.1 of #928).
+type noteState struct {
+	// pending holds head/standalone comments awaiting the next block, in
+	// document order.
+	pending []*model.NoteAnnotation
+}
+
+// queueComment cleans a raw yaml.v3 comment field and, if it carries prose,
+// queues it to attach to the next block emitted in document order.
+func (ns *noteState) queueComment(raw string) {
+	if ns == nil {
+		return
+	}
+	if n := newCommentNote(raw); n != nil {
+		ns.pending = append(ns.pending, n)
+	}
+}
+
+// attach drains the queued head/standalone comments onto block (in document
+// order) and appends the block's own inline and foot comments. Callers must
+// invoke this BEFORE emitting the block's Part so the channel never observes
+// a block mutated after send.
+func (ns *noteState) attach(block *model.Block, inline, foot string) {
+	if ns == nil || block == nil {
+		return
+	}
+	for _, n := range ns.pending {
+		block.AddNote(n)
+	}
+	ns.pending = nil
+	if n := newCommentNote(inline); n != nil {
+		block.AddNote(n)
+	}
+	if n := newCommentNote(foot); n != nil {
+		block.AddNote(n)
+	}
+}
+
+// newCommentNote converts a raw yaml.v3 comment field (e.g.
+// "# line one\n# line two") into a NoteAnnotation, returning nil for an
+// empty or whitespace-only comment.
+func newCommentNote(raw string) *model.NoteAnnotation {
+	text := cleanComment(raw)
+	if text == "" {
+		return nil
+	}
+	return &model.NoteAnnotation{Text: text, From: "yaml"}
+}
+
+// cleanComment strips the leading `#` marker and a single following space
+// from each line of a raw yaml.v3 comment field and drops blank lines,
+// yielding the comment prose. Multi-line comments are rejoined with "\n".
+func cleanComment(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	lines := strings.Split(raw, "\n")
+	cleaned := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimRight(line, "\r")
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		trimmed = strings.TrimPrefix(trimmed, "#")
+		trimmed = strings.TrimPrefix(trimmed, " ")
+		cleaned = append(cleaned, trimmed)
+	}
+	return strings.Join(cleaned, "\n")
 }
 
 // detectDominantEOL inspects the raw content and returns the source's
@@ -247,12 +337,12 @@ func lineColToOffset(lineOffsets []int, line, col int) int {
 func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartResult,
 	node *yamlv3.Node, path []string, blockCounter *int,
 	content []byte, lineOffsets []int, ranges *[]scalarRange,
-	visiting map[*yamlv3.Node]bool, insideAlias bool) {
+	visiting map[*yamlv3.Node]bool, insideAlias bool, notes *noteState) {
 
 	switch node.Kind {
 	case yamlv3.DocumentNode:
 		for _, child := range node.Content {
-			r.collectScalarRanges(ctx, ch, child, path, blockCounter, content, lineOffsets, ranges, visiting, insideAlias)
+			r.collectScalarRanges(ctx, ch, child, path, blockCounter, content, lineOffsets, ranges, visiting, insideAlias, notes)
 		}
 
 	case yamlv3.MappingNode:
@@ -261,13 +351,16 @@ func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartRe
 			valNode := node.Content[i+1]
 			key := keyNode.Value
 			newPath := append(append([]string{}, path...), key)
-			r.collectScalarRanges(ctx, ch, valNode, newPath, blockCounter, content, lineOffsets, ranges, visiting, insideAlias)
+			notes.queueComment(keyNode.HeadComment)
+			r.collectScalarRanges(ctx, ch, valNode, newPath, blockCounter, content, lineOffsets, ranges, visiting, insideAlias, notes)
+			notes.queueComment(keyNode.LineComment)
+			notes.queueComment(keyNode.FootComment)
 		}
 
 	case yamlv3.SequenceNode:
 		for i, child := range node.Content {
 			indexPath := append(append([]string{}, path...), fmt.Sprintf("[%d]", i))
-			r.collectScalarRanges(ctx, ch, child, indexPath, blockCounter, content, lineOffsets, ranges, visiting, insideAlias)
+			r.collectScalarRanges(ctx, ch, child, indexPath, blockCounter, content, lineOffsets, ranges, visiting, insideAlias, notes)
 		}
 
 	case yamlv3.ScalarNode:
@@ -277,7 +370,7 @@ func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartRe
 		// surrounding skeleton text twice (duplicate keys/values inline)
 		// while the alias position (`*id`) stays untouched. Emit the
 		// model.Block so callers see the value, but skip the range.
-		r.collectScalarRange(ctx, ch, node, path, blockCounter, content, lineOffsets, ranges, insideAlias)
+		r.collectScalarRange(ctx, ch, node, path, blockCounter, content, lineOffsets, ranges, insideAlias, notes)
 
 	case yamlv3.AliasNode:
 		if node.Alias == nil || visiting[node.Alias] {
@@ -287,7 +380,7 @@ func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartRe
 			visiting = map[*yamlv3.Node]bool{}
 		}
 		visiting[node.Alias] = true
-		r.collectScalarRanges(ctx, ch, node.Alias, path, blockCounter, content, lineOffsets, ranges, visiting, true)
+		r.collectScalarRanges(ctx, ch, node.Alias, path, blockCounter, content, lineOffsets, ranges, visiting, true, notes)
 		delete(visiting, node.Alias)
 	}
 }
@@ -299,7 +392,19 @@ func (r *Reader) collectScalarRanges(ctx context.Context, ch chan<- model.PartRe
 func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartResult,
 	node *yamlv3.Node, path []string, blockCounter *int,
 	content []byte, lineOffsets []int, ranges *[]scalarRange,
-	insideAlias bool) {
+	insideAlias bool, notes *noteState) {
+
+	// The value node's own head comment (sequence items / document scalars)
+	// joins the pending queue, so it attaches to this block when extracted
+	// or rides to the next block otherwise. Aliased scalars share the
+	// anchor's node — its comments belong to the definition, so skip them
+	// to avoid duplicating the note onto the alias block.
+	inline, foot := node.LineComment, node.FootComment
+	if insideAlias {
+		inline, foot = "", ""
+	} else {
+		notes.queueComment(node.HeadComment)
+	}
 
 	isString := node.Tag == "!!str" || node.Tag == ""
 	if !isString && !r.cfg.ExtractNonStrings {
@@ -329,6 +434,7 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 		if r.cfg.UseCodeFinder {
 			r.applyCodeFinder(block)
 		}
+		notes.attach(block, inline, foot)
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		return
 	}
@@ -408,6 +514,8 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 			style:   node.Style,
 		})
 	}
+
+	notes.attach(block, inline, foot)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
@@ -817,12 +925,12 @@ func (r *Reader) buildSkeleton(content []byte, ranges []scalarRange) {
 // `visiting` tracks alias targets currently on the recursion stack so
 // self-referential anchors terminate instead of looping forever (see
 // collectScalarRanges for the same pattern).
-func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node *yamlv3.Node, path []string, blockCounter *int, visiting map[*yamlv3.Node]bool) {
+func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node *yamlv3.Node, path []string, blockCounter *int, visiting map[*yamlv3.Node]bool, notes *noteState) {
 	switch node.Kind {
 	case yamlv3.DocumentNode:
 		// Multi-document: each document node wraps content
 		for _, child := range node.Content {
-			r.walkNode(ctx, ch, child, path, blockCounter, visiting)
+			r.walkNode(ctx, ch, child, path, blockCounter, visiting, notes)
 		}
 
 	case yamlv3.MappingNode:
@@ -831,17 +939,20 @@ func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node 
 			valNode := node.Content[i+1]
 			key := keyNode.Value
 			newPath := append(append([]string{}, path...), key)
-			r.walkNode(ctx, ch, valNode, newPath, blockCounter, visiting)
+			notes.queueComment(keyNode.HeadComment)
+			r.walkNode(ctx, ch, valNode, newPath, blockCounter, visiting, notes)
+			notes.queueComment(keyNode.LineComment)
+			notes.queueComment(keyNode.FootComment)
 		}
 
 	case yamlv3.SequenceNode:
 		for i, child := range node.Content {
 			indexPath := append(append([]string{}, path...), fmt.Sprintf("[%d]", i))
-			r.walkNode(ctx, ch, child, indexPath, blockCounter, visiting)
+			r.walkNode(ctx, ch, child, indexPath, blockCounter, visiting, notes)
 		}
 
 	case yamlv3.ScalarNode:
-		r.emitScalar(ctx, ch, node, path, blockCounter)
+		r.emitScalar(ctx, ch, node, path, blockCounter, notes)
 
 	case yamlv3.AliasNode:
 		if node.Alias == nil || visiting[node.Alias] {
@@ -851,12 +962,17 @@ func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node 
 			visiting = map[*yamlv3.Node]bool{}
 		}
 		visiting[node.Alias] = true
-		r.walkNode(ctx, ch, node.Alias, path, blockCounter, visiting)
+		r.walkNode(ctx, ch, node.Alias, path, blockCounter, visiting, notes)
 		delete(visiting, node.Alias)
 	}
 }
 
-func (r *Reader) emitScalar(ctx context.Context, ch chan<- model.PartResult, node *yamlv3.Node, path []string, blockCounter *int) {
+func (r *Reader) emitScalar(ctx context.Context, ch chan<- model.PartResult, node *yamlv3.Node, path []string, blockCounter *int, notes *noteState) {
+	// The value node's own head comment (sequence items / document scalars)
+	// joins the pending queue, so it attaches to this block when extracted
+	// or rides to the next block otherwise.
+	notes.queueComment(node.HeadComment)
+
 	isString := node.Tag == "!!str" || node.Tag == ""
 
 	if !isString && !r.cfg.ExtractNonStrings {
@@ -882,6 +998,7 @@ func (r *Reader) emitScalar(ctx context.Context, ch chan<- model.PartResult, nod
 	if r.cfg.UseCodeFinder {
 		r.applyCodeFinder(block)
 	}
+	notes.attach(block, node.LineComment, node.FootComment)
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 

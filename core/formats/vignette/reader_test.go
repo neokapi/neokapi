@@ -16,6 +16,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// translatableBlocks filters a block slice down to the translatable
+// (MT-bound) blocks. The reader surfaces non-source-locale content
+// instances as Translatable:false content blocks by default
+// (ExtractNonTranslatableContent ON), so the extraction-contract tests
+// that assert "how many blocks reach MT" filter those out first.
+func translatableBlocks(blocks []*model.Block) []*model.Block {
+	var out []*model.Block
+	for _, b := range blocks {
+		if b.Translatable {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
 // rawDocWithLocales builds a RawDocument carrying both a source and a
 // target locale, which the testutil helpers don't expose. Used to pin
 // the Vignette reader's locale-pair-driven extraction (it must honour
@@ -136,8 +151,8 @@ func TestReadSimpleBilingualPair(t *testing.T) {
 	require.NoError(t, err)
 	defer reader.Close()
 
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-	require.Len(t, blocks, 1, "one bilingual pair → one Block (the source-side body)")
+	blocks := translatableBlocks(testutil.CollectBlocks(t, reader.Read(ctx)))
+	require.Len(t, blocks, 1, "one bilingual pair → one translatable Block (the source-side body)")
 	assert.Equal(t, "ENtext", blocks[0].SourceText())
 	assert.Equal(t, "SMCCONTENT-BODY", blocks[0].Properties["attribute"])
 	assert.Equal(t, "okf_html", blocks[0].Properties["subfilter"])
@@ -157,8 +172,8 @@ func TestReadComplexTwoPairs(t *testing.T) {
 	require.NoError(t, err)
 	defer reader.Close()
 
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-	require.Len(t, blocks, 2, "two bilingual pairs → two Blocks in target-driven order")
+	blocks := translatableBlocks(testutil.CollectBlocks(t, reader.Read(ctx)))
+	require.Len(t, blocks, 2, "two bilingual pairs → two translatable Blocks in target-driven order")
 	// Walking in document order, we encounter id1's target first (es_ES at
 	// position 1); the source-side payload (en_US) is "EN-id1". Then id2.
 	// Upstream asserts positionally: getTextUnit(events,1)=="EN-id1" and
@@ -181,8 +196,8 @@ func TestReadBilingualPairWithMatchingTargetLocale(t *testing.T) {
 	require.NoError(t, err)
 	defer reader.Close()
 
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-	require.Len(t, blocks, 1, "es-ES target with an en-US source → one Block (the source-side body)")
+	blocks := translatableBlocks(testutil.CollectBlocks(t, reader.Read(ctx)))
+	require.Len(t, blocks, 1, "es-ES target with an en-US source → one translatable Block (the source-side body)")
 	assert.Equal(t, "ENtext", blocks[0].SourceText())
 	assert.Equal(t, "en_US", blocks[0].Properties["localeId"])
 }
@@ -201,8 +216,8 @@ func TestReadBilingualPairWithNonMatchingTargetLocale(t *testing.T) {
 	require.NoError(t, err)
 	defer reader.Close()
 
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-	assert.Empty(t, blocks, "no instance has LOCALE_ID == fr → nothing extracted (matches Okapi)")
+	blocks := translatableBlocks(testutil.CollectBlocks(t, reader.Read(ctx)))
+	assert.Empty(t, blocks, "no instance has LOCALE_ID == fr → nothing translatable extracted (matches Okapi)")
 }
 
 func TestReadPlainPayloadBilingualPair(t *testing.T) {
@@ -212,7 +227,7 @@ func TestReadPlainPayloadBilingualPair(t *testing.T) {
 	require.NoError(t, err)
 	defer reader.Close()
 
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	blocks := translatableBlocks(testutil.CollectBlocks(t, reader.Read(ctx)))
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "hello", blocks[0].SourceText())
 }
@@ -252,8 +267,8 @@ func TestReadOnlySourceInstanceWithoutPair(t *testing.T) {
 	require.NoError(t, err)
 	defer reader.Close()
 
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-	assert.Empty(t, blocks, "unpaired bilingual instance should not extract")
+	blocks := translatableBlocks(testutil.CollectBlocks(t, reader.Read(ctx)))
+	assert.Empty(t, blocks, "unpaired bilingual instance should not extract a translatable Block")
 }
 
 func TestReadEmpty(t *testing.T) {

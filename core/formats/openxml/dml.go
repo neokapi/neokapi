@@ -113,7 +113,15 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 				}
 			default:
 				p.captureShapeGeometry(t)
-				p.skelWriteStartElement(t)
+				if p.cfg != nil && p.cfg.ExtractNonTranslatableContent() && isDrawingPropertyElement(t) {
+					// Surface image/shape alt text (descr=) and object title
+					// (title=) on <p:cNvPr>/<p:docPr> as Translatable:false
+					// RoleCaption content (#928). PPTX does not extract the
+					// graphic name= for translation, so name passes through.
+					p.skelWriteDrawingPropElement(t, partPath, emitBlock)
+				} else {
+					p.skelWriteStartElement(t)
+				}
 			}
 
 		case xml.EndElement:
@@ -407,6 +415,104 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		Source:       b.Runs(),
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   map[string]string{"partPath": partPath},
+	}
+}
+
+// skelWriteDrawingPropElement writes a <p:cNvPr>/<p:docPr> (or pic:/wps:
+// variant) drawing-property start element to the skeleton, surfacing its descr=
+// (accessibility alt text) and title= (object title) attribute values as
+// Translatable:false RoleCaption "property" blocks (#928). Each surfaced value
+// is replaced with a skeleton ref so the writer restores it via renderBlock
+// ("property" → escaped text); an untranslated block restores the source value,
+// keeping the round-trip byte-exact. All other attributes — including name=,
+// which the PPTX path does not extract for translation — pass through verbatim.
+//
+// Mirrors the WML drawing-name path (writeDrawingPropertyElementTo) and the
+// SpreadsheetML table-column path (skelWriteTableColumn). Only called when
+// ExtractNonTranslatableContent is on; otherwise the caller writes the element
+// verbatim so the part stream stays byte-identical to upstream Okapi. The
+// skeleton helpers are no-ops when no skeleton store is wired (inspection-only
+// reads), but the alt-text blocks are still emitted so an in-memory consumer
+// sees them.
+func (p *dmlParser) skelWriteDrawingPropElement(t xml.StartElement, partPath string, emitBlock func(*model.Block)) {
+	registerNamespaces(t.Attr)
+	var nameBuf strings.Builder
+	nameBuf.WriteString("<")
+	writeElementName(&nameBuf, t.Name)
+	p.skelWriteString(nameBuf.String())
+	for _, a := range t.Attr {
+		var attrBuf strings.Builder
+		attrBuf.WriteString(" ")
+		writeAttrName(&attrBuf, a.Name)
+		attrBuf.WriteString(`="`)
+		p.skelWriteString(attrBuf.String())
+		if a.Name.Space == "" && strings.TrimSpace(a.Value) != "" &&
+			(a.Name.Local == "descr" || a.Name.Local == "title") {
+			p.skelRef(p.emitDrawingProp(a, partPath, emitBlock))
+		} else {
+			p.skelWriteString(xmlEscapeAttr(a.Value))
+		}
+		p.skelWriteString(`"`)
+	}
+	p.skelWriteString(">")
+}
+
+// emitDrawingProp allocates the next block id, emits a Translatable:false
+// RoleCaption "property" block carrying the drawing-property attribute value as
+// a single verbatim run, and returns the block id (for the skeleton ref).
+func (p *dmlParser) emitDrawingProp(a xml.Attr, partPath string, emitBlock func(*model.Block)) string {
+	*p.blockCounter++
+	id := fmt.Sprintf("tu%d", *p.blockCounter)
+	element := "drawing-descr"
+	if a.Name.Local == "title" {
+		element = "drawing-title"
+	}
+	block := &model.Block{
+		ID:           id,
+		Type:         "property",
+		Translatable: false,
+		Source:       []model.Run{{Text: &model.TextRun{Text: a.Value}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
+		Properties: map[string]string{
+			"partPath": partPath,
+			"element":  element,
+		},
+	}
+	// Alt text / object title is descriptive prose for an image or shape;
+	// RoleCaption lets semantic export and the editor identify it without
+	// treating it as MT input.
+	block.SetSemanticRole(model.RoleCaption, 0)
+	emitBlock(block)
+	return id
+}
+
+// emitPPTXCommentData scans a legacy PowerPoint comment part
+// (ppt/comments/comment*.xml) for <p:cm><p:text> bodies and surfaces each as an
+// informational Data part (#928). The comment part itself is parsed for skeleton
+// by parsePart (everything verbatim), so this is purely additive and never
+// affects the round-trip. Best-effort: a malformed part yields no Data rather
+// than failing the read. Modern comment parts (modernComment_*.xml, which use a
+// txBody body, not <p:text>) and the non-translatable position/author metadata
+// are left untouched.
+func emitPPTXCommentData(data []byte, emitData func(name, text, ref string)) {
+	d := xml.NewDecoder(bytes.NewReader(data))
+	for {
+		tok, err := d.Token()
+		if errors.Is(err, io.EOF) {
+			return
+		}
+		if err != nil {
+			return
+		}
+		if se, ok := tok.(xml.StartElement); ok && se.Name.Local == "text" {
+			text, err := readCharData(d)
+			if err != nil {
+				return
+			}
+			if strings.TrimSpace(text) != "" {
+				emitData("comment", text, "")
+			}
+		}
 	}
 }
 

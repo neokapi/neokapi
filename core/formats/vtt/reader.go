@@ -76,12 +76,15 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 // vttCue represents a single VTT cue (subtitle entry). When isStyle is set the
 // "cue" is actually a WebVTT STYLE block whose embedded CSS lives in text; the
 // reader surfaces it as a non-translatable RoleCode content block rather than a
-// translatable subtitle.
+// translatable subtitle. When isNote is set the "cue" is actually a WebVTT NOTE
+// comment block whose comment text lives in text; the reader carries it on a
+// non-translatable Data part rather than mis-parsing it as a cue.
 type vttCue struct {
 	identifier string
 	timecode   string
 	text       string
 	isStyle    bool
+	isNote     bool
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
@@ -134,6 +137,18 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 	blockCounter := 0
 	cueIndex := 0
 	styleIndex := 0
+	noteIndex := 0
+
+	// Finding A (#928): surface any text after the bare "WEBVTT" signature as a
+	// non-translatable caption content block (visible to ingestion, skipped by
+	// MT). Keep the keyword + separator opaque. Gated by the flag.
+	if _, suffix, ok := splitVTTHeader(header); ok && r.cfg.ExtractNonTranslatableContent() {
+		blockCounter++
+		block := newHeaderBlock(fmt.Sprintf("tu%d", blockCounter), suffix, locale)
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+			return
+		}
+	}
 
 	for _, cue := range cues {
 		// STYLE block: surface the embedded CSS as a non-translatable RoleCode
@@ -144,6 +159,25 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 			blockCounter++
 			block := newStyleBlock(fmt.Sprintf("tu%d", blockCounter), cue.text, locale, styleIndex)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+			continue
+		}
+
+		// NOTE comment block: carry the comment text on a non-translatable Data
+		// part (gated by ExtractNonTranslatableContent in parseCue, so isNote is
+		// only ever set when the flag is on) instead of mis-parsing it as a cue.
+		if cue.isNote {
+			dataCounter++
+			noteIndex++
+			noteData := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataCounter),
+				Name: fmt.Sprintf("vtt-note.%d", noteIndex),
+				Properties: map[string]string{
+					"text": cue.text,
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: noteData}) {
 				return
 			}
 			continue
@@ -196,12 +230,16 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	blockCounter := 0
 	cueIndex := 0
 	styleIndex := 0
+	noteIndex := 0
 
 	// Read the WEBVTT header line
 	header := ""
+	var headerLine rawLine
+	haveHeader := false
 	if lineIdx < len(lines) {
-		header = lines[lineIdx].content
-		r.skelText(lines[lineIdx].raw)
+		headerLine = lines[lineIdx]
+		header = headerLine.content
+		haveHeader = true
 		lineIdx++
 	}
 
@@ -216,6 +254,28 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: headerData}) {
 		return
+	}
+
+	// Finding A (#928): surface any text after the bare "WEBVTT" signature as a
+	// non-translatable caption content block (visible to ingestion, skipped by
+	// MT). The keyword + separator stay in the skeleton and the suffix rides a
+	// content-block ref so the header round-trips byte-exact. With extraction off
+	// the whole header line stays opaque skeleton (parity), byte-identical to
+	// before this change.
+	if haveHeader {
+		if prefix, suffix, ok := splitVTTHeader(header); ok && r.cfg.ExtractNonTranslatableContent() {
+			r.skelText(prefix)
+			blockCounter++
+			blockIDStr := fmt.Sprintf("tu%d", blockCounter)
+			r.skelRef(blockIDStr)
+			r.skelText(headerLine.lineEnding)
+			block := newHeaderBlock(blockIDStr, suffix, locale)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+		} else {
+			r.skelText(headerLine.raw)
+		}
 	}
 
 	// Skip blank lines after header
@@ -240,6 +300,20 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		// byte-identical to before this change.
 		if r.cfg.ExtractNonTranslatableContent() && isStyleHeader(lines[lineIdx].content) {
 			next, ok := r.emitStyleBlockSkeleton(ctx, ch, lines, lineIdx, locale, &blockCounter, &styleIndex)
+			if !ok {
+				return
+			}
+			lineIdx = next
+			continue
+		}
+
+		// NOTE comment block: recognize the comment (single- or multi-line) and
+		// carry its text on a non-translatable Data part instead of mis-parsing it
+		// as a cue (which previously also corrupted the following cue). The whole
+		// block stays in the skeleton verbatim. With extraction off, fall through
+		// to the legacy cue path so output is byte-identical to before (parity).
+		if r.cfg.ExtractNonTranslatableContent() && isNoteHeader(lines[lineIdx].content) {
+			next, ok := r.emitNoteBlockSkeleton(ctx, ch, lines, lineIdx, &dataCounter, &noteIndex)
 			if !ok {
 				return
 			}
@@ -405,6 +479,91 @@ func newStyleBlock(id, css string, locale model.LocaleID, index int) *model.Bloc
 	return block
 }
 
+// emitNoteBlockSkeleton consumes a WebVTT NOTE comment block — the "NOTE"
+// keyword line (optionally with inline comment text) followed by any
+// continuation lines up to the next blank line / EOF — and carries its comment
+// text on a single non-translatable Data part. Every raw line of the block is
+// written to the skeleton verbatim, so it round-trips byte-exact, and the
+// adjacent cue is no longer mis-parsed. It returns the next line index and
+// whether emission succeeded (false = context cancelled).
+func (r *Reader) emitNoteBlockSkeleton(ctx context.Context, ch chan<- model.PartResult, lines []rawLine, lineIdx int, dataCounter, noteIndex *int) (int, bool) {
+	// NOTE keyword line → skeleton verbatim.
+	firstContent := lines[lineIdx].content
+	r.skelText(lines[lineIdx].raw)
+	lineIdx++
+
+	// Continuation lines up to the next blank line / EOF → skeleton verbatim.
+	var bodyLines []string
+	for lineIdx < len(lines) && strings.TrimSpace(lines[lineIdx].content) != "" {
+		bodyLines = append(bodyLines, lines[lineIdx].content)
+		r.skelText(lines[lineIdx].raw)
+		lineIdx++
+	}
+
+	*dataCounter++
+	*noteIndex++
+	note := &model.Data{
+		ID:   fmt.Sprintf("d%d", *dataCounter),
+		Name: fmt.Sprintf("vtt-note.%d", *noteIndex),
+		Properties: map[string]string{
+			"text": noteText(firstContent, bodyLines),
+		},
+	}
+	return lineIdx, r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: note})
+}
+
+// isNoteHeader reports whether line opens a WebVTT NOTE comment block. Per the
+// WebVTT grammar a comment block starts with the keyword "NOTE" either alone on
+// the line or immediately followed by a space or tab (then the inline comment).
+func isNoteHeader(line string) bool {
+	return line == "NOTE" || strings.HasPrefix(line, "NOTE ") || strings.HasPrefix(line, "NOTE\t")
+}
+
+// noteText builds the comment text carried on a NOTE Data part: the inline text
+// after the "NOTE" keyword (if any) joined with the continuation lines. The form
+// is purely informational metadata — the block round-trips from the verbatim
+// skeleton bytes, not from this text — so a simple newline join is sufficient.
+func noteText(firstContent string, bodyLines []string) string {
+	var parts []string
+	if inline := strings.TrimLeft(strings.TrimPrefix(firstContent, "NOTE"), " \t"); inline != "" {
+		parts = append(parts, inline)
+	}
+	parts = append(parts, bodyLines...)
+	return strings.Join(parts, "\n")
+}
+
+// splitVTTHeader splits a WebVTT header line into the "WEBVTT" keyword plus
+// separator (which stays opaque in the skeleton) and the freeform suffix that
+// rides as a non-translatable content block. ok is false for a bare "WEBVTT"
+// signature (no suffix) or a line that does not start with the signature.
+func splitVTTHeader(header string) (prefix, suffix string, ok bool) {
+	const kw = "WEBVTT"
+	if !strings.HasPrefix(header, kw) {
+		return header, "", false
+	}
+	rest := header[len(kw):]
+	suffix = strings.TrimLeft(rest, " \t")
+	if suffix == "" {
+		return header, "", false
+	}
+	prefix = header[:len(header)-len(suffix)]
+	return prefix, suffix, true
+}
+
+// newHeaderBlock builds the non-translatable caption content block for the
+// freeform text after the bare "WEBVTT" signature (e.g. "WEBVTT - Some title").
+// The text is carried as a single verbatim run (no inline parse): visible to
+// ingestion/LLM consumers, skipped by MT.
+func newHeaderBlock(id, text string, locale model.LocaleID) *model.Block {
+	block := model.NewBlock(id, text) // default Source is a single verbatim run
+	block.Name = "vtt-header-text"
+	block.Type = "header"
+	block.SourceLocale = locale
+	block.Translatable = false
+	block.SetSemanticRole(model.RoleCaption, 0)
+	return block
+}
+
 // rawLine holds a line with its original line ending preserved.
 type rawLine struct {
 	content    string // line content without line ending
@@ -493,6 +652,24 @@ func (r *Reader) parseCue(scanner *bufio.Scanner, firstLine string) *vttCue {
 			bodyLines = append(bodyLines, line)
 		}
 		cue.text = strings.Join(bodyLines, "\n")
+		return cue
+	}
+
+	// NOTE comment block: with extraction on, capture the comment text (up to the
+	// next blank line / EOF) so it can be carried on a non-translatable Data part
+	// instead of being mis-parsed as a cue. With extraction off, fall through to
+	// the legacy cue path (parity).
+	if r.cfg.ExtractNonTranslatableContent() && isNoteHeader(firstLine) {
+		cue.isNote = true
+		var bodyLines []string
+		for scanner.Scan() {
+			line := strings.TrimRight(scanner.Text(), "\r")
+			if strings.TrimSpace(line) == "" {
+				break
+			}
+			bodyLines = append(bodyLines, line)
+		}
+		cue.text = noteText(firstLine, bodyLines)
 		return cue
 	}
 

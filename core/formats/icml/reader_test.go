@@ -295,6 +295,113 @@ func TestNotesExcludedByDefault(t *testing.T) {
 	require.Len(t, blocks, 1)
 	// Note content should be excluded; only visible text and " continues" are extracted.
 	assert.Equal(t, "Visible text continues", blocks[0].SourceText())
+	// With the default extractNotes:false, the editorial Note is neither a block
+	// nor an annotation — it stays opaque skeleton.
+	assert.Empty(t, blocks[0].Notes(), "no note annotation when extractNotes is off")
+}
+
+// TestNotesExtractedAsAnnotation verifies that with extractNotes on, the editorial
+// <Note> content is surfaced as a parity-safe NoteAnnotation on the owning story
+// block — NOT as a translatable Block. The translatable part stream is unchanged:
+// still one aggregated block "Visible text continues" (legacy mode).
+func TestNotesExtractedAsAnnotation(t *testing.T) {
+	ctx := t.Context()
+	reader := icml.NewReader()
+	reader.Config().(*icml.Config).ExtractNotes = true
+
+	f, err := os.Open("testdata/notes.icml")
+	require.NoError(t, err)
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/notes.icml", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	// Part stream unchanged: the note adds no Block.
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Visible text continues", blocks[0].SourceText())
+	for _, b := range blocks {
+		assert.NotEqual(t, "Note content here", b.SourceText(), "note must not become a translatable block")
+	}
+
+	// The note text rides along as a block-scoped NoteAnnotation.
+	notes := blocks[0].Notes()
+	require.Len(t, notes, 1)
+	assert.Equal(t, "Note content here", notes[0].Text)
+	assert.Equal(t, "icml", notes[0].From)
+}
+
+// TestNotesExtractionPartStreamUnchanged confirms that toggling extractNotes does
+// not alter the translatable part stream (same block count and source texts) —
+// the only difference is the presence of NoteAnnotations.
+func TestNotesExtractionPartStreamUnchanged(t *testing.T) {
+	ctx := t.Context()
+
+	read := func(extract bool) []*model.Block {
+		reader := icml.NewReader()
+		reader.Config().(*icml.Config).ExtractNotes = extract
+		f, err := os.Open("testdata/notes.icml")
+		require.NoError(t, err)
+		err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/notes.icml", model.LocaleEnglish))
+		require.NoError(t, err)
+		defer reader.Close()
+		return testutil.CollectBlocks(t, reader.Read(ctx))
+	}
+
+	off := read(false)
+	on := read(true)
+	require.Len(t, on, len(off))
+	for i := range off {
+		assert.Equal(t, off[i].ID, on[i].ID)
+		assert.Equal(t, off[i].SourceText(), on[i].SourceText())
+	}
+}
+
+// TestNotesSkeletonByteExactWithExtraction verifies that, in skeleton mode with
+// extractNotes on, the <Note> bytes stay in skeleton (byte-exact round trip)
+// while the note text is surfaced as a NoteAnnotation on a story block.
+func TestNotesSkeletonByteExactWithExtraction(t *testing.T) {
+	ctx := t.Context()
+
+	data, err := os.ReadFile("testdata/notes.icml")
+	require.NoError(t, err)
+	input := string(data)
+
+	reader := icml.NewReader()
+	reader.Config().(*icml.Config).ExtractNotes = true
+	writer := icml.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var found bool
+	for _, p := range parts {
+		if p.Type != model.PartBlock {
+			continue
+		}
+		b := p.Resource.(*model.Block)
+		assert.NotEqual(t, "Note content here", b.SourceText(), "note must not become a translatable block")
+		for _, n := range b.Notes() {
+			if n.Text == "Note content here" {
+				found = true
+			}
+		}
+	}
+	assert.True(t, found, "note text should be surfaced as a NoteAnnotation")
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+	assert.Equal(t, input, buf.String(), "notes.icml must round-trip byte-exact with extractNotes on")
 }
 
 func TestInlineICMLContent(t *testing.T) {

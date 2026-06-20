@@ -4,11 +4,12 @@
 # id is the bare native id `mdx`, not an `okf_*` bridge id; there are no
 # okapi_param / okapi_refs in this spec.
 #
-# Config: MDX exposes NO configuration keys of its own. Config.ApplyMap
-# (config.go) forwards every key to the embedded Markdown filter and rejects
-# any key Markdown does not recognise, so the `config:` block below is
-# intentionally empty. Markdown-side keys are documented in the markdown
-# format's reference, not duplicated here.
+# Config: MDX owns ONE key of its own — extractNonTranslatableContent (#928,
+# default on) — which it intercepts and does NOT forward; every other key is
+# forwarded to the embedded Markdown filter and any key Markdown does not
+# recognise is rejected. The `config:` block below is intentionally empty
+# (these spec cases run under defaults). Markdown-side keys are documented in
+# the markdown format's reference, not duplicated here.
 #
 # Authoring notes:
 #   - Inputs are inline MDX snippets (input_xml) or the committed testdata
@@ -21,13 +22,16 @@ format: mdx
 mime_type: text/markdown
 description: |
   MDX filter (CommonMark superset with JSX, ESM import/export, and
-  expressions). Markdown prose — paragraphs, headings, list items, table
-  cells — is extracted as translatable Blocks; inline emphasis/code/link
-  markup is preserved as inline codes. JSX elements, ESM import/export
-  statements, {expressions}, fenced code blocks, and YAML front matter are
-  opaque structure and round-trip verbatim, never translatable. The document
-  is segmented losslessly so the writer reproduces opaque spans byte-for-byte
-  and splices only changed prose.
+  expressions). Markdown prose — paragraphs, headings, list items — is
+  extracted as translatable Blocks; inline emphasis/code/link markup is
+  preserved as inline codes. Block-level JSX text children and GFM table cell
+  prose are surfaced as NON-translatable content blocks (#928): visible to
+  ingestion, skipped by MT, byte-faithful on round-trip, gated behind the
+  extractNonTranslatableContent flag (default on; parity forces it off). ESM
+  import/export statements, {expressions}, JSX tags/attributes, fenced code
+  blocks, and YAML front matter are opaque structure and round-trip verbatim,
+  never translatable. The document is segmented losslessly so the writer
+  reproduces opaque spans byte-for-byte and splices only changed prose.
 
 config: []
 

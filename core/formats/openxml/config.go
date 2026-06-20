@@ -59,6 +59,17 @@ type Config struct {
 	IgnoreSoftHyphenTag          bool // Ignore soft hyphen tags
 	ReplaceNoBreakHyphenTag      bool // Replace no-break hyphen tags with non-breaking hyphen character
 	AutomaticallyAcceptRevisions bool // Automatically accept tracked changes before extraction
+
+	// disableNonTranslatableContent, when set, keeps non-translatable
+	// contextual content in opaque skeleton / verbatim parts instead of
+	// surfacing it: image/shape alt-text (descr=, title=) on <wp:docPr> /
+	// <pic:cNvPr> as Translatable:false RoleCaption content blocks (visible to
+	// ingestion/LLM consumers, skipped by machine translation), and PPTX
+	// (<p:text>) / XLSX (<comment><text>) comment text as Data parts. Zero
+	// value = surfacing ON (the opt-out default). The parity runner sets it
+	// false via SetExtractNonTranslatableContent so the canonical part stream
+	// stays byte-identical to upstream Okapi (which keeps such content opaque).
+	disableNonTranslatableContent bool
 }
 
 // FormatName returns the format identifier.
@@ -136,10 +147,26 @@ func (c *Config) Reset() {
 	c.IgnoreSoftHyphenTag = false
 	c.ReplaceNoBreakHyphenTag = false
 	c.AutomaticallyAcceptRevisions = true
+	c.disableNonTranslatableContent = false
 }
 
 // Validate checks configuration validity.
 func (c *Config) Validate() error { return nil }
+
+// ExtractNonTranslatableContent reports whether non-translatable contextual
+// content (image/shape alt-text, PPTX/XLSX comment text) is surfaced — alt-text
+// as RoleCaption content blocks and comments as Data parts — instead of being
+// hidden in opaque skeleton / verbatim parts. Default true.
+func (c *Config) ExtractNonTranslatableContent() bool {
+	return !c.disableNonTranslatableContent
+}
+
+// SetExtractNonTranslatableContent toggles surfacing of non-translatable
+// contextual content (used by the parity runner to match the Okapi bridge,
+// which keeps such content opaque so the canonical stream stays byte-identical).
+func (c *Config) SetExtractNonTranslatableContent(v bool) {
+	c.disableNonTranslatableContent = !v
+}
 
 // ApplyMap applies configuration values from a map.
 func (c *Config) ApplyMap(values map[string]any) error {
@@ -190,6 +217,8 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.ReplaceNoBreakHyphenTag = toBool(val)
 		case "automaticallyAcceptRevisions":
 			c.AutomaticallyAcceptRevisions = toBool(val)
+		case "extractNonTranslatableContent":
+			c.disableNonTranslatableContent = !toBool(val)
 
 		// String options
 		case "lineSeparatorReplacement":

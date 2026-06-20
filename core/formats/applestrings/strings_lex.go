@@ -46,6 +46,14 @@ type stringsEntry struct {
 // stringsDoc is the lossless parse of a whole .strings file.
 type stringsDoc struct {
 	entries []stringsEntry
+
+	// orphanComments holds comment text that is not attached to any entry: a
+	// trailing/orphan comment at EOF with no following entry, and the earlier of
+	// two stacked comments before a single entry (last-wins supersedes it). These
+	// bytes still round-trip verbatim in the skeleton; the reader surfaces the
+	// text as layer-scoped NoteAnnotations so the developer note stays reachable
+	// as structured metadata instead of being silently dropped.
+	orphanComments []string
 }
 
 // parseStringsFile lexes and parses the .strings source losslessly.
@@ -59,22 +67,35 @@ func parseStringsFile(input string) (*stringsDoc, error) {
 	for {
 		l.skipWS()
 		if l.eof() {
+			// A trailing/orphan comment with no following entry to own it is not
+			// dropped: its text is recorded so the reader can surface it as a
+			// layer-scoped note (the bytes still round-trip in the skeleton).
+			if havePending {
+				doc.orphanComments = append(doc.orphanComments, pendingComment)
+			}
 			break
 		}
 		// Comments accumulate as the note for the next entry. Only the
 		// comment immediately preceding the entry is exposed; if multiple
 		// comments stack, the last one wins (matching Xcode/genstrings, which
-		// emits a single /* */ note per key).
+		// emits a single /* */ note per key). A superseded earlier comment is
+		// captured in orphanComments rather than silently lost.
 		if l.peekHas("/*") {
 			text, err := l.scanBlockComment()
 			if err != nil {
 				return nil, err
+			}
+			if havePending {
+				doc.orphanComments = append(doc.orphanComments, pendingComment)
 			}
 			pendingComment = text
 			havePending = true
 			continue
 		}
 		if l.peekHas("//") {
+			if havePending {
+				doc.orphanComments = append(doc.orphanComments, pendingComment)
+			}
 			pendingComment = l.scanLineComment()
 			havePending = true
 			continue

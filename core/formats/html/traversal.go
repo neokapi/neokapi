@@ -96,7 +96,11 @@ func (w *domWalker) walkNode(n *html.Node, translateNo bool) {
 		w.visitor.onData(w.nextDataID(), n, "doctype", nil)
 
 	case html.CommentNode:
-		w.visitor.onData(w.nextDataID(), n, "comment", nil)
+		// Carry the comment's verbatim markup on the Data part so the text is
+		// reachable downstream (Properties["raw"], like asciidoc emitData). The
+		// part stays non-translatable Data and the bytes still ride the
+		// skeleton, so this is parity-safe (parity compares only Data.ID).
+		w.visitor.onData(w.nextDataID(), n, "comment", map[string]string{"raw": "<!--" + n.Data + "-->"})
 
 	case html.ElementNode:
 		w.walkElement(n, translateNo)

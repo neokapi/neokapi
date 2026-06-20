@@ -666,6 +666,129 @@ func TestSnippet_ExtraComment(t *testing.T) {
 	assert.Equal(t, "This is a translator comment", b.Properties["translatorcomment"])
 }
 
+// noteFrom returns the first note whose From matches, or nil.
+func noteFrom(notes []*model.NoteAnnotation, from string) *model.NoteAnnotation {
+	for _, n := range notes {
+		if n.From == from {
+			return n
+		}
+	}
+	return nil
+}
+
+// TestSnippet_OldSourceOldComment verifies that lupdate's <oldsource>
+// (previous source text) and <oldcomment> (previous disambiguating
+// comment) are captured as block metadata — Properties plus distinct,
+// From-tagged Notes — rather than being dropped.
+//
+// #928: contextual metadata is surfaced as DATA/ANNOTATION, never as
+// translatable content. Both the source text and the part stream remain
+// unchanged for translation.
+func TestSnippet_OldSourceOldComment(t *testing.T) {
+	t.Parallel()
+	snippet := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TS []>
+<TS version="2.0" language="fr" sourcelanguage="en">
+<context>
+    <name>Test</name>
+    <message>
+        <source>New source</source>
+        <oldsource>Old source</oldsource>
+        <comment>Disambiguation</comment>
+        <oldcomment>Old disambiguation</oldcomment>
+        <translation type="unfinished">Nouvelle source</translation>
+    </message>
+</context>
+</TS>
+`
+
+	blocks := translatableBlocks(readTSBlocks(t, snippet))
+	require.NotEmpty(t, blocks)
+	b := blocks[0]
+
+	// The translatable payload is unchanged: source is the <source>, not
+	// the <oldsource>.
+	assert.Equal(t, "New source", b.SourceText())
+
+	// Previous values are reachable as Properties.
+	assert.Equal(t, "Old source", b.Properties["oldsource"])
+	assert.Equal(t, "Old disambiguation", b.Properties["oldcomment"])
+
+	// And as distinct, From-tagged Notes (alongside the comment note).
+	notes := b.Notes()
+	osNote := noteFrom(notes, "oldsource")
+	require.NotNil(t, osNote, "should carry an oldsource note")
+	assert.Equal(t, "Old source", osNote.Text)
+	assert.Equal(t, "source", osNote.Annotates)
+
+	ocNote := noteFrom(notes, "oldcomment")
+	require.NotNil(t, ocNote, "should carry an oldcomment note")
+	assert.Equal(t, "Old disambiguation", ocNote.Text)
+
+	// The disambiguation <comment> still lands in the combined note.
+	assert.Equal(t, "Disambiguation", b.Properties["comment"])
+
+	// Round-trip stays byte-exact: oldsource/oldcomment ride in the
+	// skeleton and are never re-emitted from the captured metadata.
+	assert.Equal(t, snippet, snippetRoundtripWithSkeleton(t, snippet),
+		"oldsource/oldcomment round-trip should be byte-exact")
+}
+
+// TestSnippet_ContextComment verifies that a context-scope <comment>
+// (child of <context>, after <name>) is surfaced on the context
+// GroupStart as a Property — the GroupStart emission is deferred so the
+// comment can be attached, without changing the part stream order.
+//
+// #928: context-scope comments are contextual metadata, not translatable
+// content; they stay in the skeleton verbatim for byte-exact round-trip.
+func TestSnippet_ContextComment(t *testing.T) {
+	t.Parallel()
+	snippet := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TS []>
+<TS version="2.0" language="fr" sourcelanguage="en">
+<context>
+    <name>MyContext</name>
+    <comment>Context-level note</comment>
+    <message>
+        <source>Hello</source>
+        <translation type="unfinished">Bonjour</translation>
+    </message>
+</context>
+</TS>
+`
+
+	parts := readTS(t, snippet)
+
+	// Part order is unchanged: a single GroupStart precedes the block and
+	// is matched by exactly one GroupEnd.
+	assert.Equal(t, 1, countPartsByType(parts, model.PartGroupStart))
+	assert.Equal(t, 1, countPartsByType(parts, model.PartGroupEnd))
+
+	var gs *model.GroupStart
+	for _, p := range parts {
+		if p.Type == model.PartGroupStart {
+			g, ok := p.Resource.(*model.GroupStart)
+			require.True(t, ok)
+			gs = g
+			break
+		}
+	}
+	require.NotNil(t, gs)
+	assert.Equal(t, "MyContext", gs.Name)
+	assert.Equal(t, "Context-level note", gs.Properties["comment"],
+		"context comment should be attached to the GroupStart")
+
+	// The context comment must NOT become a translatable block.
+	for _, b := range translatableBlocks(testutil.FilterBlocks(parts)) {
+		assert.NotEqual(t, "Context-level note", b.SourceText(),
+			"context comment must not surface as a translatable block")
+	}
+
+	// Round-trip stays byte-exact.
+	assert.Equal(t, snippet, snippetRoundtripWithSkeleton(t, snippet),
+		"context comment round-trip should be byte-exact")
+}
+
 // okapi: TsFilterTest#testGetName
 func TestSnippet_GetName(t *testing.T) {
 	t.Parallel()

@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// headMetaInput is a TTML document whose <head><metadata> carries ttm:copyright
-// and ttm:agent (non-translatable contextual content) alongside ttm:title
-// (deliberately out of scope) and two body captions.
+// headMetaInput is a TTML document whose <head><metadata> carries ttm:title,
+// ttm:copyright and ttm:agent (all non-translatable contextual content per #928)
+// and two body captions.
 const headMetaInput = `<?xml version="1.0" encoding="UTF-8"?>
 <tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
   <head>
@@ -54,10 +54,10 @@ func translatableBlocks(parts []*model.Part) []*model.Block {
 	return out
 }
 
-// #928: by default (ExtractNonTranslatableContent on) ttm:copyright and ttm:agent
-// surface as non-translatable RoleCode content blocks — visible to ingestion,
-// skipped by MT — while the translatable caption payload is untouched. ttm:title
-// stays out of scope.
+// #928: by default (ExtractNonTranslatableContent on) ttm:title, ttm:copyright
+// and ttm:agent surface as non-translatable content blocks — visible to
+// ingestion, skipped by MT — while the translatable caption payload is
+// untouched. title carries RoleTitle; copyright/agent carry RoleCode.
 func TestHeadMetadata_DefaultOn(t *testing.T) {
 	ctx := t.Context()
 	reader := ttml.NewReader()
@@ -67,9 +67,18 @@ func TestHeadMetadata_DefaultOn(t *testing.T) {
 	parts := testutil.CollectParts(t, reader.Read(ctx))
 
 	content := nonTranslatableBlocks(parts)
-	require.Len(t, content, 2, "copyright and agent surface as non-translatable blocks")
+	require.Len(t, content, 3, "title, copyright and agent surface as non-translatable blocks")
 
-	copyrightB := content[0]
+	titleB := content[0]
+	assert.False(t, titleB.Translatable)
+	assert.Equal(t, "title", titleB.Type)
+	assert.Equal(t, "ttm:title", titleB.Name)
+	assert.Equal(t, model.RoleTitle, titleB.SemanticRole())
+	assert.Equal(t, model.LayerMetadata, titleB.LayoutLayer())
+	assert.True(t, titleB.PreserveWhitespace)
+	assert.Equal(t, "My Subtitles", titleB.SourceText())
+
+	copyrightB := content[1]
 	assert.False(t, copyrightB.Translatable)
 	assert.Equal(t, "copyright", copyrightB.Type)
 	assert.Equal(t, "ttm:copyright", copyrightB.Name)
@@ -78,24 +87,64 @@ func TestHeadMetadata_DefaultOn(t *testing.T) {
 	assert.True(t, copyrightB.PreserveWhitespace)
 	assert.Equal(t, "Copyright 2024 Example Corp.", copyrightB.SourceText())
 
-	agentB := content[1]
+	agentB := content[2]
 	assert.False(t, agentB.Translatable)
 	assert.Equal(t, "agent", agentB.Type)
 	assert.Equal(t, model.RoleCode, agentB.SemanticRole())
 	assert.True(t, agentB.PreserveWhitespace)
 	assert.Equal(t, "Jane Director", agentB.SourceText())
 
-	// ttm:title is out of scope — never surfaced.
-	for _, b := range nonTranslatableBlocks(parts) {
-		assert.NotEqual(t, "title", b.Type)
-		assert.NotContains(t, b.SourceText(), "My Subtitles")
-	}
-
 	// Translatable payload is unchanged: exactly the two body captions.
 	trans := translatableBlocks(parts)
 	require.Len(t, trans, 2)
 	assert.Equal(t, "Hello world", trans[0].SourceText())
 	assert.Equal(t, "Second subtitle", trans[1].SourceText())
+}
+
+// #928: ttm:desc (description prose) surfaces as a non-translatable RoleCaption
+// content block, ordered with the other head metadata, and the document still
+// round-trips byte-exact through the skeleton store.
+func TestHeadMetadata_TitleAndDesc(t *testing.T) {
+	ctx := t.Context()
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+  <head>
+    <metadata>
+      <ttm:title>Episode One</ttm:title>
+      <ttm:desc>A short description of the programme.</ttm:desc>
+    </metadata>
+  </head>
+  <body><div>
+    <p begin="00:00:01.000" end="00:00:04.000">Hello world</p>
+  </div></body>
+</tt>`
+
+	reader := ttml.NewReader()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	content := nonTranslatableBlocks(parts)
+	require.Len(t, content, 2, "title and desc surface as non-translatable blocks")
+
+	assert.Equal(t, "title", content[0].Type)
+	assert.Equal(t, model.RoleTitle, content[0].SemanticRole())
+	assert.Equal(t, "Episode One", content[0].SourceText())
+
+	descB := content[1]
+	assert.False(t, descB.Translatable)
+	assert.Equal(t, "desc", descB.Type)
+	assert.Equal(t, "ttm:desc", descB.Name)
+	assert.Equal(t, model.RoleCaption, descB.SemanticRole())
+	assert.Equal(t, model.LayerMetadata, descB.LayoutLayer())
+	assert.True(t, descB.PreserveWhitespace)
+	assert.Equal(t, "A short description of the programme.", descB.SourceText())
+
+	// title/desc never enter the MT payload.
+	assert.Len(t, translatableBlocks(parts), 1)
+
+	// Byte-exact skeleton roundtrip with both metadata blocks riding refs.
+	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input))
 }
 
 // #928: with the flag off the head metadata stays buried (no content blocks) and

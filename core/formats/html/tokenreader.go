@@ -437,11 +437,17 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			// At top level or inside containers, it's non-translatable.
 			s.onStructuralEvent()
 			_ = s.store.WriteText(raw)
+			// Carry the comment's verbatim markup on the Data part so the text
+			// is reachable downstream (Properties["raw"], like asciidoc
+			// emitData). The bytes still ride the skeleton above and the part
+			// stays non-translatable Data, so this is parity-safe (parity
+			// compares only Data.ID).
 			s.reader.emit(ctx, ch, &model.Part{
 				Type: model.PartData,
 				Resource: &model.Data{
-					ID:   s.nextDataID(),
-					Name: "comment",
+					ID:         s.nextDataID(),
+					Name:       "comment",
+					Properties: map[string]string{"raw": string(raw)},
 				},
 			})
 

@@ -7,7 +7,15 @@ type Config struct {
 	// ExtractMasterSpreads controls whether text in master spread stories is extracted.
 	ExtractMasterSpreads bool
 
-	// ExtractNotes controls whether footnote and endnote text is extracted.
+	// ExtractNotes controls whether the body of an InDesign editor
+	// sticky <Note> is extracted as a translatable Block. When false
+	// (the default, mirroring okapi
+	// StyledTextElementsMapping.java:177-181), sticky-note text stays in
+	// the skeleton; if an adjacent translatable block exists, the note
+	// body rides along as a parity-safe NoteAnnotation rather than as MT
+	// payload. Footnote/Endnote bodies are always extracted as
+	// translatable Blocks regardless of this flag, matching okapi's IDML
+	// round-trip.
 	ExtractNotes bool
 
 	// SkipDiscretionaryHyphens removes discretionary (soft) hyphens from extracted text.

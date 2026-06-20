@@ -196,7 +196,10 @@ func TestAcceptanceTranslatedMDXCompiles(t *testing.T) {
 			for _, p := range parts {
 				if p.Type == model.PartBlock {
 					b := p.Resource.(*model.Block)
-					if strings.ContainsAny(b.SourceText(), "abcdefghijklmnopqrstuvwxyz") {
+					// Translate prose only — a real MT tool skips
+					// Translatable:false surfaced content (JSX text children,
+					// table cells; #928).
+					if b.Translatable && strings.ContainsAny(b.SourceText(), "abcdefghijklmnopqrstuvwxyz") {
 						pseudoTranslate(b, fr)
 					}
 				}

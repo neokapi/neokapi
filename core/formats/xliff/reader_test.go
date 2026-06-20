@@ -1916,6 +1916,127 @@ func TestExtract_ContextGroup(t *testing.T) {
 	assert.Equal(t, "Hello", b.SourceText())
 }
 
+// --- #928 treatment B: comment-context as annotations ---
+
+// noteByFrom indexes a block's notes by their From field for
+// order-independent assertions.
+func noteByFrom(b *model.Block) map[string]*model.NoteAnnotation {
+	out := map[string]*model.NoteAnnotation{}
+	for _, n := range b.Notes() {
+		out[n.From] = n
+	}
+	return out
+}
+
+// TestExtract_ContextGroupProseSurfacesAsNote asserts prose context
+// types (paramnotes/elementtitle/recordtitle) ride as block notes keyed
+// by context-type, while identifier types (sourcefile/linenumber) stay
+// in the skeleton and never become notes or translatable text.
+func TestExtract_ContextGroupProseSurfacesAsNote(t *testing.T) {
+	t.Parallel()
+	xlf := wrapXLIFF(`      <trans-unit id="1">
+        <source>Hello</source>
+        <context-group name="x-pos" purpose="location">
+          <context context-type="sourcefile">test.properties</context>
+          <context context-type="linenumber">42</context>
+          <context context-type="paramnotes">Shown on the home screen</context>
+          <context context-type="elementtitle">Greeting label</context>
+          <context context-type="recordtitle">Home record</context>
+        </context-group>
+      </trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	notes := noteByFrom(blocks[0])
+	require.Len(t, blocks[0].Notes(), 3, "only the 3 prose context-types become notes")
+	assert.Equal(t, "Shown on the home screen", notes["context:paramnotes"].Text)
+	assert.Equal(t, "Greeting label", notes["context:elementtitle"].Text)
+	assert.Equal(t, "Home record", notes["context:recordtitle"].Text)
+	// Identifier context-types are not surfaced as notes and never enter
+	// the translatable payload.
+	for _, n := range blocks[0].Notes() {
+		assert.NotContains(t, n.Text, "test.properties")
+		assert.NotContains(t, n.Text, "42")
+	}
+	assert.Equal(t, "Hello", blocks[0].SourceText())
+}
+
+// TestExtract_ContextGroupIdentifierOnlyNoNotes asserts a context-group
+// with only identifier context-types produces no notes at all.
+func TestExtract_ContextGroupIdentifierOnlyNoNotes(t *testing.T) {
+	t.Parallel()
+	xlf := wrapXLIFF(`      <trans-unit id="1">
+        <source>Hello</source>
+        <context-group name="x-pos" purpose="location">
+          <context context-type="sourcefile">test.properties</context>
+          <context context-type="linenumber">42</context>
+        </context-group>
+      </trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.Empty(t, blocks[0].Notes())
+}
+
+// TestExtract_AltTransNoteSurfacesAsNote asserts a <note> inside
+// <alt-trans> is surfaced as a block note (translator/developer
+// context), not as translatable content, and the alt-trans is still
+// captured as an alt-translation candidate.
+func TestExtract_AltTransNoteSurfacesAsNote(t *testing.T) {
+	t.Parallel()
+	xlf := wrapXLIFF(`      <trans-unit id="1">
+        <source>Hello</source>
+        <alt-trans match-quality="100" origin="tm">
+          <source>Hello</source>
+          <target>Salut</target>
+          <note from="reviewer" priority="1">Prefer informal tone</note>
+        </alt-trans>
+      </trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	require.Len(t, blocks[0].Notes(), 1)
+	n := blocks[0].Notes()[0]
+	assert.Equal(t, "Prefer informal tone", n.Text)
+	assert.Equal(t, "reviewer", n.From)
+	assert.Equal(t, 1, n.Priority)
+	assert.NotEmpty(t, blocks[0].AltTranslations(), "alt-trans still captured as a candidate")
+	assert.NotContains(t, blocks[0].SourceText(), "Prefer informal tone")
+}
+
+// TestExtract_HeaderNoteSurfacesAsLayerAnnotation asserts a <note> in a
+// <file> <header> attaches to the file's Layer as a NoteAnnotation,
+// while the part stream still leads with LayerStart and the body block
+// is extracted unchanged.
+func TestExtract_HeaderNoteSurfacesAsLayerAnnotation(t *testing.T) {
+	t.Parallel()
+	xlf := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="t">
+    <header>
+      <note from="pm" priority="2">Release blocker context</note>
+      <note from="dev">Touches the cache layer</note>
+    </header>
+    <body>
+      <trans-unit id="1"><source>Hello</source></trans-unit>
+    </body>
+  </file>
+</xliff>`
+	parts := readXLIFF(t, xlf)
+	require.NotEmpty(t, parts)
+	require.Equal(t, model.PartLayerStart, parts[0].Type, "LayerStart still leads the stream")
+	layer := parts[0].Resource.(*model.Layer)
+	v, ok := layer.Anno(model.AnnoNote)
+	require.True(t, ok, "header note should be a layer annotation")
+	notes, ok := v.(*model.Notes)
+	require.True(t, ok)
+	require.Len(t, notes.Items, 2)
+	assert.Equal(t, "Release blocker context", notes.Items[0].Text)
+	assert.Equal(t, "pm", notes.Items[0].From)
+	assert.Equal(t, 2, notes.Items[0].Priority)
+	assert.Equal(t, "Touches the cache layer", notes.Items[1].Text)
+	blocks := testutil.FilterBlocks(parts)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Hello", blocks[0].SourceText())
+}
+
 // --- CDATA tests ---
 
 // okapi: XLIFFFilterTest#testCDATAEntry

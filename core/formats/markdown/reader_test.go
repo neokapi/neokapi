@@ -379,6 +379,61 @@ func TestReadHTMLBlockSubfilter(t *testing.T) {
 	assert.True(t, hasHTMLContentBlock, "expected HTML block text content extracted as a translatable Block")
 }
 
+// By default (ExtractNonTranslatableContent on), the MathML body of an HTML-block
+// <math> element surfaces as a non-translatable RoleFormula content block — the
+// <math>…</math> delimiters stay skeleton — and the document round-trips
+// byte-exact. The okapi-faithful config (flag off) keeps the body opaque.
+func TestReadHTMLBlockMathFormula(t *testing.T) {
+	input := "Text before\n\n<div>\n<math><mi>x</mi><mo>=</mo><mn>1</mn></math>\n</div>\n\nText after\n"
+
+	t.Run("surfaced_by_default", func(t *testing.T) {
+		parts := readParts(t, input)
+
+		var math *model.Block
+		var translatableTexts []string
+		for _, p := range parts {
+			if p.Type != model.PartBlock {
+				continue
+			}
+			b := p.Resource.(*model.Block)
+			if b.SemanticRole() == model.RoleFormula {
+				math = b
+			} else if b.Translatable {
+				translatableTexts = append(translatableTexts, b.SourceText())
+			}
+		}
+		require.NotNil(t, math, "math body should surface as a content block")
+		assert.False(t, math.Translatable)
+		assert.Equal(t, model.RoleFormula, math.SemanticRole())
+		assert.True(t, math.PreserveWhitespace)
+		assert.Equal(t, "<mi>x</mi><mo>=</mo><mn>1</mn>", math.SourceText(),
+			"verbatim MathML body, no inline parse")
+		require.Len(t, math.SourceRuns(), 1, "single verbatim run")
+		// The surrounding prose is still translatable; the math text is not in it.
+		assert.Contains(t, translatableTexts, "Text before")
+		assert.Contains(t, translatableTexts, "Text after")
+
+		assert.Equal(t, input, roundtripWithSkeleton(t, input), "round-trip stays byte-exact")
+	})
+
+	t.Run("opaque_when_flag_off", func(t *testing.T) {
+		parts := readPartsWithConfig(t, input, func(c *markdown.Config) {
+			c.SetExtractNonTranslatableContent(false)
+		})
+		for _, p := range parts {
+			if p.Type == model.PartBlock {
+				b := p.Resource.(*model.Block)
+				assert.NotEqual(t, model.RoleFormula, b.SemanticRole(),
+					"no formula block when extraction is off")
+			}
+		}
+		output := roundtripWithSkeletonConfig(t, input, func(c *markdown.Config) {
+			c.SetExtractNonTranslatableContent(false)
+		})
+		assert.Equal(t, input, output, "round-trip stays byte-exact with flag off")
+	})
+}
+
 // --- Skeleton Store Roundtrip Tests ---
 
 func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
@@ -735,21 +790,62 @@ func TestRead_BlockQuoteEvents(t *testing.T) {
 }
 
 // okapi: MarkdownFilterTest#testNonTranslatableBlockQuotes
+// Okapi-faithful config: with extract-non-translatable-content disabled the
+// blockquote collapses to opaque Data and no blocks surface at all.
 func TestRead_NonTranslatableBlockQuotes(t *testing.T) {
 	input := "> Quoted text\n"
 	parts := readPartsWithConfig(t, input, func(c *markdown.Config) {
 		_ = c.ApplyMap(map[string]any{"translateBlockQuotes": false})
+		c.SetExtractNonTranslatableContent(false)
 	})
 	blocks := testutil.FilterBlocks(parts)
 	assert.Empty(t, blocks, "blockquote content should not be translatable")
+	assert.True(t, hasDataNamed(parts, "blockquote"), "blockquote should be opaque Data")
+}
+
+// With translateBlockQuotes off but ExtractNonTranslatableContent on (the
+// default), the blockquote body surfaces as non-translatable content blocks —
+// visible to ingestion, skipped by MT — instead of opaque Data, and still
+// round-trips byte-exact.
+func TestRead_NonTranslatableBlockQuotesAsContent(t *testing.T) {
+	input := "> Quoted text\n>\n> More quoted\n"
+	parts := readPartsWithConfig(t, input, func(c *markdown.Config) {
+		_ = c.ApplyMap(map[string]any{"translateBlockQuotes": false})
+	})
+
+	var translatable, content []*model.Block
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			if b.Translatable {
+				translatable = append(translatable, b)
+			} else {
+				content = append(content, b)
+			}
+		}
+	}
+	assert.Empty(t, translatable, "blockquote content is never translatable when off")
+	require.Len(t, content, 2, "one non-translatable block per quoted paragraph")
+	assert.Equal(t, "Quoted text", content[0].SourceText())
+	assert.Equal(t, "More quoted", content[1].SourceText())
+	assert.False(t, hasDataNamed(parts, "blockquote"), "no opaque blockquote Data on the content path")
+
+	output := roundtripWithSkeletonConfig(t, input, func(c *markdown.Config) {
+		_ = c.ApplyMap(map[string]any{"translateBlockQuotes": false})
+	})
+	assert.Equal(t, input, output, "round-trip stays byte-exact")
 }
 
 // --- Front Matter Tests ---
 
 // okapi: MarkdownFilterTest#testDontTranslateMetadataHeader
+// Okapi-faithful config: with extract-non-translatable-content disabled the
+// whole front matter stays opaque Data and only the body yields blocks.
 func TestRead_DontTranslateMetadataHeader(t *testing.T) {
 	input := "---\ntitle: My Title\nauthor: John\n---\n\n# Heading\n"
-	parts := readParts(t, input)
+	parts := readPartsWithConfig(t, input, func(c *markdown.Config) {
+		c.SetExtractNonTranslatableContent(false)
+	})
 	blocks := testutil.FilterBlocks(parts)
 
 	// Front matter should be Data by default
@@ -765,6 +861,46 @@ func TestRead_DontTranslateMetadataHeader(t *testing.T) {
 	assert.True(t, hasFrontMatter, "front matter should be Data by default")
 	assert.Len(t, blocks, 1, "only heading should be a block")
 	assert.Equal(t, "Heading", blocks[0].SourceText())
+}
+
+// By default (ExtractNonTranslatableContent on, TranslateFrontMatter off), the
+// known prose scalars (title/description/summary) surface as non-translatable
+// content blocks while non-prose keys (author, date, slug) stay skeleton. The
+// translatable payload is unchanged (only the heading) and the round-trip is
+// byte-exact.
+func TestRead_FrontMatterProseAsContent(t *testing.T) {
+	input := "---\ntitle: My Title\ndescription: A summary line\nauthor: John\nslug: my-post\n---\n\n# Heading\n"
+	parts := readParts(t, input)
+
+	var translatable, content []*model.Block
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			if b.Translatable {
+				translatable = append(translatable, b)
+			} else {
+				content = append(content, b)
+			}
+		}
+	}
+	require.Len(t, translatable, 1, "only the heading stays translatable")
+	assert.Equal(t, "Heading", translatable[0].SourceText())
+
+	require.Len(t, content, 2, "title + description surface as non-translatable content")
+	assert.Equal(t, "My Title", content[0].SourceText())
+	assert.Equal(t, "front-matter", content[0].Type)
+	assert.Equal(t, "title", content[0].Properties["key"])
+	assert.Equal(t, "A summary line", content[1].SourceText())
+	assert.Equal(t, "description", content[1].Properties["key"])
+
+	// author/slug never become blocks; they ride the skeleton.
+	for _, b := range content {
+		assert.NotContains(t, []string{"John", "my-post"}, b.SourceText())
+	}
+	// No opaque front-matter Data part on the content path.
+	assert.False(t, hasDataNamed(parts, "front-matter"))
+
+	assert.Equal(t, input, roundtripWithSkeleton(t, input), "round-trip stays byte-exact")
 }
 
 // okapi: MarkdownFilterTest#testTranslateMetadataHeader

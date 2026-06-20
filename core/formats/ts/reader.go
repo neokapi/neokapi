@@ -148,6 +148,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		inComment               bool
 		inExtraComment          bool
 		inTransComment          bool
+		inOldSource             bool
+		inOldComment            bool
+		inContextComment        bool
 		inNumerusForm           bool
 		inContextName           bool
 		messageID               string
@@ -158,7 +161,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		commentBuilder          strings.Builder
 		extraCommentBuilder     strings.Builder
 		transCommentBuilder     strings.Builder
+		oldSourceBuilder        strings.Builder
+		oldCommentBuilder       strings.Builder
+		contextCommentBuilder   strings.Builder
 		contextNameBuilder      strings.Builder
+		// pendingContextGroup holds the context GroupStart between the
+		// `</name>` that names it and the point where it must be emitted
+		// (the first `<message>` or `</context>`). Emission is deferred so
+		// a context-scope `<comment>` — which the Qt TS DTD places after
+		// `<name>` and before the messages — can be attached as a Property
+		// before the part is sent. The part stream order is unchanged: the
+		// GroupStart still precedes every child Block and the GroupEnd.
+		pendingContextGroup *model.GroupStart
 		numerusForms            []string
 		numerusFormAttrs        []string      // per-form attribute strings (e.g. ` variants="no"`)
 		numerusFormAttrsCurrent string        // attribute string of the currently-open <numerusform>
@@ -249,6 +263,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				contextCount++
 				contextName = ""
 				contextNameBuilder.Reset()
+				contextCommentBuilder.Reset()
+				inContextComment = false
+				pendingContextGroup = nil
 
 			case "name":
 				if inContext && !inMessage {
@@ -257,6 +274,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				}
 
 			case "message":
+				// Flush the deferred context GroupStart (with any
+				// context-scope comment Property attached) before the
+				// first message Block so the part order is unchanged.
+				if pendingContextGroup != nil {
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: pendingContextGroup}) {
+						return
+					}
+					pendingContextGroup = nil
+				}
 				inMessage = true
 				messageID = ""
 				messageNumerus = false
@@ -266,6 +292,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				commentBuilder.Reset()
 				extraCommentBuilder.Reset()
 				transCommentBuilder.Reset()
+				oldSourceBuilder.Reset()
+				oldCommentBuilder.Reset()
+				inOldSource = false
+				inOldComment = false
 				numerusForms = nil
 				numerusFormAttrs = nil
 				numerusFormAttrsCurrent = ""
@@ -360,6 +390,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if inMessage && !inSource && !inTranslation {
 					inComment = true
 					commentBuilder.Reset()
+				} else if inContext && !inMessage {
+					// Context-scope `<comment>` (child of `<context>`,
+					// after `<name>`). Its text is captured and attached
+					// to the deferred context GroupStart as a Property; the
+					// element itself stays in the skeleton verbatim so the
+					// round-trip remains byte-exact.
+					inContextComment = true
+					contextCommentBuilder.Reset()
 				}
 
 			case "extracomment":
@@ -372,6 +410,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if inMessage && !inSource && !inTranslation {
 					inTransComment = true
 					transCommentBuilder.Reset()
+				}
+
+			case "oldsource":
+				// Previous source text (lupdate records it when the source
+				// string changed). Captured as block metadata; the element
+				// stays in the skeleton verbatim for byte-exact round-trip.
+				if inMessage && !inSource && !inTranslation {
+					inOldSource = true
+					oldSourceBuilder.Reset()
+				}
+
+			case "oldcomment":
+				// Previous disambiguating comment. Captured as block
+				// metadata; stays in the skeleton verbatim.
+				if inMessage && !inSource && !inTranslation {
+					inOldComment = true
+					oldCommentBuilder.Reset()
 				}
 
 			case "byte":
@@ -431,22 +486,33 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if inContextName {
 					inContextName = false
 					contextName = contextNameBuilder.String()
-					// Emit GroupStart for context
-					if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{
+					// Defer the GroupStart so a context-scope `<comment>`
+					// (which the DTD places after `<name>`) can be attached
+					// as a Property before emission. It is flushed at the
+					// first `<message>` or `</context>`, keeping the part
+					// order identical.
+					pendingContextGroup = &model.GroupStart{
 						ID:   fmt.Sprintf("ctx%d", contextCount),
 						Name: contextName,
 						Type: "context",
 						Properties: map[string]string{
 							"name": contextName,
 						},
-					}}) {
-						return
 					}
 				}
 
 			case "context":
 				if inContext {
 					inContext = false
+					// Flush a still-pending GroupStart (a context with a
+					// name but no messages) before the GroupEnd so the
+					// group is well-formed.
+					if pendingContextGroup != nil {
+						if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: pendingContextGroup}) {
+							return
+						}
+						pendingContextGroup = nil
+					}
 					// Emit GroupEnd
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{
 						ID: fmt.Sprintf("ctx%d", contextCount),
@@ -528,6 +594,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			case "comment":
 				if inComment {
 					inComment = false
+				} else if inContextComment {
+					inContextComment = false
+					if pendingContextGroup != nil {
+						if c := contextCommentBuilder.String(); c != "" {
+							pendingContextGroup.Properties["comment"] = c
+						}
+					}
 				}
 
 			case "extracomment":
@@ -538,6 +611,16 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			case "translatorcomment":
 				if inTransComment {
 					inTransComment = false
+				}
+
+			case "oldsource":
+				if inOldSource {
+					inOldSource = false
+				}
+
+			case "oldcomment":
+				if inOldComment {
+					inOldComment = false
 				}
 
 			case "message":
@@ -820,6 +903,30 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						})
 					}
 
+					// Previous source / previous comment (lupdate's
+					// <oldsource>/<oldcomment>) are contextual metadata, not
+					// translatable content. Surface them as block Properties
+					// and distinct Notes so downstream tooling can reach the
+					// prior values; the elements stay in the skeleton
+					// verbatim for byte-exact round-trip. Both are
+					// parity-safe (parity compares neither Block Properties
+					// nor Notes).
+					if oldSource := oldSourceBuilder.String(); oldSource != "" {
+						block.Properties["oldsource"] = oldSource
+						block.AddNote(&model.NoteAnnotation{
+							Text:      oldSource,
+							From:      "oldsource",
+							Annotates: "source",
+						})
+					}
+					if oldComment := oldCommentBuilder.String(); oldComment != "" {
+						block.Properties["oldcomment"] = oldComment
+						block.AddNote(&model.NoteAnnotation{
+							Text: oldComment,
+							From: "oldcomment",
+						})
+					}
+
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						return
 					}
@@ -851,6 +958,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				extraCommentBuilder.WriteString(text)
 			} else if inTransComment {
 				transCommentBuilder.WriteString(text)
+			} else if inOldSource {
+				oldSourceBuilder.WriteString(text)
+			} else if inOldComment {
+				oldCommentBuilder.WriteString(text)
+			} else if inContextComment {
+				contextCommentBuilder.WriteString(text)
 			}
 		}
 	}

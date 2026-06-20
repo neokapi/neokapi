@@ -366,9 +366,21 @@ func TestRead_LocDirectivesSkip(t *testing.T) {
 	defer reader.Close()
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-	require.Len(t, blocks, 1, "only the entry after the skipped one is extracted")
-	assert.Equal(t, "Key2", blocks[0].Name)
-	assert.Equal(t, "Text2", blocks[0].SourceText())
+
+	// Exactly one TRANSLATABLE block: the entry after the skipped one.
+	translatable := translatableBlocks(blocks)
+	require.Len(t, translatable, 1, "only the entry after the skipped one is translatable")
+	assert.Equal(t, "Key2", translatable[0].Name)
+	assert.Equal(t, "Text2", translatable[0].SourceText())
+
+	// The #_skip-excluded entry is surfaced as a non-translatable content
+	// block carrying its value (visible to ingestion, skipped by MT).
+	skipped := nonTranslatableBlocks(blocks)
+	require.Len(t, skipped, 1, "the skipped entry surfaces as a non-translatable content block")
+	assert.Equal(t, "Key1", skipped[0].Name)
+	assert.Equal(t, "Text1", skipped[0].SourceText())
+	assert.False(t, skipped[0].Translatable)
+	assert.True(t, skipped[0].PreserveWhitespace)
 }
 
 // okapi: PropertiesFilterTest#testLocDirectives_Group
@@ -390,9 +402,42 @@ func TestRead_LocDirectivesGroup(t *testing.T) {
 	defer reader.Close()
 
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-	require.Len(t, blocks, 1, "only the single _text override is extracted inside the _bskip block")
-	assert.Equal(t, "Key2", blocks[0].Name)
-	assert.Equal(t, "Text2", blocks[0].SourceText())
+
+	// Exactly one TRANSLATABLE block: the single _text override inside the
+	// _bskip block.
+	translatable := translatableBlocks(blocks)
+	require.Len(t, translatable, 1, "only the single _text override is translatable inside the _bskip block")
+	assert.Equal(t, "Key2", translatable[0].Name)
+	assert.Equal(t, "Text2", translatable[0].SourceText())
+
+	// The two block-skipped entries surface as non-translatable content
+	// blocks carrying their values.
+	skipped := nonTranslatableBlocks(blocks)
+	require.Len(t, skipped, 2, "both _bskip entries surface as non-translatable content blocks")
+	assert.Equal(t, "Text1", skipped[0].SourceText())
+	assert.Equal(t, "Text3", skipped[1].SourceText())
+}
+
+// translatableBlocks returns only the blocks whose Translatable flag is set.
+func translatableBlocks(blocks []*model.Block) []*model.Block {
+	var out []*model.Block
+	for _, b := range blocks {
+		if b.Translatable {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// nonTranslatableBlocks returns only the non-translatable content blocks.
+func nonTranslatableBlocks(blocks []*model.Block) []*model.Block {
+	var out []*model.Block
+	for _, b := range blocks {
+		if !b.Translatable {
+			out = append(out, b)
+		}
+	}
+	return out
 }
 
 // ---- Subfilter tests (not applicable to the native reader) ----

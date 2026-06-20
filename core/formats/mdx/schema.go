@@ -26,6 +26,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "extraction",
 				Label: "Content Extraction",
 				Fields: []string{
+					"extractNonTranslatableContent",
 					"translateCodeBlocks", "translateFrontMatter", "frontMatterKeys",
 					"translateImageAlt", "translateURLs",
 					"translateBlockQuotes", "translateHTMLBlocks",
@@ -38,6 +39,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     true,
+				Title:       "Surface Non-Translatable Content",
+				Description: "If true, MDX-specific non-translatable content (block-level JSX text children, GFM table cell prose, and markdown spans that cannot be reconstructed faithfully) is surfaced as non-translatable content blocks (visible to ingestion, skipped by MT) while staying byte-faithful on round-trip. If false, those constructs stay opaque.",
+			}),
 			"translateCodeBlocks": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,

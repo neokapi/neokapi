@@ -22,17 +22,10 @@ const (
 	leafValue = "value" // a plain .strings "key" = "value"; entry
 )
 
-// emitStrings parses the .strings content and emits one Block per entry.
-func (r *Reader) emitStrings(ctx context.Context, ch chan<- model.PartResult, content string, locale model.LocaleID) bool {
-	doc, err := parseStringsFile(content)
-	if err != nil {
-		select {
-		case ch <- model.PartResult{Error: err}:
-		case <-ctx.Done():
-		}
-		return false
-	}
-
+// emitStrings emits one Block per entry of the already-parsed .strings doc. The
+// parse happens up front in readContent so any orphan/superseded comments can be
+// attached to the layer before it is published on the channel.
+func (r *Reader) emitStrings(ctx context.Context, ch chan<- model.PartResult, content string, locale model.LocaleID, doc *stringsDoc) bool {
 	// Skeleton cursor: the byte offset up to which the file structure has been
 	// emitted as SkeletonText. For each entry we emit the prefix structure
 	// (comments, the quoted key, ` = `, the opening quote) up to the value's

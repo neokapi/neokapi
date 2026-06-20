@@ -54,6 +54,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Fields: []string{
 					"aggressiveCleanup", "tabAsCharacter",
 					"ignoreSoftHyphenTag", "replaceNoBreakHyphenTag",
+					"extractNonTranslatableContent",
 				},
 			},
 			{
@@ -215,6 +216,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Replace no-break hyphen tags",
 				Default:     false,
 				Description: "Replace no-break hyphen tags with the non-breaking hyphen character.",
+			}),
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Title:       "Extract non-translatable content",
+				Default:     true,
+				Description: "If true (default), non-translatable contextual content is surfaced — image/shape alt-text (descr/title on docPr/cNvPr) as content blocks (visible to ingestion/LLM consumers, skipped by machine translation), and PowerPoint/Excel comment text as data parts — instead of being hidden in opaque skeleton. Disable to keep it opaque.",
 			}),
 			// Style/color filtering
 			"excludeColors": schema.Prop(coreschema.PropertySchema{

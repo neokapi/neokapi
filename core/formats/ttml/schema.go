@@ -51,7 +51,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Type:        "boolean",
 				Default:     true,
 				Title:       "Extract non-translatable content",
-				Description: "If true (default), non-translatable head metadata such as ttm:copyright and ttm:agent is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
+				Description: "If true (default), non-translatable head metadata such as ttm:title, ttm:desc, ttm:copyright and ttm:agent is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton.",
 			}),
 			"maxCharsPerLine": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",

@@ -66,6 +66,26 @@ type stringsdictDoc struct {
 	leafs []dictLeaf
 }
 
+// commentTexts returns the trimmed inner text of every XML comment
+// (<!-- ... -->) in the document. Such comments are tokenized losslessly (they
+// round-trip verbatim in the skeleton) but never belong to a translatable
+// <string> leaf, so the reader surfaces them as layer-scoped NoteAnnotations to
+// keep the developer/context text reachable as structured metadata. Empty
+// comments are skipped.
+func (doc *stringsdictDoc) commentTexts() []string {
+	var out []string
+	for _, t := range doc.toks {
+		if t.kind != plTokComment {
+			continue
+		}
+		inner := strings.TrimSuffix(strings.TrimPrefix(t.raw, "<!--"), "-->")
+		if inner = strings.TrimSpace(inner); inner != "" {
+			out = append(out, inner)
+		}
+	}
+	return out
+}
+
 // parseStringsdict tokenizes and walks the .stringsdict source, producing the
 // token stream (for byte-faithful rewrite) and the list of translatable
 // <string> leaves in document order.

@@ -588,6 +588,80 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 	emitBlock(block)
 }
 
+// emitXLSXCommentData scans an Excel comment part (xl/comments*.xml) for
+// <commentList><comment ref="A1"><text>…</text> bodies and surfaces each as an
+// informational Data part carrying the concatenated comment text and the cell
+// reference (#928). The comment part is not parsed for skeleton (the writer
+// copies it verbatim), so this is purely additive and never affects the
+// round-trip. Best-effort: a malformed part yields no Data rather than failing
+// the read.
+func emitXLSXCommentData(data []byte, emitData func(name, text, ref string)) {
+	d := xml.NewDecoder(bytes.NewReader(data))
+	var inComment bool
+	var ref string
+	for {
+		tok, err := d.Token()
+		if errors.Is(err, io.EOF) {
+			return
+		}
+		if err != nil {
+			return
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "comment":
+				inComment = true
+				ref = attrVal(t, "ref")
+			case "text":
+				if inComment {
+					text := collectXLSXTextBody(d)
+					if strings.TrimSpace(text) != "" {
+						emitData("comment", text, ref)
+					}
+				}
+			}
+		case xml.EndElement:
+			if t.Name.Local == "comment" {
+				inComment = false
+				ref = ""
+			}
+		}
+	}
+}
+
+// collectXLSXTextBody reads from just after a <text> start element to its
+// matching close, concatenating the character data of every nested <t> run.
+// Mirrors parseInlineString's <t>-gathering for rich-text cell strings.
+func collectXLSXTextBody(d *xml.Decoder) string {
+	var text strings.Builder
+	depth := 1
+	var inT bool
+	for depth > 0 {
+		tok, err := d.Token()
+		if err != nil {
+			return text.String()
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			depth++
+			if t.Name.Local == "t" {
+				inT = true
+			}
+		case xml.EndElement:
+			depth--
+			if t.Name.Local == "t" {
+				inT = false
+			}
+		case xml.CharData:
+			if inT {
+				text.Write(t)
+			}
+		}
+	}
+	return text.String()
+}
+
 // Skeleton helpers
 
 func (p *smlParser) skelText(s string) {

@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -121,8 +122,20 @@ type rootfile struct {
 
 // OPF package document structure
 type opfPackage struct {
+	Metadata opfMetadata `xml:"metadata"`
 	Manifest opfManifest `xml:"manifest"`
 	Spine    opfSpine    `xml:"spine"`
+}
+
+// opfMetadata captures the Dublin Core bibliographic fields the reader
+// surfaces as non-translatable context blocks (visible to ingestion/LLM
+// consumers, skipped by MT). dc:identifier is intentionally NOT captured —
+// it is an opaque ID, not prose, and stays buried in skeleton.
+type opfMetadata struct {
+	Title       []string `xml:"http://purl.org/dc/elements/1.1/ title"`
+	Creator     []string `xml:"http://purl.org/dc/elements/1.1/ creator"`
+	Subject     []string `xml:"http://purl.org/dc/elements/1.1/ subject"`
+	Description []string `xml:"http://purl.org/dc/elements/1.1/ description"`
 }
 
 type opfManifest struct {
@@ -130,9 +143,19 @@ type opfManifest struct {
 }
 
 type opfItem struct {
-	ID        string `xml:"id,attr"`
-	Href      string `xml:"href,attr"`
-	MediaType string `xml:"media-type,attr"`
+	ID         string `xml:"id,attr"`
+	Href       string `xml:"href,attr"`
+	MediaType  string `xml:"media-type,attr"`
+	Properties string `xml:"properties,attr"`
+}
+
+// opfInfo is the parsed view of the Package Document the reader needs:
+// the resolved reading-order spine, the bibliographic metadata, and a
+// manifest indexed by resolved ZIP-entry path (for NCX/nav detection).
+type opfInfo struct {
+	spine          []string
+	metadata       opfMetadata
+	manifestByPath map[string]opfItem
 }
 
 type opfSpine struct {
@@ -195,16 +218,27 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// Parse OPF to find spine items
-	spineItems, err := r.parseOPF(fileMap, opfPath)
+	// Parse OPF to find spine items, metadata, and the manifest index.
+	info, err := r.parseOPF(fileMap, opfPath)
 	if err != nil {
 		r.emitError(ch, err)
 		return
 	}
+	spineItems := info.spine
 
 	blockCounter := 0
 	layerCounter := 1
 	dataCounter := 0
+
+	// Surface OPF Dublin Core metadata (dc:title/dc:creator/dc:subject/
+	// dc:description) as non-translatable context blocks. dc:identifier stays
+	// in skeleton. Gated behind the surfacing flag so the flag-off (parity)
+	// part stream stays byte-identical (the OPF is otherwise skipped entirely).
+	if r.cfg.ExtractNonTranslatableContent() {
+		if !r.emitOPFMetadata(ctx, ch, info.metadata, opfPath, &blockCounter) {
+			return
+		}
+	}
 
 	// Process each spine item (content document)
 	for _, itemPath := range spineItems {
@@ -285,13 +319,35 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		if file.FileInfo().IsDir() || spineSet[file.Name] {
 			continue
 		}
-		// Skip structural EPUB files (container.xml, OPF, NCX)
+		// Skip structural EPUB files (container.xml, OPF).
 		if file.Name == "META-INF/container.xml" || file.Name == opfPath {
 			continue
 		}
 		if file.Name == "mimetype" {
 			continue
 		}
+
+		// Surface navigation labels (NCX <navLabel><text>, EPUB3 nav-doc <a>
+		// link text) as non-translatable context blocks. The file itself still
+		// rides through unchanged as the Data part below, so the round-trip is
+		// byte-exact and (flag off) the part stream is unchanged for parity.
+		if r.cfg.ExtractNonTranslatableContent() {
+			switch {
+			case isNCXEntry(file.Name, info.manifestByPath):
+				if content, err := r.readEntry(file); err == nil {
+					if !r.emitNCXLabels(ctx, ch, content, file.Name, &blockCounter) {
+						return
+					}
+				}
+			case isNavEntry(file.Name, info.manifestByPath):
+				if content, err := r.readEntry(file); err == nil {
+					if !r.emitNavLabels(ctx, ch, content, file.Name, &blockCounter) {
+						return
+					}
+				}
+			}
+		}
+
 		dataCounter++
 		data := &model.Data{
 			ID:   fmt.Sprintf("d%d", dataCounter),
@@ -332,7 +388,7 @@ func (r *Reader) findOPF(fileMap map[string]*zip.File) (string, error) {
 	return cont.Rootfiles[0].FullPath, nil
 }
 
-func (r *Reader) parseOPF(fileMap map[string]*zip.File, opfPath string) ([]string, error) {
+func (r *Reader) parseOPF(fileMap map[string]*zip.File, opfPath string) (*opfInfo, error) {
 	opfFile, ok := fileMap[opfPath]
 	if !ok {
 		return nil, fmt.Errorf("epub: OPF file not found: %s", opfPath)
@@ -348,35 +404,218 @@ func (r *Reader) parseOPF(fileMap map[string]*zip.File, opfPath string) ([]strin
 		return nil, fmt.Errorf("epub: parsing OPF: %w", err)
 	}
 
-	// Build manifest ID -> href map
-	idToHref := make(map[string]string)
-	for _, item := range pkg.Manifest.Items {
-		idToHref[item.ID] = item.Href
+	// Resolve an href (relative to the OPF directory) to its ZIP-entry path.
+	opfDir := path.Dir(opfPath)
+	resolve := func(href string) string {
+		if opfDir != "." && opfDir != "" {
+			return opfDir + "/" + href
+		}
+		return href
 	}
 
-	// Resolve spine items to file paths
-	opfDir := path.Dir(opfPath)
+	// Build manifest ID -> href map and a path -> item index.
+	idToHref := make(map[string]string)
+	manifestByPath := make(map[string]opfItem, len(pkg.Manifest.Items))
+	for _, item := range pkg.Manifest.Items {
+		idToHref[item.ID] = item.Href
+		if item.Href != "" {
+			manifestByPath[resolve(item.Href)] = item
+		}
+	}
+
+	// Resolve spine items to file paths.
 	var items []string
 	for _, ref := range pkg.Spine.ItemRefs {
 		href, ok := idToHref[ref.IDRef]
 		if !ok {
 			continue
 		}
-		// Resolve relative to OPF directory
-		fullPath := href
-		if opfDir != "." && opfDir != "" {
-			fullPath = opfDir + "/" + href
-		}
-		items = append(items, fullPath)
+		items = append(items, resolve(href))
 	}
 
-	return items, nil
+	return &opfInfo{spine: items, metadata: pkg.Metadata, manifestByPath: manifestByPath}, nil
 }
 
 func (r *Reader) readEntry(file *zip.File) ([]byte, error) {
 	// Bounded by the shared safeio zip limits (per-entry uncompressed size +
 	// inflate-ratio zip-bomb guard on the actual decompressed stream).
 	return safeio.DefaultZipLimits.ReadEntry(file)
+}
+
+// emitContextBlock emits a single non-translatable context block carrying
+// verbatim text (a single run, NOT inline-parsed) so an ingestion/LLM consumer
+// can see the contextual content while MT skips it (Translatable=false). These
+// blocks are surfacing-only: they ride no skeleton ref, so the originating file
+// is reconstructed/copied unchanged and the round-trip stays byte-exact. The
+// `kind` is recorded under the `epub.context` property for downstream tools.
+func (r *Reader) emitContextBlock(ctx context.Context, ch chan<- model.PartResult,
+	source, text, kind, role string, blockCounter *int) bool {
+
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return true
+	}
+	*blockCounter++
+	block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), text)
+	block.Name = source
+	block.Translatable = false
+	block.Properties["epub.source"] = source
+	block.Properties["epub.context"] = kind
+	if role != "" {
+		block.SetSemanticRole(role, 0)
+	}
+	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// emitOPFMetadata surfaces the Dublin Core bibliographic fields as
+// non-translatable context blocks. dc:identifier is intentionally excluded.
+func (r *Reader) emitOPFMetadata(ctx context.Context, ch chan<- model.PartResult,
+	meta opfMetadata, opfPath string, blockCounter *int) bool {
+
+	groups := []struct {
+		kind  string
+		role  string
+		texts []string
+	}{
+		{"dc:title", model.RoleTitle, meta.Title},
+		{"dc:description", "", meta.Description},
+		{"dc:creator", "", meta.Creator},
+		{"dc:subject", "", meta.Subject},
+	}
+	for _, g := range groups {
+		for _, t := range g.texts {
+			if !r.emitContextBlock(ctx, ch, opfPath, t, g.kind, g.role, blockCounter) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// isNCXEntry reports whether a ZIP entry is an NCX navigation document
+// (legacy EPUB2 table of contents), by media-type or `.ncx` extension.
+func isNCXEntry(name string, manifest map[string]opfItem) bool {
+	if strings.HasSuffix(strings.ToLower(name), ".ncx") {
+		return true
+	}
+	if it, ok := manifest[name]; ok && it.MediaType == "application/x-dtbncx+xml" {
+		return true
+	}
+	return false
+}
+
+// isNavEntry reports whether a ZIP entry is an EPUB3 navigation document —
+// an XHTML manifest item carrying the `nav` property.
+func isNavEntry(name string, manifest map[string]opfItem) bool {
+	it, ok := manifest[name]
+	if !ok || it.MediaType != "application/xhtml+xml" {
+		return false
+	}
+	return slices.Contains(strings.Fields(it.Properties), "nav")
+}
+
+// emitNCXLabels surfaces NCX <navLabel><text> labels as non-translatable
+// context blocks. Best-effort: a parse error simply yields no blocks.
+func (r *Reader) emitNCXLabels(ctx context.Context, ch chan<- model.PartResult,
+	content []byte, entry string, blockCounter *int) bool {
+
+	dec := xml.NewDecoder(bytes.NewReader(content))
+	dec.Strict = false
+	dec.AutoClose = xml.HTMLAutoClose
+	dec.Entity = xml.HTMLEntity
+
+	navLabelDepth := 0
+	inText := false
+	var text strings.Builder
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			break
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "navLabel":
+				navLabelDepth++
+			case "text":
+				if navLabelDepth > 0 {
+					inText = true
+					text.Reset()
+				}
+			}
+		case xml.CharData:
+			if inText {
+				text.Write(t)
+			}
+		case xml.EndElement:
+			switch t.Name.Local {
+			case "text":
+				if inText {
+					inText = false
+					if !r.emitContextBlock(ctx, ch, entry, text.String(), "nav-label", model.RoleTitle, blockCounter) {
+						return false
+					}
+				}
+			case "navLabel":
+				if navLabelDepth > 0 {
+					navLabelDepth--
+				}
+			}
+		}
+	}
+	return true
+}
+
+// emitNavLabels surfaces EPUB3 nav-doc anchor text (the <a> labels inside a
+// <nav>) as non-translatable context blocks. Best-effort.
+func (r *Reader) emitNavLabels(ctx context.Context, ch chan<- model.PartResult,
+	content []byte, entry string, blockCounter *int) bool {
+
+	dec := xml.NewDecoder(bytes.NewReader(content))
+	dec.Strict = false
+	dec.AutoClose = xml.HTMLAutoClose
+	dec.Entity = xml.HTMLEntity
+
+	navDepth := 0
+	inAnchor := false
+	var text strings.Builder
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			break
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "nav":
+				navDepth++
+			case "a":
+				if navDepth > 0 && !inAnchor {
+					inAnchor = true
+					text.Reset()
+				}
+			}
+		case xml.CharData:
+			if inAnchor {
+				text.Write(t)
+			}
+		case xml.EndElement:
+			switch t.Name.Local {
+			case "a":
+				if inAnchor {
+					inAnchor = false
+					if !r.emitContextBlock(ctx, ch, entry, text.String(), "nav-label", model.RoleTitle, blockCounter) {
+						return false
+					}
+				}
+			case "nav":
+				if navDepth > 0 {
+					navDepth--
+				}
+			}
+		}
+	}
+	return true
 }
 
 // extractAndEmitXHTML parses XHTML content and extracts translatable text,
@@ -412,6 +651,18 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 	verbatimElements := map[string]bool{
 		"pre": true, "code": true, "kbd": true, "samp": true,
 	}
+
+	// bareProseContainers are sectioning/grouping elements whose DIRECT text
+	// children are bare prose the block-element walk would otherwise bury in
+	// skeleton. When the surfacing flag is on, that text is surfaced as a
+	// non-translatable context block (the body rides as a Ref so the round-trip
+	// stays byte-exact). containerStack tracks the current skeleton-level
+	// (outside any translatable block) element nesting so we know the immediate
+	// parent of a bare text node.
+	bareProseContainers := map[string]bool{
+		"div": true, "section": true, "aside": true,
+	}
+	var containerStack []string
 
 	// writeSkelToken serializes a token to skeleton-format XML text.
 	writeSkelToken := func(tok xml.Token) {
@@ -617,6 +868,57 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 		}
 	}
 
+	// emitImageAttrs surfaces an <img>'s alt/title/aria-label attributes as
+	// non-translatable context blocks (visible to ingestion, skipped by MT).
+	// Surfacing-only: the attributes stay verbatim in the image tag's skeleton,
+	// so the round-trip is unaffected.
+	emitImageAttrs := func(start xml.StartElement) {
+		for _, a := range start.Attr {
+			switch a.Name.Local {
+			case "alt", "title", "aria-label":
+				r.emitContextBlock(ctx, ch, itemPath, a.Value, "img-"+a.Name.Local, "", blockCounter)
+			}
+		}
+	}
+
+	// emitBareProse surfaces a bare text node (the direct text child of a
+	// div/section/aside) as a non-translatable context block. The body rides as
+	// a Ref while the surrounding whitespace stays in skeleton, so the
+	// reconstructed bytes are identical to the prior skeleton-only path
+	// (xmlEscape distributes over the lead/core/trail split).
+	emitBareProse := func(raw string) {
+		trimmedLeft := strings.TrimLeft(raw, " \t\r\n")
+		lead := raw[:len(raw)-len(trimmedLeft)]
+		core := strings.TrimRight(trimmedLeft, " \t\r\n")
+		trail := trimmedLeft[len(core):]
+		if core == "" {
+			writeSkelToken(xml.CharData(raw))
+			return
+		}
+		*blockCounter++
+		blockID := fmt.Sprintf("tu%d", *blockCounter)
+		block := model.NewBlock(blockID, core)
+		block.Name = itemPath
+		block.Translatable = false
+		block.Properties["epub.source"] = itemPath
+		block.Properties["epub.context"] = "bare-prose"
+
+		if r.skeletonStore != nil {
+			if lead != "" {
+				skelBuf.WriteString(xmlEscape(lead))
+			}
+			if skelBuf.Len() > 0 {
+				_ = r.skeletonStore.WriteText(skelBuf.Bytes())
+				skelBuf.Reset()
+			}
+			_ = r.skeletonStore.WriteRef(blockID)
+			if trail != "" {
+				skelBuf.WriteString(xmlEscape(trail))
+			}
+		}
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	}
+
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
@@ -639,6 +941,11 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 			} else if verbatimElements[localName] && r.cfg.ExtractNonTranslatableContent() {
 				consumeVerbatim(t)
 			} else {
+				// Skeleton-level element (outside any translatable block).
+				if r.cfg.ExtractNonTranslatableContent() && localName == "img" {
+					emitImageAttrs(t)
+				}
+				containerStack = append(containerStack, localName)
 				writeSkelToken(t)
 			}
 		case xml.EndElement:
@@ -655,12 +962,20 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 				depth--
 				pendingTokens = append(pendingTokens, xml.CopyToken(t))
 			} else {
+				if len(containerStack) > 0 {
+					containerStack = containerStack[:len(containerStack)-1]
+				}
 				writeSkelToken(t)
 			}
 		case xml.CharData:
 			if inBlock {
 				textBuf.Write(t)
 				pendingTokens = append(pendingTokens, xml.CopyToken(t))
+			} else if r.cfg.ExtractNonTranslatableContent() &&
+				len(containerStack) > 0 &&
+				bareProseContainers[containerStack[len(containerStack)-1]] &&
+				strings.TrimSpace(string(t)) != "" {
+				emitBareProse(string(t))
 			} else {
 				writeSkelToken(t)
 			}
@@ -675,6 +990,14 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 
 	// Flush remaining
 	flushBlock()
+
+	// Flush any trailing skeleton accumulated after the last block ref (the
+	// final block's close tag, sibling whitespace, and the closing structural
+	// tags). Without this the reconstruction would truncate at the last block.
+	if r.skeletonStore != nil && skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(skelBuf.Bytes())
+		skelBuf.Reset()
+	}
 }
 
 // emitSubfiltered emits a child layer with content parsed by the HTML sub-format reader.

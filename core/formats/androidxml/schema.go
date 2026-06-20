@@ -24,6 +24,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Label: "Extraction",
 				Fields: []string{
 					"extractComments", "skipNonTranslatable", "skipResourceReferences",
+					"extractNonTranslatableContent",
 				},
 			},
 		},
@@ -45,6 +46,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Title:       "Skip resource references",
 				Default:     true,
 				Description: "Exclude <string> values that are a bare resource reference (e.g. @string/foo, ?attr/bar). A reference is an alias, not translatable UI text.",
+			}),
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Title:       "Surface non-translatable content",
+				Default:     true,
+				Description: "Surface <string>/<string-array>/<plurals> entries marked translatable=\"false\" as non-translatable content blocks (visible to ingestion, skipped by MT). When off, such entries stay in opaque skeleton and round-trip verbatim. Bare resource references are always skeleton.",
 			}),
 		},
 	}

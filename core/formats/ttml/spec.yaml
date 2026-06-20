@@ -448,16 +448,19 @@ features:
       `<head>`; only `<p>` elements inside `<body><div>` produce
       translatable Blocks.
 
-      Exception (issue #928): the `ttm:copyright` and `ttm:agent`
-      metadata elements carry renderable contextual content, so when
+      Exception (issue #928): the `ttm:title`, `ttm:desc`,
+      `ttm:copyright` and `ttm:agent` metadata elements carry
+      renderable contextual content, so when
       `extractNonTranslatableContent` is on (the default) they surface
       as non-translatable content Blocks (`Translatable=false`,
-      RoleCode, LayerMetadata) — visible to ingestion/LLM consumers,
-      skipped by MT — while their bytes stay in skeleton for a
-      byte-exact round-trip. `ttm:title`/`ttm:desc` are out of scope
-      (arguably translatable), and okp:/styling/layout stay opaque
-      skeleton. This example exercises only okp: elements, which remain
-      non-Block under both implementations.
+      LayerMetadata; role RoleTitle/RoleCaption for title/desc,
+      RoleCode for copyright/agent) — visible to ingestion/LLM
+      consumers, skipped by MT — while their bytes stay in skeleton for
+      a byte-exact round-trip. title/desc stay `Translatable=false` for
+      now (arguably translatable) so the MT payload is unchanged.
+      okp:/styling/layout stay opaque skeleton. This example exercises
+      only okp: elements, which remain non-Block under both
+      implementations.
     spec_refs:
       - "W3C TTML2 §6.2 Document structure — head and body (https://www.w3.org/TR/ttml2/#document-structure)"
     examples:

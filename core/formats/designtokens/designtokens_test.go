@@ -72,6 +72,30 @@ func collectBlocks(parts []*model.Part) map[string]*model.Block {
 	return m
 }
 
+// collectData returns the non-translatable Data parts emitted by the reader,
+// keyed by Data.Name (the dotted JSON key path).
+func collectData(parts []*model.Part) map[string]*model.Data {
+	m := make(map[string]*model.Data)
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			if d, ok := p.Resource.(*model.Data); ok {
+				m[d.Name] = d
+			}
+		}
+	}
+	return m
+}
+
+// readInline reads inline DTCG JSON through the design-tokens reader (default
+// config) and returns the emitted parts.
+func readInline(t *testing.T, content string) []*model.Part {
+	t.Helper()
+	r := designtokens.NewReader()
+	require.NoError(t, r.Open(t.Context(), testutil.RawDocFromString(content, model.LocaleEnglish)))
+	defer r.Close()
+	return testutil.CollectParts(t, r.Read(t.Context()))
+}
+
 func fixtures() []string {
 	return []string{
 		"tokens.tokens.json",
@@ -356,4 +380,127 @@ func TestSniffNegativePlainJSON(t *testing.T) {
 }`)
 	assert.False(t, designtokens.Sniff(plain),
 		"plain JSON with description/value keys but no DTCG $-markers must not sniff as DTCG")
+}
+
+// TestDeprecatedStringAttachedAsNote verifies the #928 treatment for a
+// string-valued $deprecated on a token that also has a $description: the
+// deprecation prose (migration guidance) is attached to that $description block
+// as a developer NoteAnnotation — semantic context, not a translatable block.
+// (tokens.tokens.json's button.padding carries both $deprecated and $description.)
+func TestDeprecatedStringAttachedAsNote(t *testing.T) {
+	parts, _ := readParts(t, filepath.Join("testdata", "tokens.tokens.json"))
+	byName := collectBlocks(parts)
+
+	b := byName["/button/padding/$description"]
+	require.NotNil(t, b, "the deprecated token keeps its $description block")
+	notes := b.Notes()
+	require.Len(t, notes, 1, "string $deprecated prose attaches as one note on the $description block")
+	assert.Equal(t, "Use the responsive padding scale instead.", notes[0].Text)
+	assert.Equal(t, "developer", notes[0].From)
+
+	// The deprecation prose is the NOTE, not the block's translatable text, and
+	// never surfaces as a translatable block of its own.
+	assert.Equal(t, "Internal button padding.", b.SourceText())
+	for name, blk := range byName {
+		assert.NotEqual(t, "Use the responsive padding scale instead.", blk.SourceText(),
+			"deprecation prose must not be a translatable block (%s)", name)
+	}
+
+	// A description block on a token with no $deprecated sibling carries no note.
+	other := byName["/color/primary/$description"]
+	require.NotNil(t, other)
+	assert.Empty(t, other.Notes(), "blocks without a deprecated sibling have no note")
+
+	// The $deprecated message is not duplicated onto its own Data part when it
+	// rode the description block as a note.
+	if d := collectData(parts)["button.padding.$deprecated"]; d != nil {
+		assert.Empty(t, d.Properties["text"],
+			"prose already attached as a note is not also carried on the Data part")
+	}
+}
+
+// TestDeprecatedStringWithoutDescriptionCarriedOnData verifies the #928 fallback
+// (treatment B.2): when a deprecated token has no $description block to annotate,
+// the string $deprecated prose is carried on the token's already-emitted opaque
+// Data part as Properties["text"], and the document still round-trips byte-exact.
+func TestDeprecatedStringWithoutDescriptionCarriedOnData(t *testing.T) {
+	const in = `{
+  "spacing": {
+    "$type": "dimension",
+    "small": {
+      "$value": "4px",
+      "$deprecated": "Use spacing.compact instead."
+    }
+  }
+}
+`
+	parts := readInline(t, in)
+	assert.Empty(t, collectBlocks(parts), "no $description means no translatable block")
+
+	d := collectData(parts)["spacing.small.$deprecated"]
+	require.NotNil(t, d, "string $deprecated is emitted as a non-translatable Data part")
+	assert.Equal(t, "Use spacing.compact instead.", d.Properties["text"],
+		"the deprecation prose rides the Data part as text")
+
+	out := writeParts(t, parts, "")
+	assert.Equal(t, in, string(out),
+		"carrying $deprecated text on the Data part must not affect byte-exact round-trip")
+}
+
+// TestDeprecatedBooleanStaysOpaque verifies that a boolean $deprecated:true
+// carries no prose: it gets neither a note on the $description block nor text on
+// its Data part — it stays opaque structure.
+func TestDeprecatedBooleanStaysOpaque(t *testing.T) {
+	const in = `{
+  "spacing": {
+    "$type": "dimension",
+    "small": {
+      "$value": "4px",
+      "$deprecated": true,
+      "$description": "Tight spacing."
+    }
+  }
+}
+`
+	parts := readInline(t, in)
+
+	b := collectBlocks(parts)["/spacing/small/$description"]
+	require.NotNil(t, b)
+	assert.Empty(t, b.Notes(), "boolean $deprecated carries no prose, so no note")
+
+	d := collectData(parts)["spacing.small.$deprecated"]
+	require.NotNil(t, d, "boolean $deprecated is still an opaque Data part")
+	assert.Empty(t, d.Properties["text"], "boolean $deprecated stays opaque (no text)")
+}
+
+// TestDeprecatedStringFallsBackToDataWhenDescriptionsDisabled verifies that with
+// extractDescriptions=false (no $description blocks emitted at all), a string
+// $deprecated on a token that has a $description still surfaces its prose on the
+// Data part, since there is no block to annotate.
+func TestDeprecatedStringFallsBackToDataWhenDescriptionsDisabled(t *testing.T) {
+	const in = `{
+  "spacing": {
+    "$type": "dimension",
+    "small": {
+      "$value": "4px",
+      "$deprecated": "Use spacing.compact instead.",
+      "$description": "Tight spacing."
+    }
+  }
+}
+`
+	r := designtokens.NewReader()
+	cfg := &designtokens.Config{}
+	cfg.Reset()
+	cfg.ExtractDescriptions = false
+	require.NoError(t, r.SetConfig(cfg))
+	require.NoError(t, r.Open(t.Context(), testutil.RawDocFromString(in, model.LocaleEnglish)))
+	defer r.Close()
+	parts := testutil.CollectParts(t, r.Read(t.Context()))
+
+	assert.Empty(t, collectBlocks(parts), "extractDescriptions=false extracts nothing")
+	d := collectData(parts)["spacing.small.$deprecated"]
+	require.NotNil(t, d)
+	assert.Equal(t, "Use spacing.compact instead.", d.Properties["text"],
+		"with descriptions disabled the deprecation prose still rides the Data part")
 }

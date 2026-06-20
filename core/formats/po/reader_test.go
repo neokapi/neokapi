@@ -184,6 +184,123 @@ func TestReadReferences(t *testing.T) {
 	assert.Equal(t, "src/main.c:42", refData.Properties["reference"])
 }
 
+// --- #928: developer/translator comments surface as block notes ---
+
+// findNote returns the first note on the block written by `from`, or nil.
+func findNote(b *model.Block, from string) *model.NoteAnnotation {
+	for _, n := range b.Notes() {
+		if n.From == from {
+			return n
+		}
+	}
+	return nil
+}
+
+// #928: `#.` extracted (developer) comments were previously dropped
+// entirely in normal mode. They now surface as a developer NoteAnnotation
+// on the owning block, without adding any new part to the stream.
+func TestReadExtractedCommentsAsNote(t *testing.T) {
+	t.Parallel()
+	input := "#. This is an extracted comment\nmsgid \"Hello\"\nmsgstr \"Bonjour\"\n"
+	parts := readDefault(t, input)
+
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 1)
+
+	note := findNote(blocks[0], "developer")
+	require.NotNil(t, note, "extracted #. comment should surface as a developer note")
+	assert.Equal(t, "This is an extracted comment", note.Text)
+	assert.Equal(t, "general", note.Annotates)
+
+	// Extracted comments must NOT add a Data part — annotations are
+	// part-stream-invisible (parity-safe). The only Data parts here are
+	// none, since `#.` was never emitted as Data.
+	assert.Nil(t, findDataByName(parts, "extracted"))
+	assert.Nil(t, findDataByName(parts, "comment"))
+}
+
+// #928: `# ` translator comments surface as a translator NoteAnnotation
+// on the owning block, in addition to the pre-existing `comment` Data
+// part — the emitted part stream is unchanged.
+func TestReadTranslatorCommentsAsNote(t *testing.T) {
+	t.Parallel()
+	input := "# A translator note\nmsgid \"Hello\"\nmsgstr \"Bonjour\"\n"
+	parts := readDefault(t, input)
+
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 1)
+
+	note := findNote(blocks[0], "translator")
+	require.NotNil(t, note, "translator # comment should surface as a translator note")
+	assert.Equal(t, "A translator note", note.Text)
+
+	// The pre-existing comment Data part is preserved unchanged.
+	commentData := findDataByName(parts, "comment")
+	require.NotNil(t, commentData)
+	assert.Equal(t, "A translator note", commentData.Properties["comment"])
+}
+
+// #928: developer and translator comments land as two distinct notes on
+// the same block.
+func TestReadCommentsBothKindsAsNotes(t *testing.T) {
+	t.Parallel()
+	input := "# Translator comment\n#. Extracted comment\nmsgid \"Save\"\nmsgstr \"Enregistrer\"\n"
+	parts := readDefault(t, input)
+
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 1)
+
+	dev := findNote(blocks[0], "developer")
+	require.NotNil(t, dev)
+	assert.Equal(t, "Extracted comment", dev.Text)
+
+	tr := findNote(blocks[0], "translator")
+	require.NotNil(t, tr)
+	assert.Equal(t, "Translator comment", tr.Text)
+}
+
+// #928: multiline comments of each kind join into a single note.
+func TestReadMultilineCommentsAsNotes(t *testing.T) {
+	t.Parallel()
+	input := "# line 1\n# line 2\n#. dev 1\n#. dev 2\nmsgid \"Hi\"\nmsgstr \"Salut\"\n"
+	parts := readDefault(t, input)
+
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 1)
+
+	dev := findNote(blocks[0], "developer")
+	require.NotNil(t, dev)
+	assert.Equal(t, "dev 1\ndev 2", dev.Text)
+
+	tr := findNote(blocks[0], "translator")
+	require.NotNil(t, tr)
+	assert.Equal(t, "line 1\nline 2", tr.Text)
+}
+
+// #928: plural-form blocks carry the entry's comments as notes too.
+func TestReadPluralCommentsAsNotes(t *testing.T) {
+	t.Parallel()
+	input := "#. plural dev note\nmsgid \"One item\"\nmsgid_plural \"Many items\"\nmsgstr[0] \"Un objet\"\nmsgstr[1] \"Plusieurs objets\"\n"
+	parts := readDefault(t, input)
+
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 2)
+	for _, b := range blocks {
+		note := findNote(b, "developer")
+		require.NotNil(t, note, "each plural form should carry the developer note")
+		assert.Equal(t, "plural dev note", note.Text)
+	}
+}
+
+// #928: an entry with no comments carries no notes.
+func TestReadNoCommentsNoNotes(t *testing.T) {
+	t.Parallel()
+	parts := readDefault(t, "msgid \"Hello\"\nmsgstr \"Bonjour\"\n")
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 1)
+	assert.Empty(t, blocks[0].Notes())
+}
+
 func TestReadUntranslated(t *testing.T) {
 	t.Parallel()
 	input := "msgid \"Hello\"\nmsgstr \"\"\n"

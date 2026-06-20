@@ -7,22 +7,14 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// emitStringsdict parses the .stringsdict plist content and emits one Block per
-// translatable <string> leaf (the NSStringLocalizedFormatKey format string and
-// each CLDR plural-category value). Like .strings, a .stringsdict is monolingual
-// (one file per locale), so each leaf value is carried as the file's source
-// content; a tool translating the file populates the target locale, which the
-// writer splices back into the same <string>.
-func (r *Reader) emitStringsdict(ctx context.Context, ch chan<- model.PartResult, content string, locale model.LocaleID) bool {
-	doc, err := parseStringsdict(content)
-	if err != nil {
-		select {
-		case ch <- model.PartResult{Error: err}:
-		case <-ctx.Done():
-		}
-		return false
-	}
-
+// emitStringsdict emits one Block per translatable <string> leaf of the
+// already-parsed .stringsdict doc (the NSStringLocalizedFormatKey format string
+// and each CLDR plural-category value). Like .strings, a .stringsdict is
+// monolingual (one file per locale), so each leaf value is carried as the file's
+// source content; a tool translating the file populates the target locale, which
+// the writer splices back into the same <string>. The parse happens up front in
+// readContent so any XML comments can be attached to the layer beforehand.
+func (r *Reader) emitStringsdict(ctx context.Context, ch chan<- model.PartResult, locale model.LocaleID, doc *stringsdictDoc) bool {
 	// Skeleton token cursor: the index of the next token whose raw bytes have not
 	// yet been emitted as SkeletonText. Leaves are walked in document order, so
 	// their <string> start-tag indices (strStart) are strictly ascending; for

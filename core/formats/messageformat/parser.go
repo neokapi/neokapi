@@ -411,6 +411,44 @@ func extractSegments(nodes []node, pathPrefix string) []segment {
 	return segments
 }
 
+// extractLiteralSiblings returns the literal text nodes that sit beside a
+// plural/select node — the sentence frame around a branch (e.g. "You have " and
+// " in your cart." in "You have {count, plural, …} in your cart."). These are
+// dropped by extractSegments (which only recurses into branches), so they are
+// surfaced separately as non-translatable content. Whitespace-only siblings are
+// skipped: they carry no prose and are preserved verbatim in the skeleton. The
+// walk descends into branch bodies so framing text inside nested pickers (e.g.
+// "He has " in a branch that wraps another plural) is also collected.
+func extractLiteralSiblings(nodes []node) []string {
+	hasBranching := false
+	for _, n := range nodes {
+		if n.typ == nodePlural || n.typ == nodeSelect || n.typ == nodeSelectOrd {
+			hasBranching = true
+			break
+		}
+	}
+	if !hasBranching {
+		// Leaf node list: its text is captured as a translatable segment by
+		// extractSegments, not as a framing sibling.
+		return nil
+	}
+
+	var out []string
+	for _, n := range nodes {
+		switch n.typ {
+		case nodeText:
+			if strings.TrimSpace(n.text) != "" {
+				out = append(out, n.text)
+			}
+		case nodePlural, nodeSelect, nodeSelectOrd:
+			for _, br := range n.branches {
+				out = append(out, extractLiteralSiblings(br.body)...)
+			}
+		}
+	}
+	return out
+}
+
 // nodesToText converts a list of nodes to plain text for extraction.
 // Returns the text and whether any # references were found.
 func nodesToText(nodes []node) (string, bool) {

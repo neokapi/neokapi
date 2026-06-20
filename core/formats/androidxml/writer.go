@@ -137,9 +137,12 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 						order = append(order, key)
 					}
 					scratch[key] = w.resolveValue(block)
-					// Only a real target for the writer's locale becomes a splice
-					// override against the preserved original.
-					if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+					// Only a real target for the writer's locale on a TRANSLATABLE
+					// block becomes a splice override against the preserved original.
+					// A translatable="false" entry surfaced as non-translatable
+					// content (issue #928 A) must always pass through verbatim, even
+					// if a tool erroneously attached a target to it.
+					if block.Translatable && !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 						overrides[key] = renderRunsToXML(block.TargetRuns(w.Locale))
 					}
 				}
@@ -226,7 +229,10 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 // buildRuns and produces directly-spliceable element content.
 func (w *Writer) resolveValue(block *model.Block) string {
 	runs := block.SourceRuns()
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+	// A non-translatable content block (a surfaced translatable="false" entry)
+	// always renders its source verbatim — its value is never replaced by a
+	// translation, so the skeleton ref fills with the original bytes.
+	if block.Translatable && !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		runs = block.TargetRuns(w.Locale)
 	}
 	return renderRunsToXML(runs)

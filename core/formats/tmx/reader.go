@@ -324,6 +324,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				}
 				if len(headerNotes) > 0 {
 					headerData.Properties["notes"] = strings.Join(headerNotes, "\n")
+					// Also surface each header-level <note> as a layer-scoped
+					// NoteAnnotation so the comment text is reachable as
+					// structured metadata (model.NoteAnnotation) rather than
+					// only as a joined string on the header Data part. Per the
+					// maintainer's guidance, comment/context text stays semantic
+					// DATA/ANNOTATION, never translatable content. Annotations
+					// are parity-safe (not in the canonical part stream) and the
+					// part stream is unchanged, so this needs no extraction flag.
+					notes := &model.Notes{}
+					for _, n := range headerNotes {
+						notes.Items = append(notes.Items, &model.NoteAnnotation{
+							Text:      n,
+							From:      "tmx",
+							Annotates: "general",
+						})
+					}
+					layer.SetAnno(model.AnnoNote, notes)
 				}
 				for _, hp := range headerPropList {
 					headerData.Properties["prop:"+hp.propType] = hp.value

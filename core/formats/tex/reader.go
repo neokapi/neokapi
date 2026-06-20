@@ -221,6 +221,22 @@ func contentEnvironmentRole(name string) (role string, ok bool) {
 	}
 }
 
+// floatEnvironments are the structural float environments whose span stays
+// opaque (one skeleton/Data part), EXCEPT for any nested \caption{…}, which —
+// when ExtractNonTranslatableContent is on — is surfaced as a RoleCaption,
+// non-translatable content block (visible to ingestion/LLM consumers, skipped
+// by MT) while every other byte of the float keeps riding the skeleton. The
+// tabular grid, \label, \centering, \begin/\end tags, etc. are deliberately
+// left opaque: cell boundaries (`&` / `\\`, \multicolumn, math cells) are too
+// ambiguous to split without risking the byte-exact round-trip the float
+// otherwise guarantees.
+var floatEnvironments = map[string]bool{
+	"table":   true,
+	"table*":  true,
+	"figure":  true,
+	"figure*": true,
+}
+
 // headerTextCommands are commands in the preamble whose arguments ARE
 // translatable. Mirrors Okapi TEXFilter's oneArgParText for the
 // header (\title, \author). \date is intentionally excluded because
@@ -675,6 +691,17 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 							if role, ok := contentEnvironmentRole(envName); ok && r.cfg.ExtractNonTranslatableContent() {
 								if bs, be, se, spanOK := p.environmentSpan(envName); spanOK && be > bs {
 									emitContent(bs, be, se, role, envName, envName)
+									continue
+								}
+							} else if floatEnvironments[envName] && r.cfg.ExtractNonTranslatableContent() {
+								// table/figure float — surface any nested
+								// \caption{…} body as a RoleCaption content
+								// block; the rest of the float (tabular,
+								// \label, begin/end tags) stays skeleton so the
+								// span round-trips byte-exact. Falls through to
+								// the opaque path when the float has no
+								// surfaceable caption (or is unterminated).
+								if p.emitFloatCaptions(r, envName, emitContent) {
 									continue
 								}
 							}
@@ -1828,6 +1855,144 @@ func (p *parser) environmentSpan(name string) (bodyStart, bodyEnd, spanEnd int, 
 	bodyEnd = bodyStart + idx
 	spanEnd = bodyEnd + len(endTag)
 	return bodyStart, bodyEnd, spanEnd, true
+}
+
+// emitFloatCaptions handles a table/figure float (envName) at p.pos when
+// ExtractNonTranslatableContent is on: it surfaces each nested \caption{…} body
+// as a RoleCaption, non-translatable content block riding a skeleton ref while
+// routing every other byte of the float (begin/end tags, tabular grid,
+// \label, \centering, the \caption{ / } delimiters, …) to skeleton — so the
+// whole span round-trips byte-exact yet the caption text becomes visible to
+// ingestion/LLM consumers (still skipped by MT, since Translatable is false).
+//
+// emitContent is the parse loop's content-block emitter (per-caption: skeleton
+// up to the body, a ref, no trailing skeleton). After the captions are emitted,
+// the remaining float bytes are flushed to skeleton and the cursor advances to
+// spanEnd.
+//
+// Returns false when the float is unterminated OR carries no surfaceable
+// caption, so the caller falls back to the opaque readEnvironment+flushData
+// path (preserving the prior behaviour, including the non-skeleton Data
+// round-trip of a caption-less float).
+func (p *parser) emitFloatCaptions(r *Reader, envName string, emitContent func(bodyStart, bodyEnd, spanEnd int, role, name, blockType string)) bool {
+	bodyStart, bodyEnd, spanEnd, ok := p.environmentSpan(envName)
+	if !ok {
+		return false
+	}
+	spans := p.captionBodySpans(bodyStart, bodyEnd)
+	if len(spans) == 0 {
+		return false
+	}
+	for _, s := range spans {
+		// spanEnd == body end so emitContent adds no trailing skeleton; the
+		// inter-caption / trailing float bytes are flushed below. blockType
+		// "caption-content" deliberately avoids the writer's \caption{…}
+		// reconstruction switch — the \caption{ and } delimiters already live
+		// in the skeleton, so the block carries only the inner body bytes.
+		emitContent(s[0], s[1], s[1], model.RoleCaption, "caption", "caption-content")
+	}
+	if r.skeletonStore != nil && spanEnd > p.lastSkelPos {
+		r.skelText(p.source[p.lastSkelPos:spanEnd])
+		p.lastSkelPos = spanEnd
+	}
+	p.pos = spanEnd
+	return true
+}
+
+// captionBodySpans scans a table/figure float body [bodyStart:bodyEnd] for
+// nested \caption{…} (also \caption*{…} and \caption[short]{…}) commands and
+// returns the [start,end) byte span of each caption's brace-argument BODY (the
+// bytes strictly between the matching { and }). Commented-out lines (% … EOL)
+// are skipped so a disabled \caption is not surfaced, and related commands like
+// \captionof / \captionsetup are NOT matched (a real \caption is followed by
+// *, whitespace, [, or {, never another letter). Empty captions (\caption{})
+// yield no span. Returns nil on an unterminated caption brace so the caller
+// keeps the whole float opaque.
+func (p *parser) captionBodySpans(bodyStart, bodyEnd int) [][2]int {
+	const capCmd = `\caption`
+	var spans [][2]int
+	i := bodyStart
+	for i < bodyEnd {
+		ch := p.source[i]
+		// Skip an unescaped %-comment to end of line.
+		if ch == '%' && (i == bodyStart || p.source[i-1] != '\\') {
+			for i < bodyEnd && p.source[i] != '\n' {
+				i++
+			}
+			continue
+		}
+		if ch != '\\' || !strings.HasPrefix(p.source[i:bodyEnd], capCmd) {
+			i++
+			continue
+		}
+		j := i + len(capCmd)
+		if j < bodyEnd && p.source[j] == '*' {
+			j++ // \caption*
+		}
+		// \captionof / \captionsetup / … — not a plain \caption.
+		if j < bodyEnd && isAlpha(p.source[j]) {
+			i++
+			continue
+		}
+		k := j
+		// Skip whitespace, then an optional [short] argument, then whitespace.
+		for k < bodyEnd && isTexSpace(p.source[k]) {
+			k++
+		}
+		if k < bodyEnd && p.source[k] == '[' {
+			depth := 1
+			k++
+			for k < bodyEnd && depth > 0 {
+				switch p.source[k] {
+				case '[':
+					depth++
+				case ']':
+					depth--
+				}
+				k++
+			}
+		}
+		for k < bodyEnd && isTexSpace(p.source[k]) {
+			k++
+		}
+		if k >= bodyEnd || p.source[k] != '{' {
+			i = j // no brace argument — resume past the command name
+			continue
+		}
+		// Find the matching } at depth 0.
+		bs := k + 1
+		depth := 1
+		m := bs
+		for m < bodyEnd && depth > 0 {
+			switch p.source[m] {
+			case '{':
+				if p.source[m-1] != '\\' {
+					depth++
+				}
+			case '}':
+				if p.source[m-1] != '\\' {
+					depth--
+				}
+			}
+			if depth > 0 {
+				m++
+			}
+		}
+		if depth != 0 {
+			return nil // unterminated brace — keep the float opaque
+		}
+		if m > bs {
+			spans = append(spans, [2]int{bs, m})
+		}
+		i = m + 1
+	}
+	return spans
+}
+
+// isTexSpace reports whether b is whitespace that may separate a command from
+// its argument (space, tab, newline, carriage return).
+func isTexSpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
 // mathSpan computes the body offsets of a delimited math span occupying

@@ -328,6 +328,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// on any ancestor, we push true. Default is false.
 	var preserveWSStack []bool
 	var elemPositions []elemPos
+	// pendingLayer holds the current <file>'s Layer until we leave the
+	// <header> (at <body> or </file>), so any <header> <note> elements
+	// can be attached to it as annotations before it is emitted. The
+	// emitted part stream is unchanged — the LayerStart still precedes
+	// every group/block in the body — only its emission point moves from
+	// the <file> start tag to the first body element.
+	var pendingLayer *model.Layer
 
 	// inheritPreserveWS returns true if any ancestor has xml:space="preserve"
 	// or if the config sets preserveSpaceByDefault.
@@ -341,6 +348,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			}
 		}
 		return false
+	}
+
+	// flushPendingLayer emits the buffered LayerStart (if any) and clears
+	// it. Returns false when the context was cancelled mid-emit so the
+	// caller can abort the read.
+	flushPendingLayer := func() bool {
+		if pendingLayer == nil {
+			return true
+		}
+		l := pendingLayer
+		pendingLayer = nil
+		return r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: l})
 	}
 
 	for {
@@ -410,11 +429,28 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if srcCharset != "" && !strings.EqualFold(srcCharset, "UTF-8") && !strings.EqualFold(srcCharset, "UTF8") {
 					layer.Properties["xliff:source-encoding"] = srcCharset
 				}
-				if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
-					return
+				// Buffer the layer instead of emitting now, so <header>
+				// <note> elements (parsed below) can attach to it before
+				// it is emitted at <body>/</file>.
+				pendingLayer = layer
+
+			case "note":
+				// A <note> reaching the top-level loop is outside any
+				// trans-unit (parseTransUnit consumes trans-unit notes).
+				// While we are still inside the <header> (pendingLayer set),
+				// attach it to the file's Layer as a parity-safe
+				// NoteAnnotation. Group-scope notes (pendingLayer already
+				// flushed) have no annotation slot on GroupStart, so they
+				// are left to ride in the skeleton only.
+				n := parseNote(decoder, t)
+				if pendingLayer != nil {
+					addLayerNote(pendingLayer, n)
 				}
 
 			case "body":
+				if !flushPendingLayer() {
+					return
+				}
 				inBody = true
 
 			case "group":
@@ -490,6 +526,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				}
 			case "file":
 				if currentFile != nil {
+					// Flush the buffered LayerStart for files that never
+					// reached a <body> (e.g. header-only or lenient input),
+					// keeping LayerStart→LayerEnd ordering intact.
+					if !flushPendingLayer() {
+						return
+					}
 					if len(preserveWSStack) > 0 {
 						preserveWSStack = preserveWSStack[:len(preserveWSStack)-1]
 					}
@@ -649,8 +691,18 @@ type parsedTransUnit struct {
 
 	notes    []parsedNote
 	altTrans []parsedAltTrans
+	contexts []parsedContext // prose <context> entries from <context-group> (paramnotes, elementtitle, recordtitle)
 
 	preserveWS bool // xml:space="preserve" on this TU
+}
+
+// parsedContext holds a single prose <context> entry harvested from a
+// trans-unit's <context-group>. Only human-readable context-types
+// (paramnotes, elementtitle, recordtitle) are collected; identifier
+// types (sourcefile, linenumber, …) are left in the skeleton.
+type parsedContext struct {
+	contextType string
+	text        string
 }
 
 type segment struct {
@@ -670,6 +722,7 @@ type parsedAltTrans struct {
 	origin       string
 	source       string
 	target       string
+	notes        []parsedNote // <note> children of <alt-trans>
 }
 
 // parseTransUnit parses a <trans-unit> element and all its children.
@@ -825,6 +878,13 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 			case "alt-trans":
 				at := parseAltTrans(decoder, t)
 				tu.altTrans = append(tu.altTrans, at)
+				depth--
+			case "context-group":
+				// Harvest prose context entries (paramnotes,
+				// elementtitle, recordtitle) as note context. Identifier
+				// context-types (sourcefile, linenumber, …) are left in
+				// the skeleton — only human-readable prose is surfaced.
+				tu.contexts = append(tu.contexts, parseContextGroup(decoder)...)
 				depth--
 			default:
 				// Skip unknown elements
@@ -1057,6 +1117,29 @@ func parseSegSource(decoder *xml.Decoder) []segment {
 	return segs
 }
 
+// addLayerNote appends a parsed <note> to a Layer's note collection as
+// a parity-safe NoteAnnotation (layer annotations are not part of the
+// canonical part stream and don't change round-trip bytes). It mirrors
+// Block.AddNote, which the model exposes only on Block.
+func addLayerNote(l *model.Layer, n parsedNote) {
+	var notes *model.Notes
+	if v, ok := l.Anno(model.AnnoNote); ok {
+		if existing, ok := v.(*model.Notes); ok {
+			notes = existing
+		}
+	}
+	if notes == nil {
+		notes = &model.Notes{}
+	}
+	notes.Items = append(notes.Items, &model.NoteAnnotation{
+		Text:      n.text,
+		From:      n.from,
+		Priority:  n.priority,
+		Annotates: n.annotates,
+	})
+	l.SetAnno(model.AnnoNote, notes)
+}
+
 // parseNote parses a <note> element and returns parsed data.
 func parseNote(decoder *xml.Decoder, start xml.StartElement) parsedNote {
 	n := parsedNote{}
@@ -1123,12 +1206,62 @@ func parseAltTrans(decoder *xml.Decoder, start xml.StartElement) parsedAltTrans 
 			case "target":
 				at.target = readInnerXMLCharData(decoder)
 				depth--
+			case "note":
+				at.notes = append(at.notes, parseNote(decoder, t))
+				depth--
 			}
 		case xml.EndElement:
 			depth--
 		}
 	}
 	return at
+}
+
+// parseContextGroup parses a <context-group> element and returns its
+// prose <context> entries. Only human-readable context-types
+// (paramnotes, elementtitle, recordtitle) are returned; identifier
+// types (sourcefile, linenumber, database, element, …) are skipped so
+// they remain part of the round-trip skeleton rather than translator
+// context. The decoder is positioned just after the <context-group>
+// start tag; this consumes through the matching </context-group>.
+func parseContextGroup(decoder *xml.Decoder) []parsedContext {
+	var out []parsedContext
+	depth := 1
+	for depth > 0 {
+		tok, err := decoder.Token()
+		if err != nil {
+			break
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			if t.Name.Local == "context" {
+				ctype := attrVal(t.Attr, "context-type")
+				text := readElementText(decoder)
+				if isProseContextType(ctype) {
+					out = append(out, parsedContext{contextType: ctype, text: text})
+				}
+				// readElementText consumed the matching </context>.
+				continue
+			}
+			depth++
+		case xml.EndElement:
+			depth--
+		}
+	}
+	return out
+}
+
+// isProseContextType reports whether an XLIFF 1.2 context-type carries
+// human-readable prose worth surfacing as translator context. The
+// identifier types (sourcefile, linenumber, …) are excluded — they are
+// locations/keys, not prose, and stay in the skeleton.
+func isProseContextType(ctype string) bool {
+	switch ctype {
+	case "paramnotes", "elementtitle", "recordtitle":
+		return true
+	default:
+		return false
+	}
 }
 
 // readInnerXMLCharData reads character data until end element, ignoring child elements.
@@ -1330,6 +1463,19 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		})
 	}
 
+	// Surface prose <context-group> entries (paramnotes, elementtitle,
+	// recordtitle) as block notes keyed by context-type. These are
+	// translator context, not translatable content — they ride in the
+	// round-trip skeleton untouched; the note annotation makes them
+	// visible to ingestion without entering the MT payload.
+	for _, c := range tu.contexts {
+		block.AddNote(&model.NoteAnnotation{
+			Text:      c.text,
+			From:      "context:" + c.contextType,
+			Annotates: "general",
+		})
+	}
+
 	// Add alt-trans as alt-translation candidates (one collection, not numbered keys).
 	for _, at := range tu.altTrans {
 		var matchType model.MatchType
@@ -1352,6 +1498,19 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			alt.Target = []model.Run{{Text: &model.TextRun{Text: at.target}}}
 		}
 		block.AddAltTranslation(alt)
+
+		// Surface any <note> children of the <alt-trans> as block notes.
+		// They are translator/developer context for the alternative, not
+		// translatable content; the skeleton carries the literal
+		// <alt-trans>…<note> bytes for round-trip.
+		for _, n := range at.notes {
+			block.AddNote(&model.NoteAnnotation{
+				Text:      n.text,
+				From:      n.from,
+				Priority:  n.priority,
+				Annotates: n.annotates,
+			})
+		}
 	}
 
 	return block

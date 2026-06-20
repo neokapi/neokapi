@@ -57,6 +57,15 @@ type Config struct {
 	// UseCDATA wraps written payloads in `<![CDATA[…]]>` (write-side
 	// only — has no effect on reading).
 	UseCDATA bool
+
+	// disableNonTranslatableContent, when set, keeps non-source-locale
+	// content instances (the other-locale / unpaired importContentInstance
+	// payloads that bilingual mode does not extract as translatable) in
+	// opaque skeleton instead of surfacing them as Translatable:false
+	// content Blocks (visible to ingestion, skipped by MT). Zero value =
+	// surfacing ON (the opt-out default). Has no effect in monolingual mode
+	// (every instance is already extracted there).
+	disableNonTranslatableContent bool
 }
 
 // FormatName returns the format this config applies to.
@@ -76,6 +85,21 @@ func (c *Config) Reset() {
 
 // Validate checks configuration validity.
 func (c *Config) Validate() error { return nil }
+
+// ExtractNonTranslatableContent reports whether non-source-locale content
+// instances (the other-locale / unpaired importContentInstance payloads that
+// bilingual mode does not extract as translatable) are surfaced as
+// Translatable:false content Blocks. Default true.
+func (c *Config) ExtractNonTranslatableContent() bool {
+	return !c.disableNonTranslatableContent
+}
+
+// SetExtractNonTranslatableContent toggles surfacing of non-source-locale
+// content instances as content Blocks (used by the parity runner to match the
+// Okapi bridge, which keeps such content in skeleton).
+func (c *Config) SetExtractNonTranslatableContent(v bool) {
+	c.disableNonTranslatableContent = !v
+}
 
 // ApplyMap applies configuration values from a map.
 func (c *Config) ApplyMap(values map[string]any) error {
@@ -117,6 +141,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("useCDATA: expected bool, got %T", val)
 			}
 			c.UseCDATA = b
+		case "extractNonTranslatableContent":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
+			}
+			c.disableNonTranslatableContent = !b
 		default:
 			return fmt.Errorf("vignette: unknown parameter: %s", key)
 		}

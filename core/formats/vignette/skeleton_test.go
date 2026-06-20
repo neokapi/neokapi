@@ -104,8 +104,10 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 	output := buf.String()
 	assert.Contains(t, output, "<![CDATA[salut]]>")
 	assert.NotContains(t, output, "<![CDATA[hello]]>", "source text should be replaced by translation")
-	// The non-extracted instance payload is still emitted verbatim
-	// because no Block reference covers it.
+	// The non-source-locale instance payload round-trips verbatim: with
+	// ExtractNonTranslatableContent ON (default) it rides a skeleton ref as a
+	// non-translatable content block whose literal source bytes are written
+	// back unchanged (no MT target on a non-translatable block).
 	assert.Contains(t, output, "bonjour")
 }
 
@@ -136,8 +138,12 @@ func TestSkeletonStore_NoSkeleton_FallbackWritesPayloadsOnly(t *testing.T) {
 	writer.Close()
 
 	output := buf.String()
-	// Fallback mode: just block payloads, one per line.
-	assert.Equal(t, "hello", strings.TrimSpace(output))
+	// Fallback mode: just block payloads, one per line. With
+	// ExtractNonTranslatableContent ON (default) the non-source-locale
+	// instance ("bonjour") is surfaced as a non-translatable content block,
+	// so the fallback writer emits both the translatable source payload
+	// ("hello") and the verbatim non-source-locale payload ("bonjour").
+	assert.Equal(t, "hello\nbonjour", strings.TrimSpace(output))
 }
 
 // okapi-skip: VignetteFilterTest#testSimpleEntryOutput — the native

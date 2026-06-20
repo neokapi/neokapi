@@ -140,7 +140,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 		case segESM:
 			r.emitOpaque(ctx, ch, span, "esm")
 		case segJSX:
-			r.emitOpaque(ctx, ch, span, "jsx")
+			if !r.emitJSX(ctx, ch, span, locale) {
+				return nil
+			}
 		case segExpr:
 			r.emitOpaque(ctx, ch, span, "expression")
 		}
@@ -197,7 +199,9 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 	for _, sub := range splitMarkdownTables(span) {
 		subSpan := span[sub.start:sub.end]
 		if sub.isTable {
-			r.emitOpaque(ctx, ch, subSpan, "table")
+			if !r.emitTable(ctx, ch, subSpan, locale) {
+				return nil
+			}
 			continue
 		}
 		if err := r.emitMarkdownProse(ctx, ch, subSpan, locale); err != nil {
@@ -333,8 +337,25 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 	// Reconstruct the untranslated span from blocks + skeleton and compare
 	// to the source bytes. Only splice when byte-identical.
 	if !r.spanReconstructsExactly(span, entries, blocksByOrigID) {
-		// Fall back to a single opaque region for this span.
+		// Fall back to a single opaque region (verbatim skeleton + Data) so
+		// the byte-exact round-trip is preserved regardless of flag.
 		r.emitOpaque(ctx, ch, span, "markdown-opaque")
+		// When content surfacing is on, ALSO expose the prose the markdown
+		// sub-reader already parsed as non-translatable content (#928,
+		// visible to ingestion, skipped by MT). These blocks carry NO
+		// skeleton ref — the opaque region above owns the verbatim bytes —
+		// so they never affect the round-trip; with the flag off the part
+		// stream is unchanged (just the opaque Data above).
+		if r.cfg.ExtractNonTranslatableContent() {
+			for _, block := range blocks {
+				r.blockCounter++
+				block.ID = fmt.Sprintf("tu%d", r.blockCounter)
+				block.Translatable = false
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return nil
+				}
+			}
+		}
 		return nil
 	}
 

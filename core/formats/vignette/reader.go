@@ -95,6 +95,7 @@ type extractedAttribute struct {
 	name        string // attribute @name
 	subFilter   string // sub-filter id from PartsConfigurations (e.g. "okf_html", "default")
 	rawPayload  string // raw character data inside <valueString>/<valueCLOB> (entity-decoded)
+	rawValue    string // literal source bytes of the payload region [startOffset:endOffset], used verbatim for non-translatable surfacing
 	startOffset int    // byte offset of the inner payload region (just after the opening valueString/valueCLOB tag)
 	endOffset   int    // byte offset of the start of the closing tag
 	valueElem   string // "valueString" / "valueCLOB" / etc.
@@ -199,6 +200,68 @@ func (r *Reader) emitBlocks(ctx context.Context, ch chan<- model.PartResult, ins
 			blockID:     blockID,
 		})
 		return true
+	}
+
+	// emitNT surfaces a skipped (non-source-locale / unpaired) instance's
+	// attribute payload as a NON-translatable content Block: the literal
+	// source bytes ride a single verbatim run (whitespace-significant, NOT
+	// inline-parsed) so an ingestion/LLM consumer sees the contextual content
+	// while MT skips it (Translatable=false). The payload bytes are written
+	// back verbatim by the writer (Properties["rawVerbatim"]), so the
+	// skeleton ref round-trips byte-for-byte exactly as the prior skeleton
+	// text did.
+	emitNT := func(inst extractedInstance, attr extractedAttribute) bool {
+		blockCounter++
+		blockID := fmt.Sprintf("tu%d", blockCounter)
+		block := model.NewBlock(blockID, attr.rawValue)
+		block.Name = attr.name
+		block.Type = "vignette-attribute"
+		block.Translatable = false
+		block.PreserveWhitespace = true
+		block.Properties["attribute"] = attr.name
+		block.Properties["valueElement"] = attr.valueElem
+		block.Properties["subfilter"] = attr.subFilter
+		block.Properties["rawVerbatim"] = "true"
+		block.Properties["nonSourceLocale"] = "true"
+		if inst.sourceID != "" {
+			block.Properties["sourceId"] = inst.sourceID
+		}
+		if inst.localeID != "" {
+			block.Properties["localeId"] = inst.localeID
+		}
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+			return false
+		}
+		regions = append(regions, emittedRegion{
+			startOffset: attr.startOffset,
+			endOffset:   attr.endOffset,
+			blockID:     blockID,
+		})
+		return true
+	}
+
+	// emitSkipped runs the non-translatable second pass: every extractable
+	// attribute whose payload region was NOT already emitted as a translatable
+	// Block is surfaced verbatim (gated on ExtractNonTranslatableContent). It
+	// must be called on the normal completion path only.
+	emitSkipped := func() {
+		if !r.cfg.ExtractNonTranslatableContent() {
+			return
+		}
+		emitted := make(map[int]bool, len(regions))
+		for _, reg := range regions {
+			emitted[reg.startOffset] = true
+		}
+		for _, inst := range instances {
+			for _, attr := range inst.attributes {
+				if emitted[attr.startOffset] {
+					continue
+				}
+				if !emitNT(inst, attr) {
+					return
+				}
+			}
+		}
 	}
 
 	if r.cfg.Monolingual {
@@ -339,6 +402,12 @@ func (r *Reader) emitBlocks(ctx context.Context, ch chan<- model.PartResult, ins
 			}
 		}
 	}
+
+	// Surface the skipped (non-source-locale / unpaired) instances as
+	// non-translatable content (gated; default ON). On the flag-off path the
+	// part stream and skeleton stay byte-identical to before.
+	emitSkipped()
+
 	return regions
 }
 
@@ -469,10 +538,15 @@ func (r *Reader) parseInstances(rawText string) ([]extractedInstance, error) {
 					}
 				}
 				if isExtractable && (t.Name.Local == "valueString" || t.Name.Local == "valueCLOB") {
+					rawValue := ""
+					if payloadStart <= payloadEnd && payloadEnd <= len(rawText) {
+						rawValue = rawText[payloadStart:payloadEnd]
+					}
 					current.attributes = append(current.attributes, extractedAttribute{
 						name:        currentAttrName,
 						subFilter:   currentAttrSubFilter,
 						rawPayload:  decoded,
+						rawValue:    rawValue,
 						startOffset: payloadStart,
 						endOffset:   payloadEnd,
 						valueElem:   t.Name.Local,

@@ -48,8 +48,8 @@ type catalog struct {
 	resources map[string]*resource
 }
 
-// resource is a single translatable message together with the description
-// pulled from its sibling "@<id>" attributes object (if any).
+// resource is a single translatable message together with the description and
+// placeholder hints pulled from its sibling "@<id>" attributes object (if any).
 type resource struct {
 	// id is the resource key (e.g. "appTitle").
 	id string
@@ -57,5 +57,24 @@ type resource struct {
 	value string
 	// description is the "description" field of the sibling "@<id>" attributes
 	// object, surfaced as the Block's translator note. Empty when absent.
+	description string
+	// placeholders captures the per-placeholder "example"/"description" hints
+	// from the sibling "@<id>" attributes object's "placeholders" map (in
+	// document order), surfaced as additional developer notes on the Block. The
+	// structural fields (type, format, …) are not modeled — they are preserved
+	// byte-faithfully by the writer.
+	placeholders []placeholderHint
+}
+
+// placeholderHint carries the human-facing context for one ICU placeholder
+// declared in a resource's "@<id>" attributes object. Only the "example" and
+// "description" fields are captured; everything else (type, format,
+// optionalParameters, …) is structure preserved verbatim on round-trip.
+type placeholderHint struct {
+	// name is the placeholder key (e.g. "count").
+	name string
+	// example is the placeholder's "example" string, if any.
+	example string
+	// description is the placeholder's "description" string, if any.
 	description string
 }

@@ -30,7 +30,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Label: "Extraction",
 				Fields: []string{
 					"useKeyCondition", "extractOnlyMatchingKey", "keyCondition",
-					"extraComments",
+					"extraComments", "extractNonTranslatableContent",
 				},
 			},
 			{
@@ -88,6 +88,12 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Default:     false,
 				Title:       "Additional Comment Markers",
 				Description: "Recognize semicolon and double-slash comment styles in addition to standard # and ! markers",
+			}),
+			"extractNonTranslatableContent": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     true,
+				Title:       "Surface Excluded Values",
+				Description: "Surface the value text of excluded entries (keys filtered out, or under #_skip / #_bskip) as non-translatable content blocks visible to ingestion but skipped by translation",
 			}),
 			"commentsAreNotes": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",

@@ -216,7 +216,38 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			extract = false
 		}
 		if !extract {
-			// Not extracted: emit as skeleton
+			if r.cfg.ExtractNonTranslatableContent() {
+				// Surface the excluded value as a non-translatable content
+				// Block so ingestion/LLM consumers see it, while MT still
+				// skips it (Translatable=false). The key+separator prefix
+				// stays skeleton and the value rides as a ref, so the
+				// byte-exact round-trip is preserved. No inline parse — the
+				// value is a single verbatim run.
+				blockID++
+				blockIDStr := fmt.Sprintf("tu%d", blockID)
+				if r.skeletonStore != nil {
+					r.skelPropertyLine(line, blockIDStr)
+				}
+				block := model.NewBlock(blockIDStr, value)
+				block.Name = key
+				block.Translatable = false
+				block.PreserveWhitespace = true
+				block.SourceLocale = locale
+				block.Properties["separator"] = sep
+				if r.skeletonStore != nil {
+					block.Properties["rawValue"] = r.rawValueText(line)
+				}
+				if pendingNote != "" {
+					block.AddNote(&model.NoteAnnotation{Text: pendingNote, From: "developer"})
+					pendingNote = ""
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
+				}
+				continue
+			}
+			// Surfacing off: keep the prior byte-identical behavior — the
+			// value stays skeleton and a Data part carries only the key.
 			r.skelText(r.rawLineText(line))
 			dataID++
 			data := &model.Data{
@@ -249,8 +280,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			block.Properties["rawValue"] = r.rawValueText(line)
 		}
 
-		// Attach pending comment as note
+		// Attach the pending developer comment to the entry. It rides as a
+		// semantic NoteAnnotation (parity-safe — not in the canonical block
+		// stream) and is mirrored on Properties["note"] for existing
+		// consumers. The comment's raw text already round-trips via its own
+		// Data{comment} part + skeleton, so this carries context only.
 		if pendingNote != "" {
+			block.AddNote(&model.NoteAnnotation{Text: pendingNote, From: "developer"})
 			block.Properties["note"] = pendingNote
 			pendingNote = ""
 		}

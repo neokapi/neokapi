@@ -41,6 +41,45 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	return buf.String()
 }
 
+// TestSkeletonStore_CommentsAsNotes verifies that on the skeleton (round-trip)
+// path the same comment context surfaces as parity-safe NoteAnnotations, while
+// the comment bytes stay in the skeleton so the round-trip is byte-exact
+// (#928 treatment B.1).
+func TestSkeletonStore_CommentsAsNotes(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	input := "# head comment\nkey: value # inline comment\n"
+
+	reader := yamlfmt.NewReader()
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var block *model.Block
+	for _, p := range parts {
+		if b, ok := p.Resource.(*model.Block); ok {
+			block = b
+		}
+	}
+	require.NotNil(t, block)
+	assert.Equal(t, "value", block.SourceText())
+
+	var texts []string
+	for _, n := range block.Notes() {
+		texts = append(texts, n.Text)
+	}
+	assert.Equal(t, []string{"head comment", "inline comment"}, texts)
+
+	// And the comment bytes ride the skeleton: untranslated round-trip is
+	// byte-exact.
+	assert.Equal(t, input, snippetRoundtripWithSkeleton(t, input))
+}
+
 func TestSkeletonStore_ByteExact(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
