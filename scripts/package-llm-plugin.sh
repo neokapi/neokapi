@@ -91,7 +91,11 @@ if [ -n "${LLM_PREBUILT_BIN:-}" ]; then
 else
   VERSION_PKG="github.com/neokapi/neokapi/core/version"
   CGO_LDFLAGS_VAL="-L${TOKENIZERS_LIB}"
-  [ "$GOOS" = "windows" ] && CGO_LDFLAGS_VAL="${CGO_LDFLAGS_VAL} -static"
+  # On windows-gnu the rust tokenizers-ffi static lib pulls in std symbols
+  # (RtlNtStatusToDosError, Nt*/Rtl*) exported by ntdll; daulet's own cgo LDFLAGS
+  # link ws2_32/userenv but not ntdll, so mingw's single-pass linker reports
+  # "undefined reference". Append -lntdll explicitly (mirrors package-sat-plugin.sh).
+  [ "$GOOS" = "windows" ] && CGO_LDFLAGS_VAL="${CGO_LDFLAGS_VAL} -static -lntdll"
   echo "package-llm-plugin: building ${BIN_NAME} ${VERSION} for ${GOOS}/${GOARCH} (-tags onnx)"
   (
     cd "$PLUGIN_DIR"
