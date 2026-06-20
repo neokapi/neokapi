@@ -42,6 +42,14 @@ func findOMathPh(parts []*model.Part) *model.PlaceholderRun {
 	return nil
 }
 
+// ommlNorTexts surfaces the natural-language prose embedded in an equation.
+func TestOMMLNorTexts(t *testing.T) {
+	raw := `<m:oMath><m:r><m:t>x</m:t></m:r>` +
+		`<m:r><m:rPr><m:nor/></m:rPr><m:t>where</m:t></m:r></m:oMath>`
+	assert.Equal(t, []string{"where"}, ommlNorTexts(raw))
+	assert.Empty(t, ommlNorTexts(`<m:oMath><m:r><m:t>x+y</m:t></m:r></m:oMath>`), "pure math has no prose")
+}
+
 // ommlToMathEquiv converts an OMML fragment to ($/$$-wrapped, bare) LaTeX.
 func TestOMMLToMathEquiv(t *testing.T) {
 	inline := `<m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">` +

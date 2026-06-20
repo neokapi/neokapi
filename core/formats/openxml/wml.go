@@ -2740,6 +2740,15 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 								ID: "c1", Type: TypeOpaqueParaChild, SubType: SubTypeOMath,
 								Data: r.data, Equiv: equiv, Disp: disp,
 							}}}
+							// Surface any natural-language prose embedded in the
+							// equation (<m:nor/> runs: "where", "otherwise", units)
+							// as notes, so it is visible to ingestion alongside the
+							// math. (Translating it back into the .docx OMML is a
+							// separate sub-skeleton change; the splice engine —
+							// math.SpliceNorText — is ready for it.)
+							for _, nt := range ommlNorTexts(r.data) {
+								blk.AddNote(&model.NoteAnnotation{Text: nt, From: "math", Annotates: "general"})
+							}
 							emitBlock(blk)
 						}
 					}
