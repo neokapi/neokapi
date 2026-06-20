@@ -174,3 +174,7 @@ platform/docker/traefik/certs
 
 # Transient libpdfium build/work dir (release-pdfium.yml + local plugin tests)
 pdfium-work/
+
+# nfpm binary-staging dir (release.yml deb/rpm build); the staged kapi binary
+# must never be committed.
+packaging/.stage/

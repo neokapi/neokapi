@@ -139,6 +139,16 @@ func (c *AppConfig) RegistryURL() string {
 	return c.v.GetString(KeyPluginsRegistry)
 }
 
+// UpdateChannel returns the release channel `kapi update` and the background
+// update notifier track. Defaults to "stable"; set update.channel (or
+// KAPI_UPDATE_CHANNEL) to "beta" to follow the fast track.
+func (c *AppConfig) UpdateChannel() string {
+	if ch := c.v.GetString(KeyUpdateChannel); ch != "" {
+		return ch
+	}
+	return DefaultUpdateChannel
+}
+
 // RegistryEntry represents a named plugin registry.
 type RegistryEntry struct {
 	Name     string   `yaml:"name"               json:"name"`
@@ -149,6 +159,9 @@ type RegistryEntry struct {
 // DefaultRegistryURL is the official neokapi plugin registry.
 const DefaultRegistryURL = "https://neokapi.github.io/registry/manifest-plugins.json"
 
+// DefaultUpdateChannel is the release channel kapi follows unless overridden.
+const DefaultUpdateChannel = "stable"
+
 // Config key constants for use with Get/Set/BindEnv to avoid scattered magic strings.
 const (
 	KeyFlowChannelBuffer = "flow.channelBuffer"
@@ -156,6 +169,7 @@ const (
 	KeyPluginsRegistry   = "plugins.registry"
 	KeyFormatsPriorities = "formats.priorities"
 	KeyLanguage          = "language"
+	KeyUpdateChannel     = "update.channel"
 )
 
 // Registries returns the configured list of plugin registries.

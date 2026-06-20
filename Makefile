@@ -1487,12 +1487,13 @@ release: ## Tag + push a release (v=1.3.4); CI builds & publishes the rest
 	@echo "After CI finishes, sign Windows (with SimplySign Desktop logged in):"
 	@echo "    make release-windows v=$(VER)"
 
-release-windows: ## Sign the Windows artifacts + finalize the release (after CI; SimplySign logged in)
+release-windows: ## Sign the Windows artifacts, finalize the release, and dispatch winget (after CI; SimplySign logged in)
 	@[ -n "$(strip $(v))" ] || { echo "usage: make release-windows v=1.3.4"; exit 1; }
 	JSIGN_KEYSTORE="$${JSIGN_KEYSTORE:-$$HOME/simplysign-pkcs11.cfg}" \
 		./scripts/publish-windows-signed.sh "$(TAG)"
+	@echo "(winget.yml is dispatched automatically once the signed assets are up; SKIP_WINGET=1 to opt out)"
 
-release-winget: ## Submit the signed CLI to winget-pkgs (after release-windows; needs WINGET_TOKEN + `komac new` bootstrap)
+release-winget: ## Re-dispatch the winget update (release-windows already does this; needs WINGET_TOKEN + `komac new` bootstrap)
 	@[ -n "$(strip $(v))" ] || { echo "usage: make release-winget v=1.3.4"; exit 1; }
 	gh workflow run winget.yml --repo neokapi/neokapi -f tag="$(TAG)"
 

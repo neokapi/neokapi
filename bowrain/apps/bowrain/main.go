@@ -45,6 +45,11 @@ func main() {
 	// Store app reference so the service can use dialogs and events.
 	appService.SetApplication(app)
 
+	// Wire the in-app updater (appcast feed for the current channel, 6h
+	// background check). No-op until a real signing key is committed; never
+	// blocks startup.
+	backend.InitUpdater(app)
+
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:          "Bowrain",
 		Width:          1280,

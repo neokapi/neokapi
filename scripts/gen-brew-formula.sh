@@ -7,16 +7,43 @@
 # formulae that download the matching release archive per OS/arch from the
 # public GitHub release (the repo is public).
 #
-# Usage: gen-brew-formula.sh <version> <repo> <checksums.txt> <out-dir>
-#   repo   e.g. neokapi/neokapi
-#   out    kapi-cli.rb and bowrain-cli.rb are written here
+# Usage: gen-brew-formula.sh <version> <repo> <checksums.txt> <out-dir> [channel]
+#   repo     e.g. neokapi/neokapi
+#   out      formulae are written here
+#   channel  "stable" (default) → kapi-cli.rb / bowrain-cli.rb
+#            "beta"             → kapi-cli@beta.rb / bowrain-cli@beta.rb
+#
+# The beta variant is an `@`-versioned Homebrew formula (like node@18): the fast
+# track installs alongside, not over, the stable formula. `brew install
+# neokapi/tap/kapi-cli@beta` opts a user into the beta channel.
 set -euo pipefail
 
 version="${1:?version required}"
 repo="${2:?repo (owner/name) required}"
 checksums="${3:?checksums.txt required}"
 out="${4:?out dir required}"
+channel="${5:-stable}"
 mkdir -p "$out"
+
+# Channel-derived naming. For beta the formulae get an @beta suffix; Homebrew
+# maps kapi-cli@beta → class KapiCliATBeta (the `@` becomes `AT`). The beta
+# bowrain formula depends on the beta kapi so the fast track is self-consistent.
+case "$channel" in
+  stable)
+    kapi_name="kapi-cli";       kapi_class="KapiCli"
+    bowrain_name="bowrain-cli"; bowrain_class="BowrainCli"
+    kapi_dep="neokapi/tap/kapi-cli"
+    ;;
+  beta)
+    kapi_name="kapi-cli@beta";       kapi_class="KapiCliATBeta"
+    bowrain_name="bowrain-cli@beta"; bowrain_class="BowrainCliATBeta"
+    kapi_dep="neokapi/tap/kapi-cli@beta"
+    ;;
+  *)
+    echo "gen-brew-formula.sh: unknown channel '$channel' (want stable|beta)" >&2
+    exit 1
+    ;;
+esac
 
 base_url="https://github.com/${repo}/releases/download/v${version}"
 
@@ -59,7 +86,7 @@ RUBY
 
 # ---- kapi-cli ----
 {
-  echo "class KapiCli < Formula"
+  echo "class ${kapi_class} < Formula"
   echo '  desc "AI-native localization framework — format-aware parsing, concurrent pipelines, and pluggable tools"'
   echo '  homepage "https://github.com/neokapi/neokapi"'
   echo "  version \"${version}\""
@@ -70,7 +97,7 @@ RUBY
   # kapi-pdfium does not depend on kapi-cli.
   echo '  depends_on "neokapi/tap/kapi-pdfium"'
   echo
-  platform_block "kapi"
+  platform_block "kapi-cli"
   cat <<'RUBY'
 
   # Install kapi plus its multi-call toolbox aliases. kgrep / ksed / kcat / kconv
@@ -90,17 +117,17 @@ RUBY
   end
 end
 RUBY
-} > "$out/kapi-cli.rb"
+} > "$out/${kapi_name}.rb"
 
 # ---- bowrain-cli ----
 {
-  echo "class BowrainCli < Formula"
+  echo "class ${bowrain_class} < Formula"
   echo '  desc "Bowrain plugin for kapi — sync .kapi projects with Bowrain Server"'
   echo '  homepage "https://github.com/neokapi/neokapi"'
   echo "  version \"${version}\""
   echo '  license "Apache-2.0"'
   echo
-  echo '  depends_on "neokapi/tap/kapi-cli"'
+  echo "  depends_on \"${kapi_dep}\""
   echo
   platform_block "kapi-bowrain"
   cat <<'RUBY'
@@ -121,6 +148,6 @@ RUBY
   end
 end
 RUBY
-} > "$out/bowrain-cli.rb"
+} > "$out/${bowrain_name}.rb"
 
-echo "wrote $out/kapi-cli.rb $out/bowrain-cli.rb" >&2
+echo "wrote $out/${kapi_name}.rb $out/${bowrain_name}.rb (channel=${channel})" >&2

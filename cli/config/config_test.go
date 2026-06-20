@@ -52,6 +52,17 @@ func TestChannelBufferDefault(t *testing.T) {
 	assert.Equal(t, 64, cfg.ChannelBuffer())
 }
 
+func TestUpdateChannelDefault(t *testing.T) {
+	cfg := NewAppConfig()
+	assert.Equal(t, "stable", cfg.UpdateChannel())
+}
+
+func TestUpdateChannelEnvOverride(t *testing.T) {
+	t.Setenv("KAPI_UPDATE_CHANNEL", "beta")
+	cfg := NewAppConfig()
+	assert.Equal(t, "beta", cfg.UpdateChannel())
+}
+
 func TestGlobalConfigFilePath(t *testing.T) {
 	t.Setenv("KAPI_CONFIG_DIR", "/tmp/test-kapi-config")
 	assert.Equal(t, "/tmp/test-kapi-config/kapi.yaml", GlobalConfigFilePath())

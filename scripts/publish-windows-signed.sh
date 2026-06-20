@@ -147,11 +147,13 @@ for z in "${zips[@]}"; do
   signed+=("$out")
 
   # Desktop GUI apps also ship a signed NSIS installer built from the signed
-  # .exe. The CLI (kapi_*) stays zip-only — CLIs install via winget/scoop.
+  # .exe. The CLI (kapi-cli_*) stays zip-only — CLIs install via winget/scoop.
+  # Desktop zips are hyphen-delimited (kapi-<ver>-windows / bowrain-<ver>-windows);
+  # the kapi-[0-9]* glob matches the desktop app but not kapi-cli_*/kapi-bowrain_*.
   app_dir=""; app_name=""
   case "$bn" in
-    bowrain-*windows*)      app_dir="bowrain/apps/bowrain"; app_name="Bowrain" ;;
-    kapi-desktop-*windows*) app_dir="apps/kapi-desktop";    app_name="Kapi" ;;
+    bowrain-[0-9]*windows*) app_dir="bowrain/apps/bowrain"; app_name="Bowrain" ;;
+    kapi-[0-9]*windows*)    app_dir="apps/kapi-desktop";    app_name="Kapi" ;;
   esac
   if [ -n "$app_dir" ]; then
     arch=amd64; case "$bn" in *arm64*) arch=arm64 ;; esac
@@ -175,7 +177,7 @@ if gh release download "$TAG" --repo "$REPO" --pattern checksums.txt --dir "$wor
   for f in "${signed[@]}"; do
     b="$(basename "$f")"
     case "$b" in
-      kapi_*_windows_*.zip)
+      kapi-cli_*_windows_*.zip)
         if ! grep -q "  ${b}\$" "$work/checksums.txt"; then
           printf '%s  %s\n' "$(shasum -a 256 "$f" | awk '{print $1}')" "$b" >> "$work/checksums.txt"
           add=1
@@ -187,3 +189,29 @@ fi
 
 echo "✅ Signed Windows artifacts added to release $TAG:"
 for f in "${signed[@]}"; do echo "   • ${f##*/}"; done
+
+# Now that the signed CLI zip + desktop setup.exe are on the release, kick off
+# the winget update workflow. winget.yml bumps both Neokapi.KapiCli (portable
+# zip) and Neokapi.Kapi (desktop setup.exe); the desktop row fails harmlessly
+# until that package is bootstrapped once with `komac new Neokapi.Kapi`.
+# Set SKIP_WINGET=1 to skip (e.g. a re-run that only fixes the signed assets).
+if [ "${SKIP_WINGET:-0}" = "1" ]; then
+  echo ">> SKIP_WINGET=1 — not dispatching winget. Run later: gh workflow run winget.yml -f tag=$TAG"
+elif ! command -v gh >/dev/null 2>&1; then
+  echo ">> gh not found — skipping winget dispatch. Run later: gh workflow run winget.yml -f tag=$TAG" >&2
+else
+  echo ">> Dispatching winget publish (winget.yml) for $TAG ..."
+  if gh workflow run winget.yml --repo "$REPO" -f tag="$TAG"; then
+    echo "   winget.yml dispatched — watch: gh run list --workflow=winget.yml --repo $REPO"
+  else
+    echo "   ⚠ winget dispatch failed; the signed assets are still published. Retry: gh workflow run winget.yml -f tag=$TAG" >&2
+  fi
+  # Also generate the Windows in-app-update feed from the freshly-signed desktop
+  # zips (the Wails native updater swaps the signed .exe). Same SKIP_WINGET guard.
+  echo ">> Dispatching Windows update-feed publish (appcast-windows.yml) for $TAG ..."
+  if gh workflow run appcast-windows.yml --repo "$REPO" -f tag="$TAG"; then
+    echo "   appcast-windows.yml dispatched — watch: gh run list --workflow=appcast-windows.yml --repo $REPO"
+  else
+    echo "   ⚠ appcast-windows dispatch failed. Retry: gh workflow run appcast-windows.yml -f tag=$TAG" >&2
+  fi
+fi
