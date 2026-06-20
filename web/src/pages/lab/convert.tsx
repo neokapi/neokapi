@@ -29,12 +29,6 @@ export default function ConversionLabPage(): React.ReactElement {
             Everything runs the real <code>kapi convert</code> compiled to WebAssembly — nothing is
             mocked.
           </p>
-          <nav aria-label="Related labs" style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-            <Link to="/lab">Core Framework</Link>
-            <Link to="/lab/segmentation">Segmentation</Link>
-            <Link to="/lab/structure">Structure &amp; Layout</Link>
-            <Link to="/lab/vision">Kapi Vision</Link>
-          </nav>
         </div>
         <ConversionExplorer defaultSampleId="article-md" defaultTarget="doclang" />
       </main>

@@ -32,8 +32,12 @@ export type PluginId =
 /** Lifecycle of the shared wasm engine (drives the widget's top status dot). */
 export type EnginePhase = "idle" | "booting" | "ready" | "error";
 
-/** Lifecycle of a single plugin. `unavailable` = not runnable in a browser. */
-export type PluginPhase = "unavailable" | "idle" | "downloading" | "ready" | "error";
+/**
+ * Lifecycle of a single plugin. `unavailable` = not runnable in a browser;
+ * `cached` = the model bytes are already in the browser cache from a previous
+ * session (shown as downloaded; a later ensure loads them from cache instantly).
+ */
+export type PluginPhase = "unavailable" | "idle" | "cached" | "downloading" | "ready" | "error";
 
 /** Download/progress, byte-accurate when known (loaded/total) or fractional. */
 export interface Progress {
@@ -195,31 +199,93 @@ export function getPluginState(): LabState {
   return state;
 }
 
-/** Count of supported plugins currently loaded, and the supported total. */
+/** Count of supported plugins already downloaded (ready or cached), and total. */
 export function pluginCounts(): { ready: number; total: number } {
   let ready = 0;
   let total = 0;
   for (const d of PLUGIN_DESCRIPTORS) {
     if (!d.browserSupported) continue;
     total++;
-    if (state.plugins[d.id].phase === "ready") ready++;
+    const phase = state.plugins[d.id].phase;
+    if (phase === "ready" || phase === "cached") ready++;
   }
   return { ready, total };
+}
+
+// ---------------------------------------------------------------------------
+// Cache probe — reflect previously-downloaded models after a page reload
+// ---------------------------------------------------------------------------
+
+// The manager state is per-page-load, but the model bytes persist in the browser
+// Cache API across reloads (transformers.js caches under "transformers-cache";
+// the SaT bridge under "kapi-sat-v1"). Probe those caches on first mount and mark
+// hits as `cached` so the widget shows them as downloaded rather than offering a
+// fresh download. A later ensure() still runs, loading from cache near-instantly.
+async function cacheHasUrlSubstring(cacheName: string, substr: string): Promise<boolean> {
+  try {
+    if (typeof caches === "undefined") return false;
+    const c = await caches.open(cacheName);
+    const keys = await c.keys();
+    return keys.some((req) => req.url.includes(substr));
+  } catch {
+    return false;
+  }
+}
+
+// Repo/path fragments that identify each plugin's cached model, matched against
+// the cache keys (robust to the exact cache-key URL format).
+const CACHE_PROBES: Partial<Record<PluginId, { cache: string; substr: string }>> = {
+  llm: { cache: "transformers-cache", substr: "gemma-4-E2B" },
+  asr: { cache: "transformers-cache", substr: "whisper-tiny" },
+  sat: { cache: "kapi-sat-v1", substr: "sat-3l-sm" },
+};
+
+let probed = false;
+
+/**
+ * probePluginCaches checks the browser cache for previously-downloaded models
+ * and marks them `cached`. Idempotent (runs once); only upgrades plugins still
+ * `idle`, so it never stomps a live download or a freshly-ready plugin.
+ */
+export async function probePluginCaches(): Promise<void> {
+  if (probed) return;
+  probed = true;
+  await Promise.all(
+    (Object.entries(CACHE_PROBES) as Array<[PluginId, { cache: string; substr: string }]>).map(
+      async ([id, p]) => {
+        const hit = await cacheHasUrlSubstring(p.cache, p.substr);
+        if (hit && state.plugins[id].phase === "idle") setPlugin(id, { phase: "cached" });
+      },
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Asset URLs (injected by the host — same wasmExecUrl/wasmUrl as the runtime)
 // ---------------------------------------------------------------------------
 
-let assets: { wasmExecUrl: string; wasmUrl: string } | null = null;
+export interface PluginAssets {
+  wasmExecUrl: string;
+  wasmUrl: string;
+  /**
+   * Base URL for the vision (PP-OCRv5) ONNX models, e.g. same-origin
+   * "/models/vision" or a CDN origin. The host must inject this — the default in
+   * visionBridge is a GitHub release, which the browser CANNOT fetch (the asset
+   * redirects to a no-CORS host), so the widget's vision download would fail.
+   */
+  visionModelBase?: string;
+}
+
+let assets: PluginAssets | null = null;
 
 /**
- * configurePlugins injects the wasm asset URLs (from the Docusaurus config /
- * playground provider). Idempotent and required before bootEngine/ensure for
- * engine-backed plugins. Safe to call from every lab and from the widget.
+ * configurePlugins injects the host-resolved asset URLs (wasm + model bases).
+ * Idempotent and required before bootEngine/ensure. Safe to call from every lab
+ * and from the navbar widget; later calls merge (so a lab that knows the vision
+ * model base can fill it in even if the widget configured the wasm URLs first).
  */
-export function configurePlugins(a: { wasmExecUrl: string; wasmUrl: string }): void {
-  assets = a;
+export function configurePlugins(a: PluginAssets): void {
+  assets = { ...assets, ...a };
 }
 
 // ---------------------------------------------------------------------------
@@ -305,7 +371,9 @@ const adapters: Partial<Record<PluginId, (report: (p: Progress) => void) => Prom
   vision: async (report) => {
     const { ensureOCR } = await import("./visionBridge");
     report({ frac: 0 });
-    await ensureOCR();
+    // Use the host-injected base (same-origin / CDN). The bridge's GitHub-release
+    // default is unreachable from a browser (no CORS on the redirect target).
+    await ensureOCR(assets?.visionModelBase);
     report({ frac: 1 });
   },
   asr: async (report) => {
@@ -347,6 +415,9 @@ export function ensurePlugin(id: PluginId): Promise<void> {
       await adapter((p) => setPlugin(id, { progress: p }));
       setPlugin(id, { phase: "ready", progress: undefined });
     } catch (e) {
+      // Surface the real failure in the console — the widget only shows "Retry",
+      // and a swallowed plugin error is otherwise invisible to debugging.
+      console.error(`[kapi plugin: ${id}] download/load failed:`, e);
       setPlugin(id, { phase: "error", error: e instanceof Error ? e.message : String(e) });
       throw e;
     } finally {
@@ -367,7 +438,7 @@ export interface UsePluginManager {
   counts: { ready: number; total: number };
   ensure: (id: PluginId) => Promise<void>;
   bootEngine: () => Promise<unknown>;
-  configure: (a: { wasmExecUrl: string; wasmUrl: string }) => void;
+  configure: (a: PluginAssets) => void;
 }
 
 const SERVER_SNAPSHOT: LabState = { engine: { phase: "idle" }, plugins: initialPlugins() };

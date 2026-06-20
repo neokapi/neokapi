@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import useBaseUrl from "@docusaurus/useBaseUrl";
-import { usePluginManager } from "@neokapi/kapi-playground/plugins";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
+import { readCdnConfig, cdnEnabled, cdnHref } from "@neokapi/docs-shared";
+import { usePluginManager, probePluginCaches } from "@neokapi/kapi-playground/plugins";
 import type { PluginDescriptor, PluginState, EngineState } from "@neokapi/kapi-playground/plugins";
 import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
 import styles from "./styles.module.css";
@@ -72,8 +74,14 @@ function PluginRow({
         <div className={styles.rowDesc}>{d.description}</div>
       </div>
       <div className={styles.rowControl}>
-        {st.phase === "ready" && (
-          <span className={`${styles.dot} ${styles.dotReady}`} aria-label="loaded" />
+        {(st.phase === "ready" || st.phase === "cached") && (
+          <span
+            className={`${styles.dot} ${styles.dotReady}`}
+            aria-label={st.phase === "cached" ? "downloaded (cached)" : "loaded"}
+            title={
+              st.phase === "cached" ? "Downloaded — cached, loads instantly when used" : "Loaded"
+            }
+          />
         )}
         {unavailable && <span className={styles.naLabel}>Not available</span>}
         {st.phase === "idle" && (
@@ -130,15 +138,38 @@ function progressFrac(st: PluginState): number {
 export default function StatusWidget(): React.ReactElement {
   const config = useKapiPlaygroundConfig();
   const mgr = usePluginManager();
+  const { siteConfig, i18n } = useDocusaurusContext();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const logo = useBaseUrl("img/logo.png");
 
-  // Inject the wasm asset URLs into the shared manager so a Download here can
-  // boot the same engine the labs use. Idempotent.
+  // Vision (PP-OCRv5) model base, resolved exactly like the lab pages: CDN when
+  // configured, else same-origin /models/vision (mapped back to the root for
+  // non-default locales). The bridge's GitHub-release default can't be fetched
+  // from a browser (no CORS), so the widget MUST inject this for vision to load.
+  const localizedModels = useBaseUrl("/models/vision");
+  const cdn = readCdnConfig(siteConfig);
+  const visionModelBase = cdnEnabled(cdn)
+    ? cdnHref(cdn, "/models/vision")
+    : i18n.currentLocale === i18n.defaultLocale
+      ? localizedModels
+      : localizedModels.replace(`/${i18n.currentLocale}/`, "/");
+
+  // Inject the host-resolved asset URLs into the shared manager so a Download
+  // here loads the same engine + models the labs use. Idempotent.
   useEffect(() => {
-    mgr.configure({ wasmExecUrl: config.wasmExecUrl, wasmUrl: config.wasmUrl });
-  }, [mgr, config.wasmExecUrl, config.wasmUrl]);
+    mgr.configure({
+      wasmExecUrl: config.wasmExecUrl,
+      wasmUrl: config.wasmUrl,
+      visionModelBase,
+    });
+  }, [mgr, config.wasmExecUrl, config.wasmUrl, visionModelBase]);
+
+  // Reflect models already in the browser cache from a previous session as
+  // "downloaded" (rather than offering a fresh download). Runs once.
+  useEffect(() => {
+    void probePluginCaches();
+  }, []);
 
   // Close the popover on an outside click or Escape.
   useEffect(() => {

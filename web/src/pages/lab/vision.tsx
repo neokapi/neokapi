@@ -67,13 +67,6 @@ export default function VisionLabPage(): React.ReactElement {
             browser (start Ollama with this origin allowed). Nothing is mocked — only the runtime
             differs.
           </p>
-          <nav className={styles.nav} aria-label="Related labs">
-            <Link to="/lab">Core Framework</Link>
-            <Link to="/lab/structure">Structure &amp; Layout</Link>
-            <Link to="/contribute/architecture/029-vision-and-image-localization">
-              Vision &amp; image localization
-            </Link>
-          </nav>
         </div>
         <VisionExplorer samples={samples} modelBase={modelBase} />
       </main>

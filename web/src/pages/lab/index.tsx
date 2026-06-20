@@ -1,6 +1,5 @@
 import React from "react";
 import Layout from "@theme/Layout";
-import Link from "@docusaurus/Link";
 import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
 import styles from "./index.module.css";
 
@@ -28,16 +27,6 @@ export default function LabPage(): React.ReactElement {
             Pick a lesson and its walkthrough drives the workspace — the real engine, compiled to
             WebAssembly, runs your flow in the browser. Nothing is mocked.
           </p>
-          <nav className={styles.appNav} aria-label="Related labs">
-            <Link to="/lab/segmentation">Segmentation</Link>
-            <Link to="/lab/convert">File Conversion</Link>
-            <Link to="/lab/structure">Structure &amp; Layout</Link>
-            <Link to="/lab/vision">Kapi Vision</Link>
-            <Link to="/lab/media">Audio &amp; Video</Link>
-            <Link to="/playground-cli">CLI Playground</Link>
-            <Link to="/klf-lab">Kapi L10N Format</Link>
-            <Link to="/framework/architecture">Framework docs</Link>
-          </nav>
         </header>
         <div className={styles.appWorkspace}>
           <FlowBuilderRunner defaultScenarioId="annotations" withRecordedTraces fill />

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import Layout from "@theme/Layout";
-import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { AudioExplorer, VideoExplorer } from "@site/src/components/Lab";
@@ -59,11 +58,6 @@ export default function MediaLabPage(): React.ReactElement {
             Only the runtime differs from the desktop plugins; nothing is mocked. Each tab loads its
             model on first run — nothing is fetched until you press play.
           </p>
-          <nav className={styles.nav} aria-label="Related labs">
-            <Link to="/lab">Core Framework</Link>
-            <Link to="/lab/vision">Kapi Vision</Link>
-            <Link to="/kapi/recipes/localize-media">Localize media recipe</Link>
-          </nav>
         </div>
 
         <div className={styles.tabs} role="tablist" aria-label="Audio or video">

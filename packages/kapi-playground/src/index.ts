@@ -87,6 +87,7 @@ export {
   bootEngine,
   engineBooted,
   ensurePlugin,
+  probePluginCaches,
   subscribePlugins,
   getPluginState,
   pluginCounts,
@@ -101,6 +102,7 @@ export type {
   PluginState,
   LabState,
   PluginDescriptor,
+  PluginAssets,
   UsePluginManager,
 } from "./plugins";
 

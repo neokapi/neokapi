@@ -39,11 +39,6 @@ export default function StructureLabPage(): React.ReactElement {
             extracted content. Press Run to load the engine and the <code>pdfium</code> plugin —
             nothing is fetched until you do.
           </p>
-          <nav className={styles.nav} aria-label="Related labs">
-            <Link to="/lab">Core Framework</Link>
-            <Link to="/lab/vision">Kapi Vision</Link>
-            <Link to="/framework/content-model">Content model</Link>
-          </nav>
         </div>
         <PdfExplorer samples={samples} />
       </main>
