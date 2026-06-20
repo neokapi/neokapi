@@ -475,11 +475,16 @@ const config: Config = {
         {
           type: "localeDropdown",
           position: "right",
+          // Icon-only: the translate glyph stands in for the active-locale label
+          // (see .navbar-locale-icon in custom.css); the menu still lists locales.
+          className: "navbar-locale-icon",
         },
         {
           href: "https://github.com/neokapi/neokapi",
-          label: "GitHub",
           position: "right",
+          // Icon-only GitHub link (mask icon via .header-github-link in custom.css).
+          className: "header-github-link",
+          "aria-label": "GitHub repository",
         },
       ],
     },

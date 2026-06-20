@@ -161,6 +161,21 @@
   border-color: #f87171;
   color: #b91c1c;
 }
+/* Download is an icon-only button: square, centred, themed via currentColor. */
+.downloadBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 7px;
+  color: var(--ifm-color-emphasis-700);
+}
+/* "Not available" label for browser-unsupported plugins (okapi-bridge, bowrain). */
+.naLabel {
+  font-size: 0.66rem;
+  font-style: italic;
+  color: var(--ifm-color-emphasis-500);
+  white-space: nowrap;
+}
 
 /* Plugins list ------------------------------------------------------------ */
 .plugins {
