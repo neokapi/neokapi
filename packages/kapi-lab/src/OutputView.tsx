@@ -14,7 +14,7 @@ export interface OutputViewProps {
   /** Bump to force a re-read after a run wrote new bytes to `path`. */
   version?: number;
   /** Tab shown first (default "preview"). */
-  defaultTab?: "preview" | "blocks" | "raw" | "stats" | "download";
+  defaultTab?: "preview" | "blocks" | "raw" | "stats";
   /**
    * Round-trip baseline: when set, the Native tab's changed-line highlights
    * compare the output against THIS text (typically the flow's input file)
