@@ -23,6 +23,23 @@ func TestNorTexts(t *testing.T) {
 	assert.Empty(t, math.NorTexts([]byte(`<m:oMath><m:r><m:t>x+y</m:t></m:r></m:oMath>`)))
 }
 
+// NorSpans returns each prose span's text plus a byte range that slices the
+// exact CharData out of the original fragment — the contract the docx
+// sub-skeleton relies on for a byte-exact splice.
+func TestNorSpans(t *testing.T) {
+	spans := math.NorSpans([]byte(norOMML))
+	require.Len(t, spans, 2)
+	assert.Equal(t, "where", spans[0].Text)
+	assert.Equal(t, "where", norOMML[spans[0].Start:spans[0].End], "range slices the span's text")
+	assert.Equal(t, "otherwise", spans[1].Text)
+	assert.Equal(t, "otherwise", norOMML[spans[1].Start:spans[1].End])
+	// Offsets are monotonic and in range.
+	assert.Less(t, spans[0].End, spans[1].Start)
+	assert.LessOrEqual(t, spans[1].End, len(norOMML))
+	// Pure math has no spans.
+	assert.Empty(t, math.NorSpans([]byte(`<m:oMath><m:r><m:t>x+y</m:t></m:r></m:oMath>`)))
+}
+
 // nil / all-empty translations leave the OMML byte-identical.
 func TestSpliceNorTextByteExactNoop(t *testing.T) {
 	assert.Equal(t, norOMML, string(math.SpliceNorText([]byte(norOMML), nil)))
