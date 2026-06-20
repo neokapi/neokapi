@@ -81,17 +81,30 @@ func openMultiSession(path string) (ins, outs []string, err error) {
 	return ins, outs, nil
 }
 
-// buildPromptIDs assembles the Gemma chat prompt as a token-id stream. Because
-// the tokenizer does not parse the literal "<start_of_turn>"/"<end_of_turn>"
-// strings as single tokens, the turn markers (and <bos>) are inserted by id;
-// only the role label, content text, and newlines are tokenized. Media items
-// contribute a run of placeholder tokens (recorded as mediaSlots) whose
-// embeddings are overwritten with the encoder outputs after embed_tokens.
+// buildPromptIDs assembles the prompt token-id stream for the model's chat
+// family. The decode loop, KV cache, and sampling are family-agnostic; only this
+// prompt assembly differs per family, so supporting a new model (e.g. Qwen's
+// ChatML) is a new case here plus a model.Spec — not an engine change.
+func (m *loadedModel) buildPromptIDs(messages []Message) ([]int64, []mediaSlot, error) {
+	switch m.family {
+	case "", "gemma":
+		return m.buildGemmaPromptIDs(messages)
+	default:
+		return nil, nil, fmt.Errorf("llm: unsupported chat family %q (this build implements gemma; add a builder + model.Spec for others)", m.family)
+	}
+}
+
+// buildGemmaPromptIDs assembles the Gemma chat prompt as a token-id stream.
+// Because the tokenizer does not parse the literal "<start_of_turn>" /
+// "<end_of_turn>" strings as single tokens, the turn markers (and <bos>) are
+// inserted by id; only the role label, content text, and newlines are tokenized.
+// Media items contribute a run of placeholder tokens (recorded as mediaSlots)
+// whose embeddings are overwritten with the encoder outputs after embed_tokens.
 //
 // Canonical Gemma turn: <bos> then, per turn,
 // <start_of_turn>{role}\n{content}<end_of_turn>\n, ending with an open
 // <start_of_turn>model\n to prime generation.
-func (m *loadedModel) buildPromptIDs(messages []Message) ([]int64, []mediaSlot, error) {
+func (m *loadedModel) buildGemmaPromptIDs(messages []Message) ([]int64, []mediaSlot, error) {
 	bos := int64(m.cfg.BOSTokenID)
 	sot := int64(m.cfg.StartOfTurnID)
 	eot := int64(m.cfg.EndOfTurnID)

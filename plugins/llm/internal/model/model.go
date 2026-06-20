@@ -71,6 +71,11 @@ type Spec struct {
 	Name string
 	// Repo is the HuggingFace repo holding the ONNX export.
 	Repo string
+	// Family selects the chat-template + special-token handling the engine uses
+	// for this model (e.g. "gemma", "chatml" for Qwen, "llama"). The decode loop,
+	// KV cache, and sampling are family-agnostic; only prompt assembly differs.
+	// Empty defaults to "gemma".
+	Family string
 
 	// The four component graphs. Audio/Vision may be empty for a text-only
 	// model; embed + decoder are always required.
@@ -120,6 +125,7 @@ var Registry = []Spec{
 	{
 		Name:    "gemma-4-e2b",
 		Repo:    onnxRepo,
+		Family:  "gemma",
 		Default: true,
 		// v0.1.0 is text-only: only the embed + decoder graphs are fetched, so a
 		// text user never downloads the (not-yet-validated) vision/audio encoders.

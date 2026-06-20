@@ -172,6 +172,24 @@ The same `gemma` provider works across the AI tools (`ai-qa`, `brand-voice-check
 …) and in the browser — see the [Gemma Lab](/lab/gemma), which runs the same model
 via WebGPU. (Text is supported today; image/audio input is experimental.)
 
+To make it the default so you can omit `--provider` entirely:
+
+```bash
+kapi config set ai.provider gemma
+kapi ai-translate input.html --target-lang fr   # uses gemma
+```
+
+The default applies to every AI tool and flow. An explicit `--provider`, inline
+config, or a project recipe `defaults` entry still overrides it. A project can
+set its own default in the recipe:
+
+```yaml
+defaults:
+  tools:
+    ai-translate:
+      provider: gemma
+```
+
 ## Local models with Ollama
 
 For development and testing without API costs, run a local model through Ollama.
