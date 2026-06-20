@@ -52,7 +52,21 @@ type SkeletonStore struct {
 	// reader that registered for skeleton emission but never actually
 	// wrote any (a stubbed implementation) so they can fall back to
 	// the writer's no-skeleton path instead of producing empty output.
+
+	// originFormat names the format that produced this skeleton. A skeleton is
+	// the typed scaffolding of ONE format — it is meaningful only to that
+	// format's writer. WireSkeleton stamps it and refuses to feed the skeleton
+	// to a writer of a different format, so a cross-format conversion can never
+	// consume a foreign skeleton (it reconstructs from the content model
+	// instead). Empty = untyped (legacy callers).
+	originFormat string
 }
+
+// OriginFormat returns the format id that produced this skeleton, or "".
+func (s *SkeletonStore) OriginFormat() string { return s.originFormat }
+
+// SetOriginFormat records the format that produced this skeleton.
+func (s *SkeletonStore) SetOriginFormat(name string) { s.originFormat = name }
 
 // EntriesWritten returns the number of skeleton entries written so far.
 // Useful for callers that wire SetSkeletonStore on both reader and writer
@@ -290,6 +304,33 @@ type SkeletonStoreEmitter interface {
 // skeleton — only that it will use one if offered (see GenerativeWriter).
 type SkeletonStoreConsumer interface {
 	SetSkeletonStore(store *SkeletonStore)
+}
+
+// WireSkeleton connects a reader's skeleton emission to a writer — but only when
+// they are the SAME format. A skeleton is the typed scaffolding of one format
+// (origin-tagged on the store), foreign to any other writer, so a cross-format
+// conversion must never feed it to the target writer; that writer reconstructs
+// from the content model via its generative path instead. WireSkeleton stamps
+// the store's origin with the reader's format and wires the consumer only on a
+// matching format. It returns true when the writer was wired (same-format
+// round-trip). Callers pass a store with the backing they need (file in the CLI,
+// memory in wasm).
+func WireSkeleton(store *SkeletonStore, reader DataFormatReader, writer DataFormatWriter) bool {
+	if store == nil {
+		return false
+	}
+	store.SetOriginFormat(reader.Name())
+	emitter, eok := reader.(SkeletonStoreEmitter)
+	if !eok {
+		return false
+	}
+	emitter.SetSkeletonStore(store)
+	consumer, cok := writer.(SkeletonStoreConsumer)
+	if !cok || reader.Name() != writer.Name() {
+		return false // foreign (or non-consuming) writer: skeleton stays unread
+	}
+	consumer.SetSkeletonStore(store)
+	return true
 }
 
 // GenerativeWriter is implemented by writers that can declare whether they

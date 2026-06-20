@@ -149,15 +149,14 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 			return fmt.Errorf("cannot convert to %q: it is a packaged format that can only be written by updating an existing %s file, not generated from %s", toFmt, toFmt, inFmt)
 		}
 	}
+	// Same-format conversion is a faithful round-trip through the typed skeleton.
+	// WireSkeleton stamps the store with the source format's origin and connects
+	// the writer only when it is that same format — so a cross-format target can
+	// never consume this foreign skeleton (it reconstructs from the model).
 	if sameFormat {
-		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-			if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-				if store, serr := format.NewSkeletonStore(); serr == nil {
-					defer store.Close()
-					emitter.SetSkeletonStore(store)
-					consumer.SetSkeletonStore(store)
-				}
-			}
+		if store, serr := format.NewSkeletonStore(); serr == nil {
+			defer store.Close()
+			format.WireSkeleton(store, reader, writer)
 		}
 	}
 

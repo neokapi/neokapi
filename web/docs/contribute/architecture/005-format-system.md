@@ -215,19 +215,22 @@ These compose into the two writer classes that matter for conversion:
 reconstructs the target from the content model and never carries a foreign
 skeleton into the writer. A writer is therefore a valid conversion *target* iff
 it is **generative**. This eligibility is a **declared writer capability** — the
-writer states "what I can write" (`Generative()`), so `kconv`, the
-[Conversion Lab](/lab/convert), and `kapi formats` read one authoritative source
-rather than inferring it. It is **not** derived from `SkeletonStoreConsumer`
-(nearly every writer consumes a skeleton if offered, so that bit does not
-distinguish a target) nor probed empirically.
+writer states "what I can write" via `GenerativeWriter.Generative()` (the inverse
+of `BaseFormatWriter.RequiresSkeleton`). The registry records it on
+`FormatInfo.Generative`: probed once from the built-in writer at registration,
+and for plugin formats taken from the cached manifest's `generative` capability —
+so `kconv`, the [Conversion Lab](/lab/convert), and `kapi formats` read one
+authoritative source **without loading any plugin**. It is **not** derived from
+`SkeletonStoreConsumer` (nearly every writer consumes a skeleton if offered, so
+that bit does not distinguish a target) nor probed empirically.
 
-**Direction.** Skeletons are today a generic, untyped `SkeletonStore` shared by
-any reader/writer pair; nothing in the type system enforces that a skeleton from
-format A is only ever consumed by format A's writer. The intended end state is a
-**typed, per-format skeleton** emitted by the reader and consumed only by the
-matching writer, making the "a skeleton is foreign across formats" rule
-structural rather than a runtime convention — while the generative content-model
-path stays the universal, skeleton-free route every writer shares.
+**Skeletons are typed per format.** A `SkeletonStore` carries an `OriginFormat`
+stamp, and `format.WireSkeleton(store, reader, writer)` connects a reader's
+skeleton emission to a writer **only when they are the same format** — so the
+"a skeleton from format A is foreign to format B's writer" rule is enforced
+centrally, not left to each call site. A cross-format conversion therefore never
+feeds a foreign skeleton into the target writer; that writer takes the generative
+content-model route every writer shares.
 
 ### Subfilters and nested layers
 
