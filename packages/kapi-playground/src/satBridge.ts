@@ -273,12 +273,21 @@ async function runBlock(session: ort.InferenceSession, content: number[]): Promi
 
   const out = await session.run({ input_ids: inputIds, attention_mask: attentionMask });
   const logits = out.logits;
-  // float16 output arrives as a Uint16Array; decode each half to float32. The
-  // head emits one label per token, so the data is [seq] boundary logits.
-  const raw = logits.data as unknown as Uint16Array;
+  // The head emits one label per token, so the data is [seq] boundary logits.
+  // onnxruntime-web represents float16 output EITHER as raw half-bits in a
+  // Uint16Array (older/unsupported environments) OR — when the runtime has the
+  // native JS Float16Array (recent Chrome) — as an already-decoded Float16Array
+  // whose elements are real numbers. Decode only in the raw-bits case; running
+  // halfToFloat over already-decoded floats yields NaN (and NaN logits make the
+  // boundary test below fire on EVERY token).
+  const data = logits.data as unknown as ArrayLike<number>;
+  const rawBits = data instanceof Uint16Array;
   const result: number[] = [];
   // Strip CLS (index 0) and SEP (index seqLen-1); keep the content tokens.
-  for (let i = 1; i <= content.length; i++) result.push(halfToFloat(raw[i]));
+  for (let i = 1; i <= content.length; i++) {
+    const v = data[i];
+    result.push(rawBits ? halfToFloat(v) : v);
+  }
   return result;
 }
 
@@ -320,7 +329,9 @@ export async function segmentSat(
   const boundaries: number[] = [];
   let last = -1;
   for (let i = 0; i < spans.length && i < combined.length; i++) {
-    if (sigmoid(combined[i]) < threshold) continue;
+    // `>= threshold` (not `< threshold` negated) so a NaN/non-finite logit is
+    // treated as "no boundary" rather than firing on every token.
+    if (!(sigmoid(combined[i]) >= threshold)) continue;
     // Boundary at the end of this token; skip following whitespace so the next
     // sentence starts on a non-space character (matches indices_to_sentences).
     let cut = spans[i].end;
