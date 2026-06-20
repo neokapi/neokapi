@@ -15,6 +15,11 @@ import (
 	// the "uax29" engine and the base breaker the Okapi hybrid uses, via
 	// syscall/js. Lets the segmentation lab offer all three engines in the browser.
 	_ "github.com/neokapi/neokapi/core/segment/icu4xjs"
+
+	// Browser Intl.Segmenter: registers the "intl" engine, a zero-download Unicode
+	// sentence baseline backed by the platform's built-in Intl.Segmenter (no
+	// companion wasm). Browser-only — no native Go equivalent.
+	_ "github.com/neokapi/neokapi/core/segment/intljs"
 )
 
 // demoEngines caches the lab's three segmentation engines. They are stateless
@@ -39,6 +44,8 @@ func demoSegEngine(name string) (segment.Segmenter, error) {
 	switch name {
 	case "uax29":
 		engineName = "uax29"
+	case "intl":
+		engineName = "intl"
 	case "hybrid":
 		cfg.SrxRules = string(srx.OkapiRuleset())
 	default: // "srx" / ""
@@ -119,9 +126,10 @@ func resolveEngineName(n string) string {
 	return n
 }
 
-// labSegmentEngines lists the three runnable lab segmentation options (see
-// demoSegEngine). "uax29" and "hybrid" both need the ICU4X bridge loaded; "srx"
-// is pure-Go. (SaT is a native plugin, surfaced in the UI but not runnable here.)
+// labSegmentEngines lists the runnable lab segmentation options (see
+// demoSegEngine). "uax29" and "hybrid" need the ICU4X bridge loaded; "intl" needs
+// the Intl.Segmenter bridge; "srx" is pure-Go and always available. (SaT and LLM
+// segment off-engine in the browser and are surfaced separately in the UI.)
 func labSegmentEngines(_ js.Value, _ []js.Value) any {
-	return []any{"srx", "uax29", "hybrid"}
+	return []any{"srx", "uax29", "hybrid", "intl"}
 }
