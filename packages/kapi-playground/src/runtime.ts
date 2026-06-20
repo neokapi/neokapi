@@ -55,10 +55,11 @@ export interface TraceRunResult {
   /** Process-style exit code from the underlying kapiRun. */
   code: number;
   /**
-   * Parsed FlowTrace JSON, or null when the run produced no trace file.
-   * Typed as unknown; @neokapi/kapi-lab casts it to its FlowTrace type.
+   * Parsed FlowTrace JSON, or null when the run produced no trace file (null is
+   * already covered by unknown). Typed as unknown; @neokapi/kapi-lab casts it to
+   * its FlowTrace type.
    */
-  trace: unknown | null;
+  trace: unknown;
 }
 
 /**
