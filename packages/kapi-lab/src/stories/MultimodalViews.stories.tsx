@@ -38,13 +38,27 @@ const subtitleTree = tree("vtt", [
     name: "talk.vtt",
     children: [
       cue("c1", 0, 2500, "Welcome to the show.", "Bienvenue à l'émission."),
-      cue("c2", 2500, 5000, "Today we explore localization.", "Aujourd'hui, nous explorons la localisation."),
+      cue(
+        "c2",
+        2500,
+        5000,
+        "Today we explore localization.",
+        "Aujourd'hui, nous explorons la localisation.",
+      ),
       cue("c3", 5000, 8000, "Let's begin.", "Commençons."),
     ],
   },
 ]);
 
-function ocrLine(id: string, x: number, y: number, w: number, h: number, src: string, role: string): ContentNode {
+function ocrLine(
+  id: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  src: string,
+  role: string,
+): ContentNode {
   return {
     kind: "block",
     id,
@@ -55,19 +69,22 @@ function ocrLine(id: string, x: number, y: number, w: number, h: number, src: st
   };
 }
 
-// A tiny inline SVG raster stands in for an OCR'd document image.
-const OCR_IMAGE =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(
-    "<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>" +
-      "<rect width='400' height='300' fill='#0f172a'/>" +
-      "<text x='20' y='64' fill='#f8fafc' font-family='sans-serif' font-size='30'>Invoice</text>" +
-      "<text x='20' y='150' fill='#cbd5e1' font-family='sans-serif' font-size='20'>Total: $42.00</text>" +
-      "</svg>",
-  );
+// A tiny inline SVG raster stands in for an OCR'd document image. Base64 (not
+// the `;utf8,` form, which some browsers refuse) so it always renders.
+const OCR_SVG =
+  "<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>" +
+  "<rect width='400' height='300' fill='#0f172a'/>" +
+  "<text x='20' y='64' fill='#f8fafc' font-family='sans-serif' font-size='30'>Invoice</text>" +
+  "<text x='20' y='150' fill='#cbd5e1' font-family='sans-serif' font-size='20'>Total: $42.00</text>" +
+  "</svg>";
+const OCR_IMAGE = "data:image/svg+xml;base64," + btoa(OCR_SVG);
 
 const imageTree = tree("image", [
-  { kind: "media", id: "m1", media: { mimeType: "image/svg+xml", filename: "invoice.svg", uri: OCR_IMAGE } },
+  {
+    kind: "media",
+    id: "m1",
+    media: { mimeType: "image/svg+xml", filename: "invoice.svg", uri: OCR_IMAGE },
+  },
   ocrLine("o1", 5, 14, 22, 12, "Invoice", "heading"),
   ocrLine("o2", 5, 42, 36, 9, "Total: $42.00", "paragraph"),
 ]);
