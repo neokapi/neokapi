@@ -45,6 +45,16 @@ export default defineConfig({
       "**/build/**",
       "**/.docusaurus/**",
       "**/bindings/**",
+      // Committed-but-generated docs artifacts. These are produced by `make`
+      // targets / the format-triage skill / the demo harness and checked in so
+      // the sites build in CI without re-running them — but they are codegen
+      // output, not hand-authored, so the formatter must leave them untouched
+      // (reformatting them is pure churn on every regeneration).
+      "**/static/data/**", // dashboard datasets (parity, format-maturity, pseudobench, contract-audit, …)
+      "**/scenes/**/messages.json", // generated scene narration (TTS)
+      "**/demos/**/out/**", // generated demo outputs
+      "**/demos/**/fixtures/**", // authored, byte-sensitive demo inputs (reformatting alters the demo)
+      "**/pages/**/_*.json", // colocated generated page data (_eval.json, _benchmark.json)
     ],
   },
 });
