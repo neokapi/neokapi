@@ -151,6 +151,10 @@ const CHAPTERS: Chapter[] = [
         tree={videoTree}
         currentTimeMs={ms}
         showFrameOCR
+        // Canned showcase: the playhead is the chapter's own ▶/⏸ (currentTimeMs),
+        // not a real video — hide the dead native controls. The live /lab/video
+        // lab plays a real uploaded video.
+        controls={false}
         className="w-full"
       />
     ),

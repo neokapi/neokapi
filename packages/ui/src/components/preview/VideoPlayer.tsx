@@ -28,6 +28,12 @@ export interface VideoPlayerProps {
   showFrameOCR?: boolean;
   /** Poster image URL for the video. */
   poster?: string;
+  /**
+   * Show the native <video> controls. Default true. Set false when the playhead
+   * is driven externally (a controlled `currentTimeMs`) over a non-playable
+   * poster — e.g. a canned showcase — so a dead native play button isn't shown.
+   */
+  controls?: boolean;
   className?: string;
 }
 
@@ -50,6 +56,7 @@ export default function VideoPlayer({
   currentTimeMs,
   showFrameOCR = false,
   poster,
+  controls = true,
   className,
 }: VideoPlayerProps): React.ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -85,7 +92,7 @@ export default function VideoPlayer({
           ref={videoRef}
           src={src}
           poster={poster}
-          controls
+          controls={controls}
           onTimeUpdate={onTimeUpdate}
           onLoadedMetadata={(e) =>
             setNatural({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })
