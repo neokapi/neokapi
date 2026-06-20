@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/av"
 	"github.com/neokapi/neokapi/core/imageops"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -43,16 +45,54 @@ func (r MediaRef) bytes() ([]byte, error) {
 	return nil, errors.New("media-refine: no source raster (path or bytes) available")
 }
 
+// localPath returns a filesystem path to the source media for the path-based av
+// tools (ffmpeg reads files, not byte streams). A path source is used directly;
+// inline bytes are spooled to a temp file the caller cleans up via the returned
+// func.
+func (r MediaRef) localPath() (path string, cleanup func(), err error) {
+	noop := func() {}
+	if r.Path != "" {
+		return r.Path, noop, nil
+	}
+	if len(r.Data) == 0 {
+		return "", noop, errors.New("media-refine: no source media (path or bytes) to slice")
+	}
+	tmp, err := os.CreateTemp("", "kapi-refine-src-*")
+	if err != nil {
+		return "", noop, fmt.Errorf("media-refine: temp file: %w", err)
+	}
+	if _, werr := tmp.Write(r.Data); werr != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+		return "", noop, fmt.Errorf("media-refine: spool source: %w", werr)
+	}
+	_ = tmp.Close()
+	return tmp.Name(), func() { _ = os.Remove(tmp.Name()) }, nil
+}
+
 // MediaSlicer turns a block's anchor facet into a bounded media content part for
-// the refinement LLM. ImageSlicer crops the geometry bbox; an AudioCutter /
-// VideoClipper (Phases 6–7) cut a timing span.
+// the refinement LLM, declaring the input Modality the part requires and the
+// system prompt that tells the LLM how to re-read it. ImageSlicer crops the
+// geometry bbox of a raster; AudioCutter cuts a timing span out of an audio
+// track; VideoClipper extracts the frame at a block's timing and crops its
+// on-frame geometry.
 type MediaSlicer interface {
 	Slice(ctx context.Context, src MediaRef, b *model.Block) (aiprovider.ContentPart, error)
+	Modality() aiprovider.Modality
+	SystemPrompt() string
 }
 
 // ImageSlicer crops the block's spatial (geometry) anchor out of the source
 // raster and returns it as an inline image part.
 type ImageSlicer struct{}
+
+func (ImageSlicer) Modality() aiprovider.Modality { return aiprovider.ModalityImage }
+
+func (ImageSlicer) SystemPrompt() string {
+	return "You transcribe a single line cropped from a document image. " +
+		"Return only the exact text you read, with no commentary. " +
+		"If the crop is unreadable, return " + RefuseToken + "."
+}
 
 func (ImageSlicer) Slice(_ context.Context, src MediaRef, b *model.Block) (aiprovider.ContentPart, error) {
 	g, ok := b.Geometry()
@@ -73,6 +113,136 @@ func (ImageSlicer) Slice(_ context.Context, src MediaRef, b *model.Block) (aipro
 	}), nil
 }
 
+// AudioCutter cuts the block's temporal (timing) anchor — the half-open span
+// [StartMS, EndMS) — out of the source audio track and returns it as an inline
+// audio part, so the LLM re-reads only the low-confidence ASR segment.
+type AudioCutter struct{}
+
+func (AudioCutter) Modality() aiprovider.Modality { return aiprovider.ModalityAudio }
+
+func (AudioCutter) SystemPrompt() string {
+	return "You transcribe a single short speech clip. " +
+		"Return only the exact words spoken, with no commentary. " +
+		"If the clip is unintelligible, return " + RefuseToken + "."
+}
+
+func (AudioCutter) Slice(ctx context.Context, src MediaRef, b *model.Block) (aiprovider.ContentPart, error) {
+	tm, ok := b.Timing()
+	if !ok || tm == nil || tm.EndMS <= tm.StartMS {
+		return aiprovider.ContentPart{}, fmt.Errorf("media-refine: block %q has no timing span to cut", b.ID)
+	}
+	srcPath, cleanup, err := src.localPath()
+	if err != nil {
+		return aiprovider.ContentPart{}, err
+	}
+	defer cleanup()
+	dir, err := os.MkdirTemp("", "kapi-refine-audio-*")
+	if err != nil {
+		return aiprovider.ContentPart{}, fmt.Errorf("media-refine: temp dir: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	out := filepath.Join(dir, "clip.wav")
+	if err := av.SliceAudio(ctx, srcPath, tm.StartMS, tm.EndMS, out); err != nil {
+		return aiprovider.ContentPart{}, err
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		return aiprovider.ContentPart{}, fmt.Errorf("media-refine: read clip: %w", err)
+	}
+	return aiprovider.MediaPart(aiprovider.ContentAudio, &model.Media{
+		Data:     data,
+		MimeType: "audio/wav",
+	}), nil
+}
+
+// VideoClipper extracts the video frame at the block's temporal anchor and, when
+// the block also carries an on-frame geometry, crops that region — the still a
+// low-confidence video-frame OCR unit was read from — returning it as an inline
+// image part.
+type VideoClipper struct{}
+
+func (VideoClipper) Modality() aiprovider.Modality { return aiprovider.ModalityImage }
+
+func (VideoClipper) SystemPrompt() string {
+	return "You transcribe the on-screen text in a region of a single video frame. " +
+		"Return only the exact text you read, with no commentary. " +
+		"If it is unreadable, return " + RefuseToken + "."
+}
+
+func (VideoClipper) Slice(ctx context.Context, src MediaRef, b *model.Block) (aiprovider.ContentPart, error) {
+	tm, ok := b.Timing()
+	if !ok || tm == nil {
+		return aiprovider.ContentPart{}, fmt.Errorf("media-refine: block %q has no timing anchor to locate a frame", b.ID)
+	}
+	srcPath, cleanup, err := src.localPath()
+	if err != nil {
+		return aiprovider.ContentPart{}, err
+	}
+	defer cleanup()
+	dir, err := os.MkdirTemp("", "kapi-refine-frame-*")
+	if err != nil {
+		return aiprovider.ContentPart{}, fmt.Errorf("media-refine: temp dir: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(dir) }()
+	frame := filepath.Join(dir, "frame.png")
+	if err := av.ExtractFrame(ctx, srcPath, tm.StartMS, frame); err != nil {
+		return aiprovider.ContentPart{}, err
+	}
+	raster, err := os.ReadFile(frame)
+	if err != nil {
+		return aiprovider.ContentPart{}, fmt.Errorf("media-refine: read frame: %w", err)
+	}
+	// Crop to the block's on-frame geometry when present, so the LLM sees only
+	// the text region rather than the whole frame.
+	if g, ok := b.Geometry(); ok && g != nil && (g.BBox.W > 0 || g.BBox.H > 0) {
+		crop, cerr := imageops.Crop(raster, int(g.BBox.X), int(g.BBox.Y), int(g.BBox.W), int(g.BBox.H))
+		if cerr != nil {
+			return aiprovider.ContentPart{}, cerr
+		}
+		raster = crop
+	}
+	return aiprovider.MediaPart(aiprovider.ContentImage, &model.Media{
+		Data:     raster,
+		MimeType: "image/png",
+	}), nil
+}
+
+// slicerFor picks the slicer for a source media reference by its modality
+// (audio → AudioCutter, video → VideoClipper, else ImageSlicer), so a media-refine
+// pass re-reads ASR audio segments and video-frame OCR units the same way it
+// re-reads image OCR lines.
+func slicerFor(src MediaRef) MediaSlicer {
+	switch mediaModality(src) {
+	case aiprovider.ModalityAudio:
+		return AudioCutter{}
+	case aiprovider.ModalityVideo:
+		return VideoClipper{}
+	default:
+		return ImageSlicer{}
+	}
+}
+
+// mediaModality classifies a source media reference by MIME type, falling back to
+// the source path extension.
+func mediaModality(src MediaRef) aiprovider.Modality {
+	switch m := strings.ToLower(src.MimeType); {
+	case strings.HasPrefix(m, "audio/"):
+		return aiprovider.ModalityAudio
+	case strings.HasPrefix(m, "video/"):
+		return aiprovider.ModalityVideo
+	case strings.HasPrefix(m, "image/"):
+		return aiprovider.ModalityImage
+	}
+	switch strings.ToLower(filepath.Ext(src.Path)) {
+	case ".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus":
+		return aiprovider.ModalityAudio
+	case ".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi":
+		return aiprovider.ModalityVideo
+	default:
+		return aiprovider.ModalityImage
+	}
+}
+
 // MediaRefineTool re-reads low-confidence extracted blocks with a configurable
 // multimodal LLM (AD-030). It is a source-Transform: it rewrites source, gated
 // on the source Origin confidence, sending only the bounded slice to the
@@ -80,10 +250,21 @@ func (ImageSlicer) Slice(_ context.Context, src MediaRef, b *model.Block) (aipro
 // per-block view does not carry.
 type MediaRefineTool struct {
 	tool.BaseTool
-	provider  aiprovider.LLMProvider
+	provider aiprovider.LLMProvider
+	// slicer overrides the per-source slicer selection; nil (the default) resolves
+	// the slicer from the source modality via slicerFor. Tests inject a slicer.
 	slicer    MediaSlicer
 	threshold float64
 	src       MediaRef
+}
+
+// slicerFor returns the explicit slicer override when set, else the slicer for
+// the source media's modality.
+func (t *MediaRefineTool) slicerFor(src MediaRef) MediaSlicer {
+	if t.slicer != nil {
+		return t.slicer
+	}
+	return slicerFor(src)
 }
 
 // Capability marks this as a source transform so the flow placement pass runs it
@@ -113,7 +294,6 @@ func NewMediaRefineTool(provider aiprovider.LLMProvider, cfg MediaRefineConfig) 
 	}
 	t := &MediaRefineTool{
 		provider:  provider,
-		slicer:    ImageSlicer{},
 		threshold: thr,
 		src:       MediaRef{Path: cfg.Source},
 	}
@@ -190,31 +370,35 @@ func (t *MediaRefineTool) Process(ctx context.Context, in <-chan *model.Part, ou
 	return nil
 }
 
-// gated reports whether a block should be re-read: it was produced by OCR and its
-// confidence is below the threshold.
+// gated reports whether a block should be re-read: it was machine-recognized
+// (OCR or ASR) and its confidence is below the threshold. An already-refined
+// unit (OriginLLMRefined, confidence 1) is not re-read.
 func (t *MediaRefineTool) gated(b *model.Block) bool {
 	o, ok := b.SourceOrigin()
-	if !ok || o.Kind != model.OriginOCR {
+	if !ok || o == nil {
 		return false
 	}
-	return o.Confidence < t.threshold
+	switch o.Kind {
+	case model.OriginOCR, model.OriginASR:
+		return o.Confidence < t.threshold
+	default:
+		return false
+	}
 }
 
 func (t *MediaRefineTool) refine(ctx context.Context, b *model.Block, all []*model.Block, idx int, src MediaRef) error {
+	slicer := t.slicerFor(src)
 	// Capability check: the chosen provider must accept the slice's modality.
-	if !modalitySupported(t.provider, aiprovider.ModalityImage) {
-		return fmt.Errorf("provider %q does not accept image input", t.provider.Name())
+	if !modalitySupported(t.provider, slicer.Modality()) {
+		return fmt.Errorf("provider %q does not accept %s input", t.provider.Name(), slicer.Modality())
 	}
-	part, err := t.slicer.Slice(ctx, src, b)
+	part, err := slicer.Slice(ctx, src, b)
 	if err != nil {
 		return err
 	}
 
 	msgs := []aiprovider.Message{
-		aiprovider.TextMessage("system",
-			"You transcribe a single line cropped from a document image. "+
-				"Return only the exact text you read, with no commentary. "+
-				"If the crop is unreadable, return "+RefuseToken+"."),
+		aiprovider.TextMessage("system", slicer.SystemPrompt()),
 		{Role: "user", Parts: []aiprovider.ContentPart{
 			aiprovider.TextPart(refineContext(all, idx)),
 			part,
@@ -233,15 +417,24 @@ func (t *MediaRefineTool) refine(ctx context.Context, b *model.Block, all []*mod
 		return nil
 	}
 
-	// Record provenance: the source is now LLM-produced. Flag for review when the
-	// LLM disagrees with the original guess — the least-verified tier.
+	// Flag for review when the LLM disagrees with the original guess — the
+	// least-verified tier.
 	if refined != original {
 		b.SetSourceText(refined)
 		setProp(b, PropNeedsReview, "llm-rewrite")
 	}
+	// Record provenance: a multimodal LLM re-read the recognized source. Mark the
+	// canonical OriginLLMRefined kind, name the producing LLM in Engine, and keep
+	// the original recognizer's engine in Reference so prior provenance survives.
+	priorEngine := ""
+	if o, ok := b.SourceOrigin(); ok && o != nil {
+		priorEngine = o.Engine
+	}
 	b.SetSourceOrigin(&model.Origin{
-		Kind:       model.OriginOCR,
+		Kind:       model.OriginLLMRefined,
 		Engine:     "llm:" + string(t.provider.Name()),
+		Tool:       t.ToolName,
+		Reference:  priorEngine,
 		Confidence: 1,
 	})
 	return nil
@@ -262,7 +455,7 @@ func refineContext(all []*model.Block, idx int) string {
 			b.WriteByte('\n')
 		}
 	}
-	b.WriteString("\nTranscribe the highlighted line in the image:")
+	b.WriteString("\nRe-read the highlighted unit and return only its exact text:")
 	return b.String()
 }
 

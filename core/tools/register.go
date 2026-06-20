@@ -193,6 +193,11 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(&CaseTransformConfig{Mode: CaseLower, ApplySource: true}, toolMeta("case-transform", "Case Transform", schema.CategoryTextProcessing,
 		withTags("text-processing"), withWritesOutput(), withCardinality(schema.Monolingual))))
 
+	reg.RegisterWithSchema("subtitle-filter", func() tool.Tool {
+		return NewSubtitleFilterTool(&SubtitleFilterConfig{})
+	}, toolSchema(&SubtitleFilterConfig{}, toolMeta("subtitle-filter", "Subtitle Filter", schema.CategoryTextProcessing,
+		withTags("media", "subtitle"), withCardinality(schema.Monolingual))))
+
 	reg.RegisterWithSchema("segmentation", func() tool.Tool {
 		return NewSegmentationTool(&SegmentationConfig{})
 	}, toolSchema(&SegmentationConfig{}, toolMeta("segmentation", "Segmentation", schema.CategoryTextProcessing,

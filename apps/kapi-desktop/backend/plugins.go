@@ -8,9 +8,12 @@ import (
 
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	pluginhostreg "github.com/neokapi/neokapi/cli/pluginhost/registry"
+	"github.com/neokapi/neokapi/core/asr"
+	"github.com/neokapi/neokapi/core/av"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/core/vision"
 )
 
 // formatPluginProviders maps a format the host can't read in-core to the plugin
@@ -32,10 +35,56 @@ func (a *App) ensureFormatPlugin(formatName string) {
 	if a.formatReg.HasReader(registry.FormatID(formatName)) {
 		return
 	}
-	plugin, ok := formatPluginProviders[formatName]
-	if !ok {
+	if plugin, ok := formatPluginProviders[formatName]; ok {
+		a.installPluginOnDemand(plugin, formatName)
+	}
+}
+
+// enginePluginProviders maps a media format to the plugin that provides its
+// recognition/demux ENGINE: kapi-vision (image OCR), kapi-asr (audio speech),
+// kapi-av (video demux). Unlike formatPluginProviders, these formats already have
+// an in-core reader — the file opens as Media without the engine — so the
+// on-demand trigger is the engine's availability, not the reader's.
+var enginePluginProviders = map[string]string{
+	"image": "vision",
+	"audio": "asr",
+	"video": "av",
+}
+
+// mediaEngineAvailable reports whether the local engine that enriches a media
+// format is already usable, so ensureMediaEngine can skip a redundant install.
+func mediaEngineAvailable(formatName string) bool {
+	switch formatName {
+	case "image":
+		return vision.Available("")
+	case "audio":
+		return asr.Available("")
+	case "video":
+		return av.FFmpegAvailable()
+	}
+	return false
+}
+
+// ensureMediaEngine installs, once and on demand, the engine plugin that enriches
+// a media format (OCR/ASR/demux) when that engine isn't already available. A
+// no-op when the engine is present or the format has no engine provider.
+// Best-effort and synchronous, emitting the same plugin-* events as
+// ensureFormatPlugin so the UI can show progress.
+func (a *App) ensureMediaEngine(formatName string) {
+	if mediaEngineAvailable(formatName) {
 		return
 	}
+	if plugin, ok := enginePluginProviders[formatName]; ok {
+		a.installPluginOnDemand(plugin, formatName)
+	}
+}
+
+// installPluginOnDemand fetches a plugin from the registry into the desktop's
+// plugin dir, emitting plugin-installing / plugin-progress / plugin-installed /
+// plugin-error events, and rescans so a newly installed reader registers. Shared
+// by ensureFormatPlugin (reader providers) and ensureMediaEngine (engine
+// providers).
+func (a *App) installPluginOnDemand(plugin, forWhat string) {
 	a.emitEvent("plugin-installing", map[string]string{"name": plugin})
 	lastPct := -1
 	_, err := pluginhost.InstallFromRegistry(context.Background(), pluginhost.InstallOptions{
@@ -55,11 +104,11 @@ func (a *App) ensureFormatPlugin(formatName string) {
 		},
 	})
 	if err != nil {
-		a.logger.Printf("on-demand install of %s for %s failed: %v", plugin, formatName, err)
+		a.logger.Printf("on-demand install of %s for %s failed: %v", plugin, forWhat, err)
 		a.emitEvent("plugin-error", map[string]string{"name": plugin, "error": err.Error()})
 		return
 	}
-	a.rescanPlugins() // re-registers the plugin's format reader into a.formatReg
+	a.rescanPlugins() // re-registers a newly installed plugin's format reader
 	a.emitEvent("plugin-installed", map[string]string{"name": plugin})
 	a.emitEvent("plugins-changed", nil)
 }

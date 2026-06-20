@@ -277,6 +277,42 @@ export interface GlyphView {
   h: number;
 }
 
+/**
+ * A block's temporal anchor on a time-based source (subtitles, audio, video):
+ * the [startMs, endMs) span it is spoken/shown over, plus an optional source ref
+ * (the cue id in the originating file). Mirrors editor.TimingView. Present only
+ * for timed sources (SRT/VTT/TTML, audio/video transcripts).
+ */
+export interface TimingView {
+  /** Cue start, milliseconds from the media origin. */
+  startMs: number;
+  /** Cue end, milliseconds from the media origin. */
+  endMs: number;
+  /** The cue id / reference in the source file, when one exists. */
+  sourceRef?: string;
+}
+
+/**
+ * Structured descriptor of the binary media a node carries or refers to (the
+ * image being OCR'd, the audio/video being subtitled). Mirrors editor.MediaView.
+ * `uri` is the default resolvable location; `blobKey`/`hasData` let a host
+ * resolve bytes it holds out-of-band (a desktop content store, a wasm blob map).
+ */
+export interface MediaView {
+  /** MIME type (e.g. "image/png", "audio/mpeg", "video/mp4"). */
+  mimeType?: string;
+  /** Original file name, when known. */
+  filename?: string;
+  /** A directly resolvable URL/URI for the media, when the source provides one. */
+  uri?: string;
+  /** An opaque key a host can use to look the bytes up in its own store. */
+  blobKey?: string;
+  /** True when the engine is holding the bytes inline (resolve via the host). */
+  hasData?: boolean;
+  /** Byte size, when known. */
+  size?: number;
+}
+
 export type ContentNodeKind = "layer" | "group" | "block" | "data" | "media";
 
 export interface ContentNode {
@@ -305,6 +341,8 @@ export interface ContentNode {
   structure?: StructureView;
   /** Page geometry (WS1): page + bounding box, for layout-aware sources. */
   geometry?: GeometryView;
+  /** Temporal anchor (WS1): [startMs, endMs) cue span, for timed sources. */
+  timing?: TimingView;
   /** Cross-block relationship edges (caption-of / footnote-of / …). */
   relations?: RelationView[];
   hasSkeleton?: boolean;
@@ -313,7 +351,10 @@ export interface ContentNode {
   /** Content-addressable identity hash, when present. */
   identity?: string;
   // data / media
+  /** Legacy/flat MIME hint on a data or media node. Prefer the structured `media`. */
   mimeType?: string;
+  /** Structured media descriptor (mime, filename, uri, blob key) for a media node. */
+  media?: MediaView;
   summary?: string;
   // containers
   children?: ContentNode[];

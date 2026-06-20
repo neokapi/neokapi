@@ -11,8 +11,8 @@ func TestApply(t *testing.T) {
 	entries := []Entry{
 		{Key: "pdf:title", Value: "Quarterly Report", Translatable: true, Role: model.RoleTitle},
 		{Key: "pdf:subject", Value: "Sales", Translatable: true},
-		{Key: "pdf:author", Value: "Jane Doe"},        // non-translatable → property
-		{Key: "pdf:producer", Value: ""},              // empty → skipped entirely
+		{Key: "pdf:author", Value: "Jane Doe"},               // non-translatable → property
+		{Key: "pdf:producer", Value: ""},                     // empty → skipped entirely
 		{Key: "pdf:keywords", Value: "", Translatable: true}, // empty → skipped
 	}
 

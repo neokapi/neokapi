@@ -277,6 +277,49 @@ func dedupFrames(frames []Frame, maxDistance int) ([]Frame, error) {
 	return kept, nil
 }
 
+// Runner executes a prepared ffmpeg command and returns its combined output. It
+// is a package var so the slice helpers (SliceAudio / ExtractFrame) can be
+// exercised in tests without a real ffmpeg on PATH — a test swaps in a stub that
+// writes a fixture to the command's output path. The default shells out for real.
+var Runner = func(cmd *exec.Cmd) ([]byte, error) { return cmd.CombinedOutput() }
+
+// SliceAudio cuts the half-open span [startMS, endMS) out of the audio (or
+// audio track) at srcPath and writes it to outPath as 16 kHz mono PCM WAV — the
+// bounded clip a media-refine pass sends to a multimodal LLM to re-read a
+// low-confidence ASR segment (AD-030). It never holds the whole track in memory.
+func SliceAudio(ctx context.Context, srcPath string, startMS, endMS int64, outPath string) error {
+	if endMS <= startMS {
+		return fmt.Errorf("av: slice audio: empty span [%d,%d)", startMS, endMS)
+	}
+	ss := strconv.FormatFloat(float64(startMS)/1000, 'f', 3, 64)
+	dur := strconv.FormatFloat(float64(endMS-startMS)/1000, 'f', 3, 64)
+	// -ss before -i seeks at the demuxer (fast); -t bounds the duration.
+	cmd := exec.CommandContext(ctx, resolveBin("ffmpeg"), "-nostdin", "-y",
+		"-ss", ss, "-i", srcPath, "-t", dur,
+		"-vn", "-ac", "1", "-ar", "16000", "-f", "wav", outPath)
+	if out, err := Runner(cmd); err != nil {
+		return fmt.Errorf("av: slice audio: %w: %s", err, lastLine(out))
+	}
+	return nil
+}
+
+// ExtractFrame extracts the single video frame at atMS (ms from start) of the
+// video at srcPath and writes it to outPath as a PNG — the still a media-refine
+// pass crops to a block's geometry before re-reading a low-confidence
+// video-frame OCR unit (AD-030).
+func ExtractFrame(ctx context.Context, srcPath string, atMS int64, outPath string) error {
+	if atMS < 0 {
+		return fmt.Errorf("av: extract frame: negative timecode %d", atMS)
+	}
+	ss := strconv.FormatFloat(float64(atMS)/1000, 'f', 3, 64)
+	cmd := exec.CommandContext(ctx, resolveBin("ffmpeg"), "-nostdin", "-y",
+		"-ss", ss, "-i", srcPath, "-frames:v", "1", "-f", "image2", outPath)
+	if out, err := Runner(cmd); err != nil {
+		return fmt.Errorf("av: extract frame: %w: %s", err, lastLine(out))
+	}
+	return nil
+}
+
 // lastLine returns the last non-empty line of ffmpeg output, for concise errors.
 func lastLine(b []byte) string {
 	lines := strings.Split(strings.TrimSpace(string(b)), "\n")

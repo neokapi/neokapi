@@ -3,6 +3,13 @@ import { Composition, staticFile, type CalculateMetadataFunction } from "remotio
 import type { CapturedArtifact, DemoCapture, NarrationManifest, Screencast } from "../types.ts";
 import { Demo, type DemoProps } from "./Demo.tsx";
 import { Sizzle, sizzleCalcMeta } from "./compositions/Sizzle.tsx";
+import {
+  MultimodalSample,
+  SAMPLE_FPS,
+  SAMPLE_WIDTH,
+  SAMPLE_HEIGHT,
+  SAMPLE_FRAMES,
+} from "./compositions/MultimodalSample.tsx";
 import { computeTiming } from "./timeline.ts";
 import { FPS, WIDTH, HEIGHT } from "./components/theme.ts";
 import { DEMOS } from "./registry.generated.ts";
@@ -88,6 +95,17 @@ export const RemotionRoot: React.FC = () => {
         height={HEIGHT}
         defaultProps={{ id: "bowrain-sizzle", themeMode: "dark" as const }}
         calculateMetadata={sizzleCalcMeta}
+      />
+      {/* A short, self-contained sample clip for the in-browser audio/video labs
+          (rendered to web/static/samples/multimodal-sample.mp4). Title cards for
+          OCR over a Gemini-TTS narration for speech recognition. */}
+      <Composition
+        id="multimodal-sample"
+        component={MultimodalSample}
+        durationInFrames={SAMPLE_FRAMES}
+        fps={SAMPLE_FPS}
+        width={SAMPLE_WIDTH}
+        height={SAMPLE_HEIGHT}
       />
     </>
   );

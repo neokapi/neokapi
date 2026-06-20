@@ -71,8 +71,12 @@ type ContentNode struct {
 	// Structure and Geometry are the WS1 structural layer, surfaced as
 	// first-class fields (not generic annotations) so the editor's structure
 	// and layout views render them directly.
-	Structure          *StructureView `json:"structure,omitempty"`
-	Geometry           *GeometryView  `json:"geometry,omitempty"`
+	Structure *StructureView `json:"structure,omitempty"`
+	Geometry  *GeometryView  `json:"geometry,omitempty"`
+	// Timing is the block's temporal anchor (timed media: audio/video/subtitles),
+	// surfaced as a first-class field so the editor's timeline view can place the
+	// block on a media track. Sourced from the block's TimingAnnotation.
+	Timing             *TimingView    `json:"timing,omitempty"`
 	Relations          []RelationView `json:"relations,omitempty"`
 	HasSkeleton        bool           `json:"hasSkeleton,omitempty"`
 	IsReferent         bool           `json:"isReferent,omitempty"`
@@ -82,6 +86,11 @@ type ContentNode struct {
 	// Leaf summary (data / media): a short human-readable label.
 	MimeType string `json:"mimeType,omitempty"`
 	Summary  string `json:"summary,omitempty"`
+	// Media is the structured view of a Media leaf (kind=="media"): the binary
+	// asset's storage handles (uri/blobKey/inline-data) and metadata, so the
+	// editor can preview or download the asset. MimeType above is kept for
+	// back-compat; Media.MimeType mirrors it.
+	Media *MediaView `json:"media,omitempty"`
 
 	// Container children (layer / group).
 	Children []*ContentNode `json:"children,omitempty"`
@@ -183,6 +192,29 @@ type GlyphView struct {
 	Y    float64 `json:"y"`
 	W    float64 `json:"w"`
 	H    float64 `json:"h"`
+}
+
+// TimingView is the wire view of a block's temporal anchor (the WS1 timing
+// facet: a millisecond span on a media track), sourced from the block's
+// TimingAnnotation. Surfaced as a first-class node field so the editor's
+// timeline view can position the block in timed media.
+type TimingView struct {
+	StartMS   int64  `json:"startMs"`
+	EndMS     int64  `json:"endMs"`
+	SourceRef string `json:"sourceRef,omitempty"`
+}
+
+// MediaView is the wire view of a Media leaf: the binary asset's storage handles
+// (precedence BlobKey > URI > inline Data, mirrored by HasData) plus its
+// metadata, so the editor can preview or download the asset without the bytes
+// riding the tree.
+type MediaView struct {
+	MimeType string `json:"mimeType,omitempty"`
+	Filename string `json:"filename,omitempty"`
+	URI      string `json:"uri,omitempty"`
+	BlobKey  string `json:"blobKey,omitempty"`
+	HasData  bool   `json:"hasData,omitempty"`
+	Size     int64  `json:"size,omitempty"`
 }
 
 // BuildContentTree walks a Part stream (in document order, as emitted by a
@@ -291,6 +323,7 @@ func BuildContentTree(parts []*model.Part, format string) *ContentTree {
 				MimeType:   m.MimeType,
 				Properties: nonEmptyProps(m.Properties),
 				Summary:    mediaSummary(m),
+				Media:      mediaView(m),
 			})
 			tree.Stats.Media++
 		}
@@ -338,6 +371,9 @@ func blockNode(b *model.Block) *ContentNode {
 			}
 		}
 		n.Geometry = gv
+	}
+	if tm, ok := b.Timing(); ok && tm != nil {
+		n.Timing = &TimingView{StartMS: tm.StartMS, EndMS: tm.EndMS, SourceRef: tm.SourceRef}
 	}
 	if rel, ok := b.Relations(); ok && rel != nil && len(rel.Relations) > 0 {
 		n.Relations = make([]RelationView, 0, len(rel.Relations))
@@ -514,6 +550,20 @@ func segmentSpans(b *model.Block) []SegmentSpan {
 		spans = append(spans, SegmentSpan{ID: s.ID, Start: s.Range.StartRun, End: s.Range.EndRun})
 	}
 	return spans
+}
+
+// mediaView builds the structured view of a Media leaf from its storage handles
+// and metadata (the bytes themselves never ride the tree — HasData just records
+// that inline Data is present).
+func mediaView(m *model.Media) *MediaView {
+	return &MediaView{
+		MimeType: m.MimeType,
+		Filename: m.Filename,
+		URI:      m.URI,
+		BlobKey:  m.BlobKey,
+		HasData:  len(m.Data) > 0,
+		Size:     m.Size,
+	}
 }
 
 // mediaSummary produces a short label for a Media leaf.

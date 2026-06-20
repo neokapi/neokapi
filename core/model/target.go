@@ -87,15 +87,33 @@ type Origin struct {
 
 // Origin Kind values. The translation kinds (human, tm, mt, ai) describe how a
 // Target was produced; the extraction kinds (ocr, asr) describe how a recognized
-// source was produced.
+// source was produced. OriginLLMRefined is a derived extraction kind: a recognized
+// source (ocr/asr) that a multimodal LLM re-read and rewrote (media-refine), the
+// least-verified recognition tier — distinguished so refined units are queryable
+// without parsing the Engine string. The original recognizer's engine is
+// preserved in Origin.Engine; the refining tool/provider lives in Tool/Reference.
 const (
-	OriginHuman = "human"
-	OriginTM    = "tm"
-	OriginMT    = "mt"
-	OriginAI    = "ai"
-	OriginOCR   = "ocr"
-	OriginASR   = "asr"
+	OriginHuman      = "human"
+	OriginTM         = "tm"
+	OriginMT         = "mt"
+	OriginAI         = "ai"
+	OriginOCR        = "ocr"
+	OriginASR        = "asr"
+	OriginLLMRefined = "llm-refined"
 )
+
+// IsRecognized reports whether an Origin Kind denotes machine-recognized source
+// content (ocr, asr, or an llm-refined recognition) — content a review/refine
+// tier treats as provisional, as opposed to losslessly parsed or human-authored
+// source.
+func IsRecognized(kind string) bool {
+	switch kind {
+	case OriginOCR, OriginASR, OriginLLMRefined:
+		return true
+	default:
+		return false
+	}
+}
 
 // AnnoSourceOrigin is the block-scoped annotation key carrying a Block's source
 // *Origin — how its source content was produced when it was extracted rather

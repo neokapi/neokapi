@@ -420,6 +420,9 @@ export const api = {
   inspectFile: (tabID: string, filePath: string) => call<string>("InspectFile", tabID, filePath),
   inspectFileAnnotated: (tabID: string, filePath: string) =>
     call<string>("InspectFileAnnotated", tabID, filePath),
+  // Reads a media file (image/audio/video) from disk and returns a base64 data:
+  // URL the DocumentViewer can render directly. The path is a tree media node's URI.
+  mediaDataURL: (path: string) => call<string>("MediaDataURL", path),
 
   // Preview
   previewFlow: (

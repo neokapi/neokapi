@@ -9,13 +9,15 @@ import (
 
 // IsBinaryAssetFormat reports whether a format name denotes a binary asset — one
 // whose file *is* the localizable unit, localized by supplying a per-locale
-// variant file, rather than text kapi can regenerate from a source. For these
-// formats an existing localized target variant is authoritative: kapi cannot
-// reproduce a real image localization, so reprocessing the source must not
-// clobber a hand- (or connector-) supplied variant.
+// variant file, rather than text kapi can regenerate from a source. Images,
+// audio and video are all whole-file assets: kapi can extract text from them
+// (OCR / ASR) but cannot reproduce a real localized rendering (a redrawn image,
+// a dubbed audio track, a re-shot video), so a per-locale variant the user (or a
+// connector) supplies is authoritative and must not be clobbered by reprocessing
+// the source.
 func IsBinaryAssetFormat(name string) bool {
 	switch name {
-	case "image":
+	case "image", "audio", "video":
 		return true
 	default:
 		return false

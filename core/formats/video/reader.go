@@ -78,7 +78,20 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	defer cleanup()
 
 	if !av.FFmpegAvailable() {
-		ch <- model.PartResult{Error: errors.New("video: ffmpeg/ffprobe not found (install the kapi-av plugin or ffmpeg)")}
+		// No ffmpeg/av engine: the video cannot be demuxed, but it is still a
+		// localizable Media asset (replace-asset mode). Emit it as opaque Media
+		// rather than erroring, mirroring the audio reader's no-engine path.
+		uri := r.Doc.URI
+		if uri == "" {
+			uri = videoPath
+		}
+		media := &model.Media{
+			ID:       "m1",
+			URI:      uri,
+			MimeType: r.Doc.MimeType,
+			Filename: filepath.Base(uri),
+		}
+		r.emit(ctx, ch, &model.Part{Type: model.PartMedia, Resource: media})
 		return
 	}
 

@@ -33,6 +33,9 @@ export default function LabPage(): React.ReactElement {
             <Link to="/lab/segmentation">Segmentation Lab</Link>
             <Link to="/lab/pdf">PDF Lab</Link>
             <Link to="/lab/vision">Vision Lab</Link>
+            <Link to="/lab/audio">Audio Lab</Link>
+            <Link to="/lab/video">Video Lab</Link>
+            <Link to="/lab/multimodal">Multimodal Showcase</Link>
             <Link to="/playground-cli">CLI Playground</Link>
             <Link to="/framework/architecture">Framework docs</Link>
           </nav>
