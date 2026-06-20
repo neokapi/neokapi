@@ -2483,6 +2483,7 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 	// handling for inline RawHTML segments inside Markdown paragraphs.
 	var excludeStack []string
 	var excludeBuf strings.Builder
+	var excludeIsMath bool
 	flushExclude := func() {
 		if excludeBuf.Len() == 0 {
 			return
@@ -2490,9 +2491,18 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 		*idCounter++
 		id := strconv.Itoa(*idCounter)
 		data := excludeBuf.String()
-		b.AddPcOpen(id, "fmt:html", "md:html-inline", data, "", "", false, false, false)
-		b.AddPcClose(id, "fmt:html", "md:html-inline", "", "")
+		// Inline <math> (MathML) is tagged distinctly from generic excluded
+		// inline HTML (script/style) so editors and markdown preview can
+		// recognize and render the formula. The full markup rides in the
+		// placeholder's Data either way (and round-trips verbatim).
+		sem, sub := "fmt:html", "md:html-inline"
+		if excludeIsMath {
+			sem, sub = "fmt:math", "md:math-inline"
+		}
+		b.AddPcOpen(id, sem, sub, data, "", "", false, false, false)
+		b.AddPcClose(id, sem, sub, "", "")
 		excludeBuf.Reset()
+		excludeIsMath = false
 	}
 
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
@@ -2542,6 +2552,9 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 
 		case *ast.RawHTML:
 			if rawHTMLTagKind(n, source) == rawHTMLOpenExcluded {
+				// Outermost excluded open (the stack is empty here) sets the
+				// region kind so flushExclude can tag inline <math> distinctly.
+				excludeIsMath = rawHTMLTagName(n, source) == "math"
 				r.appendNodeRawBytes(&excludeBuf, n, source)
 				excludeStack = append(excludeStack, "")
 				continue
@@ -2614,6 +2627,35 @@ func rawHTMLTagKind(n *ast.RawHTML, source []byte) rawHTMLKind {
 		return rawHTMLOpenExcluded
 	}
 	return rawHTMLOther
+}
+
+// rawHTMLTagName returns the lowercased element name of a RawHTML open/close
+// tag (e.g. "math"), or "" when the fragment is not a simple tag. Used to tag
+// inline <math> placeholders distinctly from script/style.
+func rawHTMLTagName(n *ast.RawHTML, source []byte) string {
+	var raw bytes.Buffer
+	for i := range n.Segments.Len() {
+		seg := n.Segments.At(i)
+		raw.Write(seg.Value(source))
+	}
+	s := raw.Bytes()
+	if len(s) < 2 || s[0] != '<' {
+		return ""
+	}
+	idx := 1
+	if s[1] == '/' {
+		idx = 2
+	}
+	end := idx
+	for end < len(s) {
+		c := s[end]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == ':' {
+			end++
+			continue
+		}
+		break
+	}
+	return strings.ToLower(string(s[idx:end]))
 }
 
 // appendNodeRawBytes writes a node's source bytes to dst. For Text and
