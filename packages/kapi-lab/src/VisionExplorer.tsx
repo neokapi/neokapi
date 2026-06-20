@@ -9,6 +9,7 @@ import {
   type LayoutResult,
 } from "@neokapi/kapi-playground/visionBridge";
 import { runGemmaImageOCR, type GemmaProgress } from "@neokapi/kapi-playground/gemmaBridge";
+import { ensurePlugin } from "@neokapi/kapi-playground/plugins";
 
 export interface VisionSampleSpec {
   url: string;
@@ -96,6 +97,9 @@ export default function VisionExplorer({
       setGemma(null); // a new image invalidates the previous comparison
       setGemmaErr(null);
       try {
+        // Download the OCR models via the manager so the navbar widget reflects
+        // the `vision` plugin; ocr() reuses the warmed models.
+        await ensurePlugin("vision");
         const t0 = performance.now();
         const res = await ocr(r, modelBase, { handwriting, hwThreshold, llm, llmThreshold });
         setOcrMs(performance.now() - t0);
@@ -121,6 +125,9 @@ export default function VisionExplorer({
     setGemmaProgress(null);
     try {
       const url = rgbaToDataURL(raster);
+      // The generative comparison uses the llm (Gemma) model — download it via
+      // the manager so the navbar widget reflects it.
+      await ensurePlugin("llm");
       const t0 = performance.now();
       const res = await runGemmaImageOCR(url, GEMMA_OCR_PROMPT, {
         onProgress: (p) => setGemmaProgress(p),

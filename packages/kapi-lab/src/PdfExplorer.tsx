@@ -43,7 +43,9 @@ export default function PdfExplorer({
   samples,
 }: PdfExplorerProps): React.ReactElement {
   const runtime = useLabRuntime(assets, { autoBoot: false });
-  const gate = useRunGate(runtime);
+  // PDF parsing needs the pdfium plugin (PDFium-wasm); download it via the
+  // manager on Run so the navbar status widget reflects it.
+  const gate = useRunGate(runtime, { requires: ["pdfium"] });
   const library = useFileLibrary({ sampleIds: [] }); // no text samples; we seed PDFs
 
   const [selection, setSelection] = useState<FileSelection>({ mode: "multi", paths: [] });

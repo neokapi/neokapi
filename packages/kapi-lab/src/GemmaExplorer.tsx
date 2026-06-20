@@ -29,7 +29,9 @@ export default function GemmaExplorer({
   defaultTargetLang = "fr",
 }: GemmaExplorerProps): React.ReactElement {
   const runtime = useLabRuntime(assets, { autoBoot: false });
-  const gate = useRunGate(runtime);
+  // Download the llm (Gemma) model via the manager on Run, so the navbar status
+  // widget reflects it; installGemmaBridge below then just wires the host hook.
+  const gate = useRunGate(runtime, { requires: ["llm"] });
   const [text, setText] = useState(defaultText);
   const [lang, setLang] = useState(defaultTargetLang);
   const [out, setOut] = useState<string | null>(null);
