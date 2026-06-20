@@ -18,7 +18,12 @@ so `kgrep` searches the prose inside a `.docx`, and `ksed` rewrites it and saves
 the document back faithfully. A fourth utility, `kconv`, has no classic Unix
 analog: it **converts** a document into another format — a `.docx` to Markdown,
 a DocLang document to HTML, any supported format to DocLang — by handing the
-blocks (and the role each carries) to a different format's writer. They ship as
+blocks (and the role each carries) to a different format's writer. Because a
+cross-format conversion reconstructs the target from the content model (never a
+foreign skeleton), the valid `--to` targets are exactly the **generative**
+writers — the declared writer capability defined in
+[AD-005: Writer output modes](005-format-system.md). Skeleton-bound formats
+(`.docx`, ODF, IDML, EPUB) can be converted *from* but not *to*. They ship as
 **busybox-style multi-call binaries**: the names are symlinks to the single
 `kapi` binary, which dispatches on `argv[0]`. One binary, the extra names, no
 extra size. Each operates over a **block-text projection** of the document and

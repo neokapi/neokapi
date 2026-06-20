@@ -182,6 +182,53 @@ roundtrip writing. A format picks the one that fits its structure:
 All three strategies present the same `DataFormatWriter` interface to the
 pipeline.
 
+### Writer output modes — generative vs skeleton-bound
+
+A skeleton is **format-specific** — it is the non-translatable scaffolding of
+*one* file, captured by that format's reader. So a writer's ability to produce
+output depends on whether it can build a whole document from the content model
+alone, or only by injecting translated text back into a skeleton it was given.
+Two capabilities, deliberately **orthogonal**, capture this:
+
+- **Generative** — the writer can serialize a complete, valid document from the
+  content model (roles, runs, structure) with no skeleton. Markdown, HTML,
+  DocLang, AsciiDoc, plain text, XLIFF / PO / TMX, and the data/catalog formats
+  are generative.
+- **Skeleton-consuming** — the writer uses a skeleton *when given one* (for
+  byte-exact fidelity), via the `SkeletonStoreConsumer` interface. This is about
+  *using* a skeleton, not *requiring* one.
+
+These compose into the two writer classes that matter for conversion:
+
+- **Generative writers** (`generative`, skeleton-consuming optional). HTML is the
+  archetype: with the source file's skeleton it round-trips losslessly to HTML,
+  and **without** one it still writes a clean document — so it can also be a
+  target for content that arrived from a different format. Generative-but-not-
+  skeleton formats (e.g. DocLang) behave the same, minus the same-format fidelity
+  path.
+- **Skeleton-bound writers** (not generative). OpenXML (`.docx`), ODF, IDML, and
+  EPUB wrap content in a fixed package that cannot be regenerated from the model;
+  they only ever write back into their *own* skeleton. They are same-format /
+  merge writers, never a cross-format conversion target.
+
+**Cross-format conversion** ([AD-023: Toolbox — `kconv`](023-toolbox-utilities.md))
+reconstructs the target from the content model and never carries a foreign
+skeleton into the writer. A writer is therefore a valid conversion *target* iff
+it is **generative**. This eligibility is a **declared writer capability** — the
+writer states "what I can write" (`Generative()`), so `kconv`, the
+[Conversion Lab](/lab/convert), and `kapi formats` read one authoritative source
+rather than inferring it. It is **not** derived from `SkeletonStoreConsumer`
+(nearly every writer consumes a skeleton if offered, so that bit does not
+distinguish a target) nor probed empirically.
+
+**Direction.** Skeletons are today a generic, untyped `SkeletonStore` shared by
+any reader/writer pair; nothing in the type system enforces that a skeleton from
+format A is only ever consumed by format A's writer. The intended end state is a
+**typed, per-format skeleton** emitted by the reader and consumed only by the
+matching writer, making the "a skeleton is foreign across formats" rule
+structural rather than a runtime convention — while the generative content-model
+path stays the universal, skeleton-free route every writer shares.
+
 ### Subfilters and nested layers
 
 Format readers can emit child Layers when they encounter embedded content

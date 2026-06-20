@@ -190,7 +190,13 @@ far side of the wire.
 
 `Properties` is a separate map for opaque pass-through metadata only — connector
 keys, format round-trip hints. Analytic or interpretive results are overlays or
-annotations, never properties.
+annotations, never properties. A few round-trip hints follow a **normalized
+convention** so writers and the editor read them the same way across formats —
+e.g. `code.language` (a code block's language key), `picture.subclass` (a chart
+kind), `table.header-kind` (an OTSL header's column/row/corner/section role), and
+the `checkbox.checked` / `field.fillable` form-state flags. These are fine
+structural subtypes that have no typed home on the structure annotation; the
+canonical keys live in `core/model/structure.go`.
 
 ## Runs keep inline markup out of the way
 

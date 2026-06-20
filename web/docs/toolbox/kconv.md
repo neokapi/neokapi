@@ -31,18 +31,23 @@ as an HTML `<table>` (Markdown lists the cells). Inline formatting is rendered
 from each run's type, so a bold span becomes `**…**` or `<strong>…</strong>`
 whatever spelling the source format used.
 
-Which path runs depends on whether the source and target formats match:
-
-- **Same format** (e.g. `.docx` → `.docx`): the document round-trips faithfully
-  through its skeleton, so structure, styles and non-translatable content are
-  preserved.
-- **Cross format** (e.g. `.docx` → `.md`): the target is reconstructed from the
-  content model; the source's byte skeleton is not carried into a foreign
-  writer, so the output is clean in the target format.
-
 By default `kconv` projects the **source** text. `--target LOCALE` projects an
 existing translation instead — useful for emitting a translated document in a
 new format.
+
+## Supported output formats
+
+You can read (convert **from**) any supported format. You can write (convert
+**to**) the formats that can be produced from content alone:
+
+- **Documents** — Markdown, HTML, DocLang, AsciiDoc, plain text
+- **Interchange** — XLIFF, PO, TMX
+- **Data & catalogs** — JSON, YAML, and the resource-string formats
+
+Formats that wrap content in a fixed package — Word (`.docx`), ODT, InDesign,
+EPUB — and read-only formats such as PDF can be converted **from**, but not
+**to**. Run `kapi formats list` for the full set, or try the
+[Conversion Lab](/lab/convert) to convert in your browser.
 
 ## Examples
 
@@ -75,15 +80,14 @@ kconv messages.xliff --to md --target fr
 | `--encoding` | Input/output encoding (default `UTF-8`). |
 
 `-o` takes a single input file — convert files one at a time, or omit `-o` to
-stream to standard output. The target needs a writer: read-only formats such as
-PDF can be converted *from* but not *to*.
+stream to standard output.
 
 ## Faithful vs. clean
 
-A same-format conversion is a faithful round-trip — see [ksed](ksed.md) for the
-same skeleton-backed fidelity. A cross-format conversion is deliberately *not*
-byte-faithful: it is a clean projection in the target format, so a `.docx` →
-`.md` keeps the document's structure and prose but not its Word-specific
-packaging. Inline formatting is rendered from each run's vocabulary type, the
-same model the rest of the toolbox uses (see
+Converting to the **same** format is a faithful round-trip — everything,
+including styling and non-translatable content, is preserved (see [ksed](ksed.md)
+for the same fidelity). Converting to a **different** format is deliberately a
+*clean projection*: a `.docx` → `.md` keeps the document's structure and prose
+but not its Word-specific packaging. Inline formatting is rendered from each
+run's vocabulary type, the same model the rest of the toolbox uses (see
 [Inline Formatting](/framework/inline-formatting)).
