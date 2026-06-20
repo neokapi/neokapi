@@ -46,12 +46,34 @@ shamefullyHoist: true
 # web' prebuild → gen-reference still fire automatically.
 enablePrePostScripts: true
 
+# vite-plus 0.2.x ships its own vendored vite/rolldown build as
+# @voidzero-dev/vite-plus-core. The canonical vite-plus monorepo setup aliases the
+# bare `vite` package to that build (via a catalog entry referenced from overrides)
+# so externally-installed plugins (@vitejs/plugin-react, @tailwindcss/vite) resolve
+# `vite` to the SAME build vite-plus's defineConfig expects — otherwise the two
+# distinct deep Plugin/UserConfig type universes trip TypeScript into TS2321
+# "Excessive stack depth" / TS2769 in vite.config.ts. vitest is bundled into
+# vite-plus in 0.2.x (the @voidzero-dev/vite-plus-test wrapper is gone), and the
+# repo has no direct vitest/browser-mode usage, so only `vite` is aliased.
+catalog:
+  vite: npm:@voidzero-dev/vite-plus-core@0.2.1
+
 # Cross-workspace version pins (was the root package.json npm "overrides").
 overrides:
-  "@tailwindcss/vite>vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
   "@tanstack/react-query": "5.94.5"
-  "vite": "^8.0.0"
+  "vite": "catalog:"
   "webpackbar": "^7.0.0"
+
+# The aliased vite reports its own version (0.2.x), which doesn't satisfy the `^8`
+# peer ranges plugins declare for `vite`. That mismatch is expected under the
+# vite-plus toolchain, so fully relax the peer check for vite (allowAny alone is
+# not enough — without allowedVersions pnpm rejects the alias and silently falls
+# back to a real vite that satisfies the range).
+peerDependencyRules:
+  allowAny:
+    - vite
+  allowedVersions:
+    vite: "*"
 
 allowBuilds:
   '@swc/core': true

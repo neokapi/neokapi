@@ -1,10 +1,15 @@
 import { defineConfig } from "vite-plus";
+import type { PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import neokapi from "@neokapi/kapi-react/vite";
 
 export default defineConfig({
-  plugins: [neokapi({ mode: "runtime" }), react(), tailwindcss()],
+  // neokapi() is an unplugin `.vite` adapter; its deeply-inferred return type
+  // overflows TypeScript's instantiation-depth limit when compared against
+  // vite-plus's (rolldown-based) UserConfig. Bounding it to vite's own
+  // PluginOption keeps the plugin fully type-safe while stopping the recursion.
+  plugins: [neokapi({ mode: "runtime" }) as PluginOption, react(), tailwindcss()],
   build: {
     outDir: "dist",
   },
