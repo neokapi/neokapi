@@ -1,0 +1,89 @@
+---
+id: localize-media
+title: "Localize audio & video"
+sidebar_label: "Localize audio & video"
+sidebar_position: 8
+description: "Turn speech and on-screen text into translated subtitle tracks, translate the text in an image, or swap a whole media file per locale."
+hide_table_of_contents: true
+---
+
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
+# Localize audio & video
+
+There are two ways to localize a media file, and you can use both on the same one:
+
+- **Translate the text inside it** — the speech in audio, the dialogue and
+  on-screen text in video, the words in an image. kapi recognizes the text,
+  translates it, and gives you back a subtitle file or a translated caption.
+- **Replace the whole file** — when the file itself is the deliverable, supply a
+  translated version per language and kapi uses it as the localized asset.
+
+Recognition runs on your machine. To try it with no install, use the
+[in-browser labs](/lab/audio).
+
+## Install the engines
+
+The recognizers install as plugins — add only what you need:
+
+```bash
+kapi plugin install asr      # speech recognition (audio, and a video's dialogue)
+kapi plugin install av       # video support
+kapi plugin install vision   # reading text from images and video frames
+```
+
+They are also on Homebrew (`brew install neokapi/tap/kapi-asr`, `kapi-av`,
+`kapi-vision`). The replace-the-file path below needs none of them.
+
+## Audio → subtitles
+
+Transcribe the speech, translate it, and write a subtitle file — the output
+format follows the extension you give (`.vtt`, `.srt`, or `.ttml`):
+
+```bash
+kapi run audio-to-subtitles -i talk.m4a -o talk.fr.vtt --target-lang fr
+```
+
+## Video → subtitles
+
+A video has both spoken dialogue and text shown on screen. `video-to-subtitles`
+subtitles **only the dialogue**, so on-screen titles and captions don't end up in
+your subtitle file:
+
+<PipelineDiagram
+  stages={[
+    { label: "Transcribe", sub: "the dialogue", role: "io" },
+    { label: "Translate", role: "translate" },
+    { label: "Subtitle file", role: "io" },
+  ]}
+/>
+
+```bash
+kapi run video-to-subtitles -i clip.mp4 -o clip.fr.vtt --target-lang fr
+```
+
+## Image text → translated
+
+Read the text in an image, translate it, and write the localized caption to a
+companion `<image>.alt.txt` file (the picture itself is not redrawn):
+
+```bash
+kapi run image-ocr-translate -i banner.png --target-lang fr
+```
+
+When recognition is uncertain, you can have an AI model re-read the unclear parts
+for a cleaner result — point it at the provider you already use for translation.
+
+## Replace the whole file
+
+When the deliverable is the file itself, give kapi a translated version per
+language and it uses that as the localized asset — the same for images, audio,
+and video. In a [`.kapi` project](/kapi/modes) the translated file lives beside
+the source on the language path (for example `assets/fr/promo.mp4`); `kapi pull`
+and `kapi push` carry it through unchanged. kapi does not generate localized media
+for you (no text-to-speech, no re-encoding) — you provide the translated file.
+
+## Related
+
+- [In-browser labs](/lab/audio) — try the same thing client-side, with nothing to install.
+- The [Command Reference](/commands) for every flow and flag.

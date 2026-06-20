@@ -242,13 +242,19 @@ type Data struct {
     Properties map[string]string
 }
 
-// Media holds binary or media content.
+// Media holds binary or media content as a *reference*, not inlined bytes, so a
+// large asset never streams through the Part channel / gRPC boundary. Resolution
+// precedence is BlobKey > URI > Data; tools pass the reference and a single helper
+// at the consuming boundary (a provider call, a writer) materializes the bytes.
 type Media struct {
-    ID        string
-    MimeType  string
-    Data      []byte
-    URI       string
-    AltText   string
+    ID         string
+    MimeType   string
+    Data       []byte // inline binary — small, pipeline-internal assets only
+    BlobKey    string // content-addressed key in the BlobStore — large assets
+    URI        string // external reference (CDN / signed URL)
+    Filename   string
+    AltText    string
+    Size       int64
     Properties map[string]string
 }
 
