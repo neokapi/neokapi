@@ -6,16 +6,6 @@
           "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"",
           "short": "Add file patterns to the project's content"
         },
-        "ai-entity-extract": {
-          "short": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both"
-        },
-        "ai-review": {
-          "example": "  kapi ai-review app.xliff --target-lang fr\n  kapi ai-review messages.json --target-lang de",
-          "short": "Review translations with scoring using an LLM provider"
-        },
-        "ai-terminology": {
-          "short": "Extract candidate terminology from content using an LLM provider"
-        },
         "brand": {
           "check": {
             "short": "Score text against a brand voice profile"
@@ -38,6 +28,7 @@
             "short": "List brand voice profiles (local store + built-in packs)"
           },
           "rewrite": {
+            "long": "Rewrite content to comply with a brand voice profile.\n\nBy default text is read from --input-text or stdin and the rewrite is printed.\nWith -i/--in-place FILE..., kapi instead edits the content inside each file\nthrough the format-aware rewrite tool: the document round-trips in its own format\n(a .docx keeps its styles, a JSON catalog keeps its keys), and only the editable\ntext is rewritten on-brand. In-place editing always uses an AI provider.",
             "short": "Rewrite text to comply with a brand voice profile"
           },
           "short": "Keep AI-generated content on brand (voice, tone, terminology)",
@@ -120,6 +111,9 @@
         },
         "encoding-detect": {
           "short": "Encoding Detect"
+        },
+        "entity-extract": {
+          "short": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both"
         },
         "extract": {
           "example": "  kapi extract -p app.kapi --no-tm\n  kapi extract -p app.kapi --target-lang fr\n  kapi extract -p app.kapi --target-lang fr,de,es\n  kapi extract src/*.json -o work.klz --target-lang fr,qps   # ad-hoc .klz workspace",
@@ -299,6 +293,15 @@
           "example": "  kapi repetition-analysis messages.json\n  kapi repetition-analysis app.xliff",
           "short": "Repetition Analysis"
         },
+        "review": {
+          "example": "  kapi review app.xliff --target-lang fr\n  kapi review messages.json --target-lang de",
+          "short": "Review translations with scoring using an LLM provider"
+        },
+        "rewrite": {
+          "example": "  kapi rewrite --instruction \"make it more concise\" guide.md\n  kapi rewrite --instruction \"use UK spelling\" --in-place=.bak *.docx\n  kapi rewrite --instruction \"friendlier tone\" --diff locales/en.json\n  kapi rewrite --instruction \"fix typos\" --provider anthropic -i report.docx",
+          "long": "Rewrite the human-readable text inside any supported format with an LLM,\nfollowing a plain-language --instruction, then write the document back in the\nsame format. Only the editable text changes — a .docx keeps its styles, a JSON\ncatalog keeps its keys and shape, and inline codes/placeholders are preserved.\n\nBy default the rewritten document is written to standard output; use -i to edit\nfiles in place, optionally keeping a backup (--in-place=.bak). With --diff\nnothing is written — kapi prints a unified before/after diff of every changed\nblock so you can review the edit first.\n\nThis is the safe way to let an AI assistant edit content it otherwise cannot\nopen: the structure-preserving pipeline guarantees the rewrite lands only in the\ntext, never the surrounding markup.\n\nWith no FILE, or when FILE is \"-\", standard input is read (not valid with -i).",
+          "short": "Rewrite the text/content inside files with an AI instruction (faithful round-trip)"
+        },
         "rm": {
           "long": "Stop tracking files matching the given patterns.\n\nIf a pattern matches one added with 'kapi add', the mapping is removed.\nOtherwise the pattern is added to the exclude list so those files are skipped.\n\n  kapi rm \"src/**/*.html\"       # remove the mapping\n  kapi rm \"src/legacy/*.html\"   # exclude matching files",
           "short": "Remove file patterns from the project's content"
@@ -351,6 +354,10 @@
         "term-check": {
           "example": "  kapi term-check app.xliff --source-lang en --target-lang fr\n  kapi term-check messages.json --source-lang en --target-lang fr",
           "short": "Terminology Check"
+        },
+        "term-extract": {
+          "example": "  kapi term-extract messages.json\n  kapi term-extract app.xliff --provider anthropic",
+          "short": "Extract candidate terminology from content using an LLM provider"
         },
         "termbase": {
           "example": "  kapi termbase stats\n  kapi termbase lookup \"dashboard\" -s en -t fr\n  kapi termbase import glossary.csv -s en -t fr",
