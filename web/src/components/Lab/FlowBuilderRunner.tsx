@@ -94,3 +94,8 @@ export function FlowBuilderRunner({
     </BrowserOnly>
   );
 }
+
+// FlowLab — the public name for the flow surface (a composable wrapper over the
+// flow builder/runner). Pages embed <FlowLab> with a scenario; ContentLab is its
+// inspect-surface sibling.
+export const FlowLab = FlowBuilderRunner;

@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { ensurePlugin } from "@neokapi/kapi-playground/plugins";
+import { useCallback, useEffect, useState } from "react";
+import { ensurePlugin, usePluginManager } from "@neokapi/kapi-playground/plugins";
 import type { PluginId } from "@neokapi/kapi-playground/plugins";
 import type { BootProgress } from "@neokapi/kapi-playground/runtime";
 import type { LabRuntime, LabStatus } from "./useLabRuntime";
@@ -11,6 +11,12 @@ import type { LabRuntime, LabStatus } from "./useLabRuntime";
 // gate is `ready`; the Run action boots the engine (through the shared plugin
 // manager, so the navbar widget reflects it) and downloads any required plugins.
 // Once `ready`, the lab's normal body renders and its compute runs.
+//
+// The engine is a module-level singleton shared by every lab and the navbar
+// widget, so the gate is a FIRST-TIME affordance: once anything has activated
+// the engine (another lab on the page, the navbar "Boot engine", or this lab's
+// own Run), the phase is no longer "idle" and every gate auto-arms — the demo
+// shows directly instead of asking the user to press Run again.
 
 export interface RunGate {
   /** True once the user has pressed Run (boot requested). */
@@ -43,6 +49,12 @@ export function useRunGate(runtime: LabRuntime, opts: UseRunGateOptions = {}): R
   const [armed, setArmed] = useState(opts.autoArm ?? false);
   const requiresKey = requires.join(",");
 
+  // The shared engine has already been activated somewhere if its phase has
+  // left "idle" (booting or ready). "error" keeps the gate up so its Retry
+  // surfaces — a fresh lab shouldn't silently inherit a failed boot.
+  const mgr = usePluginManager();
+  const engineActive = mgr.state.engine.phase === "booting" || mgr.state.engine.phase === "ready";
+
   const run = useCallback(() => {
     setArmed(true);
     runtime.boot();
@@ -51,9 +63,17 @@ export function useRunGate(runtime: LabRuntime, opts: UseRunGateOptions = {}): R
     }
   }, [runtime, requiresKey]);
 
+  // Auto-arm once the engine is active elsewhere: attach this lab's runtime to
+  // the already-running singleton (boot() is idempotent) so its body renders
+  // without a redundant Run press.
+  useEffect(() => {
+    if (engineActive && !armed) run();
+  }, [engineActive, armed, run]);
+
+  const isArmed = armed || engineActive;
   return {
-    armed,
-    ready: armed && runtime.ready,
+    armed: isArmed,
+    ready: isArmed && runtime.ready,
     status: runtime.status,
     bootProgress: runtime.bootProgress,
     error: runtime.error,

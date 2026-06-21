@@ -18,8 +18,12 @@ export { default as PartDetailsModal } from "./PartDetailsModal";
 export type { PartDetailsModalProps } from "./PartDetailsModal";
 
 // Explorers + shared harness.
-export { default as AnatomyExplorer } from "./AnatomyExplorer";
-export type { AnatomyExplorerProps } from "./AnatomyExplorer";
+export { default as ContentLab } from "./ContentLab";
+export type { ContentLabProps } from "./ContentLab";
+export { CONTENT_LESSONS } from "./contentLessons";
+export type { ContentLesson, ContentInspectSpec, ContentTab } from "./contentLessons";
+export { default as GateOverlay } from "./GateOverlay";
+export type { GateOverlayProps } from "./GateOverlay";
 export { default as PdfExplorer } from "./PdfExplorer";
 export type { PdfExplorerProps, PdfSampleSpec } from "./PdfExplorer";
 export { default as VisionExplorer } from "./VisionExplorer";
@@ -30,22 +34,20 @@ export { default as AudioExplorer } from "./AudioExplorer";
 export type { AudioExplorerProps, AudioSampleSpec } from "./AudioExplorer";
 export { default as VideoExplorer } from "./VideoExplorer";
 export type { VideoExplorerProps, VideoSampleSpec } from "./VideoExplorer";
-export { default as PipelineExplorer } from "./PipelineExplorer";
-export type { PipelineExplorerProps } from "./PipelineExplorer";
 export { default as GemmaExplorer } from "./GemmaExplorer";
 export type { GemmaExplorerProps } from "./GemmaExplorer";
-export { default as ToolLab } from "./ToolLab";
-export { default as RoundTripExplorer } from "./RoundTripExplorer";
 export { default as ConversionExplorer, GENERATIVE_TARGETS } from "./ConversionExplorer";
 export type { ConversionExplorerProps, ConversionTarget } from "./ConversionExplorer";
-export { default as FlowBuilderRunner } from "./FlowBuilderRunner";
-export type { FlowBuilderRunnerProps } from "./FlowBuilderRunner";
+// FlowBuilderRunner is the flow surface; FlowLab is its public name (ContentLab's sibling).
+export { default as FlowBuilderRunner, default as FlowLab } from "./FlowBuilderRunner";
+export type {
+  FlowBuilderRunnerProps,
+  FlowBuilderRunnerProps as FlowLabProps,
+} from "./FlowBuilderRunner";
 export { LAB_SCENARIOS } from "./labScenarios";
 export type { LabScenario, LessonStep } from "./labScenarios";
 export { specFromTrace, TraceImportControl } from "./traceImport";
 export type { RecordedTraceInfo } from "./traceImport";
-export { default as ScriptLab } from "./ScriptLab";
-export type { ScriptLabProps } from "./ScriptLab";
 export { default as KlfExplorer } from "./KlfExplorer";
 export type { KlfExplorerProps } from "./KlfExplorer";
 export { default as KlfConformance } from "./KlfConformance";

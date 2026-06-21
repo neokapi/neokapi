@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Play } from "lucide-react";
 import { Button, ToggleGroup, ToggleGroupItem } from "@neokapi/ui-primitives";
 import { useLabRuntime } from "./useLabRuntime";
-import RunGate from "./RunGate";
+import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import { useFileLibrary, resolveSelection } from "./fileLibrary";
@@ -105,11 +105,8 @@ export default function BatchExplorer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runtime.ready]);
 
-  if (!gate.armed) {
-    return <RunGate gate={gate} title="Batch" description="Run a tool across a batch of files." />;
-  }
   return (
-    <div className="kapi-reference flex flex-col gap-3 text-foreground">
+    <div className="kapi-reference relative flex flex-col gap-3 text-foreground">
       <div className="flex flex-wrap items-end gap-3">
         <FileSelectorField
           label="Inputs"
@@ -146,13 +143,17 @@ export default function BatchExplorer({
         {runtime.ready && !busy && error && <span className="text-destructive">{error}</span>}
       </div>
 
-      {outputs.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {outputs.map((p) => (
-            <OutputView key={p} runtime={runtime} path={p} version={version} />
-          ))}
-        </div>
-      )}
+      <div className="min-h-[420px]">
+        {outputs.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {outputs.map((p) => (
+              <OutputView key={p} runtime={runtime} path={p} version={version} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <GateOverlay gate={gate} title="Batch" description="Run a tool across a batch of files." />
     </div>
   );
 }

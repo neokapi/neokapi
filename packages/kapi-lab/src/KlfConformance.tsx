@@ -7,7 +7,7 @@ import {
 } from "@neokapi/kapi-format";
 import type { AnnotationAnchor, Block, File, Run } from "@neokapi/kapi-format";
 import { useLabRuntime } from "./useLabRuntime";
-import RunGate from "./RunGate";
+import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 import type { LabRuntime, LabRuntimeAssets } from "./useLabRuntime";
 import {
@@ -103,17 +103,8 @@ export default function KlfConformance({ assets }: KlfConformanceProps): React.R
   const dual = results?.filter((r) => r.agree != null) ?? [];
   const agreed = dual.filter((r) => r.agree).length;
 
-  if (!gate.armed) {
-    return (
-      <RunGate
-        gate={gate}
-        title="KLF conformance"
-        description="Run the KLF conformance suite in your browser."
-      />
-    );
-  }
   return (
-    <div className={styles.lab}>
+    <div className={`kapi-reference relative ${styles.lab}`}>
       <div className={styles.summary}>
         {runtime.status === "booting" && (
           <span className={styles.status}>Booting the kapi engine…</span>
@@ -146,58 +137,66 @@ export default function KlfConformance({ assets }: KlfConformanceProps): React.R
         )}
       </div>
 
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Case</th>
-            <th>Category</th>
-            <th>Go</th>
-            <th>TypeScript</th>
-            <th>Agree</th>
-            <th>Result</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(results ?? []).map((r) => (
-            <tr key={r.c.id}>
-              <td>
-                <div className={styles.caseName}>{r.c.name}</div>
-                <div className={styles.caseDesc}>{r.c.description}</div>
-                <div className={styles.detail}>{r.goValue}</div>
-              </td>
-              <td>
-                <span className={styles.catTag}>{r.c.category}</span>
-              </td>
-              <td>
-                <span className={`${styles.verdict} ${r.goPass ? styles.pass : styles.fail}`}>
-                  {r.goPass ? "✓ pass" : "✗ fail"}
-                </span>
-              </td>
-              <td>
-                {r.tsPass == null ? (
-                  <span className={`${styles.verdict} ${styles.na}`}>— canonical only</span>
-                ) : (
-                  <span className={`${styles.verdict} ${r.tsPass ? styles.pass : styles.fail}`}>
-                    {r.tsPass ? "✓ pass" : "✗ fail"}
-                  </span>
-                )}
-              </td>
-              <td>
-                {r.agree == null ? (
-                  <span className={`${styles.verdict} ${styles.na}`}>—</span>
-                ) : (
-                  <span className={`${styles.verdict} ${r.agree ? styles.pass : styles.fail}`}>
-                    {r.agree ? "✓" : "✗"}
-                  </span>
-                )}
-              </td>
-              <td className={styles.detail}>
-                {r.c.expected != null ? `expected: ${r.c.expected}` : "parity"}
-              </td>
+      <div className="min-h-[420px]">
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Case</th>
+              <th>Category</th>
+              <th>Go</th>
+              <th>TypeScript</th>
+              <th>Agree</th>
+              <th>Result</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {(results ?? []).map((r) => (
+              <tr key={r.c.id}>
+                <td>
+                  <div className={styles.caseName}>{r.c.name}</div>
+                  <div className={styles.caseDesc}>{r.c.description}</div>
+                  <div className={styles.detail}>{r.goValue}</div>
+                </td>
+                <td>
+                  <span className={styles.catTag}>{r.c.category}</span>
+                </td>
+                <td>
+                  <span className={`${styles.verdict} ${r.goPass ? styles.pass : styles.fail}`}>
+                    {r.goPass ? "✓ pass" : "✗ fail"}
+                  </span>
+                </td>
+                <td>
+                  {r.tsPass == null ? (
+                    <span className={`${styles.verdict} ${styles.na}`}>— canonical only</span>
+                  ) : (
+                    <span className={`${styles.verdict} ${r.tsPass ? styles.pass : styles.fail}`}>
+                      {r.tsPass ? "✓ pass" : "✗ fail"}
+                    </span>
+                  )}
+                </td>
+                <td>
+                  {r.agree == null ? (
+                    <span className={`${styles.verdict} ${styles.na}`}>—</span>
+                  ) : (
+                    <span className={`${styles.verdict} ${r.agree ? styles.pass : styles.fail}`}>
+                      {r.agree ? "✓" : "✗"}
+                    </span>
+                  )}
+                </td>
+                <td className={styles.detail}>
+                  {r.c.expected != null ? `expected: ${r.c.expected}` : "parity"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <GateOverlay
+        gate={gate}
+        title="KLF conformance"
+        description="Run the KLF conformance suite in your browser."
+      />
     </div>
   );
 }

@@ -6,7 +6,7 @@ keywords: [formats, format reader, format writer, XLIFF, JSON, DOCX, Markdown, l
 ---
 
 import { BlockPreview } from "@site/src/components/curated";
-import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
+import { ContentLab } from "@site/src/components/Lab";
 
 # Formats
 
@@ -28,7 +28,7 @@ only the leaf text changes, while the skeleton comes back byte-for-byte. This
 runs the real `kapi` reader and writer in your browser via WebAssembly.
 :::
 
-<RoundTripExplorer defaultSampleId="page-html" />
+<ContentLab lessonIds={["roundtrip"]} defaultSampleId="page-html" />
 
 neokapi ships built-in readers and writers spanning several families:
 

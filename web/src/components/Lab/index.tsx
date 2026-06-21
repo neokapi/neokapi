@@ -13,9 +13,9 @@ const Loading = (): React.ReactElement => (
   </div>
 );
 
-const LazyAnatomy = React.lazy(async () => {
+const LazyContentLab = React.lazy(async () => {
   const mod = await import("@neokapi/kapi-lab");
-  return { default: mod.AnatomyExplorer };
+  return { default: mod.ContentLab };
 });
 
 const LazyPdf = React.lazy(async () => {
@@ -53,11 +53,6 @@ const LazyVideo = React.lazy(async () => {
 // dynamic-imports the ICU4X `icu` package + the sat/gemma bridges on demand.
 const LazySegmentationLab = React.lazy(() => import("./SegmentationLabInner"));
 
-const LazyPipeline = React.lazy(async () => {
-  const mod = await import("@neokapi/kapi-lab");
-  return { default: mod.PipelineExplorer };
-});
-
 const LazyBatch = React.lazy(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.BatchExplorer };
@@ -88,21 +83,30 @@ const LazySearchReplace = React.lazy(async () => {
   return { default: mod.SearchReplaceWidget };
 });
 
-export interface AnatomyExplorerProps {
+export interface ContentLabProps {
+  /** Restrict the offered lessons (in this order); omit for the full set. */
+  lessonIds?: string[];
+  /** Lesson selected first. */
+  defaultLessonId?: string;
+  /** Override the active lesson's sample. */
   defaultSampleId?: string;
+  /** Restrict the file library's samples. */
   sampleIds?: string[];
+  fill?: boolean;
 }
 
-export function AnatomyExplorer(props: AnatomyExplorerProps): React.ReactElement {
+// ContentLab — the consolidated content-model inspect surface (replaces
+// AnatomyExplorer + RoundTripExplorer). A lesson picks the lens (anatomy,
+// segmentation, terms/QA, source↔target, structure, round-trip).
+export function ContentLab(props: ContentLabProps): React.ReactElement {
   return (
     <BrowserOnly fallback={<Loading />}>
       {() => {
-        // useBaseUrl (inside useKapiPlaygroundConfig) must run in a component.
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
             <Suspense fallback={<Loading />}>
-              <LazyAnatomy assets={assets} {...props} />
+              <LazyContentLab assets={assets} {...props} />
             </Suspense>
           );
         }
@@ -111,6 +115,7 @@ export function AnatomyExplorer(props: AnatomyExplorerProps): React.ReactElement
     </BrowserOnly>
   );
 }
+
 
 export interface PdfExplorerProps {
   sampleUrl?: string;
@@ -235,30 +240,6 @@ export function SegmentationLab(): React.ReactElement {
           return (
             <Suspense fallback={<Loading />}>
               <LazySegmentationLab assets={assets} />
-            </Suspense>
-          );
-        }
-        return <Inner />;
-      }}
-    </BrowserOnly>
-  );
-}
-
-export interface PipelineExplorerProps {
-  defaultSampleId?: string;
-  defaultPipelineId?: string;
-  sampleIds?: string[];
-}
-
-export function PipelineExplorer(props: PipelineExplorerProps): React.ReactElement {
-  return (
-    <BrowserOnly fallback={<Loading />}>
-      {() => {
-        function Inner(): React.ReactElement {
-          const assets = useKapiPlaygroundConfig();
-          return (
-            <Suspense fallback={<Loading />}>
-              <LazyPipeline assets={assets} {...props} />
             </Suspense>
           );
         }

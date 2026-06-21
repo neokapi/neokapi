@@ -5,8 +5,7 @@ description: Tools are the composable processing stages in a neokapi pipeline â€
 keywords: [tools, pipeline stage, processing, translation, QA, TM leverage, segmentation, composable]
 ---
 
-import { ToolLab } from "@site/src/components/Lab/ToolLab";
-import { ScriptLab } from "@site/src/components/Lab/ScriptLab";
+import { FlowLab } from "@site/src/components/Lab/FlowBuilderRunner";
 import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Tools
@@ -34,7 +33,7 @@ the tool's schema. This runs the real `kapi` engine in your browser via
 WebAssembly.
 :::
 
-<ToolLab defaultSampleId="messages-json" />
+<FlowLab scenarioIds={["build-your-own"]} defaultSampleId="messages-json" />
 
 ## The Tool interface
 
@@ -229,7 +228,7 @@ autocomplete for the `part` API â€” or load an example, then run it on a sample 
 your own file and read the per-Block before/after of source and target.
 :::
 
-<ScriptLab defaultSampleId="messages-json" />
+<FlowLab scenarioIds={["scripting"]} defaultSampleId="messages-json" />
 
 ## Where tools come from
 

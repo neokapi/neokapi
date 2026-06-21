@@ -5,7 +5,7 @@ description: The neokapi pipeline is the concurrent execution engine that runs f
 keywords: [pipeline, goroutines, channels, concurrent, streaming, errgroup, execution engine]
 ---
 
-import { PipelineExplorer } from "@site/src/components/Lab";
+import { FlowLab } from "@site/src/components/Lab/FlowBuilderRunner";
 import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Pipeline
@@ -45,7 +45,7 @@ tools, and into the writer, inspecting how each Part changes at every stage. Thi
 runs the real `kapi` engine in your browser via WebAssembly.
 :::
 
-<PipelineExplorer defaultSampleId="messages-json" defaultPipelineId="pseudo-translate" />
+<FlowLab withRecordedTraces defaultScenarioId="pseudo" defaultSampleId="messages-json" />
 
 ## Streaming, not batching
 

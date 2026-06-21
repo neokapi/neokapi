@@ -4,7 +4,7 @@ import { HERO_SAMPLES } from "@neokapi/kapi-playground/samples";
 import type { HeroSample } from "@neokapi/kapi-playground/samples";
 import { Badge, Button, cn } from "@neokapi/ui-primitives";
 import { useLabRuntime } from "./useLabRuntime";
-import RunGate from "./RunGate";
+import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import { FileIcon } from "@neokapi/ui-primitives/preview";
@@ -261,11 +261,8 @@ export default function ToolDropWidget({
     return () => clearTimeout(h);
   }, [autoRun, runtime.ready, runTool]);
 
-  if (!gate.armed) {
-    return <RunGate gate={gate} title="Tool" description="Drop in a file and run a tool on it." />;
-  }
   return (
-    <div className={cn("kapi-reference flex flex-col gap-3 text-foreground", className)}>
+    <div className={cn("kapi-reference relative flex flex-col gap-3 text-foreground", className)}>
       {/* Drop-zone + sample chips. */}
       <div
         className={cn(
@@ -355,60 +352,64 @@ export default function ToolDropWidget({
       </div>
 
       {/* Result. */}
-      {render === "stat" && stats && (
-        <div className="flex flex-wrap gap-2">
-          {stats.map((s) => (
-            <div
-              key={s.label}
-              className="flex min-w-[6rem] flex-col gap-0.5 rounded-lg border bg-card px-4 py-3"
-            >
-              <span className="text-2xl font-bold tabular-nums">{s.value}</span>
-              <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                {s.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {render === "diff" && diff && (
-        <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <Badge variant="outline" className="self-start">
-                Before
-              </Badge>
-              <pre className="overflow-auto rounded bg-muted/40 p-2 text-xs">
-                {input.binary ? "(binary input — download to inspect)" : diff.before}
-              </pre>
-            </div>
-            <div className="flex flex-col gap-1">
-              <Badge variant="outline" className="self-start border-primary/50 text-primary">
-                After
-              </Badge>
-              <pre className="overflow-auto rounded bg-muted/40 p-2 text-xs">
-                {input.binary ? "(binary output — download to inspect)" : diff.after}
-              </pre>
-            </div>
+      <div className="min-h-[420px]">
+        {render === "stat" && stats && (
+          <div className="flex flex-wrap gap-2">
+            {stats.map((s) => (
+              <div
+                key={s.label}
+                className="flex min-w-[6rem] flex-col gap-0.5 rounded-lg border bg-card px-4 py-3"
+              >
+                <span className="text-2xl font-bold tabular-nums">{s.value}</span>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {s.label}
+                </span>
+              </div>
+            ))}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="self-start"
-            onClick={() =>
-              input.binary
-                ? downloadBytes(input.name, diff.bytes)
-                : downloadText(input.name, diff.after)
-            }
-          >
-            Download result
-          </Button>
-        </div>
-      )}
+        )}
 
-      {render === "output" && outPath && (
-        <OutputView runtime={runtime} path={outPath} version={version} />
-      )}
+        {render === "diff" && diff && (
+          <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <Badge variant="outline" className="self-start">
+                  Before
+                </Badge>
+                <pre className="overflow-auto rounded bg-muted/40 p-2 text-xs">
+                  {input.binary ? "(binary input — download to inspect)" : diff.before}
+                </pre>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Badge variant="outline" className="self-start border-primary/50 text-primary">
+                  After
+                </Badge>
+                <pre className="overflow-auto rounded bg-muted/40 p-2 text-xs">
+                  {input.binary ? "(binary output — download to inspect)" : diff.after}
+                </pre>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={() =>
+                input.binary
+                  ? downloadBytes(input.name, diff.bytes)
+                  : downloadText(input.name, diff.after)
+              }
+            >
+              Download result
+            </Button>
+          </div>
+        )}
+
+        {render === "output" && outPath && (
+          <OutputView runtime={runtime} path={outPath} version={version} />
+        )}
+      </div>
+
+      <GateOverlay gate={gate} title="Tool" description="Drop in a file and run a tool on it." />
     </div>
   );
 }

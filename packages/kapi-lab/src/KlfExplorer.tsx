@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { Block, File, Run } from "@neokapi/kapi-format";
 import { useLabRuntime } from "./useLabRuntime";
-import RunGate from "./RunGate";
+import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import { KLF_SAMPLES, klfSampleById, klfText, ANNOTATIONS_KLFL } from "./klfFixtures";
@@ -163,17 +163,8 @@ export default function KlfExplorer({
     setSelectedAnn(null);
   };
 
-  if (!gate.armed) {
-    return (
-      <RunGate
-        gate={gate}
-        title="Kapi L10n Format"
-        description="Explore the Kapi L10n Format with the real engine."
-      />
-    );
-  }
   return (
-    <div className={styles.lab}>
+    <div className={`kapi-reference relative ${styles.lab}`} style={{ minHeight: 420 }}>
       <div className={styles.row}>
         {KLF_SAMPLES.map((s) => (
           <button
@@ -246,6 +237,11 @@ export default function KlfExplorer({
           </div>
         </div>
       )}
+      <GateOverlay
+        gate={gate}
+        title="Kapi L10n Format"
+        description="Explore the Kapi L10n Format with the real engine."
+      />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import ActiveFileSwitcher from "./ActiveFileSwitcher";
 import FileSelectorField from "./FileSelectorField";
 import { resolveSelection, useFileLibrary, type FileSelection } from "./fileLibrary";
 import { useLabRuntime, type LabRuntimeAssets } from "./useLabRuntime";
-import RunGate from "./RunGate";
+import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 
 /** A bundled sample PDF the explorer fetches and seeds on first load. */
@@ -123,17 +123,8 @@ export default function PdfExplorer({
     };
   }, [runtime.ready, runtime.inspect, file?.path, file?.changedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!gate.armed) {
-    return (
-      <RunGate
-        gate={gate}
-        title="PDF extraction"
-        description="Extract text and geometry from a PDF with PDFium in your browser."
-      />
-    );
-  }
   return (
-    <div className="kapi-reference flex flex-col gap-3 text-foreground">
+    <div className="kapi-reference relative flex flex-col gap-3 text-foreground">
       <FileSelectorField
         label="PDF"
         library={library}
@@ -158,9 +149,17 @@ export default function PdfExplorer({
         {runtime.ready && file && !busy && error && `Error: ${error}`}
       </div>
 
-      {tree && file && (
-        <DocumentViewer tree={tree} filename={file.name} bytes={file.bytes} defaultTab="layout" />
-      )}
+      <div className="min-h-[420px]">
+        {tree && file && (
+          <DocumentViewer tree={tree} filename={file.name} bytes={file.bytes} defaultTab="layout" />
+        )}
+      </div>
+
+      <GateOverlay
+        gate={gate}
+        title="PDF extraction"
+        description="Extract text and geometry from a PDF with PDFium in your browser."
+      />
     </div>
   );
 }

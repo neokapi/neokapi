@@ -77,11 +77,13 @@ describe("parseWordCountStat", () => {
 // ── Idle render (assets=null → no WASM boot) ─────────────────────────────────
 
 describe("ToolDropWidget (idle)", () => {
-  // The lab gates work behind an explicit Run; assets=null means pressing Run
-  // arms the gate (revealing the body) without actually booting WASM.
-  const pressRun = () => fireEvent.click(screen.getByRole("button", { name: /run/i }));
+  // The lab gates work behind the shared zero-shift GateOverlay: the body is
+  // laid out from the start and the play button (aria-label "Run") covers it
+  // until the engine is ready. assets=null keeps the engine un-booted, so we
+  // exercise the rendered body without WASM. getByLabelText("Run") targets the
+  // gate's play button unambiguously (body controls have their own names).
 
-  it("gates the widget behind an explicit Run (nothing on page load)", () => {
+  it("gates the widget behind an explicit Run play button", () => {
     render(
       <ToolDropWidget
         assets={null}
@@ -90,11 +92,10 @@ describe("ToolDropWidget (idle)", () => {
         autoRun={false}
       />,
     );
-    expect(screen.getByRole("button", { name: /run/i })).toBeTruthy();
-    expect(screen.queryByText(/Drop or choose a file/i)).toBeNull();
+    expect(screen.getByLabelText("Run")).toBeTruthy();
   });
 
-  it("renders the drop-zone and sample chips after Run, without booting WASM", () => {
+  it("renders the drop-zone and sample chips, without booting WASM", () => {
     render(
       <ToolDropWidget
         assets={null}
@@ -103,7 +104,6 @@ describe("ToolDropWidget (idle)", () => {
         autoRun={false}
       />,
     );
-    pressRun();
     expect(screen.getByText(/Drop or choose a file/i)).toBeTruthy();
     expect(screen.getByText(/Try a sample/i)).toBeTruthy();
     // Both hero samples are offered as chips. "messages.json" also appears in the
@@ -123,7 +123,6 @@ describe("ToolDropWidget (idle)", () => {
         autoRun={false}
       />,
     );
-    pressRun();
     expect(screen.getAllByText("messages.json").length).toBeGreaterThan(0);
     expect(screen.queryByText("welcome.docx")).toBeNull();
   });

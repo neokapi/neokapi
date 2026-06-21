@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLabRuntime } from "./useLabRuntime";
-import RunGate from "./RunGate";
+import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import { WORKSPACE_SAMPLES, workspaceSampleById } from "./workspaceSamples";
@@ -225,17 +225,8 @@ export default function ProjectExplorer({
     return step;
   };
 
-  if (!gate.armed) {
-    return (
-      <RunGate
-        gate={gate}
-        title="Project"
-        description="Open a .kapi project and inspect it with the real engine."
-      />
-    );
-  }
   return (
-    <div className={shared.explorer}>
+    <div className={`kapi-reference relative ${shared.explorer}`}>
       <div className={shared.statusBar}>
         {runtime.status === "booting" && "Booting kapi (first run downloads the WASM engine)…"}
         {runtime.status === "error" && `Failed to start: ${runtime.error}`}
@@ -334,7 +325,7 @@ export default function ProjectExplorer({
       </div>
 
       <div className={s.panel}>
-        <div className={s.card} style={{ gridColumn: "1 / -1" }}>
+        <div className={s.card} style={{ gridColumn: "1 / -1", minHeight: 420 }}>
           <div className={s.cardTitle}>
             Merged output{" "}
             {done.has("merge") && (
@@ -373,6 +364,12 @@ export default function ProjectExplorer({
         writes the files. A <strong>.klz workspace</strong> folds the same content + work into one
         portable file — built for ad-hoc, single-file hand-off. Same engine underneath.
       </p>
+
+      <GateOverlay
+        gate={gate}
+        title="Project"
+        description="Open a .kapi project and inspect it with the real engine."
+      />
     </div>
   );
 }

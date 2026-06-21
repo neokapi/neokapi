@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall/js"
 
 	"github.com/neokapi/neokapi/core/editor"
@@ -52,8 +51,13 @@ func doInspect(path string) (result any) {
 		return errorResult(err.Error())
 	}
 
-	ext := strings.ToLower(filepath.Ext(path))
-	fmtName, err := app.FormatReg.DetectByExtension(ext)
+	// Content-aware detection: an extension claimed by more than one format
+	// (notably .xlf/.xliff → XLIFF 1.2 and 2.x) must be disambiguated by
+	// sniffing the bytes, otherwise the deterministic extension tie-break
+	// would hand a 2.x document to the 1.2 reader (which can't parse <unit>
+	// and yields zero blocks). DetectFile sniffs among the candidates and
+	// falls back to the extension pick when sniffing is inconclusive.
+	fmtName, err := app.FormatReg.DetectFile(path, nil)
 	if err != nil {
 		return errorResult("unsupported format for " + filepath.Base(path))
 	}

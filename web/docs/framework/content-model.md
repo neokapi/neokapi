@@ -6,7 +6,7 @@ keywords: [content model, Part, Block, Run, Overlay, variant target, Layer, loca
 ---
 
 import { BlockPreview } from "@site/src/components/curated";
-import { AnatomyExplorer } from "@site/src/components/Lab";
+import { ContentLab } from "@site/src/components/Lab";
 import { StreamDiagram } from "@neokapi/docs-shared";
 
 # Content Model
@@ -19,15 +19,17 @@ and editors all work against one representation rather than against each format'
 quirks. It is a deliberate, format-independent abstraction over localizable
 content, modeled on the Okapi Framework's resource hierarchy.
 
-:::tip Try it — anatomy of a file
-Pick a sample or drop in your own file and see exactly how a reader decomposes it
-into Layers, Groups, Blocks, and **Runs**. Notice that an HTML `<strong>` becomes
-a paired inline code inside a block's run sequence, while a JSON `{name}` stays
-literal text — that is format-awareness in action. This runs the real `kapi`
-reader in your browser via WebAssembly.
+:::tip Try it — the content model, every way
+Pick a lesson and a sample (or drop in your own file) and watch the real `kapi`
+reader decompose it in your browser via WebAssembly. **Anatomy** shows the Layers,
+Groups, Blocks and **Runs** — notice an HTML `<strong>` becomes a paired inline
+code while a JSON `{name}` stays literal text. The other lessons reveal what rides
+on a Block without touching its text: **segmentation** boundaries, **terms & QA**
+overlays, a variant-keyed **source ↔ target**, the document **structure**, and a
+**round-trip** that proves only the text changed.
 :::
 
-<AnatomyExplorer defaultSampleId="page-html" />
+<ContentLab defaultSampleId="page-html" />
 
 ## The Part is the streaming unit
 
