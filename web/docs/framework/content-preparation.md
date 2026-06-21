@@ -110,7 +110,7 @@ steps:
   - tool: segmentation        # sentence boundaries
     config: { engine: srx }
   - tool: term-lookup         # match the termbase
-  - tool: ai-entity-extract   # recognize entities
+  - tool: entity-extract   # recognize entities
   - tool: tm-leverage         # reuse prior segment translations
   - tool: translate           # translate the remainder
   - tool: qa                  # gate on findings

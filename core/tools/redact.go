@@ -16,7 +16,7 @@ import (
 // Detection backend names for RedactConfig.Detectors.
 const (
 	DetectRules    = "rules"    // literal terms + regex from a rules file/inline
-	DetectEntities = "entities" // EntityAnnotations already on the block (from ai-entity-extract)
+	DetectEntities = "entities" // EntityAnnotations already on the block (from entity-extract)
 )
 
 // defaultEntityCategories are the entity categories redacted by default when
@@ -35,7 +35,7 @@ type RedactConfig struct {
 	Detectors   []string `json:"detectors,omitempty" schema:"title=Detectors,description=Detection backends to run: rules and/or entities"`
 	RulesPath   string   `json:"rulesPath,omitempty" schema:"title=Rules File,description=Path to a redaction rules YAML file"`
 	Placeholder string   `json:"placeholder,omitempty" schema:"title=Placeholder Template,description=Visible stand-in template; supports {category} and {n}"`
-	EntityTypes []string `json:"entityTypes,omitempty" schema:"title=Entity Categories,description=Entity categories to redact: person, org, product, location, date, time, currency, measurement, role, other. Setting any enables 'entities' detection (which needs an upstream NER step such as ai-entity-extract)."`
+	EntityTypes []string `json:"entityTypes,omitempty" schema:"title=Entity Categories,description=Entity categories to redact: person, org, product, location, date, time, currency, measurement, role, other. Setting any enables 'entities' detection (which needs an upstream NER step such as entity-extract)."`
 
 	// Rules supplies rules inline as an alternative (or addition) to RulesPath.
 	Rules []redaction.Rule `json:"rules,omitempty" schema:"-"`
@@ -119,7 +119,7 @@ func RedactSchema() *schema.ComponentSchema {
 // entity detection is enabled (the "entities" detector, or any entityTypes set),
 // the upstream entity overlay becomes a *required* input. So a flow that redacts
 // entities without an entity producer upstream (an NER step such as
-// ai-entity-extract, or a store/interchange source carrying entities) fails
+// entity-extract, or a store/interchange source carrying entities) fails
 // data-flow validation instead of silently redacting nothing — which would leak
 // the very content it was meant to hide to the downstream translator. With only
 // rule-based detection, redact reads no upstream port and the contract is

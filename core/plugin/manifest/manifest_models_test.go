@@ -69,11 +69,11 @@ func TestModelsValidate_DuplicateIDAndMultiDefault(t *testing.T) {
 	m := base()
 	a, b := validModel(), validModel()
 	m.Models = []ModelAsset{a, b}
-	assert.ErrorContains(t, m.Validate(), "duplicate model id")
+	require.ErrorContains(t, m.Validate(), "duplicate model id")
 
 	b.ID = "gemma-4-e4b" // distinct id, but both default
 	m.Models = []ModelAsset{a, b}
-	assert.ErrorContains(t, m.Validate(), "at most one model may be marked default")
+	require.ErrorContains(t, m.Validate(), "at most one model may be marked default")
 }
 
 func TestDefaultModelAndLookup(t *testing.T) {

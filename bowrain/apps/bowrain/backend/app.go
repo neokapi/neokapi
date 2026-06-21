@@ -381,8 +381,8 @@ func (a *App) ListTools() []ToolInfo {
 	aiTools := []ToolInfo{
 		{Name: "translate", Description: "Translate content with an LLM or MT provider", Category: schema.CategoryTranslation},
 		{Name: "qa", Description: "Quality check translations (rule-based, or AI with --provider)", Category: schema.CategoryQuality},
-		{Name: "ai-terminology", Description: "Extract terminology using AI", Category: schema.CategoryAnalysis},
-		{Name: "ai-review", Description: "Review translations using AI", Category: schema.CategoryQuality},
+		{Name: "term-extract", Description: "Extract terminology using AI", Category: schema.CategoryAnalysis},
+		{Name: "review", Description: "Review translations using AI", Category: schema.CategoryQuality},
 	}
 	result = append(result, aiTools...)
 

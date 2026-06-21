@@ -57,7 +57,7 @@ type AIEntityExtractConfig struct {
 // the common fields and the LLM member fields.
 func entityExtractFull() *schema.ComponentSchema {
 	return schema.FromStruct(&AIEntityExtractConfig{}, schema.ToolMeta{
-		ID:          "ai-entity-extract",
+		ID:          "entity-extract",
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "AI Entity Extract",
 		Description: "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
@@ -122,11 +122,11 @@ func entityExtractMembers() []registry.ToolGroupMember {
 	}
 }
 
-// entityExtractGroup is the ai-entity-extract tool group: engine members (llm /
+// entityExtractGroup is the entity-extract tool group: engine members (llm /
 // ner / hybrid), llm as the default.
 func entityExtractGroup() registry.ToolGroupDef {
 	return registry.ToolGroupDef{
-		Name:          "ai-entity-extract",
+		Name:          "entity-extract",
 		Discriminator: "engine",
 		Default:       EngineLLM,
 		Common:        entityExtractCommonSchema(),
@@ -149,14 +149,14 @@ func AIEntityExtractSchema() *schema.ComponentSchema {
 func NewAIEntityExtractFromConfig(config map[string]any, _ string) (tool.Tool, error) {
 	var cfg AIEntityExtractConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
-		return nil, fmt.Errorf("ai-entity-extract config: %w", err)
+		return nil, fmt.Errorf("entity-extract config: %w", err)
 	}
 
 	var nerProvider ner.Provider
 	if cfg.Engine == EngineNER || cfg.Engine == EngineHybrid {
 		nerProvider = ner.LocalProvider()
 		if nerProvider == nil {
-			return nil, fmt.Errorf("ai-entity-extract: engine %q needs a local NER model, but none is available in this environment — in the browser load the local NER model first; natively use the default llm engine", cfg.Engine)
+			return nil, fmt.Errorf("entity-extract: engine %q needs a local NER model, but none is available in this environment — in the browser load the local NER model first; natively use the default llm engine", cfg.Engine)
 		}
 	}
 	if cfg.Engine == EngineNER {
@@ -191,7 +191,7 @@ func NewAIEntityExtractTool(llm aiprovider.LLMProvider, nerProvider ner.Provider
 	if et.concurrency < 1 {
 		et.concurrency = 1
 	}
-	et.ToolName = "ai-entity-extract"
+	et.ToolName = "entity-extract"
 	et.ToolDescription = "Extracts named entities and term candidates using AI/LLM + optional NER"
 	// Annotate: extraction reads source and writes only entity/term-candidate
 	// annotations. The batched path (Process override) reuses it via NewBlockView.
@@ -238,7 +238,7 @@ func (t *AIEntityExtractTool) annotate(v tool.BlockView) error {
 			{blockID: v.ID(), text: sourceText},
 		})
 		if err != nil {
-			return fmt.Errorf("ai-entity-extract: %w", err)
+			return fmt.Errorf("entity-extract: %w", err)
 		}
 	}
 

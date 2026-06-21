@@ -47,7 +47,7 @@ const (
 
 // EntityCategories are the entity-derived categories the redact tool's
 // "entities" detector can target — the bare categories a named-entity annotator
-// (ai-entity-extract) produces, after the model "entity:" prefix is stripped and
+// (entity-extract) produces, after the model "entity:" prefix is stripped and
 // "organization" is folded to org. They double as the friendly option names a
 // user picks ("redact dates" = category "date"). Categories are free-form
 // strings overall, but these are the recognized, validated names.

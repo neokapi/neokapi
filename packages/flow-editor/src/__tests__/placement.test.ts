@@ -55,7 +55,7 @@ const tools = new Map<string, ToolInfo>([
     ],
   }),
   // Remote NER: produces the entity overlay, egresses source to do so.
-  tool("ai-entity-extract", {
+  tool("entity-extract", {
     produces: [{ type: "entity", side: "source" }],
     side_effects: ["remote-source-egress"],
   }),
@@ -102,7 +102,7 @@ describe("computePlacement — transformer-after-target", () => {
 describe("computePlacement — transformer-after-remote-egress", () => {
   it("flags a recoverable transformer after a remote-egress step", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "ai-entity-extract" }, { tool: "redact" }],
+      steps: [{ tool: "entity-extract" }, { tool: "redact" }],
     };
     const diags = computePlacement(spec, tools);
     expect(diags).toHaveLength(1);
@@ -119,7 +119,7 @@ describe("computePlacement — transformer-after-remote-egress", () => {
     // recoverable — no diagnostics beyond the late-placement warning for the
     // unconsumed entity overlay.
     const spec: FlowSpec = {
-      steps: [{ tool: "ai-entity-extract" }, { tool: "case-transform" }],
+      steps: [{ tool: "entity-extract" }, { tool: "case-transform" }],
     };
     const diags = computePlacement(spec, tools);
     expect(diags.filter((d) => d.rule === RULE_TRANSFORMER_AFTER_EGRESS)).toEqual([]);
@@ -127,26 +127,23 @@ describe("computePlacement — transformer-after-remote-egress", () => {
 
   it("exempts entity-driven redaction: the upstream NER produces a required port", () => {
     // detectors: ["entities"] makes redact's optional entity consume required,
-    // and ai-entity-extract is the step producing it — the AD-020 trade-off.
+    // and entity-extract is the step producing it — the AD-020 trade-off.
     const spec: FlowSpec = {
-      steps: [
-        { tool: "ai-entity-extract" },
-        { tool: "redact", config: { detectors: ["entities"] } },
-      ],
+      steps: [{ tool: "entity-extract" }, { tool: "redact", config: { detectors: ["entities"] } }],
     };
     expect(computePlacement(spec, tools)).toEqual([]);
   });
 
   it("exempts an upstream configured with a local provider (egress stripped)", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "ai-entity-extract", config: { provider: "ollama" } }, { tool: "redact" }],
+      steps: [{ tool: "entity-extract", config: { provider: "ollama" } }, { tool: "redact" }],
     };
     expect(computePlacement(spec, tools)).toEqual([]);
   });
 
   it("keeps the egress rule for a remote provider config", () => {
     const spec: FlowSpec = {
-      steps: [{ tool: "ai-entity-extract", config: { provider: "openai" } }, { tool: "redact" }],
+      steps: [{ tool: "entity-extract", config: { provider: "openai" } }, { tool: "redact" }],
     };
     const diags = computePlacement(spec, tools);
     expect(diags.map((d) => d.rule)).toEqual([RULE_TRANSFORMER_AFTER_EGRESS]);
@@ -175,15 +172,15 @@ describe("computePlacement — transformer-late-placement", () => {
     // The entity overlay is redact's (optional) input — producing it first is
     // exactly the right order, not a late placement.
     const spec: FlowSpec = {
-      steps: [{ tool: "segmentation" }, { tool: "ai-entity-extract" }],
+      steps: [{ tool: "segmentation" }, { tool: "entity-extract" }],
     };
-    // ai-entity-extract is not a transformer at all, so nothing fires; and
+    // entity-extract is not a transformer at all, so nothing fires; and
     // redact directly after its entity feed is clean (local provider keeps the
     // egress rule out of the picture).
     expect(computePlacement(spec, tools)).toEqual([]);
     const fed: FlowSpec = {
       steps: [
-        { tool: "ai-entity-extract", config: { provider: "ollama" } },
+        { tool: "entity-extract", config: { provider: "ollama" } },
         { tool: "redact", config: { detectors: ["entities"] } },
       ],
     };

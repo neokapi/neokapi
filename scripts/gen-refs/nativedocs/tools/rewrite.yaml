@@ -1,0 +1,64 @@
+# Native reference doc for the built-in `rewrite` tool.
+# Schema source: core/ai/tools/rewrite.go (RewriteConfig).
+description: Rewrite the text inside a file with an LLM following a plain-language instruction, preserving structure and inline codes.
+overview: |
+  The **Rewrite** tool hands the human-readable text of each block to a
+  configured LLM with a plain-language `instruction` — "make it more concise",
+  "use UK spelling", "friendlier tone" — and writes the rewritten text back into
+  the document. It is a source transform: a `.docx` keeps its styles, a JSON
+  catalog keeps its keys and shape, and inline codes/placeholders are preserved
+  around the edit, so only the editable text changes.
+
+  This is the safe way to let an AI assistant edit content it cannot otherwise
+  open: the structure-preserving pipeline guarantees the rewrite lands only in
+  the text, never the surrounding markup. The dedicated `kapi rewrite` command
+  adds in-place editing and a `--diff` preview of every changed block.
+
+  Provider credentials are required, since the tool makes an external API call
+  per block. A block with a plural/select construct (no linear text mapping) is
+  rewritten opaquely, replacing the whole source with the rewritten text.
+parameters:
+  instruction:
+    description: Plain-language instruction describing how to rewrite the text.
+    help: |
+      The directive the model follows when rewriting each block, e.g. "make it
+      more concise" or "rephrase for a 5th-grade reading level". Required.
+    values: "string"
+  provider:
+    description: The LLM provider backend to use.
+    help: |
+      Selects which model backend performs the rewrite.
+    values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
+  apiKey:
+    description: API key for the AI provider.
+    help: |
+      Credential for the selected provider. Local providers such as Ollama may not
+      require a key. Prefer the credential store or environment over committing
+      keys to a recipe.
+    values: "string"
+  model:
+    description: The model name to request from the provider.
+    help: |
+      The provider-specific model identifier. When omitted, the provider's default
+      model is used.
+    values: "string"
+limitations:
+  - Requires AI provider credentials; makes an external API call per block.
+  - Plural/select blocks are rewritten opaquely (the whole source is replaced), dropping inline codes for that block.
+  - A rewritten block's source-anchored overlays (terms, entities, segmentation) that overlap the change are dropped.
+processingNotes:
+  - Renders inline codes as placeholder tags so the model preserves them, then reconstructs the run structure from the response.
+  - Faithfulness guard — if a rewrite does not preserve every inline code exactly (a dropped, invented, duplicated, or reordered placeholder/markup tag), that block is left unchanged rather than written back with unbalanced markup. Plain-text blocks have no codes and are always rewritten.
+  - Non-translatable and blank blocks pass through unchanged.
+  - Drives the byte-faithful round-trip, so structure-preserving formats round-trip with only the text changed.
+examples:
+  - title: Make the text more concise
+    description: Rewrite every block to be shorter while keeping meaning.
+    config: |
+      instruction: make it more concise
+  - title: Localise spelling with a named model
+    description: Switch to UK spelling using a specific provider/model.
+    config: |
+      instruction: use UK spelling
+      provider: openai
+      model: gpt-4o

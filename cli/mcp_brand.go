@@ -1,18 +1,24 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/brand/packs"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
+	"github.com/pmezard/go-difflib/difflib"
 )
 
 // init registers the offline brand/terminology/TM tools on the shared `mcp`
@@ -74,6 +80,13 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 			out.Changes = append(out.Changes, BrandChangeMCP{From: c.From, To: c.To, Count: c.Count})
 		}
 		return nil, out, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "rewrite_file",
+		Description: "Rewrite the text inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) following an instruction and/or a brand voice profile, preserving the document's format and structure; returns the rewritten document content",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in RewriteFileInput) (*mcp.CallToolResult, RewriteFileMCPOutput, error) {
+		return a.rewriteFileMCP(ctx, in)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -148,6 +161,101 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 	})
 }
 
+// rewriteFileMCP rewrites the content inside a file through the format-aware
+// rewrite tool and returns the reconstructed document. The faithful round-trip
+// (editDocument into a buffer) keeps the document's structure and inline codes
+// intact and rewrites only the editable text — the safe way for an MCP client to
+// edit a Word/PowerPoint/JSON/XLIFF document it cannot open directly. An
+// optional brand profile folds its voice guide into the instruction.
+func (a *App) rewriteFileMCP(ctx context.Context, in RewriteFileInput) (*mcp.CallToolResult, RewriteFileMCPOutput, error) {
+	if in.File == "" {
+		return nil, RewriteFileMCPOutput{}, errors.New("file is required")
+	}
+	instruction := strings.TrimSpace(in.Instruction)
+
+	var profileName string
+	if in.ProfilePack != "" || in.ProfileFile != "" {
+		p, err := loadProfileForMCP(in.ProfilePack, in.ProfileFile)
+		if err != nil {
+			return nil, RewriteFileMCPOutput{}, err
+		}
+		profileName = p.Name
+		guide := brand.RenderVoiceGuide(p)
+		if instruction == "" {
+			instruction = "Rewrite the text so it complies with the following brand voice guide. " +
+				"Preserve meaning and any placeholders or markup.\n\n" + guide
+		} else {
+			instruction += "\n\nAlso comply with the following brand voice guide:\n\n" + guide
+		}
+	}
+	if instruction == "" {
+		return nil, RewriteFileMCPOutput{}, errors.New("provide an instruction or a profile (profile_pack/profile_file)")
+	}
+
+	original, err := os.ReadFile(in.File)
+	if err != nil {
+		return nil, RewriteFileMCPOutput{}, fmt.Errorf("read file: %w", err)
+	}
+
+	// Build the rewrite tool through the registry so saved credentials and the
+	// configured provider/model default are resolved the same way the CLI does.
+	t, err := a.ToolReg.NewToolWithConfig(registry.ToolID("rewrite"), map[string]any{"instruction": instruction}, "")
+	if err != nil {
+		return nil, RewriteFileMCPOutput{}, err
+	}
+	bt, ok := t.(*tool.BaseTool)
+	if !ok {
+		return nil, RewriteFileMCPOutput{}, fmt.Errorf("rewrite: unexpected tool type %T", t)
+	}
+
+	var buf bytes.Buffer
+	if err := a.editDocument(ctx, in.File, bt, "", false, "", &buf); err != nil {
+		return nil, RewriteFileMCPOutput{}, err
+	}
+	newContent := buf.Bytes()
+
+	return nil, RewriteFileMCPOutput{
+		File:    in.File,
+		Profile: profileName,
+		Changed: !bytes.Equal(original, newContent),
+		Content: string(newContent),
+		Summary: rewriteFileSummary(original, newContent),
+	}, nil
+}
+
+// rewriteFileSummary describes the change between two document byte slices. For
+// text documents it reports added/removed line counts; for binary documents
+// (e.g. .docx) it reports only that the content was updated.
+func rewriteFileSummary(before, after []byte) string {
+	if bytes.Equal(before, after) {
+		return "no changes"
+	}
+	if !utf8.Valid(before) || !utf8.Valid(after) {
+		return "document content updated"
+	}
+	d := difflib.UnifiedDiff{
+		A:       difflib.SplitLines(string(before)),
+		B:       difflib.SplitLines(string(after)),
+		Context: 0,
+	}
+	s, err := difflib.GetUnifiedDiffString(d)
+	if err != nil {
+		return "document content updated"
+	}
+	added, removed := 0, 0
+	for line := range strings.SplitSeq(s, "\n") {
+		switch {
+		case strings.HasPrefix(line, "+++"), strings.HasPrefix(line, "---"):
+			// file headers, not content
+		case strings.HasPrefix(line, "+"):
+			added++
+		case strings.HasPrefix(line, "-"):
+			removed++
+		}
+	}
+	return fmt.Sprintf("%d line(s) added, %d removed", added, removed)
+}
+
 // loadProfileForMCP resolves a profile from a starter pack name or a profile YAML path.
 func loadProfileForMCP(pack, file string) (*brand.VoiceProfile, error) {
 	if file != "" {
@@ -200,6 +308,21 @@ type BrandRewriteMCPOutput struct {
 	Original  string           `json:"original"`
 	Rewritten string           `json:"rewritten"`
 	Changes   []BrandChangeMCP `json:"changes,omitempty"`
+}
+
+type RewriteFileInput struct {
+	File        string `json:"file" jsonschema:"path to the file whose content should be rewritten"`
+	Instruction string `json:"instruction,omitempty" jsonschema:"plain-language instruction describing how to rewrite the text (optional if a profile is given)"`
+	ProfilePack string `json:"profile_pack,omitempty" jsonschema:"starter pack name to rewrite on-brand (e.g. marketing-blog)"`
+	ProfileFile string `json:"profile_file,omitempty" jsonschema:"path to a brand voice profile YAML to rewrite on-brand"`
+}
+
+type RewriteFileMCPOutput struct {
+	File    string `json:"file"`
+	Profile string `json:"profile,omitempty"`
+	Changed bool   `json:"changed"`
+	Content string `json:"content"`
+	Summary string `json:"summary"`
 }
 
 type TermLookupInput struct {

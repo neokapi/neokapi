@@ -242,10 +242,10 @@ The framework ships built-in terminology tools as ordinary pipeline stages:
   blocks where the expected translation is missing. Forbidden-, deprecated-,
   and competitor-term detection is handled by `brand-vocab-check`, which
   scans source text — not `term-enforce`.
-- **`ai-terminology`** (AI-assisted enrich) — LLM extraction of candidate
+- **`term-extract`** (AI-assisted enrich) — LLM extraction of candidate
   terms with `status: proposed`. Uses a provider from
   [AD-011: AI Providers](011-ai-providers.md).
-- **`ai-entity-extract`** (AI-assisted enrich) — LLM-based named entity
+- **`entity-extract`** (AI-assisted enrich) — LLM-based named entity
   annotation (with optional NER). Should run early in the pipeline, before
   `tm-leverage`.
 - **`redact`** and **`unredact`** (transform) — pair that replaces entity
@@ -257,7 +257,7 @@ A full pipeline looks like:
 <PipelineDiagram
   stages={[
     { label: "Source", role: "io" },
-    { label: "ai-entity-extract", role: "annotate" },
+    { label: "entity-extract", role: "annotate" },
     { label: "term-lookup", role: "annotate" },
     { label: "tm-leverage", role: "translate" },
     { label: "translate", role: "translate" },

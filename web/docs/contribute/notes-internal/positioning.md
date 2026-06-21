@@ -7,8 +7,8 @@ description: The single source of truth for how we describe neokapi, kapi, and B
 
 > Internal contributor note. When you write or edit user-facing prose (docs, landing,
 > README, CLI help, UI copy, the kapi Agent Skill, MCP tool descriptions), match this.
-> It supersedes older l10n-first phrasing. Pairs with
-> [brand-communication](../../../docs/internals/brand-communication.md).
+> It supersedes older l10n-first phrasing. Pairs with the repo-root
+> `docs/internals/brand-communication.md` guide.
 
 ## What neokapi is (the one sentence)
 

@@ -1,179 +1,5 @@
 {
   "tools": {
-    "ai-entity-extract": {
-      "displayName": "AI Entity Extract",
-      "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
-      "category": "analysis",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the AI provider"
-        },
-        "batchConcurrency": {
-          "description": "Number of concurrent batch calls (0 or 1 = sequential)"
-        },
-        "batchSize": {
-          "description": "Number of blocks per LLM call (0 or 1 = one block per call)"
-        },
-        "engine": {
-          "title": "Extraction Engine",
-          "description": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both)",
-          "options": {
-            "hybrid": {
-              "label": "Hybrid (NER + LLM)"
-            },
-            "llm": {
-              "label": "LLM (AI provider)"
-            },
-            "ner": {
-              "label": "Local NER (on-device)"
-            }
-          },
-          "enumDescriptions": {
-            "hybrid": "Run the local model and the LLM, merging results.",
-            "llm": "Extract with an AI provider.",
-            "ner": "On-device model — no credentials, nothing leaves the machine."
-          }
-        },
-        "knownTerms": {
-          "description": "Terms to exclude from extraction (already in termbase)"
-        },
-        "locale": {
-          "description": "Locale of the source content"
-        },
-        "model": {
-          "title": "Model",
-          "description": "AI model name"
-        },
-        "provider": {
-          "title": "AI Provider",
-          "description": "AI provider",
-          "options": {
-            "anthropic": {
-              "label": "Anthropic"
-            },
-            "azureopenai": {
-              "label": "Azure OpenAI"
-            },
-            "demo": {
-              "label": "Demo (illustrative)"
-            },
-            "gemini": {
-              "label": "Gemini"
-            },
-            "ollama": {
-              "label": "Ollama"
-            },
-            "openai": {
-              "label": "OpenAI"
-            }
-          }
-        }
-      },
-      "groups": {
-        "extract": {
-          "label": "Extraction"
-        },
-        "llm": {
-          "label": "LLM (AI provider)"
-        },
-        "llm:provider": {
-          "label": "Provider"
-        }
-      }
-    },
-    "ai-review": {
-      "displayName": "AI Review",
-      "description": "Review translations with scoring using an LLM provider",
-      "category": "quality",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the AI provider"
-        },
-        "model": {
-          "title": "Model",
-          "description": "AI model name"
-        },
-        "provider": {
-          "title": "AI Provider",
-          "description": "AI provider",
-          "options": {
-            "anthropic": {
-              "label": "Anthropic"
-            },
-            "azureopenai": {
-              "label": "Azure OpenAI"
-            },
-            "demo": {
-              "label": "Demo (illustrative)"
-            },
-            "gemini": {
-              "label": "Gemini"
-            },
-            "ollama": {
-              "label": "Ollama"
-            },
-            "openai": {
-              "label": "OpenAI"
-            }
-          }
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
-    },
-    "ai-terminology": {
-      "displayName": "AI Terminology Extraction",
-      "description": "Extract candidate terminology from content using an LLM provider",
-      "category": "analysis",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the AI provider"
-        },
-        "domain": {
-          "title": "Domain",
-          "description": "Subject domain for terminology extraction (e.g. medical legal technology)"
-        },
-        "model": {
-          "title": "Model",
-          "description": "AI model name"
-        },
-        "provider": {
-          "title": "AI Provider",
-          "description": "AI provider",
-          "options": {
-            "anthropic": {
-              "label": "Anthropic"
-            },
-            "azureopenai": {
-              "label": "Azure OpenAI"
-            },
-            "demo": {
-              "label": "Demo (illustrative)"
-            },
-            "gemini": {
-              "label": "Gemini"
-            },
-            "ollama": {
-              "label": "Ollama"
-            },
-            "openai": {
-              "label": "OpenAI"
-            }
-          }
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
-    },
     "brand-voice-check": {
       "displayName": "AI Brand Voice Check",
       "description": "Check text against a brand voice profile using an LLM provider",
@@ -326,6 +152,88 @@
     "encoding-detect": {
       "displayName": "Encoding Detect",
       "category": "analysis"
+    },
+    "entity-extract": {
+      "displayName": "AI Entity Extract",
+      "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
+      "category": "analysis",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "batchConcurrency": {
+          "description": "Number of concurrent batch calls (0 or 1 = sequential)"
+        },
+        "batchSize": {
+          "description": "Number of blocks per LLM call (0 or 1 = one block per call)"
+        },
+        "engine": {
+          "title": "Extraction Engine",
+          "description": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both)",
+          "options": {
+            "hybrid": {
+              "label": "Hybrid (NER + LLM)"
+            },
+            "llm": {
+              "label": "LLM (AI provider)"
+            },
+            "ner": {
+              "label": "Local NER (on-device)"
+            }
+          },
+          "enumDescriptions": {
+            "hybrid": "Run the local model and the LLM, merging results.",
+            "llm": "Extract with an AI provider.",
+            "ner": "On-device model — no credentials, nothing leaves the machine."
+          }
+        },
+        "knownTerms": {
+          "description": "Terms to exclude from extraction (already in termbase)"
+        },
+        "locale": {
+          "description": "Locale of the source content"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "extract": {
+          "label": "Extraction"
+        },
+        "llm": {
+          "label": "LLM (AI provider)"
+        },
+        "llm:provider": {
+          "label": "Provider"
+        }
+      }
     },
     "inconsistency-check": {
       "displayName": "Inconsistency Check",
@@ -713,6 +621,98 @@
         }
       }
     },
+    "review": {
+      "displayName": "Review",
+      "description": "Review translations with scoring using an LLM provider",
+      "category": "quality",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
+    "rewrite": {
+      "displayName": "Rewrite",
+      "description": "Rewrite the text inside a file following an instruction, preserving structure and inline codes",
+      "category": "text-processing",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "instruction": {
+          "title": "Instruction",
+          "description": "Plain-language instruction describing how to rewrite the text"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
     "scoping-report": {
       "displayName": "Scoping Report",
       "category": "analysis"
@@ -889,6 +889,54 @@
         "caseSensitive": {
           "title": "Case Sensitive",
           "description": "Whether term matching is case-sensitive"
+        }
+      }
+    },
+    "term-extract": {
+      "displayName": "AI Terminology Extraction",
+      "description": "Extract candidate terminology from content using an LLM provider",
+      "category": "analysis",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "domain": {
+          "title": "Domain",
+          "description": "Subject domain for terminology extraction (e.g. medical legal technology)"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
         }
       }
     },

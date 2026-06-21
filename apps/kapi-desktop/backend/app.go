@@ -877,7 +877,7 @@ func (a *App) injectCredentialPicker(schema map[string]any) {
 	// Add the credential field to whichever group holds the provider fields, so
 	// it inherits that group's visibility. For a ToolGroup tool the provider
 	// fields live in a member group (e.g. "ai:provider" for qa, "llm:provider"
-	// for ai-entity-extract) gated by the discriminator, so the credential picker
+	// for entity-extract) gated by the discriminator, so the credential picker
 	// then appears only when that AI backend is selected — not in rules/ner mode.
 	// Match by the group that contains "provider", which covers both the plain
 	// "provider" group (translate) and the namespaced member groups.

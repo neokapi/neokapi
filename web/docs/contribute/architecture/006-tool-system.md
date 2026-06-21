@@ -469,7 +469,7 @@ perspective.
 Some tools are a family of interchangeable backends rather than one
 implementation: `segmentation` runs on SRX, UAX-29, Intl.Segmenter, an LLM, or
 the SaT ML model; `qa` runs deterministic rules or an LLM judge; `translate` runs
-any LLM or MT provider; `ai-entity-extract` runs a local NER model, an LLM, or
+any LLM or MT provider; `entity-extract` runs a local NER model, an LLM, or
 both. Each backend carries its own configuration and the family has a sensible
 default.
 
@@ -538,7 +538,7 @@ Tools communicate through annotations on Blocks. A typical pipeline:
 <PipelineDiagram
   stages={[
     { label: "source", role: "io" },
-    { label: "ai-entity-extract", role: "annotate" },
+    { label: "entity-extract", role: "annotate" },
     { label: "term-lookup", role: "annotate" },
     { label: "tm-leverage", role: "translate" },
     { label: "translate", role: "translate" },
@@ -548,7 +548,7 @@ Tools communicate through annotations on Blocks. A typical pipeline:
   ]}
 />
 
-- `ai-entity-extract` adds `EntityAnnotation` with named entities.
+- `entity-extract` adds `EntityAnnotation` with named entities.
 - `term-lookup` adds `TermAnnotation` with matched terminology.
 - `tm-leverage` reads entity annotations for generalized matching, adds `AltTranslation`.
 - `translate` reads term and entity annotations for context-aware translation.
@@ -646,9 +646,9 @@ interface and work identically in flows.
 | ------------------- | ------------------------------------------------------------------ |
 | `translate`         | Translate blocks using an LLM (or MT) provider (batch + concurrent) |
 | `qa --provider`     | Check translation quality using an LLM provider                    |
-| `ai-review`         | Review translations with explanations using an LLM                 |
-| `ai-terminology`    | Extract terminology from blocks using an LLM                       |
-| `ai-entity-extract` | Extract named entities and term candidates using AI + optional NER |
+| `review`         | Review translations with explanations using an LLM                 |
+| `term-extract`    | Extract terminology from blocks using an LLM                       |
+| `entity-extract` | Extract named entities and term candidates using AI + optional NER |
 
 **MT tools** (`core/mt/tools/`):
 
@@ -772,7 +772,7 @@ Transformers and analyzers are ordinary steps in one ordered tool list; there is
 no separate structural stage. Because the applier mutates inline and in order,
 each transformer settles the source before later steps observe it, so analysis
 that depends on a transform — segmentation over normalized text, an annotator
-feeding a redactor (`ai-entity-extract` → `redact`) — sees the applied result.
+feeding a redactor (`entity-extract` → `redact`) — sees the applied result.
 
 Ordering safety is a **placement pass** that runs beside the data-flow contract,
 using the `Capability` and `SideEffects` a tool already declares:

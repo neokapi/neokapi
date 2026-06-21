@@ -244,9 +244,9 @@ unchanged:
 | ------------------- | ------------------------------------------------------- |
 | `translate`         | Translate untranslated Blocks using an LLM              |
 | `qa --provider`     | LLM-judged check of translations for fluency, accuracy, terminology |
-| `ai-terminology`    | Extract terminology candidates from source Blocks       |
-| `ai-review`         | Review translations with explanations                   |
-| `ai-entity-extract` | Extract entities and term candidates (hybrid LLM + NER) |
+| `term-extract`    | Extract terminology candidates from source Blocks       |
+| `review`         | Review translations with explanations                   |
+| `entity-extract` | Extract entities and term candidates (hybrid LLM + NER) |
 
 Because AI tools are ordinary Tools, they compose naturally:
 
@@ -268,7 +268,7 @@ AI tools receive terminology context from upstream stages:
 
 - **Term annotations** — when `term-lookup` has run, matched terms and
   their preferred translations appear in the prompt.
-- **Entity annotations** — when `ai-entity-extract` has run, identified
+- **Entity annotations** — when `entity-extract` has run, identified
   entities (with DNT flags and locale formatting hints) appear in the
   prompt context.
 - **Glossary constraints** — a dedicated glossary section lists

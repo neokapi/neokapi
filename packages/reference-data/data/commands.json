@@ -1,418 +1,6 @@
 {
-  "generatedAt": "2026-06-21T13:11:32Z",
+  "generatedAt": "2026-06-21T19:38:00Z",
   "commands": [
-    {
-      "id": "ai-entity-extract",
-      "path": [
-        "ai-entity-extract"
-      ],
-      "use": "ai-entity-extract [files...]",
-      "short": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
-      "groupID": "analysis",
-      "flags": [
-        {
-          "name": "api-key",
-          "usage": "API key for the AI provider",
-          "type": "string"
-        },
-        {
-          "name": "batch-concurrency",
-          "usage": "Number of concurrent batch calls (0 or 1 = sequential)",
-          "default": "1",
-          "type": "int"
-        },
-        {
-          "name": "batch-size",
-          "usage": "Number of blocks per LLM call (0 or 1 = one block per call)",
-          "default": "1",
-          "type": "int"
-        },
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "credential",
-          "usage": "saved credential name to use (see 'kapi credentials list')",
-          "type": "string"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "engine",
-          "usage": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both) (LLM (AI provider), Local NER (on-device), Hybrid (NER + LLM))",
-          "default": "llm",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "known-terms",
-          "usage": "Terms to exclude from extraction (already in termbase)",
-          "default": "[]",
-          "type": "stringSlice"
-        },
-        {
-          "name": "locale",
-          "usage": "Locale of the source content",
-          "type": "string"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "model",
-          "usage": "AI model name",
-          "type": "string"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
-          "default": "anthropic",
-          "type": "string"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "offlineCapable": false,
-      "runnableInBrowser": true,
-      "demoMode": true
-    },
-    {
-      "id": "ai-review",
-      "path": [
-        "ai-review"
-      ],
-      "use": "ai-review [files...]",
-      "short": "Review translations with scoring using an LLM provider",
-      "groupID": "quality",
-      "flags": [
-        {
-          "name": "api-key",
-          "usage": "API key for the AI provider",
-          "type": "string"
-        },
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "credential",
-          "usage": "saved credential name to use (see 'kapi credentials list')",
-          "type": "string"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "model",
-          "usage": "AI model name",
-          "type": "string"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "output",
-          "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
-          "type": "string"
-        },
-        {
-          "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
-          "type": "string"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
-          "default": "anthropic",
-          "type": "string"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi ai-review app.xliff --target-lang fr",
-        "kapi ai-review messages.json --target-lang de"
-      ],
-      "offlineCapable": false,
-      "runnableInBrowser": true,
-      "demoMode": true
-    },
-    {
-      "id": "ai-terminology",
-      "path": [
-        "ai-terminology"
-      ],
-      "use": "ai-terminology [files...]",
-      "short": "Extract candidate terminology from content using an LLM provider",
-      "groupID": "analysis",
-      "flags": [
-        {
-          "name": "api-key",
-          "usage": "API key for the AI provider",
-          "type": "string"
-        },
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "credential",
-          "usage": "saved credential name to use (see 'kapi credentials list')",
-          "type": "string"
-        },
-        {
-          "name": "domain",
-          "usage": "Subject domain for terminology extraction (e.g. medical legal technology)",
-          "type": "string"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "model",
-          "usage": "AI model name",
-          "type": "string"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
-          "default": "anthropic",
-          "type": "string"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "offlineCapable": false,
-      "runnableInBrowser": true,
-      "demoMode": true
-    },
     {
       "id": "brand",
       "path": [
@@ -822,6 +410,7 @@
       ],
       "use": "rewrite",
       "short": "Rewrite text to comply with a brand voice profile",
+      "long": "Rewrite content to comply with a brand voice profile.\n\nBy default text is read from --input-text or stdin and the rewrite is printed.\nWith -i/--in-place FILE..., kapi instead edits the content inside each file\nthrough the format-aware rewrite tool: the document round-trips in its own format\n(a .docx keeps its styles, a JSON catalog keeps its keys), and only the editable\ntext is rewritten on-brand. In-place editing always uses an AI provider.",
       "flags": [
         {
           "name": "ai",
@@ -847,6 +436,12 @@
         {
           "name": "file",
           "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "in-place",
+          "shorthand": "i",
+          "usage": "rewrite FILE... in place (format-aware); keep a backup with --in-place=.bak",
           "type": "string"
         },
         {
@@ -1990,6 +1585,156 @@
       "demoMode": false
     },
     {
+      "id": "entity-extract",
+      "path": [
+        "entity-extract"
+      ],
+      "use": "entity-extract [files...]",
+      "short": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
+      "groupID": "analysis",
+      "flags": [
+        {
+          "name": "api-key",
+          "usage": "API key for the AI provider",
+          "type": "string"
+        },
+        {
+          "name": "batch-concurrency",
+          "usage": "Number of concurrent batch calls (0 or 1 = sequential)",
+          "default": "1",
+          "type": "int"
+        },
+        {
+          "name": "batch-size",
+          "usage": "Number of blocks per LLM call (0 or 1 = one block per call)",
+          "default": "1",
+          "type": "int"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "credential",
+          "usage": "saved credential name to use (see 'kapi credentials list')",
+          "type": "string"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both) (LLM (AI provider), Local NER (on-device), Hybrid (NER + LLM))",
+          "default": "llm",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "known-terms",
+          "usage": "Terms to exclude from extraction (already in termbase)",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "locale",
+          "usage": "Locale of the source content",
+          "type": "string"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "model",
+          "usage": "AI model name",
+          "type": "string"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "provider",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
+          "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
+    },
+    {
       "id": "extract",
       "path": [
         "extract"
@@ -2315,7 +2060,7 @@
       ],
       "use": "init",
       "short": "Scaffold a new kapi project in the current directory",
-      "long": "Create a new kapi project with a {name}.kapi recipe and an\nadjacent .kapi/ state directory.\n\nBy default the project id is the current directory's basename and\nsource/target locales are en / (none). Override with --name,\n--source-locale, --target-locale (repeatable).\n\n--framework \u003cname\u003e pre-fills the content mapping for a known stack's i18n\ncatalogs (see 'kapi presets list --framework'): react-i18next, react-intl,\nnextjs, vue-i18n, flutter, angular.",
+      "long": "Create a new kapi project with a {name}.kapi recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source on\nbrand — a brand-voice profile, the project termbase, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--framework \u003cname\u003e pre-fills the content mapping for a known stack's i18n\ncatalogs (see 'kapi presets list --framework'): react-i18next, react-intl,\nnextjs, vue-i18n, flutter, angular — and scaffolds the translation project.",
       "groupID": "content",
       "flags": [
         {
@@ -2325,7 +2070,7 @@
         },
         {
           "name": "framework",
-          "usage": "Pre-fill content mapping for a known stack (see 'kapi presets list --framework')",
+          "usage": "Pre-fill content mapping for a known stack (see 'kapi presets list --framework'); scaffolds a translation project",
           "type": "string"
         },
         {
@@ -2532,7 +2277,7 @@
         "mcp"
       ],
       "use": "mcp",
-      "short": "Start MCP server (stdio) exposing project tools",
+      "short": "Start MCP server (stdio) exposing kapi's content tools (read, edit, check, brand, localize)",
       "groupID": "processing",
       "offlineCapable": false,
       "runnableInBrowser": false,
@@ -3807,6 +3552,142 @@
       "demoMode": false
     },
     {
+      "id": "review",
+      "path": [
+        "review"
+      ],
+      "use": "review [files...]",
+      "short": "Review translations with scoring using an LLM provider",
+      "groupID": "quality",
+      "flags": [
+        {
+          "name": "api-key",
+          "usage": "API key for the AI provider",
+          "type": "string"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "credential",
+          "usage": "saved credential name to use (see 'kapi credentials list')",
+          "type": "string"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "model",
+          "usage": "AI model name",
+          "type": "string"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "type": "string"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "provider",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
+          "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi review app.xliff --target-lang fr",
+        "kapi review messages.json --target-lang de"
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
+    },
+    {
       "id": "run",
       "path": [
         "run"
@@ -4950,6 +4831,136 @@
       "demoMode": false
     },
     {
+      "id": "term-extract",
+      "path": [
+        "term-extract"
+      ],
+      "use": "term-extract [files...]",
+      "short": "Extract candidate terminology from content using an LLM provider",
+      "groupID": "analysis",
+      "flags": [
+        {
+          "name": "api-key",
+          "usage": "API key for the AI provider",
+          "type": "string"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "credential",
+          "usage": "saved credential name to use (see 'kapi credentials list')",
+          "type": "string"
+        },
+        {
+          "name": "domain",
+          "usage": "Subject domain for terminology extraction (e.g. medical legal technology)",
+          "type": "string"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "model",
+          "usage": "AI model name",
+          "type": "string"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "provider",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
+          "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi term-extract messages.json",
+        "kapi term-extract app.xliff --provider anthropic"
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
+    },
+    {
       "id": "termbase",
       "path": [
         "termbase"
@@ -5070,6 +5081,12 @@
           "type": "bool"
         },
         {
+          "name": "monolingual",
+          "usage": "import a single-locale concept list (term[, definition]) with no translation pair",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "name",
           "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
           "type": "string"
@@ -5090,6 +5107,7 @@
       ],
       "examples": [
         "kapi termbase import glossary.csv -s en -t fr --header",
+        "kapi termbase import vocab.csv -s en --monolingual --header",
         "kapi termbase import terms.tbx --format tbx",
         "kapi termbase import seeds/termbase.klftb"
       ],
@@ -6396,7 +6414,7 @@
       ],
       "use": "verify [files...]",
       "short": "Run a project's bound quality gates (brand, terminology, QA) in one shot",
-      "long": "Run a localization project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nSelecting gates (--brand/--terms/--qa) and missing bindings: with no gate flag,\nevery gate runs and a gate whose binding is missing (no defaults.brand_voice, no\ndefaults.termbase) is skipped silently — there is nothing to check. But when you\nexplicitly request a gate whose binding is missing, verify does not skip it: it\nfails the gate with a clear \"misconfigured\" finding, so a CI run that asked for\n--brand or --terms cannot pass by silently doing nothing. Bind the resource in\nthe .kapi project, drop the flag, or pass --no-fail to keep it report-only.\n\nExit codes: 0 pass, 3 when any gate fails (including a requested-but-unbound\ngate), 1 for operational errors. Exit 3 means \"not on-spec yet\", not a crash — in\nan assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 0\n(report mode) when looping; omit it for CI gating.",
+      "long": "Run a project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nSelecting gates (--brand/--terms/--qa) and missing bindings: with no gate flag,\nevery gate runs and a gate whose binding is missing (no defaults.brand_voice, no\ndefaults.termbase) is skipped silently — there is nothing to check. But when you\nexplicitly request a gate whose binding is missing, verify does not skip it: it\nfails the gate with a clear \"misconfigured\" finding, so a CI run that asked for\n--brand or --terms cannot pass by silently doing nothing. Bind the resource in\nthe .kapi project, drop the flag, or pass --no-fail to keep it report-only.\n\nExit codes: 0 pass, 3 when any gate fails (including a requested-but-unbound\ngate), 1 for operational errors. Exit 3 means \"not on-spec yet\", not a crash — in\nan assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 0\n(report mode) when looping; omit it for CI gating.",
       "groupID": "quality",
       "flags": [
         {

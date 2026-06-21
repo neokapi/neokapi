@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T13:11:32Z",
+  "generatedAt": "2026-06-21T19:38:00Z",
   "kind": "tool",
   "entries": [
     {
@@ -163,7 +163,7 @@
       }
     },
     {
-      "id": "ai-entity-extract",
+      "id": "entity-extract",
       "source": "built-in",
       "kind": "tool",
       "displayName": "AI Entity Extract",
@@ -185,12 +185,12 @@
         "remote-source-egress"
       ],
       "schema": {
-        "$id": "ai-entity-extract",
+        "$id": "entity-extract",
         "title": "AI Entity Extract",
         "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
         "type": "object",
         "toolMeta": {
-          "id": "ai-entity-extract",
+          "id": "entity-extract",
           "category": "analysis",
           "displayName": "AI Entity Extract",
           "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
@@ -365,7 +365,7 @@
         }
       },
       "doc": {
-        "overview": "The **AI Entity Extract** tool analyses a block's source text with a large\nlanguage model and records two kinds of stand-off annotation: named entities\n(people, organizations, products, locations, and also dates, times,\ncurrencies, and measurements) and terminology candidates (domain-specific\nterms that would benefit from a termbase entry). Each entity carries a\nsuggested do-not-translate flag; each term candidate carries a category and a\ntranslatability classification (do-not-translate, consistent, or free). It is\nread-only — it writes annotations only and never changes the source or target.\n\nExtraction can optionally combine the LLM with a NER provider for fast entity\ndetection; the LLM classification is preferred where the two overlap. Blocks\ncan be analysed one at a time or grouped into batches sent in a single\nstructured call, and batches can run concurrently. Known terms already in the\ntermbase can be supplied so they are not re-proposed. A provider and, for\nhosted providers, credentials are required.\n",
+        "overview": "The **Entity Extract** tool analyses a block's source text with a large\nlanguage model and records two kinds of stand-off annotation: named entities\n(people, organizations, products, locations, and also dates, times,\ncurrencies, and measurements) and terminology candidates (domain-specific\nterms that would benefit from a termbase entry). Each entity carries a\nsuggested do-not-translate flag; each term candidate carries a category and a\ntranslatability classification (do-not-translate, consistent, or free). It is\nread-only — it writes annotations only and never changes the source or target.\n\nExtraction can optionally combine the LLM with a NER provider for fast entity\ndetection; the LLM classification is preferred where the two overlap. Blocks\ncan be analysed one at a time or grouped into batches sent in a single\nstructured call, and batches can run concurrently. Known terms already in the\ntermbase can be supplied so they are not re-proposed. A provider and, for\nhosted providers, credentials are required.\n",
         "parameters": {
           "apiKey": {
             "description": "API key for the provider.",
@@ -453,154 +453,7 @@
       }
     },
     {
-      "id": "ai-review",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "AI Review",
-      "description": "Review each translation with an LLM, producing a score, assessment, and suggestion.",
-      "category": "quality",
-      "tags": [
-        "ai-powered"
-      ],
-      "requires": [
-        "target-language",
-        "credentials"
-      ],
-      "cardinality": "bilingual",
-      "sideEffects": [
-        "api-call",
-        "remote-source-egress"
-      ],
-      "schema": {
-        "$id": "ai-review",
-        "title": "AI Review",
-        "description": "Review translations with scoring using an LLM provider",
-        "type": "object",
-        "toolMeta": {
-          "id": "ai-review",
-          "category": "quality",
-          "displayName": "AI Review",
-          "description": "Review translations with scoring using an LLM provider",
-          "tags": [
-            "ai-powered"
-          ],
-          "requires": [
-            "target-language",
-            "credentials"
-          ],
-          "cardinality": "bilingual",
-          "sideEffects": [
-            "api-call",
-            "remote-source-egress"
-          ],
-          "writesOutput": true,
-          "defaultParallelBlocks": 5
-        },
-        "ui:groups": [
-          {
-            "id": "provider",
-            "label": "Provider",
-            "fields": [
-              "provider",
-              "apiKey",
-              "model"
-            ]
-          }
-        ],
-        "properties": {
-          "apiKey": {
-            "type": "string",
-            "title": "API Key",
-            "description": "API key for the AI provider"
-          },
-          "model": {
-            "type": "string",
-            "title": "Model",
-            "description": "AI model name"
-          },
-          "provider": {
-            "type": "string",
-            "title": "AI Provider",
-            "description": "AI provider",
-            "default": "anthropic",
-            "options": [
-              {
-                "value": "anthropic",
-                "label": "Anthropic"
-              },
-              {
-                "value": "openai",
-                "label": "OpenAI"
-              },
-              {
-                "value": "gemini",
-                "label": "Gemini"
-              },
-              {
-                "value": "azureopenai",
-                "label": "Azure OpenAI"
-              },
-              {
-                "value": "ollama",
-                "label": "Ollama"
-              },
-              {
-                "value": "demo",
-                "label": "Demo (illustrative)"
-              },
-              {
-                "value": "gemma",
-                "label": "Gemma (local)"
-              }
-            ]
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **AI Review** tool asks a configured LLM provider to review each\ntranslation and return a concise assessment: a score from 1 to 10, a brief\njudgement of accuracy and fluency, and a suggested improvement where warranted.\nThe review text is recorded on the block's properties along with the provider\nname. Blocks without a translation for the target locale are skipped.\n\nBoth a target locale and provider credentials are required, since the tool makes\nan external API call per block. Unlike the AI QA check, which returns structured\nissues, this tool produces a free-form review intended for human reviewers\ndeciding whether a translation needs revision.\n",
-        "parameters": {
-          "apiKey": {
-            "description": "API key for the AI provider.",
-            "help": "Credential for the selected provider. Local providers such as Ollama may not\nrequire a key. Prefer the credential store or environment over committing\nkeys to a recipe.\n",
-            "values": "string"
-          },
-          "model": {
-            "description": "The model name to request from the provider.",
-            "help": "The provider-specific model identifier. When omitted, the provider's default\nmodel is used.\n",
-            "values": "string"
-          },
-          "provider": {
-            "description": "The LLM provider backend to use.",
-            "help": "Selects which model backend performs the review.\n",
-            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
-          }
-        },
-        "limitations": [
-          "Requires AI provider credentials and a target locale; makes an external API call per block.",
-          "The review is free-form model output, not structured QA issues.",
-          "Blocks without a translation for the target locale are skipped."
-        ],
-        "processingNotes": [
-          "Operates on blocks that have a translation for the target locale.",
-          "Blocks are processed in parallel by default for throughput.",
-          "The review text and provider name are stored on the block's properties."
-        ],
-        "examples": [
-          {
-            "title": "Review with the default provider",
-            "description": "Score and assess each translation using Anthropic.",
-            "config": "provider: anthropic\n"
-          },
-          {
-            "title": "Review with a specific model",
-            "description": "Use a named OpenAI model for the review.",
-            "config": "provider: openai\nmodel: gpt-4o\n"
-          }
-        ]
-      }
-    },
-    {
-      "id": "ai-terminology",
+      "id": "term-extract",
       "source": "built-in",
       "kind": "tool",
       "displayName": "AI Terminology Extraction",
@@ -622,12 +475,12 @@
         "remote-source-egress"
       ],
       "schema": {
-        "$id": "ai-terminology",
+        "$id": "term-extract",
         "title": "AI Terminology Extraction",
         "description": "Extract candidate terminology from content using an LLM provider",
         "type": "object",
         "toolMeta": {
-          "id": "ai-terminology",
+          "id": "term-extract",
           "category": "analysis",
           "displayName": "AI Terminology Extraction",
           "description": "Extract candidate terminology from content using an LLM provider",
@@ -716,7 +569,7 @@
         }
       },
       "doc": {
-        "overview": "The **AI Terminology Extraction** tool sends each block's source text to a\nconfigured LLM provider and asks it to return notable terms, each with a short\ndefinition and domain. The extracted entries are recorded on the block's\nproperties as a terminology list. Blocks whose source is empty are skipped, and\nblocks with no terms found are left unchanged.\n\nBecause the tool calls an external model, it requires provider credentials. An\noptional subject domain can be supplied to bias extraction toward that field\n(for example medical, legal, or technology terminology). The results are\ncandidate terms intended for review and curation into a termbase, not an\nauthoritative glossary.\n",
+        "overview": "The **Term Extract** tool sends each block's source text to a\nconfigured LLM provider and asks it to return notable terms, each with a short\ndefinition and domain. The extracted entries are recorded on the block's\nproperties as a terminology list. Blocks whose source is empty are skipped, and\nblocks with no terms found are left unchanged.\n\nBecause the tool calls an external model, it requires provider credentials. An\noptional subject domain can be supplied to bias extraction toward that field\n(for example medical, legal, or technology terminology). The results are\ncandidate terms intended for review and curation into a termbase, not an\nauthoritative glossary.\n",
         "parameters": {
           "apiKey": {
             "description": "API key for the AI provider.",
@@ -3915,11 +3768,11 @@
         }
       },
       "doc": {
-        "overview": "The **Redact** tool replaces sensitive spans in the source with protected\nplaceholders before the content is processed (for example, before it is sent\nto a translation provider), and stashes the originals locally so a later\n`unredact` can restore them. It never emits the original value into the\nrewritten content. It is a recoverable transformer: it produces an edit plan\n— the span replacements plus the originals to vault — and the framework\napplier rewrites the source, rebasing surviving run-anchored overlays so an\nupstream annotator's terms or entities follow the rewrite.\n\nTwo detection backends can run, alone or together: `rules` matches literal\nterms and regular expressions from a rules file or inline rules, and\n`entities` redacts entity annotations already on the block (as produced by\n`ai-entity-extract`). When no detector is configured, `rules` is used. The\noriginals are stored on the block as an in-process secret annotation by\ndefault, or written to a sidecar vault when a vault path is supplied (the\nexternal mode used by `extract` → `merge`).\n",
+        "overview": "The **Redact** tool replaces sensitive spans in the source with protected\nplaceholders before the content is processed (for example, before it is sent\nto a translation provider), and stashes the originals locally so a later\n`unredact` can restore them. It never emits the original value into the\nrewritten content. It is a recoverable transformer: it produces an edit plan\n— the span replacements plus the originals to vault — and the framework\napplier rewrites the source, rebasing surviving run-anchored overlays so an\nupstream annotator's terms or entities follow the rewrite.\n\nTwo detection backends can run, alone or together: `rules` matches literal\nterms and regular expressions from a rules file or inline rules, and\n`entities` redacts entity annotations already on the block (as produced by\n`entity-extract`). When no detector is configured, `rules` is used. The\noriginals are stored on the block as an in-process secret annotation by\ndefault, or written to a sidecar vault when a vault path is supplied (the\nexternal mode used by `extract` → `merge`).\n",
         "parameters": {
           "detectors": {
             "description": "Detection backends to run: rules and/or entities.",
-            "help": "`rules` matches literal terms and regular expressions from a rules file or\ninline rules. `entities` redacts entity annotations already attached to the\nblock (e.g. by `ai-entity-extract`). Both may be listed; when none is set,\n`rules` is used.\n",
+            "help": "`rules` matches literal terms and regular expressions from a rules file or\ninline rules. `entities` redacts entity annotations already attached to the\nblock (e.g. by `entity-extract`). Both may be listed; when none is set,\n`rules` is used.\n",
             "values": "list of `rules` / `entities` (default `[rules]`)"
           },
           "entityTypes": {
@@ -3951,7 +3804,7 @@
           }
         },
         "limitations": [
-          "The `entities` detector only acts on entity annotations already present on the block; it does not detect entities itself — pair it with `ai-entity-extract`.",
+          "The `entities` detector only acts on entity annotations already present on the block; it does not detect entities itself — pair it with `entity-extract`.",
           "Inline rules and the sidecar vault path are supplied programmatically by callers (e.g. extract → merge) rather than through the schema fields documented here.",
           "Operates on translatable source spans; dates, times, currencies, and measurements are excluded from the default entity set."
         ],
@@ -4133,6 +3986,308 @@
             "title": "Case-insensitive repetition",
             "description": "Treat segments that differ only in case as repetitions.",
             "config": "caseSensitive: false\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "review",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Review",
+      "description": "Review each translation with an LLM, producing a score, assessment, and suggestion.",
+      "category": "quality",
+      "tags": [
+        "ai-powered"
+      ],
+      "requires": [
+        "target-language",
+        "credentials"
+      ],
+      "cardinality": "bilingual",
+      "sideEffects": [
+        "api-call",
+        "remote-source-egress"
+      ],
+      "schema": {
+        "$id": "review",
+        "title": "Review",
+        "description": "Review translations with scoring using an LLM provider",
+        "type": "object",
+        "toolMeta": {
+          "id": "review",
+          "category": "quality",
+          "displayName": "Review",
+          "description": "Review translations with scoring using an LLM provider",
+          "tags": [
+            "ai-powered"
+          ],
+          "requires": [
+            "target-language",
+            "credentials"
+          ],
+          "cardinality": "bilingual",
+          "sideEffects": [
+            "api-call",
+            "remote-source-egress"
+          ],
+          "writesOutput": true,
+          "defaultParallelBlocks": 5
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "provider",
+              "apiKey",
+              "model"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the AI provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "AI model name"
+          },
+          "provider": {
+            "type": "string",
+            "title": "AI Provider",
+            "description": "AI provider",
+            "default": "anthropic",
+            "options": [
+              {
+                "value": "anthropic",
+                "label": "Anthropic"
+              },
+              {
+                "value": "openai",
+                "label": "OpenAI"
+              },
+              {
+                "value": "gemini",
+                "label": "Gemini"
+              },
+              {
+                "value": "azureopenai",
+                "label": "Azure OpenAI"
+              },
+              {
+                "value": "ollama",
+                "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
+              },
+              {
+                "value": "gemma",
+                "label": "Gemma (local)"
+              }
+            ]
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Review** tool asks a configured LLM provider to review each\ntranslation and return a concise assessment: a score from 1 to 10, a brief\njudgement of accuracy and fluency, and a suggested improvement where warranted.\nThe review text is recorded on the block's properties along with the provider\nname. Blocks without a translation for the target locale are skipped.\n\nBoth a target locale and provider credentials are required, since the tool makes\nan external API call per block. Unlike the AI QA check, which returns structured\nissues, this tool produces a free-form review intended for human reviewers\ndeciding whether a translation needs revision.\n",
+        "parameters": {
+          "apiKey": {
+            "description": "API key for the AI provider.",
+            "help": "Credential for the selected provider. Local providers such as Ollama may not\nrequire a key. Prefer the credential store or environment over committing\nkeys to a recipe.\n",
+            "values": "string"
+          },
+          "model": {
+            "description": "The model name to request from the provider.",
+            "help": "The provider-specific model identifier. When omitted, the provider's default\nmodel is used.\n",
+            "values": "string"
+          },
+          "provider": {
+            "description": "The LLM provider backend to use.",
+            "help": "Selects which model backend performs the review.\n",
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
+          }
+        },
+        "limitations": [
+          "Requires AI provider credentials and a target locale; makes an external API call per block.",
+          "The review is free-form model output, not structured QA issues.",
+          "Blocks without a translation for the target locale are skipped."
+        ],
+        "processingNotes": [
+          "Operates on blocks that have a translation for the target locale.",
+          "Blocks are processed in parallel by default for throughput.",
+          "The review text and provider name are stored on the block's properties."
+        ],
+        "examples": [
+          {
+            "title": "Review with the default provider",
+            "description": "Score and assess each translation using Anthropic.",
+            "config": "provider: anthropic\n"
+          },
+          {
+            "title": "Review with a specific model",
+            "description": "Use a named OpenAI model for the review.",
+            "config": "provider: openai\nmodel: gpt-4o\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rewrite",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Rewrite",
+      "description": "Rewrite the text inside a file with an LLM following a plain-language instruction, preserving structure and inline codes.",
+      "category": "text-processing",
+      "tags": [
+        "ai-powered"
+      ],
+      "requires": [
+        "credentials"
+      ],
+      "cardinality": "monolingual",
+      "sideEffects": [
+        "api-call",
+        "remote-source-egress"
+      ],
+      "isSourceTransform": true,
+      "schema": {
+        "$id": "rewrite",
+        "title": "Rewrite",
+        "description": "Rewrite the text inside a file following an instruction, preserving structure and inline codes",
+        "type": "object",
+        "toolMeta": {
+          "id": "rewrite",
+          "category": "text-processing",
+          "displayName": "Rewrite",
+          "description": "Rewrite the text inside a file following an instruction, preserving structure and inline codes",
+          "tags": [
+            "ai-powered"
+          ],
+          "requires": [
+            "credentials"
+          ],
+          "cardinality": "monolingual",
+          "sideEffects": [
+            "api-call",
+            "remote-source-egress"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "provider",
+              "apiKey",
+              "model"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the AI provider"
+          },
+          "instruction": {
+            "type": "string",
+            "title": "Instruction",
+            "description": "Plain-language instruction describing how to rewrite the text"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "AI model name"
+          },
+          "provider": {
+            "type": "string",
+            "title": "AI Provider",
+            "description": "AI provider",
+            "default": "anthropic",
+            "options": [
+              {
+                "value": "anthropic",
+                "label": "Anthropic"
+              },
+              {
+                "value": "openai",
+                "label": "OpenAI"
+              },
+              {
+                "value": "gemini",
+                "label": "Gemini"
+              },
+              {
+                "value": "azureopenai",
+                "label": "Azure OpenAI"
+              },
+              {
+                "value": "ollama",
+                "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
+              },
+              {
+                "value": "gemma",
+                "label": "Gemma (local)"
+              }
+            ]
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Rewrite** tool hands the human-readable text of each block to a\nconfigured LLM with a plain-language `instruction` — \"make it more concise\",\n\"use UK spelling\", \"friendlier tone\" — and writes the rewritten text back into\nthe document. It is a source transform: a `.docx` keeps its styles, a JSON\ncatalog keeps its keys and shape, and inline codes/placeholders are preserved\naround the edit, so only the editable text changes.\n\nThis is the safe way to let an AI assistant edit content it cannot otherwise\nopen: the structure-preserving pipeline guarantees the rewrite lands only in\nthe text, never the surrounding markup. The dedicated `kapi rewrite` command\nadds in-place editing and a `--diff` preview of every changed block.\n\nProvider credentials are required, since the tool makes an external API call\nper block. A block with a plural/select construct (no linear text mapping) is\nrewritten opaquely, replacing the whole source with the rewritten text.\n",
+        "parameters": {
+          "apiKey": {
+            "description": "API key for the AI provider.",
+            "help": "Credential for the selected provider. Local providers such as Ollama may not\nrequire a key. Prefer the credential store or environment over committing\nkeys to a recipe.\n",
+            "values": "string"
+          },
+          "instruction": {
+            "description": "Plain-language instruction describing how to rewrite the text.",
+            "help": "The directive the model follows when rewriting each block, e.g. \"make it\nmore concise\" or \"rephrase for a 5th-grade reading level\". Required.\n",
+            "values": "string"
+          },
+          "model": {
+            "description": "The model name to request from the provider.",
+            "help": "The provider-specific model identifier. When omitted, the provider's default\nmodel is used.\n",
+            "values": "string"
+          },
+          "provider": {
+            "description": "The LLM provider backend to use.",
+            "help": "Selects which model backend performs the rewrite.\n",
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
+          }
+        },
+        "limitations": [
+          "Requires AI provider credentials; makes an external API call per block.",
+          "Plural/select blocks are rewritten opaquely (the whole source is replaced), dropping inline codes for that block.",
+          "A rewritten block's source-anchored overlays (terms, entities, segmentation) that overlap the change are dropped."
+        ],
+        "processingNotes": [
+          "Renders inline codes as placeholder tags so the model preserves them, then reconstructs the run structure from the response.",
+          "Faithfulness guard — if a rewrite does not preserve every inline code exactly (a dropped, invented, duplicated, or reordered placeholder/markup tag), that block is left unchanged rather than written back with unbalanced markup. Plain-text blocks have no codes and are always rewritten.",
+          "Non-translatable and blank blocks pass through unchanged.",
+          "Drives the byte-faithful round-trip, so structure-preserving formats round-trip with only the text changed."
+        ],
+        "examples": [
+          {
+            "title": "Make the text more concise",
+            "description": "Rewrite every block to be shorter while keeping meaning.",
+            "config": "instruction: make it more concise\n"
+          },
+          {
+            "title": "Localise spelling with a named model",
+            "description": "Switch to UK spelling using a specific provider/model.",
+            "config": "instruction: use UK spelling\nprovider: openai\nmodel: gpt-4o\n"
           }
         ]
       }

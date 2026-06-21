@@ -107,8 +107,8 @@ composes into [flows](/framework/flows) like any other stage:
 | ---------------- | ----------------------------------------------------- |
 | `translate`      | Translate untranslated Blocks using an LLM (or MT) provider |
 | `qa --provider`  | LLM-judged check of translations for fluency, accuracy, terminology |
-| `ai-terminology` | Extract terminology from source Blocks                |
-| `ai-review`      | Review translations with explanations                 |
+| `term-extract` | Extract terminology from source Blocks                |
+| `review`      | Review translations with explanations                 |
 
 The generated [Tool Reference](/tools) lists each AI tool with its current
 parameters.

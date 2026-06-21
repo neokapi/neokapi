@@ -21,11 +21,11 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// no credentials) and LLM-judged review; `--mode` selects (see unified.go).
 	reg.RegisterGroup(qaGroup())
 
-	// AI Review
-	reg.RegisterWithSchema("ai-review", func() tool.Tool {
+	// Review — review translations with scoring using an LLM.
+	reg.RegisterWithSchema("review", func() tool.Tool {
 		return NewAIReviewTool(aiprovider.NewMockProvider(), AIReviewConfig{})
 	}, AIReviewSchema())
-	reg.SetConfigFactory("ai-review", NewAIReviewFromConfig)
+	reg.SetConfigFactory("review", NewAIReviewFromConfig)
 
 	// AI Brand Voice Check — score/flag text against a brand voice profile.
 	reg.RegisterWithSchema("brand-voice-check", func() tool.Tool {
@@ -33,15 +33,23 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, BrandVoiceCheckSchema())
 	reg.SetConfigFactory("brand-voice-check", NewBrandVoiceCheckFromConfig)
 
-	// AI Terminology — extract candidate terminology from content.
-	reg.RegisterWithSchema("ai-terminology", func() tool.Tool {
+	// Term Extract — extract candidate terminology from content (the LLM
+	// counterpart to the deterministic term-check).
+	reg.RegisterWithSchema("term-extract", func() tool.Tool {
 		return NewAITerminologyTool(aiprovider.NewMockProvider(), AITerminologyConfig{})
 	}, AITerminologySchema())
-	reg.SetConfigFactory("ai-terminology", NewAITerminologyFromConfig)
+	reg.SetConfigFactory("term-extract", NewAITerminologyFromConfig)
 
-	// AI Entity Extract — a tool group whose engine members are llm / local NER /
+	// Entity Extract — a tool group whose engine members are llm / local NER /
 	// hybrid (feeds redaction's "entities" detector and terminology workflows).
 	reg.RegisterGroup(entityExtractGroup())
+
+	// Rewrite — rewrite the text inside a file following an instruction,
+	// preserving structure and inline codes (the content-editing moat tool).
+	reg.RegisterWithSchema("rewrite", func() tool.Tool {
+		return NewRewriteTool(aiprovider.NewMockProvider(), RewriteConfig{})
+	}, RewriteSchema())
+	reg.SetConfigFactory("rewrite", NewRewriteFromConfig)
 
 	// Media Refine — re-read low-confidence OCR/ASR lines with a multimodal LLM.
 	reg.RegisterWithSchema("media-refine", func() tool.Tool {
@@ -51,18 +59,18 @@ func RegisterAll(reg *registry.ToolRegistry) {
 
 	// Every AI tool's remote-source-egress side effect is config-dependent: a
 	// local provider (Ollama, the offline demo) keeps content on the machine.
-	// The tool groups (translate, qa, ai-entity-extract) carry their own
+	// The tool groups (translate, qa, entity-extract) carry their own
 	// resolver in the group def; the remaining single-backend AI tools share
 	// ResolveAIEgressContract.
 	for _, name := range []registry.ToolID{
-		"ai-review", "brand-voice-check",
-		"ai-terminology", "media-refine",
+		"review", "brand-voice-check",
+		"term-extract", "rewrite", "media-refine",
 	} {
 		reg.SetContractResolver(name, ResolveAIEgressContract)
 	}
 }
 
-// ResolveEntityExtractContract refines ai-entity-extract's contract from its
+// ResolveEntityExtractContract refines entity-extract's contract from its
 // config: with `engine: ner` the tool calls no provider at all — extraction
 // runs on the local on-device NER model — so it carries no API call, no
 // remote source egress, and needs no credentials. Any other engine resolves

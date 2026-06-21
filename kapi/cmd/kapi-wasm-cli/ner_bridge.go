@@ -12,7 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// JS-bridged local NER (the on-device model path for `ai-entity-extract` with
+// JS-bridged local NER (the on-device model path for `entity-extract` with
 // `engine: ner` in the browser). The page registers
 //
 //	globalThis.kapiLocalNER = async (reqJSON) => respJSON

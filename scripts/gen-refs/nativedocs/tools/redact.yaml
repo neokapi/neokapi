@@ -14,7 +14,7 @@ overview: |
   Two detection backends can run, alone or together: `rules` matches literal
   terms and regular expressions from a rules file or inline rules, and
   `entities` redacts entity annotations already on the block (as produced by
-  `ai-entity-extract`). When no detector is configured, `rules` is used. The
+  `entity-extract`). When no detector is configured, `rules` is used. The
   originals are stored on the block as an in-process secret annotation by
   default, or written to a sidecar vault when a vault path is supplied (the
   external mode used by `extract` → `merge`).
@@ -24,7 +24,7 @@ parameters:
     help: |
       `rules` matches literal terms and regular expressions from a rules file or
       inline rules. `entities` redacts entity annotations already attached to the
-      block (e.g. by `ai-entity-extract`). Both may be listed; when none is set,
+      block (e.g. by `entity-extract`). Both may be listed; when none is set,
       `rules` is used.
     values: "list of `rules` / `entities` (default `[rules]`)"
   rulesPath:
@@ -57,7 +57,7 @@ parameters:
       - property: detectors
         condition: the `entities` detector must be enabled
 limitations:
-  - The `entities` detector only acts on entity annotations already present on the block; it does not detect entities itself — pair it with `ai-entity-extract`.
+  - The `entities` detector only acts on entity annotations already present on the block; it does not detect entities itself — pair it with `entity-extract`.
   - Inline rules and the sidecar vault path are supplied programmatically by callers (e.g. extract → merge) rather than through the schema fields documented here.
   - Operates on translatable source spans; dates, times, currencies, and measurements are excluded from the default entity set.
 processingNotes:

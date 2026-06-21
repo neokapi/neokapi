@@ -17,7 +17,7 @@ import (
 
 // TestAIEntityExtractSchema_ProducesEntityOverlay locks the NER tool's declared
 // output: it produces the source-side entity overlay that redact consumes, so an
-// ai-entity-extract → redact flow satisfies redact's required entity input.
+// entity-extract → redact flow satisfies redact's required entity input.
 func TestAIEntityExtractSchema_ProducesEntityOverlay(t *testing.T) {
 	s := tools.AIEntityExtractSchema()
 	require.NotNil(t, s.ToolMeta)
@@ -27,7 +27,7 @@ func TestAIEntityExtractSchema_ProducesEntityOverlay(t *testing.T) {
 			hasEntity = true
 		}
 	}
-	assert.True(t, hasEntity, "ai-entity-extract must declare it produces the source entity overlay")
+	assert.True(t, hasEntity, "entity-extract must declare it produces the source entity overlay")
 }
 
 // mockNERProvider implements ner.Provider for testing.
@@ -421,7 +421,7 @@ func TestAIEntityExtract_NEREngine(t *testing.T) {
 
 	t.Run("contract drops credentials, api-call and remote egress", func(t *testing.T) {
 		base := registry.ToolInfo{
-			Name:        "ai-entity-extract",
+			Name:        "entity-extract",
 			Requires:    []string{schema.RequiresCredentials},
 			SideEffects: []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 		}

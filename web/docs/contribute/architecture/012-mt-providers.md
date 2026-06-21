@@ -154,7 +154,7 @@ refinement:
     { label: "Source", role: "io" },
     { label: "tm-leverage", role: "translate" },
     { label: "translate", role: "translate" },
-    { label: "ai-review", role: "qa" },
+    { label: "review", role: "qa" },
     { label: "qa", role: "qa" },
     { label: "Sink", role: "io" },
   ]}
@@ -162,7 +162,7 @@ refinement:
 
 - `tm-leverage` fills exact and generalized matches at near-zero cost.
 - `translate --provider deepl` translates the remainder quickly and cheaply.
-- `ai-review` (optional) refines MT output using LLM reasoning with
+- `review` (optional) refines MT output using LLM reasoning with
   glossary and TM context.
 - `qa` validates the result before writing.
 

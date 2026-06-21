@@ -728,7 +728,7 @@ const transformerAwareTools: ToolInfo[] = [
     isSourceTransform: true,
   },
   {
-    name: "ai-entity-extract",
+    name: "entity-extract",
     display_name: "AI Entity Extract",
     description: "Recognize named entities with a cloud NER model",
     category: "analysis",
@@ -805,7 +805,7 @@ export const PlacementDiagnostics: Story = {
   args: {
     flow: {
       steps: [
-        { tool: "ai-entity-extract" },
+        { tool: "entity-extract" },
         { tool: "redact" },
         { tool: "translate" },
         { tool: "case-transform" },
@@ -828,7 +828,7 @@ export const EntityDrivenRedaction: Story = {
   args: {
     flow: {
       steps: [
-        { tool: "ai-entity-extract" },
+        { tool: "entity-extract" },
         { tool: "redact", config: { detectors: ["entities"] } },
         { tool: "translate" },
         { tool: "unredact" },

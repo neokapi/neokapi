@@ -38,7 +38,7 @@ func main() {
 	// brand-voice-check, …) are already registered by InitRegistries; the demo
 	// provider is forced for them per command run via forceDemoProviders.
 	registerMT(app.ToolReg)
-	// On-device NER (ai-entity-extract engine "ner"): bridge to a JS-loaded
+	// On-device NER (entity-extract engine "ner"): bridge to a JS-loaded
 	// model (GLiNER via onnxruntime-web); errors actionably until loaded.
 	registerLocalNER()
 

@@ -198,11 +198,25 @@ func (a *App) newBrandRewriteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rewrite",
 		Short: "Rewrite text to comply with a brand voice profile",
+		Long: `Rewrite content to comply with a brand voice profile.
+
+By default text is read from --input-text or stdin and the rewrite is printed.
+With -i/--in-place FILE..., kapi instead edits the content inside each file
+through the format-aware rewrite tool: the document round-trips in its own format
+(a .docx keeps its styles, a JSON catalog keeps its keys), and only the editable
+text is rewritten on-brand. In-place editing always uses an AI provider.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profile, _, err := a.resolveBrandProfile(cmd)
 			if err != nil {
 				return err
 			}
+
+			// -i/--in-place FILE...: faithful, format-aware on-brand rewrite of
+			// the content inside each file (vs the string/stdin path below).
+			if cmd.Flags().Changed("in-place") {
+				return a.runBrandRewriteFiles(cmd, profile, args)
+			}
+
 			text, err := readSubjectText(cmd, args)
 			if err != nil {
 				return err
@@ -241,7 +255,59 @@ func (a *App) newBrandRewriteCmd() *cobra.Command {
 	cmd.Flags().String("input-text", "", `text to rewrite (use "-" or omit to read stdin)`)
 	// Only --json here (not output.AddFlags) to avoid colliding with --input-text.
 	cmd.Flags().Bool("json", false, "output results as JSON")
+	// -i/--in-place FILE...: faithful on-brand rewrite of files in place,
+	// optionally keeping a backup (--in-place=.bak), mirroring `kapi rewrite`.
+	cmd.Flags().StringP("in-place", "i", "", "rewrite FILE... in place (format-aware); keep a backup with --in-place=.bak")
+	cmd.Flags().Lookup("in-place").NoOptDefVal = sentinelInPlace
 	return cmd
+}
+
+// runBrandRewriteFiles rewrites the content inside each file on-brand and in
+// place. It folds the profile's voice guide into the rewrite tool's instruction
+// and drives the faithful round-trip (editDocument), so structure and inline
+// codes survive and only the text changes. In-place editing always uses an AI
+// provider — the deterministic term-substitution path is string/stdin only.
+func (a *App) runBrandRewriteFiles(cmd *cobra.Command, profile *brand.VoiceProfile, args []string) error {
+	p, err := a.buildBrandProvider(cmd)
+	if err != nil {
+		return err
+	}
+
+	instruction := "Rewrite the text so it complies with the following brand voice guide. " +
+		"Preserve meaning and any placeholders or markup.\n\n" + brand.RenderVoiceGuide(profile)
+	t := aitools.NewRewriteTool(p, aitools.RewriteConfig{Instruction: instruction})
+
+	backupSuffix := ""
+	if v, _ := cmd.Flags().GetString("in-place"); v != sentinelInPlace {
+		backupSuffix = v
+	}
+
+	hadError := false
+	files, err := expandInputs(args, false, func(path string, ferr error) {
+		hadError = true
+		fmt.Fprintf(cmd.ErrOrStderr(), "brand rewrite: %s: %v\n", path, ferr)
+	})
+	if err != nil {
+		return err
+	}
+	if len(files) == 1 && files[0] == stdinName {
+		return errors.New("in-place editing requires at least one FILE argument")
+	}
+	for _, file := range files {
+		if err := a.editDocument(cmd.Context(), file, t, "", true, backupSuffix, os.Stdout); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return err
+			}
+			hadError = true
+			fmt.Fprintf(cmd.ErrOrStderr(), "brand rewrite: %s: %v\n", displayName(file), err)
+			continue
+		}
+		fmt.Fprintf(cmd.ErrOrStderr(), "rewrote %s on-brand (%s)\n", displayName(file), profile.Name)
+	}
+	if hadError {
+		return WithExitCode(ExitUsage, ErrSilentExit)
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
