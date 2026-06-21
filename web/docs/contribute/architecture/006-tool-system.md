@@ -82,7 +82,7 @@ whichever capability-typed handler is set (and other Part types to their
 embed `BaseTool` and set only the handlers they need. A tool that needs the full
 stream — batching, 1→N fan-out, cross-block state (e.g. the batch collector, the
 concurrent translate path) — overrides `Process` directly; it may reuse a
-typed handler over a held block via `tool.NewBlockView`/`NewTargetView`.
+typed handler over a held block via `tool.NewBlockView`/`NewVariantView`.
 
 ### SessionTool extension
 

@@ -48,7 +48,7 @@ type BaseTool struct {
 	//   Annotate(BlockView)  — analysis/annotation: reads source+target,
 	//                          writes only overlays, annotations, properties.
 	//                          The default surface; no content writes exist.
-	//   Produce(VariantView)— target production: reads source, writes target.
+	//   Produce(VariantView) — target production: reads source, writes target.
 	//   Transform(BlockView) — a read-only EDIT PRODUCER: inspects the block
 	//                          and returns an EditPlan; the framework applier
 	//                          (the sole mutator) applies it — rewrites source,

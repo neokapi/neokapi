@@ -105,7 +105,7 @@ type BlockView interface {
 }
 
 // VariantView adds target-write access. Tools that translate or edit targets
-// receive this via TranslateBlockFn.
+// receive this via the Produce handler.
 type VariantView interface {
 	BlockView
 	SetTarget(loc model.LocaleID, t *model.Target)

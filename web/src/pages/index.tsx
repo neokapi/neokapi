@@ -116,7 +116,7 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Edit in place",
     description:
-      "Change the content inside a file and save the original, byte-for-byte. Programmatic with kgrep/ksed, or AI-driven — with a safety harness that preserves your annotations. Unlike extract-only parsers, the round-trip is reversible.",
+      "Change the content inside a file and save the original, byte-for-byte. Programmatic with kgrep/ksed, or AI-driven — with a safety harness that preserves your annotations. The edit round-trips back into the original format — structure, styles, and all.",
     link: "/toolbox/overview",
     linkText: "The toolbox",
   },

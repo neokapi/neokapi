@@ -94,7 +94,7 @@ func (l *Layer) IsEmbedded() bool { return l.ParentID != "" && l.Format != "" }
 ### Block (translatable content)
 
 ```go
-// Block is the primary translatable content unit (Okapi: TextUnit). Source is
+// Block is the primary modifiable content unit (Okapi: TextUnit). Source is
 // a single flat run sequence; translations are first-class Target records keyed
 // by VariantKey; every interpretation of the runs (segmentation, terms, entities,
 // QA, alignment) is a stand-off Overlay. There is no structural Segment type.

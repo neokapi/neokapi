@@ -58,7 +58,7 @@
           "short": "Case Transform"
         },
         "cat": {
-          "short": "Print the translatable text of files (use kcat)"
+          "short": "Print the text/content inside files (use kcat)"
         },
         "char-count": {
           "example": "  kapi char-count messages.json\n  kapi char-count page.html",
@@ -148,7 +148,7 @@
           "short": "List supported file formats"
         },
         "grep": {
-          "short": "Search the translatable text of files (use kgrep)"
+          "short": "Search the text/content inside files (use kgrep)"
         },
         "hook": {
           "long": "Glue commands for AI coding assistants. Each subcommand reads the\nassistant's hook payload on stdin and writes the assistant's expected response\non stdout. These are wired up by the assistant's plugin, not run by hand.",
@@ -178,13 +178,13 @@
           "example": "  kapi length-check app.xliff --target-lang fr\n  kapi length-check app.xliff --target-lang ja",
           "short": "Length Check"
         },
-        "long": "kapi helps you manage multilingual content — convert document formats,\ntranslate with AI, and run quality checks across a wide range of file types.",
+        "long": "kapi parses any format into one unified content model, edits the content\ninside it, checks it, and writes it back byte-for-byte. At heart, both a\nlocalization engine and the tool that keeps your source content on brand:\nconvert formats, translate with AI, and run quality checks across a wide range\nof file types.",
         "ls": {
           "long": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats",
           "short": "List the files the project's content tracks"
         },
         "mcp": {
-          "short": "Start MCP server (stdio) exposing project tools"
+          "short": "Start MCP server (stdio) exposing kapi's content tools (read, edit, check, brand, localize)"
         },
         "media-refine": {
           "short": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM"
@@ -300,7 +300,7 @@
           "short": "Search and Replace"
         },
         "sed": {
-          "short": "Stream-edit the translatable text of files (use ksed)"
+          "short": "Stream-edit the text/content inside files (use ksed)"
         },
         "segment-count": {
           "example": "  kapi segment-count messages.json\n  kapi segment-count app.xliff",
@@ -310,7 +310,7 @@
           "example": "  kapi segmentation messages.json\n  kapi segmentation app.xliff",
           "short": "Split source text into sentence or chunk segments (stand-off overlay)"
         },
-        "short": "A localization and translation toolkit",
+        "short": "A format-aware content toolkit — parse, edit, check, and localize any format",
         "skills": {
           "export": {
             "short": "Export all skills to a directory (for the plugin bundle)"
@@ -445,7 +445,7 @@
           "short": "Update kapi to the latest release"
         },
         "verify": {
-          "long": "Run a localization project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nSelecting gates (--brand/--terms/--qa) and missing bindings: with no gate flag,\nevery gate runs and a gate whose binding is missing (no defaults.brand_voice, no\ndefaults.termbase) is skipped silently — there is nothing to check. But when you\nexplicitly request a gate whose binding is missing, verify does not skip it: it\nfails the gate with a clear \"misconfigured\" finding, so a CI run that asked for\n--brand or --terms cannot pass by silently doing nothing. Bind the resource in\nthe .kapi project, drop the flag, or pass --no-fail to keep it report-only.\n\nExit codes: 0 pass, 3 when any gate fails (including a requested-but-unbound\ngate), 1 for operational errors. Exit 3 means \"not on-spec yet\", not a crash — in\nan assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 0\n(report mode) when looping; omit it for CI gating.",
+          "long": "Run a project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nSelecting gates (--brand/--terms/--qa) and missing bindings: with no gate flag,\nevery gate runs and a gate whose binding is missing (no defaults.brand_voice, no\ndefaults.termbase) is skipped silently — there is nothing to check. But when you\nexplicitly request a gate whose binding is missing, verify does not skip it: it\nfails the gate with a clear \"misconfigured\" finding, so a CI run that asked for\n--brand or --terms cannot pass by silently doing nothing. Bind the resource in\nthe .kapi project, drop the flag, or pass --no-fail to keep it report-only.\n\nExit codes: 0 pass, 3 when any gate fails (including a requested-but-unbound\ngate), 1 for operational errors. Exit 3 means \"not on-spec yet\", not a crash — in\nan assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 0\n(report mode) when looping; omit it for CI gating.",
           "short": "Run a project's bound quality gates (brand, terminology, QA) in one shot"
         },
         "version": {
