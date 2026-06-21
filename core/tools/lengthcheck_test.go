@@ -170,6 +170,94 @@ func TestLengthCheckToolNoTarget(t *testing.T) {
 	assert.Empty(t, qaFindings(resultBlock))
 }
 
+// TestLengthCheckToolCheckSourceMaxChars verifies the source scope flags an
+// over-long source block with no target set or target-language configured.
+func TestLengthCheckToolCheckSourceMaxChars(t *testing.T) {
+	t.Parallel()
+	cfg := &tools.LengthCheckConfig{
+		CheckSource: true,
+		MaxChars:    10,
+	}
+	tl := tools.NewLengthCheckTool(cfg)
+
+	block := model.NewBlock("tu1", "Hello world, this is long") // 25 chars, no target
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	findings := qaFindings(result.Resource.(*model.Block))
+	require.Len(t, findings, 1)
+	assert.Equal(t, "max-chars-exceeded", findings[0].Category)
+	assert.Equal(t, check.SeverityMajor, findings[0].Severity)
+	assert.Contains(t, findings[0].Message, "Source has 25")
+	assert.Contains(t, findings[0].Message, "10")
+}
+
+// TestLengthCheckToolCheckSourceMaxWords verifies the source scope flags a
+// source block with too many words.
+func TestLengthCheckToolCheckSourceMaxWords(t *testing.T) {
+	t.Parallel()
+	cfg := &tools.LengthCheckConfig{
+		CheckSource: true,
+		MaxWords:    2,
+	}
+	tl := tools.NewLengthCheckTool(cfg)
+
+	block := model.NewBlock("tu1", "one two three") // 3 words, no target
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	findings := qaFindings(result.Resource.(*model.Block))
+	require.Len(t, findings, 1)
+	assert.Equal(t, "max-words-exceeded", findings[0].Category)
+	assert.Equal(t, check.SeverityMajor, findings[0].Severity)
+	assert.Contains(t, findings[0].Message, "Source has 3")
+}
+
+// TestLengthCheckToolCheckSourcePass verifies a short source passes cleanly and
+// that the source scope ignores any target (no ratio checks).
+func TestLengthCheckToolCheckSourcePass(t *testing.T) {
+	t.Parallel()
+	cfg := &tools.LengthCheckConfig{
+		CheckSource: true,
+		MaxChars:    50,
+		MaxWords:    10,
+		// Ratio thresholds set but irrelevant in source scope.
+		MaxPercentage: 100.0,
+	}
+	tl := tools.NewLengthCheckTool(cfg)
+
+	block := model.NewBlock("tu1", "Short source")
+	// A target is present but must be ignored by the source scope.
+	block.SetTargetText(model.LocaleFrench, "Une traduction française bien plus longue que la source")
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	assert.Empty(t, qaFindings(result.Resource.(*model.Block)))
+}
+
+// TestLengthCheckToolCheckSourceSkipsNonTranslatable confirms non-translatable
+// blocks are skipped in source scope too.
+func TestLengthCheckToolCheckSourceSkipsNonTranslatable(t *testing.T) {
+	t.Parallel()
+	cfg := &tools.LengthCheckConfig{CheckSource: true, MaxChars: 3}
+	tl := tools.NewLengthCheckTool(cfg)
+
+	block := model.NewBlock("tu1", "Hello world")
+	block.Translatable = false
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	assert.Empty(t, qaFindings(result.Resource.(*model.Block)))
+}
+
+// TestLengthCheckConfigValidationCheckSource confirms the source scope does not
+// require a target locale.
+func TestLengthCheckConfigValidationCheckSource(t *testing.T) {
+	t.Parallel()
+	cfg := tools.LengthCheckConfig{CheckSource: true, MaxChars: 10}
+	require.NoError(t, cfg.Validate())
+}
+
 func TestLengthCheckConfigValidation(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

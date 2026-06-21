@@ -63,6 +63,76 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	assert.Contains(t, targets, "fr")
 }
 
+func TestInitCmd_monolingual(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+
+	cmd := app.NewInitCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--dir", dir, "--name", "brand-site", "--monolingual"})
+	require.NoError(t, cmd.Execute())
+
+	// Recipe parses and validates.
+	recipe := filepath.Join(dir, "brand-site.kapi")
+	p, err := project.Load(recipe)
+	require.NoError(t, err)
+
+	// Monolingual: source language set, no target languages.
+	assert.Equal(t, "en", string(p.Defaults.SourceLanguage))
+	assert.Empty(t, p.Defaults.TargetLanguages)
+
+	// Brand voice profile + termbase bound under defaults:.
+	require.NotNil(t, p.Defaults.BrandVoice)
+	assert.Equal(t, "professional-b2b", p.Defaults.BrandVoice.Pack)
+	assert.Equal(t, ".kapi/termbase.db", p.Defaults.Termbase)
+
+	// A check flow using the deterministic brand-vocabulary check.
+	require.Contains(t, p.Flows, "check")
+	require.NotNil(t, p.Flows["check"])
+	steps := p.Flows["check"].Steps
+	require.NotEmpty(t, steps)
+	assert.Equal(t, "brand-vocab-check", steps[0].Tool)
+
+	// State manifest still written (shared init scaffolding).
+	layout, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	state, err := project.LoadState(layout)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+	assert.Equal(t, "brand-site", state.Project.ID)
+}
+
+func TestInitCmd_monolingualRejectsTargetLocale(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+
+	cmd := app.NewInitCmd()
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"--dir", dir, "--monolingual", "--target-locale", "fr"})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "monolingual")
+	// No recipe should have been written.
+	_, statErr := os.Stat(filepath.Join(dir, filepath.Base(dir)+".kapi"))
+	assert.True(t, os.IsNotExist(statErr))
+}
+
+func TestInitCmd_monolingualRejectsFramework(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+
+	cmd := app.NewInitCmd()
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"--dir", dir, "--monolingual", "--framework", "flutter"})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "monolingual")
+}
+
 func TestInitCmd_framework(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
