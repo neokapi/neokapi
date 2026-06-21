@@ -152,16 +152,18 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		t.streaming = sp
 	}
 	if t.batchSize < 1 {
-		// On-device models do far better per-block than batched into one giant
-		// structured-JSON generation: per-block gives near-immediate feedback,
-		// per-block progress, and far more robust output (no 100-way JSON to
-		// malform — the cause of "unmarshal response" failures). Default local
-		// providers to per-block; an explicit batchSize still overrides.
-		if aiprovider.IsLocalProvider(aiprovider.ProviderID(cfg.Provider)) {
-			t.batchSize = 1
-		} else {
-			t.batchSize = DefaultBatchSize
-		}
+		t.batchSize = DefaultBatchSize
+	}
+	// On-device models translate far better per-block than batched into one giant
+	// structured-JSON generation: a small local model tends to ignore the "return
+	// JSON" instruction and emit plain numbered text (the cause of the
+	// "unmarshal response" failures), and a 100-block prompt is a very long, slow
+	// generation with no intermediate feedback. Force per-block for local
+	// providers unless the user deliberately chose a smaller batch. (The schema
+	// default of 100 is already applied by here, so this overrides it rather than
+	// keying off batchSize < 1.)
+	if t.batchSize >= DefaultBatchSize && aiprovider.IsLocalProvider(aiprovider.ProviderID(cfg.Provider)) {
+		t.batchSize = 1
 	}
 	if t.concurrency < 1 {
 		t.concurrency = DefaultBatchConcurrency
