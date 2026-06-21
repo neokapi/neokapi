@@ -283,17 +283,19 @@ function DownloadBar({ p }: { p?: DlProgress | null }): React.ReactElement | nul
 // one colour from this list; that same colour then marks the boundary in every
 // engine column that cut there, so agreement reads by matching colours across
 // columns. Unique cuts (only one engine) get no colour.
+// Ordered so consecutive groups (boundaries sit in document order) land on
+// maximally-distinct hues — no two adjacent boundaries read alike.
 const CONSENSUS_PALETTE = [
   "#2563eb", // blue
+  "#ea580c", // orange
   "#16a34a", // green
-  "#d97706", // amber
-  "#9333ea", // violet
-  "#0891b2", // cyan
-  "#dc2626", // red
   "#db2777", // pink
-  "#65a30d", // lime
-  "#ca8a04", // yellow
+  "#9333ea", // violet
+  "#0d9488", // teal
+  "#ca8a04", // gold
+  "#dc2626", // red
   "#4f46e5", // indigo
+  "#65a30d", // lime
 ];
 
 // Per-block consensus over the engines that mapped cleanly back to the block
@@ -330,21 +332,34 @@ function buildConsensus(
   return { counts, colors, total };
 }
 
+// A hover key uniquely names one agreed boundary: block id + offset. Hovering a
+// coloured sentence lights up the matching boundary in every engine column of the
+// same block row.
+type HoverKey = string;
+const hoverKey = (blockId: string, offset: number): HoverKey => `${blockId}::${offset}`;
+
 // SegCell renders one engine's segmentation of one block: its sentences stacked.
 // Each sentence begins at a boundary; when two or more engines agree on that
 // boundary the sentence gets a coloured left edge in the shared consensus colour,
 // so the same agreed boundary lights up the same way across every engine column.
-// This is where agreement lives now — inside the output, not a separate strip.
+// Hovering a coloured sentence highlights every sentence that shares its
+// boundary, across columns. This is where agreement lives — inside the output.
 function SegCell({
+  blockId,
   seg,
   consensus,
   busy,
   error,
+  hovered,
+  onHover,
 }: {
+  blockId: string;
   seg: BlockSeg | undefined;
   consensus: BlockConsensus;
   busy: boolean;
   error: string | null;
+  hovered: HoverKey | null;
+  onHover: (k: HoverKey | null) => void;
 }): React.ReactElement {
   if (error) return <p className="px-1 text-sm text-destructive">failed</p>;
   if (!seg) return <p className="px-1 text-sm text-muted-foreground">{busy ? "Running…" : "—"}</p>;
@@ -357,16 +372,23 @@ function SegCell({
         const start = i > 0 && seg.cuts ? seg.cuts[i - 1] : undefined;
         const color = start !== undefined ? consensus.colors.get(start) : undefined;
         const n = start !== undefined ? consensus.counts.get(start) : undefined;
+        const key = start !== undefined && color ? hoverKey(blockId, start) : null;
+        const active = key !== null && hovered === key;
         return (
           <div
             key={i}
-            className="flex gap-2 rounded border border-border bg-card/40 px-2 py-1 text-sm"
-            style={
-              color
+            className="flex gap-2 rounded border border-border bg-card/40 px-2 py-1 text-sm transition-colors"
+            style={{
+              ...(color
                 ? { borderLeftWidth: 3, borderLeftColor: color, borderLeftStyle: "solid" }
-                : undefined
-            }
+                : {}),
+              ...(active && color
+                ? { backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)` }
+                : {}),
+            }}
             title={color ? `${n} of ${consensus.total} engines split here` : undefined}
+            onMouseEnter={key ? () => onHover(key) : undefined}
+            onMouseLeave={key ? () => onHover(null) : undefined}
           >
             <span className="select-none font-mono text-xs text-muted-foreground">{i + 1}</span>
             <span className="text-foreground">{s}</span>
@@ -396,6 +418,8 @@ export default function SegmentationLabInner({
   const [dl, setDl] = useState<Record<string, DlProgress | null>>({});
   const [comparedBlocks, setComparedBlocks] = useState<BaseBlock[]>([]);
   const [running, setRunning] = useState(false);
+  // Cross-column hover: the agreed boundary (block id + offset) under the cursor.
+  const [hovered, setHovered] = useState<HoverKey | null>(null);
 
   // Configure the shared plugin manager (idempotent) so bootEngine + ensurePlugin
   // reach the same engine/models the navbar widget uses. No boot here — only Run.
@@ -726,8 +750,9 @@ export default function SegmentationLabInner({
           <p className="text-xs text-muted-foreground">
             When two or more engines agree on a boundary, the sentence that begins there gets a
             coloured left edge — the same colour marks that boundary in every engine that found it,
-            so agreement reads by matching colours across columns. Unique cuts are left unmarked.
-            Not a verdict; there is no single correct segmentation.
+            so agreement reads by matching colours across columns. Hover a coloured sentence to
+            light up its boundary everywhere. Unique cuts are left unmarked. Not a verdict; there is
+            no single correct segmentation.
           </p>
           <div className="overflow-x-auto pb-2">
             <div
@@ -776,6 +801,7 @@ export default function SegmentationLabInner({
                   {selectedDefs.map((d) => (
                     <div key={d.id} className="rounded-lg border border-border p-2">
                       <SegCell
+                        blockId={b.id}
                         seg={results[d.id]?.blocks.find((x) => x.id === b.id)}
                         consensus={
                           consensusByBlock.get(b.id) ?? {
@@ -786,6 +812,8 @@ export default function SegmentationLabInner({
                         }
                         busy={!!busy[d.id]}
                         error={errors[d.id] ?? null}
+                        hovered={hovered}
+                        onHover={setHovered}
                       />
                     </div>
                   ))}
