@@ -22,7 +22,7 @@ function HomepageHeader() {
             {siteConfig.title} &mdash; {siteConfig.tagline}
           </Heading>
           <p className={styles.heroSubtitle}>
-            An open-source Go engine that parses any format &mdash; JSON, XLIFF, Markdown, config,
+            An open-source Go engine that parses any format &mdash; JSON, HTML, Markdown, config,
             <code>.docx</code> &mdash; into one faithful content model, then lets you or your AI
             agent{" "}
             <strong>
@@ -193,7 +193,7 @@ function HomepageFeatures() {
                 <span className={styles.reactCalloutText}>
                   <strong>CLI Tools</strong> — <code>kgrep</code>, <code>ksed</code>,{" "}
                   <code>kcat</code>: format-aware grep, sed and cat that read and rewrite the text
-                  inside <code>.docx</code>, JSON, XLIFF and more.
+                  inside <code>.docx</code>, JSON, HTML and more.
                 </span>
                 <span className={styles.reactCalloutArrow} aria-hidden="true">
                   &rarr;

@@ -24,7 +24,7 @@ governance platform built on `kapi`.
 Lead with **Modify** on **developer / structured formats**:
 
 > **The open engine that lets your AI safely edit the content inside real files —
-> JSON, XLIFF, Markdown, config, i18n catalogs — and write them back, byte-for-byte.**
+> JSON, Markdown, HTML, config, i18n catalogs — and write them back, byte-for-byte.**
 
 Why this wedge: headless byte-fidelity gates CI, there is no native AI editor for these
 formats, and the engine already serves them. **Do not** lead with editing binary Office
