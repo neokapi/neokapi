@@ -12,6 +12,21 @@
   "capabilities": {
     "selfcheck": true
   },
+  "models": [
+    {
+      "id": "ppocrv5-mobile",
+      "version": "1",
+      "default": true,
+      "bundled": true,
+      "description": "PP-OCRv5 mobile (text detection + recognition) — bundled OCR model.",
+      "license": "Apache-2.0",
+      "files": [
+        { "path": "ppocrv5_det.onnx" },
+        { "path": "ppocrv5_rec.onnx" },
+        { "path": "ppocrv5_dict.txt" }
+      ]
+    }
+  ],
   "metadata": {
     "vision": {
       "protocol": "visionproto-framed-v1",

@@ -18,7 +18,6 @@ import (
 )
 
 type onnxEngine struct {
-	dl   *model.Downloader
 	logf func(string, ...any)
 
 	mu     sync.Mutex
@@ -42,7 +41,6 @@ func NewEngine(logf func(string, ...any)) (Engine, error) {
 		return nil, err
 	}
 	return &onnxEngine{
-		dl:     &model.Downloader{Logf: logf},
 		logf:   logf,
 		models: map[string]*loadedModel{},
 	}, nil
@@ -83,13 +81,15 @@ func (e *onnxEngine) get(name string) (*loadedModel, error) {
 	if m, ok := e.models[name]; ok {
 		return m, nil
 	}
-	paths, spec, err := model.Resolve(name)
+	root, err := model.ModelsRoot()
 	if err != nil {
 		return nil, err
 	}
-	if !model.Present(name) {
-		return nil, fmt.Errorf("check: model %q is not installed — run `kapi-check pull %s` first", name, name)
+	paths, err := model.ResolveInDir(name, root)
+	if err != nil {
+		return nil, err
 	}
+	spec, _ := model.Lookup(name)
 	tkBytes, err := readFile(paths.Tokenizer)
 	if err != nil {
 		return nil, fmt.Errorf("check: read tokenizer: %w", err)

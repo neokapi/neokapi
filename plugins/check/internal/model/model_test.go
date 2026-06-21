@@ -1,113 +1,88 @@
 package model
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func TestDefaultModelName(t *testing.T) {
+	assert.Equal(t, "e5-small-int8", DefaultModelName())
+}
+
 func TestLookup(t *testing.T) {
-	def, ok := Lookup("")
+	s, ok := Lookup("")
 	require.True(t, ok)
-	assert.Equal(t, "e5-small-int8", def.Name, "empty resolves to default")
-	assert.True(t, def.Default)
-	assert.Equal(t, 384, def.Dim)
+	assert.Equal(t, "e5-small-int8", s.Name)
+	assert.True(t, s.Default)
+	assert.Equal(t, "1", s.Version)
+	assert.Equal(t, 384, s.Dim)
 
 	_, ok = Lookup("nope")
 	assert.False(t, ok)
 }
 
-func TestCacheRootOverride(t *testing.T) {
-	t.Setenv("KAPI_CHECK_CACHE", "/tmp/kapi-check-test")
-	root, err := CacheRoot()
+func TestModelsRootPrecedence(t *testing.T) {
+	t.Setenv("KAPI_CHECK_MODELS_ROOT", "/tmp/explicit")
+	r, err := ModelsRoot()
 	require.NoError(t, err)
-	assert.Equal(t, "/tmp/kapi-check-test", root)
-}
+	assert.Equal(t, "/tmp/explicit", r)
 
-func TestResolveAndPresent(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("KAPI_CHECK_CACHE", dir)
-
-	p, spec, err := Resolve("")
+	t.Setenv("KAPI_CHECK_MODELS_ROOT", "")
+	t.Setenv("KAPI_MODELS_CACHE", "/tmp/cache")
+	r, err = ModelsRoot()
 	require.NoError(t, err)
-	assert.Equal(t, "e5-small-int8", spec.Name)
-	assert.Equal(t, filepath.Join(dir, "e5-small-int8", "model.onnx"), p.ONNX)
-	assert.Equal(t, filepath.Join(dir, "e5-small-int8", "tokenizer.json"), p.Tokenizer)
+	assert.Equal(t, filepath.Join("/tmp/cache", "check"), r)
 
-	assert.False(t, Present(""), "nothing downloaded yet")
+	t.Setenv("KAPI_MODELS_CACHE", "")
+	t.Setenv("XDG_CACHE_HOME", "/tmp/xdg")
+	r, err = ModelsRoot()
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join("/tmp/xdg", "kapi", "models", "check"), r)
 }
 
-func TestDownloadComputesAndVerifiesSHA256(t *testing.T) {
-	body := []byte("CHECK-MODEL-BYTES")
-	sum := sha256.Sum256(body)
-	good := hex.EncodeToString(sum[:])
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write(body)
-	}))
-	defer srv.Close()
-
-	t.Run("matching digest installs", func(t *testing.T) {
-		dir := t.TempDir()
-		dst := filepath.Join(dir, "model.onnx")
-		d := &Downloader{HTTPClient: srv.Client()}
-		require.NoError(t, d.download(t.Context(), srv.URL, dst, expected{sha256: good, size: int64(len(body))}))
-		got, err := os.ReadFile(dst)
-		require.NoError(t, err)
-		assert.Equal(t, body, got)
-	})
-
-	t.Run("mismatching digest fails closed and leaves no file", func(t *testing.T) {
-		dir := t.TempDir()
-		dst := filepath.Join(dir, "model.onnx")
-		d := &Downloader{HTTPClient: srv.Client()}
-		err := d.download(t.Context(), srv.URL, dst, expected{sha256: "deadbeef"})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "integrity check failed")
-		_, statErr := os.Stat(dst)
-		assert.True(t, os.IsNotExist(statErr), "tampered file must not be committed")
-		entries, err := os.ReadDir(dir)
-		require.NoError(t, err)
-		assert.Empty(t, entries, "no leftover temp files")
-	})
-
-	t.Run("unpinned installs with warning", func(t *testing.T) {
-		dir := t.TempDir()
-		dst := filepath.Join(dir, "model.onnx")
-		var logs []string
-		d := &Downloader{
-			HTTPClient: srv.Client(),
-			Logf:       func(f string, a ...any) { logs = append(logs, fmt.Sprintf(f, a...)) },
-		}
-		require.NoError(t, d.download(t.Context(), srv.URL, dst, expected{}))
-		require.FileExists(t, dst)
-		var warned bool
-		for _, l := range logs {
-			if strings.Contains(l, "UNVERIFIED") {
-				warned = true
-			}
-		}
-		assert.True(t, warned, "an unpinned download must log a clear unverified warning")
-	})
+func stage(t *testing.T, root, id, version string) string {
+	t.Helper()
+	dir := filepath.Join(root, id, version)
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	for _, f := range []string{onnxFile, tokenizerFile} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte("x"), 0o644))
+	}
+	return dir
 }
 
-func TestDownloadRejectsNon200(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer srv.Close()
+func TestResolveInDirAndPresent(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("KAPI_CHECK_MODELS_ROOT", root)
 
-	d := &Downloader{HTTPClient: srv.Client()}
-	err := d.download(t.Context(), srv.URL, filepath.Join(t.TempDir(), "x"), expected{})
+	assert.False(t, Present("e5-small-int8"), "absent before staging")
+
+	dir := stage(t, root, "e5-small-int8", "1")
+	p, err := ResolveInDir("e5-small-int8", root)
+	require.NoError(t, err)
+	assert.Equal(t, dir, p.Dir)
+	assert.Equal(t, filepath.Join(dir, "model.onnx"), p.ONNX)
+	assert.Equal(t, filepath.Join(dir, "tokenizer.json"), p.Tokenizer)
+	assert.Equal(t, 384, p.Dim)
+	assert.True(t, Present("e5-small-int8"))
+}
+
+func TestResolveInDirMissingFile(t *testing.T) {
+	root := t.TempDir()
+	dir := stage(t, root, "e5-small-int8", "1")
+	require.NoError(t, os.Remove(filepath.Join(dir, "model.onnx")))
+
+	_, err := ResolveInDir("e5-small-int8", root)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unexpected status")
+	assert.Contains(t, err.Error(), "model.onnx")
+	assert.Contains(t, err.Error(), "kapi models pull check")
+}
+
+func TestResolveInDirUnknownModel(t *testing.T) {
+	_, err := ResolveInDir("nope", t.TempDir())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown model")
 }

@@ -12,6 +12,17 @@
   "capabilities": {
     "selfcheck": true
   },
+  "models": [
+    {
+      "id": "whisper-base-en",
+      "version": "1",
+      "default": true,
+      "bundled": true,
+      "description": "Whisper base.en (whisper.cpp ggml) — bundled speech-recognition model.",
+      "license": "MIT",
+      "files": [{ "path": "ggml-base.en.bin" }]
+    }
+  ],
   "metadata": {
     "asr": {
       "protocol": "asrproto-line-json-v1",

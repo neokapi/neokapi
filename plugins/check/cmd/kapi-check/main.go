@@ -11,10 +11,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/signal"
 
 	"github.com/neokapi/neokapi/plugins/check/checkproto"
 	"github.com/neokapi/neokapi/plugins/check/internal/embed"
@@ -64,37 +62,29 @@ func usage() {
 Usage:
   kapi-check version              print the plugin version
   kapi-check doctor               self-check: construct the engine, list models
-  kapi-check pull [model]         download the model files (explicit, cached)
   kapi-check info                 list models and whether they are installed
   kapi-check serve                run the checkproto stdin/stdout loop (host-driven)
   kapi-check embed <text>         print the embedding vector length (self-check)
   kapi-check similarity <text> <ref>...   print cosine(text, ref) for each ref
 
-The model is downloaded only by pull; the other commands fail with guidance
-when it is absent. Build with -tags onnx (plus onnxruntime + libtokenizers) for
-the real backend; the default build is a stub.
+Model acquisition is host-owned: run "kapi models pull check" (kapi downloads,
+verifies the pinned digest, and caches). serve/embed/similarity fail with
+guidance when the model is absent. Build with -tags onnx (plus onnxruntime +
+libtokenizers) for the real backend; the default build is a stub.
 `)
 }
 
-func cmdPull(args []string) error {
-	name := model.DefaultModelName()
-	if len(args) > 0 {
-		name = args[0]
-	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-	dl := &model.Downloader{Logf: func(f string, a ...any) { fmt.Fprintf(os.Stderr, "· "+f+"\n", a...) }}
-	paths, err := dl.Ensure(ctx, name)
-	if err != nil {
-		return fmt.Errorf("pull %s: %w", name, err)
-	}
-	fmt.Printf("installed %s\n  onnx:      %s\n  tokenizer: %s\n", name, paths.ONNX, paths.Tokenizer)
-	return nil
+// cmdPull is retained only to redirect: model acquisition is now host-owned, so
+// kapi (not the plugin) downloads, verifies against pinned digests, and caches
+// the model. See `kapi models pull check`.
+func cmdPull([]string) error {
+	return fmt.Errorf("`kapi-check pull` has moved — run `kapi models pull check` " +
+		"(the host downloads, verifies against the manifest's pinned digest, and caches the model)")
 }
 
 func cmdInfo() {
 	for _, s := range model.Registry {
-		state := "not installed (run `kapi-check pull " + s.Name + "`)"
+		state := "not installed (run `kapi models pull check`)"
 		if model.Present(s.Name) {
 			state = "installed"
 		}
@@ -102,7 +92,7 @@ func cmdInfo() {
 		if s.Default {
 			def = " (default)"
 		}
-		fmt.Printf("%s%s — %s\n  %s, %dd, %s\n", s.Name, def, s.Repo, s.ONNXFile, s.Dim, state)
+		fmt.Printf("%s%s — %dd, %s\n", s.Name, def, s.Dim, state)
 	}
 }
 
@@ -121,7 +111,7 @@ func runDoctor() int {
 	fmt.Printf("kapi-check %s — ML checker (sentence-embedding similarity) ready\n", version)
 	fmt.Println("models:")
 	for _, s := range model.Registry {
-		state := "not installed (run `kapi-check pull " + s.Name + "`)"
+		state := "not installed (run `kapi models pull check`)"
 		if model.Present(s.Name) {
 			state = "installed"
 		}
