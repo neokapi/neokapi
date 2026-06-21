@@ -100,10 +100,10 @@ const ENGINES: EngineDef[] = [
   },
   {
     id: "llm",
-    label: "LLM (Gemma)",
+    label: "LLM (Llama 3.2 1B)",
     kind: "llm",
     plugin: "llm",
-    note: "A local language model asked to split the text into sentences.",
+    note: "A small local language model asked to split the text into sentences.",
   },
 ];
 
