@@ -139,6 +139,12 @@ func (a *App) newModelsListCmd() *cobra.Command {
 			rows := make([]output.ModelAssetRow, 0, len(models))
 			for _, pm := range models {
 				status, bytes := modelStatus(pm.plugin, pm.asset)
+				// A bundled model has no download size, and a downloadable one
+				// may omit it; show "—" rather than a misleading 0B.
+				size := "—"
+				if bytes > 0 {
+					size = humanBytes(bytes)
+				}
 				rows = append(rows, output.ModelAssetRow{
 					Plugin:    pm.plugin,
 					Model:     pm.asset.ID,
@@ -146,7 +152,7 @@ func (a *App) newModelsListCmd() *cobra.Command {
 					Default:   pm.asset.Default,
 					Status:    status,
 					SizeBytes: bytes,
-					Size:      humanBytes(bytes),
+					Size:      size,
 				})
 			}
 			return output.Print(cmd, output.ModelsListOutput{Models: rows, Total: len(rows)})

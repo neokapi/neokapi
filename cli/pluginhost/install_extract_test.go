@@ -191,6 +191,30 @@ func TestExtractTarGzSecurity(t *testing.T) {
 			},
 		},
 		{
+			// Wrapped archive: everything under a single "kapi-<plugin>/" dir —
+			// the layout the av/asr package scripts produce (they tar the staged
+			// "kapi-<plugin>" directory by name). The wrapper is stripped so the
+			// files land flat in the plugin's own dir (regression for the
+			// "manifest.json: no such file" install failure).
+			name: "kapi-<plugin>/-wrapped tarball extracts",
+			entries: []tarEntry{
+				{name: "kapi-" + plugin + "/", typeflag: tar.TypeDir},
+				{name: "kapi-" + plugin + "/manifest.json", typeflag: tar.TypeReg, body: `{"plugin":"myplugin"}`},
+				{name: "kapi-" + plugin + "/kapi-" + plugin, typeflag: tar.TypeReg, body: "binary", mode: 0o755},
+				{name: "kapi-" + plugin + "/lib/", typeflag: tar.TypeDir},
+				{name: "kapi-" + plugin + "/lib/libfoo.so", typeflag: tar.TypeReg, body: "so"},
+			},
+			verify: func(t *testing.T, target string) {
+				b, err := os.ReadFile(filepath.Join(target, plugin, "manifest.json"))
+				require.NoError(t, err)
+				assert.Equal(t, `{"plugin":"myplugin"}`, string(b))
+				b, err = os.ReadFile(filepath.Join(target, plugin, "lib", "libfoo.so"))
+				require.NoError(t, err)
+				assert.Equal(t, "so", string(b))
+				assert.FileExists(t, filepath.Join(target, plugin, "kapi-"+plugin))
+			},
+		},
+		{
 			name: "absolute entry name rejected",
 			entries: []tarEntry{
 				// archive/tar refuses absolute names, so build the

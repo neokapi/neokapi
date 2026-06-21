@@ -244,20 +244,26 @@ func extractPluginArchive(body []byte, sourceURL, target, pluginName string) err
 
 // pluginEntryDest maps an archive entry name onto its on-disk destination
 // inside pluginRoot (target/<pluginName>). It strips an optional leading "./"
-// and an optional "<pluginName>/" prefix so the prefixed (#438) and flat
-// layouts resolve to the same place under pluginRoot.
+// and an optional single wrapping top-level directory so the flat layout and
+// either wrapped layout resolve to the same place under pluginRoot:
 //
-// ok is false for the plugin-dir root entry itself ("./", ".", "<pluginName>"),
-// which needs no file written. It returns an error for any entry that would
-// escape pluginRoot via "../" or an absolute path. Note a flat entry like
-// "otherplugin/x" is a nested subdir of THIS plugin's dir, not the sibling
-// plugin — it stays safely within pluginRoot.
+//   - "<pluginName>/"      the #438 prefixed convention; and
+//   - "kapi-<pluginName>/" the staged-binary-dir wrapper the ffmpeg/whisper
+//     (av/asr) package scripts produce (they tar the staged "kapi-<plugin>"
+//     directory by name rather than its contents).
+//
+// ok is false for a wrapper-dir root entry itself, which needs no file written.
+// It returns an error for any entry that would escape pluginRoot via "../" or an
+// absolute path. Note a flat entry like "otherplugin/x" is a nested subdir of
+// THIS plugin's dir, not the sibling plugin — it stays safely within pluginRoot.
 func pluginEntryDest(pluginRoot, pluginName, name string) (dest string, ok bool, err error) {
 	rel := strings.TrimPrefix(filepath.ToSlash(name), "./")
-	if rel == pluginName || rel == pluginName+"/" {
-		return "", false, nil
+	for _, wrap := range []string{pluginName, "kapi-" + pluginName} {
+		if rel == wrap || rel == wrap+"/" {
+			return "", false, nil // the wrapper dir entry itself
+		}
+		rel = strings.TrimPrefix(rel, wrap+"/")
 	}
-	rel = strings.TrimPrefix(rel, pluginName+"/")
 	dest, err = safeJoin(pluginRoot, rel) // rejects "../" escapes and absolute names
 	if err != nil {
 		return "", false, err
