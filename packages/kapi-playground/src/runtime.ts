@@ -36,6 +36,8 @@ export interface AnnotateOptions {
   segment?: boolean;
   /** Segmentation engine when `segment` is set ("" = srx; "uax29" = ICU4X). */
   segmentEngine?: string;
+  /** Content language (BCP-47, "" = "en"); locale-sensitive engines tailor to it. */
+  segmentLocale?: string;
 }
 
 export interface InspectResult {

@@ -43,12 +43,15 @@ interface SampleText {
   id: string;
   label: string;
   text: string;
+  /** Content language (BCP-47) — sets the locale used for segmentation. */
+  locale: string;
 }
 
 const SAMPLES: SampleText[] = [
   {
     id: "abbrev",
     label: "Abbreviations & decimals",
+    locale: "en",
     text:
       "Dr. Smith paid $3.50 for the U.S. edition on Jan. 5, 2024. " +
       "Mr. Lee asked, “Is it ready?” It was. The next batch ships at 9 a.m.",
@@ -56,16 +59,19 @@ const SAMPLES: SampleText[] = [
   {
     id: "dialogue",
     label: "Dialogue & quotes",
+    locale: "en",
     text: "“Are you sure?” she asked. “Quite sure,” he replied. They left at noon.",
   },
   {
     id: "cjk",
     label: "Japanese (no spaces)",
+    locale: "ja",
     text: "今日はいい天気ですね。明日は雨が降るでしょう。傘を持って行きましょう。",
   },
   {
     id: "paragraphs",
     label: "Multiple paragraphs",
+    locale: "en",
     text: "The first sentence. The second one!\n\nA new paragraph begins here. And it ends.",
   },
 ];
@@ -432,8 +438,11 @@ export default function SegmentationLabInner({
   assets,
 }: SegmentationLabInnerProps): React.ReactElement {
   const mgr = usePluginManager();
+  // Two mutually-exclusive input modes, chosen by a toggle: "text" (a sample or
+  // your own typing) or "file" (uploaded, parsed by its own reader).
+  const [inputMode, setInputMode] = useState<"text" | "file">("text");
   const [text, setText] = useState(SAMPLES[0].text);
-  const [locale, setLocale] = useState("en");
+  const [locale, setLocale] = useState(SAMPLES[0].locale);
   const [file, setFile] = useState<FileSourceValue | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set(DEFAULT_SELECTED));
@@ -459,6 +468,14 @@ export default function SegmentationLabInner({
     setText("");
   };
 
+  // Picking a sample fills the textarea and adopts the sample's language, so the
+  // locale-sensitive engines (Intl.Segmenter, ICU) split it in the right rules.
+  const pickSample = (s: SampleText) => {
+    setText(s.text);
+    setLocale(s.locale);
+    setFile(null);
+  };
+
   const toggleEngine = (id: string) =>
     setSelected((s) => {
       const next = new Set(s);
@@ -474,7 +491,7 @@ export default function SegmentationLabInner({
   async function buildInput(rt: KapiRuntime): Promise<{ path: string; blocks: BaseBlock[] }> {
     rt.vol.mkdirp("/seg");
     let path: string;
-    if (file?.bytes && file.bytes.length > 0) {
+    if (inputMode === "file" && file?.bytes && file.bytes.length > 0) {
       const ext = file.filename.match(/\.[A-Za-z0-9]+$/)?.[0] ?? "";
       path = `/seg/input${ext}`;
       rt.vol.writeFile(path, file.bytes);
@@ -507,6 +524,7 @@ export default function SegmentationLabInner({
       const res = await rt.inspectAnnotated(path, {
         segment: true,
         segmentEngine: def.engineArg ?? "",
+        segmentLocale: locale,
         term: false,
         brand: false,
         qa: false,
@@ -563,7 +581,7 @@ export default function SegmentationLabInner({
 
   const runCompare = () => {
     const defs = ENGINES.filter((d) => selected.has(d.id));
-    const hasSource = file?.bytes?.length || text.trim();
+    const hasSource = inputMode === "file" ? file?.bytes?.length : text.trim();
     if (defs.length === 0 || !hasSource) return;
     setRunning(true);
     setResults({});
@@ -678,52 +696,78 @@ export default function SegmentationLabInner({
         </button>
       </div>
 
-      {/* Source: quick samples · file · editable text */}
+      {/* Source: a mode toggle picks text-or-file; only one input shows at once. */}
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Quick samples:</span>
-          {SAMPLES.map((s) => (
+          <div className="inline-flex rounded-md border border-border p-0.5 text-sm">
             <button
-              key={s.id}
               type="button"
-              onClick={() => {
-                setText(s.text);
-                setFile(null);
-              }}
-              className="rounded-full border border-border px-2.5 py-1 text-xs hover:bg-muted/60"
+              onClick={() => setInputMode("text")}
+              aria-pressed={inputMode === "text"}
+              className={`rounded px-3 py-1 ${
+                inputMode === "text" ? "bg-primary text-primary-foreground" : "hover:bg-muted/60"
+              }`}
             >
-              {s.label}
+              Text
             </button>
-          ))}
+            <button
+              type="button"
+              onClick={() => setInputMode("file")}
+              aria-pressed={inputMode === "file"}
+              className={`rounded px-3 py-1 ${
+                inputMode === "file" ? "bg-primary text-primary-foreground" : "hover:bg-muted/60"
+              }`}
+            >
+              File
+            </button>
+          </div>
           <span className="ml-auto flex items-center gap-1">
             <label className="text-sm text-muted-foreground" htmlFor="seg-locale">
-              Locale
+              Language
             </label>
             <input
               id="seg-locale"
               value={locale}
               onChange={(e) => setLocale(e.target.value)}
+              title="Content language (BCP-47, e.g. en, ja, de). Locale-aware engines (Intl.Segmenter, ICU) tailor their sentence rules to it."
               className="w-16 rounded border border-border bg-background px-2 py-1 text-sm"
             />
           </span>
         </div>
-        <FileSource value={file} onChange={onFile} label="Or a file" />
-        <textarea
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            setFile(null);
-          }}
-          rows={4}
-          placeholder={file ? "Using the file above — type here to switch back to text." : ""}
-          className="w-full rounded border border-border bg-background p-2 text-sm"
-          aria-label="Text to segment"
-        />
-        {file && (
-          <p className="text-xs text-muted-foreground">
-            Source: <span className="text-foreground">{file.label}</span> — parsed by its own reader
-            into translatable blocks.
-          </p>
+
+        {inputMode === "text" ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-muted-foreground">Samples:</span>
+              {SAMPLES.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => pickSample(s)}
+                  className="rounded-full border border-border px-2.5 py-1 text-xs hover:bg-muted/60"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={4}
+              className="w-full rounded border border-border bg-background p-2 text-sm"
+              aria-label="Text to segment"
+            />
+          </>
+        ) : (
+          <>
+            <FileSource value={file} onChange={onFile} label="Upload a file" />
+            {file && (
+              <p className="text-xs text-muted-foreground">
+                Source: <span className="text-foreground">{file.label}</span> — parsed by its own
+                reader into translatable blocks, then segmented.
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -757,7 +801,11 @@ export default function SegmentationLabInner({
           <button
             type="button"
             onClick={runCompare}
-            disabled={running || selected.size === 0 || !(file?.bytes?.length || text.trim())}
+            disabled={
+              running ||
+              selected.size === 0 ||
+              !(inputMode === "file" ? file?.bytes?.length : text.trim())
+            }
             className="ml-auto rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             {running
@@ -772,13 +820,6 @@ export default function SegmentationLabInner({
           consensus-coloured left edges on sentences (no separate strip). */}
       {(hasResults || running) && (
         <div className="flex flex-col gap-1">
-          <p className="text-xs text-muted-foreground">
-            When two or more engines produce the identical sentence, it gets a coloured left edge —
-            the same colour marks that sentence in every engine that produced it, so agreement reads
-            by matching colours across columns. Hover a coloured sentence to highlight the identical
-            sentence in the other engines. Sentences only one engine produced are left unmarked. Not
-            a verdict; there is no single correct segmentation.
-          </p>
           <div className="overflow-x-auto pb-2">
             <div
               className="grid items-start gap-x-3 gap-y-3"

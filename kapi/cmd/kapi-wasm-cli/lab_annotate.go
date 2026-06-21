@@ -68,9 +68,12 @@ type annotateOptions struct {
 	// Segment, when set, runs the segmentation engine over each block and writes
 	// the primary sentence segmentation overlay, so the preview shows sentence
 	// boundaries. SegmentEngine names the engine ("" = default srx; "uax29"
-	// bridges to ICU4X in the browser).
+	// bridges to ICU4X in the browser). SegmentLocale (BCP-47, "" = "en") is the
+	// content language; locale-sensitive engines (Intl.Segmenter, ICU) tailor
+	// their rules to it.
 	Segment       bool   `json:"segment"`
 	SegmentEngine string `json:"segmentEngine"`
+	SegmentLocale string `json:"segmentLocale"`
 }
 
 func doInspectAnnotated(path string, opts annotateOptions) (result any) {
@@ -174,7 +177,7 @@ func annotateParts(ctx context.Context, parts []*model.Part, opts annotateOption
 			// Write the primary sentence segmentation overlay; BuildContentTree
 			// surfaces it as the block's `segments`, which the preview renders as
 			// sentence boundaries. Only attach when it actually splits.
-			if spans := segmentSpans(ctx, runs, opts.SegmentEngine); len(spans) > 1 {
+			if spans := segmentSpans(ctx, runs, opts.SegmentEngine, opts.SegmentLocale); len(spans) > 1 {
 				b.SetSegmentation(nil, spans)
 			}
 		}
@@ -182,16 +185,19 @@ func annotateParts(ctx context.Context, parts []*model.Part, opts annotateOption
 }
 
 // segmentSpans runs the named segmentation engine ("" = default srx) over the
-// source runs and returns its run-anchored spans, or nil on any error / when no
-// engine is registered.
-func segmentSpans(ctx context.Context, runs []model.Run, engineName string) []model.Span {
+// source runs in the given locale ("" = "en") and returns its run-anchored
+// spans, or nil on any error / when no engine is registered.
+func segmentSpans(ctx context.Context, runs []model.Run, engineName, locale string) []model.Span {
 	// Build the lab engine for this option (pure-Go srx / raw uax29 / okapi
 	// hybrid); all trim, so spans are clean sentences regardless of engine.
 	eng, err := demoSegEngine(engineName)
 	if err != nil {
 		return nil
 	}
-	spans, err := eng.Segment(ctx, runs, model.LocaleID("en"))
+	if locale == "" {
+		locale = "en"
+	}
+	spans, err := eng.Segment(ctx, runs, model.LocaleID(locale))
 	if err != nil {
 		return nil
 	}

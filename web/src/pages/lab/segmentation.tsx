@@ -19,13 +19,9 @@ export default function SegmentationLabPage(): React.ReactElement {
         <div className={styles.hero}>
           <h1>Segmentation Lab</h1>
           <p className={styles.lede}>
-            Before anything gets translated, text has to be broken into sentences — and getting that
-            right (that &ldquo;Dr.&rdquo; or &ldquo;$3.50&rdquo; isn&rsquo;t the end of one) is what
-            makes translations and translation-memory matches reliable. neokapi offers several ways
-            to do it, from fast rule-based splitting to a learned model and a local LLM. Bring your
-            own text and watch how each handles abbreviations, decimals, quotes, and languages
-            written without spaces — the very same engines you can pick in the CLI and the flow
-            editor.
+            Splitting text into sentences sounds trivial until &ldquo;Dr.&rdquo; or
+            &ldquo;$3.50&rdquo; ends one by mistake. Compare neokapi&rsquo;s segmenters — rules,
+            Unicode, a learned model, a local LLM — on your own text, and see where they agree.
           </p>
         </div>
         <SegmentationLab />
