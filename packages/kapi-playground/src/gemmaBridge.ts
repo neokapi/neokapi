@@ -30,7 +30,7 @@ import {
 // ---------------------------------------------------------------------------
 
 /** Key of the small text-only model used for text tasks (the default). */
-export const DEFAULT_TEXT_MODEL = "qwen2.5-1.5b";
+export const DEFAULT_TEXT_MODEL = "qwen2.5-0.5b";
 /** Key of the multimodal model used when a request carries an image. */
 export const MULTIMODAL_MODEL = "gemma-4-e2b";
 
@@ -63,14 +63,14 @@ interface ModelSpec {
 const MODELS: Record<string, ModelSpec> = {
   [DEFAULT_TEXT_MODEL]: {
     key: DEFAULT_TEXT_MODEL,
-    hfId: "onnx-community/Qwen2.5-1.5B-Instruct",
-    label: "Qwen2.5 1.5B (text)",
+    hfId: "onnx-community/Qwen2.5-0.5B-Instruct",
+    label: "Qwen2.5 0.5B (text)",
     modalities: ["text"],
     loader: "causal",
-    // ~1 GB at q4f16 — the 0.5B variant downloads faster but follows
-    // instructions poorly (it degenerates into repetition), so 1.5B is the
-    // smallest that segments/translates usably.
-    sizeBytes: 1_100_000_000,
+    // ~0.5 GB at q4f16. (The 1.5B variant produced garbage under q4f16/WebGPU in
+    // this onnxruntime-web build; 0.5B follows instructions and only needs a
+    // repetition penalty to avoid greedy loops — see genArgs.)
+    sizeBytes: 550_000_000,
     dtype: "q4f16",
     device: "webgpu",
   },
@@ -335,6 +335,10 @@ function genArgs(inputs: EncodedInputs, gen: GenOpts): Record<string, unknown> {
     ...inputs,
     max_new_tokens: gen.maxTokens && gen.maxTokens > 0 ? gen.maxTokens : 256,
     do_sample: doSample,
+    // Small quantized models loop under pure greedy decoding (repeating a phrase
+    // or a single token). A mild repetition penalty curbs that without harming
+    // tasks that legitimately repeat source words (segmentation/translation).
+    repetition_penalty: 1.3,
     ...(doSample ? { temperature: gen.temperature, top_p: gen.topP } : {}),
   };
 }
