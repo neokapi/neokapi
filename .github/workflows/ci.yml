@@ -498,8 +498,16 @@ jobs:
           echo "::endgroup::"
           echo "::group::Failure output"
           jq -r 'select(.Action=="output") | .Output' test-results-bowrain.json \
-            | grep -aE "--- FAIL|FAIL\b|panic:|DATA RACE|Error Trace|Error:|expected|actual|\.go:[0-9]+:" | head -200 || true
+            | grep -aE "panic:|DATA RACE|Error Trace|Error:|FAIL|expected|actual|connection refused|cannot|no such|context deadline|\.go:[0-9]+:" | head -200 || true
           echo "::endgroup::"
+
+      - name: Upload bowrain test JSON (on failure)
+        if: steps.run-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-bowrain
+          path: test-results-bowrain.json
+          retention-days: 3
 
       - name: Convert to JUnit XML
         if: always()
