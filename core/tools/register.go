@@ -370,7 +370,7 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("unredact", NewUnredactFromConfig)
 	reg.SetConfigFactory("search-replace", NewSearchReplaceFromConfig)
 	reg.SetConfigFactory("case-transform", NewCaseTransformFromConfig)
-	reg.SetConfigFactory("segmentation", NewSegmentationFromConfig)
+	// segmentation's ConfigFactory is set by RegisterGroup (it's a ToolGroup).
 	reg.SetConfigFactory("tm-leverage", NewTMLeverageFromConfig)
 	reg.SetConfigFactory("diff-leverage", NewDiffLeverageFromConfig)
 	reg.SetConfigFactory("script", NewScriptFromConfig)

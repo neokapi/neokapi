@@ -26,7 +26,10 @@ declare parameter schemas via `SchemaProvider`, which drives CLI flag
 generation, flow-editor config panels, and validation. An IO contract on
 `ToolMeta` declares locale cardinality, the stand-off layers a tool produces,
 and side effects so the runner can infer locale iteration and the flow editor
-can show data flow.
+can show data flow. A tool whose behaviour comes from one of several
+interchangeable backends (segmentation engines, AI/MT providers, QA modes) is a
+**tool group** — it registers self-describing members with a default, and the
+user selects and configures one member at a time.
 
 ## Context
 
@@ -453,6 +456,58 @@ use the same `Tool` interface via gRPC translation, so plugin-provided
 tools and built-in tools are interchangeable from the pipeline's
 perspective.
 
+### Tool groups (pluggable backends)
+
+Some tools are a family of interchangeable backends rather than one
+implementation: `segmentation` runs on SRX, UAX-29, Intl.Segmenter, an LLM, or
+the SaT ML model; `qa` runs deterministic rules or an LLM judge; `translate` runs
+any LLM or MT provider; `ai-entity-extract` runs a local NER model, an LLM, or
+both. Each backend carries its own configuration and the family has a sensible
+default.
+
+A **ToolGroup** models this: a tool whose behaviour is provided by one of several
+self-describing **members**, selected by a discriminator field, with a default
+member and common config. The user picks a member and configures only that one —
+the group never merges members' parameters together.
+
+```go
+reg.RegisterGroup(registry.ToolGroupDef{
+    Name:          "segmentation",
+    Discriminator: "engine",                 // the config key that selects the member
+    Default:       "srx",
+    Common:        commonSchema,             // discriminator + shared options + ToolMeta
+    Members:       members,                   // each: Name, Label, Description, own Schema
+    ConfigFactory: NewSegmentationFromConfig, // dispatches on the discriminator
+})
+```
+
+Members are not separately-registered tools — they belong to the group, and the
+candidate members already exist as domain sub-registries: segmentation engines
+([AD-002](002-content-model.md)), AI and MT providers
+([AD-011](011-ai-providers.md), [AD-012](012-mt-providers.md)). A **plugin
+contributes a member** to a group through its manifest (the `segmenters[]`
+capability, [AD-007](007-plugin-system.md)), so an installed plugin's backend
+appears in the group with its own schema and no host-side code.
+
+A group is a single registry entry, so flat consumers are unaffected; it serves
+two renderings from one definition:
+
+- **Master-detail** (the config UI, the docs reference) reads `ToolInfo.Group`
+  (members, default, discriminator) and `MemberSchema(group, member)`, and renders
+  the common fields + a member selector + only the selected member's own schema.
+  Nothing is merged or hidden.
+- **Flat projection** (CLI flags, MCP input, and the registry's `Schema(id)`) is
+  inherently flat — cobra flags and a single input schema cannot be selected into
+  at parse time — so the group projects to one schema via
+  `schema.ComposeVariants`: a discriminator `select` plus each member's fields,
+  grouped and gated to their member. `ComposeVariants` is therefore a projection
+  of a group, not the model.
+
+The discriminator carries a default, so the bare tool works with no
+configuration. A tool that historically inferred its backend from another field
+(e.g. `qa` from whether a `provider` was set) keeps that inference as a fallback
+when the discriminator is unset, so existing recipes and flags are unaffected.
+
 ### Annotation-based communication
 
 Tools communicate through annotations on Blocks. A typical pipeline:
@@ -739,6 +794,10 @@ still rejected).
   autocomplete.
 - Mixed-cardinality flows resolve cleanly through pass union; tool
   authors do not coordinate locale iteration.
+- Tool groups let a family of interchangeable backends share one tool while each
+  backend keeps its own config; members come from domain registries or plugins,
+  and the same definition drives master-detail config UI and the flat CLI/docs/MCP
+  projection.
 
 ## Related
 

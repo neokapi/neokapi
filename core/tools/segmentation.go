@@ -128,25 +128,9 @@ func segmentationToolMeta() schema.ToolMeta {
 		withProduces(srcF(model.OverlaySegmentation), tgtF(model.OverlaySegmentation)))
 }
 
-// segmentationVariants builds one composer [schema.Variant] per registered
-// segment engine, pulling each engine's own parameter schema from its config
-// prototype. The engine list (and so the selector and the per-engine config) is
-// whatever is linked into the binary — the tool carries no engine-specific
-// knowledge.
-func segmentationVariants() []schema.Variant {
-	descs := segment.Descriptors()
-	vs := make([]schema.Variant, 0, len(descs))
-	for _, d := range descs {
-		vs = append(vs, schema.Variant{Name: d.Name, Label: d.Label, Description: d.Description, Params: d.Schema})
-	}
-	return vs
-}
-
-// SegmentationSchema returns the composed schema for the segmentation tool: the
-// common options plus an engine selector whose chosen engine reveals only its
-// own parameters. The engines are discovered from the segment registry, so the
-// form reflects whatever engines are linked.
-func SegmentationSchema() *schema.ComponentSchema {
+// segmentationCommonSchema is the group's shared config: the engine selector
+// plus the scope and boundary-handling options common to every engine.
+func segmentationCommonSchema() *schema.ComponentSchema {
 	cfg := &SegmentationConfig{}
 	cfg.Reset()
 	base := schema.FromStruct(cfg, segmentationToolMeta())
@@ -162,17 +146,50 @@ func SegmentationSchema() *schema.ComponentSchema {
 			base.Groups[i].Collapsed = true
 		}
 	}
-	return schema.ComposeVariants(base, "engine", segment.DefaultEngine, segmentationVariants())
+	return base
 }
 
-// RegisterSegmentation registers (or re-registers) the segmentation tool with a
-// freshly composed schema. The host calls it again after plugin-provided
-// segmenters register into the segment registry, so the engine selector reflects
-// them (the composed schema is otherwise built once, before plugin discovery).
+// segmentationMembers maps the registered segment engines to tool-group members.
+// The engine list (selector + per-engine config) is whatever is linked into the
+// binary plus any plugin-provided engines — the tool carries no engine-specific
+// knowledge.
+func segmentationMembers() []registry.ToolGroupMember {
+	descs := segment.Descriptors()
+	ms := make([]registry.ToolGroupMember, 0, len(descs))
+	for _, d := range descs {
+		ms = append(ms, registry.ToolGroupMember{
+			Name: d.Name, Label: d.Label, Description: d.Description, Schema: d.Schema,
+		})
+	}
+	return ms
+}
+
+// SegmentationSchema returns the composed (flat) projection of the segmentation
+// group — common options + an engine selector whose chosen engine reveals only
+// its own parameters. This is the view CLI flags, docs, and MCP consume; the UI
+// uses the group + per-member schemas (master-detail) instead.
+func SegmentationSchema() *schema.ComponentSchema {
+	members := segmentationMembers()
+	variants := make([]schema.Variant, len(members))
+	for i, m := range members {
+		variants[i] = schema.Variant{Name: m.Name, Label: m.Label, Description: m.Description, Params: m.Schema, When: m.When}
+	}
+	return schema.ComposeVariants(segmentationCommonSchema(), "engine", segment.DefaultEngine, variants)
+}
+
+// RegisterSegmentation registers (or re-registers) the segmentation tool group.
+// The host calls it again after plugin-provided segmenters register, so the
+// member list reflects them (the group is otherwise built once, before plugin
+// discovery).
 func RegisterSegmentation(reg *registry.ToolRegistry) {
-	reg.RegisterWithSchema("segmentation", func() tool.Tool {
-		return NewSegmentationTool(&SegmentationConfig{})
-	}, SegmentationSchema())
+	reg.RegisterGroup(registry.ToolGroupDef{
+		Name:          "segmentation",
+		Discriminator: "engine",
+		Default:       segment.DefaultEngine,
+		Common:        segmentationCommonSchema(),
+		Members:       segmentationMembers(),
+		ConfigFactory: NewSegmentationFromConfig,
+	})
 }
 
 // NewSegmentationFromConfig creates a segmentation tool from a config map. The
