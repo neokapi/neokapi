@@ -32,7 +32,7 @@ type AITerminologyConfig struct {
 // AITerminologySchema returns the auto-generated schema for the tool.
 func AITerminologySchema() *schema.ComponentSchema {
 	s := schema.FromStruct(&AITerminologyConfig{}, schema.ToolMeta{
-		ID:                    "ai-terminology",
+		ID:                    "term-extract",
 		Category:              schema.CategoryAnalysis,
 		DisplayName:           "AI Terminology Extraction",
 		Description:           "Extract candidate terminology from content using an LLM provider",
@@ -51,7 +51,7 @@ func AITerminologySchema() *schema.ComponentSchema {
 func NewAITerminologyFromConfig(config map[string]any, _ string) (tool.Tool, error) {
 	var cfg AITerminologyConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
-		return nil, fmt.Errorf("ai-terminology config: %w", err)
+		return nil, fmt.Errorf("term-extract config: %w", err)
 	}
 	p, err := ProviderFromConfig(cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
 	if err != nil {
@@ -67,7 +67,7 @@ func NewAITerminologyTool(p aiprovider.LLMProvider, cfg AITerminologyConfig) *AI
 		locale:   cfg.Locale,
 		domain:   cfg.Domain,
 	}
-	t.ToolName = "ai-terminology"
+	t.ToolName = "term-extract"
 	t.ToolDescription = "Extracts terminology from Blocks using AI/LLM"
 	t.Annotate = t.annotate
 	return t
@@ -135,7 +135,7 @@ func (t *AITerminologyTool) annotate(v tool.BlockView) error {
 		aiprovider.TextMessage("user", prompt),
 	}, terminologySchema())
 	if err != nil {
-		return fmt.Errorf("ai-terminology: %w", err)
+		return fmt.Errorf("term-extract: %w", err)
 	}
 	t.addUsage(resp.Usage)
 

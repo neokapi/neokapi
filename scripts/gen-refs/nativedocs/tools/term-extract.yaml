@@ -1,8 +1,8 @@
-# Native reference doc for the built-in `ai-terminology` tool.
+# Native reference doc for the built-in `term-extract` tool.
 # Schema source: core/ai/tools/terminology.go (AITerminologyConfig).
 description: Extract candidate terminology from source text using an LLM provider.
 overview: |
-  The **AI Terminology Extraction** tool sends each block's source text to a
+  The **Term Extract** tool sends each block's source text to a
   configured LLM provider and asks it to return notable terms, each with a short
   definition and domain. The extracted entries are recorded on the block's
   properties as a terminology list. Blocks whose source is empty are skipped, and

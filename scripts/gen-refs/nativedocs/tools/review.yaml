@@ -1,8 +1,8 @@
-# Native reference doc for the built-in `ai-review` tool.
+# Native reference doc for the built-in `review` tool.
 # Schema source: core/ai/tools/review.go (AIReviewConfig).
 description: Review each translation with an LLM, producing a score, assessment, and suggestion.
 overview: |
-  The **AI Review** tool asks a configured LLM provider to review each
+  The **Review** tool asks a configured LLM provider to review each
   translation and return a concise assessment: a score from 1 to 10, a brief
   judgement of accuracy and fluency, and a suggested improvement where warranted.
   The review text is recorded on the block's properties along with the provider

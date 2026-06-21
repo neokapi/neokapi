@@ -308,7 +308,10 @@ func (a *App) editDocument(ctx context.Context, path string, t *tool.BaseTool, w
 		if res.Part == nil {
 			continue
 		}
-		p, aerr := t.Apply(res.Part)
+		// ApplyContext (not Apply) so a network-backed tool — e.g. the AI
+		// rewrite tool — honours cancellation/deadlines on its provider calls
+		// while the document is streamed. Pure-text tools (ksed) ignore ctx.
+		p, aerr := t.ApplyContext(ctx, res.Part)
 		if aerr != nil {
 			reader.Close()
 			return aerr

@@ -50,7 +50,7 @@ const BROWSER_SAFE_TOOLS = [
   "pseudo-translate",
   "word-count",
   "term-check",
-  "ai-entity-extract",
+  "entity-extract",
   "translate",
   "qa",
 ];
@@ -491,16 +491,16 @@ export default function FlowBuilderRunner({
       setError(null);
       setNerProgress(null);
 
-      // On-device NER: a step running ai-entity-extract with engine "ner"
+      // On-device NER: a step running entity-extract with engine "ner"
       // needs the GLiNER model loaded in the page (the wasm engine bridges to
       // it). Load lazily on first use — everything stays in the browser.
       const needsLocalNer = steps.some(
         (s) =>
-          (s.tool === "ai-entity-extract" &&
+          (s.tool === "entity-extract" &&
             (s.config as { engine?: string } | undefined)?.engine === "ner") ||
           s.parallel?.some(
             (b) =>
-              b.tool === "ai-entity-extract" &&
+              b.tool === "entity-extract" &&
               (b.config as { engine?: string } | undefined)?.engine === "ner",
           ),
       );

@@ -81,7 +81,7 @@ steps:
   - tool: translate
     config:
       provider: deepl
-  - tool: ai-review
+  - tool: review
   - tool: qa
 ```
 

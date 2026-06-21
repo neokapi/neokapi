@@ -1,6 +1,6 @@
 // On-device NER for the lab: loads a GLiNER ONNX model with onnxruntime-web
 // (zero-shot NER — the model scores arbitrary label prompts, no fixed tag set)
-// and registers the `kapiLocalNER` bridge the wasm engine's `ai-entity-extract`
+// and registers the `kapiLocalNER` bridge the wasm engine's `entity-extract`
 // calls when configured with `engine: ner`. Everything runs in the browser:
 // the text never leaves the page, which is exactly the property the redaction
 // placement rule reasons about (no remote source egress).

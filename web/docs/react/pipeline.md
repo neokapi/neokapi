@@ -19,7 +19,7 @@ Three phases, one contract: the KLF directory archive. A fourth optional phase â
       sub: "KLF archive",
       role: "io",
       edge: "kapi-react extract",
-      loop: ["kapi translate / pseudo-translate / qa / ai-review", "accumulate target locales in place"],
+      loop: ["kapi translate / pseudo-translate / qa / review", "accumulate target locales in place"],
     },
     {
       label: "public/translations/{locale}.json",

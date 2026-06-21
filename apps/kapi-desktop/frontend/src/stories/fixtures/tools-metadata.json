@@ -17,7 +17,7 @@
     "cardinality": "bilingual"
   },
   {
-    "name": "ai-review",
+    "name": "review",
     "description": "AI-powered translation review",
     "category": "quality",
     "has_schema": false,

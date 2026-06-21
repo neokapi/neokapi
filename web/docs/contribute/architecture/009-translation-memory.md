@@ -276,7 +276,7 @@ A typical flow:
 <PipelineDiagram
   stages={[
     { label: "Source", role: "io" },
-    { label: "ai-entity-extract", role: "annotate" },
+    { label: "entity-extract", role: "annotate" },
     { label: "tm-leverage", role: "translate" },
     { label: "translate", role: "translate" },
     { label: "qa", role: "qa" },

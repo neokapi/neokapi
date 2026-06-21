@@ -1,0 +1,140 @@
+package tools
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// lastUserText returns the text of the last user message — the placeholder text
+// the rewrite tool sends. Mock ChatFuncs transform it and echo it back.
+func lastUserText(msgs []aiprovider.Message) string {
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role == "user" {
+			return msgs[i].Text()
+		}
+	}
+	return ""
+}
+
+// chatReplace builds a mock whose Chat replaces old→new in the user text,
+// leaving any placeholder tags untouched — a stand-in for a faithful rewrite.
+func chatReplace(p *aiprovider.MockProvider, old, repl string) {
+	p.ChatFunc = func(_ context.Context, msgs []aiprovider.Message) (*aiprovider.ChatResponse, error) {
+		out := strings.ReplaceAll(lastUserText(msgs), old, repl)
+		return &aiprovider.ChatResponse{Content: out, Model: "mock"}, nil
+	}
+}
+
+// applyRewrite runs the rewrite tool over a single block and returns it.
+func applyRewrite(t *testing.T, tl *tool.BaseTool, b *model.Block) {
+	t.Helper()
+	_, err := tl.Apply(&model.Part{Type: model.PartBlock, Resource: b})
+	require.NoError(t, err)
+}
+
+// TestRewritePreservesInlineCodes proves the moat: a block with an inline code
+// (a placeholder) survives the rewrite — the tool renders the runs with a
+// placeholder tag, the model echoes the tag, and ParseRunsPlaceholderText
+// reconstructs the run, so the code is still there after the text changed.
+func TestRewritePreservesInlineCodes(t *testing.T) {
+	mock := aiprovider.NewMockProvider()
+	chatReplace(mock, "world", "planet")
+	tl := NewRewriteTool(mock, RewriteConfig{Instruction: "swap words"})
+
+	b := &model.Block{ID: "b1", Translatable: true, Source: []model.Run{
+		{Text: &model.TextRun{Text: "Hello "}},
+		{Ph: &model.PlaceholderRun{ID: "1", Type: "icon"}},
+		{Text: &model.TextRun{Text: " world"}},
+	}}
+	applyRewrite(t, tl, b)
+
+	// The placeholder run is still present and the text changed.
+	require.Len(t, b.Source, 3)
+	require.NotNil(t, b.Source[1].Ph, "the inline placeholder run must survive the rewrite")
+	assert.Equal(t, "1", b.Source[1].Ph.ID)
+	assert.Equal(t, "Hello  planet", model.RunsText(b.Source))
+}
+
+// TestRewriteStructuredFallback documents the opaque fallback: a block whose
+// source carries a plural run has no linear text mapping, so the tool replaces
+// the whole source with the rewritten plain text rather than corrupting the
+// structure. The placeholder tags never leak into the result.
+func TestRewriteStructuredFallback(t *testing.T) {
+	mock := aiprovider.NewMockProvider()
+	mock.ChatFunc = func(_ context.Context, msgs []aiprovider.Message) (*aiprovider.ChatResponse, error) {
+		return &aiprovider.ChatResponse{Content: strings.ToUpper(lastUserText(msgs)), Model: "mock"}, nil
+	}
+	tl := NewRewriteTool(mock, RewriteConfig{Instruction: "shout"})
+
+	b := &model.Block{ID: "b1", Translatable: true, Source: []model.Run{
+		{Plural: &model.PluralRun{Pivot: "n", Forms: map[model.PluralForm][]model.Run{
+			model.PluralOther: {{Text: &model.TextRun{Text: "world"}}},
+		}}},
+	}}
+	applyRewrite(t, tl, b)
+
+	// Whole-source replacement: the plural structure is gone, the text is plain.
+	assert.Equal(t, "WORLD", b.SourceText())
+	require.Len(t, b.Source, 1)
+	require.NotNil(t, b.Source[0].Text)
+	assert.Nil(t, b.Source[0].Plural)
+}
+
+// TestRewriteSkipsNonContent proves non-content blocks (!Translatable) and
+// blank blocks are skipped with no provider call.
+func TestRewriteSkipsNonContent(t *testing.T) {
+	t.Run("non-translatable", func(t *testing.T) {
+		mock := aiprovider.NewMockProvider()
+		chatReplace(mock, "Hello", "Howdy")
+		tl := NewRewriteTool(mock, RewriteConfig{Instruction: "x"})
+		b := &model.Block{ID: "b1", Translatable: false, Source: []model.Run{
+			{Text: &model.TextRun{Text: "Hello world"}},
+		}}
+		applyRewrite(t, tl, b)
+		assert.Equal(t, "Hello world", b.SourceText(), "non-translatable source must not change")
+		assert.Empty(t, mock.ChatCalls, "the provider must not be called for a non-translatable block")
+	})
+
+	t.Run("blank", func(t *testing.T) {
+		mock := aiprovider.NewMockProvider()
+		chatReplace(mock, "x", "y")
+		tl := NewRewriteTool(mock, RewriteConfig{Instruction: "x"})
+		b := &model.Block{ID: "b1", Translatable: true, Source: []model.Run{
+			{Text: &model.TextRun{Text: "   "}},
+		}}
+		applyRewrite(t, tl, b)
+		assert.Empty(t, mock.ChatCalls, "the provider must not be called for a blank block")
+	})
+}
+
+// TestRewriteNoOpWhenUnchanged proves a model that echoes the input produces no
+// edit — the source is left exactly as it was.
+func TestRewriteNoOpWhenUnchanged(t *testing.T) {
+	mock := aiprovider.NewMockProvider()
+	mock.ChatFunc = func(_ context.Context, msgs []aiprovider.Message) (*aiprovider.ChatResponse, error) {
+		// Echo the input verbatim (plus whitespace the tool trims).
+		return &aiprovider.ChatResponse{Content: "  " + lastUserText(msgs) + "\n", Model: "mock"}, nil
+	}
+	tl := NewRewriteTool(mock, RewriteConfig{Instruction: "noop"})
+
+	b := &model.Block{ID: "b1", Translatable: true, Source: []model.Run{
+		{Text: &model.TextRun{Text: "Hello world"}},
+	}}
+	applyRewrite(t, tl, b)
+	assert.Equal(t, "Hello world", b.SourceText())
+	require.Len(t, b.Source, 1)
+}
+
+// TestRewriteIsSourceTransform asserts the tool reports the transform capability
+// so the flow placement pass runs it in the leading source-transform stage.
+func TestRewriteIsSourceTransform(t *testing.T) {
+	tl := NewRewriteTool(aiprovider.NewMockProvider(), RewriteConfig{Instruction: "x"})
+	assert.True(t, tool.IsSourceTransform(tl))
+}

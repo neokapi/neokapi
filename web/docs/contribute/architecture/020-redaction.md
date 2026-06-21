@@ -80,11 +80,11 @@ Detection produces `Match` spans (byte offsets + category) consumed by
   from a dedicated rules file, compiled by `RuleDetector`. Deterministic and
   the only backend that preserves the locality guarantee without qualification.
 - **Entities** (opt-in): the `redact` tool reads `model.EntityAnnotation`s
-  already on the block — produced upstream by the `ai-entity-extract` tool —
+  already on the block — produced upstream by the `entity-extract` tool —
   and redacts the configured entity categories. The detection model is the
   caller's choice; a local model keeps everything on the machine, a cloud model
   trades that for coverage during the *detection* step only. Because an annotator
-  can precede the redactor in the flow, `ai-entity-extract` and `redact` sit in
+  can precede the redactor in the flow, `entity-extract` and `redact` sit in
   the same flow (see AD-006).
 
   The categories are the **option surface** a user picks — "redact people",
@@ -98,7 +98,7 @@ Detection produces `Match` spans (byte offsets + category) consumed by
   **Conditional requirement, not a new schema language.** Two distinct
   "requirements" are in play and neither needs a config-condition DSL: the
   *resource* requirement (NER ⇒ an LLM credential) lives statically on
-  `ai-entity-extract`; `redact` calls no provider and declares no `Requires`, so
+  `entity-extract`; `redact` calls no provider and declares no `Requires`, so
   enabling a category adds no resource requirement to redact — you add the NER
   tool to the flow (composition). The *input* requirement — redact needs an
   entity overlay when entity detection is on — is a **config-derived IO
@@ -134,13 +134,13 @@ formats differ in whether they preserve inline structure on write:
 
 - `kapi run secure-translate -i <file> --target-lang <l>` — the in-process flow
   `reader → redact → translate → unredact → writer`.
-- `kapi run redact-pii -i <file>` — the built-in NER flow: `ai-entity-extract`
+- `kapi run redact-pii -i <file>` — the built-in NER flow: `entity-extract`
   (detect entities) → `redact` (configured for person/org/location/date). The
   placement pass (AD-006) keeps `redact` ahead of any remote-egress step.
   Equivalent recipe:
   ```yaml
   steps:
-    - tool: ai-entity-extract
+    - tool: entity-extract
     - tool: redact
       config:
         detectors: [entities]
@@ -182,7 +182,7 @@ unless `--no-restore` is set.
 - **AD-008 (Project Model)** — `Redaction` is a first-class `Defaults` /
   `ContentItem` field; the sidecar lives under the regenerable cache.
 - **AD-011 (AI Providers)** — the `RunsPlaceholderText` placeholder protocol is
-  what keeps the original out of the prompt; `ai-entity-extract` feeds the
+  what keeps the original out of the prompt; `entity-extract` feeds the
   optional entities detector.
 - **AD-017 (Bilingual Format Interop)** — `--redact` on extract and restore on
   merge slot into the existing bilingual roundtrip without changing its keys.

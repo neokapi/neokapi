@@ -307,7 +307,7 @@ func (r *ToolRegistry) NewToolWithConfig(name ToolID, config map[string]any, tar
 
 	// Run preprocessor if set (e.g. credential resolution). The requirements
 	// are config-resolved: a tool whose contract drops a requirement under a
-	// given config (ai-entity-extract with engine "ner" needs no credentials)
+	// given config (entity-extract with engine "ner" needs no credentials)
 	// must not have the preprocessor demand it anyway.
 	if r.preprocessor != nil && reg.ConfigFactory != nil {
 		requires := reg.Info.Requires

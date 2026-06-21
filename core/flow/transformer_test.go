@@ -35,7 +35,7 @@ func recordSourceTool() *tool.BaseTool {
 }
 
 // termTagTool is an annotator that tags a term span over [from,to) of the
-// source's flattened text — a stand-in for ai-entity-extract / term lookup.
+// source's flattened text — a stand-in for entity-extract / term lookup.
 func termTagTool(id string, from, to int) *tool.BaseTool {
 	return &tool.BaseTool{
 		ToolName: "tag",

@@ -131,7 +131,7 @@ func TestTranslateSchemaComposition(t *testing.T) {
 	assert.Nil(t, groupVisibleForField(s, "apiKey"), "apiKey is common")
 }
 
-// TestEntityExtractSchemaComposition asserts the ai-entity-extract tool gates
+// TestEntityExtractSchemaComposition asserts the entity-extract tool gates
 // the LLM provider/batch fields to the engines that use an LLM (llm + hybrid),
 // while locale/known-terms stay common to every engine.
 func TestEntityExtractSchemaComposition(t *testing.T) {

@@ -321,7 +321,7 @@ func BuiltInFlows() []FlowDefinition {
 			// trade-off the placement pass permits because redact consumes the
 			// entity port that step produces.
 			Nodes: []FlowNode{
-				{ID: "ai-entity-extract", Type: NodeTool, Name: "ai-entity-extract", Label: "Detect Entities (NER)", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "entity-extract", Type: NodeTool, Name: "entity-extract", Label: "Detect Entities (NER)", Position: NodePosition{X: 0, Y: 100}},
 				{ID: "redact", Type: NodeTool, Name: "redact", Label: "Redact", Position: NodePosition{X: 250, Y: 100},
 					Config: map[string]any{
 						"detectors":   []string{"entities"},
@@ -329,7 +329,7 @@ func BuiltInFlows() []FlowDefinition {
 					}},
 			},
 			Edges: []FlowEdge{
-				{ID: "e-extract-redact", Source: "ai-entity-extract", Target: "redact"},
+				{ID: "e-extract-redact", Source: "entity-extract", Target: "redact"},
 			},
 		},
 	}

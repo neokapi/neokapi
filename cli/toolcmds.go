@@ -125,10 +125,23 @@ var toolExamples = map[string]string{
   kapi segmentation app.xliff`,
 
 	// ── AI Quality ───────────────────────────────────────────────────────
-	"ai-review": `  kapi ai-review app.xliff --target-lang fr
-  kapi ai-review messages.json --target-lang de`,
+	"review": `  kapi review app.xliff --target-lang fr
+  kapi review messages.json --target-lang de`,
 	"brand-voice-check": `  kapi brand-voice-check messages.json --target-lang fr
   kapi brand-voice-check app.xliff --target-lang de`,
+
+	// ── AI Analysis ───────────────────────────────────────────────────────
+	"term-extract": `  kapi term-extract messages.json
+  kapi term-extract app.xliff --provider anthropic`,
+}
+
+// bespokeToolCommands names tools that own a dedicated, hand-written top-level
+// command (richer than the generic schema-driven one) and so must be skipped
+// here to avoid a duplicate registration. `rewrite` ships a sed-style command
+// with in-place editing and a reviewable --diff (see newRewriteCmd); the tool
+// stays registered (with its config factory) for flows and MCP.
+var bespokeToolCommands = map[string]bool{
+	"rewrite": true,
 }
 
 // NewToolCommands creates cobra commands from all CLI-visible tools in the
@@ -161,6 +174,9 @@ func (a *App) NewToolCommands() []*cobra.Command {
 	var cmds []*cobra.Command
 	for _, entry := range entries {
 		toolName := string(entry.Info.Name)
+		if bespokeToolCommands[toolName] {
+			continue // a dedicated command owns this verb (see bespokeToolCommands)
+		}
 		info := entry.Info
 		toolSchema := entry.Schema
 		var formatMaps []string

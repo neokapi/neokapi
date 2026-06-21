@@ -30,16 +30,16 @@ type AIReviewConfig struct {
 // AIReviewSchema returns the auto-generated schema for the AI review tool.
 func AIReviewSchema() *schema.ComponentSchema {
 	s := schema.FromStruct(&AIReviewConfig{}, schema.ToolMeta{
-		ID:                    "ai-review",
+		ID:                    "review",
 		Category:              schema.CategoryQuality,
-		DisplayName:           "AI Review",
+		DisplayName:           "Review",
 		Description:           "Review translations with scoring using an LLM provider",
 		Tags:                  []string{"ai-powered"},
 		WritesOutput:          true,
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
-		// ai-review writes a free-text "review" property, not a registered
+		// review writes a free-text "review" property, not a registered
 		// findings annotation, so it declares no Produces type.
 		SideEffects: []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	})
@@ -51,7 +51,7 @@ func AIReviewSchema() *schema.ComponentSchema {
 func NewAIReviewFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	var cfg AIReviewConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
-		return nil, fmt.Errorf("ai-review config: %w", err)
+		return nil, fmt.Errorf("review config: %w", err)
 	}
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
@@ -70,7 +70,7 @@ func NewAIReviewTool(p aiprovider.LLMProvider, cfg AIReviewConfig) *AIReviewTool
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
 	}
-	t.ToolName = "ai-review"
+	t.ToolName = "review"
 	t.ToolDescription = "Reviews translations with explanations using AI/LLM"
 	t.Annotate = t.annotate
 	return t
@@ -102,7 +102,7 @@ Suggestion: <improved translation if needed, or "none">`,
 		aiprovider.TextMessage("user", prompt),
 	})
 	if err != nil {
-		return fmt.Errorf("ai-review: %w", err)
+		return fmt.Errorf("review: %w", err)
 	}
 	t.addUsage(resp.Usage)
 

@@ -1,8 +1,8 @@
-# Native reference doc for the built-in `ai-entity-extract` tool.
+# Native reference doc for the built-in `entity-extract` tool.
 # Schema source: core/ai/tools/entity_extract.go (AIEntityExtractConfig).
 description: Detect named entities and terminology candidates in source content using an LLM.
 overview: |
-  The **AI Entity Extract** tool analyses a block's source text with a large
+  The **Entity Extract** tool analyses a block's source text with a large
   language model and records two kinds of stand-off annotation: named entities
   (people, organizations, products, locations, and also dates, times,
   currencies, and measurements) and terminology candidates (domain-specific

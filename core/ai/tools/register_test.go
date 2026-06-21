@@ -13,7 +13,7 @@ func TestRegisterAllRegistersBrandAndTerminology(t *testing.T) {
 	reg := registry.NewToolRegistry()
 	tools.RegisterAll(reg)
 
-	for _, name := range []string{"translate", "qa", "ai-review", "brand-voice-check", "ai-terminology"} {
+	for _, name := range []string{"translate", "qa", "review", "brand-voice-check", "term-extract"} {
 		assert.Truef(t, reg.Has(registry.ToolID(name)), "tool %q should be registered", name)
 	}
 }
@@ -67,7 +67,7 @@ func TestAITerminologyFromConfig(t *testing.T) {
 	reg := registry.NewToolRegistry()
 	tools.RegisterAll(reg)
 
-	tl, err := reg.NewToolWithConfig("ai-terminology", map[string]any{"provider": "anthropic", "apiKey": "test", "domain": "technology"}, "")
+	tl, err := reg.NewToolWithConfig("term-extract", map[string]any{"provider": "anthropic", "apiKey": "test", "domain": "technology"}, "")
 	require.NoError(t, err)
 	require.NotNil(t, tl)
 }

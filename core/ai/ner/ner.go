@@ -64,7 +64,7 @@ type Config struct {
 // available: a local ML model that detects entities without any network call.
 // The browser build registers a JS-bridged GLiNER model here; a native plugin
 // can register an in-process ONNX model the same way. nil means no local
-// model is available and `ai-entity-extract` with `engine: ner` fails with an
+// model is available and `entity-extract` with `engine: ner` fails with an
 // actionable error instead of silently extracting nothing.
 var localProvider Provider
 

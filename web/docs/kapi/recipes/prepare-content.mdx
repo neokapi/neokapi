@@ -85,7 +85,7 @@ jobs:
 steps:
   - tool: redact              # Job 1: protect sensitive content
   - tool: segmentation        # split into sentences so reuse + checks work per unit
-  - tool: ai-entity-extract   # detect names so TM can generalize over them
+  - tool: entity-extract   # detect names so TM can generalize over them
   - tool: tm-leverage         # Job 2: reuse past translations
   - tool: term-lookup         # Job 3: apply the glossary as guidance
   - tool: translate        # translate the remainder

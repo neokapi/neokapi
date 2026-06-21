@@ -68,7 +68,7 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 
 	expectedTools := []string{
 		"translate", "pseudo-translate", "tm-leverage", "qa",
-		"ai-review", "word-count", "search-replace",
+		"review", "word-count", "search-replace",
 		"segmentation", "script",
 	}
 	for _, name := range expectedTools {

@@ -124,7 +124,7 @@ func TestValidatePlacement_RedactAfterRemoteEgress(t *testing.T) {
 	// an avoidable leak → error. (Entity-driven redaction is the exemption,
 	// tested below.)
 	rulesAfterNER := chain(
-		toolNode("n", "ai-entity-extract", nil),
+		toolNode("n", "entity-extract", nil),
 		toolNode("r", "redact", map[string]any{"detectors": []string{"rules"}}),
 	)
 	diags, err = rulesAfterNER.ValidatePlacement(reg)
@@ -139,7 +139,7 @@ func TestValidatePlacement_EntityRedactionExemptsItsProducer(t *testing.T) {
 	t.Parallel()
 	reg := placementReg(t)
 	def := chain(
-		toolNode("n", "ai-entity-extract", nil),
+		toolNode("n", "entity-extract", nil),
 		toolNode("r", "redact", map[string]any{
 			"detectors":   []string{"entities"},
 			"entityTypes": []string{"person"},
@@ -156,7 +156,7 @@ func TestValidatePlacement_LocalProviderDoesNotTrip(t *testing.T) {
 	reg := placementReg(t)
 	for _, provider := range []string{"ollama", "demo"} {
 		def := chain(
-			toolNode("n", "ai-entity-extract", map[string]any{"provider": provider}),
+			toolNode("n", "entity-extract", map[string]any{"provider": provider}),
 			toolNode("r", "redact", map[string]any{"detectors": []string{"rules"}}),
 		)
 		require.NoError(t, def.CheckPlacement(reg), "provider %s is local", provider)
@@ -164,7 +164,7 @@ func TestValidatePlacement_LocalProviderDoesNotTrip(t *testing.T) {
 
 	// A cloud provider named explicitly still trips the rule.
 	cloud := chain(
-		toolNode("n", "ai-entity-extract", map[string]any{"provider": "anthropic"}),
+		toolNode("n", "entity-extract", map[string]any{"provider": "anthropic"}),
 		toolNode("r", "redact", map[string]any{"detectors": []string{"rules"}}),
 	)
 	require.Error(t, cloud.CheckPlacement(reg))
@@ -172,7 +172,7 @@ func TestValidatePlacement_LocalProviderDoesNotTrip(t *testing.T) {
 	// The on-device NER engine calls no provider at all: nothing leaves the
 	// machine, so even a rules-only redact after it passes.
 	onDevice := chain(
-		toolNode("n", "ai-entity-extract", map[string]any{"engine": "ner"}),
+		toolNode("n", "entity-extract", map[string]any{"engine": "ner"}),
 		toolNode("r", "redact", map[string]any{"detectors": []string{"rules"}}),
 	)
 	require.NoError(t, onDevice.CheckPlacement(reg))
