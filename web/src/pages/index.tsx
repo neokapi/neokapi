@@ -23,12 +23,12 @@ function HomepageHeader() {
           </Heading>
           <p className={styles.heroSubtitle}>
             An open-source Go engine that parses any format &mdash; JSON, HTML, Markdown, config,
-            <code>.docx</code> &mdash; into one faithful content model, then lets you or your AI
-            agent{" "}
+            office formats &mdash; into one unified content model, then lets you or your AI agent{" "}
             <strong>
               edit and check the content inside it and write it back, byte&#8209;for&#8209;byte
             </strong>
-            . Localization is its deepest application, not its identity.
+            . At heart, both a localization engine and the tool that keeps your source content on
+            brand.
           </p>
           <div className={styles.buttons}>
             <Link
@@ -71,7 +71,7 @@ const Tiers: Tier[] = [
     eyebrow: "The engine",
     title: "Go framework",
     description:
-      "Format-aware readers and writers, a faithful content model, and a streaming pipeline of composable tools — embed it directly in your own Go programs.",
+      "Format-aware readers and writers, a unified content model, and a streaming pipeline of composable tools — embed it directly in your own Go programs.",
     link: "/framework/go-quickstart",
     linkText: "Go quickstart",
   },
@@ -109,12 +109,12 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Parse any format",
     description:
-      "Readers for document, data, config, subtitle, office, and localization formats turn any file into one faithful content model — with structure, roles, and stable anchors. Clean input for AI and RAG, with the provenance to write it back.",
+      "Readers for document, data, config, subtitle, office, and localization formats turn any file into one unified content model — with structure, roles, and stable anchors. Clean input for AI and RAG, with the provenance to write it back.",
     link: "/framework/formats",
     linkText: "Formats",
   },
   {
-    title: "Edit in place, faithfully",
+    title: "Edit in place",
     description:
       "Change the content inside a file and save the original, byte-for-byte. Programmatic with kgrep/ksed, or AI-driven — with a safety harness that preserves your annotations. Unlike extract-only parsers, the round-trip is reversible.",
     link: "/toolbox/overview",
@@ -130,7 +130,7 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Localization, built in",
     description:
-      "The deepest application of the engine: translate with AI or MT, leverage translation memory, and interchange bilingual XLIFF 2.x or PO with Trados, memoQ, Phrase, or Crowdin — merged back through a faithful skeleton.",
+      "The deepest application of the engine: translate with AI or MT, leverage translation memory, and interchange bilingual XLIFF 2.x or PO with Trados, memoQ, Phrase, or Crowdin — merged back through the original skeleton.",
     link: "/kapi/bilingual-workflow",
     linkText: "Localization",
   },
@@ -193,7 +193,7 @@ function HomepageFeatures() {
                 <span className={styles.reactCalloutText}>
                   <strong>CLI Tools</strong> — <code>kgrep</code>, <code>ksed</code>,{" "}
                   <code>kcat</code>: format-aware grep, sed and cat that read and rewrite the text
-                  inside <code>.docx</code>, JSON, HTML and more.
+                  inside office files, JSON, HTML and more.
                 </span>
                 <span className={styles.reactCalloutArrow} aria-hidden="true">
                   &rarr;

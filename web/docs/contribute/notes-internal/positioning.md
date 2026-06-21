@@ -12,9 +12,15 @@ description: The single source of truth for how we describe neokapi, kapi, and B
 
 ## What neokapi is (the one sentence)
 
-> **neokapi is a faithful, format-aware content engine: parse any format into one
+> **neokapi is a format-aware content engine: parse any format into one unified
 > content model, edit the content inside it, check it, and write it back —
-> byte-for-byte. Localization is its deepest application, not its identity.**
+> byte-for-byte. At heart, both a localization engine and the tool that keeps your
+> source content on brand.**
+
+The generic parse/edit/check engine is the **foundation** (and the new-audience hook —
+RAG, programmatic editing); its two **deepest** applications are **localization** and
+**on-brand source content**. Lead with the engine's capability; name the dual heart
+affirmatively — don't demote localization to "just an application".
 
 `kapi` is the CLI + desktop built on the engine. **Bowrain** is the team
 governance platform built on `kapi`.
@@ -33,9 +39,9 @@ editing. We support those formats and harden them to an SLA; they are not the he
 
 ## The three pillars (the body)
 
-1. **Parse** — read any format into one faithful content model with roles, structure, and
+1. **Parse** — read any format into one unified content model with roles, structure, and
    stable anchors. Clean input for AI/RAG, *with provenance to write back*.
-2. **Edit** — change the content inside a format and save the original, byte-faithfully.
+2. **Edit** — change the content inside a format and save the original, byte-for-byte.
    Programmatic (`ksed`, transforms) and AI-driven, with a safety harness that preserves
    annotations and produces a reviewable diff.
 3. **Check** — deterministic + AI checks emit one finding shape with a 0–100 score; gate on
@@ -46,7 +52,7 @@ brand & terminology governance (monolingual), AI ingestion.
 
 ## The moat (state it honestly)
 
-The differentiator is **faithful read-modify-write round-trip across the long tail**.
+The differentiator is **byte-for-byte read-modify-write round-trip across the long tail**.
 Do **not** claim "everyone else only extracts" — that is false (Aspose, GroupDocs,
 python-docx, the Office-MCP wave all write back). The honest, defensible claim is the
 **bundle**:
@@ -90,6 +96,10 @@ and edits.*
 | "a localization and translation toolkit" | "a format-aware content toolkit — parse, edit, check, and localize any format" |
 | "Source / Target" (to non-l10n readers) | "canonical content + variants" (axes: locale, tone, channel) |
 | "everyone else only extracts" | "the only OSS, format-agnostic engine that round-trips the long tail …" |
+| "faithful" (as a brand adjective) | drop it — use the concrete "**byte-for-byte**" / "write it back unchanged" |
+| "faithful content model" | "**unified content model**" |
+| a lone narrow format in a generic example (XLIFF, `.docx`) | a broad/recognizable set ("JSON, HTML, Markdown, config, office formats"); keep XLIFF/PO only in explicit localization copy |
+| "localization is its deepest application, not its identity" | name the dual heart affirmatively: "**at heart, a localization engine and the tool that keeps your source content on brand**" |
 
 **Code-level (do now, bounded):** the generic tool capability `CapTranslate` →
 `CapProduce`, `Translate(TargetView)` → `Produce(VariantView)`, `TargetView` → `VariantView`.
