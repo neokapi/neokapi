@@ -1,14 +1,8 @@
 package model
 
 import (
-	"fmt"
-	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
-	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,7 +23,7 @@ func TestLookup(t *testing.T) {
 	assert.True(t, s.Default)
 	assert.NotEmpty(t, s.Embed.RepoPath)
 	assert.NotEmpty(t, s.Decoder.RepoPath)
-	// v0.1.0 is text-only: vision/audio encoders are not fetched yet.
+	// v0.1.x is text-only: vision/audio encoders are not used yet.
 	assert.Empty(t, s.Vision.RepoPath)
 	assert.Empty(t, s.Audio.RepoPath)
 
@@ -49,7 +43,7 @@ func TestAllFilesCoversComponentsDataAndConfigs(t *testing.T) {
 	for _, f := range files {
 		bases = append(bases, f.Base())
 	}
-	// Text-only v0.1.0: embed + decoder (2 graphs) + 2 data siblings + tokenizer
+	// Text-only: embed + decoder (2 graphs) + 2 data siblings + tokenizer
 	// + config + generation_config = 7.
 	assert.Len(t, files, 7)
 	assert.Contains(t, bases, "embed_tokens_q4.onnx")
@@ -59,123 +53,63 @@ func TestAllFilesCoversComponentsDataAndConfigs(t *testing.T) {
 	assert.NotContains(t, bases, "vision_encoder_q4.onnx")
 }
 
-func TestCacheRootPrecedence(t *testing.T) {
-	t.Setenv("KAPI_LLM_CACHE", "/tmp/explicit")
-	root, err := CacheRoot()
-	require.NoError(t, err)
-	assert.Equal(t, "/tmp/explicit", root)
-
-	t.Setenv("KAPI_LLM_CACHE", "")
-	t.Setenv("XDG_CACHE_HOME", "/tmp/xdg")
-	root, err = CacheRoot()
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join("/tmp/xdg", "kapi", "models", "llm"), root)
+// stageModel writes a non-empty placeholder for every file the model needs.
+func stageModel(t *testing.T, dir string) {
+	t.Helper()
+	s, _ := Lookup("gemma-4-e2b")
+	for _, f := range s.allFiles() {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, f.Base()), []byte("x"), 0o644))
+	}
 }
 
-// TestEnsureDownloadsAndCaches exercises the full download path against a fake
-// HF server: every file is fetched once, stored under its basename, and a second
-// Ensure is a pure cache hit (no further requests).
-func TestEnsureDownloadsAndCaches(t *testing.T) {
-	var hits int64
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt64(&hits, 1)
-		// Body is the request path so we can assert basename preservation.
-		fmt.Fprintf(w, "content-of:%s", r.URL.Path)
-	}))
-	defer srv.Close()
+func TestResolveInDirMapsStagedFiles(t *testing.T) {
+	dir := t.TempDir()
+	stageModel(t, dir)
 
-	cache := t.TempDir()
-	t.Setenv("KAPI_LLM_CACHE", cache)
-
-	dl := &Downloader{HTTPClient: srv.Client()}
-	// Point every file at the fake server by overriding the URL builder via a
-	// custom spec download: we reuse Ensure but with a one-file model to keep
-	// the test fast and deterministic.
-	dl.HTTPClient = srv.Client()
-
-	// Use a tiny spec routed at the test server.
-	spec := Spec{
-		Name:      "tiny",
-		Repo:      "x/y",
-		Default:   true,
-		Embed:     File{RepoPath: "onnx/embed.onnx"},
-		Decoder:   File{RepoPath: "onnx/decoder.onnx"},
-		Data:      []File{{RepoPath: "onnx/decoder.onnx_data"}},
-		Tokenizer: File{RepoPath: "tokenizer.json"},
-	}
-	orig := Registry
-	Registry = []Spec{spec}
-	defer func() { Registry = orig }()
-
-	// Redirect hfURL by temporarily swapping the base host: easiest is to make
-	// the downloader hit srv via a rewriting RoundTripper.
-	dl.HTTPClient = &http.Client{Transport: rewriteHost{base: srv.URL, rt: srv.Client().Transport}}
-
-	paths, err := dl.Ensure("tiny")
+	paths, err := ResolveInDir("gemma-4-e2b", dir)
 	require.NoError(t, err)
-
-	// Files landed under their basenames.
-	for _, p := range []string{paths.Embed, paths.Decoder, paths.Tokenizer} {
-		b, rerr := os.ReadFile(p)
-		require.NoError(t, rerr)
-		assert.True(t, strings.HasPrefix(string(b), "content-of:"))
-	}
-	assert.Equal(t, "embed.onnx", filepath.Base(paths.Embed))
-	dataPath := filepath.Join(paths.Dir, "decoder.onnx_data")
-	assert.FileExists(t, dataPath)
-
-	first := atomic.LoadInt64(&hits)
-	assert.Equal(t, int64(4), first, "4 files fetched once each")
-
-	// Second Ensure is a cache hit: no new requests.
-	_, err = dl.Ensure("tiny")
-	require.NoError(t, err)
-	assert.Equal(t, first, atomic.LoadInt64(&hits), "cache hit makes no requests")
+	assert.Equal(t, dir, paths.Dir)
+	assert.Equal(t, filepath.Join(dir, "embed_tokens_q4.onnx"), paths.Embed)
+	assert.Equal(t, filepath.Join(dir, "decoder_model_merged_q4.onnx"), paths.Decoder)
+	assert.Equal(t, filepath.Join(dir, "tokenizer.json"), paths.Tokenizer)
+	assert.Equal(t, filepath.Join(dir, "config.json"), paths.Config)
+	assert.Equal(t, filepath.Join(dir, "generation_config.json"), paths.GenerationConfig)
+	// Text-only model: no vision/audio graphs.
+	assert.Empty(t, paths.Vision)
+	assert.Empty(t, paths.Audio)
 }
 
-func TestHumanBytes(t *testing.T) {
-	assert.Equal(t, "512B", humanBytes(512))
-	assert.Equal(t, "1.0KB", humanBytes(1024))
-	assert.Equal(t, "1.5KB", humanBytes(1536))
-	assert.Equal(t, "2.0GB", humanBytes(2*1024*1024*1024))
+func TestResolveInDirEmptyDir(t *testing.T) {
+	_, err := ResolveInDir("gemma-4-e2b", "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no model directory")
 }
 
-func TestProgressReaderEmitsFinalLine(t *testing.T) {
-	var logs []string
-	pr := &progressReader{
-		r:     strings.NewReader("hello world"),
-		total: 11,
-		label: "[1/1] file.onnx",
-		logf:  func(f string, a ...any) { logs = append(logs, fmt.Sprintf(f, a...)) },
-	}
-	b, err := io.ReadAll(pr)
-	require.NoError(t, err)
-	pr.done(int64(len(b)))
-	require.NotEmpty(t, logs)
-	// The forced final line reports 100%.
-	last := logs[len(logs)-1]
-	assert.Contains(t, last, "[1/1] file.onnx")
-	assert.Contains(t, last, "100%")
+func TestResolveInDirUnknownModel(t *testing.T) {
+	_, err := ResolveInDir("nope", t.TempDir())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown model")
 }
 
-// rewriteHost sends every request to base, preserving the path, so the test can
-// route the production HuggingFace URLs at a local server.
-type rewriteHost struct {
-	base string
-	rt   http.RoundTripper
+func TestResolveInDirMissingFile(t *testing.T) {
+	dir := t.TempDir()
+	stageModel(t, dir)
+	// Remove one required file: resolution must fail loudly, not silently.
+	require.NoError(t, os.Remove(filepath.Join(dir, "decoder_model_merged_q4.onnx_data")))
+
+	_, err := ResolveInDir("gemma-4-e2b", dir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "decoder_model_merged_q4.onnx_data")
+	assert.Contains(t, err.Error(), "kapi models pull")
 }
 
-func (rw rewriteHost) RoundTrip(req *http.Request) (*http.Response, error) {
-	u := req.URL
-	// Keep the path (which carries the repo file path), swap scheme+host.
-	newURL := rw.base + u.Path
-	r2, err := http.NewRequestWithContext(req.Context(), req.Method, newURL, req.Body)
-	if err != nil {
-		return nil, err
-	}
-	rt := rw.rt
-	if rt == nil {
-		rt = http.DefaultTransport
-	}
-	return rt.RoundTrip(r2)
+func TestResolveInDirEmptyFileRejected(t *testing.T) {
+	dir := t.TempDir()
+	stageModel(t, dir)
+	// A zero-byte file is treated as absent (a truncated/partial stage).
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "tokenizer.json"), nil, 0o644))
+
+	_, err := ResolveInDir("gemma-4-e2b", dir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tokenizer.json")
 }

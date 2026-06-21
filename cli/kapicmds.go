@@ -62,6 +62,7 @@ func (a *App) KapiCommandSet() []*cobra.Command {
 		a.NewToolsCmd(),
 		a.NewFormatsCmd(),
 		a.NewPluginCmd(),
+		a.NewModelsCmd(),
 		a.NewRegistryCmd(),
 		a.NewPresetsCmd(),
 		a.NewTermbaseCmd(),

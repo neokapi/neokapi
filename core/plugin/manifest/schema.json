@@ -31,6 +31,37 @@
     },
     "min_kapi_version": { "type": "string" },
     "group": { "type": "string" },
+    "models": {
+      "type": "array",
+      "description": "Large model/data assets the host fetches, verifies, and caches on the plugin's behalf.",
+      "items": {
+        "type": "object",
+        "required": ["id", "version", "files"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+          "version": { "type": "string" },
+          "default": { "type": "boolean" },
+          "description": { "type": "string" },
+          "license": { "type": "string" },
+          "files": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["path", "url", "sha256"],
+              "additionalProperties": false,
+              "properties": {
+                "path": { "type": "string", "pattern": "^[^/\\\\]+$" },
+                "url": { "type": "string", "format": "uri" },
+                "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+                "size": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    },
     "capabilities": {
       "type": "object",
       "additionalProperties": false,

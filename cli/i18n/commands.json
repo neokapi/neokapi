@@ -199,6 +199,20 @@
           "long": "Materialize localized files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the localized files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\nlocalized file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently.",
           "short": "Apply a returned bilingual file (.klz/XLIFF/PO) back onto the project source"
         },
+        "models": {
+          "list": {
+            "short": "List model assets declared by installed plugins"
+          },
+          "long": "List, pre-fetch, and remove the model assets that kapi downloads and caches on a\nplugin's behalf. Each is integrity-pinned in the plugin's manifest and stored under\n$XDG_CACHE_HOME/kapi/models/\u003cplugin\u003e/\u003cid\u003e/\u003cversion\u003e/.",
+          "prune": {
+            "short": "Remove a cached model asset from disk"
+          },
+          "pull": {
+            "long": "Fetch and verify a model asset ahead of time so the first use of the plugin is\ninstant. With just \u003cplugin\u003e, pulls that plugin's default model.",
+            "short": "Download and cache a plugin's model asset"
+          },
+          "short": "Manage model assets that plugins use"
+        },
         "pack": {
           "example": "  kapi pack -o snapshot.klz   # a .kapi project\n  kapi pack work.klz         # eject a .klz workspace's cache",
           "long": "Snapshot a .kapi project's working state — the block-store overlays, the\nauthoritative translation memory, and the termbase — into a portable .klz.\nRegenerable caches and secrets are excluded. Move the snapshot to another\nmachine and \"kapi unpack\" it to resume work there.",

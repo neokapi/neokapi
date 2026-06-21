@@ -90,6 +90,96 @@ type Manifest struct {
 	// local socket). Mode A (commands) and Mode B (MCP) plugins omit
 	// this field.
 	Daemon *DaemonConfig `json:"daemon,omitempty"`
+
+	// Models declares large model/data assets the plugin needs at runtime.
+	// Unlike Capabilities (things the plugin provides TO kapi), these are data
+	// DEPENDENCIES the host fetches, verifies, and caches on the plugin's
+	// behalf — so the plugin binary stays a pure compute engine and asset
+	// downloads are uniform with the rest of kapi (shared progress bar,
+	// concurrency, integrity, one cache). Because the manifest ships inside the
+	// cosign + SHA-256 verified plugin tarball, the per-file digests below are
+	// trust-rooted, and URLs pin an immutable upstream revision rather than a
+	// moving branch. The host stages a model under
+	// $XDG_CACHE_HOME/kapi/models/<plugin>/<id>/<version>/ and hands the plugin
+	// that directory (it never reaches the network itself).
+	Models []ModelAsset `json:"models,omitempty"`
+}
+
+// ModelAsset describes one downloadable model the plugin can load. A plugin may
+// declare several (e.g. size/quantization variants); exactly one may be marked
+// Default, which the host fetches when the user does not name a specific model.
+type ModelAsset struct {
+	// ID is the model identifier the user/recipe selects and the cache key
+	// (e.g. "gemma-4-e2b"). Must match [a-z0-9][a-z0-9._-]*.
+	ID string `json:"id"`
+
+	// Version pins the asset revision so the cache is content-stable and a
+	// model update is an explicit, observable change (e.g. "1" or an upstream
+	// commit short-rev). Part of the cache path.
+	Version string `json:"version"`
+
+	// Default marks the model the host fetches when none is named. At most one
+	// model per manifest may set this.
+	Default bool `json:"default,omitempty"`
+
+	// Description is a one-line human summary shown by `kapi models`.
+	Description string `json:"description,omitempty"`
+
+	// License is the SPDX identifier (or upstream license name) for the model
+	// weights — surfaced so users can see terms before a multi-GB download.
+	License string `json:"license,omitempty"`
+
+	// Files are the artifacts to fetch. Every file is stored flat under its
+	// Path basename in the model cache dir, so sibling references (e.g. ONNX
+	// external-data) resolve.
+	Files []ModelFile `json:"files"`
+}
+
+// ModelFile is one artifact within a ModelAsset.
+type ModelFile struct {
+	// Path is the basename the file is stored under in the cache dir
+	// (e.g. "decoder_model_merged_q4.onnx"). Must be a bare name — no slashes,
+	// no "..".
+	Path string `json:"path"`
+
+	// URL is the immutable download URL. It SHOULD pin a fixed upstream
+	// revision (e.g. HuggingFace .../resolve/<commit>/...), never a moving
+	// branch like main.
+	URL string `json:"url"`
+
+	// SHA256 is the lowercase-hex digest the downloaded bytes must match. It is
+	// mandatory: the host refuses to install a model file without a pinned
+	// digest (no --unsafe escape hatch for declared assets).
+	SHA256 string `json:"sha256"`
+
+	// Size, when > 0, is the expected byte length, checked alongside SHA256 and
+	// used to pre-size the progress bar before the response arrives.
+	Size int64 `json:"size,omitempty"`
+}
+
+// DefaultModel returns the manifest's default ModelAsset and true, or a zero
+// value and false when the plugin declares no models or none is marked default.
+func (m *Manifest) DefaultModel() (ModelAsset, bool) {
+	for _, a := range m.Models {
+		if a.Default {
+			return a, true
+		}
+	}
+	// A single declared model is unambiguously the default even without the flag.
+	if len(m.Models) == 1 {
+		return m.Models[0], true
+	}
+	return ModelAsset{}, false
+}
+
+// Model returns the declared ModelAsset with the given id, or false.
+func (m *Manifest) Model(id string) (ModelAsset, bool) {
+	for _, a := range m.Models {
+		if a.ID == id {
+			return a, true
+		}
+	}
+	return ModelAsset{}, false
 }
 
 // Capabilities groups every capability section a plugin can declare.
@@ -520,7 +610,91 @@ func (m *Manifest) Validate() error {
 			}
 		}
 	}
+	defaults := 0
+	seenModel := map[string]bool{}
+	for i, a := range m.Models {
+		if a.ID == "" {
+			return fmt.Errorf("models[%d]: id is required", i)
+		}
+		if !validModelID(a.ID) {
+			return fmt.Errorf("models[%d]: invalid id %q (must match [a-z0-9][a-z0-9._-]*)", i, a.ID)
+		}
+		if seenModel[a.ID] {
+			return fmt.Errorf("models[%d]: duplicate model id %q", i, a.ID)
+		}
+		seenModel[a.ID] = true
+		if a.Version == "" {
+			return fmt.Errorf("models[%d] (%s): version is required", i, a.ID)
+		}
+		if a.Default {
+			defaults++
+		}
+		if len(a.Files) == 0 {
+			return fmt.Errorf("models[%d] (%s): at least one file is required", i, a.ID)
+		}
+		seenFile := map[string]bool{}
+		for j, f := range a.Files {
+			if f.Path == "" {
+				return fmt.Errorf("models[%d] (%s).files[%d]: path is required", i, a.ID, j)
+			}
+			if f.Path != filepathBase(f.Path) {
+				return fmt.Errorf("models[%d] (%s).files[%d]: path %q must be a bare basename (no directories)", i, a.ID, j, f.Path)
+			}
+			if seenFile[f.Path] {
+				return fmt.Errorf("models[%d] (%s).files[%d]: duplicate file path %q", i, a.ID, j, f.Path)
+			}
+			seenFile[f.Path] = true
+			if f.URL == "" {
+				return fmt.Errorf("models[%d] (%s).files[%d] (%s): url is required", i, a.ID, j, f.Path)
+			}
+			if !validSHA256(f.SHA256) {
+				return fmt.Errorf("models[%d] (%s).files[%d] (%s): a 64-hex sha256 is required (declared model files must be pinned)", i, a.ID, j, f.Path)
+			}
+		}
+	}
+	if defaults > 1 {
+		return fmt.Errorf("models: at most one model may be marked default (found %d)", defaults)
+	}
 	return nil
+}
+
+// filepathBase returns the final path element, treating both "/" and "\" as
+// separators so a Windows-style "dir\file" path is also rejected as non-bare.
+func filepathBase(p string) string {
+	p = strings.ReplaceAll(p, "\\", "/")
+	if i := strings.LastIndex(p, "/"); i >= 0 {
+		return p[i+1:]
+	}
+	return p
+}
+
+// validModelID matches [a-z0-9][a-z0-9._-]*.
+func validModelID(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i, r := range s {
+		ok := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') ||
+			(i > 0 && (r == '-' || r == '.' || r == '_'))
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// validSHA256 reports whether s is exactly 64 lowercase-or-uppercase hex digits.
+func validSHA256(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	for _, r := range s {
+		isHex := (r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')
+		if !isHex {
+			return false
+		}
+	}
+	return true
 }
 
 // validateSubcommands recursively checks that every subcommand carries a

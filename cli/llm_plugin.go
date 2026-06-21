@@ -222,8 +222,30 @@ func (p *llmProvider) dial() (llmTransport, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Host-owned model assets: when the plugin manifest declares its model, the
+	// host stages it (verified, with a progress bar in this terminal) and hands
+	// the directory to the plugin via $KAPI_LLM_MODEL_DIR — the plugin itself
+	// never touches the network. A manifest without a `models` section (an older
+	// plugin) leaves modelDir empty and falls back to the plugin's own path.
+	var modelDir string
+	if plugin.Manifest != nil {
+		asset, ok := plugin.Manifest.Model(p.cfg.Model)
+		if !ok {
+			asset, ok = plugin.Manifest.DefaultModel()
+		}
+		if ok {
+			dir, derr := EnsureModel(context.Background(), asset, ModelEnsureOptions{
+				Plugin: llmPluginName,
+				Logf:   func(f string, a ...any) { fmt.Fprintf(os.Stderr, "kapi-llm: "+f+"\n", a...) },
+			})
+			if derr != nil {
+				return nil, derr
+			}
+			modelDir = dir
+		}
+	}
 	ctx, cancel := context.WithCancel(context.Background())
-	proc, err := startLLMProcess(ctx, plugin.BinaryPath)
+	proc, err := startLLMProcess(ctx, plugin.BinaryPath, modelDir)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -361,9 +383,14 @@ type llmProcess struct {
 	closeOnce sync.Once
 }
 
-func startLLMProcess(ctx context.Context, bin string) (*llmProcess, error) {
+func startLLMProcess(ctx context.Context, bin, modelDir string) (*llmProcess, error) {
 	cmd := exec.CommandContext(ctx, bin, "serve")
-	cmd.Stderr = os.Stderr // forward first-run model-download progress
+	cmd.Stderr = os.Stderr // forward plugin diagnostics
+	if modelDir != "" {
+		// The host already staged + verified the model; point the plugin at it
+		// so it loads (rather than fetches) the files.
+		cmd.Env = append(os.Environ(), "KAPI_LLM_MODEL_DIR="+modelDir)
+	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("kapi-llm stdin: %w", err)

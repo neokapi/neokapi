@@ -11,3 +11,9 @@ import "sync/atomic"
 func newProgress(_ int, _ *atomic.Int64) (progressGroup, progressBar) {
 	return nil, nil
 }
+
+// newDownloadProgress in the browser uses the plain line logger: mpb doesn't
+// build for GOOS=js, and there's no terminal to draw a bar on.
+func newDownloadProgress(logf func(format string, args ...any)) downloadProgress {
+	return logProgress{logf: logf}
+}
