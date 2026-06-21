@@ -135,6 +135,10 @@
         }
       }
     },
+    "content-lint": {
+      "displayName": "Content Lint",
+      "category": "text-processing"
+    },
     "diff-leverage": {
       "displayName": "Diff Leverage",
       "category": "translation",

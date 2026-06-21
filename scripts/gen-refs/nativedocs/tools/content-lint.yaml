@@ -1,0 +1,25 @@
+# Native reference doc for the built-in `content-lint` tool.
+# Schema source: core/tools/contentlint.go (ContentLintConfig).
+description: Flag common text-hygiene issues in source content (no target or locale comparison).
+overview: |
+  The **Content Lint** tool inspects the source text of each translatable block
+  for common text-hygiene problems and records them as quality findings. It is a
+  generic, single-text checker: it looks only at the source and needs no target
+  or target locale.
+
+  It reports empty or whitespace-only content (a major issue), and the following
+  minor nits: leading or trailing whitespace, consecutive spaces, doubled words
+  (e.g. "the the"), and stray control characters. Clean content produces no
+  findings.
+parameters: {}
+limitations:
+  - Inspects source content only; it does not compare source against a target.
+  - Heuristic checks; it does not perform spelling or grammar analysis.
+processingNotes:
+  - Operates on translatable blocks; non-translatable structure passes through unchanged.
+  - Findings accumulate under the unified quality findings annotation alongside other checkers.
+examples:
+  - title: Lint source content
+    description: Flag hygiene issues in the source text of every block.
+    config: |
+      {}

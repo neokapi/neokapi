@@ -65,9 +65,9 @@ fix-loop:
 # One-time: import your glossary into a named termbase
 kapi termbase import glossary.csv --name product-terms --format csv --header -s en -t fr
 
-# Check the source now; check the source/target pair after translation
+# Check the source content now; add the translated target after translation
 kapi check src/locales/en.json
-kapi check src/locales/en.json src/locales/fr.json --target-lang fr
+kapi check src/locales/en.json --target src/locales/fr.json --target-lang fr
 ```
 
 The [Enforce terminology](/kapi/recipes/terminology-qa) recipe covers glossary

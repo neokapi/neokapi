@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T19:38:00Z",
+  "generatedAt": "2026-06-21T20:35:41Z",
   "commands": [
     {
       "id": "brand",
@@ -1271,6 +1271,106 @@
       "use": "completion [bash|zsh|fish|powershell]",
       "short": "Generate shell completion script",
       "long": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source \u003c(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash \u003e /etc/bash_completion.d/kapi\n\nZsh:\n  $ source \u003c(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh \u003e \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish \u003e ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS\u003e kapi completion powershell | Out-String | Invoke-Expression",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "content-lint",
+      "path": [
+        "content-lint"
+      ],
+      "use": "content-lint [files...]",
+      "short": "Content Lint",
+      "groupID": "text-processing",
+      "flags": [
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
       "offlineCapable": true,
       "runnableInBrowser": true,
       "demoMode": false

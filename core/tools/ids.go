@@ -17,6 +17,7 @@ const (
 	PatternCheck          registry.ToolID = "pattern-check"
 	TermCheck             registry.ToolID = "term-check"
 	XMLValidation         registry.ToolID = "xml-validation"
+	ContentLint           registry.ToolID = "content-lint"
 	TranslationComparison registry.ToolID = "translation-comparison"
 	CharsListing          registry.ToolID = "chars-listing"
 	ScopingReport         registry.ToolID = "scoping-report"

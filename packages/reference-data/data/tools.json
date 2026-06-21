@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T19:38:00Z",
+  "generatedAt": "2026-06-21T20:35:41Z",
   "kind": "tool",
   "entries": [
     {
@@ -1220,6 +1220,58 @@
             "title": "List source characters only",
             "description": "Build the character set from source text alone, for example before any translation exists.",
             "config": "includeSource: true\nincludeTarget: false\n"
+          }
+        ]
+      }
+    },
+    {
+      "id": "content-lint",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Content Lint",
+      "description": "Flag common text-hygiene issues in source content (no target or locale comparison).",
+      "category": "text-processing",
+      "tags": [
+        "quality"
+      ],
+      "cardinality": "monolingual",
+      "produces": [
+        "qa@source"
+      ],
+      "schema": {
+        "$id": "content-lint",
+        "title": "Content Lint",
+        "type": "object",
+        "toolMeta": {
+          "id": "content-lint",
+          "category": "text-processing",
+          "displayName": "Content Lint",
+          "tags": [
+            "quality"
+          ],
+          "cardinality": "monolingual",
+          "produces": [
+            {
+              "type": "qa"
+            }
+          ]
+        }
+      },
+      "doc": {
+        "overview": "The **Content Lint** tool inspects the source text of each translatable block\nfor common text-hygiene problems and records them as quality findings. It is a\ngeneric, single-text checker: it looks only at the source and needs no target\nor target locale.\n\nIt reports empty or whitespace-only content (a major issue), and the following\nminor nits: leading or trailing whitespace, consecutive spaces, doubled words\n(e.g. \"the the\"), and stray control characters. Clean content produces no\nfindings.\n",
+        "limitations": [
+          "Inspects source content only; it does not compare source against a target.",
+          "Heuristic checks; it does not perform spelling or grammar analysis."
+        ],
+        "processingNotes": [
+          "Operates on translatable blocks; non-translatable structure passes through unchanged.",
+          "Findings accumulate under the unified quality findings annotation alongside other checkers."
+        ],
+        "examples": [
+          {
+            "title": "Lint source content",
+            "description": "Flag hygiene issues in the source text of every block.",
+            "config": "{}\n"
           }
         ]
       }

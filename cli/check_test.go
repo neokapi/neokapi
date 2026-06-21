@@ -5,11 +5,22 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestCheck_BilingualFindings runs `kapi check <source> <target>` over a
+// ruleCounts tallies a report's diagnostics by their stable rule id — the
+// contract an AI/CI keys off.
+func ruleCounts(r check.Report) map[string]int {
+	m := map[string]int{}
+	for _, d := range r.Findings {
+		m[d.Rule]++
+	}
+	return m
+}
+
+// TestCheck_BilingualFindings runs `kapi check <source> --target <target>` over a
 // JSON pair where the target drops a placeholder and translates a
 // do-not-translate term, and asserts the gate fails with both findings.
 func TestCheck_BilingualFindings(t *testing.T) {
@@ -33,19 +44,17 @@ func TestCheck_BilingualFindings(t *testing.T) {
 
 	a := &App{SourceLang: "en"}
 	cmd := a.NewCheckCmd()
+	require.NoError(t, cmd.Flags().Set("target", tgt))
 	require.NoError(t, cmd.Flags().Set("target-lang", "de"))
 	require.NoError(t, cmd.Flags().Set("dnt", "Acme Cloud"))
 
-	out, err := a.computeCheck(cmd, []string{src, tgt})
+	out, err := a.computeCheck(cmd, []string{src})
 	require.NoError(t, err)
 
 	assert.False(t, out.Pass, "gate must fail on critical findings")
-	cats := map[string]int{}
-	for _, f := range out.Findings {
-		cats[f.Category]++
-	}
-	assert.Positive(t, cats["placeholder"], "should flag the dropped {name} placeholder")
-	assert.Positive(t, cats["do-not-translate"], "should flag the translated do-not-translate term")
+	counts := ruleCounts(out)
+	assert.Positive(t, counts["placeholder.placeholder"], "should flag the dropped {name} placeholder: %+v", out.Findings)
+	assert.Positive(t, counts["dnt.do-not-translate"], "should flag the translated do-not-translate term: %+v", out.Findings)
 	assert.GreaterOrEqual(t, out.Summary.Critical, 2)
 }
 
@@ -70,14 +79,11 @@ func TestCheck_MonolingualSourceChecks(t *testing.T) {
 	out, err := a.computeCheck(cmd, []string{src})
 	require.NoError(t, err)
 
-	cats := map[string]int{}
-	for _, f := range out.Findings {
-		cats[f.Category]++
-	}
-	assert.Positive(t, cats["max-chars-exceeded"], "should flag the over-long body: %+v", out.Findings)
-	assert.Positive(t, cats["forbidden-pattern"], "should flag the TODO marker in source: %+v", out.Findings)
+	counts := ruleCounts(out)
+	assert.Positive(t, counts["length.max-chars-exceeded"], "should flag the over-long body: %+v", out.Findings)
+	assert.Positive(t, counts["pattern.forbidden-pattern"], "should flag the TODO marker in source: %+v", out.Findings)
 	// "Short" (5 chars) stays under the limit and is clean: exactly one length finding.
-	assert.Equal(t, 1, cats["max-chars-exceeded"])
+	assert.Equal(t, 1, counts["length.max-chars-exceeded"])
 }
 
 // TestCheck_MonolingualCleanSourcePasses confirms a single clean file with
@@ -97,6 +103,21 @@ func TestCheck_MonolingualCleanSourcePasses(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, out.Pass, "clean source should pass: %+v", out.Findings)
 	assert.Empty(t, out.Findings)
+}
+
+// TestCheck_HygieneAlwaysRuns proves the content-lint hygiene checker is part of
+// the default checkset (no flags): doubled words surface as a hygiene finding.
+func TestCheck_HygieneAlwaysRuns(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	dir := t.TempDir()
+	src := filepath.Join(dir, "app.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"body": "We we shipped it"}`), 0o644))
+
+	a := &App{SourceLang: "en"}
+	cmd := a.NewCheckCmd()
+	out, err := a.computeCheck(cmd, []string{src})
+	require.NoError(t, err)
+	assert.Positive(t, ruleCounts(out)["hygiene.doubled-word"], "the doubled word must be flagged by default: %+v", out.Findings)
 }
 
 // TestCheck_MonolingualGateOnMajor confirms that source-side findings (which are
@@ -128,6 +149,61 @@ func TestCheck_MonolingualGateOnMajor(t *testing.T) {
 	assert.False(t, gatedOut.Pass, "--max-major 0 must gate on the major length finding")
 }
 
+// TestCheck_BilingualKeepsSourceFamilyAttribution proves source-side findings
+// keep their own family in bilingual mode and are NOT re-attributed to the
+// placeholder family — the regression for the delta-seed bug. The source has a
+// double space (hygiene) and the target drops {name} (placeholder).
+func TestCheck_BilingualKeepsSourceFamilyAttribution(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	dir := t.TempDir()
+	src := filepath.Join(dir, "app.json")
+	tgt := filepath.Join(dir, "app.de.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"greeting": "Hello  {name}"}`), 0o644))
+	require.NoError(t, os.WriteFile(tgt, []byte(`{"greeting": "Hallo"}`), 0o644))
+
+	a := &App{SourceLang: "en"}
+	cmd := a.NewCheckCmd()
+	require.NoError(t, cmd.Flags().Set("target", tgt))
+	require.NoError(t, cmd.Flags().Set("target-lang", "de"))
+
+	out, err := a.computeCheck(cmd, []string{src})
+	require.NoError(t, err)
+
+	counts := ruleCounts(out)
+	assert.Equal(t, 1, counts["hygiene.double-spaces"], "the source double-space stays a hygiene finding: %+v", out.Findings)
+	assert.Positive(t, counts["placeholder.placeholder"], "the dropped placeholder is flagged: %+v", out.Findings)
+	// The hygiene finding must NOT be double-counted under the placeholder family.
+	for _, d := range out.Findings {
+		if d.Rule == "placeholder.double-spaces" {
+			t.Fatalf("source hygiene finding re-attributed to placeholder family: %+v", d)
+		}
+	}
+}
+
+// TestCheck_StrictAndLenientPresets proves the gate presets: --strict fails on a
+// major finding the default gate passes, and --lenient never fails.
+func TestCheck_StrictAndLenientPresets(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	dir := t.TempDir()
+	src := filepath.Join(dir, "app.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"body": "This source string is far too long for the limit"}`), 0o644))
+
+	strict := (&App{SourceLang: "en"}).NewCheckCmd()
+	require.NoError(t, strict.Flags().Set("max-chars", "10"))
+	require.NoError(t, strict.Flags().Set("strict", "true"))
+	strictOut, err := (&App{SourceLang: "en"}).computeCheck(strict, []string{src})
+	require.NoError(t, err)
+	assert.False(t, strictOut.Pass, "--strict must fail on the major length finding")
+
+	lenient := (&App{SourceLang: "en"}).NewCheckCmd()
+	require.NoError(t, lenient.Flags().Set("max-chars", "10"))
+	require.NoError(t, lenient.Flags().Set("lenient", "true"))
+	lenientOut, err := (&App{SourceLang: "en"}).computeCheck(lenient, []string{src})
+	require.NoError(t, err)
+	assert.True(t, lenientOut.Pass, "--lenient must never fail the gate")
+	assert.Positive(t, lenientOut.Summary.Findings, "--lenient still reports the findings")
+}
+
 // TestCheck_MonolingualInvalidForbidPattern confirms a bad --forbid regex is an
 // operational error rather than a silent no-op.
 func TestCheck_MonolingualInvalidForbidPattern(t *testing.T) {
@@ -156,10 +232,11 @@ func TestCheck_CleanTargetPasses(t *testing.T) {
 
 	a := &App{SourceLang: "en"}
 	cmd := a.NewCheckCmd()
+	require.NoError(t, cmd.Flags().Set("target", tgt))
 	require.NoError(t, cmd.Flags().Set("target-lang", "de"))
 	require.NoError(t, cmd.Flags().Set("dnt", "Acme Cloud"))
 
-	out, err := a.computeCheck(cmd, []string{src, tgt})
+	out, err := a.computeCheck(cmd, []string{src})
 	require.NoError(t, err)
 	assert.True(t, out.Pass, "faithful target should pass: %+v", out.Findings)
 	assert.Empty(t, out.Findings)
