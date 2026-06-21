@@ -122,4 +122,12 @@
     display: flex;
     align-items: center;
   }
+
+  /* The top bar is tight on mobile (logo + WebAssembly Lab pill + locale +
+     GitHub), so the "neokapi" wordmark gets clipped to a stray "n." Drop the
+     text and keep just the logo here. Scoped to .navbar__inner so the hamburger
+     sidebar header still shows the full "neokapi" wordmark. */
+  .navbar__inner .navbar__title {
+    display: none;
+  }
 }

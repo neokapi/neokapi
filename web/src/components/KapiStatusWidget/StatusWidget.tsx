@@ -140,6 +140,7 @@ export default function StatusWidget(): React.ReactElement {
   const mgr = usePluginManager();
   const { siteConfig, i18n } = useDocusaurusContext();
   const [open, setOpen] = useState(false);
+  const [panelStyle, setPanelStyle] = useState<React.CSSProperties | undefined>(undefined);
   const rootRef = useRef<HTMLDivElement>(null);
   const logo = useBaseUrl("img/logo.png");
 
@@ -170,6 +171,41 @@ export default function StatusWidget(): React.ReactElement {
   useEffect(() => {
     void probePluginCaches();
   }, []);
+
+  // On mobile the pill sits left of the viewport's right edge (the locale and
+  // GitHub items follow it), so a pill-anchored `right: 0` panel overflows
+  // off-screen. Pin it to the viewport instead — just below the navbar, inset
+  // from both edges — and recompute on scroll/resize while open. Desktop keeps
+  // the CSS-driven absolute placement (panelStyle stays undefined).
+  useEffect(() => {
+    if (!open) {
+      setPanelStyle(undefined);
+      return;
+    }
+    const place = () => {
+      if (window.innerWidth > 996) {
+        setPanelStyle(undefined);
+        return;
+      }
+      const rect = rootRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setPanelStyle({
+        position: "fixed",
+        top: Math.round(rect.bottom + 8),
+        left: 8,
+        right: 8,
+        width: "auto",
+        maxHeight: `calc(100vh - ${Math.round(rect.bottom + 24)}px)`,
+      });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open]);
 
   // Close the popover on an outside click or Escape.
   useEffect(() => {
@@ -217,7 +253,12 @@ export default function StatusWidget(): React.ReactElement {
       </button>
 
       {open && (
-        <div className={styles.panel} role="dialog" aria-label="Neokapi plugins">
+        <div
+          className={styles.panel}
+          style={panelStyle}
+          role="dialog"
+          aria-label="Neokapi plugins"
+        >
           <div className={styles.panelHeader}>
             <img src={logo} alt="" className={styles.panelLogo} />
             <div className={styles.panelHeaderText}>
