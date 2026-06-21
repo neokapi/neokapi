@@ -30,7 +30,7 @@ import {
 // ---------------------------------------------------------------------------
 
 /** Key of the small text-only model used for text tasks (the default). */
-export const DEFAULT_TEXT_MODEL = "qwen2.5-0.5b";
+export const DEFAULT_TEXT_MODEL = "qwen2.5-1.5b";
 /** Key of the multimodal model used when a request carries an image. */
 export const MULTIMODAL_MODEL = "gemma-4-e2b";
 
@@ -63,11 +63,14 @@ interface ModelSpec {
 const MODELS: Record<string, ModelSpec> = {
   [DEFAULT_TEXT_MODEL]: {
     key: DEFAULT_TEXT_MODEL,
-    hfId: "onnx-community/Qwen2.5-0.5B-Instruct",
-    label: "Qwen2.5 0.5B (text)",
+    hfId: "onnx-community/Qwen2.5-1.5B-Instruct",
+    label: "Qwen2.5 1.5B (text)",
     modalities: ["text"],
     loader: "causal",
-    sizeBytes: 550_000_000,
+    // ~1 GB at q4f16 — the 0.5B variant downloads faster but follows
+    // instructions poorly (it degenerates into repetition), so 1.5B is the
+    // smallest that segments/translates usably.
+    sizeBytes: 1_100_000_000,
     dtype: "q4f16",
     device: "webgpu",
   },
