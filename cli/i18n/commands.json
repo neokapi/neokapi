@@ -174,6 +174,11 @@
           "long": "Create a new kapi project with a {name}.kapi recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source on\nbrand — a brand-voice profile, the project termbase, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--framework \u003cname\u003e pre-fills the content mapping for a known stack's i18n\ncatalogs (see 'kapi presets list --framework'): react-i18next, react-intl,\nnextjs, vue-i18n, flutter, angular — and scaffolds the translation project.",
           "short": "Scaffold a new kapi project in the current directory"
         },
+        "inspect": {
+          "example": "  kapi inspect report.docx\n  kapi inspect --jsonl docs/*.md | jq .content_hash\n  cat page.html | kapi inspect -f html",
+          "long": "Parse each file into one record per content block: the text, a stable\ncontent-hash anchor, and the block's structural role (heading, list-item,\ntable-cell, …) and nesting level. Any format — a Word document, a JSON catalog,\nMarkdown, HTML — yields the same shape, so an AI agent or RAG pipeline can read\ncontent, retrieve against the anchors, and write edits back to the same blocks.\n\nPrints a JSON array by default; --jsonl streams one object per line (JSONL).\nWith no FILE, or when FILE is \"-\", standard input is read.",
+          "short": "Parse any format into anchored, structured content blocks"
+        },
         "length-check": {
           "example": "  kapi length-check app.xliff --target-lang fr\n  kapi length-check app.xliff --target-lang ja",
           "short": "Length Check"
