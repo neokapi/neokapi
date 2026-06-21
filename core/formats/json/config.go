@@ -11,6 +11,11 @@ import (
 
 // Config holds configuration for the JSON format.
 type Config struct {
+	// ValidationConfigField carries the reader validation mode (RVM). Zero value
+	// is ValidationOff, so JSON extraction stays byte-identical until the CLI
+	// turns it on.
+	format.ValidationConfigField
+
 	// ExtractAllPairs controls whether all string key-value pairs are extracted.
 	// Defaults to true.
 	ExtractAllPairs bool

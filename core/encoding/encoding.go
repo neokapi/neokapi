@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode/utf8"
 
+	"github.com/neokapi/neokapi/core/format"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/japanese"
@@ -143,6 +145,73 @@ func ToUTF8(data []byte) ([]byte, string, error) {
 		return nil, enc, err
 	}
 	return []byte(text), enc, nil
+}
+
+// Diagnose runs the Reader Validation-Mode encoding checks over a file's raw
+// bytes: a declared-vs-detected charset mismatch and (for a file that should be
+// UTF-8) an invalid-UTF-8 sequence. It generalizes the declared-vs-actual
+// pattern xliff's transcodeToUTF8 uses (core/formats/xliff/reader.go), so the
+// check is format-agnostic and a caller can run it from a common ingestion path.
+//
+// It returns no diagnostics when mode is ValidationOff, so the default path is
+// untouched. declared is the charset the document claimed (e.g. doc.Encoding);
+// an empty declared is treated as "UTF-8". A charset mismatch is MINOR
+// (relabeled files are common in the wild); invalid UTF-8 is MAJOR.
+func Diagnose(raw []byte, declared string, mode format.ValidationMode) []format.Diagnostic {
+	if mode == format.ValidationOff {
+		return nil
+	}
+
+	detected, stripped := Detect(raw)
+	var diags []format.Diagnostic
+
+	// Declared-vs-detected charset mismatch. Detect only resolves BOM-marked
+	// encodings, so this fires for the clear cases (a UTF-16 file mislabeled
+	// UTF-8). When declared is empty we assume UTF-8 and skip — there is nothing
+	// to disagree with.
+	declNorm := normalizeEncodingName(declared)
+	if declNorm == "" {
+		declNorm = "utf-8"
+	}
+	if declNorm != detected {
+		diags = append(diags, format.Diagnostic{
+			Severity: format.SeverityMinor,
+			Category: "encoding.charset-mismatch",
+			Message:  fmt.Sprintf("declared charset %q but the byte-order mark indicates %q", declNorm, detected),
+		})
+	}
+
+	// Invalid UTF-8. Only meaningful for a file that is supposed to be UTF-8: a
+	// non-UTF-8 BOM (UTF-16, …) is already reported as a mismatch above, and its
+	// bytes are legitimately not UTF-8, so scanning them would double-report.
+	if detected == "utf-8" && !utf8.Valid(stripped) {
+		off := firstInvalidUTF8(stripped)
+		line, col := format.LineColumn(stripped, off)
+		diags = append(diags, format.Diagnostic{
+			Severity:   format.SeverityMajor,
+			Category:   "encoding.invalid-utf8",
+			Message:    fmt.Sprintf("invalid UTF-8 byte sequence at offset %d", off),
+			Line:       line,
+			Column:     col,
+			ByteOffset: off,
+			Snippet:    format.SnippetAround(stripped, off, 0),
+		})
+	}
+
+	return diags
+}
+
+// firstInvalidUTF8 returns the byte offset of the first invalid UTF-8 sequence
+// in data, or len(data) when data is valid UTF-8.
+func firstInvalidUTF8(data []byte) int {
+	for i := 0; i < len(data); {
+		r, size := utf8.DecodeRune(data[i:])
+		if r == utf8.RuneError && size == 1 {
+			return i
+		}
+		i += size
+	}
+	return len(data)
 }
 
 func (em *EncoderManager) registerDefaults() {

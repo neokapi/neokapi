@@ -216,6 +216,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// §5.4 last-rule-wins).
 	embedded, externals, err := its.ExtractRules(content)
 	if err != nil {
+		// RVM: the ITS pre-scan parses the whole document, so a malformed file
+		// fails here before the streaming token loop. Surface it as the same
+		// located well-formedness diagnostic. The lenient path is unchanged.
+		r.addWellFormednessDiagnostic(content, err, 0)
 		ch <- model.PartResult{Error: fmt.Errorf("xml: parsing ITS rules: %w", err)}
 		return
 	}
@@ -1473,6 +1477,36 @@ func (s *xmlParseState) handleComment(t xml.Comment) {
 	}
 }
 
+// addWellFormednessDiagnostic records an RVM structure.xml-well-formedness
+// diagnostic for a parse error. It prefers the line from an *xml.SyntaxError and
+// fills the column/snippet from byteOffset when one is available (the streaming
+// token loop has it; the ITS pre-scan does not). No-op when validation is off,
+// so the lenient path is byte-identical.
+func (r *Reader) addWellFormednessDiagnostic(content []byte, err error, byteOffset int) {
+	if r.ValidationMode() == format.ValidationOff {
+		return
+	}
+	d := format.Diagnostic{
+		Severity:   format.SeverityMajor,
+		Category:   "structure.xml-well-formedness",
+		Message:    err.Error(),
+		ByteOffset: byteOffset,
+	}
+	var se *xml.SyntaxError
+	if errors.As(err, &se) {
+		d.Line = se.Line
+	}
+	if byteOffset > 0 {
+		line, col := format.LineColumn(content, byteOffset)
+		if d.Line == 0 {
+			d.Line = line
+		}
+		d.Column = col
+		d.Snippet = format.SnippetAround(content, byteOffset, 0)
+	}
+	r.AddDiagnostic(d)
+}
+
 func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer,
 	contentRanges *[]skelContentRange, attrRanges *[]skelAttrRange, resolver *its.Resolver) []skelByteRange {
 
@@ -1495,6 +1529,10 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 			break
 		}
 		if err != nil {
+			// RVM: surface the well-formedness error as a located structure
+			// diagnostic. The lenient path is unchanged — the error still surfaces
+			// on the channel below.
+			s.reader.addWellFormednessDiagnostic(content, err, int(s.decoder.InputOffset()))
 			ch <- model.PartResult{Error: fmt.Errorf("xml: parsing: %w", err)}
 			return nil
 		}

@@ -4,10 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+
+	"github.com/neokapi/neokapi/core/format"
 )
 
 // Config holds configuration for the YAML format.
 type Config struct {
+	// ValidationConfigField carries the reader validation mode (RVM). Zero value
+	// is ValidationOff, so YAML extraction stays byte-identical until the CLI
+	// turns it on.
+	format.ValidationConfigField
+
 	// ExtractNonStrings controls whether non-string scalar values
 	// (booleans, numbers, nulls) are extracted as translatable blocks.
 	// Default: false (only string scalars are extracted).

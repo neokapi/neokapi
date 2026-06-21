@@ -3,7 +3,10 @@ package check
 import (
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -110,6 +113,55 @@ func DiagnosticFrom(f Finding, checkFamily string, loc Location) Diagnostic {
 		d.Location.Snippet = f.OriginalText
 	}
 	return d
+}
+
+// DiagnosticFromReader maps a format reader's validation Diagnostic (RVM) into a
+// check Diagnostic, so `kapi check --validate` folds reader-surfaced structure
+// and encoding problems into the same kapi.check/v1 Report as content findings.
+// The check family is the prefix before the first dot in the category
+// ("structure" | "encoding"); the rule is the full category (already in
+// "<check>.<category>" form). The reader's line/column/byte offset ride in
+// Metadata so the AI/CI can pinpoint the byte without a Report shape change.
+func DiagnosticFromReader(fd format.Diagnostic, file string) Diagnostic {
+	family := fd.Category
+	if i := strings.IndexByte(family, '.'); i >= 0 {
+		family = family[:i]
+	}
+	d := Diagnostic{
+		Rule:     fd.Category,
+		Check:    family,
+		Severity: severityFromFormat(fd.Severity),
+		Message:  fd.Message,
+		Location: Location{File: file, Snippet: fd.Snippet},
+	}
+	meta := map[string]string{}
+	if fd.Line > 0 {
+		meta["line"] = strconv.Itoa(fd.Line)
+	}
+	if fd.Column > 0 {
+		meta["column"] = strconv.Itoa(fd.Column)
+	}
+	if fd.ByteOffset > 0 {
+		meta["byte_offset"] = strconv.Itoa(fd.ByteOffset)
+	}
+	if len(meta) > 0 {
+		d.Metadata = meta
+	}
+	return d
+}
+
+// severityFromFormat maps a format.Severity onto the check Severity scale.
+func severityFromFormat(s format.Severity) Severity {
+	switch s {
+	case format.SeverityCritical:
+		return SeverityCritical
+	case format.SeverityMajor:
+		return SeverityMajor
+	case format.SeverityMinor:
+		return SeverityMinor
+	default:
+		return SeverityNeutral
+	}
 }
 
 // Gate is the set of severity/score thresholds a Report is judged against.
