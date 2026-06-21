@@ -116,14 +116,14 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Edit in place",
     description:
-      "Change the content inside a file and save the original, byte-for-byte. Programmatic with kgrep/ksed, or AI-driven — with a safety harness that preserves your annotations. The edit round-trips back into the original format — structure, styles, and all.",
+      "Change the content inside a file and write the original back, byte-for-byte. Programmatic with kgrep/ksed, or faithful AI editing with kapi rewrite — a reviewable diff over the parsed content, your annotations and structure preserved. The edit round-trips back into the original format — styles and all.",
     link: "/toolbox/overview",
     linkText: "The toolbox",
   },
   {
     title: "Check & loop with AI",
     description:
-      "Deterministic and AI checks emit one finding shape with a 0–100 score. Gate it in CI (non-zero exit) and loop with an assistant until it passes — tests for AI output, deterministic even when the generation was not.",
+      "kapi check returns one machine-readable Report — pass, a 0–100 score, a gate, and located findings. Gate it in CI (non-zero exit), or let an AI assistant drive the author → check → revise loop over MCP (check_file, rewrite_file) until it passes — tests for AI output, deterministic even when the generation was not.",
     link: "/framework/checks",
     linkText: "Checks",
   },

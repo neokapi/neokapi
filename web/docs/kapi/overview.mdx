@@ -45,6 +45,27 @@ Run tools and flows straight from the terminal — `kapi pseudo-translate`,
 [Kapi CLI overview](/kapi/cli) for the command surface and the task-by-task
 recipes you can run in the browser.
 
+## Read, check, and edit content
+
+The same engine also runs as a set of **content operations** on any supported
+file, each emitting a structured `--json` form an assistant or pipeline can
+consume — the read / overview / verify / edit surface:
+
+- **`kapi inspect`** — parse a file into one anchored record per content block
+  (text, a stable content-hash, structural [role and nesting](/framework/content-model)).
+- **`kapi stats`** — a content-metrics overview: blocks, words, characters,
+  segments, and a by-role breakdown.
+- **`kapi check`** — verify content against a checkset and return a versioned
+  [`kapi.check/v1` Report](/framework/checks) (pass, score, gate, located
+  findings); it exits non-zero when the gate fails.
+- **`kapi rewrite`** — [faithfully edit](/reference/tools/rewrite) the text inside
+  a file from a plain-language instruction, with a reviewable `--diff` — only the
+  text changes, and the format round-trips back byte-for-byte.
+
+The [Quick Start](/kapi/get-started/quickstart#read-check-and-edit-content) runs
+each one end to end; [Checks](/framework/checks) covers the Report and the
+author → check → revise loop an assistant drives over MCP.
+
 ## Desktop app
 
 Prefer a visual interface? [Kapi Desktop](/kapi/desktop/overview) wraps the same
