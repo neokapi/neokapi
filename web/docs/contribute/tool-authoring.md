@@ -14,7 +14,7 @@ This guide covers how to create a tool with a parameter schema so that the UI an
 Every tool is built on `tool.BaseTool`. For Blocks — the translatable unit — a
 tool sets exactly one capability-typed handler, and the view it receives bounds
 what it may write (AD-006): `Annotate(BlockView)` reads source and target and
-writes only overlays, annotations, and properties; `Translate(TargetView)`
+writes only overlays, annotations, and properties; `Produce(VariantView)`
 writes the target; `Transform(BlockView)` returns an edit plan that the
 framework applier uses to rewrite the source. The wrong writes
 are simply not on the view — an annotator has no target setter to call, and a
@@ -42,11 +42,11 @@ func NewMyTool(cfg *MyToolConfig) *tool.BaseTool {
     // A tool declares its capability by which block handler it sets — the
     // parameter type bounds what it may write (AD-006):
     //   Annotate(BlockView)  — read-only: overlays / annotations / properties
-    //   Translate(TargetView) — writes the target; source stays read-only
+    //   Produce(VariantView) — writes the target; source stays read-only
     //   Transform(BlockView) — edit producer: returns an EditPlan the
     //                          framework applier applies to the source
     // This tool writes a target, so it sets Translate.
-    t.Translate = func(v tool.TargetView) error {
+    t.Produce = func(v tool.VariantView) error {
         if !v.Translatable() {
             return nil // pass through
         }

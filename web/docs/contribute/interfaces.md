@@ -365,7 +365,7 @@ type PartHandler func(part *model.Part) (*model.Part, error)
 // Part through unchanged. For Blocks, set exactly ONE capability-typed handler —
 // the view it receives bounds what the tool may write (immutability, AD-006):
 //   Annotate(BlockView)  — read-only: overlays / annotations / properties
-//   Translate(TargetView) — writes the target; source read-only
+//   Produce(VariantView) — writes the target; source read-only
 //   Transform(BlockView) — edit producer: returns an EditPlan the framework
 //                          applier applies to the source (the sole mutator —
 //                          it rewrites, rebases overlays, vaults secrets,
@@ -377,7 +377,7 @@ type BaseTool struct {
     SchemaFn        func() *schema.ComponentSchema
 
     Annotate  func(BlockView) error
-    Translate func(TargetView) error
+    Produce func(VariantView) error
     Transform func(BlockView) (EditPlan, error)
 
     // VaultSecrets is the sink the applier hands a plan's Secrets to, set by
@@ -393,9 +393,9 @@ type BaseTool struct {
     HandleGroupEndFn   PartHandler
 }
 
-// BlockView ⊂ TargetView are the read/write surfaces a block handler sees.
+// BlockView ⊂ VariantView are the read/write surfaces a block handler sees.
 // BlockView reads source/target and writes overlays, annotations and
-// properties; TargetView adds SetTarget*. There is no source-write view — a
+// properties; VariantView adds SetTarget*. There is no source-write view — a
 // Transform handler is a read-only producer and the framework applier is the
 // only code that rewrites source. A tool needing batching, 1→N fan-out, or
 // stream control overrides Process instead.

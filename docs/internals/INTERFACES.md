@@ -627,7 +627,7 @@ type BaseTool struct {
     //   Translate — writes target; source is read-only
     //   Transform — rewrites source (and may write target)
     Annotate  func(BlockView) error
-    Translate func(TargetView) error
+    Produce func(VariantView) error
     Transform func(SourceView) error
 
     // Other part-type handlers — all optional; unset = pass through.
@@ -639,9 +639,9 @@ type BaseTool struct {
     HandleGroupEndFn   PartHandler
 }
 
-// BlockView ⊂ TargetView ⊂ SourceView are the read/write surfaces a block
+// BlockView ⊂ VariantView ⊂ SourceView are the read/write surfaces a block
 // handler sees. BlockView reads source/target and writes overlays, annotations,
-// and properties; TargetView adds SetTarget*; SourceView adds SetSource*. A
+// and properties; VariantView adds SetTarget*; SourceView adds SetSource*. A
 // tool needing batching, 1→N fan-out, or stream control overrides Process
 // instead.
 ```
@@ -649,7 +649,7 @@ type BaseTool struct {
 | Handler | View | May write |
 | --- | --- | --- |
 | `Annotate(BlockView)` | source + target read-only | overlays, annotations, properties |
-| `Translate(TargetView)` | source read-only | target content (+ the above) |
+| `Produce(VariantView)` | source read-only | target content (+ the above) |
 | `Transform(SourceView)` | source writable | source content (+ the above) |
 
 ### Concrete Tool examples
@@ -678,7 +678,7 @@ A translation tool (writes target):
 ```go
 // translate — sets Translate because it writes Block.Targets; source is read-only.
 t := &tool.BaseTool{ToolName: "translate"}
-t.Translate = func(v tool.TargetView) error {
+t.Produce = func(v tool.VariantView) error {
     translated, err := llm.Translate(ctx, v.SourceText(), targetLocale)
     if err != nil {
         return err

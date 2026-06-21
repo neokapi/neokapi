@@ -101,8 +101,9 @@ and edits.*
 | a lone narrow format in a generic example (XLIFF, `.docx`) | a broad/recognizable set ("JSON, HTML, Markdown, config, office formats"); keep XLIFF/PO only in explicit localization copy |
 | "localization is its deepest application, not its identity" | name the dual heart affirmatively: "**at heart, a localization engine and the tool that keeps your source content on brand**" |
 
-**Code-level (do now, bounded):** the generic tool capability `CapTranslate` →
-`CapProduce`, `Translate(TargetView)` → `Produce(VariantView)`, `TargetView` → `VariantView`.
+**Code-level (DONE — bounded rename):** the generic tool capability was de-l10n-coded —
+`CapTranslate` → `CapProduce`, the `Translate(TargetView)` handler → `Produce(VariantView)`,
+`TargetView` → `VariantView` (~24 files; build + tests green; the ITS `Translate` field untouched).
 **Keep** the user-facing `translate` tool and `kapi translate` command — that is the l10n
 *application*. **Do not** rename `Source`/`Targets`/`VariantKey`/`Block.Translatable`
 (good generic names, wire-bound, or — for `Translatable` — a parse-time extraction

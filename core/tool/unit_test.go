@@ -133,7 +133,7 @@ func TestSourceUnitsIgnorable(t *testing.T) {
 func TestTargetUnitsWholeBlockCommit(t *testing.T) {
 	t.Parallel()
 	b := model.NewRunsBlock("b1", []model.Run{{Text: &model.TextRun{Text: "Hello."}}})
-	v := tool.NewTargetView(b)
+	v := tool.NewVariantView(b)
 
 	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
 		u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: "Bonjour."}}})
@@ -144,7 +144,7 @@ func TestTargetUnitsWholeBlockCommit(t *testing.T) {
 func TestTargetUnitsWholeBlockNoWriteNoCommit(t *testing.T) {
 	t.Parallel()
 	b := model.NewRunsBlock("b1", []model.Run{{Text: &model.TextRun{Text: "Hello."}}})
-	v := tool.NewTargetView(b)
+	v := tool.NewVariantView(b)
 
 	for range v.TargetUnits(frFR, model.LayerPrimary) {
 		// deliberately write nothing
@@ -155,7 +155,7 @@ func TestTargetUnitsWholeBlockNoWriteNoCommit(t *testing.T) {
 func TestTargetUnitsSegmentedAssembly(t *testing.T) {
 	t.Parallel()
 	b := twoSegBlock("Hello world. ", "Goodbye.")
-	v := tool.NewTargetView(b)
+	v := tool.NewVariantView(b)
 
 	want := map[int]string{0: "Bonjour le monde. ", 1: "Au revoir."}
 	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
@@ -168,7 +168,7 @@ func TestTargetUnitsSegmentedAssembly(t *testing.T) {
 func TestTargetUnitsPartialWriteCommitsNothing(t *testing.T) {
 	t.Parallel()
 	b := twoSegBlock("Hello world. ", "Goodbye.")
-	v := tool.NewTargetView(b)
+	v := tool.NewVariantView(b)
 
 	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
 		if u.Index() == 0 {
@@ -190,7 +190,7 @@ func TestTargetUnitsIgnorablePreservedVerbatim(t *testing.T) {
 		{ID: "s1", Range: model.RunRange{StartRun: 0, EndRun: 1}},
 		{ID: "ws", Range: model.RunRange{StartRun: 1, EndRun: 2}, Props: map[string]string{model.SpanPropIgnorable: "true"}},
 	})
-	v := tool.NewTargetView(b)
+	v := tool.NewVariantView(b)
 
 	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
 		if !u.Ignorable() {
@@ -204,7 +204,7 @@ func TestTargetUnitsIgnorablePreservedVerbatim(t *testing.T) {
 func TestTargetUnitsEarlyStopCommitsNothing(t *testing.T) {
 	t.Parallel()
 	b := twoSegBlock("Hello world. ", "Goodbye.")
-	v := tool.NewTargetView(b)
+	v := tool.NewVariantView(b)
 
 	for u := range v.TargetUnits(frFR, model.LayerPrimary) {
 		u.SetTargetRuns(frFR, []model.Run{{Text: &model.TextRun{Text: "x"}}})

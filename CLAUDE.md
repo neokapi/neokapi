@@ -390,7 +390,7 @@ Create a package under `core/formats/` with reader.go, writer.go, config.go. The
 
 ## Implementing a New Tool
 
-Create a type embedding `tool.BaseTool`. For Blocks, set exactly one capability-typed handler — `Annotate(BlockView)` (read-only; writes overlays/annotations/properties), `Translate(TargetView)` (writes target), or `Transform(SourceView)` (rewrites source) — the view type bounds what the tool may write (immutability model, AD-006). Other Part types use the untyped `HandleDataFn` / `HandleMediaFn` / `Handle{Layer,Group}{Start,End}Fn` fields. Parts you don't handle pass through unchanged. A tool that needs batching, 1→N fan-out, or stream control overrides `Process` instead. Register in the tool registry. Source-transform (`Transform`) tools belong in a flow's leading source-transform stage, which settles the source before annotation/translation.
+Create a type embedding `tool.BaseTool`. For Blocks, set exactly one capability-typed handler — `Annotate(BlockView)` (read-only; writes overlays/annotations/properties), `Produce(VariantView)` (writes target), or `Transform(SourceView)` (rewrites source) — the view type bounds what the tool may write (immutability model, AD-006). Other Part types use the untyped `HandleDataFn` / `HandleMediaFn` / `Handle{Layer,Group}{Start,End}Fn` fields. Parts you don't handle pass through unchanged. A tool that needs batching, 1→N fan-out, or stream control overrides `Process` instead. Register in the tool registry. Source-transform (`Transform`) tools belong in a flow's leading source-transform stage, which settles the source before annotation/translation.
 
 ## Testing
 

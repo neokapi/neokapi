@@ -154,7 +154,7 @@ requirements the flow validator enforces.
 ### Why capability and ports are orthogonal
 
 The capability a tool declares by which block handler it sets on `BaseTool`
-(`Annotate` / `Translate` / `Transform`, AD-006) is the **write-surface**
+(`Annotate` / `Produce` / `Transform`, AD-006) is the **write-surface**
 contract — what kind of mutation the tool may make. The `IOPort` contract is the
 **data-dependency** contract — which interpretations it reads and writes. They
 compose: `tm-leverage` is `Translate`-capable (writes the target) *and*
@@ -186,7 +186,7 @@ type BlockView interface {
     SourceUnits(layer string) iter.Seq[Unit]
 }
 
-type TargetView interface {
+type VariantView interface {
     BlockView
     // TargetUnits yields writable per-unit target production over the source
     // segmentation of the given layer, splicing each unit's runs back into the

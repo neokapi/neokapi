@@ -89,7 +89,7 @@ func NewDiffLeverageTool(cfg *DiffLeverageConfig) *tool.BaseTool {
 		Cfg:             cfg,
 	}
 	// Translate: diff-leverage writes a target from previous versions; source is read-only.
-	t.Translate = func(v tool.TargetView) error {
+	t.Produce = func(v tool.VariantView) error {
 		if !v.Translatable() {
 			return nil
 		}

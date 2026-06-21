@@ -42,7 +42,7 @@ func NewRemoveTargetTool(cfg *RemoveTargetConfig) *tool.BaseTool {
 		Cfg:             cfg,
 	}
 	// Translate: remove-target modifies/clears targets; source is read-only.
-	t.Translate = func(v tool.TargetView) error {
+	t.Produce = func(v tool.VariantView) error {
 		if !v.Translatable() {
 			return nil
 		}

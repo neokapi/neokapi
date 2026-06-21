@@ -148,7 +148,7 @@ func TestBaseToolErrorPropagation(t *testing.T) {
 func TestBaseToolModifyBlock(t *testing.T) {
 	bt := &tool.BaseTool{
 		ToolName: "uppercase",
-		Translate: func(v tool.TargetView) error {
+		Produce: func(v tool.VariantView) error {
 			if v.Translatable() {
 				v.SetTargetText(model.LocaleFrench, "TRANSLATED")
 			}
@@ -290,7 +290,7 @@ func TestImmutabilityGuard(t *testing.T) {
 	})
 	t.Run("translate handler may write target", func(t *testing.T) {
 		bt := &tool.BaseTool{ToolName: "translator"}
-		bt.Translate = func(v tool.TargetView) error {
+		bt.Produce = func(v tool.VariantView) error {
 			v.SetTargetText("fr", "Bonjour")
 			return nil
 		}

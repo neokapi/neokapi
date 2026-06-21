@@ -14,7 +14,7 @@ func runPlaceholder(t *testing.T, src, tgt string, flagExtra bool) []check.Findi
 	t.Helper()
 	loc := model.LocaleID("de")
 	b := &model.Block{ID: "b", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: src}}}}
-	tool.NewTargetView(b).SetTargetText(loc, tgt)
+	tool.NewVariantView(b).SetTargetText(loc, tgt)
 	cfg := NewPlaceholderCheckConfig(loc)
 	cfg.FlagExtra = flagExtra
 	tl := NewPlaceholderCheckTool(cfg)

@@ -117,7 +117,7 @@ control:
 func TestFlowExecution(t *testing.T) {
     uppercase := &tool.BaseTool{
         ToolName: "uppercase",
-        Translate: func(v tool.TargetView) error {
+        Translate: func(v tool.VariantView) error {
             if v.Translatable() {
                 v.SetTargetText(model.LocaleFrench, strings.ToUpper(v.SourceText()))
             }

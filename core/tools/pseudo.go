@@ -166,7 +166,7 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 		return part, nil
 	}
 	// Translate: pseudo-translate writes a target; source is read-only.
-	base.Translate = func(v tool.TargetView) error {
+	base.Produce = func(v tool.VariantView) error {
 		if !v.Translatable() {
 			return nil
 		}

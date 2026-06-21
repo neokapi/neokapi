@@ -77,15 +77,15 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 	t.ToolName = name
 	t.ToolDescription = "Translates Blocks using " + string(p.Name())
 	// Translate: writes the target locale; source stays read-only.
-	t.Translate = t.translate
+	t.Produce = t.translate
 	return t
 }
 
 // translate writes the MT target for one block. Source is read-only (the
-// TargetView exposes no source setter). When the source carries inline codes
+// VariantView exposes no source setter). When the source carries inline codes
 // it round-trips through RunsSemanticHTML — MT APIs preserve HTML tags
 // natively, so semantic tags are the most robust transport for the codes.
-func (t *MTTranslateTool) translate(v tool.TargetView) error {
+func (t *MTTranslateTool) translate(v tool.VariantView) error {
 	if !v.Translatable() {
 		return nil
 	}
@@ -187,7 +187,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 	}
 	hash := block.ID
 	if hash == "" {
-		return t.translate(tool.NewTargetViewWithContext(ctx, block))
+		return t.translate(tool.NewVariantViewWithContext(ctx, block))
 	}
 
 	if randomAccess {
@@ -200,7 +200,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 		}
 	}
 
-	if err := t.translate(tool.NewTargetViewWithContext(ctx, block)); err != nil {
+	if err := t.translate(tool.NewVariantViewWithContext(ctx, block)); err != nil {
 		return err
 	}
 

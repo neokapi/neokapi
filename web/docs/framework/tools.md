@@ -87,7 +87,7 @@ type BaseTool struct {
 
     // Block handler — set exactly one. The view type bounds what it may write.
     Annotate  func(BlockView) error             // read-only: overlays / annotations / properties
-    Translate func(TargetView) error            // writes target
+    Produce func(VariantView) error            // writes target
     Transform func(BlockView) (EditPlan, error) // edit producer: the framework applier rewrites source
 
     // Other Part types stay untyped.
@@ -107,7 +107,7 @@ to the output channel unchanged. For Blocks, a tool sets one of three
 capability-typed handlers and the view it receives decides what it may write
 (the immutability model — see [the tool-system AD](/contribute/architecture/006-tool-system)):
 `Annotate` reads source and target but writes only overlays, annotations, and
-properties; `Translate` writes the target; `Transform` is a read-only edit
+properties; `Produce` writes the target; `Transform` is a read-only edit
 producer — it returns an edit plan, and a framework-owned applier performs the
 source rewrite, rebasing surviving overlays and vaulting any secrets. The
 forbidden writes simply aren't on the view, so a quality check can't

@@ -48,7 +48,7 @@ type BaseTool struct {
 	//   Annotate(BlockView)  — analysis/annotation: reads source+target,
 	//                          writes only overlays, annotations, properties.
 	//                          The default surface; no content writes exist.
-	//   Translate(TargetView)— target production: reads source, writes target.
+	//   Produce(VariantView)— target production: reads source, writes target.
 	//   Transform(BlockView) — a read-only EDIT PRODUCER: inspects the block
 	//                          and returns an EditPlan; the framework applier
 	//                          (the sole mutator) applies it — rewrites source,
@@ -59,7 +59,7 @@ type BaseTool struct {
 	// Each is 1→1 (mutate in place) or 1→0 (call view.Drop()). A tool needing
 	// 1→N, cross-block state, batching, or stream control overrides Process.
 	Annotate  func(BlockView) error
-	Translate func(TargetView) error
+	Produce   func(VariantView) error
 	Transform func(BlockView) (EditPlan, error)
 
 	// VaultSecrets is the sink the applier hands a plan's Secrets to, set by
@@ -145,7 +145,7 @@ type Capability int
 const (
 	CapNone      Capability = iota // no typed block handler (pure Process override / pass-through)
 	CapAnnotate                    // read-only: overlays/annotations/properties
-	CapTranslate                   // writes target
+	CapProduce                     // writes target
 	CapTransform                   // rewrites source (and may write target)
 )
 
@@ -160,8 +160,8 @@ func (b *BaseTool) Capability() Capability {
 	switch {
 	case b.Transform != nil:
 		return CapTransform
-	case b.Translate != nil:
-		return CapTranslate
+	case b.Produce != nil:
+		return CapProduce
 	case b.Annotate != nil:
 		return CapAnnotate
 	default:
@@ -196,7 +196,7 @@ func (b *BaseTool) ApplyContext(ctx context.Context, part *model.Part) (*model.P
 // block handlers. Wrappers (parallel, retry) use it to decide whether per-block
 // treatment is possible.
 func (b *BaseTool) hasBlockHandler() bool {
-	return b.Annotate != nil || b.Translate != nil || b.Transform != nil
+	return b.Annotate != nil || b.Produce != nil || b.Transform != nil
 }
 
 func (b *BaseTool) dispatch(ctx context.Context, part *model.Part) (*model.Part, error) {
@@ -229,8 +229,8 @@ func (b *BaseTool) handleBlock(ctx context.Context, part *model.Part) (*model.Pa
 	switch {
 	case b.Transform != nil:
 		return b.runTransform(ctx, part)
-	case b.Translate != nil:
-		return b.runTranslate(ctx, part)
+	case b.Produce != nil:
+		return b.runProduce(ctx, part)
 	case b.Annotate != nil:
 		return b.runAnnotate(ctx, part)
 	default:
@@ -265,21 +265,21 @@ func (b *BaseTool) runAnnotate(ctx context.Context, part *model.Part) (*model.Pa
 	return v.result(part), nil
 }
 
-// runTranslate drives a target-writing handler. Backstop: source is read-only.
-func (b *BaseTool) runTranslate(ctx context.Context, part *model.Part) (*model.Part, error) {
+// runProduce drives a target-writing handler. Backstop: source is read-only.
+func (b *BaseTool) runProduce(ctx context.Context, part *model.Part) (*model.Part, error) {
 	block, _ := part.Resource.(*model.Block)
 	if block == nil {
 		return part, nil
 	}
 	v := newBlockView(ctx, block)
 	if !EnforceImmutability {
-		if err := b.Translate(v); err != nil {
+		if err := b.Produce(v); err != nil {
 			return nil, err
 		}
 		return v.result(part), nil
 	}
 	srcBefore := blockSourceSig(block)
-	if err := b.Translate(v); err != nil {
+	if err := b.Produce(v); err != nil {
 		return nil, err
 	}
 	if blockSourceSig(block) != srcBefore {

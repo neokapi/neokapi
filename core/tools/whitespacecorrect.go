@@ -72,7 +72,7 @@ func NewWhitespaceCorrectTool(cfg *WhitespaceCorrectConfig) *tool.BaseTool {
 		Cfg:             cfg,
 	}
 	// Translate: whitespace-correct fixes target content; source is read-only.
-	t.Translate = func(v tool.TargetView) error {
+	t.Produce = func(v tool.VariantView) error {
 		if !v.Translatable() {
 			return nil
 		}

@@ -187,7 +187,7 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 		Cfg:             cfg,
 	}
 	// Translate: tm-leverage writes a target translation from TM; source is read-only.
-	t.Translate = func(v tool.TargetView) error {
+	t.Produce = func(v tool.VariantView) error {
 		if !v.Translatable() {
 			return nil
 		}
@@ -260,7 +260,7 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 // when the block target is filled it is committed as a real Target carrying
 // `tm` provenance, the score, and draft status — not an opaque string. The
 // summary properties remain for quick gating and backward compatibility.
-func recordWholeBlockMatch(v tool.TargetView, conf *TMLeverageConfig, translation string, score int, mt model.MatchType, propType string) {
+func recordWholeBlockMatch(v tool.VariantView, conf *TMLeverageConfig, translation string, score int, mt model.MatchType, propType string) {
 	targetRuns := []model.Run{{Text: &model.TextRun{Text: translation}}}
 	v.AddAltTranslation(&model.AltTranslation{
 		Source:    v.SourceRuns(),
@@ -302,7 +302,7 @@ func recordWholeBlockMatch(v tool.TargetView, conf *TMLeverageConfig, translatio
 //     filled, regardless of fillTargetThreshold — unattended leverage must
 //     not turn an arbitrary pick into published content. The text path is
 //     skipped too: it would resolve the same tie by arbitrary pick.
-func leverageBlockRuns(conf *TMLeverageConfig, v tool.TargetView, bp BlockTMProvider) bool {
+func leverageBlockRuns(conf *TMLeverageConfig, v tool.VariantView, bp BlockTMProvider) bool {
 	block := &model.Block{
 		ID:           v.ID(),
 		Translatable: true,
@@ -479,7 +479,7 @@ func cloneRun(r model.Run) model.Run {
 // contiguous (their concatenation reproduces the source); when they are not
 // (gaps the overlay does not cover), it records partial leverage but does not
 // fill, so nothing is silently dropped.
-func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
+func leverageSegments(conf *TMLeverageConfig, v tool.VariantView) bool {
 	if v.SourceSegmentation() == nil {
 		return false
 	}
@@ -581,7 +581,7 @@ func leverageSegments(conf *TMLeverageConfig, v tool.TargetView) bool {
 // auditable and partial matches survive even when the block target is not
 // filled. The annotation key carries the segment index; the annotation itself
 // carries the matched source/target, score (0-1), match type, and provenance.
-func annotateSegmentMatch(v tool.TargetView, conf *TMLeverageConfig, idx int, srcRuns []model.Run, translation string, score int, mt model.MatchType) {
+func annotateSegmentMatch(v tool.VariantView, conf *TMLeverageConfig, idx int, srcRuns []model.Run, translation string, score int, mt model.MatchType) {
 	v.AppendAltUnder(PropTMSegmentAlts, &model.AltTranslation{
 		Source:       srcRuns,
 		Target:       []model.Run{{Text: &model.TextRun{Text: translation}}},
@@ -595,7 +595,7 @@ func annotateSegmentMatch(v tool.TargetView, conf *TMLeverageConfig, idx int, sr
 }
 
 // shouldFillTarget decides whether to copy the translation into the target based on config.
-func shouldFillTarget(conf *TMLeverageConfig, v tool.TargetView, score int) bool {
+func shouldFillTarget(conf *TMLeverageConfig, v tool.VariantView, score int) bool {
 	if !conf.FillTarget {
 		return false
 	}
