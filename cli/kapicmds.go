@@ -45,6 +45,7 @@ func (a *App) KapiCommandSet() []*cobra.Command {
 	// Toolbox: format-aware cat / grep / sed, registered as hidden proxies
 	// for the kcat / kgrep / ksed multi-call binaries.
 	cmds = append(cmds, a.NewToolboxProxies()...)
+	cmds = append(cmds, a.newInspectCmd())
 	cmds = append(cmds,
 		a.NewVerifyCmd(),
 		a.NewCheckCmd(),
