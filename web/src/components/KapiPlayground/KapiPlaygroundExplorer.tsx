@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import { FileText, FolderGit2, Play } from "lucide-react";
 import { useKapiPlaygroundConfig } from "./config";
+import { installBrowserTranslateBridge } from "../../lib/browserTranslate";
 import "./explorer.css";
 
 // The consolidated CLI playground: a full-bleed in-browser kapi terminal beside
@@ -23,6 +24,13 @@ const LazyExplorer = React.lazy(async () => {
     const cfg = useKapiPlaygroundConfig();
     const embedRef = React.useRef<KapiEmbedHandle>(null);
     const [activeId, setActiveId] = React.useState<string>(`loose:${LOOSE_SAMPLES[0].id}`);
+
+    // Install the on-device Translator bridge so `kapi mt-translate --provider
+    // browser` works in the terminal where the browser supports it (free; no
+    // model load until a translation runs).
+    React.useEffect(() => {
+      installBrowserTranslateBridge();
+    }, []);
 
     const loadLoose = React.useCallback((s: LooseSample) => {
       setActiveId(`loose:${s.id}`);
