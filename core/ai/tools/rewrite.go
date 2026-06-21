@@ -65,6 +65,46 @@ func rewriteSystemPrompt(instruction string) string {
 	return b.String()
 }
 
+// inlineCodeKey identifies one inline-code run for the faithfulness guard.
+type inlineCodeKey struct{ kind, id string }
+
+// inlineCodeMultiset counts the inline-code runs in a flat run sequence by
+// kind+id. Text runs are ignored — only the non-text codes (placeholders,
+// paired open/close, sub-flows) must survive a faithful rewrite.
+func inlineCodeMultiset(runs []model.Run) map[inlineCodeKey]int {
+	m := map[inlineCodeKey]int{}
+	for _, r := range runs {
+		switch {
+		case r.Ph != nil:
+			m[inlineCodeKey{"ph", r.Ph.ID}]++
+		case r.PcOpen != nil:
+			m[inlineCodeKey{"pcOpen", r.PcOpen.ID}]++
+		case r.PcClose != nil:
+			m[inlineCodeKey{"pcClose", r.PcClose.ID}]++
+		case r.Sub != nil:
+			m[inlineCodeKey{"sub", r.Sub.ID}]++
+		}
+	}
+	return m
+}
+
+// sameInlineCodes reports whether two flat run sequences carry exactly the same
+// multiset of inline codes — the condition under which a rewrite preserves the
+// document's inline markup. (Run order is allowed to differ; only presence and
+// count of each code matter for balance.)
+func sameInlineCodes(a, b []model.Run) bool {
+	ma, mb := inlineCodeMultiset(a), inlineCodeMultiset(b)
+	if len(ma) != len(mb) {
+		return false
+	}
+	for k, v := range ma {
+		if mb[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
 // NewRewriteTool builds the rewrite tool: a source Transform that rewrites the
 // human-readable text of every translatable Block with an LLM, following the
 // configured instruction, while preserving the document's structure and the
@@ -125,6 +165,16 @@ func NewRewriteTool(p aiprovider.LLMProvider, cfg RewriteConfig) *tool.BaseTool 
 			// rewritten plain text (the applier drops the stale source overlays).
 			plain := model.RunsText(newRuns)
 			plan.ReplaceAll = &plain
+			return plan, nil
+		}
+
+		// Faithfulness guard: apply the rewrite only when every inline code
+		// (placeholder, paired open/close, sub-flow) survives exactly. A model
+		// that drops, invents, or duplicates a code would unbalance the
+		// document's inline markup — so reject that block's edit and leave the
+		// source unchanged rather than write malformed structure. Plain-text
+		// blocks have no codes, so this is a no-op for them.
+		if !sameInlineCodes(oldRuns, newRuns) {
 			return plan, nil
 		}
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T18:53:57Z",
+  "generatedAt": "2026-06-21T19:31:27Z",
   "commands": [
     {
       "id": "brand",
@@ -441,7 +441,7 @@
         {
           "name": "in-place",
           "shorthand": "i",
-          "usage": "rewrite FILE... in place (format-aware); append a backup SUFFIX if given (e.g. -i.bak)",
+          "usage": "rewrite FILE... in place (format-aware); keep a backup with --in-place=.bak",
           "type": "string"
         },
         {

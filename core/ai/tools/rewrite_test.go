@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -60,6 +61,34 @@ func TestRewritePreservesInlineCodes(t *testing.T) {
 	require.NotNil(t, b.Source[1].Ph, "the inline placeholder run must survive the rewrite")
 	assert.Equal(t, "1", b.Source[1].Ph.ID)
 	assert.Equal(t, "Hello  planet", model.RunsText(b.Source))
+}
+
+// TestRewriteRejectsCodeLoss proves the faithfulness guard: when the model
+// drops an inline code it was told to preserve (here the placeholder tag), the
+// rewrite would unbalance the document's markup — so the block is left exactly
+// as it was rather than written back corrupted.
+func TestRewriteRejectsCodeLoss(t *testing.T) {
+	mock := aiprovider.NewMockProvider()
+	tagRe := regexp.MustCompile(`<x[^>]*/>`)
+	mock.ChatFunc = func(_ context.Context, msgs []aiprovider.Message) (*aiprovider.ChatResponse, error) {
+		// Strip the placeholder tag — a model that fails to echo the codes.
+		out := tagRe.ReplaceAllString(lastUserText(msgs), "")
+		return &aiprovider.ChatResponse{Content: out, Model: "mock"}, nil
+	}
+	tl := NewRewriteTool(mock, RewriteConfig{Instruction: "drop the code"})
+
+	b := &model.Block{ID: "b1", Translatable: true, Source: []model.Run{
+		{Text: &model.TextRun{Text: "Hello "}},
+		{Ph: &model.PlaceholderRun{ID: "1", Type: "icon"}},
+		{Text: &model.TextRun{Text: " world"}},
+	}}
+	applyRewrite(t, tl, b)
+
+	// The block is unchanged: the placeholder survives and the runs are intact.
+	require.Len(t, b.Source, 3)
+	require.NotNil(t, b.Source[1].Ph, "the dropped-code rewrite must be rejected, leaving the placeholder run")
+	assert.Equal(t, "1", b.Source[1].Ph.ID)
+	assert.Equal(t, "Hello  world", model.RunsText(b.Source))
 }
 
 // TestRewriteStructuredFallback documents the opaque fallback: a block whose

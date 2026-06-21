@@ -50,7 +50,9 @@ block so you can review the edit first.
 
 This is the safe way to let an AI assistant edit content it otherwise cannot
 open: the structure-preserving pipeline guarantees the rewrite lands only in the
-text, never the surrounding markup.
+text, never the surrounding markup. If a rewrite would drop or alter an inline
+code (a placeholder or markup tag), that block is left unchanged rather than
+written back with unbalanced markup.
 
 With no FILE, or when FILE is "-", standard input is read (not valid with -i).`,
 		Example: `  kapi rewrite --instruction "make it more concise" guide.md
