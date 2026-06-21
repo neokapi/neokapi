@@ -63,8 +63,8 @@
           "short": "Characters Listing"
         },
         "check": {
-          "long": "Run content checks over a file — or a source/target pair — and return\nstructured findings plus a pass/fail, gating on severity.\n\nWith two files, the second is the translated target and the bilingual checks run:\ndo-not-translate (terms that must survive verbatim) and placeholder/tag integrity.\nWith one file, the source-side checks run over the content itself: length\n(--max-chars/--max-words) and forbidden-pattern (--forbid) checks, plus brand\nvocabulary when a profile is bound. A bound brand profile\n(--profile/--pack/--profile-file) adds vocabulary checks in either mode.\n\nSource-side findings are major (not critical), so by default they report\nwithout failing the gate. Gate on them with --max-major 0 (or --min-score N)\nwhen source quality must block.\n\nExit codes: 0 pass, 3 when the gate fails (a critical finding by default), 1 for\noperational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop.",
-          "short": "Run content checks over a file like tests over code (do-not-translate, placeholders, terminology, brand)"
+          "long": "Run content checks over one or more files and return structured findings\nplus a pass/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual localization checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --json emits the kapi.check/v1 Report.\n\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n0 (report mode) for a fix-loop.",
+          "short": "Verify content against a checkset and gate on severity, like tests over code"
         },
         "completion": {
           "long": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source \u003c(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash \u003e /etc/bash_completion.d/kapi\n\nZsh:\n  $ source \u003c(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh \u003e \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish \u003e ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS\u003e kapi completion powershell | Out-String | Invoke-Expression\n",
@@ -86,6 +86,9 @@
             "short": "Set a config value (persists to the global config file)"
           },
           "short": "Get or set kapi configuration"
+        },
+        "content-lint": {
+          "short": "Content Lint"
         },
         "convert": {
           "short": "Convert files between formats (use kconv)"
