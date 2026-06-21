@@ -4,12 +4,20 @@
 // [model.Span] ranges that the segment tool attaches as a [model.Overlay], so
 // segmentation stays opt-in, multi-layer, and reversible.
 //
-// Engines register at init under a short name (srx, uax29, llm, sat) into a
-// global registry, mirroring the aiprovider/mtprovider pattern. The framework
-// registers the pure-Go SRX engine (the default) and, where ICU is linked, the
-// UAX-29 baseline; the AI tools register the LLM "llm-chunk" engine; the CLI
-// wires the out-of-process SaT model engine. An engine that is not linked into
-// a given binary simply isn't registered — [NewEngine] then reports
+// Each engine registers an [EngineDescriptor] at init under a short name (srx,
+// uax29, llm, sat), mirroring the aiprovider/mtprovider pattern. A descriptor is
+// self-describing: it carries the engine's selector label/description, a
+// constructor for the engine's own typed configuration ([EngineConfig]), and a
+// builder that takes the shared [BaseConfig] plus that config. This lets every
+// engine evolve its parameters independently in its own package while the
+// umbrella segmentation tool composes them through one abstraction — it holds no
+// engine-specific knowledge.
+//
+// The framework registers the SRX engine (the default — UAX-29 base + Okapi SRX
+// exceptions where ICU is linked, pure-Go SRX rules otherwise) and, where ICU is
+// linked, the UAX-29 baseline; the AI tools register the LLM chunker; the CLI
+// wires the out-of-process SaT model engine. An engine that is not linked into a
+// given binary simply isn't registered — [Build] then reports
 // [ErrEngineUnavailable] rather than failing the build.
 package segment
 
@@ -21,6 +29,7 @@ import (
 	"sync"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 )
 
 // DefaultEngine is the engine used when a caller does not name one.
@@ -48,93 +57,121 @@ type Segmenter interface {
 	Layer() string
 }
 
-// Config carries engine parameters resolved from the segment tool's config.
-// Each engine reads only the fields it understands; Params is an escape hatch
-// for engine-specific options not modelled here.
-type Config struct {
+// BaseConfig carries the options every segmenter shares: how inline codes are
+// flattened before boundary detection (and how breaks adjacent to codes resolve)
+// and an optional locale override. Engine-specific parameters live in each
+// engine's own [EngineConfig], not here.
+type BaseConfig struct {
 	// Mask controls how inline codes are represented to the boundary engine
-	// and how breaks adjacent to codes are resolved (shared by all engines).
+	// and how breaks adjacent to codes are resolved.
 	Mask MaskOptions
 
 	// Language overrides the BCP-47 locale used to select rules (SRX language
 	// map, UAX-29 break-iterator locale). Empty = use the per-call locale.
 	Language string
-
-	// SRX engine.
-	SrxPath  string // path to an SRX 2.0 rules file (resolved by the caller)
-	SrxRules string // inline SRX 2.0 XML (takes precedence over SrxPath)
-
-	// LLM engine.
-	Provider      string // aiprovider id (anthropic, openai, …)
-	Model         string
-	Credential    string
-	APIKey        string
-	BaseURL       string
-	Instruction   string // optional chunking instruction
-	MaxChunkRunes int    // soft upper bound on chunk size (0 = engine default)
-
-	// SaT (ML) engine.
-	SatModel   string  // sat-3l-sm | sat-12l-sm | …
-	Threshold  float64 // boundary probability threshold (0 = model default)
-	PluginPath string  // path to the kapi-sat plugin binary (resolved by CLI)
-
-	// Params is an escape hatch for engine-specific options.
-	Params map[string]any
 }
 
-// Factory builds a Segmenter from a Config.
-type Factory func(cfg Config) (Segmenter, error)
+// EngineDescriptor is the self-describing registration for a segmenter — the one
+// abstraction every engine implements, whether in-process (srx, uax29, llm) or
+// plugin-provided over a Mode-C daemon. It carries identity for the selector UI,
+// the engine's own parameter schema, and a builder that takes the shared
+// [BaseConfig] plus the engine's parameters (the subset of the unified config
+// map the engine understands). Engines evolve their parameters independently;
+// the segmentation tool composes them through this descriptor alone.
+type EngineDescriptor struct {
+	Name        string // short registry name (srx, uax29, llm, sat)
+	Label       string // human label for the engine selector
+	Description string // selector help text
+	Order       int    // selector ordering; lower sorts first
+
+	// Schema is the engine's parameter schema for the form, or nil when the
+	// engine takes no parameters. Built-in engines build it from their config
+	// struct (schema.FromStruct); plugin engines supply the schema loaded from
+	// their manifest.
+	Schema *schema.ComponentSchema
+
+	// New builds the Segmenter from the shared base options and the engine's
+	// parameters. params is the subset of the unified config map relevant to this
+	// engine; built-in engines decode it into their own config, plugin engines
+	// forward it to the daemon. params is never nil (callers pass an empty map).
+	New func(base BaseConfig, params map[string]any) (Segmenter, error)
+}
 
 var (
 	mu      sync.RWMutex
-	engines = map[string]Factory{}
+	engines = map[string]EngineDescriptor{}
 )
 
-// ErrEngineUnavailable is returned by [NewEngine] for a name that no linked
-// package registered.
+// ErrEngineUnavailable is returned by [Build] for a name that no linked package
+// registered.
 var ErrEngineUnavailable = errors.New("segment: engine not available")
 
-// RegisterEngine registers an engine factory under a short name. It panics on
-// a duplicate name, matching the framework's other init-time registries.
-func RegisterEngine(name string, f Factory) {
-	if name == "" || f == nil {
-		panic("segment: RegisterEngine requires a name and factory")
+// Register records an engine descriptor. It panics on an empty name, a missing
+// New, or a duplicate name, matching the framework's other init-time registries.
+func Register(d EngineDescriptor) {
+	if d.Name == "" || d.New == nil {
+		panic("segment: Register requires a name and New")
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if _, dup := engines[name]; dup {
-		panic("segment: engine already registered: " + name)
+	if _, dup := engines[d.Name]; dup {
+		panic("segment: engine already registered: " + d.Name)
 	}
-	engines[name] = f
+	engines[d.Name] = d
 }
 
-// NewEngine builds the named engine. An empty name selects [DefaultEngine].
-// It returns [ErrEngineUnavailable] (wrapped) when the engine is not linked.
-func NewEngine(name string, cfg Config) (Segmenter, error) {
-	if name == "" {
-		name = DefaultEngine
+// RegisterIfAbsent records an engine descriptor only when no engine of that
+// name is registered, reporting whether it was added. Unlike [Register] it never
+// panics on a duplicate — it is the host's idempotent path for wiring
+// plugin-provided engines, which may be re-scanned repeatedly and must not
+// clobber a built-in (or earlier plugin) of the same name.
+func RegisterIfAbsent(d EngineDescriptor) bool {
+	if d.Name == "" || d.New == nil {
+		return false
 	}
-	mu.RLock()
-	f := engines[name]
-	mu.RUnlock()
-	if f == nil {
-		return nil, fmt.Errorf("%w: %q (have: %v)", ErrEngineUnavailable, name, Engines())
+	mu.Lock()
+	defer mu.Unlock()
+	if _, dup := engines[d.Name]; dup {
+		return false
 	}
-	return f(cfg)
+	engines[d.Name] = d
+	return true
 }
 
-// HasEngine reports whether an engine is registered under name.
-func HasEngine(name string) bool {
+// Lookup returns the descriptor registered under name. An empty name selects
+// [DefaultEngine].
+func Lookup(name string) (EngineDescriptor, bool) {
 	if name == "" {
 		name = DefaultEngine
 	}
 	mu.RLock()
 	defer mu.RUnlock()
-	_, ok := engines[name]
+	d, ok := engines[name]
+	return d, ok
+}
+
+// Build constructs the named engine from base options and the engine's
+// parameters (nil is treated as an empty map). An empty name selects
+// [DefaultEngine]. It returns [ErrEngineUnavailable] (wrapped) when the engine
+// is not linked.
+func Build(name string, base BaseConfig, params map[string]any) (Segmenter, error) {
+	d, ok := Lookup(name)
+	if !ok {
+		return nil, fmt.Errorf("%w: %q (have: %v)", ErrEngineUnavailable, name, Engines())
+	}
+	if params == nil {
+		params = map[string]any{}
+	}
+	return d.New(base, params)
+}
+
+// HasEngine reports whether an engine is registered under name.
+func HasEngine(name string) bool {
+	_, ok := Lookup(name)
 	return ok
 }
 
-// Engines returns the registered engine names, sorted.
+// Engines returns the registered engine names, sorted alphabetically.
 func Engines() []string {
 	mu.RLock()
 	out := make([]string, 0, len(engines))
@@ -143,5 +180,24 @@ func Engines() []string {
 	}
 	mu.RUnlock()
 	sort.Strings(out)
+	return out
+}
+
+// Descriptors returns the registered engine descriptors, ordered by
+// [EngineDescriptor.Order] then name — the order the engine selector presents
+// them in.
+func Descriptors() []EngineDescriptor {
+	mu.RLock()
+	out := make([]EngineDescriptor, 0, len(engines))
+	for _, d := range engines {
+		out = append(out, d)
+	}
+	mu.RUnlock()
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Order != out[j].Order {
+			return out[i].Order < out[j].Order
+		}
+		return out[i].Name < out[j].Name
+	})
 	return out
 }

@@ -12,7 +12,7 @@
 //
 //	import _ "github.com/neokapi/neokapi/core/segment/uax29"
 //
-// then select it via segment.NewEngine("uax29", cfg) or, in the segment tool's
+// then select it via segment.Build("uax29", base, nil) or, in the segment tool's
 // recipe, "engine: uax29".
 package uax29
 
@@ -44,7 +44,15 @@ import (
 )
 
 func init() {
-	segment.RegisterEngine("uax29", newICU)
+	segment.Register(segment.EngineDescriptor{
+		Name:        "uax29",
+		Label:       "Unicode baseline (UAX-29)",
+		Description: "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions.",
+		Order:       10,
+		New: func(base segment.BaseConfig, _ map[string]any) (segment.Segmenter, error) {
+			return New(base), nil
+		},
+	})
 }
 
 // icuEngine is a UAX-29 sentence segmenter. It is stateless apart from the
@@ -59,9 +67,10 @@ type icuEngine struct {
 	mask segment.MaskOptions
 }
 
-// newICU is the [segment.Factory] for the "uax29" engine.
-func newICU(cfg segment.Config) (segment.Segmenter, error) {
-	return &icuEngine{lang: cfg.Language, mask: cfg.Mask}, nil
+// New builds the "uax29" engine from the shared base options. The engine takes
+// no engine-specific parameters.
+func New(base segment.BaseConfig) segment.Segmenter {
+	return &icuEngine{lang: base.Language, mask: base.Mask}
 }
 
 // Layer reports that this engine produces primary sentence segmentation.

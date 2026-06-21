@@ -33,8 +33,9 @@ var atoms = []emitType{
 		"One entry of a tool's IO contract: a typed stand-off output the tool\nconsumes (reads upstream) or produces (writes). `type` names an overlay\ntype, a block-annotation key, or a pseudo-port (`target`/`source`)."},
 	{"ToolMeta", reflect.TypeOf(schema.ToolMeta{}),
 		"Tool identification, classification, and IO contract (consumes/produces)."},
-	{"ParameterGroup", reflect.TypeOf(schema.ParameterGroup{}),
-		"A UI grouping of parameters."},
+	// ParameterGroup is hand-authored in manual.ts: its ui:visible field is a
+	// ConditionExpr (a hand-authored union with no 1:1 Go type), like
+	// PropertySchema/ComponentSchema.
 	{"LayoutHints", reflect.TypeOf(schema.LayoutHints{}),
 		"Field-level layout hints."},
 	{"OptionItem", reflect.TypeOf(schema.OptionItem{}),

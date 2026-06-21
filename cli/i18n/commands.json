@@ -7,7 +7,7 @@
           "short": "Add file patterns to the project's content"
         },
         "ai-entity-extract": {
-          "short": "Detect named entities (people, organizations, products, locations) using an LLM"
+          "short": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both"
         },
         "ai-review": {
           "example": "  kapi ai-review app.xliff --target-lang fr\n  kapi ai-review messages.json --target-lang de",
@@ -258,7 +258,7 @@
         },
         "qa": {
           "example": "  kapi qa app.xliff --target-lang fr\n  kapi qa app.xliff --target-lang fr --provider anthropic\n  kapi qa app.xliff --target-lang de --json",
-          "short": "Check translation quality with rule-based checks, or an LLM when --provider is set"
+          "short": "Check translation quality with deterministic rules or an LLM (select with --mode)"
         },
         "redact": {
           "short": "Replace sensitive spans with protected placeholders before processing"
@@ -308,7 +308,7 @@
         },
         "segmentation": {
           "example": "  kapi segmentation messages.json\n  kapi segmentation app.xliff",
-          "short": "Segmentation"
+          "short": "Split source text into sentence or chunk segments (stand-off overlay)"
         },
         "short": "A localization and translation toolkit",
         "skills": {
@@ -427,7 +427,7 @@
         },
         "translate": {
           "example": "  kapi translate messages.json --target-lang fr\n  kapi translate app.xliff --target-lang de --provider deepl\n  kapi translate app.xliff --target-lang de -o app.de.xliff",
-          "short": "Translate content with an LLM or machine-translation provider (select with --provider)"
+          "short": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)"
         },
         "translation-comparison": {
           "short": "Translation Comparison"

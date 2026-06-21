@@ -174,11 +174,20 @@ server ([AD-013](013-kapi-cli.md)) so non-CLI agents get parity:
 - `brand_check` — score text using the deterministic vocabulary rules;
 - `brand_rewrite` — substitute forbidden/competitor terms (deterministic).
 
-The MCP surface is deliberately the **offline, deterministic** subset (no LLM
-provider, no store): agents that want the AI check use the CLI's `--ai` path,
-per the CLI-vs-MCP boundary. The same file also exposes `term_lookup` and
-`tm_search` so an agent can enforce terminology and reuse prior translations
-alongside the brand checks.
+These are hand-authored because each wraps a *resource* — a brand profile, a
+termbase, or a TM file — rather than a single processing tool. The same file
+also exposes `term_lookup` and `tm_search` so an agent can enforce terminology
+and reuse prior translations alongside the brand checks.
+
+The registry's processing tools are exposed over MCP **generically** rather than
+curated by hand ([AD-006](006-tool-system.md), `cli/mcp_tools.go`): each
+CLI-visible tool becomes an MCP tool whose input schema is projected straight
+from the tool's own schema plus a `text` field. The set is **scoped by mode**,
+mirroring the desktop's `ListTools` vs `ListProjectTools` split — in a kapi
+project only the tools the project declares are advertised (with the project's
+target language as the default); ad-hoc, the full set is exposed. So the MCP
+surface now mirrors the CLI rather than being a deliberately narrowed subset of
+it.
 
 ## Consequences
 

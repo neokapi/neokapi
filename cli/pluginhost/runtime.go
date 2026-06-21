@@ -20,12 +20,13 @@ import (
 //
 // Every method is safe for concurrent use.
 type Runtime struct {
-	opts               DiscoverOptions
-	formatReg          *registry.FormatRegistry
-	onWarn             func(string)
-	registerConnectors bool
-	useCache           bool
-	poolLogger         func(format string, args ...any)
+	opts                DiscoverOptions
+	formatReg           *registry.FormatRegistry
+	onWarn              func(string)
+	registerConnectors  bool
+	useCache            bool
+	poolLogger          func(format string, args ...any)
+	onSegmentersChanged func()
 
 	mu   sync.RWMutex
 	host *Host
@@ -60,6 +61,13 @@ type RuntimeOptions struct {
 
 	// PoolLogger is the logger handed to the lazily-built DaemonPool. Optional.
 	PoolLogger func(format string, args ...any)
+
+	// OnSegmentersChanged is invoked (when set) after a (re)scan registers one
+	// or more plugin-provided segmentation engines into the global segment
+	// registry. Front-ends use it to refresh anything derived from the engine
+	// set — notably the composed segmentation tool schema, so plugin engines
+	// appear in the selector. Optional.
+	OnSegmentersChanged func()
 }
 
 // NewRuntime constructs a Runtime. It performs no discovery until Rescan.
@@ -69,12 +77,13 @@ func NewRuntime(o RuntimeOptions) *Runtime {
 		onWarn = func(string) {}
 	}
 	return &Runtime{
-		opts:               o.Discover,
-		formatReg:          o.FormatReg,
-		onWarn:             onWarn,
-		registerConnectors: o.RegisterConnectors,
-		useCache:           o.UseCache,
-		poolLogger:         o.PoolLogger,
+		opts:                o.Discover,
+		formatReg:           o.FormatReg,
+		onWarn:              onWarn,
+		registerConnectors:  o.RegisterConnectors,
+		useCache:            o.UseCache,
+		poolLogger:          o.PoolLogger,
+		onSegmentersChanged: o.OnSegmentersChanged,
 	}
 }
 
@@ -175,7 +184,7 @@ func (r *Runtime) build(plugins []*Plugin) *Host {
 
 // wire performs the post-NewHost registration sequence shared by every
 // front-end: recipe schema extensions, optional source-connector dispatchers,
-// and daemon-backed Mode-C formats.
+// daemon-backed Mode-C formats, and plugin-provided segmentation engines.
 func (r *Runtime) wire(host *Host) {
 	RegisterSchemaExtensions(host, r.onWarn)
 
@@ -196,6 +205,15 @@ func (r *Runtime) wire(host *Host) {
 
 	if r.formatReg != nil {
 		RegisterModeCFormats(host, r.DaemonPool(), r.formatReg)
+	}
+
+	// Plugin-provided segmentation engines register into the global segment
+	// registry (independent of formatReg). Only touch the daemon pool when a
+	// plugin actually declares a segmenter.
+	if len(host.SegmenterRoutes()) > 0 {
+		if RegisterModeCSegmenters(host, r.DaemonPool()) && r.onSegmentersChanged != nil {
+			r.onSegmentersChanged()
+		}
 	}
 }
 

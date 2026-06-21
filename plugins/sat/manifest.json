@@ -2,7 +2,7 @@
   "manifest_version": "1",
   "plugin": "sat",
   "version": "0.1.0",
-  "description": "SaT (Segment any Text / wtpsplit) ML sentence segmenter — runs XLM-RoBERTa SaT ONNX models in-process and speaks a line-delimited JSON segmentation protocol on stdin/stdout.",
+  "description": "SaT (Segment any Text / wtpsplit) ML sentence segmenter — runs XLM-RoBERTa SaT ONNX models in a Mode-C daemon and answers the segmentation Segment RPC.",
   "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/sat",
   "author": "Neokapi <hello@neokapi.dev>",
   "license": "Apache-2.0",
@@ -10,33 +10,20 @@
   "min_kapi_version": "0.0.1",
   "group": "neokapi",
   "capabilities": {
-    "selfcheck": true
+    "selfcheck": true,
+    "segmenters": [
+      {
+        "name": "sat",
+        "display_name": "ML model (SaT)",
+        "description": "wtpsplit Segment-any-Text ML model. Best for noisy, unpunctuated, or mixed-script multilingual text.",
+        "order": 20,
+        "schema": "segment/sat/schema.json"
+      }
+    ]
   },
-  "metadata": {
-    "segment": {
-      "protocol": "satproto-line-json-v1",
-      "transport": "stdin-stdout",
-      "invocation": ["kapi-sat", "serve"],
-      "protocol_package": "github.com/neokapi/neokapi/plugins/sat/satproto",
-      "boundary_units": "rune-offsets",
-      "ops": ["segment", "ping", "info"],
-      "models": [
-        {
-          "name": "sat-3l-sm",
-          "default": true,
-          "source": "segment-any-text/sat-3l-sm",
-          "onnx_file": "model.onnx",
-          "tokenizer": "facebookAI/xlm-roberta-base",
-          "default_threshold": 0.25
-        },
-        {
-          "name": "sat-12l-sm",
-          "source": "segment-any-text/sat-12l-sm",
-          "onnx_file": "model.onnx",
-          "tokenizer": "facebookAI/xlm-roberta-base",
-          "default_threshold": 0.25
-        }
-      ]
-    }
+  "daemon": {
+    "idle_timeout_seconds": 300,
+    "startup_timeout_seconds": 60,
+    "handshake": { "type": "stdio-handshake", "fields": ["socket", "version"] }
   }
 }

@@ -684,7 +684,7 @@ func applySegmentation(blocks []*model.Block, conf project.SegmentationDefaults)
 		SegmentSource: true,
 	}
 	if conf.SRX != "" {
-		cfg.SourceSrxPath = conf.SRX
+		cfg.EngineParams = map[string]any{"rulesPath": conf.SRX}
 	}
 	t := tools.NewSegmentationTool(cfg)
 	for _, b := range blocks {

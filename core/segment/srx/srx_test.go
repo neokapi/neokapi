@@ -34,7 +34,7 @@ func segTexts(runs []model.Run, spans []model.Span) []string {
 
 func newDefault(t *testing.T) segment.Segmenter {
 	t.Helper()
-	eng, err := srx.New(segment.Config{})
+	eng, err := srx.New(segment.BaseConfig{}, nil)
 	require.NoError(t, err)
 	return eng
 }
@@ -217,7 +217,7 @@ func TestSegment_WithCodes(t *testing.T) {
 func TestSegment_TrimWhitespace(t *testing.T) {
 	// With TrimLeadingWS set on the mask, the inter-segment space is moved out
 	// of the following segment and becomes an implicit ignorable.
-	eng, err := srx.New(segment.Config{Mask: segment.MaskOptions{TrimLeadingWS: true}})
+	eng, err := srx.New(segment.BaseConfig{Mask: segment.MaskOptions{TrimLeadingWS: true}}, nil)
 	require.NoError(t, err)
 
 	runs := textRuns("Hello world. This is a test.")
@@ -244,7 +244,7 @@ func TestSegment_TrimWhitespaceFromHeader(t *testing.T) {
     <maprules><languagemap languagepattern=".*" languagerulename="default"/></maprules>
   </body>
 </srx>`
-	eng, err := srx.New(segment.Config{SrxRules: rules})
+	eng, err := srx.New(segment.BaseConfig{}, &srx.Params{RulesXML: rules})
 	require.NoError(t, err)
 
 	runs := textRuns("Hello world. This is a test.")
@@ -261,7 +261,7 @@ func TestSegment_LayerIsSentence(t *testing.T) {
 
 func TestSegment_RegisteredAsDefault(t *testing.T) {
 	assert.True(t, segment.HasEngine(segment.DefaultEngine))
-	eng, err := segment.NewEngine(segment.DefaultEngine, segment.Config{})
+	eng, err := segment.Build(segment.DefaultEngine, segment.BaseConfig{}, nil)
 	require.NoError(t, err)
 	require.NotNil(t, eng)
 	assert.Equal(t, segment.LayerSentence, eng.Layer())
@@ -287,7 +287,7 @@ func TestSegment_CustomInlineRules(t *testing.T) {
   </body>
 </srx>`
 
-	eng, err := srx.New(segment.Config{SrxRules: rules})
+	eng, err := srx.New(segment.BaseConfig{}, &srx.Params{RulesXML: rules})
 	require.NoError(t, err)
 
 	runs := textRuns("alpha; beta; gamma")
@@ -325,7 +325,7 @@ func TestSegment_FirstMatchWins(t *testing.T) {
   </body>
 </srx>`
 
-	eng, err := srx.New(segment.Config{SrxRules: exceptionFirst})
+	eng, err := srx.New(segment.BaseConfig{}, &srx.Params{RulesXML: exceptionFirst})
 	require.NoError(t, err)
 	runs := textRuns("ab. cd. Ef.")
 	spans, err := eng.Segment(context.Background(), runs, "xx")
@@ -359,7 +359,7 @@ func TestSegment_FirstMatchWins(t *testing.T) {
   </body>
 </srx>`
 
-	eng2, err := srx.New(segment.Config{SrxRules: breakFirst})
+	eng2, err := srx.New(segment.BaseConfig{}, &srx.Params{RulesXML: breakFirst})
 	require.NoError(t, err)
 	runs2 := textRuns("ab. cd. Ef.")
 	spans2, err := eng2.Segment(context.Background(), runs2, "xx")
@@ -401,7 +401,7 @@ func TestSegment_Cascade(t *testing.T) {
 	input := "one: two. three"
 
 	// cascade=yes -> both Colon and Period rules apply.
-	engYes, err := srx.New(segment.Config{SrxRules: fmt.Sprintf(ruleset, "yes")})
+	engYes, err := srx.New(segment.BaseConfig{}, &srx.Params{RulesXML: fmt.Sprintf(ruleset, "yes")})
 	require.NoError(t, err)
 	runs := textRuns(input)
 	spansYes, err := engYes.Segment(context.Background(), runs, "en-US")
@@ -409,7 +409,7 @@ func TestSegment_Cascade(t *testing.T) {
 	assert.Equal(t, []string{"one:", " two.", " three"}, segTexts(runs, spansYes))
 
 	// cascade=no -> only the first matching map (Colon) applies.
-	engNo, err := srx.New(segment.Config{SrxRules: fmt.Sprintf(ruleset, "no")})
+	engNo, err := srx.New(segment.BaseConfig{}, &srx.Params{RulesXML: fmt.Sprintf(ruleset, "no")})
 	require.NoError(t, err)
 	runs2 := textRuns(input)
 	spansNo, err := engNo.Segment(context.Background(), runs2, "en-US")
@@ -440,7 +440,7 @@ func TestSegment_LanguageOverride(t *testing.T) {
 </srx>`
 
 	// Config.Language forces fr -> Colon rules, regardless of the per-call loc.
-	eng, err := srx.New(segment.Config{SrxRules: ruleset, Language: "fr-CA"})
+	eng, err := srx.New(segment.BaseConfig{Language: "fr-CA"}, &srx.Params{RulesXML: ruleset})
 	require.NoError(t, err)
 	runs := textRuns("a: b. c")
 	spans, err := eng.Segment(context.Background(), runs, "en-US")

@@ -26,7 +26,10 @@ declare parameter schemas via `SchemaProvider`, which drives CLI flag
 generation, flow-editor config panels, and validation. An IO contract on
 `ToolMeta` declares locale cardinality, the stand-off layers a tool produces,
 and side effects so the runner can infer locale iteration and the flow editor
-can show data flow.
+can show data flow. A tool whose behaviour comes from one of several
+interchangeable backends (segmentation engines, AI/MT providers, QA modes) is a
+**tool group** — it registers self-describing members with a default, and the
+user selects and configures one member at a time.
 
 ## Context
 
@@ -418,6 +421,14 @@ Schema-driven features:
   against the schema.
 - **JSON export** — `kapi tools schema <name>` prints the schema for any
   tool.
+- **MCP exposure** — `cli/mcp_tools.go` registers every CLI-visible tool on
+  the `kapi mcp` stdio server, projecting the tool's schema (plus a `text`
+  input) into the MCP input schema and running the tool over the supplied text.
+  The exposed set is **scoped by mode**, mirroring the desktop's `ListTools` vs
+  `ListProjectTools` split: inside a kapi project only the tools the project
+  declares are advertised (with the project's target language as the default);
+  ad-hoc (no project resolved), the full set is exposed. Resource-wrapping
+  helpers (brand profile, termbase, TM) stay hand-authored in `cli/mcp_brand.go`.
 
 AI tool schemas include provider fields (Provider, APIKey, Model with enum
 support for provider selection), so AI-tool CLI flags are generated the
@@ -452,6 +463,73 @@ Plugin tools ([AD-007: Plugin System and Okapi Bridge](007-plugin-system.md))
 use the same `Tool` interface via gRPC translation, so plugin-provided
 tools and built-in tools are interchangeable from the pipeline's
 perspective.
+
+### Tool groups (pluggable backends)
+
+Some tools are a family of interchangeable backends rather than one
+implementation: `segmentation` runs on SRX, UAX-29, Intl.Segmenter, an LLM, or
+the SaT ML model; `qa` runs deterministic rules or an LLM judge; `translate` runs
+any LLM or MT provider; `ai-entity-extract` runs a local NER model, an LLM, or
+both. Each backend carries its own configuration and the family has a sensible
+default.
+
+A **ToolGroup** models this: a tool whose behaviour is provided by one of several
+self-describing **members**, selected by a discriminator field, with a default
+member and common config. The user picks a member and configures only that one —
+the group never merges members' parameters together.
+
+```go
+reg.RegisterGroup(registry.ToolGroupDef{
+    Name:          "segmentation",
+    Discriminator: "engine",                 // the config key that selects the member
+    Default:       "srx",
+    Common:        commonSchema,             // discriminator + shared options + ToolMeta
+    Members:       members,                   // each: Name, Label, Description, own Schema
+    ConfigFactory: NewSegmentationFromConfig, // dispatches on the discriminator
+})
+```
+
+Members are not separately-registered tools — they belong to the group, and the
+candidate members already exist as domain sub-registries: segmentation engines
+([AD-002](002-content-model.md)), AI and MT providers
+([AD-011](011-ai-providers.md), [AD-012](012-mt-providers.md)).
+
+A member may carry its **own factory** (`ToolGroupMember.Factory`). The group's
+registered `ConfigFactory` dispatches on the discriminator: a member with a
+factory is built directly, the rest fall through to the group's factory. This is
+the seam for **runtime-contributed members** — `RegisterGroup` defines the
+built-in members, and `AddGroupMember(group, member)` appends one later
+(recomposing the flat schema, `MemberSchema`, the `ToolInfo.Group` metadata, and
+the dispatcher), so a source outside the group's own package can extend it
+without that package knowing. The discriminator value selects the right backend
+whether it is built-in or contributed.
+
+For **plugin-contributed members**, segmentation wires its engines from the
+manifest `segmenters[]` capability into the segmentation engine sub-registry over
+a dedicated `Segment` RPC ([AD-007](007-plugin-system.md)) — segmentation
+members are narrow sub-components (text → boundaries), not full tools. The other
+groups' members are full block-processing tools; a manifest/daemon transport for
+contributing those is not yet wired (the `AddGroupMember` seam above is the
+registry-side foundation it will build on).
+
+A group is a single registry entry, so flat consumers are unaffected; it serves
+two renderings from one definition:
+
+- **Master-detail** (the config UI, the docs reference) reads `ToolInfo.Group`
+  (members, default, discriminator) and `MemberSchema(group, member)`, and renders
+  the common fields + a member selector + only the selected member's own schema.
+  Nothing is merged or hidden.
+- **Flat projection** (CLI flags, MCP input, and the registry's `Schema(id)`) is
+  inherently flat — cobra flags and a single input schema cannot be selected into
+  at parse time — so the group projects to one schema via
+  `schema.ComposeVariants`: a discriminator `select` plus each member's fields,
+  grouped and gated to their member. `ComposeVariants` is therefore a projection
+  of a group, not the model.
+
+The discriminator carries a default, so the bare tool works with no
+configuration. A tool that historically inferred its backend from another field
+(e.g. `qa` from whether a `provider` was set) keeps that inference as a fallback
+when the discriminator is unset, so existing recipes and flags are unaffected.
 
 ### Annotation-based communication
 
@@ -739,6 +817,10 @@ still rejected).
   autocomplete.
 - Mixed-cardinality flows resolve cleanly through pass union; tool
   authors do not coordinate locale iteration.
+- Tool groups let a family of interchangeable backends share one tool while each
+  backend keeps its own config; members come from domain registries or plugins,
+  and the same definition drives master-detail config UI and the flat CLI/docs/MCP
+  projection.
 
 ## Related
 

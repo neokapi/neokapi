@@ -65,6 +65,27 @@ type Entry struct {
 
 	// Presets are named parameter sets keyed by preset id.
 	Presets map[string]map[string]any `json:"presets,omitempty"`
+
+	// Group, when set, describes a tool group: a tool whose behaviour is provided
+	// by one of several self-describing members selected by a discriminator field
+	// (AD-006). The docs render a member list + per-member config from this; the
+	// flat Schema above remains the full projection for CLI/MCP.
+	Group *EntryGroup `json:"group,omitempty"`
+}
+
+// EntryGroup describes a tool group's members for the reference docs.
+type EntryGroup struct {
+	Discriminator string             `json:"discriminator"`
+	Default       string             `json:"default,omitempty"`
+	Members       []EntryGroupMember `json:"members"`
+}
+
+// EntryGroupMember is one member of an EntryGroup.
+type EntryGroupMember struct {
+	Name        string `json:"name"`
+	Label       string `json:"label,omitempty"`
+	Description string `json:"description,omitempty"`
+	HasSchema   bool   `json:"hasSchema"`
 }
 
 // Doc mirrors the bridge doc.json shape and the @neokapi/flow-editor ToolDoc

@@ -71,19 +71,6 @@ export interface ToolMeta {
 }
 
 /**
- * A UI grouping of parameters.
- */
-export interface ParameterGroup {
-  id: string;
-  label: string;
-  description?: string;
-  collapsible?: boolean;
-  collapsed?: boolean;
-  icon?: string;
-  fields: string[];
-}
-
-/**
  * Field-level layout hints.
  */
 export interface LayoutHints {

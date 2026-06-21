@@ -38,20 +38,21 @@ func demoSegEngine(name string) (segment.Segmenter, error) {
 	if e, ok := demoEngines[name]; ok {
 		return e, nil
 	}
-	trim := segment.MaskOptions{TrimLeadingWS: true, TrimTrailingWS: true}
-	engineName := "srx"
-	cfg := segment.Config{Mask: trim}
+	base := segment.BaseConfig{Mask: segment.MaskOptions{TrimLeadingWS: true, TrimTrailingWS: true}}
+	var (
+		eng segment.Segmenter
+		err error
+	)
 	switch name {
 	case "uax29":
-		engineName = "uax29"
+		eng, err = segment.Build("uax29", base, nil)
 	case "intl":
-		engineName = "intl"
+		eng, err = segment.Build("intl", base, nil)
 	case "hybrid":
-		cfg.SrxRules = string(srx.OkapiRuleset())
+		eng, err = srx.New(base, &srx.Params{RulesXML: string(srx.OkapiRuleset())})
 	default: // "srx" / ""
-		cfg.SrxRules = string(srx.DefaultRuleset())
+		eng, err = srx.New(base, &srx.Params{RulesXML: string(srx.DefaultRuleset())})
 	}
-	eng, err := segment.NewEngine(engineName, cfg)
 	if err != nil {
 		return nil, err
 	}

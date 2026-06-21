@@ -21,9 +21,9 @@ func TestHybridDefaultEngineSegments(t *testing.T) {
 	if !segment.HasBaseBreaker() {
 		t.Skip("no ICU base breaker linked")
 	}
-	eng, err := segment.NewEngine("srx", segment.Config{})
+	eng, err := segment.Build("srx", segment.BaseConfig{}, nil)
 	if err != nil {
-		t.Fatalf("NewEngine: %v", err)
+		t.Fatalf("Build: %v", err)
 	}
 
 	runsOf := func(s string) []model.Run {

@@ -2,7 +2,7 @@
   "tools": {
     "ai-entity-extract": {
       "displayName": "AI Entity Extract",
-      "description": "Detect named entities (people, organizations, products, locations) using an LLM",
+      "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
       "category": "analysis",
       "properties": {
         "apiKey": {
@@ -20,14 +20,19 @@
           "description": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both)",
           "options": {
             "hybrid": {
-              "label": "hybrid"
+              "label": "Hybrid (NER + LLM)"
             },
             "llm": {
-              "label": "llm"
+              "label": "LLM (AI provider)"
             },
             "ner": {
-              "label": "ner"
+              "label": "Local NER (on-device)"
             }
+          },
+          "enumDescriptions": {
+            "hybrid": "Run the local model and the LLM, merging results.",
+            "llm": "Extract with an AI provider.",
+            "ner": "On-device model — no credentials, nothing leaves the machine."
           }
         },
         "knownTerms": {
@@ -66,7 +71,13 @@
         }
       },
       "groups": {
-        "provider": {
+        "extract": {
+          "label": "Extraction"
+        },
+        "llm": {
+          "label": "LLM (AI provider)"
+        },
+        "llm:provider": {
           "label": "Provider"
         }
       }
@@ -479,7 +490,7 @@
     },
     "qa": {
       "displayName": "Quality Check",
-      "description": "Check translation quality with rule-based checks, or an LLM when --provider is set",
+      "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
       "category": "quality",
       "properties": {
         "absoluteMaxCharLength": {
@@ -582,13 +593,29 @@
           "title": "Short/Long Threshold (Min)",
           "description": "Character count above which text is considered long for the minimum length check"
         },
+        "mode": {
+          "title": "QA Mode",
+          "description": "How to check quality: deterministic local rules, or an AI provider's review",
+          "options": {
+            "ai": {
+              "label": "AI review"
+            },
+            "rules": {
+              "label": "Deterministic rules"
+            }
+          },
+          "enumDescriptions": {
+            "ai": "LLM-judged quality review via an AI provider.",
+            "rules": "Local rule-based checks — no credentials, no network."
+          }
+        },
         "model": {
           "title": "Model",
           "description": "AI model name"
         },
         "provider": {
           "title": "AI Provider",
-          "description": "LLM provider for AI-judged QA (omit for rule-based checks)",
+          "description": "AI provider",
           "options": {
             "anthropic": {
               "label": "Anthropic"
@@ -624,23 +651,32 @@
         }
       },
       "groups": {
-        "characters": {
+        "ai": {
+          "label": "AI review"
+        },
+        "ai:provider": {
+          "label": "Provider"
+        },
+        "qa": {
+          "label": "Quality check"
+        },
+        "rules": {
+          "label": "Deterministic rules"
+        },
+        "rules:characters": {
           "label": "Characters"
         },
-        "general": {
+        "rules:general": {
           "label": "General"
         },
-        "inlineCodes": {
+        "rules:inlineCodes": {
           "label": "InlineCodes"
         },
-        "length": {
+        "rules:length": {
           "label": "Length"
         },
-        "patterns": {
+        "rules:patterns": {
           "label": "Patterns"
-        },
-        "provider": {
-          "label": "Provider"
         }
       }
     },
@@ -751,43 +787,64 @@
     },
     "segmentation": {
       "displayName": "Segmentation",
+      "description": "Split source text into sentence or chunk segments (stand-off overlay)",
       "category": "text-processing",
       "properties": {
         "credential": {
           "title": "Credential",
-          "description": "Stored credential name for the llm engine"
+          "description": "Stored credential name"
         },
         "engine": {
           "title": "Segmentation Engine",
-          "description": "Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ intl (browser Intl.Segmenter)/ llm (semantic chunks)/ sat (ML model)"
+          "description": "Which segmenter to use; the default needs no configuration",
+          "options": {
+            "llm": {
+              "label": "LLM (semantic chunks)"
+            },
+            "srx": {
+              "label": "Rule-based (hybrid SRX/UAX-29)"
+            },
+            "uax29": {
+              "label": "Unicode baseline (UAX-29)"
+            }
+          },
+          "enumDescriptions": {
+            "llm": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+            "srx": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
+            "uax29": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions."
+          }
         },
         "instruction": {
           "title": "Chunking Instruction",
-          "description": "Optional guidance for the llm engine"
+          "description": "Optional guidance for how to chunk"
         },
         "layer": {
           "title": "Overlay Layer",
           "description": "Segmentation overlay layer name; empty uses the engine's natural layer"
         },
+        "maxChunkRunes": {
+          "title": "Max Chunk Size",
+          "description": "Soft upper bound on chunk size in characters (0 = model default)"
+        },
         "model": {
           "title": "Model",
-          "description": "Model name for the llm or sat engine"
+          "description": "Model name"
         },
         "overwriteSegmentation": {
           "title": "Overwrite Existing Segmentation",
           "description": "Re-segment already-segmented blocks replacing previous segmentation"
         },
         "provider": {
-          "title": "LLM Provider",
-          "description": "AI provider id for the llm engine"
+          "title": "Provider",
+          "description": "AI provider id (anthropic"
         },
         "renumberCodes": {
           "title": "Renumber Code IDs",
           "description": "Renumber inline code IDs when materializing segments to a bilingual format"
         },
-        "satModel": {
-          "title": "SaT Model",
-          "description": "SaT model for the sat engine (e.g. sat-3l-sm"
+        "rulesPath": {
+          "title": "SRX Rules File",
+          "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)"
         },
         "segmentSource": {
           "title": "Segment Source Text",
@@ -796,18 +853,6 @@
         "segmentTarget": {
           "title": "Segment Target Text",
           "description": "Segment existing target text"
-        },
-        "sourceSrxPath": {
-          "title": "Source SRX Rules Path",
-          "description": "Path to an SRX 2.0 rules file for source text (srx engine)"
-        },
-        "targetSrxPath": {
-          "title": "Target SRX Rules Path",
-          "description": "Path to an SRX 2.0 rules file for target text (srx engine)"
-        },
-        "threshold": {
-          "title": "Boundary Threshold",
-          "description": "Boundary probability threshold for the sat engine (0 = model default)"
         },
         "treatIsolatedCodesAsWhitespace": {
           "title": "Treat Isolated Codes as Whitespace",
@@ -820,6 +865,20 @@
         "trimTrailingWhitespace": {
           "title": "Trim Trailing Whitespace",
           "description": "Exclude trailing whitespace from each segment span"
+        }
+      },
+      "groups": {
+        "boundaries": {
+          "label": "Boundary handling"
+        },
+        "llm": {
+          "label": "LLM (semantic chunks)"
+        },
+        "segmentation": {
+          "label": "Segmentation"
+        },
+        "srx": {
+          "label": "Rule-based (hybrid SRX/UAX-29)"
         }
       }
     },
@@ -873,7 +932,7 @@
     },
     "translate": {
       "displayName": "Translate",
-      "description": "Translate content with an LLM or machine-translation provider (select with --provider)",
+      "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
       "category": "translation",
       "properties": {
         "apiKey": {
@@ -891,6 +950,22 @@
         "email": {
           "title": "Email",
           "description": "Account email for higher rate limits (mymemory)"
+        },
+        "engine": {
+          "title": "Engine",
+          "description": "Translation engine: an AI model or a machine-translation provider",
+          "options": {
+            "llm": {
+              "label": "AI (LLM)"
+            },
+            "mt": {
+              "label": "Machine translation"
+            }
+          },
+          "enumDescriptions": {
+            "llm": "Translate with a large language model.",
+            "mt": "Translate with a dedicated machine-translation provider."
+          }
         },
         "model": {
           "title": "Model",
@@ -953,6 +1028,9 @@
         }
       },
       "groups": {
+        "mt": {
+          "label": "Machine translation"
+        },
         "provider": {
           "label": "Provider"
         }

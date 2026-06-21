@@ -9,15 +9,16 @@ import (
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/segment"
 	"github.com/neokapi/neokapi/core/tool"
 
 	// Register the built-in segmentation engines so the segment tool can
 	// select them by name. SRX (the default) is pure Go; UAX-29 is ICU-backed
-	// where cgo is available and silently absent otherwise. The LLM and SaT
-	// engines register from their own packages (core/ai/tools, the CLI) when
-	// linked.
+	// where cgo is available and silently absent otherwise. The LLM engine
+	// registers from core/ai/tools when linked; ML/native engines (e.g. SaT)
+	// are plugin-provided and registered by the host at discovery time.
 	_ "github.com/neokapi/neokapi/core/segment/srx"
 	_ "github.com/neokapi/neokapi/core/segment/uax29"
 )
@@ -37,49 +38,44 @@ type SegmentationRule struct {
 	IsBreak     bool   // true = split here, false = do NOT split here
 }
 
-// SegmentationConfig holds configuration for the segmentation tool.
+// SegmentationConfig is the segmentation tool's common configuration: which
+// engine to run and how the resulting overlay is scoped and trimmed. The
+// selected engine's own parameters (SRX rules file, LLM provider/model, SaT
+// model/threshold) are not fields here — each engine owns its parameter schema
+// and the form composes them (see [SegmentationSchema]). At runtime the
+// engine-specific values arrive in EngineParams and are decoded into the
+// engine's own config.
 type SegmentationConfig struct {
 	TargetLocale model.LocaleID     `json:"targetLocale,omitempty" schema:"-"`
 	Rules        []SegmentationRule `json:"rules,omitempty"        schema:"-"`
 
-	// Engine selects the segmenter backend. The default, srx, is a faithful
-	// SRX 2.0 rule engine; uax29 is the ICU Unicode sentence baseline; intl is
-	// the browser-only Intl.Segmenter baseline (WASM builds); llm produces
-	// semantic chunks via an AI provider; sat runs the SaT ML model through the
-	// kapi-sat plugin. An inline Rules list overrides Engine.
-	Engine string `json:"engine,omitempty" schema:"title=Segmentation Engine,description=Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ intl (browser Intl.Segmenter)/ llm (semantic chunks)/ sat (ML model)"`
+	// Engine selects the segmenter backend by registry name (srx is the default).
+	// The available engines and their own parameters come from the segment engine
+	// registry; an inline Rules list overrides Engine.
+	Engine string `json:"engine,omitempty" schema:"title=Segmentation Engine,description=Which segmenter to use; the default needs no configuration,group=segmentation,order=0"`
 	// Layer names the segmentation overlay layer. Empty is the primary
 	// sentence layer (the one bilingual formats project); named layers such as
 	// llm-chunk coexist alongside it. Empty defers to the engine's natural
 	// layer (sentence for srx/uax29/sat, llm-chunk for llm).
-	Layer string `json:"layer,omitempty" schema:"title=Overlay Layer,description=Segmentation overlay layer name; empty uses the engine's natural layer"`
+	Layer string `json:"layer,omitempty" schema:"title=Overlay Layer,description=Segmentation overlay layer name; empty uses the engine's natural layer,group=segmentation,order=10"`
 
-	// Schema-visible properties matching the bridge schema.
-	SegmentSource                  bool   `json:"segmentSource,omitempty"                  schema:"title=Segment Source Text,description=Segment the source text,default=true"`
-	SegmentTarget                  bool   `json:"segmentTarget,omitempty"                  schema:"title=Segment Target Text,description=Segment existing target text"`
-	SourceSrxPath                  string `json:"sourceSrxPath,omitempty"                  schema:"title=Source SRX Rules Path,description=Path to an SRX 2.0 rules file for source text (srx engine)"`
-	TargetSrxPath                  string `json:"targetSrxPath,omitempty"                  schema:"title=Target SRX Rules Path,description=Path to an SRX 2.0 rules file for target text (srx engine)"`
-	OverwriteSegmentation          bool   `json:"overwriteSegmentation,omitempty"          schema:"title=Overwrite Existing Segmentation,description=Re-segment already-segmented blocks replacing previous segmentation"`
-	TreatIsolatedCodesAsWhitespace bool   `json:"treatIsolatedCodesAsWhitespace,omitempty" schema:"title=Treat Isolated Codes as Whitespace,description=Treat isolated inline codes as whitespace during segmentation"`
-	TrimLeadingWS                  bool   `json:"trimLeadingWhitespace,omitempty"          schema:"title=Trim Leading Whitespace,description=Exclude leading whitespace from each segment span,default=true"`
-	TrimTrailingWS                 bool   `json:"trimTrailingWhitespace,omitempty"         schema:"title=Trim Trailing Whitespace,description=Exclude trailing whitespace from each segment span,default=true"`
+	SegmentSource bool `json:"segmentSource,omitempty" schema:"title=Segment Source Text,description=Segment the source text,default=true,group=segmentation,order=20"`
+	SegmentTarget bool `json:"segmentTarget,omitempty" schema:"title=Segment Target Text,description=Segment existing target text,group=segmentation,order=30"`
+
+	OverwriteSegmentation          bool `json:"overwriteSegmentation,omitempty"          schema:"title=Overwrite Existing Segmentation,description=Re-segment already-segmented blocks replacing previous segmentation,group=boundaries,order=10"`
+	TreatIsolatedCodesAsWhitespace bool `json:"treatIsolatedCodesAsWhitespace,omitempty" schema:"title=Treat Isolated Codes as Whitespace,description=Treat isolated inline codes as whitespace during segmentation,group=boundaries,order=20"`
+	TrimLeadingWS                  bool `json:"trimLeadingWhitespace,omitempty"          schema:"title=Trim Leading Whitespace,description=Exclude leading whitespace from each segment span,default=true,group=boundaries,order=30"`
+	TrimTrailingWS                 bool `json:"trimTrailingWhitespace,omitempty"         schema:"title=Trim Trailing Whitespace,description=Exclude trailing whitespace from each segment span,default=true,group=boundaries,order=40"`
 	// RenumberCodes is honored at bilingual projection time, where standalone
 	// segments are materialized; in the overlay model the runs are never
 	// rewritten, so it is a no-op for overlay production.
-	RenumberCodes bool `json:"renumberCodes,omitempty" schema:"title=Renumber Code IDs,description=Renumber inline code IDs when materializing segments to a bilingual format"`
+	RenumberCodes bool `json:"renumberCodes,omitempty" schema:"title=Renumber Code IDs,description=Renumber inline code IDs when materializing segments to a bilingual format,group=boundaries,order=50"`
 
-	// LLM / SaT engine parameters.
-	Provider    string  `json:"provider,omitempty"    schema:"title=LLM Provider,description=AI provider id for the llm engine"`
-	Model       string  `json:"model,omitempty"       schema:"title=Model,description=Model name for the llm or sat engine"`
-	Credential  string  `json:"credential,omitempty"  schema:"title=Credential,description=Stored credential name for the llm engine"`
-	Instruction string  `json:"instruction,omitempty" schema:"title=Chunking Instruction,description=Optional guidance for the llm engine"`
-	SatModel    string  `json:"satModel,omitempty"    schema:"title=SaT Model,description=SaT model for the sat engine (e.g. sat-3l-sm, sat-12l-sm)"`
-	Threshold   float64 `json:"threshold,omitempty"   schema:"title=Boundary Threshold,description=Boundary probability threshold for the sat engine (0 = model default)"`
-
-	// Resolved at runtime by the CLI/host, not exposed as flags.
-	APIKey     string `json:"-" schema:"-"`
-	BaseURL    string `json:"-" schema:"-"`
-	PluginPath string `json:"-" schema:"-"`
+	// EngineParams carries the selected engine's own parameters, captured from
+	// the unified config map and decoded into the engine's [segment.EngineConfig]
+	// at build time. Not a form field — the composed schema contributes the
+	// engine fields directly; direct constructors may set this map.
+	EngineParams map[string]any `json:"-" schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -123,41 +119,90 @@ func (c *SegmentationConfig) maskOptions() segment.MaskOptions {
 	}
 }
 
-// engineConfig builds the segment.Config for a side, given that side's SRX path.
-func (c *SegmentationConfig) engineConfig(srxPath string) segment.Config {
-	return segment.Config{
-		Mask:        c.maskOptions(),
-		SrxPath:     srxPath,
-		Provider:    c.Provider,
-		Model:       c.Model,
-		APIKey:      c.APIKey,
-		BaseURL:     c.BaseURL,
-		Instruction: c.Instruction,
-		SatModel:    c.SatModel,
-		Threshold:   c.Threshold,
-		PluginPath:  c.PluginPath,
+// segmentationToolMeta is the tool metadata shared by the registry and the
+// exported schema accessor.
+func segmentationToolMeta() schema.ToolMeta {
+	return toolMeta("segmentation", "Segmentation", schema.CategoryTextProcessing,
+		withTags("text-processing"), withAliases("segment"), withWritesOutput(),
+		withCardinality(schema.Monolingual),
+		withProduces(srcF(model.OverlaySegmentation), tgtF(model.OverlaySegmentation)))
+}
+
+// segmentationCommonSchema is the group's shared config: the engine selector
+// plus the scope and boundary-handling options common to every engine.
+func segmentationCommonSchema() *schema.ComponentSchema {
+	cfg := &SegmentationConfig{}
+	cfg.Reset()
+	base := schema.FromStruct(cfg, segmentationToolMeta())
+	base.Description = "Split source text into sentence or chunk segments (stand-off overlay)"
+	for i := range base.Groups {
+		switch base.Groups[i].ID {
+		case "segmentation":
+			base.Groups[i].Label = "Segmentation"
+		case "boundaries":
+			base.Groups[i].Label = "Boundary handling"
+			collapse := true
+			base.Groups[i].Collapsible = &collapse
+			base.Groups[i].Collapsed = true
+		}
+	}
+	return base
+}
+
+// segmentationMembers maps the registered segment engines to tool-group members.
+// The engine list (selector + per-engine config) is whatever is linked into the
+// binary plus any plugin-provided engines — the tool carries no engine-specific
+// knowledge.
+func segmentationMembers() []registry.ToolGroupMember {
+	descs := segment.Descriptors()
+	ms := make([]registry.ToolGroupMember, 0, len(descs))
+	for _, d := range descs {
+		ms = append(ms, registry.ToolGroupMember{
+			Name: d.Name, Label: d.Label, Description: d.Description, Schema: d.Schema,
+		})
+	}
+	return ms
+}
+
+// segmentationGroup is the segmentation tool group: engine members (incl.
+// plugin-provided ones), srx as the default, scope/boundary as common config.
+func segmentationGroup() registry.ToolGroupDef {
+	return registry.ToolGroupDef{
+		Name:          "segmentation",
+		Discriminator: "engine",
+		Default:       segment.DefaultEngine,
+		Common:        segmentationCommonSchema(),
+		Members:       segmentationMembers(),
+		ConfigFactory: NewSegmentationFromConfig,
 	}
 }
 
-// SegmentationSchema returns the auto-generated schema for the segmentation tool.
+// SegmentationSchema returns the composed (flat) projection of the segmentation
+// group — common options + an engine selector whose chosen engine reveals only
+// its own parameters. This is the view CLI flags, docs, and MCP consume; the UI
+// uses the group + per-member schemas (master-detail) instead.
 func SegmentationSchema() *schema.ComponentSchema {
-	cfg := &SegmentationConfig{}
-	cfg.Reset()
-	return schema.FromStruct(cfg, schema.ToolMeta{
-		ID:          "segmentation",
-		Category:    schema.CategoryTextProcessing,
-		DisplayName: "Segmentation",
-		Description: "Split source text into sentence or chunk segments (stand-off overlay)",
-	})
+	return registry.ComposeGroupSchema(segmentationGroup())
 }
 
-// NewSegmentationFromConfig creates a segmentation tool from a config map.
+// RegisterSegmentation registers (or re-registers) the segmentation tool group.
+// The host calls it again after plugin-provided segmenters register, so the
+// member list reflects them (the group is otherwise built once, before plugin
+// discovery).
+func RegisterSegmentation(reg *registry.ToolRegistry) {
+	reg.RegisterGroup(segmentationGroup())
+}
+
+// NewSegmentationFromConfig creates a segmentation tool from a config map. The
+// engine-specific keys ride along in the same map and are decoded into the
+// chosen engine's own config when the segmenter is built.
 func NewSegmentationFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	cfg := &SegmentationConfig{}
 	cfg.Reset()
 	if err := schema.ApplyConfig(config, cfg); err != nil {
 		return nil, fmt.Errorf("segmentation config: %w", err)
 	}
+	cfg.EngineParams = config
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
@@ -173,12 +218,9 @@ type SegmentationTool struct {
 	tool.BaseTool
 	cfg *SegmentationConfig
 
-	srcOnce sync.Once
-	srcSeg  segment.Segmenter
-	srcErr  error
-	tgtOnce sync.Once
-	tgtSeg  segment.Segmenter
-	tgtErr  error
+	once sync.Once
+	seg  segment.Segmenter
+	err  error
 }
 
 // NewSegmentationTool creates a segmentation tool that splits Block content
@@ -203,19 +245,16 @@ func NewSegmentationTool(cfg *SegmentationConfig) *SegmentationTool {
 	return t
 }
 
-// sourceSegmenter / targetSegmenter build (once) the segmenter for each side.
-// The inline Rules list, when present, overrides the named engine.
-func (t *SegmentationTool) sourceSegmenter() (segment.Segmenter, error) {
-	t.srcOnce.Do(func() { t.srcSeg, t.srcErr = t.cfg.buildSegmenter(t.cfg.SourceSrxPath) })
-	return t.srcSeg, t.srcErr
+// segmenter builds (once) the engine for this tool. One engine serves both
+// source and target: SRX rules are locale-keyed, so the per-call locale selects
+// the right language rules for each side. The inline Rules list, when present,
+// overrides the named engine.
+func (t *SegmentationTool) segmenter() (segment.Segmenter, error) {
+	t.once.Do(func() { t.seg, t.err = t.cfg.buildSegmenter() })
+	return t.seg, t.err
 }
 
-func (t *SegmentationTool) targetSegmenter() (segment.Segmenter, error) {
-	t.tgtOnce.Do(func() { t.tgtSeg, t.tgtErr = t.cfg.buildSegmenter(t.cfg.TargetSrxPath) })
-	return t.tgtSeg, t.tgtErr
-}
-
-func (c *SegmentationConfig) buildSegmenter(srxPath string) (segment.Segmenter, error) {
+func (c *SegmentationConfig) buildSegmenter() (segment.Segmenter, error) {
 	if len(c.Rules) > 0 {
 		compiled, err := compileRules(c.Rules)
 		if err != nil {
@@ -223,7 +262,16 @@ func (c *SegmentationConfig) buildSegmenter(srxPath string) (segment.Segmenter, 
 		}
 		return &rulesSegmenter{compiled: compiled, mask: c.maskOptions()}, nil
 	}
-	return segment.NewEngine(c.Engine, c.engineConfig(srxPath))
+
+	desc, ok := segment.Lookup(c.Engine)
+	if !ok {
+		return nil, fmt.Errorf("%w: %q (have: %v)", segment.ErrEngineUnavailable, c.Engine, segment.Engines())
+	}
+	params := c.EngineParams
+	if params == nil {
+		params = map[string]any{}
+	}
+	return desc.New(segment.BaseConfig{Mask: c.maskOptions()}, params)
 }
 
 // layerFor resolves the overlay layer for a side: the explicit config layer,
@@ -242,7 +290,7 @@ func (t *SegmentationTool) annotate(v tool.BlockView) error {
 	cfg := t.cfg
 
 	if cfg.SegmentSource {
-		seg, err := t.sourceSegmenter()
+		seg, err := t.segmenter()
 		if err != nil {
 			return err
 		}
@@ -260,7 +308,7 @@ func (t *SegmentationTool) annotate(v tool.BlockView) error {
 	}
 
 	if cfg.SegmentTarget && !cfg.TargetLocale.IsEmpty() && v.HasTarget(cfg.TargetLocale) {
-		seg, err := t.targetSegmenter()
+		seg, err := t.segmenter()
 		if err != nil {
 			return err
 		}

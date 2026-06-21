@@ -37,7 +37,15 @@ import (
 const jsFuncName = "kapiICU4XSentenceBreaks"
 
 func init() {
-	segment.RegisterEngine("uax29", newEngine)
+	segment.Register(segment.EngineDescriptor{
+		Name:        "uax29",
+		Label:       "Unicode baseline (UAX-29)",
+		Description: "Unicode default sentence boundaries (ICU4X). A language-agnostic baseline with no exceptions.",
+		Order:       10,
+		New: func(base segment.BaseConfig, _ map[string]any) (segment.Segmenter, error) {
+			return &engine{lang: base.Language, mask: base.Mask}, nil
+		},
+	})
 	// Also expose ICU4X as the base breaker, so the SRX engine can run Okapi's
 	// useIcu4jBreakRules hybrid (ICU base + SRX exceptions) in the browser — the
 	// same composition that runs natively over cgo ICU. When ICU4X isn't loaded
@@ -78,10 +86,6 @@ func (icu4xBaseBreaker) BaseBreaks(ctx context.Context, text []rune, locale stri
 type engine struct {
 	lang string
 	mask segment.MaskOptions
-}
-
-func newEngine(cfg segment.Config) (segment.Segmenter, error) {
-	return &engine{lang: cfg.Language, mask: cfg.Mask}, nil
 }
 
 // Layer reports that this engine produces primary sentence segmentation.

@@ -8,14 +8,7 @@
 // structural fields ($ref, $defs, oneOf, additionalProperties, …). Keeping the
 // union here means a single declaration nothing has to diverge from.
 
-import type {
-  FormatMeta,
-  LayoutHints,
-  OptionItem,
-  ParameterGroup,
-  PathAnnotation,
-  ToolMeta,
-} from "./contract.gen";
+import type { FormatMeta, LayoutHints, OptionItem, PathAnnotation, ToolMeta } from "./contract.gen";
 
 /**
  * Condition expression for `ui:visible` / `ui:enabled`. Supports simple field
@@ -28,6 +21,33 @@ export type ConditionExpr =
   | { all: ConditionExpr[] }
   | { any: ConditionExpr[] }
   | { not: ConditionExpr };
+
+/**
+ * A UI grouping of parameters. Hand-authored (not generated) because its
+ * `ui:visible` gate is a {@link ConditionExpr} — used for master-detail
+ * rendering of tool groups, where a whole section is shown only when its
+ * condition holds. Mirrors core/schema.ParameterGroup.
+ */
+export interface ParameterGroup {
+  id: string;
+  label: string;
+  description?: string;
+  collapsible?: boolean;
+  collapsed?: boolean;
+  icon?: string;
+  fields: string[];
+  "ui:visible"?: ConditionExpr;
+}
+
+/**
+ * One branch of a cascading select: options offered only when `when` holds.
+ * Mirrors core/schema.ConditionalOptions (see {@link PropertySchema}'s
+ * `ui:option-sets`).
+ */
+export interface ConditionalOptions {
+  when?: ConditionExpr;
+  options: OptionItem[];
+}
 
 /**
  * A single parameter's schema. Union of the native schema language
@@ -50,6 +70,10 @@ export interface PropertySchema {
 
   // Labeled enum options (consolidated from enum + ui:enum-labels)
   options?: OptionItem[];
+
+  // Cascading select: options that depend on another field's value. The UI uses
+  // the matching set's options; flat consumers fall back to `options`.
+  "ui:option-sets"?: ConditionalOptions[];
 
   // UI rendering hints (ui: prefix)
   "ui:widget"?: string;

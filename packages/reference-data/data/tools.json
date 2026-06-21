@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T23:00:57Z",
+  "generatedAt": "2026-06-21T13:11:32Z",
   "kind": "tool",
   "entries": [
     {
@@ -187,13 +187,13 @@
       "schema": {
         "$id": "ai-entity-extract",
         "title": "AI Entity Extract",
-        "description": "Detect named entities (people, organizations, products, locations) using an LLM",
+        "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
         "type": "object",
         "toolMeta": {
           "id": "ai-entity-extract",
           "category": "analysis",
           "displayName": "AI Entity Extract",
-          "description": "Detect named entities (people, organizations, products, locations) using an LLM",
+          "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
           "tags": [
             "ai-powered"
           ],
@@ -216,13 +216,54 @@
         },
         "ui:groups": [
           {
-            "id": "provider",
+            "id": "extract",
+            "label": "Extraction",
+            "fields": [
+              "engine",
+              "locale",
+              "knownTerms"
+            ]
+          },
+          {
+            "id": "llm:provider",
             "label": "Provider",
             "fields": [
               "provider",
               "apiKey",
               "model"
-            ]
+            ],
+            "ui:visible": {
+              "any": [
+                {
+                  "field": "engine",
+                  "eq": "llm"
+                },
+                {
+                  "field": "engine",
+                  "eq": "hybrid"
+                }
+              ]
+            }
+          },
+          {
+            "id": "llm",
+            "label": "LLM (AI provider)",
+            "fields": [
+              "batchConcurrency",
+              "batchSize"
+            ],
+            "ui:visible": {
+              "any": [
+                {
+                  "field": "engine",
+                  "eq": "llm"
+                },
+                {
+                  "field": "engine",
+                  "eq": "hybrid"
+                }
+              ]
+            }
           }
         ],
         "properties": {
@@ -251,17 +292,23 @@
             "options": [
               {
                 "value": "llm",
-                "label": "llm"
+                "label": "LLM (AI provider)"
               },
               {
                 "value": "ner",
-                "label": "ner"
+                "label": "Local NER (on-device)"
               },
               {
                 "value": "hybrid",
-                "label": "hybrid"
+                "label": "Hybrid (NER + LLM)"
               }
-            ]
+            ],
+            "ui:widget": "select",
+            "ui:enum-descriptions": {
+              "hybrid": "Run the local model and the LLM, merging results.",
+              "llm": "Extract with an AI provider.",
+              "ner": "On-device model — no credentials, nothing leaves the machine."
+            }
           },
           "knownTerms": {
             "type": "array",
@@ -377,6 +424,30 @@
             "title": "Batched extraction",
             "description": "Analyse blocks in batches of 20, four batches at a time.",
             "config": "provider: openai\nbatchSize: 20\nbatchConcurrency: 4\n"
+          }
+        ]
+      },
+      "group": {
+        "discriminator": "engine",
+        "default": "llm",
+        "members": [
+          {
+            "name": "llm",
+            "label": "LLM (AI provider)",
+            "description": "Extract with an AI provider.",
+            "hasSchema": true
+          },
+          {
+            "name": "ner",
+            "label": "Local NER (on-device)",
+            "description": "On-device model — no credentials, nothing leaves the machine.",
+            "hasSchema": false
+          },
+          {
+            "name": "hybrid",
+            "label": "Hybrid (NER + LLM)",
+            "description": "Run the local model and the LLM, merging results.",
+            "hasSchema": false
           }
         ]
       }
@@ -3155,13 +3226,13 @@
       "schema": {
         "$id": "qa",
         "title": "Quality Check",
-        "description": "Check translation quality with rule-based checks, or an LLM when --provider is set",
+        "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
         "type": "object",
         "toolMeta": {
           "id": "qa",
           "category": "quality",
           "displayName": "Quality Check",
-          "description": "Check translation quality with rule-based checks, or an LLM when --provider is set",
+          "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
           "tags": [
             "quality"
           ],
@@ -3191,7 +3262,14 @@
         },
         "ui:groups": [
           {
-            "id": "general",
+            "id": "qa",
+            "label": "Quality check",
+            "fields": [
+              "mode"
+            ]
+          },
+          {
+            "id": "rules:general",
             "label": "General",
             "fields": [
               "checkLeadingWhitespace",
@@ -3205,32 +3283,48 @@
               "checkDoubledWord",
               "doubledWordExceptions",
               "checkSpanConstraints"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           {
-            "id": "inlineCodes",
+            "id": "rules:inlineCodes",
             "label": "InlineCodes",
             "fields": [
               "checkCodeDifference",
               "strictCodeOrder"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           {
-            "id": "patterns",
+            "id": "rules:patterns",
             "label": "Patterns",
             "fields": [
               "checkPatterns"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           {
-            "id": "characters",
+            "id": "rules:characters",
             "label": "Characters",
             "fields": [
               "checkCorruptedCharacters"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           {
-            "id": "length",
+            "id": "rules:length",
             "label": "Length",
             "fields": [
               "checkMaxCharLength",
@@ -3243,16 +3337,46 @@
               "minCharLengthBelow",
               "checkAbsoluteMaxCharLength",
               "absoluteMaxCharLength"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           {
-            "id": "provider",
+            "id": "rules",
+            "label": "Deterministic rules",
+            "fields": [
+              "checkTerminology"
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
+          },
+          {
+            "id": "ai:provider",
             "label": "Provider",
             "fields": [
               "provider",
               "apiKey",
               "model"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "ai"
+            }
+          },
+          {
+            "id": "ai",
+            "label": "AI review",
+            "fields": [
+              "checks"
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "ai"
+            }
           }
         ],
         "properties": {
@@ -3407,6 +3531,27 @@
             "description": "Character count above which text is considered long for the minimum length check",
             "default": 20
           },
+          "mode": {
+            "type": "string",
+            "title": "QA Mode",
+            "description": "How to check quality: deterministic local rules, or an AI provider's review",
+            "default": "rules",
+            "options": [
+              {
+                "value": "rules",
+                "label": "Deterministic rules"
+              },
+              {
+                "value": "ai",
+                "label": "AI review"
+              }
+            ],
+            "ui:widget": "select",
+            "ui:enum-descriptions": {
+              "ai": "LLM-judged quality review via an AI provider.",
+              "rules": "Local rule-based checks — no credentials, no network."
+            }
+          },
           "model": {
             "type": "string",
             "title": "Model",
@@ -3415,8 +3560,8 @@
           "provider": {
             "type": "string",
             "title": "AI Provider",
-            "description": "LLM provider for AI-judged QA (omit for rule-based checks)",
-            "default": "",
+            "description": "AI provider",
+            "default": "anthropic",
             "options": [
               {
                 "value": "anthropic",
@@ -3666,6 +3811,24 @@
             "title": "Enforce an absolute character cap",
             "description": "Flag any target segment longer than 200 characters.",
             "config": "checkAbsoluteMaxCharLength: true\nabsoluteMaxCharLength: 200\n"
+          }
+        ]
+      },
+      "group": {
+        "discriminator": "mode",
+        "default": "rules",
+        "members": [
+          {
+            "name": "rules",
+            "label": "Deterministic rules",
+            "description": "Local rule-based checks — no credentials, no network.",
+            "hasSchema": true
+          },
+          {
+            "name": "ai",
+            "label": "AI review",
+            "description": "LLM-judged quality review via an AI provider.",
+            "hasSchema": true
           }
         ]
       }
@@ -4368,6 +4531,7 @@
       "schema": {
         "$id": "segmentation",
         "title": "Segmentation",
+        "description": "Split source text into sentence or chunk segments (stand-off overlay)",
         "type": "object",
         "toolMeta": {
           "id": "segmentation",
@@ -4391,98 +4555,179 @@
             "segment"
           ]
         },
+        "ui:groups": [
+          {
+            "id": "segmentation",
+            "label": "Segmentation",
+            "fields": [
+              "engine",
+              "layer",
+              "segmentSource",
+              "segmentTarget"
+            ]
+          },
+          {
+            "id": "srx",
+            "label": "Rule-based (hybrid SRX/UAX-29)",
+            "fields": [
+              "rulesPath"
+            ],
+            "ui:visible": {
+              "field": "engine",
+              "eq": "srx"
+            }
+          },
+          {
+            "id": "llm",
+            "label": "LLM (semantic chunks)",
+            "fields": [
+              "provider",
+              "model",
+              "credential",
+              "instruction",
+              "maxChunkRunes"
+            ],
+            "ui:visible": {
+              "field": "engine",
+              "eq": "llm"
+            }
+          },
+          {
+            "id": "boundaries",
+            "label": "Boundary handling",
+            "collapsible": true,
+            "collapsed": true,
+            "fields": [
+              "overwriteSegmentation",
+              "treatIsolatedCodesAsWhitespace",
+              "trimLeadingWhitespace",
+              "trimTrailingWhitespace",
+              "renumberCodes"
+            ]
+          }
+        ],
         "properties": {
           "credential": {
             "type": "string",
             "title": "Credential",
-            "description": "Stored credential name for the llm engine"
+            "description": "Stored credential name",
+            "ui:widget": "credential-picker",
+            "ui:order": 30
           },
           "engine": {
             "type": "string",
             "title": "Segmentation Engine",
-            "description": "Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ intl (browser Intl.Segmenter)/ llm (semantic chunks)/ sat (ML model)"
+            "description": "Which segmenter to use; the default needs no configuration",
+            "default": "srx",
+            "options": [
+              {
+                "value": "srx",
+                "label": "Rule-based (hybrid SRX/UAX-29)"
+              },
+              {
+                "value": "uax29",
+                "label": "Unicode baseline (UAX-29)"
+              },
+              {
+                "value": "llm",
+                "label": "LLM (semantic chunks)"
+              }
+            ],
+            "ui:widget": "select",
+            "ui:enum-descriptions": {
+              "llm": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+              "srx": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
+              "uax29": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions."
+            },
+            "ui:order": 0
           },
           "instruction": {
             "type": "string",
             "title": "Chunking Instruction",
-            "description": "Optional guidance for the llm engine"
+            "description": "Optional guidance for how to chunk",
+            "ui:widget": "textarea",
+            "ui:order": 40
           },
           "layer": {
             "type": "string",
             "title": "Overlay Layer",
-            "description": "Segmentation overlay layer name; empty uses the engine's natural layer"
+            "description": "Segmentation overlay layer name; empty uses the engine's natural layer",
+            "ui:order": 10
+          },
+          "maxChunkRunes": {
+            "type": "integer",
+            "title": "Max Chunk Size",
+            "description": "Soft upper bound on chunk size in characters (0 = model default)",
+            "minimum": 0,
+            "ui:order": 50
           },
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "Model name for the llm or sat engine"
+            "description": "Model name",
+            "ui:order": 20
           },
           "overwriteSegmentation": {
             "type": "boolean",
             "title": "Overwrite Existing Segmentation",
             "description": "Re-segment already-segmented blocks replacing previous segmentation",
-            "default": false
+            "default": false,
+            "ui:order": 10
           },
           "provider": {
             "type": "string",
-            "title": "LLM Provider",
-            "description": "AI provider id for the llm engine"
+            "title": "Provider",
+            "description": "AI provider id (anthropic",
+            "ui:order": 10
           },
           "renumberCodes": {
             "type": "boolean",
             "title": "Renumber Code IDs",
             "description": "Renumber inline code IDs when materializing segments to a bilingual format",
-            "default": false
+            "default": false,
+            "ui:order": 50
           },
-          "satModel": {
+          "rulesPath": {
             "type": "string",
-            "title": "SaT Model",
-            "description": "SaT model for the sat engine (e.g. sat-3l-sm"
+            "title": "SRX Rules File",
+            "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)",
+            "ui:widget": "file-picker",
+            "ui:order": 10
           },
           "segmentSource": {
             "type": "boolean",
             "title": "Segment Source Text",
             "description": "Segment the source text",
-            "default": true
+            "default": true,
+            "ui:order": 20
           },
           "segmentTarget": {
             "type": "boolean",
             "title": "Segment Target Text",
             "description": "Segment existing target text",
-            "default": false
-          },
-          "sourceSrxPath": {
-            "type": "string",
-            "title": "Source SRX Rules Path",
-            "description": "Path to an SRX 2.0 rules file for source text (srx engine)"
-          },
-          "targetSrxPath": {
-            "type": "string",
-            "title": "Target SRX Rules Path",
-            "description": "Path to an SRX 2.0 rules file for target text (srx engine)"
-          },
-          "threshold": {
-            "type": "number",
-            "title": "Boundary Threshold",
-            "description": "Boundary probability threshold for the sat engine (0 = model default)"
+            "default": false,
+            "ui:order": 30
           },
           "treatIsolatedCodesAsWhitespace": {
             "type": "boolean",
             "title": "Treat Isolated Codes as Whitespace",
             "description": "Treat isolated inline codes as whitespace during segmentation",
-            "default": false
+            "default": false,
+            "ui:order": 20
           },
           "trimLeadingWhitespace": {
             "type": "boolean",
             "title": "Trim Leading Whitespace",
             "description": "Exclude leading whitespace from each segment span",
-            "default": true
+            "default": true,
+            "ui:order": 30
           },
           "trimTrailingWhitespace": {
             "type": "boolean",
             "title": "Trim Trailing Whitespace",
             "description": "Exclude trailing whitespace from each segment span",
-            "default": true
+            "default": true,
+            "ui:order": 40
           }
         }
       },
@@ -4542,6 +4787,30 @@
             "title": "Re-segment with a custom SRX file",
             "description": "Replace existing segmentation using project-specific rules.",
             "config": "segmentSource: true\noverwriteSegmentation: true\nsourceSrxPath: ./rules/segmentation.srx\n"
+          }
+        ]
+      },
+      "group": {
+        "discriminator": "engine",
+        "default": "srx",
+        "members": [
+          {
+            "name": "srx",
+            "label": "Rule-based (hybrid SRX/UAX-29)",
+            "description": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
+            "hasSchema": true
+          },
+          {
+            "name": "uax29",
+            "label": "Unicode baseline (UAX-29)",
+            "description": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions.",
+            "hasSchema": false
+          },
+          {
+            "name": "llm",
+            "label": "LLM (semantic chunks)",
+            "description": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+            "hasSchema": true
           }
         ]
       }
@@ -5006,13 +5275,13 @@
       "schema": {
         "$id": "translate",
         "title": "Translate",
-        "description": "Translate content with an LLM or machine-translation provider (select with --provider)",
+        "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
         "type": "object",
         "toolMeta": {
           "id": "translate",
           "category": "translation",
           "displayName": "Translate",
-          "description": "Translate content with an LLM or machine-translation provider (select with --provider)",
+          "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
           "tags": [
             "translation"
           ],
@@ -5039,14 +5308,25 @@
             "id": "provider",
             "label": "Provider",
             "fields": [
+              "engine",
               "provider",
               "apiKey",
-              "model",
+              "model"
+            ]
+          },
+          {
+            "id": "mt",
+            "label": "Machine translation",
+            "fields": [
+              "projectId",
               "subscriptionKey",
               "region",
-              "email",
-              "projectId"
-            ]
+              "email"
+            ],
+            "ui:visible": {
+              "field": "engine",
+              "eq": "mt"
+            }
           }
         ],
         "properties": {
@@ -5072,7 +5352,34 @@
           "email": {
             "type": "string",
             "title": "Email",
-            "description": "Account email for higher rate limits (mymemory)"
+            "description": "Account email for higher rate limits (mymemory)",
+            "ui:visible": {
+              "field": "provider",
+              "eq": "mymemory"
+            },
+            "ui:order": 40
+          },
+          "engine": {
+            "type": "string",
+            "title": "Engine",
+            "description": "Translation engine: an AI model or a machine-translation provider",
+            "default": "llm",
+            "options": [
+              {
+                "value": "llm",
+                "label": "AI (LLM)"
+              },
+              {
+                "value": "mt",
+                "label": "Machine translation"
+              }
+            ],
+            "ui:widget": "select",
+            "ui:enum-descriptions": {
+              "llm": "Translate with a large language model.",
+              "mt": "Translate with a dedicated machine-translation provider."
+            },
+            "ui:order": 0
           },
           "model": {
             "type": "string",
@@ -5082,7 +5389,12 @@
           "projectId": {
             "type": "string",
             "title": "Project ID",
-            "description": "Google Cloud project ID (google)"
+            "description": "Google Cloud project ID (google)",
+            "ui:visible": {
+              "field": "provider",
+              "eq": "google"
+            },
+            "ui:order": 10
           },
           "provider": {
             "type": "string",
@@ -5138,12 +5450,84 @@
                 "value": "mymemory",
                 "label": "MyMemory"
               }
-            ]
+            ],
+            "ui:option-sets": [
+              {
+                "when": {
+                  "field": "engine",
+                  "eq": "llm"
+                },
+                "options": [
+                  {
+                    "value": "anthropic",
+                    "label": "Anthropic"
+                  },
+                  {
+                    "value": "openai",
+                    "label": "OpenAI"
+                  },
+                  {
+                    "value": "gemini",
+                    "label": "Gemini"
+                  },
+                  {
+                    "value": "azureopenai",
+                    "label": "Azure OpenAI"
+                  },
+                  {
+                    "value": "ollama",
+                    "label": "Ollama"
+                  },
+                  {
+                    "value": "demo",
+                    "label": "Demo (illustrative)"
+                  },
+                  {
+                    "value": "gemma",
+                    "label": "Gemma (local)"
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "field": "engine",
+                  "eq": "mt"
+                },
+                "options": [
+                  {
+                    "value": "deepl",
+                    "label": "DeepL"
+                  },
+                  {
+                    "value": "google",
+                    "label": "Google Translate"
+                  },
+                  {
+                    "value": "microsoft",
+                    "label": "Microsoft Translator"
+                  },
+                  {
+                    "value": "modernmt",
+                    "label": "ModernMT"
+                  },
+                  {
+                    "value": "mymemory",
+                    "label": "MyMemory"
+                  }
+                ]
+              }
+            ],
+            "ui:widget": "select"
           },
           "region": {
             "type": "string",
             "title": "Region",
-            "description": "Azure region (microsoft)"
+            "description": "Azure region (microsoft)",
+            "ui:visible": {
+              "field": "provider",
+              "eq": "microsoft"
+            },
+            "ui:order": 30
           },
           "skipMatched": {
             "type": "boolean",
@@ -5155,7 +5539,12 @@
             "type": "string",
             "title": "Subscription Key",
             "description": "Azure subscription key (microsoft)",
-            "ui:widget": "password"
+            "ui:widget": "password",
+            "ui:visible": {
+              "field": "provider",
+              "eq": "microsoft"
+            },
+            "ui:order": 20
           }
         }
       },
@@ -5238,6 +5627,24 @@
             "title": "Translate only new content",
             "description": "Skip blocks that already have a translation.",
             "config": "provider: openai\nskipMatched: true\n"
+          }
+        ]
+      },
+      "group": {
+        "discriminator": "engine",
+        "default": "llm",
+        "members": [
+          {
+            "name": "llm",
+            "label": "AI (LLM)",
+            "description": "Translate with a large language model.",
+            "hasSchema": false
+          },
+          {
+            "name": "mt",
+            "label": "Machine translation",
+            "description": "Translate with a dedicated machine-translation provider.",
+            "hasSchema": true
           }
         ]
       }

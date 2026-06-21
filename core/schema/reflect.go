@@ -291,6 +291,11 @@ func applyTag(prop *PropertySchema, tag string) {
 			prop.Visible = &ConditionExpr{Field: val, Empty: new(true)}
 		case "showIfSet":
 			prop.Visible = &ConditionExpr{Field: val, Empty: new(false)}
+		case "order":
+			var n int
+			if _, err := fmt.Sscanf(val, "%d", &n); err == nil {
+				prop.Order = &n
+			}
 		}
 	}
 }

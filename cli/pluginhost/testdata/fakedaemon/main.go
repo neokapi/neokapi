@@ -30,6 +30,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -224,4 +225,23 @@ func (f *fakeBridge) Process(stream pb.BridgeService_ProcessServer) error {
 	return stream.Send(&pb.ProcessResponse{
 		Response: &pb.ProcessResponse_Complete{Complete: complete},
 	})
+}
+
+// Segment is a deterministic test segmenter: it returns an interior boundary
+// (rune offset) just after each '.' in the text, so the host's daemonSegmenter
+// projection can be asserted. When params carry "fail"="1" it returns an
+// in-band error, exercising the error path.
+func (f *fakeBridge) Segment(_ context.Context, req *pb.SegmentRequest) (*pb.SegmentResponse, error) {
+	if req.GetParams()["fail"] == "1" {
+		return &pb.SegmentResponse{Error: "forced failure for engine " + req.GetEngine()}, nil
+	}
+	var bounds []int32
+	for i, r := range []rune(req.GetText()) {
+		if r == '.' {
+			if next := i + 1; next > 0 {
+				bounds = append(bounds, int32(next))
+			}
+		}
+	}
+	return &pb.SegmentResponse{Boundaries: bounds}, nil
 }

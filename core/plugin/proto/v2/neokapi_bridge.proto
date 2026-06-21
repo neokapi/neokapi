@@ -33,6 +33,13 @@ service BridgeService {
   // feeds each part through the step and returns processed parts.
   rpc ProcessStep(stream StepRequest) returns (stream StepResponse);
 
+  // Segment runs a text segmenter and returns interior sentence/chunk
+  // boundaries. It backs plugin-provided segmentation engines declared via
+  // capabilities.segmenters: the host flattens a block's runs to code-masked
+  // text and asks the daemon for the boundaries, then projects them back to
+  // run-anchored spans. Unary — one text in, boundary offsets out.
+  rpc Segment(SegmentRequest) returns (SegmentResponse);
+
   // Shutdown gracefully shuts down the bridge server.
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }
@@ -481,4 +488,23 @@ message StepResponse {
 // StepComplete signals that all parts have been processed by the step.
 message StepComplete {
   int32 parts_processed = 1;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Segment RPC messages
+// ────────────────────────────────────────────────────────────────────────────
+
+// SegmentRequest asks the daemon to segment one run of text.
+message SegmentRequest {
+  string engine = 1;               // segmenter name (capabilities.segmenters[].name)
+  string text = 2;                 // flattened, code-masked text to segment
+  string locale = 3;               // BCP-47 locale
+  map<string, string> params = 4;  // engine-specific params (e.g. model, threshold)
+}
+
+// SegmentResponse returns the interior boundaries — ascending rune (code-point)
+// offsets into SegmentRequest.text, excluding 0 and len(text).
+message SegmentResponse {
+  repeated int32 boundaries = 1;
+  string error = 2;
 }

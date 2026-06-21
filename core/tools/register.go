@@ -198,11 +198,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(&SubtitleFilterConfig{}, toolMeta("subtitle-filter", "Subtitle Filter", schema.CategoryTextProcessing,
 		withTags("media", "subtitle"), withCardinality(schema.Monolingual))))
 
-	reg.RegisterWithSchema("segmentation", func() tool.Tool {
-		return NewSegmentationTool(&SegmentationConfig{})
-	}, toolSchema(&SegmentationConfig{}, toolMeta("segmentation", "Segmentation", schema.CategoryTextProcessing,
-		withTags("text-processing"), withAliases("segment"), withWritesOutput(), withCardinality(schema.Monolingual),
-		withProduces(srcF(model.OverlaySegmentation), tgtF(model.OverlaySegmentation)))))
+	RegisterSegmentation(reg)
 
 	reg.RegisterWithSchema("create-target", func() tool.Tool {
 		return NewCreateTargetTool(&CreateTargetConfig{CreateOnNonTranslatable: true})
@@ -374,7 +370,7 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("unredact", NewUnredactFromConfig)
 	reg.SetConfigFactory("search-replace", NewSearchReplaceFromConfig)
 	reg.SetConfigFactory("case-transform", NewCaseTransformFromConfig)
-	reg.SetConfigFactory("segmentation", NewSegmentationFromConfig)
+	// segmentation's ConfigFactory is set by RegisterGroup (it's a ToolGroup).
 	reg.SetConfigFactory("tm-leverage", NewTMLeverageFromConfig)
 	reg.SetConfigFactory("diff-leverage", NewDiffLeverageFromConfig)
 	reg.SetConfigFactory("script", NewScriptFromConfig)

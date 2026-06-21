@@ -23,6 +23,9 @@ func (a *App) NewMCPCmd(implName string) *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Resolve project vs ad-hoc mode once for the server's lifetime so
+			// the tool factories can scope the exposed surface accordingly.
+			a.resolveMCPProject(cmd)
 			server := mcp.NewServer(
 				&mcp.Implementation{Name: implName, Version: version.Version},
 				nil,

@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/ai/ner"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -52,14 +53,14 @@ type AIEntityExtractConfig struct {
 	Concurrency int            `json:"batchConcurrency,omitempty" schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"` // Concurrent batch calls. 0 or 1 = sequential.
 }
 
-// AIEntityExtractSchema returns the auto-generated schema for the
-// ai-entity-extract tool.
-func AIEntityExtractSchema() *schema.ComponentSchema {
-	s := schema.FromStruct(&AIEntityExtractConfig{}, schema.ToolMeta{
+// entityExtractFull is the reflected schema of the whole config — the source of
+// the common fields and the LLM member fields.
+func entityExtractFull() *schema.ComponentSchema {
+	return schema.FromStruct(&AIEntityExtractConfig{}, schema.ToolMeta{
 		ID:          "ai-entity-extract",
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "AI Entity Extract",
-		Description: "Detect named entities (people, organizations, products, locations) using an LLM",
+		Description: "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
 		Tags:        []string{"ai-powered"},
 		Requires:    []string{schema.RequiresCredentials},
 		Cardinality: schema.Monolingual,
@@ -73,8 +74,71 @@ func AIEntityExtractSchema() *schema.ComponentSchema {
 			{Type: string(model.OverlayTermCandidate), Side: model.SideSource},
 		},
 	})
-	injectProviderOptions(s)
-	return s
+}
+
+// entityExtractCommonSchema is the group's shared config: the engine selector
+// plus locale and known-terms, common to every engine.
+func entityExtractCommonSchema() *schema.ComponentSchema {
+	full := entityExtractFull()
+	return &schema.ComponentSchema{
+		ID:          full.ID,
+		Title:       full.Title,
+		Description: full.Description,
+		Type:        "object",
+		ToolMeta:    full.ToolMeta,
+		Properties: map[string]schema.PropertySchema{
+			"engine":     full.Properties["engine"],
+			"locale":     full.Properties["locale"],
+			"knownTerms": full.Properties["knownTerms"],
+		},
+		Groups: []schema.ParameterGroup{{ID: "extract", Label: "Extraction", Fields: []string{"engine", "locale", "knownTerms"}}},
+	}
+}
+
+// entityExtractMembers are the three extraction engines. The LLM provider/batch
+// config is shared by the engines that call an LLM — llm and hybrid — via When.
+func entityExtractMembers() []registry.ToolGroupMember {
+	full := entityExtractFull()
+	llmParams := &schema.ComponentSchema{
+		Type: "object",
+		Properties: map[string]schema.PropertySchema{
+			"provider":         full.Properties["provider"],
+			"apiKey":           full.Properties["apiKey"],
+			"model":            full.Properties["model"],
+			"batchSize":        full.Properties["batchSize"],
+			"batchConcurrency": full.Properties["batchConcurrency"],
+		},
+		Groups: []schema.ParameterGroup{{ID: "provider", Label: "Provider", Fields: []string{"provider", "apiKey", "model"}}},
+	}
+	setProviderOptions(llmParams, aiProviderOptions())
+	usesLLM := &schema.ConditionExpr{Any: []*schema.ConditionExpr{
+		{Field: "engine", Eq: EngineLLM},
+		{Field: "engine", Eq: EngineHybrid},
+	}}
+	return []registry.ToolGroupMember{
+		{Name: EngineLLM, Label: "LLM (AI provider)", Description: "Extract with an AI provider.", Schema: llmParams, When: usesLLM},
+		{Name: EngineNER, Label: "Local NER (on-device)", Description: "On-device model — no credentials, nothing leaves the machine."},
+		{Name: EngineHybrid, Label: "Hybrid (NER + LLM)", Description: "Run the local model and the LLM, merging results."},
+	}
+}
+
+// entityExtractGroup is the ai-entity-extract tool group: engine members (llm /
+// ner / hybrid), llm as the default.
+func entityExtractGroup() registry.ToolGroupDef {
+	return registry.ToolGroupDef{
+		Name:          "ai-entity-extract",
+		Discriminator: "engine",
+		Default:       EngineLLM,
+		Common:        entityExtractCommonSchema(),
+		Members:       entityExtractMembers(),
+		ConfigFactory: NewAIEntityExtractFromConfig,
+		Resolver:      ResolveEntityExtractContract,
+	}
+}
+
+// AIEntityExtractSchema returns the composed (flat) projection of the group.
+func AIEntityExtractSchema() *schema.ComponentSchema {
+	return registry.ComposeGroupSchema(entityExtractGroup())
 }
 
 // NewAIEntityExtractFromConfig creates an entity-extraction tool from a config

@@ -112,6 +112,11 @@ type Capabilities struct {
 	// Tools declares flow tools the plugin provides (Mode C).
 	Tools []Tool `json:"tools,omitempty"`
 
+	// Segmenters declares segmentation engines the plugin provides (Mode C).
+	// Each becomes a selectable engine in the segmentation tool, with its own
+	// config schema, dispatched over the daemon's Segment RPC.
+	Segmenters []Segmenter `json:"segmenters,omitempty"`
+
 	// SourceConnectors declares source connectors the plugin provides
 	// (Mode C). A connector typically implements project synchronization
 	// (push/pull) against an external system.
@@ -317,6 +322,30 @@ type Tool struct {
 	Schema      string   `json:"schema,omitempty"`
 }
 
+// Segmenter describes one segmentation engine (Mode C). It mirrors the
+// in-process segment.EngineDescriptor: the host registers each as a selectable
+// engine carrying its own parameter schema, and dispatches segmentation to the
+// daemon's Segment RPC keyed by Name.
+type Segmenter struct {
+	// Name is the engine id the recipe selects (e.g. "sat"). It is the engine
+	// value passed back to the daemon's Segment RPC.
+	Name string `json:"name"`
+
+	// DisplayName is the human label shown in the engine selector.
+	DisplayName string `json:"display_name,omitempty"`
+
+	// Description is the selector help text.
+	Description string `json:"description,omitempty"`
+
+	// Order hints the engine's position in the selector (lower sorts first).
+	// Plugin engines default to sorting after the built-ins.
+	Order int `json:"order,omitempty"`
+
+	// Schema is the path (relative to the plugin dir) to the engine's parameter
+	// JSON Schema, if any.
+	Schema string `json:"schema,omitempty"`
+}
+
 // SourceConnector describes one source connector (Mode C).
 type SourceConnector struct {
 	ID          string `json:"id"`
@@ -368,10 +397,11 @@ type Handshake struct {
 }
 
 // IsModeC reports whether the manifest declares Mode-C transport.
-// True when the manifest provides any format, tool, or source connector.
+// True when the manifest provides any format, tool, segmenter, or source
+// connector.
 func (m *Manifest) IsModeC() bool {
 	c := m.Capabilities
-	return len(c.Formats) > 0 || len(c.Tools) > 0 || len(c.SourceConnectors) > 0
+	return len(c.Formats) > 0 || len(c.Tools) > 0 || len(c.Segmenters) > 0 || len(c.SourceConnectors) > 0
 }
 
 // IsModeB reports whether the manifest declares Mode-B transport.
@@ -412,10 +442,10 @@ func (m *Manifest) Validate() error {
 		return err
 	}
 	if m.IsModeC() && m.Daemon == nil {
-		return errors.New("daemon block is required when capabilities include formats, tools, or source_connectors")
+		return errors.New("daemon block is required when capabilities include formats, tools, segmenters, or source_connectors")
 	}
 	if m.Daemon != nil && !m.IsModeC() {
-		return errors.New("daemon block is only valid when capabilities include formats, tools, or source_connectors")
+		return errors.New("daemon block is only valid when capabilities include formats, tools, segmenters, or source_connectors")
 	}
 	for i, c := range m.Capabilities.Commands {
 		if c.Name == "" {
@@ -438,6 +468,11 @@ func (m *Manifest) Validate() error {
 	for i, t := range m.Capabilities.Tools {
 		if t.Name == "" {
 			return fmt.Errorf("capabilities.tools[%d]: name is required", i)
+		}
+	}
+	for i, s := range m.Capabilities.Segmenters {
+		if s.Name == "" {
+			return fmt.Errorf("capabilities.segmenters[%d]: name is required", i)
 		}
 	}
 	for i, sc := range m.Capabilities.SourceConnectors {

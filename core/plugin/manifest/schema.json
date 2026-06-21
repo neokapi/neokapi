@@ -125,6 +125,25 @@
             }
           }
         },
+        "selfcheck": {
+          "type": "boolean",
+          "description": "The plugin implements the standard `<binary> doctor` self-check run by `kapi plugins doctor`."
+        },
+        "segmenters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "display_name": { "type": "string" },
+              "description": { "type": "string" },
+              "order": { "type": "integer" },
+              "schema": { "type": "string" }
+            }
+          }
+        },
         "source_connectors": {
           "type": "array",
           "items": {

@@ -57,6 +57,31 @@ type ToolInfo struct {
 
 	// Bridge step metadata (only for Okapi bridge step tools).
 	StepMeta *schema.StepMeta `json:"step_meta,omitempty"`
+
+	// Group is set when this tool is a ToolGroup — a tool whose behaviour is
+	// provided by one of several self-describing members selected by a
+	// discriminator field. Flat consumers (CLI flags, docs, MCP) read the
+	// composed Schema as before; group-aware consumers (the config UI) use this
+	// to render master-detail (pick a member, configure only that member).
+	Group *ToolGroupInfo `json:"group,omitempty"`
+}
+
+// ToolGroupInfo describes a tool group's members for group-aware consumers.
+type ToolGroupInfo struct {
+	// Discriminator is the config key that selects the active member.
+	Discriminator string `json:"discriminator"`
+	// Default is the member selected when the discriminator is unset.
+	Default string `json:"default,omitempty"`
+	// Members are the selectable backends, in selector order.
+	Members []ToolGroupMemberInfo `json:"members"`
+}
+
+// ToolGroupMemberInfo is one member in a ToolGroupInfo.
+type ToolGroupMemberInfo struct {
+	Name        string `json:"name"`
+	Label       string `json:"label,omitempty"`
+	Description string `json:"description,omitempty"`
+	HasSchema   bool   `json:"hasSchema"`
 }
 
 // probeSourceTransform reports whether a default-constructed tool from factory
@@ -102,6 +127,17 @@ type ToolRegistration struct {
 	// entity detection is on). It must not mutate base in place; return a copy
 	// with the adjusted fields. nil means the static contract always applies.
 	ContractResolver func(config map[string]any, base ToolInfo) ToolInfo
+
+	// MemberSchemas holds each group member's own parameter schema, keyed by
+	// member name, for tools registered via RegisterGroup. Empty for ordinary
+	// tools. The composed (flat) schema lives in Schema; these are the per-member
+	// schemas the UI renders master-detail.
+	MemberSchemas map[string]*schema.ComponentSchema
+
+	// GroupDef retains the source definition for tools registered via
+	// RegisterGroup, so AddGroupMember can append a member and recompose. nil for
+	// ordinary tools.
+	GroupDef *ToolGroupDef
 }
 
 // ToolRegistry manages available Tools.
