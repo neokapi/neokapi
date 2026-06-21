@@ -66,17 +66,23 @@ export {
 } from "./samples";
 export type { LooseSample, ProjectSample, WorkspaceSample, HeroSample, TrySample } from "./samples";
 
-// Gemma bridge — installs the host hook so `kapi --provider gemma` runs the real
-// Gemma 4 model in-browser via transformers.js/WebGPU (opt-in, lazy download).
+// Local-LLM bridge — installs the host hook so `kapi --provider gemma` runs a
+// real model in-browser via transformers.js (opt-in, lazy download). Two models,
+// auto-selected by modality: a small text model (default) and multimodal Gemma 4.
 export {
   installGemmaBridge,
   uninstallGemmaBridge,
   isGemmaModelLoaded,
   ensureGemma,
+  ensureLLM,
+  ensureLLMForModalities,
+  pickModelForModalities,
   generateGemmaText,
   runGemmaImageOCR,
+  DEFAULT_TEXT_MODEL,
+  MULTIMODAL_MODEL,
 } from "./gemmaBridge";
-export type { InstallGemmaOptions, GemmaProgress, GemmaResult } from "./gemmaBridge";
+export type { InstallGemmaOptions, GemmaProgress, GemmaResult, Modality } from "./gemmaBridge";
 
 // Plugin manager — the shared "what is loaded in this tab" store read by the
 // navbar status widget and every lab (SSR-clean; heavy bridges are lazy). Prefer

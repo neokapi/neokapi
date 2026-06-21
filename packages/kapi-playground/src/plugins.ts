@@ -86,12 +86,12 @@ export const PLUGIN_DESCRIPTORS: PluginDescriptor[] = [
   {
     id: "llm",
     label: "llm",
-    description: "Local LLM with Gemma 4",
+    description: "Local LLM — small text model + Gemma 4 for images",
     // Approximate hint shown before download — the widget switches to the live
-    // aggregate ("X of Y") once shards start arriving. Gemma 4 E2B is multimodal
-    // (decoder + embeddings + vision/audio encoders); only the decoder ships a
-    // q4f16 variant, so the rest load at fp16 and the full download is ~6 GB.
-    sizeBytes: 6_000_000_000,
+    // aggregate ("X of Y") once shards arrive. Downloads the small TEXT model by
+    // default (~0.5 GB); the larger multimodal model loads on demand only when an
+    // image/audio task runs (see gemmaBridge model registry).
+    sizeBytes: 550_000_000,
     browserSupported: true,
     needsEngine: true,
   },
