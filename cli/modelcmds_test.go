@@ -57,11 +57,11 @@ func TestResolveModelRef(t *testing.T) {
 
 	// Unknown reference.
 	_, _, err = app.resolveModelRef("nope")
-	assert.ErrorContains(t, err, "no model or plugin")
+	require.ErrorContains(t, err, "no model or plugin")
 
 	// Explicit pair with a wrong model.
 	_, _, err = app.resolveModelRef("llm/nope")
-	assert.ErrorContains(t, err, "no model")
+	require.ErrorContains(t, err, "no model")
 }
 
 // runModelsCmd executes `models <args...>` against app, capturing combined
@@ -126,8 +126,8 @@ func TestResolveModelRefAmbiguous(t *testing.T) {
 	)
 	_, _, err := app.resolveModelRef("shared-id")
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "multiple plugins")
-	assert.ErrorContains(t, err, "plugin/model")
+	require.ErrorContains(t, err, "multiple plugins")
+	require.ErrorContains(t, err, "plugin/model")
 
 	// ...but the ambiguity is resolvable by qualifying.
 	p, a, err := app.resolveModelRef("other/shared-id")

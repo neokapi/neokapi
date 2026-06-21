@@ -136,7 +136,6 @@ func EnsureModel(ctx context.Context, asset manifest.ModelAsset, opts ModelEnsur
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(opts.concurrency())
 	for _, f := range todo {
-		f := f
 		g.Go(func() error {
 			return ensureModelFile(gctx, dir, f, prog, opts)
 		})
