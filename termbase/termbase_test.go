@@ -525,6 +525,60 @@ Cancel,Annuler,software
 	assert.Equal(t, 2, count)
 }
 
+func TestCSVImportMonolingual(t *testing.T) {
+	// A concept/brand-vocabulary list with a term + definition and no target column.
+	csvContent := `term,definition
+Bowrain,The localization platform
+on-brand,Consistent with the brand voice
+`
+
+	tb := termbase.NewInMemoryTermBase()
+	count, err := termbase.ImportCSV(context.Background(), tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
+		SourceLocale: model.LocaleEnglish,
+		HasHeader:    true,
+		Monolingual:  true,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+	assert.Equal(t, 2, mustCount(t, tb))
+
+	// Each concept holds exactly one term in the source locale (no translation pair).
+	for _, c := range mustConcepts(t, tb) {
+		require.Len(t, c.Terms, 1, "monolingual concept %s should have a single term", c.ID)
+		assert.Equal(t, model.LocaleEnglish, c.Terms[0].Locale)
+		assert.NotEmpty(t, c.Definition)
+	}
+
+	// The term is looked up by its source text and carries the definition.
+	matches := mustLookup(t, tb, "Bowrain", termbase.LookupOptions{
+		SourceLocale: model.LocaleEnglish,
+	})
+	require.Len(t, matches, 1)
+	assert.Equal(t, "The localization platform", matches[0].Concept.Definition)
+	assert.Len(t, matches[0].Concept.Terms, 1)
+}
+
+func TestCSVImportMonolingualTermOnly(t *testing.T) {
+	// The definition column is optional — a bare term list still imports.
+	csvContent := "Bowrain\nkapi\n"
+
+	tb := termbase.NewInMemoryTermBase()
+	count, err := termbase.ImportCSV(context.Background(), tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
+		SourceLocale: model.LocaleEnglish,
+		Monolingual:  true,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	matches := mustLookup(t, tb, "kapi", termbase.LookupOptions{
+		SourceLocale: model.LocaleEnglish,
+	})
+	require.Len(t, matches, 1)
+	assert.Empty(t, matches[0].Concept.Definition)
+	require.Len(t, matches[0].Concept.Terms, 1)
+	assert.Equal(t, "kapi", matches[0].Concept.Terms[0].Text)
+}
+
 // --- JSON import/export tests ---
 
 func TestJSONImportExport(t *testing.T) {

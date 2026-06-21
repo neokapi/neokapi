@@ -147,6 +147,86 @@ func TestPatternCheckSkipsNonTranslatable(t *testing.T) {
 	assert.Empty(t, qaFindings(resultBlock))
 }
 
+// TestPatternCheckCheckSourceForbidden verifies the source scope flags a
+// forbidden (MustNotMatch) pattern present in the source, with no target.
+func TestPatternCheckCheckSourceForbidden(t *testing.T) {
+	t.Parallel()
+	cfg := &tools.PatternCheckConfig{
+		CheckSource: true,
+		Patterns: []tools.PatternRule{
+			{Name: "todo-marker", Pattern: `(?i)todo`, MustNotMatch: true},
+		},
+	}
+	tl := tools.NewPatternCheckTool(cfg)
+
+	block := model.NewBlock("tu1", "Draft copy — TODO: rewrite this") // no target
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	findings := qaFindings(result.Resource.(*model.Block))
+	require.Len(t, findings, 1)
+	assert.Equal(t, "forbidden-pattern", findings[0].Category)
+	assert.Equal(t, check.SeverityMajor, findings[0].Severity)
+	assert.Contains(t, findings[0].Message, "todo-marker")
+	assert.Contains(t, findings[0].Message, "found in source")
+	assert.Equal(t, "TODO", findings[0].OriginalText)
+}
+
+// TestPatternCheckCheckSourceRequiredMissing verifies the source scope flags a
+// required (MustMatch) pattern that is absent from the source.
+func TestPatternCheckCheckSourceRequiredMissing(t *testing.T) {
+	t.Parallel()
+	cfg := &tools.PatternCheckConfig{
+		CheckSource: true,
+		Patterns: []tools.PatternRule{
+			{Name: "copyright", Pattern: `(?i)copyright`, MustMatch: true},
+		},
+	}
+	tl := tools.NewPatternCheckTool(cfg)
+
+	block := model.NewBlock("tu1", "Welcome to Acme")
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	findings := qaFindings(result.Resource.(*model.Block))
+	require.Len(t, findings, 1)
+	assert.Equal(t, "pattern-missing", findings[0].Category)
+	assert.Equal(t, check.SeverityMajor, findings[0].Severity)
+	assert.Contains(t, findings[0].Message, "not found in source")
+}
+
+// TestPatternCheckCheckSourcePass verifies a clean source produces no findings
+// and that the source scope ignores any target.
+func TestPatternCheckCheckSourcePass(t *testing.T) {
+	t.Parallel()
+	cfg := &tools.PatternCheckConfig{
+		CheckSource: true,
+		Patterns: []tools.PatternRule{
+			{Name: "todo-marker", Pattern: `(?i)todo`, MustNotMatch: true},
+		},
+	}
+	tl := tools.NewPatternCheckTool(cfg)
+
+	block := model.NewBlock("tu1", "Polished source copy")
+	// A target containing the forbidden pattern must be ignored in source scope.
+	block.SetTargetText(model.LocaleFrench, "TODO traduire")
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	assert.Empty(t, qaFindings(result.Resource.(*model.Block)))
+}
+
+// TestPatternCheckConfigValidationCheckSource confirms the source scope does
+// not require a target locale.
+func TestPatternCheckConfigValidationCheckSource(t *testing.T) {
+	t.Parallel()
+	cfg := tools.PatternCheckConfig{
+		CheckSource: true,
+		Patterns:    []tools.PatternRule{{Name: "t", Pattern: `todo`, MustNotMatch: true}},
+	}
+	require.NoError(t, cfg.Validate())
+}
+
 func TestPatternCheckConfigValidation(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

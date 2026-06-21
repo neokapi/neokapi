@@ -23,6 +23,12 @@ type PatternRule struct {
 type PatternCheckConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 	Patterns     []PatternRule  `json:"patterns,omitempty"     schema:"-"`
+
+	// CheckSource evaluates the source text instead of a target, so forbidden
+	// (MustNotMatch) and required (MustMatch) patterns can be validated on a
+	// single file with no target-language. Default false keeps the bilingual
+	// (source-vs-target) behavior.
+	CheckSource bool `json:"checkSource,omitempty" schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -31,12 +37,13 @@ func (c *PatternCheckConfig) ToolName() string { return "pattern-check" }
 // Reset restores default values.
 func (c *PatternCheckConfig) Reset() {
 	c.TargetLocale = ""
+	c.CheckSource = false
 	c.Patterns = nil
 }
 
 // Validate checks configuration validity.
 func (c *PatternCheckConfig) Validate() error {
-	if c.TargetLocale.IsEmpty() {
+	if !c.CheckSource && c.TargetLocale.IsEmpty() {
 		return errors.New("pattern-check: TargetLocale is required")
 	}
 	for i, rule := range c.Patterns {
@@ -102,6 +109,39 @@ func NewPatternCheckTool(cfg *PatternCheckConfig) *tool.BaseTool {
 		}
 
 		conf := t.Cfg.(*PatternCheckConfig)
+
+		// Source scope: validate the source text directly (no target). Forbidden
+		// patterns must be absent; required patterns must be present.
+		if conf.CheckSource {
+			text := v.SourceText()
+			var findings []check.Finding
+			for _, rule := range compiled {
+				if rule.re == nil {
+					continue
+				}
+				if rule.MustMatch && !rule.re.MatchString(text) {
+					findings = append(findings, check.Finding{
+						Category: "pattern-missing",
+						Severity: check.SeverityMajor,
+						Message: fmt.Sprintf("Pattern %q (%s): required pattern not found in source",
+							rule.Name, rule.Pattern),
+					})
+				}
+				if rule.MustNotMatch {
+					if loc := rule.re.FindString(text); loc != "" {
+						findings = append(findings, check.Finding{
+							Category: "forbidden-pattern",
+							Severity: check.SeverityMajor,
+							Message: fmt.Sprintf("Pattern %q (%s): forbidden pattern found in source",
+								rule.Name, rule.Pattern),
+							OriginalText: loc,
+						})
+					}
+				}
+			}
+			check.Annotate(v, "pattern-check", findings)
+			return nil
+		}
 
 		sourceText := v.SourceText()
 

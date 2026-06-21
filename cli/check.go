@@ -72,6 +72,8 @@ func (o CheckOutput) FormatText(w io.Writer) error {
 //
 //	kapi check app.json app.de.json --target-lang de   # bilingual: dnt, placeholders, brand
 //	kapi check app.json --pack professional-b2b         # source-side: brand vocabulary
+//	kapi check app.json --max-chars 60 --forbid '(?i)todo'  # source-side: length, forbidden patterns
+//	kapi check app.json --max-chars 60 --max-major 0    # gate on the source findings (which are major)
 //
 // Checks emit one finding model (core/check.Finding); the gate fails on any
 // critical by default and exits non-zero so CI and an assistant fix-loop both
@@ -87,8 +89,14 @@ structured findings plus a pass/fail, gating on severity.
 
 With two files, the second is the translated target and the bilingual checks run:
 do-not-translate (terms that must survive verbatim) and placeholder/tag integrity.
-With one file, source-side checks run (brand vocabulary). A bound brand profile
+With one file, the source-side checks run over the content itself: length
+(--max-chars/--max-words) and forbidden-pattern (--forbid) checks, plus brand
+vocabulary when a profile is bound. A bound brand profile
 (--profile/--pack/--profile-file) adds vocabulary checks in either mode.
+
+Source-side findings are major (not critical), so by default they report
+without failing the gate. Gate on them with --max-major 0 (or --min-score N)
+when source quality must block.
 
 Exit codes: 0 pass, 3 when the gate fails (a critical finding by default), 1 for
 operational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop.`,
@@ -98,6 +106,9 @@ operational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop.
 	}
 	cmd.Flags().String("target-lang", "", "target locale of the second file (e.g. de)")
 	cmd.Flags().StringSlice("dnt", nil, "do-not-translate terms that must survive verbatim into the target")
+	cmd.Flags().Int("max-chars", 0, "flag source blocks longer than this many characters (single-file mode; 0 = off)")
+	cmd.Flags().Int("max-words", 0, "flag source blocks with more than this many words (single-file mode; 0 = off)")
+	cmd.Flags().StringSlice("forbid", nil, "regex that must not appear in the source content (single-file mode; repeatable)")
 	cmd.Flags().String("profile", "", "brand profile name from the local store")
 	cmd.Flags().String("profile-file", "", "path to a brand profile YAML")
 	cmd.Flags().String("pack", "", "built-in brand starter pack")
@@ -168,6 +179,15 @@ func (a *App) computeCheck(cmd *cobra.Command, args []string) (CheckOutput, erro
 		}
 		blocks = bb
 		findings = append(findings, a.runSourceChecks(ctx, blocks, profile)...)
+
+		maxChars, _ := cmd.Flags().GetInt("max-chars")
+		maxWords, _ := cmd.Flags().GetInt("max-words")
+		forbid, _ := cmd.Flags().GetStringSlice("forbid")
+		mf, merr := a.runMonolingualSourceChecks(ctx, blocks, maxChars, maxWords, forbid)
+		if merr != nil {
+			return CheckOutput{}, merr
+		}
+		findings = append(findings, mf...)
 	}
 
 	// Voice/style similarity (opt-in, --voice): a proxy that drives the
@@ -215,6 +235,57 @@ func (a *App) runBilingualChecks(ctx context.Context, blocks []*model.Block, loc
 		}
 	}
 	return out
+}
+
+// runMonolingualSourceChecks runs the source-valid checks that need no target —
+// length (absolute char/word limits) and forbidden-pattern checks over the
+// source content — when the matching limits are configured. They reuse the
+// registered length-check and pattern-check tools in their source scope
+// (CheckSource), so a single file with no target-language can still be gated.
+func (a *App) runMonolingualSourceChecks(ctx context.Context, blocks []*model.Block, maxChars, maxWords int, forbid []string) ([]check.Finding, error) {
+	type blockChecker interface {
+		Process(context.Context, <-chan *model.Part, chan<- *model.Part) error
+	}
+	var checkers []blockChecker
+
+	if maxChars > 0 || maxWords > 0 {
+		cfg := &coretools.LengthCheckConfig{CheckSource: true, MaxChars: maxChars, MaxWords: maxWords}
+		if err := cfg.Validate(); err != nil {
+			return nil, err
+		}
+		checkers = append(checkers, coretools.NewLengthCheckTool(cfg))
+	}
+
+	if len(forbid) > 0 {
+		rules := make([]coretools.PatternRule, 0, len(forbid))
+		for i, p := range forbid {
+			rules = append(rules, coretools.PatternRule{
+				Name:         fmt.Sprintf("forbidden-%d", i+1),
+				Pattern:      p,
+				MustNotMatch: true,
+			})
+		}
+		cfg := &coretools.PatternCheckConfig{CheckSource: true, Patterns: rules}
+		if err := cfg.Validate(); err != nil {
+			return nil, err
+		}
+		checkers = append(checkers, coretools.NewPatternCheckTool(cfg))
+	}
+
+	if len(checkers) == 0 {
+		return nil, nil
+	}
+
+	// Findings accumulate on each block (check.Annotate appends), so read the
+	// unified annotation exactly once per block, after every checker has run.
+	var out []check.Finding
+	for _, b := range blocks {
+		for _, c := range checkers {
+			runCheckTool(ctx, c, b)
+		}
+		out = append(out, findingsFromBlock(b)...)
+	}
+	return out, nil
 }
 
 // runSourceChecks runs source-side checks (brand vocabulary) when a profile is

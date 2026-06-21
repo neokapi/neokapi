@@ -72,7 +72,7 @@
           "short": "Characters Listing"
         },
         "check": {
-          "long": "Run content checks over a file — or a source/target pair — and return\nstructured findings plus a pass/fail, gating on severity.\n\nWith two files, the second is the translated target and the bilingual checks run:\ndo-not-translate (terms that must survive verbatim) and placeholder/tag integrity.\nWith one file, source-side checks run (brand vocabulary). A bound brand profile\n(--profile/--pack/--profile-file) adds vocabulary checks in either mode.\n\nExit codes: 0 pass, 3 when the gate fails (a critical finding by default), 1 for\noperational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop.",
+          "long": "Run content checks over a file — or a source/target pair — and return\nstructured findings plus a pass/fail, gating on severity.\n\nWith two files, the second is the translated target and the bilingual checks run:\ndo-not-translate (terms that must survive verbatim) and placeholder/tag integrity.\nWith one file, the source-side checks run over the content itself: length\n(--max-chars/--max-words) and forbidden-pattern (--forbid) checks, plus brand\nvocabulary when a profile is bound. A bound brand profile\n(--profile/--pack/--profile-file) adds vocabulary checks in either mode.\n\nSource-side findings are major (not critical), so by default they report\nwithout failing the gate. Gate on them with --max-major 0 (or --min-score N)\nwhen source quality must block.\n\nExit codes: 0 pass, 3 when the gate fails (a critical finding by default), 1 for\noperational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop.",
           "short": "Run content checks over a file like tests over code (do-not-translate, placeholders, terminology, brand)"
         },
         "completion": {
@@ -171,7 +171,7 @@
           "short": "Show a .klz workspace's state (dirty?)"
         },
         "init": {
-          "long": "Create a new kapi project with a {name}.kapi recipe and an\nadjacent .kapi/ state directory.\n\nBy default the project id is the current directory's basename and\nsource/target locales are en / (none). Override with --name,\n--source-locale, --target-locale (repeatable).\n\n--framework \u003cname\u003e pre-fills the content mapping for a known stack's i18n\ncatalogs (see 'kapi presets list --framework'): react-i18next, react-intl,\nnextjs, vue-i18n, flutter, angular.",
+          "long": "Create a new kapi project with a {name}.kapi recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source on\nbrand — a brand-voice profile, the project termbase, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--framework \u003cname\u003e pre-fills the content mapping for a known stack's i18n\ncatalogs (see 'kapi presets list --framework'): react-i18next, react-intl,\nnextjs, vue-i18n, flutter, angular — and scaffolds the translation project.",
           "short": "Scaffold a new kapi project in the current directory"
         },
         "length-check": {
@@ -338,7 +338,7 @@
             "short": "Export termbase to CSV, JSON, TBX, or native .klftb"
           },
           "import": {
-            "example": "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import terms.tbx --format tbx\n  kapi termbase import seeds/termbase.klftb",
+            "example": "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import vocab.csv -s en --monolingual --header\n  kapi termbase import terms.tbx --format tbx\n  kapi termbase import seeds/termbase.klftb",
             "short": "Import terms from CSV, JSON, TBX, or native .klftb into a termbase"
           },
           "list": {

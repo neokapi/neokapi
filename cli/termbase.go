@@ -91,7 +91,7 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "import [file]",
 		Short:   "Import terms from CSV, JSON, TBX, or native .klftb into a termbase",
-		Example: "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import terms.tbx --format tbx\n  kapi termbase import seeds/termbase.klftb",
+		Example: "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import vocab.csv -s en --monolingual --header\n  kapi termbase import terms.tbx --format tbx\n  kapi termbase import seeds/termbase.klftb",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
@@ -100,6 +100,7 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 			domain, _ := cmd.Flags().GetString("domain")
 			hasHeader, _ := cmd.Flags().GetBool("header")
 			delimiter, _ := cmd.Flags().GetString("delimiter")
+			monolingual, _ := cmd.Flags().GetBool("monolingual")
 			// The native extension wins over the csv default when the user
 			// did not ask for a format explicitly.
 			if !cmd.Flags().Changed("format") && strings.HasSuffix(strings.ToLower(args[0]), ".klftb") {
@@ -126,6 +127,7 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 					TargetLocale: model.LocaleID(tgtLocale),
 					Domain:       domain,
 					HasHeader:    hasHeader,
+					Monolingual:  monolingual,
 				}
 				if delimiter != "" {
 					opts.Delimiter = rune(delimiter[0])
@@ -170,6 +172,7 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 	cmd.Flags().String("domain", "", "domain to assign to imported concepts")
 	cmd.Flags().Bool("header", false, "CSV has header row")
 	cmd.Flags().String("delimiter", "", "CSV field delimiter (default: comma)")
+	cmd.Flags().Bool("monolingual", false, "import a single-locale concept list (term[, definition]) with no translation pair")
 
 	return cmd
 }

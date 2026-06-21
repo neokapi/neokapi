@@ -18,10 +18,18 @@ type CSVImportOptions struct {
 	TargetLocale model.LocaleID // locale for target column
 	Domain       string         // domain to assign to imported concepts
 	IDPrefix     string         // prefix for generated concept IDs
+
+	// Monolingual imports a single-locale concept list — one term column plus
+	// an optional definition column — instead of source/target term pairs. Each
+	// row contributes one term in SourceLocale; TargetLocale is ignored. This is
+	// the path for concept or brand-vocabulary lists that have no translation.
+	Monolingual bool
 }
 
-// ImportCSV reads a CSV file with source/target term pairs and imports them.
-// Expected format: source_term, target_term[, domain][, definition][, status]
+// ImportCSV reads a CSV file of terms and imports them as concepts.
+// Bilingual (default): source_term, target_term[, domain][, definition][, status].
+// Monolingual (opts.Monolingual): term[, definition][, domain][, status] — one
+// term per concept in SourceLocale, with no translation pair.
 // Returns the number of concepts imported.
 func ImportCSV(ctx context.Context, tb TermBase, reader io.Reader, opts CSVImportOptions) (int, error) {
 	csvReader := csv.NewReader(reader)
@@ -53,66 +61,19 @@ func ImportCSV(ctx context.Context, tb TermBase, reader io.Reader, opts CSVImpor
 
 	for i := startIdx; i < len(records); i++ {
 		row := records[i]
-		if len(row) < 2 {
-			continue
-		}
-
-		sourceTerm := strings.TrimSpace(row[0])
-		targetTerm := strings.TrimSpace(row[1])
-		if sourceTerm == "" || targetTerm == "" {
-			continue
-		}
-
-		domain := opts.Domain
-		if len(row) > 2 && strings.TrimSpace(row[2]) != "" {
-			domain = strings.TrimSpace(row[2])
-		}
-
-		definition := ""
-		if len(row) > 3 {
-			definition = strings.TrimSpace(row[3])
-		}
-
-		status := model.TermApproved
-		if len(row) > 4 {
-			if s := parseTermStatus(strings.TrimSpace(row[4])); s != "" {
-				status = s
-			}
-		}
-
-		var termSource TermSource
-		if len(row) > 5 {
-			if s := strings.TrimSpace(row[5]); s == string(TermSourceBrandVocabulary) {
-				termSource = TermSourceBrandVocabulary
-			}
-		}
-
-		competitorTerm := false
-		if len(row) > 6 {
-			competitorTerm = strings.EqualFold(strings.TrimSpace(row[6]), "true")
-		}
-
 		conceptID := fmt.Sprintf("%s-%d", prefix, i-startIdx+1)
 
-		concept := Concept{
-			ID:         conceptID,
-			Domain:     domain,
-			Definition: definition,
-			Source:     termSource,
-			Terms: []Term{
-				{
-					Text:           sourceTerm,
-					Locale:         opts.SourceLocale,
-					Status:         status,
-					CompetitorTerm: competitorTerm,
-				},
-				{
-					Text:           targetTerm,
-					Locale:         opts.TargetLocale,
-					Status:         status,
-					CompetitorTerm: competitorTerm,
-				},
-			},
+		var (
+			concept Concept
+			ok      bool
+		)
+		if opts.Monolingual {
+			concept, ok = monolingualConcept(row, conceptID, opts)
+		} else {
+			concept, ok = bilingualConcept(row, conceptID, opts)
+		}
+		if !ok {
+			continue
 		}
 
 		if err := tb.AddConcept(ctx, concept); err != nil {
@@ -122,6 +83,131 @@ func ImportCSV(ctx context.Context, tb TermBase, reader io.Reader, opts CSVImpor
 	}
 
 	return imported, nil
+}
+
+// bilingualConcept builds a concept from a source/target CSV row. Layout:
+// source_term, target_term[, domain][, definition][, status][, term_source][, competitor].
+// Returns ok=false when the row lacks a source or target term.
+func bilingualConcept(row []string, conceptID string, opts CSVImportOptions) (Concept, bool) {
+	if len(row) < 2 {
+		return Concept{}, false
+	}
+
+	sourceTerm := strings.TrimSpace(row[0])
+	targetTerm := strings.TrimSpace(row[1])
+	if sourceTerm == "" || targetTerm == "" {
+		return Concept{}, false
+	}
+
+	domain := opts.Domain
+	if len(row) > 2 && strings.TrimSpace(row[2]) != "" {
+		domain = strings.TrimSpace(row[2])
+	}
+
+	definition := ""
+	if len(row) > 3 {
+		definition = strings.TrimSpace(row[3])
+	}
+
+	status := model.TermApproved
+	if len(row) > 4 {
+		if s := parseTermStatus(strings.TrimSpace(row[4])); s != "" {
+			status = s
+		}
+	}
+
+	var termSource TermSource
+	if len(row) > 5 {
+		if s := strings.TrimSpace(row[5]); s == string(TermSourceBrandVocabulary) {
+			termSource = TermSourceBrandVocabulary
+		}
+	}
+
+	competitorTerm := false
+	if len(row) > 6 {
+		competitorTerm = strings.EqualFold(strings.TrimSpace(row[6]), "true")
+	}
+
+	return Concept{
+		ID:         conceptID,
+		Domain:     domain,
+		Definition: definition,
+		Source:     termSource,
+		Terms: []Term{
+			{
+				Text:           sourceTerm,
+				Locale:         opts.SourceLocale,
+				Status:         status,
+				CompetitorTerm: competitorTerm,
+			},
+			{
+				Text:           targetTerm,
+				Locale:         opts.TargetLocale,
+				Status:         status,
+				CompetitorTerm: competitorTerm,
+			},
+		},
+	}, true
+}
+
+// monolingualConcept builds a single-locale concept from a CSV row. Layout:
+// term[, definition][, domain][, status][, term_source][, competitor]. The term
+// is placed in opts.SourceLocale; opts.TargetLocale is ignored. This lets a
+// concept or brand-vocabulary list import without a translation pair.
+// Returns ok=false when the row lacks a term.
+func monolingualConcept(row []string, conceptID string, opts CSVImportOptions) (Concept, bool) {
+	if len(row) < 1 {
+		return Concept{}, false
+	}
+
+	term := strings.TrimSpace(row[0])
+	if term == "" {
+		return Concept{}, false
+	}
+
+	definition := ""
+	if len(row) > 1 {
+		definition = strings.TrimSpace(row[1])
+	}
+
+	domain := opts.Domain
+	if len(row) > 2 && strings.TrimSpace(row[2]) != "" {
+		domain = strings.TrimSpace(row[2])
+	}
+
+	status := model.TermApproved
+	if len(row) > 3 {
+		if s := parseTermStatus(strings.TrimSpace(row[3])); s != "" {
+			status = s
+		}
+	}
+
+	var termSource TermSource
+	if len(row) > 4 {
+		if s := strings.TrimSpace(row[4]); s == string(TermSourceBrandVocabulary) {
+			termSource = TermSourceBrandVocabulary
+		}
+	}
+
+	competitorTerm := false
+	if len(row) > 5 {
+		competitorTerm = strings.EqualFold(strings.TrimSpace(row[5]), "true")
+	}
+
+	return Concept{
+		ID:         conceptID,
+		Domain:     domain,
+		Definition: definition,
+		Source:     termSource,
+		Terms: []Term{
+			{
+				Text:           term,
+				Locale:         opts.SourceLocale,
+				Status:         status,
+				CompetitorTerm: competitorTerm,
+			},
+		},
+	}, true
 }
 
 // ExportCSV writes all concepts as CSV source/target pairs.

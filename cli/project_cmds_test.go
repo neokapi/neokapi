@@ -29,7 +29,8 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	cmd.SetArgs([]string{"--dir", dir, "--name", "my-app", "--source-locale", "en", "--target-locale", "fr"})
+	// No --target-locale / --framework: the default is an on-brand content project.
+	cmd.SetArgs([]string{"--dir", dir, "--name", "my-app", "--source-locale", "en"})
 	require.NoError(t, cmd.Execute())
 
 	// Recipe + state dir both exist.
@@ -51,8 +52,41 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	require.NotNil(t, state)
 	assert.Equal(t, "my-app", state.Project.ID)
 
-	// Recipe loads with source/target locales populated under defaults: —
-	// the schema the loader actually reads (not top-level sourceLocale).
+	// Default init scaffolds an on-brand content project: source language set,
+	// no target languages, a brand-voice pack + project termbase bound under
+	// defaults:, and a check flow on the deterministic brand-vocabulary check.
+	p, err := project.Load(recipe)
+	require.NoError(t, err)
+	assert.Equal(t, "en", string(p.Defaults.SourceLanguage))
+	assert.Empty(t, p.Defaults.TargetLanguages)
+
+	require.NotNil(t, p.Defaults.BrandVoice)
+	assert.Equal(t, "professional-b2b", p.Defaults.BrandVoice.Pack)
+	assert.Equal(t, ".kapi/termbase.db", p.Defaults.Termbase)
+
+	require.Contains(t, p.Flows, "check")
+	require.NotNil(t, p.Flows["check"])
+	steps := p.Flows["check"].Steps
+	require.NotEmpty(t, steps)
+	assert.Equal(t, "brand-vocab-check", steps[0].Tool)
+}
+
+func TestInitCmd_translationScaffold(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+
+	cmd := app.NewInitCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	// --target-locale opts into the translation scaffold.
+	cmd.SetArgs([]string{"--dir", dir, "--name", "my-app", "--source-locale", "en", "--target-locale", "fr"})
+	require.NoError(t, cmd.Execute())
+
+	// Recipe loads with source/target locales populated under defaults: — the
+	// schema the loader actually reads (not top-level sourceLocale). The
+	// translation scaffold does not bind a brand-voice pack.
+	recipe := filepath.Join(dir, "my-app.kapi")
 	p, err := project.Load(recipe)
 	require.NoError(t, err)
 	assert.Equal(t, "en", string(p.Defaults.SourceLanguage))
@@ -61,6 +95,7 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 		targets = append(targets, string(l))
 	}
 	assert.Contains(t, targets, "fr")
+	assert.Nil(t, p.Defaults.BrandVoice)
 }
 
 func TestInitCmd_framework(t *testing.T) {

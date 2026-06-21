@@ -38,13 +38,18 @@ func (a *App) NewInitCmd() *cobra.Command {
 		Long: `Create a new kapi project with a {name}.kapi recipe and an
 adjacent .kapi/ state directory.
 
-By default the project id is the current directory's basename and
-source/target locales are en / (none). Override with --name,
---source-locale, --target-locale (repeatable).
+By default kapi init scaffolds a content project that keeps your source on
+brand — a brand-voice profile, the project termbase, and a check flow, with no
+target languages. Pass --target-locale (or --framework) to make it a
+translation project instead.
+
+The project id defaults to the current directory's basename and the source
+locale to en. Override with --name, --source-locale, --target-locale
+(repeatable).
 
 --framework <name> pre-fills the content mapping for a known stack's i18n
 catalogs (see 'kapi presets list --framework'): react-i18next, react-intl,
-nextjs, vue-i18n, flutter, angular.`,
+nextjs, vue-i18n, flutter, angular — and scaffolds the translation project.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := resolveDir(dir)
 			if err != nil {
@@ -88,7 +93,15 @@ nextjs, vue-i18n, flutter, angular.`,
 			if recipeExists {
 				fmt.Fprintf(cmd.OutOrStdout(), "kapi project already initialized: %s\n", recipePath)
 			} else {
-				recipe := scaffoldRecipe(name, sourceLocale, targetLocale, content)
+				// On-brand content is the default. --target-locale or
+				// --framework opts into the translation scaffold; otherwise
+				// scaffold the content project (brand voice + termbase + check).
+				var recipe []byte
+				if len(targetLocale) > 0 || framework != "" {
+					recipe = scaffoldRecipe(name, sourceLocale, targetLocale, content)
+				} else {
+					recipe = scaffoldContentRecipe(name, sourceLocale)
+				}
 				if err := os.WriteFile(recipePath, recipe, 0o644); err != nil {
 					return fmt.Errorf("write recipe: %w", err)
 				}
@@ -120,7 +133,7 @@ nextjs, vue-i18n, flutter, angular.`,
 	cmd.Flags().StringVar(&name, "name", "", "Project id/name (default: directory basename)")
 	cmd.Flags().StringVar(&sourceLocale, "source-locale", "en", "Source locale (BCP-47)")
 	cmd.Flags().StringSliceVar(&targetLocale, "target-locale", nil, "Target locale (repeatable)")
-	cmd.Flags().StringVar(&framework, "framework", "", "Pre-fill content mapping for a known stack (see 'kapi presets list --framework')")
+	cmd.Flags().StringVar(&framework, "framework", "", "Pre-fill content mapping for a known stack (see 'kapi presets list --framework'); scaffolds a translation project")
 	return cmd
 }
 
@@ -254,6 +267,53 @@ func scaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 # Tip: 'kapi init --framework <stack>' pre-fills content for a known stack.
 content: []
 flows: {}
+`)
+	return []byte(b.String())
+}
+
+// scaffoldContentRecipe builds the default content recipe: a project whose job
+// is keeping its source content on brand and on-terminology, with no target
+// languages. It binds a brand voice profile (a built-in starter pack) and the
+// project termbase under defaults: so project-scoped checks need no flags, and
+// ships a `check` flow that scores content with the deterministic
+// brand-vocabulary check. Passing --target-locale or --framework scaffolds a
+// translation project (scaffoldRecipe) instead.
+func scaffoldContentRecipe(name, sourceLocale string) []byte {
+	var b strings.Builder
+	b.WriteString("version: v1\n")
+	b.WriteString("name: ")
+	b.WriteString(name)
+	b.WriteString("\ndefaults:\n")
+	b.WriteString("  source_language: ")
+	b.WriteString(sourceLocale)
+	b.WriteByte('\n')
+	// brand_voice and termbase are framework bindings under defaults: — standing
+	// project context for brand and terminology checks. No target_languages: this
+	// project governs its source content, it does not translate it.
+	b.WriteString("  brand_voice:\n")
+	b.WriteString("    pack: professional-b2b\n")
+	b.WriteString("  termbase: .kapi/termbase.db\n")
+	b.WriteString(`
+# Content project: no target_languages. Point content at the source files to
+# keep on brand, then run 'kapi run check' to score them. Block state lives in
+# .kapi/cache/blocks.db.
+#
+# content:
+#   - path: "src/**/*.md"
+#     format: markdown
+#
+# Swap the starter pack for your own profile: 'kapi brand new --name "<brand>"',
+# then set defaults.brand_voice.profile instead of pack.
+content: []
+
+# The check flow scores content against brand vocabulary (deterministic,
+# offline) and gates on the result. Add the AI-driven 'brand-voice-check' step
+# for tone and voice scoring (needs an AI provider).
+flows:
+  check:
+    steps:
+      - tool: brand-vocab-check
+      # - tool: brand-voice-check
 `)
 	return []byte(b.String())
 }
