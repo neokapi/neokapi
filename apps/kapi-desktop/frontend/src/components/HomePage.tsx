@@ -8,6 +8,7 @@ import {
   FileText,
   Settings2,
   Wrench,
+  ShieldCheck,
   AlertTriangle,
   PackageOpen,
   RefreshCw,
@@ -272,7 +273,13 @@ export function HomePage({
       )}
 
       {/* Quick actions */}
-      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <ActionCard
+          icon={<ShieldCheck size={16} />}
+          title="Check"
+          description="Verify structure, brand, and placeholders"
+          onClick={() => onNavigate("checks")}
+        />
         <ActionCard
           icon={<FileText size={16} />}
           title="Content"
@@ -315,7 +322,7 @@ export function HomePage({
         <section className="mb-8">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <FileText size={14} />
-            Content Status
+            Content Overview
             <Button
               variant="ghost"
               size="sm"
@@ -337,7 +344,7 @@ export function HomePage({
             <EmptyState
               icon={<PackageOpen size={24} className="text-muted-foreground/50" />}
               title="Nothing extracted yet."
-              description="Run extract to read your content files and see translation coverage."
+              description="Run extract to read your content files and analyze their structure."
               action={
                 <Button size="sm" onClick={() => void handleExtract()} disabled={extracting}>
                   {extracting ? (

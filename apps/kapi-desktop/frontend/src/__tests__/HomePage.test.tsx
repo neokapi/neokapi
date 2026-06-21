@@ -39,7 +39,7 @@ describe("HomePage content status", () => {
         status={status}
       />,
     );
-    expect(screen.getByText("Content Status")).toBeInTheDocument();
+    expect(screen.getByText("Content Overview")).toBeInTheDocument();
     expect(screen.getByText("ui-strings")).toBeInTheDocument();
     // fr-FR fully translated, de-DE half.
     expect(screen.getByText("100 / 100 (100%)")).toBeInTheDocument();

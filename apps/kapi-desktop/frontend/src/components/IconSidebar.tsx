@@ -76,6 +76,13 @@ const projectItems: SidebarItem[] = [
   },
   {
     type: "item",
+    view: "checks",
+    icon: <ShieldCheck size={20} strokeWidth={SW} />,
+    label: "Checks",
+    pluginGated: true,
+  },
+  {
+    type: "item",
     view: "content",
     icon: <FileText size={20} strokeWidth={SW} />,
     label: "Content",
@@ -89,13 +96,6 @@ const projectItems: SidebarItem[] = [
     pluginGated: true,
   },
   { type: "item", view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
-  {
-    type: "item",
-    view: "checks",
-    icon: <ShieldCheck size={20} strokeWidth={SW} />,
-    label: "Checks",
-    pluginGated: true,
-  },
   {
     type: "item",
     view: "termbases",
