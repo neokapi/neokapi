@@ -354,6 +354,11 @@
             "short": "Remove installed skills from .claude/skills"
           }
         },
+        "stats": {
+          "example": "  kapi stats report.docx\n  kapi stats --json docs/*.md | jq '.total.words'\n  cat page.html | kapi stats -f html",
+          "long": "Summarize the content of one or more files: total and translatable blocks,\nword and character counts (with and without spaces), segments, and a breakdown\nby structural role (heading, paragraph, list-item, table-cell, …). Any format —\na Word document, a JSON catalog, Markdown, HTML — yields the same shape.\n\nWord, character, and segment counts cover the translatable content; block and\nrole counts cover the whole document. Prints a human table by default; --json\nemits the structured record for piping into a pipeline.\n\nWith no FILE, or when FILE is \"-\", standard input is read.",
+          "short": "Summarize content metrics for files — blocks, words, characters, segments, by role"
+        },
         "term-check": {
           "example": "  kapi term-check app.xliff --source-lang en --target-lang fr\n  kapi term-check messages.json --source-lang en --target-lang fr",
           "short": "Terminology Check"
