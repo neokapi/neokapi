@@ -273,6 +273,11 @@ func (r *AttributeRule) AppliesToElement(elemName string) bool {
 
 // Config holds configuration for the XML format.
 type Config struct {
+	// ValidationConfigField carries the reader validation mode (RVM). Zero value
+	// is ValidationOff, so XML extraction stays byte-identical until the CLI turns
+	// it on.
+	format.ValidationConfigField
+
 	// TranslatableElements lists element names whose text content is translatable.
 	// If empty, all text content is considered translatable.
 	TranslatableElements []string

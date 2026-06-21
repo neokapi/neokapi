@@ -88,9 +88,12 @@ against its source):
 The full QA family (whitespace, inline-code integrity, cross-block consistency,
 optional LLM review) is documented under [QA Checks](/framework/checks/qa-checks).
 
-> **Note:** document-level structure and encoding *validity* is a format-reader
-> concern, not a content check — see the reader validation slice (planned). The
-> readers extract leniently today.
+> **Document structure & encoding validity** is a format-reader concern, not a
+> content check — the readers extract leniently by default. Surface it on demand
+> with `kapi check --validate report` (or `strict` to gate on it): the reader
+> emits located `structure.*` / `encoding.*` findings (malformed XML/YAML,
+> invalid UTF-8, charset mismatch, and the JSON faults the parser rejects) into
+> the same Report. Coverage tracks each reader's own strictness.
 
 ## Composing and gating
 

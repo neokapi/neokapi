@@ -7,6 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -64,6 +65,7 @@ type CheckFileInput struct {
 	Target      string   `json:"target,omitempty" jsonschema:"translated target file to check against the source (enables bilingual l10n checks)"`
 	TargetLang  string   `json:"target_lang,omitempty" jsonschema:"locale of the target file (e.g. de)"`
 	DNT         []string `json:"dnt,omitempty" jsonschema:"do-not-translate terms that must survive verbatim into the target"`
+	Validate    string   `json:"validate,omitempty" jsonschema:"reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the report; strict also fails on a Major+ structure/encoding problem). Default off."`
 }
 
 // checkTextMCP runs the source-side content checkset over a text snippet.
@@ -92,7 +94,7 @@ func (a *App) checkFileMCP(ctx context.Context, in CheckFileInput) (*mcp.CallToo
 	if err != nil {
 		return nil, check.Report{}, err
 	}
-	srcLang := firstNonEmpty(a.SourceLang, "en")
+	a.SourceLang = firstNonEmpty(a.SourceLang, "en")
 	target := check.Target{Kind: "file", File: in.File}
 	var diags []check.Diagnostic
 
@@ -117,15 +119,21 @@ func (a *App) checkFileMCP(ctx context.Context, in CheckFileInput) (*mcp.CallToo
 		diags = fd
 		diags = append(diags, a.collectBilingualDiagnostics(ctx, blocks, in.File, model.LocaleID(lang), in.DNT)...)
 	} else {
-		blocks, rerr := a.readBlocks(ctx, in.File, srcLang)
-		if rerr != nil {
-			return nil, check.Report{}, rerr
+		validateMode, verr := parseValidationMode(in.Validate)
+		if verr != nil {
+			return nil, check.Report{}, verr
+		}
+		blocks, fileDiags, ferr := a.checkFileBlocks(ctx, in.File, validateMode, opts)
+		if ferr != nil {
+			return nil, check.Report{}, ferr
 		}
 		target.Blocks = len(blocks)
-		diags, err = a.collectFileDiagnostics(ctx, blocks, in.File, opts)
-		if err != nil {
-			return nil, check.Report{}, err
+		diags = fileDiags
+		report := check.BuildReport(target, diags, check.DefaultGate())
+		if validateMode == format.ValidationStrict {
+			applyStrictValidationGate(&report)
 		}
+		return nil, report, nil
 	}
 	return nil, check.BuildReport(target, diags, check.DefaultGate()), nil
 }

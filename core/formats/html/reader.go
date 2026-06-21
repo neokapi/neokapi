@@ -221,6 +221,17 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		// DOM path: existing behavior.
 		doc, err := html.Parse(strings.NewReader(string(content)))
 		if err != nil {
+			// RVM: the HTML parser is lenient and recovers from almost anything,
+			// so a hard parse error is rare. When it does surface, note it as a
+			// document-level diagnostic (no positions — the deliberately shallow
+			// leg). The lenient path is unchanged: the error still surfaces below.
+			if r.ValidationMode() != format.ValidationOff {
+				r.AddDiagnostic(format.Diagnostic{
+					Severity: format.SeverityMinor,
+					Category: "structure.html-recovered",
+					Message:  err.Error(),
+				})
+			}
 			ch <- model.PartResult{Error: fmt.Errorf("html: parsing: %w", err)}
 			return
 		}

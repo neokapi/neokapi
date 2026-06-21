@@ -172,6 +172,25 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	sc := newScanner(content)
 	tokens, err := sc.scan()
 	if err != nil {
+		// RVM: surface the syntax error as a located structure diagnostic (the
+		// scanner tracked the offset + category). The lenient path is unchanged —
+		// we still emit the error on the channel below.
+		if r.ValidationMode() != format.ValidationOff {
+			category := sc.errCategory
+			if category == "" {
+				category = "structure.json-syntax"
+			}
+			line, col := format.LineColumn(content, sc.errOffset)
+			r.AddDiagnostic(format.Diagnostic{
+				Severity:   format.SeverityMajor,
+				Category:   category,
+				Message:    err.Error(),
+				Line:       line,
+				Column:     col,
+				ByteOffset: sc.errOffset,
+				Snippet:    format.SnippetAround(content, sc.errOffset, 0),
+			})
+		}
 		r.emitErr(ctx, ch, fmt.Errorf("json: parsing: %w", err))
 		return
 	}
@@ -643,6 +662,16 @@ func (r *Reader) matchSubfilter(path string) *format.SubfilterMapping {
 func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult, content, path, parentLayerID string, mapping *format.SubfilterMapping, blockCounter, dataCounter *int) {
 	subReader, err := r.resolver.ResolveReader(mapping.Format)
 	if err != nil {
+		// RVM: the embedded content was meant to be parsed by a subfilter that
+		// isn't available, so it falls back to a plain block (lenient, unchanged).
+		// Note that as a minor structure diagnostic.
+		if r.ValidationMode() != format.ValidationOff {
+			r.AddDiagnostic(format.Diagnostic{
+				Severity: format.SeverityMinor,
+				Category: "structure.subfilter-unavailable",
+				Message:  fmt.Sprintf("json: subfilter %q for %q is unavailable; extracting the value as plain text", mapping.Format, path),
+			})
+		}
 		// Fall back to plain block if subfilter reader is unavailable
 		*blockCounter++
 		block := model.NewBlock("tu"+strconv.Itoa(*blockCounter), content)

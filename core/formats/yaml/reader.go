@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -16,6 +17,11 @@ import (
 	"github.com/neokapi/neokapi/core/safeio"
 	yamlv3 "gopkg.in/yaml.v3"
 )
+
+// yamlLineRe extracts the 1-based line number yaml.v3 embeds in its parse-error
+// messages ("yaml: line 3: …"). yaml.v3 exposes no struct field for the
+// position, so RVM diagnostics best-effort it from the message.
+var yamlLineRe = regexp.MustCompile(`line (\d+)`)
 
 // Reader implements DataFormatReader for YAML files.
 type Reader struct {
@@ -160,6 +166,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if errors.Is(err, io.EOF) {
 					break
 				}
+				r.addSyntaxDiagnostic(content, err)
 				ch <- model.PartResult{Error: fmt.Errorf("yaml: parsing: %w", err)}
 				return
 			}
@@ -175,6 +182,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if errors.Is(err, io.EOF) {
 					break
 				}
+				r.addSyntaxDiagnostic(content, err)
 				ch <- model.PartResult{Error: fmt.Errorf("yaml: parsing: %w", err)}
 				return
 			}
@@ -183,6 +191,63 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// addSyntaxDiagnostic records an RVM structure.yaml-syntax diagnostic for a
+// decode error, best-effort locating it from the line number yaml.v3 embeds in
+// the message (doc-level when no line is parseable). No-op when validation is
+// off, so the lenient path is byte-identical.
+func (r *Reader) addSyntaxDiagnostic(content []byte, err error) {
+	if r.ValidationMode() == format.ValidationOff {
+		return
+	}
+	line := yamlErrorLine(err)
+	d := format.Diagnostic{
+		Severity: format.SeverityMajor,
+		Category: "structure.yaml-syntax",
+		Message:  err.Error(),
+		Line:     line,
+	}
+	if line > 0 {
+		off := lineStartOffset(content, line)
+		d.ByteOffset = off
+		d.Snippet = format.SnippetAround(content, off, 0)
+	}
+	r.AddDiagnostic(d)
+}
+
+// yamlErrorLine extracts the 1-based line from a yaml.v3 decode error, unwrapping
+// *yaml.TypeError (which carries per-field messages) first. Returns 0 when no
+// line is present.
+func yamlErrorLine(err error) int {
+	msg := err.Error()
+	var te *yamlv3.TypeError
+	if errors.As(err, &te) && len(te.Errors) > 0 {
+		msg = te.Errors[0]
+	}
+	if m := yamlLineRe.FindStringSubmatch(msg); m != nil {
+		n, _ := strconv.Atoi(m[1])
+		return n
+	}
+	return 0
+}
+
+// lineStartOffset returns the byte offset of the start of the 1-based line in
+// content (clamped to len(content)).
+func lineStartOffset(content []byte, line int) int {
+	if line <= 1 {
+		return 0
+	}
+	cur := 1
+	for i, b := range content {
+		if b == '\n' {
+			cur++
+			if cur == line {
+				return i + 1
+			}
+		}
+	}
+	return len(content)
 }
 
 // scalarRange records the byte range of a translatable scalar in the raw YAML content.

@@ -15,6 +15,8 @@ import (
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/encoding"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -964,42 +966,72 @@ func runCheckTool(ctx context.Context, t interface {
 
 // readBlocks reads a file through its detected format reader and returns the
 // translatable blocks, with sourceLang as the source locale. It does not write
-// any output — verify only inspects content.
+// any output — verify only inspects content. It is the validation-off wrapper
+// around readBlocksValidated, so every caller that does not opt into Reader
+// Validation-Mode keeps the byte-identical lenient behavior.
 func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model.Block, error) {
+	blocks, _, err := a.readBlocksValidated(ctx, path, sourceLang, format.ValidationOff)
+	return blocks, err
+}
+
+// readBlocksValidated reads a file's translatable blocks and, when mode is not
+// ValidationOff, the Reader Validation-Mode diagnostics the format reader and
+// the encoding scan surfaced. The reader stays lenient — mode only adds
+// diagnostics. When mode is on and the reader hard-fails on a structure problem
+// it also recorded as a diagnostic, the structured diagnostic supersedes the
+// opaque error (the read is reported as the located finding, not as an
+// operational failure). With mode ValidationOff this is byte-identical to the
+// pre-RVM readBlocks: no diagnostics, errors propagate unchanged.
+func (a *App) readBlocksValidated(ctx context.Context, path, sourceLang string, mode format.ValidationMode) ([]*model.Block, []format.Diagnostic, error) {
 	fmtName := a.FormatFlag
 	if fmtName == "" {
 		ext := filepath.Ext(path)
 		detected, err := a.FormatReg.DetectByExtension(ext)
 		if err != nil {
-			return nil, fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
+			return nil, nil, fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
 		}
 		fmtName = string(detected)
 	}
 
 	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {
-		return nil, fmt.Errorf("no reader for %q: %w", fmtName, err)
+		return nil, nil, fmt.Errorf("no reader for %q: %w", fmtName, err)
 	}
 	defer reader.Close()
 
+	// Set the validation mode on the reader's config before Open. Formats that
+	// have not opted into RVM don't satisfy ValidationConfig; their ValidationMode
+	// stays Off and they emit nothing.
+	if vc, ok := reader.Config().(format.ValidationConfig); ok {
+		vc.SetValidationMode(mode)
+	}
+
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
+		return nil, nil, fmt.Errorf("read %s: %w", path, err)
 	}
+	declaredEnc := firstNonEmpty(a.Encoding, "UTF-8")
+
+	// Format-agnostic encoding diagnostics (invalid UTF-8, declared-vs-detected
+	// charset mismatch) over the same raw bytes; no-op when mode is Off.
+	diags := encoding.Diagnose(content, declaredEnc, mode)
+
 	doc := &model.RawDocument{
 		URI:          path,
 		SourceLocale: model.LocaleID(sourceLang),
-		Encoding:     firstNonEmpty(a.Encoding, "UTF-8"),
+		Encoding:     declaredEnc,
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 	if err := reader.Open(ctx, doc); err != nil {
-		return nil, fmt.Errorf("open %q: %w", filepath.Base(path), err)
+		return nil, nil, fmt.Errorf("open %q: %w", filepath.Base(path), err)
 	}
 
 	var blocks []*model.Block
+	var readErr error
 	for result := range reader.Read(ctx) {
 		if result.Error != nil {
-			return nil, fmt.Errorf("read %q: %w", filepath.Base(path), result.Error)
+			readErr = fmt.Errorf("read %q: %w", filepath.Base(path), result.Error)
+			break
 		}
 		if result.Part == nil || result.Part.Type != model.PartBlock {
 			continue
@@ -1008,7 +1040,24 @@ func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model
 			blocks = append(blocks, b)
 		}
 	}
-	return blocks, nil
+
+	// Collect the reader's structure diagnostics (after the range loop, before
+	// Close — state lives on the reader). Discovery is by assertion.
+	if dr, ok := reader.(format.DiagnosticReader); ok {
+		diags = append(diags, dr.Diagnostics()...)
+	}
+
+	if readErr != nil {
+		// In validation mode, a hard read failure the reader also captured as a
+		// structure diagnostic is reported as that located finding rather than an
+		// operational error. With mode Off no diagnostics exist, so the error
+		// propagates exactly as before.
+		if mode != format.ValidationOff && len(diags) > 0 {
+			return blocks, diags, nil
+		}
+		return nil, nil, readErr
+	}
+	return blocks, diags, nil
 }
 
 func firstNonEmpty(vals ...string) string {

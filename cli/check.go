@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/spf13/cobra"
@@ -64,8 +65,10 @@ func (r checkReport) FormatText(w io.Writer) error {
 //	kapi check api.json --target api.de.json --target-lang de  # + bilingual (l10n) checks
 //
 // The checks are content-level (the translatable units). Document-level
-// structure and encoding validity is a format-reader concern and lands with the
-// reader validation-mode slice; today the readers extract leniently.
+// structure and encoding validity is a format-reader concern, surfaced on
+// demand with --validate (Reader Validation-Mode): off by default, the readers
+// extract leniently; report folds located structure.*/encoding.* findings into
+// the Report; strict also gates on them.
 func (a *App) NewCheckCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "check [files...]",
@@ -115,6 +118,7 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 	f.Bool("no-fail", false, "exit 0 even when the gate fails (fix-loop mode)")
 	f.Bool("voice", false, "also run the voice/style-similarity check (needs the kapi-check plugin and a profile with examples)")
 	f.Float64("voice-min", DefaultVoiceSimilarity, "voice-similarity cutoff (cosine, 0-1) below which a block is flagged off-voice")
+	f.String("validate", "off", "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the Report; strict also fails the gate on a Major+ structure/encoding problem)")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
 	cmd.MarkFlagsMutuallyExclusive("strict", "lenient")
 	return cmd
@@ -150,6 +154,11 @@ func (a *App) computeCheck(cmd *cobra.Command, args []string) (check.Report, err
 	}
 
 	profile, err := a.resolveCheckProfile(cmd)
+	if err != nil {
+		return check.Report{}, err
+	}
+
+	validateMode, err := validateModeFromFlag(cmd)
 	if err != nil {
 		return check.Report{}, err
 	}
@@ -195,22 +204,16 @@ func (a *App) computeCheck(cmd *cobra.Command, args []string) (check.Report, err
 		diags = append(diags, a.collectBilingualDiagnostics(ctx, blocks, sourcePath, model.LocaleID(targetLang), dnt)...)
 	} else {
 		// Content-first generic mode: each positional file is a source, checked
-		// independently; the format reader validates document structure/encoding.
+		// independently. With --validate (Reader Validation-Mode) the format
+		// reader's structure/encoding diagnostics fold into the same Report; off
+		// (the default) keeps the lenient read where a malformed file is an
+		// operational error.
 		for _, file := range args {
-			blocks, rerr := a.readBlocks(ctx, file, a.SourceLang)
-			if rerr != nil {
-				// A read failure is operational here. Document-level structure
-				// and encoding VALIDITY is a format-reader concern, but the
-				// readers are deliberately lenient (they extract content from
-				// imperfect inputs); surfacing malformed structure as a finding
-				// needs a reader validation mode — a separate, planned slice.
-				return check.Report{}, rerr
-			}
-			totalBlocks += len(blocks)
-			fileDiags, ferr := a.collectFileDiagnostics(ctx, blocks, file, opts)
+			blocks, fileDiags, ferr := a.checkFileBlocks(ctx, file, validateMode, opts)
 			if ferr != nil {
 				return check.Report{}, ferr
 			}
+			totalBlocks += len(blocks)
 			diags = append(diags, fileDiags...)
 		}
 		if len(args) == 1 {
@@ -222,7 +225,86 @@ func (a *App) computeCheck(cmd *cobra.Command, args []string) (check.Report, err
 	target.Blocks = totalBlocks
 
 	gate := gateFromFlags(cmd)
-	return check.BuildReport(target, diags, gate), nil
+	report := check.BuildReport(target, diags, gate)
+	if validateMode == format.ValidationStrict {
+		applyStrictValidationGate(&report)
+	}
+	return report, nil
+}
+
+// checkFileBlocks reads one file's blocks and the content checkset diagnostics,
+// folding in the reader's structure/encoding diagnostics when validateMode is on.
+func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode format.ValidationMode, opts checkRunOptions) ([]*model.Block, []check.Diagnostic, error) {
+	var blocks []*model.Block
+	var diags []check.Diagnostic
+
+	if validateMode != format.ValidationOff {
+		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, a.SourceLang, validateMode)
+		if rerr != nil {
+			return nil, nil, rerr
+		}
+		blocks = bl
+		for _, fd := range fdiags {
+			diags = append(diags, check.DiagnosticFromReader(fd, displayName(file)))
+		}
+	} else {
+		bl, rerr := a.readBlocks(ctx, file, a.SourceLang)
+		if rerr != nil {
+			// A read failure is operational in off mode: the lenient readers
+			// extract from imperfect inputs, so a hard error means the file
+			// could not be parsed at all. Pass --validate report to fold the
+			// structure problem into the Report instead.
+			return nil, nil, rerr
+		}
+		blocks = bl
+	}
+
+	fileDiags, ferr := a.collectFileDiagnostics(ctx, blocks, file, opts)
+	if ferr != nil {
+		return nil, nil, ferr
+	}
+	diags = append(diags, fileDiags...)
+	return blocks, diags, nil
+}
+
+// validateModeFromFlag parses the --validate flag into a ValidationMode.
+func validateModeFromFlag(cmd *cobra.Command) (format.ValidationMode, error) {
+	v, _ := cmd.Flags().GetString("validate")
+	return parseValidationMode(v)
+}
+
+// parseValidationMode maps an off|report|strict string (empty = off) to a
+// ValidationMode. Shared by the CLI flag and the MCP check_file tool.
+func parseValidationMode(v string) (format.ValidationMode, error) {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "", "off":
+		return format.ValidationOff, nil
+	case "report":
+		return format.ValidationReport, nil
+	case "strict":
+		return format.ValidationStrict, nil
+	default:
+		return format.ValidationOff, fmt.Errorf("invalid validate mode %q: want off, report, or strict", v)
+	}
+}
+
+// applyStrictValidationGate tightens the report for --validate strict: any
+// structure or encoding diagnostic of Major severity or worse fails the gate
+// regardless of the severity-count thresholds — a structurally broken or
+// mis-encoded document can't pass. A relabeled-charset mismatch is Minor and
+// does not trip it. This is a check-layer gate policy, not a reader concern.
+func applyStrictValidationGate(report *check.Report) {
+	for _, f := range report.Findings {
+		if f.Check != "structure" && f.Check != "encoding" {
+			continue
+		}
+		if f.Severity != check.SeverityMajor && f.Severity != check.SeverityCritical {
+			continue
+		}
+		report.Pass = false
+		report.Gate.Failed = append(report.Gate.Failed,
+			fmt.Sprintf("validation: %s is a blocking %s problem", f.Rule, f.Check))
+	}
 }
 
 // checkRunOptions carries the resolved generic-check configuration.

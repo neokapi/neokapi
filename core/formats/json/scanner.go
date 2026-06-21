@@ -39,10 +39,33 @@ type token struct {
 type scanner struct {
 	input []byte
 	pos   int
+
+	// errOffset / errCategory carry structured location + category for the last
+	// scan error, so the reader can build a located RVM Diagnostic without
+	// re-parsing the error string. Set at every error site; errCategory is one of
+	// the structure.json-* families. The error string itself is unchanged.
+	errOffset   int
+	errCategory string
 }
 
 func newScanner(input []byte) *scanner {
 	return &scanner{input: input}
+}
+
+// syntaxErr records a structure.json-syntax error at offset and returns the
+// wrapped error. The message is unchanged from the pre-RVM form so the
+// default-off path stays byte-identical.
+func (s *scanner) syntaxErr(offset int, format string, args ...any) error {
+	s.errOffset = offset
+	s.errCategory = "structure.json-syntax"
+	return fmt.Errorf(format, args...)
+}
+
+// escapeErr records a structure.json-unicode-escape error at offset.
+func (s *scanner) escapeErr(offset int, format string, args ...any) error {
+	s.errOffset = offset
+	s.errCategory = "structure.json-unicode-escape"
+	return fmt.Errorf(format, args...)
 }
 
 // scan returns all tokens from the input.
@@ -121,7 +144,7 @@ func (s *scanner) next() (token, error) {
 		if isIdentStart(ch) {
 			return s.scanBareIdentifier(prefix)
 		}
-		return token{}, fmt.Errorf("json scanner: unexpected character %q at position %d", ch, s.pos)
+		return token{}, s.syntaxErr(s.pos, "json scanner: unexpected character %q at position %d", ch, s.pos)
 	}
 }
 
@@ -267,7 +290,7 @@ func (s *scanner) scanString(prefix string, quote byte) (token, error) {
 		if ch == '\\' {
 			s.pos++
 			if s.pos >= len(s.input) {
-				return token{}, fmt.Errorf("json scanner: unexpected end of string escape at position %d", s.pos)
+				return token{}, s.syntaxErr(s.pos, "json scanner: unexpected end of string escape at position %d", s.pos)
 			}
 			esc := s.input[s.pos]
 			switch esc {
@@ -309,7 +332,7 @@ func (s *scanner) scanString(prefix string, quote byte) (token, error) {
 		decoded.WriteRune(r)
 		s.pos += size
 	}
-	return token{}, fmt.Errorf("json scanner: unterminated string at position %d", start)
+	return token{}, s.syntaxErr(start, "json scanner: unterminated string at position %d", start)
 }
 
 // scanUnicodeEscape reads a \uXXXX (and optional surrogate pair) escape.
@@ -317,12 +340,12 @@ func (s *scanner) scanString(prefix string, quote byte) (token, error) {
 func (s *scanner) scanUnicodeEscape() (rune, int, error) {
 	s.pos++ // skip past 'u'
 	if s.pos+4 > len(s.input) {
-		return 0, 0, fmt.Errorf("json scanner: incomplete unicode escape at position %d", s.pos)
+		return 0, 0, s.escapeErr(s.pos, "json scanner: incomplete unicode escape at position %d", s.pos)
 	}
 	hex1 := string(s.input[s.pos : s.pos+4])
 	r1, err := strconv.ParseUint(hex1, 16, 32)
 	if err != nil {
-		return 0, 0, fmt.Errorf("json scanner: invalid unicode escape \\u%s at position %d", hex1, s.pos)
+		return 0, 0, s.escapeErr(s.pos, "json scanner: invalid unicode escape \\u%s at position %d", hex1, s.pos)
 	}
 	size := 4
 
@@ -380,7 +403,7 @@ func (s *scanner) scanNumber(prefix string) (token, error) {
 // scanLiteral scans a JSON keyword (true, false, null).
 func (s *scanner) scanLiteral(expected string, typ tokenType, prefix string) (token, error) {
 	if s.pos+len(expected) > len(s.input) || string(s.input[s.pos:s.pos+len(expected)]) != expected {
-		return token{}, fmt.Errorf("json scanner: expected %q at position %d", expected, s.pos)
+		return token{}, s.syntaxErr(s.pos, "json scanner: expected %q at position %d", expected, s.pos)
 	}
 	s.pos += len(expected)
 	return token{typ: typ, raw: expected, value: expected, prefix: prefix}, nil

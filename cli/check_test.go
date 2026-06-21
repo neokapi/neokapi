@@ -241,3 +241,62 @@ func TestCheck_CleanTargetPasses(t *testing.T) {
 	assert.True(t, out.Pass, "faithful target should pass: %+v", out.Findings)
 	assert.Empty(t, out.Findings)
 }
+
+// TestCheck_ValidateFoldsStructureDiagnostic exercises Reader Validation-Mode
+// through `kapi check --validate`: off keeps the opaque read error, report folds
+// a located structure.json-syntax finding into the Report (but the default gate
+// still passes), and strict gates on the Major structure problem.
+func TestCheck_ValidateFoldsStructureDiagnostic(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	dir := t.TempDir()
+	src := filepath.Join(dir, "broken.json")
+	// The '@' on line 3 is not a valid JSON value start.
+	require.NoError(t, os.WriteFile(src, []byte("{\n  \"a\": \"ok\",\n  \"b\": @bad\n}"), 0o644))
+
+	// --validate off (the default): a malformed file is an opaque operational
+	// error, byte-identical to the pre-RVM read — not a folded finding.
+	offCmd := (&App{SourceLang: "en"}).NewCheckCmd()
+	_, err := (&App{SourceLang: "en"}).computeCheck(offCmd, []string{src})
+	require.Error(t, err, "off mode keeps the opaque read error")
+
+	// --validate report: the structure problem folds into the Report as a
+	// located structure.json-syntax finding; the default gate still passes.
+	repCmd := (&App{SourceLang: "en"}).NewCheckCmd()
+	require.NoError(t, repCmd.Flags().Set("validate", "report"))
+	repOut, err := (&App{SourceLang: "en"}).computeCheck(repCmd, []string{src})
+	require.NoError(t, err, "report mode folds the structure problem instead of erroring")
+	counts := ruleCounts(repOut)
+	assert.Positive(t, counts["structure.json-syntax"], "should fold a structure.json-syntax finding: %+v", repOut.Findings)
+	assert.True(t, repOut.Pass, "report mode surfaces the finding but the default gate does not fail on it")
+	// The reader's location rode through into the finding metadata.
+	for _, d := range repOut.Findings {
+		if d.Rule == "structure.json-syntax" {
+			assert.Equal(t, "structure", d.Check)
+			assert.Equal(t, "3", d.Metadata["line"], "the bad token's line should ride in metadata")
+		}
+	}
+
+	// --validate strict: the same Major structure finding fails the gate.
+	strictCmd := (&App{SourceLang: "en"}).NewCheckCmd()
+	require.NoError(t, strictCmd.Flags().Set("validate", "strict"))
+	strictOut, err := (&App{SourceLang: "en"}).computeCheck(strictCmd, []string{src})
+	require.NoError(t, err)
+	assert.False(t, strictOut.Pass, "strict mode gates on the structure problem")
+	assert.NotEmpty(t, strictOut.Gate.Failed)
+}
+
+// TestCheck_ValidateReportCleanFile confirms --validate report adds no findings
+// to a well-formed file: RVM only surfaces real structure/encoding problems.
+func TestCheck_ValidateReportCleanFile(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	dir := t.TempDir()
+	src := filepath.Join(dir, "clean.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"title": "Crisp copy"}`), 0o644))
+
+	cmd := (&App{SourceLang: "en"}).NewCheckCmd()
+	require.NoError(t, cmd.Flags().Set("validate", "report"))
+	out, err := (&App{SourceLang: "en"}).computeCheck(cmd, []string{src})
+	require.NoError(t, err)
+	assert.True(t, out.Pass)
+	assert.Zero(t, ruleCounts(out)["structure.json-syntax"])
+}

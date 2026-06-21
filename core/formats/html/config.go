@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	"github.com/neokapi/neokapi/core/config"
+	"github.com/neokapi/neokapi/core/format"
 )
 
 // ElementRule defines how an element should be treated during extraction.
@@ -27,6 +28,11 @@ type AttributeRule struct {
 
 // Config holds configuration for the HTML format.
 type Config struct {
+	// ValidationConfigField carries the reader validation mode (RVM). Zero value
+	// is ValidationOff, so HTML extraction stays byte-identical until the CLI
+	// turns it on.
+	format.ValidationConfigField
+
 	// PreserveWhitespace preserves significant whitespace in text nodes.
 	PreserveWhitespace bool
 
