@@ -25,6 +25,12 @@ const (
 type LengthCheckConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 
+	// CheckSource evaluates the source text instead of a target, so the
+	// absolute-length checks (MaxChars, MaxWords) run on a single file with no
+	// target-language. The source/target ratio checks need both sides and are
+	// skipped in this mode. Default false keeps the bilingual (target) behavior.
+	CheckSource bool `json:"checkSource,omitempty" schema:"-"`
+
 	// Absolute limits (simple mode).
 	MaxChars int `json:"maxChars,omitempty" schema:"title=Maximum Characters,description=Absolute maximum character count for target text (0 = disabled),default=0,min=0"`
 	MaxWords int `json:"maxWords,omitempty" schema:"title=Maximum Words,description=Maximum word count for target text (0 = disabled),default=0,min=0"`
@@ -51,6 +57,7 @@ func (c *LengthCheckConfig) ToolName() string { return "length-check" }
 // Reset restores default values.
 func (c *LengthCheckConfig) Reset() {
 	c.TargetLocale = ""
+	c.CheckSource = false
 	c.MaxChars = 0
 	c.MaxWords = 0
 	c.MaxPercentage = 0
@@ -67,7 +74,7 @@ func (c *LengthCheckConfig) Reset() {
 
 // Validate checks configuration validity.
 func (c *LengthCheckConfig) Validate() error {
-	if c.TargetLocale.IsEmpty() {
+	if !c.CheckSource && c.TargetLocale.IsEmpty() {
 		return errors.New("length-check: TargetLocale is required")
 	}
 	if c.MaxChars < 0 {
@@ -124,6 +131,13 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 		}
 
 		conf := t.Cfg.(*LengthCheckConfig)
+
+		// Source scope: validate the source text's absolute length with no
+		// target. The ratio checks below need both sides, so they don't apply.
+		if conf.CheckSource {
+			check.Annotate(v, "length-check", sourceLengthFindings(v.SourceText(), conf))
+			return nil
+		}
 
 		if !v.HasTarget(conf.TargetLocale) {
 			return nil
@@ -220,6 +234,34 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 		return nil
 	}
 	return t
+}
+
+// sourceLengthFindings runs the absolute-length checks (max chars, max words)
+// over a single text with no target. It powers length-check's source scope
+// (CheckSource), where there is no source/target ratio to evaluate.
+func sourceLengthFindings(text string, conf *LengthCheckConfig) []check.Finding {
+	var findings []check.Finding
+	if conf.MaxChars > 0 {
+		charCount := len([]rune(text))
+		if charCount > conf.MaxChars {
+			findings = append(findings, check.Finding{
+				Category: "max-chars-exceeded",
+				Severity: check.SeverityMajor,
+				Message:  fmt.Sprintf("Source has %d characters, exceeds maximum of %d", charCount, conf.MaxChars),
+			})
+		}
+	}
+	if conf.MaxWords > 0 {
+		wordCount := countWords(text)
+		if wordCount > conf.MaxWords {
+			findings = append(findings, check.Finding{
+				Category: "max-words-exceeded",
+				Severity: check.SeverityMajor,
+				Message:  fmt.Sprintf("Source has %d words, exceeds maximum of %d", wordCount, conf.MaxWords),
+			})
+		}
+	}
+	return findings
 }
 
 // longOrShort returns "long" or "short" depending on whether the given length
