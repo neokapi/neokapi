@@ -278,13 +278,33 @@ function DownloadBar({ p }: { p?: DlProgress | null }): React.ReactElement | nul
   );
 }
 
+// A small categorical palette for consensus groups — distinct hues, like the
+// locale pills. Each boundary offset that two or more engines agree on is given
+// one colour from this list; that same colour then marks the boundary in every
+// engine column that cut there, so agreement reads by matching colours across
+// columns. Unique cuts (only one engine) get no colour.
+const CONSENSUS_PALETTE = [
+  "#2563eb", // blue
+  "#16a34a", // green
+  "#d97706", // amber
+  "#9333ea", // violet
+  "#0891b2", // cyan
+  "#dc2626", // red
+  "#db2777", // pink
+  "#65a30d", // lime
+  "#ca8a04", // yellow
+  "#4f46e5", // indigo
+];
+
 // Per-block consensus over the engines that mapped cleanly back to the block
-// text: a map of boundary offset → how many engines drew a boundary there, plus
-// the count of mappable engines (the denominator). Built once per block and
-// shared by every cell in that block's row, so a given offset shades identically
-// across columns — agreement is legible by scanning across.
+// text. `counts` maps a boundary offset → how many engines drew a boundary there
+// (the tooltip denominator is `total`, the mappable-engine count). `colors`
+// assigns a palette colour to every offset shared by ≥2 engines, in document
+// order, so adjacent agreed boundaries stay visually distinct and the same offset
+// gets the same colour in every column. Built once per block, shared by the row.
 interface BlockConsensus {
   counts: Map<number, number>;
+  colors: Map<number, string>;
   total: number;
 }
 
@@ -301,44 +321,20 @@ function buildConsensus(
     total++;
     for (const off of seg.cuts) counts.set(off, (counts.get(off) ?? 0) + 1);
   }
-  return { counts, total };
+  const colors = new Map<number, string>();
+  [...counts.entries()]
+    .filter(([, n]) => n >= 2)
+    .map(([off]) => off)
+    .sort((a, b) => a - b)
+    .forEach((off, i) => colors.set(off, CONSENSUS_PALETTE[i % CONSENSUS_PALETTE.length]));
+  return { counts, colors, total };
 }
 
-// Boundary draws the divider between two adjacent sentences, shaded by how many
-// engines cut at this same offset (neutral, count-based — never a verdict). When
-// the engine's output can't be mapped back to the block text (offset undefined,
-// e.g. an LLM reworded it) it falls back to a faint neutral rule.
-function Boundary({
-  offset,
-  consensus,
-}: {
-  offset: number | undefined;
-  consensus: BlockConsensus;
-}): React.ReactElement {
-  if (offset === undefined || consensus.total === 0) {
-    return (
-      <div className="my-1 h-px w-full bg-border" title="boundary (not comparable)" aria-hidden />
-    );
-  }
-  const n = consensus.counts.get(offset) ?? 1;
-  const strength = n / consensus.total; // 1/total (unique) … 1 (all engines)
-  return (
-    <div
-      className="my-1 w-full rounded-full"
-      title={`${n} of ${consensus.total} engines split here`}
-      style={{
-        height: 3,
-        backgroundColor: `color-mix(in srgb, var(--ifm-color-primary) ${Math.round(
-          25 + strength * 75,
-        )}%, transparent)`,
-      }}
-    />
-  );
-}
-
-// SegCell renders one engine's segmentation of one block: its sentences stacked,
-// with a consensus-shaded Boundary between each pair. This is where the agreement
-// lives now — inside the output, not a separate strip.
+// SegCell renders one engine's segmentation of one block: its sentences stacked.
+// Each sentence begins at a boundary; when two or more engines agree on that
+// boundary the sentence gets a coloured left edge in the shared consensus colour,
+// so the same agreed boundary lights up the same way across every engine column.
+// This is where agreement lives now — inside the output, not a separate strip.
 function SegCell({
   seg,
   consensus,
@@ -353,18 +349,30 @@ function SegCell({
   if (error) return <p className="px-1 text-sm text-destructive">failed</p>;
   if (!seg) return <p className="px-1 text-sm text-muted-foreground">{busy ? "Running…" : "—"}</p>;
   return (
-    <div className="flex flex-col">
-      {seg.sentences.map((s, i) => (
-        <React.Fragment key={i}>
-          <div className="flex gap-2 rounded border border-border bg-card/40 px-2 py-1 text-sm">
+    <div className="flex flex-col gap-1">
+      {seg.sentences.map((s, i) => {
+        // A sentence starts at the boundary before it (cuts[i-1]); the first
+        // starts at block-start, which every engine shares, so it carries no
+        // consensus colour.
+        const start = i > 0 && seg.cuts ? seg.cuts[i - 1] : undefined;
+        const color = start !== undefined ? consensus.colors.get(start) : undefined;
+        const n = start !== undefined ? consensus.counts.get(start) : undefined;
+        return (
+          <div
+            key={i}
+            className="flex gap-2 rounded border border-border bg-card/40 px-2 py-1 text-sm"
+            style={
+              color
+                ? { borderLeftWidth: 3, borderLeftColor: color, borderLeftStyle: "solid" }
+                : undefined
+            }
+            title={color ? `${n} of ${consensus.total} engines split here` : undefined}
+          >
             <span className="select-none font-mono text-xs text-muted-foreground">{i + 1}</span>
             <span className="text-foreground">{s}</span>
           </div>
-          {i < seg.sentences.length - 1 && (
-            <Boundary offset={seg.cuts ? seg.cuts[i] : undefined} consensus={consensus} />
-          )}
-        </React.Fragment>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -712,13 +720,14 @@ export default function SegmentationLabInner({
 
       {/* Results grid: rows = blocks, columns = engines, so block N lines up
           horizontally across every engine. Agreement lives inside each cell as
-          consensus-shaded boundaries (no separate strip). */}
+          consensus-coloured left edges on sentences (no separate strip). */}
       {(hasResults || running) && (
         <div className="flex flex-col gap-1">
           <p className="text-xs text-muted-foreground">
-            Each boundary is shaded by how many engines split there — a stronger mark = more engines
-            agree, a faint one is near-unique. Same offset → same colour across columns. Not a
-            verdict; there is no single correct segmentation.
+            When two or more engines agree on a boundary, the sentence that begins there gets a
+            coloured left edge — the same colour marks that boundary in every engine that found it,
+            so agreement reads by matching colours across columns. Unique cuts are left unmarked.
+            Not a verdict; there is no single correct segmentation.
           </p>
           <div className="overflow-x-auto pb-2">
             <div
@@ -768,7 +777,13 @@ export default function SegmentationLabInner({
                     <div key={d.id} className="rounded-lg border border-border p-2">
                       <SegCell
                         seg={results[d.id]?.blocks.find((x) => x.id === b.id)}
-                        consensus={consensusByBlock.get(b.id) ?? { counts: new Map(), total: 0 }}
+                        consensus={
+                          consensusByBlock.get(b.id) ?? {
+                            counts: new Map(),
+                            colors: new Map(),
+                            total: 0,
+                          }
+                        }
                         busy={!!busy[d.id]}
                         error={errors[d.id] ?? null}
                       />
