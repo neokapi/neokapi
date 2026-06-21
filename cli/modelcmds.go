@@ -115,6 +115,9 @@ func modelStatus(plugin string, asset manifest.ModelAsset) (status string, total
 	for _, f := range asset.Files {
 		totalBytes += f.Size
 	}
+	if asset.Bundled {
+		return "bundled", totalBytes // ships in the tarball; nothing to fetch
+	}
 	dir, err := ModelDir(plugin, asset.ID, asset.Version)
 	if err != nil {
 		return "unknown", totalBytes
@@ -164,6 +167,9 @@ func (a *App) newModelsPullCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if asset.Bundled {
+				return fmt.Errorf("%s/%s is bundled with the plugin — nothing to fetch", plugin, asset.ID)
+			}
 			dir, err := EnsureModel(cmd.Context(), asset, ModelEnsureOptions{
 				Plugin: plugin,
 				Logf:   func(f string, a ...any) { fmt.Fprintf(cmd.ErrOrStderr(), f+"\n", a...) },
@@ -187,6 +193,9 @@ func (a *App) newModelsPruneCmd() *cobra.Command {
 			plugin, asset, err := a.resolveModelRef(args[0])
 			if err != nil {
 				return err
+			}
+			if asset.Bundled {
+				return fmt.Errorf("%s/%s is bundled with the plugin — cannot remove", plugin, asset.ID)
 			}
 			dir, err := ModelDir(plugin, asset.ID, asset.Version)
 			if err != nil {

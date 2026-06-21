@@ -65,6 +65,20 @@ func TestModelsValidate_Errors(t *testing.T) {
 	}
 }
 
+func TestModelsValidate_Bundled(t *testing.T) {
+	m := base()
+	// Bundled files ship in the tarball, so they need only a path — no url/sha.
+	m.Models = []ModelAsset{{
+		ID: "ppocrv5", Version: "1", Bundled: true,
+		Files: []ModelFile{{Path: "det.onnx"}, {Path: "rec.onnx"}},
+	}}
+	require.NoError(t, m.Validate())
+
+	// The same path-only files without Bundled must fail (pins are required).
+	m.Models[0].Bundled = false
+	require.Error(t, m.Validate())
+}
+
 func TestModelsValidate_DuplicateIDAndMultiDefault(t *testing.T) {
 	m := base()
 	a, b := validModel(), validModel()

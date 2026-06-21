@@ -119,6 +119,28 @@ func TestModelsListJSON(t *testing.T) {
 	assert.True(t, got.Models[0].Default)
 }
 
+func TestModelsBundledListedButNotPullable(t *testing.T) {
+	t.Setenv("KAPI_MODELS_CACHE", t.TempDir())
+	app := appWith(mkPlugin("vision", manifest.ModelAsset{
+		ID: "ppocrv5", Version: "1", Default: true, Bundled: true,
+		Files: []manifest.ModelFile{{Path: "det.onnx"}, {Path: "rec.onnx"}},
+	}))
+
+	// Listed, with a "bundled" status.
+	out, err := runModelsCmd(app, "list")
+	require.NoError(t, err)
+	assert.Contains(t, out, "ppocrv5")
+	assert.Contains(t, out, "bundled")
+
+	// But pull and prune refuse it.
+	_, err = runModelsCmd(app, "pull", "ppocrv5")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bundled")
+	_, err = runModelsCmd(app, "prune", "ppocrv5")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bundled")
+}
+
 func TestResolveModelRefAmbiguous(t *testing.T) {
 	app := appWith(
 		mkPlugin("llm", mkModel("shared-id", true)),

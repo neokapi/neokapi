@@ -122,6 +122,13 @@ type ModelAsset struct {
 	// model per manifest may set this.
 	Default bool `json:"default,omitempty"`
 
+	// Bundled marks a model that ships inside the plugin tarball rather than
+	// being downloaded by the host. Bundled assets are surfaced by `kapi models`
+	// for visibility but cannot be pulled or pruned (there is nothing to fetch
+	// or remove), and their files need only a Path — no URL or SHA-256, since
+	// integrity is already covered by the signed tarball.
+	Bundled bool `json:"bundled,omitempty"`
+
 	// Description is a one-line human summary shown by `kapi models`.
 	Description string `json:"description,omitempty"`
 
@@ -644,6 +651,9 @@ func (m *Manifest) Validate() error {
 				return fmt.Errorf("models[%d] (%s).files[%d]: duplicate file path %q", i, a.ID, j, f.Path)
 			}
 			seenFile[f.Path] = true
+			if a.Bundled {
+				continue // bundled files ship in the (signed) tarball — no URL/digest
+			}
 			if f.URL == "" {
 				return fmt.Errorf("models[%d] (%s).files[%d] (%s): url is required", i, a.ID, j, f.Path)
 			}

@@ -42,6 +42,7 @@
           "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
           "version": { "type": "string" },
           "default": { "type": "boolean" },
+          "bundled": { "type": "boolean" },
           "description": { "type": "string" },
           "license": { "type": "string" },
           "files": {
@@ -49,7 +50,7 @@
             "minItems": 1,
             "items": {
               "type": "object",
-              "required": ["path", "url", "sha256"],
+              "required": ["path"],
               "additionalProperties": false,
               "properties": {
                 "path": { "type": "string", "pattern": "^[^/\\\\]+$" },
