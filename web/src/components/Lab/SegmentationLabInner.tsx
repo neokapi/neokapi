@@ -107,7 +107,7 @@ const ENGINES: EngineDef[] = [
     label: "Hybrid",
     kind: "engine",
     engineArg: "hybrid",
-    note: "The Unicode rules, refined for real-world abbreviations.",
+    note: "Combines the UAX-29 Unicode boundaries with the SRX rules — neokapi's default.",
   },
   {
     id: "intl",
