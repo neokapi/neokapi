@@ -115,7 +115,7 @@ Count translatable words in a file.
 
 ### `run_flow`
 
-Execute a processing flow on a file. The flow name is any built-in flow from `list_flows` (e.g. `pseudo-translate`, `qa`, `tm-leverage`, `translate-qa`, `secure-translate`). AI-powered flows (e.g. `translate`, `translate-qa`) run only when the required provider API keys are configured.
+Execute a processing flow on a file. The flow name is any built-in flow from `list_flows` (e.g. `pseudo-translate`, `qa`, `recycle`, `translate-qa`, `secure-translate`). AI-powered flows (e.g. `translate`, `translate-qa`) run only when the required provider API keys are configured.
 
 **Input:**
 | Parameter | Type | Required | Description |

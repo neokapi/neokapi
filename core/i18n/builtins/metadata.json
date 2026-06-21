@@ -592,6 +592,44 @@
         }
       }
     },
+    "recycle": {
+      "displayName": "Recycle",
+      "category": "translation",
+      "properties": {
+        "downgradeIdenticalBestMatches": {
+          "title": "Downgrade Identical Exact Matches",
+          "description": "Reduce score by 1%% when multiple identical exact matches are returned"
+        },
+        "fillIfTargetIsEmpty": {
+          "title": "Only If Target Is Empty",
+          "description": "Fill the target only when it has no existing content"
+        },
+        "fillTarget": {
+          "title": "Fill Target with Translation",
+          "description": "Copy the best translation candidate into the target content"
+        },
+        "fillTargetThreshold": {
+          "title": "Fill Target Threshold",
+          "description": "Minimum match score required to fill the target"
+        },
+        "fuzzyThreshold": {
+          "title": "Fuzzy Match Threshold",
+          "description": "Minimum score for fuzzy matches (0-100)"
+        },
+        "makeTmx": {
+          "title": "Generate TMX Document",
+          "description": "Create a TMX file with all leveraged matches"
+        },
+        "noQueryThreshold": {
+          "title": "No-Query Threshold",
+          "description": "Skip TM query if existing candidate scores at or above this value (101 = always query)"
+        },
+        "tmxPath": {
+          "title": "TMX Output Path",
+          "description": "File path for the generated TMX document"
+        }
+      }
+    },
     "redact": {
       "displayName": "Redact",
       "description": "Replace sensitive spans with protected placeholders before processing",
@@ -941,44 +979,6 @@
       "groups": {
         "provider": {
           "label": "Provider"
-        }
-      }
-    },
-    "tm-leverage": {
-      "displayName": "TM Leverage",
-      "category": "translation",
-      "properties": {
-        "downgradeIdenticalBestMatches": {
-          "title": "Downgrade Identical Exact Matches",
-          "description": "Reduce score by 1%% when multiple identical exact matches are returned"
-        },
-        "fillIfTargetIsEmpty": {
-          "title": "Only If Target Is Empty",
-          "description": "Fill the target only when it has no existing content"
-        },
-        "fillTarget": {
-          "title": "Fill Target with Translation",
-          "description": "Copy the best translation candidate into the target content"
-        },
-        "fillTargetThreshold": {
-          "title": "Fill Target Threshold",
-          "description": "Minimum match score required to fill the target"
-        },
-        "fuzzyThreshold": {
-          "title": "Fuzzy Match Threshold",
-          "description": "Minimum score for fuzzy matches (0-100)"
-        },
-        "makeTmx": {
-          "title": "Generate TMX Document",
-          "description": "Create a TMX file with all leveraged matches"
-        },
-        "noQueryThreshold": {
-          "title": "No-Query Threshold",
-          "description": "Skip TM query if existing candidate scores at or above this value (101 = always query)"
-        },
-        "tmxPath": {
-          "title": "TMX Output Path",
-          "description": "File path for the generated TMX document"
         }
       }
     },

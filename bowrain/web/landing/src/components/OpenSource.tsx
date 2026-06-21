@@ -83,7 +83,7 @@ export function OpenSource() {
             </div>
             <div>
               {" "}
-              - <span className="text-brand-400">tm-leverage</span>:{" "}
+              - <span className="text-brand-400">recycle</span>:{" "}
               <span className="text-neutral-300">min-score: 75</span>
             </div>
             <div>

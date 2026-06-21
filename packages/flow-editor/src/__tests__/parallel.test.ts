@@ -10,7 +10,7 @@ describe("stepsToGraph with parallel branches", () => {
         { tool: "translate" },
         {
           tool: "",
-          parallel: [{ tool: "qa" }, { tool: "tm-leverage" }],
+          parallel: [{ tool: "qa" }, { tool: "recycle" }],
         },
         { tool: "merge-results" },
       ],
@@ -24,7 +24,7 @@ describe("stepsToGraph with parallel branches", () => {
     const group = nodes.find((n) => n.type === "parallel")!;
     expect(group).toBeDefined();
     const branches = group.data.branches as Array<{ toolName: string }>;
-    expect(branches.map((b) => b.toolName)).toEqual(["qa", "tm-leverage"]);
+    expect(branches.map((b) => b.toolName)).toEqual(["qa", "recycle"]);
   });
 
   it("connects the previous node to the parallel group with a single edge", () => {
@@ -33,7 +33,7 @@ describe("stepsToGraph with parallel branches", () => {
         { tool: "translate" },
         {
           tool: "",
-          parallel: [{ tool: "qa" }, { tool: "tm-leverage" }],
+          parallel: [{ tool: "qa" }, { tool: "recycle" }],
         },
       ],
     };
@@ -51,7 +51,7 @@ describe("stepsToGraph with parallel branches", () => {
       steps: [
         {
           tool: "",
-          parallel: [{ tool: "qa" }, { tool: "tm-leverage" }],
+          parallel: [{ tool: "qa" }, { tool: "recycle" }],
         },
         { tool: "merge" },
       ],

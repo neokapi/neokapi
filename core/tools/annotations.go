@@ -51,7 +51,7 @@ type SegCountAnnotation struct {
 func (*SegCountAnnotation) TypeName() string { return string(model.AnnoSegCount) }
 
 // TMMatchAnnotation carries the best TM match score/type for a block, plus the
-// segment-level "matched/total" summary when leveraged per segment (tm-leverage).
+// segment-level "matched/total" summary when leveraged per segment (recycle).
 type TMMatchAnnotation struct {
 	Score          int    `json:"score"`                    // 0-100
 	Type           string `json:"type"`                     // "exact","fuzzy","segmented-exact",…

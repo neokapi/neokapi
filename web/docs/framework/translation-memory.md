@@ -11,7 +11,7 @@ neokapi's translation memory is **Sievepen** (`sievepen/`). Unlike traditional
 TMs that store plain strings, Sievepen works with the full content model — each
 entry holds multilingual variants as `Run` sequences (text plus inline markup)
 and matches them in three tiers with entity-aware adaptation. The same engine
-backs the `kapi tm` commands, the `tm-leverage` pipeline tool, and the Go
+backs the `kapi tm` commands, the `recycle` pipeline tool, and the Go
 library.
 
 ## Content-aware matching
@@ -80,17 +80,17 @@ kapi tm list
 
 ## Pipeline integration
 
-The `tm-leverage` tool queries the TM for each Block's source segments and
+The `recycle` tool queries the TM for each Block's source segments and
 applies matches. Every match — exact or fuzzy — is recorded as an
 `AltTranslation` annotation (matched source/target runs, score, match type,
 `tm` origin), and a filled target is committed with provenance
-(`Origin{Kind: "tm", Tool: "tm-leverage"}`), its score, and `draft` status, so
+(`Origin{Kind: "tm", Tool: "recycle"}`), its score, and `draft` status, so
 the leverage is auditable rather than an opaque overwrite. Exact matches skip AI
 translation, reducing cost and latency.
 
 **Segment-aware leverage.** When a block carries a multi-segment
 [segmentation](/framework/segmentation) overlay (a prose paragraph split into
-sentences), `tm-leverage` looks up the TM **per sentence**. This recovers
+sentences), `recycle` looks up the TM **per sentence**. This recovers
 leverage for multi-sentence blocks that would never match the sentence-keyed TM
 as a single unit. A single-segment block (most software-localization strings)
 takes the whole-block path unchanged.
@@ -105,18 +105,18 @@ The result is recorded so it is **auditable, not blind**:
 - The block records `tm-segment-matches` (e.g. `3/5`) for quick gating.
 - The block target is filled only when **every** sentence matched and the
   segments are contiguous; when it is, the committed target carries
-  provenance (`Origin{Kind: "tm", Tool: "tm-leverage"}`), the roll-up `Score`,
+  provenance (`Origin{Kind: "tm", Tool: "recycle"}`), the roll-up `Score`,
   and `draft` status — a reviewable pre-fill, not a signed-off translation.
 
-Run [segmentation](/framework/segmentation) before `tm-leverage` to enable this.
+Run [segmentation](/framework/segmentation) before `recycle` to enable this.
 
 ```bash
-kapi tm-leverage -i input.html -o output.html --source-lang en --target-lang fr --tm project-tm
+kapi recycle -i input.html -o output.html --source-lang en --target-lang fr --tm project-tm
 ```
 
 ```yaml
 steps:
-  - tool: tm-leverage
+  - tool: recycle
     config:
       fuzzyThreshold: 70 # minimum score for fuzzy matches (0-100)
       fillTarget: true # copy the best candidate into the target

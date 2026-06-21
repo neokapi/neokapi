@@ -21,7 +21,7 @@ const SAMPLE_FLOWS: Record<string, FlowSpec> = {
   "full-pipeline": {
     description: "Complete localization pipeline",
     steps: [
-      { tool: "tm-leverage", label: "TM Leverage" },
+      { tool: "recycle", label: "TM Leverage" },
       { tool: "translate", label: "AI Translate" },
       {
         tool: "",

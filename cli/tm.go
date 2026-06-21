@@ -24,7 +24,7 @@ func (a *App) NewTMCmd() *cobra.Command {
 	tmCmd := &cobra.Command{
 		Use:     "tm",
 		Short:   "Manage translation memory",
-		GroupID: "management",
+		GroupID: "localization",
 		Long: `Manage translation memory.
 
 A translation memory (TM) stores previously translated segments as a SQLite

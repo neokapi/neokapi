@@ -22,7 +22,7 @@ The `kapi run` command executes a named multi-step processing pipeline. Where co
 
 **Built-in composed flows**: Multi-tool pipelines like `translate-qa` are available as built-in flows.
 
-**Single tools as top-level commands**: Individual tools run directly as top-level commands — `kapi translate`, `kapi pseudo-translate`, `kapi qa`, `kapi tm-leverage`, etc.
+**Single tools as top-level commands**: Individual tools run directly as top-level commands — `kapi translate`, `kapi pseudo-translate`, `kapi qa`, `kapi recycle`, etc.
 
 Use `kapi flows` to see available flows, or `kapi tools` to see available tools.
 
@@ -42,7 +42,7 @@ kapi pseudo-translate input.html -o output.html --target-lang fr
 kapi translate -i file1.html -i file2.html --source-lang en --target-lang fr -j 4
 
 # Leverage translation memory (top-level tool command)
-kapi tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
+kapi recycle -i input.html -o output.html --source-lang en --target-lang fr
 
 # Run quality checks (top-level tool command)
 kapi qa -i translations.html -o qa-report.html --target-lang fr
@@ -141,7 +141,7 @@ Single tools run directly as top-level commands:
 | `kapi translate`     | Translate content using AI/LLM                |
 | `kapi pseudo-translate` | Generate pseudo-translations for testing      |
 | `kapi qa`         | Run rule-based quality checks on translations |
-| `kapi tm-leverage`      | Pre-fill translations from translation memory |
+| `kapi recycle`      | Pre-fill translations from translation memory |
 
 ## Listing Available Tools
 

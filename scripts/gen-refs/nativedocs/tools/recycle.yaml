@@ -1,8 +1,8 @@
-# Native reference doc for the built-in `tm-leverage` tool.
+# Native reference doc for the built-in `recycle` tool (TM leverage).
 # Schema source: core/tools/tmleverage.go (TMLeverageConfig).
 description: Pre-fill translations from a translation memory using exact and fuzzy matching.
 overview: |
-  The **TM Leverage** tool queries a translation memory (TM) for each block's
+  The **Recycle** tool queries a translation memory (TM) for each block's
   source text and pre-fills the target with the best match. It tries an exact
   match first, then a fuzzy match above a configurable threshold, recording the
   match score and type (`exact` or `fuzzy`) on the block. It requires a target

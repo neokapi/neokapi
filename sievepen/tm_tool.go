@@ -16,7 +16,7 @@ type TMLeverageConfig struct {
 }
 
 // ToolName returns the name of the tool this config applies to.
-func (c *TMLeverageConfig) ToolName() string { return "tm-leverage" }
+func (c *TMLeverageConfig) ToolName() string { return "recycle" }
 
 // Reset restores default values.
 func (c *TMLeverageConfig) Reset() {
@@ -50,7 +50,7 @@ func NewTMLeverageTool(tm TranslationMemory, cfg TMLeverageConfig) *TMLeverageTo
 		tm:  tm,
 		cfg: cfg,
 	}
-	t.ToolName = "tm-leverage"
+	t.ToolName = "recycle"
 	t.ToolDescription = "Content-aware TM leverage with generalized, structural, and plain matching"
 	// Translate: applies TM matches as targets (exact tiers) and an
 	// alt-translation annotation; source stays read-only.

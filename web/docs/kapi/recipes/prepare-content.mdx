@@ -48,7 +48,7 @@ you just pre-translate:
 
 ```bash
 # Fill from TM first, then translate only what's left
-kapi run tm-leverage -i src/locales/en.json --target-lang fr
+kapi run recycle -i src/locales/en.json --target-lang fr
 ```
 
 The [Pre-translate with TM + termbase](/kapi/recipes/pre-translate-with-tm) recipe
@@ -86,7 +86,7 @@ steps:
   - tool: redact              # Job 1: protect sensitive content
   - tool: segmentation        # split into sentences so reuse + checks work per unit
   - tool: entity-extract   # detect names so TM can generalize over them
-  - tool: tm-leverage         # Job 2: reuse past translations
+  - tool: recycle         # Job 2: reuse past translations
   - tool: term-lookup         # Job 3: apply the glossary as guidance
   - tool: translate        # translate the remainder
   - tool: qa            # Job 3: gate on findings

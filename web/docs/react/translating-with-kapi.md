@@ -108,10 +108,10 @@ QA results can fail your build — a common CI pattern is `extract → translate
 kapi tm import historical-translations.xliff -s en -t fr
 ```
 
-Then pre-fill matches before the AI pass: `kapi tm-leverage` writes exact and high-scoring fuzzy matches into the target, and `translate --skip-matched` translates only what's left:
+Then pre-fill matches before the AI pass: `kapi recycle` writes exact and high-scoring fuzzy matches into the target, and `translate --skip-matched` translates only what's left:
 
 ```bash
-kapi tm-leverage i18n/ --target-lang fr            # fill targets from the TM (defaults to the project TM)
+kapi recycle i18n/ --target-lang fr            # fill targets from the TM (defaults to the project TM)
 kapi translate i18n/ --target-lang fr --skip-matched
 ```
 
@@ -153,7 +153,7 @@ is the working model worth adopting: it captures the content patterns, target
 languages, flows, and defaults once, so you drive everything through named flows
 instead of repeating flags, and the project store accumulates translation memory
 across releases. Define a `translate` flow in the recipe (for example
-`tm-leverage` → `translate` → `qa`), then:
+`recycle` → `translate` → `qa`), then:
 
 ```json title="package.json"
 {

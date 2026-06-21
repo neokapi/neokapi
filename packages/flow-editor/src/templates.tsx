@@ -64,7 +64,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     spec: {
       steps: [
         {
-          tool: "tm-leverage",
+          tool: "recycle",
           get label() {
             return t("TM Leverage", "flow step label");
           },
@@ -167,7 +167,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     spec: {
       steps: [
         {
-          tool: "tm-leverage",
+          tool: "recycle",
           get label() {
             return t("TM Leverage", "flow step label");
           },

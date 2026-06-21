@@ -62,7 +62,7 @@ type TMBlockMatch struct {
 }
 
 // BlockTMProvider is an optional TMProvider capability for structure-aware
-// lookup. When the configured Provider implements it, the tm-leverage tool
+// lookup. When the configured Provider implements it, the recycle tool
 // queries the TM with the block's full source Run sequence (inline codes
 // included) instead of its flattened text, and fills the target with the
 // matched entry's runs. Providers backed by sievepen implement this via
@@ -107,7 +107,7 @@ type TMLeverageConfig struct {
 }
 
 // ToolName returns the tool name this config applies to.
-func (c *TMLeverageConfig) ToolName() string { return "tm-leverage" }
+func (c *TMLeverageConfig) ToolName() string { return "recycle" }
 
 // Reset restores default values.
 func (c *TMLeverageConfig) Reset() {
@@ -127,13 +127,13 @@ func (c *TMLeverageConfig) Reset() {
 // Validate checks configuration validity.
 func (c *TMLeverageConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
-		return errors.New("tm-leverage: TargetLocale is required")
+		return errors.New("recycle: TargetLocale is required")
 	}
 	if c.FuzzyThreshold < 0 || c.FuzzyThreshold > 100 {
-		return errors.New("tm-leverage: FuzzyThreshold must be between 0 and 100")
+		return errors.New("recycle: FuzzyThreshold must be between 0 and 100")
 	}
 	if c.Provider == nil {
-		return errors.New("tm-leverage: Provider is required")
+		return errors.New("recycle: Provider is required")
 	}
 	return nil
 }
@@ -143,10 +143,11 @@ func TMLeverageSchema() *schema.ComponentSchema {
 	cfg := &TMLeverageConfig{}
 	cfg.Reset()
 	return schema.FromStruct(cfg, schema.ToolMeta{
-		ID:          "tm-leverage",
+		ID:          "recycle",
 		Category:    schema.CategoryTranslation,
-		DisplayName: "TM Leverage",
+		DisplayName: "Recycle",
 		Description: "Pre-fill translations from translation memory",
+		Tags:        []string{schema.TagL10n},
 		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresSourceLanguage, schema.RequiresTM},
 	})
 }
@@ -156,7 +157,7 @@ func NewTMLeverageFromConfig(config map[string]any, targetLang string) (tool.Too
 	cfg := &TMLeverageConfig{}
 	cfg.Reset()
 	if err := schema.ApplyConfig(config, cfg); err != nil {
-		return nil, fmt.Errorf("tm-leverage config: %w", err)
+		return nil, fmt.Errorf("recycle config: %w", err)
 	}
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
@@ -182,11 +183,11 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 	}
 
 	t := &tool.BaseTool{
-		ToolName:        "tm-leverage",
+		ToolName:        "recycle",
 		ToolDescription: "Pre-fills translations from translation memory using exact and fuzzy matching",
 		Cfg:             cfg,
 	}
-	// Translate: tm-leverage writes a target translation from TM; source is read-only.
+	// Translate: recycle writes a target translation from TM; source is read-only.
 	t.Produce = func(v tool.VariantView) error {
 		if !v.Translatable() {
 			return nil
@@ -269,13 +270,13 @@ func recordWholeBlockMatch(v tool.VariantView, conf *TMLeverageConfig, translati
 		Origin:    "tm",
 		Score:     float64(score) / 100,
 		MatchType: mt,
-		ToolID:    "tm-leverage",
+		ToolID:    "recycle",
 	})
 	if shouldFillTarget(conf, v, score) {
 		v.SetTarget(conf.TargetLocale, &model.Target{
 			Runs:   targetRuns,
 			Status: model.TargetStatusDraft,
-			Origin: model.Origin{Kind: "tm", Tool: "tm-leverage"},
+			Origin: model.Origin{Kind: "tm", Tool: "recycle"},
 			Score:  float64(score) / 100,
 		})
 	}
@@ -336,7 +337,7 @@ func leverageBlockRuns(conf *TMLeverageConfig, v tool.VariantView, bp BlockTMPro
 		Origin:    "tm",
 		Score:     float64(m.Score) / 100,
 		MatchType: matchType,
-		ToolID:    "tm-leverage",
+		ToolID:    "recycle",
 	})
 	if m.Ambiguous {
 		// Recorded as a candidate only. Handled: the text path would
@@ -354,7 +355,7 @@ func leverageBlockRuns(conf *TMLeverageConfig, v tool.VariantView, bp BlockTMPro
 	v.SetTarget(conf.TargetLocale, &model.Target{
 		Runs:   targetRuns,
 		Status: model.TargetStatusDraft,
-		Origin: model.Origin{Kind: "tm", Tool: "tm-leverage"},
+		Origin: model.Origin{Kind: "tm", Tool: "recycle"},
 		Score:  float64(m.Score) / 100,
 	})
 	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: m.Score, Type: propType})
@@ -568,7 +569,7 @@ func leverageSegments(conf *TMLeverageConfig, v tool.VariantView) bool {
 		v.SetTarget(conf.TargetLocale, &model.Target{
 			Runs:   []model.Run{{Text: &model.TextRun{Text: strings.Join(translations, "")}}},
 			Status: model.TargetStatusDraft,
-			Origin: model.Origin{Kind: "tm", Tool: "tm-leverage"},
+			Origin: model.Origin{Kind: "tm", Tool: "recycle"},
 			Score:  float64(minScore) / 100,
 		})
 	}
@@ -589,7 +590,7 @@ func annotateSegmentMatch(v tool.VariantView, conf *TMLeverageConfig, idx int, s
 		Origin:       "tm",
 		Score:        float64(score) / 100,
 		MatchType:    mt,
-		ToolID:       "tm-leverage",
+		ToolID:       "recycle",
 		SegmentIndex: idx,
 	})
 }

@@ -67,7 +67,7 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 	}
 
 	expectedTools := []string{
-		"translate", "pseudo-translate", "tm-leverage", "qa",
+		"translate", "pseudo-translate", "recycle", "qa",
 		"review", "word-count", "search-replace",
 		"segmentation", "script",
 	}
@@ -83,6 +83,60 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 	for _, name := range internalTools {
 		assert.False(t, names[name], "internal tool %q should not be a CLI command", name)
 	}
+}
+
+// TestLocalizationGroupRouting verifies that l10n-tagged tools collapse under
+// the "localization" help group while generic, format-aware tools keep their
+// category-named group. The schema Category is untouched (see
+// TestCLIToolCategories) — only the cobra GroupID is rerouted.
+func TestLocalizationGroupRouting(t *testing.T) {
+	app := newTestApp()
+	cmds := app.NewToolCommands()
+	require.NotEmpty(t, cmds)
+
+	groupByName := make(map[string]string)
+	for _, cmd := range cmds {
+		groupByName[cmd.Name()] = cmd.GroupID
+	}
+
+	// Localization toolchain → "localization", regardless of schema Category.
+	// (Only CLI-visible tools — those with a config factory — appear here;
+	// flow-only checks like dnt-check carry the tag but are not commands.)
+	for _, name := range []string{"recycle", "translate", "pseudo-translate", "qa", "term-check", "inconsistency-check"} {
+		assert.Equal(t, "localization", groupByName[name],
+			"l10n tool %q should route to the localization group", name)
+	}
+
+	// Generic / deliberately-untagged tools keep their category group.
+	generic := map[string]string{
+		"word-count":   schema.CategoryAnalysis,
+		"content-lint": schema.CategoryTextProcessing,
+		"length-check": schema.CategoryQuality, // intentionally not l10n-tagged
+	}
+	for name, want := range generic {
+		assert.Equal(t, want, groupByName[name],
+			"generic tool %q should keep its category group", name)
+	}
+}
+
+// TestRecycleAlias proves the tm-leverage → recycle rename: the canonical
+// command is `recycle`, and `tm-leverage` survives as a hidden alias so older
+// muscle memory and recipes keep working.
+func TestRecycleAlias(t *testing.T) {
+	app := newTestApp()
+	cmds := app.NewToolCommands()
+
+	var recycle *cobra.Command
+	for _, cmd := range cmds {
+		if cmd.Name() == "recycle" {
+			recycle = cmd
+		}
+		assert.NotEqual(t, "tm-leverage", cmd.Name(),
+			"tm-leverage must not be a primary command name — it is an alias")
+	}
+	require.NotNil(t, recycle, "expected a `recycle` command")
+	assert.Contains(t, recycle.Aliases, "tm-leverage",
+		"recycle should carry tm-leverage as a back-compat alias")
 }
 
 func TestNewToolCommands_AliasesWork(t *testing.T) {
@@ -154,7 +208,7 @@ func TestAddCommandGroupsRegistersGroups(t *testing.T) {
 	app := &App{}
 	app.AddCommandGroups(root)
 
-	groupIDs := []string{"processing", "translation", "quality", "analysis", "text-processing", "management"}
+	groupIDs := []string{"processing", "localization", "quality", "analysis", "text-processing", "management"}
 	for _, id := range groupIDs {
 		cmd := &cobra.Command{Use: "test-" + id, GroupID: id}
 		assert.NotPanics(t, func() {

@@ -73,13 +73,13 @@ kapi tm stats
 ## Step 2 — leverage the TM
 
 Fill segments that have an exact or fuzzy match in the TM. With no flag,
-`tm-leverage` reads the same TM you just imported into; pass `--tm <name|path>`
+`recycle` reads the same TM you just imported into; pass `--tm <name|path>`
 to leverage a different one. Exact matches are applied automatically; fuzzy
 matches (70% similarity by default) are filled too, with the score recorded so
 reviewers know which to double-check:
 
 ```bash
-kapi tm-leverage messages_en.json \
+kapi recycle messages_en.json \
   -o step1_tm.json \
   --source-lang en \
   --target-lang fr
@@ -124,7 +124,7 @@ defaults:
 flows:
   pretranslate:
     steps:
-      - tool: tm-leverage
+      - tool: recycle
       - tool: pseudo-translate
       - tool: term-check
 ```
@@ -170,7 +170,7 @@ and credentials), then keep the `term-check` step as your guardrail. See
 ## Next
 
 - [`kapi tm`](/reference/commands/tm) and
-  [`kapi tm-leverage`](/reference/commands/tm-leverage) — command references.
+  [`kapi recycle`](/reference/commands/recycle) — command references.
 - [Where TM and termbases live](/kapi/recipes/tm-termbase-storage) — loose file,
   named store, or project store, and the flags that select each.
 - [Translation Memory](/framework/translation-memory) — how TM matching works.

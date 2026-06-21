@@ -253,7 +253,7 @@ Because AI tools are ordinary Tools, they compose naturally:
 <PipelineDiagram
   stages={[
     { label: "Source", role: "io" },
-    { label: "tm-leverage", role: "translate" },
+    { label: "recycle", role: "translate" },
     { label: "term-lookup", role: "annotate" },
     { label: "translate", role: "translate" },
     { label: "term-enforce", role: "qa" },
@@ -359,7 +359,7 @@ these framework primitives.
 - [AD-004: Processing Engine](004-processing-engine.md) — flow execution
   and `ParallelBlockTool`
 - [AD-006: Tool System](006-tool-system.md) — Tool pattern
-- [AD-009: Translation Memory](009-translation-memory.md) — `tm-leverage`
+- [AD-009: Translation Memory](009-translation-memory.md) — `recycle`
   feeds context to AI tools
 - [AD-010: Terminology](010-terminology.md) — term annotations feed
   context to AI tools

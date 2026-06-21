@@ -14,7 +14,7 @@
 //	cli.output.<key>
 //
 // The dot-separated scope is exactly the block name the JSON format reader
-// derives from the document's key path, so `kapi tm-leverage commands.json
+// derives from the document's key path, so `kapi recycle commands.json
 // -f json -o catalogs/<lang>.mo` produces MO entries whose msgctxt matches
 // the runtime lookups in cli.LocalizeCommandHelp and cli/output.T. See the
 // l10n-cli Makefile target and AD-016.

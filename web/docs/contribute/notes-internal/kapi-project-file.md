@@ -193,10 +193,10 @@ kapi run translate -p translation.kapi
 ```
 
 Built-in flows are `translate`, `translate-qa`, `pseudo-translate`,
-`qa`, `tm-leverage`, and `secure-translate` (see
+`qa`, `recycle`, and `secure-translate` (see
 `core/flow.BuiltInFlows`). A recipe's `flows:` map can add new flows and
 override the single-tool built-ins (`translate`, `pseudo-translate`,
-`qa`, `tm-leverage`). It cannot override the composed built-ins
+`qa`, `recycle`). It cannot override the composed built-ins
 (`translate-qa`, `secure-translate`) when invoked via `-p`: `runWithProject`
 (`cli/run.go`) dispatches those to the built-in pipeline before consulting
 `proj.GetFlow`.
@@ -286,7 +286,7 @@ flows:
 
   full-pipeline:
     steps:
-      - tool: tm-leverage
+      - tool: recycle
         config:
           fuzzyThreshold: 75
       - tool: translate

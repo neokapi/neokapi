@@ -43,13 +43,13 @@ files:
 
 steps:
   - comment: The wasm build pre-seeds a TM; top it up from a project TMX
-  # tm import / tm-leverage reference .tmx / messages_en.json fixtures, which W7
+  # tm import / recycle reference .tmx / messages_en.json fixtures, which W7
   # skip-lists (native-binary only). They stay in smoke_contract so W7 keeps
   # tracking them (honestly skipped), and run live in the embed.
   - command: kapi tm import project.tmx -s en -t fr
     narration: Load existing translation memory.
   - comment: Step 1 — leverage translation memory
-  - command: kapi tm-leverage messages_en.json -o step1_tm.json --source-lang en --target-lang fr
+  - command: kapi recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr
     narration: Fill exact/fuzzy matches from the TM; the rest stay untranslated.
   - comment: Step 2 — pseudo-translate the remaining misses
   - command: kapi pseudo-translate step1_tm.json -o step2_translated.json

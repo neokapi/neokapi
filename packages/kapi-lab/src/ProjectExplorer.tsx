@@ -20,7 +20,7 @@ export interface ProjectExplorerProps {
 export const TARGETS = ["fr"] as const;
 type Target = (typeof TARGETS)[number];
 
-// Flows the recipe declares. Both leverage translation memory (tm-leverage) and
+// Flows the recipe declares. Both leverage translation memory (recycle) and
 // run offline — no LLM, no network: the project TM (seeded via `kapi tm import`
 // before extract) supplies the French. `translate` fills any TM match;
 // `translate-exact` only fills 100% matches, so picking it visibly changes the
@@ -37,14 +37,14 @@ export const FLOWS: FlowDef[] = [
     label: "translate — TM leverage (exact + fuzzy)",
     yaml: `  translate:
     steps:
-      - tool: tm-leverage`,
+      - tool: recycle`,
   },
   {
     id: "translate-exact",
     label: "translate-exact — TM leverage (100% only)",
     yaml: `  translate-exact:
     steps:
-      - tool: tm-leverage
+      - tool: recycle
         config:
           fillTargetThreshold: 100`,
   },
@@ -87,7 +87,7 @@ ${FLOWS.map((f) => f.yaml).join("\n")}
 // committed recipe (content + multiple flows + a real fr target) plus a .kapi/
 // state dir (the persistent project store + TM) — and runs the project
 // lifecycle in WASM: import the project TM → extract → run a declared
-// translate flow (tm-leverage, process-only, commits real fr targets to the
+// translate flow (recycle, process-only, commits real fr targets to the
 // store) → merge (materialize the localized file). The translation is genuine
 // TM leverage — no LLM, no network — so the merged output is a real fr file,
 // never a pseudo/qps test artifact. It is the multi-file, team/server
@@ -172,7 +172,7 @@ export default function ProjectExplorer({
       try {
         // Seed the project (recipe + source + TMX) before extract so a
         // sample/flow switch starts clean, and import the TMX into the project
-        // TM so the translate (tm-leverage) flow has matches to pull.
+        // TM so the translate (recycle) flow has matches to pull.
         if (step === "extract") {
           runtime.mkdir(dir);
           runtime.writeFile(`${dir}/demo.kapi`, recipe);

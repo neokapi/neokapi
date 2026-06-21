@@ -22,9 +22,9 @@ func newTMTestCmd() *cobra.Command {
 }
 
 // newTMLeverageTestCmd returns a bare command carrying the --tm flag that the
-// tm-leverage tool command registers, for exercising openToolTM resolution.
+// recycle tool command registers, for exercising openToolTM resolution.
 func newTMLeverageTestCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "tm-leverage"}
+	cmd := &cobra.Command{Use: "recycle"}
 	cmd.Flags().String("tm", "", "named TM or path")
 	return cmd
 }
@@ -92,7 +92,7 @@ func TestResolveTMCmdPath_NoProject(t *testing.T) {
 	assert.Equal(t, "tm.db", got, "outside a project, default to ./tm.db")
 }
 
-// TestOpenToolTM_LeveragesProjectTM asserts that inside a project the tm-leverage
+// TestOpenToolTM_LeveragesProjectTM asserts that inside a project the recycle
 // tool command opens .kapi/tm.db and the resolved provider returns the exact
 // match stored there — proving the leverage path is wired (not NullTMProvider).
 func TestOpenToolTM_LeveragesProjectTM(t *testing.T) {

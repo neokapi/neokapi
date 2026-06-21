@@ -77,7 +77,7 @@ typical production flow chains TM leverage, an MT pass, and AI refinement:
 
 ```yaml
 steps:
-  - tool: tm-leverage
+  - tool: recycle
   - tool: translate
     config:
       provider: deepl

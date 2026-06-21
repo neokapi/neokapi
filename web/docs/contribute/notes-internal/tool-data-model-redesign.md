@@ -135,7 +135,7 @@ This makes the motivating cases expressible:
 | Tool | Consumes | Produces |
 | --- | --- | --- |
 | `segmentation` | — | `segmentation@source` |
-| `tm-leverage` | `segmentation@source` *(optional)* | `tm-match`, `alt-translation`, `target` |
+| `recycle` | `segmentation@source` *(optional)* | `tm-match`, `alt-translation`, `target` |
 | `translate` | `term@source` *(opt)*, `entity@source` *(opt)* | `target` |
 | `term-lookup` | — | `term@source` |
 | `qa` | `target` *(required)* | `qa@target` |
@@ -143,7 +143,7 @@ This makes the motivating cases expressible:
 
 ### Why optionality
 
-`tm-leverage` declaring `segmentation@source` as **optional** is exactly "works
+`recycle` declaring `segmentation@source` as **optional** is exactly "works
 on both blocks and segments": the validator never *requires* an upstream
 segmenter, but the tool does more when one is present — it leverages per segment
 span instead of only whole-block. Optional consumed ports model graceful
@@ -157,7 +157,7 @@ The capability a tool declares by which block handler it sets on `BaseTool`
 (`Annotate` / `Produce` / `Transform`, AD-006) is the **write-surface**
 contract — what kind of mutation the tool may make. The `IOPort` contract is the
 **data-dependency** contract — which interpretations it reads and writes. They
-compose: `tm-leverage` is `Translate`-capable (writes the target) *and*
+compose: `recycle` is `Translate`-capable (writes the target) *and*
 optionally consumes the segmentation overlay. Neither subsumes the other — the
 immutability backstop enforces the capability; the port contract drives flow
 validation and the UI. `Consumes`/`Produces` types are validated against the
@@ -198,7 +198,7 @@ type VariantView interface {
 Reads reuse `RunRange.ExtractRuns` (`core/model/overlay.go`); writes use an
 inverse splice that respects half-open ranges and `Span.Ignorable()`. The
 iterator is the single place the "segmented or not" branch lives — every
-per-segment tool (`tm-leverage` segment keys, per-segment MT, segment-level QA)
+per-segment tool (`recycle` segment keys, per-segment MT, segment-level QA)
 drops its hand-rolled loop. It generalizes the source-only segment access to any
 side and any named layer, and pairs naturally with the `alignment` overlay for
 source↔target unit correspondence. It is additive: a tool that wants the whole

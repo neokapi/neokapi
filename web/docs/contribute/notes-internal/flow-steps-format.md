@@ -71,7 +71,7 @@ at run time ([AD-026](../architecture/026-flow-io-binding.md)), not nodes.
 
 ```yaml
 steps:
-  - tool: tm-leverage
+  - tool: recycle
     config: { fuzzyThreshold: 75 }
   - tool: translate
   - tool: qa

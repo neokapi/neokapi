@@ -171,7 +171,7 @@ steps:
   - tool: segmentation       # mark sentence boundaries
     config:
       engine: srx
-  - tool: tm-leverage        # reuse prior sentence translations
+  - tool: recycle        # reuse prior sentence translations
   - tool: translate          # translate the remainder
 ```
 
@@ -183,7 +183,7 @@ project-local TM.
 
 - **Translation memory** — TM is a store of *segment* pairs, so segmentation is
   what makes prior sentence translations reusable. Segment, then
-  [`tm-leverage`](/framework/translation-memory) matches **sentence by sentence**:
+  [`recycle`](/framework/translation-memory) matches **sentence by sentence**:
   when a block carries a multi-segment overlay, each sentence is looked up
   against the TM and the block target is assembled from the per-segment matches —
   so a paragraph whose sentences were translated before is leveraged even though

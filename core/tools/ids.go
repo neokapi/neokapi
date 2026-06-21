@@ -38,7 +38,9 @@ const (
 	XSLTTransform     registry.ToolID = "xslt-transform"
 
 	// Enrich
-	TMLeverage   registry.ToolID = "tm-leverage"
+	// TMLeverage's id is "recycle" (the canonical command); "tm-leverage"
+	// survives only as a hidden CLI alias. The Go const name is unchanged.
+	TMLeverage   registry.ToolID = "recycle"
 	DiffLeverage registry.ToolID = "diff-leverage"
 
 	// Convert

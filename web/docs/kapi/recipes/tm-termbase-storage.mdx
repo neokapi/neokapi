@@ -91,7 +91,7 @@ different store even from inside a project.
 ## How tools select a store
 
 The tool commands that consume a store —
-[`kapi tm-leverage`](/reference/commands/tm-leverage) and
+[`kapi recycle`](/reference/commands/recycle) and
 [`kapi term-check`](/reference/commands/term-check) — follow the same precedence
 through their own `--tm` and `--termbase` flags:
 
@@ -101,7 +101,7 @@ through their own `--tm` and `--termbase` flags:
 - no flag, inside a project — the project's `.kapi/tm.db` / project termbase.
 
 ```bash
-kapi tm-leverage messages.json --target-lang fr --tm corporate-en-fr
+kapi recycle messages.json --target-lang fr --tm corporate-en-fr
 kapi term-check messages_fr.json --source-lang en --target-lang fr \
   --termbase product-terms
 ```
@@ -118,7 +118,7 @@ kapi term-check messages_fr.json --source-lang en --target-lang fr \
 
 `kapi tm` and `kapi termbase` take the locale with `-s`/`--source-locale` and
 `-t`/`--target-locale`. The tool commands that read these stores
-(`kapi tm-leverage`, `kapi term-check`) instead use the processing flags
+(`kapi recycle`, `kapi term-check`) instead use the processing flags
 `--source-lang` and `--target-lang`, consistent with the other tools.
 
 ## Next

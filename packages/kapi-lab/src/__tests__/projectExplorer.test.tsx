@@ -15,9 +15,9 @@ describe("ProjectExplorer helpers", () => {
     const ids = FLOWS.map((f) => f.id);
     expect(ids).toContain("translate");
     expect(ids).toContain("translate-exact");
-    // Every flow's steps use the offline tm-leverage tool (no LLM, no network).
+    // Every flow's steps use the offline recycle tool (no LLM, no network).
     for (const f of FLOWS) {
-      expect(f.yaml).toContain("tool: tm-leverage");
+      expect(f.yaml).toContain("tool: recycle");
     }
   });
 

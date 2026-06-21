@@ -132,7 +132,7 @@ flows:
 
   full-pipeline:
     steps:
-      - tool: tm-leverage
+      - tool: recycle
         config:
           fuzzy_threshold: 75
       - tool: translate

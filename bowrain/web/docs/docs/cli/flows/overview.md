@@ -38,7 +38,7 @@ kapi ships a small set of composed flows you can run by name:
 | `translate-qa`  | AI translation followed by quality checks                         |
 | `pseudo-translate` | Generate pseudo-translations for UI testing                       |
 | `qa`         | Rule-based quality checks (whitespace, punctuation, placeholders) |
-| `tm-leverage`      | Pre-fill translations from translation memory                     |
+| `recycle`      | Pre-fill translations from translation memory                     |
 | `segmentation`     | Split source text into sentence segments                          |
 
 List what is available in your installation — including any tools and formats

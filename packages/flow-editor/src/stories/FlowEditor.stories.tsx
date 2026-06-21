@@ -354,7 +354,7 @@ export const FullPipeline: Story = {
   args: {
     flow: {
       steps: [
-        { tool: "tm-leverage" },
+        { tool: "recycle" },
         { tool: "translate" },
         { tool: "pseudo-translate", config: { prefix: ">>", suffix: "<<" } },
         { tool: "qa" },
@@ -385,7 +385,7 @@ export const RunMetadataMultiRow: Story = {
   args: {
     flow: {
       steps: [
-        { tool: "tm-leverage" },
+        { tool: "recycle" },
         { tool: "translate" },
         { tool: "pseudo-translate" },
         { tool: "qa" },
@@ -414,7 +414,7 @@ export const RunMetadataMultiRow: Story = {
 /**
  * IO-contract showcase: every node shows its typed reads → writes chips, edges
  * carry the data type flowing across them, and the legend (top-right) decodes
- * the family colors. segmentation produces a segments overlay that tm-leverage
+ * the family colors. segmentation produces a segments overlay that recycle
  * optionally consumes; translate writes target; term-check / qa read
  * target and write findings.
  */
@@ -424,7 +424,7 @@ export const IoContractShowcase: Story = {
     flow: {
       steps: [
         { tool: "segmentation" },
-        { tool: "tm-leverage" },
+        { tool: "recycle" },
         { tool: "translate" },
         { tool: "term-check" },
         { tool: "qa" },
@@ -502,7 +502,7 @@ export const ThreeWayParallel: Story = {
   args: {
     flow: {
       steps: [
-        { tool: "tm-leverage", label: "TM Lookup" },
+        { tool: "recycle", label: "TM Lookup" },
         {
           tool: "",
           parallel: [
@@ -528,7 +528,7 @@ export const ManyBranchParallel: Story = {
   args: {
     flow: {
       steps: [
-        { tool: "tm-leverage", label: "TM Lookup" },
+        { tool: "recycle", label: "TM Lookup" },
         {
           tool: "",
           parallel: [
@@ -741,7 +741,7 @@ const transformerAwareTools: ToolInfo[] = [
   // translate so the placement stories exercise the egress rule.
   ...(toolsData as ToolInfo[])
     .filter((t) =>
-      ["translate", "qa", "word-count", "pseudo-translate", "tm-leverage"].includes(t.name),
+      ["translate", "qa", "word-count", "pseudo-translate", "recycle"].includes(t.name),
     )
     .map((t) => (t.name === "translate" ? { ...t, side_effects: ["remote-source-egress"] } : t)),
 ];

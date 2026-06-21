@@ -114,7 +114,7 @@ func (a *App) addFlowRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
 	cmd.Flags().Bool("pack", false, "when transforming a .klz, also eject the result to the .klz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
-	cmd.Flags().String("tm", "", "named TM for tm-leverage flow (resolves from KAPI_HOME)")
+	cmd.Flags().String("tm", "", "named TM for recycle flow (resolves from KAPI_HOME)")
 	cmd.Flags().String("termbase", "", "named termbase for term-lookup/enforce (resolves from KAPI_HOME)")
 	cmd.Flags().Bool("stats", false, "include part/block counts in output")
 	cmd.Flags().Bool("explain", false, "print the resolved source → sink bindings and exit without running")
@@ -1038,7 +1038,7 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...*co
 					}
 					return nil, nil, err
 				}
-				// The tm-leverage config factory cannot read a non-JSON provider
+				// The recycle config factory cannot read a non-JSON provider
 				// or the schema-hidden SourceLocale from the config map (both are
 				// schema:"-"), so it defaults to NullTMProvider with an empty
 				// source locale — which makes the SQLite lookup (WHERE locale = ?)
@@ -1101,7 +1101,7 @@ func (a *App) defaultParallelBlocks(flowName string) int {
 // cliTMProvider adapts a CLI translation memory to the tools.TMProvider
 // interface. The backing store is any sievepen.TranslationMemory — a SQLite TM
 // opened from a file, or the in-memory backend seeded in the wasm build — so
-// tm-leverage works both natively and offline in the browser.
+// recycle works both natively and offline in the browser.
 type cliTMProvider struct {
 	tm sqltm.TranslationMemory
 }
@@ -1213,11 +1213,11 @@ func (a *App) openTermbase(cmd ...*cobra.Command) (*sqltb.SQLiteTermBase, func()
 	return tb, func() { tb.Close() }, nil
 }
 
-// openToolTM resolves the TM a `tm`-requiring tool (e.g. tm-leverage) should
+// openToolTM resolves the TM a `tm`-requiring tool (e.g. recycle) should
 // leverage and opens it as a TMProvider. The --tm flag wins: a named resource
 // (no path separators) resolves via KAPI_HOME, an explicit file path is opened
 // directly. When no flag is given but a .kapi project is in scope, the project's
-// authoritative TM (<root>/.kapi/tm.db) is opened, so `kapi tm-leverage fr.json`
+// authoritative TM (<root>/.kapi/tm.db) is opened, so `kapi recycle fr.json`
 // leverages the same TM that `kapi extract`/`kapi merge` use — with no flag.
 //
 // Returns (nil, noop, nil) when no TM is in scope, or when the resolved DB does
@@ -1457,7 +1457,7 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 	// are ordinary ordered steps (AD-006); their position is validated by the
 	// placement pass at flow load, not by a structural stage here.
 	//
-	// Tools that require a TM (e.g. tm-leverage) need the project's TM provider
+	// Tools that require a TM (e.g. recycle) need the project's TM provider
 	// injected: toolFromStep can't read the schema-hidden Provider/SourceLocale
 	// from the step config, so it would default to a no-match NullTMProvider.
 	// Open the TM once, share it across every TM step, and close it after the run.

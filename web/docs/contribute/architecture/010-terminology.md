@@ -247,7 +247,7 @@ The framework ships built-in terminology tools as ordinary pipeline stages:
   [AD-011: AI Providers](011-ai-providers.md).
 - **`entity-extract`** (AI-assisted enrich) — LLM-based named entity
   annotation (with optional NER). Should run early in the pipeline, before
-  `tm-leverage`.
+  `recycle`.
 - **`redact`** and **`unredact`** (transform) — pair that replaces entity
   values with typed placeholders before external services and restores
   them afterwards.
@@ -259,7 +259,7 @@ A full pipeline looks like:
     { label: "Source", role: "io" },
     { label: "entity-extract", role: "annotate" },
     { label: "term-lookup", role: "annotate" },
-    { label: "tm-leverage", role: "translate" },
+    { label: "recycle", role: "translate" },
     { label: "translate", role: "translate" },
     { label: "term-enforce", role: "qa" },
     { label: "Sink", role: "io" },

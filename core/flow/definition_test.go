@@ -356,7 +356,7 @@ func TestBuiltInFlows(t *testing.T) {
 	assert.True(t, ids["translate-qa"])
 	assert.True(t, ids["pseudo-translate"])
 	assert.True(t, ids["qa"])
-	assert.True(t, ids["tm-leverage"])
+	assert.True(t, ids["recycle"])
 	assert.True(t, ids["secure-translate"])
 	assert.True(t, ids["redact-pii"])
 	assert.True(t, ids["audio-to-subtitles"])

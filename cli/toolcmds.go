@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -33,6 +34,13 @@ func allKLF(paths []string) bool {
 		}
 	}
 	return true
+}
+
+// hasTag reports whether a tool's freeform Tags include want (e.g.
+// schema.TagL10n). Used to route localization commands to the "Localization:"
+// help group.
+func hasTag(tags []string, want string) bool {
+	return slices.Contains(tags, want)
 }
 
 // CollectorFactories maps tool names to streaming collector factories.
@@ -113,8 +121,8 @@ var toolExamples = map[string]string{
 	"translate": `  kapi translate messages.json --target-lang fr
   kapi translate app.xliff --target-lang de --provider deepl
   kapi translate app.xliff --target-lang de -o app.de.xliff`,
-	"tm-leverage": `  kapi tm-leverage app.xliff --target-lang fr
-  kapi tm-leverage messages.json --target-lang de`,
+	"recycle": `  kapi recycle app.xliff --target-lang fr
+  kapi recycle messages.json --target-lang de`,
 
 	// ── Text Processing ─────────────────────────────────────────────────
 	"search-replace": `  kapi search-replace messages.json --find "foo" --replace "bar"
@@ -186,11 +194,21 @@ func (a *App) NewToolCommands() []*cobra.Command {
 			short = info.DisplayName
 		}
 
+		// Localization tools (translate, recycle, the bilingual checks,
+		// pseudo-translate, …) collapse under one "Localization:" help group,
+		// regardless of their schema Category. Everything else keeps its
+		// category-named group. The schema Category is left untouched so docs
+		// and the flow editor still see the canonical category.
+		groupID := info.Category
+		if hasTag(info.Tags, schema.TagL10n) {
+			groupID = "localization"
+		}
+
 		cmd := &cobra.Command{
 			Use:     toolName + " [files...]",
 			Aliases: info.Aliases,
 			Short:   short,
-			GroupID: info.Category,
+			GroupID: groupID,
 			Example: toolExamples[toolName],
 			Args:    cobra.MinimumNArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
@@ -245,7 +263,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				tracePath, _ := cmd.Flags().GetString("trace")
 				parallelBlocks, _ := cmd.Flags().GetInt("parallel-blocks")
 
-				// Tools that require a TM (e.g. tm-leverage) get a real SQLite
+				// Tools that require a TM (e.g. recycle) get a real SQLite
 				// TM provider resolved from --tm or the project's .kapi/tm.db,
 				// opened once and shared across every input file. Without this
 				// the tool's config factory falls back to NullTMProvider and
@@ -303,7 +321,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					if terr != nil {
 						return nil, terr
 					}
-					// The tm-leverage config factory cannot read a non-JSON
+					// The recycle config factory cannot read a non-JSON
 					// provider from the config map (Provider is json:"-"), so it
 					// defaults to NullTMProvider. Swap in the resolved SQLite TM
 					// on the created tool's config so it actually leverages.

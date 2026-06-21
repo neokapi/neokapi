@@ -154,7 +154,7 @@ type TMMatch struct {
 }
 ```
 
-The `tm-leverage` tool applies these adaptations automatically, so
+The `recycle` tool applies these adaptations automatically, so
 translators receive pre-adapted targets with the correct entity values
 already substituted.
 
@@ -261,7 +261,7 @@ with no entity mappings; they participate in plain matching only.
 
 ### Pipeline integration
 
-The `tm-leverage` tool is a `Translate`-capability tool
+The `recycle` tool is a `Translate`-capability tool
 ([AD-006: Tool System](006-tool-system.md)): it reads each block's source,
 queries the TM (exact, then fuzzy above the configured threshold), and, when a
 match clears the fill threshold, writes the translated target via
@@ -277,7 +277,7 @@ A typical flow:
   stages={[
     { label: "Source", role: "io" },
     { label: "entity-extract", role: "annotate" },
-    { label: "tm-leverage", role: "translate" },
+    { label: "recycle", role: "translate" },
     { label: "translate", role: "translate" },
     { label: "qa", role: "qa" },
     { label: "Sink", role: "io" },
@@ -310,7 +310,7 @@ over time.
 
 - [AD-002: Content Model](002-content-model.md) — Run sequences, inline-code
   runs, entity annotations
-- [AD-006: Tool System](006-tool-system.md) — `tm-leverage` tool
+- [AD-006: Tool System](006-tool-system.md) — `recycle` tool
 - [AD-010: Terminology](010-terminology.md) — shares matching infrastructure
 - [TM Matching Algorithm](/contribute/notes-internal/tm-matching-algorithm) — trigram
   construction, performance table, TMX element mapping

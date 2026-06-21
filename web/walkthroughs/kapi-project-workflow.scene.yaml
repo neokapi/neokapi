@@ -9,18 +9,18 @@
 #   init → add <glob> → tm import → extract → run <flow> → merge
 #
 # init scaffolds an EMPTY-content recipe; `kapi add` declares the content. The
-# `translate` flow leverages translation memory (tm-leverage), so the run fills
+# `translate` flow leverages translation memory (recycle), so the run fills
 # a real `fr` target — no LLM, fully offline. `tm import` seeds that TM from a
 # project TMX. Everything here runs offline in the wasm embed: init/add/extract/
 # merge are pure local-filesystem + in-memory-store ops, tm import tops up the
-# pre-seeded in-memory TM, and tm-leverage reads it.
+# pre-seeded in-memory TM, and recycle reads it.
 
 id: kapi-project-workflow
 scene: project-workflow
 mode: interactive
 
 # messages.json is the kit fixture (greeting / farewell / cart). project.tmx
-# carries the matching French so tm-leverage fills real targets offline.
+# carries the matching French so recycle fills real targets offline.
 # demo.kapi is the recipe `kapi init` scaffolds — here pre-written with the
 # `translate` flow and a real `fr` target, but EMPTY content so `kapi add`
 # genuinely populates it. (init is genuinely runnable below — it is idempotent
@@ -61,7 +61,7 @@ files:
       flows:
         translate:
           steps:
-            - tool: tm-leverage
+            - tool: recycle
 
 steps:
   - comment: A .kapi project keeps config-as-code — languages, content, flows — in a committed recipe beside a .kapi/ state dir.

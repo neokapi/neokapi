@@ -277,6 +277,10 @@
           "example": "  kapi qa app.xliff --target-lang fr\n  kapi qa app.xliff --target-lang fr --provider anthropic\n  kapi qa app.xliff --target-lang de --json",
           "short": "Check translation quality with deterministic rules or an LLM (select with --mode)"
         },
+        "recycle": {
+          "example": "  kapi recycle app.xliff --target-lang fr\n  kapi recycle messages.json --target-lang de",
+          "short": "Recycle"
+        },
         "redact": {
           "short": "Replace sensitive spans with protected placeholders before processing"
         },
@@ -443,10 +447,6 @@
             "example": "  kapi tm stats\n  kapi tm stats --name my-tm",
             "short": "Show translation memory statistics"
           }
-        },
-        "tm-leverage": {
-          "example": "  kapi tm-leverage app.xliff --target-lang fr\n  kapi tm-leverage messages.json --target-lang de",
-          "short": "TM Leverage"
         },
         "tools": {
           "example": "  kapi tools\n  kapi tools list",

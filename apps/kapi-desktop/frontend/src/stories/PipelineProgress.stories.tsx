@@ -22,7 +22,7 @@ type Story = StoryObj<typeof PipelineProgress>;
 const twoSteps = [{ tool: "translate" }, { tool: "qa" }];
 
 const fourSteps = [
-  { tool: "tm-leverage" },
+  { tool: "recycle" },
   { tool: "translate" },
   { tool: "qa" },
   { tool: "term-enforce" },
@@ -55,7 +55,7 @@ export const FirstStepActive: Story = {
     steps: fourSteps,
     runState: "running",
     snapshots: [
-      { name: "tm-leverage", parts_in: 47, parts_out: 32 },
+      { name: "recycle", parts_in: 47, parts_out: 32 },
       { name: "translate", parts_in: 0, parts_out: 0 },
       { name: "qa", parts_in: 0, parts_out: 0 },
       { name: "term-enforce", parts_in: 0, parts_out: 0 },
@@ -69,7 +69,7 @@ export const MidPipeline: Story = {
     steps: fourSteps,
     runState: "running",
     snapshots: [
-      { name: "tm-leverage", parts_in: 120, parts_out: 120 },
+      { name: "recycle", parts_in: 120, parts_out: 120 },
       { name: "translate", parts_in: 120, parts_out: 87 },
       { name: "qa", parts_in: 87, parts_out: 52 },
       { name: "term-enforce", parts_in: 0, parts_out: 0 },
@@ -95,7 +95,7 @@ export const Complete: Story = {
     steps: fourSteps,
     runState: "complete",
     snapshots: [
-      { name: "tm-leverage", parts_in: 120, parts_out: 120 },
+      { name: "recycle", parts_in: 120, parts_out: 120 },
       { name: "translate", parts_in: 120, parts_out: 120 },
       { name: "qa", parts_in: 120, parts_out: 120 },
       { name: "term-enforce", parts_in: 120, parts_out: 120 },
@@ -109,7 +109,7 @@ export const Error: Story = {
     steps: fourSteps,
     runState: "error",
     snapshots: [
-      { name: "tm-leverage", parts_in: 120, parts_out: 120 },
+      { name: "recycle", parts_in: 120, parts_out: 120 },
       { name: "translate", parts_in: 45, parts_out: 12 },
       { name: "qa", parts_in: 0, parts_out: 0 },
       { name: "term-enforce", parts_in: 0, parts_out: 0 },
@@ -142,7 +142,7 @@ export const LongPipeline: Story = {
   name: "Long pipeline (6 steps)",
   args: {
     steps: [
-      { tool: "tm-leverage" },
+      { tool: "recycle" },
       { tool: "term-lookup" },
       { tool: "translate" },
       { tool: "qa" },
@@ -151,7 +151,7 @@ export const LongPipeline: Story = {
     ],
     runState: "running",
     snapshots: [
-      { name: "tm-leverage", parts_in: 200, parts_out: 200 },
+      { name: "recycle", parts_in: 200, parts_out: 200 },
       { name: "term-lookup", parts_in: 200, parts_out: 200 },
       { name: "translate", parts_in: 200, parts_out: 143 },
       { name: "qa", parts_in: 143, parts_out: 98 },

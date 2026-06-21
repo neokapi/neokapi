@@ -13,7 +13,7 @@ scenes:
       - messages_en.json
     smoke_contract:
       - kapi tm import project.tmx -s en -t fr
-      - kapi tm-leverage messages_en.json -o step1_tm.json --source-lang en --target-lang fr
+      - kapi recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr
 ---
 
 ## Story

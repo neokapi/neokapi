@@ -80,7 +80,7 @@ kapi run translate-website
 kapi tools and flows are composable pipelines that run on your local files:
 
 - **`kapi translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
-- **`kapi tm-leverage`**: Pre-fill translations from translation memory
+- **`kapi recycle`**: Pre-fill translations from translation memory
 - **`kapi qa`**: Rule-based quality checks (whitespace, punctuation, placeholders)
 - **`kapi run <flow>`**: Execute a composed or custom multi-tool flow
 
@@ -144,7 +144,7 @@ kapi uses content-addressed blocks for efficient incremental sync — only chang
 
 - **Initialize projects with `kapi init`** to write a `<dir-name>.kapi` recipe and `.kapi/` state directory
 - **Define custom flows** in `.kapi/flows/` for your specific translation workflow
-- **Use `kapi tm-leverage`** to auto-fill translations from translation memory
+- **Use `kapi recycle`** to auto-fill translations from translation memory
 - **Import terminology** into the project termbase and add `term-lookup` to your flow
 - **Run `kapi pseudo-translate`** first to identify potential UI truncation issues
 - **Use pre-push hooks** to enforce quality gates before pushing to server

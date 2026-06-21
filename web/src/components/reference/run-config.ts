@@ -107,7 +107,7 @@ const TOOL_COMMANDS = new Set([
   "segment-count",
   "segmentation",
   "term-check",
-  "tm-leverage",
+  "recycle",
   "translation-comparison",
   "unredact",
   "word-count",

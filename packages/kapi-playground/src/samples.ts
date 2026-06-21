@@ -87,7 +87,7 @@ const enc = new TextEncoder();
 
 // A minimal en→fr TMX. Each <tu> pairs a source segment with its French
 // translation; the project funnel imports this into the project TM so the
-// `translate` (tm-leverage) flow fills real fr targets offline.
+// `translate` (recycle) flow fills real fr targets offline.
 function tmx(pairs: [string, string][]): string {
   const tus = pairs
     .map(
@@ -184,10 +184,10 @@ content:
 flows:
   translate:
     steps:
-      - tool: tm-leverage
+      - tool: recycle
   translate-exact:
     steps:
-      - tool: tm-leverage
+      - tool: recycle
         config:
           fillTargetThreshold: 100
 `;
@@ -264,7 +264,7 @@ export interface WorkspaceSample {
   binary: boolean;
   /**
    * A project TMX (en→fr) whose source segments match this sample's
-   * translatable text, so `kapi tm import` + the `translate` (tm-leverage) flow
+   * translatable text, so `kapi tm import` + the `translate` (recycle) flow
    * fill real `fr` targets offline — no LLM.
    */
   tmx: string;
