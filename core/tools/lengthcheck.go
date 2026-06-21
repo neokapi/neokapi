@@ -135,7 +135,7 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 		// Source scope: validate the source text's absolute length with no
 		// target. The ratio checks below need both sides, so they don't apply.
 		if conf.CheckSource {
-			check.Annotate(v, "length-check", sourceLengthFindings(v.SourceText(), conf))
+			check.Annotate(v, "length-check", absoluteLengthFindings(v.SourceText(), "Source", conf.MaxChars, conf.MaxWords))
 			return nil
 		}
 
@@ -146,31 +146,8 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 		targetText := v.TargetText(conf.TargetLocale)
 		sourceText := v.SourceText()
 
-		var findings []check.Finding
-
-		// Check max character count.
-		if conf.MaxChars > 0 {
-			charCount := len([]rune(targetText))
-			if charCount > conf.MaxChars {
-				findings = append(findings, check.Finding{
-					Category: "max-chars-exceeded",
-					Severity: check.SeverityMajor,
-					Message:  fmt.Sprintf("Target has %d characters, exceeds maximum of %d", charCount, conf.MaxChars),
-				})
-			}
-		}
-
-		// Check max word count.
-		if conf.MaxWords > 0 {
-			wordCount := countWords(targetText)
-			if wordCount > conf.MaxWords {
-				findings = append(findings, check.Finding{
-					Category: "max-words-exceeded",
-					Severity: check.SeverityMajor,
-					Message:  fmt.Sprintf("Target has %d words, exceeds maximum of %d", wordCount, conf.MaxWords),
-				})
-			}
-		}
+		// Absolute char/word limits — shared with the source scope above.
+		findings := absoluteLengthFindings(targetText, "Target", conf.MaxChars, conf.MaxWords)
 
 		// Check percentage-based constraints (only when source is non-empty).
 		if sourceText != "" {
@@ -236,28 +213,29 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 	return t
 }
 
-// sourceLengthFindings runs the absolute-length checks (max chars, max words)
-// over a single text with no target. It powers length-check's source scope
-// (CheckSource), where there is no source/target ratio to evaluate.
-func sourceLengthFindings(text string, conf *LengthCheckConfig) []check.Finding {
+// absoluteLengthFindings runs the absolute-length checks (max chars, max words)
+// over a single text, attributing each finding to subject ("Source" or
+// "Target"). Both length-check's source scope (CheckSource) and the target path
+// share it, so the max-chars/max-words category strings live in one place.
+func absoluteLengthFindings(text, subject string, maxChars, maxWords int) []check.Finding {
 	var findings []check.Finding
-	if conf.MaxChars > 0 {
+	if maxChars > 0 {
 		charCount := len([]rune(text))
-		if charCount > conf.MaxChars {
+		if charCount > maxChars {
 			findings = append(findings, check.Finding{
 				Category: "max-chars-exceeded",
 				Severity: check.SeverityMajor,
-				Message:  fmt.Sprintf("Source has %d characters, exceeds maximum of %d", charCount, conf.MaxChars),
+				Message:  fmt.Sprintf("%s has %d characters, exceeds maximum of %d", subject, charCount, maxChars),
 			})
 		}
 	}
-	if conf.MaxWords > 0 {
+	if maxWords > 0 {
 		wordCount := countWords(text)
-		if wordCount > conf.MaxWords {
+		if wordCount > maxWords {
 			findings = append(findings, check.Finding{
 				Category: "max-words-exceeded",
 				Severity: check.SeverityMajor,
-				Message:  fmt.Sprintf("Source has %d words, exceeds maximum of %d", wordCount, conf.MaxWords),
+				Message:  fmt.Sprintf("%s has %d words, exceeds maximum of %d", subject, wordCount, maxWords),
 			})
 		}
 	}

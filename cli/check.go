@@ -73,6 +73,7 @@ func (o CheckOutput) FormatText(w io.Writer) error {
 //	kapi check app.json app.de.json --target-lang de   # bilingual: dnt, placeholders, brand
 //	kapi check app.json --pack professional-b2b         # source-side: brand vocabulary
 //	kapi check app.json --max-chars 60 --forbid '(?i)todo'  # source-side: length, forbidden patterns
+//	kapi check app.json --max-chars 60 --max-major 0    # gate on the source findings (which are major)
 //
 // Checks emit one finding model (core/check.Finding); the gate fails on any
 // critical by default and exits non-zero so CI and an assistant fix-loop both
@@ -92,6 +93,10 @@ With one file, the source-side checks run over the content itself: length
 (--max-chars/--max-words) and forbidden-pattern (--forbid) checks, plus brand
 vocabulary when a profile is bound. A bound brand profile
 (--profile/--pack/--profile-file) adds vocabulary checks in either mode.
+
+Source-side findings are major (not critical), so by default they report
+without failing the gate. Gate on them with --max-major 0 (or --min-score N)
+when source quality must block.
 
 Exit codes: 0 pass, 3 when the gate fails (a critical finding by default), 1 for
 operational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop.`,

@@ -99,6 +99,35 @@ func TestCheck_MonolingualCleanSourcePasses(t *testing.T) {
 	assert.Empty(t, out.Findings)
 }
 
+// TestCheck_MonolingualGateOnMajor confirms that source-side findings (which are
+// SeverityMajor, not critical) clear the default critical-only gate but fail once
+// the caller tightens it with --max-major 0 — the way teams actually gate on
+// source quality.
+func TestCheck_MonolingualGateOnMajor(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	dir := t.TempDir()
+	src := filepath.Join(dir, "app.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"body": "This source string is far too long for the limit"}`), 0o644))
+
+	// Default gate is critical-only: a major length finding still passes.
+	a := &App{SourceLang: "en"}
+	def := a.NewCheckCmd()
+	require.NoError(t, def.Flags().Set("max-chars", "10"))
+	defOut, err := a.computeCheck(def, []string{src})
+	require.NoError(t, err)
+	assert.Positive(t, defOut.Summary.Major, "the over-long body should be a major finding: %+v", defOut.Findings)
+	assert.Zero(t, defOut.Summary.Critical)
+	assert.True(t, defOut.Pass, "the default critical-only gate passes on a major finding")
+
+	// --max-major 0 tightens the gate: the same major finding now fails it.
+	gated := a.NewCheckCmd()
+	require.NoError(t, gated.Flags().Set("max-chars", "10"))
+	require.NoError(t, gated.Flags().Set("max-major", "0"))
+	gatedOut, err := a.computeCheck(gated, []string{src})
+	require.NoError(t, err)
+	assert.False(t, gatedOut.Pass, "--max-major 0 must gate on the major length finding")
+}
+
 // TestCheck_MonolingualInvalidForbidPattern confirms a bad --forbid regex is an
 // operational error rather than a silent no-op.
 func TestCheck_MonolingualInvalidForbidPattern(t *testing.T) {
