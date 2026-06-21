@@ -152,7 +152,16 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		t.streaming = sp
 	}
 	if t.batchSize < 1 {
-		t.batchSize = DefaultBatchSize
+		// On-device models do far better per-block than batched into one giant
+		// structured-JSON generation: per-block gives near-immediate feedback,
+		// per-block progress, and far more robust output (no 100-way JSON to
+		// malform — the cause of "unmarshal response" failures). Default local
+		// providers to per-block; an explicit batchSize still overrides.
+		if aiprovider.IsLocalProvider(aiprovider.ProviderID(cfg.Provider)) {
+			t.batchSize = 1
+		} else {
+			t.batchSize = DefaultBatchSize
+		}
 	}
 	if t.concurrency < 1 {
 		t.concurrency = DefaultBatchConcurrency
@@ -410,6 +419,9 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 	}
 
 	t.blockIndex.Add(1)
+	// Signal the block is starting, so the progress line advances when a (slow,
+	// on-device) generation begins rather than only when it finishes.
+	t.emitProgress(false, "")
 
 	// If the source has inline codes, route through the
 	// placeholder-preserving LLM path so the model can keep them

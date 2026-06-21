@@ -47,15 +47,6 @@ var CollectorFactories = map[string]func() flow.Collector{
 // shown while running; the line is cleared when the final block completes.
 func aiProgressWriter(w *os.File) func(aiprovider.ProgressEvent) {
 	return func(e aiprovider.ProgressEvent) {
-		if e.Done && e.Thinking == "" {
-			// Block done — update counter.
-			if e.TotalBlocks > 0 {
-				fmt.Fprintf(w, "\r\033[K  Translating [%d/%d]", e.Block, e.TotalBlocks)
-			} else {
-				fmt.Fprintf(w, "\r\033[K  Translating [%d]", e.Block)
-			}
-			return
-		}
 		if e.Thinking != "" {
 			// Truncate long thinking summaries to fit a terminal line.
 			think := e.Thinking
@@ -67,6 +58,15 @@ func aiProgressWriter(w *os.File) func(aiprovider.ProgressEvent) {
 			} else {
 				fmt.Fprintf(w, "\r\033[K  [%d] thinking: %s", e.Block, think)
 			}
+			return
+		}
+		// Block start or done — show/advance the counter. Rendering the start
+		// event (not just done) means the line moves as soon as a slow on-device
+		// generation begins, not only after it completes.
+		if e.TotalBlocks > 0 {
+			fmt.Fprintf(w, "\r\033[K  Translating [%d/%d]", e.Block, e.TotalBlocks)
+		} else {
+			fmt.Fprintf(w, "\r\033[K  Translating [%d]", e.Block)
 		}
 	}
 }
