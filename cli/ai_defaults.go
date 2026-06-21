@@ -11,7 +11,7 @@ import (
 // ai.provider / ai.model) for provider-backed AI tools when the caller set
 // neither a flag, inline config, nor a recipe default. It is the single
 // chokepoint that lets `kapi ai-translate` (no --provider) use the user's
-// configured default — e.g. the local "gemma" — instead of the built-in
+// configured default — e.g. the local "ollama" — instead of the built-in
 // anthropic, and it covers both standalone tool runs and flows.
 //
 // Precedence is preserved by only filling absent keys: an explicit flag/inline

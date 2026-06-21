@@ -16,10 +16,10 @@ The framework integrates LLM capabilities through an `LLMProvider` interface
 in `providers/ai/` (package `aiprovider`), with built-in implementations for
 Anthropic, OpenAI, Azure OpenAI, Ollama, and Gemini (plus an offline `demo`
 provider) and an optional `StreamingLLMProvider` extension for live thinking
-progress. Plugins can register further providers at runtime — `gemma` (local,
-on-device Gemma 4, driven by the `kapi-llm` plugin) is registered this way from
-the cli module — so the live provider set is whatever `aiprovider.Providers()`
-returns, not a fixed list. Messages are **multimodal** — content is an ordered list of text,
+progress. `ollama` is the built-in on-device backend (driving a local Ollama
+runtime over HTTP). Plugins can register further providers at runtime, so the
+live provider set is whatever `aiprovider.Providers()` returns, not a fixed list.
+Messages are **multimodal** — content is an ordered list of text,
 image, audio, or video parts — and each provider advertises the input modalities
 it accepts, so a vision- or audio-capable model reads a Block's media anchor
 ([AD-002](002-content-model.md)) directly. AI tools call providers directly;
@@ -134,9 +134,8 @@ that fits rather than discovering the limit at call time:
 | Anthropic     | `providers/ai/anthropic.go`   | claude-sonnet-4-20250514 | Extended thinking support            |
 | OpenAI        | `providers/ai/openai.go`      | gpt-4o                   | `response_format` JSON schema        |
 | Azure OpenAI  | `providers/ai/azureopenai.go` | deployment-specific      | Managed Identity via `TokenProvider` |
-| Ollama        | `providers/ai/ollama.go`      | llama3                   | Local models, `format: json`         |
+| Ollama        | `providers/ai/ollama.go`      | llama3.2:3b              | On-device local models (GPU); no key. Streaming, `format: json`, options + `keep_alive`, reasoning disabled. Managed via `kapi ollama` |
 | Google Gemini | `providers/ai/gemini.go`      | gemini-3-flash-preview   | SSE streaming with `includeThoughts` |
-| Gemma (local) | `cli/llm_plugin.go`           | gemma-4-e2b              | On-device in-process ONNX via the `kapi-llm` plugin; no key. Plugin-registered, not built-in. Text now; vision/audio experimental |
 
 Two non-network providers round out the registry: a mock provider
 (`providers/ai/mock.go`) for deterministic tests, and a `demo` provider

@@ -228,8 +228,8 @@ const (
 // machine (no remote egress). It is a registration property — a provider sets
 // ProviderInfo.Local at RegisterProvider time — not a hardcoded list, so the
 // framework needs no knowledge of specific local backends. Plugin-registered
-// providers (e.g. the cli's "gemma", driven by the kapi-llm plugin) declare
-// themselves local the same way the built-in Ollama/Demo do. An unregistered or
+// providers declare themselves local the same way the built-in Ollama/Demo do.
+// An unregistered or
 // non-local provider returns false (cloud, fail-closed). The flow placement pass
 // uses this to refine a tool's remote-source-egress side effect (AD-006).
 func IsLocalProvider(id ProviderID) bool {

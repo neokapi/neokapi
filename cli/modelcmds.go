@@ -73,9 +73,9 @@ func (a *App) findModel(plugin, modelID string) (manifest.ModelAsset, bool) {
 // the user rarely cares which plugin provides one; the plugin forms only
 // disambiguate. In order:
 //
-//	gemma-4-e2b      a model id — kapi finds the plugin that provides it
-//	llm/gemma-4-e2b  an explicit plugin/model pair (disambiguation)
-//	llm              a bare plugin name — its default model
+//	sat-3l-sm        a model id — kapi finds the plugin that provides it
+//	sat/sat-3l-sm    an explicit plugin/model pair (disambiguation)
+//	sat              a bare plugin name — its default model
 func (a *App) resolveModelRef(ref string) (plugin string, asset manifest.ModelAsset, err error) {
 	if p, m, ok := strings.Cut(ref, "/"); ok {
 		as, found := a.findModel(p, m)
@@ -165,7 +165,7 @@ func (a *App) newModelsPullCmd() *cobra.Command {
 		Use:   "pull <model>",
 		Short: "Download and cache a model asset",
 		Long: "Fetch and verify a model asset ahead of time so its first use is instant.\n" +
-			"<model> is a model id (e.g. gemma-4-e2b); kapi finds the plugin that provides\n" +
+			"<model> is a model id (e.g. sat-3l-sm); kapi finds the plugin that provides\n" +
 			"it. You may also pass a plugin name (its default model) or plugin/model.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -192,7 +192,7 @@ func (a *App) newModelsPruneCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "prune <model>",
 		Short: "Remove a cached model asset from disk",
-		Long: "Delete a cached model asset. <model> is a model id (e.g. gemma-4-e2b); a plugin\n" +
+		Long: "Delete a cached model asset. <model> is a model id (e.g. sat-3l-sm); a plugin\n" +
 			"name or plugin/model also work.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -154,12 +154,16 @@ without `--unsafe`.
 - **On-device ML sidecars** — cgo plugins that run native ML in their own
   subprocess so the heavy stack (onnxruntime, whisper.cpp, PDFium, ffmpeg) never
   enters the portable `kapi` binary: `kapi-sat` (segmentation), `kapi-vision`
-  (OCR/layout), `kapi-asr` (speech-to-text), `kapi-av` (audio/video), `kapi-pdfium`
-  (PDF), and **`kapi-llm`** — a local **Gemma 4** LLM for on-device text
-  generation (translation, chat, QA, brand-voice), a free and private alternative
-  to the paid cloud providers (selected with `--provider gemma`; vision/audio
-  input is wired but experimental). The same Gemma 4 ONNX model also runs in the
-  browser via transformers.js — see the [Core Framework lab](/lab).
+  (OCR/layout), `kapi-asr` (speech-to-text), `kapi-av` (audio/video), and
+  `kapi-pdfium` (PDF).
+
+For on-device **LLM** text generation (translation, chat, QA, brand-voice), kapi
+drives a local [Ollama](https://ollama.com) runtime rather than bundling an
+inference engine: Ollama already runs GGUF models on the GPU (Metal/CUDA) and is
+managed through `kapi ollama` and `--provider ollama` — a free, private
+alternative to the paid cloud providers. In the browser, the
+[Core Framework lab](/lab) runs a local model via WebGPU instead, since a web
+page cannot reach a local daemon.
 
 A minimal Go reference plugin in
 [`examples/plugins/hello/`](https://github.com/neokapi/neokapi/tree/main/examples/plugins/hello)

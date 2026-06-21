@@ -799,42 +799,6 @@ package-vision-plugin: ## Package a kapi-vision tarball for the host platform (C
 test-vision-plugin: ## Run kapi-vision pure-Go tests (protocol + algorithms + models cache)
 	cd plugins/vision && GOWORK=off $(GO) test ./...
 
-# ── kapi-llm local Gemma 4 LLM plugin ────────────────────────────────────────
-# Mirrors kapi-vision: a cgo, -tags onnx sidecar that loads the onnxruntime
-# SHARED library at runtime. The default build (no tag) is pure Go (stub engine)
-# and CI-safe; -tags onnx links the real Gemma 4 (E2B) generation pipeline
-# (embed_tokens + vision/audio encoders + decoder_model_merged). For DISTRIBUTION
-# the release tarball bundles the onnxruntime shared lib (lib/) beside the binary;
-# the multi-GB Gemma model files are downloaded on demand into an XDG cache on
-# first use (so the tarball stays small). onnxruntime must match
-# yalue/onnxruntime_go's ORT_API_VERSION. See plugins/llm/README.md.
-build-llm-plugin: ## Build the kapi-llm plugin (no ONNX backend; pure Go)
-	@mkdir -p $(BIN_DIR)
-	cd plugins/llm && GOWORK=off $(GO) build $(LDFLAGS) -o $(BIN_DIR)/kapi-llm ./cmd/kapi-llm
-
-build-llm-plugin-onnx: ## Build kapi-llm WITH the ONNX backend (requires onnxruntime + libtokenizers; CGO)
-	@mkdir -p $(BIN_DIR)
-	cd plugins/llm && GOWORK=off CGO_ENABLED=1 \
-		CGO_LDFLAGS="-L$(LLM_TOKENIZERS_LIB)" \
-		$(GO) build $(LDFLAGS) -tags onnx -o $(BIN_DIR)/kapi-llm ./cmd/kapi-llm
-
-test-llm-plugin: ## Run kapi-llm pure-Go tests (protocol + downloader + chat/sampling)
-	cd plugins/llm && GOWORK=off $(GO) test ./...
-
-# Package a self-contained distribution tarball for the HOST platform: builds
-# kapi-llm -tags onnx and bundles the onnxruntime shared lib at lib/<name> beside
-# the binary (so an installed plugin needs no KAPI_LLM_ORT_LIB). The Gemma model
-# files are NOT bundled (downloaded on demand at runtime).
-#   LLM_ORT_DIR         extracted onnxruntime release dir (microsoft/onnxruntime)
-#   LLM_TOKENIZERS_LIB  dir containing libtokenizers.a (daulet/tokenizers)
-package-llm-plugin: ## Package a kapi-llm tarball for the host platform (CGO; needs LLM_ORT_DIR + LLM_TOKENIZERS_LIB)
-	@test -n "$(LLM_ORT_DIR)" || { echo "set LLM_ORT_DIR to the extracted onnxruntime release dir"; exit 1; }
-	scripts/package-llm-plugin.sh \
-		--version "$(VERSION)" \
-		--ort-dir "$(LLM_ORT_DIR)" \
-		--tokenizers-lib "$(LLM_TOKENIZERS_LIB)" \
-		--out-dir "$(BIN_DIR)/llm-dist"
-
 test-sat-plugin: ## Run kapi-sat pure-Go tests (protocol + algorithm + cache)
 	cd plugins/sat && GOWORK=off $(GO) test ./...
 

@@ -244,7 +244,7 @@ func (a *App) Init() error {
 	a.ToolReg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
 		// Apply the configured default AI provider/model before credential
 		// resolution, so `kapi ai-translate` (no --provider) uses the user's
-		// chosen default (e.g. local "gemma") instead of the built-in anthropic.
+		// chosen default (e.g. local "ollama") instead of the built-in anthropic.
 		// Runs only when nothing more specific is set, so precedence stays:
 		// flag/inline → recipe defaults → app config → built-in. a.Config is
 		// loaded by the time tools run, so reading it here is safe.

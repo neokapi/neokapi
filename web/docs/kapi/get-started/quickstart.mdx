@@ -121,11 +121,13 @@ kapi run translate-qa -i input.html -o output.html --source-lang en --target-lan
 
 Hosted providers need a credential, so install first and add one with
 `kapi credentials add` — see [Installation](/kapi/get-started/installation). For a
-**free, private, no-key** option, run it locally with Gemma:
+**free, private, no-key** option, run a local model through
+[Ollama](https://ollama.com):
 
 ```bash
-kapi plugins install llm   # one-time; the model downloads on first use
-kapi run ai-translate-qa -i input.html --source-lang en --target-lang fr --provider gemma
+kapi ollama install            # one-time runtime install (guidance per platform)
+kapi ollama pull llama3.2:3b   # download a local translation model
+kapi run translate-qa -i input.html --source-lang en --target-lang fr --provider ollama --model llama3.2:3b
 ```
 
 When a brand voice profile is bound on the flow, its guide is injected into the

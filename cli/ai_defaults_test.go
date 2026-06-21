@@ -10,13 +10,13 @@ import (
 
 func TestApplyAIDefaults(t *testing.T) {
 	cfg := config.NewAppConfig()
-	cfg.Set(config.KeyAIProvider, "gemma")
-	cfg.Set(config.KeyAIModel, "gemma-4-e2b")
+	cfg.Set(config.KeyAIProvider, "ollama")
+	cfg.Set(config.KeyAIModel, "llama3.2:3b")
 
 	t.Run("fills provider+model for an AI tool when absent", func(t *testing.T) {
 		got := applyAIDefaults(cfg, "ai-translate", []string{"credentials"}, map[string]any{})
-		assert.Equal(t, "gemma", got["provider"])
-		assert.Equal(t, "gemma-4-e2b", got["model"])
+		assert.Equal(t, "ollama", got["provider"])
+		assert.Equal(t, "llama3.2:3b", got["model"])
 	})
 
 	t.Run("explicit provider wins and model is not forced", func(t *testing.T) {

@@ -71,14 +71,14 @@
           "short": "Generate shell completion script"
         },
         "config": {
-          "example": "  kapi config set ai.provider gemma\n  kapi config set ai.model gemma-4-e2b\n  kapi config get ai.provider\n  kapi config list",
+          "example": "  kapi config set ai.provider ollama\n  kapi config set ai.model llama3.2:3b\n  kapi config get ai.provider\n  kapi config list",
           "get": {
             "short": "Print a single config value"
           },
           "list": {
             "short": "List all configured values"
           },
-          "long": "Read and write kapi's app configuration (the global config file, typically ~/.config/kapi/kapi.yaml).\n\nCommon keys:\n  ai.provider   default AI provider for ai-translate / ai-qa / brand-voice-check / flows\n                (e.g. `gemma` to default to the free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider/--model flag, inline config, or project recipe default always overrides these.",
+          "long": "Read and write kapi's app configuration (the global config file, typically ~/.config/kapi/kapi.yaml).\n\nCommon keys:\n  ai.provider   default AI provider for ai-translate / ai-qa / brand-voice-check / flows\n                (e.g. `ollama` to default to a free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider/--model flag, inline config, or project recipe default always overrides these.",
           "path": {
             "short": "Print the global config file path"
           },
@@ -202,14 +202,32 @@
           },
           "long": "List, pre-fetch, and remove the model assets that kapi downloads and caches on a\nplugin's behalf. Each is integrity-pinned in the plugin's manifest and stored under\n$XDG_CACHE_HOME/kapi/models/\u003cplugin\u003e/\u003cid\u003e/\u003cversion\u003e/.",
           "prune": {
-            "long": "Delete a cached model asset. \u003cmodel\u003e is a model id (e.g. gemma-4-e2b); a plugin\nname or plugin/model also work.",
+            "long": "Delete a cached model asset. \u003cmodel\u003e is a model id (e.g. sat-3l-sm); a plugin\nname or plugin/model also work.",
             "short": "Remove a cached model asset from disk"
           },
           "pull": {
-            "long": "Fetch and verify a model asset ahead of time so its first use is instant.\n\u003cmodel\u003e is a model id (e.g. gemma-4-e2b); kapi finds the plugin that provides\nit. You may also pass a plugin name (its default model) or plugin/model.",
+            "long": "Fetch and verify a model asset ahead of time so its first use is instant.\n\u003cmodel\u003e is a model id (e.g. sat-3l-sm); kapi finds the plugin that provides\nit. You may also pass a plugin name (its default model) or plugin/model.",
             "short": "Download and cache a model asset"
           },
           "short": "Manage model assets that plugins use"
+        },
+        "ollama": {
+          "install": {
+            "long": "Show the platform-appropriate command to install the Ollama runtime. With --run on\nmacOS (and Homebrew present), kapi runs `brew install ollama` for you.",
+            "short": "Print how to install the Ollama runtime (or install it on macOS with --run)"
+          },
+          "list": {
+            "short": "List models installed on the Ollama server"
+          },
+          "long": "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n(GPU-accelerated) translation. Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest — `kapi ollama pull \u003cmodel\u003e` installs a\nmodel, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
+          "pull": {
+            "long": "Install a model so kapi can translate with it locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
+            "short": "Download a model onto the Ollama server"
+          },
+          "short": "Manage the local Ollama runtime for on-device translation",
+          "status": {
+            "short": "Show whether the Ollama runtime is installed, running, and which models are present"
+          }
         },
         "pack": {
           "example": "  kapi pack -o snapshot.klz   # a .kapi project\n  kapi pack work.klz         # eject a .klz workspace's cache",
