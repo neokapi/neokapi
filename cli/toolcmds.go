@@ -200,7 +200,12 @@ func (a *App) NewToolCommands() []*cobra.Command {
 		// category-named group. The schema Category is left untouched so docs
 		// and the flow editor still see the canonical category.
 		groupID := info.Category
-		if hasTag(info.Tags, schema.TagL10n) {
+		// Localization tools collapse under the "Localization:" group: those
+		// explicitly tagged l10n, plus every translation-category tool (the
+		// translation category has no own group — see schema.CategoryTranslation —
+		// so an untagged MT/translate tool must still land here, not in a
+		// now-undefined "translation" group).
+		if hasTag(info.Tags, schema.TagL10n) || info.Category == schema.CategoryTranslation {
 			groupID = "localization"
 		}
 
