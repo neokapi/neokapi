@@ -13,6 +13,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/muesli/reflow/wordwrap"
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	pluginreg "github.com/neokapi/neokapi/cli/pluginhost/registry"
 	"github.com/neokapi/neokapi/core/version"
@@ -56,16 +57,16 @@ func (a *App) newPluginListCmd() *cobra.Command {
 				return errors.New("plugin host is not initialized")
 			}
 			plugins := a.PluginHost.Plugins()
-			if len(plugins) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No plugins installed.")
-				fmt.Fprintln(cmd.OutOrStdout(), "Search the registry: kapi plugin search")
-				return nil
-			}
+			rows := make([]output.PluginListRow, 0, len(plugins))
 			for _, p := range plugins {
-				fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-10s %-12s %s\n",
-					p.Name(), p.Version(), p.Manifest.License, p.Source.Label)
+				rows = append(rows, output.PluginListRow{
+					Name:    p.Name(),
+					Version: p.Version(),
+					License: p.Manifest.License,
+					Source:  p.Source.Label,
+				})
 			}
-			return nil
+			return output.Print(cmd, output.PluginListOutput{Plugins: rows, Total: len(rows)})
 		},
 	}
 }
@@ -83,32 +84,22 @@ func (a *App) newPluginInfoCmd() *cobra.Command {
 			if p == nil {
 				return fmt.Errorf("plugin %q is not installed", args[0])
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Plugin:        %s\n", p.Name())
-			fmt.Fprintf(cmd.OutOrStdout(), "Version:       %s\n", p.Version())
-			fmt.Fprintf(cmd.OutOrStdout(), "License:       %s\n", p.Manifest.License)
-			if p.Manifest.Author != "" {
-				fmt.Fprintf(cmd.OutOrStdout(), "Author:        %s\n", p.Manifest.Author)
-			}
-			if p.Manifest.Homepage != "" {
-				fmt.Fprintf(cmd.OutOrStdout(), "Homepage:      %s\n", p.Manifest.Homepage)
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Install dir:   %s\n", p.Dir)
-			fmt.Fprintf(cmd.OutOrStdout(), "Source:        %s\n", p.Source.Label)
-			fmt.Fprintf(cmd.OutOrStdout(), "Binary:        %s\n", p.BinaryPath)
 			c := p.Manifest.Capabilities
-			if len(c.Commands) > 0 {
-				fmt.Fprintf(cmd.OutOrStdout(), "Commands:      %d\n", len(c.Commands))
-			}
-			if len(c.MCPTools) > 0 {
-				fmt.Fprintf(cmd.OutOrStdout(), "MCP tools:     %d\n", len(c.MCPTools))
-			}
-			if len(c.Formats) > 0 {
-				fmt.Fprintf(cmd.OutOrStdout(), "Formats:       %d\n", len(c.Formats))
-			}
-			if len(c.SchemaExtensions) > 0 {
-				fmt.Fprintf(cmd.OutOrStdout(), "Schema exts:   %d\n", len(c.SchemaExtensions))
-			}
-			return nil
+			return output.Print(cmd, output.PluginInfoOutput{
+				Plugin:           p.Name(),
+				Version:          p.Version(),
+				License:          p.Manifest.License,
+				Author:           p.Manifest.Author,
+				Homepage:         p.Manifest.Homepage,
+				InstallDir:       p.Dir,
+				Source:           p.Source.Label,
+				Binary:           p.BinaryPath,
+				Commands:         len(c.Commands),
+				MCPTools:         len(c.MCPTools),
+				Formats:          len(c.Formats),
+				SchemaExtensions: len(c.SchemaExtensions),
+				Models:           len(p.Manifest.Models),
+			})
 		},
 	}
 }
@@ -305,14 +296,7 @@ func (a *App) newPluginSearchCmd() *cobra.Command {
 			}
 			sort.Strings(names)
 
-			// Word-wrap the description column to the terminal width with a
-			// hanging indent, so long descriptions don't break the layout. When
-			// output isn't a terminal (piped/redirected) descWidth is 0 and each
-			// description prints in full on one line.
-			const prefixWidth = 32 // "%-20s %-10s " → 20 + 1 + 10 + 1
-			descWidth := descriptionWidth(cmd.OutOrStdout(), prefixWidth)
-			indent := strings.Repeat(" ", prefixWidth)
-
+			results := make([]output.PluginSearchEntry, 0, len(names))
 			for _, name := range names {
 				entry := idx.Plugins[name]
 				if query != "" && !strings.Contains(strings.ToLower(name), query) && !strings.Contains(strings.ToLower(entry.Description), query) {
@@ -324,16 +308,33 @@ func (a *App) newPluginSearchCmd() *cobra.Command {
 						latest = v
 					}
 				}
-				desc := entry.Description
 				// Flag plugins with no installable build for this OS/arch, mirroring
 				// the install path's resolution — so `install` won't fail with a raw
 				// "no version ... for platform" error after a misleading listing.
-				if _, _, err := idx.Resolve(name, "", "stable", version.Version); err != nil {
+				_, _, rerr := idx.Resolve(name, "", "stable", version.Version)
+				results = append(results, output.PluginSearchEntry{
+					Name:        name,
+					Version:     latest,
+					Description: entry.Description,
+					Installable: rerr == nil,
+				})
+			}
+
+			// --json gets the structured rows; the text form keeps the word-wrapped
+			// description layout (a flat table would mangle long descriptions).
+			if output.ResolveFormat(cmd) == output.FormatJSON {
+				return output.Print(cmd, output.PluginSearchOutput{Plugins: results, Total: len(results)})
+			}
+			const prefixWidth = 32 // "%-20s %-10s " → 20 + 1 + 10 + 1
+			descWidth := descriptionWidth(cmd.OutOrStdout(), prefixWidth)
+			indent := strings.Repeat(" ", prefixWidth)
+			for _, r := range results {
+				desc := r.Description
+				if !r.Installable {
 					desc += fmt.Sprintf(" (no build for %s)", platform)
 				}
-
 				wrapped := wrapText(desc, descWidth)
-				fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-10s %s\n", name, latest, wrapped[0])
+				fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-10s %s\n", r.Name, r.Version, wrapped[0])
 				for _, cont := range wrapped[1:] {
 					fmt.Fprintf(cmd.OutOrStdout(), "%s%s\n", indent, cont)
 				}

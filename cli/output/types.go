@@ -426,8 +426,10 @@ func (p PresetShowOutput) FormatText(w io.Writer) error {
 type PluginSearchEntry struct {
 	Name        string `json:"name"`
 	Version     string `json:"version"`
-	PluginType  string `json:"plugin_type"`
+	PluginType  string `json:"plugin_type,omitempty"`
 	Description string `json:"description,omitempty"`
+	// Installable is false when the registry has no build for this OS/arch.
+	Installable bool `json:"installable"`
 }
 
 // PluginSearchOutput represents the result of a plugin search.
