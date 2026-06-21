@@ -242,10 +242,15 @@ export default function SegmentationLabInner({
     // llm
     await ensurePlugin("llm");
     const { generateGemmaText } = await import("@neokapi/kapi-playground/gemmaBridge");
+    // One-shot + an explicit "copy exactly" instruction: small models otherwise
+    // word-split or paraphrase (e.g. "Jan. 5" → "January fifth").
     const prompt =
-      "Split the following text into individual sentences. Output one sentence per line, " +
-      "preserving the exact original wording and punctuation. Output only the sentences, " +
-      "nothing else.\n\n" +
+      "You split text into sentences. Copy the input EXACTLY — do not reword, " +
+      "rephrase, translate, expand abbreviations, or change any characters — and put " +
+      "each complete sentence on its own line, with nothing else.\n\n" +
+      "Example input: The cat sat. It was happy! Then it left.\n" +
+      "Example output:\nThe cat sat.\nIt was happy!\nThen it left.\n\n" +
+      "Now do the same for this input:\n" +
       text;
     const out = await generateGemmaText(prompt, { maxTokens: 512, temperature: 0 });
     return out
