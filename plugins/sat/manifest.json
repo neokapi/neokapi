@@ -25,5 +25,48 @@
     "idle_timeout_seconds": 300,
     "startup_timeout_seconds": 60,
     "handshake": { "type": "stdio-handshake", "fields": ["socket", "version"] }
-  }
+  },
+  "models": [
+    {
+      "id": "sat-3l-sm",
+      "version": "1",
+      "default": true,
+      "description": "SaT 3-layer small (wtpsplit Segment any Text) — fast multilingual sentence segmenter. Pinned to segment-any-text commit 137da05.",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "model.onnx",
+          "url": "https://huggingface.co/segment-any-text/sat-3l-sm/resolve/137da054051ad9f1eac42025f758db4ac9f22535/model.onnx",
+          "sha256": "036276f1ed362ceb4191deeeaef20e1931d2b5c1173ea9938a071ff35c062a71",
+          "size": 428360875
+        },
+        {
+          "path": "tokenizer.json",
+          "url": "https://huggingface.co/facebookAI/xlm-roberta-base/resolve/e73636d4f797dec63c3081bb6ed5c7b0bb3f2089/tokenizer.json",
+          "sha256": "a898ea75433890f6610f4e470b8ebeb0c21dce5c8dd61f892eb09eb5919d2e2c",
+          "size": 9096718
+        }
+      ]
+    },
+    {
+      "id": "sat-12l-sm",
+      "version": "1",
+      "description": "SaT 12-layer small — higher quality, larger. Pinned to segment-any-text commit d70c72a.",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "model.onnx",
+          "url": "https://huggingface.co/segment-any-text/sat-12l-sm/resolve/d70c72a9331b2d5a9e82baad00c64964a23a09bb/model.onnx",
+          "sha256": "f246c8be03b7d81d29ded2d57b2f45202e6da41df1281276b9ab16f37d81834e",
+          "size": 558640378
+        },
+        {
+          "path": "tokenizer.json",
+          "url": "https://huggingface.co/facebookAI/xlm-roberta-base/resolve/e73636d4f797dec63c3081bb6ed5c7b0bb3f2089/tokenizer.json",
+          "sha256": "a898ea75433890f6610f4e470b8ebeb0c21dce5c8dd61f892eb09eb5919d2e2c",
+          "size": 9096718
+        }
+      ]
+    }
+  ]
 }

@@ -562,6 +562,17 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 		"KAPI_PLUGIN_NAME="+plugin.Name(),
 		"KAPI_PLUGIN_VERSION="+plugin.Version(),
 	)
+	// Host-owned model assets: stage the plugin's declared default model (the
+	// host downloads + verifies it, with a progress bar) before the daemon
+	// starts, and pass the model-cache locations via env. No-op for plugins
+	// that declare no models.
+	modelEnv, err := ensureModelEnv(plugin)
+	if err != nil {
+		return nil, fmt.Errorf("daemon pool: ensure models for %q: %w", plugin.Name(), err)
+	}
+	for k, v := range modelEnv {
+		cmd.Env = append(cmd.Env, k+"="+v)
+	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

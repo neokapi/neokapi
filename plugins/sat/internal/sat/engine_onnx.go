@@ -9,6 +9,7 @@ package sat
 
 import (
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/daulet/tokenizers"
@@ -29,8 +30,11 @@ const (
 // onnxEngine is the real Engine. It owns the onnxruntime environment and a
 // cache of loaded models keyed by name. It is safe for concurrent use.
 type onnxEngine struct {
-	dl   *model.Downloader
-	logf func(string, ...any)
+	// modelsRoot is the plugin's model-cache root the host staged models under
+	// (the value of $KAPI_SAT_MODELS_ROOT). The plugin never downloads; it
+	// resolves <root>/<id>/<version>/ from here.
+	modelsRoot string
+	logf       func(string, ...any)
 
 	mu     sync.Mutex
 	models map[string]*loadedModel
@@ -54,9 +58,9 @@ func NewEngine(cacheLogf func(string, ...any)) (Engine, error) {
 		return nil, err
 	}
 	return &onnxEngine{
-		dl:     &model.Downloader{Logf: cacheLogf},
-		logf:   cacheLogf,
-		models: map[string]*loadedModel{},
+		modelsRoot: os.Getenv("KAPI_SAT_MODELS_ROOT"),
+		logf:       cacheLogf,
+		models:     map[string]*loadedModel{},
 	}, nil
 }
 
@@ -96,7 +100,7 @@ func (e *onnxEngine) get(name string) (*loadedModel, error) {
 	if m, ok := e.models[name]; ok {
 		return m, nil
 	}
-	paths, err := e.dl.Ensure(name)
+	paths, err := model.ResolveInDir(name, e.modelsRoot)
 	if err != nil {
 		return nil, err
 	}
