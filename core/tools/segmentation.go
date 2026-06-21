@@ -164,17 +164,25 @@ func segmentationMembers() []registry.ToolGroupMember {
 	return ms
 }
 
+// segmentationGroup is the segmentation tool group: engine members (incl.
+// plugin-provided ones), srx as the default, scope/boundary as common config.
+func segmentationGroup() registry.ToolGroupDef {
+	return registry.ToolGroupDef{
+		Name:          "segmentation",
+		Discriminator: "engine",
+		Default:       segment.DefaultEngine,
+		Common:        segmentationCommonSchema(),
+		Members:       segmentationMembers(),
+		ConfigFactory: NewSegmentationFromConfig,
+	}
+}
+
 // SegmentationSchema returns the composed (flat) projection of the segmentation
 // group — common options + an engine selector whose chosen engine reveals only
 // its own parameters. This is the view CLI flags, docs, and MCP consume; the UI
 // uses the group + per-member schemas (master-detail) instead.
 func SegmentationSchema() *schema.ComponentSchema {
-	members := segmentationMembers()
-	variants := make([]schema.Variant, len(members))
-	for i, m := range members {
-		variants[i] = schema.Variant{Name: m.Name, Label: m.Label, Description: m.Description, Params: m.Schema, When: m.When}
-	}
-	return schema.ComposeVariants(segmentationCommonSchema(), "engine", segment.DefaultEngine, variants)
+	return registry.ComposeGroupSchema(segmentationGroup())
 }
 
 // RegisterSegmentation registers (or re-registers) the segmentation tool group.
@@ -182,14 +190,7 @@ func SegmentationSchema() *schema.ComponentSchema {
 // member list reflects them (the group is otherwise built once, before plugin
 // discovery).
 func RegisterSegmentation(reg *registry.ToolRegistry) {
-	reg.RegisterGroup(registry.ToolGroupDef{
-		Name:          "segmentation",
-		Discriminator: "engine",
-		Default:       segment.DefaultEngine,
-		Common:        segmentationCommonSchema(),
-		Members:       segmentationMembers(),
-		ConfigFactory: NewSegmentationFromConfig,
-	})
+	reg.RegisterGroup(segmentationGroup())
 }
 
 // NewSegmentationFromConfig creates a segmentation tool from a config map. The

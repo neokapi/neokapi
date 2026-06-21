@@ -164,6 +164,18 @@ func collectNativeTools(treg *registry.ToolRegistry, meta *nativeMeta) []Entry {
 			}
 		}
 
+		if info.Group != nil {
+			members := make([]EntryGroupMember, len(info.Group.Members))
+			for i, m := range info.Group.Members {
+				members[i] = EntryGroupMember{Name: m.Name, Label: m.Label, Description: m.Description, HasSchema: m.HasSchema}
+			}
+			e.Group = &EntryGroup{
+				Discriminator: info.Group.Discriminator,
+				Default:       info.Group.Default,
+				Members:       members,
+			}
+		}
+
 		applyMetaFallback(&e, meta.Tools[id])
 		out = append(out, e)
 	}

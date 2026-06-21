@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T11:49:10Z",
+  "generatedAt": "2026-06-21T12:07:44Z",
   "kind": "tool",
   "entries": [
     {
@@ -424,6 +424,30 @@
             "title": "Batched extraction",
             "description": "Analyse blocks in batches of 20, four batches at a time.",
             "config": "provider: openai\nbatchSize: 20\nbatchConcurrency: 4\n"
+          }
+        ]
+      },
+      "group": {
+        "discriminator": "engine",
+        "default": "llm",
+        "members": [
+          {
+            "name": "llm",
+            "label": "LLM (AI provider)",
+            "description": "Extract with an AI provider.",
+            "hasSchema": true
+          },
+          {
+            "name": "ner",
+            "label": "Local NER (on-device)",
+            "description": "On-device model — no credentials, nothing leaves the machine.",
+            "hasSchema": false
+          },
+          {
+            "name": "hybrid",
+            "label": "Hybrid (NER + LLM)",
+            "description": "Run the local model and the LLM, merging results.",
+            "hasSchema": false
           }
         ]
       }
@@ -3789,6 +3813,24 @@
             "config": "checkAbsoluteMaxCharLength: true\nabsoluteMaxCharLength: 200\n"
           }
         ]
+      },
+      "group": {
+        "discriminator": "mode",
+        "default": "rules",
+        "members": [
+          {
+            "name": "rules",
+            "label": "Deterministic rules",
+            "description": "Local rule-based checks — no credentials, no network.",
+            "hasSchema": true
+          },
+          {
+            "name": "ai",
+            "label": "AI review",
+            "description": "LLM-judged quality review via an AI provider.",
+            "hasSchema": true
+          }
+        ]
       }
     },
     {
@@ -4747,6 +4789,30 @@
             "config": "segmentSource: true\noverwriteSegmentation: true\nsourceSrxPath: ./rules/segmentation.srx\n"
           }
         ]
+      },
+      "group": {
+        "discriminator": "engine",
+        "default": "srx",
+        "members": [
+          {
+            "name": "srx",
+            "label": "Rule-based (hybrid SRX/UAX-29)",
+            "description": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
+            "hasSchema": true
+          },
+          {
+            "name": "uax29",
+            "label": "Unicode baseline (UAX-29)",
+            "description": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions.",
+            "hasSchema": false
+          },
+          {
+            "name": "llm",
+            "label": "LLM (semantic chunks)",
+            "description": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+            "hasSchema": true
+          }
+        ]
       }
     },
     {
@@ -5476,6 +5542,72 @@
             "title": "Translate only new content",
             "description": "Skip blocks that already have a translation.",
             "config": "provider: openai\nskipMatched: true\n"
+          }
+        ]
+      },
+      "group": {
+        "discriminator": "provider",
+        "default": "anthropic",
+        "members": [
+          {
+            "name": "anthropic",
+            "label": "Anthropic",
+            "hasSchema": false
+          },
+          {
+            "name": "openai",
+            "label": "OpenAI",
+            "hasSchema": false
+          },
+          {
+            "name": "gemini",
+            "label": "Gemini",
+            "hasSchema": false
+          },
+          {
+            "name": "azureopenai",
+            "label": "Azure OpenAI",
+            "hasSchema": false
+          },
+          {
+            "name": "ollama",
+            "label": "Ollama",
+            "hasSchema": false
+          },
+          {
+            "name": "demo",
+            "label": "Demo (illustrative)",
+            "hasSchema": false
+          },
+          {
+            "name": "gemma",
+            "label": "Gemma (local)",
+            "hasSchema": false
+          },
+          {
+            "name": "deepl",
+            "label": "DeepL",
+            "hasSchema": false
+          },
+          {
+            "name": "google",
+            "label": "Google Translate",
+            "hasSchema": true
+          },
+          {
+            "name": "microsoft",
+            "label": "Microsoft Translator",
+            "hasSchema": true
+          },
+          {
+            "name": "modernmt",
+            "label": "ModernMT",
+            "hasSchema": false
+          },
+          {
+            "name": "mymemory",
+            "label": "MyMemory",
+            "hasSchema": true
           }
         ]
       }

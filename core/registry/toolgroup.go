@@ -42,24 +42,35 @@ type ToolGroupDef struct {
 	Resolver      func(config map[string]any, base ToolInfo) ToolInfo // optional IO-contract refinement per member
 }
 
-// RegisterGroup registers a tool group. It composes the flat projection
-// (Common + a discriminator select + per-member variant groups) for CLI/docs/MCP
-// and the registry's Schema(id), stores each member's own schema for
-// MemberSchema, and records the group metadata on ToolInfo.Group.
-func (r *ToolRegistry) RegisterGroup(def ToolGroupDef) {
+// ComposeGroupSchema returns a group's flat projection — the composed schema
+// (Common + a discriminator select + per-member variant groups) that flat
+// consumers (CLI flags, docs, MCP) and the registry's Schema(id) use. It is the
+// single composition path, shared by RegisterGroup and any tool that exposes its
+// own flat-schema accessor.
+func ComposeGroupSchema(def ToolGroupDef) *schema.ComponentSchema {
 	variants := make([]schema.Variant, 0, len(def.Members))
-	memberSchemas := make(map[string]*schema.ComponentSchema, len(def.Members))
-	members := make([]ToolGroupMemberInfo, 0, len(def.Members))
 	for _, m := range def.Members {
 		variants = append(variants, schema.Variant{
 			Name: m.Name, Label: m.Label, Description: m.Description, Params: m.Schema, When: m.When,
 		})
+	}
+	return schema.ComposeVariants(def.Common, def.Discriminator, def.Default, variants)
+}
+
+// RegisterGroup registers a tool group. It composes the flat projection
+// (see ComposeGroupSchema) for CLI/docs/MCP and the registry's Schema(id),
+// stores each member's own schema for MemberSchema, and records the group
+// metadata on ToolInfo.Group.
+func (r *ToolRegistry) RegisterGroup(def ToolGroupDef) {
+	memberSchemas := make(map[string]*schema.ComponentSchema, len(def.Members))
+	members := make([]ToolGroupMemberInfo, 0, len(def.Members))
+	for _, m := range def.Members {
 		memberSchemas[m.Name] = m.Schema
 		members = append(members, ToolGroupMemberInfo{
 			Name: m.Name, Label: m.Label, Description: m.Description, HasSchema: m.Schema != nil,
 		})
 	}
-	composed := schema.ComposeVariants(def.Common, def.Discriminator, def.Default, variants)
+	composed := ComposeGroupSchema(def)
 
 	info := ToolInfo{
 		Name:      def.Name,

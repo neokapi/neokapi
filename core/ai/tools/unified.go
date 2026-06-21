@@ -43,13 +43,10 @@ var mtProviderExtraFields = map[string][]string{
 	"mymemory":  {"email"},
 }
 
-// TranslateSchema returns the schema for the unified `translate` tool: a
-// `provider` selector spanning every LLM and MT provider, where choosing a
-// provider reveals only that provider's extra credentials (Azure key/region,
-// Google project id, MyMemory email) instead of showing them all at once. The
-// shared apiKey/model and batch options stay common.
-func TranslateSchema() *schema.ComponentSchema {
-	base := schema.FromStruct(&AITranslateConfig{}, schema.ToolMeta{
+// translateCommonSchema is the translate group's shared config: the provider
+// selector plus the apiKey/model and batch options common to every provider.
+func translateCommonSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&AITranslateConfig{}, schema.ToolMeta{
 		ID:                    "translate",
 		Category:              schema.CategoryTranslation,
 		DisplayName:           "Translate",
@@ -62,13 +59,17 @@ func TranslateSchema() *schema.ComponentSchema {
 		Produces:              []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	})
+}
 
-	// Source the per-provider extra credential fields from MTTranslateConfig.
+// translateMembers maps every LLM and MT provider to a group member. Most
+// contribute only a selector option (their config is the common apiKey/model);
+// the MT providers with extra credentials carry their own param schema.
+func translateMembers() []registry.ToolGroupMember {
 	mt := schema.FromStruct(&mttools.MTTranslateConfig{}, schema.ToolMeta{ID: "translate-mt"})
-	variants := make([]schema.Variant, 0)
+	ms := make([]registry.ToolGroupMember, 0)
 	for _, opt := range allTranslateProviders() {
 		name, _ := opt.Value.(string)
-		v := schema.Variant{Name: name, Label: opt.Label}
+		m := registry.ToolGroupMember{Name: name, Label: opt.Label}
 		if fields, ok := mtProviderExtraFields[name]; ok {
 			props := make(map[string]schema.PropertySchema, len(fields))
 			for i, f := range fields {
@@ -77,11 +78,31 @@ func TranslateSchema() *schema.ComponentSchema {
 				p.Order = &ord
 				props[f] = p
 			}
-			v.Params = &schema.ComponentSchema{Type: "object", Properties: props}
+			m.Schema = &schema.ComponentSchema{Type: "object", Properties: props}
 		}
-		variants = append(variants, v)
+		ms = append(ms, m)
 	}
-	return schema.ComposeVariants(base, "provider", "anthropic", variants)
+	return ms
+}
+
+// translateGroup is the translate tool group: provider members (every LLM + MT
+// provider), anthropic as the default, with each provider's extra credentials
+// (Azure key/region, Google project id, MyMemory email) shown only when selected.
+func translateGroup() registry.ToolGroupDef {
+	return registry.ToolGroupDef{
+		Name:          "translate",
+		Discriminator: "provider",
+		Default:       "anthropic",
+		Common:        translateCommonSchema(),
+		Members:       translateMembers(),
+		ConfigFactory: NewTranslateFromConfig,
+		Resolver:      ResolveAIEgressContract,
+	}
+}
+
+// TranslateSchema returns the composed (flat) projection of the translate group.
+func TranslateSchema() *schema.ComponentSchema {
+	return registry.ComposeGroupSchema(translateGroup())
 }
 
 // qaToolMeta is the QA tool metadata shared by the schema and contract resolver.
@@ -104,13 +125,10 @@ func qaToolMeta() schema.ToolMeta {
 	}
 }
 
-// QASchema returns the schema for the unified `qa` tool: a `mode` selector
-// (Deterministic rules / AI review) whose choice reveals only that backend's
-// config — the rule-check toggles for rules, the provider/model fields for AI.
-// Default mode is rules, so `qa` needs no credentials unless AI is selected.
-func QASchema() *schema.ComponentSchema {
+// qaCommonSchema is the qa group's shared config: just the mode selector.
+func qaCommonSchema() *schema.ComponentSchema {
 	meta := qaToolMeta()
-	base := &schema.ComponentSchema{
+	return &schema.ComponentSchema{
 		ID:          "qa",
 		Title:       meta.DisplayName,
 		Description: meta.Description,
@@ -126,13 +144,36 @@ func QASchema() *schema.ComponentSchema {
 		},
 		Groups: []schema.ParameterGroup{{ID: "qa", Label: "Quality check", Fields: []string{qaModeField}}},
 	}
+}
+
+// qaMembers are the two QA backends: deterministic rules and an LLM judge.
+func qaMembers() []registry.ToolGroupMember {
 	rules := schema.FromStruct(libtools.NewQACheckConfig(model.LocaleEnglish), schema.ToolMeta{ID: "qa-rules"})
 	ai := schema.FromStruct(&AIQAConfig{}, schema.ToolMeta{ID: "qa-ai"})
 	setProviderOptions(ai, aiProviderOptions())
-	return schema.ComposeVariants(base, qaModeField, qaModeRules, []schema.Variant{
-		{Name: qaModeRules, Label: "Deterministic rules", Description: "Local rule-based checks — no credentials, no network.", Params: rules},
-		{Name: qaModeAI, Label: "AI review", Description: "LLM-judged quality review via an AI provider.", Params: ai},
-	})
+	return []registry.ToolGroupMember{
+		{Name: qaModeRules, Label: "Deterministic rules", Description: "Local rule-based checks — no credentials, no network.", Schema: rules},
+		{Name: qaModeAI, Label: "AI review", Description: "LLM-judged quality review via an AI provider.", Schema: ai},
+	}
+}
+
+// qaGroup is the qa tool group: a `mode` selector (rules / AI), rules as the
+// default so qa needs no credentials unless AI is selected.
+func qaGroup() registry.ToolGroupDef {
+	return registry.ToolGroupDef{
+		Name:          "qa",
+		Discriminator: qaModeField,
+		Default:       qaModeRules,
+		Common:        qaCommonSchema(),
+		Members:       qaMembers(),
+		ConfigFactory: NewQAFromConfig,
+		Resolver:      ResolveQAContract,
+	}
+}
+
+// QASchema returns the composed (flat) projection of the qa group.
+func QASchema() *schema.ComponentSchema {
+	return registry.ComposeGroupSchema(qaGroup())
 }
 
 // NewTranslateFromConfig builds the translation tool for the configured

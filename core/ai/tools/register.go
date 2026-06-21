@@ -1,11 +1,9 @@
 package tools
 
 import (
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	libtools "github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -14,22 +12,14 @@ import (
 // The registry receives metadata and config factories; actual provider
 // injection happens at tool creation time via NewToolFromConfig.
 func RegisterAll(reg *registry.ToolRegistry) {
-	// Translate — one verb across LLM and MT engines; --provider selects the
-	// backend (see unified.go). Replaces the former ai-translate command and the
-	// per-engine <provider>-translate commands.
-	reg.RegisterWithSchema("translate", func() tool.Tool {
-		return NewAITranslateTool(aiprovider.NewMockProvider(), AITranslateConfig{})
-	}, TranslateSchema())
-	reg.SetConfigFactory("translate", NewTranslateFromConfig)
-	reg.SetContractResolver("translate", ResolveAIEgressContract)
+	// Translate — a tool group whose members are the LLM and MT providers;
+	// `--provider` selects the backend (see unified.go). Replaces the former
+	// ai-translate command and the per-engine <provider>-translate commands.
+	reg.RegisterGroup(translateGroup())
 
-	// QA — rule-based checks by default; --provider opts into LLM-judged QA
-	// (see unified.go). Replaces the former qa-check and ai-qa commands.
-	reg.RegisterWithSchema("qa", func() tool.Tool {
-		return libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleEnglish))
-	}, QASchema())
-	reg.SetConfigFactory("qa", NewQAFromConfig)
-	reg.SetContractResolver("qa", ResolveQAContract)
+	// QA — a tool group with two members: deterministic rule checks (default,
+	// no credentials) and LLM-judged review; `--mode` selects (see unified.go).
+	reg.RegisterGroup(qaGroup())
 
 	// AI Review
 	reg.RegisterWithSchema("ai-review", func() tool.Tool {
@@ -49,12 +39,9 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, AITerminologySchema())
 	reg.SetConfigFactory("ai-terminology", NewAITerminologyFromConfig)
 
-	// AI Entity Extract — detect named entities (feeds redaction's
-	// "entities" detector and terminology workflows).
-	reg.RegisterWithSchema("ai-entity-extract", func() tool.Tool {
-		return NewAIEntityExtractTool(aiprovider.NewMockProvider(), nil, AIEntityExtractConfig{})
-	}, AIEntityExtractSchema())
-	reg.SetConfigFactory("ai-entity-extract", NewAIEntityExtractFromConfig)
+	// AI Entity Extract — a tool group whose engine members are llm / local NER /
+	// hybrid (feeds redaction's "entities" detector and terminology workflows).
+	reg.RegisterGroup(entityExtractGroup())
 
 	// Media Refine — re-read low-confidence OCR/ASR lines with a multimodal LLM.
 	reg.RegisterWithSchema("media-refine", func() tool.Tool {
@@ -64,18 +51,15 @@ func RegisterAll(reg *registry.ToolRegistry) {
 
 	// Every AI tool's remote-source-egress side effect is config-dependent: a
 	// local provider (Ollama, the offline demo) keeps content on the machine.
-	// translate and qa register their own contract resolvers above (translate
-	// reuses ResolveAIEgressContract; qa uses ResolveQAContract for its
-	// provider-optional contract).
+	// The tool groups (translate, qa, ai-entity-extract) carry their own
+	// resolver in the group def; the remaining single-backend AI tools share
+	// ResolveAIEgressContract.
 	for _, name := range []registry.ToolID{
 		"ai-review", "brand-voice-check",
 		"ai-terminology", "media-refine",
 	} {
 		reg.SetContractResolver(name, ResolveAIEgressContract)
 	}
-	// ai-entity-extract additionally supports `engine: ner` — extraction on a
-	// local on-device model with no LLM at all.
-	reg.SetContractResolver("ai-entity-extract", ResolveEntityExtractContract)
 }
 
 // ResolveEntityExtractContract refines ai-entity-extract's contract from its
