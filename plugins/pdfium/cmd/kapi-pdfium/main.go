@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -25,20 +26,59 @@ import (
 	"github.com/neokapi/neokapi/plugins/pdfium/internal/pdfreader"
 )
 
+// selfcheckPDF is a tiny one-page PDF embedded so `doctor` can confirm the
+// PDFium cgo backend actually loads and extracts text — a real failure mode
+// (missing/mismatched native lib) that a bare version print cannot catch.
+//
+//go:embed selfcheck.pdf
+var selfcheckPDF []byte
+
 func main() {
+	sub := ""
+	if len(os.Args) > 1 {
+		sub = os.Args[1]
+	}
+	switch sub {
 	// The Mode-C daemon pool launches the binary as `kapi-pdfium daemon`
 	// (cli/pluginhost/daemon.go, the same arg okapi-bridge uses); `serve` is
 	// kept as an alias for manual runs. Either enters the daemon + prints the
 	// stdio handshake.
-	if len(os.Args) > 1 && (os.Args[1] == "daemon" || os.Args[1] == "serve") {
+	case "daemon", "serve":
 		if err := serve(); err != nil {
 			fmt.Fprintln(os.Stderr, "kapi-pdfium:", err)
 			os.Exit(1)
 		}
-		return
+	case "version":
+		fmt.Println(version.Version)
+	case "doctor":
+		os.Exit(runDoctor())
+	default:
+		fmt.Fprintf(os.Stderr, "kapi-pdfium %s\nusage: kapi-pdfium daemon | kapi-pdfium version | kapi-pdfium doctor\n", version.Version)
+		os.Exit(2)
 	}
-	// Bare invocation: a self-check the manifest can surface (mirrors kapi-sat).
-	fmt.Printf("kapi-pdfium %s — PDFium-backed PDF reader (run `kapi-pdfium daemon` for the daemon)\n", version.Version)
+}
+
+// runDoctor is the standard self-check: it extracts text from the embedded
+// sample PDF, confirming the PDFium backend loads and works. `kapi plugins
+// doctor` runs this.
+func runDoctor() int {
+	parts, err := pdfreader.ReadParts(selfcheckPDF, model.LocaleID("en"), "selfcheck.pdf", pdfreader.Options{})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "kapi-pdfium: self-check failed: %v\n", err)
+		return 1
+	}
+	blocks := 0
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			blocks++
+		}
+	}
+	if blocks == 0 {
+		fmt.Fprintln(os.Stderr, "kapi-pdfium: self-check failed: PDFium extracted no text from the sample PDF")
+		return 1
+	}
+	fmt.Printf("kapi-pdfium %s — PDFium backend OK (extracted %d block(s) from the sample PDF)\n", version.Version, blocks)
+	return 0
 }
 
 // serve binds a Unix socket, advertises it via the stdio handshake, and serves

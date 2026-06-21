@@ -10,6 +10,7 @@
   "min_kapi_version": "0.0.1",
   "group": "neokapi",
   "capabilities": {
+    "selfcheck": true,
     "formats": [
       {
         "name": "pdf",

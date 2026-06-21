@@ -204,6 +204,10 @@
           "short": "Pattern Check"
         },
         "plugin": {
+          "doctor": {
+            "long": "Check the health of installed plugins.\n\nFor each plugin, doctor verifies the binary is present and its reported\nversion matches the manifest, then — for plugins that provide a\nself-check — runs the plugin's own diagnostics (e.g. confirming bundled\nbinaries, models, or engines resolve at runtime).\n\nWith no argument, doctor checks every installed plugin and prints a\none-line status each. Pass a plugin name for a detailed report including\nthe plugin's full self-check output. Exits non-zero if any checked\nplugin is unhealthy.\n\nExamples:\n  kapi plugins doctor\n  kapi plugins doctor av",
+            "short": "Run health/self-checks on installed plugins"
+          },
           "info": {
             "short": "Show details for an installed plugin"
           },

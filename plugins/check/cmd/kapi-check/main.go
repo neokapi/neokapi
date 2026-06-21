@@ -31,6 +31,10 @@ func main() {
 	}
 	var err error
 	switch os.Args[1] {
+	case "version":
+		fmt.Println(version)
+	case "doctor":
+		os.Exit(runDoctor())
 	case "pull":
 		err = cmdPull(os.Args[2:])
 	case "info":
@@ -58,6 +62,8 @@ func usage() {
 	fmt.Fprint(os.Stderr, `kapi-check `+version+` — in-process ML checker (sentence-embedding similarity)
 
 Usage:
+  kapi-check version              print the plugin version
+  kapi-check doctor               self-check: construct the engine, list models
   kapi-check pull [model]         download the model files (explicit, cached)
   kapi-check info                 list models and whether they are installed
   kapi-check serve                run the checkproto stdin/stdout loop (host-driven)
@@ -98,6 +104,34 @@ func cmdInfo() {
 		}
 		fmt.Printf("%s%s — %s\n  %s, %dd, %s\n", s.Name, def, s.Repo, s.ONNXFile, s.Dim, state)
 	}
+}
+
+// runDoctor is the standard self-check: it confirms the embedding engine
+// constructs and lists the supported models with their installed state. It fails
+// only on a real defect (engine construction) — a model not yet pulled is a
+// readiness note, not a broken install. `kapi plugins doctor` runs this.
+func runDoctor() int {
+	eng, err := newEngine()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "kapi-check: engine init failed: %v\n", err)
+		return 1
+	}
+	defer func() { _ = eng.Close() }()
+
+	fmt.Printf("kapi-check %s — ML checker (sentence-embedding similarity) ready\n", version)
+	fmt.Println("models:")
+	for _, s := range model.Registry {
+		state := "not installed (run `kapi-check pull " + s.Name + "`)"
+		if model.Present(s.Name) {
+			state = "installed"
+		}
+		def := ""
+		if s.Default {
+			def = " (default)"
+		}
+		fmt.Printf("  - %s%s — %s\n", s.Name, def, state)
+	}
+	return 0
 }
 
 func newEngine() (embed.Engine, error) {

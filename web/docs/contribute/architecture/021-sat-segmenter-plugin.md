@@ -164,8 +164,9 @@ the engine's `segment.Config`.
 ### Manifest shape
 
 `manifest.json` registers the plugin under the unified model
-([AD-007](007-plugin-system.md)) by declaring a single Mode-A command (`sat`, an
-interactive self-check that constructs the engine and lists supported models).
+([AD-007](007-plugin-system.md)) by setting `capabilities.selfcheck: true`,
+which advertises the standard `kapi-sat doctor` self-check (it constructs the
+engine and lists supported models) that `kapi plugins doctor` runs.
 The segment contract itself does not fit any manifest capability slot — there is
 no first-class "subprocess segmenter" capability — so it lives under a top-level
 `metadata.segment` block describing the protocol name

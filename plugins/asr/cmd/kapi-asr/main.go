@@ -9,7 +9,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/neokapi/neokapi/plugins/asr/asrproto"
 	"github.com/neokapi/neokapi/plugins/asr/internal/whisper"
@@ -18,19 +20,59 @@ import (
 const version = "0.1.0"
 
 func main() {
-	switch {
-	case len(os.Args) >= 2 && os.Args[1] == "serve":
+	sub := ""
+	if len(os.Args) >= 2 {
+		sub = os.Args[1]
+	}
+	switch sub {
+	case "serve":
 		if err := serve(); err != nil {
 			fmt.Fprintln(os.Stderr, "kapi-asr:", err)
 			os.Exit(1)
 		}
-	case len(os.Args) >= 2 && os.Args[1] == "asr":
-		// Mode-A self-check (declared in manifest.json).
-		fmt.Printf("kapi-asr %s\n  whisper-cli: %s\n  model: %s\n", version, resolveBin(), modelStatus(resolveModel()))
+	case "version":
+		fmt.Println(version)
+	case "doctor":
+		// Standard self-check that `kapi plugins doctor` runs.
+		os.Exit(runDoctor())
 	default:
-		// A bare invocation prints version and exits 0 so discovery probes work.
-		fmt.Fprintf(os.Stderr, "kapi-asr %s\nusage: kapi-asr serve | kapi-asr asr\n", version)
+		fmt.Fprintf(os.Stderr, "kapi-asr %s\nusage: kapi-asr serve | kapi-asr version | kapi-asr doctor\n", version)
+		os.Exit(2)
 	}
+}
+
+// runDoctor reports the resolved whisper-cli and model. It fails only on a real
+// defect — the bundled whisper-cli not resolving — since the model is acquired
+// on demand and a missing one is a readiness note, not a broken install.
+func runDoctor() int {
+	bin := resolveBin()
+	model := resolveModel()
+	fmt.Printf("kapi-asr %s\n  whisper-cli: %s\n  model: %s\n", version, binStatus(bin), modelStatus(model))
+	if !whisperResolvable(bin) {
+		return 1
+	}
+	return 0
+}
+
+// whisperResolvable reports whether the resolved whisper-cli exists: a bundled
+// path must be a real file; the bare "whisper-cli" PATH fallback is resolved via
+// exec.LookPath.
+func whisperResolvable(bin string) bool {
+	if bin == "" {
+		return false
+	}
+	if filepath.IsAbs(bin) || strings.ContainsRune(bin, filepath.Separator) {
+		return fileExists(bin)
+	}
+	_, err := exec.LookPath(bin)
+	return err == nil
+}
+
+func binStatus(bin string) string {
+	if whisperResolvable(bin) {
+		return bin
+	}
+	return bin + " (not found)"
 }
 
 func serve() error {

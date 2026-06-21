@@ -268,8 +268,9 @@ Mirrors `superlinear-ai/wtpsplit-lite` for the `*-sm` models:
   detect "installed but no ONNX backend" gracefully.
 - **Boundaries are rune offsets.** Slice the original text with
   `[]rune(text)[prev:b]` per boundary; do not treat them as byte offsets.
-- **Manifest.** `manifest.json` declares one Mode-A command (`sat`, a self-check)
-  so the plugin registers under the unified plugin model, plus a top-level
+- **Manifest.** `manifest.json` sets `capabilities.selfcheck: true` (advertising
+  the standard `kapi-sat doctor` self-check that `kapi plugins doctor` runs) so
+  the plugin registers under the unified plugin model, plus a top-level
   `metadata.segment` block describing the protocol, invocation
   (`["kapi-sat","serve"]`), the protocol package import path, and the supported
   models. The manifest schema has no dedicated "subprocess segmenter" capability

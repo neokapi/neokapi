@@ -80,6 +80,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/mattn/go-sqlite3 v1.14.42 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.6.1 // indirect
+	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect

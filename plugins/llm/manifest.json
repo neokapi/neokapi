@@ -10,13 +10,7 @@
   "min_kapi_version": "0.0.1",
   "group": "neokapi",
   "capabilities": {
-    "commands": [
-      {
-        "name": "llm",
-        "short": "Local Gemma 4 LLM self-check",
-        "long": "Construct the in-process Gemma 4 engine and list the supported models. The host Gemma AI provider drives the plugin over the stdin/stdout generation protocol (kapi-llm serve); this command is for interactive verification."
-      }
-    ]
+    "selfcheck": true
   },
   "metadata": {
     "llm": {

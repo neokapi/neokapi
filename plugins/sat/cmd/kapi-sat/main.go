@@ -12,8 +12,8 @@
 //
 //	kapi-sat serve     start the stdin/stdout protocol loop (default)
 //	kapi-sat version   print the plugin version
-//	kapi-sat command   manifest Mode-A entry; "command sat" runs a one-shot
-//	                   self-check (ping over the in-process engine)
+//	kapi-sat doctor    self-check: construct the engine and list supported models
+//	                   (the standard self-check that `kapi plugins doctor` runs)
 package main
 
 import (
@@ -36,10 +36,10 @@ func main() {
 		os.Exit(runServe())
 	case "version":
 		fmt.Println(version.Version)
-	case "command":
-		os.Exit(runCommand(os.Args[2:]))
+	case "doctor":
+		os.Exit(runDoctor())
 	default:
-		fmt.Fprintf(os.Stderr, "kapi-sat: unknown subcommand %q (want serve|version|command)\n", sub)
+		fmt.Fprintf(os.Stderr, "kapi-sat: unknown subcommand %q (want serve|version|doctor)\n", sub)
 		os.Exit(2)
 	}
 }
@@ -108,15 +108,10 @@ func modelInfos(engine sat.Engine) []satproto.ModelInfo {
 	return out
 }
 
-// runCommand implements the manifest Mode-A `command` entry. The single command
-// "sat" performs an in-process self-check: it confirms the engine constructs
-// and prints the supported models. This gives `kapi sat` something meaningful
-// to do for interactive verification, independent of the protocol path.
-func runCommand(args []string) int {
-	if len(args) == 0 || args[0] != "sat" {
-		fmt.Fprintln(os.Stderr, "kapi-sat: usage: kapi-sat command sat")
-		return 2
-	}
+// runDoctor is the standard self-check: it confirms the in-process engine
+// constructs and prints the supported models, independent of the protocol path.
+// `kapi plugins doctor` runs this.
+func runDoctor() int {
 	engine, err := sat.NewEngine(nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "kapi-sat: engine init failed: %v\n", err)

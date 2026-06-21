@@ -10,13 +10,7 @@
   "min_kapi_version": "0.0.1",
   "group": "neokapi",
   "capabilities": {
-    "commands": [
-      {
-        "name": "vision",
-        "short": "Document-vision (OCR) self-check",
-        "long": "Construct the in-process vision engine and list the model assets. The host `vision` engine drives the plugin over the binary-framed stdin/stdout protocol (kapi-vision serve); this command is for interactive verification."
-      }
-    ]
+    "selfcheck": true
   },
   "metadata": {
     "vision": {
