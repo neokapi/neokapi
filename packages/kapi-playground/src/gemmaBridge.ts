@@ -30,7 +30,7 @@ import {
 // ---------------------------------------------------------------------------
 
 /** Key of the small text-only model used for text tasks (the default). */
-export const DEFAULT_TEXT_MODEL = "qwen2.5-0.5b";
+export const DEFAULT_TEXT_MODEL = "llama-3.2-1b";
 /** Key of the multimodal model used when a request carries an image. */
 export const MULTIMODAL_MODEL = "gemma-4-e2b";
 
@@ -63,14 +63,15 @@ interface ModelSpec {
 const MODELS: Record<string, ModelSpec> = {
   [DEFAULT_TEXT_MODEL]: {
     key: DEFAULT_TEXT_MODEL,
-    hfId: "onnx-community/Qwen2.5-0.5B-Instruct",
-    label: "Qwen2.5 0.5B (text)",
+    hfId: "onnx-community/Llama-3.2-1B-Instruct",
+    label: "Llama 3.2 1B (text)",
     modalities: ["text"],
     loader: "causal",
-    // ~0.5 GB at q4f16. (The 1.5B variant produced garbage under q4f16/WebGPU in
-    // this onnxruntime-web build; 0.5B follows instructions and only needs a
-    // repetition penalty to avoid greedy loops — see genArgs.)
-    sizeBytes: 550_000_000,
+    // ~0.9 GB at q4f16. Both Qwen2.5 0.5B and 1.5B degenerated into repeated
+    // tokens under q4f16/WebGPU in this onnxruntime-web dev build even with a
+    // repetition penalty; Llama 3.2 1B follows the instruction reliably. Still a
+    // fraction of the multimodal Gemma's ~6.8 GB.
+    sizeBytes: 900_000_000,
     dtype: "q4f16",
     device: "webgpu",
   },
