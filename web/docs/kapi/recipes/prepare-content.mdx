@@ -48,7 +48,7 @@ you just pre-translate:
 
 ```bash
 # Fill from TM first, then translate only what's left
-kapi run recycle -i src/locales/en.json --target-lang fr
+kapi recycle -i src/locales/en.json --target-lang fr
 ```
 
 The [Pre-translate with TM + termbase](/kapi/recipes/pre-translate-with-tm) recipe
@@ -70,7 +70,19 @@ kapi check src/locales/en.json
 kapi check src/locales/en.json --target src/locales/fr.json --target-lang fr
 ```
 
-The [Enforce terminology](/kapi/recipes/terminology-qa) recipe covers glossary
+When a check flags a block — an over-long string, an off-voice phrase — fix it in
+place and re-check. `kapi rewrite` edits the text from a plain-language
+instruction, faithfully — only the text changes — with a `--diff` to review the
+edit first:
+
+```bash
+kapi rewrite --instruction "tighten to fit the length budget" --diff src/locales/en.json
+kapi check src/locales/en.json
+```
+
+This author → check → revise loop is the same one an AI assistant runs over MCP
+(`check_file` → `rewrite_file`). The
+[Enforce terminology](/kapi/recipes/terminology-qa) recipe covers glossary
 enforcement in full.
 
 ## Put it in one pass

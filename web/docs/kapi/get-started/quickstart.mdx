@@ -42,6 +42,54 @@ Estimate translation volume for cost planning:
 
 <RunnableSnippet cmd="kapi word-count messages.json" seed={["messages.json"]} />
 
+## Read, check, and edit content
+
+The engine also runs as content operations on **any** supported file — a Word
+document, a JSON catalog, Markdown — each with a structured `--json` form. Read a
+file into anchored blocks, size it, verify it, or edit the text in place.
+
+`kapi inspect` parses a file into one record per content block — the text, a
+stable content-hash anchor, and its structural role — as a JSON array, or
+`--jsonl` to stream one object per line:
+
+```bash
+kapi inspect messages.json
+kapi inspect --jsonl docs/*.md | jq .content_hash
+```
+
+`kapi stats` summarizes the content — blocks, words, characters, segments, and a
+by-role breakdown — the richer sibling of `word-count`:
+
+```bash
+kapi stats report.docx
+kapi stats --json docs/*.md | jq '.total.words'
+```
+
+`kapi check` verifies content against a checkset and returns a versioned
+`kapi.check/v1` Report — pass, a 0–100 score, a gate, and a finding per stable
+rule id, each anchored to a block. The default checkset is rule-based and needs
+no API key; it **exits non-zero when the gate fails**, so it drops straight into
+CI:
+
+```bash
+kapi check release-notes.md --max-chars 280
+kapi check release-notes.md --json          # the kapi.check/v1 Report
+```
+
+`kapi rewrite` edits the text inside a file from a plain-language instruction and
+writes the document back in the same format — only the text changes, the
+structure round-trips. It calls an LLM, so add a credential first (or run a local
+provider). Preview with `--diff` before writing anything:
+
+```bash
+kapi rewrite --instruction "make the intro more concise" --diff guide.md
+kapi rewrite --instruction "use UK spelling" -i guide.md
+```
+
+Together these are the loop an AI assistant runs over [MCP](/reference/mcp):
+author, `check_file`, fix the flagged block with `rewrite_file`, re-check until
+the gate is green. See [Checks](/framework/checks) for the Report model.
+
 ## Explore formats, tools, and flows
 
 List every format kapi understands — no input file required:
