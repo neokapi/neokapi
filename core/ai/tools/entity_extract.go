@@ -52,14 +52,16 @@ type AIEntityExtractConfig struct {
 	Concurrency int            `json:"batchConcurrency,omitempty" schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"` // Concurrent batch calls. 0 or 1 = sequential.
 }
 
-// AIEntityExtractSchema returns the auto-generated schema for the
-// ai-entity-extract tool.
+// AIEntityExtractSchema returns the composed schema for the ai-entity-extract
+// tool: an `engine` selector (LLM / local NER / hybrid) where the LLM
+// provider and batch settings appear only for the engines that use an LLM (llm
+// and hybrid). Locale and known-terms are common to every engine.
 func AIEntityExtractSchema() *schema.ComponentSchema {
-	s := schema.FromStruct(&AIEntityExtractConfig{}, schema.ToolMeta{
+	full := schema.FromStruct(&AIEntityExtractConfig{}, schema.ToolMeta{
 		ID:          "ai-entity-extract",
 		Category:    schema.CategoryAnalysis,
 		DisplayName: "AI Entity Extract",
-		Description: "Detect named entities (people, organizations, products, locations) using an LLM",
+		Description: "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
 		Tags:        []string{"ai-powered"},
 		Requires:    []string{schema.RequiresCredentials},
 		Cardinality: schema.Monolingual,
@@ -73,8 +75,45 @@ func AIEntityExtractSchema() *schema.ComponentSchema {
 			{Type: string(model.OverlayTermCandidate), Side: model.SideSource},
 		},
 	})
-	injectProviderOptions(s)
-	return s
+
+	// Base: the engine selector + the options common to every engine.
+	base := &schema.ComponentSchema{
+		ID:          full.ID,
+		Title:       full.Title,
+		Description: full.Description,
+		Type:        "object",
+		ToolMeta:    full.ToolMeta,
+		Properties: map[string]schema.PropertySchema{
+			"engine":     full.Properties["engine"],
+			"locale":     full.Properties["locale"],
+			"knownTerms": full.Properties["knownTerms"],
+		},
+		Groups: []schema.ParameterGroup{{ID: "extract", Label: "Extraction", Fields: []string{"engine", "locale", "knownTerms"}}},
+	}
+
+	// LLM params apply to the engines that call an LLM: llm and hybrid.
+	llmParams := &schema.ComponentSchema{
+		Type: "object",
+		Properties: map[string]schema.PropertySchema{
+			"provider":         full.Properties["provider"],
+			"apiKey":           full.Properties["apiKey"],
+			"model":            full.Properties["model"],
+			"batchSize":        full.Properties["batchSize"],
+			"batchConcurrency": full.Properties["batchConcurrency"],
+		},
+		Groups: []schema.ParameterGroup{{ID: "provider", Label: "Provider", Fields: []string{"provider", "apiKey", "model"}}},
+	}
+	setProviderOptions(llmParams, aiProviderOptions())
+	usesLLM := &schema.ConditionExpr{Any: []*schema.ConditionExpr{
+		{Field: "engine", Eq: EngineLLM},
+		{Field: "engine", Eq: EngineHybrid},
+	}}
+
+	return schema.ComposeVariants(base, "engine", EngineLLM, []schema.Variant{
+		{Name: EngineLLM, Label: "LLM (AI provider)", Description: "Extract with an AI provider.", Params: llmParams, When: usesLLM},
+		{Name: EngineNER, Label: "Local NER (on-device)", Description: "On-device model — no credentials, nothing leaves the machine."},
+		{Name: EngineHybrid, Label: "Hybrid (NER + LLM)", Description: "Run the local model and the LLM, merging results."},
+	})
 }
 
 // NewAIEntityExtractFromConfig creates an entity-extraction tool from a config

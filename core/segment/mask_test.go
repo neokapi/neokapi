@@ -91,6 +91,6 @@ func TestFlattenSpans_OutOfRangeIgnored(t *testing.T) {
 
 func TestRegistry(t *testing.T) {
 	assert.False(t, HasEngine("nope-engine"))
-	_, err := NewEngine("nope-engine", Config{})
+	_, err := Build("nope-engine", BaseConfig{}, nil)
 	assert.ErrorIs(t, err, ErrEngineUnavailable)
 }

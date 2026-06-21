@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T23:00:57Z",
+  "generatedAt": "2026-06-21T11:23:40Z",
   "kind": "tool",
   "entries": [
     {
@@ -187,13 +187,13 @@
       "schema": {
         "$id": "ai-entity-extract",
         "title": "AI Entity Extract",
-        "description": "Detect named entities (people, organizations, products, locations) using an LLM",
+        "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
         "type": "object",
         "toolMeta": {
           "id": "ai-entity-extract",
           "category": "analysis",
           "displayName": "AI Entity Extract",
-          "description": "Detect named entities (people, organizations, products, locations) using an LLM",
+          "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
           "tags": [
             "ai-powered"
           ],
@@ -216,12 +216,29 @@
         },
         "ui:groups": [
           {
-            "id": "provider",
+            "id": "extract",
+            "label": "Extraction",
+            "fields": [
+              "engine",
+              "locale",
+              "knownTerms"
+            ]
+          },
+          {
+            "id": "llm:provider",
             "label": "Provider",
             "fields": [
               "provider",
               "apiKey",
               "model"
+            ]
+          },
+          {
+            "id": "llm",
+            "label": "LLM (AI provider)",
+            "fields": [
+              "batchConcurrency",
+              "batchSize"
             ]
           }
         ],
@@ -229,19 +246,55 @@
           "apiKey": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider"
+            "description": "API key for the AI provider",
+            "ui:visible": {
+              "any": [
+                {
+                  "field": "engine",
+                  "eq": "llm"
+                },
+                {
+                  "field": "engine",
+                  "eq": "hybrid"
+                }
+              ]
+            }
           },
           "batchConcurrency": {
             "type": "integer",
             "description": "Number of concurrent batch calls (0 or 1 = sequential)",
             "default": 1,
-            "minimum": 1
+            "minimum": 1,
+            "ui:visible": {
+              "any": [
+                {
+                  "field": "engine",
+                  "eq": "llm"
+                },
+                {
+                  "field": "engine",
+                  "eq": "hybrid"
+                }
+              ]
+            }
           },
           "batchSize": {
             "type": "integer",
             "description": "Number of blocks per LLM call (0 or 1 = one block per call)",
             "default": 1,
-            "minimum": 1
+            "minimum": 1,
+            "ui:visible": {
+              "any": [
+                {
+                  "field": "engine",
+                  "eq": "llm"
+                },
+                {
+                  "field": "engine",
+                  "eq": "hybrid"
+                }
+              ]
+            }
           },
           "engine": {
             "type": "string",
@@ -251,17 +304,23 @@
             "options": [
               {
                 "value": "llm",
-                "label": "llm"
+                "label": "LLM (AI provider)"
               },
               {
                 "value": "ner",
-                "label": "ner"
+                "label": "Local NER (on-device)"
               },
               {
                 "value": "hybrid",
-                "label": "hybrid"
+                "label": "Hybrid (NER + LLM)"
               }
-            ]
+            ],
+            "ui:widget": "select",
+            "ui:enum-descriptions": {
+              "hybrid": "Run the local model and the LLM, merging results.",
+              "llm": "Extract with an AI provider.",
+              "ner": "On-device model — no credentials, nothing leaves the machine."
+            }
           },
           "knownTerms": {
             "type": "array",
@@ -277,7 +336,19 @@
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "AI model name"
+            "description": "AI model name",
+            "ui:visible": {
+              "any": [
+                {
+                  "field": "engine",
+                  "eq": "llm"
+                },
+                {
+                  "field": "engine",
+                  "eq": "hybrid"
+                }
+              ]
+            }
           },
           "provider": {
             "type": "string",
@@ -313,7 +384,19 @@
                 "value": "gemma",
                 "label": "Gemma (local)"
               }
-            ]
+            ],
+            "ui:visible": {
+              "any": [
+                {
+                  "field": "engine",
+                  "eq": "llm"
+                },
+                {
+                  "field": "engine",
+                  "eq": "hybrid"
+                }
+              ]
+            }
           }
         }
       },
@@ -3155,13 +3238,13 @@
       "schema": {
         "$id": "qa",
         "title": "Quality Check",
-        "description": "Check translation quality with rule-based checks, or an LLM when --provider is set",
+        "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
         "type": "object",
         "toolMeta": {
           "id": "qa",
           "category": "quality",
           "displayName": "Quality Check",
-          "description": "Check translation quality with rule-based checks, or an LLM when --provider is set",
+          "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
           "tags": [
             "quality"
           ],
@@ -3191,7 +3274,14 @@
         },
         "ui:groups": [
           {
-            "id": "general",
+            "id": "qa",
+            "label": "Quality check",
+            "fields": [
+              "mode"
+            ]
+          },
+          {
+            "id": "rules:general",
             "label": "General",
             "fields": [
               "checkLeadingWhitespace",
@@ -3208,7 +3298,7 @@
             ]
           },
           {
-            "id": "inlineCodes",
+            "id": "rules:inlineCodes",
             "label": "InlineCodes",
             "fields": [
               "checkCodeDifference",
@@ -3216,21 +3306,21 @@
             ]
           },
           {
-            "id": "patterns",
+            "id": "rules:patterns",
             "label": "Patterns",
             "fields": [
               "checkPatterns"
             ]
           },
           {
-            "id": "characters",
+            "id": "rules:characters",
             "label": "Characters",
             "fields": [
               "checkCorruptedCharacters"
             ]
           },
           {
-            "id": "length",
+            "id": "rules:length",
             "label": "Length",
             "fields": [
               "checkMaxCharLength",
@@ -3246,12 +3336,26 @@
             ]
           },
           {
-            "id": "provider",
+            "id": "rules",
+            "label": "Deterministic rules",
+            "fields": [
+              "checkTerminology"
+            ]
+          },
+          {
+            "id": "ai:provider",
             "label": "Provider",
             "fields": [
               "provider",
               "apiKey",
               "model"
+            ]
+          },
+          {
+            "id": "ai",
+            "label": "AI review",
+            "fields": [
+              "checks"
             ]
           }
         ],
@@ -3260,107 +3364,179 @@
             "type": "integer",
             "title": "Absolute Maximum Characters",
             "description": "Maximum number of characters allowed in any target segment",
-            "default": 255
+            "default": 255,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "apiKey": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider"
+            "description": "API key for the AI provider",
+            "ui:visible": {
+              "field": "mode",
+              "eq": "ai"
+            }
           },
           "checkAbsoluteMaxCharLength": {
             "type": "boolean",
             "title": "Check Absolute Maximum Length",
             "description": "Flag target segments that exceed an absolute character count limit",
-            "default": false
+            "default": false,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkCodeDifference": {
             "type": "boolean",
             "title": "Check Code Differences",
             "description": "Verify that target segments have the same inline codes as source segments",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkCorruptedCharacters": {
             "type": "boolean",
             "title": "Check Corrupted Characters",
             "description": "Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1)",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkDoubleSpaces": {
             "type": "boolean",
             "title": "Check Double Spaces",
             "description": "Check for double spaces in target text",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkDoubledWord": {
             "type": "boolean",
             "title": "Warn on Doubled Words",
             "description": "Check for consecutive repeated words in target text",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkEmptySource": {
             "type": "boolean",
             "title": "Warn on Non-Empty Target with Empty Source",
             "description": "Check for non-empty target when source is empty",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkEmptyTarget": {
             "type": "boolean",
             "title": "Warn on Empty Target",
             "description": "Check for empty target when source has content",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkLeadingWhitespace": {
             "type": "boolean",
             "title": "Check Leading Whitespace",
             "description": "Check for leading whitespace mismatches between source and target",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkMaxCharLength": {
             "type": "boolean",
             "title": "Check Maximum Length Ratio",
             "description": "Flag targets longer than a percentage of source character length",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkMinCharLength": {
             "type": "boolean",
             "title": "Check Minimum Length Ratio",
             "description": "Flag targets shorter than a percentage of source character length",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkPatterns": {
             "type": "boolean",
             "title": "Check Patterns",
             "description": "Verify that source patterns have expected corresponding content in the target",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkSpanConstraints": {
             "type": "boolean",
             "title": "Check Span Constraints",
             "description": "Check non-deletable and non-cloneable span constraint violations",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkTargetSameAsSource": {
             "type": "boolean",
             "title": "Warn on Target Same as Source",
             "description": "Check when target text is identical to source text",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkTerminology": {
             "type": "boolean",
             "title": "Verify Terminology",
             "description": "Enable terminology checks",
-            "default": false
+            "default": false,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checkTrailingWhitespace": {
             "type": "boolean",
             "title": "Check Trailing Whitespace",
             "description": "Check for trailing whitespace mismatches between source and target",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "checks": {
             "type": "array",
             "title": "Quality Checks",
             "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)",
+            "ui:visible": {
+              "field": "mode",
+              "eq": "ai"
+            },
             "items": {
               "type": "string"
             }
@@ -3369,54 +3545,107 @@
             "type": "string",
             "title": "Doubled Word Exceptions",
             "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)",
-            "default": "sie;vous;nous"
+            "default": "sie;vous;nous",
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "maxCharLengthAbove": {
             "type": "integer",
             "title": "Percentage for Long Text (Max)",
             "description": "Maximum allowed percentage of source length for long text",
-            "default": 200
+            "default": 200,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "maxCharLengthBelow": {
             "type": "integer",
             "title": "Percentage for Short Text (Max)",
             "description": "Maximum allowed percentage of source length for short text",
-            "default": 350
+            "default": 350,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "maxCharLengthBreak": {
             "type": "integer",
             "title": "Short/Long Threshold (Max)",
             "description": "Character count above which text is considered long for the maximum length check",
-            "default": 20
+            "default": 20,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "minCharLengthAbove": {
             "type": "integer",
             "title": "Percentage for Long Text (Min)",
             "description": "Minimum required percentage of source length for long text",
-            "default": 45
+            "default": 45,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "minCharLengthBelow": {
             "type": "integer",
             "title": "Percentage for Short Text (Min)",
             "description": "Minimum required percentage of source length for short text",
-            "default": 30
+            "default": 30,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "minCharLengthBreak": {
             "type": "integer",
             "title": "Short/Long Threshold (Min)",
             "description": "Character count above which text is considered long for the minimum length check",
-            "default": 20
+            "default": 20,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
+          },
+          "mode": {
+            "type": "string",
+            "title": "QA Mode",
+            "description": "How to check quality: deterministic local rules, or an AI provider's review",
+            "default": "rules",
+            "options": [
+              {
+                "value": "rules",
+                "label": "Deterministic rules"
+              },
+              {
+                "value": "ai",
+                "label": "AI review"
+              }
+            ],
+            "ui:widget": "select",
+            "ui:enum-descriptions": {
+              "ai": "LLM-judged quality review via an AI provider.",
+              "rules": "Local rule-based checks — no credentials, no network."
+            }
           },
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "AI model name"
+            "description": "AI model name",
+            "ui:visible": {
+              "field": "mode",
+              "eq": "ai"
+            }
           },
           "provider": {
             "type": "string",
             "title": "AI Provider",
-            "description": "LLM provider for AI-judged QA (omit for rule-based checks)",
-            "default": "",
+            "description": "AI provider",
+            "default": "anthropic",
             "options": [
               {
                 "value": "anthropic",
@@ -3446,25 +3675,41 @@
                 "value": "gemma",
                 "label": "Gemma (local)"
               }
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "ai"
+            }
           },
           "strictCodeOrder": {
             "type": "boolean",
             "title": "Enforce Strict Code Order",
             "description": "Flag differences when codes appear in a different order between source and target",
-            "default": false
+            "default": false,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "targetSameAsSourceWithCodes": {
             "type": "boolean",
             "title": "Include Codes in Comparison",
             "description": "Include inline codes when comparing source and target for identity",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           "targetSameAsSourceWithNumbers": {
             "type": "boolean",
             "title": "Include Number-Only Segments",
             "description": "Include number-only segments in same-as-source comparison",
-            "default": true
+            "default": true,
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           }
         }
       },
@@ -4368,6 +4613,7 @@
       "schema": {
         "$id": "segmentation",
         "title": "Segmentation",
+        "description": "Split source text into sentence or chunk segments (stand-off overlay)",
         "type": "object",
         "toolMeta": {
           "id": "segmentation",
@@ -4391,98 +4637,195 @@
             "segment"
           ]
         },
+        "ui:groups": [
+          {
+            "id": "segmentation",
+            "label": "Segmentation",
+            "fields": [
+              "engine",
+              "layer",
+              "segmentSource",
+              "segmentTarget"
+            ]
+          },
+          {
+            "id": "srx",
+            "label": "Default — rule-based (hybrid SRX/UAX-29)",
+            "fields": [
+              "rulesPath"
+            ]
+          },
+          {
+            "id": "llm",
+            "label": "LLM (semantic chunks)",
+            "fields": [
+              "provider",
+              "model",
+              "credential",
+              "instruction",
+              "maxChunkRunes"
+            ]
+          },
+          {
+            "id": "boundaries",
+            "label": "Boundary handling",
+            "collapsible": true,
+            "collapsed": true,
+            "fields": [
+              "overwriteSegmentation",
+              "treatIsolatedCodesAsWhitespace",
+              "trimLeadingWhitespace",
+              "trimTrailingWhitespace",
+              "renumberCodes"
+            ]
+          }
+        ],
         "properties": {
           "credential": {
             "type": "string",
             "title": "Credential",
-            "description": "Stored credential name for the llm engine"
+            "description": "Stored credential name",
+            "ui:widget": "credential-picker",
+            "ui:visible": {
+              "field": "engine",
+              "eq": "llm"
+            },
+            "ui:order": 30
           },
           "engine": {
             "type": "string",
             "title": "Segmentation Engine",
-            "description": "Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ intl (browser Intl.Segmenter)/ llm (semantic chunks)/ sat (ML model)"
+            "description": "Which segmenter to use; the default needs no configuration",
+            "default": "srx",
+            "options": [
+              {
+                "value": "srx",
+                "label": "Default — rule-based (hybrid SRX/UAX-29)"
+              },
+              {
+                "value": "uax29",
+                "label": "Unicode baseline (UAX-29)"
+              },
+              {
+                "value": "llm",
+                "label": "LLM (semantic chunks)"
+              }
+            ],
+            "ui:widget": "select",
+            "ui:enum-descriptions": {
+              "llm": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+              "srx": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
+              "uax29": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions."
+            },
+            "ui:order": 0
           },
           "instruction": {
             "type": "string",
             "title": "Chunking Instruction",
-            "description": "Optional guidance for the llm engine"
+            "description": "Optional guidance for how to chunk",
+            "ui:widget": "textarea",
+            "ui:visible": {
+              "field": "engine",
+              "eq": "llm"
+            },
+            "ui:order": 40
           },
           "layer": {
             "type": "string",
             "title": "Overlay Layer",
-            "description": "Segmentation overlay layer name; empty uses the engine's natural layer"
+            "description": "Segmentation overlay layer name; empty uses the engine's natural layer",
+            "ui:order": 10
+          },
+          "maxChunkRunes": {
+            "type": "integer",
+            "title": "Max Chunk Size",
+            "description": "Soft upper bound on chunk size in characters (0 = model default)",
+            "minimum": 0,
+            "ui:visible": {
+              "field": "engine",
+              "eq": "llm"
+            },
+            "ui:order": 50
           },
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "Model name for the llm or sat engine"
+            "description": "Model name",
+            "ui:visible": {
+              "field": "engine",
+              "eq": "llm"
+            },
+            "ui:order": 20
           },
           "overwriteSegmentation": {
             "type": "boolean",
             "title": "Overwrite Existing Segmentation",
             "description": "Re-segment already-segmented blocks replacing previous segmentation",
-            "default": false
+            "default": false,
+            "ui:order": 10
           },
           "provider": {
             "type": "string",
-            "title": "LLM Provider",
-            "description": "AI provider id for the llm engine"
+            "title": "Provider",
+            "description": "AI provider id (anthropic",
+            "ui:visible": {
+              "field": "engine",
+              "eq": "llm"
+            },
+            "ui:order": 10
           },
           "renumberCodes": {
             "type": "boolean",
             "title": "Renumber Code IDs",
             "description": "Renumber inline code IDs when materializing segments to a bilingual format",
-            "default": false
+            "default": false,
+            "ui:order": 50
           },
-          "satModel": {
+          "rulesPath": {
             "type": "string",
-            "title": "SaT Model",
-            "description": "SaT model for the sat engine (e.g. sat-3l-sm"
+            "title": "SRX Rules File",
+            "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)",
+            "ui:widget": "file-picker",
+            "ui:visible": {
+              "field": "engine",
+              "eq": "srx"
+            },
+            "ui:order": 10
           },
           "segmentSource": {
             "type": "boolean",
             "title": "Segment Source Text",
             "description": "Segment the source text",
-            "default": true
+            "default": true,
+            "ui:order": 20
           },
           "segmentTarget": {
             "type": "boolean",
             "title": "Segment Target Text",
             "description": "Segment existing target text",
-            "default": false
-          },
-          "sourceSrxPath": {
-            "type": "string",
-            "title": "Source SRX Rules Path",
-            "description": "Path to an SRX 2.0 rules file for source text (srx engine)"
-          },
-          "targetSrxPath": {
-            "type": "string",
-            "title": "Target SRX Rules Path",
-            "description": "Path to an SRX 2.0 rules file for target text (srx engine)"
-          },
-          "threshold": {
-            "type": "number",
-            "title": "Boundary Threshold",
-            "description": "Boundary probability threshold for the sat engine (0 = model default)"
+            "default": false,
+            "ui:order": 30
           },
           "treatIsolatedCodesAsWhitespace": {
             "type": "boolean",
             "title": "Treat Isolated Codes as Whitespace",
             "description": "Treat isolated inline codes as whitespace during segmentation",
-            "default": false
+            "default": false,
+            "ui:order": 20
           },
           "trimLeadingWhitespace": {
             "type": "boolean",
             "title": "Trim Leading Whitespace",
             "description": "Exclude leading whitespace from each segment span",
-            "default": true
+            "default": true,
+            "ui:order": 30
           },
           "trimTrailingWhitespace": {
             "type": "boolean",
             "title": "Trim Trailing Whitespace",
             "description": "Exclude trailing whitespace from each segment span",
-            "default": true
+            "default": true,
+            "ui:order": 40
           }
         }
       },
@@ -5041,11 +5384,29 @@
             "fields": [
               "provider",
               "apiKey",
-              "model",
-              "subscriptionKey",
-              "region",
-              "email",
+              "model"
+            ]
+          },
+          {
+            "id": "google",
+            "label": "Google Translate",
+            "fields": [
               "projectId"
+            ]
+          },
+          {
+            "id": "microsoft",
+            "label": "Microsoft Translator",
+            "fields": [
+              "subscriptionKey",
+              "region"
+            ]
+          },
+          {
+            "id": "mymemory",
+            "label": "MyMemory",
+            "fields": [
+              "email"
             ]
           }
         ],
@@ -5072,7 +5433,12 @@
           "email": {
             "type": "string",
             "title": "Email",
-            "description": "Account email for higher rate limits (mymemory)"
+            "description": "Account email for higher rate limits (mymemory)",
+            "ui:visible": {
+              "field": "provider",
+              "eq": "mymemory"
+            },
+            "ui:order": 10
           },
           "model": {
             "type": "string",
@@ -5082,7 +5448,12 @@
           "projectId": {
             "type": "string",
             "title": "Project ID",
-            "description": "Google Cloud project ID (google)"
+            "description": "Google Cloud project ID (google)",
+            "ui:visible": {
+              "field": "provider",
+              "eq": "google"
+            },
+            "ui:order": 10
           },
           "provider": {
             "type": "string",
@@ -5138,12 +5509,18 @@
                 "value": "mymemory",
                 "label": "MyMemory"
               }
-            ]
+            ],
+            "ui:widget": "select"
           },
           "region": {
             "type": "string",
             "title": "Region",
-            "description": "Azure region (microsoft)"
+            "description": "Azure region (microsoft)",
+            "ui:visible": {
+              "field": "provider",
+              "eq": "microsoft"
+            },
+            "ui:order": 20
           },
           "skipMatched": {
             "type": "boolean",
@@ -5155,7 +5532,12 @@
             "type": "string",
             "title": "Subscription Key",
             "description": "Azure subscription key (microsoft)",
-            "ui:widget": "password"
+            "ui:widget": "password",
+            "ui:visible": {
+              "field": "provider",
+              "eq": "microsoft"
+            },
+            "ui:order": 10
           }
         }
       },

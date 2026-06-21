@@ -56,11 +56,12 @@ type Host struct {
 	plugins []*Plugin
 
 	// Dispatch tables, built from plugins on construction.
-	commandDispatch map[string]*CommandRoute      // command name → owning plugin + manifest entry
-	mcpDispatch     map[string]*MCPRoute          // MCP tool name → owning plugin + manifest entry
-	formatDispatch  map[string]*FormatRoute       // format name → owning plugin + manifest entry
-	schemaExt       []SchemaExtensionRegistration // recipe schema extensions surfaced from manifests
-	contributions   []*ContributionRoute          // contributions to built-in commands
+	commandDispatch   map[string]*CommandRoute      // command name → owning plugin + manifest entry
+	mcpDispatch       map[string]*MCPRoute          // MCP tool name → owning plugin + manifest entry
+	formatDispatch    map[string]*FormatRoute       // format name → owning plugin + manifest entry
+	segmenterDispatch map[string]*SegmenterRoute    // segmenter engine name → owning plugin + manifest entry
+	schemaExt         []SchemaExtensionRegistration // recipe schema extensions surfaced from manifests
+	contributions     []*ContributionRoute          // contributions to built-in commands
 }
 
 // ContributionRoute names a command contribution and the plugin that owns it.
@@ -89,6 +90,12 @@ type FormatRoute struct {
 	Format manifest.Format
 }
 
+// SegmenterRoute names a segmenter capability and the plugin it dispatches to.
+type SegmenterRoute struct {
+	Plugin    *Plugin
+	Segmenter manifest.Segmenter
+}
+
 // SchemaExtensionRegistration pairs a discovered manifest schema_extension
 // entry with the plugin that owns it.
 type SchemaExtensionRegistration struct {
@@ -105,10 +112,11 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 		conflicts = func(string) {}
 	}
 	h := &Host{
-		plugins:         plugins,
-		commandDispatch: map[string]*CommandRoute{},
-		mcpDispatch:     map[string]*MCPRoute{},
-		formatDispatch:  map[string]*FormatRoute{},
+		plugins:           plugins,
+		commandDispatch:   map[string]*CommandRoute{},
+		mcpDispatch:       map[string]*MCPRoute{},
+		formatDispatch:    map[string]*FormatRoute{},
+		segmenterDispatch: map[string]*SegmenterRoute{},
 	}
 
 	// Sort plugins by source precedence (lower = higher priority), then
@@ -166,6 +174,14 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 				continue
 			}
 			h.formatDispatch[f.Name] = &FormatRoute{Plugin: p, Format: f}
+		}
+		for _, s := range p.Manifest.Capabilities.Segmenters {
+			if existing, ok := h.segmenterDispatch[s.Name]; ok {
+				conflicts(fmt.Sprintf("segmenter %q is provided by plugins %q and %q — neither will dispatch until one is removed", s.Name, existing.Plugin.Name(), p.Name()))
+				delete(h.segmenterDispatch, s.Name)
+				continue
+			}
+			h.segmenterDispatch[s.Name] = &SegmenterRoute{Plugin: p, Segmenter: s}
 		}
 		for _, ext := range p.Manifest.Capabilities.SchemaExtensions {
 			h.schemaExt = append(h.schemaExt, SchemaExtensionRegistration{Plugin: p, Extension: ext})
@@ -264,6 +280,11 @@ func (h *Host) dropPluginLocked(p *Plugin) {
 			delete(h.formatDispatch, k)
 		}
 	}
+	for k, r := range h.segmenterDispatch {
+		if r.Plugin == p {
+			delete(h.segmenterDispatch, k)
+		}
+	}
 	keptExt := h.schemaExt[:0]
 	for _, e := range h.schemaExt {
 		if e.Plugin != p {
@@ -300,6 +321,27 @@ func (h *Host) FormatRoute(name string) *FormatRoute {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return h.formatDispatch[name]
+}
+
+// SegmenterRoute returns the dispatch entry for a segmenter engine.
+func (h *Host) SegmenterRoute(name string) *SegmenterRoute {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.segmenterDispatch[name]
+}
+
+// SegmenterRoutes returns all segmenter dispatch entries, sorted by engine name.
+func (h *Host) SegmenterRoutes() []*SegmenterRoute {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	out := make([]*SegmenterRoute, 0, len(h.segmenterDispatch))
+	for _, r := range h.segmenterDispatch {
+		out = append(out, r)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].Segmenter.Name < out[j].Segmenter.Name
+	})
+	return out
 }
 
 // CommandRoutes returns all command dispatch entries. The slice is

@@ -1,61 +1,70 @@
 // Command kapi-sat is the SaT (Segment any Text / wtpsplit) segmenter plugin
 // for kapi. It runs SaT ONNX models in-process — the heavy onnxruntime + XLM-R
-// tokenizer native dependencies live here, not in the portable kapi binary —
-// and speaks a tiny line-delimited JSON protocol on stdin/stdout (see
-// github.com/neokapi/neokapi/plugins/sat/satproto).
+// tokenizer native dependencies live here, not in the portable kapi binary.
 //
-// The host-side `sat` segment engine spawns this binary in `serve` mode and
-// drives it with satproto.Client. The process stays alive across many
-// requests, loading each model lazily on first use and caching it.
+// It is a Mode-C (daemon-over-socket) plugin: it serves the shared
+// BridgeService over a Unix socket and answers the Segment RPC, exactly as the
+// host's generic daemonSegmenter drives any plugin-declared segmenter
+// (capabilities.segmenters in manifest.json). There is no kapi-sat-specific code
+// in the host — the engine is wired purely from manifest metadata.
 //
 // Subcommands:
 //
-//	kapi-sat serve     start the stdin/stdout protocol loop (default)
+//	kapi-sat daemon    serve BridgeService over a Unix socket (the pool's entry)
 //	kapi-sat version   print the plugin version
 //	kapi-sat doctor    self-check: construct the engine and list supported models
 //	                   (the standard self-check that `kapi plugins doctor` runs)
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"net"
 	"os"
+	"os/signal"
+	"path/filepath"
+	"strconv"
+	"syscall"
 
+	"google.golang.org/grpc"
+
+	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/plugins/sat/internal/model"
 	"github.com/neokapi/neokapi/plugins/sat/internal/sat"
-	"github.com/neokapi/neokapi/plugins/sat/satproto"
 )
 
 func main() {
-	sub := "serve"
+	sub := "daemon"
 	if len(os.Args) >= 2 {
 		sub = os.Args[1]
 	}
 	switch sub {
-	case "serve":
-		os.Exit(runServe())
+	case "daemon", "serve": // "serve" kept as an alias for manual runs
+		os.Exit(runDaemon())
 	case "version":
 		fmt.Println(version.Version)
 	case "doctor":
 		os.Exit(runDoctor())
 	default:
-		fmt.Fprintf(os.Stderr, "kapi-sat: unknown subcommand %q (want serve|version|doctor)\n", sub)
+		fmt.Fprintf(os.Stderr, "kapi-sat: unknown subcommand %q (want daemon|version|doctor)\n", sub)
 		os.Exit(2)
 	}
 }
 
-// runServe runs the protocol loop. The engine is created lazily-failing: if the
-// binary was built without ONNX support, NewEngine still succeeds (returning a
-// stub) and segment requests report the build limitation per-request, so ping
-// and info still work for host capability probing.
-func runServe() int {
+// runDaemon binds a Unix socket, advertises it via the stdio handshake, and
+// serves BridgeService until SIGTERM/SIGINT or a Shutdown RPC. The engine is
+// created lazily-failing: a non-ONNX build still serves (so the handshake and
+// capability probing work) and reports the build limitation per Segment call.
+func runDaemon() int {
 	logf := func(format string, args ...any) {
 		fmt.Fprintf(os.Stderr, "kapi-sat: "+format+"\n", args...)
 	}
 	engine, err := sat.NewEngine(logf)
 	if err != nil {
 		logf("engine init failed: %v", err)
-		// Continue with a nil engine: ping/info still answer; segment errors.
+		// Continue with a nil engine: the daemon still serves; Segment errors.
 	}
 	defer func() {
 		if engine != nil {
@@ -63,54 +72,87 @@ func runServe() int {
 		}
 	}()
 
-	h := func(req satproto.Request) satproto.Response {
-		switch req.Op {
-		case satproto.OpPing:
-			return satproto.Response{OK: true, Version: version.Version}
-		case satproto.OpInfo:
-			return satproto.Response{Version: version.Version, Models: modelInfos(engine)}
-		case satproto.OpSegment:
-			if engine == nil {
-				return satproto.Response{Error: fmt.Sprintf("engine unavailable: %v", err)}
-			}
-			bounds, serr := engine.Segment(req.Text, req.Model, req.Lang, req.Threshold)
-			if serr != nil {
-				return satproto.Response{Error: serr.Error()}
-			}
-			if bounds == nil {
-				bounds = []int{}
-			}
-			return satproto.Response{Boundaries: bounds}
-		case "":
-			return satproto.Response{Error: "missing op"}
-		default:
-			return satproto.Response{Error: fmt.Sprintf("unknown op %q", req.Op)}
-		}
+	dir, err := os.MkdirTemp("", "kapi-sat-")
+	if err != nil {
+		logf("temp dir: %v", err)
+		return 1
+	}
+	sock := filepath.Join(dir, "kapi-sat.sock")
+	lis, err := net.Listen("unix", sock)
+	if err != nil {
+		logf("listen %s: %v", sock, err)
+		return 1
 	}
 
-	if err := satproto.Serve(os.Stdin, os.Stdout, h); err != nil {
-		logf("serve loop error: %v", err)
+	srv := grpc.NewServer()
+	pb.RegisterBridgeServiceServer(srv, &server{engine: engine, initErr: err, stop: srv.GracefulStop})
+
+	// Handshake: one JSON line on stdout, then keep stdout open for logs.
+	hs, _ := json.Marshal(map[string]string{"socket": sock, "version": version.Version})
+	fmt.Println(string(hs))
+	_ = os.Stdout.Sync()
+
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		<-sigc
+		srv.GracefulStop()
+	}()
+
+	serveErr := srv.Serve(lis)
+	_ = os.Remove(sock)
+	_ = os.Remove(dir)
+	if serveErr != nil {
+		logf("serve: %v", serveErr)
 		return 1
 	}
 	return 0
 }
 
-// modelInfos reports the supported models and whether each is currently loaded.
-func modelInfos(engine sat.Engine) []satproto.ModelInfo {
-	out := make([]satproto.ModelInfo, 0, len(model.Registry))
-	for _, s := range model.Registry {
-		mi := satproto.ModelInfo{Name: s.Name, Default: s.Default}
-		if engine != nil {
-			mi.Loaded = engine.Loaded(s.Name)
-		}
-		out = append(out, mi)
-	}
-	return out
+// server implements BridgeService. Only Segment (and Shutdown) are supported;
+// Process / ProcessStep fall through to UnimplementedBridgeServiceServer, which
+// returns codes.Unimplemented — kapi-sat is a segmenter, not a format/step plugin.
+type server struct {
+	pb.UnimplementedBridgeServiceServer
+	engine  sat.Engine
+	initErr error
+	stop    func()
 }
 
-// runDoctor is the standard self-check: it confirms the in-process engine
-// constructs and prints the supported models, independent of the protocol path.
-// `kapi plugins doctor` runs this.
+func (s *server) Shutdown(_ context.Context, _ *pb.ShutdownRequest) (*pb.ShutdownResponse, error) {
+	if s.stop != nil {
+		go s.stop()
+	}
+	return &pb.ShutdownResponse{}, nil
+}
+
+// Segment runs the SaT model over the request text and returns the interior
+// sentence-break offsets (rune indices). The model name and boundary threshold
+// ride in params (satModel / threshold), matching the engine's segment schema.
+func (s *server) Segment(_ context.Context, req *pb.SegmentRequest) (*pb.SegmentResponse, error) {
+	if s.engine == nil {
+		return &pb.SegmentResponse{Error: fmt.Sprintf("engine unavailable: %v", s.initErr)}, nil
+	}
+	params := req.GetParams()
+	modelName := params["satModel"]
+	var threshold float64
+	if t := params["threshold"]; t != "" {
+		threshold, _ = strconv.ParseFloat(t, 64)
+	}
+	bounds, err := s.engine.Segment(req.GetText(), modelName, req.GetLocale(), threshold)
+	if err != nil {
+		return &pb.SegmentResponse{Error: err.Error()}, nil
+	}
+	out := make([]int32, len(bounds))
+	for i, b := range bounds {
+		out[i] = int32(b)
+	}
+	return &pb.SegmentResponse{Boundaries: out}, nil
+}
+
+// runDoctor is the standard self-check (run by `kapi plugins doctor`): it
+// confirms the in-process engine constructs and prints the supported models,
+// independent of the daemon path.
 func runDoctor() int {
 	engine, err := sat.NewEngine(nil)
 	if err != nil {
@@ -121,12 +163,12 @@ func runDoctor() int {
 
 	fmt.Printf("kapi-sat %s — SaT segmenter ready\n", version.Version)
 	fmt.Println("supported models:")
-	for _, s := range model.Registry {
+	for _, m := range model.Registry {
 		def := ""
-		if s.Default {
+		if m.Default {
 			def = " (default)"
 		}
-		fmt.Printf("  - %s%s\n", s.Name, def)
+		fmt.Printf("  - %s%s\n", m.Name, def)
 	}
 	return 0
 }

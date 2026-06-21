@@ -188,11 +188,11 @@ func TestLLMSegment_FactoryRequiresProvider(t *testing.T) {
 	// A known provider with no credentials still constructs (validation of
 	// credentials happens at call time inside the provider); an unknown
 	// provider id is an error.
-	seg, err := segment.NewEngine("llm", segment.Config{Provider: "definitely-not-a-provider"})
+	seg, err := newLLMSegmenter(segment.BaseConfig{}, &LLMParams{Provider: "definitely-not-a-provider"})
 	require.Error(t, err)
 	assert.Nil(t, seg)
 
-	seg, err = segment.NewEngine("llm", segment.Config{Provider: string(aiprovider.Demo)})
+	seg, err = newLLMSegmenter(segment.BaseConfig{}, &LLMParams{Provider: string(aiprovider.Demo)})
 	require.NoError(t, err)
 	require.NotNil(t, seg)
 	assert.Equal(t, segment.LayerLLMChunk, seg.Layer())

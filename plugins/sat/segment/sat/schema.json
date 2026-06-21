@@ -1,0 +1,21 @@
+{
+  "$id": "https://neokapi.dev/schemas/segment-sat.json",
+  "title": "ML model (SaT)",
+  "type": "object",
+  "properties": {
+    "satModel": {
+      "type": "string",
+      "title": "SaT Model",
+      "description": "SaT model name (e.g. sat-3l-sm, sat-12l-sm)",
+      "ui:order": 10
+    },
+    "threshold": {
+      "type": "number",
+      "title": "Boundary Threshold",
+      "description": "Boundary probability threshold; 0 uses the model default",
+      "minimum": 0,
+      "maximum": 1,
+      "ui:order": 20
+    }
+  }
+}

@@ -52,7 +52,7 @@ func TestRegexp2ReportsRuneOffsets(t *testing.T) {
 // TestBreaks_Kernel exercises the boundary kernel directly (rune offsets in,
 // rune offsets out) without run projection.
 func TestBreaks_Kernel(t *testing.T) {
-	engAny, err := New(segment.Config{})
+	engAny, err := New(segment.BaseConfig{}, nil)
 	require.NoError(t, err)
 	eng := engAny.(*segmenter)
 
@@ -70,7 +70,7 @@ func TestBreaks_Kernel(t *testing.T) {
 
 // TestRulesCache verifies that rule selection is cached per locale.
 func TestRulesCache(t *testing.T) {
-	engAny, err := New(segment.Config{})
+	engAny, err := New(segment.BaseConfig{}, nil)
 	require.NoError(t, err)
 	eng := engAny.(*segmenter)
 
@@ -85,7 +85,7 @@ func TestRulesCache(t *testing.T) {
 
 // TestContextCancellation ensures a cancelled context short-circuits.
 func TestContextCancellation(t *testing.T) {
-	engAny, err := New(segment.Config{})
+	engAny, err := New(segment.BaseConfig{}, nil)
 	require.NoError(t, err)
 	eng := engAny.(*segmenter)
 

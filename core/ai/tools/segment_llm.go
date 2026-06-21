@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/segment"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
@@ -28,35 +29,65 @@ type llmSegmenter struct {
 	mask          segment.MaskOptions
 }
 
+// LLMParams is the LLM engine's own configuration. APIKey / BaseURL are resolved
+// at runtime from Credential by the host and are not form fields.
+type LLMParams struct {
+	Provider      string `json:"provider,omitempty"      schema:"title=Provider,description=AI provider id (anthropic, openai, gemini, …),order=10"`
+	Model         string `json:"model,omitempty"         schema:"title=Model,description=Model name,order=20"`
+	Credential    string `json:"credential,omitempty"    schema:"title=Credential,description=Stored credential name,widget=credential-picker,order=30"`
+	Instruction   string `json:"instruction,omitempty"   schema:"title=Chunking Instruction,description=Optional guidance for how to chunk,widget=textarea,order=40"`
+	MaxChunkRunes int    `json:"maxChunkRunes,omitempty" schema:"title=Max Chunk Size,description=Soft upper bound on chunk size in characters (0 = model default),min=0,order=50"`
+
+	// Resolved at runtime by the host, not exposed as form fields.
+	APIKey  string `json:"-" schema:"-"`
+	BaseURL string `json:"-" schema:"-"`
+}
+
 // init wires the LLM engine into the global segment registry, mirroring the
 // aiprovider/mtprovider init-time registration pattern.
 func init() {
-	segment.RegisterEngine("llm", newLLMSegmenter)
+	segment.Register(segment.EngineDescriptor{
+		Name:        "llm",
+		Label:       "LLM (semantic chunks)",
+		Description: "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+		Order:       30,
+		Schema:      schema.FromStruct(&LLMParams{}, schema.ToolMeta{ID: "segment-engine-llm"}),
+		New: func(base segment.BaseConfig, params map[string]any) (segment.Segmenter, error) {
+			p := &LLMParams{}
+			if err := schema.ApplyConfig(params, p); err != nil {
+				return nil, fmt.Errorf("segment llm config: %w", err)
+			}
+			return newLLMSegmenter(base, p)
+		},
+	})
 }
 
-// newLLMSegmenter builds the LLM engine from a resolved [segment.Config]. The
-// provider id defaults to the same default as translate (anthropic) when
-// cfg.Provider is empty. Credential resolution (keychain → cfg.APIKey) is the
-// integrator's responsibility; this constructor only consumes the resolved
-// APIKey / Provider / Model / BaseURL fields.
-func newLLMSegmenter(cfg segment.Config) (segment.Segmenter, error) {
-	p, err := ProviderFromConfig(cfg.Provider, aiprovider.Config{
-		APIKey:  cfg.APIKey,
-		BaseURL: cfg.BaseURL,
-		Model:   cfg.Model,
+// newLLMSegmenter builds the LLM engine from the shared base options and LLM
+// [LLMParams]. The provider id defaults to the same default as translate
+// (anthropic) when Provider is empty. Credential resolution (keychain → APIKey)
+// is the integrator's responsibility; this constructor only consumes the
+// resolved APIKey / Provider / Model / BaseURL fields.
+func newLLMSegmenter(base segment.BaseConfig, p *LLMParams) (segment.Segmenter, error) {
+	if p == nil {
+		p = &LLMParams{}
+	}
+	prov, err := ProviderFromConfig(p.Provider, aiprovider.Config{
+		APIKey:  p.APIKey,
+		BaseURL: p.BaseURL,
+		Model:   p.Model,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("segment llm: %w", err)
 	}
-	if p == nil {
-		return nil, fmt.Errorf("segment llm: no provider for %q", cfg.Provider)
+	if prov == nil {
+		return nil, fmt.Errorf("segment llm: no provider for %q", p.Provider)
 	}
 	return &llmSegmenter{
-		provider:      p,
-		language:      cfg.Language,
-		instruction:   cfg.Instruction,
-		maxChunkRunes: cfg.MaxChunkRunes,
-		mask:          cfg.Mask,
+		provider:      prov,
+		language:      base.Language,
+		instruction:   p.Instruction,
+		maxChunkRunes: p.MaxChunkRunes,
+		mask:          base.Mask,
 	}, nil
 }
 

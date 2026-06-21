@@ -153,6 +153,11 @@ func NewApp() *App {
 		PoolLogger: func(format string, args ...any) {
 			logger.Printf("[daemon] "+format, args...)
 		},
+		// Recompose the segmentation tool schema when a plugin contributes a
+		// segmentation engine, so the new engine appears in the selector.
+		OnSegmentersChanged: func() {
+			libtools.RegisterSegmentation(toolReg)
+		},
 	})
 	return app
 }

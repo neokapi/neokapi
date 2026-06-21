@@ -199,6 +199,13 @@ type ParameterGroup struct {
 	Collapsed   bool     `json:"collapsed,omitempty"`
 	Icon        string   `json:"icon,omitempty"` // lucide icon name
 	Fields      []string `json:"fields"`
+
+	// Visible gates the whole group: when set, the UI renders the group (header
+	// and all its fields) only while the condition holds, and omits it entirely
+	// otherwise. This is how a pluggable-backend tool shows just the selected
+	// backend's section (master–detail) — see [ComposeVariants] — instead of
+	// hiding the backend's fields one by one, which can leave an empty header.
+	Visible *ConditionExpr `json:"ui:visible,omitempty"`
 }
 
 // ConditionExpr is an expression for conditional visibility/enablement.

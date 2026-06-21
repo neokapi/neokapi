@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T23:00:57Z",
+  "generatedAt": "2026-06-21T11:23:40Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -7,7 +7,7 @@
         "ai-entity-extract"
       ],
       "use": "ai-entity-extract [files...]",
-      "short": "Detect named entities (people, organizations, products, locations) using an LLM",
+      "short": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
       "groupID": "analysis",
       "flags": [
         {
@@ -48,7 +48,7 @@
         },
         {
           "name": "engine",
-          "usage": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both) (llm, ner, hybrid)",
+          "usage": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both) (LLM (AI provider), Local NER (on-device), Hybrid (NER + LLM))",
           "default": "llm",
           "type": "string"
         },
@@ -2838,6 +2838,19 @@
       "demoMode": false
     },
     {
+      "id": "plugin.doctor",
+      "path": [
+        "plugin",
+        "doctor"
+      ],
+      "use": "doctor [name]",
+      "short": "Run health/self-checks on installed plugins",
+      "long": "Check the health of installed plugins.\n\nFor each plugin, doctor verifies the binary is present and its reported\nversion matches the manifest, then — for plugins that provide a\nself-check — runs the plugin's own diagnostics (e.g. confirming bundled\nbinaries, models, or engines resolve at runtime).\n\nWith no argument, doctor checks every installed plugin and prints a\none-line status each. Pass a plugin name for a detailed report including\nthe plugin's full self-check output. Exits non-zero if any checked\nplugin is unhealthy.\n\nExamples:\n  kapi plugins doctor\n  kapi plugins doctor av",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
       "id": "plugin.info",
       "path": [
         "plugin",
@@ -3207,7 +3220,7 @@
         "qa"
       ],
       "use": "qa [files...]",
-      "short": "Check translation quality with rule-based checks, or an LLM when --provider is set",
+      "short": "Check translation quality with deterministic rules or an LLM (select with --mode)",
       "groupID": "quality",
       "flags": [
         {
@@ -3404,6 +3417,12 @@
           "type": "int"
         },
         {
+          "name": "mode",
+          "usage": "How to check quality: deterministic local rules, or an AI provider's review (Deterministic rules, AI review)",
+          "default": "rules",
+          "type": "string"
+        },
+        {
           "name": "model",
           "usage": "AI model name",
           "type": "string"
@@ -3446,7 +3465,8 @@
         },
         {
           "name": "provider",
-          "usage": "LLM provider for AI-judged QA (omit for rule-based checks) (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), Gemma (local))",
+          "default": "anthropic",
           "type": "string"
         },
         {
@@ -4419,7 +4439,7 @@
         "segmentation"
       ],
       "use": "segmentation [files...]",
-      "short": "Segmentation",
+      "short": "Split source text into sentence or chunk segments (stand-off overlay)",
       "aliases": [
         "segment"
       ],
@@ -4434,7 +4454,7 @@
         },
         {
           "name": "credential",
-          "usage": "Stored credential name for the llm engine",
+          "usage": "Stored credential name",
           "type": "string"
         },
         {
@@ -4446,7 +4466,8 @@
         },
         {
           "name": "engine",
-          "usage": "Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ intl (browser Intl.Segmenter)/ llm (semantic chunks)/ sat (ML model)",
+          "usage": "Which segmenter to use; the default needs no configuration (Default — rule-based (hybrid SRX/UAX-29), Unicode baseline (UAX-29), LLM (semantic chunks))",
+          "default": "srx",
           "type": "string"
         },
         {
@@ -4463,7 +4484,7 @@
         },
         {
           "name": "instruction",
-          "usage": "Optional guidance for the llm engine",
+          "usage": "Optional guidance for how to chunk",
           "type": "string"
         },
         {
@@ -4485,8 +4506,14 @@
           "type": "stringArray"
         },
         {
+          "name": "max-chunk-runes",
+          "usage": "Soft upper bound on chunk size in characters (0 = model default)",
+          "default": "0",
+          "type": "int"
+        },
+        {
           "name": "model",
-          "usage": "Model name for the llm or sat engine",
+          "usage": "Model name",
           "type": "string"
         },
         {
@@ -4533,7 +4560,7 @@
         },
         {
           "name": "provider",
-          "usage": "AI provider id for the llm engine",
+          "usage": "AI provider id (anthropic",
           "type": "string"
         },
         {
@@ -4543,8 +4570,8 @@
           "type": "bool"
         },
         {
-          "name": "sat-model",
-          "usage": "SaT model for the sat engine (e.g. sat-3l-sm",
+          "name": "rules-path",
+          "usage": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)",
           "type": "string"
         },
         {
@@ -4566,11 +4593,6 @@
           "type": "string"
         },
         {
-          "name": "source-srx-path",
-          "usage": "Path to an SRX 2.0 rules file for source text (srx engine)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
@@ -4580,17 +4602,6 @@
           "name": "target-lang",
           "usage": "target language (e.g. fr, de-DE)",
           "type": "string"
-        },
-        {
-          "name": "target-srx-path",
-          "usage": "Path to an SRX 2.0 rules file for target text (srx engine)",
-          "type": "string"
-        },
-        {
-          "name": "threshold",
-          "usage": "Boundary probability threshold for the sat engine (0 = model default)",
-          "default": "0",
-          "type": "float64"
         },
         {
           "name": "trace",

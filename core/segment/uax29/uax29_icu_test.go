@@ -30,7 +30,7 @@ func segTexts(runs []model.Run, spans []model.Span) []string {
 
 func TestUAX29_Registered(t *testing.T) {
 	assert.True(t, segment.HasEngine("uax29"), "the cgo build registers the uax29 engine")
-	eng, err := segment.NewEngine("uax29", segment.Config{})
+	eng, err := segment.Build("uax29", segment.BaseConfig{}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, segment.LayerSentence, eng.Layer())
 }
@@ -116,7 +116,7 @@ func TestUAX29_Segment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			eng, err := segment.NewEngine("uax29", segment.Config{Language: tt.lang})
+			eng, err := segment.Build("uax29", segment.BaseConfig{Language: tt.lang}, nil)
 			require.NoError(t, err)
 
 			runs := []model.Run{text(tt.in)}
@@ -128,7 +128,7 @@ func TestUAX29_Segment(t *testing.T) {
 }
 
 func TestUAX29_EmptyInput(t *testing.T) {
-	eng, err := segment.NewEngine("uax29", segment.Config{})
+	eng, err := segment.Build("uax29", segment.BaseConfig{}, nil)
 	require.NoError(t, err)
 
 	t.Run("nil runs", func(t *testing.T) {
@@ -147,7 +147,7 @@ func TestUAX29_EmptyInput(t *testing.T) {
 // safe under concurrent Segment calls (each opens its own ICU break iterator).
 // Run under -race to detect any shared-state misuse.
 func TestUAX29_Concurrent(t *testing.T) {
-	eng, err := segment.NewEngine("uax29", segment.Config{})
+	eng, err := segment.Build("uax29", segment.BaseConfig{}, nil)
 	require.NoError(t, err)
 
 	runs := []model.Run{text("Hello world. How are you? Fine.")}
@@ -164,7 +164,7 @@ func TestUAX29_Concurrent(t *testing.T) {
 }
 
 func TestUAX29_ContextCancelled(t *testing.T) {
-	eng, err := segment.NewEngine("uax29", segment.Config{})
+	eng, err := segment.Build("uax29", segment.BaseConfig{}, nil)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -47,9 +47,9 @@ func TestSRXParityWithOkapi(t *testing.T) {
 		if e, ok := engines[loc]; ok {
 			return e
 		}
-		e, err := segment.NewEngine("srx", segment.Config{})
+		e, err := segment.Build("srx", segment.BaseConfig{}, nil)
 		if err != nil {
-			t.Fatalf("NewEngine: %v", err)
+			t.Fatalf("Build: %v", err)
 		}
 		engines[loc] = e
 		return e

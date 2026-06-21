@@ -135,6 +135,14 @@ func (a *App) ensurePluginRuntime() *pluginhost.Runtime {
 					fmt.Fprintf(os.Stderr, "[daemon] "+format+"\n", args...)
 				}
 			},
+			// When a plugin contributes a segmentation engine, recompose the
+			// segmentation tool schema so the new engine appears in the selector
+			// (the schema is built once, before plugin discovery).
+			OnSegmentersChanged: func() {
+				if a.ToolReg != nil {
+					libtools.RegisterSegmentation(a.ToolReg)
+				}
+			},
 		})
 	})
 	return a.pluginRuntime

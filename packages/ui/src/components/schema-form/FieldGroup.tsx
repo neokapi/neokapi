@@ -2,6 +2,7 @@ import { cn } from "../../lib/utils";
 import { FormFieldGroup } from "../ui/form";
 import type { ParameterGroup, PropertySchema, ToolDocParam } from "./types";
 import { PropertyField } from "./PropertyField";
+import { evaluateCondition } from "./hooks/useConditionalVisibility";
 
 export function FieldGroup({
   group,
@@ -31,7 +32,16 @@ export function FieldGroup({
   paramDocs?: Record<string, ToolDocParam>;
   fieldErrors?: Record<string, string | undefined>;
 }) {
-  const fields = group.fields.filter((f) => properties[f] && !properties[f].deprecated);
+  // Drop fields that are absent, deprecated, or hidden by their ui:visible
+  // condition. Hiding when none remain keeps a conditionally-populated group
+  // (e.g. a backend's parameters that only apply when that backend is selected)
+  // from rendering an empty header.
+  const fields = group.fields.filter(
+    (f) =>
+      properties[f] &&
+      !properties[f].deprecated &&
+      evaluateCondition(properties[f]["ui:visible"], values, properties),
+  );
   if (fields.length === 0) return null;
 
   const sortedFields = [...fields].sort((a, b) => {

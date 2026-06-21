@@ -37,16 +37,20 @@ import (
 const jsFuncName = "kapiIntlSentenceBreaks"
 
 func init() {
-	segment.RegisterEngine("intl", newEngine)
+	segment.Register(segment.EngineDescriptor{
+		Name:        "intl",
+		Label:       "Unicode baseline (Intl.Segmenter)",
+		Description: "Browser-native Unicode sentence boundaries via Intl.Segmenter — zero-download, no companion wasm.",
+		Order:       15,
+		New: func(base segment.BaseConfig, _ map[string]any) (segment.Segmenter, error) {
+			return &engine{lang: base.Language, mask: base.Mask}, nil
+		},
+	})
 }
 
 type engine struct {
 	lang string
 	mask segment.MaskOptions
-}
-
-func newEngine(cfg segment.Config) (segment.Segmenter, error) {
-	return &engine{lang: cfg.Language, mask: cfg.Mask}, nil
 }
 
 // Layer reports that this engine produces primary sentence segmentation.

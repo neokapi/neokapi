@@ -33,11 +33,23 @@ func isMTProvider(id string) bool {
 	})
 }
 
-// TranslateSchema returns the schema for the unified `translate` tool: the AI
-// translate fields plus the MT-only credential fields, with a provider enum
-// spanning every LLM and MT provider.
+// mtProviderExtraFields lists the credential fields each MT provider needs
+// beyond the shared apiKey. Providers absent here (deepl, modernmt, and every
+// LLM provider) contribute only a selector option — their config is the common
+// apiKey/model already on the base schema.
+var mtProviderExtraFields = map[string][]string{
+	"microsoft": {"subscriptionKey", "region"},
+	"google":    {"projectId"},
+	"mymemory":  {"email"},
+}
+
+// TranslateSchema returns the schema for the unified `translate` tool: a
+// `provider` selector spanning every LLM and MT provider, where choosing a
+// provider reveals only that provider's extra credentials (Azure key/region,
+// Google project id, MyMemory email) instead of showing them all at once. The
+// shared apiKey/model and batch options stay common.
 func TranslateSchema() *schema.ComponentSchema {
-	s := schema.FromStruct(&AITranslateConfig{}, schema.ToolMeta{
+	base := schema.FromStruct(&AITranslateConfig{}, schema.ToolMeta{
 		ID:                    "translate",
 		Category:              schema.CategoryTranslation,
 		DisplayName:           "Translate",
@@ -50,25 +62,37 @@ func TranslateSchema() *schema.ComponentSchema {
 		Produces:              []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	})
-	// Fold in the MT-only provider fields (Azure subscription key/region, the
-	// MyMemory account email, the Google project id). The shared apiKey/model
-	// already come from AITranslateConfig.
-	mt := schema.FromStruct(&mttools.MTTranslateConfig{}, schema.ToolMeta{ID: "translate"})
-	mergeProperties(s, mt, "subscriptionKey", "region", "email", "projectId")
-	setProviderOptions(s, allTranslateProviders())
-	s.BuildRawJSON()
-	return s
+
+	// Source the per-provider extra credential fields from MTTranslateConfig.
+	mt := schema.FromStruct(&mttools.MTTranslateConfig{}, schema.ToolMeta{ID: "translate-mt"})
+	variants := make([]schema.Variant, 0)
+	for _, opt := range allTranslateProviders() {
+		name, _ := opt.Value.(string)
+		v := schema.Variant{Name: name, Label: opt.Label}
+		if fields, ok := mtProviderExtraFields[name]; ok {
+			props := make(map[string]schema.PropertySchema, len(fields))
+			for i, f := range fields {
+				p := mt.Properties[f]
+				ord := (i + 1) * 10
+				p.Order = &ord
+				props[f] = p
+			}
+			v.Params = &schema.ComponentSchema{Type: "object", Properties: props}
+		}
+		variants = append(variants, v)
+	}
+	return schema.ComposeVariants(base, "provider", "anthropic", variants)
 }
 
-// QASchema returns the schema for the unified `qa` tool: every deterministic
-// rule-check toggle plus the AI provider fields. The provider default is empty,
-// so `qa` runs rule-based checks unless `--provider` opts into LLM judgement.
-func QASchema() *schema.ComponentSchema {
-	s := schema.FromStruct(libtools.NewQACheckConfig(model.LocaleEnglish), schema.ToolMeta{
+// qaToolMeta is the QA tool metadata shared by the schema and contract resolver.
+// The contract is the AI-path superset (credentials + API egress); rule mode
+// drops those at runtime via ResolveQAContract.
+func qaToolMeta() schema.ToolMeta {
+	return schema.ToolMeta{
 		ID:                    "qa",
 		Category:              schema.CategoryQuality,
 		DisplayName:           "Quality Check",
-		Description:           "Check translation quality with rule-based checks, or an LLM when --provider is set",
+		Description:           "Check translation quality with deterministic rules or an LLM (select with --mode)",
 		Tags:                  []string{"quality"},
 		WritesOutput:          true,
 		DefaultParallelBlocks: 5,
@@ -77,18 +101,38 @@ func QASchema() *schema.ComponentSchema {
 		Consumes:              []schema.IOPort{schema.Port(schema.PortTarget, model.SideTarget)},
 		Produces:              []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
-	})
-	ai := schema.FromStruct(&AIQAConfig{}, schema.ToolMeta{ID: "qa"})
-	mergeProperties(s, ai, "provider", "apiKey", "model", "checks")
-	// LLM QA is opt-in: an empty provider keeps `qa` deterministic.
-	if p, ok := s.Properties["provider"]; ok {
-		p.Default = ""
-		p.Description = "LLM provider for AI-judged QA (omit for rule-based checks)"
-		s.Properties["provider"] = p
 	}
-	setProviderOptions(s, aiProviderOptions())
-	s.BuildRawJSON()
-	return s
+}
+
+// QASchema returns the schema for the unified `qa` tool: a `mode` selector
+// (Deterministic rules / AI review) whose choice reveals only that backend's
+// config — the rule-check toggles for rules, the provider/model fields for AI.
+// Default mode is rules, so `qa` needs no credentials unless AI is selected.
+func QASchema() *schema.ComponentSchema {
+	meta := qaToolMeta()
+	base := &schema.ComponentSchema{
+		ID:          "qa",
+		Title:       meta.DisplayName,
+		Description: meta.Description,
+		Type:        "object",
+		ToolMeta:    &meta,
+		Properties: map[string]schema.PropertySchema{
+			qaModeField: {
+				Type:        "string",
+				Title:       "QA Mode",
+				Description: "How to check quality: deterministic local rules, or an AI provider's review",
+				Default:     qaModeRules,
+			},
+		},
+		Groups: []schema.ParameterGroup{{ID: "qa", Label: "Quality check", Fields: []string{qaModeField}}},
+	}
+	rules := schema.FromStruct(libtools.NewQACheckConfig(model.LocaleEnglish), schema.ToolMeta{ID: "qa-rules"})
+	ai := schema.FromStruct(&AIQAConfig{}, schema.ToolMeta{ID: "qa-ai"})
+	setProviderOptions(ai, aiProviderOptions())
+	return schema.ComposeVariants(base, qaModeField, qaModeRules, []schema.Variant{
+		{Name: qaModeRules, Label: "Deterministic rules", Description: "Local rule-based checks — no credentials, no network.", Params: rules},
+		{Name: qaModeAI, Label: "AI review", Description: "LLM-judged quality review via an AI provider.", Params: ai},
+	})
 }
 
 // NewTranslateFromConfig builds the translation tool for the configured
@@ -105,64 +149,50 @@ func NewTranslateFromConfig(config map[string]any, targetLang string) (tool.Tool
 	return NewAITranslateFromConfig(config, targetLang)
 }
 
-// NewQAFromConfig builds the deterministic rule-based checker when no provider
-// is set, or the LLM-judged checker when `--provider` selects one.
+// QA mode discriminator: the `qa` tool selects its backend with `mode`
+// (Deterministic rules vs AI review), replacing the old "provider-presence"
+// heuristic. The values double as the ComposeVariants variant names.
+const (
+	qaModeField = "mode"
+	qaModeRules = "rules"
+	qaModeAI    = "ai"
+)
+
+// qaUsesAI reports whether a qa config selects the AI backend. The explicit
+// `mode` wins; when it is unset (older recipes / flags), it falls back to the
+// historical rule: a set `provider` means AI.
+func qaUsesAI(config map[string]any) bool {
+	switch mode, _ := config[qaModeField].(string); mode {
+	case qaModeAI:
+		return true
+	case qaModeRules:
+		return false
+	default:
+		provider, _ := config["provider"].(string)
+		return provider != ""
+	}
+}
+
+// NewQAFromConfig builds the deterministic rule-based checker in rules mode, or
+// the LLM-judged checker in AI mode.
 func NewQAFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
-	if provider, _ := config["provider"].(string); provider != "" {
+	if qaUsesAI(config) {
 		return NewAIQAFromConfig(config, targetLang)
 	}
 	return libtools.NewQACheckFromConfig(config, targetLang)
 }
 
-// ResolveQAContract refines `qa`'s contract from its config: with no provider
-// the tool runs local rule checks — no credentials, no API call, no egress.
-// With a provider it resolves like the other AI tools (local providers drop the
-// egress effect; cloud providers keep the full contract).
+// ResolveQAContract refines `qa`'s contract from its config: in rules mode the
+// tool runs local rule checks — no credentials, no API call, no egress. In AI
+// mode it resolves like the other AI tools (local providers drop the egress
+// effect; cloud providers keep the full contract).
 func ResolveQAContract(config map[string]any, base registry.ToolInfo) registry.ToolInfo {
-	provider, _ := config["provider"].(string)
-	if provider != "" {
+	if qaUsesAI(config) {
 		return ResolveAIEgressContract(config, base)
 	}
 	base.Requires = removeStrings(base.Requires, schema.RequiresCredentials)
 	base.SideEffects = removeEffects(base.SideEffects, schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress)
 	return base
-}
-
-// mergeProperties copies the named properties (and their group membership) from
-// src into dst. Used to fold one config struct's fields into another's schema.
-func mergeProperties(dst, src *schema.ComponentSchema, keys ...string) {
-	keep := make(map[string]bool, len(keys))
-	for _, k := range keys {
-		keep[k] = true
-	}
-	for name, prop := range src.Properties {
-		if keep[name] {
-			dst.Properties[name] = prop
-		}
-	}
-	for _, g := range src.Groups {
-		var fields []string
-		for _, f := range g.Fields {
-			if keep[f] {
-				fields = append(fields, f)
-			}
-		}
-		if len(fields) == 0 {
-			continue
-		}
-		idx := slices.IndexFunc(dst.Groups, func(x schema.ParameterGroup) bool { return x.ID == g.ID })
-		if idx == -1 {
-			ng := g
-			ng.Fields = fields
-			dst.Groups = append(dst.Groups, ng)
-			continue
-		}
-		for _, f := range fields {
-			if !slices.Contains(dst.Groups[idx].Fields, f) {
-				dst.Groups[idx].Fields = append(dst.Groups[idx].Fields, f)
-			}
-		}
-	}
 }
 
 // setProviderOptions replaces the "provider" property's enum options.
@@ -177,7 +207,7 @@ func setProviderOptions(s *schema.ComponentSchema, opts []schema.OptionItem) {
 func aiProviderOptions() []schema.OptionItem {
 	var opts []schema.OptionItem
 	for _, p := range aiprovider.Providers() {
-		opts = append(opts, schema.OptionItem{Value: p.Name, Label: p.Label})
+		opts = append(opts, schema.OptionItem{Value: string(p.Name), Label: p.Label})
 	}
 	return opts
 }

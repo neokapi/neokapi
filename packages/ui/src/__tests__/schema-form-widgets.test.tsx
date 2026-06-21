@@ -555,3 +555,101 @@ describe("code-finder widget", () => {
     expect(v.rules.length).toBeGreaterThan(0);
   });
 });
+
+// ── grouped variant visibility (pluggable-backend composition) ───────────────
+//
+// A composed "umbrella" schema (discriminator select + per-variant groups, each
+// field gated on the discriminator) must show only the selected variant's group,
+// and never an empty group header for the unselected variants.
+
+describe("conditional variant groups", () => {
+  // Group labels are deliberately distinct from the engine option labels so a
+  // leftover empty *group header* can be told apart from the *selector option*
+  // (which always shows its label).
+  const schema: ComponentSchema = {
+    title: "Segmentation",
+    type: "object",
+    "ui:groups": [
+      { id: "segmentation", label: "Segmentation", fields: ["engine"] },
+      { id: "srx", label: "SRX settings", fields: ["rulesPath"] },
+      { id: "llm", label: "LLM settings", fields: ["provider"] },
+    ],
+    properties: {
+      engine: {
+        type: "string",
+        title: "Engine",
+        default: "srx",
+        options: [
+          { value: "srx", label: "Default" },
+          { value: "llm", label: "LLM" },
+        ],
+      },
+      rulesPath: {
+        type: "string",
+        title: "SRX Rules File",
+        "ui:visible": { field: "engine", eq: "srx" },
+      },
+      provider: { type: "string", title: "Provider", "ui:visible": { field: "engine", eq: "llm" } },
+    },
+  };
+
+  it("shows only the default engine's group, not the other variant headers", () => {
+    const { container } = mount({ schema });
+    // The SRX field + group header (default engine) are present; the LLM group
+    // header and field are not rendered at all.
+    expect(container.textContent).toContain("SRX Rules File");
+    expect(container.textContent).toContain("SRX settings");
+    expect(container.textContent).not.toContain("Provider");
+    expect(container.textContent).not.toContain("LLM settings");
+  });
+
+  it("reveals the selected engine's group and hides the previous one's header", () => {
+    const { container } = mount({ schema });
+    const select = container.querySelector("select") as HTMLSelectElement;
+    expect(select).toBeTruthy();
+    selectOption(select, "llm");
+    expect(container.textContent).toContain("Provider");
+    expect(container.textContent).toContain("LLM settings");
+    // The previous engine's field AND its group header are gone — no empty box.
+    expect(container.textContent).not.toContain("SRX Rules File");
+    expect(container.textContent).not.toContain("SRX settings");
+  });
+
+  // A *collapsible* group (>4 fields) whose fields are all gata-hidden must also
+  // be suppressed — collapsed groups render only a header, so the empty-header
+  // check has to fire before the collapse path.
+  it("hides a collapsible group whose every field is gated off", () => {
+    const collapsible: ComponentSchema = {
+      title: "T",
+      type: "object",
+      "ui:groups": [
+        { id: "main", label: "Main", fields: ["engine"] },
+        {
+          id: "llm",
+          label: "LLM settings",
+          fields: ["a", "b", "c", "d", "e"], // >4 ⇒ collapsible
+        },
+      ],
+      properties: {
+        engine: {
+          type: "string",
+          title: "Engine",
+          default: "srx",
+          options: [
+            { value: "srx", label: "Default" },
+            { value: "llm", label: "LLM" },
+          ],
+        },
+        ...Object.fromEntries(
+          ["a", "b", "c", "d", "e"].map((k) => [
+            k,
+            { type: "string", title: k.toUpperCase(), "ui:visible": { field: "engine", eq: "llm" } },
+          ]),
+        ),
+      },
+    };
+    const { container } = mount({ schema: collapsible });
+    // Default engine srx ⇒ the collapsible LLM group has no visible field ⇒ no header.
+    expect(container.textContent).not.toContain("LLM settings");
+  });
+});

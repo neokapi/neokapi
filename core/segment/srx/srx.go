@@ -10,6 +10,7 @@ import (
 	"github.com/dlclark/regexp2"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/segment"
 )
 
@@ -32,19 +33,45 @@ var defaultSRX []byte
 var okapiSRX []byte
 
 func init() {
-	segment.RegisterEngine(segment.DefaultEngine, New)
+	segment.Register(segment.EngineDescriptor{
+		Name:        segment.DefaultEngine, // "srx"
+		Label:       "Default — rule-based (hybrid SRX/UAX-29)",
+		Description: "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
+		Order:       0,
+		Schema:      schema.FromStruct(&Params{}, schema.ToolMeta{ID: "segment-engine-srx"}),
+		New: func(base segment.BaseConfig, params map[string]any) (segment.Segmenter, error) {
+			p := &Params{}
+			if err := schema.ApplyConfig(params, p); err != nil {
+				return nil, fmt.Errorf("srx config: %w", err)
+			}
+			return New(base, p)
+		},
+	})
+}
+
+// Params is the SRX engine's own configuration. Both fields are optional: with
+// neither set the engine uses its built-in ruleset (Okapi's full hybrid set when
+// an ICU base breaker is linked, the reduced pure-Go set otherwise).
+type Params struct {
+	// RulesPath points at a custom SRX 2.0 rules file, overriding the built-in
+	// ruleset.
+	RulesPath string `json:"rulesPath,omitempty" schema:"title=SRX Rules File,description=Path to a custom SRX 2.0 rules file (overrides the built-in ruleset),widget=file-picker,order=10"`
+	// RulesXML is inline SRX 2.0 XML, taking precedence over RulesPath. It is not
+	// a form field — it backs programmatic callers (the docs lab, tests) that
+	// embed a ruleset directly.
+	RulesXML string `json:"-" schema:"-"`
 }
 
 // DefaultRuleset returns the embedded reduced, self-contained pure-Go SRX
-// ruleset (explicit break rules, no ICU base). Pass it as [segment.Config.SrxRules]
+// ruleset (explicit break rules, no ICU base). Pass it as [Params.RulesXML]
 // to force pure-rule segmentation regardless of whether a base breaker is linked
 // — used by the docs lab to show the rule-based engine distinctly from the hybrid.
 func DefaultRuleset() []byte { return defaultSRX }
 
 // OkapiRuleset returns the embedded full Okapi defaultSegmentation.srx (declares
 // useIcu4jBreakRules: a UAX-29 base breaker supplies the breaks and these rules
-// apply as exceptions). Pass it as [segment.Config.SrxRules] to run the Okapi
-// hybrid where a base breaker is available.
+// apply as exceptions). Pass it as [Params.RulesXML] to run the Okapi hybrid
+// where a base breaker is available.
 func OkapiRuleset() []byte { return okapiSRX }
 
 // regexp2 options used for SRX rules. SRX 2.0 regexes assume Unicode semantics
@@ -74,18 +101,22 @@ type segmenter struct {
 	cache rulesCache
 }
 
-// New builds the SRX engine. It resolves the ruleset in precedence order:
-// inline SrxRules, then SrxPath, then the embedded default ruleset.
-func New(cfg segment.Config) (segment.Segmenter, error) {
+// New builds the SRX engine from the shared base options and SRX [Params]
+// (nil = defaults). It resolves the ruleset in precedence order: inline
+// RulesXML, then RulesPath, then the embedded default ruleset.
+func New(base segment.BaseConfig, p *Params) (segment.Segmenter, error) {
+	if p == nil {
+		p = &Params{}
+	}
 	var (
 		doc *Document
 		err error
 	)
 	switch {
-	case cfg.SrxRules != "":
-		doc, err = Parse([]byte(cfg.SrxRules))
-	case cfg.SrxPath != "":
-		doc, err = ParseFile(cfg.SrxPath)
+	case p.RulesXML != "":
+		doc, err = Parse([]byte(p.RulesXML))
+	case p.RulesPath != "":
+		doc, err = ParseFile(p.RulesPath)
 	case segment.HasBaseBreaker():
 		// ICU is linked: default to Okapi's full hybrid ruleset (ICU base +
 		// SRX exceptions) for Okapi-grade segmentation.
@@ -97,7 +128,7 @@ func New(cfg segment.Config) (segment.Segmenter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &segmenter{doc: doc, lang: cfg.Language, mask: cfg.Mask}, nil
+	return &segmenter{doc: doc, lang: base.Language, mask: base.Mask}, nil
 }
 
 // Layer reports that this engine produces the primary sentence segmentation.
