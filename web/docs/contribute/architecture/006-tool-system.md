@@ -492,10 +492,25 @@ reg.RegisterGroup(registry.ToolGroupDef{
 Members are not separately-registered tools — they belong to the group, and the
 candidate members already exist as domain sub-registries: segmentation engines
 ([AD-002](002-content-model.md)), AI and MT providers
-([AD-011](011-ai-providers.md), [AD-012](012-mt-providers.md)). A **plugin
-contributes a member** to a group through its manifest (the `segmenters[]`
-capability, [AD-007](007-plugin-system.md)), so an installed plugin's backend
-appears in the group with its own schema and no host-side code.
+([AD-011](011-ai-providers.md), [AD-012](012-mt-providers.md)).
+
+A member may carry its **own factory** (`ToolGroupMember.Factory`). The group's
+registered `ConfigFactory` dispatches on the discriminator: a member with a
+factory is built directly, the rest fall through to the group's factory. This is
+the seam for **runtime-contributed members** — `RegisterGroup` defines the
+built-in members, and `AddGroupMember(group, member)` appends one later
+(recomposing the flat schema, `MemberSchema`, the `ToolInfo.Group` metadata, and
+the dispatcher), so a source outside the group's own package can extend it
+without that package knowing. The discriminator value selects the right backend
+whether it is built-in or contributed.
+
+For **plugin-contributed members**, segmentation wires its engines from the
+manifest `segmenters[]` capability into the segmentation engine sub-registry over
+a dedicated `Segment` RPC ([AD-007](007-plugin-system.md)) — segmentation
+members are narrow sub-components (text → boundaries), not full tools. The other
+groups' members are full block-processing tools; a manifest/daemon transport for
+contributing those is not yet wired (the `AddGroupMember` seam above is the
+registry-side foundation it will build on).
 
 A group is a single registry entry, so flat consumers are unaffected; it serves
 two renderings from one definition:

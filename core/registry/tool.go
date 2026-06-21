@@ -133,6 +133,11 @@ type ToolRegistration struct {
 	// tools. The composed (flat) schema lives in Schema; these are the per-member
 	// schemas the UI renders master-detail.
 	MemberSchemas map[string]*schema.ComponentSchema
+
+	// GroupDef retains the source definition for tools registered via
+	// RegisterGroup, so AddGroupMember can append a member and recompose. nil for
+	// ordinary tools.
+	GroupDef *ToolGroupDef
 }
 
 // ToolRegistry manages available Tools.

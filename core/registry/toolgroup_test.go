@@ -83,3 +83,113 @@ func TestRegisterGroup(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "uax29", built)
 }
+
+// fakeTool is a minimal tool.Tool for asserting member-factory dispatch.
+type fakeTool struct{ tool.BaseTool }
+
+func TestAddGroupMember(t *testing.T) {
+	reg := NewToolRegistry()
+
+	groupBuilt := ""
+	reg.RegisterGroup(ToolGroupDef{
+		Name:          "segmentation",
+		Discriminator: "engine",
+		Default:       "srx",
+		Common: &schema.ComponentSchema{
+			Type:       "object",
+			Title:      "Segmentation",
+			Properties: map[string]schema.PropertySchema{"engine": {Type: "string"}},
+			Groups:     []schema.ParameterGroup{{ID: "common", Label: "Common", Fields: []string{"engine"}}},
+		},
+		Members: []ToolGroupMember{{Name: "srx", Label: "SRX"}},
+		ConfigFactory: func(config map[string]any, _ string) (tool.Tool, error) {
+			groupBuilt, _ = config["engine"].(string)
+			return nil, nil
+		},
+	})
+
+	// A plugin contributes a member with its own factory + schema.
+	memberTool := &fakeTool{}
+	memberBuilt := false
+	err := reg.AddGroupMember("segmentation", ToolGroupMember{
+		Name:        "sat",
+		Label:       "SaT (ML)",
+		Description: "wtpsplit ML segmenter",
+		Schema: &schema.ComponentSchema{
+			Type:       "object",
+			Properties: map[string]schema.PropertySchema{"threshold": {Type: "number"}},
+		},
+		Factory: func(config map[string]any, _ string) (tool.Tool, error) {
+			memberBuilt = true
+			return memberTool, nil
+		},
+	})
+	require.NoError(t, err)
+
+	// Group metadata + member schema now include the contributed member.
+	info := reg.ToolInfo("segmentation")
+	require.Len(t, info.Group.Members, 2)
+	assert.Equal(t, "sat", info.Group.Members[1].Name)
+	assert.True(t, info.Group.Members[1].HasSchema)
+	require.NotNil(t, reg.MemberSchema("segmentation", "sat"))
+	assert.Contains(t, reg.MemberSchema("segmentation", "sat").Properties, "threshold")
+
+	// The flat schema recomposed: engine selector now offers the new member, and
+	// its gated params appear.
+	s := reg.Schema("segmentation")
+	var hasSat bool
+	for _, o := range s.Properties["engine"].Options {
+		if o.Value == "sat" {
+			hasSat = true
+		}
+	}
+	assert.True(t, hasSat, "recomposed selector offers the plugin member")
+	assert.Contains(t, s.Properties, "threshold")
+
+	// Dispatch: the member's own factory wins for its discriminator value...
+	got, err := reg.NewToolWithConfig("segmentation", map[string]any{"engine": "sat"}, "")
+	require.NoError(t, err)
+	assert.True(t, memberBuilt, "member factory invoked")
+	assert.Equal(t, tool.Tool(memberTool), got)
+
+	// ...while built-in members still fall through to the group factory.
+	_, err = reg.NewToolWithConfig("segmentation", map[string]any{"engine": "srx"}, "")
+	require.NoError(t, err)
+	assert.Equal(t, "srx", groupBuilt)
+
+	// Adding a member to a non-group is an error.
+	reg.RegisterWithSchema("plain", func() tool.Tool { return &fakeTool{} }, &schema.ComponentSchema{Type: "object"})
+	assert.Error(t, reg.AddGroupMember("plain", ToolGroupMember{Name: "x"}))
+	assert.Error(t, reg.AddGroupMember("missing", ToolGroupMember{Name: "x"}))
+}
+
+// TestAddGroupMember_ReplacesByName verifies re-adding a member name replaces it.
+func TestAddGroupMember_ReplacesByName(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.RegisterGroup(ToolGroupDef{
+		Name:          "g",
+		Discriminator: "engine",
+		Default:       "a",
+		Common: &schema.ComponentSchema{
+			Type:       "object",
+			Title:      "G",
+			Properties: map[string]schema.PropertySchema{"engine": {Type: "string"}},
+			Groups:     []schema.ParameterGroup{{ID: "c", Label: "C", Fields: []string{"engine"}}},
+		},
+		Members:       []ToolGroupMember{{Name: "a", Label: "A"}},
+		ConfigFactory: func(map[string]any, string) (tool.Tool, error) { return nil, nil },
+	})
+
+	first := &fakeTool{}
+	second := &fakeTool{}
+	require.NoError(t, reg.AddGroupMember("g", ToolGroupMember{Name: "p", Label: "First", Factory: func(map[string]any, string) (tool.Tool, error) { return first, nil }}))
+	require.NoError(t, reg.AddGroupMember("g", ToolGroupMember{Name: "p", Label: "Second", Factory: func(map[string]any, string) (tool.Tool, error) { return second, nil }}))
+
+	info := reg.ToolInfo("g")
+	require.Len(t, info.Group.Members, 2, "replaced, not appended")
+	assert.Equal(t, "Second", info.Group.Members[1].Label)
+
+	got, err := reg.NewToolWithConfig("g", map[string]any{"engine": "p"}, "")
+	require.NoError(t, err)
+	assert.Equal(t, tool.Tool(second), got)
+}
