@@ -2,20 +2,23 @@
 sidebar_position: 1
 title: Architecture
 description: An overview of the neokapi framework architecture — the streaming pipeline, content model, format readers and writers, composable tools, and the multi-module Go structure.
-keywords: [neokapi, architecture, streaming pipeline, content model, localization framework, go modules]
+keywords: [neokapi, architecture, streaming pipeline, content model, content engine, localization, go modules]
 ---
 
 import { ArchitectureDiagram } from "@neokapi/docs-shared";
 
 # neokapi: Architecture
 
-neokapi is an open-source localization **engine** built in Go. It provides
-format-aware document parsing, composable processing tools, and a concurrent
-streaming pipeline for translation workflows. The [`kapi` CLI and desktop
-app](/kapi/overview) and [Kapi React](/react/introduction) are surfaces built on
-top of this engine — but the content model, format readers and writers, tools,
-and pipeline are equally a Go library you can import and drive directly. If you
-want to start with running code, jump to the
+neokapi is an open-source, format-aware **content engine** built in Go. It parses
+any format into one unified content model, edits the content inside it, checks it,
+and writes it back — byte-for-byte. At heart it is both a localization engine and
+the tool that keeps your source content on brand; the same engine also serves AI
+ingestion and programmatic editing. It provides format-aware document parsing,
+composable processing tools, and a concurrent streaming pipeline. The [`kapi` CLI
+and desktop app](/kapi/overview) and [Kapi React](/react/introduction) are
+surfaces built on top of this engine — but the content model, format readers and
+writers, tools, and pipeline are equally a Go library you can import and drive
+directly. If you want to start with running code, jump to the
 [Go quickstart](/framework/go-quickstart); for the reasoning behind each major
 design choice, see the [Architecture Decisions](/contribute/architecture/001-vision-and-modules).
 
@@ -27,7 +30,7 @@ The edges are the flow's **source** and **sink** — bindings that decide where
 content enters and leaves. The default, shown above, is the **file binding**: a
 [reader](/framework/formats) turns source files of any format into a stream of
 [Parts](/framework/content-model) and a [writer](/framework/formats) turns the
-stream back into translated files. The same flow can instead bind to the project
+stream back into files, byte-for-byte. The same flow can instead bind to the project
 store, a `.klz` workspace, or an interchange file — with no reader or writer
 ([flows: source and sink](/framework/flows#source-and-sink-the-flows-ends)).
 Between the edges runs a [flow](/framework/flows): a serial chain of

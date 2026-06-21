@@ -39,7 +39,7 @@ Fill in `brand.yaml` from whatever signal is available:
   `examples` (before / after).
 - **A website** the user links — fetch a page or two (your web tool, or `curl`),
   read the live copy, and capture its voice. For a saved page, `kapi word-count
-  page.html` / `kapi extract` pulls the translatable text to analyze.
+  page.html` / `kapi extract` pulls the text to analyze.
 
 Keep it concrete: 2–4 personality adjectives, a handful of forbidden/competitor
 terms with replacements, and 2–3 before/after examples beat a long abstract

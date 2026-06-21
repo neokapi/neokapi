@@ -2,16 +2,22 @@ package model
 
 import "strings"
 
-// Block is the primary translatable content unit. Its content is a flat
-// []Run per locale: Source for the source language and Targets for each
-// committed translation variant. Segmentation, terminology, entities, and
-// other interpretations ride as stand-off Overlays (see overlay.go); there is
-// no structural segment type.
+// Block is the primary modifiable content unit: the text a tool reads,
+// rewrites, checks, or translates. Its content is a flat []Run per variant —
+// Source for the canonical content and Targets for each committed variant (a
+// locale, optionally with tone or channel). Segmentation, terminology,
+// entities, and other interpretations ride as stand-off Overlays (see
+// overlay.go); there is no structural segment type.
 type Block struct {
-	ID                 string
-	Name               string
-	Type               string
-	MimeType           string
+	ID       string
+	Name     string
+	Type     string
+	MimeType string
+	// Translatable marks the block as content eligible for modification or
+	// extraction — a parse-time classification the reader sets to separate
+	// authored content from the surrounding non-content structure. Blocks left
+	// unmarked stay in the skeleton, untouched by tools that edit, check, or
+	// translate.
 	Translatable       bool
 	SourceLocale       LocaleID // locale of the source runs (set by reader)
 	Skeleton           *Skeleton

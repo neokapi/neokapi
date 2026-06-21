@@ -1,21 +1,26 @@
 ---
 name: kapi
-description: Keep an AI coding assistant's output on-brand and terminologically consistent, and ship it in other languages and formats, using the kapi CLI. Covers creating a brand voice profile (from what you already know, sample content, or a linked website), brand checks (score a draft 0-100, rewrite off-voice text), translation with terminology enforcement and multi-format publishing, adding i18n to a project, and reading, searching, or rewriting the text inside any supported format with the format-aware toolbox (kcat/kgrep/ksed). Use for any task involving brand voice/tone, consistent terminology, translating or localizing content, internationalizing a project, or reading and editing the content of documents your editor can't open directly (Word, PowerPoint, JSON, XLIFF). Triggers on "create/set up a brand voice", "on brand", "brand voice/tone", "forbidden/competitor terms", "translate", "localize to fr/de/ja", "multilingual", "glossary", "terminology", "internationalize", "add i18n", "publish in another language", "what does this .docx/.pptx say", "read/search/grep a document", "find and replace across .docx/.json/.xliff files", "rewrite text in a Word doc".
+description: Read, edit, and check the content inside any file format with the kapi CLI, then keep it on-brand and ship it in other languages. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML, config — into one content model; reads, searches, and rewrites the text in place and writes it back byte-for-byte with the format-aware toolbox (kcat/kgrep/ksed); runs deterministic and AI checks you loop on until they pass; keeps content on-brand against a voice profile; and localizes with terminology enforcement and multi-format publishing. Covers reading/searching/rewriting the text inside any supported format, creating a brand voice profile (from what you already know, sample content, or a linked website), brand checks (score a draft 0-100, rewrite off-voice text), translation with terminology enforcement and multi-format publishing, and adding i18n to a project. Use for any task involving reading or editing the content of documents your editor can't open directly (Word, PowerPoint, JSON, XLIFF), brand voice/tone, consistent terminology, translating or localizing content, or internationalizing a project. Triggers on "read/search/grep a document", "what does this .docx/.pptx say", "find and replace across .docx/.json/.xliff files", "rewrite text in a Word doc", "edit the content of a file my editor can't open", "check this content", "create/set up a brand voice", "on brand", "brand voice/tone", "forbidden/competitor terms", "translate", "localize to fr/de/ja", "multilingual", "glossary", "terminology", "internationalize", "add i18n", "publish in another language".
 ---
 
 # kapi
 
-kapi is the open engine that keeps AI-generated content on-brand and consistent,
-and ships it in other languages and formats — offline, through the local `kapi`
-CLI. You do the writing and translating; kapi handles the formats and the
-guardrails (brand voice, terminology) and round-trips the result.
+kapi is an open, format-aware content engine you drive from the command line. It
+parses any format it understands — Word, PowerPoint, JSON, XLIFF, Markdown, HTML,
+YAML, config — into one content model, then reads, searches, edits, and checks
+the text inside it and writes it back byte-for-byte. On top of that engine it
+keeps AI-generated content on-brand and consistent, and ships it in other
+languages and formats — offline, through the local `kapi` CLI. You do the
+writing, editing, and translating; kapi handles the formats and the guardrails
+(brand voice, terminology) and round-trips the result.
 
 ## Decide the scope first
 
 Before reaching for a command, judge whether this is a one-off or ongoing work:
 
-- **Ad hoc** — one file or a snippet, a one-time check, exploration, one or no
-  target language. Just run the command; no setup. kapi works without a project.
+- **Ad hoc** — one file or a snippet, a one-time read, check, or edit,
+  exploration, one or no target language. Just run the command; no setup. kapi
+  works without a project.
 - **Project** — many files or a whole app; the same target locales repeatedly; a
   brand voice or glossary that must stay consistent; recurring work (CI,
   re-translate on change); translation memory you want to reuse. Bind that

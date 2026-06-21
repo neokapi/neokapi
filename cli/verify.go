@@ -121,7 +121,7 @@ func (a *App) NewVerifyCmd() *cobra.Command {
 		Use:     "verify [files...]",
 		Short:   "Run a project's bound quality gates (brand, terminology, QA) in one shot",
 		GroupID: "quality",
-		Long: `Run a localization project's bound quality gates in a single shot and
+		Long: `Run a project's bound quality gates in a single shot and
 return a single structured pass/fail plus actionable findings.
 
 Gates (each runs only when the project binds the resource it needs):

@@ -1,9 +1,12 @@
 // Package project provides the .kapi project file format.
 //
-// A .kapi file is a self-contained YAML document that captures a localization
-// workflow recipe: languages, content patterns, flows, tool configs, and plugin
-// requirements. Users can save .kapi files anywhere, have multiple per directory,
-// and share them via git or email.
+// A .kapi file is a self-contained YAML document that captures a content
+// workflow recipe: the content to process, the languages and variants, the
+// flows and tool configs to run over it, and the plugin requirements. The same
+// recipe shape drives a monolingual brand-voice and terminology check over
+// source content and a multilingual translate-and-QA round-trip alike. Users
+// can save .kapi files anywhere, have multiple per directory, and share them
+// via git or email.
 //
 // The .kapi file contains no credentials (those come from the OS keychain or
 // environment variables) and no state (no sync cursors or caches).

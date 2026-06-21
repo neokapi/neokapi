@@ -11,16 +11,16 @@ import { ContentLab } from "@site/src/components/Lab";
 # Formats
 
 A **format** in neokapi is a paired reader and writer for a document type. The
-[reader](/framework/content-model) turns a file into a stream of Parts —
-translatable [blocks](/framework/content-model) and the surrounding structure —
-and the writer turns that stream back into a file. This read/process/write
-symmetry is what lets the same [tools](/framework/tools) and
-[flows](/framework/flows) operate on any format: by the time a tool sees a Block,
-it no longer matters whether it came from JSON, XLIFF, or DOCX. A format is the
-neokapi analogue of an Okapi _filter_.
+[reader](/framework/content-model) turns a file into a stream of Parts — the
+content [blocks](/framework/content-model) and the surrounding structure — and the
+writer turns that stream back into a file. This read/process/write symmetry is
+what lets the same [tools](/framework/tools) and [flows](/framework/flows) operate
+on any format: by the time a tool sees a Block, it no longer matters whether it
+came from JSON, HTML, or DOCX. A format is the neokapi analogue of an Okapi
+_filter_.
 
 :::tip See the skeleton preserved
-Reading a file splits it into translatable [blocks](/framework/content-model) and
+Reading a file splits it into content [blocks](/framework/content-model) and
 a non-translatable _skeleton_ — every tag, key, attribute, and delimiter the
 writer needs to reproduce the original structure. Run a file through
 `pseudo-translate` below and compare the source with the round-tripped output:

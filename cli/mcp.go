@@ -19,7 +19,7 @@ func (a *App) NewMCPCmd(implName string) *cobra.Command {
 	}
 	return &cobra.Command{
 		Use:           "mcp",
-		Short:         "Start MCP server (stdio) exposing project tools",
+		Short:         "Start MCP server (stdio) exposing kapi's content tools (read, edit, check, brand, localize)",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -231,8 +231,9 @@ func scaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 
 	b.WriteString(`
 # Define content and flows. Each bare content entry maps a source glob to a
-# target glob via the {lang} placeholder; kapi tools read the source and write
-# translations to the target. Runtime block state lives in .kapi/cache/blocks.db.
+# target; kapi tools read the source content and edit, check, or translate it.
+# The {lang} placeholder in a target fans output out per language. Runtime block
+# state lives in .kapi/cache/blocks.db.
 #
 # content:
 #   - path: "src/locales/en/*.json"
@@ -240,6 +241,12 @@ func scaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 #     target: "src/locales/{lang}/*.json"
 #
 # flows:
+#   # Monolingual: check source content against brand voice and terminology.
+#   brand-check:
+#     steps:
+#       - tool: brand-vocab-check
+#       - tool: brand-voice-check
+#   # Multilingual: translate the source into each target language.
 #   translate:
 #     steps:
 #       - tool: translate

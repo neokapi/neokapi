@@ -12,9 +12,10 @@ import ReferenceCount from "@site/src/components/reference/ReferenceCount";
 
 `kgrep`, `ksed` and `kcat` are format-aware reimaginings of the classic Unix text
 utilities. Where `grep`, `sed` and `cat` operate on raw bytes — lines of a file
-as the operating system stores them — these operate on the **translatable text**
-that kapi extracts from a document, regardless of how that text is encoded on
-disk.
+as the operating system stores them — these read and rewrite the **text content
+inside any format** kapi understands, regardless of how that text is encoded on
+disk. It is the same content engine the rest of kapi runs on, exposed as the Unix
+verbs you already know.
 
 The practical consequence: you can search the prose inside a Word `.docx`,
 rewrite a phrase across a directory of JSON catalogs, or print the segments of
@@ -47,7 +48,7 @@ markup, and more. See the [Format Reference](/formats) for the full list.
 
 A `.docx` has no "lines" in the byte sense; a JSON catalog's meaningful units
 are keyed strings, not file rows. kapi parses a document into **blocks** of
-translatable content and strips the surrounding markup and structure. The
+content and strips the surrounding markup and structure. The
 toolbox operates on those blocks:
 
 - `kcat` prints one block per output line.

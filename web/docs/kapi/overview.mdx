@@ -1,7 +1,7 @@
 ---
 sidebar_position: 0
 title: Kapi
-description: Kapi reads, translates, and ships content in any format — faithfully — and verifies it with checks for terminology, QA, and brand voice that act like tests for AI output. It runs the neokapi engine two ways — the kapi command-line tool and the Kapi Desktop app — sharing the same tools, flows, and .kapi projects.
+description: Kapi is the CLI and desktop built on neokapi's format-aware content engine — parse, edit, check, and localize content in any format and write it back byte-for-byte. At heart both a localization engine and the tool that keeps your source content on brand, with checks for terminology, QA, and brand voice that act like tests for AI output. It runs the same engine two ways — the kapi command-line tool and the Kapi Desktop app — sharing the same tools, flows, and .kapi projects.
 keywords: [Kapi, kapi CLI, Kapi Desktop, format-aware localization, content engine, checks, overview]
 ---
 
@@ -9,11 +9,13 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Kapi
 
-**Kapi** reads, translates, and ships content in **any format** — faithfully —
-and verifies it with **checks** (terminology, QA, brand voice) that act like
-**tests for AI output**. It is built on the open-source
-[neokapi framework](/framework/architecture) and comes in two forms that share
-the same engine, tools, flows, and [`.kapi` projects](/reference/project-file):
+**Kapi** is the command-line tool and desktop app built on the open-source
+[neokapi content engine](/framework/architecture) — parse content in **any
+format**, edit it, check it, and write it back **byte-for-byte**. At heart it is
+both a **localization engine** and the tool that keeps your **source content on
+brand**, verified by **checks** (terminology, QA, brand voice) that act like
+**tests for AI output**. It comes in two forms that share the same engine, tools,
+flows, and [`.kapi` projects](/reference/project-file):
 
 - **[Kapi CLI](/kapi/cli)** — a single binary that operates directly on files.
   Best for automation, scripting, CI gates, and offline work; no project or
