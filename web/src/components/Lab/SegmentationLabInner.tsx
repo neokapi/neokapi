@@ -279,12 +279,11 @@ function DownloadBar({ p }: { p?: DlProgress | null }): React.ReactElement | nul
 }
 
 // A small categorical palette for consensus groups — distinct hues, like the
-// locale pills. Each boundary offset that two or more engines agree on is given
-// one colour from this list; that same colour then marks the boundary in every
-// engine column that cut there, so agreement reads by matching colours across
-// columns. Unique cuts (only one engine) get no colour.
-// Ordered so consecutive groups (boundaries sit in document order) land on
-// maximally-distinct hues — no two adjacent boundaries read alike.
+// locale pills. Each segment that two or more engines produced identically gets
+// one colour from this list; that same colour then marks the segment in every
+// engine column that produced it, so agreement reads by matching colours across
+// columns. Segments only one engine produced get no colour. Ordered so groups in
+// document order land on maximally-distinct hues — no two adjacent read alike.
 const CONSENSUS_PALETTE = [
   "#2563eb", // blue
   "#ea580c", // orange
@@ -298,15 +297,33 @@ const CONSENSUS_PALETTE = [
   "#65a30d", // lime
 ];
 
+// A segment span keyed by its start..end code-point offsets within the block —
+// the unit of agreement. Two engines "agree" only when they produce the SAME
+// span (same start AND end), i.e. the identical sentence — not merely a shared
+// boundary (a short "Mr." and a long "Mr. Lee asked…" share a start but are not
+// the same segment).
+type SpanKey = string;
+const spanKey = (start: number, end: number): SpanKey => `${start}:${end}`;
+
+// segmentSpans returns each sentence's [start, end] span in block code-point
+// offsets, or null when the engine's output can't be mapped back (LLM reworded
+// it, or sentence/cut counts disagree) — those cells are shown but kept out of
+// the agreement layer.
+function segmentSpans(seg: BlockSeg): Array<[number, number]> | null {
+  if (seg.cuts === null || seg.cuts.length !== seg.sentences.length - 1) return null;
+  const len = Array.from(seg.text).length;
+  const bounds = [0, ...seg.cuts, len];
+  return seg.sentences.map((_, i) => [bounds[i], bounds[i + 1]] as [number, number]);
+}
+
 // Per-block consensus over the engines that mapped cleanly back to the block
-// text. `counts` maps a boundary offset → how many engines drew a boundary there
-// (the tooltip denominator is `total`, the mappable-engine count). `colors`
-// assigns a palette colour to every offset shared by ≥2 engines, in document
-// order, so adjacent agreed boundaries stay visually distinct and the same offset
-// gets the same colour in every column. Built once per block, shared by the row.
+// text. `counts` maps a segment span → how many engines produced exactly that
+// segment (denominator is `total`, the mappable-engine count). `colors` assigns a
+// palette colour to every span shared by ≥2 engines, in document order, so the
+// same segment gets the same colour in every column. Built once per block.
 interface BlockConsensus {
-  counts: Map<number, number>;
-  colors: Map<number, string>;
+  counts: Map<SpanKey, number>;
+  colors: Map<SpanKey, string>;
   total: number;
 }
 
@@ -315,35 +332,43 @@ function buildConsensus(
   defs: EngineDef[],
   results: Record<string, EngineResult>,
 ): BlockConsensus {
-  const counts = new Map<number, number>();
+  const counts = new Map<SpanKey, number>();
   let total = 0;
   for (const d of defs) {
     const seg = results[d.id]?.blocks.find((b) => b.id === blockId);
-    if (!seg || seg.cuts === null) continue;
+    if (!seg) continue;
+    const spans = segmentSpans(seg);
+    if (!spans) continue;
     total++;
-    for (const off of seg.cuts) counts.set(off, (counts.get(off) ?? 0) + 1);
+    for (const [s, e] of spans) {
+      const k = spanKey(s, e);
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
   }
-  const colors = new Map<number, string>();
+  const colors = new Map<SpanKey, string>();
   [...counts.entries()]
     .filter(([, n]) => n >= 2)
-    .map(([off]) => off)
-    .sort((a, b) => a - b)
-    .forEach((off, i) => colors.set(off, CONSENSUS_PALETTE[i % CONSENSUS_PALETTE.length]));
+    .map(([k]) => k)
+    .sort((a, b) => {
+      const [as, ae] = a.split(":").map(Number);
+      const [bs, be] = b.split(":").map(Number);
+      return as - bs || ae - be;
+    })
+    .forEach((k, i) => colors.set(k, CONSENSUS_PALETTE[i % CONSENSUS_PALETTE.length]));
   return { counts, colors, total };
 }
 
-// A hover key uniquely names one agreed boundary: block id + offset. Hovering a
-// coloured sentence lights up the matching boundary in every engine column of the
+// A hover key uniquely names one agreed segment: block id + span. Hovering a
+// coloured sentence lights up the identical segment in every engine column of the
 // same block row.
 type HoverKey = string;
-const hoverKey = (blockId: string, offset: number): HoverKey => `${blockId}::${offset}`;
+const hoverKey = (blockId: string, span: SpanKey): HoverKey => `${blockId}::${span}`;
 
 // SegCell renders one engine's segmentation of one block: its sentences stacked.
-// Each sentence begins at a boundary; when two or more engines agree on that
-// boundary the sentence gets a coloured left edge in the shared consensus colour,
-// so the same agreed boundary lights up the same way across every engine column.
-// Hovering a coloured sentence highlights every sentence that shares its
-// boundary, across columns. This is where agreement lives — inside the output.
+// When two or more engines produced the identical sentence it gets a coloured
+// left edge in the shared consensus colour, so the same segment lights up the
+// same way across every engine column. Hovering a coloured sentence highlights
+// the identical sentence in the other engines. This is where agreement lives.
 function SegCell({
   blockId,
   seg,
@@ -363,16 +388,16 @@ function SegCell({
 }): React.ReactElement {
   if (error) return <p className="px-1 text-sm text-destructive">failed</p>;
   if (!seg) return <p className="px-1 text-sm text-muted-foreground">{busy ? "Running…" : "—"}</p>;
+  const spans = segmentSpans(seg);
   return (
     <div className="flex flex-col gap-1">
       {seg.sentences.map((s, i) => {
-        // A sentence starts at the boundary before it (cuts[i-1]); the first
-        // starts at block-start, which every engine shares, so it carries no
-        // consensus colour.
-        const start = i > 0 && seg.cuts ? seg.cuts[i - 1] : undefined;
-        const color = start !== undefined ? consensus.colors.get(start) : undefined;
-        const n = start !== undefined ? consensus.counts.get(start) : undefined;
-        const key = start !== undefined && color ? hoverKey(blockId, start) : null;
+        // The sentence's span identifies it; a span two or more engines produced
+        // carries a consensus colour. Unmappable cells (spans null) stay neutral.
+        const span = spans ? spanKey(spans[i][0], spans[i][1]) : null;
+        const color = span ? consensus.colors.get(span) : undefined;
+        const n = span ? consensus.counts.get(span) : undefined;
+        const key = span && color ? hoverKey(blockId, span) : null;
         const active = key !== null && hovered === key;
         return (
           <div
@@ -386,7 +411,7 @@ function SegCell({
                 ? { backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)` }
                 : {}),
             }}
-            title={color ? `${n} of ${consensus.total} engines split here` : undefined}
+            title={color ? `${n} of ${consensus.total} engines produced this segment` : undefined}
             onMouseEnter={key ? () => onHover(key) : undefined}
             onMouseLeave={key ? () => onHover(null) : undefined}
           >
@@ -748,11 +773,11 @@ export default function SegmentationLabInner({
       {(hasResults || running) && (
         <div className="flex flex-col gap-1">
           <p className="text-xs text-muted-foreground">
-            When two or more engines agree on a boundary, the sentence that begins there gets a
-            coloured left edge — the same colour marks that boundary in every engine that found it,
-            so agreement reads by matching colours across columns. Hover a coloured sentence to
-            light up its boundary everywhere. Unique cuts are left unmarked. Not a verdict; there is
-            no single correct segmentation.
+            When two or more engines produce the identical sentence, it gets a coloured left edge —
+            the same colour marks that sentence in every engine that produced it, so agreement reads
+            by matching colours across columns. Hover a coloured sentence to highlight the identical
+            sentence in the other engines. Sentences only one engine produced are left unmarked. Not
+            a verdict; there is no single correct segmentation.
           </p>
           <div className="overflow-x-auto pb-2">
             <div
