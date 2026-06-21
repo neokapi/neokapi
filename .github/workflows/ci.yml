@@ -487,6 +487,20 @@ jobs:
         run: make test-bowrain
         continue-on-error: true
 
+      # The suite pipes `go test -json` to a file, so failing test names never
+      # reach the step log. Surface them (and the relevant output) on failure so
+      # a red bowrain run is debuggable without re-running locally.
+      - name: Show failed bowrain tests
+        if: steps.run-tests.outcome == 'failure'
+        run: |
+          echo "::group::Failed tests"
+          jq -r 'select(.Action=="fail" and .Test!=null) | "\(.Package)\t\(.Test)"' test-results-bowrain.json | sort -u || true
+          echo "::endgroup::"
+          echo "::group::Failure output"
+          jq -r 'select(.Action=="output") | .Output' test-results-bowrain.json \
+            | grep -aE "--- FAIL|FAIL\b|panic:|DATA RACE|Error Trace|Error:|expected|actual|\.go:[0-9]+:" | head -200 || true
+          echo "::endgroup::"
+
       - name: Convert to JUnit XML
         if: always()
         uses: ./.github/actions/go-junit-report
