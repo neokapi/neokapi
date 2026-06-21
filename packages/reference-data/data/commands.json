@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T11:23:40Z",
+  "generatedAt": "2026-06-21T11:49:10Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -4466,7 +4466,7 @@
         },
         {
           "name": "engine",
-          "usage": "Which segmenter to use; the default needs no configuration (Default — rule-based (hybrid SRX/UAX-29), Unicode baseline (UAX-29), LLM (semantic chunks))",
+          "usage": "Which segmenter to use; the default needs no configuration (Rule-based (hybrid SRX/UAX-29), Unicode baseline (UAX-29), LLM (semantic chunks))",
           "default": "srx",
           "type": "string"
         },

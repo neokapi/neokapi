@@ -3,6 +3,7 @@ package cli
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/segment"
 	tools "github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
@@ -42,14 +43,24 @@ func TestSegmentationSchemaComposition(t *testing.T) {
 		assert.Contains(t, got, name)
 	}
 
-	// Engine-specific fields are gated on the engine selector.
+	// Engine-specific fields are gated at the group level (master-detail).
+	groupVisibleForField := func(field string) *schema.ConditionExpr {
+		for i := range s.Groups {
+			for _, f := range s.Groups[i].Fields {
+				if f == field {
+					return s.Groups[i].Visible
+				}
+			}
+		}
+		return nil
+	}
 	gated := func(field, engineName string) {
 		t.Helper()
-		p, ok := s.Properties[field]
-		require.True(t, ok, "field %q present", field)
-		require.NotNil(t, p.Visible, "field %q is conditionally visible", field)
-		assert.Equal(t, "engine", p.Visible.Field)
-		assert.Equal(t, engineName, p.Visible.Eq)
+		require.Contains(t, s.Properties, field)
+		v := groupVisibleForField(field)
+		require.NotNil(t, v, "field %q's group is conditionally visible", field)
+		assert.Equal(t, "engine", v.Field)
+		assert.Equal(t, engineName, v.Eq)
 	}
 	gated("rulesPath", "srx") // SRX engine
 	gated("provider", "llm")  // LLM engine
@@ -64,6 +75,6 @@ func TestSegmentationSchemaComposition(t *testing.T) {
 
 	// Common boundary options are not gated (always visible).
 	for _, field := range []string{"segmentSource", "trimLeadingWhitespace"} {
-		assert.Nil(t, s.Properties[field].Visible, "common field %q is always visible", field)
+		assert.Nil(t, groupVisibleForField(field), "common field %q is always visible", field)
 	}
 }

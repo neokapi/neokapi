@@ -17,6 +17,19 @@ func optionValues(p schema.PropertySchema) []string {
 	return out
 }
 
+// groupVisibleForField returns the group-level ui:visible condition of the group
+// that contains field (master-detail gating is per group, not per field), or nil.
+func groupVisibleForField(s *schema.ComponentSchema, field string) *schema.ConditionExpr {
+	for i := range s.Groups {
+		for _, f := range s.Groups[i].Fields {
+			if f == field {
+				return s.Groups[i].Visible
+			}
+		}
+	}
+	return nil
+}
+
 // TestQASchemaComposition asserts the unified `qa` tool composes a `mode`
 // selector (Deterministic rules / AI review) where each mode reveals only its
 // own config: rule toggles for rules, provider/model for AI.
@@ -30,18 +43,18 @@ func TestQASchemaComposition(t *testing.T) {
 	assert.Equal(t, "rules", mode.Default)
 	assert.Equal(t, []string{"rules", "ai"}, optionValues(mode))
 
-	// AI fields gated on mode==ai.
+	// AI fields gated on mode==ai (at the group level).
 	for _, f := range []string{"provider", "model", "checks"} {
-		p, ok := s.Properties[f]
-		require.True(t, ok, "field %q present", f)
-		require.NotNil(t, p.Visible, "field %q gated", f)
-		assert.Equal(t, "mode", p.Visible.Field)
-		assert.Equal(t, "ai", p.Visible.Eq)
+		require.Contains(t, s.Properties, f)
+		v := groupVisibleForField(s, f)
+		require.NotNil(t, v, "field %q's group gated", f)
+		assert.Equal(t, "mode", v.Field)
+		assert.Equal(t, "ai", v.Eq)
 	}
-	// A representative rule toggle gated on mode==rules.
-	chk := s.Properties["checkEmptyTarget"]
-	require.NotNil(t, chk.Visible, "rule toggle is gated")
-	assert.Equal(t, "rules", chk.Visible.Eq)
+	// A representative rule toggle's group gated on mode==rules.
+	rv := groupVisibleForField(s, "checkEmptyTarget")
+	require.NotNil(t, rv, "rule group is gated")
+	assert.Equal(t, "rules", rv.Eq)
 
 	// Provider options come from the AI provider registry.
 	assert.Contains(t, optionValues(s.Properties["provider"]), "anthropic")
@@ -63,22 +76,22 @@ func TestTranslateSchemaComposition(t *testing.T) {
 	}
 	assert.NotContains(t, vals, "", "no empty provider option values")
 
-	// Per-provider credentials gated on the matching provider.
+	// Per-provider credentials gated on the matching provider (group level).
 	for field, provider := range map[string]string{
 		"subscriptionKey": "microsoft",
 		"region":          "microsoft",
 		"projectId":       "google",
 		"email":           "mymemory",
 	} {
-		p, ok := s.Properties[field]
-		require.True(t, ok, "field %q present", field)
-		require.NotNil(t, p.Visible, "field %q gated", field)
-		assert.Equal(t, "provider", p.Visible.Field)
-		assert.Equal(t, provider, p.Visible.Eq)
+		require.Contains(t, s.Properties, field)
+		v := groupVisibleForField(s, field)
+		require.NotNil(t, v, "field %q's group gated", field)
+		assert.Equal(t, "provider", v.Field)
+		assert.Equal(t, provider, v.Eq)
 	}
 
-	// Shared credential stays common (always visible).
-	assert.Nil(t, s.Properties["apiKey"].Visible, "apiKey is common")
+	// Shared credential stays common (its group is ungated).
+	assert.Nil(t, groupVisibleForField(s, "apiKey"), "apiKey is common")
 }
 
 // TestEntityExtractSchemaComposition asserts the ai-entity-extract tool gates
@@ -93,19 +106,19 @@ func TestEntityExtractSchemaComposition(t *testing.T) {
 	assert.Equal(t, EngineLLM, eng.Default)
 	assert.ElementsMatch(t, []string{"llm", "ner", "hybrid"}, optionValues(eng))
 
-	// LLM fields are visible for llm OR hybrid (shared config).
+	// LLM fields' group is visible for llm OR hybrid (shared config).
 	for _, f := range []string{"provider", "model", "batchSize", "batchConcurrency"} {
-		p, ok := s.Properties[f]
-		require.True(t, ok, "field %q present", f)
-		require.NotNil(t, p.Visible, "field %q gated", f)
-		require.Len(t, p.Visible.Any, 2, "field %q gated on two engines", f)
-		eqs := []string{p.Visible.Any[0].Eq.(string), p.Visible.Any[1].Eq.(string)}
+		require.Contains(t, s.Properties, f)
+		v := groupVisibleForField(s, f)
+		require.NotNil(t, v, "field %q's group gated", f)
+		require.Len(t, v.Any, 2, "field %q gated on two engines", f)
+		eqs := []string{v.Any[0].Eq.(string), v.Any[1].Eq.(string)}
 		assert.ElementsMatch(t, []string{EngineLLM, EngineHybrid}, eqs)
 	}
 
-	// Common fields stay ungated.
-	assert.Nil(t, s.Properties["locale"].Visible)
-	assert.Nil(t, s.Properties["knownTerms"].Visible)
+	// Common fields' groups stay ungated.
+	assert.Nil(t, groupVisibleForField(s, "locale"))
+	assert.Nil(t, groupVisibleForField(s, "knownTerms"))
 
 	// Produces contract survives composition (redact depends on it).
 	require.NotNil(t, s.ToolMeta)

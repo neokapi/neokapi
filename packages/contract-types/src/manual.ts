@@ -12,7 +12,6 @@ import type {
   FormatMeta,
   LayoutHints,
   OptionItem,
-  ParameterGroup,
   PathAnnotation,
   ToolMeta,
 } from "./contract.gen";
@@ -28,6 +27,23 @@ export type ConditionExpr =
   | { all: ConditionExpr[] }
   | { any: ConditionExpr[] }
   | { not: ConditionExpr };
+
+/**
+ * A UI grouping of parameters. Hand-authored (not generated) because its
+ * `ui:visible` gate is a {@link ConditionExpr} — used for master-detail
+ * rendering of tool groups, where a whole section is shown only when its
+ * condition holds. Mirrors core/schema.ParameterGroup.
+ */
+export interface ParameterGroup {
+  id: string;
+  label: string;
+  description?: string;
+  collapsible?: boolean;
+  collapsed?: boolean;
+  icon?: string;
+  fields: string[];
+  "ui:visible"?: ConditionExpr;
+}
 
 /**
  * A single parameter's schema. Union of the native schema language

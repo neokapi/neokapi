@@ -35,7 +35,7 @@ var okapiSRX []byte
 func init() {
 	segment.Register(segment.EngineDescriptor{
 		Name:        segment.DefaultEngine, // "srx"
-		Label:       "Default — rule-based (hybrid SRX/UAX-29)",
+		Label:       "Rule-based (hybrid SRX/UAX-29)",
 		Description: "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
 		Order:       0,
 		Schema:      schema.FromStruct(&Params{}, schema.ToolMeta{ID: "segment-engine-srx"}),

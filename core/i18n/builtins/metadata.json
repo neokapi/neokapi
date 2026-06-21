@@ -802,7 +802,7 @@
               "label": "LLM (semantic chunks)"
             },
             "srx": {
-              "label": "Default — rule-based (hybrid SRX/UAX-29)"
+              "label": "Rule-based (hybrid SRX/UAX-29)"
             },
             "uax29": {
               "label": "Unicode baseline (UAX-29)"
@@ -878,7 +878,7 @@
           "label": "Segmentation"
         },
         "srx": {
-          "label": "Default — rule-based (hybrid SRX/UAX-29)"
+          "label": "Rule-based (hybrid SRX/UAX-29)"
         }
       }
     },

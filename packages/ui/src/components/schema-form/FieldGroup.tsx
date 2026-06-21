@@ -32,10 +32,13 @@ export function FieldGroup({
   paramDocs?: Record<string, ToolDocParam>;
   fieldErrors?: Record<string, string | undefined>;
 }) {
-  // Drop fields that are absent, deprecated, or hidden by their ui:visible
-  // condition. Hiding when none remain keeps a conditionally-populated group
-  // (e.g. a backend's parameters that only apply when that backend is selected)
-  // from rendering an empty header.
+  // Group-level visibility (master-detail): a variant section — e.g. a tool
+  // group's selected-backend config — is shown or omitted as a whole, so an
+  // unselected backend renders nothing (no empty header).
+  if (!evaluateCondition(group["ui:visible"], values, properties)) return null;
+
+  // Drop fields that are absent, deprecated, or hidden by their own ui:visible
+  // condition (a field-level conditional within an otherwise-visible group).
   const fields = group.fields.filter(
     (f) =>
       properties[f] &&

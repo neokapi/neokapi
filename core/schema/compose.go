@@ -30,8 +30,8 @@ type Variant struct {
 	// no configurable parameters (it contributes only a selector option).
 	Params *ComponentSchema
 
-	// When overrides the visibility condition applied to this variant's fields.
-	// The default (nil) gates them on the discriminator equalling the variant's
+	// When overrides the visibility condition applied to this variant's section.
+	// The default (nil) gates it on the discriminator equalling the variant's
 	// Name. Set it when a backend's config is shared across several discriminator
 	// values — e.g. an LLM param set that applies to both "llm" and "hybrid"
 	// engines: When = {Any: [{Field:"engine",Eq:"llm"}, {Field:"engine",Eq:"hybrid"}]}.
@@ -44,8 +44,9 @@ type Variant struct {
 //   - The discriminator property (which must already exist on base, e.g. as the
 //     "engine" field) becomes a labeled select whose options and descriptions
 //     come from the variants, with defaultName as its default.
-//   - Each variant's parameters are merged in and placed in their own group,
-//     made visible only when the discriminator equals that variant's name. The
+//   - Each variant's parameters are merged in and placed in their own group(s),
+//     gated at the group level so the whole section appears only when the
+//     discriminator selects that variant (master-detail; no empty headers). The
 //     variant groups are inserted immediately after the group that holds the
 //     discriminator, so a backend's config sits right under the selector.
 //
@@ -76,23 +77,25 @@ func ComposeVariants(base *ComponentSchema, discriminator, defaultName string, v
 		out.Properties[discriminator] = d
 	}
 
-	// Build one group per variant that has parameters, with each field gated on
-	// the discriminator. Collected groups are inserted after the discriminator's
-	// group.
+	// Build the variant groups. Gating is at the GROUP level (master-detail): a
+	// variant's whole section — header and fields — is shown only while its gate
+	// holds, so an unselected backend renders nothing at all (no empty header).
+	// Collected groups are inserted after the discriminator's group.
 	var variantGroups []ParameterGroup
 	for _, v := range variants {
 		if v.Params == nil || len(v.Params.Properties) == 0 {
 			continue
 		}
-		// The gate that makes this variant's fields visible: its custom When, or
+		// The gate that makes this variant's section visible: its custom When, or
 		// the default discriminator == Name.
 		gate := v.When
 		if gate == nil {
 			gate = &ConditionExpr{Field: discriminator, Eq: v.Name}
 		}
 
-		// Merge and gate every variant property.
-		gated := map[string]bool{}
+		// Merge the variant's properties (the group gates the section, so fields
+		// carry no per-field visibility of their own).
+		merged := map[string]bool{}
 		for _, name := range sortedVariantFields(v.Params.Properties) {
 			if _, dup := out.Properties[name]; dup {
 				// A field name shared with the base or another variant would
@@ -100,28 +103,22 @@ func ComposeVariants(base *ComponentSchema, discriminator, defaultName string, v
 				// overwrite. Variant authors keep parameter names unique.
 				continue
 			}
-			p := v.Params.Properties[name]
-			cond := gate
-			if p.Visible != nil {
-				cond = &ConditionExpr{All: []*ConditionExpr{gate, p.Visible}}
-			}
-			p.Visible = cond
-			out.Properties[name] = p
-			gated[name] = true
+			out.Properties[name] = v.Params.Properties[name]
+			merged[name] = true
 		}
-		if len(gated) == 0 {
+		if len(merged) == 0 {
 			continue
 		}
 
 		// Preserve the variant's own groups (namespaced to avoid collisions with
-		// the base or other variants), then collect anything ungrouped into a
-		// single group labelled for the variant. A parameterless-grouped variant
-		// (the common case — an engine with a flat param set) yields one group.
+		// the base or other variants), each gated; then collect anything ungrouped
+		// into a single group labelled for the variant, also gated. A flat-param
+		// variant (the common case — an engine) yields one group.
 		inGroup := map[string]bool{}
 		for _, g := range v.Params.Groups {
 			fields := make([]string, 0, len(g.Fields))
 			for _, f := range g.Fields {
-				if gated[f] {
+				if merged[f] {
 					fields = append(fields, f)
 					inGroup[f] = true
 				}
@@ -132,11 +129,12 @@ func ComposeVariants(base *ComponentSchema, discriminator, defaultName string, v
 			ng := g
 			ng.ID = v.Name + ":" + g.ID
 			ng.Fields = fields
+			ng.Visible = gate
 			variantGroups = append(variantGroups, ng)
 		}
 		var ungrouped []string
 		for _, name := range sortedVariantFields(v.Params.Properties) {
-			if gated[name] && !inGroup[name] {
+			if merged[name] && !inGroup[name] {
 				ungrouped = append(ungrouped, name)
 			}
 		}
@@ -145,7 +143,7 @@ func ComposeVariants(base *ComponentSchema, discriminator, defaultName string, v
 			if label == "" {
 				label = v.Label
 			}
-			variantGroups = append(variantGroups, ParameterGroup{ID: v.Name, Label: label, Fields: ungrouped})
+			variantGroups = append(variantGroups, ParameterGroup{ID: v.Name, Label: label, Fields: ungrouped, Visible: gate})
 		}
 	}
 

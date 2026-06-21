@@ -38,17 +38,30 @@ func TestComposeVariants(t *testing.T) {
 	assert.Equal(t, "Default", eng.Options[0].Label)
 	assert.Equal(t, "rule-based", eng.EnumDescriptions["srx"])
 
-	// Each variant's fields are merged and gated on the discriminator.
-	for field, engine := range map[string]string{"rulesPath": "srx", "model": "sat", "threshold": "sat"} {
-		p, ok := s.Properties[field]
-		require.True(t, ok, "field %q present", field)
-		require.NotNil(t, p.Visible, "field %q gated", field)
-		assert.Equal(t, "engine", p.Visible.Field)
-		assert.Equal(t, engine, p.Visible.Eq)
+	// Each variant's fields are merged in; gating is at the GROUP level
+	// (master-detail), not per field.
+	for _, field := range []string{"rulesPath", "model", "threshold"} {
+		require.Contains(t, s.Properties, field)
+		assert.Nil(t, s.Properties[field].Visible, "field %q carries no per-field visibility", field)
+	}
+	groupVisible := func(id string) *ConditionExpr {
+		for i := range s.Groups {
+			if s.Groups[i].ID == id {
+				return s.Groups[i].Visible
+			}
+		}
+		return nil
+	}
+	for group, engine := range map[string]string{"srx": "srx", "sat": "sat"} {
+		v := groupVisible(group)
+		require.NotNil(t, v, "group %q gated", group)
+		assert.Equal(t, "engine", v.Field)
+		assert.Equal(t, engine, v.Eq)
 	}
 
-	// Common fields stay ungated.
+	// Common fields and their group stay ungated.
 	assert.Nil(t, s.Properties["scope"].Visible)
+	assert.Nil(t, groupVisible("main"))
 
 	// Variant groups are inserted right after the discriminator's group, and the
 	// parameterless variant (uax29) contributes no group.

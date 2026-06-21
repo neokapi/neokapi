@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T11:23:40Z",
+  "generatedAt": "2026-06-21T11:49:10Z",
   "kind": "tool",
   "entries": [
     {
@@ -231,7 +231,19 @@
               "provider",
               "apiKey",
               "model"
-            ]
+            ],
+            "ui:visible": {
+              "any": [
+                {
+                  "field": "engine",
+                  "eq": "llm"
+                },
+                {
+                  "field": "engine",
+                  "eq": "hybrid"
+                }
+              ]
+            }
           },
           {
             "id": "llm",
@@ -239,62 +251,38 @@
             "fields": [
               "batchConcurrency",
               "batchSize"
-            ]
+            ],
+            "ui:visible": {
+              "any": [
+                {
+                  "field": "engine",
+                  "eq": "llm"
+                },
+                {
+                  "field": "engine",
+                  "eq": "hybrid"
+                }
+              ]
+            }
           }
         ],
         "properties": {
           "apiKey": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider",
-            "ui:visible": {
-              "any": [
-                {
-                  "field": "engine",
-                  "eq": "llm"
-                },
-                {
-                  "field": "engine",
-                  "eq": "hybrid"
-                }
-              ]
-            }
+            "description": "API key for the AI provider"
           },
           "batchConcurrency": {
             "type": "integer",
             "description": "Number of concurrent batch calls (0 or 1 = sequential)",
             "default": 1,
-            "minimum": 1,
-            "ui:visible": {
-              "any": [
-                {
-                  "field": "engine",
-                  "eq": "llm"
-                },
-                {
-                  "field": "engine",
-                  "eq": "hybrid"
-                }
-              ]
-            }
+            "minimum": 1
           },
           "batchSize": {
             "type": "integer",
             "description": "Number of blocks per LLM call (0 or 1 = one block per call)",
             "default": 1,
-            "minimum": 1,
-            "ui:visible": {
-              "any": [
-                {
-                  "field": "engine",
-                  "eq": "llm"
-                },
-                {
-                  "field": "engine",
-                  "eq": "hybrid"
-                }
-              ]
-            }
+            "minimum": 1
           },
           "engine": {
             "type": "string",
@@ -336,19 +324,7 @@
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "AI model name",
-            "ui:visible": {
-              "any": [
-                {
-                  "field": "engine",
-                  "eq": "llm"
-                },
-                {
-                  "field": "engine",
-                  "eq": "hybrid"
-                }
-              ]
-            }
+            "description": "AI model name"
           },
           "provider": {
             "type": "string",
@@ -384,19 +360,7 @@
                 "value": "gemma",
                 "label": "Gemma (local)"
               }
-            ],
-            "ui:visible": {
-              "any": [
-                {
-                  "field": "engine",
-                  "eq": "llm"
-                },
-                {
-                  "field": "engine",
-                  "eq": "hybrid"
-                }
-              ]
-            }
+            ]
           }
         }
       },
@@ -3295,7 +3259,11 @@
               "checkDoubledWord",
               "doubledWordExceptions",
               "checkSpanConstraints"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           {
             "id": "rules:inlineCodes",
@@ -3303,21 +3271,33 @@
             "fields": [
               "checkCodeDifference",
               "strictCodeOrder"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           {
             "id": "rules:patterns",
             "label": "Patterns",
             "fields": [
               "checkPatterns"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           {
             "id": "rules:characters",
             "label": "Characters",
             "fields": [
               "checkCorruptedCharacters"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           {
             "id": "rules:length",
@@ -3333,14 +3313,22 @@
               "minCharLengthBelow",
               "checkAbsoluteMaxCharLength",
               "absoluteMaxCharLength"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           {
             "id": "rules",
             "label": "Deterministic rules",
             "fields": [
               "checkTerminology"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "rules"
+            }
           },
           {
             "id": "ai:provider",
@@ -3349,14 +3337,22 @@
               "provider",
               "apiKey",
               "model"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "ai"
+            }
           },
           {
             "id": "ai",
             "label": "AI review",
             "fields": [
               "checks"
-            ]
+            ],
+            "ui:visible": {
+              "field": "mode",
+              "eq": "ai"
+            }
           }
         ],
         "properties": {
@@ -3364,179 +3360,107 @@
             "type": "integer",
             "title": "Absolute Maximum Characters",
             "description": "Maximum number of characters allowed in any target segment",
-            "default": 255,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": 255
           },
           "apiKey": {
             "type": "string",
             "title": "API Key",
-            "description": "API key for the AI provider",
-            "ui:visible": {
-              "field": "mode",
-              "eq": "ai"
-            }
+            "description": "API key for the AI provider"
           },
           "checkAbsoluteMaxCharLength": {
             "type": "boolean",
             "title": "Check Absolute Maximum Length",
             "description": "Flag target segments that exceed an absolute character count limit",
-            "default": false,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": false
           },
           "checkCodeDifference": {
             "type": "boolean",
             "title": "Check Code Differences",
             "description": "Verify that target segments have the same inline codes as source segments",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkCorruptedCharacters": {
             "type": "boolean",
             "title": "Check Corrupted Characters",
             "description": "Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1)",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkDoubleSpaces": {
             "type": "boolean",
             "title": "Check Double Spaces",
             "description": "Check for double spaces in target text",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkDoubledWord": {
             "type": "boolean",
             "title": "Warn on Doubled Words",
             "description": "Check for consecutive repeated words in target text",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkEmptySource": {
             "type": "boolean",
             "title": "Warn on Non-Empty Target with Empty Source",
             "description": "Check for non-empty target when source is empty",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkEmptyTarget": {
             "type": "boolean",
             "title": "Warn on Empty Target",
             "description": "Check for empty target when source has content",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkLeadingWhitespace": {
             "type": "boolean",
             "title": "Check Leading Whitespace",
             "description": "Check for leading whitespace mismatches between source and target",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkMaxCharLength": {
             "type": "boolean",
             "title": "Check Maximum Length Ratio",
             "description": "Flag targets longer than a percentage of source character length",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkMinCharLength": {
             "type": "boolean",
             "title": "Check Minimum Length Ratio",
             "description": "Flag targets shorter than a percentage of source character length",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkPatterns": {
             "type": "boolean",
             "title": "Check Patterns",
             "description": "Verify that source patterns have expected corresponding content in the target",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkSpanConstraints": {
             "type": "boolean",
             "title": "Check Span Constraints",
             "description": "Check non-deletable and non-cloneable span constraint violations",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkTargetSameAsSource": {
             "type": "boolean",
             "title": "Warn on Target Same as Source",
             "description": "Check when target text is identical to source text",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checkTerminology": {
             "type": "boolean",
             "title": "Verify Terminology",
             "description": "Enable terminology checks",
-            "default": false,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": false
           },
           "checkTrailingWhitespace": {
             "type": "boolean",
             "title": "Check Trailing Whitespace",
             "description": "Check for trailing whitespace mismatches between source and target",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "checks": {
             "type": "array",
             "title": "Quality Checks",
             "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)",
-            "ui:visible": {
-              "field": "mode",
-              "eq": "ai"
-            },
             "items": {
               "type": "string"
             }
@@ -3545,71 +3469,43 @@
             "type": "string",
             "title": "Doubled Word Exceptions",
             "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)",
-            "default": "sie;vous;nous",
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": "sie;vous;nous"
           },
           "maxCharLengthAbove": {
             "type": "integer",
             "title": "Percentage for Long Text (Max)",
             "description": "Maximum allowed percentage of source length for long text",
-            "default": 200,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": 200
           },
           "maxCharLengthBelow": {
             "type": "integer",
             "title": "Percentage for Short Text (Max)",
             "description": "Maximum allowed percentage of source length for short text",
-            "default": 350,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": 350
           },
           "maxCharLengthBreak": {
             "type": "integer",
             "title": "Short/Long Threshold (Max)",
             "description": "Character count above which text is considered long for the maximum length check",
-            "default": 20,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": 20
           },
           "minCharLengthAbove": {
             "type": "integer",
             "title": "Percentage for Long Text (Min)",
             "description": "Minimum required percentage of source length for long text",
-            "default": 45,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": 45
           },
           "minCharLengthBelow": {
             "type": "integer",
             "title": "Percentage for Short Text (Min)",
             "description": "Minimum required percentage of source length for short text",
-            "default": 30,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": 30
           },
           "minCharLengthBreak": {
             "type": "integer",
             "title": "Short/Long Threshold (Min)",
             "description": "Character count above which text is considered long for the minimum length check",
-            "default": 20,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": 20
           },
           "mode": {
             "type": "string",
@@ -3635,11 +3531,7 @@
           "model": {
             "type": "string",
             "title": "Model",
-            "description": "AI model name",
-            "ui:visible": {
-              "field": "mode",
-              "eq": "ai"
-            }
+            "description": "AI model name"
           },
           "provider": {
             "type": "string",
@@ -3675,41 +3567,25 @@
                 "value": "gemma",
                 "label": "Gemma (local)"
               }
-            ],
-            "ui:visible": {
-              "field": "mode",
-              "eq": "ai"
-            }
+            ]
           },
           "strictCodeOrder": {
             "type": "boolean",
             "title": "Enforce Strict Code Order",
             "description": "Flag differences when codes appear in a different order between source and target",
-            "default": false,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": false
           },
           "targetSameAsSourceWithCodes": {
             "type": "boolean",
             "title": "Include Codes in Comparison",
             "description": "Include inline codes when comparing source and target for identity",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           },
           "targetSameAsSourceWithNumbers": {
             "type": "boolean",
             "title": "Include Number-Only Segments",
             "description": "Include number-only segments in same-as-source comparison",
-            "default": true,
-            "ui:visible": {
-              "field": "mode",
-              "eq": "rules"
-            }
+            "default": true
           }
         }
       },
@@ -4650,10 +4526,14 @@
           },
           {
             "id": "srx",
-            "label": "Default — rule-based (hybrid SRX/UAX-29)",
+            "label": "Rule-based (hybrid SRX/UAX-29)",
             "fields": [
               "rulesPath"
-            ]
+            ],
+            "ui:visible": {
+              "field": "engine",
+              "eq": "srx"
+            }
           },
           {
             "id": "llm",
@@ -4664,7 +4544,11 @@
               "credential",
               "instruction",
               "maxChunkRunes"
-            ]
+            ],
+            "ui:visible": {
+              "field": "engine",
+              "eq": "llm"
+            }
           },
           {
             "id": "boundaries",
@@ -4686,10 +4570,6 @@
             "title": "Credential",
             "description": "Stored credential name",
             "ui:widget": "credential-picker",
-            "ui:visible": {
-              "field": "engine",
-              "eq": "llm"
-            },
             "ui:order": 30
           },
           "engine": {
@@ -4700,7 +4580,7 @@
             "options": [
               {
                 "value": "srx",
-                "label": "Default — rule-based (hybrid SRX/UAX-29)"
+                "label": "Rule-based (hybrid SRX/UAX-29)"
               },
               {
                 "value": "uax29",
@@ -4724,10 +4604,6 @@
             "title": "Chunking Instruction",
             "description": "Optional guidance for how to chunk",
             "ui:widget": "textarea",
-            "ui:visible": {
-              "field": "engine",
-              "eq": "llm"
-            },
             "ui:order": 40
           },
           "layer": {
@@ -4741,20 +4617,12 @@
             "title": "Max Chunk Size",
             "description": "Soft upper bound on chunk size in characters (0 = model default)",
             "minimum": 0,
-            "ui:visible": {
-              "field": "engine",
-              "eq": "llm"
-            },
             "ui:order": 50
           },
           "model": {
             "type": "string",
             "title": "Model",
             "description": "Model name",
-            "ui:visible": {
-              "field": "engine",
-              "eq": "llm"
-            },
             "ui:order": 20
           },
           "overwriteSegmentation": {
@@ -4768,10 +4636,6 @@
             "type": "string",
             "title": "Provider",
             "description": "AI provider id (anthropic",
-            "ui:visible": {
-              "field": "engine",
-              "eq": "llm"
-            },
             "ui:order": 10
           },
           "renumberCodes": {
@@ -4786,10 +4650,6 @@
             "title": "SRX Rules File",
             "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)",
             "ui:widget": "file-picker",
-            "ui:visible": {
-              "field": "engine",
-              "eq": "srx"
-            },
             "ui:order": 10
           },
           "segmentSource": {
@@ -5392,7 +5252,11 @@
             "label": "Google Translate",
             "fields": [
               "projectId"
-            ]
+            ],
+            "ui:visible": {
+              "field": "provider",
+              "eq": "google"
+            }
           },
           {
             "id": "microsoft",
@@ -5400,14 +5264,22 @@
             "fields": [
               "subscriptionKey",
               "region"
-            ]
+            ],
+            "ui:visible": {
+              "field": "provider",
+              "eq": "microsoft"
+            }
           },
           {
             "id": "mymemory",
             "label": "MyMemory",
             "fields": [
               "email"
-            ]
+            ],
+            "ui:visible": {
+              "field": "provider",
+              "eq": "mymemory"
+            }
           }
         ],
         "properties": {
@@ -5434,10 +5306,6 @@
             "type": "string",
             "title": "Email",
             "description": "Account email for higher rate limits (mymemory)",
-            "ui:visible": {
-              "field": "provider",
-              "eq": "mymemory"
-            },
             "ui:order": 10
           },
           "model": {
@@ -5449,10 +5317,6 @@
             "type": "string",
             "title": "Project ID",
             "description": "Google Cloud project ID (google)",
-            "ui:visible": {
-              "field": "provider",
-              "eq": "google"
-            },
             "ui:order": 10
           },
           "provider": {
@@ -5516,10 +5380,6 @@
             "type": "string",
             "title": "Region",
             "description": "Azure region (microsoft)",
-            "ui:visible": {
-              "field": "provider",
-              "eq": "microsoft"
-            },
             "ui:order": 20
           },
           "skipMatched": {
@@ -5533,10 +5393,6 @@
             "title": "Subscription Key",
             "description": "Azure subscription key (microsoft)",
             "ui:widget": "password",
-            "ui:visible": {
-              "field": "provider",
-              "eq": "microsoft"
-            },
             "ui:order": 10
           }
         }

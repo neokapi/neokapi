@@ -653,3 +653,62 @@ describe("conditional variant groups", () => {
     expect(container.textContent).not.toContain("LLM settings");
   });
 });
+
+// ── group-level visibility (tool-group master-detail) ───────────────────────
+//
+// A ToolGroup's composed schema gates each backend's section at the GROUP level
+// (ParameterGroup ui:visible), so an unselected backend renders nothing at all —
+// header included. This is the master-detail rendering the config UI uses.
+
+describe("group-level visibility (master-detail)", () => {
+  const schema: ComponentSchema = {
+    title: "Segmentation",
+    type: "object",
+    "ui:groups": [
+      { id: "common", label: "Common", fields: ["engine"] },
+      { id: "srx", label: "SRX settings", fields: ["rulesPath"], "ui:visible": { field: "engine", eq: "srx" } },
+      {
+        id: "llm",
+        label: "LLM settings",
+        fields: ["provider", "model", "credential", "instruction", "maxChunkRunes"], // >4 ⇒ collapsible
+        "ui:visible": { field: "engine", eq: "llm" },
+      },
+    ],
+    properties: {
+      engine: {
+        type: "string",
+        title: "Engine",
+        default: "srx",
+        options: [
+          { value: "srx", label: "Rule-based" },
+          { value: "llm", label: "LLM" },
+        ],
+      },
+      // No per-field ui:visible — the group gates the whole section.
+      rulesPath: { type: "string", title: "SRX Rules File" },
+      provider: { type: "string", title: "Provider" },
+      model: { type: "string", title: "Model" },
+      credential: { type: "string", title: "Credential" },
+      instruction: { type: "string", title: "Instruction" },
+      maxChunkRunes: { type: "integer", title: "Max Chunk" },
+    },
+  };
+
+  it("shows only the default member's section; no other section header", () => {
+    const { container } = mount({ schema });
+    expect(container.textContent).toContain("SRX settings");
+    expect(container.textContent).toContain("SRX Rules File");
+    // The collapsible LLM section is entirely absent — not even a collapsed header.
+    expect(container.textContent).not.toContain("LLM settings");
+    expect(container.textContent).not.toContain("Provider");
+  });
+
+  it("switches the visible section when the discriminator changes", () => {
+    const { container } = mount({ schema });
+    const select = container.querySelector("select") as HTMLSelectElement;
+    selectOption(select, "llm");
+    expect(container.textContent).toContain("LLM settings");
+    expect(container.textContent).not.toContain("SRX settings");
+    expect(container.textContent).not.toContain("SRX Rules File");
+  });
+});
