@@ -129,10 +129,7 @@ describe("computePlacement — transformer-after-remote-egress", () => {
     // detectors: ["entities"] makes redact's optional entity consume required,
     // and entity-extract is the step producing it — the AD-020 trade-off.
     const spec: FlowSpec = {
-      steps: [
-        { tool: "entity-extract" },
-        { tool: "redact", config: { detectors: ["entities"] } },
-      ],
+      steps: [{ tool: "entity-extract" }, { tool: "redact", config: { detectors: ["entities"] } }],
     };
     expect(computePlacement(spec, tools)).toEqual([]);
   });
