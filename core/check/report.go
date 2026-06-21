@@ -145,7 +145,7 @@ func (g Gate) Evaluate(s Summary) GateResult {
 		MinScore:    g.MinScore,
 		Failed:      []string{},
 	}
-	if s.Critical > g.MaxCritical {
+	if g.MaxCritical >= 0 && s.Critical > g.MaxCritical {
 		r.Failed = append(r.Failed, fmt.Sprintf("critical findings %d exceed limit %d", s.Critical, g.MaxCritical))
 	}
 	if g.MaxMajor >= 0 && s.Major > g.MaxMajor {

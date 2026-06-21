@@ -43,6 +43,7 @@ func TestGate_Evaluate(t *testing.T) {
 	}{
 		{"default passes on majors", DefaultGate(), Summary{Major: 5}, 0},
 		{"default fails on a critical", DefaultGate(), Summary{Critical: 1}, 1},
+		{"critical off (-1) passes", Gate{MaxCritical: -1, MaxMajor: -1, MaxMinor: -1}, Summary{Critical: 3}, 0},
 		{"max-major trips", Gate{MaxCritical: 0, MaxMajor: 0, MaxMinor: -1}, Summary{Major: 2}, 1},
 		{"min-score trips", Gate{MaxCritical: 0, MaxMajor: -1, MaxMinor: -1, MinScore: 90}, Summary{Score: 80}, 1},
 		{"multiple trip", Gate{MaxCritical: 0, MaxMajor: 0, MinScore: 90}, Summary{Critical: 1, Major: 1, Score: 50}, 3},

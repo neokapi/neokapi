@@ -149,6 +149,61 @@ func TestCheck_MonolingualGateOnMajor(t *testing.T) {
 	assert.False(t, gatedOut.Pass, "--max-major 0 must gate on the major length finding")
 }
 
+// TestCheck_BilingualKeepsSourceFamilyAttribution proves source-side findings
+// keep their own family in bilingual mode and are NOT re-attributed to the
+// placeholder family — the regression for the delta-seed bug. The source has a
+// double space (hygiene) and the target drops {name} (placeholder).
+func TestCheck_BilingualKeepsSourceFamilyAttribution(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	dir := t.TempDir()
+	src := filepath.Join(dir, "app.json")
+	tgt := filepath.Join(dir, "app.de.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"greeting": "Hello  {name}"}`), 0o644))
+	require.NoError(t, os.WriteFile(tgt, []byte(`{"greeting": "Hallo"}`), 0o644))
+
+	a := &App{SourceLang: "en"}
+	cmd := a.NewCheckCmd()
+	require.NoError(t, cmd.Flags().Set("target", tgt))
+	require.NoError(t, cmd.Flags().Set("target-lang", "de"))
+
+	out, err := a.computeCheck(cmd, []string{src})
+	require.NoError(t, err)
+
+	counts := ruleCounts(out)
+	assert.Equal(t, 1, counts["hygiene.double-spaces"], "the source double-space stays a hygiene finding: %+v", out.Findings)
+	assert.Positive(t, counts["placeholder.placeholder"], "the dropped placeholder is flagged: %+v", out.Findings)
+	// The hygiene finding must NOT be double-counted under the placeholder family.
+	for _, d := range out.Findings {
+		if d.Rule == "placeholder.double-spaces" {
+			t.Fatalf("source hygiene finding re-attributed to placeholder family: %+v", d)
+		}
+	}
+}
+
+// TestCheck_StrictAndLenientPresets proves the gate presets: --strict fails on a
+// major finding the default gate passes, and --lenient never fails.
+func TestCheck_StrictAndLenientPresets(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	dir := t.TempDir()
+	src := filepath.Join(dir, "app.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"body": "This source string is far too long for the limit"}`), 0o644))
+
+	strict := (&App{SourceLang: "en"}).NewCheckCmd()
+	require.NoError(t, strict.Flags().Set("max-chars", "10"))
+	require.NoError(t, strict.Flags().Set("strict", "true"))
+	strictOut, err := (&App{SourceLang: "en"}).computeCheck(strict, []string{src})
+	require.NoError(t, err)
+	assert.False(t, strictOut.Pass, "--strict must fail on the major length finding")
+
+	lenient := (&App{SourceLang: "en"}).NewCheckCmd()
+	require.NoError(t, lenient.Flags().Set("max-chars", "10"))
+	require.NoError(t, lenient.Flags().Set("lenient", "true"))
+	lenientOut, err := (&App{SourceLang: "en"}).computeCheck(lenient, []string{src})
+	require.NoError(t, err)
+	assert.True(t, lenientOut.Pass, "--lenient must never fail the gate")
+	assert.Positive(t, lenientOut.Summary.Findings, "--lenient still reports the findings")
+}
+
 // TestCheck_MonolingualInvalidForbidPattern confirms a bad --forbid regex is an
 // operational error rather than a silent no-op.
 func TestCheck_MonolingualInvalidForbidPattern(t *testing.T) {

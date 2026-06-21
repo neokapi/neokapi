@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/output"
@@ -117,6 +116,7 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 	f.Bool("voice", false, "also run the voice/style-similarity check (needs the kapi-check plugin and a profile with examples)")
 	f.Float64("voice-min", DefaultVoiceSimilarity, "voice-similarity cutoff (cosine, 0-1) below which a block is flagged off-voice")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
+	cmd.MarkFlagsMutuallyExclusive("strict", "lenient")
 	return cmd
 }
 
@@ -309,7 +309,14 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 // (placeholder integrity, do-not-translate) over a source/target block set.
 func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.Block, file string, loc model.LocaleID, dntTerms []string) []check.Diagnostic {
 	var diags []check.Diagnostic
+	// Seed the per-block delta counts from the findings already on each block:
+	// in bilingual mode the source checks (collectFileDiagnostics) ran first, so
+	// starting at zero would re-attribute their findings to the placeholder
+	// family.
 	seen := make([]int, len(blocks))
+	for i, b := range blocks {
+		seen[i] = len(findingsFromBlock(b))
+	}
 
 	a.runFamily(ctx, blocks, coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(loc)))
 	diags = append(diags, mapBlockDeltas(blocks, seen, "placeholder", file)...)
@@ -380,7 +387,8 @@ func gateFromFlags(cmd *cobra.Command) check.Gate {
 		g.MaxMajor = 0
 	}
 	if lenient, _ := cmd.Flags().GetBool("lenient"); lenient {
-		g = check.Gate{MaxCritical: math.MaxInt32, MaxMajor: -1, MaxMinor: -1, MinScore: 0}
+		// All limits off: report only, the gate never trips.
+		g = check.Gate{MaxCritical: -1, MaxMajor: -1, MaxMinor: -1, MinScore: 0}
 	}
 	return g
 }
