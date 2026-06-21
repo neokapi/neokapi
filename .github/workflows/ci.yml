@@ -478,6 +478,30 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain == 'true'
+    services:
+      # A stable GitHub-managed Postgres for the full (push) bowrain suite.
+      # Previously the Postgres-backed server tests spun up a per-binary
+      # testcontainer; Ryuk/Docker can reap it mid-run under -race, taking ~80
+      # server tests down together with "connection refused" (the long-standing
+      # Test (bowrain) flake). pgtest prefers BOWRAIN_TEST_POSTGRES_URL and just
+      # creates an isolated schema per test in it, so this is immune to that.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bowrain
+          POSTGRES_PASSWORD: bowrain
+          POSTGRES_DB: bowrain_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bowrain -d bowrain_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Only push runs exercise the Postgres suites (PRs use -short, which skips
+      # them — keeps PR speed). Empty on PRs so they don't touch the service.
+      BOWRAIN_TEST_POSTGRES_URL: ${{ github.event_name == 'push' && 'postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable' || '' }}
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
