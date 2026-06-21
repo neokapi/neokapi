@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 
@@ -12,23 +13,41 @@ import (
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
-	mtprovider "github.com/neokapi/neokapi/providers/mt"
 )
 
-// registerDemoMT registers an `mt-translate` tool backed by the deterministic
-// demo MT provider. The native build wires real MT providers from typed
-// credentials; the browser build has no keys, so the demo provider is the only
-// MT engine available — it produces illustrative output with no network.
-func registerDemoMT(reg *registry.ToolRegistry) {
+// mtToolConfig is the wasm mt-translate tool's schema: the source/target locales
+// plus a `provider` choice so `--provider browser|demo` is exposed as a flag.
+// Resolved by resolveWasmMTProvider — unset/`browser` use the on-device Translator
+// API where the page supports it, `demo` (or no Translator API) the keyless stub.
+type mtToolConfig struct {
+	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"description=Source locale of the content"`
+	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"description=Target locale for processing"`
+	Provider     string         `json:"provider,omitempty"     schema:"title=MT engine,description=browser (on-device Translator API, the default where supported) or demo (illustrative output)"`
+}
+
+func (c *mtToolConfig) ToolName() string { return "mt-translate" }
+func (c *mtToolConfig) Reset()           { *c = mtToolConfig{} }
+func (c *mtToolConfig) Validate() error {
+	if c.TargetLocale.IsEmpty() {
+		return errors.New("mt-translate: TargetLocale is required")
+	}
+	return nil
+}
+
+// registerMT registers an `mt-translate` tool whose engine is resolved per run by
+// resolveWasmMTProvider: the browser's built-in on-device Translator API
+// (`--provider browser`, the default where the page supports it) or — when that
+// API is absent or `--provider demo` is requested — the deterministic, keyless
+// demo provider that produces illustrative output with no network.
+func registerMT(reg *registry.ToolRegistry) {
 	if reg == nil {
 		return
 	}
-	s := schema.FromStruct(&mtprovider.DemoToolConfig{}, schema.ToolMeta{
+	s := schema.FromStruct(&mtToolConfig{}, schema.ToolMeta{
 		ID:           "mt-translate",
 		Category:     schema.CategoryTranslation,
-		DisplayName:  "MT Translate (demo)",
-		Description:  "Translate content using the demo MT provider (illustrative output)",
-		Tags:         []string{"demo"},
+		DisplayName:  "MT Translate",
+		Description:  "Machine-translate content on-device with the browser's Translator API where available, or illustrative demo output otherwise",
 		WritesOutput: true,
 		Requires:     []string{schema.RequiresTargetLanguage},
 		Cardinality:  schema.Bilingual,
@@ -36,18 +55,18 @@ func registerDemoMT(reg *registry.ToolRegistry) {
 	})
 
 	reg.RegisterWithSchema("mt-translate", func() tool.Tool {
-		return mttools.NewMTTranslateTool(mtprovider.NewDemoProvider(), mttools.MTTranslateConfig{})
+		return mttools.NewMTTranslateTool(resolveWasmMTProvider(nil), mttools.MTTranslateConfig{})
 	}, s)
 
 	reg.SetConfigFactory("mt-translate", func(config map[string]any, targetLang string) (tool.Tool, error) {
-		var cfg mtprovider.DemoToolConfig
+		var cfg mtToolConfig
 		if err := schema.ApplyConfig(config, &cfg); err != nil {
 			return nil, fmt.Errorf("mt-translate config: %w", err)
 		}
 		if targetLang != "" {
 			cfg.TargetLocale = model.LocaleID(targetLang)
 		}
-		return mttools.NewMTTranslateTool(mtprovider.NewDemoProvider(), mttools.MTTranslateConfig{
+		return mttools.NewMTTranslateTool(resolveWasmMTProvider(config), mttools.MTTranslateConfig{
 			SourceLocale: cfg.SourceLocale,
 			TargetLocale: cfg.TargetLocale,
 		}), nil
@@ -72,12 +91,13 @@ func forceDemoProviders(reg *registry.ToolRegistry) {
 		if config == nil {
 			config = map[string]any{}
 		}
-		// Explicit `--provider gemma` runs the real Gemma 4 model in-browser via
-		// the transformers.js bridge (gemma_bridge.go). Let it through untouched
-		// (drop only any stray key) so the demo coercion below does not override
-		// it. The model downloads on demand on the page, so this is opt-in — the
-		// default stays the keyless demo provider.
-		if prov, _ := config["provider"].(string); prov == string(gemmaProviderID) {
+		// Real in-browser providers run via a host JS bridge, not a credentialed
+		// network call: `gemma` (the Gemma 4 model via transformers.js) and
+		// `browser` (the on-device Translator API). Let either through untouched
+		// (drop only a stray key) so the demo coercion below does not override it —
+		// the mt-translate config factory then resolves `browser` to the demo
+		// provider itself when the page lacks the Translator API.
+		if prov, _ := config["provider"].(string); prov == string(gemmaProviderID) || prov == string(browserMTProviderID) {
 			delete(config, "apiKey")
 			return config, nil
 		}

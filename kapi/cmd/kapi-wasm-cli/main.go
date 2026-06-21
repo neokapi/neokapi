@@ -32,11 +32,12 @@ func main() {
 	// enumerates tools/formats) sees them. InitRegistries is idempotent.
 	app.InitRegistries()
 
-	// Register the demo MT translate tool so `translate` is enumerated by
-	// NewToolCommands(). The AI tools (translate, qa, brand-voice-check,
-	// …) are already registered by InitRegistries; the demo provider is forced
-	// for them per command run via forceDemoProviders (see buildRoot).
-	registerDemoMT(app.ToolReg)
+	// Register the mt-translate tool so it is enumerated by NewToolCommands(). Its
+	// engine is resolved per run (browser Translator API where available, else the
+	// keyless demo provider — see registerMT). The AI tools (translate, qa,
+	// brand-voice-check, …) are already registered by InitRegistries; the demo
+	// provider is forced for them per command run via forceDemoProviders.
+	registerMT(app.ToolReg)
 	// On-device NER (ai-entity-extract engine "ner"): bridge to a JS-loaded
 	// model (GLiNER via onnxruntime-web); errors actionably until loaded.
 	registerLocalNER()
