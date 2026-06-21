@@ -874,18 +874,26 @@ func (a *App) injectCredentialPicker(schema map[string]any) {
 		}
 	}
 
-	// Add credential to the provider group if it exists.
+	// Add the credential field to whichever group holds the provider fields, so
+	// it inherits that group's visibility. For a ToolGroup tool the provider
+	// fields live in a member group (e.g. "ai:provider" for qa, "llm:provider"
+	// for ai-entity-extract) gated by the discriminator, so the credential picker
+	// then appears only when that AI backend is selected — not in rules/ner mode.
+	// Match by the group that contains "provider", which covers both the plain
+	// "provider" group (translate) and the namespaced member groups.
 	if groups, ok := schema["ui:groups"].([]any); ok {
 		for _, g := range groups {
 			group, ok := g.(map[string]any)
 			if !ok {
 				continue
 			}
-			if group["id"] == "provider" {
-				if fields, ok := group["fields"].([]any); ok {
-					// Prepend credential to the group fields.
-					group["fields"] = append([]any{"credential"}, fields...)
-				}
+			fields, ok := group["fields"].([]any)
+			if !ok {
+				continue
+			}
+			if slices.Contains(fields, any("provider")) {
+				// Prepend credential to the group fields.
+				group["fields"] = append([]any{"credential"}, fields...)
 				break
 			}
 		}
