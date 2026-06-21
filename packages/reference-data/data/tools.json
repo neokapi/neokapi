@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T19:31:27Z",
+  "generatedAt": "2026-06-21T19:38:00Z",
   "kind": "tool",
   "entries": [
     {
@@ -4274,7 +4274,7 @@
         ],
         "processingNotes": [
           "Renders inline codes as placeholder tags so the model preserves them, then reconstructs the run structure from the response.",
-          "Faithfulness guard — if a rewrite does not preserve every inline code exactly (a dropped, invented, or duplicated placeholder/markup tag), that block is left unchanged rather than written back with unbalanced markup. Plain-text blocks have no codes and are always rewritten.",
+          "Faithfulness guard — if a rewrite does not preserve every inline code exactly (a dropped, invented, duplicated, or reordered placeholder/markup tag), that block is left unchanged rather than written back with unbalanced markup. Plain-text blocks have no codes and are always rewritten.",
           "Non-translatable and blank blocks pass through unchanged.",
           "Drives the byte-faithful round-trip, so structure-preserving formats round-trip with only the text changed."
         ],

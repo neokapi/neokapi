@@ -88,10 +88,10 @@ func inlineCodeMultiset(runs []model.Run) map[inlineCodeKey]int {
 	return m
 }
 
-// sameInlineCodes reports whether two flat run sequences carry exactly the same
-// multiset of inline codes — the condition under which a rewrite preserves the
-// document's inline markup. (Run order is allowed to differ; only presence and
-// count of each code matter for balance.)
+// sameInlineCodes reports whether two run sequences carry exactly the same
+// multiset of inline codes (each code present the same number of times). It
+// catches a model that drops, invents, or duplicates a code, but not one that
+// merely reorders codes — order is checked separately by pairedCodesBalanced.
 func sameInlineCodes(a, b []model.Run) bool {
 	ma, mb := inlineCodeMultiset(a), inlineCodeMultiset(b)
 	if len(ma) != len(mb) {
@@ -103,6 +103,41 @@ func sameInlineCodes(a, b []model.Run) bool {
 		}
 	}
 	return true
+}
+
+// pairedCodesBalanced reports whether the paired open/close codes in a run
+// sequence are balanced: every PcClose has an earlier still-open PcOpen of the
+// same id, and no code is left open at the end. A model that reorders a close
+// ahead of its open (same multiset, unbalanced markup) is rejected here. The
+// source side comes from a parser and is already balanced; this validates the
+// model's reconstructed sequence.
+func pairedCodesBalanced(runs []model.Run) bool {
+	open := map[string]int{}
+	for _, r := range runs {
+		switch {
+		case r.PcOpen != nil:
+			open[r.PcOpen.ID]++
+		case r.PcClose != nil:
+			if open[r.PcClose.ID] == 0 {
+				return false // a close with no matching open before it
+			}
+			open[r.PcClose.ID]--
+		}
+	}
+	for _, n := range open {
+		if n != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// inlineCodesPreserved reports whether b faithfully preserves a's inline codes:
+// the same multiset of codes AND well-balanced paired open/close codes. It is
+// the condition under which a rewrite cannot unbalance the document's inline
+// markup by dropping, inventing, duplicating, or reordering a code.
+func inlineCodesPreserved(a, b []model.Run) bool {
+	return sameInlineCodes(a, b) && pairedCodesBalanced(b)
 }
 
 // NewRewriteTool builds the rewrite tool: a source Transform that rewrites the
@@ -169,12 +204,13 @@ func NewRewriteTool(p aiprovider.LLMProvider, cfg RewriteConfig) *tool.BaseTool 
 		}
 
 		// Faithfulness guard: apply the rewrite only when every inline code
-		// (placeholder, paired open/close, sub-flow) survives exactly. A model
-		// that drops, invents, or duplicates a code would unbalance the
-		// document's inline markup — so reject that block's edit and leave the
-		// source unchanged rather than write malformed structure. Plain-text
-		// blocks have no codes, so this is a no-op for them.
-		if !sameInlineCodes(oldRuns, newRuns) {
+		// (placeholder, paired open/close, sub-flow) survives exactly and the
+		// paired codes stay balanced. A model that drops, invents, duplicates,
+		// or reorders a code would unbalance the document's inline markup — so
+		// reject that block's edit and leave the source unchanged rather than
+		// write malformed structure. Plain-text blocks have no codes, so this is
+		// a no-op for them.
+		if !inlineCodesPreserved(oldRuns, newRuns) {
 			return plan, nil
 		}
 

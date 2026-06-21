@@ -91,6 +91,49 @@ func TestRewriteRejectsCodeLoss(t *testing.T) {
 	assert.Equal(t, "Hello  world", model.RunsText(b.Source))
 }
 
+// TestRewriteRejectsInjectedCode proves the guard rejects a hallucinated tag: a
+// model that invents an inline code with no counterpart in the source would
+// write an orphan code into the document, so the block is left unchanged.
+func TestRewriteRejectsInjectedCode(t *testing.T) {
+	mock := aiprovider.NewMockProvider()
+	mock.ChatFunc = func(_ context.Context, _ []aiprovider.Message) (*aiprovider.ChatResponse, error) {
+		// Inject a placeholder tag (id 99) absent from the source.
+		return &aiprovider.ChatResponse{Content: `Hello <x id="99/"/>world`, Model: "mock"}, nil
+	}
+	tl := NewRewriteTool(mock, RewriteConfig{Instruction: "inject"})
+
+	b := &model.Block{ID: "b1", Translatable: true, Source: []model.Run{
+		{Text: &model.TextRun{Text: "Hello world"}},
+	}}
+	applyRewrite(t, tl, b)
+
+	require.Len(t, b.Source, 1)
+	assert.Equal(t, "Hello world", b.SourceText(), "an injected inline code must be rejected, leaving the source unchanged")
+}
+
+// TestRewriteRejectsReorderedCodes proves the guard rejects a model that keeps
+// the same codes but reorders a paired close ahead of its open — same multiset,
+// but unbalanced markup — so the block is left unchanged.
+func TestRewriteRejectsReorderedCodes(t *testing.T) {
+	mock := aiprovider.NewMockProvider()
+	mock.ChatFunc = func(_ context.Context, _ []aiprovider.Message) (*aiprovider.ChatResponse, error) {
+		// Source renders <x id="1"/>word<x id="/1"/>; swap the pair's order.
+		return &aiprovider.ChatResponse{Content: `<x id="/1"/>word<x id="1"/>`, Model: "mock"}, nil
+	}
+	tl := NewRewriteTool(mock, RewriteConfig{Instruction: "swap codes"})
+
+	b := &model.Block{ID: "b1", Translatable: true, Source: []model.Run{
+		{PcOpen: &model.PcOpenRun{ID: "1"}},
+		{Text: &model.TextRun{Text: "word"}},
+		{PcClose: &model.PcCloseRun{ID: "1"}},
+	}}
+	applyRewrite(t, tl, b)
+
+	require.Len(t, b.Source, 3)
+	require.NotNil(t, b.Source[0].PcOpen, "open code must remain first")
+	require.NotNil(t, b.Source[2].PcClose, "close code must remain last")
+}
+
 // TestRewriteStructuredFallback documents the opaque fallback: a block whose
 // source carries a plural run has no linear text mapping, so the tool replaces
 // the whole source with the rewritten plain text rather than corrupting the
