@@ -49,6 +49,7 @@ func (a *App) KapiCommandSet() []*cobra.Command {
 	// with a plain-language instruction, faithfully, with a reviewable --diff.
 	cmds = append(cmds, a.newRewriteCmd())
 	cmds = append(cmds, a.NewInspectCmd())
+	cmds = append(cmds, a.NewStatsCmd())
 	cmds = append(cmds,
 		a.NewVerifyCmd(),
 		a.NewCheckCmd(),
