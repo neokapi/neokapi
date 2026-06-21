@@ -105,6 +105,11 @@ else
 fi
 
 cp "$PLUGIN_DIR/manifest.json" "$STAGE/manifest.json"
+# Stamp the release version into the staged manifest so the published plugin
+# version matches its tag (manifest.json's source value is a dev default). Only
+# the top-level "version" (2-space indent) is rewritten, not nested model versions.
+sed 's/^  "version": *"[^"]*"/  "version": "'"$VERSION"'"/' "$STAGE/manifest.json" > "$STAGE/manifest.json.tmp" \
+  && mv "$STAGE/manifest.json.tmp" "$STAGE/manifest.json"
 
 # ── bundle the model assets (read from manifest's declared filenames) ─────────
 for f in ppocrv5_det.onnx ppocrv5_rec.onnx ppocrv5_dict.txt; do

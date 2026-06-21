@@ -107,6 +107,11 @@ else
 fi
 
 cp "$PLUGIN_DIR/manifest.json" "$STAGE/manifest.json"
+# Stamp the release version into the staged manifest so the published plugin
+# version matches its tag (manifest.json's source value is a dev default). Only
+# the top-level "version" (2-space indent) is rewritten, not nested model versions.
+sed 's/^  "version": *"[^"]*"/  "version": "'"$VERSION"'"/' "$STAGE/manifest.json" > "$STAGE/manifest.json.tmp" \
+  && mv "$STAGE/manifest.json.tmp" "$STAGE/manifest.json"
 
 # ── bundle onnxruntime shared library at lib/<unversioned-name> ───────────────
 find_ort_lib() {

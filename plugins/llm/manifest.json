@@ -1,7 +1,7 @@
 {
   "manifest_version": "1",
   "plugin": "llm",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Local LLM plugin — runs Google Gemma 4 (E2B) ONNX models in-process for on-device text generation (translate, chat, QA, brand-voice), speaking a line-delimited JSON protocol on stdin/stdout. A free, private alternative to paid cloud models. (Vision/audio input is wired but experimental, pending validation.)",
   "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/llm",
   "author": "Neokapi <hello@neokapi.dev>",

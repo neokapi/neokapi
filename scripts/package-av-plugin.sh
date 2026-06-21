@@ -66,6 +66,11 @@ else
 fi
 
 cp "$repo/plugins/av/manifest.json" "$stage/manifest.json"
+# Stamp the release version into the staged manifest so the published plugin
+# version matches its tag (manifest.json's source value is a dev default). Only
+# the top-level "version" (2-space indent) is rewritten, not nested model versions.
+sed 's/^  "version": *"[^"]*"/  "version": "'"$VERSION"'"/' "$stage/manifest.json" > "$stage/manifest.json.tmp" \
+  && mv "$stage/manifest.json.tmp" "$stage/manifest.json"
 cp "$repo/plugins/av/NOTICE" "$stage/NOTICE"
 
 echo "==> bundle ffmpeg + ffprobe from $FFMPEG_DIR"

@@ -89,66 +89,6 @@ func (f FormatsListOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// PluginInfo represents a single plugin entry.
-type PluginInfo struct {
-	Name             string `json:"name"`
-	Version          string `json:"version,omitempty"`
-	FrameworkVersion string `json:"framework_version,omitempty"`
-	PluginType       string `json:"plugin_type,omitempty"`
-	Status           string `json:"status"`
-	Formats          int    `json:"formats,omitempty"`
-	Path             string `json:"path,omitempty"`
-}
-
-// PluginsListOutput represents the list of plugins.
-type PluginsListOutput struct {
-	Plugins []PluginInfo `json:"plugins"`
-	Total   int          `json:"total"`
-}
-
-func (p PluginsListOutput) FormatText(w io.Writer) error {
-	if len(p.Plugins) == 0 {
-		fmt.Fprintln(w, T("plugins.none"))
-		return nil
-	}
-
-	fmt.Fprintln(w, T("plugins.installed"))
-	fmt.Fprintln(w)
-
-	// Compute dynamic column width for version.
-	versionWidth := len("VERSION")
-	for _, plugin := range p.Plugins {
-		v := plugin.Version
-		if plugin.FrameworkVersion != "" {
-			v += " (" + plugin.FrameworkVersion + ")"
-		}
-		if len(v) > versionWidth {
-			versionWidth = len(v)
-		}
-	}
-	versionWidth += 2 // padding
-
-	hdrFmt := fmt.Sprintf("  %%-20s %%-%ds %%-10s %%-10s %%s\n", versionWidth)
-	rowFmt := fmt.Sprintf("  %%-20s %%-%ds %%-10s %%-10s %%d\n", versionWidth)
-	fmt.Fprintf(w, hdrFmt, T("plugins.header.name"), T("plugins.header.version"),
-		T("plugins.header.type"), T("plugins.header.status"), T("plugins.header.formats"))
-	fmt.Fprintf(w, hdrFmt, "----", "-------", "----", "------", "-------")
-
-	for _, plugin := range p.Plugins {
-		pluginType := plugin.PluginType
-		if pluginType == "" {
-			pluginType = "-"
-		}
-		version := plugin.Version
-		if plugin.FrameworkVersion != "" {
-			version += " (" + plugin.FrameworkVersion + ")"
-		}
-		fmt.Fprintf(w, rowFmt, plugin.Name, version, pluginType, plugin.Status, plugin.Formats)
-	}
-	fmt.Fprintf(w, "\n"+T("plugins.total")+"\n", p.Total)
-	return nil
-}
-
 // ToolInfo represents a single tool entry.
 type ToolInfo struct {
 	Name        string `json:"name"`
@@ -450,61 +390,6 @@ func (o PluginSearchOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "  %-25s %-10s %-10s %s\n", p.Name, p.Version, p.PluginType, p.Description)
 	}
 	fmt.Fprintf(w, "\nTotal: %d plugin(s)\n", o.Total)
-	return nil
-}
-
-// PluginInstallOutput represents the result of a plugin install.
-type PluginInstallOutput struct {
-	Name        string   `json:"name"`
-	Version     string   `json:"version"`
-	InstallType string   `json:"install_type"`
-	Files       []string `json:"files,omitempty"`
-}
-
-func (o PluginInstallOutput) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "Installed %s v%s (%s)\n", o.Name, o.Version, o.InstallType)
-	for _, f := range o.Files {
-		fmt.Fprintf(w, "  → %s\n", f)
-	}
-	return nil
-}
-
-// PluginUpdateEntry represents a single plugin that was updated.
-type PluginUpdateEntry struct {
-	Name       string `json:"name"`
-	OldVersion string `json:"old_version,omitempty"`
-	NewVersion string `json:"new_version"`
-}
-
-// PluginUpdateOutput represents the result of a plugin update.
-type PluginUpdateOutput struct {
-	Updated  []PluginUpdateEntry `json:"updated"`
-	UpToDate bool                `json:"up_to_date"`
-}
-
-func (o PluginUpdateOutput) FormatText(w io.Writer) error {
-	if o.UpToDate {
-		fmt.Fprintln(w, "All plugins are up to date.")
-		return nil
-	}
-	for _, u := range o.Updated {
-		fmt.Fprintf(w, "Updated %s to v%s\n", u.Name, u.NewVersion)
-	}
-	return nil
-}
-
-// PluginRemoveOutput represents the result of a plugin remove.
-type PluginRemoveOutput struct {
-	Name    string `json:"name"`
-	Version string `json:"version,omitempty"`
-}
-
-func (o PluginRemoveOutput) FormatText(w io.Writer) error {
-	if o.Version != "" {
-		fmt.Fprintf(w, "Removed %s@%s\n", o.Name, o.Version)
-	} else {
-		fmt.Fprintf(w, "Removed %s\n", o.Name)
-	}
 	return nil
 }
 
