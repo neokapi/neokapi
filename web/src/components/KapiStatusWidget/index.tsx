@@ -7,7 +7,18 @@ import BrowserOnly from "@docusaurus/BrowserOnly";
 // lazily only when a plugin is actually downloaded).
 const LazyStatusWidget = React.lazy(() => import("./StatusWidget"));
 
-export default function KapiStatusNavbarItem(): React.ReactElement {
+export default function KapiStatusNavbarItem({
+  mobile,
+}: {
+  mobile?: boolean;
+}): React.ReactElement | null {
+  // Docusaurus renders every navbar item twice on mobile: once in the persistent
+  // top bar and again inside the hamburger sidebar (with mobile={true}). The
+  // widget's absolutely-positioned 340px dropdown panel overflows the narrow
+  // sidebar, so we render only in the top bar — the pill stays reachable there.
+  if (mobile) {
+    return null;
+  }
   return (
     <BrowserOnly>
       {() => (
