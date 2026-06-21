@@ -63,11 +63,12 @@ function HomepageHeader() {
             {siteConfig.title}
           </Heading>
           <p className={styles.heroSubtitle}>
-            The server-side platform companion to kapi: shared, versioned governance of brand voice,
-            terminology, and translation memory &mdash; that learns from every correction &mdash; plus
-            collaborative editing, connectors to the systems your content already lives in, and
-            automation. The persistent, multi-user layer a team needs; it is to kapi what GitHub is to
-            git.
+            The team platform for keeping content <strong>on brand and in every language</strong>:
+            shared, versioned governance of brand voice, terminology, and translation memory &mdash;
+            that learns from every correction &mdash; plus collaborative editing, connectors to the
+            systems your content already lives in, and automation. It governs the content{" "}
+            <strong>kapi</strong> parses and edits &mdash; the persistent, multi-user layer a team
+            needs.
           </p>
           <div className={styles.buttons}>
             <Link className={clsx("button button--lg", styles.tryButton)} to="/quickstart">
