@@ -126,7 +126,13 @@ ORT_SRC="$(find_ort_lib "$ORT_DIR/lib")"; [ -z "$ORT_SRC" ] && ORT_SRC="$(find_o
 echo "package-llm-plugin: bundling onnxruntime: $ORT_SRC -> lib/${ORT_LIB_NAME}"
 cp -L "$ORT_SRC" "$STAGE/lib/${ORT_LIB_NAME}"
 if [ "$GOOS" = "darwin" ] && command -v install_name_tool >/dev/null 2>&1; then
-  install_name_tool -id "@loader_path/${ORT_LIB_NAME}" "$STAGE/lib/${ORT_LIB_NAME}" 2>/dev/null || true
+  # Only rewrite when the id isn't already correct: install_name_tool invalidates
+  # any code signature, and the release workflow pre-sets this id before
+  # Developer-ID signing the dylib. Skipping the no-op preserves that signature.
+  cur="$(otool -D "$STAGE/lib/${ORT_LIB_NAME}" 2>/dev/null | tail -n1 | tr -d '[:space:]')"
+  if [ "$cur" != "@loader_path/${ORT_LIB_NAME}" ]; then
+    install_name_tool -id "@loader_path/${ORT_LIB_NAME}" "$STAGE/lib/${ORT_LIB_NAME}" 2>/dev/null || true
+  fi
 fi
 
 # ── tar + sha256 ──────────────────────────────────────────────────────────────

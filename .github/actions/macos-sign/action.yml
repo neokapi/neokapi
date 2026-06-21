@@ -1,0 +1,146 @@
+name: 'macOS sign & notarize'
+description: >
+  Developer-ID sign a set of Mach-O files (plugin binaries + bundled dylibs) with
+  the hardened runtime in an ephemeral keychain, optionally notarize them, and
+  always tear the keychain down. Falls back to ad-hoc signing when no certificate
+  is configured. Centralises the signing lifecycle the plugin release workflows
+  previously duplicated step-for-step.
+
+inputs:
+  binaries:
+    description: 'Newline-separated list of Mach-O binary paths to sign (no globs).'
+    required: true
+  dylib-globs:
+    description: >
+      Newline-separated shell globs for bundled dylibs to sign. Each glob is
+      expanded at run time; symlinks (e.g. the unversioned onnxruntime alias) are
+      skipped so only real Mach-O files are signed.
+    required: false
+    default: ''
+  reloc-id:
+    description: >
+      Optional install id (LC_ID_DYLIB) to stamp on every resolved *.dylib before
+      signing — codesign runs after, so it remains the last Mach-O mutation and
+      its signature survives into the tarball. The onnxruntime plugins pass
+      "@loader_path/libonnxruntime.dylib"; ffmpeg/whisper plugins leave it empty.
+    required: false
+    default: ''
+  label:
+    description: 'Short identifier used to name the notarization zip (e.g. kapi-llm).'
+    required: true
+  notarize:
+    description: 'Submit the signed set to Apple notarization when "true" (publish runs only).'
+    required: false
+    default: 'false'
+  developer-id-p12-base64:
+    description: 'Base64-encoded Developer ID Application .p12. Empty → ad-hoc signing.'
+    required: false
+    default: ''
+  developer-id-p12-password:
+    description: 'Password for the .p12 above.'
+    required: false
+    default: ''
+  sign-identity:
+    description: 'codesign identity (Developer ID Application: …).'
+    required: false
+    default: ''
+  api-key-p8-base64:
+    description: 'Base64-encoded App Store Connect API key (.p8), required when notarize=true.'
+    required: false
+    default: ''
+  api-key-id:
+    description: 'App Store Connect API key id.'
+    required: false
+    default: ''
+  api-issuer-id:
+    description: 'App Store Connect API issuer id.'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Sign (and optionally notarize) Mach-O set
+      shell: bash
+      env:
+        BINARIES: ${{ inputs.binaries }}
+        DYLIB_GLOBS: ${{ inputs.dylib-globs }}
+        RELOC_ID: ${{ inputs.reloc-id }}
+        LABEL: ${{ inputs.label }}
+        NOTARIZE: ${{ inputs.notarize }}
+        APPLE_DEVELOPER_ID_P12_BASE64: ${{ inputs.developer-id-p12-base64 }}
+        APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ inputs.developer-id-p12-password }}
+        APPLE_SIGN_IDENTITY: ${{ inputs.sign-identity }}
+        APPLE_API_KEY_P8_BASE64: ${{ inputs.api-key-p8-base64 }}
+        APPLE_API_KEY_ID: ${{ inputs.api-key-id }}
+        APPLE_API_ISSUER_ID: ${{ inputs.api-issuer-id }}
+      run: |
+        set -euo pipefail
+
+        # ── collect the Mach-O set: explicit binaries + expanded dylib globs ──
+        files=()
+        while IFS= read -r b; do [ -n "$b" ] && files+=( "$b" ); done <<< "$BINARIES"
+        while IFS= read -r g; do
+          [ -n "$g" ] || continue
+          for f in $g; do
+            [ -e "$f" ] || continue   # unmatched glob stays literal → skip
+            [ -L "$f" ] && continue   # skip the unversioned symlink alias
+            files+=( "$f" )
+          done
+        done <<< "$DYLIB_GLOBS"
+        [ "${#files[@]}" -gt 0 ] || { echo "macos-sign: no Mach-O files to sign" >&2; exit 1; }
+        printf 'macos-sign: %d file(s) to sign:\n' "${#files[@]}"
+        printf '  %s\n' "${files[@]}"
+
+        # ── pin dylib install ids BEFORE signing (codesign must be last) ──────
+        if [ -n "$RELOC_ID" ]; then
+          for f in "${files[@]}"; do
+            case "$f" in *.dylib) install_name_tool -id "$RELOC_ID" "$f" ;; esac
+          done
+        fi
+
+        # ── ad-hoc fallback when no Developer ID is configured ────────────────
+        if [ -z "$APPLE_DEVELOPER_ID_P12_BASE64" ]; then
+          echo "macos-sign: no Developer ID — ad-hoc signing (not distributable)"
+          for f in "${files[@]}"; do codesign --force --sign - "$f"; done
+          exit 0
+        fi
+
+        # ── import the cert into an ephemeral keychain (removed on exit) ──────
+        KEYCHAIN="$RUNNER_TEMP/macos-sign.keychain-db"
+        cleanup() { security delete-keychain "$KEYCHAIN" 2>/dev/null || true; }
+        trap cleanup EXIT
+        CERT="$RUNNER_TEMP/macos-sign.p12"
+        echo "$APPLE_DEVELOPER_ID_P12_BASE64" | base64 --decode > "$CERT"
+        KCPASS="$(openssl rand -hex 32)"
+        security create-keychain -p "$KCPASS" "$KEYCHAIN"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN"
+        security unlock-keychain -p "$KCPASS" "$KEYCHAIN"
+        security import "$CERT" -P "$APPLE_DEVELOPER_ID_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+        security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
+        security list-keychain -d user -s "$KEYCHAIN" login.keychain
+        security default-keychain -s "$KEYCHAIN"
+        rm -f "$CERT"
+
+        # ── Developer-ID sign every file with the hardened runtime ────────────
+        for f in "${files[@]}"; do
+          codesign --force --timestamp --options runtime --sign "$APPLE_SIGN_IDENTITY" "$f"
+        done
+
+        # ── notarize the signed set (publish runs only) ───────────────────────
+        if [ "$NOTARIZE" = "true" ]; then
+          [ -n "$APPLE_API_KEY_P8_BASE64" ] || { echo "macos-sign: notarize=true but no API key provided" >&2; exit 1; }
+          KEY="$RUNNER_TEMP/AuthKey.p8"
+          echo "$APPLE_API_KEY_P8_BASE64" | base64 --decode > "$KEY"
+          xcrun notarytool store-credentials "neokapi-notary" \
+            --key "$KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --keychain "$KEYCHAIN"
+          rm -f "$KEY"
+          # notarytool only accepts a .zip/.pkg/.dmg; ditto the signed set into one.
+          # Stapling is not applicable to bare Mach-O, but notarization registers
+          # them with Apple so Gatekeeper accepts them once the tarball is expanded.
+          ndir="$RUNNER_TEMP/notarize-$LABEL"; mkdir -p "$ndir"
+          for f in "${files[@]}"; do cp "$f" "$ndir/"; done
+          ZIP="$RUNNER_TEMP/$LABEL-notarize.zip"
+          /usr/bin/ditto -c -k --keepParent "$ndir" "$ZIP"
+          xcrun notarytool submit "$ZIP" --keychain-profile neokapi-notary --wait
+        fi

@@ -155,51 +155,6 @@ jobs:
           cp "target/x86_64-pc-windows-gnu/release/libtokenizers_ffi.a" "$RUNNER_TEMP/tok/libtokenizers.a"
           echo "TOKENIZERS_LIB=$RUNNER_TEMP/tok" >> "$GITHUB_ENV"
 
-      # ── macOS Developer-ID signing setup (sign the staged binary pre-tar) ─────
-      - name: Import signing certificate
-        id: signing
-        if: runner.os == 'macOS'
-        env:
-          APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
-          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
-        run: |
-          if [ -z "$APPLE_DEVELOPER_ID_P12_BASE64" ]; then
-            echo "No Developer ID certificate configured — will use ad-hoc signing"
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          CERT_PATH="$RUNNER_TEMP/certificate.p12"
-          echo "$APPLE_DEVELOPER_ID_P12_BASE64" | base64 --decode > "$CERT_PATH"
-          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
-          KEYCHAIN_PASSWORD=$(openssl rand -hex 32)
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$APPLE_DEVELOPER_ID_P12_PASSWORD" \
-            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
-          security default-keychain -s "$KEYCHAIN_PATH"
-          rm -f "$CERT_PATH"
-          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
-          echo "enabled=true" >> "$GITHUB_OUTPUT"
-
-      - name: Store notarization credentials (App Store Connect API key)
-        if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
-        env:
-          APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
-        run: |
-          KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
-          echo "$APPLE_API_KEY_P8_BASE64" | base64 --decode > "$KEY_PATH"
-          xcrun notarytool store-credentials "neokapi-notary" \
-            --key "$KEY_PATH" \
-            --key-id "$APPLE_API_KEY_ID" \
-            --issuer "$APPLE_API_ISSUER_ID" \
-            --keychain "$KEYCHAIN_PATH"
-          rm -f "$KEY_PATH"
-
       # ── build (only) into a staging dir so macOS can sign before tar ──────────
       - name: Build kapi-check (macOS, pre-sign)
         if: runner.os == 'macOS'
@@ -217,36 +172,25 @@ jobs:
             -o "$RUNNER_TEMP/prebuilt/kapi-check" ./cmd/kapi-check)
           echo "CHECK_PREBUILT_BIN=$RUNNER_TEMP/prebuilt/kapi-check" >> "$GITHUB_ENV"
 
-      - name: Sign + notarize kapi-check binary (macOS)
+      # macOS Developer-ID signing + notarization of the staged Mach-O set
+      # (plugin binary + bundled onnxruntime dylib), via the shared composite
+      # action. reloc-id pins the dylib install id BEFORE signing so the package
+      # script's guarded install_name_tool no-op preserves the signature.
+      - name: Sign + notarize macOS Mach-O
         if: runner.os == 'macOS'
-        env:
-          SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
-          APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
-        run: |
-          set -euo pipefail
-          BIN="$CHECK_PREBUILT_BIN"
-          if [ "$SIGNING_ENABLED" = "true" ]; then
-            echo "Signing + notarizing kapi-check with Developer ID"
-            # Hardened runtime is required for notarization; the plugin loads the
-            # onnxruntime dylib via dlopen, so allow unsigned/dynamic libs.
-            codesign --force --timestamp --options runtime \
-              --sign "$APPLE_SIGN_IDENTITY" "$BIN"
-            ZIP="$RUNNER_TEMP/kapi-check-notarize.zip"
-            /usr/bin/ditto -c -k "$BIN" "$ZIP"
-            xcrun notarytool submit "$ZIP" --keychain-profile neokapi-notary --wait
-          else
-            echo "No Developer ID — ad-hoc signing (not distributable)"
-            codesign --force --sign - "$BIN"
-          fi
-
-      - name: Clean up signing keychain
-        if: always() && runner.os == 'macOS'
-        env:
-          KEYCHAIN_PATH: ${{ env.KEYCHAIN_PATH }}
-        run: |
-          if [ -n "${KEYCHAIN_PATH:-}" ]; then
-            security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
-          fi
+        uses: ./.github/actions/macos-sign
+        with:
+          label: kapi-check
+          binaries: ${{ env.CHECK_PREBUILT_BIN }}
+          dylib-globs: ${{ env.ORT_DIR }}/lib/libonnxruntime*.dylib
+          reloc-id: '@loader_path/libonnxruntime.dylib'
+          notarize: ${{ startsWith(github.ref, 'refs/tags/check-v') }}
+          developer-id-p12-base64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+          developer-id-p12-password: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          sign-identity: ${{ secrets.APPLE_SIGN_IDENTITY }}
+          api-key-p8-base64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          api-key-id: ${{ secrets.APPLE_API_KEY_ID }}
+          api-issuer-id: ${{ secrets.APPLE_API_ISSUER_ID }}
 
       # ── package the tarball ───────────────────────────────────────────────────
       - name: Package kapi-check tarball
