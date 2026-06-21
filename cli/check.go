@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
+	"math"
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/output"
@@ -16,121 +16,119 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// CheckFinding is one finding in a `kapi check` run, flattened for output.
-type CheckFinding struct {
-	File       string `json:"file,omitempty"`
-	Category   string `json:"category"`
-	Severity   string `json:"severity"`
-	Message    string `json:"message"`
-	Suggestion string `json:"suggestion,omitempty"`
+// checkReport wraps the canonical, platform-agnostic core/check.Report so the
+// CLI can render it as a human table while --json emits the Report verbatim (the
+// embedded struct's fields are promoted, so the JSON IS the Report). It is the
+// unit an AI assistant or CI reads, fixes, and re-runs against — like a test
+// runner's report.
+type checkReport struct {
+	check.Report
 }
 
-// CheckSummary carries aggregate counts for a check run.
-type CheckSummary struct {
-	Findings int `json:"findings"`
-	Critical int `json:"critical"`
-	Major    int `json:"major"`
-	Minor    int `json:"minor"`
-	Score    int `json:"score"` // 0-100 roll-up across all findings
-}
-
-// CheckOutput is the structured result of a `kapi check` run — the unit an AI
-// assistant reads, fixes, and re-runs against, the way it loops on tests.
-type CheckOutput struct {
-	Pass     bool           `json:"pass"`
-	Findings []CheckFinding `json:"findings"`
-	Summary  CheckSummary   `json:"summary"`
-}
-
-// FormatText renders the check result as a human-readable summary.
-func (o CheckOutput) FormatText(w io.Writer) error {
-	for _, f := range o.Findings {
-		loc := ""
-		if f.File != "" {
-			loc = " " + f.File
+// FormatText renders the report as a human-readable summary.
+func (r checkReport) FormatText(w io.Writer) error {
+	for _, d := range r.Findings {
+		loc := d.Location.Block
+		if d.Location.File != "" {
+			loc = d.Location.File + ":" + loc
 		}
-		fmt.Fprintf(w, "  %-8s %-16s%s  %s\n", strings.ToUpper(f.Severity), f.Category, loc, f.Message)
-		if f.Suggestion != "" {
-			fmt.Fprintf(w, "           ↳ %s\n", f.Suggestion)
+		fmt.Fprintf(w, "  %-8s %-28s %s  %s\n", strings.ToUpper(string(d.Severity)), d.Rule, loc, d.Message)
+		if d.Suggestion != "" {
+			fmt.Fprintf(w, "           ↳ %s\n", d.Suggestion)
 		}
 	}
-	if len(o.Findings) == 0 {
+	if len(r.Findings) == 0 {
 		fmt.Fprintln(w, "  No findings.")
 	}
 	fmt.Fprintln(w)
 	verdict := "PASS"
-	if !o.Pass {
+	if !r.Pass {
 		verdict = "FAIL"
 	}
 	fmt.Fprintf(w, "%s — score %d/100 · %d finding(s) (%d critical, %d major, %d minor)\n",
-		verdict, o.Summary.Score, o.Summary.Findings, o.Summary.Critical, o.Summary.Major, o.Summary.Minor)
+		verdict, r.Summary.Score, r.Summary.Findings, r.Summary.Critical, r.Summary.Major, r.Summary.Minor)
+	for _, reason := range r.Gate.Failed {
+		fmt.Fprintf(w, "  gate: %s\n", reason)
+	}
 	return nil
 }
 
-// NewCheckCmd creates `kapi check`: run content checks over a file (or a
-// source/target pair) the way tests run over code, and gate on severity.
+// NewCheckCmd creates `kapi check`: a content-first verifier. It runs a bundle
+// of source-side content checks over any file — no translation needed — and
+// returns one stable, machine-consumable Report (pass, score, gate, and a
+// located finding per rule) the way a test runner reports, so an AI assistant or
+// CI can read the findings, fix the exact block, and re-run until it passes.
 //
-//	kapi check app.json app.de.json --target-lang de   # bilingual: dnt, placeholders, brand
-//	kapi check app.json --pack professional-b2b         # source-side: brand vocabulary
-//	kapi check app.json --max-chars 60 --forbid '(?i)todo'  # source-side: length, forbidden patterns
-//	kapi check app.json --max-chars 60 --max-major 0    # gate on the source findings (which are major)
+//	kapi check guide.md                              # default content checkset
+//	kapi check api.json --max-chars 60 --forbid TODO # length + forbidden-pattern
+//	kapi check post.md --pack marketing-blog         # + brand vocabulary
+//	kapi check api.json --target api.de.json --target-lang de  # + bilingual (l10n) checks
 //
-// Checks emit one finding model (core/check.Finding); the gate fails on any
-// critical by default and exits non-zero so CI and an assistant fix-loop both
-// act on the findings.
+// The checks are content-level (the translatable units). Document-level
+// structure and encoding validity is a format-reader concern and lands with the
+// reader validation-mode slice; today the readers extract leniently.
 func (a *App) NewCheckCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "check <file> [target-file]",
-		Short:   "Run content checks over a file like tests over code (do-not-translate, placeholders, terminology, brand)",
+		Use:     "check [files...]",
+		Short:   "Verify content against a checkset and gate on severity, like tests over code",
 		GroupID: "quality",
-		Args:    cobra.RangeArgs(1, 2),
-		Long: `Run content checks over a file — or a source/target pair — and return
-structured findings plus a pass/fail, gating on severity.
+		Args:    cobra.ArbitraryArgs,
+		Long: `Run content checks over one or more files and return structured findings
+plus a pass/fail, gating on severity — the content-first counterpart to a test
+runner.
 
-With two files, the second is the translated target and the bilingual checks run:
-do-not-translate (terms that must survive verbatim) and placeholder/tag integrity.
-With one file, the source-side checks run over the content itself: length
-(--max-chars/--max-words) and forbidden-pattern (--forbid) checks, plus brand
-vocabulary when a profile is bound. A bound brand profile
-(--profile/--pack/--profile-file) adds vocabulary checks in either mode.
+The default checkset is source-side and needs no translation: text hygiene
+(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/
+--max-words), forbidden/required patterns (--forbid/--require), and brand
+vocabulary when a profile is bound (--profile/--pack/--profile-file).
 
-Source-side findings are major (not critical), so by default they report
-without failing the gate. Gate on them with --max-major 0 (or --min-score N)
-when source quality must block.
+Bilingual localization checks (do-not-translate, placeholder integrity) are an
+opt-in: pass --target <file> --target-lang <lang> to check a translated target
+against its source.
 
-Exit codes: 0 pass, 3 when the gate fails (a critical finding by default), 1 for
-operational errors. Pass --no-fail to always exit 0 (report mode) in a fix-loop.`,
+Each finding carries a stable rule id (<check>.<category>) and a block location,
+so an assistant can fix the exact block and track rules across iterations. Output
+is a human table by default; --json emits the kapi.check/v1 Report.
+
+Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
+0 (report mode) for a fix-loop.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.runCheck(cmd, args)
 		},
 	}
-	cmd.Flags().String("target-lang", "", "target locale of the second file (e.g. de)")
-	cmd.Flags().StringSlice("dnt", nil, "do-not-translate terms that must survive verbatim into the target")
-	cmd.Flags().Int("max-chars", 0, "flag source blocks longer than this many characters (single-file mode; 0 = off)")
-	cmd.Flags().Int("max-words", 0, "flag source blocks with more than this many words (single-file mode; 0 = off)")
-	cmd.Flags().StringSlice("forbid", nil, "regex that must not appear in the source content (single-file mode; repeatable)")
-	cmd.Flags().String("profile", "", "brand profile name from the local store")
-	cmd.Flags().String("profile-file", "", "path to a brand profile YAML")
-	cmd.Flags().String("pack", "", "built-in brand starter pack")
-	cmd.Flags().Int("max-critical", 0, "fail if critical findings exceed this count")
-	cmd.Flags().Int("max-major", -1, "fail if major findings exceed this count (-1 = no limit)")
-	cmd.Flags().Int("min-score", 0, "fail if the roll-up score is below this (0 = no score gate)")
-	// --json is inherited from the persistent root output flags; no local redefinition needed.
-	cmd.Flags().Bool("no-fail", false, "report only: exit 0 even when the gate fails")
-	cmd.Flags().Bool("voice", false, "also run the voice/style-similarity check (needs the kapi-check plugin and a profile with examples)")
-	cmd.Flags().Float64("voice-min", DefaultVoiceSimilarity, "voice-similarity cutoff (cosine, 0-1) below which a block is flagged off-voice")
+	f := cmd.Flags()
+	f.String("target", "", "translated target file to check against the (single) source — enables bilingual l10n checks")
+	f.String("target-lang", "", "locale of the --target file (e.g. de)")
+	f.StringSlice("dnt", nil, "do-not-translate terms that must survive verbatim into the target (with --target)")
+	f.Int("max-chars", 0, "flag content longer than this many characters (0 = off)")
+	f.Int("max-words", 0, "flag content with more than this many words (0 = off)")
+	f.StringSlice("forbid", nil, "regex that must NOT appear in the content (repeatable)")
+	f.StringSlice("require", nil, "regex that MUST appear in the content (repeatable)")
+	f.String("profile", "", "brand profile name from the local store")
+	f.String("profile-file", "", "path to a brand profile YAML")
+	f.String("pack", "", "built-in brand starter pack")
+	f.Int("max-critical", 0, "fail if critical findings exceed this count")
+	f.Int("max-major", -1, "fail if major findings exceed this count (-1 = no limit)")
+	f.Int("max-minor", -1, "fail if minor findings exceed this count (-1 = no limit)")
+	f.Int("min-score", 0, "fail if the roll-up score is below this (0 = no score gate)")
+	f.Bool("strict", false, "strict gate: fail on any critical or major finding")
+	f.Bool("lenient", false, "report only: never fail the gate (still prints findings)")
+	f.Bool("no-fail", false, "exit 0 even when the gate fails (fix-loop mode)")
+	f.Bool("voice", false, "also run the voice/style-similarity check (needs the kapi-check plugin and a profile with examples)")
+	f.Float64("voice-min", DefaultVoiceSimilarity, "voice-similarity cutoff (cosine, 0-1) below which a block is flagged off-voice")
+	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
 	return cmd
 }
 
 func (a *App) runCheck(cmd *cobra.Command, args []string) error {
-	out, err := a.computeCheck(cmd, args)
+	report, err := a.computeCheck(cmd, args)
 	if err != nil {
 		return err
 	}
-	if err := output.Print(cmd, out); err != nil {
+	if err := output.Print(cmd, checkReport{report}); err != nil {
 		return err
 	}
-	if !out.Pass {
+	if !report.Pass {
 		if noFail, _ := cmd.Flags().GetBool("no-fail"); noFail {
 			return nil
 		}
@@ -139,170 +137,252 @@ func (a *App) runCheck(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func (a *App) computeCheck(cmd *cobra.Command, args []string) (CheckOutput, error) {
+// computeCheck runs the configured checkset over the input file(s) and assembles
+// the canonical Report. It is shared by the CLI and the MCP check tools so a CI
+// gate and an assistant loop read byte-identical reports.
+func (a *App) computeCheck(cmd *cobra.Command, args []string) (check.Report, error) {
 	a.InitRegistries()
 	ctx := cmdContext(cmd)
 
-	targetLang, _ := cmd.Flags().GetString("target-lang")
-	dntTerms, _ := cmd.Flags().GetStringSlice("dnt")
-	profile, err := a.resolveCheckProfile(cmd)
-	if err != nil {
-		return CheckOutput{}, err
+	targetFile, _ := cmd.Flags().GetString("target")
+	if len(args) == 0 {
+		return check.Report{}, errors.New("at least one file is required")
 	}
 
-	var findings []check.Finding
-	var blocks []*model.Block
-	sourcePath := args[0]
+	profile, err := a.resolveCheckProfile(cmd)
+	if err != nil {
+		return check.Report{}, err
+	}
 
-	if len(args) == 2 {
-		// Bilingual: source + translated target.
+	opts := checkRunOptions{profile: profile}
+	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
+	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
+	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
+	opts.require, _ = cmd.Flags().GetStringSlice("require")
+	opts.voice, _ = cmd.Flags().GetBool("voice")
+	opts.voiceMin, _ = cmd.Flags().GetFloat64("voice-min")
+
+	var diags []check.Diagnostic
+	totalBlocks := 0
+	target := check.Target{Kind: "file"}
+
+	if targetFile != "" {
+		// Bilingual l10n mode (opt-in): a single source + its translated target.
+		if len(args) != 1 {
+			return check.Report{}, errors.New("--target checks one source file; pass exactly one positional file")
+		}
+		targetLang, _ := cmd.Flags().GetString("target-lang")
 		if targetLang == "" {
 			targetLang = "und"
 		}
-		unit := verifyUnit{sourcePath: sourcePath, targetPath: args[1], locale: targetLang, displayPath: args[1]}
-		bb, missing, berr := a.bilingualBlocks(ctx, unit)
+		dnt, _ := cmd.Flags().GetStringSlice("dnt")
+		sourcePath := args[0]
+		unit := verifyUnit{sourcePath: sourcePath, targetPath: targetFile, locale: targetLang, displayPath: targetFile}
+		blocks, missing, berr := a.bilingualBlocks(ctx, unit)
 		if berr != nil {
-			return CheckOutput{}, berr
+			return check.Report{}, berr
 		}
 		if missing {
-			return CheckOutput{}, fmt.Errorf("target file %q does not exist", args[1])
+			return check.Report{}, fmt.Errorf("target file %q does not exist", targetFile)
 		}
-		blocks = bb
-		loc := model.LocaleID(targetLang)
-		findings = append(findings, a.runBilingualChecks(ctx, blocks, loc, dntTerms)...)
-		findings = append(findings, a.runSourceChecks(ctx, blocks, profile)...)
+		totalBlocks = len(blocks)
+		target.File = sourcePath
+		fileDiags, ferr := a.collectFileDiagnostics(ctx, blocks, sourcePath, opts)
+		if ferr != nil {
+			return check.Report{}, ferr
+		}
+		diags = append(diags, fileDiags...)
+		diags = append(diags, a.collectBilingualDiagnostics(ctx, blocks, sourcePath, model.LocaleID(targetLang), dnt)...)
 	} else {
-		// Monolingual: source-side checks only.
-		bb, rerr := a.readBlocks(ctx, sourcePath, a.SourceLang)
-		if rerr != nil {
-			return CheckOutput{}, rerr
+		// Content-first generic mode: each positional file is a source, checked
+		// independently; the format reader validates document structure/encoding.
+		for _, file := range args {
+			blocks, rerr := a.readBlocks(ctx, file, a.SourceLang)
+			if rerr != nil {
+				// A read failure is operational here. Document-level structure
+				// and encoding VALIDITY is a format-reader concern, but the
+				// readers are deliberately lenient (they extract content from
+				// imperfect inputs); surfacing malformed structure as a finding
+				// needs a reader validation mode — a separate, planned slice.
+				return check.Report{}, rerr
+			}
+			totalBlocks += len(blocks)
+			fileDiags, ferr := a.collectFileDiagnostics(ctx, blocks, file, opts)
+			if ferr != nil {
+				return check.Report{}, ferr
+			}
+			diags = append(diags, fileDiags...)
 		}
-		blocks = bb
-		findings = append(findings, a.runSourceChecks(ctx, blocks, profile)...)
-
-		maxChars, _ := cmd.Flags().GetInt("max-chars")
-		maxWords, _ := cmd.Flags().GetInt("max-words")
-		forbid, _ := cmd.Flags().GetStringSlice("forbid")
-		mf, merr := a.runMonolingualSourceChecks(ctx, blocks, maxChars, maxWords, forbid)
-		if merr != nil {
-			return CheckOutput{}, merr
+		if len(args) == 1 {
+			target.File = args[0]
+		} else {
+			target.File = fmt.Sprintf("%d files", len(args))
 		}
-		findings = append(findings, mf...)
 	}
+	target.Blocks = totalBlocks
 
-	// Voice/style similarity (opt-in, --voice): a proxy that drives the
-	// kapi-check plugin to score each block against the profile's on-voice
-	// examples. Fails closed with guidance when the plugin is absent; the
-	// deterministic checks above always ran.
-	if v, _ := cmd.Flags().GetBool("voice"); v {
-		refs := voiceExamples(profile)
-		if len(refs) == 0 {
-			return CheckOutput{}, errors.New("--voice needs a brand profile with examples (--profile/--pack/--profile-file)")
-		}
-		t, closeT, derr := dialVoicePlugin(ctx)
-		if derr != nil {
-			return CheckOutput{}, derr
-		}
-		defer closeT()
-		vmin, _ := cmd.Flags().GetFloat64("voice-min")
-		vf, verr := voiceSimilarityFindings(blocks, refs, t, vmin)
-		if verr != nil {
-			return CheckOutput{}, fmt.Errorf("voice check: %w", verr)
-		}
-		findings = append(findings, vf...)
-	}
-
-	return buildCheckOutput(cmd, sourcePath, findings), nil
+	gate := gateFromFlags(cmd)
+	return check.BuildReport(target, diags, gate), nil
 }
 
-// runBilingualChecks runs the checks that compare a target against its source.
-func (a *App) runBilingualChecks(ctx context.Context, blocks []*model.Block, loc model.LocaleID, dntTerms []string) []check.Finding {
-	var out []check.Finding
-
-	placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(loc))
-	for _, b := range blocks {
-		runCheckTool(ctx, placeholder, b)
-		out = append(out, findingsFromBlock(b)...)
-	}
-
-	if len(dntTerms) > 0 {
-		dntCfg := coretools.NewDNTCheckConfig(loc)
-		dntCfg.Terms = dntTerms
-		dnt := coretools.NewDNTCheckTool(dntCfg)
-		for _, b := range blocks {
-			runCheckTool(ctx, dnt, b)
-			out = append(out, findingsFromBlock(b)...)
-		}
-	}
-	return out
+// checkRunOptions carries the resolved generic-check configuration.
+type checkRunOptions struct {
+	profile  *brand.VoiceProfile
+	maxChars int
+	maxWords int
+	forbid   []string
+	require  []string
+	voice    bool
+	voiceMin float64
 }
 
-// runMonolingualSourceChecks runs the source-valid checks that need no target —
-// length (absolute char/word limits) and forbidden-pattern checks over the
-// source content — when the matching limits are configured. They reuse the
-// registered length-check and pattern-check tools in their source scope
-// (CheckSource), so a single file with no target-language can still be gated.
-func (a *App) runMonolingualSourceChecks(ctx context.Context, blocks []*model.Block, maxChars, maxWords int, forbid []string) ([]check.Finding, error) {
-	type blockChecker interface {
-		Process(context.Context, <-chan *model.Part, chan<- *model.Part) error
-	}
-	var checkers []blockChecker
+// collectFileDiagnostics runs the source-side content checkset over one file's
+// blocks and returns family-attributed, located diagnostics. Each checker family
+// runs in turn; the new findings it adds to the unified annotation are tagged
+// with the family and the block location.
+func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block, file string, opts checkRunOptions) ([]check.Diagnostic, error) {
+	var diags []check.Diagnostic
+	seen := make([]int, len(blocks)) // per-block count of findings already mapped
 
-	if maxChars > 0 || maxWords > 0 {
-		cfg := &coretools.LengthCheckConfig{CheckSource: true, MaxChars: maxChars, MaxWords: maxWords}
+	// Hygiene — always on, no configuration needed.
+	a.runFamily(ctx, blocks, coretools.NewContentLintTool(&coretools.ContentLintConfig{}))
+	diags = append(diags, mapBlockDeltas(blocks, seen, "hygiene", file)...)
+
+	// Length — only when a limit is set.
+	if opts.maxChars > 0 || opts.maxWords > 0 {
+		cfg := &coretools.LengthCheckConfig{CheckSource: true, MaxChars: opts.maxChars, MaxWords: opts.maxWords}
 		if err := cfg.Validate(); err != nil {
 			return nil, err
 		}
-		checkers = append(checkers, coretools.NewLengthCheckTool(cfg))
+		a.runFamily(ctx, blocks, coretools.NewLengthCheckTool(cfg))
+		diags = append(diags, mapBlockDeltas(blocks, seen, "length", file)...)
 	}
 
-	if len(forbid) > 0 {
-		rules := make([]coretools.PatternRule, 0, len(forbid))
-		for i, p := range forbid {
-			rules = append(rules, coretools.PatternRule{
-				Name:         fmt.Sprintf("forbidden-%d", i+1),
-				Pattern:      p,
-				MustNotMatch: true,
-			})
-		}
+	// Pattern — forbidden (must-not-match) and required (must-match).
+	if rules := patternRules(opts.forbid, opts.require); len(rules) > 0 {
 		cfg := &coretools.PatternCheckConfig{CheckSource: true, Patterns: rules}
 		if err := cfg.Validate(); err != nil {
 			return nil, err
 		}
-		checkers = append(checkers, coretools.NewPatternCheckTool(cfg))
+		a.runFamily(ctx, blocks, coretools.NewPatternCheckTool(cfg))
+		diags = append(diags, mapBlockDeltas(blocks, seen, "pattern", file)...)
 	}
 
-	if len(checkers) == 0 {
-		return nil, nil
-	}
-
-	// Findings accumulate on each block (check.Annotate appends), so read the
-	// unified annotation exactly once per block, after every checker has run.
-	var out []check.Finding
-	for _, b := range blocks {
-		for _, c := range checkers {
-			runCheckTool(ctx, c, b)
+	// Brand vocabulary — separate annotation; runs when a profile is bound.
+	if opts.profile != nil {
+		vocab := coretools.NewBrandVocabCheckTool(opts.profile, nil)
+		for _, b := range blocks {
+			runCheckTool(ctx, vocab, b)
+			if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
+				loc := check.Location{File: displayName(file), Block: blockKey(b)}
+				for _, f := range ann.Findings {
+					diags = append(diags, check.DiagnosticFrom(f, "brand", loc))
+				}
+			}
 		}
-		out = append(out, findingsFromBlock(b)...)
 	}
-	return out, nil
+
+	// Voice/style similarity (opt-in, --voice): drives the kapi-check plugin.
+	if opts.voice {
+		refs := voiceExamples(opts.profile)
+		if len(refs) == 0 {
+			return nil, errors.New("--voice needs a brand profile with examples (--profile/--pack/--profile-file)")
+		}
+		t, closeT, derr := dialVoicePlugin(ctx)
+		if derr != nil {
+			return nil, derr
+		}
+		defer closeT()
+		vf, verr := voiceSimilarityFindings(blocks, refs, t, opts.voiceMin)
+		if verr != nil {
+			return nil, fmt.Errorf("voice check: %w", verr)
+		}
+		for _, f := range vf {
+			diags = append(diags, check.DiagnosticFrom(f, "voice", check.Location{File: displayName(file)}))
+		}
+	}
+
+	return diags, nil
 }
 
-// runSourceChecks runs source-side checks (brand vocabulary) when a profile is
-// bound.
-func (a *App) runSourceChecks(ctx context.Context, blocks []*model.Block, profile *brand.VoiceProfile) []check.Finding {
-	if profile == nil {
-		return nil
+// collectBilingualDiagnostics runs the target-gated localization checks
+// (placeholder integrity, do-not-translate) over a source/target block set.
+func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.Block, file string, loc model.LocaleID, dntTerms []string) []check.Diagnostic {
+	var diags []check.Diagnostic
+	seen := make([]int, len(blocks))
+
+	a.runFamily(ctx, blocks, coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(loc)))
+	diags = append(diags, mapBlockDeltas(blocks, seen, "placeholder", file)...)
+
+	if len(dntTerms) > 0 {
+		dntCfg := coretools.NewDNTCheckConfig(loc)
+		dntCfg.Terms = dntTerms
+		a.runFamily(ctx, blocks, coretools.NewDNTCheckTool(dntCfg))
+		diags = append(diags, mapBlockDeltas(blocks, seen, "dnt", file)...)
 	}
-	var out []check.Finding
-	vocab := coretools.NewBrandVocabCheckTool(profile, nil)
+	return diags
+}
+
+// runFamily runs one checker family's tool(s) over every block. Findings
+// accumulate on each block's unified annotation; the caller reads the delta.
+func (a *App) runFamily(ctx context.Context, blocks []*model.Block, tools ...blockProcessor) {
 	for _, b := range blocks {
-		runCheckTool(ctx, vocab, b)
-		if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
-			out = append(out, ann.Findings...)
+		for _, t := range tools {
+			runCheckTool(ctx, t, b)
 		}
 	}
+}
+
+// blockProcessor is the minimal interface a check tool satisfies to run over a
+// single block via runCheckTool.
+type blockProcessor interface {
+	Process(context.Context, <-chan *model.Part, chan<- *model.Part) error
+}
+
+// mapBlockDeltas maps the findings each block gained since the last family (the
+// slice past seen[i]) into located, family-tagged diagnostics, then advances the
+// per-block seen count.
+func mapBlockDeltas(blocks []*model.Block, seen []int, family, file string) []check.Diagnostic {
+	var out []check.Diagnostic
+	for i, b := range blocks {
+		all := findingsFromBlock(b)
+		for _, f := range all[seen[i]:] {
+			out = append(out, check.DiagnosticFrom(f, family, check.Location{File: displayName(file), Block: blockKey(b)}))
+		}
+		seen[i] = len(all)
+	}
 	return out
+}
+
+// patternRules builds forbidden (must-not-match) and required (must-match)
+// pattern rules from the --forbid / --require flag values.
+func patternRules(forbid, require []string) []coretools.PatternRule {
+	var rules []coretools.PatternRule
+	for i, p := range forbid {
+		rules = append(rules, coretools.PatternRule{Name: fmt.Sprintf("forbidden-%d", i+1), Pattern: p, MustNotMatch: true})
+	}
+	for i, p := range require {
+		rules = append(rules, coretools.PatternRule{Name: fmt.Sprintf("required-%d", i+1), Pattern: p, MustMatch: true})
+	}
+	return rules
+}
+
+// gateFromFlags builds the severity/score gate from the command flags, applying
+// the --strict / --lenient presets.
+func gateFromFlags(cmd *cobra.Command) check.Gate {
+	g := check.Gate{}
+	g.MaxCritical, _ = cmd.Flags().GetInt("max-critical")
+	g.MaxMajor, _ = cmd.Flags().GetInt("max-major")
+	g.MaxMinor, _ = cmd.Flags().GetInt("max-minor")
+	g.MinScore, _ = cmd.Flags().GetInt("min-score")
+	if strict, _ := cmd.Flags().GetBool("strict"); strict {
+		g.MaxCritical = 0
+		g.MaxMajor = 0
+	}
+	if lenient, _ := cmd.Flags().GetBool("lenient"); lenient {
+		g = check.Gate{MaxCritical: math.MaxInt32, MaxMajor: -1, MaxMinor: -1, MinScore: 0}
+	}
+	return g
 }
 
 // findingsFromBlock reads the unified check annotation off a block.
@@ -322,48 +402,4 @@ func (a *App) resolveCheckProfile(cmd *cobra.Command) (*brand.VoiceProfile, erro
 	}
 	p, _, err := a.resolveBrandProfile(cmd)
 	return p, err
-}
-
-func buildCheckOutput(cmd *cobra.Command, file string, findings []check.Finding) CheckOutput {
-	out := CheckOutput{Findings: []CheckFinding{}}
-	for _, f := range findings {
-		out.Findings = append(out.Findings, CheckFinding{
-			File:       file,
-			Category:   f.Category,
-			Severity:   string(f.Severity),
-			Message:    f.Message,
-			Suggestion: f.Suggestion,
-		})
-		switch f.Severity {
-		case check.SeverityCritical:
-			out.Summary.Critical++
-		case check.SeverityMajor:
-			out.Summary.Major++
-		case check.SeverityMinor:
-			out.Summary.Minor++
-		}
-	}
-	out.Summary.Findings = len(findings)
-	out.Summary.Score = check.CalculateScore(findings).Overall
-	sortCheckFindings(out.Findings)
-
-	maxCrit, _ := cmd.Flags().GetInt("max-critical")
-	maxMajor, _ := cmd.Flags().GetInt("max-major")
-	minScore, _ := cmd.Flags().GetInt("min-score")
-	out.Pass = out.Summary.Critical <= maxCrit &&
-		(maxMajor < 0 || out.Summary.Major <= maxMajor) &&
-		(minScore <= 0 || out.Summary.Score >= minScore)
-	return out
-}
-
-// severityRank orders findings critical → minor for stable, useful output.
-var severityRank = map[string]int{"critical": 0, "major": 1, "minor": 2, "neutral": 3}
-
-func sortCheckFindings(fs []CheckFinding) {
-	sort.SliceStable(fs, func(i, j int) bool {
-		if severityRank[fs[i].Severity] != severityRank[fs[j].Severity] {
-			return severityRank[fs[i].Severity] < severityRank[fs[j].Severity]
-		}
-		return fs[i].Category < fs[j].Category
-	})
 }

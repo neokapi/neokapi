@@ -5,11 +5,22 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestCheck_BilingualFindings runs `kapi check <source> <target>` over a
+// ruleCounts tallies a report's diagnostics by their stable rule id — the
+// contract an AI/CI keys off.
+func ruleCounts(r check.Report) map[string]int {
+	m := map[string]int{}
+	for _, d := range r.Findings {
+		m[d.Rule]++
+	}
+	return m
+}
+
+// TestCheck_BilingualFindings runs `kapi check <source> --target <target>` over a
 // JSON pair where the target drops a placeholder and translates a
 // do-not-translate term, and asserts the gate fails with both findings.
 func TestCheck_BilingualFindings(t *testing.T) {
@@ -33,19 +44,17 @@ func TestCheck_BilingualFindings(t *testing.T) {
 
 	a := &App{SourceLang: "en"}
 	cmd := a.NewCheckCmd()
+	require.NoError(t, cmd.Flags().Set("target", tgt))
 	require.NoError(t, cmd.Flags().Set("target-lang", "de"))
 	require.NoError(t, cmd.Flags().Set("dnt", "Acme Cloud"))
 
-	out, err := a.computeCheck(cmd, []string{src, tgt})
+	out, err := a.computeCheck(cmd, []string{src})
 	require.NoError(t, err)
 
 	assert.False(t, out.Pass, "gate must fail on critical findings")
-	cats := map[string]int{}
-	for _, f := range out.Findings {
-		cats[f.Category]++
-	}
-	assert.Positive(t, cats["placeholder"], "should flag the dropped {name} placeholder")
-	assert.Positive(t, cats["do-not-translate"], "should flag the translated do-not-translate term")
+	counts := ruleCounts(out)
+	assert.Positive(t, counts["placeholder.placeholder"], "should flag the dropped {name} placeholder: %+v", out.Findings)
+	assert.Positive(t, counts["dnt.do-not-translate"], "should flag the translated do-not-translate term: %+v", out.Findings)
 	assert.GreaterOrEqual(t, out.Summary.Critical, 2)
 }
 
@@ -70,14 +79,11 @@ func TestCheck_MonolingualSourceChecks(t *testing.T) {
 	out, err := a.computeCheck(cmd, []string{src})
 	require.NoError(t, err)
 
-	cats := map[string]int{}
-	for _, f := range out.Findings {
-		cats[f.Category]++
-	}
-	assert.Positive(t, cats["max-chars-exceeded"], "should flag the over-long body: %+v", out.Findings)
-	assert.Positive(t, cats["forbidden-pattern"], "should flag the TODO marker in source: %+v", out.Findings)
+	counts := ruleCounts(out)
+	assert.Positive(t, counts["length.max-chars-exceeded"], "should flag the over-long body: %+v", out.Findings)
+	assert.Positive(t, counts["pattern.forbidden-pattern"], "should flag the TODO marker in source: %+v", out.Findings)
 	// "Short" (5 chars) stays under the limit and is clean: exactly one length finding.
-	assert.Equal(t, 1, cats["max-chars-exceeded"])
+	assert.Equal(t, 1, counts["length.max-chars-exceeded"])
 }
 
 // TestCheck_MonolingualCleanSourcePasses confirms a single clean file with
@@ -97,6 +103,21 @@ func TestCheck_MonolingualCleanSourcePasses(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, out.Pass, "clean source should pass: %+v", out.Findings)
 	assert.Empty(t, out.Findings)
+}
+
+// TestCheck_HygieneAlwaysRuns proves the content-lint hygiene checker is part of
+// the default checkset (no flags): doubled words surface as a hygiene finding.
+func TestCheck_HygieneAlwaysRuns(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+	dir := t.TempDir()
+	src := filepath.Join(dir, "app.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"body": "We we shipped it"}`), 0o644))
+
+	a := &App{SourceLang: "en"}
+	cmd := a.NewCheckCmd()
+	out, err := a.computeCheck(cmd, []string{src})
+	require.NoError(t, err)
+	assert.Positive(t, ruleCounts(out)["hygiene.doubled-word"], "the doubled word must be flagged by default: %+v", out.Findings)
 }
 
 // TestCheck_MonolingualGateOnMajor confirms that source-side findings (which are
@@ -156,10 +177,11 @@ func TestCheck_CleanTargetPasses(t *testing.T) {
 
 	a := &App{SourceLang: "en"}
 	cmd := a.NewCheckCmd()
+	require.NoError(t, cmd.Flags().Set("target", tgt))
 	require.NoError(t, cmd.Flags().Set("target-lang", "de"))
 	require.NoError(t, cmd.Flags().Set("dnt", "Acme Cloud"))
 
-	out, err := a.computeCheck(cmd, []string{src, tgt})
+	out, err := a.computeCheck(cmd, []string{src})
 	require.NoError(t, err)
 	assert.True(t, out.Pass, "faithful target should pass: %+v", out.Findings)
 	assert.Empty(t, out.Findings)

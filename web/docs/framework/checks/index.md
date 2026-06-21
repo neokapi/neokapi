@@ -1,7 +1,7 @@
 ---
 sidebar_position: 0
 title: Checks
-description: Checks are tests for AI output — read-only verifiers that inspect content against rules and report findings on a shared model, without modifying it. Brand voice, QA, terminology enforcement, and placeholder integrity are all one check family.
+description: Checks are tests for AI output — read-only verifiers that inspect content against rules and return one machine-readable Report (pass, score, gate, located findings) without modifying it. A content-first checkset (hygiene, length, patterns, brand) plus opt-in bilingual checks, all one family.
 keywords: [checks, content verification, tests for AI, findings, QA, brand voice, terminology, gate, CI]
 ---
 
@@ -16,14 +16,34 @@ not separate systems — they are check families that share one model.
 ## Checks are tests for AI output
 
 Run as a gate, a check behaves like a test: it is deterministic and repeatable,
-it reads content against its source, and it reports exactly what broke — a
-dropped placeholder, a translated do-not-translate term, an off-voice phrase, an
-inconsistent glossary term. `kapi check` runs the family over a file or a
-source/target pair and **exits non-zero when the gate fails**, so a regression is
-caught in CI — or inside an AI assistant's fix-loop — the same way a failing
-test is. That is the role checks play for generated content: the assistant
-drafts, the checks tell it what to fix, and the file ships only when the gate is
-green.
+and it reports exactly what broke — an over-long string, a forbidden phrase, an
+off-brand term, a doubled word. `kapi check` runs a **content-first** checkset
+over any file — no translation needed — and returns one stable, machine-readable
+[`kapi.check/v1` Report](#the-report): `pass`, a 0–100 score, a severity gate,
+and a finding per **stable rule id** (`length.max-chars-exceeded`,
+`hygiene.doubled-word`, `brand.vocabulary`, …) anchored to the exact **block**.
+It **exits non-zero when the gate fails**, so a regression is caught in CI — or
+inside an AI assistant's fix-loop — the same way a failing test is. The assistant
+drafts, the checks tell it which block and which rule broke, it fixes that block
+(often via the [`rewrite`](/framework/tools) moat), and the file ships only when
+the gate is green.
+
+Bilingual localization checks — do-not-translate and placeholder integrity, which
+compare a translated target against its source — are an opt-in: pass
+`kapi check src.json --target src.de.json --target-lang de`.
+
+## The Report
+
+Every run produces a `core/check.Report` (versioned `kapi.check/v1`): a summary
+(counts + score), the gate (the thresholds and which tripped), and a list of
+**diagnostics**. Each diagnostic carries a stable `rule` id, a `severity`, a
+human `message`, an optional `suggestion`, and a `location` (the block, plus a
+run-range when the checker pinpointed one). The stable rule id is the loop's
+primary key: an assistant tracks it across iterations to confirm a fix and avoid
+regressions. `--json` emits the Report verbatim; over MCP, the `check_file` and
+`check_text` tools return the same Report — the verifier counterpart to the
+`rewrite_file` editing moat — so an assistant can **author → check → revise →
+re-check** without leaving the conversation.
 
 ## One model: findings
 
@@ -43,22 +63,34 @@ or editor that consumes the same finding stream.
 
 ## The check families
 
-- **QA checks** — fast, deterministic rules over each block: whitespace,
-  placeholder and inline-code integrity, length, pattern, and cross-block
-  inconsistency, plus optional LLM-assisted review. See [QA
-  Checks](/framework/checks/qa-checks).
-- **Brand voice** — a machine-readable profile of tone, style, and vocabulary,
-  run as one checkset and gateable by score. See [Brand
-  Voice](/framework/checks/brand-voice).
-- **Terminology enforcement** — verifies that the right term was used, drawing
-  on the project [termbase](/framework/terminology). Terminology is also a
-  translation *resource* (a glossary that feeds AI translation); term-enforce is
-  the check side of it.
-- **Placeholder and do-not-translate integrity** — part of the QA family: catch
-  a dropped `{count}`, a corrupted `<b>`, or a translated DNT term. The terms a
-  check enforces are recognized in the
-  [content-preparation](/framework/content-preparation) pass that runs ahead of
-  translation.
+**Generic content checks** (source-side, no translation needed — the default
+checkset):
+
+- **Text hygiene** — empty content, doubled spaces and words, stray leading/
+  trailing whitespace, control characters. Always on.
+- **Length** — flag content over a character or word budget (`--max-chars`/
+  `--max-words`).
+- **Patterns** — regex that must not appear (`--forbid`) or must appear
+  (`--require`) in the content.
+- **Brand vocabulary** — forbidden/competitor/preferred-term rules from a bound
+  [brand voice](/framework/checks/brand-voice) profile; plus an optional
+  LLM-judged style/voice check.
+
+**Bilingual localization checks** (opt-in, with `--target` — a translated target
+against its source):
+
+- **Placeholder integrity** — catch a dropped `{count}` or a corrupted `<b>` in
+  the translation.
+- **Do-not-translate** — terms that must survive verbatim into the target.
+- **Terminology enforcement** — verifies the right term was used, drawing on the
+  project [termbase](/framework/terminology).
+
+The full QA family (whitespace, inline-code integrity, cross-block consistency,
+optional LLM review) is documented under [QA Checks](/framework/checks/qa-checks).
+
+> **Note:** document-level structure and encoding *validity* is a format-reader
+> concern, not a content check — see the reader validation slice (planned). The
+> readers extract leniently today.
 
 ## Composing and gating
 
