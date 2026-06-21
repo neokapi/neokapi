@@ -76,7 +76,7 @@ func TestNonTranslatable_TaggedCodeBlock_DefaultOn(t *testing.T) {
 	assert.Equal(t, model.RoleCode, b.SemanticRole())
 	assert.True(t, b.PreserveWhitespace)
 	assert.Equal(t, "echo \"hi\";", b.SourceText())
-	assert.Equal(t, "php", b.Properties["language"])
+	assert.Equal(t, "php", b.CodeLanguage())
 }
 
 // The first attribute token is the highlight language; an optional second
@@ -89,7 +89,7 @@ func TestNonTranslatable_TaggedFileBlock_LangAndName(t *testing.T) {
 	assert.False(t, b.Translatable)
 	assert.Equal(t, model.RoleCode, b.SemanticRole())
 	assert.Equal(t, "$x = 1;\nfoo();", b.SourceText())
-	assert.Equal(t, "php", b.Properties["language"])
+	assert.Equal(t, "php", b.CodeLanguage())
 	assert.Equal(t, "list.php", b.Properties["name"])
 }
 
@@ -147,7 +147,7 @@ func TestNonTranslatable_Skeleton_TaggedBlock(t *testing.T) {
 	assert.True(t, code.PreserveWhitespace)
 	// On the skeleton path the verbatim body (with line endings) rides the ref.
 	assert.Equal(t, "echo \"hi\";\nmore();\n", code.SourceText())
-	assert.Equal(t, "php", code.Properties["language"])
+	assert.Equal(t, "php", code.CodeLanguage())
 }
 
 func TestNonTranslatable_Skeleton_IndentedCode(t *testing.T) {

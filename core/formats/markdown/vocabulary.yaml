@@ -6,20 +6,21 @@
 #
 # READER (core/formats/markdown/reader.go): the goldmark AST emphasis/strong/
 # link/code switch maps strong→fmt:bold, emphasis→fmt:italic, inline code→
-# fmt:code, link/autolink→link:hyperlink (canonical). Two constructs map to
-# FORMAT-LOCAL types rather than the canonical pack string and are recorded
-# `lossy`: strikethrough→"fmt:strike" (pack/constructs.yaml canonical is
-# fmt:strikethrough) and image→"link:image" (canonical is media:image). The
-# styling/asset still survives as a typed run carrying its original markdown
-# in Data, so it round-trips; only canonical-type alignment is lost.
+# fmt:code, link/autolink→link:hyperlink, strikethrough→fmt:strikethrough,
+# image→media:image — all canonical pack strings. Links and images additionally
+# carry format-neutral Attrs (href/src/alt/title) so a foreign writer can
+# re-synthesize them without parsing the markdown-literal Data.
 #
 # (The same reader is shared by the mdx format; per the task scope no mdx
 # vocabulary.yaml is authored here.)
 #
-# WRITER (core/formats/markdown/writer.go): re-emits captured Data via
-# model.RenderRunsWithData (core/model/run.go) — markup round-trips from the
-# run's stored Data but is not authored from canonical Type, so write cells
-# are `unknown`. This caps markdown at V1 (typed reading), the honest state.
+# WRITER (core/formats/markdown/writer.go): two paths. The byte-exact skeleton
+# path re-emits captured Data via model.RenderRunsWithData (round-trip). The
+# cross-format (no-skeleton) path authors inline markup from each run's
+# canonical Type via mdInlineTag + renderInlineMarkdown (links/images from
+# Attrs, code-block language from Block.CodeLanguage()), so a foreign document
+# projects to clean markdown — verified by the core/formats TestCrossFormat_*
+# suite and TestMarkdownInlineTagCoverage (drift guard).
 #
 # DEFERRED to V3 (no grounding test asserting the canonical type yet):
 # block.paragraph / block.list-item / block.quote, placeholder.footnote-ref,
@@ -35,10 +36,11 @@ constructs:
       status: lossless
       evidence: ["core/formats/vocab_equivalence_test.go:TestVocabEquivalence"]
     write:
-      status: unknown
+      status: lossless
+      evidence: ["core/formats.TestCrossFormat_HTMLToMarkdown"]
       notes: >-
-        Round-trips via captured Data (RenderRunsWithData), not authored from
-        the canonical fmt:bold Type.
+        The cross-format path authors **bold** from the canonical fmt:bold Type
+        (mdInlineTag); the skeleton path round-trips captured Data.
 
   - construct: inline.italic
     expressible: true
@@ -46,8 +48,9 @@ constructs:
       status: lossless
       evidence: [markdown.TestRead_Emphasis]
     write:
-      status: unknown
-      notes: Data-replay writer; no canonical-authoring claim.
+      status: lossless
+      evidence: ["core/formats.TestCrossFormat_MarkdownToHTML"]
+      notes: Authored from canonical fmt:italic on the cross-format path.
 
   - construct: inline.code
     expressible: true
@@ -55,8 +58,9 @@ constructs:
       status: lossless
       evidence: [markdown.TestRead_Code]
     write:
-      status: unknown
-      notes: Data-replay writer; no canonical-authoring claim.
+      status: lossless
+      evidence: ["core/formats.TestCrossFormat_HTMLToMarkdown"]
+      notes: Authored from canonical fmt:code on the cross-format path.
 
   - construct: link.hyperlink
     expressible: true
@@ -64,41 +68,39 @@ constructs:
       status: lossless
       evidence: [markdown.TestRead_Link]
     write:
-      status: unknown
+      status: lossless
+      evidence: ["core/formats.TestCrossFormat_HTMLToMarkdown"]
       notes: >-
-        The []() destination round-trips via captured Data, not re-authored
-        from link:hyperlink.
+        The []() destination is re-authored from link:hyperlink + the run's
+        href Attr on the cross-format path; the skeleton path round-trips Data.
 
   - construct: inline.strikethrough
     expressible: true
     read:
-      status: lossy
-      policy: preserve-as-skeleton
+      status: lossless
       evidence: [markdown.TestRead_StrikethroughSubscript]
       notes: >-
-        The reader emits the FORMAT-LOCAL type "fmt:strike" rather than the
-        canonical fmt:strikethrough (core/formats/markdown/reader.go). The
-        ~~...~~ styling survives as a typed run carrying its markdown in Data
-        (round-trips), but canonical-type alignment is lost — hence lossy.
+        The reader emits the canonical fmt:strikethrough type
+        (core/formats/markdown/reader.go); the ~~...~~ marker is preserved in
+        Data for byte-exact round-trip.
     write:
-      status: unknown
-      notes: Data-replay writer; the ~~...~~ markup round-trips from Data.
+      status: lossless
+      evidence: [markdown.TestMarkdownInlineTagCoverage]
+      notes: Authored as ~~...~~ from canonical fmt:strikethrough.
 
   - construct: media.image
     expressible: true
     read:
-      status: lossy
-      policy: preserve-as-skeleton
+      status: lossless
       evidence: [markdown.TestRead_Image]
       notes: >-
-        The reader emits the FORMAT-LOCAL type "link:image" rather than the
-        canonical media:image (core/formats/markdown/reader.go). This is the
-        divergence excluded from the cross-format vocab_equivalence_test
-        (html/xliff emit media:image). The ![]() asset reference survives in
-        Data, but canonical-type alignment is lost.
+        The reader emits the canonical media:image type with the src/alt/title
+        carried as format-neutral Attrs; the ![]() markup is preserved in Data
+        for byte-exact round-trip.
     write:
-      status: unknown
-      notes: Data-replay writer; the ![]() markup round-trips from Data.
+      status: lossless
+      evidence: ["core/formats.TestCrossFormat_HTMLToMarkdown"]
+      notes: Re-authored as ![alt](src) from canonical media:image + Attrs.
 
   - construct: block.heading
     expressible: true

@@ -63,27 +63,42 @@ type TextRun struct {
 	Text string `json:"text"`
 }
 
+// Canonical, format-neutral attribute keys for the Attrs map carried by
+// link/image runs (PcOpenRun, PlaceholderRun). A reader populates these from
+// the source markup so a writer for a *different* format can re-synthesize the
+// construct natively — markdown `[text](href "title")`, HTML `<a href title>`,
+// AsciiDoc `link:href[text]` — without parsing the source format's literal
+// Data. The set is open; these are the canonical keys.
+const (
+	AttrHref  = "href"  // a link:hyperlink target URL
+	AttrSrc   = "src"   // a media:image / link:image source URL
+	AttrAlt   = "alt"   // an image's alternative text
+	AttrTitle = "title" // a link or image title/tooltip
+)
+
 // PlaceholderRun is a self-closing placeholder run — a variable, a
 // conditional JSX expression, a <br/>, a redaction, an icon, etc.
 type PlaceholderRun struct {
-	ID          string          `json:"id"`
-	Type        string          `json:"type"`
-	SubType     string          `json:"subType,omitempty"`
-	Data        string          `json:"data"`
-	Equiv       string          `json:"equiv"`
-	Disp        string          `json:"disp,omitempty"`
-	Constraints *RunConstraints `json:"constraints,omitempty"`
+	ID          string            `json:"id"`
+	Type        string            `json:"type"`
+	SubType     string            `json:"subType,omitempty"`
+	Data        string            `json:"data"`
+	Equiv       string            `json:"equiv"`
+	Disp        string            `json:"disp,omitempty"`
+	Attrs       map[string]string `json:"attrs,omitempty"`
+	Constraints *RunConstraints   `json:"constraints,omitempty"`
 }
 
 // PcOpenRun is the opening half of a paired code.
 type PcOpenRun struct {
-	ID          string          `json:"id"`
-	Type        string          `json:"type"`
-	SubType     string          `json:"subType,omitempty"`
-	Data        string          `json:"data"`
-	Equiv       string          `json:"equiv"`
-	Disp        string          `json:"disp,omitempty"`
-	Constraints *RunConstraints `json:"constraints,omitempty"`
+	ID          string            `json:"id"`
+	Type        string            `json:"type"`
+	SubType     string            `json:"subType,omitempty"`
+	Data        string            `json:"data"`
+	Equiv       string            `json:"equiv"`
+	Disp        string            `json:"disp,omitempty"`
+	Attrs       map[string]string `json:"attrs,omitempty"`
+	Constraints *RunConstraints   `json:"constraints,omitempty"`
 }
 
 // PcCloseRun is the closing half of a paired code. Shares ID with
@@ -94,6 +109,40 @@ type PcCloseRun struct {
 	SubType string `json:"subType,omitempty"`
 	Data    string `json:"data"`
 	Equiv   string `json:"equiv,omitempty"`
+}
+
+// Attr returns the value of a canonical attribute key (AttrHref, AttrSrc, …),
+// or "" when unset. Nil-safe over an absent Attrs map.
+func (p *PcOpenRun) Attr(key string) string {
+	if p == nil || p.Attrs == nil {
+		return ""
+	}
+	return p.Attrs[key]
+}
+
+// SetAttr records a canonical attribute, allocating the Attrs map if needed.
+func (p *PcOpenRun) SetAttr(key, val string) {
+	if p.Attrs == nil {
+		p.Attrs = map[string]string{}
+	}
+	p.Attrs[key] = val
+}
+
+// Attr returns the value of a canonical attribute key (AttrSrc, AttrAlt, …),
+// or "" when unset. Nil-safe over an absent Attrs map.
+func (p *PlaceholderRun) Attr(key string) string {
+	if p == nil || p.Attrs == nil {
+		return ""
+	}
+	return p.Attrs[key]
+}
+
+// SetAttr records a canonical attribute, allocating the Attrs map if needed.
+func (p *PlaceholderRun) SetAttr(key, val string) {
+	if p.Attrs == nil {
+		p.Attrs = map[string]string{}
+	}
+	p.Attrs[key] = val
 }
 
 // SubRun is a reference to a subblock. Used for sub-filter output:

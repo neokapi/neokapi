@@ -79,6 +79,12 @@ export interface PlaceholderRun {
     equiv: string;
     /** Display label for chips. 1-3 chars usually. Falls back to `equiv`. */
     disp?: string;
+    /**
+     * Format-neutral attributes for link/image runs (href/src/alt/title),
+     * so a writer for a different format can re-synthesize the construct
+     * without parsing the source format's literal `data`.
+     */
+    attrs?: Record<string, string>;
     /** Constraint flags. Populated from vocabulary; can be overridden. */
     constraints?: RunConstraints;
   };
@@ -97,6 +103,12 @@ export interface PcOpenRun {
     data: string;
     equiv: string;
     disp?: string;
+    /**
+     * Format-neutral attributes for link/image runs (href/src/alt/title),
+     * so a writer for a different format can re-synthesize the construct
+     * without parsing the source format's literal `data`.
+     */
+    attrs?: Record<string, string>;
     constraints?: RunConstraints;
   };
 }

@@ -223,7 +223,7 @@ func TestReadCodeBlockAsData(t *testing.T) {
 			data := p.Resource.(*model.Data)
 			if data.Name == "code-block" {
 				hasCodeData = true
-				assert.Equal(t, "go", data.Properties["language"])
+				assert.Equal(t, "go", data.Properties[model.PropCodeLanguage])
 			}
 		}
 	}
@@ -255,7 +255,11 @@ func TestReadFencedCodeBlockAsContent(t *testing.T) {
 	assert.Equal(t, model.RoleCode, code.SemanticRole())
 	assert.True(t, code.PreserveWhitespace)
 	assert.Contains(t, code.SourceText(), `fmt.Println("hello")`)
-	assert.Equal(t, "go", code.Properties["language"])
+	// The language rides the canonical code.language key (Block.CodeLanguage())
+	// so cross-format writers carry it on conversion; the legacy "language"
+	// property is no longer set.
+	assert.Equal(t, "go", code.CodeLanguage())
+	assert.Empty(t, code.Properties["language"], "legacy language property must be gone")
 
 	assert.Equal(t, input, roundtripWithSkeleton(t, input), "round-trip stays byte-exact")
 }
@@ -713,7 +717,7 @@ func TestRead_Image(t *testing.T) {
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "See alt text here", blocks[0].SourceText())
 	runs := blocks[0].SourceRuns()
-	assert.True(t, runHasCodeType(runs, "link:image"), "should have image inline run")
+	assert.True(t, runHasCodeType(runs, "media:image"), "should have image inline run")
 }
 
 // okapi: MarkdownFilterTest#testExtractImageTitleAndAltText
@@ -955,7 +959,7 @@ func TestRead_StrikethroughSubscript(t *testing.T) {
 	assert.Equal(t, "This is deleted text", blocks[0].SourceText())
 	runs := blocks[0].SourceRuns()
 	assert.True(t, hasInlineCodeRun(runs))
-	assert.True(t, runHasCodeType(runs, "fmt:strike"), "should have strikethrough inline run")
+	assert.True(t, runHasCodeType(runs, "fmt:strikethrough"), "should have strikethrough inline run")
 }
 
 // --- Hard Line Break Tests ---

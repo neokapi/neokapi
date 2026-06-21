@@ -1732,7 +1732,6 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		// and language, not just the markdown-local skeleton fence.
 		block.SetSemanticRole(model.RoleCode, 0)
 		if lang != "" {
-			block.Properties["language"] = lang
 			block.SetCodeLanguage(lang)
 		}
 
@@ -1757,7 +1756,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		block.PreserveWhitespace = true
 		block.SetSemanticRole(model.RoleCode, 0)
 		if lang != "" {
-			block.Properties["language"] = lang
+			block.SetCodeLanguage(lang)
 		}
 
 		r.skelEmitGap(fenceStart)
@@ -1777,7 +1776,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 			},
 		}
 		if lang != "" {
-			data.Properties["language"] = lang
+			data.Properties[model.PropCodeLanguage] = lang
 		}
 
 		r.skelEmitGap(fenceStart)
@@ -2821,6 +2820,27 @@ func codeSpanFences(n *ast.CodeSpan, source []byte) (string, string) {
 	return open, close
 }
 
+// linkImageAttrs builds the format-neutral attribute map carried on a link or
+// image PcOpen so a writer for a different format can re-synthesize the
+// construct without parsing the Markdown-literal Data. destKey is model.AttrHref
+// for links, model.AttrSrc for images.
+func linkImageAttrs(destKey string, dest, title, alt []byte) map[string]string {
+	attrs := map[string]string{}
+	if len(dest) > 0 {
+		attrs[destKey] = string(dest)
+	}
+	if len(title) > 0 {
+		attrs[model.AttrTitle] = string(title)
+	}
+	if len(alt) > 0 {
+		attrs[model.AttrAlt] = string(alt)
+	}
+	if len(attrs) == 0 {
+		return nil
+	}
+	return attrs
+}
+
 func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCounter *int) {
 	*idCounter++
 	id := strconv.Itoa(*idCounter)
@@ -2837,6 +2857,7 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCoun
 		closing := referenceCloseMarker(n.Reference)
 		b.AddPcOpen(id, "link:hyperlink", "md:link-ref", "[", info.Display.Open, info.Equiv,
 			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+		b.SetLastAttrs(linkImageAttrs(model.AttrHref, n.Destination, n.Title, nil))
 		r.buildCodedRuns(b, n, source, idCounter)
 		b.AddPcClose(id, "link:hyperlink", "md:link-ref", closing, info.Equiv)
 		return
@@ -2846,6 +2867,7 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCoun
 
 	b.AddPcOpen(id, "link:hyperlink", "md:link", "[", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+	b.SetLastAttrs(linkImageAttrs(model.AttrHref, n.Destination, n.Title, nil))
 	r.buildCodedRuns(b, n, source, idCounter)
 
 	// When the link has a title, split the closing marker so the title
@@ -2872,7 +2894,7 @@ func (r *Reader) buildLinkRuns(b *runBuilder, n *ast.Link, source []byte, idCoun
 func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCounter *int) {
 	*idCounter++
 	id := strconv.Itoa(*idCounter)
-	info := r.vocab.LookupOrFallback("link:image")
+	info := r.vocab.LookupOrFallback("media:image")
 
 	// Reference-style images (`![alt]`, `![alt][]`, `![alt][label]`)
 	// follow the same preserve-reference-form rule as buildLinkRuns: the
@@ -2883,19 +2905,21 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 	// undefined.
 	if n.Reference != nil {
 		closing := referenceCloseMarker(n.Reference)
-		b.AddPcOpen(id, "link:image", "md:image-ref", "![", info.Display.Open, info.Equiv,
+		b.AddPcOpen(id, "media:image", "md:image-ref", "![", info.Display.Open, info.Equiv,
 			info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+		b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, nil))
 		if r.cfg.TranslateImageAlt() {
 			r.buildCodedRuns(b, n, source, idCounter)
 		}
-		b.AddPcClose(id, "link:image", "md:image-ref", closing, info.Equiv)
+		b.AddPcClose(id, "media:image", "md:image-ref", closing, info.Equiv)
 		return
 	}
 
 	destLiteral := linkDestinationLiteral(n.Destination, source)
 
-	b.AddPcOpen(id, "link:image", "md:image", "![", info.Display.Open, info.Equiv,
+	b.AddPcOpen(id, "media:image", "md:image", "![", info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
+	b.SetLastAttrs(linkImageAttrs(model.AttrSrc, n.Destination, n.Title, nil))
 	if r.cfg.TranslateImageAlt() {
 		r.buildCodedRuns(b, n, source, idCounter)
 	}
@@ -2904,17 +2928,17 @@ func (r *Reader) buildImageRuns(b *runBuilder, n *ast.Image, source []byte, idCo
 	// are extracted as translatable text rather than baked into the
 	// closing-data skeleton. See buildLinkRuns for the rationale.
 	if len(n.Title) > 0 {
-		b.AddPcClose(id, "link:image", "md:image", "]", info.Equiv)
+		b.AddPcClose(id, "media:image", "md:image", "]", info.Equiv)
 		*idCounter++
 		titleID := strconv.Itoa(*idCounter)
-		b.AddPcOpen(titleID, "link:image", "md:image-title",
+		b.AddPcOpen(titleID, "media:image", "md:image-title",
 			"("+destLiteral+` "`, "", "", false, false, false)
 		b.AddText(string(n.Title))
-		b.AddPcClose(titleID, "link:image", "md:image-title", `")`, "")
+		b.AddPcClose(titleID, "media:image", "md:image-title", `")`, "")
 		return
 	}
 
-	b.AddPcClose(id, "link:image", "md:image", "]("+destLiteral+")", info.Equiv)
+	b.AddPcClose(id, "media:image", "md:image", "]("+destLiteral+")", info.Equiv)
 }
 
 // referenceCloseMarker returns the closing-marker bytes for a
@@ -3142,17 +3166,17 @@ func (r *Reader) emitInlineHTMLWithAttrs(b *runBuilder, tag string, idCounter *i
 func (r *Reader) buildStrikethroughRuns(b *runBuilder, node ast.Node, source []byte, idCounter *int) {
 	*idCounter++
 	id := strconv.Itoa(*idCounter)
-	info := r.vocab.LookupOrFallback("fmt:strike")
+	info := r.vocab.LookupOrFallback("fmt:strikethrough")
 	// Goldmark's GFM strikethrough accepts both `~` (subscript-style)
 	// and `~~` (standard) delimiters. Detect the actual marker length
 	// from source so `H~2~O` (single tildes) round-trips intact rather
 	// than getting normalized to `H~~2~~O`. Mirrors okapi
 	// MarkdownParser which preserves the source delimiter verbatim.
 	openMarker, closeMarker := strikethroughFences(node, source)
-	b.AddPcOpen(id, "fmt:strike", "md:strikethrough", openMarker, info.Display.Open, info.Equiv,
+	b.AddPcOpen(id, "fmt:strikethrough", "md:strikethrough", openMarker, info.Display.Open, info.Equiv,
 		info.Constraints.Deletable, info.Constraints.Cloneable, info.Constraints.Reorderable)
 	r.buildCodedRuns(b, node, source, idCounter)
-	b.AddPcClose(id, "fmt:strike", "md:strikethrough", closeMarker, info.Equiv)
+	b.AddPcClose(id, "fmt:strikethrough", "md:strikethrough", closeMarker, info.Equiv)
 }
 
 // strikethroughFences returns the source-literal opening/closing

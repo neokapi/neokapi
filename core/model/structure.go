@@ -81,9 +81,12 @@ const (
 	// PropFieldFillable is "true" when a RoleValue block is an editable/fillable
 	// field, "false"/absent when read-only (DocLang <value class="fillable">).
 	PropFieldFillable = "field.fillable"
-	// PropCodeLanguage is the programming-language key of a RoleCode block
+	// PropCodeLanguage is the canonical programming-language key for code content
 	// (DocLang <code> with a <label value="Python">; GitHub Linguist keys). A
-	// do-not-translate / syntax-relevant signal for localization.
+	// do-not-translate / syntax-relevant signal for localization. On a RoleCode
+	// block it is set/read via SetCodeLanguage/CodeLanguage; the same key names
+	// the language on a non-extracted "code-block" Data part. It supersedes the
+	// former format-local "language" property.
 	PropCodeLanguage = "code.language"
 	// PropPictureSubclass is the fine subclass of a RolePicture block — e.g. a
 	// chart kind (bar/pie/line/…) (DocLang <picture class="chart"> + <label>).

@@ -341,14 +341,9 @@ func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
 // then the 4-value <location> block (geometry).
 func (w *Writer) writeHead(b *strings.Builder, blk *model.Block) {
 	// Code language → recommended Linguist <label> (DocLang Recommendations), for
-	// code blocks only. Read the canonical convention first, then the
-	// markdown-local "language" key.
+	// code blocks only, from the canonical code.language convention.
 	if blk.SemanticRole() == model.RoleCode || typeToRole[blk.Type] == model.RoleCode {
-		lang := blk.CodeLanguage()
-		if lang == "" {
-			lang = blk.Properties["language"]
-		}
-		if lang != "" {
+		if lang := blk.CodeLanguage(); lang != "" {
 			fmt.Fprintf(b, "<label value=%q/>", lang)
 		}
 	}

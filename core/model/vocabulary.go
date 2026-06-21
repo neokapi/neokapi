@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/model/vocabularies"
 )
@@ -216,3 +217,17 @@ func (r *VocabularyRegistry) HTMLPlaceholder(typeName string) string {
 	}
 	return ""
 }
+
+// sharedVocab is the process-wide default vocabulary (the embedded
+// common-formatting + rich-html + rich-jsx + code-tokens packs), loaded once.
+var sharedVocab = sync.OnceValue(func() *VocabularyRegistry {
+	r := NewVocabularyRegistry()
+	_ = r.LoadDefaults()
+	return r
+})
+
+// DefaultVocabulary returns the process-wide default vocabulary registry. It is
+// loaded once and shared; callers must treat it as read-only. Format writers
+// use it to project inline runs into their native markup on the cross-format
+// (no-skeleton) path.
+func DefaultVocabulary() *VocabularyRegistry { return sharedVocab() }
