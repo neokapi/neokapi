@@ -78,11 +78,19 @@ export {
   ensureLLMForModalities,
   pickModelForModalities,
   generateGemmaText,
+  generateLLMText,
+  listLLMModels,
   runGemmaImageOCR,
   DEFAULT_TEXT_MODEL,
   MULTIMODAL_MODEL,
 } from "./gemmaBridge";
-export type { InstallGemmaOptions, GemmaProgress, GemmaResult, Modality } from "./gemmaBridge";
+export type {
+  InstallGemmaOptions,
+  GemmaProgress,
+  GemmaResult,
+  Modality,
+  LLMModelInfo,
+} from "./gemmaBridge";
 
 // Plugin manager — the shared "what is loaded in this tab" store read by the
 // navbar status widget and every lab (SSR-clean; heavy bridges are lazy). Prefer

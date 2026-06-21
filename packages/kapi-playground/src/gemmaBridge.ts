@@ -479,11 +479,42 @@ export async function generateGemmaText(
   prompt: string,
   opts: InstallGemmaOptions & GenOpts = {},
 ): Promise<string> {
-  const loaded = await loadLLM(DEFAULT_TEXT_MODEL, opts);
+  return generateLLMText(prompt, DEFAULT_TEXT_MODEL, opts);
+}
+
+/**
+ * generateLLMText runs a single text prompt through a SPECIFIC model (by key),
+ * loading it (once, cached) on first use. Lets a caller compare models — e.g.
+ * the small Llama vs. the larger multimodal Gemma — on the same prompt.
+ */
+export async function generateLLMText(
+  prompt: string,
+  modelKey: string,
+  opts: InstallGemmaOptions & GenOpts = {},
+): Promise<string> {
+  const loaded = await loadLLM(modelKey, opts);
   const res = await generate(loaded, [{ role: "user", text: prompt }], {
     maxTokens: opts.maxTokens ?? 512,
     temperature: opts.temperature ?? 0,
     topP: opts.topP,
   });
   return res.text;
+}
+
+/** Public, UI-friendly view of a registered LLM model. */
+export interface LLMModelInfo {
+  key: string;
+  label: string;
+  sizeBytes: number;
+  modalities: Modality[];
+}
+
+/** listLLMModels returns the registered models (for a picker / engine list). */
+export function listLLMModels(): LLMModelInfo[] {
+  return Object.values(MODELS).map((s) => ({
+    key: s.key,
+    label: s.label,
+    sizeBytes: s.sizeBytes,
+    modalities: [...s.modalities],
+  }));
 }
