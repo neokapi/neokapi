@@ -11,9 +11,7 @@ function fileWith(block: Block): File {
   return newFile({
     generator: { id: "t", version: "1" },
     project: { id: "p", sourceLocale: "en" },
-    documents: [
-      { id: "d", documentType: "jsx", path: "a.tsx", blocks: [block] },
-    ],
+    documents: [{ id: "d", documentType: "jsx", path: "a.tsx", blocks: [block] }],
   });
 }
 
@@ -34,9 +32,7 @@ const baseBlock: Omit<Block, "placeholders" | "preview"> = {
 
 describe("canonical KLF serialization parity with Go", () => {
   it("emits placeholders even when empty (required field, no omit)", () => {
-    const out = new TextDecoder().decode(
-      marshalFile(fileWith({ ...baseBlock, placeholders: [] })),
-    );
+    const out = new TextDecoder().decode(marshalFile(fileWith({ ...baseBlock, placeholders: [] })));
     expect(out).toContain('"placeholders": []');
   });
 
@@ -71,8 +67,6 @@ describe("canonical KLF serialization parity with Go", () => {
         }),
       ),
     );
-    expect(out.indexOf('"storyId"')).toBeLessThan(
-      out.indexOf('"sampleValues"'),
-    );
+    expect(out.indexOf('"storyId"')).toBeLessThan(out.indexOf('"sampleValues"'));
   });
 });

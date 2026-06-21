@@ -22,7 +22,13 @@ function fileWithSkeleton(skeleton: Skeleton | undefined): File {
         type: "jsx:element",
         source: [{ text: "Hello" }],
         placeholders: [],
-        properties: { file: "src/App.tsx", line: 1, component: "App", jsxPath: "App", element: "h1" },
+        properties: {
+          file: "src/App.tsx",
+          line: 1,
+          component: "App",
+          jsxPath: "App",
+          element: "h1",
+        },
       },
     ],
   };
