@@ -197,7 +197,7 @@ type ToolMeta struct {
 }
 ```
 
-For example `tm-leverage` optionally consumes source segmentation and produces
+For example `recycle` optionally consumes source segmentation and produces
 `tm-match`, `alt-translation` and `target`; `qa` requires a `target` and
 produces `qa`. The flow loader uses these contracts for data-flow validation —
 a flow whose tool needs a port that no upstream tool or the source binding
@@ -540,7 +540,7 @@ Tools communicate through annotations on Blocks. A typical pipeline:
     { label: "source", role: "io" },
     { label: "entity-extract", role: "annotate" },
     { label: "term-lookup", role: "annotate" },
-    { label: "tm-leverage", role: "translate" },
+    { label: "recycle", role: "translate" },
     { label: "translate", role: "translate" },
     { label: "term-enforce", role: "qa" },
     { label: "qa", role: "qa" },
@@ -550,7 +550,7 @@ Tools communicate through annotations on Blocks. A typical pipeline:
 
 - `entity-extract` adds `EntityAnnotation` with named entities.
 - `term-lookup` adds `TermAnnotation` with matched terminology.
-- `tm-leverage` reads entity annotations for generalized matching, adds `AltTranslation`.
+- `recycle` reads entity annotations for generalized matching, adds `AltTranslation`.
 - `translate` reads term and entity annotations for context-aware translation.
 - `term-enforce` validates terminology consistency in targets.
 - `qa` validates translation quality.
@@ -586,7 +586,7 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | Tool                  | Description                                                                |
 | --------------------- | -------------------------------------------------------------------------- |
 | `segmentation`        | Annotate blocks with a sentence-segmentation overlay (SRX-like rules)      |
-| `tm-leverage`         | Pre-fill translations from Sievepen TM                                     |
+| `recycle`         | Pre-fill translations from Sievepen TM                                     |
 | `diff-leverage`       | Compare against previous version, preserve translations for unchanged text |
 | `repetition-analysis` | Analyze source text repetitions across blocks in the pipeline              |
 
@@ -667,7 +667,7 @@ interface and work identically in flows.
 
 | Tool          | Description                                                                |
 | ------------- | -------------------------------------------------------------------------- |
-| `tm-leverage` | Content-aware TM leverage with generalized, structural, and plain matching |
+| `recycle` | Content-aware TM leverage with generalized, structural, and plain matching |
 
 ### Flow steps format
 
@@ -686,7 +686,7 @@ metadata:
   name: Production Pipeline
 spec:
   steps:
-    - tool: tm-leverage
+    - tool: recycle
       config:
         fuzzyThreshold: 75
     - tool: translate
@@ -735,7 +735,7 @@ wrong writes unrepresentable.
   entity-extract, the segmenter) set `Annotate`. `BlockView` exposes no
   source/target setter, so they *cannot* mutate content — they emit overlays,
   annotations, and properties.
-- **Translation** tools (translate, the MT tools, tm-leverage,
+- **Translation** tools (translate, the MT tools, recycle,
   create-target) set `Translate` and write `Block.Targets`; source stays
   read-only.
 - **Transformers** (redaction, normalization, case/encoding conversion) are the

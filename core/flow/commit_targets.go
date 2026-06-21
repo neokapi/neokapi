@@ -17,7 +17,7 @@ import (
 // replays those overlays via the hydrate step) materializes the localized
 // file.
 //
-// It exists because the channel-based translate tools (tm-leverage, and any
+// It exists because the channel-based translate tools (recycle, and any
 // other capability-typed Produce BaseTool) set the target on the in-flight
 // block but do NOT implement SessionTool, so without this step a process-only
 // run would discard their work when the output stream is drained. Bespoke

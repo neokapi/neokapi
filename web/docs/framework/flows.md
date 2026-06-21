@@ -63,7 +63,7 @@ hand:
 
 ```yaml
 steps:
-  - tool: tm-leverage
+  - tool: recycle
     label: Apply TM matches
     config:
       threshold: 0.7

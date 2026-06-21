@@ -81,7 +81,7 @@ tool is not a flow: a lone tool is invoked directly as a tool command, and
 carrying the four things a flat list of tool names cannot:
 
 - **Configuration** — a flow pins each tool's settings, so it is a *configured*
-  recipe (`tm-leverage{fuzzy:75}` → `translate{provider:anthropic}` →
+  recipe (`recycle{fuzzy:75}` → `translate{provider:anthropic}` →
   `qa`), not merely an ordered set of tool names.
 - **Topology** — a flow is a DAG. `parallel:` fan-out, `tee`, and `batch` are
   graph shapes a sequence cannot express.
@@ -144,7 +144,7 @@ spec:
   source: file        # default; or `store`, `klz`, `import:xliff`
   sink: store         # process-only: commit overlays, emit nothing
   steps:
-    - tool: tm-leverage
+    - tool: recycle
     - tool: translate
     - tool: qa
 ```
@@ -241,7 +241,7 @@ over an existing workspace may declare `source: store`.
 # A translate flow: binding-agnostic. The ends come from where it is run.
 spec:
   steps:
-    - tool: tm-leverage
+    - tool: recycle
     - tool: translate
     - tool: qa
 ```

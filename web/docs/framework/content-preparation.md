@@ -111,7 +111,7 @@ steps:
     config: { engine: srx }
   - tool: term-lookup         # match the termbase
   - tool: entity-extract   # recognize entities
-  - tool: tm-leverage         # reuse prior segment translations
+  - tool: recycle         # reuse prior segment translations
   - tool: translate           # translate the remainder
   - tool: qa                  # gate on findings
 ```

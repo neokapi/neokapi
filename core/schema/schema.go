@@ -139,8 +139,11 @@ const (
 
 // Standard tool categories — the single canonical vocabulary shared by native
 // tools, okapi-bridge tools (via NormalizeCategory), gen-refs, and the flow
-// editor. The first four double as CLI command group IDs and must match the
-// cobra group IDs in cli.AddCommandGroups.
+// editor. CategoryQuality, CategoryAnalysis, and CategoryTextProcessing double
+// as CLI command group IDs and must match the cobra group IDs in
+// cli.AddCommandGroups. CategoryTranslation has no own group: its tools carry
+// [TagL10n] and surface under the "Localization:" group with the rest of the
+// localization toolchain.
 const (
 	CategoryTranslation    = "translation"     // produces target content
 	CategoryQuality        = "quality"         // validates target / produces qa·term findings
@@ -149,6 +152,15 @@ const (
 	CategoryConvert        = "convert"         // format conversion
 	CategoryPipeline       = "pipeline"        // composite / sub-pipeline
 )
+
+// TagL10n marks a tool as part of the localization toolchain (translate, TM
+// recycling, the bilingual quality checks, pseudo-translation, target
+// management). It is a freeform Tag on ToolMeta, orthogonal to Category: the
+// CLI groups every l10n-tagged command under one "Localization:" help section
+// regardless of its schema Category, while the Category stays canonical for
+// docs and the flow editor. Generic, format-aware tools (content-lint,
+// word-count, rewrite, segmentation, …) deliberately carry no l10n tag.
+const TagL10n = "l10n"
 
 // bridgeCategoryAliases maps the okapi-bridge category vocabulary onto the
 // canonical set above. The bridge classifies steps with its own labels

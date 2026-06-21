@@ -187,7 +187,7 @@ export function ArchitectureDiagram({
                 Translation Memory
               </text>
               <text x={516} y={48} textAnchor="middle" fontSize={8} className="kdx-chip-sub">
-                tm-leverage
+                recycle
               </text>
               <path d="M516,56 L516,114" className="kdx-link kdx-link--resource" />
             </g>

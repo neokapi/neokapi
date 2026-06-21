@@ -436,7 +436,7 @@ func handleBowrainListFlows(a *cli.App) (*mcp.CallToolResult, MCPListFlowsOutput
 		{Name: "translate-qa", Description: "Translate + quality check using AI/LLM"},
 		{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
 		{Name: "qa", Description: "Run rule-based quality checks on translations"},
-		{Name: "tm-leverage", Description: "Pre-fill translations from translation memory"},
+		{Name: "recycle", Description: "Pre-fill translations from translation memory"},
 		{Name: "segmentation", Description: "Split source text into sentence segments"},
 	}
 

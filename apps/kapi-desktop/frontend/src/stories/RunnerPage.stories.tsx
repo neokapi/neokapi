@@ -268,7 +268,7 @@ export const LongPipeline: Story = {
   args: {
     flowName: "full-pipeline",
     flow: {
-      steps: [{ tool: "tm-leverage" }, { tool: "translate" }, { tool: "qa" }, { tool: "qa" }],
+      steps: [{ tool: "recycle" }, { tool: "translate" }, { tool: "qa" }, { tool: "qa" }],
     },
     autoRun: true,
     fileCount: 5,

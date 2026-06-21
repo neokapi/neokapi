@@ -68,7 +68,7 @@ type TMMatch struct {
 }
 ```
 
-The `tm-leverage` tool ([AD-006](/contribute/architecture/006-tool-system)) applies adaptations automatically -- translators receive pre-adapted targets with correct entity values.
+The `recycle` tool ([AD-006](/contribute/architecture/006-tool-system)) applies adaptations automatically -- translators receive pre-adapted targets with correct entity values.
 
 ## Fuzzy Candidate Retrieval
 

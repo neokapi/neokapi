@@ -56,7 +56,7 @@ steps:
       fuzzy_threshold: 85
 
   # 2. Pre-fill from translation memory
-  - tool: tm-leverage
+  - tool: recycle
     config:
       fuzzy_threshold: 70
       provider: sievepen
@@ -170,7 +170,7 @@ Each tool has its own configuration options. Common patterns:
 ### TM Leverage
 
 ```yaml
-- tool: tm-leverage
+- tool: recycle
   config:
     fuzzy_threshold: 70 # Match threshold (0-100)
     provider: sievepen | null

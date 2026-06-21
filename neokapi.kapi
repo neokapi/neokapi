@@ -70,7 +70,7 @@ flows:
   # compliance is checked against the project termbase.
   translate:
     steps:
-      - tool: tm-leverage
+      - tool: recycle
         config:
           fillTarget: true
           fillTargetThreshold: 100
@@ -80,7 +80,7 @@ flows:
   # Requires provider credentials (keychain or ANTHROPIC_API_KEY).
   translate-ai:
     steps:
-      - tool: tm-leverage
+      - tool: recycle
         config:
           fillTarget: true
           fillTargetThreshold: 100

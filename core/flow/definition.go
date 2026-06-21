@@ -254,12 +254,12 @@ func BuiltInFlows() []FlowDefinition {
 			},
 		},
 		{
-			ID:          "tm-leverage",
-			Name:        "TM Leverage",
+			ID:          "recycle",
+			Name:        "Recycle",
 			Description: "Pre-fill translations from translation memory",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "tm-leverage", Type: NodeTool, Name: "tm-leverage", Label: "TM Leverage", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "recycle", Type: NodeTool, Name: "recycle", Label: "Recycle", Position: NodePosition{X: 0, Y: 100}},
 			},
 		},
 		{

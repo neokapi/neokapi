@@ -49,7 +49,7 @@ func TestTMLeverageTool(t *testing.T) {
 	}
 	tl := tools.NewTMLeverageTool(cfg)
 
-	assert.Equal(t, "tm-leverage", tl.Name())
+	assert.Equal(t, "recycle", tl.Name())
 	assert.Contains(t, tl.Description(), "translation memory")
 }
 
@@ -84,7 +84,7 @@ func TestTMLeverageToolExactMatch(t *testing.T) {
 	tgt := resultBlock.Target(model.LocaleFrench)
 	require.NotNil(t, tgt)
 	assert.Equal(t, "tm", tgt.Origin.Kind)
-	assert.Equal(t, "tm-leverage", tgt.Origin.Tool)
+	assert.Equal(t, "recycle", tgt.Origin.Tool)
 	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
 	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
 	alts := resultBlock.AltTranslations()
@@ -337,7 +337,7 @@ func TestTMLeverageSegmentedAllExact(t *testing.T) {
 	tgt := rb.Target(model.LocaleFrench)
 	require.NotNil(t, tgt)
 	assert.Equal(t, "tm", tgt.Origin.Kind)
-	assert.Equal(t, "tm-leverage", tgt.Origin.Tool)
+	assert.Equal(t, "recycle", tgt.Origin.Tool)
 	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
 	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
 

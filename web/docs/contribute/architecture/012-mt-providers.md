@@ -152,7 +152,7 @@ refinement:
 <PipelineDiagram
   stages={[
     { label: "Source", role: "io" },
-    { label: "tm-leverage", role: "translate" },
+    { label: "recycle", role: "translate" },
     { label: "translate", role: "translate" },
     { label: "review", role: "qa" },
     { label: "qa", role: "qa" },
@@ -160,7 +160,7 @@ refinement:
   ]}
 />
 
-- `tm-leverage` fills exact and generalized matches at near-zero cost.
+- `recycle` fills exact and generalized matches at near-zero cost.
 - `translate --provider deepl` translates the remainder quickly and cheaply.
 - `review` (optional) refines MT output using LLM reasoning with
   glossary and TM context.

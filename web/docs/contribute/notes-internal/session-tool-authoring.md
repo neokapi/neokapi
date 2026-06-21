@@ -128,7 +128,7 @@ func (t *MyTool) handle(sess blockstore.Session, ra bool, kind string, part *mod
 | Kind prefix          | Used by                                                                  | Payload shape                        |
 | -------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
 | `targets/<locale>`   | translators (translate, pseudo-translate, human editor) | `{"text": "...", "provider": "..."}` |
-| `annotations/<name>` | term-lookup, tm-leverage, qa checks                                      | tool-specific JSON                   |
+| `annotations/<name>` | term-lookup, recycle, qa checks                                      | tool-specific JSON                   |
 | `skeletons/<format>` | format writers (round-trip skeletons)                                    | opaque payload                       |
 
 The `targets/<locale>` shape is cross-tool: any translator writes

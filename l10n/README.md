@@ -21,7 +21,7 @@ gitignored).
 - `tm/<surface>-<lang>.klftm` — reviewed translations, one file per
   surface and locale (e.g. `builtins-nb.klftm`). Imported into
   `.kapi/tm.db`; every localized output is produced from the TM by
-  `tm-leverage`, so generated catalogs only ever contain reviewed strings.
+  `recycle`, so generated catalogs only ever contain reviewed strings.
 
 Workflow for a new or changed surface string:
 
@@ -51,7 +51,7 @@ bug). Store such tokens as real inline-code runs — `ph` for a standalone
 element, `pcOpen`/`pcClose` for a paired one, with the literal token text
 as `data` — in **both** the source and target variants, so the TM matches
 them structurally (same code structure scores 1.0; a bare-text lookalike
-caps below it) and `tm-leverage` fills targets with the entry's runs,
+caps below it) and `recycle` fills targets with the entry's runs,
 tokens intact. Named parameters like `{count}` are not markup and stay
 literal text. `kapi tm import` warns about entries whose variants disagree
 on their token sets; a clean import (no warnings, `make l10n-seed`) is the

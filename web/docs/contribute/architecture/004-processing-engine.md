@@ -222,12 +222,12 @@ Built-in flow definitions include:
 | `translate-qa`     | Translation followed by QA validation                   |
 | `pseudo-translate` | Pseudo-translation for internationalization testing     |
 | `qa`               | Quality assurance checks on existing translations       |
-| `tm-leverage`      | Translation memory leveraging from Sievepen TM          |
+| `recycle`      | Translation memory leveraging from Sievepen TM          |
 | `secure-translate` | Redact sensitive content, AI-translate, then restore the originals locally ([AD-020](020-redaction.md)) |
 
 `kapi flows` lists only the *composed* (multi-tool) built-in flows —
 `translate-qa` and `secure-translate` — because single-tool definitions
-(`translate`, `pseudo-translate`, `qa`, `tm-leverage`) are surfaced as
+(`translate`, `pseudo-translate`, `qa`, `recycle`) are surfaced as
 top-level tool commands rather than as flows.
 
 `FlowStore` persists user-created flow definitions as JSON files on disk.
@@ -249,7 +249,7 @@ metadata:
   name: Production Pipeline
 spec:
   steps:
-    - tool: tm-leverage
+    - tool: recycle
       config: { fuzzyThreshold: 75 }
     - tool: translate
       config: { provider: anthropic }

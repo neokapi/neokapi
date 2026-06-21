@@ -81,7 +81,7 @@
     "cardinality": "monolingual"
   },
   {
-    "name": "tm-leverage",
+    "name": "recycle",
     "description": "Pre-fill translations from TM",
     "category": "translation",
     "has_schema": true,

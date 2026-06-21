@@ -60,13 +60,13 @@ func TestTMLeverageHasSideEffects(t *testing.T) {
 	RegisterAll(reg)
 
 	for _, info := range reg.ListWithSchemas() {
-		if info.Name == "tm-leverage" {
+		if info.Name == "recycle" {
 			assert.Contains(t, info.SideEffects, schema.SideEffectTMRead)
 			assert.Contains(t, info.Produces, schema.IOPort{Type: model.AnnoTMMatch, Side: model.SideSource})
 			return
 		}
 	}
-	t.Fatal("tm-leverage not found")
+	t.Fatal("recycle not found")
 }
 
 // TestIsSourceTransformProbe verifies the registry's capability probe: tools

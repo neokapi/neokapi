@@ -335,7 +335,12 @@ func isGlobPattern(s string) bool {
 func (a *App) AddCommandGroups(cmd *cobra.Command) {
 	cmd.AddGroup(
 		&cobra.Group{ID: "processing", Title: "Processing:"},
-		&cobra.Group{ID: "translation", Title: "Translation:"},
+		// The localization toolchain (translate, recycle, the bilingual
+		// checks, pseudo-translate, extract/merge, tm) groups here regardless
+		// of each tool's schema Category — see schema.TagL10n and the routing
+		// in NewToolCommands. This replaces the former per-category
+		// "Translation:" group.
+		&cobra.Group{ID: "localization", Title: "Localization:"},
 		&cobra.Group{ID: "quality", Title: "Quality:"},
 		&cobra.Group{ID: "analysis", Title: "Analysis:"},
 		&cobra.Group{ID: "text-processing", Title: "Text Processing:"},

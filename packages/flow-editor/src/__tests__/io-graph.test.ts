@@ -32,9 +32,9 @@ const tools = new Map<string, ToolInfo>([
     },
   ],
   [
-    "tm-leverage",
+    "recycle",
     {
-      name: "tm-leverage",
+      name: "recycle",
       description: "",
       category: "translation",
       // optional segmentation consume + required nothing
@@ -59,7 +59,7 @@ describe("computeUnmet", () => {
   });
 
   it("never flags optional consumes", () => {
-    const spec: FlowSpec = { steps: [{ tool: "tm-leverage" }] };
+    const spec: FlowSpec = { steps: [{ tool: "recycle" }] };
     const { steps } = computeUnmet(spec, tools);
     expect(steps[0]).toEqual([]); // segmentation is optional
   });
@@ -109,7 +109,7 @@ describe("slotContext", () => {
   });
 
   it("dedupes available ports and clamps the slot to the flow length", () => {
-    const spec: FlowSpec = { steps: [{ tool: "translate" }, { tool: "tm-leverage" }] };
+    const spec: FlowSpec = { steps: [{ tool: "translate" }, { tool: "recycle" }] };
     // Both produce target@target — listed once.
     const ctx = slotContext(spec, tools, 99);
     const targets = ctx.available.filter((p) => p.type === "target");
@@ -141,7 +141,7 @@ describe("toolFit", () => {
 
   it("never counts optional inputs against fit", () => {
     const ctx = slotContext({ steps: [] }, tools, 0);
-    const fit = toolFit(tools.get("tm-leverage")!, ctx);
+    const fit = toolFit(tools.get("recycle")!, ctx);
     expect(fit.ready).toBe(true); // segmentation is optional
   });
 });

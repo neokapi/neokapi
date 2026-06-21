@@ -57,7 +57,7 @@ func TestListTools(t *testing.T) {
 	assert.True(t, names["tag-protect"])
 	assert.True(t, names["term-check"])
 	assert.True(t, names["segmentation"])
-	assert.True(t, names["tm-leverage"])
+	assert.True(t, names["recycle"])
 	assert.True(t, names["qa"])
 
 	// Verify category is set on all tools.

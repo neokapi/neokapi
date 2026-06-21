@@ -95,7 +95,7 @@ Related AI and redaction tools (registered in `core/ai/tools/` and
 
 **`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms. Uses an AI provider from [AD-011](/contribute/architecture/011-ai-providers).
 
-**`entity-extract`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: TM generalization in Sievepen ([AD-009](/contribute/architecture/009-translation-memory)), do-not-translate markers, localization hints, and terminology candidate discovery. Should run early in the pipeline -- before `tm-leverage`.
+**`entity-extract`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: TM generalization in Sievepen ([AD-009](/contribute/architecture/009-translation-memory)), do-not-translate markers, localization hints, and terminology candidate discovery. Should run early in the pipeline -- before `recycle`.
 
 **`redact`** (Transform) -- Privacy tool replacing entity values with typed placeholders (e.g., "John" -> `\{PERSON\}`) before external services. See [AD-020](/contribute/architecture/020-redaction).
 

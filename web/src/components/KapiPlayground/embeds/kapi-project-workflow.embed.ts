@@ -16,7 +16,7 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "demo.kapi",
       content:
-        "version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\ncontent: []\nflows:\n  translate:\n    steps:\n      - tool: tm-leverage\n",
+        "version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\ncontent: []\nflows:\n  translate:\n    steps:\n      - tool: recycle\n",
     },
   ],
   steps: [

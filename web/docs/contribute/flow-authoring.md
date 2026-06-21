@@ -174,7 +174,7 @@ steps:
       targetLocale: fr
       copySource: false
 
-  - tool: tm-leverage
+  - tool: recycle
     label: Apply TM matches
     config:
       targetLocale: fr

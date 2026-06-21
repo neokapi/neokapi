@@ -144,7 +144,7 @@ func TestStepsToGraph_CustomLabel(t *testing.T) {
 func TestStepsToGraph_ValidTopology(t *testing.T) {
 	spec := &StepsSpec{
 		Steps: []FlowStep{
-			{Tool: "tm-leverage"},
+			{Tool: "recycle"},
 			{
 				Parallel: []FlowStep{
 					{Tool: "translate"},

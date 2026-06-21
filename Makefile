@@ -1001,13 +1001,13 @@ l10n-review-export: l10n-seed ## Emit disposable TMX/CSV review views of the nat
 
 l10n-builtins: l10n-seed kapi-i18n-generate ## Builtin tool/format metadata → core/i18n/catalogs/<lang>.mo (TM-driven)
 	@for lang in $(L10N_LANGS); do \
-		./bin/kapi tm-leverage core/i18n/builtins/metadata.json -f json \
+		./bin/kapi recycle core/i18n/builtins/metadata.json -f json \
 			--target-lang $$lang -o core/i18n/catalogs/$$lang.mo || exit 1; \
 	done
 
 l10n-builtins-check: bin/kapi ## Terminology gate over the builtin metadata translations
 	@for lang in $(L10N_LANGS); do \
-		./bin/kapi tm-leverage core/i18n/builtins/metadata.json -f json \
+		./bin/kapi recycle core/i18n/builtins/metadata.json -f json \
 			--target-lang $$lang -o /tmp/l10n-builtins-$$lang.json -q && \
 		./bin/kapi term-check /tmp/l10n-builtins-$$lang.json -f json \
 			--source-lang en --target-lang $$lang || exit 1; \
@@ -1015,7 +1015,7 @@ l10n-builtins-check: bin/kapi ## Terminology gate over the builtin metadata tran
 
 l10n-desktop: l10n-seed kapi-desktop-extract ## Kapi Desktop UI strings → public/translations/<lang>.json (TM-driven)
 	@for lang in $(L10N_LANGS); do \
-		./bin/kapi tm-leverage $(KAPI_DESKTOP_DIR)/frontend/i18n \
+		./bin/kapi recycle $(KAPI_DESKTOP_DIR)/frontend/i18n \
 			--target-lang $$lang \
 			-o $(KAPI_DESKTOP_DIR)/frontend/i18n-$$lang || exit 1; \
 		(cd $(KAPI_DESKTOP_DIR)/frontend && vp run compile:$$lang) || exit 1; \
@@ -1026,7 +1026,7 @@ kapi-cli-i18n-generate: ## Regenerate cli/i18n/commands.json from the cobra comm
 
 l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → cli/i18n/catalogs/<lang>.mo (TM-driven)
 	@for lang in $(L10N_LANGS); do \
-		./bin/kapi tm-leverage cli/i18n/commands.json -f json \
+		./bin/kapi recycle cli/i18n/commands.json -f json \
 			--target-lang $$lang -o cli/i18n/catalogs/$$lang.mo || exit 1; \
 	done
 	@echo "Note: rebuild the binary (make build) to embed the refreshed cli catalogs —"

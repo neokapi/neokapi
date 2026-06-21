@@ -3,7 +3,7 @@
   "description": "TM Leverage followed by Pseudo-Translate showing concurrent processing across multiple tools",
   "nodes": [
     { "id": "reader", "type": "reader", "name": "json", "label": "JSON Reader" },
-    { "id": "tm", "type": "tool", "name": "tm-leverage", "label": "TM Leverage" },
+    { "id": "tm", "type": "tool", "name": "recycle", "label": "Recycle" },
     { "id": "pseudo", "type": "tool", "name": "pseudo-translate", "label": "Pseudo-Translate" },
     { "id": "writer", "type": "writer", "name": "json", "label": "JSON Writer" }
   ],
