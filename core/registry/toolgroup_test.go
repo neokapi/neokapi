@@ -159,8 +159,8 @@ func TestAddGroupMember(t *testing.T) {
 
 	// Adding a member to a non-group is an error.
 	reg.RegisterWithSchema("plain", func() tool.Tool { return &fakeTool{} }, &schema.ComponentSchema{Type: "object"})
-	assert.Error(t, reg.AddGroupMember("plain", ToolGroupMember{Name: "x"}))
-	assert.Error(t, reg.AddGroupMember("missing", ToolGroupMember{Name: "x"}))
+	require.Error(t, reg.AddGroupMember("plain", ToolGroupMember{Name: "x"}))
+	require.Error(t, reg.AddGroupMember("missing", ToolGroupMember{Name: "x"}))
 }
 
 // TestAddGroupMember_ReplacesByName verifies re-adding a member name replaces it.

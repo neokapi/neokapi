@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/schema"
@@ -21,10 +22,8 @@ func optionValues(p schema.PropertySchema) []string {
 // that contains field (master-detail gating is per group, not per field), or nil.
 func groupVisibleForField(s *schema.ComponentSchema, field string) *schema.ConditionExpr {
 	for i := range s.Groups {
-		for _, f := range s.Groups[i].Fields {
-			if f == field {
-				return s.Groups[i].Visible
-			}
+		if slices.Contains(s.Groups[i].Fields, field) {
+			return s.Groups[i].Visible
 		}
 	}
 	return nil
