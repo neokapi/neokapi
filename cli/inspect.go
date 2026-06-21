@@ -16,19 +16,22 @@ import (
 // reads these records, retrieves against the anchors, and writes edits back to
 // the same blocks (by ID) with the toolbox or a Transform tool.
 type inspectBlock struct {
-	File        string `json:"file"`
-	Number      int    `json:"number"`
-	ID          string `json:"id,omitempty"`
+	File   string `json:"file"`
+	Number int    `json:"number"` // 1-based, increments across all input files
+	ID     string `json:"id,omitempty"`
+	// ContentHash is model.ComputeContentHash(Text): a SHA-256 over the block's
+	// NORMALIZED (whitespace-trimmed) source text, not over the raw Text field.
+	// Recompute it with model.ComputeContentHash, not a bare sha256(text).
 	ContentHash string `json:"content_hash,omitempty"`
 	Role        string `json:"role,omitempty"`
 	Level       int    `json:"level,omitempty"`
 	Text        string `json:"text"`
 }
 
-// newInspectCmd builds `kapi inspect`: parse any format into one anchored,
+// NewInspectCmd builds `kapi inspect`: parse any format into one anchored,
 // structured record per content block. Prints a JSON array by default; --jsonl
 // streams one object per line for piping into an ingestion pipeline.
-func (a *App) newInspectCmd() *cobra.Command {
+func (a *App) NewInspectCmd() *cobra.Command {
 	var jsonl bool
 	cmd := &cobra.Command{
 		Use:     "inspect [flags] [FILE...]",

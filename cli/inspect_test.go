@@ -21,7 +21,7 @@ func runInspectFixture(t *testing.T, name, content string, args ...string) strin
 	path := filepath.Join(t.TempDir(), name)
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 
-	cmd := app.newInspectCmd()
+	cmd := app.NewInspectCmd()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -74,4 +74,34 @@ func TestInspect_StructuralRole(t *testing.T) {
 	}
 	require.NotNil(t, heading, "heading block not found")
 	assert.Equal(t, model.RoleHeading, heading.Role)
+}
+
+// Number is a 1-based counter that increments across all input files, and File
+// records which input each block came from — the output contract for piping.
+func TestInspect_NumberAndFileAcrossFiles(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+	a := filepath.Join(dir, "a.json")
+	b := filepath.Join(dir, "b.json")
+	require.NoError(t, os.WriteFile(a, []byte(`{"x":"one"}`), 0o644))
+	require.NoError(t, os.WriteFile(b, []byte(`{"y":"two","z":"three"}`), 0o644))
+
+	cmd := app.NewInspectCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{a, b})
+	require.NoError(t, cmd.Execute())
+
+	var blocks []inspectBlock
+	require.NoError(t, json.Unmarshal(out.Bytes(), &blocks))
+	require.Len(t, blocks, 3)
+
+	for i, blk := range blocks {
+		assert.Equal(t, i+1, blk.Number, "Number is a global 1-based counter across files")
+		assert.NotEmpty(t, blk.File, "every record carries its source file")
+	}
+	assert.Equal(t, displayName(a), blocks[0].File)
+	assert.Equal(t, displayName(b), blocks[1].File)
+	assert.Equal(t, displayName(b), blocks[2].File)
 }
