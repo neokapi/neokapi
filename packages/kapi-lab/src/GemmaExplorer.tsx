@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { useLabRuntime } from "./useLabRuntime";
-import RunGate from "./RunGate";
+import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import type { GemmaProgress } from "@neokapi/kapi-playground/gemmaBridge";
@@ -81,17 +81,11 @@ export default function GemmaExplorer({
     return `Downloading Gemma model…${pct}${progress.file ? ` (${progress.file})` : ""}`;
   })();
 
-  if (!gate.armed) {
-    return (
-      <RunGate
-        gate={gate}
-        title="Local LLM (Gemma)"
-        description="Translate with the real Gemma model running in your browser."
-      />
-    );
-  }
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div
+      className="kapi-reference relative"
+      style={{ display: "flex", flexDirection: "column", gap: 12 }}
+    >
       <p style={{ margin: 0, fontSize: 14, opacity: 0.85 }}>
         Translate with <strong>Gemma&nbsp;4</strong> running locally in your browser (WebGPU). The
         model is a one-time multi-GB download, then cached — nothing is sent to a server.
@@ -128,24 +122,32 @@ export default function GemmaExplorer({
         {!runtime.ready && <span style={{ fontStyle: "italic" }}>booting engine…</span>}
       </div>
 
-      {busy === "running" && progressLabel && (
-        <p style={{ fontStyle: "italic", margin: 0 }}>{progressLabel}</p>
-      )}
-      {err && <p style={{ color: "#dc2626", margin: 0 }}>Error: {err}</p>}
-      {out && (
-        <pre
-          style={{
-            background: "var(--ifm-pre-background, #1e1e1e)",
-            color: "var(--ifm-pre-color, #eee)",
-            padding: 12,
-            borderRadius: 6,
-            overflowX: "auto",
-            margin: 0,
-          }}
-        >
-          {out}
-        </pre>
-      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 420 }}>
+        {busy === "running" && progressLabel && (
+          <p style={{ fontStyle: "italic", margin: 0 }}>{progressLabel}</p>
+        )}
+        {err && <p style={{ color: "#dc2626", margin: 0 }}>Error: {err}</p>}
+        {out && (
+          <pre
+            style={{
+              background: "var(--ifm-pre-background, #1e1e1e)",
+              color: "var(--ifm-pre-color, #eee)",
+              padding: 12,
+              borderRadius: 6,
+              overflowX: "auto",
+              margin: 0,
+            }}
+          >
+            {out}
+          </pre>
+        )}
+      </div>
+
+      <GateOverlay
+        gate={gate}
+        title="Local LLM (Gemma)"
+        description="Translate with the real Gemma model running in your browser."
+      />
     </div>
   );
 }

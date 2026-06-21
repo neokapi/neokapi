@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLabRuntime } from "./useLabRuntime";
-import RunGate from "./RunGate";
+import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import { WORKSPACE_SAMPLES, workspaceSampleById } from "./workspaceSamples";
@@ -132,13 +132,8 @@ export default function WorkspaceExplorer({
     return done.has(STEPS[i - 1]);
   };
 
-  if (!gate.armed) {
-    return (
-      <RunGate gate={gate} title="Workspace" description="Explore a multi-file kapi workspace." />
-    );
-  }
   return (
-    <div className={shared.explorer}>
+    <div className={`kapi-reference relative ${shared.explorer}`}>
       <div className={shared.statusBar}>
         {runtime.status === "booting" && "Booting kapi (first run downloads the WASM engine)…"}
         {runtime.status === "error" && `Failed to start: ${runtime.error}`}
@@ -177,7 +172,7 @@ export default function WorkspaceExplorer({
 
       {err && <div className={`${shared.statusBar} ${shared.statusError}`}>{err}</div>}
 
-      <div className={s.panel}>
+      <div className={s.panel} style={{ minHeight: 420 }}>
         <div className={s.card}>
           <div className={s.cardTitle}>Workspace</div>
           {!info && <div className={s.binaryNote}>Run “extract” to create the workspace.</div>}
@@ -196,6 +191,12 @@ export default function WorkspaceExplorer({
             ))}
         </div>
       </div>
+
+      <GateOverlay
+        gate={gate}
+        title="Workspace"
+        description="Explore a multi-file kapi workspace."
+      />
     </div>
   );
 }

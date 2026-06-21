@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall/js"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -52,8 +51,10 @@ func doPreview(path string) (result any) {
 		return errorResult(err.Error())
 	}
 
-	ext := strings.ToLower(filepath.Ext(path))
-	fmtName, err := app.FormatReg.DetectByExtension(ext)
+	// Content-aware detection so an extension shared by several formats
+	// (e.g. .xlf/.xliff → XLIFF 1.2 and 2.x) resolves to the reader that
+	// actually matches the bytes, not the alphabetically-first claimant.
+	fmtName, err := app.FormatReg.DetectFile(path, nil)
 	if err != nil {
 		return errorResult("unsupported format for " + filepath.Base(path))
 	}

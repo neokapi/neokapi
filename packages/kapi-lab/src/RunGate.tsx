@@ -1,4 +1,6 @@
 import React from "react";
+import { Play } from "lucide-react";
+import { cn } from "@neokapi/ui-primitives";
 import { PLUGIN_DESCRIPTORS, usePluginManager } from "@neokapi/kapi-playground/plugins";
 import type { PluginId } from "@neokapi/kapi-playground/plugins";
 import type { RunGate as RunGateState } from "./useRunGate";
@@ -15,6 +17,12 @@ export interface RunGateProps {
   description?: string;
   /** Run button label (default "Run"). */
   label?: string;
+  /**
+   * Sizing/layout class for the gate's outer card. Callers pass a class that
+   * reserves the height the activated content will occupy, so pressing play
+   * swaps content in place without a layout shift. Defaults to `min-h-[180px]`.
+   */
+  className?: string;
 }
 
 function fmtSize(bytes?: number): string {
@@ -33,6 +41,7 @@ export default function RunGate({
   title,
   description,
   label,
+  className,
 }: RunGateProps): React.ReactElement {
   const mgr = usePluginManager();
   const booting = gate.armed && gate.status === "booting";
@@ -58,22 +67,33 @@ export default function RunGate({
       : "";
 
   return (
-    <div className="kapi-reference flex min-h-[180px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-card/40 p-8 text-center text-foreground">
+    <div
+      className={cn(
+        "kapi-reference flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-card/40 p-8 text-center text-foreground",
+        className ?? "min-h-[180px]",
+      )}
+    >
       {title && <div className="text-base font-semibold">{title}</div>}
       {description && <p className="max-w-md text-sm text-muted-foreground">{description}</p>}
 
       {!gate.armed && (
         <>
+          {/* A YouTube-style play affordance: a single circular button is the
+              whole "activate the engine" gesture. Filled triangle, nudged a
+              hair right to sit optically centered; gentle hover/active feedback
+              and a focus ring for keyboard users. */}
           <button
             type="button"
             onClick={gate.run}
-            className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            aria-label={label ?? "Run"}
+            title={label ?? "Run"}
+            className="group mt-1 flex size-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-1 ring-primary/20 transition-transform duration-150 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            ▶ {label ?? "Run"}
+            <Play className="size-7 translate-x-[2px] fill-current" strokeWidth={0} />
           </button>
           {requiresNote && (
             <p className="text-xs text-muted-foreground">
-              First run downloads: {requiresNote}. Nothing is fetched until you press Run.
+              First run downloads: {requiresNote}. Nothing is fetched until you press play.
             </p>
           )}
         </>

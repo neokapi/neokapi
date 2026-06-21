@@ -4,7 +4,7 @@ import { CodeView } from "@neokapi/ui-primitives/preview";
 // CodeView's highlight languages (mirrors ui-primitives highlight.Lang).
 type Lang = "json" | "xml" | "yaml" | "properties" | "po" | "markdown" | "csv" | "text";
 import { useLabRuntime } from "./useLabRuntime";
-import RunGate from "./RunGate";
+import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
@@ -214,17 +214,8 @@ export default function ConversionExplorer({
     if (runtime.ready) void runConversion();
   }, [runtime.ready, runConversion]);
 
-  if (!gate.armed) {
-    return (
-      <RunGate
-        gate={gate}
-        title="File conversion"
-        description="Convert a document from one format to another."
-      />
-    );
-  }
   return (
-    <div className={shared.explorer}>
+    <div className={`kapi-reference relative ${shared.explorer}`}>
       <div className={styles.controls}>
         <FileSource value={file} onChange={setFile} sampleIds={offered} label="Input" />
         <label className={styles.targetField}>
@@ -257,58 +248,66 @@ export default function ConversionExplorer({
         )}
       </div>
 
-      {output !== null && (
-        <>
-          <div className={styles.tabs} role="tablist" aria-label="Output view">
-            <button
-              role="tab"
-              aria-selected={view === "rendered"}
-              className={`${styles.tab} ${view === "rendered" ? styles.tabActive : ""}`}
-              onClick={() => setView("rendered")}
-            >
-              Rendered
-            </button>
-            <button
-              role="tab"
-              aria-selected={view === "source"}
-              className={`${styles.tab} ${view === "source" ? styles.tabActive : ""}`}
-              onClick={() => setView("source")}
-            >
-              Source
-            </button>
-          </div>
+      <div className="min-h-[420px]">
+        {output !== null && (
+          <>
+            <div className={styles.tabs} role="tablist" aria-label="Output view">
+              <button
+                role="tab"
+                aria-selected={view === "rendered"}
+                className={`${styles.tab} ${view === "rendered" ? styles.tabActive : ""}`}
+                onClick={() => setView("rendered")}
+              >
+                Rendered
+              </button>
+              <button
+                role="tab"
+                aria-selected={view === "source"}
+                className={`${styles.tab} ${view === "source" ? styles.tabActive : ""}`}
+                onClick={() => setView("source")}
+              >
+                Source
+              </button>
+            </div>
 
-          {view === "source" &&
-            (output.trim() === "" ? (
-              <p className={styles.note}>
-                The {targets.find((t) => t.id === target)?.label} writer produced an empty document:
-                this is a key-value format and the source has no key-value entries to express. Try a
-                document or interchange target (Markdown, HTML, DocLang, XLIFF, PO), or convert from
-                a catalog source.
-              </p>
-            ) : (
-              <CodeView text={output} lang={langForTarget(target)} maxHeight="28rem" />
-            ))}
-          {view === "rendered" &&
-            (previewHtml !== null && previewHtml.trim() !== "" ? (
-              <iframe
-                className={styles.preview}
-                title="Rendered preview"
-                sandbox=""
-                srcDoc={previewHtml}
-              />
-            ) : (
-              <p className={styles.note}>No visual preview for this document.</p>
-            ))}
+            {view === "source" &&
+              (output.trim() === "" ? (
+                <p className={styles.note}>
+                  The {targets.find((t) => t.id === target)?.label} writer produced an empty
+                  document: this is a key-value format and the source has no key-value entries to
+                  express. Try a document or interchange target (Markdown, HTML, DocLang, XLIFF,
+                  PO), or convert from a catalog source.
+                </p>
+              ) : (
+                <CodeView text={output} lang={langForTarget(target)} maxHeight="28rem" />
+              ))}
+            {view === "rendered" &&
+              (previewHtml !== null && previewHtml.trim() !== "" ? (
+                <iframe
+                  className={styles.preview}
+                  title="Rendered preview"
+                  sandbox=""
+                  srcDoc={previewHtml}
+                />
+              ) : (
+                <p className={styles.note}>No visual preview for this document.</p>
+              ))}
 
-          <p className={styles.note}>
-            The reader parses the input into the content model (roles, runs, tables, geometry); a
-            generative writer re-serializes it as {targets.find((t) => t.id === target)?.label}.
-            Skeleton-driven formats (docx, odt, idml, epub) inject into an original file and so
-            cannot be conversion targets.
-          </p>
-        </>
-      )}
+            <p className={styles.note}>
+              The reader parses the input into the content model (roles, runs, tables, geometry); a
+              generative writer re-serializes it as {targets.find((t) => t.id === target)?.label}.
+              Skeleton-driven formats (docx, odt, idml, epub) inject into an original file and so
+              cannot be conversion targets.
+            </p>
+          </>
+        )}
+      </div>
+
+      <GateOverlay
+        gate={gate}
+        title="File conversion"
+        description="Convert a document from one format to another."
+      />
     </div>
   );
 }

@@ -8,7 +8,7 @@ keywords: [interchange, XLIFF, PO, gettext, TMX, TBX, CAT tool, TMS, extract, me
 
 import { ThemedVideo } from "@neokapi/docs-shared";
 import { RoundTripDiagram } from "@neokapi/docs-shared";
-import { RoundTripExplorer } from "@site/src/components/Lab/RoundTripExplorer";
+import { ContentLab } from "@site/src/components/Lab";
 
 # Utveksling: arbeid med ethvert TMS eller CAT-verktøy
 
@@ -114,7 +114,7 @@ bladteksten byttes ut, og alt annet (struktur, identifikatorer, skjelettet
 skriveren ligger bak `kapi extract` og `kapi merge`, og kjører her i nettleseren
 din via WebAssembly.
 
-<RoundTripExplorer defaultSampleId="app-xliff" />
+<ContentLab lessonIds={["roundtrip"]} defaultSampleId="app-xliff" />
 
 Begge er på som standard. `--no-tm` og `--no-tm-update` slår dem av
 (f.eks. for arbeidsflyter med kald oversettelse eller gjennomgang som tørrkjøring).

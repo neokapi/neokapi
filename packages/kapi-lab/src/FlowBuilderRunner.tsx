@@ -4,7 +4,7 @@ import type { FlowFocusRequest, FlowSpec, FlowTrace, ToolInfo } from "@neokapi/f
 import { tools as toolReference } from "@neokapi/reference-data";
 import type { ReferenceEntry } from "@neokapi/reference-data";
 import { useLabRuntime } from "./useLabRuntime";
-import RunGate from "./RunGate";
+import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import type { FileSourceValue } from "./FileSource";
@@ -376,15 +376,13 @@ export default function FlowBuilderRunner({
     [applyStepFocus],
   );
 
-  // Apply the initial scenario's first lesson focus once the engine is up
-  // (panels show live engine output, so focusing before boot teaches nothing).
-  const appliedInitialFocus = useRef(false);
-  useEffect(() => {
-    if (!runtime.ready || appliedInitialFocus.current) return;
-    appliedInitialFocus.current = true;
-    applyStepFocus(scenario.walkthrough?.[walkIndex]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runtime.ready]);
+  // The workspace opens CLEAN: the flow graph and the walkthrough's first step
+  // are shown, but no panel is opened and nothing is computed until the user
+  // acts. Activating the engine (the Run gate) is not itself a result — the
+  // source tree, a step's overlays, and the written output each appear only
+  // when the learner advances the walkthrough or presses Run. So we do NOT
+  // auto-apply the first step's focus on boot; navigation applies focus from
+  // there (goToStep), and the learner can always click a node directly.
 
   const selectScenario = useCallback(
     (s: LabScenario) => {
@@ -398,15 +396,15 @@ export default function FlowBuilderRunner({
       setError(null);
       setProjectOpen(false);
       setLessonCollapsed(false);
-      // Restart the lesson; scenarios without one clear any lingering focus.
+      // Restart the lesson, opening CLEAN: clear any selection/panel the prior
+      // lesson left and apply no focus. The first step's focus lands only when
+      // the learner advances (goToStep) — picking a lesson never auto-reveals
+      // its results, same as the initial open.
       setWalkIndex(0);
-      if (s.walkthrough) applyStepFocus(s.walkthrough[0]);
-      else {
-        focusNonce.current += 1;
-        setFocusRequest({ nonce: focusNonce.current, select: null });
-      }
+      focusNonce.current += 1;
+      setFocusRequest({ nonce: focusNonce.current, select: null });
     },
-    [selectionFor, applyStepFocus],
+    [selectionFor],
   );
 
   // Editing the flow invalidates the loaded run review (the trace no longer
@@ -583,15 +581,13 @@ export default function FlowBuilderRunner({
   // a dropdown would offer a choice with no effect — show a fixed pill instead.
   const bindingsTeachable = scenario.id === "project" || scenario.id === "build-your-own";
 
-  if (!gate.armed) {
-    return (
-      <RunGate
-        gate={gate}
-        title="Flow builder"
-        description="Build and run a flow with the real kapi engine."
-      />
-    );
-  }
+  // The workspace body ALWAYS renders, even before the engine is activated; the
+  // Run gate sits over it as an opaque overlay until the user presses play. The
+  // body lays out at its real height behind the gate, so activating swaps the
+  // overlay away with PIXEL-ZERO layout shift — no jump from a short card to a
+  // tall canvas, and the editor never remounts. Rendering the body early is
+  // inert: the flow graph is static UI, and nothing boots, downloads, or runs
+  // until gate.run() (no engine work is triggered by mounting the editor).
   return (
     // `.kapi-reference` supplies the ui-primitives theme variables (--background,
     // --border, …) the flow-editor's Tailwind classes resolve against; the docs
@@ -601,7 +597,7 @@ export default function FlowBuilderRunner({
     // selects) which Radix portals to document.body — outside this wrapper —
     // so their theme vars still resolve.
     <PortalThemeProvider className="kapi-reference">
-      <div className={cn(shared.explorer, "kapi-reference", fill && styles.fillRoot)}>
+      <div className={cn(shared.explorer, "kapi-reference", fill && styles.fillRoot, "relative")}>
         {/* Workspace toolbar: lesson picker, working set, replay, project —
             one fixed row so nothing below it jumps as state changes. */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -777,13 +773,11 @@ export default function FlowBuilderRunner({
           )}
         </div>
 
-        {runtime.status === "booting" && (
-          <DownloadProgress
-            label="Downloading the kapi engine (one-time, cached)…"
-            loaded={runtime.bootProgress?.loaded}
-            total={runtime.bootProgress?.total}
-          />
-        )}
+        {/* Engine-boot progress is shown by the Run-gate overlay (RunGate's
+            booting UI), not as an inline row — adding a row here while booting
+            would change the body height and shift the content below. The NER
+            model download below happens AFTER ready, during a run, so it stays
+            inline. */}
         {busy && nerProgress && (
           <DownloadProgress
             label={nerProgress.message}
@@ -806,6 +800,14 @@ export default function FlowBuilderRunner({
             !trace &&
             "Edit the flow, then press Run in its toolbar — the run plays back on the same nodes you designed."}
         </div>
+
+        {/* The Run gate: a shared zero-shift overlay over the fully laid-out
+            body until the engine is ready (play → booting → error → reveal). */}
+        <GateOverlay
+          gate={gate}
+          title="Flow builder"
+          description="Build and run a flow with the real kapi engine."
+        />
       </div>
     </PortalThemeProvider>
   );

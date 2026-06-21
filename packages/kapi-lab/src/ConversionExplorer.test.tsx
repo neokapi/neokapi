@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import ConversionExplorer, { GENERATIVE_TARGETS } from "./ConversionExplorer";
 
 afterEach(cleanup);
@@ -34,16 +34,16 @@ describe("GENERATIVE_TARGETS", () => {
 });
 
 describe("ConversionExplorer", () => {
-  it("gates the lab behind an explicit Run", () => {
+  it("gates the lab behind an explicit Run play button", () => {
     render(<ConversionExplorer assets={null} />);
-    expect(screen.getByRole("button", { name: /run/i })).toBeTruthy();
-    expect(screen.queryByText("Convert to")).toBeNull();
+    // The body lays out behind the zero-shift gate overlay; the play button
+    // (aria-label "Run") is the gate.
+    expect(screen.getByLabelText("Run")).toBeTruthy();
   });
 
-  it("renders the output-format selector with the generative targets after Run", () => {
-    // assets=null defers WASM booting; press Run to reveal the explorer body.
+  it("renders the output-format selector with the generative targets, without booting WASM", () => {
+    // assets=null → the engine never boots; the body still renders behind the gate.
     render(<ConversionExplorer assets={null} />);
-    fireEvent.click(screen.getByRole("button", { name: /run/i }));
     expect(screen.getByText("Convert to")).toBeTruthy();
     expect(screen.getByRole("option", { name: "DocLang" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Markdown" })).toBeTruthy();
