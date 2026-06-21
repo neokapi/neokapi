@@ -67,12 +67,45 @@ func (a *App) findModel(plugin, modelID string) (manifest.ModelAsset, bool) {
 	return p.Manifest.Model(modelID)
 }
 
-// splitModelRef parses "plugin/model" (or bare "plugin") into its parts.
-func splitModelRef(s string) (plugin, model string) {
-	if i := strings.IndexByte(s, '/'); i >= 0 {
-		return s[:i], s[i+1:]
+// resolveModelRef resolves a user-supplied reference to the (plugin, asset) it
+// names. A model id is the primary handle, since ids are globally meaningful and
+// the user rarely cares which plugin provides one; the plugin forms only
+// disambiguate. In order:
+//
+//	gemma-4-e2b      a model id — kapi finds the plugin that provides it
+//	llm/gemma-4-e2b  an explicit plugin/model pair (disambiguation)
+//	llm              a bare plugin name — its default model
+func (a *App) resolveModelRef(ref string) (plugin string, asset manifest.ModelAsset, err error) {
+	if p, m, ok := strings.Cut(ref, "/"); ok {
+		as, found := a.findModel(p, m)
+		if !found {
+			return "", manifest.ModelAsset{}, fmt.Errorf("no model %q in plugin %q (see `kapi models list`)", m, p)
+		}
+		return p, as, nil
 	}
-	return s, ""
+	// Bare reference: prefer interpreting it as a model id.
+	var matches []pluginModel
+	for _, pm := range a.allPluginModels() {
+		if pm.asset.ID == ref {
+			matches = append(matches, pm)
+		}
+	}
+	switch len(matches) {
+	case 1:
+		return matches[0].plugin, matches[0].asset, nil
+	case 0:
+		// Not a known model id — maybe it's a plugin name (use its default model).
+		if as, ok := a.findModel(ref, ""); ok {
+			return ref, as, nil
+		}
+		return "", manifest.ModelAsset{}, fmt.Errorf("no model or plugin named %q (see `kapi models list`)", ref)
+	default:
+		where := make([]string, len(matches))
+		for i, m := range matches {
+			where[i] = m.plugin + "/" + m.asset.ID
+		}
+		return "", manifest.ModelAsset{}, fmt.Errorf("model id %q is provided by multiple plugins (%s); qualify it as plugin/model", ref, strings.Join(where, ", "))
+	}
 }
 
 // modelStatus reports whether every file of an asset is present in its cache
@@ -122,16 +155,16 @@ func (a *App) newModelsListCmd() *cobra.Command {
 
 func (a *App) newModelsPullCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "pull <plugin>[/<model>]",
-		Short: "Download and cache a plugin's model asset",
-		Long: "Fetch and verify a model asset ahead of time so the first use of the plugin is\n" +
-			"instant. With just <plugin>, pulls that plugin's default model.",
+		Use:   "pull <model>",
+		Short: "Download and cache a model asset",
+		Long: "Fetch and verify a model asset ahead of time so its first use is instant.\n" +
+			"<model> is a model id (e.g. gemma-4-e2b); kapi finds the plugin that provides\n" +
+			"it. You may also pass a plugin name (its default model) or plugin/model.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			plugin, modelID := splitModelRef(args[0])
-			asset, ok := a.findModel(plugin, modelID)
-			if !ok {
-				return fmt.Errorf("no such model %q for plugin %q (see `kapi models list`)", args[0], plugin)
+			plugin, asset, err := a.resolveModelRef(args[0])
+			if err != nil {
+				return err
 			}
 			dir, err := EnsureModel(cmd.Context(), asset, ModelEnsureOptions{
 				Plugin: plugin,
@@ -148,14 +181,15 @@ func (a *App) newModelsPullCmd() *cobra.Command {
 
 func (a *App) newModelsPruneCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "prune <plugin>[/<model>]",
+		Use:   "prune <model>",
 		Short: "Remove a cached model asset from disk",
-		Args:  cobra.ExactArgs(1),
+		Long: "Delete a cached model asset. <model> is a model id (e.g. gemma-4-e2b); a plugin\n" +
+			"name or plugin/model also work.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			plugin, modelID := splitModelRef(args[0])
-			asset, ok := a.findModel(plugin, modelID)
-			if !ok {
-				return fmt.Errorf("no such model %q for plugin %q (see `kapi models list`)", args[0], plugin)
+			plugin, asset, err := a.resolveModelRef(args[0])
+			if err != nil {
+				return err
 			}
 			dir, err := ModelDir(plugin, asset.ID, asset.Version)
 			if err != nil {

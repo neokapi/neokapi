@@ -205,11 +205,12 @@
           },
           "long": "List, pre-fetch, and remove the model assets that kapi downloads and caches on a\nplugin's behalf. Each is integrity-pinned in the plugin's manifest and stored under\n$XDG_CACHE_HOME/kapi/models/\u003cplugin\u003e/\u003cid\u003e/\u003cversion\u003e/.",
           "prune": {
+            "long": "Delete a cached model asset. \u003cmodel\u003e is a model id (e.g. gemma-4-e2b); a plugin\nname or plugin/model also work.",
             "short": "Remove a cached model asset from disk"
           },
           "pull": {
-            "long": "Fetch and verify a model asset ahead of time so the first use of the plugin is\ninstant. With just \u003cplugin\u003e, pulls that plugin's default model.",
-            "short": "Download and cache a plugin's model asset"
+            "long": "Fetch and verify a model asset ahead of time so its first use is instant.\n\u003cmodel\u003e is a model id (e.g. gemma-4-e2b); kapi finds the plugin that provides\nit. You may also pass a plugin name (its default model) or plugin/model.",
+            "short": "Download and cache a model asset"
           },
           "short": "Manage model assets that plugins use"
         },
