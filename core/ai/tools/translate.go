@@ -517,6 +517,35 @@ func hasInlineCodes(runs []model.Run) bool {
 	return false
 }
 
+// decodeFirstJSON decodes the first JSON value in s into v, tolerating a leading
+// markdown code fence / prose and any trailing text. Local models frequently pad
+// their structured output (a ```json fence, a "Here is the translation:" lead-in,
+// or an explanatory note after the JSON), which a strict json.Unmarshal rejects
+// with "invalid character ... after top-level value". It errors only when no
+// JSON value can be found at all.
+func decodeFirstJSON(s string, v any) error {
+	s = strings.TrimSpace(s)
+	// Unwrap a ```json … ``` (or bare ```) code fence if present.
+	if i := strings.Index(s, "```"); i >= 0 {
+		s = s[i+3:]
+		s = strings.TrimPrefix(s, "json")
+		s = strings.TrimPrefix(s, "JSON")
+		if j := strings.Index(s, "```"); j >= 0 {
+			s = s[:j]
+		}
+		s = strings.TrimSpace(s)
+	}
+	// Skip any leading prose to the first JSON object/array.
+	switch k := strings.IndexAny(s, "{["); {
+	case k > 0:
+		s = s[k:]
+	case k < 0:
+		return errors.New("no JSON object or array found in model output")
+	}
+	// json.Decoder reads exactly one value and ignores any trailing data.
+	return json.NewDecoder(strings.NewReader(s)).Decode(v)
+}
+
 // SetTotalBlocks sets the total number of translatable blocks for progress
 // reporting. Call this before Process if the count is known.
 func (t *AITranslateTool) SetTotalBlocks(n int) {
@@ -705,10 +734,13 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	}
 	t.addUsage(resp.Usage)
 
-	// Parse structured JSON response.
+	// Parse structured JSON response. Local models often wrap their output in a
+	// markdown code fence or pad it with prose before/after the JSON, so decode
+	// the first JSON value tolerantly rather than requiring the whole response to
+	// be exactly one JSON document.
 	var result batchResult
-	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-		return fmt.Errorf("translate batch: unmarshal response: %w", err)
+	if err := decodeFirstJSON(resp.Content, &result); err != nil {
+		return fmt.Errorf("translate batch: unmarshal response: %w (raw: %.200q)", err, resp.Content)
 	}
 
 	// Build index → text map from the structured response.
