@@ -65,12 +65,12 @@ func (t *RetryTool) Process(ctx context.Context, in <-chan *model.Part, out chan
 			return t.retryAttempt(ctx, func() error { return orig(v) })
 		}
 		defer func() { bt.Annotate = orig }()
-	case bt.Translate != nil:
-		orig := bt.Translate
-		bt.Translate = func(v TargetView) error {
+	case bt.Produce != nil:
+		orig := bt.Produce
+		bt.Produce = func(v VariantView) error {
 			return t.retryAttempt(ctx, func() error { return orig(v) })
 		}
-		defer func() { bt.Translate = orig }()
+		defer func() { bt.Produce = orig }()
 	case bt.Transform != nil:
 		orig := bt.Transform
 		bt.Transform = func(v BlockView) (EditPlan, error) {

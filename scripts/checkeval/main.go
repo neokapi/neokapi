@@ -88,7 +88,7 @@ func runCase(c Case) (cats []string, score int, err error) {
 	loc := model.LocaleID(c.TargetLang)
 	b := &model.Block{ID: c.ID, Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: c.Source}}}}
 	if c.Target != "" {
-		tool.NewTargetView(b).SetTargetText(loc, c.Target)
+		tool.NewVariantView(b).SetTargetText(loc, c.Target)
 	}
 	var tl *tool.BaseTool
 	switch c.Check {

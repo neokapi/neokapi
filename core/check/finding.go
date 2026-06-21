@@ -1,11 +1,12 @@
-// Package check is the framework's content-verification core. A Checker
-// inspects a block (read-only) and emits Findings; Findings carry a category, a
-// severity, a human message, an optional suggested fix, and the run-range they
-// apply to. Every checker — deterministic rule, small ML model, or LLM judge —
-// emits the same Finding, so one scoring, annotation, and governance path serves
-// terminology, do-not-translate, placeholder integrity, register, and brand
-// voice alike. The checks act like tests for AI output: they are deterministic
-// and repeatable even when the generation that produced the content was not.
+// Package check is the framework's content-verification core: deterministic and
+// AI checks over content, acting as tests for AI output — deterministic and
+// repeatable even when the generation that produced the content was not. A
+// Checker inspects a block (read-only) and emits Findings; Findings carry a
+// category, a severity, a human message, an optional suggested fix, and the
+// run-range they apply to. Every checker — deterministic rule, small ML model,
+// or LLM judge — emits the same Finding, so one scoring, annotation, and
+// governance path serves terminology, do-not-translate, placeholder integrity,
+// register, and brand voice alike.
 package check
 
 import "github.com/neokapi/neokapi/core/model"

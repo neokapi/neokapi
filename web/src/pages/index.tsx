@@ -22,9 +22,13 @@ function HomepageHeader() {
             {siteConfig.title} &mdash; {siteConfig.tagline}
           </Heading>
           <p className={styles.heroSubtitle}>
-            An open-source engine in Go that parses localization, document, and data formats into a
-            faithful content model &mdash; then translates it, leverages memory, and runs checks for
-            terminology, QA, and brand voice, whether a person or an agent wrote it.
+            An open-source Go engine that parses any format &mdash; JSON, HTML, Markdown, config,
+            office formats &mdash; into one unified content model, then lets you or your AI agent{" "}
+            <strong>
+              edit and check the content inside it and write it back, byte&#8209;for&#8209;byte
+            </strong>
+            . At heart, both a localization engine and the tool that keeps your source content on
+            brand.
           </p>
           <div className={styles.buttons}>
             <Link
@@ -67,7 +71,7 @@ const Tiers: Tier[] = [
     eyebrow: "The engine",
     title: "Go framework",
     description:
-      "Format-aware readers and writers, a faithful content model, and a streaming pipeline of composable tools — embed it directly in your own Go programs.",
+      "Format-aware readers and writers, a unified content model, and a streaming pipeline of composable tools — embed it directly in your own Go programs.",
     link: "/framework/go-quickstart",
     linkText: "Go quickstart",
   },
@@ -103,39 +107,39 @@ type ProductItem = {
 
 const NeokapiFeatures: ProductItem[] = [
   {
-    title: "Formats & plugins",
+    title: "Parse any format",
     description:
-      "Readers and writers for localization, document, data, subtitle, and office formats, extended by plugins and a bridge to the Java Okapi filters.",
+      "Readers for document, data, config, subtitle, office, and localization formats turn any file into one unified content model — with structure, roles, and stable anchors. Clean input for AI and RAG, with the provenance to write it back.",
     link: "/framework/formats",
     linkText: "Formats",
   },
   {
-    title: "AI-native tools",
+    title: "Edit in place",
     description:
-      "LLM-assisted translation, QA, terminology, and review compose in the same pipeline as machine-translation backends and rule-based checks.",
-    link: "/framework/ai-translation",
-    linkText: "AI translation",
+      "Change the content inside a file and save the original, byte-for-byte. Programmatic with kgrep/ksed, or AI-driven — with a safety harness that preserves your annotations. The edit round-trips back into the original format — structure, styles, and all.",
+    link: "/toolbox/overview",
+    linkText: "The toolbox",
+  },
+  {
+    title: "Check & loop with AI",
+    description:
+      "Deterministic and AI checks emit one finding shape with a 0–100 score. Gate it in CI (non-zero exit) and loop with an assistant until it passes — tests for AI output, deterministic even when the generation was not.",
+    link: "/framework/checks",
+    linkText: "Checks",
+  },
+  {
+    title: "Localization, built in",
+    description:
+      "The deepest application of the engine: translate with AI or MT, leverage translation memory, and interchange bilingual XLIFF 2.x or PO with Trados, memoQ, Phrase, or Crowdin — merged back through the original skeleton.",
+    link: "/kapi/bilingual-workflow",
+    linkText: "Localization",
   },
   {
     title: "Streaming pipeline",
     description:
-      "Tools run in parallel and stream results as each part is ready, so large files and many languages process fast.",
+      "Tools run in parallel and stream results as each part is ready, so large files and many languages process fast. Capture it once in a committed .kapi project and run with no repeated flags.",
     link: "/framework/architecture",
     linkText: "Architecture",
-  },
-  {
-    title: "Interchange with any TMS",
-    description:
-      "Extract bilingual XLIFF 2.x or PO for Trados, memoQ, Phrase, or Crowdin, merge the translation back through a faithful skeleton, and keep translation memory and terminology in the loop.",
-    link: "/kapi/bilingual-workflow",
-    linkText: "Interchange",
-  },
-  {
-    title: "Project model",
-    description:
-      "Capture languages, content patterns, and flows once in a committed .kapi recipe; run flows with no repeated flags. Translation memory accumulates, and git-style discovery finds the project from any subdirectory.",
-    link: "/kapi/get-started/first-project",
-    linkText: "Create a project",
   },
 ];
 
@@ -188,8 +192,8 @@ function HomepageFeatures() {
                 <span className={styles.reactCalloutBadge}>In the family</span>
                 <span className={styles.reactCalloutText}>
                   <strong>CLI Tools</strong> — <code>kgrep</code>, <code>ksed</code>,{" "}
-                  <code>kcat</code>: format-aware grep, sed and cat that operate on the translatable
-                  text inside <code>.docx</code>, JSON, XLIFF and more.
+                  <code>kcat</code>: format-aware grep, sed and cat that read and rewrite the text
+                  inside office files, JSON, HTML and more.
                 </span>
                 <span className={styles.reactCalloutArrow} aria-hidden="true">
                   &rarr;
@@ -213,7 +217,7 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="An open-source, format-aware content engine in Go. Extract, translate, leverage translation memory, and run terminology, QA, and brand-voice checks — for content written by people or AI agents."
+      description="An open-source, format-aware content engine in Go. Parse any format, edit and check the content inside it, and write it back byte-for-byte — for content written by people or AI agents. Localization built in."
     >
       <StructuredData />
       <HomepageHeader />

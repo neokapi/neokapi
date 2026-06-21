@@ -1,6 +1,7 @@
 package model
 
-// Data holds non-translatable document structure.
+// Data holds non-content document structure: the skeleton and markup that
+// surrounds the modifiable Blocks and is written back unchanged.
 type Data struct {
 	ID         string
 	Name       string

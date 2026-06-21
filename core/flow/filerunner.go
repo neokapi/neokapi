@@ -245,7 +245,7 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 		fb.AddTool(t)
 	}
 	// Append the implicit commit-targets step so channel-based translate tools
-	// (tm-leverage and other capability-typed Translate BaseTools that set the
+	// (tm-leverage and other capability-typed Produce BaseTools that set the
 	// target on the block but don't implement SessionTool) have their work
 	// persisted as targets/<locale> overlays for a later merge. Bespoke
 	// SessionTools already wrote their overlay; this step idempotently re-affirms

@@ -1,10 +1,10 @@
 # Read, search, and rewrite content inside any format
 
 `kcat`, `kgrep` and `ksed` are format-aware reimaginings of `cat`, `grep` and
-`sed` that operate on the **translatable text** kapi extracts from a document —
-the prose, not the bytes. They read and edit the human-readable content of any
-format kapi understands, from a Word `.docx` to a JSON catalog to an XLIFF file,
-without converting anything first.
+`sed` that operate on the **content** kapi extracts from a document — the prose,
+not the bytes. They read and edit the human-readable text inside any format kapi
+understands, from a Word `.docx` to a JSON catalog to a Markdown page to an XLIFF
+file, without converting anything first.
 
 They install with the kapi CLI, so `kcat`/`kgrep`/`ksed` are on PATH wherever
 `kapi` is.
@@ -21,7 +21,7 @@ formats kapi supports:
 - **Searching.** A byte-level grep over those files finds nothing useful (the
   text is split across zipped XML). Even on XLIFF, JSON, Markdown or HTML a byte
   grep matches keys, tags and attributes alongside the prose. `kgrep` matches
-  only the translatable blocks.
+  only the content blocks.
 - **Rewriting.** A byte-level substitution can match inside a key or a tag and
   corrupt the document. `ksed` rewrites only block text and reconstructs the
   document through kapi's writer, so structure, styles and keys survive.

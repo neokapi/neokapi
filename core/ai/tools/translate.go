@@ -160,8 +160,8 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	t.ToolName = "translate"
 	t.ToolDescription = "Translates Blocks using AI/LLM"
 	// Translate: writes the target locale; source stays read-only. The batched
-	// and session paths (Process overrides) reuse translate() via NewTargetView.
-	t.Translate = t.translate
+	// and session paths (Process overrides) reuse translate() via NewVariantView.
+	t.Produce = t.translate
 	return t
 }
 
@@ -240,7 +240,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 	}
 	hash := block.ID
 	if hash == "" {
-		return t.translate(tool.NewTargetViewWithContext(ctx, block))
+		return t.translate(tool.NewVariantViewWithContext(ctx, block))
 	}
 
 	// Skip if already cached.
@@ -254,7 +254,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 		}
 	}
 
-	if err := t.translate(tool.NewTargetViewWithContext(ctx, block)); err != nil {
+	if err := t.translate(tool.NewVariantViewWithContext(ctx, block)); err != nil {
 		return err
 	}
 
@@ -393,9 +393,9 @@ type aiTargetCache struct {
 // ---------------------------------------------------------------------------
 
 // translate writes the AI target for one block. Source is read-only (the
-// TargetView exposes no source setter). Dispatched directly for the
-// block-by-block path; the batched and session paths call it via NewTargetView.
-func (t *AITranslateTool) translate(v tool.TargetView) error {
+// VariantView exposes no source setter). Dispatched directly for the
+// block-by-block path; the batched and session paths call it via NewVariantView.
+func (t *AITranslateTool) translate(v tool.VariantView) error {
 	if !v.Translatable() {
 		return nil
 	}
@@ -478,7 +478,7 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 // inline codes. Renders source runs as placeholder-tagged text so
 // the LLM can preserve tag positions, then reconstructs the target
 // Run sequence from the response via ParseRunsPlaceholderText.
-func (t *AITranslateTool) translateWithInlineCodes(v tool.TargetView, sourceRuns []model.Run) error {
+func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRuns []model.Run) error {
 	sourceText := model.RunsPlaceholderText(sourceRuns)
 
 	prompt := fmt.Sprintf(
@@ -535,7 +535,7 @@ func (t *AITranslateTool) emitProgress(done bool, thinking string) {
 	})
 }
 
-func (t *AITranslateTool) annotateTranslation(v tool.TargetView, resp *aiprovider.TranslateResponse) {
+func (t *AITranslateTool) annotateTranslation(v tool.VariantView, resp *aiprovider.TranslateResponse) {
 	v.AddAltTranslation(&model.AltTranslation{
 		Target:    []model.Run{{Text: &model.TextRun{Text: resp.Translation}}},
 		Locale:    t.targetLocale,
@@ -663,7 +663,7 @@ type batchResult struct {
 // Falls back to individual translation for any missing entries.
 func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEntry) error {
 	if len(entries) == 1 {
-		return t.translate(tool.NewTargetViewWithContext(ctx, entries[0].block))
+		return t.translate(tool.NewVariantViewWithContext(ctx, entries[0].block))
 	}
 
 	// Build numbered prompt.
@@ -721,13 +721,13 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	for i, entry := range entries {
 		text, ok := translations[i+1]
 		if !ok || text == "" {
-			if err := t.translate(tool.NewTargetViewWithContext(ctx, entry.block)); err != nil {
+			if err := t.translate(tool.NewVariantViewWithContext(ctx, entry.block)); err != nil {
 				return err
 			}
 			continue
 		}
 
-		ev := tool.NewTargetViewWithContext(ctx, entry.block)
+		ev := tool.NewVariantViewWithContext(ctx, entry.block)
 		if entry.hasInlineCodes {
 			targetRuns := model.ParseRunsPlaceholderText(text, entry.sourceRuns)
 			ev.SetTargetRuns(t.targetLocale, targetRuns)

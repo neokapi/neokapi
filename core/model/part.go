@@ -14,8 +14,8 @@ const (
 	PartLayerEnd    PartType = 2  // End of a structural layer
 	PartGroupStart  PartType = 3  // Start of a structural group within a layer
 	PartGroupEnd    PartType = 4  // End of a structural group
-	PartBlock       PartType = 5  // Translatable content
-	PartData        PartType = 6  // Non-translatable document structure
+	PartBlock       PartType = 5  // Modifiable content
+	PartData        PartType = 6  // Non-content document structure
 	PartMedia       PartType = 7  // Binary/media content
 	_               PartType = 8  // reserved (was PartBatchStart)
 	_               PartType = 9  // reserved (was PartBatchEnd)

@@ -14,7 +14,7 @@ import (
 // A tool's capability is expressed by which handler field it sets on BaseTool:
 //   - Annotate(BlockView)   — analysis / annotation (the default; no content
 //     writes possible — the methods simply don't exist here)
-//   - Translate(TargetView) — writes target content
+//   - Produce(VariantView) — writes target content
 //   - Transform(BlockView)  — a read-only edit producer returning an EditPlan;
 //     the framework applier is the sole source mutator (AD-006)
 //
@@ -104,9 +104,9 @@ type BlockView interface {
 	Drop()
 }
 
-// TargetView adds target-write access. Tools that translate or edit targets
-// receive this via TranslateBlockFn.
-type TargetView interface {
+// VariantView adds target-write access. Tools that translate or edit targets
+// receive this via the Produce handler.
+type VariantView interface {
 	BlockView
 	SetTarget(loc model.LocaleID, t *model.Target)
 	SetTargetVariant(key model.VariantKey, t *model.Target)
@@ -124,7 +124,7 @@ type TargetView interface {
 }
 
 // blockView is the single concrete view; the handler field's parameter type
-// (BlockView / TargetView) narrows which methods a tool can call. There is no
+// (BlockView / VariantView) narrows which methods a tool can call. There is no
 // source-write view: a Transform handler is a read-only producer and the
 // framework applier mutates the block directly (AD-006).
 type blockView struct {
@@ -137,23 +137,23 @@ func newBlockView(ctx context.Context, b *model.Block) *blockView {
 	return &blockView{ctx: ctx, b: b}
 }
 
-// NewBlockView and NewTargetView build an explicit view over a Block at the
+// NewBlockView and NewVariantView build an explicit view over a Block at the
 // matching capability tier. Dispatched handlers receive a view automatically;
 // these constructors are for Process-override tools (batched or session-aware
 // translators, stream operators) that hold a *model.Block directly and want to
 // reuse the same capability-scoped surface. The view's Context() reports
 // context.Background(); use the WithContext variants from a Process override
 // to propagate cancellation into provider/network calls.
-func NewBlockView(b *model.Block) BlockView   { return newBlockView(context.Background(), b) }
-func NewTargetView(b *model.Block) TargetView { return newBlockView(context.Background(), b) }
+func NewBlockView(b *model.Block) BlockView     { return newBlockView(context.Background(), b) }
+func NewVariantView(b *model.Block) VariantView { return newBlockView(context.Background(), b) }
 
-// NewBlockViewWithContext and NewTargetViewWithContext are the
+// NewBlockViewWithContext and NewVariantViewWithContext are the
 // cancellation-aware constructors for Process-override tools: the view's
 // Context() returns ctx, so handlers can honour deadlines/cancellation.
 func NewBlockViewWithContext(ctx context.Context, b *model.Block) BlockView {
 	return newBlockView(ctx, b)
 }
-func NewTargetViewWithContext(ctx context.Context, b *model.Block) TargetView {
+func NewVariantViewWithContext(ctx context.Context, b *model.Block) VariantView {
 	return newBlockView(ctx, b)
 }
 
@@ -241,7 +241,7 @@ func (v *blockView) result(part *model.Part) *model.Part {
 	return part
 }
 
-// Target writes (TargetView).
+// Target writes (VariantView).
 func (v *blockView) SetTarget(loc model.LocaleID, t *model.Target) { v.b.SetTarget(loc, t) }
 func (v *blockView) SetTargetVariant(key model.VariantKey, t *model.Target) {
 	v.b.SetTargetVariant(key, t)
@@ -258,6 +258,6 @@ func (v *blockView) ClearTargets() {
 
 // Compile-time checks that blockView satisfies every view tier.
 var (
-	_ BlockView  = (*blockView)(nil)
-	_ TargetView = (*blockView)(nil)
+	_ BlockView   = (*blockView)(nil)
+	_ VariantView = (*blockView)(nil)
 )

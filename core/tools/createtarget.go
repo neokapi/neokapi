@@ -44,7 +44,7 @@ func NewCreateTargetTool(cfg *CreateTargetConfig) *tool.BaseTool {
 	}
 	// Translate: create-target writes a target container (optionally seeded
 	// with the source text); it never touches source.
-	t.Translate = func(v tool.TargetView) error {
+	t.Produce = func(v tool.VariantView) error {
 		conf := t.Cfg.(*CreateTargetConfig)
 
 		if !v.Translatable() && !conf.CreateOnNonTranslatable {

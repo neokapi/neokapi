@@ -25,7 +25,7 @@ func passThroughTool(name string) *tool.BaseTool {
 func uppercaseTool() *tool.BaseTool {
 	return &tool.BaseTool{
 		ToolName: "uppercase",
-		Translate: func(v tool.TargetView) error {
+		Produce: func(v tool.VariantView) error {
 			if v.Translatable() {
 				v.SetTargetText(model.LocaleFrench, strings.ToUpper(v.SourceText()))
 			}
@@ -338,7 +338,7 @@ func TestParallelExecutionMultipleDocuments(t *testing.T) {
 	uppercaseFactory := func() (tool.Tool, error) {
 		return &tool.BaseTool{
 			ToolName: "uppercase",
-			Translate: func(v tool.TargetView) error {
+			Produce: func(v tool.VariantView) error {
 				totalBlocks.Add(1)
 				if v.Translatable() {
 					v.SetTargetText(model.LocaleFrench, strings.ToUpper(v.SourceText()))

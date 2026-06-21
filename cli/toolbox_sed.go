@@ -27,7 +27,7 @@ func (a *App) newSedCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "sed [flags] SCRIPT [FILE...]",
-		Short:   "Stream-edit the translatable text of files (s/regexp/replacement/)",
+		Short:   "Stream-edit the text/content inside files (s/regexp/replacement/)",
 		GroupID: "content",
 		Long: `Apply sed-style substitutions to the human-readable text inside any supported
 format, then write the document back in the same format. Only the editable text
@@ -346,7 +346,7 @@ func sedReplToGo(s string, delim byte) string {
 func newSedTool(prog sedProgram, locale model.LocaleID, scopeSource bool) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "ksed",
-		ToolDescription: "stream editor for translatable text",
+		ToolDescription: "stream editor for text/content",
 	}
 	t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
 		var plan tool.EditPlan

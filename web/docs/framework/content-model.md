@@ -12,12 +12,13 @@ import { StreamDiagram } from "@neokapi/docs-shared";
 # Content Model
 
 The content model is the vocabulary every part of neokapi shares. Whatever the
-input format — JSON, XLIFF, HTML, DOCX — a [reader](/framework/formats) turns it
-into the same handful of types, so [tools](/framework/tools),
+input format — JSON, HTML, Markdown, a Word document — a [reader](/framework/formats)
+turns it into the same handful of types, so [tools](/framework/tools),
 [flows](/framework/flows), [translation memory](/framework/translation-memory),
 and editors all work against one representation rather than against each format's
-quirks. It is a deliberate, format-independent abstraction over localizable
-content, modeled on the Okapi Framework's resource hierarchy.
+quirks. It is a deliberate, format-independent abstraction over the content inside
+a document — the unit you read, check, edit, and write back — modeled on the Okapi
+Framework's resource hierarchy.
 
 :::tip Try it — the content model, every way
 Pick a lesson and a sample (or drop in your own file) and watch the real `kapi`
@@ -72,7 +73,7 @@ covered in [Pipeline](/framework/pipeline).
 ## The resource types
 
 The payload a Part carries is one of a few resource types. Together they describe
-both the content a translator works on and the structure that surrounds it.
+both the content you read, edit, or translate and the structure that surrounds it.
 
 ```mermaid
 classDiagram
@@ -114,10 +115,13 @@ classDiagram
   content. Layers nest. Embedded content — HTML inside a JSON value, CDATA inside
   XML — becomes a **child layer** with its own format, so the right reader handles
   it and inline markup is preserved at every level rather than being flattened.
-- **Block** — the primary translatable unit (Okapi's _TextUnit_). Its `Source` is
-  a single flat `[]Run`; its translations are first-class `Target` records keyed
-  by a **VariantKey** (locale plus optional tone and channel). It carries a
-  `Translatable` flag, opaque pass-through `Properties`, and the two stand-off
+- **Block** — the primary modifiable content unit (Okapi's _TextUnit_). Its
+  `Source` is a single flat `[]Run` — the content you read, check, and edit. When
+  a workflow localizes, its translations are first-class `Target` records keyed by
+  a **VariantKey** (locale plus optional tone and channel); a monolingual pass
+  leaves `Targets` empty. It carries a `Translatable` flag (a parse-time
+  classification marking content the reader extracted versus inert skeleton),
+  opaque pass-through `Properties`, and the two stand-off
   carriers described in [Two ways to annotate a block](#two-ways-to-annotate-a-block)
   — positional `Overlays` and block-scoped `Annotations`.
 - **Overlay** — a typed, run-anchored interpretation _of_ a block's runs:
@@ -136,7 +140,8 @@ classDiagram
   or closing inline tag, a self-closing placeholder, or a structured plural/select
   construct (see below).
 - **Data** and **Media** — non-translatable document structure and binary
-  content, which flow through so the writer can reconstruct a faithful output.
+  content, which flow through so the writer can reconstruct the original
+  byte-for-byte.
 
 ## Two ways to annotate a block
 
@@ -268,7 +273,51 @@ non-translatable structure interleaved with references to block content, so the
 writer can rebuild the document exactly, substituting translated content where a
 target exists and falling back to source where it does not. This is what gives
 neokapi roundtrip fidelity: read a file and write it back unchanged, or write it
-back with only the translated text differing.
+back with only the changed text differing.
+
+## A monolingual path: no targets at all
+
+Translation is the most visible thing the content model carries, but it is not a
+requirement. A block's `Targets` map can stay empty for the whole run — the model
+works the same way when the only locale in play is the source. This is the path a
+brand or terminology pass takes: read a file, check the source content, edit it in
+place, and write the original back with only the edited text changed.
+
+Take a Markdown file with one off-brand sentence. The reader produces blocks whose
+`Source` is populated and whose `Targets` is empty:
+
+```
+Block "intro"
+  Source:  "Our solution is a game-changing, world-class platform."
+  Targets: {}        // no translation — monolingual
+```
+
+A [check](/framework/checks) reads each block's `SourceText()`, compares it
+against a brand-voice profile or the project [termbase](/framework/terminology),
+and records each problem as a stand-off `qa` overlay anchored to the offending
+runs — it annotates, it does not rewrite (see
+[the immutability model](/framework/tools)):
+
+```
+Block "intro"
+  Source:   "Our solution is a game-changing, world-class platform."
+  Overlays: [{Type: "qa", Range: runs[…], note: "off-voice: 'game-changing, world-class'"}]
+```
+
+An edit then settles the source. A `Transform` tool (or `ksed`, or an AI rewrite)
+returns an edit plan; the framework applier rewrites the block's `Source` runs in
+place and rebases the surviving overlays onto the new runs:
+
+```
+Block "intro"
+  Source:  "Our product is a content engine."
+  Targets: {}        // still monolingual
+```
+
+Finally the writer reconstructs the file from the Part stream. Because every
+untouched block is replayed from its skeleton byte-for-byte, only the one sentence
+that changed differs in the output — the same round-trip guarantee a translation
+run relies on, with zero targets in sight.
 
 ## Mapping from Okapi
 

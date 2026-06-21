@@ -7,12 +7,14 @@ keywords: [neokapi, go library, quickstart, framework, content model, format rea
 
 # Use neokapi from Go
 
-neokapi is a Go framework first. The [`kapi` CLI and desktop app](/kapi/overview)
-and [Kapi React](/react/introduction) are surfaces built on top of it, but the
-same content model, format readers and writers, tools, and streaming pipeline
-are a Go library you can import directly. This page is the shortest path from
-`go get` to a working program that reads a file, transforms it, and writes a
-translated file.
+neokapi is a Go framework first: a format-aware content engine you can import and
+drive directly. It parses any format into one content model, edits or translates
+the content inside it, and writes it back byte-for-byte. The [`kapi` CLI and
+desktop app](/kapi/overview) and [Kapi React](/react/introduction) are surfaces
+built on top of it, but the same content model, format readers and writers, tools,
+and streaming pipeline are a Go library you can import directly. This page walks
+the shortest path from `go get` to a working program — taking the localization
+flagship route: read a file, fill in a target, and write bilingual XLIFF.
 
 If you want the concepts behind the code first, read
 [Architecture](/framework/architecture), the

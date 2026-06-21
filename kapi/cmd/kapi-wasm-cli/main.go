@@ -121,7 +121,7 @@ func runOnce(argv []string) (code int) {
 func buildRoot() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "kapi",
-		Short:         "A localization and translation toolkit (browser build)",
+		Short:         "A format-aware content toolkit (browser build) — parse, edit, check, and localize any format",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(*cobra.Command, []string) error {

@@ -14,7 +14,7 @@ import (
 // branch over Block.SourceSegmentation each time.
 //
 // Obtain units from BlockView.SourceUnits (read-only) or
-// TargetView.TargetUnits (writable per-unit target production).
+// VariantView.TargetUnits (writable per-unit target production).
 type Unit interface {
 	// Index is the unit's position in iteration order — 0 for the single
 	// whole-block unit, the span index for a segmented layer.
@@ -41,7 +41,7 @@ type Unit interface {
 
 // WritableUnit adds per-unit target production. Writes are buffered and spliced
 // back into the block target in span order when iteration completes; see
-// TargetView.TargetUnits for the all-or-nothing commit semantics.
+// VariantView.TargetUnits for the all-or-nothing commit semantics.
 type WritableUnit interface {
 	Unit
 

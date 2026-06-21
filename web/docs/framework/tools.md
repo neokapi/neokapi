@@ -17,10 +17,11 @@ Parts from an input channel, transforms them, and writes them to an output
 channel. Tools are the neokapi analogue of an Okapi pipeline _Step_.
 
 Because every tool speaks the same channel contract, tools compose freely. A
-translation workflow is just a chain of tools — leverage from memory, look up
-terminology, translate the remainder, check quality — each handling the Parts it
-cares about and passing the rest through untouched. The category of work a tool
-does is not fixed by the framework; the same interface backs analysis,
+localization run is one chain — leverage from memory, look up terminology,
+translate the remainder, check quality; a monolingual brand pass is another —
+check the source, rewrite the off-voice runs, check again. Each tool handles the
+Parts it cares about and passes the rest through untouched. The category of work a
+tool does is not fixed by the framework; the same interface backs analysis,
 transformation, enrichment, and validation alike. The authoritative, generated
 list of what ships in the current build is the [Tool Reference](/tools).
 
@@ -71,7 +72,7 @@ type ToolConfig interface {
 ## Part-type dispatch with BaseTool
 
 Most tools only care about one or two kinds of Part — usually
-[Blocks](/framework/content-model) (translatable content). Writing the full
+[Blocks](/framework/content-model) (content blocks). Writing the full
 channel loop for every tool would be repetitive and error-prone, so the
 framework provides `BaseTool`, an embeddable type that implements `Process` once
 and dispatches each Part to a per-type handler:
@@ -86,7 +87,7 @@ type BaseTool struct {
 
     // Block handler — set exactly one. The view type bounds what it may write.
     Annotate  func(BlockView) error             // read-only: overlays / annotations / properties
-    Translate func(TargetView) error            // writes target
+    Produce func(VariantView) error            // writes target
     Transform func(BlockView) (EditPlan, error) // edit producer: the framework applier rewrites source
 
     // Other Part types stay untyped.
@@ -106,7 +107,7 @@ to the output channel unchanged. For Blocks, a tool sets one of three
 capability-typed handlers and the view it receives decides what it may write
 (the immutability model — see [the tool-system AD](/contribute/architecture/006-tool-system)):
 `Annotate` reads source and target but writes only overlays, annotations, and
-properties; `Translate` writes the target; `Transform` is a read-only edit
+properties; `Produce` writes the target; `Transform` is a read-only edit
 producer — it returns an edit plan, and a framework-owned applier performs the
 source rewrite, rebasing surviving overlays and vaulting any secrets. The
 forbidden writes simply aren't on the view, so a quality check can't

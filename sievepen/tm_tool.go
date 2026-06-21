@@ -54,11 +54,11 @@ func NewTMLeverageTool(tm TranslationMemory, cfg TMLeverageConfig) *TMLeverageTo
 	t.ToolDescription = "Content-aware TM leverage with generalized, structural, and plain matching"
 	// Translate: applies TM matches as targets (exact tiers) and an
 	// alt-translation annotation; source stays read-only.
-	t.Translate = t.translate
+	t.Produce = t.translate
 	return t
 }
 
-func (t *TMLeverageTool) translate(v tool.TargetView) error {
+func (t *TMLeverageTool) translate(v tool.VariantView) error {
 	if !v.Translatable() || v.SourceText() == "" {
 		return nil
 	}

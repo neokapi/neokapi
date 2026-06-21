@@ -17,7 +17,7 @@ input channel and writes Parts to an output channel. Tools compose into
 Flows; Flows are executed by the pipeline engine
 ([AD-004: Processing Engine](004-processing-engine.md)). The `BaseTool`
 struct with optional handler fields — a capability-typed block handler
-(`Annotate` / `Translate` / `Transform`) plus untyped `HandleDataFn`,
+(`Annotate` / `Produce` / `Transform`) plus untyped `HandleDataFn`,
 `HandleMediaFn` for other Part types — lets most tools implement only the
 handler for the Part type they care about; everything else passes through
 unchanged. The block handler a tool sets also declares what it may write
@@ -66,7 +66,7 @@ type bounds what it may write:
 ```go
 type BaseTool struct {
     Annotate  func(BlockView) error           // read-only: overlays/annotations/properties
-    Translate func(TargetView) error           // writes target
+    Produce func(VariantView) error           // writes target
     Transform func(BlockView) (EditPlan, error) // read-only producer; the applier rewrites source
 
     HandleDataFn  func(ctx context.Context, data *Data)   (*Data, error)
@@ -82,7 +82,7 @@ whichever capability-typed handler is set (and other Part types to their
 embed `BaseTool` and set only the handlers they need. A tool that needs the full
 stream — batching, 1→N fan-out, cross-block state (e.g. the batch collector, the
 concurrent translate path) — overrides `Process` directly; it may reuse a
-typed handler over a held block via `tool.NewBlockView`/`NewTargetView`.
+typed handler over a held block via `tool.NewBlockView`/`NewVariantView`.
 
 ### SessionTool extension
 
@@ -728,7 +728,7 @@ wrong writes unrepresentable.
 | Handler | View | May write |
 | --- | --- | --- |
 | `Annotate(BlockView)` | source + target read-only | overlays, annotations, properties |
-| `Translate(TargetView)` | source read-only | target content (+ the above) |
+| `Produce(VariantView)` | source read-only | target content (+ the above) |
 | `Transform` (edit producer) | source + target read-only | an edit plan the framework applies to source |
 
 - **Analysis / annotation** tools (qa, word-count, term-lookup,

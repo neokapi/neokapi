@@ -2,11 +2,11 @@ package cli
 
 // Toolbox: format-aware reimaginings of the classic Unix text utilities —
 // cat, grep, sed, plus a convert (conv) verb — that operate on the
-// *translatable text* of any format kapi understands (Word .docx, JSON
-// catalogs, XLIFF, Markdown, …) rather than raw bytes. They share kapi's
+// text/content inside any format kapi understands (JSON catalogs, Markdown,
+// HTML, Word documents, …) rather than raw bytes. They share kapi's
 // reader/writer pipeline, so `kgrep` greps the prose inside a .docx, `ksed`
-// rewrites it and saves the document back faithfully, and `kconv` re-expresses
-// it in another format.
+// rewrites it and saves the document back byte-for-byte, and `kconv`
+// re-expresses it in another format.
 //
 // Each is exposed two ways:
 //   - as a kapi subcommand: `kapi grep`, `kapi sed`, `kapi cat`, `kapi convert`
@@ -136,9 +136,9 @@ func (a *App) NewToolboxProxies() []*cobra.Command {
 		}
 	}
 	return []*cobra.Command{
-		proxy("grep", "Search the translatable text of files (use kgrep)", a.newGrepCmd, nil),
-		proxy("sed", "Stream-edit the translatable text of files (use ksed)", a.newSedCmd, NormalizeSedInPlaceArgs),
-		proxy("cat", "Print the translatable text of files (use kcat)", a.newCatCmd, nil),
+		proxy("grep", "Search the text/content inside files (use kgrep)", a.newGrepCmd, nil),
+		proxy("sed", "Stream-edit the text/content inside files (use ksed)", a.newSedCmd, NormalizeSedInPlaceArgs),
+		proxy("cat", "Print the text/content inside files (use kcat)", a.newCatCmd, nil),
 		proxy("convert", "Convert files between formats (use kconv)", a.newConvCmd, nil),
 	}
 }
@@ -254,8 +254,9 @@ func (a *App) streamBlocks(ctx context.Context, path string, fn func(index int, 
 
 // editDocument reads path, applies the tool to every part, then writes the
 // reconstructed document — in place (with optional backup) or to out. The
-// skeleton store is wired between reader and writer so faithful formats (e.g.
-// .docx) round-trip structure while only the edited text changes. writeLocale
+// skeleton store is wired between reader and writer so structure-preserving
+// formats (e.g. .docx) round-trip byte-for-byte while only the edited text
+// changes. writeLocale
 // selects which locale the writer emits ("" = source / monolingual round-trip).
 func (a *App) editDocument(ctx context.Context, path string, t *tool.BaseTool, writeLocale model.LocaleID, inPlace bool, backupSuffix string, out io.Writer) error {
 	if inPlace && (path == "" || path == stdinName) {
@@ -276,7 +277,7 @@ func (a *App) editDocument(ctx context.Context, path string, t *tool.BaseTool, w
 		return fmt.Errorf("%q is a read-only format (no writer) — read it with kcat instead", fmtName)
 	}
 
-	// Wire skeleton store when both sides support it (faithful round-trip).
+	// Wire skeleton store when both sides support it (byte-for-byte round-trip).
 	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
 		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
 			if store, serr := format.NewSkeletonStore(); serr == nil {

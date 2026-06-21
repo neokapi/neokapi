@@ -274,7 +274,7 @@ func TestTracingTool(t *testing.T) {
 	t.Run("wraps uppercase tool with snapshots", func(t *testing.T) {
 		inner := &tool.BaseTool{
 			ToolName: "upper",
-			Translate: func(v tool.TargetView) error {
+			Produce: func(v tool.VariantView) error {
 				if v.Translatable() {
 					v.SetTargetText(model.LocaleFrench, strings.ToUpper(v.SourceText()))
 				}

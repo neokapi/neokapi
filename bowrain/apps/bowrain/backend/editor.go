@@ -383,7 +383,7 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 		ToolName:        "pseudo-translate",
 		ToolDescription: "Pseudo-translates blocks",
 	}
-	pseudoTool.Translate = func(v tool.TargetView) error {
+	pseudoTool.Produce = func(v tool.VariantView) error {
 		if !v.Translatable() {
 			return nil
 		}

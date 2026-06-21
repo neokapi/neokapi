@@ -18,7 +18,7 @@ import (
 // file.
 //
 // It exists because the channel-based translate tools (tm-leverage, and any
-// other capability-typed Translate BaseTool) set the target on the in-flight
+// other capability-typed Produce BaseTool) set the target on the in-flight
 // block but do NOT implement SessionTool, so without this step a process-only
 // run would discard their work when the output stream is drained. Bespoke
 // SessionTools (e.g. pseudo-translate) already write their own overlay; this

@@ -126,7 +126,7 @@ func frameworkToolInputSchema(s *schema.ComponentSchema) (json.RawMessage, error
 	}
 	props["text"] = map[string]any{
 		"type":        "string",
-		"description": "The source text to process.",
+		"description": "The content (text) to run the tool over.",
 	}
 	if _, exists := props["target_lang"]; !exists {
 		props["target_lang"] = map[string]any{

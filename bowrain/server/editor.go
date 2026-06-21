@@ -673,7 +673,7 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 		ToolName:        "pseudo-translate",
 		ToolDescription: "Pseudo-translates blocks",
 	}
-	pseudoTool.Translate = func(v tool.TargetView) error {
+	pseudoTool.Produce = func(v tool.VariantView) error {
 		if !v.Translatable() {
 			return nil
 		}

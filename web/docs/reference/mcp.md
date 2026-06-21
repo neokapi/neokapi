@@ -1,13 +1,13 @@
 ---
 sidebar_position: 5
 title: MCP Server
-description: kapi exposes its file-processing capabilities as an MCP server so AI tools — Claude, Cursor, GitHub Copilot, and other MCP-compatible agents — can parse files, count words, translate, check brand voice, and look up terminology.
+description: kapi exposes its format-aware content engine as an MCP server so AI tools — Claude, Cursor, GitHub Copilot, and other MCP-compatible agents — can parse files, count words, translate, check brand voice, and look up terminology. It is the content layer your AI assistant drives.
 keywords: [MCP, Model Context Protocol, kapi mcp, AI tools, Claude, Cursor, brand voice, localization agent]
 ---
 
 # MCP server
 
-kapi exposes its file-processing capabilities as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents parse files, count words, run translation flows, check brand voice, and look up terminology — all through structured tool calls.
+kapi exposes its format-aware content engine as an [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) server — the content layer your AI assistant drives. This lets AI tools like Claude, GitHub Copilot, Cursor, Windsurf, and other MCP-compatible agents parse files, count words, run translation flows, check brand voice, and look up terminology — all through structured tool calls.
 
 For the agent-skills path (Claude Code calling the `kapi` CLI), see [using kapi with Claude](/kapi/get-started/use-with-claude). The two can be used together.
 

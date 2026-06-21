@@ -20,7 +20,7 @@ type bounds what the tool may write (immutability model, AD-006):
 
 - `Annotate(tool.BlockView) error` — read-only; writes only overlays,
   annotations, and properties.
-- `Translate(tool.TargetView) error` — reads source, writes target.
+- `Translate(tool.VariantView) error` — reads source, writes target.
 - `Transform(tool.BlockView) (tool.EditPlan, error)` — a read-only edit
   producer: returns an edit plan, and the framework applier rewrites the
   source — rebasing surviving overlays, vaulting secrets, and bounds-checking,
@@ -47,7 +47,7 @@ func NewUppercaseTool() *tool.BaseTool {
         ToolDescription: "Converts source text to uppercase",
     }
     // Writes a target, so it sets Translate (the view bounds it to target writes).
-    t.Translate = func(v tool.TargetView) error {
+    t.Produce = func(v tool.VariantView) error {
         if !v.Translatable() {
             return nil
         }
