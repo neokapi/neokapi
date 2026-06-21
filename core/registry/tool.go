@@ -274,7 +274,11 @@ func (r *ToolRegistry) NewTool(name ToolID) (tool.Tool, error) {
 	if reg.Factory == nil {
 		return nil, fmt.Errorf("tool %s is a plugin tool and cannot be instantiated locally", name)
 	}
-	return reg.Factory(), nil
+	t := reg.Factory()
+	if t == nil {
+		return nil, fmt.Errorf("tool %s could not be instantiated", name)
+	}
+	return t, nil
 }
 
 // ToolInfo returns the metadata for a named tool, or nil if not found.

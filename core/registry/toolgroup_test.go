@@ -193,3 +193,68 @@ func TestAddGroupMember_ReplacesByName(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, tool.Tool(second), got)
 }
+
+// groupCommon builds a minimal valid Common schema for a discriminated group.
+func groupCommon(id string) *schema.ComponentSchema {
+	return &schema.ComponentSchema{
+		ID:    id,
+		Title: id,
+		Type:  "object",
+		ToolMeta: &schema.ToolMeta{
+			ID:       id,
+			Category: schema.CategoryTextProcessing,
+		},
+		Properties: map[string]schema.PropertySchema{"engine": {Type: "string", Title: "Engine"}},
+		Groups:     []schema.ParameterGroup{{ID: "common", Label: "Common", Fields: []string{"engine"}}},
+	}
+}
+
+// TestRegisterGroup_NewToolBuildsDefaultMember locks the contract that a group is
+// instantiable via the flat NewTool(name): it must build the group's Default
+// member, so flat consumers that instantiate by name — the CLI flow runner, the
+// bowrain gRPC flow builder, and the desktop/server tool listings — keep working.
+// Regression for the bowrain TestListTools + flow-build failures that appeared
+// once segmentation moved from a flat RegisterWithSchema to a tool group.
+func TestRegisterGroup_NewToolBuildsDefaultMember(t *testing.T) {
+	reg := NewToolRegistry()
+	gotEngine := ""
+	reg.RegisterGroup(ToolGroupDef{
+		Name:          "segmentation",
+		Discriminator: "engine",
+		Default:       "srx",
+		Common:        groupCommon("segmentation"),
+		Members:       []ToolGroupMember{{Name: "srx", Label: "Default"}, {Name: "uax29", Label: "Unicode"}},
+		ConfigFactory: func(config map[string]any, _ string) (tool.Tool, error) {
+			gotEngine, _ = config["engine"].(string)
+			return &fakeTool{}, nil
+		},
+	})
+
+	// The group is listed by name (Names backs the desktop/server tool listings)...
+	assert.Contains(t, reg.Names(), ToolID("segmentation"))
+	// ...and NewTool(name) builds its Default member instead of erroring.
+	tl, err := reg.NewTool("segmentation")
+	require.NoError(t, err)
+	require.NotNil(t, tl)
+	assert.Equal(t, "srx", gotEngine, "NewTool must instantiate the group's Default member")
+}
+
+// TestRegisterGroup_NewToolDefaultFails surfaces an error rather than a (nil,nil)
+// result when a group's default member cannot be built locally, so callers never
+// receive a nil tool with a nil error.
+func TestRegisterGroup_NewToolDefaultFails(t *testing.T) {
+	reg := NewToolRegistry()
+	reg.RegisterGroup(ToolGroupDef{
+		Name:          "broken",
+		Discriminator: "engine",
+		Default:       "missing",
+		Common:        groupCommon("broken"),
+		Members:       []ToolGroupMember{{Name: "missing"}},
+		ConfigFactory: func(map[string]any, string) (tool.Tool, error) {
+			return nil, assert.AnError
+		},
+	})
+	tl, err := reg.NewTool("broken")
+	require.Error(t, err)
+	assert.Nil(t, tl)
+}

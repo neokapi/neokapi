@@ -166,7 +166,22 @@ func (r *ToolRegistry) storeGroup(def ToolGroupDef) {
 	}
 
 	defCopy := def
+	// Zero-arg Factory builds the group's Default member, so flat consumers that
+	// call NewTool(groupName) keep working — a group is a tool whose default
+	// behaviour is its Default member (the CLI flow runner, the bowrain gRPC flow
+	// builder, and the desktop/server tool listings all instantiate by name).
+	// Group-aware callers still use ConfigFactory to select a specific member.
+	// dispatch is lock-free, so this is safe to call under NewTool's read lock.
+	defaultMember := def.Default
+	zeroArg := func() tool.Tool {
+		t, err := dispatch(map[string]any{discriminator: defaultMember}, "")
+		if err != nil {
+			return nil
+		}
+		return t
+	}
 	r.tools[def.Name] = &ToolRegistration{
+		Factory:          zeroArg,
 		Schema:           composed,
 		ConfigFactory:    dispatch,
 		ContractResolver: def.Resolver,
