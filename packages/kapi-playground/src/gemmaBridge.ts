@@ -377,7 +377,14 @@ async function generate(
   };
   const text = proc.apply_chat_template(toTemplateMessages(wire), { add_generation_prompt: true });
   const images = await Promise.all(imageURLs.map((u) => load_image(u)));
-  const inputs = await proc(text, images.length === 1 ? images[0] : images);
+  // Text-only requests (e.g. segmentation/translation) must NOT pass an images
+  // arg — handing the Gemma processor an empty array builds malformed image
+  // inputs and the multimodal forward pass dies reading `.dims` off an absent
+  // pixel_values. Only pass images when there actually are some.
+  const inputs =
+    images.length === 0
+      ? await proc(text)
+      : await proc(text, images.length === 1 ? images[0] : images);
   const generated = await model.generate(genArgs(inputs, gen));
   return decodeContinuation((t, o) => processor.batch_decode(t, o), inputs, generated);
 }
