@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
 )
@@ -54,15 +55,6 @@ merge do?".
 				return err
 			}
 
-			if len(rows) == 0 {
-				fmt.Fprintf(cmd.OutOrStdout(), "No TM entries found for batch %s (in %s)\n", batch, dbPath)
-				return nil
-			}
-
-			// Summary.
-			fmt.Fprintf(cmd.OutOrStdout(), "Batch %s → %d TM entries (in %s)\n\n", batch, len(rows), dbPath)
-
-			// Tab-aligned table.
 			sort.SliceStable(rows, func(i, j int) bool {
 				if rows[i].Timestamp.Equal(rows[j].Timestamp) {
 					return rows[i].SourceFile < rows[j].SourceFile
@@ -70,16 +62,16 @@ merge do?".
 				return rows[i].Timestamp.After(rows[j].Timestamp)
 			})
 
-			fmt.Fprintf(cmd.OutOrStdout(), "%-24s  %-40s  %-16s  %s\n", "TIMESTAMP", "SOURCE FILE", "BLOCK HASH", "XLIFF ORIGINAL")
+			out := output.TMAuditOutput{Batch: batch, DBPath: dbPath, Total: len(rows)}
 			for _, r := range rows {
-				fmt.Fprintf(cmd.OutOrStdout(), "%-24s  %-40s  %-16s  %s\n",
-					r.Timestamp.Format(time.RFC3339),
-					truncate(r.SourceFile, 40),
-					truncate(r.BlockHash, 16),
-					r.XLIFFOriginal,
-				)
+				out.Entries = append(out.Entries, output.TMAuditRow{
+					Timestamp:     r.Timestamp.Format(time.RFC3339),
+					SourceFile:    r.SourceFile,
+					BlockHash:     r.BlockHash,
+					XLIFFOriginal: r.XLIFFOriginal,
+				})
 			}
-			return nil
+			return output.Print(cmd, out)
 		},
 	}
 
