@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/schema"
@@ -46,10 +47,8 @@ func TestSegmentationSchemaComposition(t *testing.T) {
 	// Engine-specific fields are gated at the group level (master-detail).
 	groupVisibleForField := func(field string) *schema.ConditionExpr {
 		for i := range s.Groups {
-			for _, f := range s.Groups[i].Fields {
-				if f == field {
-					return s.Groups[i].Visible
-				}
+			if slices.Contains(s.Groups[i].Fields, field) {
+				return s.Groups[i].Visible
 			}
 		}
 		return nil

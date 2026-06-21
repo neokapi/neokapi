@@ -643,7 +643,11 @@ describe("conditional variant groups", () => {
         ...Object.fromEntries(
           ["a", "b", "c", "d", "e"].map((k) => [
             k,
-            { type: "string", title: k.toUpperCase(), "ui:visible": { field: "engine", eq: "llm" } },
+            {
+              type: "string",
+              title: k.toUpperCase(),
+              "ui:visible": { field: "engine", eq: "llm" },
+            },
           ]),
         ),
       },
@@ -666,7 +670,12 @@ describe("group-level visibility (master-detail)", () => {
     type: "object",
     "ui:groups": [
       { id: "common", label: "Common", fields: ["engine"] },
-      { id: "srx", label: "SRX settings", fields: ["rulesPath"], "ui:visible": { field: "engine", eq: "srx" } },
+      {
+        id: "srx",
+        label: "SRX settings",
+        fields: ["rulesPath"],
+        "ui:visible": { field: "engine", eq: "srx" },
+      },
       {
         id: "llm",
         label: "LLM settings",
