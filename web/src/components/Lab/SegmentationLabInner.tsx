@@ -6,9 +6,11 @@ import {
   usePluginManager,
 } from "@neokapi/kapi-playground/plugins";
 import type { PluginId } from "@neokapi/kapi-playground/plugins";
+import type { KapiRuntime } from "@neokapi/kapi-playground";
 import type { LabRuntimeAssets } from "@neokapi/kapi-lab";
 import { FileSource } from "@neokapi/kapi-lab";
 import type { FileSourceValue } from "@neokapi/kapi-lab";
+import type { ContentTree, ContentNode, Run } from "@neokapi/ui-primitives/preview";
 import { loadICU4X } from "../../lib/icu4x";
 import { installIntlSegmenter } from "../../lib/intlSegmenter";
 
@@ -18,13 +20,24 @@ import { installIntlSegmenter } from "../../lib/intlSegmenter";
 const TEXT_MODEL_KEY = "llama-3.2-1b";
 const MULTIMODAL_MODEL_KEY = "gemma-4-e2b";
 
-// SegmentationLab — one consolidated, neokapi-centric lab. Segmentation is a
-// stand-off overlay on the content model: the same source, split into sentences
-// by whichever engines you pick. Choose a source (sample, file, or your own
-// text), select the engines to compare, press Run once, and read the engines
-// SIDE BY SIDE — with a neutral "agreement" layer showing where the engines cut
-// at the same place. There is no single correct segmentation; this is a
-// comparison, not a verdict. Engine names match the CLI / flow editor.
+// SegmentationLab — one consolidated, framework-native lab. Everything here runs
+// INSIDE neokapi's content model, never around it:
+//
+//   • The source becomes a real document. A sample or your own text is written
+//     as a single-block `.txt`; an uploaded file goes through its normal reader,
+//     so a `.json` / `.html` / `.xliff` yields its translatable blocks (not its
+//     markup). Both are parsed by the engine into Blocks.
+//   • Each engine produces a real segmentation OVERLAY on those blocks. The
+//     rule/Unicode engines (SRX, UAX-29, Hybrid, Intl.Segmenter) run through
+//     `inspectAnnotated(segment:true)`, so the sentences are the actual
+//     stand-off `segmentation` overlay spans the engine attached. SaT and the
+//     local LLMs (which have no in-wasm engine) segment each block's source text
+//     and the same overlay shape is built back onto the block.
+//   • The columns render those blocks with their sentences, and the comparison
+//     is over the overlays themselves — where engines drew a boundary at the
+//     same place in the same block. There is no "correct" engine and no
+//     ground-truth diff; agreement is the only signal. Engine names match the
+//     CLI and the flow editor.
 
 interface SampleText {
   id: string;
@@ -63,7 +76,7 @@ interface EngineDef {
   id: string;
   label: string;
   kind: EngineKind;
-  /** Argument passed to the wasm `segment` endpoint (engine kind only). */
+  /** Segmentation engine name passed to `inspectAnnotated` (engine kind only). */
   engineArg?: string;
   /** Plugin to reflect/download in the navbar widget (sat). */
   plugin?: PluginId;
@@ -138,21 +151,32 @@ interface DlProgress {
   frac?: number;
 }
 
-interface EngineResult {
+/** A translatable block of the parsed input, shared across every engine. */
+interface BaseBlock {
+  id: string;
+  name?: string;
+  /** The block's source text (run sequence flattened to plain text). */
+  text: string;
+}
+
+/** One engine's segmentation of a single block — the overlay, viewed per block. */
+interface BlockSeg {
+  id: string;
+  name?: string;
+  text: string;
+  /** Sentence texts from the engine's `segmentation` overlay spans. */
   sentences: string[];
-  ms: number;
-  /** Cut offsets (code points) of this engine's boundaries against the source,
-   *  or null when the output can't be mapped back (e.g. an LLM reworded it). */
+  /** Boundary offsets (code points) within `text`, or null when the engine's
+   *  output can't be mapped back (e.g. an LLM reworded it) — shown, but kept out
+   *  of the agreement layer rather than misattributed. */
   cuts: number[] | null;
 }
 
-// Minimal shape of the booted runtime's synchronous segment endpoint.
-interface SegmentRuntime {
-  segment: (
-    text: string,
-    engine: string,
-    locale: string,
-  ) => { ok: boolean; segments?: { text: string }[]; error?: string };
+interface EngineResult {
+  blocks: BlockSeg[];
+  ms: number;
+  /** Total sentences across all blocks. */
+  total: number;
 }
 
 function fmtBytes(n?: number): string {
@@ -162,13 +186,37 @@ function fmtBytes(n?: number): string {
   return `${Math.round(n / 1e3)} KB`;
 }
 
+// runsText flattens a Block's run sequence to plain text — concatenating the
+// text runs and skipping inline codes — matching what the segmentation overlay
+// covers. (Plain-text samples have no codes; richer files lose only the inline
+// placeholders, which segmentation does not split on.)
+function runsText(runs?: Run[]): string {
+  if (!runs) return "";
+  let s = "";
+  for (const r of runs) if (typeof r.text === "string") s += r.text;
+  return s;
+}
+
+// flattenBlocks walks a ContentTree depth-first and returns its Block nodes in
+// document order — the same blocks every engine segments.
+function flattenBlocks(tree: ContentTree): ContentNode[] {
+  const out: ContentNode[] = [];
+  const walk = (nodes?: ContentNode[]) => {
+    for (const n of nodes ?? []) {
+      if (n.kind === "block") out.push(n);
+      walk(n.children);
+    }
+  };
+  walk(tree.root);
+  return out;
+}
+
 const isSpace = (c: string) => /\s/.test(c);
 
-// cutOffsets reconstructs an engine's sentence-boundary offsets (code-point
-// indices into `source`) from its returned sentences, tolerant of whitespace
-// differences. Returns null if the sentences don't map back to the source (an
-// LLM that reworded/normalised the text), so such an engine is shown but left
-// out of the agreement layer rather than misattributed.
+// cutOffsets maps an engine's sentence texts back to boundary offsets (code-point
+// indices) within `source`, tolerant of whitespace differences, so the agreement
+// layer can place markers on the shared block text. Returns null when the
+// sentences don't map back (an LLM that reworded/normalised the text).
 function cutOffsets(source: string, sentences: string[]): number[] | null {
   const cps = Array.from(source);
   let pos = 0;
@@ -204,6 +252,15 @@ function cutOffsets(source: string, sentences: string[]): number[] | null {
   return cuts;
 }
 
+// llmSentences runs a local LLM on one block's text and parses one-sentence-per
+// line output back to a sentence list.
+function parseLLMLines(out: string): string[] {
+  return out
+    .split("\n")
+    .map((l) => l.replace(/^\s*(?:\d+[.)]\s*|[-*]\s*)?/, "").trim())
+    .filter(Boolean);
+}
+
 function DownloadBar({ p }: { p?: DlProgress | null }): React.ReactElement | null {
   if (!p) return null;
   const frac = p.frac ?? (p.total ? (p.loaded ?? 0) / p.total : 0);
@@ -221,35 +278,34 @@ function DownloadBar({ p }: { p?: DlProgress | null }): React.ReactElement | nul
   );
 }
 
-// AgreementStrip renders the source once, with a marker at every boundary any
-// engine produced; the marker's strength = how many of the mapped engines split
-// there. Neutral: more engines agreeing = a stronger mark, never "correct".
-function AgreementStrip({
-  source,
-  results,
+// BlockAgreement renders one block's source text once, with a marker at every
+// boundary any engine's overlay drew; the marker's strength = how many of the
+// mapped engines split there. Neutral: more engines agreeing = a stronger mark,
+// never "correct".
+function BlockAgreement({
+  text,
+  cutsByEngine,
   labels,
 }: {
-  source: string;
-  results: Record<string, EngineResult>;
+  text: string;
+  cutsByEngine: Record<string, number[] | null>;
   labels: Record<string, string>;
 }): React.ReactElement | null {
-  const mapped = Object.entries(results).filter(([, r]) => r.cuts !== null);
-  if (mapped.length < 2 || !source) return null;
+  const mapped = Object.entries(cutsByEngine).filter(([, c]) => c !== null) as [string, number[]][];
+  if (mapped.length < 2 || !text) return null;
 
-  const cps = Array.from(source);
-  // Count engines splitting at each offset.
+  const cps = Array.from(text);
   const counts = new Map<number, number>();
-  for (const [, r] of mapped) for (const c of r.cuts!) counts.set(c, (counts.get(c) ?? 0) + 1);
+  for (const [, c] of mapped) for (const off of c) counts.set(off, (counts.get(off) ?? 0) + 1);
   const offsets = [...counts.keys()].sort((a, b) => a - b);
   const total = mapped.length;
 
-  // Build chunks of text separated by markers at each offset.
   const pieces: React.ReactNode[] = [];
   let prev = 0;
   offsets.forEach((off, k) => {
     pieces.push(<span key={`t${k}`}>{cps.slice(prev, off).join("")}</span>);
     const n = counts.get(off) ?? 0;
-    const strength = n / total; // 0..1
+    const strength = n / total;
     pieces.push(
       <span
         key={`m${k}`}
@@ -268,23 +324,16 @@ function AgreementStrip({
   });
   pieces.push(<span key="tlast">{cps.slice(prev).join("")}</span>);
 
-  // Cluster engines whose boundary sets are identical.
+  // Cluster engines whose boundary sets are identical for this block.
   const groups = new Map<string, string[]>();
-  for (const [id, r] of mapped) {
-    const key = JSON.stringify(r.cuts);
+  for (const [id, c] of mapped) {
+    const key = JSON.stringify(c);
     (groups.get(key) ?? groups.set(key, []).get(key)!).push(labels[id] ?? id);
   }
   const clusters = [...groups.values()].filter((g) => g.length > 1);
 
   return (
-    <div className="rounded-lg border border-border bg-card/40 p-3">
-      <div className="mb-2 flex items-baseline justify-between gap-2">
-        <span className="text-sm font-semibold">Where the engines agree</span>
-        <span className="text-xs text-muted-foreground">
-          Darker mark = more of the {total} engines split there. Not a verdict — there is no single
-          correct segmentation.
-        </span>
-      </div>
+    <div>
       <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">{pieces}</p>
       {clusters.length > 0 && (
         <ul className="mt-2 flex flex-col gap-0.5 text-xs text-muted-foreground">
@@ -299,18 +348,75 @@ function AgreementStrip({
   );
 }
 
+// AgreementPanel frames the per-block agreement views. Driven entirely from the
+// overlays each engine attached — agreement is the only signal, not a verdict.
+function AgreementPanel({
+  blocks,
+  results,
+  selectedIds,
+  labels,
+}: {
+  blocks: BaseBlock[];
+  results: Record<string, EngineResult>;
+  selectedIds: string[];
+  labels: Record<string, string>;
+}): React.ReactElement | null {
+  const cutsFor = (blockId: string): Record<string, number[] | null> => {
+    const m: Record<string, number[] | null> = {};
+    for (const id of selectedIds) {
+      const er = results[id];
+      if (!er) continue;
+      const bs = er.blocks.find((b) => b.id === blockId);
+      if (bs) m[id] = bs.cuts;
+    }
+    return m;
+  };
+
+  const panels = blocks
+    .map((b) => ({ block: b, cuts: cutsFor(b.id) }))
+    .filter(({ cuts }) => Object.values(cuts).filter((c) => c !== null).length >= 2);
+  if (panels.length === 0) return null;
+
+  const multi = blocks.length > 1;
+  return (
+    <div className="rounded-lg border border-border bg-card/40 p-3">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <span className="text-sm font-semibold">Where the engines agree</span>
+        <span className="text-xs text-muted-foreground">
+          Darker mark = more engines drew that boundary. Not a verdict — there is no single correct
+          segmentation.
+        </span>
+      </div>
+      <div className="flex flex-col gap-3">
+        {panels.map(({ block, cuts }, i) => (
+          <div key={block.id}>
+            {multi && (
+              <div className="mb-1 font-mono text-xs text-muted-foreground">
+                {block.name || `block ${i + 1}`}
+              </div>
+            )}
+            <BlockAgreement text={block.text} cutsByEngine={cuts} labels={labels} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function EngineColumn({
   def,
   result,
   busy,
   error,
   progress,
+  showBlockLabels,
 }: {
   def: EngineDef;
   result: EngineResult | null;
   busy: boolean;
   error: string | null;
   progress?: DlProgress | null;
+  showBlockLabels: boolean;
 }): React.ReactElement {
   return (
     <div className="flex w-64 shrink-0 flex-col rounded-lg border border-border p-3">
@@ -324,21 +430,31 @@ function EngineColumn({
       ) : !result ? (
         <p className="text-sm text-muted-foreground">Not run.</p>
       ) : (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex flex-col gap-1">
-            {result.sentences.map((s, i) => (
-              <div
-                key={i}
-                className="flex gap-2 rounded border border-border bg-card/40 px-2 py-1 text-sm"
-              >
-                <span className="select-none font-mono text-xs text-muted-foreground">{i + 1}</span>
-                <span className="text-foreground">{s}</span>
-              </div>
-            ))}
-          </div>
+        <div className="flex flex-col gap-2">
+          {result.blocks.map((b) => (
+            <div key={b.id} className="flex flex-col gap-1">
+              {showBlockLabels && (
+                <div className="font-mono text-[0.7rem] text-muted-foreground">
+                  {b.name || b.id}
+                </div>
+              )}
+              {b.sentences.map((s, i) => (
+                <div
+                  key={i}
+                  className="flex gap-2 rounded border border-border bg-card/40 px-2 py-1 text-sm"
+                >
+                  <span className="select-none font-mono text-xs text-muted-foreground">
+                    {i + 1}
+                  </span>
+                  <span className="text-foreground">{s}</span>
+                </div>
+              ))}
+            </div>
+          ))}
           <p className="text-xs text-muted-foreground">
-            {result.sentences.length} sentence{result.sentences.length === 1 ? "" : "s"} ·{" "}
-            {result.ms}&nbsp;ms
+            {result.total} sentence{result.total === 1 ? "" : "s"}
+            {result.blocks.length > 1 ? ` · ${result.blocks.length} blocks` : ""} · {result.ms}
+            &nbsp;ms
           </p>
         </div>
       )}
@@ -363,7 +479,7 @@ export default function SegmentationLabInner({
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const [dl, setDl] = useState<Record<string, DlProgress | null>>({});
-  const [comparedText, setComparedText] = useState("");
+  const [comparedBlocks, setComparedBlocks] = useState<BaseBlock[]>([]);
   const [running, setRunning] = useState(false);
 
   // Configure the shared plugin manager (idempotent) so bootEngine + ensurePlugin
@@ -372,10 +488,11 @@ export default function SegmentationLabInner({
     if (assets) configurePlugins(assets);
   }, [assets]);
 
-  // When a file is chosen, its text becomes the source.
+  // When a file is chosen it becomes the source; the textarea is cleared so the
+  // file's blocks (not its raw markup) are what gets parsed and segmented.
   const onFile = (v: FileSourceValue) => {
     setFile(v);
-    setText(v.content);
+    setText("");
   };
 
   const toggleEngine = (id: string) =>
@@ -386,77 +503,157 @@ export default function SegmentationLabInner({
       return next;
     });
 
-  async function runEngine(def: EngineDef, src: string): Promise<string[]> {
+  // Write the source into the engine's in-memory filesystem as a real document
+  // and parse it into Blocks. A sample / typed text becomes a single-block
+  // `.txt`; a file keeps its extension so its own reader runs. The parsed blocks
+  // are the shared unit every engine segments.
+  async function buildInput(rt: KapiRuntime): Promise<{ path: string; blocks: BaseBlock[] }> {
+    rt.vol.mkdirp("/seg");
+    let path: string;
+    if (file?.bytes && file.bytes.length > 0) {
+      const ext = file.filename.match(/\.[A-Za-z0-9]+$/)?.[0] ?? "";
+      path = `/seg/input${ext}`;
+      rt.vol.writeFile(path, file.bytes);
+    } else {
+      path = "/seg/input.txt";
+      rt.vol.writeFile(path, new TextEncoder().encode(text));
+    }
+    const res = await rt.inspect(path);
+    if (!res.ok || !res.tree) throw new Error(res.error ?? "could not read the input");
+    const blocks = flattenBlocks(res.tree as ContentTree)
+      .map((b) => ({ id: b.id, name: b.name, text: runsText(b.source) }))
+      .filter((b) => b.text.trim().length > 0);
+    if (blocks.length === 0) throw new Error("the input has no translatable text");
+    return { path, blocks };
+  }
+
+  // Run one engine over the parsed blocks, returning its per-block segmentation.
+  // Rule/Unicode engines read the real `segmentation` overlay produced by
+  // inspectAnnotated; SaT / LLM segment each block's text and the same shape is
+  // reconstructed onto the block.
+  async function runEngine(
+    def: EngineDef,
+    rt: KapiRuntime,
+    path: string,
+    base: BaseBlock[],
+  ): Promise<BlockSeg[]> {
     if (def.kind === "engine") {
       if (def.engineArg === "uax29" || def.engineArg === "hybrid") await loadICU4X();
       if (def.engineArg === "intl") installIntlSegmenter();
-      const rt = (await bootEngine()) as unknown as SegmentRuntime;
-      const res = rt.segment(src, def.engineArg ?? "", locale);
-      if (!res.ok) throw new Error(res.error ?? "segmentation failed");
-      return (res.segments ?? []).map((s) => s.text);
+      const res = await rt.inspectAnnotated(path, {
+        segment: true,
+        segmentEngine: def.engineArg ?? "",
+        term: false,
+        brand: false,
+        qa: false,
+      });
+      if (!res.ok || !res.tree) throw new Error(res.error ?? "segmentation failed");
+      const byId = new Map(flattenBlocks(res.tree as ContentTree).map((n) => [n.id, n]));
+      return base.map((b) => {
+        const node = byId.get(b.id);
+        const overlay = node?.overlays?.find(
+          (o) => o.type === "segmentation" && o.side === "source",
+        );
+        // No overlay (or a single span) means the engine found no internal
+        // boundary: the whole block is one sentence.
+        const sentences =
+          overlay && overlay.spans.length > 0 ? overlay.spans.map((s) => s.text ?? "") : [b.text];
+        return { ...b, sentences, cuts: cutOffsets(b.text, sentences) };
+      });
     }
+
     if (def.kind === "sat") {
       await ensurePlugin("sat");
       const { segmentSat } = await import("@neokapi/kapi-playground/satBridge");
-      return (await segmentSat(src)).sentences;
+      const out: BlockSeg[] = [];
+      for (const b of base) {
+        const sentences = (await segmentSat(b.text)).sentences;
+        out.push({ ...b, sentences, cuts: cutOffsets(b.text, sentences) });
+      }
+      return out;
     }
-    // llm — load the SPECIFIC model for this column, with its own progress.
+
+    // llm — load the SPECIFIC model for this column, with its own progress, then
+    // segment each block's text.
     const modelKey = def.modelKey ?? TEXT_MODEL_KEY;
     const { ensureLLM, generateLLMText } = await import("@neokapi/kapi-playground/gemmaBridge");
     await ensureLLM(modelKey, {
       onProgress: (p) => setDl((d) => ({ ...d, [def.id]: { loaded: p.loaded, total: p.total } })),
     });
-    const prompt =
-      "You split text into sentences. Copy the input EXACTLY — do not reword, " +
-      "rephrase, translate, expand abbreviations, or change any characters — and put " +
-      "each complete sentence on its own line, with nothing else.\n\n" +
-      "Example input: The cat sat. It was happy! Then it left.\n" +
-      "Example output:\nThe cat sat.\nIt was happy!\nThen it left.\n\n" +
-      "Now do the same for this input:\n" +
-      src;
-    const out = await generateLLMText(prompt, modelKey, { maxTokens: 512, temperature: 0 });
-    return out
-      .split("\n")
-      .map((l) => l.replace(/^\s*(?:\d+[.)]\s*|[-*]\s*)?/, "").trim())
-      .filter(Boolean);
+    const out: BlockSeg[] = [];
+    for (const b of base) {
+      const prompt =
+        "You split text into sentences. Copy the input EXACTLY — do not reword, " +
+        "rephrase, translate, expand abbreviations, or change any characters — and put " +
+        "each complete sentence on its own line, with nothing else.\n\n" +
+        "Example input: The cat sat. It was happy! Then it left.\n" +
+        "Example output:\nThe cat sat.\nIt was happy!\nThen it left.\n\n" +
+        "Now do the same for this input:\n" +
+        b.text;
+      const raw = await generateLLMText(prompt, modelKey, { maxTokens: 512, temperature: 0 });
+      const sentences = parseLLMLines(raw);
+      out.push({ ...b, sentences, cuts: cutOffsets(b.text, sentences) });
+    }
+    return out;
   }
 
   const runCompare = () => {
-    const src = text;
     const defs = ENGINES.filter((d) => selected.has(d.id));
-    if (defs.length === 0 || !src.trim()) return;
-    setComparedText(src);
+    const hasSource = file?.bytes?.length || text.trim();
+    if (defs.length === 0 || !hasSource) return;
     setRunning(true);
     setResults({});
     setErrors({});
+    setComparedBlocks([]);
     setBusy(Object.fromEntries(defs.map((d) => [d.id, true])));
     setDl({});
-    void Promise.allSettled(
-      defs.map(async (def) => {
-        const t0 = performance.now();
-        try {
-          const sentences = await runEngine(def, src);
-          setResults((r) => ({
-            ...r,
-            [def.id]: {
-              sentences,
-              ms: Math.round(performance.now() - t0),
-              cuts: cutOffsets(src, sentences),
-            },
-          }));
-        } catch (err) {
-          setErrors((e) => ({ ...e, [def.id]: err instanceof Error ? err.message : String(err) }));
-        } finally {
-          setBusy((b) => ({ ...b, [def.id]: false }));
-          setDl((d) => ({ ...d, [def.id]: null }));
-        }
-      }),
-    ).finally(() => setRunning(false));
+
+    void (async () => {
+      let rt: KapiRuntime;
+      let path: string;
+      let base: BaseBlock[];
+      try {
+        rt = (await bootEngine()) as KapiRuntime;
+        ({ path, blocks: base } = await buildInput(rt));
+      } catch (err) {
+        // Couldn't even read the input — surface it on every selected engine.
+        const msg = err instanceof Error ? err.message : String(err);
+        setErrors(Object.fromEntries(defs.map((d) => [d.id, msg])));
+        setBusy({});
+        setRunning(false);
+        return;
+      }
+      setComparedBlocks(base);
+      await Promise.allSettled(
+        defs.map(async (def) => {
+          const t0 = performance.now();
+          try {
+            const blocks = await runEngine(def, rt, path, base);
+            const total = blocks.reduce((n, b) => n + b.sentences.length, 0);
+            setResults((r) => ({
+              ...r,
+              [def.id]: { blocks, total, ms: Math.round(performance.now() - t0) },
+            }));
+          } catch (err) {
+            setErrors((e) => ({
+              ...e,
+              [def.id]: err instanceof Error ? err.message : String(err),
+            }));
+          } finally {
+            setBusy((b) => ({ ...b, [def.id]: false }));
+            setDl((d) => ({ ...d, [def.id]: null }));
+          }
+        }),
+      );
+      setRunning(false);
+    })();
   };
 
   const hasResults = Object.keys(results).length > 0;
   const selectedDefs = ENGINES.filter((d) => selected.has(d.id));
+  const selectedIds = useMemo(() => selectedDefs.map((d) => d.id), [selectedDefs]);
   const labels = useMemo(() => Object.fromEntries(ENGINES.map((d) => [d.id, d.label])), []);
+  const multiBlock = comparedBlocks.length > 1;
 
   // Download progress per engine: sat reflects the shared manager state (also
   // shown in the navbar widget); the LLM models report locally via onProgress.
@@ -473,11 +670,14 @@ export default function SegmentationLabInner({
 
   const downloadResults = () => {
     const payload = {
-      text: comparedText || text,
       locale,
+      blocks: comparedBlocks.map((b) => ({ id: b.id, name: b.name, text: b.text })),
       engines: selectedDefs
         .filter((d) => results[d.id])
-        .map((d) => ({ engine: d.id, sentences: results[d.id].sentences })),
+        .map((d) => ({
+          engine: d.id,
+          blocks: results[d.id].blocks.map((b) => ({ id: b.id, sentences: b.sentences })),
+        })),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -493,8 +693,9 @@ export default function SegmentationLabInner({
       {/* Header + single download */}
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Pick a source, choose the engines to compare, and run them on the same text — neokapi
-          segments it into sentences as a stand-off overlay on the content model.
+          Pick a source, choose the engines to compare, and run them on the same document — neokapi
+          parses it into blocks and each engine attaches its sentences as a stand-off segmentation
+          overlay.
         </p>
         <button
           type="button"
@@ -543,9 +744,16 @@ export default function SegmentationLabInner({
             setFile(null);
           }}
           rows={4}
+          placeholder={file ? "Using the file above — type here to switch back to text." : ""}
           className="w-full rounded border border-border bg-background p-2 text-sm"
           aria-label="Text to segment"
         />
+        {file && (
+          <p className="text-xs text-muted-foreground">
+            Source: <span className="text-foreground">{file.label}</span> — parsed by its own reader
+            into translatable blocks.
+          </p>
+        )}
       </div>
 
       {/* Engine selection + Run */}
@@ -578,7 +786,7 @@ export default function SegmentationLabInner({
           <button
             type="button"
             onClick={runCompare}
-            disabled={running || selected.size === 0 || !text.trim()}
+            disabled={running || selected.size === 0 || !(file?.bytes?.length || text.trim())}
             className="ml-auto rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             {running
@@ -588,8 +796,15 @@ export default function SegmentationLabInner({
         </div>
       </div>
 
-      {/* Agreement layer (neutral consensus) */}
-      {hasResults && <AgreementStrip source={comparedText} results={results} labels={labels} />}
+      {/* Agreement layer (neutral consensus over the overlays, per block) */}
+      {hasResults && (
+        <AgreementPanel
+          blocks={comparedBlocks}
+          results={results}
+          selectedIds={selectedIds}
+          labels={labels}
+        />
+      )}
 
       {/* Side-by-side columns, one per selected engine */}
       {(hasResults || running) && (
@@ -602,6 +817,7 @@ export default function SegmentationLabInner({
               busy={!!busy[d.id]}
               error={errors[d.id] ?? null}
               progress={progressFor(d)}
+              showBlockLabels={multiBlock}
             />
           ))}
         </div>
