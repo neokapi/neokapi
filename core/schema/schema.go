@@ -247,6 +247,13 @@ type PropertySchema struct {
 	// Each option has a value and a human label.
 	Options []OptionItem `json:"options,omitempty"`
 
+	// OptionSets supplies options that depend on another field's value — a
+	// cascading select (e.g. a provider list that varies by the selected
+	// engine). The effective options are the base Options plus the options of
+	// every set whose When condition holds; the UI re-filters as the referenced
+	// field changes. Flat consumers (CLI/docs) fall back to the union of all sets.
+	OptionSets []ConditionalOptions `json:"ui:option-sets,omitempty"`
+
 	// UI rendering hints (ui: prefix)
 	Widget            string            `json:"ui:widget,omitempty"`
 	WidgetOptions     map[string]any    `json:"ui:widget-options,omitempty"`
@@ -273,6 +280,13 @@ type PropertySchema struct {
 type OptionItem struct {
 	Value any    `json:"value"`
 	Label string `json:"label"`
+}
+
+// ConditionalOptions is one branch of a cascading select: a set of Options
+// offered only when its When condition holds (see PropertySchema.OptionSets).
+type ConditionalOptions struct {
+	When    *ConditionExpr `json:"when,omitempty"`
+	Options []OptionItem   `json:"options"`
 }
 
 // PathAnnotation describes a property that references a file path or named resource.

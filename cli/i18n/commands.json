@@ -427,7 +427,7 @@
         },
         "translate": {
           "example": "  kapi translate messages.json --target-lang fr\n  kapi translate app.xliff --target-lang de --provider deepl\n  kapi translate app.xliff --target-lang de -o app.de.xliff",
-          "short": "Translate content with an LLM or machine-translation provider (select with --provider)"
+          "short": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)"
         },
         "translation-comparison": {
           "short": "Translation Comparison"

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"slices"
+	"sort"
 
 	"github.com/neokapi/neokapi/core/model"
 	mttools "github.com/neokapi/neokapi/core/mt/tools"
@@ -33,24 +34,36 @@ func isMTProvider(id string) bool {
 	})
 }
 
+// Translate is a two-level group: an engine discriminator (AI LLM vs machine
+// translation) selects which providers are offered, and the provider drives
+// runtime dispatch (NewTranslateFromConfig keys on provider, deriving the engine
+// from it). The engine field exists for the cascading UI — it filters the
+// provider list — and as the group discriminator that gates the MT credentials.
+const (
+	translateEngineField = "engine"
+	translateEngineLLM   = "llm"
+	translateEngineMT    = "mt"
+)
+
 // mtProviderExtraFields lists the credential fields each MT provider needs
-// beyond the shared apiKey. Providers absent here (deepl, modernmt, and every
-// LLM provider) contribute only a selector option — their config is the common
-// apiKey/model already on the base schema.
+// beyond the shared apiKey. Providers absent here (deepl, modernmt) contribute
+// only a selector option — their config is the common apiKey/model already on
+// the base schema.
 var mtProviderExtraFields = map[string][]string{
 	"microsoft": {"subscriptionKey", "region"},
 	"google":    {"projectId"},
 	"mymemory":  {"email"},
 }
 
-// translateCommonSchema is the translate group's shared config: the provider
-// selector plus the apiKey/model and batch options common to every provider.
+// translateCommonSchema is the translate group's shared config: the engine
+// selector, the provider selector (its options cascade off the engine), and the
+// apiKey/model/batch options common to every provider.
 func translateCommonSchema() *schema.ComponentSchema {
-	return schema.FromStruct(&AITranslateConfig{}, schema.ToolMeta{
+	s := schema.FromStruct(&AITranslateConfig{}, schema.ToolMeta{
 		ID:                    "translate",
 		Category:              schema.CategoryTranslation,
 		DisplayName:           "Translate",
-		Description:           "Translate content with an LLM or machine-translation provider (select with --provider)",
+		Description:           "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
 		Tags:                  []string{"translation"},
 		WritesOutput:          true,
 		DefaultParallelBlocks: 5,
@@ -59,40 +72,91 @@ func translateCommonSchema() *schema.ComponentSchema {
 		Produces:              []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
 		SideEffects:           []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	})
+
+	// Engine selector (the group discriminator).
+	engineOrder := 0
+	s.Properties[translateEngineField] = schema.PropertySchema{
+		Type:        "string",
+		Title:       "Engine",
+		Description: "Translation engine: an AI model or a machine-translation provider",
+		Default:     translateEngineLLM,
+		Widget:      "select",
+		Order:       &engineOrder,
+		Options: []schema.OptionItem{
+			{Value: translateEngineLLM, Label: "AI (LLM)"},
+			{Value: translateEngineMT, Label: "Machine translation"},
+		},
+	}
+
+	// Provider selector: the flat union of all providers (for CLI/docs), plus
+	// cascading option-sets so the UI offers only the providers for the selected
+	// engine.
+	if p, ok := s.Properties["provider"]; ok {
+		p.Widget = "select"
+		p.Options = allTranslateProviders()
+		p.OptionSets = []schema.ConditionalOptions{
+			{When: &schema.ConditionExpr{Field: translateEngineField, Eq: translateEngineLLM}, Options: aiProviderOptions()},
+			{When: &schema.ConditionExpr{Field: translateEngineField, Eq: translateEngineMT}, Options: mtProviderOptions()},
+		}
+		s.Properties["provider"] = p
+	}
+
+	// Put the engine selector at the front of the provider group so the member
+	// sections (MT credentials) insert directly beneath the selectors.
+	for i := range s.Groups {
+		if slices.Contains(s.Groups[i].Fields, "provider") {
+			s.Groups[i].Fields = append([]string{translateEngineField}, s.Groups[i].Fields...)
+			break
+		}
+	}
+	return s
 }
 
-// translateMembers maps every LLM and MT provider to a group member. Most
-// contribute only a selector option (their config is the common apiKey/model);
-// the MT providers with extra credentials carry their own param schema.
+// translateMembers are the two engines. The LLM engine adds no fields beyond the
+// common apiKey/model; the MT engine carries every MT provider's extra
+// credentials, each gated on its provider so only the selected provider's fields
+// show.
 func translateMembers() []registry.ToolGroupMember {
 	mt := schema.FromStruct(&mttools.MTTranslateConfig{}, schema.ToolMeta{ID: "translate-mt"})
-	ms := make([]registry.ToolGroupMember, 0)
-	for _, opt := range allTranslateProviders() {
-		name, _ := opt.Value.(string)
-		m := registry.ToolGroupMember{Name: name, Label: opt.Label}
-		if fields, ok := mtProviderExtraFields[name]; ok {
-			props := make(map[string]schema.PropertySchema, len(fields))
-			for i, f := range fields {
-				p := mt.Properties[f]
-				ord := (i + 1) * 10
-				p.Order = &ord
-				props[f] = p
-			}
-			m.Schema = &schema.ComponentSchema{Type: "object", Properties: props}
-		}
-		ms = append(ms, m)
+	provs := make([]string, 0, len(mtProviderExtraFields))
+	for prov := range mtProviderExtraFields {
+		provs = append(provs, prov)
 	}
-	return ms
+	sort.Strings(provs)
+
+	props := make(map[string]schema.PropertySchema)
+	order := 0
+	for _, prov := range provs {
+		gate := &schema.ConditionExpr{Field: "provider", Eq: prov}
+		for _, f := range mtProviderExtraFields[prov] {
+			p := mt.Properties[f]
+			order += 10
+			ord := order
+			p.Order = &ord
+			p.Visible = gate
+			props[f] = p
+		}
+	}
+
+	return []registry.ToolGroupMember{
+		{Name: translateEngineLLM, Label: "AI (LLM)", Description: "Translate with a large language model."},
+		{
+			Name:        translateEngineMT,
+			Label:       "Machine translation",
+			Description: "Translate with a dedicated machine-translation provider.",
+			Schema:      &schema.ComponentSchema{Type: "object", Properties: props},
+		},
+	}
 }
 
-// translateGroup is the translate tool group: provider members (every LLM + MT
-// provider), anthropic as the default, with each provider's extra credentials
-// (Azure key/region, Google project id, MyMemory email) shown only when selected.
+// translateGroup is the translate tool group: an engine discriminator (LLM / MT,
+// LLM default) whose provider list cascades off the engine, with each MT
+// provider's extra credentials shown only when that provider is selected.
 func translateGroup() registry.ToolGroupDef {
 	return registry.ToolGroupDef{
 		Name:          "translate",
-		Discriminator: "provider",
-		Default:       "anthropic",
+		Discriminator: translateEngineField,
+		Default:       translateEngineLLM,
 		Common:        translateCommonSchema(),
 		Members:       translateMembers(),
 		ConfigFactory: NewTranslateFromConfig,
@@ -253,13 +317,20 @@ func aiProviderOptions() []schema.OptionItem {
 	return opts
 }
 
-// allTranslateProviders lists every LLM provider followed by every MT engine.
-func allTranslateProviders() []schema.OptionItem {
-	opts := aiProviderOptions()
+// mtProviderOptions lists every registered MT provider as enum options.
+func mtProviderOptions() []schema.OptionItem {
+	opts := make([]schema.OptionItem, 0, len(mttools.Providers))
 	for _, p := range mttools.Providers {
 		opts = append(opts, schema.OptionItem{Value: string(p.ID), Label: p.Label})
 	}
 	return opts
+}
+
+// allTranslateProviders lists every LLM provider followed by every MT engine —
+// the flat union used by CLI flags and docs (the UI uses the engine-cascading
+// option-sets instead).
+func allTranslateProviders() []schema.OptionItem {
+	return append(aiProviderOptions(), mtProviderOptions()...)
 }
 
 func removeStrings(in []string, drop ...string) []string {

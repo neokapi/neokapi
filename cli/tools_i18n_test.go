@@ -68,7 +68,7 @@ func TestListTools_LocalizesDisplayName(t *testing.T) {
 	// Swap in a French translator with a single-tool catalog.
 	cat := makeMoCatalog(t, "fr-FR",
 		[3]string{"tools.translate.displayName", "Translate", "Traduction IA"},
-		[3]string{"tools.translate.description", "Translate content with an LLM or machine-translation provider (select with --provider)", "Traduire avec un LLM"},
+		[3]string{"tools.translate.description", "Translate content with an LLM or machine-translation provider (select an engine, then a provider)", "Traduire avec un LLM"},
 	)
 	app.translator = i18n.NewTranslator("fr-FR", cat)
 

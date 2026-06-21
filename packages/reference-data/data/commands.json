@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T12:07:44Z",
+  "generatedAt": "2026-06-21T13:11:32Z",
   "commands": [
     {
       "id": "ai-entity-extract",
@@ -5978,7 +5978,7 @@
         "translate"
       ],
       "use": "translate [files...]",
-      "short": "Translate content with an LLM or machine-translation provider (select with --provider)",
+      "short": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
       "groupID": "translation",
       "flags": [
         {
@@ -6020,6 +6020,12 @@
           "shorthand": "e",
           "usage": "input file encoding",
           "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "engine",
+          "usage": "Translation engine: an AI model or a machine-translation provider (AI (LLM), Machine translation)",
+          "default": "llm",
           "type": "string"
         },
         {

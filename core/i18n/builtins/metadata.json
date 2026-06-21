@@ -932,7 +932,7 @@
     },
     "translate": {
       "displayName": "Translate",
-      "description": "Translate content with an LLM or machine-translation provider (select with --provider)",
+      "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
       "category": "translation",
       "properties": {
         "apiKey": {
@@ -950,6 +950,22 @@
         "email": {
           "title": "Email",
           "description": "Account email for higher rate limits (mymemory)"
+        },
+        "engine": {
+          "title": "Engine",
+          "description": "Translation engine: an AI model or a machine-translation provider",
+          "options": {
+            "llm": {
+              "label": "AI (LLM)"
+            },
+            "mt": {
+              "label": "Machine translation"
+            }
+          },
+          "enumDescriptions": {
+            "llm": "Translate with a large language model.",
+            "mt": "Translate with a dedicated machine-translation provider."
+          }
         },
         "model": {
           "title": "Model",
@@ -1012,14 +1028,8 @@
         }
       },
       "groups": {
-        "google": {
-          "label": "Google Translate"
-        },
-        "microsoft": {
-          "label": "Microsoft Translator"
-        },
-        "mymemory": {
-          "label": "MyMemory"
+        "mt": {
+          "label": "Machine translation"
         },
         "provider": {
           "label": "Provider"

@@ -1,6 +1,7 @@
 import { FormToggle } from "../ui/form";
 import type { PropertySchema, ToolDocParam } from "./types";
 import { evaluateCondition } from "./hooks/useConditionalVisibility";
+import { resolveEffectiveOptions } from "./hooks/resolveOptions";
 import { useFieldEnabled } from "./hooks/useFieldEnabled";
 import { usePresetComparison } from "./hooks/usePresetComparison";
 import { resolveWidgetName } from "./registry";
@@ -70,7 +71,9 @@ export function PropertyField({
   const label = schema.title || humanizeKey(name);
   const resolved = value ?? schema.default;
   const widget = resolveWidgetName(schema["ui:widget"]);
-  const options = schema.options;
+  // A cascading select declares option-sets gated by another field's value (see
+  // resolveEffectiveOptions); otherwise this is just the field's own options.
+  const options = resolveEffectiveOptions(schema, allValues, allProperties);
   const enumLabels = schema["ui:enum-labels"];
   const effectiveEnum = options ? options.map((o) => o.value) : schema.enum;
   const getLabel = (val: unknown): string => enumOptionLabel(val, options, enumLabels);

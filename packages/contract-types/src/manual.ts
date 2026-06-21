@@ -8,13 +8,7 @@
 // structural fields ($ref, $defs, oneOf, additionalProperties, …). Keeping the
 // union here means a single declaration nothing has to diverge from.
 
-import type {
-  FormatMeta,
-  LayoutHints,
-  OptionItem,
-  PathAnnotation,
-  ToolMeta,
-} from "./contract.gen";
+import type { FormatMeta, LayoutHints, OptionItem, PathAnnotation, ToolMeta } from "./contract.gen";
 
 /**
  * Condition expression for `ui:visible` / `ui:enabled`. Supports simple field
@@ -46,6 +40,16 @@ export interface ParameterGroup {
 }
 
 /**
+ * One branch of a cascading select: options offered only when `when` holds.
+ * Mirrors core/schema.ConditionalOptions (see {@link PropertySchema}'s
+ * `ui:option-sets`).
+ */
+export interface ConditionalOptions {
+  when?: ConditionExpr;
+  options: OptionItem[];
+}
+
+/**
  * A single parameter's schema. Union of the native schema language
  * (core/schema.PropertySchema), the okapi-bridge `x-okapi-*` extensions, and the
  * JSON-Schema structural fields the bridge emits.
@@ -66,6 +70,10 @@ export interface PropertySchema {
 
   // Labeled enum options (consolidated from enum + ui:enum-labels)
   options?: OptionItem[];
+
+  // Cascading select: options that depend on another field's value. The UI uses
+  // the matching set's options; flat consumers fall back to `options`.
+  "ui:option-sets"?: ConditionalOptions[];
 
   // UI rendering hints (ui: prefix)
   "ui:widget"?: string;

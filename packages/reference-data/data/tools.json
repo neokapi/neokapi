@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T12:07:44Z",
+  "generatedAt": "2026-06-21T13:11:32Z",
   "kind": "tool",
   "entries": [
     {
@@ -5275,13 +5275,13 @@
       "schema": {
         "$id": "translate",
         "title": "Translate",
-        "description": "Translate content with an LLM or machine-translation provider (select with --provider)",
+        "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
         "type": "object",
         "toolMeta": {
           "id": "translate",
           "category": "translation",
           "displayName": "Translate",
-          "description": "Translate content with an LLM or machine-translation provider (select with --provider)",
+          "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
           "tags": [
             "translation"
           ],
@@ -5308,43 +5308,24 @@
             "id": "provider",
             "label": "Provider",
             "fields": [
+              "engine",
               "provider",
               "apiKey",
               "model"
             ]
           },
           {
-            "id": "google",
-            "label": "Google Translate",
+            "id": "mt",
+            "label": "Machine translation",
             "fields": [
-              "projectId"
-            ],
-            "ui:visible": {
-              "field": "provider",
-              "eq": "google"
-            }
-          },
-          {
-            "id": "microsoft",
-            "label": "Microsoft Translator",
-            "fields": [
+              "projectId",
               "subscriptionKey",
-              "region"
-            ],
-            "ui:visible": {
-              "field": "provider",
-              "eq": "microsoft"
-            }
-          },
-          {
-            "id": "mymemory",
-            "label": "MyMemory",
-            "fields": [
+              "region",
               "email"
             ],
             "ui:visible": {
-              "field": "provider",
-              "eq": "mymemory"
+              "field": "engine",
+              "eq": "mt"
             }
           }
         ],
@@ -5372,7 +5353,33 @@
             "type": "string",
             "title": "Email",
             "description": "Account email for higher rate limits (mymemory)",
-            "ui:order": 10
+            "ui:visible": {
+              "field": "provider",
+              "eq": "mymemory"
+            },
+            "ui:order": 40
+          },
+          "engine": {
+            "type": "string",
+            "title": "Engine",
+            "description": "Translation engine: an AI model or a machine-translation provider",
+            "default": "llm",
+            "options": [
+              {
+                "value": "llm",
+                "label": "AI (LLM)"
+              },
+              {
+                "value": "mt",
+                "label": "Machine translation"
+              }
+            ],
+            "ui:widget": "select",
+            "ui:enum-descriptions": {
+              "llm": "Translate with a large language model.",
+              "mt": "Translate with a dedicated machine-translation provider."
+            },
+            "ui:order": 0
           },
           "model": {
             "type": "string",
@@ -5383,6 +5390,10 @@
             "type": "string",
             "title": "Project ID",
             "description": "Google Cloud project ID (google)",
+            "ui:visible": {
+              "field": "provider",
+              "eq": "google"
+            },
             "ui:order": 10
           },
           "provider": {
@@ -5440,13 +5451,83 @@
                 "label": "MyMemory"
               }
             ],
+            "ui:option-sets": [
+              {
+                "when": {
+                  "field": "engine",
+                  "eq": "llm"
+                },
+                "options": [
+                  {
+                    "value": "anthropic",
+                    "label": "Anthropic"
+                  },
+                  {
+                    "value": "openai",
+                    "label": "OpenAI"
+                  },
+                  {
+                    "value": "gemini",
+                    "label": "Gemini"
+                  },
+                  {
+                    "value": "azureopenai",
+                    "label": "Azure OpenAI"
+                  },
+                  {
+                    "value": "ollama",
+                    "label": "Ollama"
+                  },
+                  {
+                    "value": "demo",
+                    "label": "Demo (illustrative)"
+                  },
+                  {
+                    "value": "gemma",
+                    "label": "Gemma (local)"
+                  }
+                ]
+              },
+              {
+                "when": {
+                  "field": "engine",
+                  "eq": "mt"
+                },
+                "options": [
+                  {
+                    "value": "deepl",
+                    "label": "DeepL"
+                  },
+                  {
+                    "value": "google",
+                    "label": "Google Translate"
+                  },
+                  {
+                    "value": "microsoft",
+                    "label": "Microsoft Translator"
+                  },
+                  {
+                    "value": "modernmt",
+                    "label": "ModernMT"
+                  },
+                  {
+                    "value": "mymemory",
+                    "label": "MyMemory"
+                  }
+                ]
+              }
+            ],
             "ui:widget": "select"
           },
           "region": {
             "type": "string",
             "title": "Region",
             "description": "Azure region (microsoft)",
-            "ui:order": 20
+            "ui:visible": {
+              "field": "provider",
+              "eq": "microsoft"
+            },
+            "ui:order": 30
           },
           "skipMatched": {
             "type": "boolean",
@@ -5459,7 +5540,11 @@
             "title": "Subscription Key",
             "description": "Azure subscription key (microsoft)",
             "ui:widget": "password",
-            "ui:order": 10
+            "ui:visible": {
+              "field": "provider",
+              "eq": "microsoft"
+            },
+            "ui:order": 20
           }
         }
       },
@@ -5546,67 +5631,19 @@
         ]
       },
       "group": {
-        "discriminator": "provider",
-        "default": "anthropic",
+        "discriminator": "engine",
+        "default": "llm",
         "members": [
           {
-            "name": "anthropic",
-            "label": "Anthropic",
+            "name": "llm",
+            "label": "AI (LLM)",
+            "description": "Translate with a large language model.",
             "hasSchema": false
           },
           {
-            "name": "openai",
-            "label": "OpenAI",
-            "hasSchema": false
-          },
-          {
-            "name": "gemini",
-            "label": "Gemini",
-            "hasSchema": false
-          },
-          {
-            "name": "azureopenai",
-            "label": "Azure OpenAI",
-            "hasSchema": false
-          },
-          {
-            "name": "ollama",
-            "label": "Ollama",
-            "hasSchema": false
-          },
-          {
-            "name": "demo",
-            "label": "Demo (illustrative)",
-            "hasSchema": false
-          },
-          {
-            "name": "gemma",
-            "label": "Gemma (local)",
-            "hasSchema": false
-          },
-          {
-            "name": "deepl",
-            "label": "DeepL",
-            "hasSchema": false
-          },
-          {
-            "name": "google",
-            "label": "Google Translate",
-            "hasSchema": true
-          },
-          {
-            "name": "microsoft",
-            "label": "Microsoft Translator",
-            "hasSchema": true
-          },
-          {
-            "name": "modernmt",
-            "label": "ModernMT",
-            "hasSchema": false
-          },
-          {
-            "name": "mymemory",
-            "label": "MyMemory",
+            "name": "mt",
+            "label": "Machine translation",
+            "description": "Translate with a dedicated machine-translation provider.",
             "hasSchema": true
           }
         ]
