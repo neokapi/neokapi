@@ -100,7 +100,7 @@ func BuildPreviewFromBlockIndex(blockIndexJSON string) string {
 			if content, ok := dp.Properties["content"]; ok && content != "" {
 				switch dp.Name {
 				case "code-block":
-					lang := dp.Properties["language"]
+					lang := dp.Properties[model.PropCodeLanguage]
 					if lang != "" {
 						fmt.Fprintf(&body, "<pre><code class=\"language-%s\">%s</code></pre>\n", lang, content)
 					} else {

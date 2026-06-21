@@ -171,14 +171,26 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 	return nil
 }
 
-// blockText renders a block's content: the target runs for the active locale
-// when present, otherwise the source runs, with inline markup spliced back via
-// RenderRunsWithData.
+// blockText renders a block's content for the byte-exact skeleton path: the
+// target runs for the active locale when present, otherwise the source runs,
+// with inline markup spliced back via RenderRunsWithData (the run's captured
+// source Data).
 func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		return model.RenderRunsWithData(block.TargetRuns(w.Locale))
 	}
 	return model.RenderRunsWithData(block.Source)
+}
+
+// blockTextNormalized renders a block's content for the normalized
+// (cross-format) path: inline markup is authored from each run's canonical Type
+// (renderInlineAsciidoc), not echoed from the source format's Data, so a foreign
+// document projects to clean AsciiDoc.
+func (w *Writer) blockTextNormalized(block *model.Block) string {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		return renderInlineAsciidoc(block.TargetRuns(w.Locale))
+	}
+	return renderInlineAsciidoc(block.Source)
 }
 
 // writeFromEvents renders a normalized AsciiDoc document from the ordered block
@@ -248,8 +260,14 @@ func (w *Writer) writeFromEvents(events []*model.Part) error {
 // writeBlockNormalized renders one block with canonical AsciiDoc markers keyed
 // on its semantic role.
 func (w *Writer) writeBlockNormalized(block *model.Block, sep func() error) error {
-	text := w.blockText(block)
 	role := block.SemanticRole()
+
+	// Code blocks render their verbatim source text (no inline-markup
+	// projection); every other role authors inline markup from canonical types.
+	text := w.blockTextNormalized(block)
+	if role == model.RoleCode {
+		text = w.blockText(block)
+	}
 
 	switch role {
 	case model.RoleTableHeader, model.RoleTableCell:
@@ -266,9 +284,8 @@ func (w *Writer) writeBlockNormalized(block *model.Block, sep func() error) erro
 	}
 
 	if role == model.RoleCode {
-		// Non-translatable verbatim content. A fenced block (listing/literal)
-		// re-synthesizes its delimiters; an indented literal paragraph carries
-		// its own significant indent in the body.
+		// Non-translatable verbatim content. A fenced block carrying its native
+		// AsciiDoc delimiters re-synthesizes them for a byte-faithful round-trip.
 		if fence := block.Properties["asciidoc.fence"]; fence != "" {
 			body := text
 			if !strings.HasSuffix(body, "\n") {
@@ -277,7 +294,18 @@ func (w *Writer) writeBlockNormalized(block *model.Block, sep func() error) erro
 			_, err := fmt.Fprintf(w.Output, "%s\n%s%s\n", fence, body, fence)
 			return err
 		}
-		_, err := fmt.Fprintf(w.Output, "%s\n", text)
+		// Cross-format (no native fence): synthesize a listing block, carrying
+		// the source language as a [source,<lang>] attribute when known so the
+		// do-not-translate / syntax signal survives the conversion.
+		body := text
+		if !strings.HasSuffix(body, "\n") {
+			body += "\n"
+		}
+		if lang := block.CodeLanguage(); lang != "" {
+			_, err := fmt.Fprintf(w.Output, "[source,%s]\n----\n%s----\n", lang, body)
+			return err
+		}
+		_, err := fmt.Fprintf(w.Output, "----\n%s----\n", body)
 		return err
 	}
 

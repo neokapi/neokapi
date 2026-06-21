@@ -34,12 +34,12 @@ import (
 //     link switch; xliff reader.go ctypeToSpanType; jsx rich-jsx pack which
 //     extends common-formatting).
 //
-//   - IMAGE is intentionally NOT in the shared fixture: the markdown reader
-//     emits a format-local "link:image" (core/formats/markdown/reader.go),
-//     whereas html/xliff emit the canonical "media:image". The two readers
-//     genuinely diverge on this construct, so including image would weaken
-//     the cross-format equality. The divergence is recorded as a `lossy`
-//     read cell in core/formats/markdown/vocabulary.yaml.
+//   - IMAGE is not in the shared fixture only to keep it minimal; the former
+//     markdown divergence (a format-local "link:image") has been resolved —
+//     the markdown reader now emits the canonical "media:image" matching
+//     html/xliff (core/formats/markdown/reader.go), carrying src/alt/title as
+//     format-neutral Attrs. Cross-format image fidelity is covered by the
+//     core/formats TestCrossFormat_* suite.
 //
 //   - OPENXML is excluded from this table: its native fixture is a .docx
 //     binary, which needs an in-test OOXML/zip builder this file does not

@@ -79,6 +79,23 @@ func (b *runBuilder) AddPcClose(id, semType, subType, data, equiv string) {
 	}})
 }
 
+// SetLastAttrs attaches format-neutral attributes (href/src/alt/title) to the
+// most recently appended PcOpen or Ph run, so a writer for a different format
+// can re-synthesize a link/image natively on the cross-format path. No-op when
+// attrs is empty or the last run is neither a PcOpen nor a Ph.
+func (b *runBuilder) SetLastAttrs(attrs map[string]string) {
+	if len(attrs) == 0 || len(b.runs) == 0 {
+		return
+	}
+	last := &b.runs[len(b.runs)-1]
+	switch {
+	case last.PcOpen != nil:
+		last.PcOpen.Attrs = attrs
+	case last.Ph != nil:
+		last.Ph.Attrs = attrs
+	}
+}
+
 // HasInlineCodes reports whether any non-text run (placeholder, paired
 // code open/close) has been accumulated. Used by the reader to decide
 // whether to emit a runs-backed segment.

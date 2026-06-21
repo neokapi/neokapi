@@ -75,7 +75,7 @@ func WriteMarkdownDataPreview(buf *strings.Builder, data *model.Data) {
 
 	switch dataType {
 	case "code-block":
-		lang := data.Properties["language"]
+		lang := data.Properties[model.PropCodeLanguage]
 		if lang != "" {
 			fmt.Fprintf(buf, "<pre><code class=\"language-%s\">%s</code></pre>\n", lang, content)
 		} else {

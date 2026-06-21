@@ -30,14 +30,35 @@ var blockRoleTag = map[string]string{
 	model.RolePageFooter: "p",
 }
 
-// inlineFmtTag maps an inline run's vocabulary type to its HTML formatting tag.
-var inlineFmtTag = map[string]string{
-	"fmt:bold":          "strong",
-	"fmt:italic":        "em",
-	"fmt:underline":     "u",
-	"fmt:strikethrough": "s",
-	"fmt:superscript":   "sup",
-	"fmt:subscript":     "sub",
+// htmlInlineTag maps a canonical inline run Type to its HTML open/close tags.
+// This is the HTML format's own projection of the shared canonical type
+// vocabulary (core/model/vocabularies); link:hyperlink and media:image are
+// handled separately in renderInlineHTML because they carry attributes.
+// TestHTMLInlineTagCoverage asserts this table covers every attribute-free
+// formatting type the vocabulary defines, so a newly added type cannot silently
+// fall through to plain text. The tags are the semantic document forms
+// (<strong>/<em>), distinct from the terser <b>/<i> the vocabulary's `html`
+// rendering uses for the MT wire (core/model/run_semantic_html.go).
+var htmlInlineTag = map[string][2]string{
+	"fmt:bold":          {"<strong>", "</strong>"},
+	"fmt:italic":        {"<em>", "</em>"},
+	"fmt:underline":     {"<u>", "</u>"},
+	"fmt:strikethrough": {"<s>", "</s>"},
+	"fmt:highlight":     {"<mark>", "</mark>"},
+	"fmt:code":          {"<code>", "</code>"},
+	"fmt:superscript":   {"<sup>", "</sup>"},
+	"fmt:subscript":     {"<sub>", "</sub>"},
+	"fmt:bidi":          {`<bdi dir="rtl">`, "</bdi>"},
+	"fmt:handwriting":   {`<span class="handwriting">`, "</span>"},
+}
+
+// htmlAttr renders ` name="value"` (HTML-escaped) for a non-empty value, or ""
+// when the value is empty — so absent attributes leave no trace in the markup.
+func htmlAttr(name, val string) string {
+	if val == "" {
+		return ""
+	}
+	return " " + name + `="` + html.EscapeString(val) + `"`
 }
 
 // semanticState tracks the open container stack while emitting.
@@ -289,7 +310,11 @@ func (w *Writer) emitBlock(st *semanticState, b *model.Block) error {
 		level := min(max(headingLevel(b), 1), 6)
 		return w.print(fmt.Sprintf("<h%d>%s</h%d>", level, body, level))
 	case model.RoleCode:
-		return w.print("<pre><code>" + body + "</code></pre>")
+		openTag := "<code>"
+		if lang := b.CodeLanguage(); lang != "" {
+			openTag = `<code class="language-` + html.EscapeString(lang) + `">`
+		}
+		return w.print("<pre>" + openTag + body + "</code></pre>")
 	case model.RoleCaption:
 		tag := "figcaption"
 		if st.top() == "table" {
@@ -373,14 +398,28 @@ func (w *Writer) renderInlineHTML(b *model.Block) string {
 		case r.Text != nil:
 			sb.WriteString(html.EscapeString(r.Text.Text))
 		case r.PcOpen != nil:
-			if tag := inlineFmtTag[r.PcOpen.Type]; tag != "" {
-				sb.WriteString("<" + tag + ">")
-				open = append(open, "</"+tag+">")
-			} else if strings.HasPrefix(strings.TrimSpace(r.PcOpen.Data), "<") {
-				sb.WriteString(r.PcOpen.Data)
-				open = append(open, "") // closing comes from the matching PcClose Data
-			} else {
-				open = append(open, "")
+			switch r.PcOpen.Type {
+			case "link:hyperlink":
+				sb.WriteString("<a" +
+					htmlAttr("href", r.PcOpen.Attr(model.AttrHref)) +
+					htmlAttr("title", r.PcOpen.Attr(model.AttrTitle)) + ">")
+				open = append(open, "</a>")
+			case "media:image", "link:image":
+				// Paired image (e.g. read from Markdown): the alt text is the
+				// content. Open the alt attribute; the content fills it; the
+				// matching close finishes the void element.
+				sb.WriteString("<img" + htmlAttr("src", r.PcOpen.Attr(model.AttrSrc)) + ` alt="`)
+				open = append(open, `"`+htmlAttr("title", r.PcOpen.Attr(model.AttrTitle))+"/>")
+			default:
+				if tag, ok := htmlInlineTag[r.PcOpen.Type]; ok {
+					sb.WriteString(tag[0])
+					open = append(open, tag[1])
+				} else if strings.HasPrefix(strings.TrimSpace(r.PcOpen.Data), "<") {
+					sb.WriteString(r.PcOpen.Data)
+					open = append(open, "") // closing comes from the matching PcClose Data
+				} else {
+					open = append(open, "")
+				}
 			}
 		case r.PcClose != nil:
 			if n := len(open); n > 0 {
@@ -393,8 +432,18 @@ func (w *Writer) renderInlineHTML(b *model.Block) string {
 				}
 			}
 		case r.Ph != nil:
-			if r.Ph.Equiv != "" {
-				sb.WriteString(html.EscapeString(r.Ph.Equiv))
+			switch r.Ph.Type {
+			case "media:image", "link:image":
+				// Self-closing image (e.g. read from HTML <img>): alt lives in
+				// the run attributes, not as paired content.
+				sb.WriteString("<img" +
+					htmlAttr("src", r.Ph.Attr(model.AttrSrc)) +
+					htmlAttr("alt", r.Ph.Attr(model.AttrAlt)) +
+					htmlAttr("title", r.Ph.Attr(model.AttrTitle)) + "/>")
+			default:
+				if r.Ph.Equiv != "" {
+					sb.WriteString(html.EscapeString(r.Ph.Equiv))
+				}
 			}
 		}
 	}

@@ -3,6 +3,7 @@ package asciidoc
 import (
 	"regexp"
 	"strconv"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -99,6 +100,12 @@ func tryConstruct(b *runBuilder, text string, i int, id *int) int {
 			*id++
 			pairID := strconv.Itoa(*id)
 			b.AddPcOpen(pairID, "link:hyperlink", "asciidoc:link", m[:open+1], "")
+			// The macro target (before "[") is the URL — minus the optional
+			// "link:" macro prefix — carried as a format-neutral href so the
+			// link survives cross-format export.
+			if target := strings.TrimPrefix(m[:open], "link:"); target != "" {
+				b.SetLastAttrs(map[string]string{model.AttrHref: target})
+			}
 			b.AddText(m[open+1 : len(m)-1])
 			b.AddPcClose(pairID, "link:hyperlink", "asciidoc:link", "]")
 			return len(m)
@@ -241,6 +248,23 @@ func (b *runBuilder) AddPcClose(id, typ, subType, data string) {
 	b.runs = append(b.runs, model.Run{PcClose: &model.PcCloseRun{
 		ID: id, Type: typ, SubType: subType, Data: data,
 	}})
+}
+
+// SetLastAttrs attaches format-neutral attributes (href/src/alt/title) to the
+// most recently appended PcOpen or Ph run, so a writer for a different format
+// can re-synthesize a link/image natively. No-op when attrs is empty or the
+// last run is neither a PcOpen nor a Ph.
+func (b *runBuilder) SetLastAttrs(attrs map[string]string) {
+	if len(attrs) == 0 || len(b.runs) == 0 {
+		return
+	}
+	last := &b.runs[len(b.runs)-1]
+	switch {
+	case last.PcOpen != nil:
+		last.PcOpen.Attrs = attrs
+	case last.Ph != nil:
+		last.Ph.Attrs = attrs
+	}
 }
 
 // Runs returns the accumulated runs (always non-nil).

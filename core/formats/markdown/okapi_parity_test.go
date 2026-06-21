@@ -537,7 +537,7 @@ func TestParse_FencedCodeBlockWithInfo(t *testing.T) {
 		if p.Type == model.PartData {
 			data := p.Resource.(*model.Data)
 			if data.Name == "code-block" {
-				assert.Equal(t, "javascript", data.Properties["language"])
+				assert.Equal(t, "javascript", data.Properties[model.PropCodeLanguage])
 			}
 		}
 	}

@@ -3,7 +3,6 @@ package model
 import (
 	"sort"
 	"strings"
-	"sync"
 )
 
 // TextEdit replaces the half-open byte range [Start,End) of a run sequence's
@@ -252,9 +251,6 @@ func mergeAdjacentRuns(runs []Run) []Run {
 }
 
 // defaultEditVocab is the process-wide default vocabulary used to resolve a
-// code's editing constraints when a run carries none of its own. Loaded once.
-var defaultEditVocab = sync.OnceValue(func() *VocabularyRegistry {
-	r := NewVocabularyRegistry()
-	_ = r.LoadDefaults()
-	return r
-})
+// code's editing constraints when a run carries none of its own. It is the
+// shared DefaultVocabulary registry.
+func defaultEditVocab() *VocabularyRegistry { return DefaultVocabulary() }

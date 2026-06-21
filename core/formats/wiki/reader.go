@@ -290,6 +290,13 @@ func (r *Reader) newDokuWikiCodeBlock(ps *parseState, text string, props map[str
 	block.PreserveWhitespace = true
 	block.SetSemanticRole(model.RoleCode, 0)
 	maps.Copy(block.Properties, props)
+	// Promote the DokuWiki highlight language to the canonical code.language
+	// convention so cross-format writers (Block.CodeLanguage()) carry it; the
+	// open-tag language hint stays in the skeleton for byte-exact round-trip.
+	if lang := block.Properties["language"]; lang != "" {
+		block.SetCodeLanguage(lang)
+		delete(block.Properties, "language")
+	}
 	return block
 }
 

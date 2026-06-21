@@ -126,16 +126,41 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 	return nil
 }
 
-// mdInlineTag maps an inline run's vocabulary type to its Markdown delimiters
+// mdInlineTag maps a canonical inline run Type to its Markdown delimiters
 // (open, close). Used by the cross-format semantic export path so inline
-// formatting renders as Markdown (**bold**, *italic*) regardless of the source
+// formatting renders as Markdown (**bold**, _italic_) regardless of the source
 // format — rather than echoing the source's captured Data (e.g. DocLang's
-// "<bold>"). Mirrors the HTML writer's inlineFmtTag.
+// "<bold>"). This table is the Markdown format's own projection of the shared
+// canonical type vocabulary (core/model/vocabularies); link:hyperlink and
+// media:image are handled separately in renderInlineMarkdown because they carry
+// attributes. TestMarkdownInlineTagCoverage asserts this table covers every
+// attribute-free formatting type the vocabulary defines, so a newly added type
+// cannot silently fall through to plain text.
+//
+// Types with no native Markdown syntax (underline, super/subscript, bidi,
+// handwriting) fall back to inline HTML, which Markdown passes through verbatim.
 var mdInlineTag = map[string][2]string{
 	"fmt:bold":          {"**", "**"},
 	"fmt:italic":        {"*", "*"},
-	"fmt:strikethrough": {"~~", "~~"},
 	"fmt:code":          {"`", "`"},
+	"fmt:strikethrough": {"~~", "~~"},
+	"fmt:highlight":     {"<mark>", "</mark>"},
+	"fmt:underline":     {"<u>", "</u>"},
+	"fmt:superscript":   {"<sup>", "</sup>"},
+	"fmt:subscript":     {"<sub>", "</sub>"},
+	"fmt:bidi":          {`<bdi dir="rtl">`, "</bdi>"},
+	"fmt:handwriting":   {`<span class="handwriting">`, "</span>"},
+}
+
+// mdLinkClose builds the Markdown closing syntax for a link or image from its
+// run attributes: `](dest)` or `](dest "title")`. destKey is model.AttrHref for
+// links, model.AttrSrc for images. A nil/empty attrs map yields `]()`.
+func mdLinkClose(attrs map[string]string, destKey string) string {
+	dest := attrs[destKey]
+	if title := attrs[model.AttrTitle]; title != "" {
+		return "](" + dest + ` "` + title + `")`
+	}
+	return "](" + dest + ")"
 }
 
 // renderInlineMarkdown renders a run sequence as Markdown inline content: text
@@ -151,11 +176,22 @@ func renderInlineMarkdown(runs []model.Run) string {
 		case r.Text != nil:
 			sb.WriteString(r.Text.Text)
 		case r.PcOpen != nil:
-			if m, ok := mdInlineTag[r.PcOpen.Type]; ok {
-				sb.WriteString(m[0])
-				open = append(open, m[1])
-			} else {
-				open = append(open, "")
+			switch r.PcOpen.Type {
+			case "link:hyperlink":
+				// [text](href "title") — the link text is the paired content.
+				sb.WriteString("[")
+				open = append(open, mdLinkClose(r.PcOpen.Attrs, model.AttrHref))
+			case "media:image", "link:image":
+				// ![alt](src "title") — the alt text is the paired content.
+				sb.WriteString("![")
+				open = append(open, mdLinkClose(r.PcOpen.Attrs, model.AttrSrc))
+			default:
+				if m, ok := mdInlineTag[r.PcOpen.Type]; ok {
+					sb.WriteString(m[0])
+					open = append(open, m[1])
+				} else {
+					open = append(open, "")
+				}
 			}
 		case r.PcClose != nil:
 			if n := len(open); n > 0 {
@@ -164,8 +200,15 @@ func renderInlineMarkdown(runs []model.Run) string {
 				sb.WriteString(c)
 			}
 		case r.Ph != nil:
-			if r.Ph.Equiv != "" {
-				sb.WriteString(r.Ph.Equiv)
+			switch r.Ph.Type {
+			case "media:image", "link:image":
+				// Self-closing image (e.g. read from HTML <img>): the alt text
+				// lives in the run attributes, not as paired content.
+				sb.WriteString("![" + r.Ph.Attr(model.AttrAlt) + mdLinkClose(r.Ph.Attrs, model.AttrSrc))
+			default:
+				if r.Ph.Equiv != "" {
+					sb.WriteString(r.Ph.Equiv)
+				}
 			}
 		}
 	}
@@ -242,7 +285,9 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	case model.RoleListItem:
 		prefix = "- "
 	case model.RoleCode:
-		prefix, suffix = "```\n", "\n```"
+		// Re-emit the fenced code block's info string (language) so the
+		// do-not-translate signal survives cross-format export.
+		prefix, suffix = "```"+block.CodeLanguage()+"\n", "\n```"
 	case model.RoleCaption:
 		prefix, suffix = "*", "*"
 	}

@@ -3,6 +3,8 @@ package html
 import (
 	"strings"
 
+	xhtml "golang.org/x/net/html"
+
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -98,7 +100,76 @@ func (b *runBuilder) Runs() []model.Run {
 	if b.runs == nil {
 		return []model.Run{}
 	}
+	enrichLinkImageAttrs(b.runs)
 	return b.runs
+}
+
+// enrichLinkImageAttrs parses the captured HTML tag in each link/image run's
+// Data into the format-neutral Attrs map (href/src/alt/title), so a writer for
+// a different format (Markdown, AsciiDoc) can re-synthesize the construct
+// natively instead of echoing the source HTML. Idempotent: runs that already
+// carry Attrs are left untouched.
+func enrichLinkImageAttrs(runs []model.Run) {
+	for i := range runs {
+		switch {
+		case runs[i].PcOpen != nil && runs[i].PcOpen.Attrs == nil:
+			p := runs[i].PcOpen
+			if attrs := tagAttrsFor(p.Type, p.Data); attrs != nil {
+				p.Attrs = attrs
+			}
+		case runs[i].Ph != nil && runs[i].Ph.Attrs == nil:
+			p := runs[i].Ph
+			if attrs := tagAttrsFor(p.Type, p.Data); attrs != nil {
+				p.Attrs = attrs
+			}
+		}
+	}
+}
+
+// tagAttrsFor returns the canonical link/image attribute map for a run of the
+// given canonical Type whose Data holds the raw HTML start tag, or nil when the
+// type is not a link/image or the tag carries none of the relevant attributes.
+func tagAttrsFor(semType, rawTag string) map[string]string {
+	var destKey string
+	switch semType {
+	case "link:hyperlink":
+		destKey = model.AttrHref
+	case "media:image", "link:image":
+		destKey = model.AttrSrc
+	default:
+		return nil
+	}
+	tag := parseTagAttrs(rawTag)
+	out := map[string]string{}
+	if v := tag[destKey]; v != "" {
+		out[destKey] = v
+	}
+	if destKey == model.AttrSrc {
+		if v := tag["alt"]; v != "" {
+			out[model.AttrAlt] = v
+		}
+	}
+	if v := tag["title"]; v != "" {
+		out[model.AttrTitle] = v
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// parseTagAttrs tokenizes a single raw HTML start tag (e.g. `<a href="x">`) and
+// returns its attributes by lower-cased name, with entity references decoded.
+// Returns an empty map when raw is not a parseable start tag.
+func parseTagAttrs(raw string) map[string]string {
+	z := xhtml.NewTokenizer(strings.NewReader(raw))
+	z.Next()
+	tok := z.Token()
+	m := make(map[string]string, len(tok.Attr))
+	for _, a := range tok.Attr {
+		m[a.Key] = a.Val
+	}
+	return m
 }
 
 // IsEmpty reports whether no runs have been appended.
