@@ -421,6 +421,14 @@ Schema-driven features:
   against the schema.
 - **JSON export** — `kapi tools schema <name>` prints the schema for any
   tool.
+- **MCP exposure** — `cli/mcp_tools.go` registers every CLI-visible tool on
+  the `kapi mcp` stdio server, projecting the tool's schema (plus a `text`
+  input) into the MCP input schema and running the tool over the supplied text.
+  The exposed set is **scoped by mode**, mirroring the desktop's `ListTools` vs
+  `ListProjectTools` split: inside a kapi project only the tools the project
+  declares are advertised (with the project's target language as the default);
+  ad-hoc (no project resolved), the full set is exposed. Resource-wrapping
+  helpers (brand profile, termbase, TM) stay hand-authored in `cli/mcp_brand.go`.
 
 AI tool schemas include provider fields (Provider, APIKey, Model with enum
 support for provider selection), so AI-tool CLI flags are generated the

@@ -17,8 +17,11 @@ import (
 
 // init registers the offline brand/terminology/TM tools on the shared `mcp`
 // stdio server. These mirror the cloud bowrain MCP brand tools so non-Claude
-// MCP clients (Cursor, generic) get parity locally — kapi skills themselves use
-// the CLI, per the CLI-vs-MCP boundary.
+// MCP clients (Cursor, generic) get parity locally. They are hand-authored
+// because they wrap resources (a brand profile, a termbase/TM file) rather than
+// a single processing tool; the registry's processing tools are exposed
+// generically alongside them (see mcp_tools.go), so the MCP surface now mirrors
+// the CLI rather than being a curated subset of it.
 func init() {
 	RegisterMCPToolFactory(registerBrandMCPTools)
 }
