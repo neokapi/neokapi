@@ -197,8 +197,10 @@ const LazyGuidedModal = React.lazy(async () => {
                   wasmUrl={pg.wasmUrl}
                   seed={config.seed}
                   files={config.files}
-                  // Stage the session warm but idle — the first command is at
-                  // the prompt; the reader drives the steps from the rail.
+                  // Only mounted after the reader clicks "Run it now", so boot on
+                  // mount; stage the session warm but idle — the first command is
+                  // at the prompt; the reader drives the steps from the rail.
+                  bootOnMount
                   cmd={config.steps[0]?.command}
                   autoRun={false}
                   showToolbar={false}
@@ -296,5 +298,9 @@ export interface KapiGuidedEmbedProps {
 export default function KapiGuidedEmbed({ id }: KapiGuidedEmbedProps): React.ReactElement {
   // The launcher itself is light, but it must stay client-only because the modal
   // it lazy-loads (and the wasm config hook) are browser-only.
-  return <BrowserOnly fallback={<p>Loading the walkthrough…</p>}>{() => <GuidedById id={id} />}</BrowserOnly>;
+  return (
+    <BrowserOnly fallback={<p>Loading the walkthrough…</p>}>
+      {() => <GuidedById id={id} />}
+    </BrowserOnly>
+  );
 }

@@ -95,8 +95,8 @@ export default function CommandDetail({ cmd }: Props) {
               it can't run in the browser playground.
             </span>
             <span>
-              See the <a href={guidesHref}>guides</a> for a recorded run, or try it locally
-              with the <a href={installHref}>installed CLI</a>.
+              See the <a href={guidesHref}>guides</a> for a recorded run, or try it locally with the{" "}
+              <a href={installHref}>installed CLI</a>.
             </span>
           </div>
         )}

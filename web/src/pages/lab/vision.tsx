@@ -1,6 +1,5 @@
 import React from "react";
 import Layout from "@theme/Layout";
-import Link from "@docusaurus/Link";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { VisionExplorer } from "@site/src/components/Lab";
@@ -45,35 +44,19 @@ export default function VisionLabPage(): React.ReactElement {
   return (
     <Layout
       title="Vision Lab"
-      description="Upload an image and run the real kapi-vision models in your browser — text via PP-OCRv5 OCR and document layout via PP-DocLayoutV3, executed with onnxruntime-web. Nothing is mocked."
+      description="Pull the text out of an image or scan — and see where every line sits on the page — so it can be searched, translated, or rebuilt in another language. Runs privately in your browser."
     >
       <main className={styles.page}>
         <div className={styles.hero}>
           <h1>Vision Lab</h1>
           <p className={styles.lede}>
-            Drop in an image and the <Link to="/lab">Lab</Link> runs the real{" "}
-            <code>kapi-vision</code> models right here in your browser. Text is detected and
-            recognized by <strong>PP-OCRv5</strong>; document <strong>layout</strong> (headings,
-            paragraphs, tables, figures) comes from <strong>PP-DocLayoutV3</strong> — the same ONNX
-            models the native plugin runs, executed via <strong>onnxruntime-web</strong>. The OCR
-            models (~21 MB) load on first use; the layout model (~132 MB) downloads only when you
-            ask for it. You can also drop in a <strong>.docx</strong> — the embedded image is pulled
-            straight from the document and run through the same models. Toggle{" "}
-            <strong>handwriting fallback</strong> to re-read low-confidence lines with TrOCR (loaded
-            on demand): PP-OCR handles clean text fast, TrOCR rescues the hard lines. Add a third{" "}
-            <strong>local-LLM tier</strong> (<code>🧠 Local LLM</code>) to re-read the
-            still-uncertain residual with a vision model on your own machine via{" "}
-            <strong>Ollama</strong> — keyless and on-device, no key to paste and nothing leaves your
-            browser (start Ollama with this origin allowed). Nothing is mocked — only the runtime
-            differs.
+            Drop in an image — or a document with a picture in it — and neokapi reads the text
+            inside it, keeping track of where each line sits and how the page is laid out (headings,
+            paragraphs, tables, figures). The result isn&rsquo;t just a wall of text: it&rsquo;s
+            structured content you can search, translate, and place back, the same way you would
+            with any document. Everything runs in your browser, so nothing you upload leaves your
+            device.
           </p>
-          <nav className={styles.nav} aria-label="Related labs">
-            <Link to="/lab">Lab</Link>
-            <Link to="/lab/pdf">PDF Lab</Link>
-            <Link to="/contribute/architecture/029-vision-and-image-localization">
-              Vision &amp; image localization
-            </Link>
-          </nav>
         </div>
         <VisionExplorer samples={samples} modelBase={modelBase} />
       </main>

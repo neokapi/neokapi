@@ -3,10 +3,15 @@ import { afterEach, expect, test, vi } from "vitest";
 import { cleanup, render, waitFor } from "@testing-library/react";
 import React, { useRef } from "react";
 
-// Mock the wasm boot so the hook runs without loading a real 70MB binary.
+// Mock the boot path so the hook runs without loading a real 70MB binary. Boot
+// is routed through the plugin manager (bootEngine), so mock that; onBootProgress
+// is still subscribed directly from the runtime subpath.
 vi.mock("@neokapi/kapi-playground/runtime", () => ({
-  bootKapiRuntime: vi.fn(async () => ({}) as never),
   onBootProgress: vi.fn(() => () => {}),
+}));
+vi.mock("@neokapi/kapi-playground/plugins", () => ({
+  configurePlugins: vi.fn(),
+  bootEngine: vi.fn(async () => ({}) as never),
 }));
 
 import { useLabRuntime } from "./useLabRuntime";
@@ -22,7 +27,11 @@ test("does not loop when the assets object identity changes every render", async
   function Harness(): React.ReactElement {
     renders++;
     // A new object literal every render — exactly what the unmemoized adapter did.
-    const rt = useLabRuntime({ wasmExecUrl: "/x/exec.js", wasmUrl: "/x/k.wasm" });
+    // autoBoot:true so the hook boots on mount (no Run gate in this hook-level test).
+    const rt = useLabRuntime(
+      { wasmExecUrl: "/x/exec.js", wasmUrl: "/x/k.wasm" },
+      { autoBoot: true },
+    );
     // Force a re-render once ready to make any ready→booting flip observable.
     const bumped = useRef(false);
     if (rt.ready && !bumped.current) {

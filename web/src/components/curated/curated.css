@@ -126,6 +126,15 @@
   font-size: 0.86rem;
 }
 
+/* Idle "press Run" affordance — nothing boots until the user clicks. */
+.kapi-cur-run {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 1rem 0.75rem;
+}
+
 .kapi-cur-spinner {
   width: 18px;
   height: 18px;

@@ -4,6 +4,8 @@ import { tools as toolDataset } from "@neokapi/reference-data";
 import type { ComponentSchema, PropertySchema, ReferenceEntry } from "@neokapi/reference-data";
 import { SchemaForm } from "@neokapi/ui-primitives";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
@@ -132,7 +134,8 @@ export default function ToolLab({
   defaultSampleId,
   sampleIds,
 }: ToolLabProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
   const tools = useMemo(() => loadTools(), []);
 
   const initialSample = SAMPLES.find((s) => s.id === defaultSampleId) ?? SAMPLES[0];
@@ -202,6 +205,15 @@ export default function ToolLab({
     return <div className={shared.emptyHint}>No browser-safe tools available.</div>;
   }
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="Tool lab"
+        description="Run a single tool with live config and see the result."
+      />
+    );
+  }
   return (
     <div className={shared.explorer}>
       <FileSource value={file} onChange={setFile} sampleIds={sampleIds} />

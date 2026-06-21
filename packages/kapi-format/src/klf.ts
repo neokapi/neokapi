@@ -152,9 +152,7 @@ function sortKeysDeep(v: unknown): unknown {
   return v;
 }
 
-function canonicalTargets(
-  t: Block["targets"] | undefined,
-): Record<string, unknown> | undefined {
+function canonicalTargets(t: Block["targets"] | undefined): Record<string, unknown> | undefined {
   if (!t) return undefined;
   const keys = Object.keys(t).sort();
   if (keys.length === 0) return undefined;
@@ -175,8 +173,7 @@ function canonicalRun(r: Run): unknown {
     const formsIn = r.plural.forms;
     const keys = Object.keys(formsIn).sort();
     const forms: Record<string, unknown> = {};
-    for (const k of keys)
-      forms[k] = formsIn[k as keyof typeof formsIn]?.map(canonicalRun);
+    for (const k of keys) forms[k] = formsIn[k as keyof typeof formsIn]?.map(canonicalRun);
     return {
       plural: omitUndefined({
         pivot: r.plural.pivot,

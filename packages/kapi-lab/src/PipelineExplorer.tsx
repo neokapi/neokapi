@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Play } from "lucide-react";
 import { Button, ToggleGroup, ToggleGroupItem, cn } from "@neokapi/ui-primitives";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSelectorField from "./FileSelectorField";
 import ActiveFileSwitcher from "./ActiveFileSwitcher";
@@ -55,7 +57,8 @@ export default function PipelineExplorer({
   defaultPipelineId,
   sampleIds,
 }: PipelineExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
   const library = useFileLibrary({ sampleIds });
 
   const initial = SAMPLES.find((s) => s.id === defaultSampleId) ?? SAMPLES[0];
@@ -119,6 +122,15 @@ export default function PipelineExplorer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runtime.ready, file?.path, file?.changedAt, pipelineId]);
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="Pipeline"
+        description="Run a flow against your file and inspect each stage."
+      />
+    );
+  }
   return (
     <div className="kapi-reference flex flex-col gap-3 text-foreground">
       <div className="flex flex-wrap items-center gap-3">

@@ -166,6 +166,11 @@ let ocrModels: Promise<{
 }> | null = null;
 let layoutModel: Promise<ort.InferenceSession> | null = null;
 
+/** Whether the OCR (detect+recognize) models have started loading. */
+export function ocrLoaded(): boolean {
+  return ocrModels !== null;
+}
+
 async function fetchBuf(url: string, onProgress?: (frac: number) => void): Promise<ArrayBuffer> {
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`vision: fetch ${url}: ${resp.status}`);
@@ -381,13 +386,15 @@ function normalizeRec(img: RGBA): Float32Array {
 // normalizeLayout: v/255, RGB, CHW (PP-DocLayoutV3 NormalizeImage mean 0/std 1).
 function normalizeLayout(img: RGBA): Float32Array {
   const { width: w, height: h, data } = img;
-  const out = new Float32Array(3 * h * w);
+  const plane = h * w; // size of one CHW colour plane
+  const out = new Float32Array(3 * plane);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const s = (y * w + x) * 4;
-      out[0 * h * w + y * w + x] = data[s] / 255;
-      out[1 * h * w + y * w + x] = data[s + 1] / 255;
-      out[2 * h * w + y * w + x] = data[s + 2] / 255;
+      const p = y * w + x;
+      out[p] = data[s] / 255; // R plane
+      out[plane + p] = data[s + 1] / 255; // G plane
+      out[2 * plane + p] = data[s + 2] / 255; // B plane
     }
   }
   return out;

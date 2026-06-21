@@ -28,3 +28,32 @@
   margin-top: 1rem;
   font-size: 0.95rem;
 }
+
+/* Audio | Video tab switcher on the media lab. */
+.tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  padding: 0.25rem;
+}
+
+.tab,
+.tabActive {
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem 1.1rem;
+  border-radius: 8px;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.tabActive {
+  background: var(--ifm-color-primary);
+  color: #fff;
+  font-weight: 600;
+}

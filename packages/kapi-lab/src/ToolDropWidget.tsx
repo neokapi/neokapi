@@ -4,6 +4,8 @@ import { HERO_SAMPLES } from "@neokapi/kapi-playground/samples";
 import type { HeroSample } from "@neokapi/kapi-playground/samples";
 import { Badge, Button, cn } from "@neokapi/ui-primitives";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import { FileIcon } from "@neokapi/ui-primitives/preview";
 import { downloadBytes, downloadText, formatBytes } from "@neokapi/ui-primitives/preview";
@@ -135,7 +137,8 @@ export default function ToolDropWidget({
   autoRun = true,
   className,
 }: ToolDropWidgetProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
   const samples = useMemo(() => offeredSamples(sampleIds), [sampleIds]);
   // A per-instance namespace so output/recipe paths never clash across widgets.
   const ns = useId().replace(/[:]/g, "");
@@ -258,6 +261,9 @@ export default function ToolDropWidget({
     return () => clearTimeout(h);
   }, [autoRun, runtime.ready, runTool]);
 
+  if (!gate.armed) {
+    return <RunGate gate={gate} title="Tool" description="Drop in a file and run a tool on it." />;
+  }
   return (
     <div className={cn("kapi-reference flex flex-col gap-3 text-foreground", className)}>
       {/* Drop-zone + sample chips. */}

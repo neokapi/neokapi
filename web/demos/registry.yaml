@@ -13,7 +13,7 @@ demos:
     reader: native
     signal: high
     status: done
-    delta: 25            # brand compliance 70 → 95
+    delta: 25 # brand compliance 70 → 95
 
   - id: formats-native-vs-okapi
     kind: formats
@@ -26,13 +26,103 @@ demos:
     note: both readers round-trip the asset and localize all visible text (18 words each, including the button/anchor labels). Normalized native↔okapi parity is the cli/parity suite.
 
   # ── Planned cells (fan out one agent per row) ──────────────────────────────
-  - { id: pptx-brandrewrite-marketing,  kind: brand,     asset_type: pptx,       loop_stage: brand-rewrite,        domain: marketing,      reader: native, signal: high, status: planned }
-  - { id: docx-onbrandgen-b2b,          kind: brand,     asset_type: docx,       loop_stage: on-brand-gen,         domain: b2b,            reader: native, signal: high, status: planned }
-  - { id: xlsx-consistency-b2b,         kind: brand,     asset_type: xlsx,       loop_stage: consistency-check,    domain: b2b,            reader: native, signal: high, status: planned }
-  - { id: json-multilingual-techdocs,  kind: translate, asset_type: json,       loop_stage: multilingual-publish, domain: technical-docs, reader: native, signal: high, status: planned }
-  - { id: po-multilingual-support,      kind: translate, asset_type: po,         loop_stage: multilingual-publish, domain: customer-support, reader: native, signal: high, status: planned }
-  - { id: md-governancegate-techdocs,   kind: brand,     asset_type: markdown,   loop_stage: governance-gate,      domain: technical-docs, reader: native, signal: high, status: planned }
-  - { id: html-brandrewrite-marketing,  kind: brand,     asset_type: html,       loop_stage: brand-rewrite,        domain: marketing,      reader: native, signal: high, status: planned }
-  - { id: subtitles-multilingual-marketing, kind: translate, asset_type: srt,    loop_stage: multilingual-publish, domain: marketing,      reader: native, signal: medium, status: planned }
-  - { id: properties-multilingual-techdocs, kind: translate, asset_type: properties, loop_stage: multilingual-publish, domain: technical-docs, reader: okapi, signal: medium, status: planned }
-  - { id: idml-multilingual-marketing,  kind: translate, asset_type: idml,       loop_stage: multilingual-publish, domain: marketing,      reader: okapi, signal: medium, status: planned }
+  - {
+      id: pptx-brandrewrite-marketing,
+      kind: brand,
+      asset_type: pptx,
+      loop_stage: brand-rewrite,
+      domain: marketing,
+      reader: native,
+      signal: high,
+      status: planned,
+    }
+  - {
+      id: docx-onbrandgen-b2b,
+      kind: brand,
+      asset_type: docx,
+      loop_stage: on-brand-gen,
+      domain: b2b,
+      reader: native,
+      signal: high,
+      status: planned,
+    }
+  - {
+      id: xlsx-consistency-b2b,
+      kind: brand,
+      asset_type: xlsx,
+      loop_stage: consistency-check,
+      domain: b2b,
+      reader: native,
+      signal: high,
+      status: planned,
+    }
+  - {
+      id: json-multilingual-techdocs,
+      kind: translate,
+      asset_type: json,
+      loop_stage: multilingual-publish,
+      domain: technical-docs,
+      reader: native,
+      signal: high,
+      status: planned,
+    }
+  - {
+      id: po-multilingual-support,
+      kind: translate,
+      asset_type: po,
+      loop_stage: multilingual-publish,
+      domain: customer-support,
+      reader: native,
+      signal: high,
+      status: planned,
+    }
+  - {
+      id: md-governancegate-techdocs,
+      kind: brand,
+      asset_type: markdown,
+      loop_stage: governance-gate,
+      domain: technical-docs,
+      reader: native,
+      signal: high,
+      status: planned,
+    }
+  - {
+      id: html-brandrewrite-marketing,
+      kind: brand,
+      asset_type: html,
+      loop_stage: brand-rewrite,
+      domain: marketing,
+      reader: native,
+      signal: high,
+      status: planned,
+    }
+  - {
+      id: subtitles-multilingual-marketing,
+      kind: translate,
+      asset_type: srt,
+      loop_stage: multilingual-publish,
+      domain: marketing,
+      reader: native,
+      signal: medium,
+      status: planned,
+    }
+  - {
+      id: properties-multilingual-techdocs,
+      kind: translate,
+      asset_type: properties,
+      loop_stage: multilingual-publish,
+      domain: technical-docs,
+      reader: okapi,
+      signal: medium,
+      status: planned,
+    }
+  - {
+      id: idml-multilingual-marketing,
+      kind: translate,
+      asset_type: idml,
+      loop_stage: multilingual-publish,
+      domain: marketing,
+      reader: okapi,
+      signal: medium,
+      status: planned,
+    }

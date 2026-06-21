@@ -34,7 +34,7 @@ export function ensureSample(runtime: KapiRuntime, sample: string | InlineSample
     typeof sample === "string" ? getFixture(sample) : sample;
   if (!resolved) {
     throw new Error(
-      `Unknown fixture "${String(sample)}". Pass a bundled fixture name (see fixtureNames) or an inline {name, content}.`,
+      `Unknown fixture "${typeof sample === "string" ? sample : sample.name}". Pass a bundled fixture name (see fixtureNames) or an inline {name, content}.`,
     );
   }
   const path = resolveInCwd(runtime, resolved.name);
@@ -55,7 +55,7 @@ export function writeSample(runtime: KapiRuntime, sample: string | InlineSample)
   const resolved: InlineSample | undefined =
     typeof sample === "string" ? getFixture(sample) : sample;
   if (!resolved) {
-    throw new Error(`Unknown fixture "${String(sample)}".`);
+    throw new Error(`Unknown fixture "${typeof sample === "string" ? sample : sample.name}".`);
   }
   const path = resolveInCwd(runtime, resolved.name);
   const slash = path.lastIndexOf("/");

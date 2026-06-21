@@ -69,6 +69,16 @@ export const LOOSE_SAMPLES: LooseSample[] = [
     suggested: "kapi pseudo-translate app.xliff",
     file: fixtureFile("app.xliff"),
   },
+  {
+    id: "mt",
+    label: "On-device translate",
+    filename: "messages.json",
+    kind: "text · JSON",
+    // Machine-translate via the browser's built-in, on-device Translator API
+    // (desktop Chrome 138+); falls back to the illustrative demo engine elsewhere.
+    suggested: "kapi mt-translate messages.json --target-lang fr --provider browser",
+    file: fixtureFile("messages.json"),
+  },
 ];
 
 // ── Sample projects (.kapi) ──────────────────────────────────────────────────

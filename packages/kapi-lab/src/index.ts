@@ -111,9 +111,16 @@ export type {
   LabRuntime,
   LabRuntimeAssets,
   LabStatus,
+  UseLabRuntimeOptions,
   InspectOutcome,
   TraceOutcome,
 } from "./useLabRuntime";
+
+// Explicit-Run gating: nothing boots/runs/plays until the user presses Run.
+export { default as RunGate } from "./RunGate";
+export type { RunGateProps } from "./RunGate";
+export { useRunGate } from "./useRunGate";
+export type { RunGate as RunGateState, UseRunGateOptions } from "./useRunGate";
 export type { AnnotateOptions } from "@neokapi/kapi-playground/runtime";
 
 export { SAMPLES, sampleById } from "./samples";

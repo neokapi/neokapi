@@ -48,9 +48,10 @@ const LazyVideo = React.lazy(async () => {
   return { default: mod.VideoExplorer };
 });
 
-// Segmentation preview is a docs-local component (it dynamic-imports the ICU4X
-// `icu` package for the browser UAX-29 option, kept out of the shared kapi-lab).
-const LazySegmentation = React.lazy(() => import("./SegmentationPreviewInner"));
+// One consolidated Segmentation lab: every engine (srx / uax29 / hybrid / intl /
+// sat / llm) compared on your own source, sentences shown inline. Docs-local — it
+// dynamic-imports the ICU4X `icu` package + the sat/gemma bridges on demand.
+const LazySegmentationLab = React.lazy(() => import("./SegmentationLabInner"));
 
 const LazyPipeline = React.lazy(async () => {
   const mod = await import("@neokapi/kapi-lab");
@@ -225,12 +226,7 @@ export function VideoExplorer(props: VideoExplorerProps): React.ReactElement {
   );
 }
 
-export interface SegmentationPreviewProps {
-  defaultSampleId?: string;
-  sampleIds?: string[];
-}
-
-export function SegmentationPreview(props: SegmentationPreviewProps): React.ReactElement {
+export function SegmentationLab(): React.ReactElement {
   return (
     <BrowserOnly fallback={<Loading />}>
       {() => {
@@ -238,7 +234,7 @@ export function SegmentationPreview(props: SegmentationPreviewProps): React.Reac
           const assets = useKapiPlaygroundConfig();
           return (
             <Suspense fallback={<Loading />}>
-              <LazySegmentation assets={assets} {...props} />
+              <LazySegmentationLab assets={assets} />
             </Suspense>
           );
         }

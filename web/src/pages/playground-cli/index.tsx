@@ -6,16 +6,14 @@ export default function CliPlaygroundPage(): React.ReactElement {
   return (
     <Layout
       title="CLI Playground"
-      description="Run the kapi command-line tool in your browser. It operates on an in-memory project folder — pick a sample, run commands, download results, no server."
+      description="Try the kapi command-line tool hands-on — on a sample project or your own files — without installing anything. Everything runs in your browser; nothing leaves your machine."
     >
       <main className="container margin-vert--lg">
         <h1>CLI Playground</h1>
         <p>
-          The <code>kapi</code> command-line tool, running entirely in your browser. It works
-          against an in-memory project folder. Pick a sample to play with — a single{" "}
-          <strong>loose file</strong> for one-off commands, or a ready-made{" "}
-          <strong>.kapi sample project</strong> to run the offline funnel (add, extract, run, merge).
-          Or upload your own files and run any command. Nothing leaves your machine.
+          Try the <code>kapi</code> command-line tool hands-on, without installing anything — it
+          runs entirely in your browser. Start from a sample, or upload your own files and run any
+          command to see what kapi does with them. Nothing leaves your machine.
         </p>
         <KapiPlaygroundExplorer />
       </main>

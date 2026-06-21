@@ -7,11 +7,7 @@ import type {
   SpecExampleStatus,
   SpecSummary,
 } from "./_types";
-import {
-  divergenceColors,
-  divergenceDescriptions,
-  divergenceLabels,
-} from "./_types";
+import { divergenceColors, divergenceDescriptions, divergenceLabels } from "./_types";
 import styles from "./_index.module.css";
 
 interface Props {
@@ -20,10 +16,7 @@ interface Props {
   configDrift?: SpecConfigDriftEntry[];
 }
 
-const statusBadge: Record<
-  SpecExampleStatus,
-  { label: string; className: string }
-> = {
+const statusBadge: Record<SpecExampleStatus, { label: string; className: string }> = {
   pass: { label: "pass", className: "badge badge--success" },
   fail: { label: "fail", className: "badge badge--danger" },
   skip: { label: "skip", className: "badge badge--secondary" },
@@ -35,9 +28,7 @@ const statusBadge: Record<
 };
 
 function totalExamples(spec: SpecSummary): number {
-  return (
-    spec.pass + spec.fail + spec.skip + spec.expectedFail + spec.parityWarn
-  );
+  return spec.pass + spec.fail + spec.skip + spec.expectedFail + spec.parityWarn;
 }
 
 /** SpecSection renders the per-feature outcomes inside an expanded
@@ -55,23 +46,15 @@ export default function SpecSection({ spec, drift, configDrift }: Props) {
       <h4 className={styles.specHeading}>
         Spec features
         <span className={styles.specSummaryBadges}>
-          {spec.pass > 0 && (
-            <span className="badge badge--success">{spec.pass} pass</span>
-          )}
-          {spec.fail > 0 && (
-            <span className="badge badge--danger">{spec.fail} fail</span>
-          )}
+          {spec.pass > 0 && <span className="badge badge--success">{spec.pass} pass</span>}
+          {spec.fail > 0 && <span className="badge badge--danger">{spec.fail} fail</span>}
           {spec.parityWarn > 0 && (
-            <span className="badge badge--info">
-              {spec.parityWarn} parity warn
-            </span>
+            <span className="badge badge--info">{spec.parityWarn} parity warn</span>
           )}
           {spec.expectedFail > 0 && (
             <span className="badge badge--info">{spec.expectedFail} xfail</span>
           )}
-          {spec.skip > 0 && (
-            <span className="badge badge--secondary">{spec.skip} skip</span>
-          )}
+          {spec.skip > 0 && <span className="badge badge--secondary">{spec.skip} skip</span>}
           {totalDrift > 0 && (
             <span
               className="badge badge--warning"
@@ -80,9 +63,7 @@ export default function SpecSection({ spec, drift, configDrift }: Props) {
               {totalDrift} drift
             </span>
           )}
-          {hasFeatures && (
-            <span className={styles.specSummaryTotal}>({total} total)</span>
-          )}
+          {hasFeatures && <span className={styles.specSummaryTotal}>({total} total)</span>}
         </span>
       </h4>
       {hasFeatures && hasDivergences && <DivergenceLegend />}
@@ -100,21 +81,14 @@ export default function SpecSection({ spec, drift, configDrift }: Props) {
           <tbody>
             {spec.features.flatMap((f) =>
               f.examples.map((ex, i) => (
-                <ExampleRow
-                  key={`${f.id}-${ex.name}`}
-                  feature={f.id}
-                  ex={ex}
-                  first={i === 0}
-                />
+                <ExampleRow key={`${f.id}-${ex.name}`} feature={f.id} ex={ex} first={i === 0} />
               )),
             )}
           </tbody>
         </table>
       )}
       {drift && drift.length > 0 && <DriftBlock drift={drift} />}
-      {configDrift && configDrift.length > 0 && (
-        <ConfigDriftBlock drift={configDrift} />
-      )}
+      {configDrift && configDrift.length > 0 && <ConfigDriftBlock drift={configDrift} />}
     </div>
   );
 }
@@ -136,11 +110,9 @@ const legendOrder: DivergenceKind[] = [
 function DivergenceLegend() {
   return (
     <div className={styles.specLegend}>
-      <span className={styles.specLegendTitle}>
-        xfail = a documented divergence from Okapi.
-      </span>{" "}
-      The category chip shows which side differs and why. neokapi is the correct
-      side except where marked <DivergenceChip kind="native-bug" />.
+      <span className={styles.specLegendTitle}>xfail = a documented divergence from Okapi.</span>{" "}
+      The category chip shows which side differs and why. neokapi is the correct side except where
+      marked <DivergenceChip kind="native-bug" />.
       <div className={styles.specLegendChips}>
         {legendOrder.map((k) => (
           <DivergenceChip key={k} kind={k} />
@@ -208,18 +180,9 @@ function ConfigDriftBlock({ drift }: { drift: SpecConfigDriftEntry[] }) {
   );
 }
 
-function ExampleRow({
-  feature,
-  ex,
-  first,
-}: {
-  feature: string;
-  ex: SpecExample;
-  first: boolean;
-}) {
+function ExampleRow({ feature, ex, first }: { feature: string; ex: SpecExample; first: boolean }) {
   const badge = statusBadge[ex.status] ?? statusBadge.pass;
-  const isDivergence =
-    ex.status === "expected_fail" || ex.status === "parity_warn";
+  const isDivergence = ex.status === "expected_fail" || ex.status === "parity_warn";
   return (
     <tr>
       <td className={styles.specFeatureCell}>{first ? feature : ""}</td>
@@ -232,16 +195,10 @@ function ExampleRow({
         {isDivergence ? (
           <div className={styles.specDetailRow}>
             {ex.divergence && <DivergenceChip kind={ex.divergence} />}
-            {ex.detail && (
-              <span className={styles.specDetailFull}>
-                {linkifyIssues(ex.detail)}
-              </span>
-            )}
+            {ex.detail && <span className={styles.specDetailFull}>{linkifyIssues(ex.detail)}</span>}
           </div>
         ) : ex.detail ? (
-          <span className={styles.specDetailFull}>
-            {linkifyIssues(ex.detail)}
-          </span>
+          <span className={styles.specDetailFull}>{linkifyIssues(ex.detail)}</span>
         ) : (
           ""
         )}

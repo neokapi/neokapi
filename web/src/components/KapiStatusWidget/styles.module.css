@@ -1,0 +1,263 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Collapsed pill ---------------------------------------------------------- */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  background: var(--ifm-background-surface-color, #fff);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.1;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.pill:hover {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+}
+.pillLogo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+.pillText {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+.pillTitle {
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--ifm-font-color-base);
+}
+.pillSub {
+  font-size: 0.6rem;
+  color: var(--ifm-color-primary);
+  letter-spacing: 0.02em;
+}
+.count {
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-emphasis-700);
+}
+.chevron {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-600);
+  transition: transform 0.15s ease;
+}
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+/* Status dot -------------------------------------------------------------- */
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+.dotReady {
+  background: #34d399;
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25);
+}
+.dotBusy {
+  background: #fbbf24;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.dotError {
+  background: #f87171;
+}
+.dotIdle {
+  background: var(--ifm-color-emphasis-400);
+}
+.dotHollow {
+  background: transparent;
+  border: 2px solid var(--ifm-color-emphasis-300);
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Expanded panel ---------------------------------------------------------- */
+.panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 340px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--ifm-background-surface-color, #fff);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  padding: 16px;
+  z-index: 1000;
+}
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.panelLogo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.panelHeaderText {
+  flex: 1;
+}
+.panelTitle {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.panelSub {
+  font-size: 0.72rem;
+  color: var(--ifm-color-primary);
+}
+.engineLine {
+  margin: 10px 0 4px;
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-700);
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+}
+.engineErr {
+  color: #b91c1c;
+}
+.bootBtn,
+.downloadBtn {
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 3px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color, #fff);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bootBtn:hover,
+.downloadBtn:hover {
+  border-color: var(--ifm-color-primary);
+  background: var(--ifm-color-emphasis-100);
+}
+.retryBtn {
+  border-color: #f87171;
+  color: #b91c1c;
+}
+/* Download is an icon-only button: square, centred, themed via currentColor. */
+.downloadBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 7px;
+  color: var(--ifm-color-emphasis-700);
+}
+/* "Not available" label for plugins the browser can't run (native-only). */
+.naLabel {
+  font-size: 0.66rem;
+  font-style: italic;
+  color: var(--ifm-color-emphasis-500);
+  white-space: nowrap;
+}
+
+/* Plugins list ------------------------------------------------------------ */
+.plugins {
+  margin-top: 6px;
+}
+.pluginsHeading {
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ifm-color-emphasis-800);
+  margin-bottom: 4px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+.rowMuted {
+  opacity: 0.45;
+}
+.rowMain {
+  flex: 1;
+  min-width: 0;
+}
+.rowTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.rowLabel {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.rowSize {
+  font-size: 0.62rem;
+  color: #059669;
+}
+.rowDesc {
+  font-size: 0.72rem;
+  color: var(--ifm-color-emphasis-600);
+}
+.rowControl {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+/* Progress ---------------------------------------------------------------- */
+.progressWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.progressBar {
+  position: relative;
+  width: 90px;
+  height: 18px;
+  border: 1px solid var(--ifm-color-emphasis-400);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--ifm-color-emphasis-100);
+}
+.progressFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #a7f3d0;
+  transition: width 0.2s ease;
+}
+.progressPct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #065f46;
+}
+.progressBytes {
+  font-size: 0.6rem;
+  color: #059669;
+}

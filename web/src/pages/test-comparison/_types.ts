@@ -84,12 +84,7 @@ export interface SpecFeature {
   examples: SpecExample[];
 }
 
-export type SpecExampleStatus =
-  | "pass"
-  | "fail"
-  | "skip"
-  | "expected_fail"
-  | "parity_warn";
+export type SpecExampleStatus = "pass" | "fail" | "skip" | "expected_fail" | "parity_warn";
 
 /**
  * Fault attribution for an expected_fail / parity_warn example: which side
@@ -124,18 +119,14 @@ export const divergenceDescriptions: Record<DivergenceKind, string> = {
   "native-bug": "neokapi's native reader is wrong here — a real bug to fix.",
   "bridge-gap":
     "okapi-bridge can't receive neokapi's config/rules over gRPC (or the bridge filter failed to run). The native reader is correct.",
-  "okapi-bug":
-    "Upstream Okapi's filter is wrong here. The native reader is correct.",
+  "okapi-bug": "Upstream Okapi's filter is wrong here. The native reader is correct.",
   "scope-diff":
     "The Okapi filter has a different feature scope or representation (both pass spec independently). The native reader is correct.",
   "default-diff":
     "Okapi's default configuration differs; with the same semantic config the results match. The native reader is correct.",
-  "missing-filter":
-    "The bridge doesn't ship this okf_ filter. The native reader is correct.",
-  fixture:
-    "A test-infrastructure / synthetic-fixture artefact, not a behavioral divergence.",
-  contract:
-    "A parse-error-by-design (the input yields no blocks). The native reader is correct.",
+  "missing-filter": "The bridge doesn't ship this okf_ filter. The native reader is correct.",
+  fixture: "A test-infrastructure / synthetic-fixture artefact, not a behavioral divergence.",
+  contract: "A parse-error-by-design (the input yields no blocks). The native reader is correct.",
 };
 
 /**
@@ -195,12 +186,7 @@ export interface TestCase {
 export type TestState = "implemented" | "pending" | "skipped" | "unmapped";
 
 /** State filter applied from the summary bar to the format list. */
-export type StateFilter =
-  | null
-  | "implemented"
-  | "not-applicable"
-  | "pending"
-  | "unmapped";
+export type StateFilter = null | "implemented" | "not-applicable" | "pending" | "unmapped";
 
 /** Auto-classified category for not-applicable tests. */
 export type SkipCategory =
@@ -372,11 +358,7 @@ export function normalizeFilter(f: FilterComparison): FilterComparison {
     nativeFilterName: f.nativeFilterName,
     okapiFilterIds: f.okapiFilterIds,
     specKind:
-      specKind === "subfilter"
-        ? "subfilter"
-        : specKind === "top_level"
-          ? "top_level"
-          : undefined,
+      specKind === "subfilter" ? "subfilter" : specKind === "top_level" ? "top_level" : undefined,
     okapi: f.okapi ?? null,
     bridge,
     native,

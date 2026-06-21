@@ -1,5 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import type { GemmaProgress } from "@neokapi/kapi-playground/gemmaBridge";
 
@@ -26,7 +28,10 @@ export default function GemmaExplorer({
   defaultText = "Our new dashboard helps teams ship faster.",
   defaultTargetLang = "fr",
 }: GemmaExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  // Download the llm (Gemma) model via the manager on Run, so the navbar status
+  // widget reflects it; installGemmaBridge below then just wires the host hook.
+  const gate = useRunGate(runtime, { requires: ["llm"] });
   const [text, setText] = useState(defaultText);
   const [lang, setLang] = useState(defaultTargetLang);
   const [out, setOut] = useState<string | null>(null);
@@ -76,6 +81,15 @@ export default function GemmaExplorer({
     return `Downloading Gemma model…${pct}${progress.file ? ` (${progress.file})` : ""}`;
   })();
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="Local LLM (Gemma)"
+        description="Translate with the real Gemma model running in your browser."
+      />
+    );
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <p style={{ margin: 0, fontSize: 14, opacity: 0.85 }}>

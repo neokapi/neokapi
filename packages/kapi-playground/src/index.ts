@@ -66,12 +66,61 @@ export {
 } from "./samples";
 export type { LooseSample, ProjectSample, WorkspaceSample, HeroSample, TrySample } from "./samples";
 
-// Gemma bridge — installs the host hook so `kapi --provider gemma` runs the real
-// Gemma 4 model in-browser via transformers.js/WebGPU (opt-in, lazy download).
+// Local-LLM bridge — installs the host hook so `kapi --provider gemma` runs a
+// real model in-browser via transformers.js (opt-in, lazy download). Two models,
+// auto-selected by modality: a small text model (default) and multimodal Gemma 4.
 export {
   installGemmaBridge,
   uninstallGemmaBridge,
   isGemmaModelLoaded,
+  ensureGemma,
+  ensureLLM,
+  ensureLLMForModalities,
+  pickModelForModalities,
+  generateGemmaText,
+  generateLLMText,
+  listLLMModels,
   runGemmaImageOCR,
+  DEFAULT_TEXT_MODEL,
+  MULTIMODAL_MODEL,
 } from "./gemmaBridge";
-export type { InstallGemmaOptions, GemmaProgress, GemmaResult } from "./gemmaBridge";
+export type {
+  InstallGemmaOptions,
+  GemmaProgress,
+  GemmaResult,
+  Modality,
+  LLMModelInfo,
+} from "./gemmaBridge";
+
+// Plugin manager — the shared "what is loaded in this tab" store read by the
+// navbar status widget and every lab (SSR-clean; heavy bridges are lazy). Prefer
+// the light "@neokapi/kapi-playground/plugins" subpath in bundle-sensitive hosts.
+export {
+  PLUGIN_DESCRIPTORS,
+  configurePlugins,
+  bootEngine,
+  engineBooted,
+  ensurePlugin,
+  probePluginCaches,
+  subscribePlugins,
+  getPluginState,
+  pluginCounts,
+  usePluginManager,
+} from "./plugins";
+export type {
+  PluginId,
+  PluginPhase,
+  EnginePhase,
+  Progress,
+  EngineState,
+  PluginState,
+  LabState,
+  PluginDescriptor,
+  PluginAssets,
+  UsePluginManager,
+} from "./plugins";
+
+// SaT segmentation — the real wtpsplit "Segment any Text" model on
+// onnxruntime-web (opt-in, lazy ~428 MB download), mirroring the native kapi-sat.
+export { segmentSat, ensureSat, satLoaded } from "./satBridge";
+export type { SatSegmentResult } from "./satBridge";

@@ -43,10 +43,11 @@ type SegmentationConfig struct {
 	Rules        []SegmentationRule `json:"rules,omitempty"        schema:"-"`
 
 	// Engine selects the segmenter backend. The default, srx, is a faithful
-	// SRX 2.0 rule engine; uax29 is the ICU Unicode sentence baseline; llm
-	// produces semantic chunks via an AI provider; sat runs the SaT ML model
-	// through the kapi-sat plugin. An inline Rules list overrides Engine.
-	Engine string `json:"engine,omitempty" schema:"title=Segmentation Engine,description=Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ llm (semantic chunks)/ sat (ML model)"`
+	// SRX 2.0 rule engine; uax29 is the ICU Unicode sentence baseline; intl is
+	// the browser-only Intl.Segmenter baseline (WASM builds); llm produces
+	// semantic chunks via an AI provider; sat runs the SaT ML model through the
+	// kapi-sat plugin. An inline Rules list overrides Engine.
+	Engine string `json:"engine,omitempty" schema:"title=Segmentation Engine,description=Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ intl (browser Intl.Segmenter)/ llm (semantic chunks)/ sat (ML model)"`
 	// Layer names the segmentation overlay layer. Empty is the primary
 	// sentence layer (the one bilingual formats project); named layers such as
 	// llm-chunk coexist alongside it. Empty defers to the engine's natural

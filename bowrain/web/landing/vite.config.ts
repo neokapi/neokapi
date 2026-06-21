@@ -8,7 +8,9 @@ import { execFileSync } from "node:child_process";
 // build time so the deployed page shows when and from what commit it was built.
 const gitSha = (() => {
   try {
-    return execFileSync("git", ["rev-parse", "--short", "HEAD"], { stdio: ["ignore", "pipe", "ignore"] })
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"], {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
       .toString()
       .trim();
   } catch {

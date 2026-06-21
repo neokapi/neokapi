@@ -171,7 +171,7 @@ steps:
 ```
 
 The same `gemma` provider works across the AI tools (`ai-qa`, `brand-voice-check`,
-…) and in the browser — see the [Gemma Lab](/lab/gemma), which runs the same model
+…) and in the browser — see the [Core Framework lab](/lab), which runs the same model
 via WebGPU. (Text is supported today; image/audio input is experimental.)
 
 To make it the default so you can omit `--provider` entirely:

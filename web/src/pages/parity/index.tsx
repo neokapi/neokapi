@@ -470,7 +470,9 @@ function diffTokens(a: string, b: string): DiffSeg[] {
     if (b) out.push({ type: "ins", text: b });
     return out;
   }
-  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  const dp: number[][] = Array.from({ length: m + 1 }, () =>
+    Array.from<number>({ length: n + 1 }).fill(0),
+  );
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
       if (ta[i - 1] === tb[j - 1]) {
@@ -933,8 +935,7 @@ export default function ParityFixturesDashboard() {
               </div>
               <div className={styles.headlineSub}>
                 {t.byte} byte-equal ({t.byte_pct.toFixed(1)}%) + {t.canon_faithful} faithful-canon
-                {t.div_faithful > 0 && <> + {t.div_faithful} faithful-div</>}
-                {" "}
+                {t.div_faithful > 0 && <> + {t.div_faithful} faithful-div</>}{" "}
                 <span title="native is at least as spec-faithful as okapi: byte-identical, canonically-equal because okapi re-serializes, or divergent-but-native-is-at-least-as-correct (cosmetic / native-more-correct / okapi-bug). Excludes genuine native bugs.">
                   ⓘ
                 </span>

@@ -3,8 +3,11 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import KapiTerminal from "./KapiTerminal";
 import type { KapiTerminalHandle } from "./KapiTerminal";
 import FilesPanel from "./FilesPanel";
-import { bootKapiRuntime, isBooted } from "./runtime";
+import { isBooted } from "./runtime";
 import type { KapiRuntime } from "./runtime";
+// Boot is routed through the shared plugin manager so the navbar status widget
+// reflects the embed's engine boot (one engine, many surfaces).
+import { configurePlugins, bootEngine } from "./plugins";
 import { getFixture } from "./fixtures";
 import type { BinaryKapiFile, KapiFile, SessionState } from "./store";
 
@@ -20,8 +23,21 @@ export interface KapiRunRequest {
   cmd?: string;
   /** Additional commands to run in sequence after `cmd`. */
   steps?: string[];
-  /** Run `cmd`/`steps` automatically (vs. leaving them ready at the prompt). */
+  /**
+   * Run `cmd`/`steps` automatically (vs. leaving them staged at the prompt for
+   * the reader to execute). Defaults to `false` so nothing runs without an
+   * explicit user action.
+   */
   autoRun?: boolean;
+  /**
+   * Boot the wasm engine as soon as the embed mounts. Defaults to `false` so a
+   * page that renders <KapiEmbed> directly fetches no wasm on load — the embed
+   * shows a Start gate until the reader presses Run. Set `true` when the embed
+   * is itself only mounted by an explicit user action (a modal open, a "Run it
+   * now" launcher), where mounting is the gate. A warm engine boots immediately
+   * regardless (no fetch on a re-open).
+   */
+  bootOnMount?: boolean;
 }
 
 export interface KapiEmbedHandle {
@@ -173,12 +189,17 @@ export default function KapiEmbed({
   binaryFiles,
   cmd,
   steps,
-  autoRun = true,
+  autoRun = false,
+  bootOnMount = false,
   showToolbar = true,
   fill = false,
   ref,
 }: KapiEmbedProps): React.ReactElement {
   const [runtime, setRuntime] = useState<KapiRuntime | null>(null);
+  // Whether boot has been requested. We boot on mount only when the host opts in
+  // (bootOnMount) or the engine is already warm (a re-open pays no fetch); other-
+  // wise the embed shows a Start gate and boots on the reader's press.
+  const [started, setStarted] = useState<boolean>(() => bootOnMount || isBooted());
   const [error, setError] = useState<string>("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [maximized, setMaximized] = useState(false);
@@ -252,14 +273,17 @@ export default function KapiEmbed({
   );
 
   useEffect(() => {
+    if (!started) return;
     let cancelled = false;
-    bootKapiRuntime(wasmExecUrl, wasmUrl)
+    configurePlugins({ wasmExecUrl, wasmUrl });
+    bootEngine()
       .then((rt) => {
         if (cancelled) return;
-        ensureSeed(rt, seed);
-        ensureFiles(rt, files);
-        ensureBinaryFiles(rt, binaryFiles);
-        setRuntime(rt);
+        const runtime = rt as KapiRuntime;
+        ensureSeed(runtime, seed);
+        ensureFiles(runtime, files);
+        ensureBinaryFiles(runtime, binaryFiles);
+        setRuntime(runtime);
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -267,9 +291,9 @@ export default function KapiEmbed({
     return () => {
       cancelled = true;
     };
-    // Boot once per mount; the initial seed is applied above.
+    // Boot once started; the initial seed is applied above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wasmExecUrl, wasmUrl]);
+  }, [started, wasmExecUrl, wasmUrl]);
 
   // Once the terminal is mounted and the runtime is ready, drive the initial
   // command (the one supplied at mount time).
@@ -296,6 +320,25 @@ export default function KapiEmbed({
           The module is built by <code>make web-wasm-cli</code> and served from{" "}
           <code>{wasmUrl}</code>.
         </p>
+      </div>
+    );
+  }
+
+  // Not yet started: show an explicit Run gate (no wasm fetched on page load).
+  if (!runtime && !started) {
+    return (
+      <div className="kapi-pg-loading">
+        <button
+          type="button"
+          className="kapi-pg-start-btn"
+          onClick={() => setStarted(true)}
+          aria-label="Run — start the kapi terminal"
+        >
+          ▶ Run
+        </button>
+        <span className="kapi-pg-loading-sub">
+          Boots the kapi engine (~13&nbsp;MB) in your browser. Nothing loads until you press Run.
+        </span>
       </div>
     );
   }

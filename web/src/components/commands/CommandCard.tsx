@@ -67,7 +67,14 @@ export default function CommandCard({ cmd, href, onSelect }: Props) {
       className={styles.gridCard}
       href={resolvedHref}
       onClick={(e) => {
-        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+        if (
+          e.defaultPrevented ||
+          e.button !== 0 ||
+          e.metaKey ||
+          e.ctrlKey ||
+          e.shiftKey ||
+          e.altKey
+        )
           return;
         e.preventDefault();
         onSelect(cmd.id);

@@ -532,12 +532,11 @@ export default function FormatMaturity() {
 
           <div className={styles.howToRead}>
             <p>
-              This dashboard publishes two separate things per format. The{" "}
-              <strong>promise</strong> is a support tier — Supported, Maintained, or Available — a
-              CI-backed contract you can rely on, changed only by an explicit, human-approved event.
-              The <strong>score</strong> is the per-axis vector below, recomputed from file evidence
-              on every audit; it ranks the remaining work and explains the tier, but on its own
-              promises nothing.
+              This dashboard publishes two separate things per format. The <strong>promise</strong>{" "}
+              is a support tier — Supported, Maintained, or Available — a CI-backed contract you can
+              rely on, changed only by an explicit, human-approved event. The <strong>score</strong>{" "}
+              is the per-axis vector below, recomputed from file evidence on every audit; it ranks
+              the remaining work and explains the tier, but on its own promises nothing.
             </p>
             <p>
               The headline tier is the <strong>minimum over the gating axes</strong> (Engine,
@@ -628,7 +627,11 @@ export default function FormatMaturity() {
               <tr>
                 <th>Format</th>
                 <th title={AXIS_DESC[axis]}>{axis === "engine" ? "Level" : axisLabel(axis)}</th>
-                {hasTiers && <th title="Declared support tier (the promise) — see the tier key above.">Tier</th>}
+                {hasTiers && (
+                  <th title="Declared support tier (the promise) — see the tier key above.">
+                    Tier
+                  </th>
+                )}
                 {dimCols.map((d) => (
                   <th key={d} className={styles.dimHead}>
                     {data.dimension_labels[d] ?? d}

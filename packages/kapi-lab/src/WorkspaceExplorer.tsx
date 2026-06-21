@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import { WORKSPACE_SAMPLES, workspaceSampleById } from "./workspaceSamples";
 import type { WorkspaceSample } from "./workspaceSamples";
@@ -35,7 +37,8 @@ export default function WorkspaceExplorer({
   assets,
   defaultSampleId,
 }: WorkspaceExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
   const [sampleId, setSampleId] = useState(() => workspaceSampleById(defaultSampleId ?? "json").id);
   const sample: WorkspaceSample = useMemo(() => workspaceSampleById(sampleId), [sampleId]);
 
@@ -129,6 +132,11 @@ export default function WorkspaceExplorer({
     return done.has(STEPS[i - 1]);
   };
 
+  if (!gate.armed) {
+    return (
+      <RunGate gate={gate} title="Workspace" description="Explore a multi-file kapi workspace." />
+    );
+  }
   return (
     <div className={shared.explorer}>
       <div className={shared.statusBar}>

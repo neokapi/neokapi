@@ -4,6 +4,8 @@ import type { FlowFocusRequest, FlowSpec, FlowTrace, ToolInfo } from "@neokapi/f
 import { tools as toolReference } from "@neokapi/reference-data";
 import type { ReferenceEntry } from "@neokapi/reference-data";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import type { FileSourceValue } from "./FileSource";
 import FileSelectorField from "./FileSelectorField";
@@ -239,7 +241,8 @@ export default function FlowBuilderRunner({
   recordedTraces,
   fill,
 }: FlowBuilderRunnerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
 
   const toolInfos = useMemo(() => buildToolInfos(), []);
 
@@ -580,6 +583,15 @@ export default function FlowBuilderRunner({
   // a dropdown would offer a choice with no effect — show a fixed pill instead.
   const bindingsTeachable = scenario.id === "project" || scenario.id === "build-your-own";
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="Flow builder"
+        description="Build and run a flow with the real kapi engine."
+      />
+    );
+  }
   return (
     // `.kapi-reference` supplies the ui-primitives theme variables (--background,
     // --border, …) the flow-editor's Tailwind classes resolve against; the docs

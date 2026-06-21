@@ -35,11 +35,7 @@
 .statCardActive {
   border-color: var(--ifm-color-primary);
   box-shadow: 0 0 0 2px var(--ifm-color-primary);
-  background: color-mix(
-    in srgb,
-    var(--ifm-color-primary) 5%,
-    var(--ifm-card-background-color)
-  );
+  background: color-mix(in srgb, var(--ifm-color-primary) 5%, var(--ifm-card-background-color));
 }
 
 .statValue {
@@ -258,11 +254,7 @@
 .activeFilterBanner {
   padding: 0.5rem 1rem;
   margin-bottom: 1rem;
-  background: color-mix(
-    in srgb,
-    var(--ifm-color-primary) 8%,
-    var(--ifm-background-color)
-  );
+  background: color-mix(in srgb, var(--ifm-color-primary) 8%, var(--ifm-background-color));
   border: 1px solid var(--ifm-color-primary);
   border-radius: var(--ifm-global-radius);
   font-size: 0.85rem;

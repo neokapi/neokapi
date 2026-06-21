@@ -36,6 +36,8 @@ export interface AnnotateOptions {
   segment?: boolean;
   /** Segmentation engine when `segment` is set ("" = srx; "uax29" = ICU4X). */
   segmentEngine?: string;
+  /** Content language (BCP-47, "" = "en"); locale-sensitive engines tailor to it. */
+  segmentLocale?: string;
 }
 
 export interface InspectResult {
@@ -55,10 +57,11 @@ export interface TraceRunResult {
   /** Process-style exit code from the underlying kapiRun. */
   code: number;
   /**
-   * Parsed FlowTrace JSON, or null when the run produced no trace file.
-   * Typed as unknown; @neokapi/kapi-lab casts it to its FlowTrace type.
+   * Parsed FlowTrace JSON, or null when the run produced no trace file (null is
+   * already covered by unknown). Typed as unknown; @neokapi/kapi-lab casts it to
+   * its FlowTrace type.
    */
-  trace: unknown | null;
+  trace: unknown;
 }
 
 /**

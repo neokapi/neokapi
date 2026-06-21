@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import { WORKSPACE_SAMPLES, workspaceSampleById } from "./workspaceSamples";
 import type { WorkspaceSample } from "./workspaceSamples";
@@ -96,7 +98,8 @@ export default function ProjectExplorer({
   assets,
   defaultSampleId,
 }: ProjectExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
   const [sampleId, setSampleId] = useState(() => workspaceSampleById(defaultSampleId ?? "json").id);
   const sample: WorkspaceSample = useMemo(() => workspaceSampleById(sampleId), [sampleId]);
   const [flowId, setFlowId] = useState<string>(FLOWS[0].id);
@@ -222,6 +225,15 @@ export default function ProjectExplorer({
     return step;
   };
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="Project"
+        description="Open a .kapi project and inspect it with the real engine."
+      />
+    );
+  }
   return (
     <div className={shared.explorer}>
       <div className={shared.statusBar}>

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { Block, File, Run } from "@neokapi/kapi-format";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import { KLF_SAMPLES, klfSampleById, klfText, ANNOTATIONS_KLFL } from "./klfFixtures";
 import styles from "./Klf.module.css";
@@ -53,7 +55,8 @@ export default function KlfExplorer({
   defaultSampleId,
   hideAnnotations,
 }: KlfExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
 
   const initial = klfSampleById(defaultSampleId ?? "full");
   const [sampleId, setSampleId] = useState(initial.id);
@@ -160,6 +163,15 @@ export default function KlfExplorer({
     setSelectedAnn(null);
   };
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="Kapi L10n Format"
+        description="Explore the Kapi L10n Format with the real engine."
+      />
+    );
+  }
   return (
     <div className={styles.lab}>
       <div className={styles.row}>

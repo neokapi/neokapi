@@ -60,3 +60,66 @@
   color: var(--ifm-color-emphasis-500);
   opacity: 0.85;
 }
+
+/* ---------------------------------------------------------------------------
+   Icon-only navbar items (GitHub + locale), in the docusaurus.io style. Both use
+   a theme-coloured CSS mask so they adapt to light/dark automatically.
+--------------------------------------------------------------------------- */
+.header-github-link {
+  display: flex;
+  align-items: center;
+}
+.header-github-link::before {
+  content: "";
+  width: 22px;
+  height: 22px;
+  background-color: var(--ifm-navbar-link-color);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20d%3D%27M12%20.297c-6.63%200-12%205.373-12%2012%200%205.303%203.438%209.8%208.205%2011.385.6.113.82-.258.82-.577%200-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422%2018.07%203.633%2017.7%203.633%2017.7c-1.087-.744.084-.729.084-.729%201.205.084%201.838%201.236%201.838%201.236%201.07%201.835%202.809%201.305%203.495.998.108-.776.417-1.305.76-1.605-2.665-.305-5.467-1.334-5.467-5.931%200-1.311.469-2.381%201.236-3.221-.124-.303-.535-1.524.117-3.176%200%200%201.008-.322%203.301%201.23A11.509%2011.509%200%200112%205.803c1.02.005%202.047.138%203.006.404%202.291-1.552%203.297-1.23%203.297-1.23.653%201.653.242%202.874.118%203.176.77.84%201.235%201.911%201.235%203.221%200%204.609-2.807%205.624-5.479%205.921.43.372.823%201.102.823%202.222%200%201.606-.014%202.898-.014%203.293%200%20.322.216.694.825.576C20.565%2022.092%2024%2017.592%2024%2012.297c0-6.627-5.373-12-12-12%27%2F%3E%3C%2Fsvg%3E")
+    center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%3E%3Cpath%20d%3D%27M12%20.297c-6.63%200-12%205.373-12%2012%200%205.303%203.438%209.8%208.205%2011.385.6.113.82-.258.82-.577%200-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422%2018.07%203.633%2017.7%203.633%2017.7c-1.087-.744.084-.729.084-.729%201.205.084%201.838%201.236%201.838%201.236%201.07%201.835%202.809%201.305%203.495.998.108-.776.417-1.305.76-1.605-2.665-.305-5.467-1.334-5.467-5.931%200-1.311.469-2.381%201.236-3.221-.124-.303-.535-1.524.117-3.176%200%200%201.008-.322%203.301%201.23A11.509%2011.509%200%200112%205.803c1.02.005%202.047.138%203.006.404%202.291-1.552%203.297-1.23%203.297-1.23.653%201.653.242%202.874.118%203.176.77.84%201.235%201.911%201.235%203.221%200%204.609-2.807%205.624-5.479%205.921.43.372.823%201.102.823%202.222%200%201.606-.014%202.898-.014%203.293%200%20.322.216.694.825.576C20.565%2022.092%2024%2017.592%2024%2012.297c0-6.627-5.373-12-12-12%27%2F%3E%3C%2Fsvg%3E")
+    center / contain no-repeat;
+  transition: background-color 0.15s ease;
+}
+.header-github-link:hover::before {
+  background-color: var(--ifm-color-primary);
+}
+
+/* Locale dropdown: icon-only. Docusaurus already renders a translate-glyph SVG
+   in the toggle; we only hide the active-locale label ("English"). The class is
+   on the toggle link itself. font-size:0 hides the label (the SVG keeps its
+   width/height attributes) and collapses the em-based caret — leaving just the
+   icon. The dropdown menu is a sibling <ul>, so its locale names are untouched. */
+.navbar__link.navbar-locale-icon {
+  font-size: 0;
+  /* Center the icon vertically: with the label collapsed to font-size:0 the
+     inline SVG would otherwise align to an empty baseline and sit too high. */
+  display: flex;
+  align-items: center;
+}
+
+/* Even spacing between the right-side navbar items. The container ships with
+   gap:normal (0), and the icon items carried different paddings (the locale
+   dropdown wrapper ~12px, the GitHub link 12px, the theme toggle 0) — so the
+   icons sat at irregular intervals. Zero the icon items' horizontal padding and
+   let one uniform gap space them, so all icon glyphs are evenly pitched. */
+.navbar__items--right {
+  gap: 0.9rem;
+  align-items: center;
+}
+.navbar__item.dropdown:has(> .navbar__link.navbar-locale-icon),
+.navbar__link.navbar-locale-icon,
+.header-github-link {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Keep the (now compact) locale icon in the top bar on small screens. Docusaurus
+   hides dropdown navbar items below 996px (they move into the sidebar); the
+   icon-only locale is small enough to stay, so the language control doesn't
+   silently vanish on mobile. */
+@media (max-width: 996px) {
+  .navbar__item.dropdown:has(.navbar__link.navbar-locale-icon) {
+    display: flex;
+    align-items: center;
+  }
+}

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { cn } from "@neokapi/ui-primitives";
 import { useLabRuntime } from "./useLabRuntime";
+import RunGate from "./RunGate";
+import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
 import FileSelectorField from "./FileSelectorField";
 import ActiveFileSwitcher from "./ActiveFileSwitcher";
@@ -29,7 +31,8 @@ export default function AnatomyExplorer({
   defaultSampleId,
   sampleIds,
 }: AnatomyExplorerProps): React.ReactElement {
-  const runtime = useLabRuntime(assets);
+  const runtime = useLabRuntime(assets, { autoBoot: false });
+  const gate = useRunGate(runtime);
   const library = useFileLibrary({ sampleIds });
 
   const initial = SAMPLES.find((s) => s.id === defaultSampleId) ?? SAMPLES[0];
@@ -72,6 +75,15 @@ export default function AnatomyExplorer({
     };
   }, [runtime.ready, runtime.inspect, file?.path, file?.changedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (!gate.armed) {
+    return (
+      <RunGate
+        gate={gate}
+        title="Content model"
+        description="See how kapi parses your file into blocks, runs and overlays."
+      />
+    );
+  }
   return (
     <div className="kapi-reference flex flex-col gap-3 text-foreground">
       <FileSelectorField

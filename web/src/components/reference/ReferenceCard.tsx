@@ -45,7 +45,14 @@ export default function ReferenceCard({ entry, href, onSelect }: Props) {
       onClick={(e) => {
         // Let modifier-clicks / middle-clicks follow the real link (new tab,
         // copy address, etc.); a plain left-click opens the quick modal.
-        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+        if (
+          e.defaultPrevented ||
+          e.button !== 0 ||
+          e.metaKey ||
+          e.ctrlKey ||
+          e.shiftKey ||
+          e.altKey
+        )
           return;
         e.preventDefault();
         onSelect(entry.id);

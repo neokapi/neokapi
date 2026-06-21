@@ -3,6 +3,7 @@ import { VideoPlayer, type ContentNode, type ContentTree } from "@neokapi/ui-pri
 import { decodeAudio, transcribe, type ASRSegment } from "@neokapi/kapi-playground/asrBridge";
 import { demux, revokeFrames, type AVFrame } from "@neokapi/kapi-playground/avBridge";
 import { ocr, type OCRLine } from "@neokapi/kapi-playground/visionBridge";
+import { ensurePlugin } from "@neokapi/kapi-playground/plugins";
 
 // VideoExplorer — drop in a video and the whole multimodal pipeline runs in your
 // browser: ffmpeg.wasm (@ffmpeg/ffmpeg) demuxes it into a 16 kHz audio track and
@@ -105,18 +106,23 @@ export default function VideoExplorer({
     try {
       setStage("demux");
       setProgress(0);
+      // Route each model/core download through the plugin manager so the navbar
+      // status widget reflects av/asr/vision loading; the bridges reuse them.
+      await ensurePlugin("av");
       const bytes = new Uint8Array(await (await fetch(src)).arrayBuffer());
       const { audio, frames } = await demux(bytes, { fps: 1, onProgress: setProgress });
       revokeFrames(framesRef.current);
       framesRef.current = frames;
 
       setStage("asr");
+      await ensurePlugin("asr");
       const audioBuf = await decodeAudio(audio.buffer.slice(0) as ArrayBuffer);
       const asr = await transcribe(audioBuf, { onProgress: setProgress });
 
       const frameOCR: FrameOCR[] = [];
       if (doOCR && modelBase) {
         setStage("ocr");
+        await ensurePlugin("vision");
         for (const fr of frames) {
           const raster = await frameRaster(fr.url);
           const res = await ocr(raster, modelBase);

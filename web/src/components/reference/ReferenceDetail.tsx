@@ -91,7 +91,7 @@ export default function ReferenceDetail({ entry }: Props) {
   );
 
   const copyYaml = useCallback(() => {
-    navigator.clipboard.writeText(yamlText(yamlLines)).then(() => {
+    void navigator.clipboard.writeText(yamlText(yamlLines)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
@@ -110,7 +110,7 @@ export default function ReferenceDetail({ entry }: Props) {
     if (!runOptions) return;
     // Defer the heavy kit import to browser context (openKapi is SSR-clean but
     // the dynamic import keeps the bundle split clean for SSR paths).
-    import("@neokapi/kapi-playground").then(({ openKapi }) => {
+    void import("@neokapi/kapi-playground").then(({ openKapi }) => {
       const opts = { ...runOptions };
       // Ensure the user's selected fixture is seeded.
       if (!opts.seed?.includes(selectedFixture)) {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T17:52:53Z",
+  "generatedAt": "2026-06-20T23:00:57Z",
   "kind": "tool",
   "entries": [
     {
@@ -4400,7 +4400,7 @@
           "engine": {
             "type": "string",
             "title": "Segmentation Engine",
-            "description": "Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ llm (semantic chunks)/ sat (ML model)"
+            "description": "Segmenter backend: srx (rule-based; default)/ uax29 (Unicode baseline)/ intl (browser Intl.Segmenter)/ llm (semantic chunks)/ sat (ML model)"
           },
           "instruction": {
             "type": "string",

@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { AudioPlayer, type ContentNode, type ContentTree } from "@neokapi/ui-primitives/preview";
 import { decodeAudio, transcribe, type ASRSegment } from "@neokapi/kapi-playground/asrBridge";
+import { ensurePlugin } from "@neokapi/kapi-playground/plugins";
 
 // AudioExplorer — drop in (or pick) an audio file and run real Whisper speech
 // recognition in your browser via @huggingface/transformers (onnxruntime-web),
@@ -61,6 +62,10 @@ export default function AudioExplorer({ samples = [] }: AudioExplorerProps): Rea
     setError(null);
     setProgress(0);
     try {
+      // Route the model download through the plugin manager so the navbar
+      // status widget reflects the `asr` plugin loading; transcribe() then
+      // reuses the warmed model.
+      await ensurePlugin("asr");
       const bytes = await (await fetch(src)).arrayBuffer();
       const audio = await decodeAudio(bytes);
       const res = await transcribe(audio, { onProgress: setProgress });

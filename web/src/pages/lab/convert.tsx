@@ -1,6 +1,5 @@
 import React from "react";
 import Layout from "@theme/Layout";
-import Link from "@docusaurus/Link";
 import { ConversionExplorer } from "@site/src/components/Lab";
 import styles from "./convert.module.css";
 
@@ -14,27 +13,18 @@ export default function ConversionLabPage(): React.ReactElement {
   return (
     <Layout
       title="Conversion Lab"
-      description="Convert a document between formats in your browser — Markdown, HTML, DocLang, XLIFF, PO, JSON and more — and see both the rendered page and the format source, side by side. The real kapi engine, compiled to WebAssembly; nothing is mocked."
+      description="Turn a document into another format — Markdown, HTML, XLIFF, JSON and more — without losing its structure or inline formatting. See the before and after, side by side, right in your browser."
     >
       <main className={styles.page}>
         <div className={styles.hero}>
           <h1>Conversion Lab</h1>
           <p className={styles.lede}>
-            Pick a document and a target format: the <Link to="/reference">native reader</Link>{" "}
-            parses it into the content model (roles, runs, tables, geometry), and a{" "}
-            <strong>generative writer</strong> re-serializes that model — so structure and inline
-            styling survive the hop. Toggle between the <strong>Rendered</strong> page and the{" "}
-            <strong>Source</strong> of the chosen format. Skeleton-driven formats (docx, odt, idml,
-            epub) inject translations back into an original file and so are not offered as targets.
-            Everything runs the real <code>kapi convert</code> compiled to WebAssembly — nothing is
-            mocked.
+            Pick a document and a target format. neokapi reads it, understands its structure —
+            headings, lists, tables, inline styling — and rewrites it in the new format with all of
+            that kept intact. The original and the result sit side by side, and you can flip the
+            result between the <strong>Rendered</strong> page and its raw <strong>Source</strong>,
+            so you can confirm nothing was lost in the move. It all runs in your browser.
           </p>
-          <nav aria-label="Related labs" style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-            <Link to="/lab">neokapi Lab</Link>
-            <Link to="/lab/segmentation">Segmentation Lab</Link>
-            <Link to="/lab/pdf">PDF Lab</Link>
-            <Link to="/lab/vision">Vision Lab</Link>
-          </nav>
         </div>
         <ConversionExplorer defaultSampleId="article-md" defaultTarget="doclang" />
       </main>

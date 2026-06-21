@@ -30,7 +30,7 @@ export default function CommandModal({ cmd, href, onClose }: Props) {
   const pageHref = useBaseUrl(href);
 
   const copyLink = useCallback(() => {
-    navigator.clipboard.writeText(window.location.href).then(() => {
+    void navigator.clipboard.writeText(window.location.href).then(() => {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 1500);
     });

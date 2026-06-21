@@ -225,7 +225,10 @@ const config: Config = {
     function devServerOverlayFilter() {
       return {
         name: "dev-server-overlay-filter",
-        configureWebpack() {
+        // Docusaurus merges this into the dev-server config; `devServer` isn't on
+        // webpack's base Configuration type (webpack-dev-server augments it), so
+        // widen the return type to carry it.
+        configureWebpack(): import("webpack").Configuration & { devServer?: unknown } {
           return {
             devServer: {
               client: {
@@ -406,17 +409,18 @@ const config: Config = {
           label: "Labs",
           position: "left",
           items: [
-            { label: "Neokapi Lab", to: "/lab" },
-            { label: "Segmentation Lab", to: "/lab/segmentation" },
-            { label: "PDF Lab", to: "/lab/pdf" },
-            { label: "Vision Lab", to: "/lab/vision" },
-            { label: "Gemma Lab", to: "/lab/gemma" },
-            { label: "Audio Lab", to: "/lab/audio" },
-            { label: "Video Lab", to: "/lab/video" },
-            { label: "Multimodal Lab", to: "/lab/multimodal" },
-            { label: "Conversion Lab", to: "/lab/convert" },
+            // Consolidated into natural categories. AI/ML (local LLM, OCR, ASR)
+            // is embedded inside the relevant labs rather than split into its own
+            // Gemma/Multimodal pages; plugins load on demand from the navbar
+            // status widget. Old per-topic routes redirect to their new home.
+            { label: "Core Framework", to: "/lab" },
+            { label: "Segmentation", to: "/lab/segmentation" },
+            { label: "File Conversion", to: "/lab/convert" },
+            { label: "Structure & Layout", to: "/lab/structure" },
+            { label: "Kapi Vision", to: "/lab/vision" },
+            { label: "Audio & Video", to: "/lab/media" },
             { label: "CLI Playground", to: "/playground-cli" },
-            { label: "KLF Lab", to: "/klf-lab" },
+            { label: "Kapi L10N Format", to: "/klf-lab" },
           ],
         },
         {
@@ -462,13 +466,25 @@ const config: Config = {
           ],
         },
         {
-          type: "localeDropdown",
+          // Neokapi WebAssembly Lab status widget — engine + plugin state for
+          // this browser tab, with explicit per-plugin Download (custom type
+          // registered in src/theme/NavbarItem/ComponentTypes.tsx).
+          type: "custom-kapiStatus",
           position: "right",
         },
         {
-          href: "https://github.com/neokapi/neokapi",
-          label: "GitHub",
+          type: "localeDropdown",
           position: "right",
+          // Icon-only: the translate glyph stands in for the active-locale label
+          // (see .navbar-locale-icon in custom.css); the menu still lists locales.
+          className: "navbar-locale-icon",
+        },
+        {
+          href: "https://github.com/neokapi/neokapi",
+          position: "right",
+          // Icon-only GitHub link (mask icon via .header-github-link in custom.css).
+          className: "header-github-link",
+          "aria-label": "GitHub repository",
         },
       ],
     },
