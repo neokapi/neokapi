@@ -278,186 +278,93 @@ function DownloadBar({ p }: { p?: DlProgress | null }): React.ReactElement | nul
   );
 }
 
-// BlockAgreement renders one block's source text once, with a marker at every
-// boundary any engine's overlay drew; the marker's strength = how many of the
-// mapped engines split there. Neutral: more engines agreeing = a stronger mark,
-// never "correct".
-function BlockAgreement({
-  text,
-  cutsByEngine,
-  labels,
-}: {
-  text: string;
-  cutsByEngine: Record<string, number[] | null>;
-  labels: Record<string, string>;
-}): React.ReactElement | null {
-  const mapped = Object.entries(cutsByEngine).filter(([, c]) => c !== null) as [string, number[]][];
-  if (mapped.length < 2 || !text) return null;
+// Per-block consensus over the engines that mapped cleanly back to the block
+// text: a map of boundary offset → how many engines drew a boundary there, plus
+// the count of mappable engines (the denominator). Built once per block and
+// shared by every cell in that block's row, so a given offset shades identically
+// across columns — agreement is legible by scanning across.
+interface BlockConsensus {
+  counts: Map<number, number>;
+  total: number;
+}
 
-  const cps = Array.from(text);
+function buildConsensus(
+  blockId: string,
+  defs: EngineDef[],
+  results: Record<string, EngineResult>,
+): BlockConsensus {
   const counts = new Map<number, number>();
-  for (const [, c] of mapped) for (const off of c) counts.set(off, (counts.get(off) ?? 0) + 1);
-  const offsets = [...counts.keys()].sort((a, b) => a - b);
-  const total = mapped.length;
-
-  const pieces: React.ReactNode[] = [];
-  let prev = 0;
-  offsets.forEach((off, k) => {
-    pieces.push(<span key={`t${k}`}>{cps.slice(prev, off).join("")}</span>);
-    const n = counts.get(off) ?? 0;
-    const strength = n / total;
-    pieces.push(
-      <span
-        key={`m${k}`}
-        title={`${n} of ${total} engines split here`}
-        className="mx-0.5 inline-block align-middle rounded-sm"
-        style={{
-          width: 3,
-          height: "1em",
-          backgroundColor: `color-mix(in srgb, var(--ifm-color-primary) ${Math.round(
-            30 + strength * 70,
-          )}%, transparent)`,
-        }}
-      />,
-    );
-    prev = off;
-  });
-  pieces.push(<span key="tlast">{cps.slice(prev).join("")}</span>);
-
-  // Cluster engines whose boundary sets are identical for this block.
-  const groups = new Map<string, string[]>();
-  for (const [id, c] of mapped) {
-    const key = JSON.stringify(c);
-    (groups.get(key) ?? groups.set(key, []).get(key)!).push(labels[id] ?? id);
+  let total = 0;
+  for (const d of defs) {
+    const seg = results[d.id]?.blocks.find((b) => b.id === blockId);
+    if (!seg || seg.cuts === null) continue;
+    total++;
+    for (const off of seg.cuts) counts.set(off, (counts.get(off) ?? 0) + 1);
   }
-  const clusters = [...groups.values()].filter((g) => g.length > 1);
-
-  return (
-    <div>
-      <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">{pieces}</p>
-      {clusters.length > 0 && (
-        <ul className="mt-2 flex flex-col gap-0.5 text-xs text-muted-foreground">
-          {clusters.map((g, i) => (
-            <li key={i}>
-              Same split: <span className="text-foreground">{g.join(", ")}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+  return { counts, total };
 }
 
-// AgreementPanel frames the per-block agreement views. Driven entirely from the
-// overlays each engine attached — agreement is the only signal, not a verdict.
-function AgreementPanel({
-  blocks,
-  results,
-  selectedIds,
-  labels,
+// Boundary draws the divider between two adjacent sentences, shaded by how many
+// engines cut at this same offset (neutral, count-based — never a verdict). When
+// the engine's output can't be mapped back to the block text (offset undefined,
+// e.g. an LLM reworded it) it falls back to a faint neutral rule.
+function Boundary({
+  offset,
+  consensus,
 }: {
-  blocks: BaseBlock[];
-  results: Record<string, EngineResult>;
-  selectedIds: string[];
-  labels: Record<string, string>;
-}): React.ReactElement | null {
-  const cutsFor = (blockId: string): Record<string, number[] | null> => {
-    const m: Record<string, number[] | null> = {};
-    for (const id of selectedIds) {
-      const er = results[id];
-      if (!er) continue;
-      const bs = er.blocks.find((b) => b.id === blockId);
-      if (bs) m[id] = bs.cuts;
-    }
-    return m;
-  };
-
-  const panels = blocks
-    .map((b) => ({ block: b, cuts: cutsFor(b.id) }))
-    .filter(({ cuts }) => Object.values(cuts).filter((c) => c !== null).length >= 2);
-  if (panels.length === 0) return null;
-
-  const multi = blocks.length > 1;
+  offset: number | undefined;
+  consensus: BlockConsensus;
+}): React.ReactElement {
+  if (offset === undefined || consensus.total === 0) {
+    return (
+      <div className="my-1 h-px w-full bg-border" title="boundary (not comparable)" aria-hidden />
+    );
+  }
+  const n = consensus.counts.get(offset) ?? 1;
+  const strength = n / consensus.total; // 1/total (unique) … 1 (all engines)
   return (
-    <div className="rounded-lg border border-border bg-card/40 p-3">
-      <div className="mb-2 flex items-baseline justify-between gap-2">
-        <span className="text-sm font-semibold">Where the engines agree</span>
-        <span className="text-xs text-muted-foreground">
-          Darker mark = more engines drew that boundary. Not a verdict — there is no single correct
-          segmentation.
-        </span>
-      </div>
-      <div className="flex flex-col gap-3">
-        {panels.map(({ block, cuts }, i) => (
-          <div key={block.id}>
-            {multi && (
-              <div className="mb-1 font-mono text-xs text-muted-foreground">
-                {block.name || `block ${i + 1}`}
-              </div>
-            )}
-            <BlockAgreement text={block.text} cutsByEngine={cuts} labels={labels} />
-          </div>
-        ))}
-      </div>
-    </div>
+    <div
+      className="my-1 w-full rounded-full"
+      title={`${n} of ${consensus.total} engines split here`}
+      style={{
+        height: 3,
+        backgroundColor: `color-mix(in srgb, var(--ifm-color-primary) ${Math.round(
+          25 + strength * 75,
+        )}%, transparent)`,
+      }}
+    />
   );
 }
 
-function EngineColumn({
-  def,
-  result,
+// SegCell renders one engine's segmentation of one block: its sentences stacked,
+// with a consensus-shaded Boundary between each pair. This is where the agreement
+// lives now — inside the output, not a separate strip.
+function SegCell({
+  seg,
+  consensus,
   busy,
   error,
-  progress,
-  showBlockLabels,
 }: {
-  def: EngineDef;
-  result: EngineResult | null;
+  seg: BlockSeg | undefined;
+  consensus: BlockConsensus;
   busy: boolean;
   error: string | null;
-  progress?: DlProgress | null;
-  showBlockLabels: boolean;
 }): React.ReactElement {
+  if (error) return <p className="px-1 text-sm text-destructive">failed</p>;
+  if (!seg) return <p className="px-1 text-sm text-muted-foreground">{busy ? "Running…" : "—"}</p>;
   return (
-    <div className="flex w-64 shrink-0 flex-col rounded-lg border border-border p-3">
-      <div className="mb-0.5 text-sm font-semibold">{def.label}</div>
-      <p className="mb-2 text-xs text-muted-foreground">{def.note}</p>
-      {busy && <DownloadBar p={progress} />}
-      {error ? (
-        <p className="text-sm text-destructive">{error}</p>
-      ) : busy && !result ? (
-        <p className="text-sm text-muted-foreground">Running…</p>
-      ) : !result ? (
-        <p className="text-sm text-muted-foreground">Not run.</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {result.blocks.map((b) => (
-            <div key={b.id} className="flex flex-col gap-1">
-              {showBlockLabels && (
-                <div className="font-mono text-[0.7rem] text-muted-foreground">
-                  {b.name || b.id}
-                </div>
-              )}
-              {b.sentences.map((s, i) => (
-                <div
-                  key={i}
-                  className="flex gap-2 rounded border border-border bg-card/40 px-2 py-1 text-sm"
-                >
-                  <span className="select-none font-mono text-xs text-muted-foreground">
-                    {i + 1}
-                  </span>
-                  <span className="text-foreground">{s}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-          <p className="text-xs text-muted-foreground">
-            {result.total} sentence{result.total === 1 ? "" : "s"}
-            {result.blocks.length > 1 ? ` · ${result.blocks.length} blocks` : ""} · {result.ms}
-            &nbsp;ms
-          </p>
-        </div>
-      )}
+    <div className="flex flex-col">
+      {seg.sentences.map((s, i) => (
+        <React.Fragment key={i}>
+          <div className="flex gap-2 rounded border border-border bg-card/40 px-2 py-1 text-sm">
+            <span className="select-none font-mono text-xs text-muted-foreground">{i + 1}</span>
+            <span className="text-foreground">{s}</span>
+          </div>
+          {i < seg.sentences.length - 1 && (
+            <Boundary offset={seg.cuts ? seg.cuts[i] : undefined} consensus={consensus} />
+          )}
+        </React.Fragment>
+      ))}
     </div>
   );
 }
@@ -651,9 +558,16 @@ export default function SegmentationLabInner({
 
   const hasResults = Object.keys(results).length > 0;
   const selectedDefs = ENGINES.filter((d) => selected.has(d.id));
-  const selectedIds = useMemo(() => selectedDefs.map((d) => d.id), [selectedDefs]);
-  const labels = useMemo(() => Object.fromEntries(ENGINES.map((d) => [d.id, d.label])), []);
   const multiBlock = comparedBlocks.length > 1;
+
+  // Per-block consensus, computed once per block and shared by every cell in the
+  // block's row so a given offset shades identically across engine columns.
+  const consensusByBlock = useMemo(() => {
+    const m = new Map<string, BlockConsensus>();
+    for (const b of comparedBlocks) m.set(b.id, buildConsensus(b.id, selectedDefs, results));
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comparedBlocks, results, selected]);
 
   // Download progress per engine: sat reflects the shared manager state (also
   // shown in the navbar widget); the LLM models report locally via onProgress.
@@ -796,30 +710,74 @@ export default function SegmentationLabInner({
         </div>
       </div>
 
-      {/* Agreement layer (neutral consensus over the overlays, per block) */}
-      {hasResults && (
-        <AgreementPanel
-          blocks={comparedBlocks}
-          results={results}
-          selectedIds={selectedIds}
-          labels={labels}
-        />
-      )}
-
-      {/* Side-by-side columns, one per selected engine */}
+      {/* Results grid: rows = blocks, columns = engines, so block N lines up
+          horizontally across every engine. Agreement lives inside each cell as
+          consensus-shaded boundaries (no separate strip). */}
       {(hasResults || running) && (
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {selectedDefs.map((d) => (
-            <EngineColumn
-              key={d.id}
-              def={d}
-              result={results[d.id] ?? null}
-              busy={!!busy[d.id]}
-              error={errors[d.id] ?? null}
-              progress={progressFor(d)}
-              showBlockLabels={multiBlock}
-            />
-          ))}
+        <div className="flex flex-col gap-1">
+          <p className="text-xs text-muted-foreground">
+            Each boundary is shaded by how many engines split there — a stronger mark = more engines
+            agree, a faint one is near-unique. Same offset → same colour across columns. Not a
+            verdict; there is no single correct segmentation.
+          </p>
+          <div className="overflow-x-auto pb-2">
+            <div
+              className="grid items-start gap-x-3 gap-y-3"
+              style={{
+                gridTemplateColumns: `${multiBlock ? "minmax(3.5rem, auto) " : ""}repeat(${
+                  selectedDefs.length
+                }, minmax(15rem, 1fr))`,
+              }}
+            >
+              {/* Header row: (optional corner) + one header per engine. */}
+              {multiBlock && <div />}
+              {selectedDefs.map((d) => {
+                const er = results[d.id];
+                return (
+                  <div key={d.id} className="flex flex-col border-b border-border px-1 pb-2">
+                    <div className="text-sm font-semibold">{d.label}</div>
+                    <p className="text-xs text-muted-foreground">{d.note}</p>
+                    {busy[d.id] && (
+                      <div className="mt-1">
+                        <DownloadBar p={progressFor(d)} />
+                      </div>
+                    )}
+                    {errors[d.id] ? (
+                      <p className="mt-1 text-xs text-destructive">{errors[d.id]}</p>
+                    ) : er ? (
+                      <p className="mt-1 text-[0.7rem] text-muted-foreground">
+                        {er.total} sentence{er.total === 1 ? "" : "s"}
+                        {er.blocks.length > 1 ? ` · ${er.blocks.length} blocks` : ""} · {er.ms}
+                        &nbsp;ms
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+
+              {/* One row per block — every engine's cell for that block shares
+                  the row, so the block aligns horizontally across columns. */}
+              {comparedBlocks.map((b, ri) => (
+                <React.Fragment key={b.id}>
+                  {multiBlock && (
+                    <div className="pt-1 font-mono text-xs text-muted-foreground">
+                      {b.name || `block ${ri + 1}`}
+                    </div>
+                  )}
+                  {selectedDefs.map((d) => (
+                    <div key={d.id} className="rounded-lg border border-border p-2">
+                      <SegCell
+                        seg={results[d.id]?.blocks.find((x) => x.id === b.id)}
+                        consensus={consensusByBlock.get(b.id) ?? { counts: new Map(), total: 0 }}
+                        busy={!!busy[d.id]}
+                        error={errors[d.id] ?? null}
+                      />
+                    </div>
+                  ))}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
