@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 )
@@ -59,6 +62,61 @@ func TestResolveModelRef(t *testing.T) {
 	// Explicit pair with a wrong model.
 	_, _, err = app.resolveModelRef("llm/nope")
 	assert.ErrorContains(t, err, "no model")
+}
+
+// runModelsCmd executes `models <args...>` against app, capturing combined
+// output. The models parent gets the persistent output flags the root command
+// supplies in production, so subcommands honor --json.
+func runModelsCmd(app *App, args ...string) (string, error) {
+	root := app.NewModelsCmd()
+	output.AddPersistentFlags(root)
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetErr(&buf)
+	root.SetArgs(args)
+	err := root.Execute()
+	return buf.String(), err
+}
+
+func TestModelsListText(t *testing.T) {
+	t.Setenv("KAPI_MODELS_CACHE", t.TempDir()) // isolate cache → "not cached"
+	app := appWith(mkPlugin("llm", mkModel("gemma-4-e2b", true), mkModel("gemma-tiny", false)))
+
+	out, err := runModelsCmd(app, "list")
+	require.NoError(t, err)
+	assert.Contains(t, out, "PLUGIN")
+	assert.Contains(t, out, "gemma-4-e2b (default)")
+	assert.Contains(t, out, "gemma-tiny")
+	assert.Contains(t, out, "not cached")
+	// tabwriter keeps the header and rows column-aligned: the MODEL header and
+	// each model name start at the same column.
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	require.GreaterOrEqual(t, len(lines), 3)
+	col := strings.Index(lines[0], "MODEL")
+	require.Positive(t, col)
+	for _, ln := range lines[1:] {
+		assert.Equal(t, "gemma", ln[col:col+5], "MODEL column misaligned: %q", ln)
+	}
+}
+
+func TestModelsListJSON(t *testing.T) {
+	t.Setenv("KAPI_MODELS_CACHE", t.TempDir())
+	app := appWith(mkPlugin("llm", mkModel("gemma-4-e2b", true)))
+
+	out, err := runModelsCmd(app, "list", "--json")
+	require.NoError(t, err)
+	var got struct {
+		Models []struct {
+			Plugin, Model, Status string
+			Default               bool
+		} `json:"models"`
+		Total int `json:"total"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &got), "output must be JSON: %s", out)
+	require.Equal(t, 1, got.Total)
+	assert.Equal(t, "llm", got.Models[0].Plugin)
+	assert.Equal(t, "gemma-4-e2b", got.Models[0].Model)
+	assert.True(t, got.Models[0].Default)
 }
 
 func TestResolveModelRefAmbiguous(t *testing.T) {

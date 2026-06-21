@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 )
 
@@ -109,23 +110,21 @@ func (a *App) resolveModelRef(ref string) (plugin string, asset manifest.ModelAs
 }
 
 // modelStatus reports whether every file of an asset is present in its cache
-// dir, plus its total declared size.
-func modelStatus(plugin string, asset manifest.ModelAsset) (status, size string) {
-	var total int64
+// dir, plus its total declared size in bytes.
+func modelStatus(plugin string, asset manifest.ModelAsset) (status string, totalBytes int64) {
 	for _, f := range asset.Files {
-		total += f.Size
+		totalBytes += f.Size
 	}
-	size = humanBytes(total)
 	dir, err := ModelDir(plugin, asset.ID, asset.Version)
 	if err != nil {
-		return "unknown", size
+		return "unknown", totalBytes
 	}
 	for _, f := range asset.Files {
 		if !modelFilePresent(filepath.Join(dir, f.Path), f.Size) {
-			return "not cached", size
+			return "not cached", totalBytes
 		}
 	}
-	return "cached", size
+	return "cached", totalBytes
 }
 
 func (a *App) newModelsListCmd() *cobra.Command {
@@ -134,21 +133,20 @@ func (a *App) newModelsListCmd() *cobra.Command {
 		Short: "List model assets declared by installed plugins",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			models := a.allPluginModels()
-			w := cmd.OutOrStdout()
-			if len(models) == 0 {
-				fmt.Fprintln(w, "No installed plugins declare model assets.")
-				return nil
-			}
-			fmt.Fprintf(w, "%-14s %-18s %-8s %-11s %s\n", "PLUGIN", "MODEL", "VERSION", "STATUS", "SIZE")
+			rows := make([]output.ModelAssetRow, 0, len(models))
 			for _, pm := range models {
-				status, size := modelStatus(pm.plugin, pm.asset)
-				name := pm.asset.ID
-				if pm.asset.Default {
-					name += " (default)"
-				}
-				fmt.Fprintf(w, "%-14s %-18s %-8s %-11s %s\n", pm.plugin, name, pm.asset.Version, status, size)
+				status, bytes := modelStatus(pm.plugin, pm.asset)
+				rows = append(rows, output.ModelAssetRow{
+					Plugin:    pm.plugin,
+					Model:     pm.asset.ID,
+					Version:   pm.asset.Version,
+					Default:   pm.asset.Default,
+					Status:    status,
+					SizeBytes: bytes,
+					Size:      humanBytes(bytes),
+				})
 			}
-			return nil
+			return output.Print(cmd, output.ModelsListOutput{Models: rows, Total: len(rows)})
 		},
 	}
 }
@@ -173,8 +171,7 @@ func (a *App) newModelsPullCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "✓ %s/%s ready at %s\n", plugin, asset.ID, dir)
-			return nil
+			return output.Print(cmd, output.ModelActionOutput{Plugin: plugin, Model: asset.ID, Dir: dir, Action: "ready"})
 		},
 	}
 }
@@ -196,14 +193,12 @@ func (a *App) newModelsPruneCmd() *cobra.Command {
 				return err
 			}
 			if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
-				fmt.Fprintf(cmd.OutOrStdout(), "%s/%s is not cached.\n", plugin, asset.ID)
-				return nil
+				return output.Print(cmd, output.ModelActionOutput{Plugin: plugin, Model: asset.ID, Action: "absent"})
 			}
 			if err := os.RemoveAll(dir); err != nil {
 				return fmt.Errorf("prune %s/%s: %w", plugin, asset.ID, err)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "✓ removed %s/%s (%s)\n", plugin, asset.ID, dir)
-			return nil
+			return output.Print(cmd, output.ModelActionOutput{Plugin: plugin, Model: asset.ID, Dir: dir, Action: "removed"})
 		},
 	}
 }
