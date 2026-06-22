@@ -845,7 +845,7 @@ export function ContentPage({
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
             {content.map((coll, ci) => {
               const isEditing = editing.has(ci);
               const isOpen = !collapsed.has(ci);
@@ -853,7 +853,10 @@ export function ContentPage({
               const bare = isBareEntry(coll);
               const title = bare ? coll.path || t("Files") : coll.name || t("Untitled collection");
               return (
-                <ItemCard key={ci} className="overflow-hidden p-0">
+                <ItemCard
+                  key={ci}
+                  className={`overflow-hidden p-0 ${isEditing ? "xl:col-span-2" : ""}`}
+                >
                   <div className="flex items-center gap-2 px-4 py-3">
                     <button
                       onClick={() => toggle(setCollapsed, ci)}
@@ -897,26 +900,42 @@ export function ContentPage({
 
                   {isOpen && (
                     <div className="border-t border-border">
-                      {isEditing ? (
-                        <div className="p-4">{collectionEditor(coll, ci)}</div>
-                      ) : files.length > 0 ? (
+                      {/* Editor slides in over the output; both stay visible,
+                          separated by a distinct tint + accent rule. */}
+                      {isEditing && (
+                        <div className="animate-in slide-in-from-top-2 fade-in border-b-2 border-primary/40 bg-muted/40 p-4 shadow-inner duration-200">
+                          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                            <Pencil size={11} />
+                            {t("Edit collection")}
+                          </div>
+                          {collectionEditor(coll, ci)}
+                        </div>
+                      )}
+
+                      {/* Output — the matched files, always visible when expanded. */}
+                      {files.length > 0 ? (
                         matchedTable(files)
                       ) : (
                         <p className="px-4 py-6 text-center text-xs text-muted-foreground">
-                          {t("No files matched this collection's patterns.")}{" "}
-                          <button
-                            onClick={() => {
-                              setCollapsed((prev) => {
-                                const next = new Set(prev);
-                                next.delete(ci);
-                                return next;
-                              });
-                              setEditing((prev) => new Set(prev).add(ci));
-                            }}
-                            className="text-primary hover:underline"
-                          >
-                            {t("Edit patterns")}
-                          </button>
+                          {t("No files matched this collection's patterns.")}
+                          {!isEditing && (
+                            <>
+                              {" "}
+                              <button
+                                onClick={() => {
+                                  setCollapsed((prev) => {
+                                    const next = new Set(prev);
+                                    next.delete(ci);
+                                    return next;
+                                  });
+                                  setEditing((prev) => new Set(prev).add(ci));
+                                }}
+                                className="text-primary hover:underline"
+                              >
+                                {t("Edit patterns")}
+                              </button>
+                            </>
+                          )}
                         </p>
                       )}
                     </div>
