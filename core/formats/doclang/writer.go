@@ -196,7 +196,7 @@ func (w *Writer) padN(b *strings.Builder, n int) {
 	if !w.pretty() {
 		return
 	}
-	for i := 0; i < n; i++ {
+	for range n {
 		b.WriteString(w.indentUnit())
 	}
 }
