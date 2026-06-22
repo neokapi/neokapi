@@ -874,6 +874,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^4.2.0
         version: 4.2.0
+      '@mlc-ai/web-llm':
+        specifier: ^0.2.79
+        version: 0.2.84
       '@neokapi/ui-primitives':
         specifier: '*'
         version: link:../ui
@@ -3762,6 +3765,9 @@ packages:
 
   '@mermaid-js/parser@1.1.1':
     resolution: {integrity: sha512-VuHdsYMK1bT6X2JbcAaWAhugTRvRBRyuZgd+c22swUeI9g/ntaxF7CY7dYarhZovofCbUNO0G7JesfmNtjYOCw==, tarball: https://registry.npmjs.org/@mermaid-js/parser/-/parser-1.1.1.tgz}
+
+  '@mlc-ai/web-llm@0.2.84':
+    resolution: {integrity: sha512-hrOWzK4/nGNmgoRKT8pgVmZZ2oEPpbblIWQOwpqNyvK2dysHw3KVB1gNJOuRcQfKOPhucEhX1NJzXzgMDnwSCQ==, tarball: https://registry.npmjs.org/@mlc-ai/web-llm/-/web-llm-0.2.84.tgz}
 
   '@modelcontextprotocol/sdk@1.29.0':
     resolution: {integrity: sha512-zo37mZA9hJWpULgkRpowewez1y6ML5GsXJPY8FI0tBBCd77HEvza4jDqRKOXgHNn867PVGCyTdzqpz0izu5ZjQ==, tarball: https://registry.npmjs.org/@modelcontextprotocol/sdk/-/sdk-1.29.0.tgz}
@@ -9222,6 +9228,10 @@ packages:
   log-symbols@7.0.1:
     resolution: {integrity: sha512-ja1E3yCr9i/0hmBVaM0bfwDjnGy8I/s6PP4DFp+yP+a+mrHO4Rm7DtmnqROTUkHIkqffC84YY7AeqX6oFk0WFg==, tarball: https://registry.npmjs.org/log-symbols/-/log-symbols-7.0.1.tgz}
     engines: {node: '>=18'}
+
+  loglevel@1.9.2:
+    resolution: {integrity: sha512-HgMmCqIJSAKqo68l0rS2AanEWfkxaZ5wNiEFb5ggm08lDs9Xl2KxBlX3PTcaD2chBM1gXAYf491/M2Rv8Jwayg==, tarball: https://registry.npmjs.org/loglevel/-/loglevel-1.9.2.tgz}
+    engines: {node: '>= 0.6.0'}
 
   long@4.0.0:
     resolution: {integrity: sha512-XsP+KhQif4bjX1kbuSiySJFNAehNxgLb6hPRGJ9QsUr8ajHkuXGdrHmFUTUUXhDwVX2R5bY4JNZEwbUiMhV+MA==, tarball: https://registry.npmjs.org/long/-/long-4.0.0.tgz}
@@ -15869,6 +15879,10 @@ snapshots:
     dependencies:
       '@chevrotain/types': 11.1.2
 
+  '@mlc-ai/web-llm@0.2.84':
+    dependencies:
+      loglevel: 1.9.2
+
   '@modelcontextprotocol/sdk@1.29.0(zod@3.25.76)':
     dependencies:
       '@hono/node-server': 1.19.14(hono@4.12.23)
@@ -21493,6 +21507,8 @@ snapshots:
     dependencies:
       is-unicode-supported: 2.1.0
       yoctocolors: 2.1.2
+
+  loglevel@1.9.2: {}
 
   long@4.0.0: {}
 

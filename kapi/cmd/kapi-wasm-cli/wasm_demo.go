@@ -92,12 +92,12 @@ func forceDemoProviders(reg *registry.ToolRegistry) {
 			config = map[string]any{}
 		}
 		// Real in-browser providers run via a host JS bridge, not a credentialed
-		// network call: `gemma` (the Gemma 4 model via transformers.js) and
-		// `browser` (the on-device Translator API). Let either through untouched
-		// (drop only a stray key) so the demo coercion below does not override it —
-		// the mt-translate config factory then resolves `browser` to the demo
-		// provider itself when the page lacks the Translator API.
-		if prov, _ := config["provider"].(string); prov == string(gemmaProviderID) || prov == string(browserMTProviderID) {
+		// network call: `local` (a model via WebLLM/WebGPU, transformers.js
+		// fallback) and `browser` (the on-device Translator API). Let either
+		// through untouched (drop only a stray key) so the demo coercion below does
+		// not override it — the mt-translate config factory then resolves `browser`
+		// to the demo provider itself when the page lacks the Translator API.
+		if prov, _ := config["provider"].(string); prov == string(localProviderID) || prov == string(browserMTProviderID) {
 			delete(config, "apiKey")
 			return config, nil
 		}
