@@ -1,16 +1,19 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // NewModelsCmd builds `kapi models` — manage the large model assets that
@@ -19,10 +22,15 @@ import (
 func (a *App) NewModelsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "models",
-		Short: "Manage model assets that plugins use",
-		Long: "List, pre-fetch, and remove the model assets that kapi downloads and caches on a\n" +
-			"plugin's behalf. Each is integrity-pinned in the plugin's manifest and stored under\n" +
-			"$XDG_CACHE_HOME/kapi/models/<plugin>/<id>/<version>/.",
+		Short: "List and manage the models kapi can translate with",
+		Long: "A single view of every model kapi can use, across three sources:\n\n" +
+			"  • Local · Ollama  — on-device models served by a local Ollama runtime\n" +
+			"                      (`kapi models pull <model>` installs one)\n" +
+			"  • Plugin models   — integrity-pinned assets a plugin downloads and caches\n" +
+			"                      under $XDG_CACHE_HOME/kapi/models/<plugin>/<id>/<version>/\n" +
+			"  • Cloud providers — remote models that require an API key\n\n" +
+			"`kapi models pull`/`prune` install and remove Ollama and plugin models; cloud\n" +
+			"models are listed for reference. Filter with `--provider <ollama|plugin|cloud-id>`.",
 	}
 	cmd.AddCommand(a.newModelsListCmd())
 	cmd.AddCommand(a.newModelsPullCmd())
@@ -131,47 +139,164 @@ func modelStatus(plugin string, asset manifest.ModelAsset) (status string, total
 }
 
 func (a *App) newModelsListCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List model assets declared by installed plugins",
+		Short: "List every model kapi can use (Ollama, plugin assets, cloud providers)",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			models := a.allPluginModels()
-			rows := make([]output.ModelAssetRow, 0, len(models))
-			for _, pm := range models {
-				status, bytes := modelStatus(pm.plugin, pm.asset)
-				// A bundled model has no download size, and a downloadable one
-				// may omit it; show "—" rather than a misleading 0B.
-				size := "—"
-				if bytes > 0 {
-					size = humanBytes(bytes)
+			filter, _ := cmd.Flags().GetString("provider")
+
+			// Ollama models (best-effort: a short timeout so a missing runtime
+			// degrades gracefully rather than hanging the listing). Skipped when a
+			// filter excludes the Ollama source, so no network call is made.
+			var installed []aiprovider.OllamaModelInfo
+			ollamaReachable := true
+			wantOllama := filter == "" || filter == output.ModelSourceOllama
+			if wantOllama {
+				ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Second)
+				mgr := aiprovider.NewOllamaManager(ollamaBaseURL(cmd))
+				models, oerr := mgr.List(ctx)
+				cancel()
+				ollamaReachable = oerr == nil
+				if ollamaReachable {
+					installed = models
 				}
-				rows = append(rows, output.ModelAssetRow{
-					Plugin:    pm.plugin,
-					Model:     pm.asset.ID,
-					Version:   pm.asset.Version,
-					Default:   pm.asset.Default,
-					Status:    status,
-					SizeBytes: bytes,
-					Size:      size,
-				})
+			}
+
+			rows := buildModelRows(a.allPluginModels(), installed, aiprovider.Providers(), filter)
+
+			if wantOllama && !ollamaReachable {
+				fmt.Fprintln(cmd.ErrOrStderr(),
+					"note: Ollama not detected — local models show as available to pull; run `kapi ollama status`.")
 			}
 			return output.Print(cmd, output.ModelsListOutput{Models: rows, Total: len(rows)})
 		},
 	}
+	cmd.Flags().String("provider", "", "Filter to one source/provider (e.g. ollama, anthropic, or a plugin name)")
+	return cmd
+}
+
+// buildModelRows assembles the unified model view from its three sources. It is
+// pure (no network/registry access) so the composition is unit-testable; the
+// command supplies live Ollama + plugin + provider data. filter, when non-empty,
+// keeps only rows whose source or provider equals it.
+func buildModelRows(pluginModels []pluginModel, installed []aiprovider.OllamaModelInfo, providers []aiprovider.ProviderInfo, filter string) []output.ModelRow {
+	keep := func(source, provider string) bool {
+		return filter == "" || filter == source || filter == provider
+	}
+	var rows []output.ModelRow
+
+	// 1) Local · Ollama — recommended picks first (marking which are installed),
+	//    then any other installed models.
+	installedByName := make(map[string]aiprovider.OllamaModelInfo, len(installed))
+	for _, mi := range installed {
+		installedByName[mi.Name] = mi
+	}
+	lookup := func(name string) (aiprovider.OllamaModelInfo, bool) {
+		if mi, ok := installedByName[name]; ok {
+			return mi, true
+		}
+		if !strings.Contains(name, ":") {
+			mi, ok := installedByName[name+":latest"]
+			return mi, ok
+		}
+		return aiprovider.OllamaModelInfo{}, false
+	}
+	seen := make(map[string]bool)
+	if keep(output.ModelSourceOllama, output.ModelSourceOllama) {
+		for _, rec := range aiprovider.RecommendedOllamaModels {
+			row := output.ModelRow{
+				Source:   output.ModelSourceOllama,
+				Provider: output.ModelSourceOllama,
+				Model:    rec.Name,
+				Note:     rec.Note,
+				Default:  rec.Name == aiprovider.DefaultOllamaModel,
+				Status:   "available",
+			}
+			if mi, ok := lookup(rec.Name); ok {
+				row.Status = "installed"
+				row.SizeBytes = mi.Size
+				row.Size = humanBytes(mi.Size)
+			}
+			rows = append(rows, row)
+			seen[rec.Name] = true
+		}
+		for _, mi := range installed {
+			if seen[mi.Name] {
+				continue
+			}
+			rows = append(rows, output.ModelRow{
+				Source:    output.ModelSourceOllama,
+				Provider:  output.ModelSourceOllama,
+				Model:     mi.Name,
+				Status:    "installed",
+				SizeBytes: mi.Size,
+				Size:      humanBytes(mi.Size),
+			})
+		}
+	}
+
+	// 2) Plugin models — host-owned assets.
+	for _, pm := range pluginModels {
+		if !keep(output.ModelSourcePlugin, pm.plugin) {
+			continue
+		}
+		status, bytes := modelStatus(pm.plugin, pm.asset)
+		size := ""
+		if bytes > 0 {
+			size = humanBytes(bytes)
+		}
+		rows = append(rows, output.ModelRow{
+			Source:    output.ModelSourcePlugin,
+			Provider:  pm.plugin,
+			Model:     pm.asset.ID,
+			Version:   pm.asset.Version,
+			Default:   pm.asset.Default,
+			Status:    status,
+			SizeBytes: bytes,
+			Size:      size,
+		})
+	}
+
+	// 3) Cloud providers — remote, need an API key. Listed for reference (their
+	//    built-in default model); local/keyless providers are covered above.
+	for _, p := range providers {
+		if p.Local || p.DefaultModel == "" {
+			continue
+		}
+		if !keep(output.ModelSourceCloud, string(p.Name)) {
+			continue
+		}
+		rows = append(rows, output.ModelRow{
+			Source:   output.ModelSourceCloud,
+			Provider: string(p.Name),
+			Model:    p.DefaultModel,
+			Status:   "cloud · needs key",
+		})
+	}
+
+	return rows
 }
 
 func (a *App) newModelsPullCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "pull <model>",
-		Short: "Download and cache a model asset",
-		Long: "Fetch and verify a model asset ahead of time so its first use is instant.\n" +
-			"<model> is a model id (e.g. sat-3l-sm); kapi finds the plugin that provides\n" +
-			"it. You may also pass a plugin name (its default model) or plugin/model.",
+		Short: "Download a model (Ollama model, or a plugin asset)",
+		Long: "Install a model so kapi can translate with it. A bare reference defaults to an\n" +
+			"Ollama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled into the local Ollama\n" +
+			"runtime. A plugin model id (e.g. sat-3l-sm), a plugin name, or plugin/model fetches\n" +
+			"that plugin's host-owned asset instead.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			plugin, asset, err := a.resolveModelRef(args[0])
+			ref := args[0]
+			plugin, asset, err := a.resolveModelRef(ref)
 			if err != nil {
-				return err
+				// An explicit plugin/model that didn't resolve is an error; a bare
+				// unknown reference defaults to an Ollama model.
+				if strings.Contains(ref, "/") {
+					return err
+				}
+				return a.pullOllamaModel(cmd, ref)
 			}
 			if asset.Bundled {
 				return fmt.Errorf("%s/%s is bundled with the plugin — nothing to fetch", plugin, asset.ID)
@@ -183,22 +308,46 @@ func (a *App) newModelsPullCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return output.Print(cmd, output.ModelActionOutput{Plugin: plugin, Model: asset.ID, Dir: dir, Action: "ready"})
+			return output.Print(cmd, output.ModelActionOutput{Source: output.ModelSourcePlugin, Plugin: plugin, Model: asset.ID, Dir: dir, Action: "ready"})
 		},
 	}
+}
+
+// pullOllamaModel installs an Ollama model with streaming progress, failing fast
+// with actionable guidance if the runtime is unreachable.
+func (a *App) pullOllamaModel(cmd *cobra.Command, name string) error {
+	mgr := aiprovider.NewOllamaManager(ollamaBaseURL(cmd))
+	if _, err := mgr.Version(cmd.Context()); err != nil {
+		return err
+	}
+	has, err := mgr.Has(cmd.Context(), name)
+	if err != nil {
+		return err
+	}
+	if has {
+		return output.Print(cmd, output.ModelActionOutput{Source: output.ModelSourceOllama, Model: name, Action: "present"})
+	}
+	if err := mgr.Pull(cmd.Context(), name, ollamaPullPrinter(cmd.ErrOrStderr())); err != nil {
+		return err
+	}
+	return output.Print(cmd, output.ModelActionOutput{Source: output.ModelSourceOllama, Model: name, Action: "ready"})
 }
 
 func (a *App) newModelsPruneCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "prune <model>",
-		Short: "Remove a cached model asset from disk",
-		Long: "Delete a cached model asset. <model> is a model id (e.g. sat-3l-sm); a plugin\n" +
-			"name or plugin/model also work.",
+		Short: "Remove a model (Ollama model, or a cached plugin asset)",
+		Long: "Delete a model from disk. A bare reference defaults to an Ollama model; a plugin\n" +
+			"model id (e.g. sat-3l-sm), plugin name, or plugin/model removes that cached asset.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			plugin, asset, err := a.resolveModelRef(args[0])
+			ref := args[0]
+			plugin, asset, err := a.resolveModelRef(ref)
 			if err != nil {
-				return err
+				if strings.Contains(ref, "/") {
+					return err
+				}
+				return a.pruneOllamaModel(cmd, ref)
 			}
 			if asset.Bundled {
 				return fmt.Errorf("%s/%s is bundled with the plugin — cannot remove", plugin, asset.ID)
@@ -208,12 +357,31 @@ func (a *App) newModelsPruneCmd() *cobra.Command {
 				return err
 			}
 			if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
-				return output.Print(cmd, output.ModelActionOutput{Plugin: plugin, Model: asset.ID, Action: "absent"})
+				return output.Print(cmd, output.ModelActionOutput{Source: output.ModelSourcePlugin, Plugin: plugin, Model: asset.ID, Action: "absent"})
 			}
 			if err := os.RemoveAll(dir); err != nil {
 				return fmt.Errorf("prune %s/%s: %w", plugin, asset.ID, err)
 			}
-			return output.Print(cmd, output.ModelActionOutput{Plugin: plugin, Model: asset.ID, Dir: dir, Action: "removed"})
+			return output.Print(cmd, output.ModelActionOutput{Source: output.ModelSourcePlugin, Plugin: plugin, Model: asset.ID, Dir: dir, Action: "removed"})
 		},
 	}
+}
+
+// pruneOllamaModel removes an installed Ollama model.
+func (a *App) pruneOllamaModel(cmd *cobra.Command, name string) error {
+	mgr := aiprovider.NewOllamaManager(ollamaBaseURL(cmd))
+	if _, err := mgr.Version(cmd.Context()); err != nil {
+		return err
+	}
+	has, err := mgr.Has(cmd.Context(), name)
+	if err != nil {
+		return err
+	}
+	if !has {
+		return output.Print(cmd, output.ModelActionOutput{Source: output.ModelSourceOllama, Model: name, Action: "absent"})
+	}
+	if err := mgr.Delete(cmd.Context(), name); err != nil {
+		return err
+	}
+	return output.Print(cmd, output.ModelActionOutput{Source: output.ModelSourceOllama, Model: name, Action: "removed"})
 }

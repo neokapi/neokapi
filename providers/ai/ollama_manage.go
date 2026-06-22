@@ -39,6 +39,22 @@ func NewOllamaManager(baseURL string) *OllamaManager {
 	}
 }
 
+// RecommendedOllamaModel is a curated Ollama model kapi suggests for local
+// translation, with a one-line rationale. Surfaced by `kapi models list` so a
+// user sees sensible choices before pulling anything.
+type RecommendedOllamaModel struct {
+	Name string
+	Note string
+}
+
+// RecommendedOllamaModels are the vetted local-translation picks (from kapi's
+// own benchmarking), ordered best-default first. DefaultOllamaModel is the head.
+var RecommendedOllamaModels = []RecommendedOllamaModel{
+	{Name: DefaultOllamaModel, Note: "default · best glossary/voice obedience"},
+	{Name: "qwen3:1.7b", Note: "fastest · smallest viable"},
+	{Name: "aya-expanse:8b", Note: "highest quality · slower"},
+}
+
 // OllamaModelInfo describes one model already installed on the server.
 type OllamaModelInfo struct {
 	Name       string `json:"name"`
@@ -187,6 +203,33 @@ func (m *OllamaManager) Pull(ctx context.Context, name string, onProgress func(P
 			})
 		}
 	}
+}
+
+// Delete removes an installed model from the server (DELETE /api/delete).
+func (m *OllamaManager) Delete(ctx context.Context, name string) error {
+	body, err := json.Marshal(map[string]any{"name": name})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, m.baseURL+"/api/delete", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := m.client.Do(req)
+	if err != nil {
+		return ollamaUnreachableError(m.baseURL, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		msg := strings.TrimSpace(string(b))
+		if resp.StatusCode == http.StatusNotFound {
+			return fmt.Errorf("ollama: model %q is not installed", name)
+		}
+		return fmt.Errorf("ollama: delete %q failed (%d): %s", name, resp.StatusCode, msg)
+	}
+	return nil
 }
 
 // EnsureModel pulls a model only if it is not already installed. It returns
