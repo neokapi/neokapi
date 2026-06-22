@@ -1,15 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ArrowRight, FilePlus2, FolderKanban, FolderOpen, Wrench } from "lucide-react";
 import { Button } from "@neokapi/ui-primitives";
-import { LanguagesChip, LocaleRoute, recentProjects } from "../_shared";
+import { LocaleRoute, recentProjects } from "../_shared";
 
 /**
  * Prototype v2 (source-first): the launcher with ONE door.
  *
  * No "choose a journey" fork. You point Kapi at your content and land in the
- * workspace; languages are a dial you add later. Localization is never a
- * separate journey — it's the same project with languages turned on. The recents
- * carry a languages *state* ("Source only" / "3 languages"), not a project kind.
+ * workspace. Recents simply show the languages a project uses when it has any —
+ * no badge naming a project as "source only" or counting languages as a status.
  */
 const meta = {
   title: "Prototype v2/Launcher",
@@ -30,8 +29,7 @@ function Launcher() {
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">Welcome to Kapi</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Get your content right — check, rewrite, brand. Add a language when the work demands
-                it.
+                Get your content right — check, rewrite, brand, and translate.
               </p>
             </div>
           </div>
@@ -52,8 +50,7 @@ function Launcher() {
               <div className="text-lg font-semibold">New project</div>
               <p className="mt-1 text-sm text-muted-foreground">
                 Point Kapi at your content — a file, a folder, a glob, or a{" "}
-                <span className="font-mono text-xs">.kapi</span> recipe. One project; add languages
-                anytime.
+                <span className="font-mono text-xs">.kapi</span> recipe.
               </p>
             </div>
             <ArrowRight
@@ -70,34 +67,28 @@ function Launcher() {
           </div>
         </section>
 
-        {/* Recent projects — a languages state chip, not a project kind. */}
+        {/* Recent projects — show languages only when a project has them. */}
         <section className="mt-10">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Recent projects
           </h2>
           <div className="space-y-1.5">
-            {recentProjects.map((p) => {
-              const targets = p.langs?.targets ?? [];
-              return (
-                <button
-                  key={p.path}
-                  type="button"
-                  className="flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
-                >
-                  <FolderKanban size={16} className="shrink-0 text-muted-foreground" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">{p.name}</span>
-                      <LanguagesChip targets={targets} />
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-2 truncate text-xs text-muted-foreground">
-                      <span className="truncate">{p.path}</span>
-                    </div>
+            {recentProjects.map((p) => (
+              <button
+                key={p.path}
+                type="button"
+                className="flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
+              >
+                <FolderKanban size={16} className="shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{p.name}</div>
+                  <div className="mt-0.5 flex items-center gap-2 truncate text-xs text-muted-foreground">
+                    <span className="truncate">{p.path}</span>
                   </div>
-                  {p.langs && <LocaleRoute source={p.langs.source} targets={p.langs.targets} />}
-                </button>
-              );
-            })}
+                </div>
+                {p.langs && <LocaleRoute source={p.langs.source} targets={p.langs.targets} />}
+              </button>
+            ))}
           </div>
         </section>
 

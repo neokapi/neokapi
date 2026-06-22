@@ -21,7 +21,6 @@ import {
   Languages,
   Palette,
   PenLine,
-  Plus,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -202,52 +201,54 @@ export function AdaptiveSidebar({
 }
 
 /* ------------------------------------------------------------------ *
- * v2 — source-first (one project shape, languages as a dial)
+ * v2 — source-first (one project shape, languages stay quiet)
  *
  * The v2 prototype drops the "content project vs localization project" fork.
- * There is one project; localization is a "Languages" dial you turn up. The
- * Localization group is ALWAYS present in the sidebar — an empty-state
- * "Add a language" CTA until a language is added, then the active surface.
+ * There is one project shape. Languages are an ordinary project property: the
+ * header shows whichever languages the content uses, and the localization tools
+ * are simply present once the project has target languages — under a plain
+ * group like any other. Nothing announces a move from one language to many: no
+ * "source only" label, no "add a language" CTA banner, no "turns on X" caption.
+ * Adding a language is a normal setting (see the Project Languages story), and
+ * the workspace just reflects it.
  * ------------------------------------------------------------------ */
 
 export interface SourceFirstSidebarProps {
   /** Project display name shown in the sidebar header. */
   project: string;
-  /** Target languages on the project. Empty = source-only (monolingual). */
-  languages: string[];
+  /** Source language of the content. */
+  source?: string;
+  /** Target languages on the project. Empty = a single-language project. */
+  targets: string[];
   /** Currently active view. */
   active?: string;
-  /** Empty-state CTA handler (prototype: adds a language). */
-  onAddLanguage?: () => void;
 }
 
 /**
  * The v2 source-first sidebar. One project shape: the content workspace always
- * shows, and the Localization group is always rendered — as an "Add a language"
- * CTA when the project has no languages, or the active Translate / TM / Termbase
- * surface once one is added. No project-kind label; the header carries a
- * languages-count state instead.
+ * shows; the localization tools (Translate / Translation Memory / Termbases) are
+ * simply present once the project has target languages — a plain group, with
+ * nothing announcing the change. The header states the languages as a fact, not
+ * a status.
  */
 export function SourceFirstSidebar({
   project,
-  languages,
+  source = "en-US",
+  targets,
   active = "content",
-  onAddLanguage,
 }: SourceFirstSidebarProps) {
-  const hasLangs = languages.length > 0;
+  const multilingual = targets.length > 0;
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-muted/20">
-      {/* Project identity — a languages state, never a "kind". */}
+      {/* Project identity — the languages are stated as a fact, never a status. */}
       <div className="flex items-center gap-2.5 border-b border-border px-3 py-3">
         <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <FolderKanban size={16} strokeWidth={SW} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold">{project}</div>
-          <div className="text-[11px] text-muted-foreground">
-            {hasLangs
-              ? `${languages.length} language${languages.length > 1 ? "s" : ""}`
-              : "No languages yet"}
+          <div className="truncate text-[11px] text-muted-foreground">
+            {multilingual ? `${source} → ${targets.join(", ")}` : source}
           </div>
         </div>
       </div>
@@ -263,39 +264,16 @@ export function SourceFirstSidebar({
           <NavButton key={row.view} row={row} active={active === row.view} />
         ))}
 
-        {/* Localization is ALWAYS present — CTA when empty, active surface when not. */}
-        <div className="mt-3 rounded-xl border border-primary/15 bg-primary/[0.04] p-1.5">
-          <GroupLabel className="flex items-center gap-1.5 text-primary/80">
-            <Languages size={11} strokeWidth={2} />
-            Localization
-          </GroupLabel>
-          {hasLangs ? (
-            <>
-              <div className="flex flex-wrap gap-1 px-2.5 pb-1.5 pt-0.5">
-                {languages.map((l) => (
-                  <LocalePill key={l} locale={l} />
-                ))}
-              </div>
-              {localizationRows.map((row) => (
-                <NavButton key={row.view} row={row} active={active === row.view} />
-              ))}
-            </>
-          ) : (
-            <div className="px-1 pb-0.5 pt-0.5">
-              <button
-                type="button"
-                onClick={onAddLanguage}
-                className="flex w-full items-center gap-2 rounded-lg border border-dashed border-primary/30 px-2.5 py-1.5 text-sm text-primary transition-colors hover:bg-primary/[0.06]"
-              >
-                <Plus size={15} strokeWidth={SW} />
-                Add a language
-              </button>
-              <p className="px-1.5 pt-1.5 text-[10px] leading-snug text-muted-foreground/80">
-                Turns on Translate, Translation Memory, and Termbases.
-              </p>
-            </div>
-          )}
-        </div>
+        {/* The localization tools are simply present once the project has target
+            languages — a plain group, with nothing announcing the change. */}
+        {multilingual && (
+          <>
+            <GroupLabel className="mt-2 text-muted-foreground/70">Localization</GroupLabel>
+            {localizationRows.map((row) => (
+              <NavButton key={row.view} row={row} active={active === row.view} />
+            ))}
+          </>
+        )}
       </nav>
 
       <div className="flex flex-col gap-0.5 border-t border-border p-2">
@@ -317,24 +295,6 @@ export function SourceFirstSidebar({
         />
       </div>
     </aside>
-  );
-}
-
-/**
- * A languages-state chip for recents and window chrome — a derived state, not a
- * project category. Source-only reads affirmatively ("Source only"), not as an
- * absence.
- */
-export function LanguagesChip({ targets }: { targets: string[] }) {
-  return targets.length > 0 ? (
-    <Badge variant="secondary" className="gap-1 text-[10px]">
-      <Languages size={10} />
-      {targets.length} language{targets.length > 1 ? "s" : ""}
-    </Badge>
-  ) : (
-    <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
-      Source only
-    </Badge>
   );
 }
 

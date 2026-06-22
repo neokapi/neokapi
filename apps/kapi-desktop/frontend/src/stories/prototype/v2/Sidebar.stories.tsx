@@ -1,15 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import type { ReactNode } from "react";
-import { DesktopFrame, LanguagesChip, SourceFirstSidebar } from "../_shared";
+import { DesktopFrame, SourceFirstSidebar } from "../_shared";
 
 /**
- * Prototype v2 (source-first): one project shape, a languages dial.
+ * Prototype v2 (source-first): one project shape; languages stay quiet.
  *
- * There is no "content project" vs "localization project". Every project shows
- * the same workspace; the Localization group is ALWAYS present — an empty-state
- * "Add a language" CTA until a language is added, then the active Translate /
- * Translation Memory / Termbase surface. Nothing about the project "kind"
- * changes; only the dial moves.
+ * There is no "content project" vs "localization project", and nothing
+ * announces a move from one language to many. A project simply shows the
+ * languages its content uses; once it has target languages, the localization
+ * tools are present under a plain group — the same as any other. Adding a
+ * language is an ordinary setting (see the Project Languages story).
  */
 const meta = {
   title: "Prototype v2/Sidebar",
@@ -35,23 +34,20 @@ function PaneStub({ title }: { title: string }) {
 
 function ShellCard({
   project,
-  languages,
-  caption,
+  source,
+  targets,
 }: {
   project: string;
-  languages: string[];
-  caption: ReactNode;
+  source: string;
+  targets: string[];
 }) {
   return (
-    <div className="flex flex-col gap-3">
-      <DesktopFrame title={project} badge={<LanguagesChip targets={languages} />}>
-        <div className="flex h-[600px]">
-          <SourceFirstSidebar project={project} languages={languages} active="content" />
-          <PaneStub title="Content" />
-        </div>
-      </DesktopFrame>
-      <p className="px-1 text-xs leading-relaxed text-muted-foreground">{caption}</p>
-    </div>
+    <DesktopFrame title={project}>
+      <div className="flex h-[560px]">
+        <SourceFirstSidebar project={project} source={source} targets={targets} active="content" />
+        <PaneStub title="Content" />
+      </div>
+    </DesktopFrame>
   );
 }
 
@@ -59,34 +55,18 @@ export const SideBySide: Story = {
   render: () => (
     <div className="min-h-screen bg-background p-8 text-foreground">
       <div className="mx-auto max-w-5xl">
-        <h1 className="text-xl font-semibold">One project shape, a languages dial</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          No content-vs-localization fork. The Localization group is always present — an empty-state
-          CTA until you add a language, then the active Translate / TM / Termbase surface. Same
-          project; one dial.
+        <h1 className="text-xl font-semibold">A project shows the languages it has</h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          One project shape. The header states the languages as a fact; the localization tools are
+          simply present once a project has targets. Adding a language is an ordinary setting — the
+          workspace just reflects it, with nothing to announce.
         </p>
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <ShellCard
-            project="Help Center Articles"
-            languages={[]}
-            caption={
-              <>
-                No languages yet — a complete, source-only project. The Localization group shows a
-                single <span className="font-medium text-foreground">Add a language</span> CTA,
-                never hidden, so the dial is always one click away.
-              </>
-            }
-          />
+          <ShellCard project="Help Center Articles" source="en-US" targets={[]} />
           <ShellCard
             project="Acme Marketing Site"
-            languages={["fr-FR", "de-DE", "ja-JP"]}
-            caption={
-              <>
-                Three languages added — the same project, with Translate, Translation Memory, and
-                Termbases switched on. Nothing about the project &ldquo;kind&rdquo; changed; only
-                the dial moved.
-              </>
-            }
+            source="en-US"
+            targets={["fr-FR", "de-DE", "ja-JP"]}
           />
         </div>
       </div>
@@ -94,21 +74,27 @@ export const SideBySide: Story = {
   ),
 };
 
-export const SourceOnly: Story = {
+export const OneLanguage: Story = {
   render: () => (
     <div className="flex h-screen bg-background text-foreground">
-      <SourceFirstSidebar project="Help Center Articles" languages={[]} active="rewrite" />
+      <SourceFirstSidebar
+        project="Help Center Articles"
+        source="en-US"
+        targets={[]}
+        active="rewrite"
+      />
       <PaneStub title="Rewrite" />
     </div>
   ),
 };
 
-export const Multilingual: Story = {
+export const SeveralLanguages: Story = {
   render: () => (
     <div className="flex h-screen bg-background text-foreground">
       <SourceFirstSidebar
         project="Acme Marketing Site"
-        languages={["fr-FR", "de-DE", "ja-JP"]}
+        source="en-US"
+        targets={["fr-FR", "de-DE", "ja-JP"]}
         active="translate"
       />
       <PaneStub title="Translate" />
