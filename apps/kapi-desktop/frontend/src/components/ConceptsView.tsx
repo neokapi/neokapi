@@ -10,6 +10,8 @@ export interface ConceptsViewProps {
    * a local source is created for `handle`.
    */
   source?: ConceptDataSource;
+  /** Scope concept terms to these locales (the project's Active Filter). */
+  localeScope?: string[];
 }
 
 /**
@@ -20,7 +22,7 @@ export interface ConceptsViewProps {
  * and term statuses are edited inline — this is the desktop home for the editing
  * the deleted CLI relation commands used to do.
  */
-export function ConceptsView({ handle, source: injected }: ConceptsViewProps) {
+export function ConceptsView({ handle, source: injected, localeScope }: ConceptsViewProps) {
   const source = useMemo(() => injected ?? createLocalConceptSource(handle), [injected, handle]);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -29,10 +31,11 @@ export function ConceptsView({ handle, source: injected }: ConceptsViewProps) {
       <ConceptDashboard
         conceptId={openId}
         source={source}
+        localeScope={localeScope}
         onNavigate={setOpenId}
         onBack={() => setOpenId(null)}
       />
     );
   }
-  return <ConceptList source={source} onOpen={setOpenId} />;
+  return <ConceptList source={source} localeScope={localeScope} onOpen={setOpenId} />;
 }

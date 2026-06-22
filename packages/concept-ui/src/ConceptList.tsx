@@ -40,6 +40,8 @@ export interface ConceptListProps {
   initialQuery?: ConceptQuery;
   /** Max locale chips shown per row before a "+N more". */
   maxLocaleChips?: number;
+  /** When set, scope each row's locale chips to these locales (Active Filter). */
+  localeScope?: string[];
   className?: string;
 }
 
@@ -48,6 +50,7 @@ export function ConceptList({
   onOpen,
   initialQuery,
   maxLocaleChips = 4,
+  localeScope,
   className,
 }: ConceptListProps) {
   const caps = useMemo(() => resolveCapabilities(source), [source]);
@@ -175,6 +178,7 @@ export function ConceptList({
               key={c.id}
               concept={c}
               maxLocaleChips={maxLocaleChips}
+              localeScope={localeScope}
               onOpen={() => onOpen(c.id)}
             />
           ))}
@@ -193,13 +197,21 @@ export function ConceptList({
 function ConceptRow({
   concept,
   maxLocaleChips,
+  localeScope,
   onOpen,
 }: {
   concept: ConceptSummary;
   maxLocaleChips: number;
+  localeScope?: string[];
   onOpen: () => void;
 }) {
-  const byLocale = useMemo(() => termsByLocale(concept.terms), [concept.terms]);
+  const scopeKey = localeScope?.join(",") ?? "";
+  const byLocale = useMemo(() => {
+    const all = termsByLocale(concept.terms);
+    if (!scopeKey) return all;
+    const set = new Set(scopeKey.split(","));
+    return all.filter((g) => set.has(g.locale));
+  }, [concept.terms, scopeKey]);
   const name = primaryName(concept);
 
   return (

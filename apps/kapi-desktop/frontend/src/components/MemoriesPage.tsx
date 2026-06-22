@@ -61,13 +61,20 @@ export function MemoriesPage({
   const { showError } = useError();
   const { locales } = useLocales();
   const { active: activeFilter } = useActiveFilter();
-  // Focus the TM browser on the Active Filter's languages (when any are chosen).
-  const scopeLocales = activeFilter?.languages?.length ? activeFilter.languages : undefined;
+  const [sourceLang, setSourceLang] = useState("");
+  // Focus the TM on the Active Filter's languages: the multi-language view shows
+  // the source plus the chosen targets, while the bilingual target defaults to a
+  // chosen target. No filter → show all.
+  const filterLangs = activeFilter?.languages ?? [];
+  const scopeLocales = filterLangs.length
+    ? [sourceLang, ...filterLangs].filter(Boolean)
+    : undefined;
   const activeHandle = projectHandle || handle;
   const adapter = useTMAdapter(activeHandle);
 
   // Load the project-scoped TM handle when opened from a project tab so the
   // project's own TM is auto-selected (and marked) rather than a blank picker.
+  // Also read the source locale for the filter scope.
   useEffect(() => {
     if (!tabID) return;
     api
@@ -75,6 +82,10 @@ export function MemoriesPage({
       .then((h) => {
         if (h?.tmHandle) setProjectHandle(h.tmHandle);
       })
+      .catch(() => {});
+    api
+      .getProject(tabID)
+      .then((p) => setSourceLang(p?.defaults?.source_language ?? ""))
       .catch(() => {});
   }, [tabID]);
 
@@ -276,7 +287,7 @@ export function MemoriesPage({
           adapter={adapter}
           locales={locales}
           scopeLocales={scopeLocales}
-          targetLocales={scopeLocales}
+          targetLocales={filterLangs.length ? filterLangs : undefined}
           onError={showError}
         />
         <ImportProgress active={importing} />
