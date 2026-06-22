@@ -21,6 +21,9 @@ on:
       - "storybook/**"
       - "packages/ui/**"
       - "packages/flow-editor/**"
+      - "packages/concept-ui/**"
+      - "packages/kapi-lab/**"
+      - "packages/docs-shared/**"
       - "packages/storybook-config/**"
       - ".github/workflows/storybook-preview.yml"
   push:
@@ -36,6 +39,9 @@ on:
       - "storybook/**"
       - "packages/ui/**"
       - "packages/flow-editor/**"
+      - "packages/concept-ui/**"
+      - "packages/kapi-lab/**"
+      - "packages/docs-shared/**"
       - "packages/storybook-config/**"
       - ".github/workflows/storybook-preview.yml"
 
