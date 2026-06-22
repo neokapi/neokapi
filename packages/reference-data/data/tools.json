@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T22:29:17Z",
+  "generatedAt": "2026-06-22T09:54:40Z",
   "kind": "tool",
   "entries": [
     {
@@ -993,7 +993,8 @@
       "description": "Check target text for forbidden, missing, out-of-charset, or corrupted characters.",
       "category": "quality",
       "tags": [
-        "quality"
+        "quality",
+        "l10n"
       ],
       "requires": [
         "target-language"
@@ -1014,7 +1015,8 @@
           "category": "quality",
           "displayName": "Characters Check",
           "tags": [
-            "quality"
+            "quality",
+            "l10n"
           ],
           "requires": [
             "target-language"
@@ -1271,6 +1273,9 @@
       "displayName": "Create Target",
       "description": "Create target segment containers for a locale, optionally seeded with the source text.",
       "category": "text-processing",
+      "tags": [
+        "l10n"
+      ],
       "requires": [
         "target-language"
       ],
@@ -1283,6 +1288,9 @@
           "id": "create-target",
           "category": "text-processing",
           "displayName": "Create Target",
+          "tags": [
+            "l10n"
+          ],
           "requires": [
             "target-language"
           ],
@@ -1363,7 +1371,8 @@
       "description": "Reuse translations from a previous document version for unchanged source blocks.",
       "category": "translation",
       "tags": [
-        "translation"
+        "translation",
+        "l10n"
       ],
       "cardinality": "bilingual",
       "produces": [
@@ -1379,7 +1388,8 @@
           "category": "translation",
           "displayName": "Diff Leverage",
           "tags": [
-            "translation"
+            "translation",
+            "l10n"
           ],
           "cardinality": "bilingual",
           "produces": [
@@ -1452,7 +1462,8 @@
       "description": "Verify that do-not-translate terms survive verbatim into the target.",
       "category": "quality",
       "tags": [
-        "quality"
+        "quality",
+        "l10n"
       ],
       "requires": [
         "target-language"
@@ -1476,7 +1487,8 @@
           "category": "quality",
           "displayName": "Do-Not-Translate Check",
           "tags": [
-            "quality"
+            "quality",
+            "l10n"
           ],
           "requires": [
             "target-language"
@@ -2040,7 +2052,8 @@
       "description": "Flag identical source strings translated differently, or different sources sharing one translation.",
       "category": "quality",
       "tags": [
-        "quality"
+        "quality",
+        "l10n"
       ],
       "requires": [
         "target-language"
@@ -2061,7 +2074,8 @@
           "category": "quality",
           "displayName": "Inconsistency Check",
           "tags": [
-            "quality"
+            "quality",
+            "l10n"
           ],
           "requires": [
             "target-language"
@@ -2824,7 +2838,8 @@
       "description": "Verify interpolation placeholders and numbered tags are preserved in the target.",
       "category": "quality",
       "tags": [
-        "quality"
+        "quality",
+        "l10n"
       ],
       "requires": [
         "target-language"
@@ -2845,7 +2860,8 @@
           "category": "quality",
           "displayName": "Placeholder Check",
           "tags": [
-            "quality"
+            "quality",
+            "l10n"
           ],
           "requires": [
             "target-language"
@@ -2985,7 +3001,8 @@
       "description": "Generate deterministic pseudo-translations for localization-readiness testing.",
       "category": "translation",
       "tags": [
-        "translation"
+        "translation",
+        "l10n"
       ],
       "requires": [
         "target-language"
@@ -3006,7 +3023,8 @@
           "category": "translation",
           "displayName": "Pseudo Translate",
           "tags": [
-            "translation"
+            "translation",
+            "l10n"
           ],
           "requires": [
             "target-language"
@@ -3095,7 +3113,8 @@
       "description": "Check translation quality with rule-based checks, or an LLM when a provider is set.",
       "category": "quality",
       "tags": [
-        "quality"
+        "quality",
+        "l10n"
       ],
       "requires": [
         "target-language",
@@ -3123,7 +3142,8 @@
           "displayName": "Quality Check",
           "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
           "tags": [
-            "quality"
+            "quality",
+            "l10n"
           ],
           "requires": [
             "target-language",
@@ -3719,6 +3739,220 @@
       }
     },
     {
+      "id": "recycle",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Recycle",
+      "description": "Pre-fill translations from a translation memory using exact and fuzzy matching.",
+      "category": "translation",
+      "tags": [
+        "translation",
+        "l10n"
+      ],
+      "requires": [
+        "target-language",
+        "tm"
+      ],
+      "cardinality": "bilingual",
+      "consumes": [
+        "segmentation@source?"
+      ],
+      "produces": [
+        "tm-match@source",
+        "alt-translation@source",
+        "target@target"
+      ],
+      "sideEffects": [
+        "tm-read"
+      ],
+      "aliases": [
+        "tm-leverage"
+      ],
+      "schema": {
+        "$id": "recycle",
+        "title": "Recycle",
+        "type": "object",
+        "toolMeta": {
+          "id": "recycle",
+          "category": "translation",
+          "displayName": "Recycle",
+          "tags": [
+            "translation",
+            "l10n"
+          ],
+          "requires": [
+            "target-language",
+            "tm"
+          ],
+          "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "segmentation",
+              "optional": true
+            }
+          ],
+          "produces": [
+            {
+              "type": "tm-match"
+            },
+            {
+              "type": "alt-translation"
+            },
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
+          "sideEffects": [
+            "tm-read"
+          ],
+          "writesOutput": true,
+          "aliases": [
+            "tm-leverage"
+          ]
+        },
+        "properties": {
+          "downgradeIdenticalBestMatches": {
+            "type": "boolean",
+            "title": "Downgrade Identical Exact Matches",
+            "description": "Reduce score by 1%% when multiple identical exact matches are returned",
+            "default": false
+          },
+          "fillIfTargetIsEmpty": {
+            "type": "boolean",
+            "title": "Only If Target Is Empty",
+            "description": "Fill the target only when it has no existing content",
+            "default": false
+          },
+          "fillTarget": {
+            "type": "boolean",
+            "title": "Fill Target with Translation",
+            "description": "Copy the best translation candidate into the target content",
+            "default": true
+          },
+          "fillTargetThreshold": {
+            "type": "integer",
+            "title": "Fill Target Threshold",
+            "description": "Minimum match score required to fill the target",
+            "default": 95,
+            "minimum": 0,
+            "maximum": 100
+          },
+          "fuzzyThreshold": {
+            "type": "integer",
+            "title": "Fuzzy Match Threshold",
+            "description": "Minimum score for fuzzy matches (0-100)",
+            "default": 70,
+            "minimum": 0,
+            "maximum": 100
+          },
+          "makeTmx": {
+            "type": "boolean",
+            "title": "Generate TMX Document",
+            "description": "Create a TMX file with all leveraged matches",
+            "default": false
+          },
+          "noQueryThreshold": {
+            "type": "integer",
+            "title": "No-Query Threshold",
+            "description": "Skip TM query if existing candidate scores at or above this value (101 = always query)",
+            "default": 101,
+            "minimum": 0,
+            "maximum": 101
+          },
+          "tmxPath": {
+            "type": "string",
+            "title": "TMX Output Path",
+            "description": "File path for the generated TMX document"
+          }
+        }
+      },
+      "doc": {
+        "overview": "The **Recycle** tool queries a translation memory (TM) for each block's\nsource text and pre-fills the target with the best match. It tries an exact\nmatch first, then a fuzzy match above a configurable threshold, recording the\nmatch score and type (`exact` or `fuzzy`) on the block. It requires a target\nlanguage and a TM provider; without a TM the tool has nothing to leverage.\n\nWhether a match is written into the target is governed by a fill threshold\nand an \"only if empty\" option, so high-confidence matches can be applied while\nweaker ones are recorded but left for review. A no-query threshold lets the\ntool skip the TM lookup when an existing candidate already scores high enough.\nOptionally, all leveraged matches can be written to a TMX file.\n",
+        "parameters": {
+          "downgradeIdenticalBestMatches": {
+            "description": "Reduce the score when multiple identical exact matches exist.",
+            "help": "When enabled, an exact match is scored 99 instead of 100 if the TM returns\nmultiple identical best matches, flagging the ambiguity for review.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "fillIfTargetIsEmpty": {
+            "description": "Only fill the target when it has no existing content.",
+            "help": "When enabled, a match is written only if the block's target is currently\nempty, so existing translations are never overwritten.\n",
+            "values": "`true` / `false` (default `false`)"
+          },
+          "fillTarget": {
+            "description": "Copy the best match into the target.",
+            "help": "When enabled, the best qualifying match is written into the block's\ntarget content. When disabled, matches are scored and recorded but the\ntarget is not filled.\n",
+            "values": "`true` / `false` (default `true`)"
+          },
+          "fillTargetThreshold": {
+            "description": "Minimum match score required to fill the target.",
+            "help": "A match must score at least this value to be written into the target.\nMatches between the fuzzy threshold and this value are recorded but not\nfilled.\n",
+            "values": "integer 0-100 (default `95`)",
+            "dependsOn": [
+              {
+                "property": "fillTarget",
+                "condition": "filling must be enabled for this threshold to apply"
+              }
+            ]
+          },
+          "fuzzyThreshold": {
+            "description": "Minimum score for a fuzzy match to be considered.",
+            "help": "The lowest fuzzy-match score (0-100) the TM lookup will return. Matches\nbelow this score are ignored.\n",
+            "values": "integer 0-100 (default `70`)"
+          },
+          "makeTmx": {
+            "description": "Generate a TMX document of leveraged matches.",
+            "help": "When enabled, all leveraged matches are written to a TMX file at the\nconfigured output path.\n",
+            "values": "`true` / `false` (default `false`)",
+            "dependsOn": [
+              {
+                "property": "tmxPath",
+                "condition": "set the output path when generating TMX"
+              }
+            ]
+          },
+          "noQueryThreshold": {
+            "description": "Skip the TM query when an existing candidate scores high enough.",
+            "help": "If the block already carries a match score at or above this value, the TM\nlookup is skipped. The default of 101 means the TM is always queried.\n",
+            "values": "integer 0-101 (default `101`)"
+          },
+          "tmxPath": {
+            "description": "Output path for the generated TMX document.",
+            "help": "File path where the TMX document is written when TMX generation is enabled.",
+            "values": "file path",
+            "dependsOn": [
+              {
+                "property": "makeTmx",
+                "condition": "TMX generation must be enabled"
+              }
+            ]
+          }
+        },
+        "limitations": [
+          "Requires a target language and a TM provider; with no TM there is nothing to leverage."
+        ],
+        "processingNotes": [
+          "Operates on translatable blocks with a non-empty source; other parts pass through unchanged.",
+          "Exact matches are tried before fuzzy matches; the match score and type are recorded as block properties.",
+          "With a structure-aware TM provider, matching runs against the block's inline-code structure and fills carry the matched entry's runs, so markup placeholders survive the fill; a 100% match means text and structure agree.",
+          "Ambiguous matches (several full-score entries with differing targets) are recorded but never fill the target — the choice surfaces for review instead of being picked by storage order."
+        ],
+        "examples": [
+          {
+            "title": "Apply only high-confidence matches",
+            "description": "Fill the target from matches scoring 95 or above.",
+            "config": "fillTarget: true\nfillTargetThreshold: 95\n"
+          },
+          {
+            "title": "Leverage and export to TMX",
+            "description": "Lower the fuzzy threshold and write matches to a TMX file.",
+            "config": "fuzzyThreshold: 60\nmakeTmx: true\ntmxPath: ./leverage.tmx\n"
+          }
+        ]
+      }
+    },
+    {
       "id": "redact",
       "source": "built-in",
       "kind": "tool",
@@ -3866,6 +4100,9 @@
       "displayName": "Remove Target",
       "description": "Remove target segments from blocks, by locale or by selected text-unit IDs.",
       "category": "text-processing",
+      "tags": [
+        "l10n"
+      ],
       "requires": [
         "target-language"
       ],
@@ -3878,6 +4115,9 @@
           "id": "remove-target",
           "category": "text-processing",
           "displayName": "Remove Target",
+          "tags": [
+            "l10n"
+          ],
           "requires": [
             "target-language"
           ],
@@ -5140,7 +5380,8 @@
       "description": "Verify that required target terms appear when their source terms are present.",
       "category": "quality",
       "tags": [
-        "quality"
+        "quality",
+        "l10n"
       ],
       "requires": [
         "target-language",
@@ -5165,7 +5406,8 @@
           "category": "quality",
           "displayName": "Terminology Check",
           "tags": [
-            "quality"
+            "quality",
+            "l10n"
           ],
           "requires": [
             "target-language",
@@ -5224,212 +5466,6 @@
       }
     },
     {
-      "id": "tm-leverage",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "TM Leverage",
-      "description": "Pre-fill translations from a translation memory using exact and fuzzy matching.",
-      "category": "translation",
-      "tags": [
-        "translation"
-      ],
-      "requires": [
-        "target-language",
-        "tm"
-      ],
-      "cardinality": "bilingual",
-      "consumes": [
-        "segmentation@source?"
-      ],
-      "produces": [
-        "tm-match@source",
-        "alt-translation@source",
-        "target@target"
-      ],
-      "sideEffects": [
-        "tm-read"
-      ],
-      "schema": {
-        "$id": "tm-leverage",
-        "title": "TM Leverage",
-        "type": "object",
-        "toolMeta": {
-          "id": "tm-leverage",
-          "category": "translation",
-          "displayName": "TM Leverage",
-          "tags": [
-            "translation"
-          ],
-          "requires": [
-            "target-language",
-            "tm"
-          ],
-          "cardinality": "bilingual",
-          "consumes": [
-            {
-              "type": "segmentation",
-              "optional": true
-            }
-          ],
-          "produces": [
-            {
-              "type": "tm-match"
-            },
-            {
-              "type": "alt-translation"
-            },
-            {
-              "type": "target",
-              "side": "target"
-            }
-          ],
-          "sideEffects": [
-            "tm-read"
-          ],
-          "writesOutput": true
-        },
-        "properties": {
-          "downgradeIdenticalBestMatches": {
-            "type": "boolean",
-            "title": "Downgrade Identical Exact Matches",
-            "description": "Reduce score by 1%% when multiple identical exact matches are returned",
-            "default": false
-          },
-          "fillIfTargetIsEmpty": {
-            "type": "boolean",
-            "title": "Only If Target Is Empty",
-            "description": "Fill the target only when it has no existing content",
-            "default": false
-          },
-          "fillTarget": {
-            "type": "boolean",
-            "title": "Fill Target with Translation",
-            "description": "Copy the best translation candidate into the target content",
-            "default": true
-          },
-          "fillTargetThreshold": {
-            "type": "integer",
-            "title": "Fill Target Threshold",
-            "description": "Minimum match score required to fill the target",
-            "default": 95,
-            "minimum": 0,
-            "maximum": 100
-          },
-          "fuzzyThreshold": {
-            "type": "integer",
-            "title": "Fuzzy Match Threshold",
-            "description": "Minimum score for fuzzy matches (0-100)",
-            "default": 70,
-            "minimum": 0,
-            "maximum": 100
-          },
-          "makeTmx": {
-            "type": "boolean",
-            "title": "Generate TMX Document",
-            "description": "Create a TMX file with all leveraged matches",
-            "default": false
-          },
-          "noQueryThreshold": {
-            "type": "integer",
-            "title": "No-Query Threshold",
-            "description": "Skip TM query if existing candidate scores at or above this value (101 = always query)",
-            "default": 101,
-            "minimum": 0,
-            "maximum": 101
-          },
-          "tmxPath": {
-            "type": "string",
-            "title": "TMX Output Path",
-            "description": "File path for the generated TMX document"
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **TM Leverage** tool queries a translation memory (TM) for each block's\nsource text and pre-fills the target with the best match. It tries an exact\nmatch first, then a fuzzy match above a configurable threshold, recording the\nmatch score and type (`exact` or `fuzzy`) on the block. It requires a target\nlanguage and a TM provider; without a TM the tool has nothing to leverage.\n\nWhether a match is written into the target is governed by a fill threshold\nand an \"only if empty\" option, so high-confidence matches can be applied while\nweaker ones are recorded but left for review. A no-query threshold lets the\ntool skip the TM lookup when an existing candidate already scores high enough.\nOptionally, all leveraged matches can be written to a TMX file.\n",
-        "parameters": {
-          "downgradeIdenticalBestMatches": {
-            "description": "Reduce the score when multiple identical exact matches exist.",
-            "help": "When enabled, an exact match is scored 99 instead of 100 if the TM returns\nmultiple identical best matches, flagging the ambiguity for review.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "fillIfTargetIsEmpty": {
-            "description": "Only fill the target when it has no existing content.",
-            "help": "When enabled, a match is written only if the block's target is currently\nempty, so existing translations are never overwritten.\n",
-            "values": "`true` / `false` (default `false`)"
-          },
-          "fillTarget": {
-            "description": "Copy the best match into the target.",
-            "help": "When enabled, the best qualifying match is written into the block's\ntarget content. When disabled, matches are scored and recorded but the\ntarget is not filled.\n",
-            "values": "`true` / `false` (default `true`)"
-          },
-          "fillTargetThreshold": {
-            "description": "Minimum match score required to fill the target.",
-            "help": "A match must score at least this value to be written into the target.\nMatches between the fuzzy threshold and this value are recorded but not\nfilled.\n",
-            "values": "integer 0-100 (default `95`)",
-            "dependsOn": [
-              {
-                "property": "fillTarget",
-                "condition": "filling must be enabled for this threshold to apply"
-              }
-            ]
-          },
-          "fuzzyThreshold": {
-            "description": "Minimum score for a fuzzy match to be considered.",
-            "help": "The lowest fuzzy-match score (0-100) the TM lookup will return. Matches\nbelow this score are ignored.\n",
-            "values": "integer 0-100 (default `70`)"
-          },
-          "makeTmx": {
-            "description": "Generate a TMX document of leveraged matches.",
-            "help": "When enabled, all leveraged matches are written to a TMX file at the\nconfigured output path.\n",
-            "values": "`true` / `false` (default `false`)",
-            "dependsOn": [
-              {
-                "property": "tmxPath",
-                "condition": "set the output path when generating TMX"
-              }
-            ]
-          },
-          "noQueryThreshold": {
-            "description": "Skip the TM query when an existing candidate scores high enough.",
-            "help": "If the block already carries a match score at or above this value, the TM\nlookup is skipped. The default of 101 means the TM is always queried.\n",
-            "values": "integer 0-101 (default `101`)"
-          },
-          "tmxPath": {
-            "description": "Output path for the generated TMX document.",
-            "help": "File path where the TMX document is written when TMX generation is enabled.",
-            "values": "file path",
-            "dependsOn": [
-              {
-                "property": "makeTmx",
-                "condition": "TMX generation must be enabled"
-              }
-            ]
-          }
-        },
-        "limitations": [
-          "Requires a target language and a TM provider; with no TM there is nothing to leverage."
-        ],
-        "processingNotes": [
-          "Operates on translatable blocks with a non-empty source; other parts pass through unchanged.",
-          "Exact matches are tried before fuzzy matches; the match score and type are recorded as block properties.",
-          "With a structure-aware TM provider, matching runs against the block's inline-code structure and fills carry the matched entry's runs, so markup placeholders survive the fill; a 100% match means text and structure agree.",
-          "Ambiguous matches (several full-score entries with differing targets) are recorded but never fill the target — the choice surfaces for review instead of being picked by storage order."
-        ],
-        "examples": [
-          {
-            "title": "Apply only high-confidence matches",
-            "description": "Fill the target from matches scoring 95 or above.",
-            "config": "fillTarget: true\nfillTargetThreshold: 95\n"
-          },
-          {
-            "title": "Leverage and export to TMX",
-            "description": "Lower the fuzzy threshold and write matches to a TMX file.",
-            "config": "fuzzyThreshold: 60\nmakeTmx: true\ntmxPath: ./leverage.tmx\n"
-          }
-        ]
-      }
-    },
-    {
       "id": "translate",
       "source": "built-in",
       "kind": "tool",
@@ -5437,7 +5473,8 @@
       "description": "Translate block content with an LLM or machine-translation provider.",
       "category": "translation",
       "tags": [
-        "translation"
+        "translation",
+        "l10n"
       ],
       "requires": [
         "target-language",
@@ -5462,7 +5499,8 @@
           "displayName": "Translate",
           "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
           "tags": [
-            "translation"
+            "translation",
+            "l10n"
           ],
           "requires": [
             "target-language",
@@ -5828,7 +5866,8 @@
       "description": "Compare two target translations of the same source and report whether they match.",
       "category": "analysis",
       "tags": [
-        "quality"
+        "quality",
+        "l10n"
       ],
       "requires": [
         "target-language"
@@ -5849,7 +5888,8 @@
           "category": "analysis",
           "displayName": "Translation Comparison",
           "tags": [
-            "quality"
+            "quality",
+            "l10n"
           ],
           "requires": [
             "target-language"
@@ -6154,7 +6194,8 @@
       "description": "Normalize and fix whitespace issues in target translations, including punctuation spacing.",
       "category": "text-processing",
       "tags": [
-        "text-processing"
+        "text-processing",
+        "l10n"
       ],
       "requires": [
         "target-language"
@@ -6169,7 +6210,8 @@
           "category": "text-processing",
           "displayName": "Whitespace Correct",
           "tags": [
-            "text-processing"
+            "text-processing",
+            "l10n"
           ],
           "requires": [
             "target-language"
