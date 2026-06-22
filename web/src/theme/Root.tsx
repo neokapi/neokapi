@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import KapiModalMount from "@site/src/components/KapiPlayground/KapiModalMount";
+import SurfaceFloat from "@site/src/components/surface/SurfaceFloat";
 
 const STORAGE_KEY = "neokapi-banner-dismissed";
 
@@ -64,6 +65,9 @@ export default function Root({ children }: { children: React.ReactNode }) {
     <>
       <BrowserOnly>{() => <ExperimentalBanner />}</BrowserOnly>
       {children}
+      {/* Floating CLI/Desktop surface control — self-hides on pages without any
+          dual-mode (<Cli>/<Desktop>) content; client-only as it reads scroll. */}
+      <BrowserOnly>{() => <SurfaceFloat />}</BrowserOnly>
       {/* One shared kapi playground modal for the whole site. Opened
           imperatively via openKapi(...) from <RunnableSnippet> and elsewhere.
           Code-split + client-only: no wasm is fetched until first opened. */}

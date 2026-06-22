@@ -1,47 +1,56 @@
 import { useSyncExternalStore } from "react";
 
-// The "surface" a reader works in: the CLI, Kapi Desktop, or both at once.
-// A single global preference (navbar SurfaceToggle) drives which dual-mode
-// content blocks (<Cli> / <Desktop>) are shown, via `html[data-surface]`.
-export type Surface = "cli" | "desktop" | "both";
-
-export const SURFACES: readonly Surface[] = ["cli", "desktop", "both"];
-export const SURFACE_KEY = "kapi-surface";
-
-export function isSurface(v: unknown): v is Surface {
-  return typeof v === "string" && (SURFACES as readonly string[]).includes(v);
+// The two surfaces a reader can show: the CLI and Kapi Desktop. Each is an
+// independent on/off toggle (no separate "both") — with both on, dual-mode
+// content shows both variants; with one on, only that one. At least one is
+// always on. A single global preference drives `html[data-surface]`, which the
+// CSS uses to show/hide <Cli> / <Desktop> blocks site-wide.
+export type Surface = "cli" | "desktop";
+export interface Enabled {
+  cli: boolean;
+  desktop: boolean;
 }
 
-// Initial value comes from the DOM attribute the no-flash head script set from
-// localStorage before paint (see the `surface-preload` plugin in the config), so
-// the toggle's active state and the content visibility agree from the first
-// frame. Falls back to "both" on the server and when nothing is stored.
-let surface: Surface = (() => {
-  if (typeof document === "undefined") return "both";
-  const d = document.documentElement.dataset.surface;
-  return isSurface(d) ? d : "both";
+export const SURFACE_KEY = "kapi-surface";
+
+// Stable references so useSyncExternalStore snapshots compare by identity.
+const BOTH: Enabled = { cli: true, desktop: true };
+const CLI_ONLY: Enabled = { cli: true, desktop: false };
+const DESKTOP_ONLY: Enabled = { cli: false, desktop: true };
+
+/** The three legal states, encoded the way they persist + drive the CSS. */
+function derive(e: Enabled): "cli" | "desktop" | "both" {
+  if (e.cli && e.desktop) return "both";
+  return e.cli ? "cli" : "desktop";
+}
+function fromStored(v: string | null | undefined): Enabled {
+  if (v === "cli") return CLI_ONLY;
+  if (v === "desktop") return DESKTOP_ONLY;
+  return BOTH;
+}
+
+// Initial value from the DOM attribute the no-flash head script set from
+// localStorage before paint (see the `surface-preload` plugin), so content
+// visibility and the toggle agree from the first frame.
+let enabled: Enabled = (() => {
+  if (typeof document === "undefined") return BOTH;
+  return fromStored(document.documentElement.dataset.surface);
 })();
 
-// How many dual-mode blocks are mounted on the current page. The navbar toggle
-// renders only when this is > 0 — i.e. only on pages that actually have a dual
-// CLI/Desktop split.
+// Mounted dual-mode block count on the current page — the floating control only
+// shows when this is > 0.
 let blockCount = 0;
 
 const surfaceSubs = new Set<() => void>();
 const presenceSubs = new Set<() => void>();
 const notify = (subs: Set<() => void>) => subs.forEach((cb) => cb());
 
-export function getSurface(): Surface {
-  return surface;
-}
-
-export function setSurface(next: Surface): void {
-  if (next === surface) return;
-  surface = next;
+function apply(): void {
+  const v = derive(enabled);
   if (typeof document !== "undefined") {
-    document.documentElement.dataset.surface = next;
+    document.documentElement.dataset.surface = v;
     try {
-      localStorage.setItem(SURFACE_KEY, next);
+      localStorage.setItem(SURFACE_KEY, v);
     } catch {
       /* private mode / storage disabled — preference is session-only */
     }
@@ -49,7 +58,31 @@ export function setSurface(next: Surface): void {
   notify(surfaceSubs);
 }
 
-/** Register a mounted dual-mode block; returns an unregister cleanup. */
+export function toggleSurface(kind: Surface): void {
+  const next: Enabled = {
+    cli: kind === "cli" ? !enabled.cli : enabled.cli,
+    desktop: kind === "desktop" ? !enabled.desktop : enabled.desktop,
+  };
+  if (!next.cli && !next.desktop) return; // always keep at least one surface on
+  enabled = next.cli && next.desktop ? BOTH : next.cli ? CLI_ONLY : DESKTOP_ONLY;
+  apply();
+}
+
+function getEnabled(): Enabled {
+  return enabled;
+}
+
+export function useEnabled(): Enabled {
+  return useSyncExternalStore(
+    (cb) => {
+      surfaceSubs.add(cb);
+      return () => surfaceSubs.delete(cb);
+    },
+    getEnabled,
+    () => BOTH,
+  );
+}
+
 export function registerBlock(): () => void {
   blockCount += 1;
   notify(presenceSubs);
@@ -61,17 +94,6 @@ export function registerBlock(): () => void {
 
 function hasDual(): boolean {
   return blockCount > 0;
-}
-
-export function useSurface(): Surface {
-  return useSyncExternalStore(
-    (cb) => {
-      surfaceSubs.add(cb);
-      return () => surfaceSubs.delete(cb);
-    },
-    getSurface,
-    () => "both",
-  );
 }
 
 export function useHasDual(): boolean {

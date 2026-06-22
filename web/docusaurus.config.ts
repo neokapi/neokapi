@@ -512,13 +512,6 @@ const config: Config = {
           ],
         },
         {
-          // CLI / Desktop / Both surface toggle — sets the global preference that
-          // shows/hides dual-mode content; self-hides on pages without any (custom
-          // type registered in src/theme/NavbarItem/ComponentTypes.tsx).
-          type: "custom-surfaceToggle",
-          position: "right",
-        },
-        {
           // Neokapi WebAssembly Lab status widget — engine + plugin state for
           // this browser tab, with explicit per-plugin Download (custom type
           // registered in src/theme/NavbarItem/ComponentTypes.tsx).
