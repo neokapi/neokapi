@@ -1,6 +1,6 @@
 ---
 id: pre-translate-with-tm
-title: "Pre-translate with TM + termbase"
+title: "Reuse what you've translated"
 sidebar_label: "Pre-translate with TM"
 sidebar_position: 6
 description: "A deterministic pre-translation pass: leverage existing TM, fill the misses, and pre-flag terminology — all before any vendor sees the content. No API key."
@@ -10,7 +10,7 @@ hide_table_of_contents: true
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 import { PipelineDiagram } from "@neokapi/docs-shared";
 
-# Pre-translate with TM + termbase
+# Reuse what you've translated
 
 :::note Works ad-hoc, optimized for a project
 This pipeline runs ad-hoc against a loose `./tm.db` or a named TM, with the
@@ -22,12 +22,11 @@ are shown below; see
 each command uses.
 :::
 
-**Goal:** do the cheap, deterministic work before any machine or human
-translator touches the content. You're about to translate a batch of UI strings;
-your team has a translation memory from previous releases and an approved
-glossary. Pre-translation reuses what you already have, fills the rest with a
-visible placeholder, and pre-flags terminology problems — in seconds, with no
-API key.
+**Goal:** never re-translate a sentence you've already translated. When you ship
+an update, most of the text is unchanged — kapi brings back what it recognizes
+from earlier releases and sends only the new and changed parts forward, marking
+anything still untranslated so nothing slips out blank. It runs in seconds, on
+your machine, with no API key.
 
 ## The scenario
 

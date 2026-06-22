@@ -1,6 +1,6 @@
 ---
 id: terminology-qa
-title: "Enforce terminology"
+title: "Keep terms consistent"
 sidebar_label: "Terminology QA"
 sidebar_position: 5
 description: "Import a glossary, look up terms, and flag terminology drift in translated files before they ship."
@@ -19,7 +19,7 @@ settings,paramètres,ui
 encryption,chiffrement,security
 file upload,téléversement de fichier,ui`;
 
-# Enforce terminology
+# Keep terms consistent
 
 :::note Runs anywhere
 No project needed — this recipe uses a **named** termbase under your config
@@ -28,11 +28,11 @@ home (`--name product-terms`). See
 storage models.
 :::
 
-**Goal:** verify that translated files use your approved terms — and catch the
-ones that don't, before they ship. A vendor's translations may read well and
-still use "code secret" where your glossary says "mot de passe", or a deprecated
-term your team phased out. Scanning hundreds of segments by hand is tedious and
-error-prone; `kapi termbase` and `kapi term-check` do it from the command line.
+**Goal:** keep your product's words consistent in every language — the same way
+you keep them consistent in the source. Decide once how your key terms should
+carry across (product names, UI actions, the words your domain depends on), and
+kapi checks every translated file against that, flagging anything that drifts
+before it ships.
 
 ## The scenario
 

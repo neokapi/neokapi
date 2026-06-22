@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 sidebar_label: Interchange
-title: Interchange — XLIFF, PO, and your TMS
+title: Hand off to translators
 description: How kapi exchanges content with external TMS and CAT tools through standard bilingual formats — extract to XLIFF or PO, translate anywhere, and merge back byte-exactly while keeping translation memory and terminology in the loop.
 keywords: [interchange, XLIFF, PO, gettext, TMX, TBX, CAT tool, TMS, extract, merge, round-trip, translation memory, terminology]
 ---
@@ -10,7 +10,7 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 import { RoundTripDiagram } from "@neokapi/docs-shared";
 import { ContentLab } from "@site/src/components/Lab";
 
-# Interchange: work with any TMS or CAT tool
+# Hand off to translators
 
 :::info Needs a .kapi project
 Interchange is **project-based**. `kapi extract` and `kapi merge` read the
@@ -22,16 +22,13 @@ for the recipe and its git-style discovery. (Ad-hoc, one-way format _conversion_
 with no round-trip needs no project — that is plain `kapi run -i <file>`.)
 :::
 
-**Interchange** is how kapi hands content to the outside world in a
-standard, tool-neutral file and takes the result back. Most serious
-localization runs on bilingual exchange formats like **XLIFF 2.x** and
-**PO (gettext)**: translators open them in a CAT tool (Trados, memoQ,
-OmegaT, Phrase, Lokalise, Crowdin, Poedit, …), translate, and send them
-back. kapi's job is the **engineering glue** on either side of that
-handoff — emit a clean bilingual file, accept the returned one, rebuild
-the source format byte-for-byte from a captured **skeleton**, and keep the
-project's **translation memory** and **terminology** in the loop so every
-merge makes the next extract cheaper.
+kapi can translate your content on its own. But when a person should do the
+translation — a professional translator, a native-speaking colleague, an outside
+agency — you can hand the work out and take it back: kapi produces a file the
+translator opens in whatever tool they already use, accepts the returned version,
+and rebuilds your original files byte-for-byte from it. It is an escape hatch,
+there when you need it, not a step in the normal path — and the corrections that
+come back are captured so they carry into the next run.
 
 ## The interchange landscape
 

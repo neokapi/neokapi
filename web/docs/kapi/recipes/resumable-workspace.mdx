@@ -1,20 +1,22 @@
 ---
 id: resumable-workspace
-title: "Work in a .klz workspace"
+title: "Pause & resume a big run"
 sidebar_label: "Workspace (.klz)"
 sidebar_position: 6
 description: "A .klz is a single-file, serverless localization workspace: extract sources into it, run tools on it in place, and merge the finished files out. Config (locales, output layout) travels with the file."
 keywords: [klz, workspace, extract, merge, transform, recipe, overlays, handoff]
 ---
 
-# Work in a `.klz` workspace
+# Pause & resume a big run
 
-A `.klz` is a **single-file, serverless** carrier — the portable equivalent of a
-`.kapi` project's working state. It is a *parcel*, not the place you normally
-work: the day-to-day working model is the ambient
-[`.kapi` project](/kapi/modes). This recipe is the serverless convenience where
-there is no project — you open a `.klz` into a working cache, run tools against
-it, and pack it back. The bindings are the same ones any flow uses:
+A big translation run doesn't have to finish in one sitting. A `.klz` is a single
+file that holds an entire run in progress — pull your sources into it, run tools
+against it as far as you get, set it down, and resume exactly where you left off,
+later or on another machine. Its configuration (languages, output layout) rides
+inside the file, so there is no project and no server to keep around: it is a
+*parcel*, not the place you normally work, since the day-to-day working model is
+the ambient [`.kapi` project](/kapi/modes). The steps below use the same bindings
+any flow uses:
 
 | Step | Binding | Verb |
 |---|---|---|
