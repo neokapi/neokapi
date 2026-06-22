@@ -239,7 +239,9 @@ export function installLocalLLMBridge(opts: InstallLocalLLMOptions = {}): void {
     const payload = JSON.parse(payloadJSON) as WirePayload;
     const spec = specFor(payload.model ?? opts.model);
     const useWebLLM = spec.engine === "webllm" && webgpuAvailable();
-    return useWebLLM ? generateWebLLM(spec, payload, opts) : generateTransformers(spec, payload, opts);
+    return useWebLLM
+      ? generateWebLLM(spec, payload, opts)
+      : generateTransformers(spec, payload, opts);
   };
 }
 

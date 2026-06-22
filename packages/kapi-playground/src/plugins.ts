@@ -19,15 +19,7 @@ import { useSyncExternalStore } from "react";
 // Model
 // ---------------------------------------------------------------------------
 
-export type PluginId =
-  | "llm"
-  | "okapi-bridge"
-  | "pdfium"
-  | "sat"
-  | "vision"
-  | "asr"
-  | "av"
-  | "bowrain";
+export type PluginId = "okapi-bridge" | "pdfium" | "sat" | "vision" | "asr" | "av" | "bowrain";
 
 /** Lifecycle of the shared wasm engine (drives the widget's top status dot). */
 export type EnginePhase = "idle" | "booting" | "ready" | "error";
@@ -66,7 +58,7 @@ export interface LabState {
 
 export interface PluginDescriptor {
   id: PluginId;
-  /** Short id-style label shown in the panel (e.g. "llm", "okapi-bridge"). */
+  /** Short id-style label shown in the panel (e.g. "sat", "okapi-bridge"). */
   label: string;
   /** One-line human description (e.g. "Local LLM with Gemma 4"). */
   description: string;
@@ -83,18 +75,6 @@ export interface PluginDescriptor {
 
 // Registry. Order matches the desktop/CLI plugin list and the widget sketch.
 export const PLUGIN_DESCRIPTORS: PluginDescriptor[] = [
-  {
-    id: "llm",
-    label: "llm",
-    description: "Local LLM — small text model + Gemma 4 for images",
-    // Approximate hint shown before download — the widget switches to the live
-    // aggregate ("X of Y") once shards arrive. Downloads the small TEXT model by
-    // default (~0.9 GB); the larger multimodal model loads on demand only when an
-    // image/audio task runs (see gemmaBridge model registry).
-    sizeBytes: 900_000_000,
-    browserSupported: true,
-    needsEngine: true,
-  },
   {
     id: "okapi-bridge",
     label: "okapi-bridge",
@@ -235,7 +215,6 @@ async function cacheHasUrlSubstring(cacheName: string, substr: string): Promise<
 // Repo/path fragments that identify each plugin's cached model, matched against
 // the cache keys (robust to the exact cache-key URL format).
 const CACHE_PROBES: Partial<Record<PluginId, { cache: string; substr: string }>> = {
-  llm: { cache: "transformers-cache", substr: "gemma-4-E2B" },
   asr: { cache: "transformers-cache", substr: "whisper-tiny" },
   sat: { cache: "kapi-sat-v1", substr: "sat-3l-sm" },
 };
@@ -339,22 +318,6 @@ export function engineBooted(): boolean {
 // Each adapter loads its bridge lazily and reports progress through the store.
 // Adapters are keyed by id; missing/native-only ids reject.
 const adapters: Partial<Record<PluginId, (report: (p: Progress) => void) => Promise<void>>> = {
-  llm: async (report) => {
-    const { ensureGemma } = await import("./gemmaBridge");
-    await ensureGemma({
-      onProgress: (p) => {
-        if (p.status === "ready") {
-          report({ frac: 1 });
-        } else if (typeof p.loaded === "number" && typeof p.total === "number" && p.total > 0) {
-          // Prefer the aggregate byte total across all shards — a smooth,
-          // ~monotonic percentage instead of the per-shard fraction.
-          report({ loaded: p.loaded, total: p.total });
-        } else {
-          report({ frac: (p.progress ?? 0) / 100 });
-        }
-      },
-    });
-  },
   pdfium: async () => {
     if (!assets) throw new Error("pdfium needs configured asset URLs");
     const { installPdfiumBridge } = await import("./pdfiumBridge");

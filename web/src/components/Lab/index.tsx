@@ -28,11 +28,6 @@ const LazyVision = React.lazy(async () => {
   return { default: mod.VisionExplorer };
 });
 
-const LazyGemma = React.lazy(async () => {
-  const mod = await import("@neokapi/kapi-lab");
-  return { default: mod.GemmaExplorer };
-});
-
 const LazyModels = React.lazy(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.ModelsExplorer };
@@ -146,12 +141,12 @@ export function PdfExplorer(props: PdfExplorerProps): React.ReactElement {
   );
 }
 
-export interface GemmaExplorerProps {
+export interface ModelsExplorerProps {
   defaultText?: string;
   defaultTargetLang?: string;
 }
 
-export function ModelsExplorer(props: GemmaExplorerProps): React.ReactElement {
+export function ModelsExplorer(props: ModelsExplorerProps): React.ReactElement {
   return (
     <BrowserOnly fallback={<Loading />}>
       {() => {
@@ -160,24 +155,6 @@ export function ModelsExplorer(props: GemmaExplorerProps): React.ReactElement {
           return (
             <Suspense fallback={<Loading />}>
               <LazyModels assets={assets} {...props} />
-            </Suspense>
-          );
-        }
-        return <Inner />;
-      }}
-    </BrowserOnly>
-  );
-}
-
-export function GemmaExplorer(props: GemmaExplorerProps): React.ReactElement {
-  return (
-    <BrowserOnly fallback={<Loading />}>
-      {() => {
-        function Inner(): React.ReactElement {
-          const assets = useKapiPlaygroundConfig();
-          return (
-            <Suspense fallback={<Loading />}>
-              <LazyGemma assets={assets} {...props} />
             </Suspense>
           );
         }

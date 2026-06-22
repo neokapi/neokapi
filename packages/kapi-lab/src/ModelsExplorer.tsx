@@ -21,8 +21,20 @@ export interface ModelsExplorerProps {
 // LOCAL_MODELS in localLlmBridge; duplicated as plain data so selecting a model
 // doesn't eagerly import the multi-MB engine bundles — those load on Run.)
 const LOCAL_MODELS = [
-  { id: "llama3.2:3b", label: "Llama 3.2 3B", size: "~2.3 GB", note: "reliable inline tags", engine: "WebLLM" },
-  { id: "gemma4:e2b", label: "Gemma 4 E2B", size: "~3 GB", note: "best multilingual quality", engine: "ONNX" },
+  {
+    id: "llama3.2:3b",
+    label: "Llama 3.2 3B",
+    size: "~2.3 GB",
+    note: "reliable inline tags",
+    engine: "WebLLM",
+  },
+  {
+    id: "gemma4:e2b",
+    label: "Gemma 4 E2B",
+    size: "~3 GB",
+    note: "best multilingual quality",
+    engine: "ONNX",
+  },
   { id: "qwen3:1.7b", label: "Qwen3 1.7B", size: "~1.4 GB", note: "fastest", engine: "WebLLM" },
 ];
 const DEFAULT_LOCAL_MODEL = "llama3.2:3b";
@@ -131,7 +143,9 @@ export default function ModelsExplorer({
         <div style={sectionHeadStyle}>
           <span style={{ fontWeight: 700 }}>Local · on-device</span>
           <span style={{ fontSize: 12, opacity: 0.7 }}>
-            {webgpu ? "this browser → WebGPU (WebLLM / ONNX)" : "no WebGPU → transformers.js fallback"}{" "}
+            {webgpu
+              ? "this browser → WebGPU (WebLLM / ONNX)"
+              : "no WebGPU → transformers.js fallback"}{" "}
             · desktop/CLI → Ollama
           </span>
         </div>
@@ -150,8 +164,8 @@ export default function ModelsExplorer({
             <select value={model} onChange={(e) => setModel(e.target.value)} style={{ padding: 6 }}>
               {LOCAL_MODELS.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.label} ({m.size}){m.id === DEFAULT_LOCAL_MODEL ? " — default" : ""} · {m.note} ·{" "}
-                  {m.engine}
+                  {m.label} ({m.size}){m.id === DEFAULT_LOCAL_MODEL ? " — default" : ""} · {m.note}{" "}
+                  · {m.engine}
                 </option>
               ))}
             </select>
