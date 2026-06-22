@@ -28,10 +28,23 @@ export const AdhocMode: Story = {
   },
 };
 
+// A single-language project: the content surfaces show; Translation Memories
+// stays absent until the project has target languages.
 export const ProjectMode: Story = {
   args: {
     mode: "projects",
     active: "project-home",
+    hasTargetLanguages: false,
+  },
+};
+
+// Once the project has target languages, Translation Memories appears — present,
+// not announced.
+export const ProjectMultilingual: Story = {
+  args: {
+    mode: "projects",
+    active: "memories",
+    hasTargetLanguages: true,
   },
 };
 

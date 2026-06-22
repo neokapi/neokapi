@@ -1,16 +1,19 @@
 import { useState } from "react";
-import { Button, Label, Input } from "@neokapi/ui-primitives";
+import { Button, Label, Input, LocaleSelect } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import { api } from "../hooks/useApi";
+import { useLocales } from "../hooks/useLocales";
 
 interface NewProjectDialogProps {
-  onCreate: (name: string, savePath?: string) => void;
+  onCreate: (name: string, sourceLang: string, savePath?: string) => void;
   onCancel: () => void;
   shortenHome: (path: string) => string;
 }
 
 export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProjectDialogProps) {
+  const { locales } = useLocales();
   const [name, setName] = useState("");
+  const [sourceLang, setSourceLang] = useState("en-US");
   const [customPath, setCustomPath] = useState("");
   // eslint-disable-next-line no-control-regex -- intentional check for control characters in filenames
   const INVALID = /[<>:"/\\|?*\x00-\x1f]/;
@@ -26,7 +29,7 @@ export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProject
   };
 
   const handleCreate = () => {
-    if (canCreate) onCreate(trimmed, saveDir ? `${saveDir}/project.kapi` : undefined);
+    if (canCreate) onCreate(trimmed, sourceLang, saveDir ? `${saveDir}/project.kapi` : undefined);
   };
 
   return (
@@ -109,6 +112,17 @@ export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProject
             ) : (
               <p className="mt-1 text-xs">&nbsp;</p>
             )}
+          </div>
+          <div>
+            <Label className="mb-1 block text-xs text-muted-foreground">
+              {t("Source language")}
+            </Label>
+            <LocaleSelect
+              value={sourceLang}
+              onChange={setSourceLang}
+              locales={locales}
+              placeholder={t("Select source language...")}
+            />
           </div>
           <div className="flex gap-2">
             <Button onClick={handleCreate} disabled={!canCreate} className="flex-1">

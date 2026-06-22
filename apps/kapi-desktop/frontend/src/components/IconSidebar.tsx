@@ -22,6 +22,10 @@ type SidebarItem =
       alwaysEnabled?: boolean;
       /** When true, this item is disabled when project plugins are unresolved. */
       pluginGated?: boolean;
+      /** When true, this item appears only once the project has target
+       *  languages (e.g. Translation Memories). Hidden, not disabled, when it
+       *  doesn't — a project simply shows the surfaces its languages call for. */
+      localeGated?: boolean;
     }
   | { type: "separator" };
 
@@ -30,8 +34,11 @@ interface IconSidebarProps {
   active: string;
   onChange: (view: string) => void;
   projectDisabled?: boolean;
-  /** When true, plugin-gated items (Content, Flows) are disabled. */
+  /** When true, plugin-gated items (Flows) are disabled. */
   pluginsUnresolved?: boolean;
+  /** Whether the open project has target languages. Locale-gated items appear
+   *  only when it does — the source-first, "languages stay quiet" model. */
+  hasTargetLanguages?: boolean;
 }
 
 const adhocItems: SidebarItem[] = [
@@ -79,14 +86,12 @@ const projectItems: SidebarItem[] = [
     view: "checks",
     icon: <ShieldCheck size={20} strokeWidth={SW} />,
     label: "Checks",
-    pluginGated: true,
   },
   {
     type: "item",
     view: "content",
     icon: <FileText size={20} strokeWidth={SW} />,
     label: "Content",
-    pluginGated: true,
   },
   {
     type: "item",
@@ -107,6 +112,7 @@ const projectItems: SidebarItem[] = [
     view: "memories",
     icon: <Database size={20} strokeWidth={SW} />,
     label: "Translation Memories",
+    localeGated: true,
   },
   {
     type: "item",
@@ -122,6 +128,7 @@ export function IconSidebar({
   onChange,
   projectDisabled,
   pluginsUnresolved,
+  hasTargetLanguages,
 }: IconSidebarProps) {
   const items = mode === "adhoc" ? adhocItems : projectItems;
 
@@ -131,6 +138,11 @@ export function IconSidebar({
         {items.map((item, i) => {
           if (item.type === "separator") {
             return <div key={`sep-${i}`} className="my-1 h-px w-6 bg-border" />;
+          }
+          // Locale-gated items (Translation Memories) appear only once the
+          // project has target languages — present, never an announced unlock.
+          if (item.localeGated && !hasTargetLanguages) {
+            return null;
           }
           const noProject = mode === "projects" && projectDisabled && !item.alwaysEnabled;
           const pluginBlocked = !!(pluginsUnresolved && item.pluginGated);
