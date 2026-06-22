@@ -44,7 +44,6 @@ var providerEnvVars = map[string][]string{
 // key. Mirrors aiprovider.IsLocalProvider (kept here to avoid an import cycle).
 var keylessProviders = map[string]bool{
 	"ollama": true,
-	"gemma":  true,
 	"demo":   true,
 }
 

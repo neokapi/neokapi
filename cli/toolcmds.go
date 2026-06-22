@@ -284,6 +284,13 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					tmProvider = p
 				}
 
+				// When this run targets the local Ollama provider, make sure the
+				// runtime is up and the model is pulled before processing any
+				// files — one clear up-front step instead of a per-block failure.
+				if err := a.ensureOllamaForTool(cmd, toolSchema); err != nil {
+					return err
+				}
+
 				newTool := func() (tool.Tool, error) {
 					config := ReadAllSchemaFlags(cmd, toolSchema)
 					// Tools that require a termbase (e.g. term-check) get the

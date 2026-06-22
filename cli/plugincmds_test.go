@@ -11,12 +11,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	pluginreg "github.com/neokapi/neokapi/cli/pluginhost/registry"
+	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -249,3 +252,66 @@ func TestPluginRegistryFixture_IsValid(t *testing.T) {
 // _ keeps the registry import live for tests that may add direct
 // queries against the cached index.
 var _ = pluginreg.FetchOrCached
+
+// runPlugins drives `kapi plugins <args...>` through the parent command,
+// non-interactively, capturing output and the RunE error.
+func runPlugins(t *testing.T, app *App, args ...string) (stdout, stderr bytes.Buffer, err error) {
+	t.Helper()
+	cmd := app.NewPluginCmd()
+	cmd.SetContext(context.Background())
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs(args)
+	err = cmd.Execute()
+	return stdout, stderr, err
+}
+
+// A retired plugin cannot be (re)installed — the compiled-in tombstone refuses
+// it before any network access, pointing at the replacement.
+func TestPluginInstall_RetiredRefused(t *testing.T) {
+	_, _, err := runPlugins(t, &App{}, "install", "llm")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "retired")
+	assert.Contains(t, err.Error(), "Ollama")
+}
+
+// `kapi plugins prune` lists retired installs and removes user-installed ones
+// after confirmation (or --yes), leaving everything else alone.
+func TestPluginPrune_RemovesRetiredUserInstall(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "llm")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "manifest.json"), []byte("{}"), 0o644))
+	p := &pluginhost.Plugin{
+		Dir:      dir,
+		Source:   pluginhost.Source{Order: 1, Label: dir, Path: dir},
+		Manifest: &manifest.Manifest{Plugin: "llm", Version: "0.1.0", Binary: "kapi-llm"},
+	}
+	app := &App{PluginHost: pluginhost.NewHost([]*pluginhost.Plugin{p}, nil)}
+
+	// dry-run lists but keeps it.
+	stdout, _, err := runPlugins(t, app, "prune", "--dry-run")
+	require.NoError(t, err)
+	assert.Contains(t, stdout.String(), "llm")
+	_, statErr := os.Stat(dir)
+	require.NoError(t, statErr, "dry-run must not remove the install")
+
+	// --yes removes it.
+	stdout, _, err = runPlugins(t, app, "prune", "--yes")
+	require.NoError(t, err)
+	assert.Contains(t, stdout.String(), "removed llm")
+	_, statErr = os.Stat(dir)
+	assert.True(t, os.IsNotExist(statErr), "prune --yes should delete the install dir")
+}
+
+// Pruning with no retired plugins installed is a clean no-op.
+func TestPluginPrune_NothingToPrune(t *testing.T) {
+	p := &pluginhost.Plugin{
+		Source:   pluginhost.Source{Order: 1, Label: "user"},
+		Manifest: &manifest.Manifest{Plugin: "sat", Version: "1.0.0", Binary: "kapi-sat"},
+	}
+	app := &App{PluginHost: pluginhost.NewHost([]*pluginhost.Plugin{p}, nil)}
+	stdout, _, err := runPlugins(t, app, "prune", "--yes")
+	require.NoError(t, err)
+	assert.Contains(t, stdout.String(), "Nothing to prune")
+}

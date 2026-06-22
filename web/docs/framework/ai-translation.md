@@ -17,8 +17,7 @@ neokapi provides first-class LLM integration for translation, quality assurance,
 | **OpenAI**        | GPT models                                              |
 | **Azure OpenAI**  | OpenAI models hosted on Azure                           |
 | **Google Gemini** | Gemini models with streaming and live thinking progress |
-| **Ollama**        | Local models (no API key needed)                        |
-| **Gemma (local)** | On-device Google Gemma 4 via the `kapi-llm` plugin — no API key, runs in-process (free, private) |
+| **Ollama**        | On-device local models (no API key needed) — free, private, GPU-accelerated |
 
 ## Setup
 
@@ -144,41 +143,60 @@ The variables follow each provider's own conventions:
 | `GEMINI_API_KEY` (then `GOOGLE_API_KEY`) | Google Gemini     |
 | `AZURE_OPENAI_API_KEY`                  | Azure OpenAI      |
 
-Ollama and Gemma run local models and require no key. The
+Ollama runs local models and requires no key. The
 [machine translation services](/framework/mt-services#environment-variables)
 page lists the equivalent variables for the MT providers. For the full set of
 provider parameters, see the generated [Tool Reference](/tools).
 
-## Local models with Gemma
+## Local models with Ollama
 
-The `gemma` provider runs Google's **Gemma 4** on-device, in-process, with no API
-key and nothing sent to a server — a free, private alternative to the paid
-providers. It is delivered by the `kapi-llm` plugin (the heavy onnxruntime stack
-stays in the plugin, not the `kapi` binary):
+The `ollama` provider runs models entirely on-device — no API key, nothing sent
+to a server, GPU-accelerated (Metal on Apple Silicon, CUDA elsewhere) — a free,
+private alternative to the paid providers. [Ollama](https://ollama.com) is a
+one-time install; kapi drives everything downstream of it.
 
 ```bash
-kapi plugins install llm          # or: brew install neokapi/tap/kapi-llm
-kapi ai-translate -i input.html --target-lang fr --provider gemma
+kapi ollama install                       # platform-specific install guidance
+kapi ollama pull llama3.2:3b              # download a translation model
+kapi translate -i input.html --target-lang fr --provider ollama --model llama3.2:3b
 ```
 
-The model downloads on demand on first use and is cached. As a flow-step config:
+`kapi ollama status` reports whether the runtime is installed, running, and which
+models are present; `kapi ollama list` lists installed models. When a translation
+selects the `ollama` provider, kapi checks the runtime is up and pulls the
+requested model if it is missing — so a fresh machine needs only Ollama itself.
+
+The same selection works as flow-step config:
 
 ```yaml
 steps:
-  - tool: ai-translate
+  - tool: translate
     config:
-      provider: gemma
+      provider: ollama
+      model: llama3.2:3b
 ```
 
-The same `gemma` provider works across the AI tools (`ai-qa`, `brand-voice-check`,
-…) and in the browser — see the [Core Framework lab](/lab), which runs the same model
-via WebGPU. (Text is supported today; image/audio input is experimental.)
+### Choosing a model
+
+Small instruction-tuned models translate well while staying fast and private.
+For constrained translation — where the model must honour an approved glossary, a
+brand voice, and inline placeholders, and return only the translation —
+`llama3.2:3b` is a strong, lightweight default with the most reliable inline-tag
+fidelity. `qwen3:1.7b` is faster and smaller. For noticeably better multilingual
+quality (e.g. German grammar), `gemma4:e2b` is the quality pick — larger (~7 GB,
+needs a recent Ollama) and it may reposition inline tags, so prefer it when the
+pipeline protects inline codes rather than relying on the model to pass them
+through. Any Ollama model reference works; pick by the quality/speed balance the
+content needs. kapi sends a low sampling temperature and disables reasoning output
+(`think:false`) so a model returns the translation directly rather than a chain of
+thought.
 
 To make it the default so you can omit `--provider` entirely:
 
 ```bash
-kapi config set ai.provider gemma
-kapi ai-translate input.html --target-lang fr   # uses gemma
+kapi config set ai.provider ollama
+kapi config set ai.model llama3.2:3b
+kapi translate input.html --target-lang fr   # uses ollama
 ```
 
 The default applies to every AI tool and flow. An explicit `--provider`, inline
@@ -188,26 +206,10 @@ set its own default in the recipe:
 ```yaml
 defaults:
   tools:
-    ai-translate:
-      provider: gemma
-```
-
-## Local models with Ollama
-
-For development and testing without API costs, run a local model through Ollama.
-No API key is required:
-
-```bash
-ollama pull llama3
-kapi translate -i input.html --target-lang fr --provider ollama --model llama3
-```
-
-The same selection works as flow-step config:
-
-```yaml
-steps:
-  - tool: translate
-    config:
+    translate:
       provider: ollama
-      model: llama3
+      model: llama3.2:3b
 ```
+
+In the browser — the [Core Framework lab](/lab) — local translation runs through
+[WebGPU](/lab) instead of Ollama, since a web page cannot reach a local daemon.

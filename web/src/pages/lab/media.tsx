@@ -35,7 +35,7 @@ export default function MediaLabPage(): React.ReactElement {
     i18n.currentLocale === i18n.defaultLocale
       ? localizedModels
       : localizedModels.replace(`/${i18n.currentLocale}/`, "/");
-  const modelBase = cdnEnabled(cdn) ? cdnHref(cdn, "/models/vision") : sameOriginBase;
+  const modelBase = cdnEnabled(cdn) ? cdnHref(cdn, `/models/vision/${cdn.modelsVersion}`) : sameOriginBase;
 
   const [tab, setTab] = useState<Tab>("audio");
 

@@ -110,7 +110,7 @@ type Manifest struct {
 // Default, which the host fetches when the user does not name a specific model.
 type ModelAsset struct {
 	// ID is the model identifier the user/recipe selects and the cache key
-	// (e.g. "gemma-4-e2b"). Must match [a-z0-9][a-z0-9._-]*.
+	// (e.g. "sat-3l-sm"). Must match [a-z0-9][a-z0-9._-]*.
 	ID string `json:"id"`
 
 	// Version pins the asset revision so the cache is content-stable and a

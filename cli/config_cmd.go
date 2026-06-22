@@ -14,8 +14,8 @@ import (
 // app configuration (the global ~/.config/kapi/kapi.yaml). Its most common use is
 // setting a default AI provider/model so the `--provider` flag can be omitted:
 //
-//	kapi config set ai.provider gemma
-//	kapi config set ai.model gemma-4-e2b
+//	kapi config set ai.provider ollama
+//	kapi config set ai.model llama3.2:3b
 //	kapi ai-translate input.json --target-lang fr   # uses the default
 func (a *App) NewConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -26,12 +26,12 @@ func (a *App) NewConfigCmd() *cobra.Command {
 			"typically ~/.config/kapi/kapi.yaml).\n\n" +
 			"Common keys:\n" +
 			"  ai.provider   default AI provider for ai-translate / ai-qa / brand-voice-check / flows\n" +
-			"                (e.g. `gemma` to default to the free, on-device local model)\n" +
+			"                (e.g. `ollama` to default to a free, on-device local model)\n" +
 			"  ai.model      default model for the AI provider\n\n" +
 			"An explicit --provider/--model flag, inline config, or project recipe " +
 			"default always overrides these.",
-		Example: "  kapi config set ai.provider gemma\n" +
-			"  kapi config set ai.model gemma-4-e2b\n" +
+		Example: "  kapi config set ai.provider ollama\n" +
+			"  kapi config set ai.model llama3.2:3b\n" +
 			"  kapi config get ai.provider\n" +
 			"  kapi config list",
 	}

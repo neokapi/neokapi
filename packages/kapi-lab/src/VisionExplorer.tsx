@@ -125,9 +125,9 @@ export default function VisionExplorer({
     setGemmaProgress(null);
     try {
       const url = rgbaToDataURL(raster);
-      // The generative comparison uses the llm (Gemma) model — download it via
-      // the manager so the navbar widget reflects it.
-      await ensurePlugin("llm");
+      // The generative comparison loads the in-browser Gemma 4 model directly via
+      // gemmaBridge (no plugin manager): runGemmaImageOCR fetches the multimodal
+      // model on first use and streams download progress through onProgress.
       const t0 = performance.now();
       const res = await runGemmaImageOCR(url, GEMMA_OCR_PROMPT, {
         onProgress: (p) => setGemmaProgress(p),
