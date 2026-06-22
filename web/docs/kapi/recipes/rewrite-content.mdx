@@ -1,0 +1,196 @@
+---
+id: rewrite-content
+title: "Rewrite content with AI, faithfully"
+sidebar_label: "Rewrite content"
+description: "Edit the text inside any supported file with a plain-language instruction while the format, structure, and non-text elements remain byte-for-byte intact."
+hide_table_of_contents: true
+---
+
+# Rewrite content with AI, faithfully
+
+:::note Requires an AI provider
+`kapi rewrite` calls an LLM. Configure a provider first — `kapi credentials add`
+— or pass `--provider` on the command line to pick one explicitly.
+:::
+
+**Goal:** edit the text inside a file without touching its structure. The source
+file may be a Word document, a JSON catalog, a Markdown guide, an HTML page, or
+any other format kapi reads. The instruction is plain language. The output is
+a new copy of the same file — same keys, same styles, same inline codes — with
+only the prose changed according to what you asked.
+
+Common uses: simplify technical documentation, fix off-brand copy, standardize
+terminology across a catalog, tighten prose to fit a length budget.
+
+## Assess the file first
+
+Before rewriting, it helps to see how much text you are dealing with. `kapi stats`
+reads the file and reports block counts, word totals, and character totals without
+modifying anything:
+
+```bash
+kapi stats guide.md
+```
+
+```bash
+# Machine-readable output for scripting
+kapi stats guide.md --json
+```
+
+To read the text block by block — for feeding to another tool or for your own
+inspection — use `kapi inspect`. It returns one record per extracted block,
+including the block's role, nesting level, and a content hash:
+
+```bash
+kapi inspect guide.md
+kapi inspect guide.md --jsonl        # one JSON object per line, for streaming
+kapi inspect guide.md -f markdown    # override format detection
+```
+
+Neither command modifies the file.
+
+## Rewrite from a plain-language instruction
+
+Pass the instruction and the file. kapi reads the file, extracts the text into
+blocks, sends them to the LLM with the instruction, and writes the results back:
+
+```bash
+kapi rewrite --instruction "make it more concise" guide.md
+```
+
+The output lands next to the input by default (suffixed `.out` or as a new file,
+depending on how the format writer resolves the path). Pass a provider explicitly
+if you have more than one configured:
+
+```bash
+kapi rewrite --instruction "standardize 'log in' to 'sign in' throughout" \
+  --provider anthropic \
+  content/docs/auth.md
+```
+
+Multiple files work in one call:
+
+```bash
+kapi rewrite --instruction "simplify to plain language, reading level 8" \
+  docs/*.md
+```
+
+## Review before applying
+
+Add `--diff` to perform a dry run. kapi runs the rewrite but prints a unified
+diff instead of writing the output, so you can read every proposed change before
+committing to it:
+
+```bash
+kapi rewrite --instruction "make it more concise" --diff guide.md
+```
+
+The diff shows only the text that changed. Structure — headings, list markers,
+code fences, inline codes — appears unchanged because kapi does not touch it.
+
+## Apply in place
+
+Once the diff looks right, rewrite the file in place with `-i`:
+
+```bash
+kapi rewrite --instruction "make it more concise" -i guide.md
+```
+
+To keep the original as a backup, append an extension to `--in-place`:
+
+```bash
+kapi rewrite --instruction "make it more concise" --in-place=.bak guide.md
+```
+
+This writes `guide.md.bak` (the original) and updates `guide.md` in place.
+
+## What "faithfully" means
+
+The rewrite is faithful in a precise sense: kapi's format reader extracts the
+text blocks from the file and the writer puts them back into the exact same
+structural slots. Everything outside the extracted text is reproduced byte for
+byte.
+
+For a Word document (`.docx`), this means character styles, table borders, tracked
+changes, and image positions are not affected — only the paragraph text changes.
+For a JSON catalog, the keys, nesting, and non-string values are untouched —
+only string values change. For a Markdown file, headings, fences, and inline
+codes are preserved.
+
+This is the same round-trip guarantee that every kapi format writer provides. See
+[Tools](/framework/tools) for the general model, and the format reference for
+per-format specifics.
+
+## Verify the result
+
+After rewriting, run `kapi check` to confirm the result meets your content
+rules. The check is deterministic: it reads the file and reports findings without
+modifying it:
+
+```bash
+kapi check guide.md
+```
+
+Apply rules as flags when you do not have a check profile:
+
+```bash
+# Flag strings over 500 characters or containing a forbidden term
+kapi check guide.md --max-chars 500 --forbid "utilize"
+```
+
+Use `--profile` to run a named checkset, or `--profile-file` for a local YAML:
+
+```bash
+kapi check guide.md --profile company-voice
+```
+
+The command exits `0` when all checks pass and `3` when the gate fails. The
+structured report is available via `--json`:
+
+```bash
+kapi check guide.md --json
+```
+
+The report schema is `kapi.check/v1` and includes a score, severity-bucketed
+findings, and per-block locations. See [Checks](/framework/checks) for the full
+check model.
+
+## In an AI assistant's fix-loop
+
+When kapi is wired as an MCP server (`kapi mcp`), an AI assistant can drive the
+same workflow through structured tool calls. The relevant tools are:
+
+| MCP tool | What it does |
+| --- | --- |
+| `check_file` | Run the checkset against a file; returns a `kapi.check/v1` Report with per-block finding locations |
+| `check_text` | Run the checkset against a text snippet |
+| `rewrite_file` | Rewrite the text inside a file from an instruction (and optional brand profile), structure preserved |
+| `brand_check` | Score a text against a brand voice profile |
+
+A typical agent pass: the assistant calls `check_file` to read the findings,
+then calls `rewrite_file` with an instruction derived from those findings, then
+calls `check_file` again to confirm the gate passes. The loop is self-correcting:
+each check pinpoints the exact block and rule, so the rewrite instruction can be
+specific.
+
+`rewrite_file` uses the same faithful round-trip as `kapi rewrite`: only text
+changes, structure is preserved. See [MCP server](/reference/mcp) for setup and
+the full tool list.
+
+For the agent-skills path (an AI calling the `kapi` CLI directly rather than the
+MCP server), `kapi inspect` with `--jsonl` is a convenient way to feed the
+extracted text to the model block by block before issuing a targeted rewrite.
+
+## Next
+
+- [Rewrite tool reference](/reference/tools/rewrite) — configuration options,
+  provider selection, and the instruction contract.
+- [Checks](/framework/checks) — the full check model: rule families, profiles,
+  scoring, and the gate exit codes.
+- [Tools](/framework/tools) — how kapi's processing tools compose and what the
+  faithful round-trip guarantees.
+- [MCP server](/reference/mcp) — wire kapi into Claude, Cursor, and other
+  MCP-compatible assistants.
+- [Prepare content for translation](/kapi/recipes/prepare-content) — a broader
+  preparation pass that combines rewrite with redaction, TM leverage, and
+  terminology checks.

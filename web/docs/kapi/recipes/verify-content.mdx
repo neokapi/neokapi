@@ -1,0 +1,269 @@
+---
+id: verify-content
+title: "Check content and loop with AI"
+sidebar_label: "Check & verify"
+description: "Run kapi check over a file to get a machine-readable hygiene, length, pattern, and brand report; gate in CI on exit 3; and drive an author → check → rewrite → re-check loop via MCP."
+hide_table_of_contents: true
+---
+
+# Check content and loop with AI
+
+**Goal:** verify content before it ships — flag over-long strings, forbidden
+phrases, brand drift, and structural faults — and fix problems in a tightly
+scoped loop: either interactively from the command line or automatically by an
+AI assistant working over MCP.
+
+`kapi check` is the entry point. It reads a file, runs a content-first checkset,
+and returns one machine-readable `kapi.check/v1` Report. It never modifies
+content; that is `kapi rewrite`'s job.
+
+## Run a check
+
+```bash
+kapi check src/locales/en.json
+```
+
+kapi extracts the text from the file, runs the default checkset — hygiene,
+length, patterns, and brand vocabulary — and writes the result to stdout. With
+`--json`, it emits the structured Report instead:
+
+```bash
+kapi check src/locales/en.json --json
+```
+
+```json
+{
+  "schema": "kapi.check/v1",
+  "pass": false,
+  "summary": {
+    "score": 74,
+    "critical": 0,
+    "major": 2,
+    "minor": 3
+  },
+  "gate": "major",
+  "findings": [
+    {
+      "rule": "length.max-chars-exceeded",
+      "severity": "major",
+      "message": "Block exceeds the 120-character limit (148 chars).",
+      "suggestion": "Shorten to 120 characters.",
+      "location": { "file": "src/locales/en.json", "block": "onboarding.welcome" }
+    },
+    {
+      "rule": "hygiene.doubled-word",
+      "severity": "major",
+      "message": "Doubled word: \"the the\".",
+      "location": { "file": "src/locales/en.json", "block": "settings.save_prompt" }
+    }
+  ]
+}
+```
+
+The Report fields:
+
+| Field | Description |
+|---|---|
+| `schema` | Always `kapi.check/v1` — stable across kapi versions |
+| `pass` | `true` when no finding reaches the gate severity |
+| `summary.score` | 0–100 quality score |
+| `summary.{critical,major,minor}` | Counts by severity |
+| `gate` | The severity threshold that trips a non-zero exit |
+| `findings[].rule` | Stable rule id, e.g. `length.max-chars-exceeded` |
+| `findings[].location` | File + block id where the finding is anchored |
+
+## Add length, pattern, and brand rules
+
+Pass constraints inline, or collect them in a named pack:
+
+```bash
+# Length budget + forbidden phrase
+kapi check src/locales/en.json \
+  --max-chars 120 \
+  --max-words 30 \
+  --forbid "click here"
+
+# A named pack that bundles all house-style rules
+kapi check src/locales/en.json --pack house-style
+
+# Or point at a profile file
+kapi check src/locales/en.json --profile-file .kapi/check-profile.yaml
+```
+
+`--require RE` asserts the pattern must appear (useful for mandatory disclaimers
+or structured string formats). `--forbid RE` fails any block containing the
+pattern.
+
+## Gate in CI
+
+`kapi check` exits `3` when the gate trips — a severity at or above the gate
+threshold appears in the findings. This integrates directly with CI:
+
+```yaml title=".github/workflows/content.yml"
+- name: Check content
+  run: kapi check src/locales/en.json --pack house-style --json
+```
+
+The exit codes:
+
+| Exit | Meaning |
+|---|---|
+| `0` | All findings are below the gate threshold — pass |
+| `3` | At least one finding reached the gate — gate fail |
+| `1` | Operational error (file not found, format unrecognised) |
+
+`--strict` tightens the gate to minor severity (any finding fails). `--lenient`
+raises it to critical only. `--no-fail` always exits `0`, turning the check
+into a report-only run — useful inside an assistant fix-loop where the
+orchestrator reads the Report and decides whether to iterate.
+
+## Fold in structure and encoding findings
+
+By default, `kapi check` focuses on content rules. To also surface format-reader
+findings — malformed XML, invalid UTF-8, unrecognised character sets, rejected
+JSON — pass `--validate`:
+
+```bash
+# Add structure/encoding findings to the Report (does not gate)
+kapi check src/locales/en.json --validate report
+
+# Gate on structure/encoding findings too
+kapi check src/locales/en.json --validate strict
+```
+
+With `--validate report`, `structure.*` and `encoding.*` findings appear in the
+Report but do not affect the gate. With `--validate strict`, they gate like any
+other finding at their severity level.
+
+## Analyse before you check
+
+Two commands give a quick read of a file before running a full check.
+
+**`kapi inspect`** returns one record per content block, useful for RAG
+pipelines or feeding a snapshot to an AI:
+
+```bash
+kapi inspect src/locales/en.json
+```
+
+```json
+[
+  {
+    "file": "src/locales/en.json",
+    "number": 1,
+    "id": "onboarding.welcome",
+    "content_hash": "a3f2...",
+    "role": "block",
+    "level": 0,
+    "text": "Welcome to the app!"
+  }
+]
+```
+
+Add `--jsonl` for one JSON object per line (friendlier for streaming). Specify
+`-f fmt` to override format detection.
+
+**`kapi stats`** gives a file-level overview before you commit to a full check
+pass:
+
+```bash
+kapi stats src/locales/en.json
+kapi stats src/locales/en.json --json
+```
+
+```json
+{
+  "total": {
+    "blocks": 42,
+    "translatable": 38,
+    "non_translatable": 4,
+    "words": 312,
+    "characters": 2048,
+    "characters_no_space": 1740,
+    "segments": 54,
+    "by_role": { "block": 38, "data": 4 }
+  }
+}
+```
+
+The typical analysis sequence is: `kapi inspect` to browse the blocks, `kapi
+stats` to understand the volume, then `kapi check` to run the gates.
+
+## Opt in to bilingual checks
+
+Content-side checks run without a target file. To also check placeholder
+integrity, do-not-translate compliance, and terminology enforcement against a
+translated target, add `--target` and `--target-lang`:
+
+```bash
+kapi check src/locales/en.json \
+  --target src/locales/fr.json \
+  --target-lang fr
+```
+
+This folds bilingual findings into the same Report — one pass, one exit code,
+one `kapi.check/v1` schema.
+
+## The author → check → revise loop
+
+When a finding points at a block, `kapi rewrite` edits that block's text from a
+plain-language instruction. The file format is preserved; only the text changes:
+
+```bash
+# See what the rewrite would do
+kapi rewrite \
+  --instruction "shorten to fit 120 characters, keep the core message" \
+  --diff \
+  src/locales/en.json
+
+# Apply in place
+kapi rewrite \
+  --instruction "shorten to fit 120 characters, keep the core message" \
+  --in-place \
+  src/locales/en.json
+
+# Re-check
+kapi check src/locales/en.json --max-chars 120
+```
+
+Repeat until the exit is `0`. This is the same loop an AI assistant runs over
+MCP.
+
+## Drive the loop from an AI assistant
+
+When kapi is configured as an MCP server (`kapi mcp`), an assistant has four
+relevant tools:
+
+| MCP tool | What it does |
+|---|---|
+| `check_file` | Run `kapi check` on a file; returns the `kapi.check/v1` Report |
+| `check_text` | Check a text string inline without a file |
+| `rewrite_file` | Apply a `kapi rewrite` instruction to a file in place |
+| `brand_check` | Run brand vocabulary and voice rules against a file |
+
+A typical assistant turn:
+
+1. Author or edit content in a file.
+2. Call `check_file` — receives the Report with stable rule ids and block
+   locations.
+3. For each failing block, call `rewrite_file` with the suggestion from the
+   finding or a derived instruction.
+4. Call `check_file` again. Iterate until `pass` is `true`.
+
+Because rule ids are stable across runs, the assistant can track which findings
+it resolved and which it introduced, and stop when the Report is clean. The
+loop requires no human intervention and works identically over files of any
+format kapi reads.
+
+See [MCP server](/reference/mcp) for setup and the full tool list.
+
+## Next
+
+- [Checks](/framework/checks) — the check model, the Report schema, and every check
+  family.
+- [Rewrite tool](/reference/tools/rewrite) — how `kapi rewrite` edits text faithfully
+  inside any format.
+- [MCP server](/reference/mcp) — connect kapi to Claude, Cursor, and other MCP-compatible
+  assistants.
+- [Gate localization in CI](/kapi/recipes/gate-localization-in-ci) — run project-bound
+  gates (brand, terminology, QA) on every pull request.

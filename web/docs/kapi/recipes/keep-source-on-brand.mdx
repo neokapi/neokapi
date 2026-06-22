@@ -1,0 +1,313 @@
+---
+title: "Keep your source content on brand"
+description: "Survey, check, and rewrite source content against a brand voice profile — monolingual source governance before translation or publishing."
+hide_table_of_contents: true
+---
+
+# Keep your source content on brand
+
+:::note Runs anywhere
+No project needed. The commands on this page operate on files you name directly.
+:::
+
+**Goal:** flag forbidden, competitor, and off-preferred terms in your _source_
+content and rewrite the ones that fail — so what goes to translation (or to
+production) is already on-brand. This is a source-governance workflow, not a
+post-translation check.
+
+The four commands involved are:
+
+| Command | What it does |
+|---|---|
+| `kapi stats` | Content overview: block counts, words, characters |
+| `kapi inspect` | Per-block detail as JSON — for RAG or AI pipelines |
+| `kapi check` | Check against a brand profile; exit 3 when the gate fails |
+| `kapi rewrite` | AI-driven faithful edit of the text inside a file |
+
+## Survey the content
+
+Before checking anything, run `kapi stats` to understand the scope:
+
+```bash
+kapi stats blog-post.md
+```
+
+```
+Blocks:                     24
+  translatable:             19
+  non-translatable:          5
+Words:                    1847
+Characters:              11203
+  (no spaces):             9562
+Segments:                   19
+```
+
+With `--json`, the same data arrives as a structured record:
+
+```bash
+kapi stats blog-post.md --json | jq '.total.words'
+```
+
+The `total` object in the JSON output carries `blocks`, `translatable`,
+`non_translatable`, `words`, `characters`, `characters_no_space`, `segments`,
+and `by_role`. Multiple files produce one record per file plus a grand total.
+
+## Inspect content blocks
+
+`kapi inspect` parses a file and emits one record per content block — the same
+data an AI assistant or RAG pipeline reads to retrieve and edit specific blocks:
+
+```bash
+kapi inspect blog-post.md
+```
+
+```json
+[
+  {
+    "file": "blog-post.md",
+    "number": 1,
+    "id": "heading-0",
+    "content_hash": "a3f82c...",
+    "role": "heading",
+    "level": 1,
+    "text": "Introducing our new data platform"
+  },
+  {
+    "file": "blog-post.md",
+    "number": 2,
+    "id": "paragraph-0",
+    "content_hash": "b74d19...",
+    "role": "paragraph",
+    "level": 0,
+    "text": "Today we leverage our best-in-class infrastructure..."
+  }
+]
+```
+
+Use `--jsonl` to stream one object per line — a convenient format for piping
+into an ingestion or embedding pipeline:
+
+```bash
+kapi inspect --jsonl docs/*.md | jq -r '.content_hash + "\t" + .text'
+```
+
+Add `-f <format>` to override format auto-detection when the file extension is
+ambiguous.
+
+The `content_hash` field is `SHA-256(normalized_text)`, recomputable with
+`model.ComputeContentHash`. It is a stable anchor: if you retrieve on this hash
+later and the text has not changed, the block has not moved.
+
+## Check for off-brand content
+
+`kapi check` reads a file's content blocks, runs a configurable checkset, and
+returns one `kapi.check/v1` Report — the same shape a test runner produces.
+Findings are located to the exact block so an AI assistant or human reviewer
+knows what to fix.
+
+### Forbidden and required patterns
+
+Flag any term or regex that must not appear in the content:
+
+```bash
+kapi check blog-post.md --forbid "leverage" --forbid "best-in-class"
+```
+
+Require a particular phrase to be present in every document:
+
+```bash
+kapi check release-notes.md --require "Breaking change:"
+```
+
+Both flags are repeatable. Combine them with `--max-words` to also gate on
+length:
+
+```bash
+kapi check product-brief.md \
+  --forbid "synergy" --forbid "disrupt" \
+  --max-words 500
+```
+
+### Brand vocabulary from a starter pack
+
+`kapi` ships built-in starter packs for common content types. Pass `--pack` to
+load one:
+
+```bash
+kapi check blog-post.md --pack marketing-blog
+```
+
+Or use `--pack technical-docs` for reference content. Each pack defines preferred
+substitutes, competitor terms to avoid, and a vocabulary of forbidden patterns.
+
+### Brand vocabulary from your own profile
+
+For a team-specific voice profile, point at a YAML file with `--profile-file`,
+or at a profile stored in the local brand store with `--profile`:
+
+```bash
+kapi check blog-post.md --profile-file brand/voice.yaml
+kapi check blog-post.md --profile acme-brand
+```
+
+See [Brand voice](/framework/checks/brand-voice) for the profile format and how
+the vocabulary rules work.
+
+### Reading the report
+
+By default `kapi check` prints a human table of findings and a pass/fail line.
+With `--json`, it emits the `kapi.check/v1` Report directly:
+
+```bash
+kapi check blog-post.md --pack marketing-blog --json
+```
+
+```json
+{
+  "schema": "kapi.check/v1",
+  "pass": false,
+  "target": { "kind": "file", "file": "blog-post.md", "blocks": 24 },
+  "summary": {
+    "findings": 3,
+    "critical": 0,
+    "major": 2,
+    "minor": 1,
+    "neutral": 0,
+    "score": 61
+  },
+  "gate": {
+    "max_critical": 0,
+    "max_major": -1,
+    "max_minor": -1,
+    "min_score": 0,
+    "failed": []
+  },
+  "findings": [
+    {
+      "rule": "brand.vocabulary",
+      "check": "brand",
+      "severity": "major",
+      "message": "Forbidden term \"leverage\" found",
+      "suggestion": "Consider: \"use\"",
+      "location": { "file": "blog-post.md", "block": "paragraph-0" }
+    }
+  ]
+}
+```
+
+Each finding carries a stable `rule` id in `<check>.<category>` form. An AI
+assistant uses this id to track which findings have been fixed across loop
+iterations. The `score` (0–100) is a roll-up over all findings, weighted by
+severity; the `gate` section echoes the thresholds in force and records which
+ones tripped.
+
+### Exit codes and CI gates
+
+`kapi check` exits 0 when the report passes and 3 when the gate fails. Use this
+to gate a CI pipeline:
+
+```bash
+kapi check content/*.md --pack marketing-blog
+# exit 0 → pass; exit 3 → gate failure (at least one critical finding)
+```
+
+By default the gate fails on any critical finding and lets minor/major findings
+through. Tighten it:
+
+```bash
+# Fail on any critical or major finding
+kapi check content/*.md --pack marketing-blog --strict
+
+# Set a minimum score (0-100) below which the gate fails
+kapi check content/*.md --pack marketing-blog --min-score 80
+```
+
+To collect the findings without failing the pipeline — useful during a
+remediation sweep — pass `--no-fail`:
+
+```bash
+kapi check content/*.md --pack marketing-blog --json --no-fail > findings.json
+```
+
+### Reader validation (optional)
+
+Pass `--validate report` to fold format-level structure or encoding problems into
+the same Report. With `--validate strict`, a Major or Critical structure problem
+also fails the gate:
+
+```bash
+kapi check index.html --validate report
+```
+
+## Rewrite to fix findings
+
+`kapi rewrite` applies an AI instruction to the text inside a file and writes
+the document back in the same format. Only the editable text changes — styles,
+keys, inline codes, and markup structure survive the round-trip.
+
+Use `--diff` first to review the proposed changes without writing anything:
+
+```bash
+kapi rewrite --instruction "replace 'leverage' with 'use' throughout; avoid superlatives" \
+  --diff blog-post.md
+```
+
+When the diff looks correct, run without `--diff` to write to standard output,
+or use `-i` to edit in place:
+
+```bash
+# Write the rewritten document to stdout
+kapi rewrite --instruction "replace 'leverage' with 'use'; avoid superlatives" blog-post.md
+
+# Edit in place, keeping a backup
+kapi rewrite --instruction "replace 'leverage' with 'use'; avoid superlatives" \
+  --in-place=.bak blog-post.md
+```
+
+`kapi rewrite` requires an AI provider. Set one in your kapi config or pass
+`--provider`:
+
+```bash
+kapi rewrite --instruction "..." --provider anthropic blog-post.md
+```
+
+After rewriting, run `kapi check` again to confirm the findings are cleared. The
+stable rule ids in the Report let you track which violations remain.
+
+## In an AI agent loop (MCP)
+
+`kapi mcp` exposes the check and rewrite surface as MCP tools so an AI assistant
+(Claude Code, Cursor, or any MCP-compatible client) can drive the full
+author → check → fix cycle from a conversation:
+
+| MCP tool | What it does |
+|---|---|
+| `check_text` | Check a text snippet (no file needed) |
+| `check_file` | Check a file's content; returns `kapi.check/v1` Report |
+| `brand_check` | Score text against a brand profile; returns findings |
+| `rewrite_file` | Rewrite a file's text per an instruction; returns the updated content |
+
+A typical agent loop:
+
+1. Call `check_file` on the source file with a `profile_pack` or `profile_file`.
+2. Read the `findings` — each has a stable `rule` id and a `location.block`
+   pointing to the exact content block.
+3. Call `rewrite_file` with an instruction derived from the findings (or attach
+   the same `profile_file` so the rewrite aligns with the profile guide).
+4. Re-run `check_file` to confirm the findings are cleared.
+
+The MCP server starts with `kapi mcp`. See [MCP server](/reference/mcp) for
+setup and the full tool list.
+
+## Next
+
+- [Brand voice](/framework/checks/brand-voice) — the profile format, vocabulary
+  rules, and how the score is calculated.
+- [`kapi check` reference](/reference/commands/brand-check) — all flags and the
+  full `kapi.check/v1` schema.
+- [`rewrite` tool reference](/reference/tools/rewrite) — provider configuration,
+  inline-code preservation, and the faithful round-trip guarantee.
+- [MCP server](/reference/mcp) — how to configure kapi as an MCP server for
+  Claude Code, Cursor, and other AI tools.
+- [Terminology QA](/kapi/recipes/terminology-qa) — enforce approved term choices
+  in translated files after the source is locked.

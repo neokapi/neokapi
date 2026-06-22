@@ -33,9 +33,41 @@ const sidebars: SidebarsConfig = {
         "kapi/get-started/use-with-claude",
       ],
     },
+    // Work by task. The CLI surface is organized by the jobs the engine does —
+    // parse, edit, check, brand — with localization as one task among them, not
+    // the frame. (The l10n recipes are unchanged; this is the usage-organized
+    // IA from the positioning canon.)
     {
       type: "category",
-      label: "Kapi CLI",
+      label: "Parse & ingest",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: ["kapi/recipes/ingest-for-ai"],
+    },
+    {
+      type: "category",
+      label: "Edit & rewrite",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: ["kapi/recipes/rewrite-content"],
+    },
+    {
+      type: "category",
+      label: "Check & verify",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: ["kapi/recipes/verify-content"],
+    },
+    {
+      type: "category",
+      label: "Brand & voice",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: ["kapi/recipes/keep-source-on-brand"],
+    },
+    {
+      type: "category",
+      label: "Localize",
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
