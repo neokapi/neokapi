@@ -51,9 +51,22 @@ export interface PluginState {
   error?: string;
 }
 
+/**
+ * Lifecycle of a single on-device LLM model. No `unavailable` — every listed
+ * model runs in the browser (WebGPU via WebLLM, or a transformers.js fallback).
+ */
+export type ModelPhase = "idle" | "cached" | "downloading" | "ready" | "error";
+
+export interface ModelState {
+  phase: ModelPhase;
+  progress?: Progress;
+  error?: string;
+}
+
 export interface LabState {
   engine: EngineState;
   plugins: Record<PluginId, PluginState>;
+  models: Record<string, ModelState>;
 }
 
 export interface PluginDescriptor {
@@ -133,6 +146,41 @@ export const PLUGIN_DESCRIPTORS: PluginDescriptor[] = [
 
 const DESCRIPTOR_BY_ID = new Map(PLUGIN_DESCRIPTORS.map((d) => [d.id, d]));
 
+/**
+ * ModelDescriptor describes one in-browser local LLM model the lab can download.
+ * Mirrors LOCAL_MODELS in localLlmBridge.ts — kept as plain data here so importing
+ * the manager (e.g. into the navbar) doesn't pull the heavy WebLLM/transformers
+ * bridge until a model is actually ensured. ids match the native `kapi ollama` /
+ * `--model` names, so the web and desktop model lineups read identically.
+ */
+export interface ModelDescriptor {
+  id: string;
+  label: string;
+  /** Human download size, e.g. "~2.3 GB". */
+  size: string;
+  /** Browser engine: WebLLM (MLC/WebGPU) or ONNX (transformers.js). */
+  engine: "WebLLM" | "ONNX";
+  /** The default model (marked in the UI). */
+  isDefault?: boolean;
+  /** Short note, e.g. "fastest". */
+  note?: string;
+}
+
+export const MODEL_DESCRIPTORS: ModelDescriptor[] = [
+  {
+    id: "llama3.2:3b",
+    label: "Llama 3.2 3B",
+    size: "~2.3 GB",
+    engine: "WebLLM",
+    isDefault: true,
+    note: "reliable inline tags",
+  },
+  { id: "gemma4:e2b", label: "Gemma 4 E2B", size: "~3 GB", engine: "ONNX", note: "best quality" },
+  { id: "qwen3:1.7b", label: "Qwen3 1.7B", size: "~1.4 GB", engine: "WebLLM", note: "fastest" },
+];
+
+const MODEL_BY_ID = new Map(MODEL_DESCRIPTORS.map((d) => [d.id, d]));
+
 // ---------------------------------------------------------------------------
 // Store
 // ---------------------------------------------------------------------------
@@ -145,16 +193,23 @@ function initialPlugins(): Record<PluginId, PluginState> {
   return out;
 }
 
+function initialModels(): Record<string, ModelState> {
+  const out: Record<string, ModelState> = {};
+  for (const d of MODEL_DESCRIPTORS) out[d.id] = { phase: "idle" };
+  return out;
+}
+
 let state: LabState = {
   engine: { phase: "idle" },
   plugins: initialPlugins(),
+  models: initialModels(),
 };
 
 const listeners = new Set<() => void>();
 
 function emit() {
   // Fresh top-level object so useSyncExternalStore's identity check fires.
-  state = { engine: state.engine, plugins: state.plugins };
+  state = { engine: state.engine, plugins: state.plugins, models: state.models };
   for (const fn of listeners) fn();
 }
 
@@ -165,6 +220,12 @@ function setEngine(patch: Partial<EngineState>) {
 
 function setPlugin(id: PluginId, patch: Partial<PluginState>) {
   state.plugins = { ...state.plugins, [id]: { ...state.plugins[id], ...patch } };
+  emit();
+}
+
+function setModel(id: string, patch: Partial<ModelState>) {
+  const prev = state.models[id] ?? { phase: "idle" };
+  state.models = { ...state.models, [id]: { ...prev, ...patch } };
   emit();
 }
 
@@ -212,6 +273,24 @@ async function cacheHasUrlSubstring(cacheName: string, substr: string): Promise<
   }
 }
 
+// anyCacheHasSubstring scans EVERY Cache API cache for a key URL containing
+// substr. Model weights are cached under engine-specific names that vary
+// (transformers.js → "transformers-cache"; WebLLM names caches after the model),
+// so for models we match the model id across all caches rather than guess a name.
+async function anyCacheHasSubstring(substr: string): Promise<boolean> {
+  try {
+    if (typeof caches === "undefined") return false;
+    for (const name of await caches.keys()) {
+      const c = await caches.open(name);
+      const keys = await c.keys();
+      if (keys.some((req) => req.url.includes(substr))) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // Repo/path fragments that identify each plugin's cached model, matched against
 // the cache keys (robust to the exact cache-key URL format).
 const CACHE_PROBES: Partial<Record<PluginId, { cache: string; substr: string }>> = {
@@ -219,24 +298,38 @@ const CACHE_PROBES: Partial<Record<PluginId, { cache: string; substr: string }>>
   sat: { cache: "kapi-sat-v1", substr: "sat-3l-sm" },
 };
 
+// Model id → a cache-key substring that identifies its downloaded weights. The
+// gemma (ONNX/transformers) model caches under the HF repo path; the WebLLM
+// models cache under their MLC model id. Matched across all caches.
+const MODEL_CACHE_PROBES: Record<string, string> = {
+  "gemma4:e2b": "gemma-4-E2B",
+  "llama3.2:3b": "Llama-3.2-3B-Instruct-q4f16_1-MLC",
+  "qwen3:1.7b": "Qwen3-1.7B-q4f16_1-MLC",
+};
+
 let probed = false;
 
 /**
- * probePluginCaches checks the browser cache for previously-downloaded models
- * and marks them `cached`. Idempotent (runs once); only upgrades plugins still
- * `idle`, so it never stomps a live download or a freshly-ready plugin.
+ * probePluginCaches checks the browser cache for previously-downloaded plugin
+ * AND model weights and marks them `cached`. Idempotent (runs once); only
+ * upgrades entries still `idle`, so it never stomps a live download or a
+ * freshly-ready one.
  */
 export async function probePluginCaches(): Promise<void> {
   if (probed) return;
   probed = true;
-  await Promise.all(
-    (Object.entries(CACHE_PROBES) as Array<[PluginId, { cache: string; substr: string }]>).map(
+  await Promise.all([
+    ...(Object.entries(CACHE_PROBES) as Array<[PluginId, { cache: string; substr: string }]>).map(
       async ([id, p]) => {
         const hit = await cacheHasUrlSubstring(p.cache, p.substr);
         if (hit && state.plugins[id].phase === "idle") setPlugin(id, { phase: "cached" });
       },
     ),
-  );
+    ...Object.entries(MODEL_CACHE_PROBES).map(async ([id, substr]) => {
+      const hit = await anyCacheHasSubstring(substr);
+      if (hit && state.models[id]?.phase === "idle") setModel(id, { phase: "cached" });
+    }),
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -391,6 +484,45 @@ export function ensurePlugin(id: PluginId): Promise<void> {
   return run;
 }
 
+// In-flight ensure promises for models, like `ensuring` for plugins.
+const ensuringModels = new Map<string, Promise<void>>();
+
+/**
+ * ensureModel downloads + loads an in-browser LLM model on demand, reporting
+ * progress into the store. It lazy-imports localLlmBridge (so the heavy WebLLM /
+ * transformers stack only loads when a model is actually pulled). Idempotent: a
+ * ready model resolves immediately; a concurrent call shares the download.
+ */
+export function ensureModel(id: string): Promise<void> {
+  if (!MODEL_BY_ID.has(id)) return Promise.reject(new Error(`unknown model: ${id}`));
+  if (state.models[id]?.phase === "ready") return Promise.resolve();
+  const inflight = ensuringModels.get(id);
+  if (inflight) return inflight;
+
+  const run = (async () => {
+    setModel(id, { phase: "downloading", progress: { frac: 0 }, error: undefined });
+    try {
+      const { ensureLocalLLM } = await import("./localLlmBridge");
+      await ensureLocalLLM(id, {
+        onProgress: (p) =>
+          setModel(id, {
+            phase: p.status === "ready" ? "ready" : "downloading",
+            progress: { frac: (p.progress ?? 0) / 100 },
+          }),
+      });
+      setModel(id, { phase: "ready", progress: undefined });
+    } catch (e) {
+      console.error(`[kapi model: ${id}] download/load failed:`, e);
+      setModel(id, { phase: "error", error: e instanceof Error ? e.message : String(e) });
+      throw e;
+    } finally {
+      ensuringModels.delete(id);
+    }
+  })();
+  ensuringModels.set(id, run);
+  return run;
+}
+
 // ---------------------------------------------------------------------------
 // React hook
 // ---------------------------------------------------------------------------
@@ -398,13 +530,19 @@ export function ensurePlugin(id: PluginId): Promise<void> {
 export interface UsePluginManager {
   state: LabState;
   descriptors: PluginDescriptor[];
+  modelDescriptors: ModelDescriptor[];
   counts: { ready: number; total: number };
   ensure: (id: PluginId) => Promise<void>;
+  ensureModel: (id: string) => Promise<void>;
   bootEngine: () => Promise<unknown>;
   configure: (a: PluginAssets) => void;
 }
 
-const SERVER_SNAPSHOT: LabState = { engine: { phase: "idle" }, plugins: initialPlugins() };
+const SERVER_SNAPSHOT: LabState = {
+  engine: { phase: "idle" },
+  plugins: initialPlugins(),
+  models: initialModels(),
+};
 
 /**
  * usePluginManager subscribes a component to the shared plugin store. The state
@@ -416,8 +554,10 @@ export function usePluginManager(): UsePluginManager {
   return {
     state: snap,
     descriptors: PLUGIN_DESCRIPTORS,
+    modelDescriptors: MODEL_DESCRIPTORS,
     counts: pluginCounts(),
     ensure: ensurePlugin,
+    ensureModel,
     bootEngine,
     configure: configurePlugins,
   };
