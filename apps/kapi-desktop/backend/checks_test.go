@@ -55,7 +55,7 @@ func TestRunChecksFindsBrandVocab(t *testing.T) {
 	app := NewApp()
 	tabID, _ := setupCheckProject(t, app, `{"greeting":"Please utilize the dashboard"}`)
 
-	res, err := app.RunChecks(tabID, "")
+	res, err := app.RunChecks(tabID, ProjectFilter{})
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -86,7 +86,7 @@ func TestApplyCheckFixRewritesSourceAndResolves(t *testing.T) {
 	app := NewApp()
 	tabID, srcPath := setupCheckProject(t, app, `{"greeting":"Please utilize the dashboard"}`)
 
-	res, err := app.RunChecks(tabID, "")
+	res, err := app.RunChecks(tabID, ProjectFilter{})
 	require.NoError(t, err)
 	require.Len(t, res.Files, 1)
 
@@ -111,7 +111,7 @@ func TestApplyCheckFixRewritesSourceAndResolves(t *testing.T) {
 	assert.NotContains(t, string(data), "utilize")
 
 	// Re-running checks resolves the finding.
-	res2, err := app.RunChecks(tabID, "")
+	res2, err := app.RunChecks(tabID, ProjectFilter{})
 	require.NoError(t, err)
 	require.Len(t, res2.Files, 1)
 	for _, f := range res2.Files[0].Findings {

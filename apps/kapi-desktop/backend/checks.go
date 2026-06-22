@@ -63,10 +63,13 @@ type CheckRunResult struct {
 
 // RunChecks runs the project's content checks (placeholder + do-not-translate
 // when a target exists, brand vocabulary on the source when a brand profile is
-// bound) over every matched content file and returns structured findings plus a
-// pass/fail and roll-up score. It mirrors the CLI `kapi check` semantics
+// bound) over the content files the Active Filter selects (its collections +
+// glob; all when empty), for the filter's target languages — source-side checks
+// run once per file, target-side checks run once per filtered language, and the
+// panel no longer carries its own language picker. With no languages selected,
+// only source-side checks run. It mirrors the CLI `kapi check` semantics
 // (cli/check.go): the gate fails on any critical finding.
-func (a *App) RunChecks(tabID string, targetLang string) (*CheckRunResult, error) {
+func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, fmt.Errorf("tab %q not found", tabID)
@@ -79,7 +82,6 @@ func (a *App) RunChecks(tabID string, targetLang string) (*CheckRunResult, error
 	}
 
 	sourceLang := string(pctx.SourceLocale)
-	targetLoc := model.LocaleID(targetLang)
 
 	// Resolve standing project context once: a bound brand profile (for the
 	// source-side vocabulary check) and do-not-translate terms (from the bound
@@ -95,6 +97,10 @@ func (a *App) RunChecks(tabID string, targetLang string) (*CheckRunResult, error
 	files := make([]CheckFileResult, 0, len(resolved))
 
 	for _, rf := range resolved {
+		if filter.FilesNarrowed() && !filter.MatchesFile(rf.Collection, rf.Relative) {
+			continue
+		}
+
 		sourceBlocks, rerr := a.readBlocksForChecks(ctx, rf.Path, rf.Format, sourceLang)
 		if rerr != nil {
 			// Surface the read failure as a finding rather than aborting the
@@ -110,27 +116,50 @@ func (a *App) RunChecks(tabID string, targetLang string) (*CheckRunResult, error
 			continue
 		}
 
-		// Bilingual: overlay the target file's text onto the source blocks so
-		// the target-comparing checks can run.
-		hasTarget := false
-		if targetLang != "" {
-			if tgtPath := a.resolveTargetPath(rf, op, targetLang); tgtPath != "" {
-				if _, serr := os.Stat(tgtPath); serr == nil {
-					targetBlocks, terr := a.readBlocksForChecks(ctx, tgtPath, "", sourceLang)
-					if terr == nil {
-						overlayTargets(sourceBlocks, targetBlocks, targetLoc)
-						hasTarget = true
+		var fileFindings []DesktopFinding
+
+		// Brand vocabulary — source-side, when a profile is bound. Runs once per
+		// file (independent of how many target languages are checked).
+		if profile != nil {
+			vocab := coretools.NewBrandVocabCheckTool(profile, nil)
+			for _, b := range sourceBlocks {
+				runCheckToolOnBlock(ctx, vocab, b)
+				if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
+					for _, f := range ann.Findings {
+						fileFindings = append(fileFindings, toDesktopFinding(f, b, "source"))
+						allFindings = append(allFindings, f)
 					}
 				}
 			}
 		}
 
-		var fileFindings []DesktopFinding
+		// Target-side checks, once per filtered language.
+		for _, lang := range filter.Languages {
+			if lang == "" {
+				continue
+			}
+			targetLoc := model.LocaleID(lang)
+			tgtPath := a.resolveTargetPath(rf, op, lang)
+			if tgtPath == "" {
+				continue
+			}
+			if _, serr := os.Stat(tgtPath); serr != nil {
+				continue
+			}
+			// Read source blocks fresh per language — overlayTargets mutates them.
+			passBlocks, perr := a.readBlocksForChecks(ctx, rf.Path, rf.Format, sourceLang)
+			if perr != nil {
+				continue
+			}
+			targetBlocks, terr := a.readBlocksForChecks(ctx, tgtPath, "", sourceLang)
+			if terr != nil {
+				continue
+			}
+			overlayTargets(passBlocks, targetBlocks, targetLoc)
 
-		if hasTarget {
-			// Placeholder integrity (always, when a target exists).
+			// Placeholder integrity.
 			placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(targetLoc))
-			for _, b := range sourceBlocks {
+			for _, b := range passBlocks {
 				runCheckToolOnBlock(ctx, placeholder, b)
 				for _, f := range findingsFromCheckBlock(b) {
 					fileFindings = append(fileFindings, toDesktopFinding(f, b, "target"))
@@ -143,24 +172,10 @@ func (a *App) RunChecks(tabID string, targetLang string) (*CheckRunResult, error
 				dntCfg := coretools.NewDNTCheckConfig(targetLoc)
 				dntCfg.Terms = dntTerms
 				dnt := coretools.NewDNTCheckTool(dntCfg)
-				for _, b := range sourceBlocks {
+				for _, b := range passBlocks {
 					runCheckToolOnBlock(ctx, dnt, b)
 					for _, f := range findingsFromCheckBlock(b) {
 						fileFindings = append(fileFindings, toDesktopFinding(f, b, "target"))
-						allFindings = append(allFindings, f)
-					}
-				}
-			}
-		}
-
-		// Brand vocabulary — source-side, when a profile is bound.
-		if profile != nil {
-			vocab := coretools.NewBrandVocabCheckTool(profile, nil)
-			for _, b := range sourceBlocks {
-				runCheckToolOnBlock(ctx, vocab, b)
-				if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
-					for _, f := range ann.Findings {
-						fileFindings = append(fileFindings, toDesktopFinding(f, b, "source"))
 						allFindings = append(allFindings, f)
 					}
 				}

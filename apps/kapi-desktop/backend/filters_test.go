@@ -72,6 +72,24 @@ func TestProjectFilters_ScopeMoveDoesNotDuplicate(t *testing.T) {
 	assert.True(t, got.Filters[0].Shared)
 }
 
+func TestProjectFilter_MatchesFile(t *testing.T) {
+	f := ProjectFilter{Collections: []string{"Website"}, Glob: "**/api*.md"}
+	assert.True(t, f.MatchesFile("Website", "docs/api-reference.md"))
+	assert.False(t, f.MatchesFile("Store", "docs/api-reference.md"), "wrong collection")
+	assert.False(t, f.MatchesFile("Website", "docs/guide.md"), "glob miss")
+
+	// An empty filter narrows nothing.
+	assert.False(t, ProjectFilter{}.FilesNarrowed())
+	assert.True(t, ProjectFilter{}.MatchesFile("Any", "x/y.json"))
+}
+
+func TestMatchGlobPath(t *testing.T) {
+	assert.True(t, matchGlobPath("*.json", "src/locales/en.json"), "bare glob matches anywhere")
+	assert.False(t, matchGlobPath("src/*.json", "src/locales/en.json"), "* stays within a segment")
+	assert.True(t, matchGlobPath("src/**/*.json", "src/locales/en.json"), "** crosses segments")
+	assert.True(t, matchGlobPath("", "anything"), "empty glob matches all")
+}
+
 func TestProjectFilters_NoProjectIsEmpty(t *testing.T) {
 	app := &App{projects: map[string]*openProject{"t": {Path: ""}}}
 	assert.Empty(t, app.GetProjectFilters("t").Filters)

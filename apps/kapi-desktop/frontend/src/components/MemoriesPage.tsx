@@ -14,6 +14,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
+import { useActiveFilter } from "../context/ActiveFilterContext";
 import { useTMAdapter } from "../hooks/useTMAdapter";
 import { useLocales } from "../hooks/useLocales";
 import { TMBrowser, ResourceCard, ImportProgress, type ResourceInfo } from "@neokapi/ui-primitives";
@@ -59,6 +60,9 @@ export function MemoriesPage({
   const [activityStats, setActivityStats] = useState<ActivityPoint[]>([]);
   const { showError } = useError();
   const { locales } = useLocales();
+  const { active: activeFilter } = useActiveFilter();
+  // Focus the TM browser on the Active Filter's languages (when any are chosen).
+  const scopeLocales = activeFilter?.languages?.length ? activeFilter.languages : undefined;
   const activeHandle = projectHandle || handle;
   const adapter = useTMAdapter(activeHandle);
 
@@ -268,7 +272,13 @@ export function MemoriesPage({
           </Card>
         )}
 
-        <TMBrowser adapter={adapter} locales={locales} onError={showError} />
+        <TMBrowser
+          adapter={adapter}
+          locales={locales}
+          scopeLocales={scopeLocales}
+          targetLocales={scopeLocales}
+          onError={showError}
+        />
         <ImportProgress active={importing} />
       </div>
     );

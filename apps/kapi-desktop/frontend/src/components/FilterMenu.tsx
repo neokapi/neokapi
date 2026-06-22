@@ -31,10 +31,16 @@ import { isEmptyFilter } from "../lib/filter";
 export function FilterMenu({ project }: { project: KapiProject }) {
   const { filters, activeId, active, setActive, saveFilter, deleteFilter } = useActiveFilter();
   const [editing, setEditing] = useState<ProjectFilter | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const edit = (f: ProjectFilter) => {
+    setMenuOpen(false);
+    setEditing(f);
+  };
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
@@ -58,23 +64,36 @@ export function FilterMenu({ project }: { project: KapiProject }) {
               <Check size={14} className={activeId === f.id ? "opacity-100" : "opacity-0"} />
               <span className="flex-1 truncate">{f.name}</span>
               {f.shared && <Users size={11} className="text-muted-foreground" />}
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label={t("Edit {name}", { name: f.name })}
+                className="ml-1 rounded p-0.5 text-muted-foreground opacity-70 hover:bg-accent hover:text-foreground hover:opacity-100"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  edit(f);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    edit(f);
+                  }
+                }}
+              >
+                <Pencil size={12} />
+              </span>
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onClick={() =>
-              setEditing({ id: "", name: "", collections: [], glob: "", languages: [] })
-            }
+            onClick={() => edit({ id: "", name: "", collections: [], glob: "", languages: [] })}
           >
             <Plus size={14} />
             {t("New filter…")}
           </DropdownMenuItem>
-          {active && (
-            <DropdownMenuItem onClick={() => setEditing(active)}>
-              <Pencil size={14} />
-              {t("Edit filter…")}
-            </DropdownMenuItem>
-          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -84,8 +103,13 @@ export function FilterMenu({ project }: { project: KapiProject }) {
           filter={editing}
           onClose={() => setEditing(null)}
           onSave={async (f) => {
+            const wasNew = !editing.id;
+            const wasActive = activeId === editing.id;
             const saved = await saveFilter(f);
-            if (saved) await setActive(saved.id);
+            // Activate a freshly created filter (or re-activate the one you were
+            // already using); don't hijack the active selection when editing a
+            // different saved filter.
+            if (saved && (wasNew || wasActive)) await setActive(saved.id);
             setEditing(null);
           }}
           onDelete={

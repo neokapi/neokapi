@@ -1590,15 +1590,18 @@ export function ResolveEntityConcepts(tmHandle, tbHandle, entryIDs, force) {
 /**
  * RunChecks runs the project's content checks (placeholder + do-not-translate
  * when a target exists, brand vocabulary on the source when a brand profile is
- * bound) over every matched content file and returns structured findings plus a
- * pass/fail and roll-up score. It mirrors the CLI `kapi check` semantics
+ * bound) over the content files the Active Filter selects (its collections +
+ * glob; all when empty), for the filter's target languages — source-side checks
+ * run once per file, target-side checks run once per filtered language, and the
+ * panel no longer carries its own language picker. With no languages selected,
+ * only source-side checks run. It mirrors the CLI `kapi check` semantics
  * (cli/check.go): the gate fails on any critical finding.
  * @param {string} tabID
- * @param {string} targetLang
+ * @param {$models.ProjectFilter} filter
  * @returns {$CancellablePromise<$models.CheckRunResult | null>}
  */
-export function RunChecks(tabID, targetLang) {
-    return $Call.ByID(139733492, tabID, targetLang).then(/** @type {($result: any) => any} */(($result) => {
+export function RunChecks(tabID, filter) {
+    return $Call.ByID(139733492, tabID, filter).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType97($result);
     }));
 }

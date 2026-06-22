@@ -148,8 +148,8 @@ export const api = {
 
   // Checks (scoped to tab) — runs content checks over the project's files and
   // applies one-click fixes. See backend/checks.go.
-  runChecks: (tabID: string, targetLang: string) =>
-    call<CheckRunResult>("RunChecks", tabID, targetLang),
+  runChecks: (tabID: string, filter: ProjectFilter) =>
+    call<CheckRunResult>("RunChecks", tabID, filter),
   applyCheckFix: (
     tabID: string,
     filePath: string,

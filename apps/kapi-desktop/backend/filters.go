@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/id"
@@ -140,6 +141,75 @@ func (a *App) SetActiveFilter(tabID, filterID string) error {
 	local := readFiltersFile(layout.LocalFiltersPath())
 	local.Active = filterID
 	return writeFiltersFile(layout.LocalFiltersPath(), local)
+}
+
+// ─── filter application ──────────────────────────────────────────────────────
+
+// FilesNarrowed reports whether the filter constrains files (collections/glob);
+// the languages dimension is applied separately by each caller.
+func (f ProjectFilter) FilesNarrowed() bool {
+	return len(f.Collections) > 0 || strings.TrimSpace(f.Glob) != ""
+}
+
+// MatchesFile reports whether a resolved file (by its collection and
+// project-relative path) passes the filter's collection + glob narrowing.
+func (f ProjectFilter) MatchesFile(collection, relative string) bool {
+	if len(f.Collections) > 0 && collection != "" {
+		found := false
+		for _, c := range f.Collections {
+			if c == collection {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	if g := strings.TrimSpace(f.Glob); g != "" && !matchGlobPath(g, relative) {
+		return false
+	}
+	return true
+}
+
+// matchGlobPath matches a project-relative path against a simple glob, mirroring
+// the frontend (lib/filter.ts): `*` within a segment, `**` across segments, `?`
+// one non-separator char; a glob with no `/` matches anywhere in the tree.
+func matchGlobPath(glob, path string) bool {
+	g := strings.TrimSpace(glob)
+	if g == "" {
+		return true
+	}
+	if !strings.Contains(g, "/") {
+		g = "**/" + g
+	}
+	var b strings.Builder
+	b.WriteString("^")
+	for i := 0; i < len(g); i++ {
+		c := g[i]
+		switch {
+		case c == '*':
+			if i+1 < len(g) && g[i+1] == '*' {
+				b.WriteString(".*")
+				i++
+			} else {
+				b.WriteString("[^/]*")
+			}
+		case c == '?':
+			b.WriteString("[^/]")
+		case strings.IndexByte(`\^$.|+()[]{}`, c) >= 0:
+			b.WriteByte('\\')
+			b.WriteByte(c)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	b.WriteString("$")
+	re, err := regexp.Compile(b.String())
+	if err != nil {
+		return true // a malformed glob shouldn't hide files
+	}
+	return re.MatchString(path)
 }
 
 // ─── file helpers ───────────────────────────────────────────────────────────
