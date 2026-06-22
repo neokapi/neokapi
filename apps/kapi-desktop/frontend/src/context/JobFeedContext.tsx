@@ -185,78 +185,89 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
     });
   });
 
-  // Reconcile with the backend's authoritative event log. The live Wails
-  // listener can drop an event — most damagingly the terminal "complete"
-  // (or "error"), which would otherwise leave a finished job spinning at
-  // 100% forever. After every 500ms quiet window we cheaply probe the run
-  // state; once the backend reports a terminal state the live job hasn't
-  // reached, we pull the full event log and fold it in. The effect re-arms
-  // on each `jobs` change, so a single missed terminal event is always
-  // recovered — not just the "no live events arrived at all" (fast flow)
-  // case the previous one-shot backfill handled.
+  // Safety-net reconciliation, independent of live event delivery. While a
+  // job is running we poll the backend run state on a fixed interval; once
+  // the run reaches a terminal state the live "flow:event" stream didn't
+  // deliver — a dropped or late terminal event, or a stream that simply went
+  // quiet after the last progress event (progress is emitted *before* the
+  // final file finishes, so the UI already reads 100%) — we pull the
+  // authoritative event log and settle the job. Polling, rather than
+  // re-arming off each incoming event, is what guarantees a finished job
+  // can't hang at 100% just because the event stream stopped. Keyed on the
+  // running job's id: starts when a run begins, stops the moment the job
+  // settles (via either the live path above or this reconciliation).
+  const runningJobId = jobs.find((j) => j.status === "running")?.id ?? null;
   useEffect(() => {
-    const activeId = activeIdRef.current;
-    if (!activeId) return;
+    if (!runningJobId) return;
+    let stopped = false;
 
-    const timer = setTimeout(() => {
-      if (activeIdRef.current !== activeId) return;
+    const reconcile = async () => {
+      // Cheap string probe first — avoid pulling the whole event buffer on
+      // every tick of a long, genuinely-running flow.
+      const state = await api.getRunState();
+      if (stopped || (state !== "complete" && state !== "error" && state !== "canceled")) {
+        return;
+      }
 
-      void (async () => {
-        // Cheap string probe first — avoid pulling the whole event buffer
-        // on every quiet tick of a long, genuinely-running flow.
-        const state = await api.getRunState();
-        if (state !== "complete" && state !== "error" && state !== "canceled") return;
+      const events = (await api.getRunEvents()) as RunEvent[] | null;
+      if (stopped || !events || events.length === 0) return;
 
-        const backfillEvents = (await api.getRunEvents()) as RunEvent[] | null;
-        if (!backfillEvents || backfillEvents.length === 0) return;
+      setJobs((prev) => {
+        const job = prev.find((j) => j.id === runningJobId);
+        if (!job || job.status !== "running") return prev; // already settled
 
-        setJobs((prev) => {
-          const job = prev.find((j) => j.id === activeId);
-          if (!job || job.status !== "running") return prev; // live path already settled it
-
-          // Fold the authoritative log into a fresh snapshot.
-          let updated: Job = { ...job, events: backfillEvents };
-          let terminal = false;
-          for (const e of backfillEvents) {
-            if (e.type === "progress") {
-              updated = {
-                ...updated,
-                progress: {
-                  current: (e.file_index ?? 0) + 1,
-                  total: e.file_count ?? updated.progress.total,
-                },
-              };
-            } else if (e.type === "complete") {
-              terminal = true;
-              updated = {
-                ...updated,
-                status: "complete",
-                durationMs: e.duration_ms,
-                progress: { ...updated.progress, current: updated.progress.total },
-              };
-            } else if (e.type === "pipeline_metrics") {
-              updated = { ...updated, stepSnapshots: e.steps ?? updated.stepSnapshots };
-            } else if (e.type === "error") {
-              terminal = true;
-              const rawMsg = e.message ?? "Flow execution failed";
-              const isCanceled =
-                rawMsg.includes("context canceled") || rawMsg.includes("context cancelled");
-              updated = {
-                ...updated,
-                status: isCanceled ? "canceled" : "error",
-                error: isCanceled ? "Flow canceled" : rawMsg,
-              };
-            }
+        // Fold the authoritative log into a fresh snapshot.
+        let updated: Job = { ...job, events };
+        let terminal = false;
+        for (const e of events) {
+          if (e.type === "progress") {
+            updated = {
+              ...updated,
+              progress: {
+                current: (e.file_index ?? 0) + 1,
+                total: e.file_count ?? updated.progress.total,
+              },
+            };
+          } else if (e.type === "complete") {
+            terminal = true;
+            updated = {
+              ...updated,
+              status: "complete",
+              durationMs: e.duration_ms,
+              progress: { ...updated.progress, current: updated.progress.total },
+            };
+          } else if (e.type === "pipeline_metrics") {
+            updated = { ...updated, stepSnapshots: e.steps ?? updated.stepSnapshots };
+          } else if (e.type === "error") {
+            terminal = true;
+            const rawMsg = e.message ?? "Flow execution failed";
+            const isCanceled =
+              rawMsg.includes("context canceled") || rawMsg.includes("context cancelled");
+            updated = {
+              ...updated,
+              status: isCanceled ? "canceled" : "error",
+              error: isCanceled ? "Flow canceled" : rawMsg,
+            };
           }
+        }
 
-          if (!terminal) return prev; // backend says terminal but log lacks it — wait
-          activeIdRef.current = null;
-          return prev.map((j) => (j.id === activeId ? updated : j));
-        });
-      })();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [jobs]);
+        // Backend reports terminal but the log hasn't recorded a terminal
+        // event yet — leave it running and let the next tick retry.
+        if (!terminal) return prev;
+        if (activeIdRef.current === runningJobId) activeIdRef.current = null;
+        return prev.map((j) => (j.id === runningJobId ? updated : j));
+      });
+    };
+
+    // Probe immediately (catches a flow that finished before this effect
+    // mounted) then keep polling until the job settles.
+    void reconcile();
+    const interval = setInterval(() => void reconcile(), 750);
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+    };
+  }, [runningJobId]);
 
   const activeJob = jobs.find((j) => j.status === "running") ?? null;
   const selectedJob = jobs.find((j) => j.id === selectedJobId) ?? null;
