@@ -12,34 +12,36 @@ import AuthorsNote from "../components/home/AuthorsNote";
 import styles from "./index.module.css";
 
 function HomepageHeader() {
-  const { siteConfig } = useDocusaurusContext();
   return (
     <header className={clsx("hero", styles.heroBanner)}>
       <div className={clsx("container", styles.heroGrid)}>
         <div className={styles.heroIntro}>
           <img src={useBaseUrl("/img/hero-logo.png")} alt="neokapi" className={styles.heroLogo} />
           <Heading as="h1" className={clsx("hero__title", styles.heroTitle)}>
-            {siteConfig.title} &mdash; {siteConfig.tagline}
+            Get your content right. Then get it everywhere.
           </Heading>
           <p className={styles.heroSubtitle}>
-            An open-source Go engine that parses any format &mdash; JSON, HTML, Markdown, config,
-            office formats &mdash; into one unified content model, then lets you or your AI agent{" "}
+            kapi parses any format into one content model, lets you &mdash; or your AI agent &mdash;
+            edit the text inside it, and{" "}
             <strong>
-              edit and check the content inside it and write it back, byte&#8209;for&#8209;byte
+              writes it back byte&#8209;for&#8209;byte: every tag, placeholder, and structure
+              preserved
             </strong>
-            . At heart, both a localization engine and the tool that keeps your source content on
-            brand.
+            .
           </p>
           <div className={styles.buttons}>
             <Link
-              className={clsx("button button--lg", styles.tryButton)}
+              className="button button--lg button--primary"
+              to="/kapi/get-started/first-project"
+            >
+              Get started
+            </Link>
+            <Link
+              className={clsx("button button--secondary button--lg", styles.tryButton)}
               to="/kapi/get-started/use-with-claude"
             >
               <Sparkles size={18} aria-hidden="true" />
-              Try Kapi with Claude
-            </Link>
-            <Link className="button button--secondary button--lg" to="/kapi/overview">
-              Get Started
+              Use with Claude
             </Link>
           </div>
         </div>
@@ -107,37 +109,37 @@ type ProductItem = {
 
 const NeokapiFeatures: ProductItem[] = [
   {
-    title: "Parse any format",
+    title: "One model, any format",
     description:
-      "Readers for document, data, config, subtitle, office, and localization formats turn any file into one unified content model — with structure, roles, and stable anchors. Clean input for AI and RAG, with the provenance to write it back.",
+      "kapi reads your real files — JSON, Markdown, HTML, config, .docx — into one unified content model, and writes the originals back unchanged except for the text you touched.",
     link: "/framework/formats",
     linkText: "Formats",
   },
   {
-    title: "Edit in place",
+    title: "Edit it — you or your AI",
     description:
-      "Change the content inside a file and write the original back, byte-for-byte. Programmatic with kgrep/ksed, or faithful AI editing with kapi rewrite — a reviewable diff over the parsed content, your annotations and structure preserved. The edit round-trips back into the original format — styles and all.",
-    link: "/toolbox/overview",
-    linkText: "The toolbox",
-  },
-  {
-    title: "Check & loop with AI",
-    description:
-      "kapi check returns one machine-readable Report — pass, a 0–100 score, a gate, and located findings. Gate it in CI (non-zero exit), or let an AI assistant drive the author → check → revise loop over MCP (check_file, rewrite_file) until it passes — tests for AI output, deterministic even when the generation was not.",
+      "Rewrite the text in place with every tag and placeholder intact, and check it — brand, terminology, placeholders — like tests for AI output, with a pass/fail gate. Loop with your assistant until it passes, then ship.",
     link: "/framework/checks",
     linkText: "Checks",
   },
   {
-    title: "Localization, built in",
+    title: "Every language — and you can trust it",
     description:
-      "The deepest application of the engine: translate with AI or MT, leverage translation memory, and interchange bilingual XLIFF 2.x or PO with Trados, memoQ, Phrase, or Crowdin — merged back through the original skeleton.",
-    link: "/kapi/bilingual-workflow",
-    linkText: "Localization",
+      "The same content, in every language, translated by AI with structure intact. A native speaker confirms tone and brand once, and kapi remembers it — so it sticks and propagates. On-brand everywhere, only re-doing what changed, gated in CI.",
+    link: "/kapi/recipes/pre-translate-with-tm",
+    linkText: "Go multilingual",
   },
   {
-    title: "Streaming pipeline",
+    title: "Measured, not asserted",
     description:
-      "Tools run in parallel and stream results as each part is ready, so large files and many languages process fast. Capture it once in a committed .kapi project and run with no repeated flags.",
+      "We don't claim format support — we measure it. The parity, test-comparison, and format-maturity dashboards show whether it holds, under load and per format.",
+    link: "/parity",
+    linkText: "See the dashboards",
+  },
+  {
+    title: "Open by lineage",
+    description:
+      "Open source, Apache-2.0 — the engine rebuilt in Go from the Okapi Framework lineage. Format-agnostic, agent-drivable, headless: a content layer you or your AI can drive.",
     link: "/framework/architecture",
     linkText: "Architecture",
   },
@@ -160,7 +162,18 @@ function HomepageFeatures() {
     <section className={styles.features}>
       <div className="container">
         <div className="text--center margin-bottom--lg">
-          <Heading as="h2">One engine, many applications</Heading>
+          <Heading as="h2">From one file to every language</Heading>
+          <p className={styles.sectionSubtitle}>
+            Parse it, get it right, then make it work everywhere — the same engine, end to end.
+          </p>
+        </div>
+        <div className="row margin-bottom--xl">
+          {NeokapiFeatures.map((props, idx) => (
+            <ProductCard key={idx} {...props} />
+          ))}
+        </div>
+        <div className="text--center margin-bottom--lg">
+          <Heading as="h2">Use it your way</Heading>
           <p className={styles.sectionSubtitle}>
             neokapi is a Go framework. Use it directly as a library, or through{" "}
             <strong>kapi</strong> — the CLI and desktop app built on it.
@@ -202,11 +215,6 @@ function HomepageFeatures() {
             </div>
           </div>
         </div>
-        <div className="row margin-bottom--xl">
-          {NeokapiFeatures.map((props, idx) => (
-            <ProductCard key={idx} {...props} />
-          ))}
-        </div>
       </div>
     </section>
   );
@@ -217,7 +225,7 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="An open-source, format-aware content engine in Go. Parse any format, edit and check the content inside it, and write it back byte-for-byte — for content written by people or AI agents. Localization built in."
+      description="An open-source, format-aware content engine in Go. Parse any format, edit and check the content inside it — you or your AI agent — and write it back byte-for-byte. The same engine makes that content work in every language."
     >
       <StructuredData />
       <HomepageHeader />
