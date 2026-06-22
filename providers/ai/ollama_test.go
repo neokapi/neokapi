@@ -98,7 +98,7 @@ func TestOllamaChatStreamEmitsEvents(t *testing.T) {
 		assert.True(t, got.Stream)
 		enc := json.NewEncoder(w)
 		for _, f := range frames {
-			require.NoError(t, enc.Encode(f))
+			assert.NoError(t, enc.Encode(f))
 		}
 	}))
 	defer srv.Close()

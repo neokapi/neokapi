@@ -73,7 +73,7 @@ func TestOllamaManagerPullStreamsProgress(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/pull", r.URL.Path)
 		var body map[string]any
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 		assert.Equal(t, "llama3.2:3b", body["name"])
 		enc := json.NewEncoder(w)
 		_ = enc.Encode(map[string]any{"status": "pulling manifest"})
