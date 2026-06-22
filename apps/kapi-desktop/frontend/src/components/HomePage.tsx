@@ -12,8 +12,11 @@ import {
   AlertTriangle,
   PackageOpen,
   RefreshCw,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Button, Badge, Card, EmptyState, ActionCard, LocalePill } from "@neokapi/ui-primitives";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { t } from "@neokapi/kapi-react/runtime";
 import type { KapiProject, FlowSpec, FlowInfo, PluginIssue, ProjectStatus } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
@@ -23,6 +26,45 @@ import { useActiveFilter } from "../context/ActiveFilterContext";
 import { filterLanguages } from "../lib/filter";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useError } from "./ErrorBanner";
+
+// Donut palette for the per-collection block distribution (theme chart vars).
+const CHART_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
+
+/** A compact one-line coverage bar: locale label · bar · "n / total (pct%)". */
+function CoverageBar({
+  label,
+  translated,
+  total,
+  pct,
+}: {
+  label: string;
+  translated: number;
+  total: number;
+  pct: number;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-16 shrink-0 text-xs text-muted-foreground" translate="no">
+        {label}
+      </span>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent">
+        <div
+          className="h-full rounded-full bg-primary transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="w-24 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+        {translated} / {total} ({pct}%)
+      </span>
+    </div>
+  );
+}
 
 export interface HomePageProps {
   project: KapiProject;
@@ -64,6 +106,8 @@ export function HomePage({
   const [sampleInfo, setSampleInfo] = useState<SampleInfo | null>(propSampleInfo ?? null);
   // "Keep current" dismisses the upgrade prompt for this session.
   const [sampleDismissed, setSampleDismissed] = useState(false);
+  // Collections expanded to their full per-language breakdown (compact by default).
+  const [expandedColls, setExpandedColls] = useState<Set<string>>(new Set());
 
   // Detect whether this project is an out-of-date sample so we can offer a reset.
   useEffect(() => {
@@ -146,6 +190,48 @@ export function HomePage({
   const filteredCollections = (status?.collections ?? []).filter(
     (c) => !activeFilter?.collections?.length || activeFilter.collections.includes(c.name),
   );
+
+  // ── Content-overview aggregates ──────────────────────────────────────────
+  // Block distribution per collection (the donut) and cross-collection coverage
+  // per language (the compact project-wide summary), both honoring the filter.
+  const totalBlocks = filteredCollections.reduce((s, c) => s + c.blockCount, 0);
+  const distData = filteredCollections
+    .map((c, i) => ({
+      name: c.name,
+      value: c.blockCount,
+      fill: CHART_COLORS[i % CHART_COLORS.length],
+    }))
+    .filter((d) => d.value > 0);
+  const projectLangs = Array.from(
+    new Set(filteredCollections.flatMap((c) => filterLanguages(c.targetLanguages, activeFilter))),
+  );
+  const projectCoverage = projectLangs.map((lang) => {
+    let translated = 0;
+    let total = 0;
+    for (const c of filteredCollections) {
+      if (!c.targetLanguages.includes(lang)) continue;
+      translated += c.coverage?.[lang] ?? 0;
+      total += c.blockCount;
+    }
+    return { lang, translated, total, pct: total > 0 ? Math.round((translated / total) * 100) : 0 };
+  });
+
+  const toggleColl = (name: string) =>
+    setExpandedColls((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+
+  // Mean coverage across a collection's filtered languages, for the compact row.
+  const collAvgPct = (c: ProjectStatus["collections"][number], langs: string[]) =>
+    langs.length === 0 || c.blockCount === 0
+      ? 0
+      : Math.round(
+          (langs.reduce((s, l) => s + (c.coverage?.[l] ?? 0) / c.blockCount, 0) / langs.length) *
+            100,
+        );
 
   const handleRunFlow = (name: string) => {
     const spec = project.flows?.[name];
@@ -368,45 +454,138 @@ export function HomePage({
               }
             />
           ) : status && filteredCollections.length > 0 ? (
-            <div className="space-y-2">
-              {filteredCollections.map((c) => (
-                <Card key={c.name} className="p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{c.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {t("{count} block(s)", { count: c.blockCount })}
-                    </span>
-                  </div>
-                  {filterLanguages(c.targetLanguages, activeFilter).length > 0 && (
-                    <div className="mt-2 space-y-1.5">
-                      {filterLanguages(c.targetLanguages, activeFilter).map((loc) => {
-                        const translated = c.coverage?.[loc] ?? 0;
-                        const pct =
-                          c.blockCount > 0 ? Math.round((translated / c.blockCount) * 100) : 0;
-                        return (
-                          <div key={loc} className="flex items-center gap-2">
-                            <span
-                              className="w-16 shrink-0 text-xs text-muted-foreground"
-                              translate="no"
+            <div className="space-y-3">
+              {/* Compact summary: block distribution (donut) + cross-collection
+                  coverage per language. */}
+              <Card className="p-4">
+                <div className="grid gap-5 sm:grid-cols-[auto_1fr] sm:items-center">
+                  <div className="flex items-center gap-3">
+                    {distData.length > 0 ? (
+                      <div className="h-28 w-28 shrink-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={distData}
+                              dataKey="value"
+                              nameKey="name"
+                              innerRadius="58%"
+                              outerRadius="100%"
+                              paddingAngle={distData.length > 1 ? 2 : 0}
+                              strokeWidth={0}
                             >
-                              {loc}
-                            </span>
-                            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent">
-                              <div
-                                className="h-full rounded-full bg-primary transition-all"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                            <span className="w-24 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
-                              {translated} / {c.blockCount} ({pct}%)
-                            </span>
-                          </div>
-                        );
-                      })}
+                              {distData.map((d) => (
+                                <Cell key={d.name} fill={d.fill} />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full border border-dashed text-[10px] text-muted-foreground">
+                        {t("No blocks")}
+                      </div>
+                    )}
+                    <ul className="space-y-1 text-xs">
+                      <li className="font-medium text-foreground">
+                        {t("{count} block(s)", { count: totalBlocks })}
+                      </li>
+                      {filteredCollections.map((c, i) => (
+                        <li key={c.name} className="flex items-center gap-1.5">
+                          <span
+                            className="size-2 shrink-0 rounded-[2px]"
+                            style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+                          />
+                          <span className="truncate text-muted-foreground">{c.name}</span>
+                          <span className="tabular-nums text-foreground">{c.blockCount}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {projectCoverage.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {t("Coverage across collections")}
+                      </div>
+                      {projectCoverage.map((p) => (
+                        <CoverageBar
+                          key={p.lang}
+                          label={p.lang}
+                          translated={p.translated}
+                          total={p.total}
+                          pct={p.pct}
+                        />
+                      ))}
                     </div>
                   )}
-                </Card>
-              ))}
+                </div>
+              </Card>
+
+              {/* Per-collection compact rows — expand for the per-language detail. */}
+              <div className="space-y-1.5">
+                {filteredCollections.map((c) => {
+                  const langs = filterLanguages(c.targetLanguages, activeFilter);
+                  const open = expandedColls.has(c.name);
+                  const avg = collAvgPct(c, langs);
+                  return (
+                    <Card key={c.name} className="overflow-hidden p-0">
+                      <button
+                        type="button"
+                        onClick={() => langs.length > 0 && toggleColl(c.name)}
+                        className={`flex w-full items-center gap-3 px-3 py-2 text-left ${
+                          langs.length > 0 ? "hover:bg-accent/30" : "cursor-default"
+                        }`}
+                        aria-expanded={open}
+                      >
+                        {langs.length > 0 ? (
+                          open ? (
+                            <ChevronDown size={13} className="shrink-0 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight size={13} className="shrink-0 text-muted-foreground" />
+                          )
+                        ) : (
+                          <span className="w-[13px] shrink-0" />
+                        )}
+                        <span className="flex-1 truncate text-sm font-medium">{c.name}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {t("{count} block(s)", { count: c.blockCount })}
+                        </span>
+                        {langs.length > 0 && (
+                          <span className="flex w-32 shrink-0 items-center gap-2">
+                            <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent">
+                              <span
+                                className="block h-full rounded-full bg-primary"
+                                style={{ width: `${avg}%` }}
+                              />
+                            </span>
+                            <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                              {avg}%
+                            </span>
+                          </span>
+                        )}
+                      </button>
+                      {open && langs.length > 0 && (
+                        <div className="space-y-1.5 border-t border-border px-3 py-2">
+                          {langs.map((loc) => {
+                            const translated = c.coverage?.[loc] ?? 0;
+                            const pct =
+                              c.blockCount > 0 ? Math.round((translated / c.blockCount) * 100) : 0;
+                            return (
+                              <CoverageBar
+                                key={loc}
+                                label={loc}
+                                translated={translated}
+                                total={c.blockCount}
+                                pct={pct}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
         </section>
