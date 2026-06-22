@@ -36,7 +36,7 @@ var tombstones = map[string]Tombstone{
 		Plugin:         "llm",
 		RetiredIn:      "1.2.0",
 		Because:        "the bundled on-device Gemma engine is superseded by the built-in Ollama provider (GPU-accelerated, no cgo/onnxruntime stack)",
-		ReplacementMsg: "run local models with Ollama: `kapi ollama install`, then `kapi translate --provider ollama`",
+		ReplacementMsg: "run local models with Ollama: `kapi models ollama install`, then `kapi translate --provider ollama`",
 		InfoURL:        "https://neokapi.github.io/kapi/framework/ai-translation",
 	},
 }

@@ -125,8 +125,8 @@ Hosted providers need a credential, so install first and add one with
 [Ollama](https://ollama.com):
 
 ```bash
-kapi ollama install            # one-time runtime install (guidance per platform)
-kapi ollama pull llama3.2:3b   # download a local translation model
+kapi models ollama install            # one-time runtime install (guidance per platform)
+kapi models ollama pull llama3.2:3b   # download a local translation model
 kapi run translate-qa -i input.html --source-lang en --target-lang fr --provider ollama --model llama3.2:3b
 ```
 

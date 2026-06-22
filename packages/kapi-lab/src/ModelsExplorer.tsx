@@ -15,7 +15,7 @@ export interface ModelsExplorerProps {
 }
 
 // The browser's local model lineup — the SAME model names as the native
-// `kapi ollama` picks, so a model reference is identical on web and desktop. Each
+// `kapi models ollama` picks, so a model reference is identical on web and desktop. Each
 // runs on whichever browser backend has a build for it: Llama/Qwen via WebLLM
 // (MLC), Gemma 4 via transformers.js (ONNX) — both on WebGPU. (Mirrors
 // LOCAL_MODELS in localLlmBridge; duplicated as plain data so selecting a model

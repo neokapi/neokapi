@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-22T10:38:13Z",
+  "generatedAt": "2026-06-22T15:49:51Z",
   "commands": [
     {
       "id": "brand",
@@ -2569,8 +2569,8 @@
         "models"
       ],
       "use": "models",
-      "short": "List and manage the models kapi can translate with",
-      "long": "A single view of every model kapi can use, across three sources:\n\n  • Local · Ollama  — on-device models served by a local Ollama runtime\n                      (`kapi models pull \u003cmodel\u003e` installs one)\n  • Plugin models   — integrity-pinned assets a plugin downloads and caches\n                      under $XDG_CACHE_HOME/kapi/models/\u003cplugin\u003e/\u003cid\u003e/\u003cversion\u003e/\n  • Cloud providers — remote models that require an API key\n\n`kapi models pull`/`prune` install and remove Ollama and plugin models; cloud\nmodels are listed for reference. Filter with `--provider \u003collama|plugin|cloud-id\u003e`.",
+      "short": "Manage attached LLMs and ML models",
+      "long": "A single view of every model kapi can use, across three sources:\n\n  • Local · Ollama  — on-device models served by a local Ollama runtime\n                      (`kapi models pull \u003cmodel\u003e` installs one)\n  • Plugin models   — integrity-pinned assets a plugin downloads and caches\n                      under $XDG_CACHE_HOME/kapi/models/\u003cplugin\u003e/\u003cid\u003e/\u003cversion\u003e/\n  • Cloud providers — remote models that require an API key\n\n`kapi models pull`/`prune` install and remove Ollama and plugin models; cloud\nmodels are listed for reference. Filter with `--provider \u003collama|plugin|cloud-id\u003e`.\n`kapi models ollama` manages the local Ollama runtime itself.",
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false
@@ -2590,6 +2590,81 @@
           "type": "string"
         }
       ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "models.ollama",
+      "path": [
+        "models",
+        "ollama"
+      ],
+      "use": "ollama",
+      "short": "Manage the local Ollama runtime for on-device translation",
+      "long": "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n(GPU-accelerated) translation. Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest — `kapi models ollama pull \u003cmodel\u003e` installs\na model, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "models.ollama.install",
+      "path": [
+        "models",
+        "ollama",
+        "install"
+      ],
+      "use": "install",
+      "short": "Print how to install the Ollama runtime (or install it on macOS with --run)",
+      "long": "Show the platform-appropriate command to install the Ollama runtime. With --run on\nmacOS (and Homebrew present), kapi runs `brew install ollama` for you.",
+      "flags": [
+        {
+          "name": "run",
+          "usage": "On macOS with Homebrew, run `brew install ollama` now",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "models.ollama.list",
+      "path": [
+        "models",
+        "ollama",
+        "list"
+      ],
+      "use": "list",
+      "short": "List models installed on the Ollama server",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "models.ollama.pull",
+      "path": [
+        "models",
+        "ollama",
+        "pull"
+      ],
+      "use": "pull \u003cmodel\u003e",
+      "short": "Download a model onto the Ollama server",
+      "long": "Install a model so kapi can translate with it locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "models.ollama.status",
+      "path": [
+        "models",
+        "ollama",
+        "status"
+      ],
+      "use": "status",
+      "short": "Show whether the Ollama runtime is installed, running, and which models are present",
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false
@@ -2616,76 +2691,6 @@
       "use": "pull \u003cmodel\u003e",
       "short": "Download a model (Ollama model, or a plugin asset)",
       "long": "Install a model so kapi can translate with it. A bare reference defaults to an\nOllama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled into the local Ollama\nruntime. A plugin model id (e.g. sat-3l-sm), a plugin name, or plugin/model fetches\nthat plugin's host-owned asset instead.",
-      "offlineCapable": true,
-      "runnableInBrowser": false,
-      "demoMode": false
-    },
-    {
-      "id": "ollama",
-      "path": [
-        "ollama"
-      ],
-      "use": "ollama",
-      "short": "Manage the local Ollama runtime for on-device translation",
-      "long": "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n(GPU-accelerated) translation. Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest — `kapi ollama pull \u003cmodel\u003e` installs a\nmodel, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
-      "offlineCapable": true,
-      "runnableInBrowser": false,
-      "demoMode": false
-    },
-    {
-      "id": "ollama.install",
-      "path": [
-        "ollama",
-        "install"
-      ],
-      "use": "install",
-      "short": "Print how to install the Ollama runtime (or install it on macOS with --run)",
-      "long": "Show the platform-appropriate command to install the Ollama runtime. With --run on\nmacOS (and Homebrew present), kapi runs `brew install ollama` for you.",
-      "flags": [
-        {
-          "name": "run",
-          "usage": "On macOS with Homebrew, run `brew install ollama` now",
-          "default": "false",
-          "type": "bool"
-        }
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": false,
-      "demoMode": false
-    },
-    {
-      "id": "ollama.list",
-      "path": [
-        "ollama",
-        "list"
-      ],
-      "use": "list",
-      "short": "List models installed on the Ollama server",
-      "offlineCapable": true,
-      "runnableInBrowser": false,
-      "demoMode": false
-    },
-    {
-      "id": "ollama.pull",
-      "path": [
-        "ollama",
-        "pull"
-      ],
-      "use": "pull \u003cmodel\u003e",
-      "short": "Download a model onto the Ollama server",
-      "long": "Install a model so kapi can translate with it locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
-      "offlineCapable": true,
-      "runnableInBrowser": false,
-      "demoMode": false
-    },
-    {
-      "id": "ollama.status",
-      "path": [
-        "ollama",
-        "status"
-      ],
-      "use": "status",
-      "short": "Show whether the Ollama runtime is installed, running, and which models are present",
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false

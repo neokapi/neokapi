@@ -380,7 +380,7 @@ export default function StatusWidget(): React.ReactElement {
           <div className={styles.plugins}>
             <div className={styles.pluginsHeading}>Local LLM</div>
             <div className={styles.rowDesc} style={{ margin: "-2px 0 8px" }}>
-              On-device LLMs — same lineup as <code>kapi ollama</code>.
+              On-device LLMs — same lineup as <code>kapi models ollama</code>.
             </div>
             <div
               style={{

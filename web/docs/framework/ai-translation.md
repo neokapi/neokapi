@@ -156,13 +156,13 @@ private alternative to the paid providers. [Ollama](https://ollama.com) is a
 one-time install; kapi drives everything downstream of it.
 
 ```bash
-kapi ollama install                       # platform-specific install guidance
-kapi ollama pull llama3.2:3b              # download a translation model
+kapi models ollama install                # platform-specific install guidance
+kapi models ollama pull llama3.2:3b       # download a translation model
 kapi translate -i input.html --target-lang fr --provider ollama --model llama3.2:3b
 ```
 
-`kapi ollama status` reports whether the runtime is installed, running, and which
-models are present; `kapi ollama list` lists installed models. When a translation
+`kapi models ollama status` reports whether the runtime is installed, running, and
+which models are present; `kapi models ollama list` lists installed models. When a translation
 selects the `ollama` provider, kapi checks the runtime is up and pulls the
 requested model if it is missing — so a fresh machine needs only Ollama itself.
 

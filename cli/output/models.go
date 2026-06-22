@@ -49,7 +49,7 @@ func (o ModelsListOutput) rows(source string) []ModelRow {
 
 func (o ModelsListOutput) FormatText(w io.Writer) error {
 	if o.Total == 0 {
-		fmt.Fprintln(w, "No models available. Install the Ollama runtime (`kapi ollama install`)")
+		fmt.Fprintln(w, "No models available. Install the Ollama runtime (`kapi models ollama install`)")
 		fmt.Fprintln(w, "or configure a cloud provider to translate with an LLM.")
 		return nil
 	}

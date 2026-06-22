@@ -7,7 +7,7 @@ import (
 )
 
 // OllamaStatusOutput reports whether a usable Ollama runtime is present, used by
-// `kapi ollama status`. Ollama is the on-device GPU runtime kapi drives for
+// `kapi models ollama status`. Ollama is the on-device GPU runtime kapi drives for
 // local translation; this command tells the user exactly what (if anything) they
 // still need to do.
 type OllamaStatusOutput struct {
@@ -64,7 +64,7 @@ type OllamaModelsOutput struct {
 
 func (o OllamaModelsOutput) FormatText(w io.Writer) error {
 	if o.Total == 0 {
-		fmt.Fprintln(w, "No models installed. Pull one with `kapi ollama pull <model>`.")
+		fmt.Fprintln(w, "No models installed. Pull one with `kapi models ollama pull <model>`.")
 		return nil
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
@@ -75,7 +75,7 @@ func (o OllamaModelsOutput) FormatText(w io.Writer) error {
 	return tw.Flush()
 }
 
-// OllamaPullOutput reports the result of `kapi ollama pull`.
+// OllamaPullOutput reports the result of `kapi models ollama pull`.
 type OllamaPullOutput struct {
 	Model  string `json:"model"`
 	Action string `json:"action"` // "pulled" | "present"

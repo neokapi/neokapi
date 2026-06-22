@@ -17,7 +17,7 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// NewOllamaCmd builds `kapi ollama` — manage the local Ollama runtime that kapi
+// NewOllamaCmd builds `kapi models ollama` — manage the local Ollama runtime that kapi
 // drives for on-device, GPU-accelerated translation. Ollama is a separate
 // install (it runs models on Metal/CUDA), but kapi handles everything downstream
 // of it: detecting the server, listing models, and pulling the model a
@@ -28,8 +28,8 @@ func (a *App) NewOllamaCmd() *cobra.Command {
 		Short: "Manage the local Ollama runtime for on-device translation",
 		Long: "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n" +
 			"(GPU-accelerated) translation. Ollama itself is a one-time install from\n" +
-			"https://ollama.com; kapi drives the rest — `kapi ollama pull <model>` installs a\n" +
-			"model, and `kapi translate --provider ollama --model <model>` uses it.",
+			"https://ollama.com; kapi drives the rest — `kapi models ollama pull <model>` installs\n" +
+			"a model, and `kapi translate --provider ollama --model <model>` uses it.",
 	}
 	cmd.PersistentFlags().String("url", "", "Ollama server URL (default $OLLAMA_HOST or "+aiprovider.DefaultOllamaBaseURL+")")
 	cmd.AddCommand(a.newOllamaStatusCmd())
@@ -108,17 +108,17 @@ func (a *App) newOllamaStatusCmd() *cobra.Command {
 	}
 }
 
-// ollamaNextStep produces the guidance line for `kapi ollama status` based on
+// ollamaNextStep produces the guidance line for `kapi models ollama status` based on
 // what is missing.
 func ollamaNextStep(s output.OllamaStatusOutput) string {
 	if !s.Installed && !s.Running {
-		return ollamaInstallHint() + " Then run `kapi ollama status` again."
+		return ollamaInstallHint() + " Then run `kapi models ollama status` again."
 	}
 	if !s.Running {
 		return "Ollama is installed but not running. Start it with `ollama serve` (or launch the Ollama app)."
 	}
 	if s.ModelCount == 0 {
-		return "Ready. Install a translation model with `kapi ollama pull llama3.2:3b`."
+		return "Ready. Install a translation model with `kapi models ollama pull llama3.2:3b`."
 	}
 	return ""
 }
@@ -293,13 +293,13 @@ func (a *App) newOllamaInstallCmd() *cobra.Command {
 				if err := c.Run(); err != nil {
 					return fmt.Errorf("brew install ollama: %w", err)
 				}
-				fmt.Fprintln(stderr, "✓ Ollama installed. Start it with `ollama serve`, then `kapi ollama pull llama3.2:3b`.")
+				fmt.Fprintln(stderr, "✓ Ollama installed. Start it with `ollama serve`, then `kapi models ollama pull llama3.2:3b`.")
 				return nil
 			}
 
 			fmt.Fprintln(stderr, ollamaInstallHint())
 			if runtime.GOOS == "darwin" && brewErr == nil {
-				fmt.Fprintln(stderr, "Or run `kapi ollama install --run` to install it now.")
+				fmt.Fprintln(stderr, "Or run `kapi models ollama install --run` to install it now.")
 			}
 			return nil
 		},
