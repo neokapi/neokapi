@@ -178,9 +178,9 @@ export function useTabManager() {
   );
 
   const createProject = useCallback(
-    async (name: string, savePath?: string) => {
+    async (name: string, sourceLang = "en-US", savePath?: string) => {
       try {
-        const tab = await api.newProject(name, "en-US", [], savePath);
+        const tab = await api.newProject(name, sourceLang, [], savePath);
         if (tab) {
           const proj = await api.getProject(tab.id);
           await addTab(tab, proj ?? { version: "v1", name: tab.name });
