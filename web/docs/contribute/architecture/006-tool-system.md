@@ -548,8 +548,8 @@ Tools communicate through annotations on Blocks. A typical pipeline:
   ]}
 />
 
-- `entity-extract` adds `EntityAnnotation` with named entities.
-- `term-lookup` adds `TermAnnotation` with matched terminology.
+- `entity-extract` adds `OverlayEntity` with named entities.
+- `term-lookup` adds `OverlayTerm` with matched terminology.
 - `recycle` reads entity annotations for generalized matching, adds `AltTranslation`.
 - `translate` reads term and entity annotations for context-aware translation.
 - `term-enforce` validates terminology consistency in targets.

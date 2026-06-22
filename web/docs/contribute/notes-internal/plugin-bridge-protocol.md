@@ -144,10 +144,10 @@ The Java `BridgeServiceImpl` uses a two-thread single-pass design:
         "writer = filter.createFilterWriter()   // same filter instance",
         "while filter.hasNext():",
         "  event = filter.next()",
-        "  eventQueue.put(event)              → Writer Thread",
-        "  if subscribed(event):",
+        "  if subscribed(event):              // send to Go FIRST",
         "    sendBatch.add(toContentBlock(event))",
         "    if batch full: respObserver.onNext(ContentBlockBatch)",
+        "  eventQueue.put(event)              → Writer Thread (after send)",
         "eventQueue.put(END_OF_EVENTS)",
         "writerFuture.get()",
       ],
@@ -163,6 +163,7 @@ The Java `BridgeServiceImpl` uses a two-thread single-pass design:
       ],
     },
   ]}
+  caption="Subscribed parts are converted and sent to Go before the event is enqueued for the writer — applyTranslations/FilterWriter.handleEvent mutate the event's backing parts list in place, so reading it first avoids an IndexOutOfBoundsException race. ZipFilterWriter filters (okf_openoffice, okf_archive for .odt/zip) instead use a two-pass mode: pass 1 streams subscribed parts to Go, pass 2 re-reads and writes. A read-only run (no output, no output locale) has no writer thread and no eventQueue."
 />
 
 Key design choices:

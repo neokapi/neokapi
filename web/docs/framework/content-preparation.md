@@ -22,12 +22,15 @@ source runs are written once, settled, and then read by everything downstream.
 <PipelineDiagram
   channelLabel=""
   stages={[
-    { label: "source", role: "io" },
+    { label: "source", sub: "binding", role: "io" },
     { label: "settle", sub: "transformers" },
     { label: "segment", sub: "sentence overlay", role: "annotate" },
     { label: "recognize", sub: "terms · entities", role: "annotate" },
+    { label: "recycle", sub: "TM reuse", role: "translate" },
+    { label: "translate", sub: "AI · LLMProvider", role: "translate" },
+    { label: "MT", sub: "mtprovider", role: "translate" },
     { label: "check", sub: "QA findings", role: "qa" },
-    { label: "translate", sub: "TM · AI · MT", role: "translate" },
+    { label: "sink", sub: "binding", role: "io" },
   ]}
 />
 

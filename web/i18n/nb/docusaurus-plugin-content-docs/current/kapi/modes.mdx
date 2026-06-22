@@ -97,12 +97,13 @@ kapi ls --stats            # list tracked files + block/word counts
 **1 — Utvekslingssløyfe** (lever tospråklige filer til en oversetter eller et CAT-verktøy):
 
 <PipelineDiagram
+  channelLabel=""
   stages={[
-    { label: "kapi extract", sub: "TM pre-fill", role: "annotate" },
-    { label: "bilingual file", sub: ".klz / XLIFF / PO", role: "io" },
-    { label: "translate elsewhere", role: "translate" },
-    { label: "kapi merge", sub: "+ TM absorb", role: "qa" },
-    { label: "localized files", role: "io" },
+    { label: "kapi extract", sub: "TM-forhåndsfyll", role: "io" },
+    { label: "tospråklig fil", sub: "XLIFF / PO / .klz", role: "io" },
+    { label: "oversett andre steder", role: "translate" },
+    { label: "kapi merge", sub: "+ TM-absorber", role: "io" },
+    { label: "lokaliserte filer", role: "io" },
   ]}
 />
 
@@ -115,11 +116,12 @@ kapi merge -i out/                          # apply back onto sources, absorb in
 **2 — Ren prosesseringssløyfe** (arbeidet lander i lageret; materialiser når du er klar):
 
 <PipelineDiagram
+  channelLabel=""
   stages={[
-    { label: "kapi run -i file", sub: "no -o", role: "translate" },
-    { label: "project store", sub: "targets/<locale> overlays", role: "io" },
-    { label: "kapi merge", role: "qa" },
-    { label: "localized files", role: "io" },
+    { label: "kapi run -i file", sub: "ingen -o", role: "translate" },
+    { label: "prosjektlager", sub: "standardsluk · targets/<locale>-overlegg", role: "io" },
+    { label: "kapi merge", role: "io" },
+    { label: "lokaliserte filer", role: "io" },
   ]}
 />
 

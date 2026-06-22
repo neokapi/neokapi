@@ -132,9 +132,9 @@ export function ArchitectureDiagram({
             <desc id="kdx-arch-desc">
               A streaming pipeline: format readers and writers at the edges, a serial chain of
               annotate, translate and QA tools in the middle with the translate stage fanning out
-              across parallel goroutines, translation-memory and termbase resources feeding it from
-              above, and a gRPC plugin band (Okapi bridge, kapi-sat segmenter, remote plugins)
-              feeding it from below. Each stage is a goroutine joined by Part channels, and the
+              across parallel goroutines, translation-memory, termbase and AI-provider resources
+              feeding it from above, and a gRPC plugin band (Okapi bridge, tier-3 segmenter/media/OCR
+              plugins, remote plugins) feeding it from below. Each stage is a goroutine joined by Part channels, and the
               whole pipeline runs over many documents in parallel.
             </desc>
 
@@ -190,11 +190,31 @@ export function ArchitectureDiagram({
                 recycle
               </text>
               <path d="M516,56 L516,114" className="kdx-link kdx-link--resource" />
+
+              {/* AI provider over translate workers — the LLM the workers call */}
+              <rect
+                x={618}
+                y={18}
+                width={132}
+                height={38}
+                rx={8}
+                className="kdx-chip kdx-chip--resource"
+              />
+              <text x={684} y={35} textAnchor="middle" fontSize={11} className="kdx-chip-t">
+                AI provider
+              </text>
+              <text x={684} y={48} textAnchor="middle" fontSize={8} className="kdx-chip-sub">
+                LLM · generate
+              </text>
+              <path d="M684,56 L620,116" className="kdx-link kdx-link--resource" />
             </g>
 
             {/* ── sources (left) ── */}
             <text x={60} y={98} textAnchor="middle" fontSize={9.5} className="kdx-cap">
               Sources
+            </text>
+            <text x={111} y={252} textAnchor="middle" fontSize={8} className="kdx-note">
+              source binding · file
             </text>
             {SOURCES.map((f, i) => {
               const y = sourceY(i);
@@ -316,6 +336,9 @@ export function ArchitectureDiagram({
             <text x={940} y={98} textAnchor="middle" fontSize={9.5} className="kdx-cap">
               Targets
             </text>
+            <text x={888} y={252} textAnchor="middle" fontSize={8} className="kdx-note">
+              sink binding · file
+            </text>
             {TARGETS.map((f, i) => {
               const y = targetY(i);
               return (
@@ -352,13 +375,13 @@ export function ArchitectureDiagram({
             </text>
             <path d="M180,400 L164,228" className="kdx-link kdx-link--plugin" />
 
-            {/* kapi-sat → Annotate */}
+            {/* tier-3 plugins (segmenter / media / OCR) → Annotate */}
             <rect x={300} y={400} width={176} height={48} rx={9} className="kdx-chip" />
             <text x={388} y={420} textAnchor="middle" fontSize={11.5} className="kdx-chip-t">
-              kapi-sat
+              Tier-3 plugins
             </text>
             <text x={388} y={435} textAnchor="middle" fontSize={8.5} className="kdx-chip-sub">
-              ML segmentation
+              segmenter · media · OCR
             </text>
             <path d="M388,400 L314,228" className="kdx-link kdx-link--plugin" />
 

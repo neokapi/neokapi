@@ -58,7 +58,7 @@ this:
       role: "layer",
       note: "embedded child layer",
     },
-    { kind: "PartBlock", detail: '"Hello <b>world</b>"', depth: 2, role: "block" },
+    { kind: "PartBlock", detail: '"Hello ⟦b⟧world⟦/b⟧"', depth: 2, role: "block" },
     { kind: "PartLayerEnd", detail: 'format = "html"', depth: 1, role: "end" },
     { kind: "PartBlock", detail: '"footer"', depth: 1, role: "block" },
     { kind: "PartLayerEnd", detail: 'format = "json"', role: "end" },

@@ -67,11 +67,11 @@ for the canonical list.
 
 <PhaseFlow
   nodes={[
-    { label: "e-shop", sub: "forbidden term", role: "qa" },
-    { label: "Store", sub: "preferred term", edge: "replaced_by", role: "translate" },
-    { label: "Commerce", sub: "broader concept", edge: "broader", role: "annotate" },
+    { label: "e-shop", sub: "forbidden term" },
+    { label: "Store", sub: "preferred term", edge: "replaced_by" },
+    { label: "Commerce", sub: "broader concept", edge: "broader" },
   ]}
-  caption="Typed relations connect concepts: a retired term is replaced_by the preferred one, which sits broader-than a domain concept. Guidance (use_instead) and brand-stance (competitor) relations connect concepts the same way."
+  caption="Typed relations connect concepts: a retired term is replaced_by the preferred one, which in turn sits under a broader domain concept — broader points to the parent, so the preferred term is narrower-than Commerce. Guidance (use_instead) and brand-stance (competitor) relations connect concepts the same way."
 />
 
 A concept's dashboard shows its **direct relations** — this concept plus the
@@ -185,7 +185,7 @@ without passing through a governed transition.
   actors={[
     { label: "Author", sub: "manage_terms", role: "io" },
     { label: "Reviewer", sub: "manage_brand", role: "qa" },
-    { label: "Workspace graph", sub: "system of record", role: "translate" },
+    { label: "Workspace graph", sub: "system of record" },
   ]}
   messages={[
     { from: 0, to: 0, label: "open change-set, add governed op" },
@@ -207,17 +207,15 @@ case:
     {
       label: "Draft",
       sub: "accumulate ops",
-      role: "io",
       loop: ["preview blast radius", "pilot on a stream"],
     },
-    { label: "In review", sub: "submitted", edge: "submit", role: "annotate" },
+    { label: "In review", sub: "submitted", edge: "submit" },
     {
       label: "Approved",
       sub: "≥1 approval, approver ≠ author",
       edge: "approve",
-      role: "qa",
     },
-    { label: "Merged", sub: "ops applied, pilots retired", edge: "merge", role: "translate" },
+    { label: "Merged", sub: "ops applied, pilots retired", edge: "merge" },
   ]}
   caption="A change-set moves draft → in review → approved → merged, or is abandoned. Merge re-validates each op against the current revision, so a stale draft conflicts loudly instead of clobbering."
 />

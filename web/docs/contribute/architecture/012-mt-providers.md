@@ -151,19 +151,19 @@ refinement:
 
 <PipelineDiagram
   stages={[
-    { label: "Source", role: "io" },
+    { label: "source", sub: "binding", role: "io" },
     { label: "recycle", role: "translate" },
-    { label: "translate", role: "translate" },
+    { label: "translate", sub: "--provider deepl", role: "translate" },
     { label: "review", role: "qa" },
     { label: "qa", role: "qa" },
-    { label: "Sink", role: "io" },
+    { label: "sink", sub: "binding", role: "io" },
   ]}
 />
 
 - `recycle` fills exact and generalized matches at near-zero cost.
 - `translate --provider deepl` translates the remainder quickly and cheaply.
-- `review` (optional) refines MT output using LLM reasoning with
-  glossary and TM context.
+- `review` (optional) annotates a review property on MT output using LLM
+  reasoning with glossary and TM context — it does not rewrite the target.
 - `qa` validates the result before writing.
 
 Switching providers is a configuration change: switch `--provider deepl`

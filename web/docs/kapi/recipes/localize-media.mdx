@@ -53,7 +53,8 @@ your subtitle file:
 
 <PipelineDiagram
   stages={[
-    { label: "Transcribe", sub: "the dialogue", role: "io" },
+    { label: "Read video", sub: "demux → ASR + frame OCR", role: "io" },
+    { label: "subtitle-filter", role: "tool" },
     { label: "Translate", role: "translate" },
     { label: "Subtitle file", role: "io" },
   ]}

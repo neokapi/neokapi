@@ -256,13 +256,13 @@ A full pipeline looks like:
 
 <PipelineDiagram
   stages={[
-    { label: "Source", role: "io" },
-    { label: "entity-extract", role: "annotate" },
+    { label: "Source", sub: "binding", role: "io" },
+    { label: "entity-extract", sub: "LLM/NER", role: "annotate" },
     { label: "term-lookup", role: "annotate" },
-    { label: "recycle", role: "translate" },
-    { label: "translate", role: "translate" },
+    { label: "recycle", sub: "TM", role: "translate" },
+    { label: "translate", sub: "LLM/MT", role: "translate" },
     { label: "term-enforce", role: "qa" },
-    { label: "Sink", role: "io" },
+    { label: "Sink", sub: "binding · optional", role: "io" },
   ]}
 />
 

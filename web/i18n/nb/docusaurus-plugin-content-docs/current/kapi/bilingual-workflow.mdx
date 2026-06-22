@@ -77,19 +77,19 @@ De to kommandoene som definerer denne arbeidsflyten er `kapi extract` og
 
 <RoundTripDiagram
   forward={[
-    { label: "authored source", role: "io" },
+    { label: "forfattet kilde", role: "io" },
     { label: "kapi extract", role: "annotate" },
     { label: "XLIFF / PO", role: "translate" },
-    { label: "translator" },
+    { label: "oversetter" },
   ]}
   back={[
     { label: "kapi merge", role: "annotate" },
-    { label: "translated XLIFF / PO", role: "translate" },
-    { label: "returned by translator" },
+    { label: "oversatt XLIFF / PO", role: "translate" },
+    { label: "returnert av oversetter" },
   ]}
-  hub={{ label: "project TM" }}
-  forwardLabel="pre-fill"
-  backLabel="absorb"
+  hub={{ label: "prosjektets OM" }}
+  forwardLabel="forhåndsutfyll"
+  backLabel="absorber"
 />
 
 - **TM-forhåndsutfylling ved uttrekk** — hvert segment slås opp mot prosjektets

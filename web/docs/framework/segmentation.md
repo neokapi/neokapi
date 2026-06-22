@@ -31,8 +31,8 @@ the unsegmented block exactly.
   items={[
     { kind: "Block source", detail: '"Dr. Smith arrived. He was late."', role: "block" },
     { kind: "segmentation overlay", role: "meta", note: "anchored to run-index ranges" },
-    { kind: "segment", detail: '[0 … 18] · "Dr. Smith arrived."', depth: 1, role: "layer" },
-    { kind: "segment", detail: '[19 … 31] · "He was late."', depth: 1, role: "layer" },
+    { kind: "segment", detail: '[0, 18) · "Dr. Smith arrived."', depth: 1, role: "layer" },
+    { kind: "segment", detail: '[19, 31) · "He was late."', depth: 1, role: "layer" },
   ]}
 />
 

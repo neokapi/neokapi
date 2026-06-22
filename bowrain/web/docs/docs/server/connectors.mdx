@@ -3,7 +3,7 @@ sidebar_position: 5
 title: Connectors
 ---
 
-import { PipelineDiagram } from "@neokapi/docs-shared";
+import { RoundTripDiagram } from "@neokapi/docs-shared";
 
 # Connectors
 
@@ -25,14 +25,22 @@ Connectors link Bowrain Server to the systems content already lives in — code 
 2. **Translate and review** — your team translates and reviews the content in the web or desktop editor
 3. **Push** — the connector sends the approved translations back to the external system
 
-<PipelineDiagram
-  channelLabel=""
-  stages={[
-    { label: "External system", sub: "CMS · git · design" },
-    { label: "Connector", role: "io" },
-    { label: "Bowrain Server", sub: "ContentStore", role: "translate" },
-    { label: "Translators", sub: "web · desktop", role: "qa" },
+<RoundTripDiagram
+  forward={[
+    { label: "External system", sub: "CMS · design · marketing · git · file" },
+    { label: "Bowrain Server", sub: "ContentStore", role: "io" },
+    { label: "Translators", sub: "web · desktop", role: "translate" },
   ]}
+  back={[
+    { label: "External system", sub: "CMS · design · marketing · git · file" },
+    { label: "Bowrain Server", sub: "ContentStore", role: "io" },
+    { label: "Translators", sub: "web · desktop", role: "translate" },
+  ]}
+  hub={{ label: "Connector" }}
+  forwardIndex={0}
+  backIndex={0}
+  forwardLabel="fetch"
+  backLabel="publish"
   caption="A connector pulls source content in and pushes approved translations back out."
 />
 

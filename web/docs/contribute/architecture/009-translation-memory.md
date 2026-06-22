@@ -274,13 +274,14 @@ score).
 A typical flow:
 
 <PipelineDiagram
+  caption="recycle uses entity annotations for generalized-tier match."
   stages={[
-    { label: "Source", role: "io" },
-    { label: "entity-extract", role: "annotate" },
-    { label: "recycle", role: "translate" },
-    { label: "translate", role: "translate" },
-    { label: "qa", role: "qa" },
-    { label: "Sink", role: "io" },
+    { label: "Source", sub: "binding", role: "io" },
+    { label: "entity-extract", sub: "LLM/NER", role: "annotate" },
+    { label: "recycle", sub: "TM", role: "translate" },
+    { label: "translate", sub: "LLM/MT provider", role: "translate" },
+    { label: "qa", sub: "LLMProvider", role: "qa" },
+    { label: "Sink", sub: "binding · optional", role: "io" },
   ]}
 />
 
