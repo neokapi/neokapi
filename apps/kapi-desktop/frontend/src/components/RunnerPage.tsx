@@ -44,9 +44,23 @@ export interface RunnerPageProps {
   project?: KapiProject;
   /** When true, automatically resolve content and run for all target languages on mount. */
   autoRun?: boolean;
+  /**
+   * Called once the auto-run has been initiated. The parent uses this to mark
+   * the run request consumed so navigating back to the runner (which remounts
+   * this component) does not relaunch — and duplicate — the same flow.
+   */
+  onLaunched?: () => void;
 }
 
-export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }: RunnerPageProps) {
+export function RunnerPage({
+  tabID,
+  flowName,
+  flow,
+  onClose,
+  project,
+  autoRun,
+  onLaunched,
+}: RunnerPageProps) {
   const { activeJob, selectedJob, jobs, startJob, hasActive } = useJobFeed();
 
   // Show selected job, or active job for this flow, or most recent matching.
@@ -115,6 +129,9 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
   useEffect(() => {
     if (!autoRun || !project || autoRunStarted.current) return;
     autoRunStarted.current = true;
+    // Mark the run request consumed so a remount (navigating back to the runner
+    // while this flow runs) doesn't relaunch and duplicate it.
+    onLaunched?.();
 
     const targets = project.defaults?.target_languages ?? [];
     if (targets.length === 0) return;
@@ -127,7 +144,7 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
       setInputFiles(paths);
       await launchFlow(paths, targets);
     })();
-  }, [autoRun, project, tabID, launchFlow]);
+  }, [autoRun, project, tabID, launchFlow, onLaunched]);
 
   // Manual path: when a project is in scope, pre-populate target language(s)
   // from the project defaults and input files from the matched content — so the

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect } from "vitest";
 import { ErrorProvider } from "../components/ErrorBanner";
@@ -31,51 +31,59 @@ const sampleModels: AIModelOption[] = [
   },
 ];
 
+const sampleProviderTypes = [
+  { name: "ollama", label: "Ollama", local: true },
+  { name: "openai", label: "OpenAI" },
+];
+
+function renderPage() {
+  return renderWithProviders(
+    <CredentialsPage providers={[]} providerTypes={sampleProviderTypes} models={sampleModels} />,
+  );
+}
+
 describe("CredentialsPage (AI Models)", () => {
   it("renders the AI Models title and keychain notice", () => {
-    renderWithProviders(
-      <CredentialsPage providers={[]} providerTypes={[]} models={sampleModels} />,
-    );
+    renderPage();
     expect(screen.getByText("AI Models")).toBeInTheDocument();
     expect(screen.getByText(/stored in your OS keychain/)).toBeInTheDocument();
   });
 
-  it("renders the model picker and marks the default", () => {
-    renderWithProviders(
-      <CredentialsPage providers={[]} providerTypes={[]} models={sampleModels} />,
-    );
+  it("groups models under a provider header and marks the default", () => {
+    renderPage();
+    // One group header per provider.
+    expect(screen.getByRole("heading", { name: "Ollama" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "OpenAI" })).toBeInTheDocument();
+    // Models under their providers.
     expect(screen.getByText("llama3.2:3b")).toBeInTheDocument();
     expect(screen.getByText("gpt-4o")).toBeInTheDocument();
-
-    // Exactly one model row is the selected default.
+    // Exactly one model is the selected default.
     const checked = screen
       .getAllByRole("radio")
       .filter((r) => r.getAttribute("aria-checked") === "true");
     expect(checked).toHaveLength(1);
-
-    // The cloud model with no saved key is flagged.
-    expect(screen.getByText("needs key")).toBeInTheDocument();
   });
 
-  it("shows the cloud-keys empty state when no providers are saved", async () => {
-    renderWithProviders(<CredentialsPage />);
-    await waitFor(() => {
-      expect(screen.getByText(/No cloud provider keys/)).toBeInTheDocument();
-    });
+  it("offers Add key only for cloud providers (local needs none)", () => {
+    renderPage();
+    // OpenAI (cloud) has an Add key affordance; Ollama (local) does not.
+    expect(screen.getByRole("button", { name: /Add key for OpenAI/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add key for Ollama/ })).not.toBeInTheDocument();
   });
 
-  it("shows add form when clicking Add Provider", async () => {
-    renderWithProviders(<CredentialsPage providers={[]} providerTypes={[]} models={[]} />);
-    await userEvent.click(screen.getByText("Add Provider"));
-    expect(screen.getByText("New Provider")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("My Anthropic Key")).toBeInTheDocument();
+  it("opens the key form pre-set to the provider when adding a key", async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: /Add key for OpenAI/ }));
+    expect(screen.getByText("New Provider key")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("sk-...")).toBeInTheDocument();
+    // The name is seeded from the provider label.
+    expect(screen.getByDisplayValue("OpenAI key")).toBeInTheDocument();
   });
 
-  it("can cancel adding a provider", async () => {
-    renderWithProviders(<CredentialsPage providers={[]} providerTypes={[]} models={[]} />);
-    await userEvent.click(screen.getByText("Add Provider"));
+  it("can cancel adding a key", async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: /Add key for OpenAI/ }));
     await userEvent.click(screen.getByText("Cancel"));
-    expect(screen.queryByText("New Provider")).not.toBeInTheDocument();
+    expect(screen.queryByText("New Provider key")).not.toBeInTheDocument();
   });
 });

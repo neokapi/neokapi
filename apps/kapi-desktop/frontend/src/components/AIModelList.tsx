@@ -7,6 +7,9 @@ export interface AIModelListProps {
   models: AIModelOption[];
   /** Override the highlighted row; defaults to the option flagged is_default. */
   selected?: { model: string; provider: string };
+  /** Show the provider label per row. Off when the list is already grouped by
+   * provider (the group header names it), on for a flat list (the prompt). */
+  showProvider?: boolean;
   onSelect: (model: AIModelOption) => void;
 }
 
@@ -15,7 +18,7 @@ export interface AIModelListProps {
  * then cloud), where choosing a model implies its provider. Reused by the
  * "AI Models" settings tab and the run-time "pick a model" prompt.
  */
-export function AIModelList({ models, selected, onSelect }: AIModelListProps) {
+export function AIModelList({ models, selected, showProvider = true, onSelect }: AIModelListProps) {
   const isSelected = (m: AIModelOption) =>
     selected ? selected.model === m.model && selected.provider === m.provider : m.is_default;
 
@@ -45,9 +48,11 @@ export function AIModelList({ models, selected, onSelect }: AIModelListProps) {
                   <span className="truncate text-sm font-medium" translate="no">
                     {m.model}
                   </span>
-                  <Badge variant="secondary" translate="no">
-                    {m.label}
-                  </Badge>
+                  {showProvider && (
+                    <Badge variant="secondary" translate="no">
+                      {m.label}
+                    </Badge>
+                  )}
                   {m.local && !m.installed && (
                     <Badge variant="outline" className="gap-1">
                       <Download size={10} />

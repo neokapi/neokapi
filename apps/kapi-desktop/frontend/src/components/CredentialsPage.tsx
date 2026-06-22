@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2 } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2, Cpu, Cloud } from "lucide-react";
 import {
   Button,
   Badge,
@@ -8,7 +8,6 @@ import {
   Label,
   Input,
   PageHeader,
-  EmptyState,
   LoadingSpinner,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
@@ -22,6 +21,15 @@ interface ProviderTypeOption {
   label: string;
   /** On-device providers (Ollama, Gemma, Demo) need no API key. */
   local?: boolean;
+}
+
+/** Models + saved keys for one provider, the unit the page is grouped by. */
+interface ProviderGroup {
+  provider: string;
+  label: string;
+  local: boolean;
+  models: AIModelOption[];
+  creds: ProviderConfig[];
 }
 
 export interface CredentialsPageProps {
@@ -75,6 +83,26 @@ export function CredentialsPage({
     void load();
   }, [load]);
 
+  // One group per provider (in catalog order: local first, then cloud), each
+  // carrying that provider's models and its saved keys — so a credential is
+  // shown with the provider it belongs to rather than in a separate list.
+  const groups = useMemo<ProviderGroup[]>(() => {
+    const byProvider = new Map<string, ProviderGroup>();
+    for (const m of models) {
+      let g = byProvider.get(m.provider);
+      if (!g) {
+        g = { provider: m.provider, label: m.label, local: m.local, models: [], creds: [] };
+        byProvider.set(m.provider, g);
+      }
+      g.models.push(m);
+    }
+    for (const c of providers) {
+      const g = byProvider.get(c.provider_type);
+      if (g) g.creds.push(c);
+    }
+    return [...byProvider.values()];
+  }, [models, providers]);
+
   // Choosing a model persists the shared default (ai.provider/ai.model); the
   // provider follows from the model.
   const handleSelectModel = async (m: AIModelOption) => {
@@ -88,12 +116,9 @@ export function CredentialsPage({
     }
   };
 
-  const handleAdd = () => {
-    setEditing({
-      id: "",
-      name: "",
-      provider_type: providerTypes[0]?.name ?? "anthropic",
-    });
+  // Add a key for a specific provider (from its group header).
+  const handleAddKey = (providerType: string, label: string) => {
+    setEditing({ id: "", name: `${label} key`, provider_type: providerType });
     setApiKey("");
     setError(null);
   };
@@ -137,7 +162,7 @@ export function CredentialsPage({
     <div className="p-6">
       <PageHeader
         title="AI Models"
-        subtitle="Pick the default model for translation and QA — the provider follows from the model"
+        subtitle="Pick the default model for translation and QA — the provider follows from the model. API keys are stored in your OS keychain."
       />
 
       {error && (
@@ -149,89 +174,75 @@ export function CredentialsPage({
       {loading ? (
         <LoadingSpinner text="Loading AI models..." className="py-8" />
       ) : (
-        <div className="space-y-8">
-          {/* Default model — model-first picker */}
-          <section>
-            <h2 className="mb-1 text-sm font-medium">{t("Default model")}</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              {t(
-                "Used by flows and tools that don't pick a model. Local models run on-device; cloud models need a key below.",
-              )}
-            </p>
-            {models.length === 0 ? (
-              <EmptyState
-                icon={<KeyRound size={24} />}
-                title="No AI models available yet. Add a provider key, or install a local Ollama model."
-              />
-            ) : (
+        <div className="space-y-6">
+          {groups.map((g) => (
+            <section key={g.provider}>
+              {/* Provider header — label + key status/management for this provider */}
+              <div className="mb-2 flex items-center justify-between gap-2 border-b border-border pb-2">
+                <div className="flex items-center gap-2">
+                  {g.local ? (
+                    <Cpu size={16} className="text-primary" />
+                  ) : (
+                    <Cloud size={16} className="text-muted-foreground" />
+                  )}
+                  <h2 className="text-sm font-semibold" translate="no">
+                    {g.label}
+                  </h2>
+                  {g.local && <Badge variant="secondary">{t("on-device")}</Badge>}
+                </div>
+
+                {!g.local && (
+                  <div className="flex items-center gap-2">
+                    {g.creds.map((c) => (
+                      <span key={c.id} className="flex items-center gap-1">
+                        <Badge variant="outline" className="gap-1">
+                          <KeyRound size={10} />
+                          {c.name}
+                          {testResult[c.id] && (
+                            <CheckCircle2 size={11} className="text-green-500" />
+                          )}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleTest(c.id)}
+                          aria-label={t("Test connection for {name}", { name: c.name })}
+                        >
+                          <TestTube size={13} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleDelete(c.id)}
+                          className="hover:bg-destructive/10 hover:text-destructive"
+                          aria-label={t("Delete {name}", { name: c.name })}
+                        >
+                          <Trash2 size={13} />
+                        </Button>
+                      </span>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAddKey(g.provider, g.label)}
+                      aria-label={t("Add key for {name}", { name: g.label })}
+                    >
+                      <Plus size={12} />
+                      {t("Add key")}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Models for this provider — model-first selectable rows */}
               <AIModelList
-                models={models}
+                models={g.models}
                 selected={defaultModel.model ? defaultModel : undefined}
+                showProvider={false}
                 onSelect={(m) => void handleSelectModel(m)}
               />
-            )}
-          </section>
-
-          {/* Provider keys — needed only for cloud providers */}
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-medium">{t("Provider keys")}</h2>
-                <p className="text-xs text-muted-foreground">
-                  {t("API keys for cloud providers — stored in your OS keychain.")}
-                </p>
-              </div>
-              <Button size="sm" onClick={handleAdd} aria-label="Add AI provider">
-                <Plus size={12} />
-                Add Provider
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              {providers.map((provider) => (
-                <Card key={provider.id} className="!flex-row items-center gap-3 p-4">
-                  <KeyRound size={18} className="shrink-0 text-primary" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{provider.name}</span>
-                      <Badge variant="secondary">{provider.provider_type}</Badge>
-                      {testResult[provider.id] && (
-                        <CheckCircle2 size={14} className="text-green-500" />
-                      )}
-                    </div>
-                    {provider.model && (
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Model: {provider.model}
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => handleTest(provider.id)}
-                    aria-label={t("Test connection for {name}", { name: provider.name })}
-                  >
-                    <TestTube size={14} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => handleDelete(provider.id)}
-                    className="hover:bg-destructive/10 hover:text-destructive"
-                    aria-label={t("Delete {name}", { name: provider.name })}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </Card>
-              ))}
-              {providers.length === 0 && !editing && (
-                <EmptyState
-                  icon={<KeyRound size={24} />}
-                  title="No cloud provider keys. Add one to use Anthropic, OpenAI, Gemini, or Azure."
-                />
-              )}
-            </div>
-          </section>
+            </section>
+          ))}
         </div>
       )}
 
@@ -239,7 +250,7 @@ export function CredentialsPage({
         <Card className="mt-4">
           <CardContent className="p-4">
             <h3 className="mb-3 text-sm font-medium">
-              {editing.id ? t("Edit Provider") : t("New Provider")}
+              {editing.id ? t("Edit Provider") : t("New Provider key")}
             </h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
