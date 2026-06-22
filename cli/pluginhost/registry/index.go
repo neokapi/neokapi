@@ -40,6 +40,23 @@ type PluginEntry struct {
 	Group       string                  `json:"group,omitempty"`
 	Channels    []string                `json:"channels,omitempty"`
 	Versions    map[string]VersionEntry `json:"versions"`
+	// Deprecated, when set, marks the plugin as retired/deprecated in the
+	// registry. It lets the registry refuse new installs and flag the plugin in
+	// search without waiting for a kapi release. kapi's compiled-in tombstone
+	// list (cli/pluginhost) remains authoritative for load-time enforcement and
+	// works offline; this is the faster, reversible, network-side signal.
+	Deprecated *Deprecation `json:"deprecated,omitempty"`
+}
+
+// Deprecation marks a registry plugin as retired. Mirrors the fields of the
+// compiled-in tombstone so the two channels carry the same message.
+type Deprecation struct {
+	Retired     bool   `json:"retired,omitempty"`     // true → refuse new installs
+	Since       string `json:"since,omitempty"`       // kapi version that retired it
+	Because     string `json:"because,omitempty"`     // reason fragment
+	Replacement string `json:"replacement,omitempty"` // successor plugin name, if any
+	Message     string `json:"message,omitempty"`     // free-text guidance
+	InfoURL     string `json:"info_url,omitempty"`
 }
 
 // VersionEntry describes one published version of a plugin.

@@ -106,6 +106,26 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	if err != nil {
 		return nil, err
 	}
+	// Refuse to install a plugin the registry marks retired (the network-side
+	// signal; the compiled-in tombstone is the offline authority and is checked
+	// by the CLI before we get here).
+	if entry, ok := idx.Plugins[opts.PluginName]; ok && entry.Deprecated != nil && entry.Deprecated.Retired {
+		d := entry.Deprecated
+		msg := fmt.Sprintf("plugin %q was retired", opts.PluginName)
+		if d.Since != "" {
+			msg += " in kapi " + d.Since
+		}
+		if d.Because != "" {
+			msg += " — " + d.Because
+		}
+		if d.Message != "" {
+			msg += "\n  " + d.Message
+		}
+		if d.InfoURL != "" {
+			msg += "\n  More: " + d.InfoURL
+		}
+		return nil, errors.New(msg)
+	}
 	version, plat, err := idx.Resolve(opts.PluginName, opts.Constraint, channel, opts.KapiVersion)
 	if err != nil {
 		return nil, err

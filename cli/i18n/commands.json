@@ -253,6 +253,10 @@
           "list": {
             "short": "List installed plugins"
           },
+          "prune": {
+            "long": "Find plugins kapi has retired but that remain installed from an earlier version,\nand remove them. Retired plugins are already inert (kapi never loads them); this\ncleans them off disk after confirmation. System (Homebrew) installs are reported\nwith the command to remove them, never deleted by kapi. Downloaded model caches\nand configuration are left untouched.",
+            "short": "Remove retired plugins that are still installed"
+          },
           "rebuild-cache": {
             "short": "Force a rebuild of the plugin dispatch cache"
           },

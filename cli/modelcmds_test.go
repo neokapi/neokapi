@@ -33,12 +33,12 @@ func appWith(plugins ...*pluginhost.Plugin) *App {
 }
 
 func TestResolveModelRef(t *testing.T) {
-	app := appWith(mkPlugin("llm", mkModel("gemma-4-e2b", true), mkModel("gemma-tiny", false)))
+	app := appWith(mkPlugin("acme", mkModel("gemma-4-e2b", true), mkModel("gemma-tiny", false)))
 
 	// Primary handle: a bare model id resolves to its plugin.
 	p, a, err := app.resolveModelRef("gemma-4-e2b")
 	require.NoError(t, err)
-	assert.Equal(t, "llm", p)
+	assert.Equal(t, "acme", p)
 	assert.Equal(t, "gemma-4-e2b", a.ID)
 
 	// A non-default model is still addressable by id.
@@ -47,12 +47,12 @@ func TestResolveModelRef(t *testing.T) {
 	assert.Equal(t, "gemma-tiny", a.ID)
 
 	// A bare plugin name resolves to that plugin's default model.
-	_, a, err = app.resolveModelRef("llm")
+	_, a, err = app.resolveModelRef("acme")
 	require.NoError(t, err)
 	assert.Equal(t, "gemma-4-e2b", a.ID)
 
 	// Explicit plugin/model.
-	_, a, err = app.resolveModelRef("llm/gemma-tiny")
+	_, a, err = app.resolveModelRef("acme/gemma-tiny")
 	require.NoError(t, err)
 	assert.Equal(t, "gemma-tiny", a.ID)
 
@@ -61,7 +61,7 @@ func TestResolveModelRef(t *testing.T) {
 	require.ErrorContains(t, err, "no model or plugin")
 
 	// Explicit pair with a wrong model.
-	_, _, err = app.resolveModelRef("llm/nope")
+	_, _, err = app.resolveModelRef("acme/nope")
 	require.ErrorContains(t, err, "no model")
 }
 
@@ -84,9 +84,9 @@ func runModelsCmd(app *App, args ...string) (string, error) {
 // whether an Ollama runtime happens to be running on the test host.
 func TestModelsListText(t *testing.T) {
 	t.Setenv("KAPI_MODELS_CACHE", t.TempDir()) // isolate cache → "not cached"
-	app := appWith(mkPlugin("llm", mkModel("gemma-4-e2b", true), mkModel("gemma-tiny", false)))
+	app := appWith(mkPlugin("acme", mkModel("gemma-4-e2b", true), mkModel("gemma-tiny", false)))
 
-	out, err := runModelsCmd(app, "list", "--provider", "llm")
+	out, err := runModelsCmd(app, "list", "--provider", "acme")
 	require.NoError(t, err)
 	assert.Contains(t, out, "Plugin models")
 	assert.Contains(t, out, "gemma-4-e2b (default)")
@@ -96,9 +96,9 @@ func TestModelsListText(t *testing.T) {
 
 func TestModelsListJSON(t *testing.T) {
 	t.Setenv("KAPI_MODELS_CACHE", t.TempDir())
-	app := appWith(mkPlugin("llm", mkModel("gemma-4-e2b", true)))
+	app := appWith(mkPlugin("acme", mkModel("gemma-4-e2b", true)))
 
-	out, err := runModelsCmd(app, "list", "--provider", "llm", "--json")
+	out, err := runModelsCmd(app, "list", "--provider", "acme", "--json")
 	require.NoError(t, err)
 	var got struct {
 		Models []struct {
@@ -110,7 +110,7 @@ func TestModelsListJSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out), &got), "output must be JSON: %s", out)
 	require.Equal(t, 1, got.Total)
 	assert.Equal(t, "plugin", got.Models[0].Source)
-	assert.Equal(t, "llm", got.Models[0].Provider)
+	assert.Equal(t, "acme", got.Models[0].Provider)
 	assert.Equal(t, "gemma-4-e2b", got.Models[0].Model)
 	assert.True(t, got.Models[0].Default)
 }
@@ -185,7 +185,7 @@ func TestBuildModelRows(t *testing.T) {
 
 func TestResolveModelRefAmbiguous(t *testing.T) {
 	app := appWith(
-		mkPlugin("llm", mkModel("shared-id", true)),
+		mkPlugin("acme", mkModel("shared-id", true)),
 		mkPlugin("other", mkModel("shared-id", true)),
 	)
 	_, _, err := app.resolveModelRef("shared-id")

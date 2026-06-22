@@ -53,6 +53,10 @@ func (a *App) allPluginModels() []pluginModel {
 		if p.Manifest == nil {
 			continue
 		}
+		// A retired plugin is inert — it contributes no models to the view.
+		if p.Retired != nil {
+			continue
+		}
 		for _, m := range p.Manifest.Models {
 			out = append(out, pluginModel{plugin: p.Name(), asset: m})
 		}

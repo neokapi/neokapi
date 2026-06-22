@@ -169,6 +169,33 @@ A minimal Go reference plugin in
 [`examples/plugins/hello/`](https://github.com/neokapi/neokapi/tree/main/examples/plugins/hello)
 covers Mode A + B with no third-party dependencies.
 
+## Retiring a plugin
+
+When a plugin is superseded (for example, `kapi-llm` was retired once the
+built-in Ollama provider replaced the bundled on-device engine), kapi marks it
+**retired** rather than silently breaking. Because a plugin binary installed from
+a previous version can still be sitting on disk — and the registry may be offline
+or pinned — retirement is signalled in two places:
+
+- **A compiled-in tombstone** (`cli/pluginhost/tombstones.go`) is the
+  offline-authoritative source. It records the plugin name, the kapi version that
+  retired it, the reason, and the replacement. Its mere presence in a build is the
+  version gate: an older kapi simply has no entry. This is what makes retirement
+  trustworthy with no network and with the binary still installed.
+- **A registry `deprecated` field** on the plugin entry is the faster,
+  reversible, network-side signal. It lets the registry refuse new installs and
+  flag the plugin in search without waiting for a kapi release. When the two
+  disagree, the built-in tombstone wins for load-time enforcement.
+
+A retired plugin stays **listed but inert**: kapi registers none of its dispatch
+routes (commands, formats, segmenters), so it is never loaded or run, and it
+contributes no models to `kapi models`. `kapi plugins list` shows it as `retired`
+with the reason and replacement; `kapi plugins install` refuses to (re)install it.
+kapi never auto-deletes software on disk — instead, **`kapi plugins prune`**
+removes retired user installs after confirmation (`--yes`, `--dry-run`), prints
+the OS command for system (Homebrew) installs rather than touching them, and
+leaves downloaded model caches and configuration alone.
+
 ## See also
 
 - [AD-007: Plugin System](/contribute/architecture/007-plugin-system) — full design rationale and the registry/signing model
