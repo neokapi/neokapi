@@ -5,90 +5,16 @@ description: Kapi Desktop is the visual companion to the kapi CLI — a native a
 keywords: [Kapi, desktop app, Wails, flow editor, flow runner, plugin manager, credential vault, localization GUI]
 ---
 
-import { ThemedVideo } from "@neokapi/docs-shared";
-
 # Kapi Desktop
 
 Kapi Desktop is the visual companion for the [kapi CLI](/kapi/cli). It provides a native desktop interface for building localization flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags.
 
 Like the CLI, the desktop is **project-first**: it opens to your projects and reopens the ones you had last time, so a `.kapi` project — its languages, content, flows, translation memory, and termbase — is the home you work from. One-off file runs still live a click away as **quick tools** (the ad-hoc mode), for when you just want to push a single file through a tool without setting up a project.
 
-## A quick tour
-
-### Create and manage a project
-
-A project pairs a source language with the locales you translate into, the files in scope, and the flows that process them. Naming it is the only required step — everything else is configured visually. The project home shows each content collection's translation status — how many blocks are covered per locale — and lets you extract content into the project store to refresh it.
-
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/kapi-desktop-projects-light.webm",
-    dark: "/video/kapi/kapi-desktop-projects-dark.webm",
-  }}
-/>
-
-### Manage content in a project
-
-A project's content is the set of files it translates. Glob patterns are grouped into named collections — documentation, store UI, contracts, templates — each mapping source files to their translated counterparts. The Content view shows the patterns alongside the real files they match and the format Kapi detected for each.
-
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/kapi-desktop-content-light.webm",
-    dark: "/video/kapi/kapi-desktop-content-dark.webm",
-  }}
-/>
-
-Opening a file previews it the way the engine parses it: a **Preview** of the
-rendered document with the source ↔ target toggle, a **Blocks** list, and —
-where the format carries them — a **Structure** view (roles, reading order) and a
-**Layout** view (page-scaled bounding boxes). For media, a **Media** tab renders
-the asset itself: an image with its OCR boxes overlaid, or an audio/video player
-with the recognized cues as a synced subtitle track and on-screen frame text
-shown at its timecode. Opening an image, audio, or video file offers to install
-the engine plugin it needs (kapi-vision / kapi-asr / kapi-av) on first use.
-
-### Compose flows
-
-A project's flows are the pipelines it runs over its content — a plain AI translation, a translation followed by quality checks, a pseudo-translation for testing. Each flow is a named sequence of steps, saved alongside the project and shared through version control. Open one to see and edit its pipeline.
-
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/kapi-desktop-flows-light.webm",
-    dark: "/video/kapi/kapi-desktop-flows-dark.webm",
-  }}
-/>
-
-### Configure appearance, providers, and plugins
-
-Settings gather everything in one place: light or dark appearance, the AI providers Kapi translates with (keys stay in your OS keychain), and the plugins that extend its formats and tools.
-
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/kapi-desktop-config-light.webm",
-    dark: "/video/kapi/kapi-desktop-config-dark.webm",
-  }}
-/>
-
-### Browse terminology and translation memory
-
-Kapi keeps a glossary of multi-locale terms and a memory of past translations. Both are searchable, with inline formatting and entity placeholders preserved.
-
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/kapi-desktop-explorer-light.webm",
-    dark: "/video/kapi/kapi-desktop-explorer-dark.webm",
-  }}
-/>
-
-### Using the Okapi plugin
-
-Plugins extend Kapi with new formats and tools. The Okapi bridge adds the [Okapi Framework](https://okapiframework.org/)'s filters — dozens of document formats beyond the built-in set. Install it from the registry in one click, and projects built on those filters, like the OkapiMart sample, open and process their files through them.
-
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/kapi-desktop-okapi-light.webm",
-    dark: "/video/kapi/kapi-desktop-okapi-dark.webm",
-  }}
-/>
+A **[guided tour](/kapi/desktop/tour)** walks each surface in motion — creating
+and managing a project, its content and flows, settings and providers, the
+terminology and translation-memory explorer, and the Okapi plugin. The kapi
+[CLI recipes](/kapi/cli) note, task by task, how each maps to Kapi Desktop.
 
 ## Features
 
@@ -113,9 +39,9 @@ For the Windows installer and the macOS DMG / Linux tarball builds, see
 
 ## Your first project
 
-The tour above shows each surface in motion; here is the path through them when
-you start from nothing. Everything is configured visually — there is no YAML to
-write by hand.
+The [guided tour](/kapi/desktop/tour) shows each surface in motion; here is the
+path through them when you start from nothing. Everything is configured visually —
+there is no YAML to write by hand.
 
 1. **Create the project.** Launch Kapi Desktop and click **New Project**. Give
    it a name, set the **source language** (e.g. `en-US`), and add the **target
@@ -147,6 +73,7 @@ kapi run translate -p myproject.kapi
 
 ## Next Steps
 
-- [Kapi Project Files](/reference/project-file) — Full format reference
-- [Kapi CLI](/kapi/cli) — Command-line reference
+- [A guided tour](/kapi/desktop/tour) — each Desktop surface in motion
+- [Kapi Project Files](/reference/project-file) — full format reference
+- [Kapi CLI](/kapi/cli) — command-line reference
 - [Installation](/kapi/get-started/installation) — all platforms and options
