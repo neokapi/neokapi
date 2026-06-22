@@ -229,7 +229,7 @@ export default function StatusWidget(): React.ReactElement {
   const localizedModels = useBaseUrl("/models/vision");
   const cdn = readCdnConfig(siteConfig);
   const visionModelBase = cdnEnabled(cdn)
-    ? cdnHref(cdn, "/models/vision")
+    ? cdnHref(cdn, `/models/vision/${cdn.modelsVersion}`)
     : i18n.currentLocale === i18n.defaultLocale
       ? localizedModels
       : localizedModels.replace(`/${i18n.currentLocale}/`, "/");
