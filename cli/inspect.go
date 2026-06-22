@@ -7,32 +7,20 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/structrec"
 	"github.com/spf13/cobra"
 )
 
-// inspectBlock is one content block in `kapi inspect` output: the parsed text
-// plus a stable content-hash anchor and the block's structural role. It is the
-// read end of read → retrieve → edit → write-back — an AI agent or RAG pipeline
-// reads these records, retrieves against the anchors, and writes edits back to
-// the same blocks (by ID) with the toolbox or a Transform tool.
-type inspectBlock struct {
-	File   string `json:"file"`
-	Number int    `json:"number"` // 1-based, increments across all input files
-	ID     string `json:"id,omitempty"`
-	// ContentHash is model.ComputeContentHash(Text): a SHA-256 over the block's
-	// NORMALIZED (whitespace-trimmed) source text, not over the raw Text field.
-	// Recompute it with model.ComputeContentHash, not a bare sha256(text).
-	ContentHash string `json:"content_hash,omitempty"`
-	Role        string `json:"role,omitempty"`
-	Level       int    `json:"level,omitempty"`
-	Text        string `json:"text"`
-}
-
 // NewInspectCmd builds `kapi inspect`: parse any format into one anchored,
-// structured record per content block. Prints a JSON array by default; --jsonl
-// streams one object per line for piping into an ingestion pipeline.
+// structured record per content block — the text, a stable content-hash anchor,
+// and the block's structural role and nesting level. The same record shape backs
+// `kapi convert <doc> --to json|yaml`. Prints a JSON array by default; --jsonl
+// streams one object per line, --yaml emits a YAML sequence.
 func (a *App) NewInspectCmd() *cobra.Command {
-	var jsonl bool
+	var (
+		jsonl  bool
+		asYAML bool
+	)
 	cmd := &cobra.Command{
 		Use:     "inspect [flags] [FILE...]",
 		Short:   "Parse any format into anchored, structured content blocks",
@@ -43,25 +31,38 @@ table-cell, …) and nesting level. Any format — a Word document, a JSON catal
 Markdown, HTML — yields the same shape, so an AI agent or RAG pipeline can read
 content, retrieve against the anchors, and write edits back to the same blocks.
 
-Prints a JSON array by default; --jsonl streams one object per line (JSONL).
+Prints a JSON array by default; --jsonl streams one JSON object per line (JSONL)
+for piping into an ingestion pipeline; --yaml emits a YAML sequence.
 With no FILE, or when FILE is "-", standard input is read.`,
 		Example: `  kapi inspect report.docx
   kapi inspect --jsonl docs/*.md | jq .content_hash
+  kapi inspect --yaml report.dclg.xml
   cat page.html | kapi inspect -f html`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.runInspect(cmd.Context(), cmd, args, jsonl)
+			if jsonl && asYAML {
+				return errors.New("--jsonl and --yaml are mutually exclusive")
+			}
+			outFormat := "json"
+			switch {
+			case jsonl:
+				outFormat = "jsonl"
+			case asYAML:
+				outFormat = "yaml"
+			}
+			return a.runInspect(cmd.Context(), cmd, args, outFormat)
 		},
 	}
 	f := cmd.Flags()
 	f.BoolVar(&jsonl, "jsonl", false, "stream one JSON object per line (JSONL) instead of a JSON array")
+	f.BoolVar(&asYAML, "yaml", false, "emit a YAML sequence instead of a JSON array")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
 	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input encoding")
 	return cmd
 }
 
-func (a *App) runInspect(ctx context.Context, cmd *cobra.Command, args []string, jsonl bool) error {
+func (a *App) runInspect(ctx context.Context, cmd *cobra.Command, args []string, outFormat string) error {
 	hadError := false
 	files, err := expandInputs(args, false, func(path string, err error) {
 		hadError = true
@@ -71,11 +72,9 @@ func (a *App) runInspect(ctx context.Context, cmd *cobra.Command, args []string,
 		return err
 	}
 
+	streaming := outFormat == "jsonl"
 	enc := json.NewEncoder(cmd.OutOrStdout())
-	if !jsonl {
-		enc.SetIndent("", "  ")
-	}
-	var blocks []inspectBlock // accumulated for the JSON-array form
+	var recs []structrec.Record // accumulated for the array (json/yaml) forms
 	n := 0
 
 	for _, file := range files {
@@ -85,20 +84,12 @@ func (a *App) runInspect(ctx context.Context, cmd *cobra.Command, args []string,
 				return nil
 			}
 			n++
-			rec := inspectBlock{
-				File:        displayName(file),
-				Number:      n,
-				ID:          b.ID,
-				ContentHash: model.ComputeContentHash(text),
-				Text:        text,
-			}
-			if s, ok := b.Structure(); ok {
-				rec.Role, rec.Level = s.Role, s.Level
-			}
-			if jsonl {
+			rec := structrec.FromBlock(n, b, text)
+			rec.File = displayName(file)
+			if streaming {
 				return enc.Encode(rec) // Encode writes one object + newline = JSONL
 			}
-			blocks = append(blocks, rec)
+			recs = append(recs, rec)
 			return nil
 		})
 		if ferr != nil {
@@ -113,9 +104,21 @@ func (a *App) runInspect(ctx context.Context, cmd *cobra.Command, args []string,
 		}
 	}
 
-	if !jsonl {
-		if err := enc.Encode(blocks); err != nil {
-			return err
+	if !streaming {
+		var (
+			out  []byte
+			mErr error
+		)
+		if outFormat == "yaml" {
+			out, mErr = structrec.MarshalYAML(recs)
+		} else {
+			out, mErr = structrec.MarshalJSONArray(recs)
+		}
+		if mErr != nil {
+			return mErr
+		}
+		if _, wErr := cmd.OutOrStdout().Write(out); wErr != nil {
+			return wErr
 		}
 	}
 	if hadError {
