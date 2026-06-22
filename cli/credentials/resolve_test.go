@@ -108,6 +108,44 @@ func TestResolveCredentials_AutoDetectMultiple(t *testing.T) {
 	assert.ElementsMatch(t, []string{"A", "B"}, amb.Candidates)
 }
 
+func TestResolveCredentials_DefaultKeyDisambiguates(t *testing.T) {
+	clearProviderEnv(t)
+	store := newTestStore(t)
+	mustUpsert(t, store, ProviderConfig{Name: "A", ProviderType: "openai"})
+	b := mustUpsert(t, store, ProviderConfig{Name: "B", ProviderType: "openai"})
+	require.NoError(t, store.SetDefault(b.ID))
+
+	_, err := ResolveCredentials(store, "translate", []string{"credentials"}, map[string]any{"provider": "openai"})
+	require.Error(t, err)
+
+	// With a default marked, resolution must NOT be ambiguous — it picks "B".
+	// (No real keychain in tests, so the only remaining failure is the missing
+	// key for the chosen credential.)
+	var amb *AmbiguousCredentialError
+	assert.NotErrorAs(t, err, &amb, "the default-marked credential should disambiguate")
+	assert.Contains(t, err.Error(), "keychain")
+	assert.Contains(t, err.Error(), `"B"`)
+}
+
+func TestStore_SetDefaultIsExclusivePerProvider(t *testing.T) {
+	store := newTestStore(t)
+	a := mustUpsert(t, store, ProviderConfig{Name: "A", ProviderType: "openai"})
+	b := mustUpsert(t, store, ProviderConfig{Name: "B", ProviderType: "openai"})
+	other := mustUpsert(t, store, ProviderConfig{Name: "C", ProviderType: "anthropic"})
+
+	require.NoError(t, store.SetDefault(a.ID))
+	require.NoError(t, store.SetDefault(b.ID)) // moves the default within openai
+
+	byID := func(id string) ProviderConfig {
+		c, err := store.Get(id)
+		require.NoError(t, err)
+		return c
+	}
+	assert.False(t, byID(a.ID).Default, "A should no longer be default")
+	assert.True(t, byID(b.ID).Default, "B should be the openai default")
+	assert.False(t, byID(other.ID).Default, "a different provider is unaffected")
+}
+
 func TestStore_UpsertDedupesByName(t *testing.T) {
 	store := newTestStore(t)
 

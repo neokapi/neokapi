@@ -28,6 +28,10 @@ type ProviderConfig struct {
 	ProviderType string `json:"provider_type"` // "anthropic", "openai", "ollama", "azureopenai", "gemini"
 	Model        string `json:"model,omitempty"`
 	BaseURL      string `json:"base_url,omitempty"`
+	// Default marks this as the credential to use when its provider has more than
+	// one saved — at most one per provider type (enforced by SetDefault). With a
+	// single credential the flag is irrelevant (it always resolves).
+	Default bool `json:"default,omitempty"`
 }
 
 // ProviderConfigWithKey is used for transport (save/test) and is never persisted to disk.
@@ -151,6 +155,42 @@ func (s *Store) Upsert(cfg ProviderConfig) (ProviderConfig, error) {
 		return ProviderConfig{}, err
 	}
 	return cfg, nil
+}
+
+// SetDefault marks the given credential as the default for its provider type,
+// clearing the flag on every other credential of the same type so at most one
+// default exists per provider. Persists the change; a non-nil error means it
+// was NOT persisted.
+func (s *Store) SetDefault(configID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	idx := -1
+	for i, c := range s.configs {
+		if c.ID == configID {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("provider config %q not found", configID)
+	}
+	providerType := s.configs[idx].ProviderType
+
+	prev := s.configs
+	updated := make([]ProviderConfig, len(s.configs))
+	copy(updated, s.configs)
+	for i := range updated {
+		if strings.EqualFold(updated[i].ProviderType, providerType) {
+			updated[i].Default = updated[i].ID == configID
+		}
+	}
+	s.configs = updated
+	if err := s.save(); err != nil {
+		s.configs = prev
+		return err
+	}
+	return nil
 }
 
 // Remove deletes a provider config by ID, persisting the change to disk.

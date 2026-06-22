@@ -1,14 +1,28 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2, Cpu, Cloud } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  TestTube,
+  KeyRound,
+  Loader2,
+  CheckCircle2,
+  Cpu,
+  Cloud,
+  Star,
+} from "lucide-react";
 import {
   Button,
   Badge,
-  Card,
-  CardContent,
   Label,
   Input,
   PageHeader,
   LoadingSpinner,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  cn,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import type { ProviderConfig, AIModelOption, DefaultModelInfo } from "../types/api";
@@ -116,6 +130,16 @@ export function CredentialsPage({
     }
   };
 
+  // Mark a key as the default for its provider (when several are saved).
+  const handleSetKeyDefault = async (id: string) => {
+    try {
+      await api.setProviderDefault(id);
+      await load();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
   // Add a key for a specific provider (from its group header).
   const handleAddKey = (providerType: string, label: string) => {
     setEditing({ id: "", name: `${label} key`, provider_type: providerType });
@@ -192,35 +216,62 @@ export function CredentialsPage({
                 </div>
 
                 {!g.local && (
-                  <div className="flex items-center gap-2">
-                    {g.creds.map((c) => (
-                      <span key={c.id} className="flex items-center gap-1">
-                        <Badge variant="outline" className="gap-1">
-                          <KeyRound size={10} />
-                          {c.name}
-                          {testResult[c.id] && (
-                            <CheckCircle2 size={11} className="text-green-500" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    {g.creds.map((c) => {
+                      // With several keys the chip is a default-selector (star);
+                      // a lone key is implicitly the one used, so it's a plain chip.
+                      const multiple = g.creds.length > 1;
+                      return (
+                        <span key={c.id} className="flex items-center gap-0.5">
+                          {multiple ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleSetKeyDefault(c.id)}
+                              aria-pressed={!!c.default}
+                              aria-label={
+                                c.default
+                                  ? t("{name} is the default key", { name: c.name })
+                                  : t("Use {name} as the default key", { name: c.name })
+                              }
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors",
+                                c.default
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-border text-muted-foreground hover:border-primary/40",
+                              )}
+                            >
+                              <Star size={11} className={c.default ? "fill-current" : ""} />
+                              {c.name}
+                            </button>
+                          ) : (
+                            <Badge variant="outline" className="gap-1">
+                              <KeyRound size={10} />
+                              {c.name}
+                            </Badge>
                           )}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleTest(c.id)}
-                          aria-label={t("Test connection for {name}", { name: c.name })}
-                        >
-                          <TestTube size={13} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleDelete(c.id)}
-                          className="hover:bg-destructive/10 hover:text-destructive"
-                          aria-label={t("Delete {name}", { name: c.name })}
-                        >
-                          <Trash2 size={13} />
-                        </Button>
-                      </span>
-                    ))}
+                          {testResult[c.id] && (
+                            <CheckCircle2 size={12} className="text-green-500" />
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleTest(c.id)}
+                            aria-label={t("Test connection for {name}", { name: c.name })}
+                          >
+                            <TestTube size={13} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleDelete(c.id)}
+                            className="hover:bg-destructive/10 hover:text-destructive"
+                            aria-label={t("Delete {name}", { name: c.name })}
+                          >
+                            <Trash2 size={13} />
+                          </Button>
+                        </span>
+                      );
+                    })}
                     <Button
                       variant="outline"
                       size="sm"
@@ -246,12 +297,28 @@ export function CredentialsPage({
         </div>
       )}
 
-      {editing && (
-        <Card className="mt-4">
-          <CardContent className="p-4">
-            <h3 className="mb-3 text-sm font-medium">
-              {editing.id ? t("Edit Provider") : t("New Provider key")}
-            </h3>
+      <Dialog
+        open={editing !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setEditing(null);
+            setApiKey("");
+            setError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editing?.id ? t("Edit Provider key") : t("New Provider key")}
+            </DialogTitle>
+          </DialogHeader>
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+          {editing && (
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="cred-name" className="mb-1 block text-xs text-muted-foreground">
@@ -314,30 +381,29 @@ export function CredentialsPage({
                 </div>
               )}
             </div>
-            <div className="mt-3 flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={!editing.name || !editing.provider_type || saving}
-              >
-                {saving && <Loader2 size={12} className="animate-spin" />}
-                {saving ? t("Saving...") : t("Save")}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setEditing(null);
-                  setApiKey("");
-                  setError(null);
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditing(null);
+                setApiKey("");
+                setError(null);
+              }}
+              disabled={saving}
+            >
+              {t("Cancel")}
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={!editing?.name || !editing?.provider_type || saving}
+            >
+              {saving && <Loader2 size={12} className="animate-spin" />}
+              {saving ? t("Saving...") : t("Save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

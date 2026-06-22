@@ -255,6 +255,8 @@ export const api = {
   saveProvider: (req: unknown) => call<ProviderConfig>("SaveProvider", req),
   deleteProvider: (id: string) => call<void>("DeleteProvider", id),
   testProvider: (id: string) => call<boolean>("TestProvider", id),
+  /** Mark a credential as the default for its provider (when several are saved). */
+  setProviderDefault: (id: string) => call<void>("SetProviderDefault", id),
 
   // AI models — the shared default provider+model (ai.provider/ai.model), the
   // model-first catalog, and the run-time prompt check.

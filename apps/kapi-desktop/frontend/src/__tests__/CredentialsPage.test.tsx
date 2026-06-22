@@ -86,4 +86,26 @@ describe("CredentialsPage (AI Models)", () => {
     await userEvent.click(screen.getByText("Cancel"));
     expect(screen.queryByText("New Provider key")).not.toBeInTheDocument();
   });
+
+  it("lets you pick the default key when a provider has several", () => {
+    const providers = [
+      { id: "k1", name: "OpenAI key", provider_type: "openai", default: true },
+      { id: "k2", name: "OpenAI key 2", provider_type: "openai", default: false },
+    ];
+    renderWithProviders(
+      <CredentialsPage
+        providers={providers}
+        providerTypes={sampleProviderTypes}
+        models={sampleModels}
+      />,
+    );
+    // Each key is a default-selector; the marked one is pressed.
+    expect(screen.getByRole("button", { name: /OpenAI key is the default key/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.getByRole("button", { name: /Use OpenAI key 2 as the default key/ }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
 });

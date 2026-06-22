@@ -211,6 +211,8 @@ export interface ProviderConfig {
   provider_type: string;
   model?: string;
   base_url?: string;
+  /** The default credential for its provider when more than one is saved. */
+  default?: boolean;
 }
 
 /** The configured default AI model and the provider it implies (matches Go DefaultModelInfo). */

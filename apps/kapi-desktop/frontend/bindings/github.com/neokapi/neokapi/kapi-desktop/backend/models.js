@@ -3081,6 +3081,14 @@ export class ProviderInfo {
              */
             this["base_url"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Default marks the credential used when its provider has more than one saved.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["default"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

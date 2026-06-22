@@ -1869,6 +1869,17 @@ export function SetLocale(locale) {
 }
 
 /**
+ * SetProviderDefault marks a credential as the default for its provider type
+ * (clearing the flag on the provider's other keys). Used when a provider has
+ * more than one saved key so a run resolves deterministically.
+ * @param {string} id
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetProviderDefault(id) {
+    return $Call.ByID(3380514462, id);
+}
+
+/**
  * SetTermStatus transitions the lifecycle status (and optional validity window)
  * of the term identified by (req.Locale, req.Text) within req.ConceptID, then
  * persists the concept. This is the author's own local copy: any known status
