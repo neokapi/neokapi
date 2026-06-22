@@ -88,6 +88,13 @@ export interface ConceptViewProps {
   onEdit?: (concept: Concept) => void;
   /** The section renderers that fill the layout. */
   slots?: ConceptViewSlots;
+  /**
+   * When set, scope the concept's terms to these locales — every section
+   * (geography, constraints, header counts) then reflects only those locales.
+   * Used by the desktop's Active Filter; include the source locale to keep the
+   * concept's canonical name. Omitted/empty = show all.
+   */
+  localeScope?: string[];
   className?: string;
 }
 
@@ -98,6 +105,7 @@ export function ConceptView({
   onBack,
   onEdit,
   slots = {},
+  localeScope,
   className,
 }: ConceptViewProps) {
   const caps = useMemo(() => resolveCapabilities(source), [source]);
@@ -105,6 +113,15 @@ export function ConceptView({
     () => source.getConcept(conceptId),
     [source, conceptId],
   );
+
+  // Narrow the concept's terms to the locale scope (when any), so the whole
+  // dashboard reflects the languages you're working with.
+  const localeScopeKey = localeScope?.join(",") ?? "";
+  const scoped = useMemo(() => {
+    if (!concept || !localeScopeKey) return concept;
+    const set = new Set(localeScopeKey.split(","));
+    return { ...concept, terms: concept.terms.filter((t) => set.has(t.locale)) };
+  }, [concept, localeScopeKey]);
 
   if (loading && !concept) return <ConceptViewSkeleton onBack={onBack} className={className} />;
 
@@ -117,14 +134,15 @@ export function ConceptView({
     );
   }
 
-  const ctx: ConceptSectionProps = { concept, source, capabilities: caps, onNavigate };
-  const localeCount = termsByLocale(concept.terms).length;
+  const display = scoped ?? concept;
+  const ctx: ConceptSectionProps = { concept: display, source, capabilities: caps, onNavigate };
+  const localeCount = termsByLocale(display.terms).length;
   const canEdit = Boolean(onEdit) && (caps.editTerms || caps.editRelations);
 
   return (
     <div className={cn("flex flex-col gap-5", className)}>
       <ConceptHeader
-        concept={concept}
+        concept={display}
         localeCount={localeCount}
         onBack={onBack}
         onEdit={canEdit ? () => onEdit!(concept) : undefined}

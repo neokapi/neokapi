@@ -1,6 +1,7 @@
 package pluginhost_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -347,4 +348,74 @@ content:
 	err := bad.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "content[0].items[0].max_size:")
+}
+
+// TestSchemaExt_IdempotentSameGroup verifies that when an extension is
+// already registered under the same group — e.g. a binary (kapi-desktop)
+// that compiles in a platform's schema via blank import and then
+// rediscovers the same plugin through its manifest — RegisterSchemaExtensions
+// keeps the existing registration silently (no "already registered" warning)
+// and does not replace the compiled-in decoder with the manifest's.
+func TestSchemaExt_IdempotentSameGroup(t *testing.T) {
+	schemaExtMu.Lock()
+	defer schemaExtMu.Unlock()
+
+	project.ResetExtensionsForTest()
+	defer project.ResetExtensionsForTest()
+
+	// Simulate the compile-time (blank-import) registration: a typed
+	// decoder under group "demo" that rejects everything with a sentinel.
+	sentinel := errors.New("compiled-in decoder ran")
+	project.RegisterExtension(project.Extension{
+		Name:    "server",
+		Scope:   project.ScopeProject,
+		Group:   "demo",
+		Decoder: project.ExtensionDecoderFunc(func(yaml.Node) error { return sentinel }),
+	})
+
+	host, cw := makeFakePlugin(t, validServerSchema)
+	pluginhost.RegisterSchemaExtensions(host, cw.add)
+
+	// Same group → benign re-discovery, no warning.
+	assert.NotContains(t, cw.joined(), "already registered")
+
+	// The compiled-in decoder must be kept: a payload the manifest's JSON
+	// Schema would accept is still rejected by the sentinel decoder.
+	p := &project.KapiProject{}
+	require.NoError(t, yaml.Unmarshal([]byte(`
+version: v1
+server:
+  url: https://example.com/team/proj
+  team: acme
+`), p))
+	err := p.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), sentinel.Error())
+}
+
+// TestSchemaExt_DifferentGroupWarns verifies that when a *different* group
+// already claims (scope, name), RegisterSchemaExtensions keeps the existing
+// entry but warns about the genuine cross-plugin clash (naming the group
+// that already owns the key).
+func TestSchemaExt_DifferentGroupWarns(t *testing.T) {
+	schemaExtMu.Lock()
+	defer schemaExtMu.Unlock()
+
+	project.ResetExtensionsForTest()
+	defer project.ResetExtensionsForTest()
+
+	project.RegisterExtension(project.Extension{
+		Name:    "server",
+		Scope:   project.ScopeProject,
+		Group:   "other",
+		Decoder: project.ExtensionDecoderFunc(func(yaml.Node) error { return nil }),
+	})
+
+	host, cw := makeFakePlugin(t, validServerSchema)
+	pluginhost.RegisterSchemaExtensions(host, cw.add)
+
+	joined := cw.joined()
+	assert.Contains(t, joined, "already registered")
+	assert.Contains(t, joined, "other") // names the existing group
+	assert.Contains(t, joined, "server")
 }

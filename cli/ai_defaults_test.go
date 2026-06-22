@@ -45,11 +45,3 @@ func TestApplyAIDefaults(t *testing.T) {
 		assert.False(t, ok)
 	})
 }
-
-func TestIsMTTool(t *testing.T) {
-	assert.True(t, isMTTool("deepl-translate"))
-	assert.True(t, isMTTool("google-translate"))
-	assert.False(t, isMTTool("ai-translate"), "ai-translate is the LLM tool, not MT")
-	assert.False(t, isMTTool("ai-qa"))
-	assert.False(t, isMTTool("word-count"))
-}

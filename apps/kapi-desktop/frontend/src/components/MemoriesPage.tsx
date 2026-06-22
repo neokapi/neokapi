@@ -14,6 +14,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
+import { useActiveFilter } from "../context/ActiveFilterContext";
 import { useTMAdapter } from "../hooks/useTMAdapter";
 import { useLocales } from "../hooks/useLocales";
 import { TMBrowser, ResourceCard, ImportProgress, type ResourceInfo } from "@neokapi/ui-primitives";
@@ -59,11 +60,21 @@ export function MemoriesPage({
   const [activityStats, setActivityStats] = useState<ActivityPoint[]>([]);
   const { showError } = useError();
   const { locales } = useLocales();
+  const { active: activeFilter } = useActiveFilter();
+  const [sourceLang, setSourceLang] = useState("");
+  // Focus the TM on the Active Filter's languages: the multi-language view shows
+  // the source plus the chosen targets, while the bilingual target defaults to a
+  // chosen target. No filter → show all.
+  const filterLangs = activeFilter?.languages ?? [];
+  const scopeLocales = filterLangs.length
+    ? [sourceLang, ...filterLangs].filter(Boolean)
+    : undefined;
   const activeHandle = projectHandle || handle;
   const adapter = useTMAdapter(activeHandle);
 
   // Load the project-scoped TM handle when opened from a project tab so the
   // project's own TM is auto-selected (and marked) rather than a blank picker.
+  // Also read the source locale for the filter scope.
   useEffect(() => {
     if (!tabID) return;
     api
@@ -71,6 +82,10 @@ export function MemoriesPage({
       .then((h) => {
         if (h?.tmHandle) setProjectHandle(h.tmHandle);
       })
+      .catch(() => {});
+    api
+      .getProject(tabID)
+      .then((p) => setSourceLang(p?.defaults?.source_language ?? ""))
       .catch(() => {});
   }, [tabID]);
 
@@ -268,7 +283,13 @@ export function MemoriesPage({
           </Card>
         )}
 
-        <TMBrowser adapter={adapter} locales={locales} onError={showError} />
+        <TMBrowser
+          adapter={adapter}
+          locales={locales}
+          scopeLocales={scopeLocales}
+          targetLocales={filterLangs.length ? filterLangs : undefined}
+          onError={showError}
+        />
         <ImportProgress active={importing} />
       </div>
     );

@@ -50,6 +50,36 @@ describe("RunnerPage", () => {
     expect(screen.getByText("Back")).toBeInTheDocument();
   });
 
+  // Regression: navigating back to a running flow remounts RunnerPage. autoRun
+  // must fire once per run request (parent gates it via autoRun), never per
+  // mount — otherwise each remount relaunches and duplicates the job.
+  const autoRunProject = {
+    version: "v1",
+    name: "Demo",
+    defaults: { target_languages: ["fr-FR"] },
+  };
+
+  it("fires onLaunched once when auto-running", () => {
+    const onLaunched = vi.fn();
+    renderWithProviders(
+      <RunnerPage {...defaultProps} project={autoRunProject} autoRun onLaunched={onLaunched} />,
+    );
+    expect(onLaunched).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not auto-run when autoRun is off (run already consumed by the parent)", () => {
+    const onLaunched = vi.fn();
+    renderWithProviders(
+      <RunnerPage
+        {...defaultProps}
+        project={autoRunProject}
+        autoRun={false}
+        onLaunched={onLaunched}
+      />,
+    );
+    expect(onLaunched).not.toHaveBeenCalled();
+  });
+
   it("pre-populates target language from project defaults (manual path)", () => {
     const project = {
       version: "v1",

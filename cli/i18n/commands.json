@@ -197,6 +197,11 @@
           "short": "Apply a returned bilingual file (.klz/XLIFF/PO) back onto the project source"
         },
         "models": {
+          "default": {
+            "example": "  kapi models default                  # show the current default\n  kapi models default gemma3:4b        # local Ollama, provider inferred\n  kapi models default claude-sonnet-4  # anthropic, inferred\n  kapi models default gpt-4o --provider azureopenai",
+            "long": "With no argument, prints the configured default AI provider and model.\n\nWith a model argument, sets it as the default used by AI tools and flows\nwhen no --provider/--model flag or recipe default is given. The provider is\ninferred from the model name by convention (claude-* → anthropic, gpt-* →\nopenai, gemini-* → gemini, an Ollama tag like gemma3:4b → ollama); pass\n--provider to choose it explicitly (e.g. Azure OpenAI). Writes ai.provider\nand ai.model to the global config (see `kapi config path`), so the setting\nis shared with Kapi Desktop.",
+            "short": "Show or set the default AI model (and its provider)"
+          },
           "list": {
             "short": "List every model kapi can use (Ollama, plugin assets, cloud providers)"
           },

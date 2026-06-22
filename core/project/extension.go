@@ -110,6 +110,21 @@ func RegisterExtensionGroup(group string, exts []Extension) {
 	}
 }
 
+// ExtensionRegistered reports whether an extension is already registered
+// for (scope, name) and, if so, the Group that claimed it. Callers that
+// discover the same extension from more than one source — e.g. a binary
+// that both compiles in a platform's schema package (blank import) and
+// then rediscovers the same plugin through its manifest — use this to skip
+// an idempotent re-registration instead of tripping RegisterExtension's
+// duplicate-registration panic.
+func ExtensionRegistered(scope Scope, name string) (group string, ok bool) {
+	e, found := extensionFor(scope, name)
+	if !found {
+		return "", false
+	}
+	return e.Group, true
+}
+
 // HasExtensionGroup reports whether at least one Extension with this
 // Group has been registered. Used by KapiProject.Validate to enforce
 // recipe-level `requires:` declarations.

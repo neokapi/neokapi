@@ -28,7 +28,10 @@ import { t } from "@neokapi/kapi-react/runtime";
 import type { FlowSpec, KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useJobFeed, type RunEvent } from "../context/JobFeedContext";
+import { useActiveFilter } from "../context/ActiveFilterContext";
+import { filterFiles, filterLanguages } from "../lib/filter";
 import { PipelineProgress } from "./PipelineProgress";
+import { AIModelPromptDialog } from "./AIModelPromptDialog";
 
 type RunState = "idle" | "running" | "complete" | "error" | "canceled";
 
@@ -43,10 +46,25 @@ export interface RunnerPageProps {
   project?: KapiProject;
   /** When true, automatically resolve content and run for all target languages on mount. */
   autoRun?: boolean;
+  /**
+   * Called once the auto-run has been initiated. The parent uses this to mark
+   * the run request consumed so navigating back to the runner (which remounts
+   * this component) does not relaunch — and duplicate — the same flow.
+   */
+  onLaunched?: () => void;
 }
 
-export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }: RunnerPageProps) {
+export function RunnerPage({
+  tabID,
+  flowName,
+  flow,
+  onClose,
+  project,
+  autoRun,
+  onLaunched,
+}: RunnerPageProps) {
   const { activeJob, selectedJob, jobs, startJob, hasActive } = useJobFeed();
+  const { active: activeFilter } = useActiveFilter();
 
   // Show selected job, or active job for this flow, or most recent matching.
   const job =
@@ -66,18 +84,18 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
   const [targetLang, setTargetLang] = useState("");
   const [projectTargets, setProjectTargets] = useState<string[]>([]);
   const autoRunStarted = useRef(false);
-  const manualPrefilled = useRef(false);
 
   const projectName = project?.name || undefined;
 
   const [launchError, setLaunchError] = useState<string | null>(null);
+  // Stashed launch args while the "pick an AI model" prompt is open.
+  const [modelPrompt, setModelPrompt] = useState<{ paths: string[]; targets: string[] } | null>(
+    null,
+  );
 
-  // Helper: check if a flow is already running and cancel it before starting.
-  const launchFlow = useCallback(
+  // runNow cancels any in-flight run, then starts this flow.
+  const runNow = useCallback(
     async (paths: string[], targets: string[]) => {
-      setLaunchError(null);
-
-      // If another flow is running, cancel it first.
       const runState = await api.getRunState();
       if (runState === "running") {
         await api.cancelRun();
@@ -95,41 +113,60 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
     [tabID, flowName, projectName, startJob],
   );
 
+  // launchFlow prompts for a default AI model first when the flow needs one and
+  // none is configured (and credentials don't auto-resolve), then runs.
+  const launchFlow = useCallback(
+    async (paths: string[], targets: string[]) => {
+      setLaunchError(null);
+      if (await api.aiNeedsModelChoice(tabID, flowName)) {
+        setModelPrompt({ paths, targets });
+        return;
+      }
+      await runNow(paths, targets);
+    },
+    [tabID, flowName, runNow],
+  );
+
   // Auto-run: resolve content and execute for all target languages.
   useEffect(() => {
     if (!autoRun || !project || autoRunStarted.current) return;
     autoRunStarted.current = true;
+    // Mark the run request consumed so a remount (navigating back to the runner
+    // while this flow runs) doesn't relaunch and duplicate it.
+    onLaunched?.();
 
-    const targets = project.defaults?.target_languages ?? [];
+    // Apply the project's Active Filter so the run only covers the chosen
+    // languages and (below) the chosen collections/glob.
+    const targets = filterLanguages(project.defaults?.target_languages ?? [], activeFilter);
     if (targets.length === 0) return;
 
     void (async () => {
       const matches = await api.matchContent(tabID);
-      const paths = matches?.map((m) => m.path) ?? [];
+      const paths = filterFiles(matches ?? [], activeFilter).map((m) => m.path);
       if (paths.length === 0) return;
 
       setInputFiles(paths);
       await launchFlow(paths, targets);
     })();
-  }, [autoRun, project, tabID, launchFlow]);
+  }, [autoRun, project, tabID, launchFlow, onLaunched, activeFilter]);
 
   // Manual path: when a project is in scope, pre-populate target language(s)
   // from the project defaults and input files from the matched content — so the
   // manual runner is consistent with the autoRun path instead of starting blank.
+  // The Active Filter narrows both, and re-runs when the filter changes.
   useEffect(() => {
-    if (autoRun || !project || manualPrefilled.current) return;
-    manualPrefilled.current = true;
+    if (autoRun || !project) return;
 
-    const targets = project.defaults?.target_languages ?? [];
+    const targets = filterLanguages(project.defaults?.target_languages ?? [], activeFilter);
     setProjectTargets(targets);
-    if (targets.length > 0) setTargetLang(targets[0]);
+    if (targets.length > 0) setTargetLang((prev) => (targets.includes(prev) ? prev : targets[0]));
 
     void (async () => {
       const matches = await api.matchContent(tabID);
-      const paths = matches?.map((m) => m.path) ?? [];
-      if (paths.length > 0) setInputFiles(paths);
+      const paths = filterFiles(matches ?? [], activeFilter).map((m) => m.path);
+      setInputFiles(paths);
     })();
-  }, [autoRun, project, tabID]);
+  }, [autoRun, project, tabID, activeFilter]);
 
   // Manual run (single language).
   const handleRun = useCallback(async () => {
@@ -345,6 +382,16 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
           </CardContent>
         </Card>
       )}
+
+      <AIModelPromptDialog
+        open={modelPrompt !== null}
+        onResolved={() => {
+          const pending = modelPrompt;
+          setModelPrompt(null);
+          if (pending) void runNow(pending.paths, pending.targets);
+        }}
+        onCancel={() => setModelPrompt(null)}
+      />
     </div>
   );
 }

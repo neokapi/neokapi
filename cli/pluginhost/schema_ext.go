@@ -41,11 +41,26 @@ func RegisterSchemaExtensions(host *Host, onWarn func(msg string)) {
 			onWarn(fmt.Sprintf("plugin %q: schema_extension %q: %v", reg.Plugin.Name(), reg.Extension.Name, err))
 			continue
 		}
-		decoder := loadSchemaDecoder(reg, onWarn)
 		group := reg.Extension.Group
 		if group == "" {
 			group = reg.Plugin.Name()
 		}
+
+		// Idempotent re-registration: a binary that compiles in a
+		// platform's schema package (blank import) and then rediscovers
+		// the same plugin through its manifest sees every (scope, name)
+		// twice. When the existing claim belongs to the same group this
+		// is benign — keep the compiled-in decoder and move on silently.
+		// Only a genuine cross-plugin clash (a different group claiming a
+		// key we own) is worth a warning.
+		if existing, ok := project.ExtensionRegistered(scope, reg.Extension.Name); ok {
+			if existing != group {
+				onWarn(fmt.Sprintf("plugin %q: schema_extension %q at scope %s already registered by %q — keeping existing entry", reg.Plugin.Name(), reg.Extension.Name, reg.Extension.Scope, existing))
+			}
+			continue
+		}
+
+		decoder := loadSchemaDecoder(reg, onWarn)
 		ext := project.Extension{
 			Name:    reg.Extension.Name,
 			Scope:   scope,
@@ -53,9 +68,9 @@ func RegisterSchemaExtensions(host *Host, onWarn func(msg string)) {
 			Decoder: decoder,
 		}
 
-		// Avoid panicking on duplicate registration: if a previously
-		// loaded plugin (or build-time path) already claimed this
-		// (scope, name), we keep the existing registration and warn.
+		// Belt-and-suspenders: registration isn't synchronized against a
+		// concurrent registrar, so keep recovering from the duplicate
+		// panic even though the check above handles the common case.
 		func() {
 			defer func() {
 				if r := recover(); r != nil {

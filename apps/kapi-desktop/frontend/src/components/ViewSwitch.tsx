@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { KapiProject, FlowSpec } from "../types/api";
 import { ProjectErrorBoundary } from "./ProjectErrorBoundary";
 import type { TabState } from "../hooks/useTabManager";
@@ -93,16 +93,23 @@ export function ViewSwitch({
   onResetSample,
   adoptTarget,
 }: ViewSwitchProps) {
-  // State for the runner view — set when the user clicks Run on a flow.
+  // State for the runner view — set when the user clicks Run on a flow. runId is
+  // a fresh token per Run click so the runner auto-launches exactly once per
+  // request (not once per mount): re-navigating to the runner remounts the page
+  // but must not relaunch the flow.
   const [runnerState, setRunnerState] = useState<{
     flowName: string;
     flow: FlowSpec;
+    runId: number;
   } | null>(null);
+  const runCounter = useRef(0);
+  const launchedRunIdRef = useRef<number | null>(null);
 
   // Run a project flow from the home page: navigate to the runner view.
   const handleRunFlow = useCallback(
     (_flowName: string, spec: FlowSpec) => {
-      setRunnerState({ flowName: _flowName, flow: spec });
+      runCounter.current += 1;
+      setRunnerState({ flowName: _flowName, flow: spec, runId: runCounter.current });
       navigate("runner");
     },
     [navigate],
@@ -251,7 +258,10 @@ export function ViewSwitch({
               flowName={runnerState.flowName}
               flow={runnerState.flow}
               project={history.project}
-              autoRun
+              autoRun={runnerState.runId !== launchedRunIdRef.current}
+              onLaunched={() => {
+                launchedRunIdRef.current = runnerState.runId;
+              }}
               onClose={() => {
                 setRunnerState(null);
                 navigate("project-home");

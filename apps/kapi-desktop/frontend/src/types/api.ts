@@ -211,12 +211,57 @@ export interface ProviderConfig {
   provider_type: string;
   model?: string;
   base_url?: string;
+  /** The default credential for its provider when more than one is saved. */
+  default?: boolean;
+}
+
+/** The configured default AI model and the provider it implies (matches Go DefaultModelInfo). */
+export interface DefaultModelInfo {
+  provider: string;
+  model: string;
+}
+
+/** One selectable model in the model-first "AI Models" picker (matches Go AIModelOption). */
+export interface AIModelOption {
+  model: string;
+  provider: string;
+  /** Provider display label (e.g. "Ollama"). */
+  label: string;
+  /** On-device provider (Ollama) — no API key needed. */
+  local: boolean;
+  /** Local only: already present on the Ollama server. */
+  installed: boolean;
+  /** Cloud model with no saved credential yet. */
+  needs_key: boolean;
+  /** Optional one-line rationale (recommended local models). */
+  note?: string;
+  /** The currently configured default. */
+  is_default: boolean;
 }
 
 export interface TabInfo {
   id: string;
   name: string;
   path: string;
+}
+
+/** A saved "Active Filter": narrows the project to a subset of collections
+ * (optionally a glob within them) and target languages (matches Go ProjectFilter). */
+export interface ProjectFilter {
+  id: string;
+  name: string;
+  collections?: string[];
+  glob?: string;
+  languages?: string[];
+  /** Committed to the project (.kapi/filters.json) vs personal (filters.local.json). */
+  shared?: boolean;
+}
+
+/** The project's saved filters plus the active selection (matches Go ProjectFilters). */
+export interface ProjectFilters {
+  /** Active filter id; "" means no filter ("All"). */
+  active: string;
+  filters: ProjectFilter[];
 }
 
 /** A single file-dialog filter handed to BrowsePath (matches the Go BrowsePathFilter). */

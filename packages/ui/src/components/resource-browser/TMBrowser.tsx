@@ -33,6 +33,13 @@ interface TMBrowserProps {
   targetLocales?: string[];
   /** Locale list for the add-entry form's locale selectors. If omitted, plain text inputs are used. */
   locales?: LocaleInfo[];
+  /**
+   * When set, scope the multi-language view to these locales (and bias the
+   * bilingual target to the first). Used by the desktop's Active Filter to focus
+   * the browser on the languages you're working with; the user can still adjust
+   * the display filter. Omitted/empty = show all.
+   */
+  scopeLocales?: string[];
   onError?: (message: string, details?: unknown) => void;
 }
 
@@ -41,6 +48,7 @@ export function TMBrowser({
   sourceLocale: propSourceLocale = "",
   targetLocales: propTargetLocales = [],
   locales,
+  scopeLocales,
   onError,
 }: TMBrowserProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("multilang");
@@ -66,8 +74,17 @@ export function TMBrowser({
   const [bilingualTgt, setBilingualTgt] = useState<string | null>(propTargetLocales[0] ?? null);
 
   // Multi-language "show" filter — hides specific locales in the multilang view.
-  // undefined = show all; array = show only those.
-  const [displayLocales, setDisplayLocales] = useState<string[] | undefined>(undefined);
+  // undefined = show all; array = show only those. Seeded from scopeLocales (the
+  // desktop Active Filter) when provided.
+  const [displayLocales, setDisplayLocales] = useState<string[] | undefined>(
+    scopeLocales?.length ? scopeLocales : undefined,
+  );
+
+  // Re-apply the scope when it changes (switching the Active Filter).
+  const scopeKey = scopeLocales?.join(",") ?? "";
+  useEffect(() => {
+    setDisplayLocales(scopeKey ? scopeKey.split(",") : undefined);
+  }, [scopeKey]);
 
   // Marked entities from search bar for entity-value filtering.
   const [markedEntities, setMarkedEntities] = useState<EntityAnnotationDTO[]>([]);

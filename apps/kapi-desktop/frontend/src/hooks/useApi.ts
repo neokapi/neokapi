@@ -15,6 +15,10 @@ import type {
   PluginInfo,
   PluginStatus,
   ProviderConfig,
+  DefaultModelInfo,
+  AIModelOption,
+  ProjectFilter,
+  ProjectFilters,
   PluginDocsSummary,
   FilterDoc,
   StepDoc,
@@ -144,8 +148,8 @@ export const api = {
 
   // Checks (scoped to tab) — runs content checks over the project's files and
   // applies one-click fixes. See backend/checks.go.
-  runChecks: (tabID: string, targetLang: string) =>
-    call<CheckRunResult>("RunChecks", tabID, targetLang),
+  runChecks: (tabID: string, filter: ProjectFilter) =>
+    call<CheckRunResult>("RunChecks", tabID, filter),
   applyCheckFix: (
     tabID: string,
     filePath: string,
@@ -253,6 +257,25 @@ export const api = {
   saveProvider: (req: unknown) => call<ProviderConfig>("SaveProvider", req),
   deleteProvider: (id: string) => call<void>("DeleteProvider", id),
   testProvider: (id: string) => call<boolean>("TestProvider", id),
+  /** Mark a credential as the default for its provider (when several are saved). */
+  setProviderDefault: (id: string) => call<void>("SetProviderDefault", id),
+
+  // Active Filter — per-project saved filters (collections + glob + languages).
+  getProjectFilters: (tabID: string) => call<ProjectFilters>("GetProjectFilters", tabID),
+  saveProjectFilter: (tabID: string, filter: ProjectFilter) =>
+    call<ProjectFilter>("SaveProjectFilter", tabID, filter),
+  deleteProjectFilter: (tabID: string, id: string) => call<void>("DeleteProjectFilter", tabID, id),
+  setActiveFilter: (tabID: string, id: string) => call<void>("SetActiveFilter", tabID, id),
+
+  // AI models — the shared default provider+model (ai.provider/ai.model), the
+  // model-first catalog, and the run-time prompt check.
+  getDefaultModel: () => call<DefaultModelInfo>("GetDefaultModel"),
+  /** Persist the default model; provider "" infers it from the model name. */
+  setDefaultModel: (model: string, provider: string) =>
+    call<void>("SetDefaultModel", model, provider),
+  listAIModels: () => call<AIModelOption[]>("ListAIModels"),
+  aiNeedsModelChoice: (tabID: string, flowName: string) =>
+    call<boolean>("AINeedsModelChoice", tabID, flowName),
 
   // Files
   matchContent: (tabID: string) =>

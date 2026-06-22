@@ -8,21 +8,10 @@ import {
   FileText,
   CheckCircle2,
 } from "lucide-react";
-import {
-  Button,
-  Badge,
-  Card,
-  CardContent,
-  PageHeader,
-  ScrollArea,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@neokapi/ui-primitives";
+import { Button, Badge, Card, CardContent, PageHeader, ScrollArea } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
+import { useActiveFilter } from "../context/ActiveFilterContext";
 import type { CheckRunResult, DesktopFinding } from "../types/api";
 
 export interface ChecksPanelProps {
@@ -37,8 +26,6 @@ export interface ChecksPanelProps {
    * the finding; returns once the fix is applied. Defaults to api.applyCheckFix.
    */
   onApplyFix?: (filePath: string, finding: DesktopFinding) => Promise<void>;
-  /** Pre-supplied target languages (for Storybook); otherwise read from the project. */
-  targetLanguages?: string[];
 }
 
 /** Map a finding severity to a Badge variant + supplementary class. */
@@ -77,15 +64,12 @@ export function ChecksPanel({
   result: propResult,
   forceLoading = false,
   onApplyFix,
-  targetLanguages: propTargetLangs,
 }: ChecksPanelProps) {
   const { showError } = useError();
+  const { active: activeFilter } = useActiveFilter();
   const [result, setResult] = useState<CheckRunResult | null>(propResult ?? null);
   const [loading, setLoading] = useState(forceLoading);
   const [fixingKey, setFixingKey] = useState<string | null>(null);
-  const [targetLangs, setTargetLangs] = useState<string[]>(propTargetLangs ?? []);
-  // "" means source-only (no bilingual target-comparing checks).
-  const [targetLang, setTargetLang] = useState<string>(propTargetLangs?.[0] ?? "");
 
   // When a caller supplies a result (Storybook/tests), treat it as the source
   // of truth so an interactive parent can drive the panel (e.g. swap the result
@@ -94,29 +78,22 @@ export function ChecksPanel({
     if (propResult) setResult(propResult);
   }, [propResult]);
 
-  // Load the project's target languages so the user can pick which translation
-  // to check against (or "Source only").
-  useEffect(() => {
-    if (propTargetLangs || !tabID) return;
-    void api.getProject(tabID).then((proj) => {
-      const langs = proj?.defaults?.target_languages ?? [];
-      setTargetLangs(langs);
-      if (langs.length > 0) setTargetLang(langs[0]);
-    });
-  }, [tabID, propTargetLangs]);
-
+  // Checks are scoped by the project's Active Filter (collections + glob of
+  // files, and its target languages). There is no per-panel language picker —
+  // pick which languages to check via the menu-bar filter. No languages → only
+  // source-side checks run.
   const runChecks = useCallback(async () => {
     if (propResult) return; // Storybook/tests supply a fixed result.
     setLoading(true);
     try {
-      const res = await api.runChecks(tabID, targetLang);
+      const res = await api.runChecks(tabID, activeFilter ?? { id: "", name: "" });
       setResult(res ?? { pass: true, score: 100, files: [] });
     } catch (err) {
       showError("Failed to run checks", err);
     } finally {
       setLoading(false);
     }
-  }, [tabID, targetLang, propResult, showError]);
+  }, [tabID, activeFilter, propResult, showError]);
 
   const handleApplyFix = useCallback(
     async (filePath: string, finding: DesktopFinding, key: string) => {
@@ -155,33 +132,13 @@ export function ChecksPanel({
     [result],
   );
 
-  const targetSelect = (
-    <Select
-      value={targetLang || "__source__"}
-      onValueChange={(v) => setTargetLang(v === "__source__" ? "" : v)}
-    >
-      <SelectTrigger className="h-8 w-44 text-xs" aria-label="Check against">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__source__">Source only</SelectItem>
-        {targetLangs.map((l) => (
-          <SelectItem key={l} value={l} translate="no">
-            {l}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
   return (
     <div className="p-6">
       <PageHeader
         title="Checks"
-        subtitle="Run content checks like tests over your project — terminology, placeholders, and brand vocabulary."
+        subtitle="Run content checks like tests over your project — terminology, placeholders, and brand vocabulary. Scope which files and languages to check with the menu-bar filter."
         actions={
           <div className="flex items-center gap-2">
-            {targetSelect}
             <Button size="sm" onClick={() => void runChecks()} disabled={loading}>
               {loading ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} />}
               {loading ? "Running..." : "Run checks"}

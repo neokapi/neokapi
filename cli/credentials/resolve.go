@@ -176,22 +176,52 @@ func autoDetect(store *Store, providerType string) (*ProviderConfigWithKey, erro
 		}
 		return nil, errors.New("no saved credentials found; use 'kapi credentials add' to save one or pass --api-key directly")
 	case 1:
-		cfg := matches[0]
-		apiKey, err := store.GetAPIKey(cfg.ID)
-		if err != nil {
-			return nil, fmt.Errorf("API key for credential %q not found in keychain: %w", cfg.Name, err)
-		}
-		return &ProviderConfigWithKey{
-			ProviderConfig: cfg,
-			APIKey:         apiKey,
-		}, nil
+		return loadCredentialKey(store, matches[0])
 	default:
+		// Several match: a credential explicitly marked default for this provider
+		// disambiguates (at most one, enforced by Store.SetDefault).
+		var defaults []ProviderConfig
+		for _, m := range matches {
+			if m.Default {
+				defaults = append(defaults, m)
+			}
+		}
+		if len(defaults) == 1 {
+			return loadCredentialKey(store, defaults[0])
+		}
 		names := make([]string, len(matches))
 		for i, m := range matches {
 			names[i] = m.Name
 		}
-		return nil, fmt.Errorf("multiple credentials found (%s); specify one with --credential <name>", strings.Join(names, ", "))
+		return nil, &AmbiguousCredentialError{Provider: providerType, Candidates: names}
 	}
+}
+
+// loadCredentialKey reads a config's API key from the keychain and pairs them.
+func loadCredentialKey(store *Store, cfg ProviderConfig) (*ProviderConfigWithKey, error) {
+	apiKey, err := store.GetAPIKey(cfg.ID)
+	if err != nil {
+		return nil, fmt.Errorf("API key for credential %q not found in keychain: %w", cfg.Name, err)
+	}
+	return &ProviderConfigWithKey{ProviderConfig: cfg, APIKey: apiKey}, nil
+}
+
+// AmbiguousCredentialError is returned when credential auto-detection finds
+// more than one saved credential and cannot pick one on its own. It carries
+// the candidate names (and the provider filter, if any) so each front-end can
+// render its own guidance: Error() keeps the CLI's --credential hint, while a
+// GUI catches it with errors.As and offers a picker or default-provider
+// setting instead of echoing a CLI flag.
+type AmbiguousCredentialError struct {
+	// Provider is the provider type the auto-detect was filtered by, or ""
+	// when no provider was specified (so every saved credential matched).
+	Provider string
+	// Candidates are the names of the credentials that matched.
+	Candidates []string
+}
+
+func (e *AmbiguousCredentialError) Error() string {
+	return fmt.Sprintf("multiple credentials found (%s); specify one with --credential <name>", strings.Join(e.Candidates, ", "))
 }
 
 // mergeCredentials injects resolved credential fields into the config map.

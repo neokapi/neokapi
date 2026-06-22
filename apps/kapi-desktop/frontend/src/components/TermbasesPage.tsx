@@ -15,6 +15,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
+import { useActiveFilter } from "../context/ActiveFilterContext";
 import { ConceptsView } from "./ConceptsView";
 import { ResourceCard, ImportProgress, type ResourceInfo } from "@neokapi/ui-primitives";
 
@@ -59,11 +60,19 @@ export function TermbasesPage({
   const [activityStats, setActivityStats] = useState<ActivityPoint[]>([]);
 
   const { showError } = useError();
+  const { active: activeFilter } = useActiveFilter();
+  const [sourceLang, setSourceLang] = useState("");
   const activeHandle = projectHandle || handle;
+
+  // Scope concept terms to the Active Filter's languages plus the project source
+  // locale (so a concept's canonical name stays visible). No filter → show all.
+  const localeScope = activeFilter?.languages?.length
+    ? [sourceLang, ...activeFilter.languages].filter(Boolean)
+    : undefined;
 
   // Load the project-scoped termbase handle when opened from a project tab so
   // the project's own termbase is auto-selected (and marked) rather than a
-  // blank picker.
+  // blank picker. Also read the source locale for the filter scope.
   useEffect(() => {
     if (!tabID) return;
     api
@@ -71,6 +80,10 @@ export function TermbasesPage({
       .then((h) => {
         if (h?.termbaseHandle) setProjectHandle(h.termbaseHandle);
       })
+      .catch(() => {});
+    api
+      .getProject(tabID)
+      .then((p) => setSourceLang(p?.defaults?.source_language ?? ""))
       .catch(() => {});
   }, [tabID]);
 
@@ -286,7 +299,7 @@ export function TermbasesPage({
         )}
 
         {/* Visual concept/relation workspace (browse → open → relate / re-status) */}
-        <ConceptsView handle={activeHandle} />
+        <ConceptsView handle={activeHandle} localeScope={localeScope} />
         <ImportProgress active={importing} />
       </div>
     );

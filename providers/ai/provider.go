@@ -259,6 +259,12 @@ type ProviderInfo struct {
 	// surfaced here so `kapi models` can list a provider's default without
 	// constructing it. Empty when the provider has no built-in default.
 	DefaultModel string
+	// ModelPrefixes are lower-case model-name prefixes that uniquely identify
+	// this provider (e.g. "claude" → anthropic, "gpt" → openai). ProviderForModel
+	// uses them to infer a provider from a bare model name — the "name a model,
+	// get a provider" convention. Local backends like Ollama leave this empty and
+	// are matched as the catch-all (see ProviderForModel).
+	ModelPrefixes []string
 }
 
 // providerRegistration bundles a factory with metadata.
@@ -272,12 +278,14 @@ type providerRegistration struct {
 var globalProviders []providerRegistration
 
 func init() {
-	RegisterProvider(ProviderInfo{Name: Anthropic, Label: "Anthropic", DefaultModel: "claude-sonnet-4-20250514"},
+	RegisterProvider(ProviderInfo{Name: Anthropic, Label: "Anthropic", DefaultModel: "claude-sonnet-4-20250514", ModelPrefixes: []string{"claude"}},
 		func(cfg Config) LLMProvider { return NewAnthropicProvider(cfg) })
-	RegisterProvider(ProviderInfo{Name: OpenAI, Label: "OpenAI", DefaultModel: "gpt-4o"},
+	RegisterProvider(ProviderInfo{Name: OpenAI, Label: "OpenAI", DefaultModel: "gpt-4o", ModelPrefixes: []string{"gpt", "o1", "o3", "o4", "chatgpt"}},
 		func(cfg Config) LLMProvider { return NewOpenAIProvider(cfg) })
-	RegisterProvider(ProviderInfo{Name: Gemini, Label: "Gemini", DefaultModel: "gemini-3-flash-preview"},
+	RegisterProvider(ProviderInfo{Name: Gemini, Label: "Gemini", DefaultModel: "gemini-3-flash-preview", ModelPrefixes: []string{"gemini"}},
 		func(cfg Config) LLMProvider { return NewGeminiProvider(cfg) })
+	// Azure shares OpenAI's model names but is endpoint-specific, so it declares
+	// no prefixes — inferring it from "gpt-*" would be wrong. Choose it explicitly.
 	RegisterProviderWithAliases(ProviderInfo{Name: AzureOpenAI, Label: "Azure OpenAI", DefaultModel: "gpt-4o"},
 		func(cfg Config) LLMProvider { return NewAzureOpenAIProvider(cfg) },
 		"azure_openai")
@@ -285,6 +293,43 @@ func init() {
 		func(cfg Config) LLMProvider { return NewOllamaProvider(cfg) })
 	RegisterProvider(ProviderInfo{Name: Demo, Label: "Demo (illustrative)", Local: true},
 		func(cfg Config) LLMProvider { return NewDemoProvider(cfg) })
+}
+
+// ProviderForModel infers the provider that serves a given model name, by
+// convention, so callers can name only a model and let the provider follow —
+// e.g. "claude-sonnet-4" → anthropic, "gemma3:4b" → ollama. Resolution order:
+//
+//  1. A registered provider whose ModelPrefixes match the (lower-cased) name.
+//  2. Otherwise the Ollama on-device catch-all when the name looks like an
+//     Ollama tag ("name:tag") or is a recommended local model.
+//
+// Returns ("", false) when no confident inference is possible (e.g. an
+// ambiguous bare name) — the caller should then ask the user or require an
+// explicit provider. Azure OpenAI is never inferred (it shares gpt-* names but
+// needs an endpoint), so a gpt-* model resolves to OpenAI.
+func ProviderForModel(modelName string) (ProviderID, bool) {
+	m := strings.ToLower(strings.TrimSpace(modelName))
+	if m == "" {
+		return "", false
+	}
+	for _, reg := range globalProviders {
+		for _, prefix := range reg.Info.ModelPrefixes {
+			if strings.HasPrefix(m, prefix) {
+				return reg.Info.Name, true
+			}
+		}
+	}
+	// Ollama tags are "<name>:<tag>" (gemma3:4b, llama3.2:3b). Anything that
+	// looks like one — or is a curated local pick — is the on-device catch-all.
+	if strings.Contains(m, ":") {
+		return Ollama, true
+	}
+	for _, r := range RecommendedOllamaModels {
+		if strings.EqualFold(r.Name, modelName) {
+			return Ollama, true
+		}
+	}
+	return "", false
 }
 
 // RegisterProvider registers a new AI provider factory. Plugins can call this

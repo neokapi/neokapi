@@ -75,7 +75,7 @@ flows:
           fillTarget: true
           fillTargetThreshold: 100
       - tool: term-check
-  # AI translation for new/changed strings: TM first, then ai-translate for
+  # AI translation for new/changed strings: TM first, then translate for
   # the misses (brand voice + glossary are bound project-wide), then checks.
   # Requires provider credentials (keychain or ANTHROPIC_API_KEY).
   translate-ai:
@@ -84,11 +84,11 @@ flows:
         config:
           fillTarget: true
           fillTargetThreshold: 100
-      - tool: ai-translate
+      - tool: translate
         config:
           provider: anthropic
       - tool: term-check
-      - tool: qa-check
+      - tool: qa
   pseudo:
     steps:
       - tool: pseudo-translate

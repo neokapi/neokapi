@@ -8,8 +8,10 @@ import { useAppInit } from "./hooks/useAppInit";
 import { useMenuEvents } from "./hooks/useMenuEvents";
 import { ErrorProvider } from "./components/ErrorBanner";
 import { JobFeedProvider, useJobFeed } from "./context/JobFeedContext";
+import { ActiveFilterProvider } from "./context/ActiveFilterContext";
 import { IconSidebar } from "./components/IconSidebar";
 import { JobFeedButton } from "./components/JobFeedButton";
+import { FilterMenu } from "./components/FilterMenu";
 import { ModeToggle } from "./components/ModeToggle";
 import { TabBar } from "./components/TabBar";
 import { SaveBar } from "./components/SaveBar";
@@ -168,163 +170,172 @@ function AppInner() {
   // clear them. Windows/Linux have a native frame — drop those insets so the
   // sidebar's Home icon sits at the very top instead of an empty gap.
   const isMac = isMacDesktop();
+  // The Active Filter is per-project-tab and only applies in project mode with a
+  // saved project loaded.
+  const filterTabID = tm.mode === "projects" ? tm.activeTabID : null;
+  const filterEnabled =
+    tm.mode === "projects" && !!tm.activeTab && !tm.activeTab.isEmpty && !!tm.activeTab.info.path;
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
-      <div className="flex min-h-0 flex-1">
-        {/* Icon sidebar */}
-        <div className="flex shrink-0 flex-col bg-sidebar">
-          {isMac && (
-            <div
-              className="h-12 shrink-0"
-              style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-            />
-          )}
-          <div className="flex-1 border-r border-border">
-            <IconSidebar
-              mode={tm.mode}
-              active={tm.effectiveView}
-              onChange={tm.navigate}
-              projectDisabled={tm.mode === "projects" && !tm.activeTab}
-              pluginsUnresolved={tm.activeTab?.pluginsResolved === false}
-              hasTargetLanguages={
-                (tm.activeTab?.project.defaults?.target_languages?.length ?? 0) > 0
-              }
-            />
-          </div>
-        </div>
-
-        {/* Right: top bar + content */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Top bar */}
-          <div
-            className="flex h-12 shrink-0 items-end border-b border-border bg-sidebar"
-            style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-          >
-            {/* Undo / Redo */}
-            {tm.mode === "projects" && tm.activeTab && (
+    <ActiveFilterProvider tabID={filterTabID} enabled={filterEnabled}>
+      <div className="flex h-screen flex-col bg-background text-foreground">
+        <div className="flex min-h-0 flex-1">
+          {/* Icon sidebar */}
+          <div className="flex shrink-0 flex-col bg-sidebar">
+            {isMac && (
               <div
-                className={`flex shrink-0 items-center gap-0.5 pb-1.5 ${isMac ? "pl-16" : "pl-2"}`}
+                className="h-12 shrink-0"
+                style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+              />
+            )}
+            <div className="flex-1 border-r border-border">
+              <IconSidebar
+                mode={tm.mode}
+                active={tm.effectiveView}
+                onChange={tm.navigate}
+                projectDisabled={tm.mode === "projects" && !tm.activeTab}
+                pluginsUnresolved={tm.activeTab?.pluginsResolved === false}
+                hasTargetLanguages={
+                  (tm.activeTab?.project.defaults?.target_languages?.length ?? 0) > 0
+                }
+              />
+            </div>
+          </div>
+
+          {/* Right: top bar + content */}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {/* Top bar */}
+            <div
+              className="flex h-12 shrink-0 items-end border-b border-border bg-sidebar"
+              style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+            >
+              {/* Undo / Redo */}
+              {tm.mode === "projects" && tm.activeTab && (
+                <div
+                  className={`flex shrink-0 items-center gap-0.5 pb-1.5 ${isMac ? "pl-16" : "pl-2"}`}
+                  style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+                >
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={history.undo}
+                    disabled={!history.canUndo}
+                    aria-label="Undo"
+                    title="Undo (⌘Z)"
+                    className="h-7 w-7"
+                  >
+                    <Undo2 size={14} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={history.redo}
+                    disabled={!history.canRedo}
+                    aria-label="Redo"
+                    title="Redo (⌘⇧Z)"
+                    className="h-7 w-7"
+                  >
+                    <Redo2 size={14} />
+                  </Button>
+                </div>
+              )}
+              {/* Tabs or spacer */}
+              <div
+                className={`flex-1 ${tm.mode === "projects" && tm.activeTab ? "pl-2" : isMac ? "pl-16" : "pl-2"}`}
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
               >
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={history.undo}
-                  disabled={!history.canUndo}
-                  aria-label="Undo"
-                  title="Undo (⌘Z)"
-                  className="h-7 w-7"
-                >
-                  <Undo2 size={14} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={history.redo}
-                  disabled={!history.canRedo}
-                  aria-label="Redo"
-                  title="Redo (⌘⇧Z)"
-                  className="h-7 w-7"
-                >
-                  <Redo2 size={14} />
-                </Button>
+                {tm.mode === "projects" && tm.tabs.length > 0 && (
+                  <TabBar
+                    tabs={tm.tabs.map((t) => t.info)}
+                    activeTabID={tm.activeTabID}
+                    onSelect={tm.selectTab}
+                    onClose={handleCloseTab}
+                    onRename={(id, name) =>
+                      tm.updateTab(id, {
+                        info: { ...tm.tabs.find((t) => t.info.id === id)!.info, name },
+                      })
+                    }
+                  />
+                )}
               </div>
-            )}
-            {/* Tabs or spacer */}
-            <div
-              className={`flex-1 ${tm.mode === "projects" && tm.activeTab ? "pl-2" : isMac ? "pl-16" : "pl-2"}`}
-              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-            >
-              {tm.mode === "projects" && tm.tabs.length > 0 && (
-                <TabBar
-                  tabs={tm.tabs.map((t) => t.info)}
-                  activeTabID={tm.activeTabID}
-                  onSelect={tm.selectTab}
-                  onClose={handleCloseTab}
-                  onRename={(id, name) =>
-                    tm.updateTab(id, {
-                      info: { ...tm.tabs.find((t) => t.info.id === id)!.info, name },
-                    })
-                  }
+              {/* Job feed + mode toggle */}
+              <div
+                className="flex shrink-0 items-center gap-1.5 px-3 pb-1.5"
+                style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+              >
+                {filterEnabled && <FilterMenu project={history.project} />}
+                <JobFeedButton
+                  onViewJob={() => {
+                    // Navigate to runner view for the job's flow.
+                    if (tm.activeTabID) {
+                      tm.navigate("runner");
+                    }
+                  }}
                 />
-              )}
+                <ModeToggle mode={tm.mode} onChange={tm.switchMode} />
+              </div>
             </div>
-            {/* Job feed + mode toggle */}
-            <div
-              className="flex shrink-0 items-center gap-1.5 px-3 pb-1.5"
-              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-            >
-              <JobFeedButton
-                onViewJob={() => {
-                  // Navigate to runner view for the job's flow.
-                  if (tm.activeTabID) {
-                    tm.navigate("runner");
-                  }
+
+            {/* Content */}
+            <main className="flex-1 overflow-auto">
+              <ViewSwitch
+                mode={tm.mode}
+                effectiveView={tm.effectiveView}
+                activeTab={tm.activeTab}
+                history={history}
+                updateProject={updateProject}
+                navigate={tm.navigate}
+                updateTab={tm.updateTab}
+                recentFiles={recentFiles}
+                samplesDismissed={samplesDismissed}
+                onOpenRecent={tm.openRecent}
+                onNewProject={() => {
+                  tm.switchMode("projects");
+                  tm.setShowNewProjectForm(true);
                 }}
+                onOpenProject={tm.openProject}
+                onCreateSampleProject={tm.createSampleProject}
+                onDismissSamples={dismissSamples}
+                onResetSample={tm.resetSample}
+                adoptTarget={(() => {
+                  // In ad-hoc mode, offer adoption into the active project tab, or
+                  // the most recently opened one if none is active.
+                  const target =
+                    tm.tabs.find((t) => t.info.id === tm.activeTabID) ??
+                    tm.tabs[tm.tabs.length - 1];
+                  return target ? { id: target.info.id, name: target.info.name } : null;
+                })()}
               />
-              <ModeToggle mode={tm.mode} onChange={tm.switchMode} />
-            </div>
+            </main>
           </div>
-
-          {/* Content */}
-          <main className="flex-1 overflow-auto">
-            <ViewSwitch
-              mode={tm.mode}
-              effectiveView={tm.effectiveView}
-              activeTab={tm.activeTab}
-              history={history}
-              updateProject={updateProject}
-              navigate={tm.navigate}
-              updateTab={tm.updateTab}
-              recentFiles={recentFiles}
-              samplesDismissed={samplesDismissed}
-              onOpenRecent={tm.openRecent}
-              onNewProject={() => {
-                tm.switchMode("projects");
-                tm.setShowNewProjectForm(true);
-              }}
-              onOpenProject={tm.openProject}
-              onCreateSampleProject={tm.createSampleProject}
-              onDismissSamples={dismissSamples}
-              onResetSample={tm.resetSample}
-              adoptTarget={(() => {
-                // In ad-hoc mode, offer adoption into the active project tab, or
-                // the most recently opened one if none is active.
-                const target =
-                  tm.tabs.find((t) => t.info.id === tm.activeTabID) ?? tm.tabs[tm.tabs.length - 1];
-                return target ? { id: target.info.id, name: target.info.name } : null;
-              })()}
-            />
-          </main>
         </div>
+
+        {/* Save bar — full width below sidebar + content */}
+        {tm.mode === "projects" && tm.activeTab && (
+          <SaveBar isDirty={history.isDirty} onSave={handleSaveProject} />
+        )}
+
+        {/* Dialogs */}
+        {tm.showNewProjectForm && (
+          <NewProjectDialog
+            onCreate={tm.createProject}
+            onCancel={() => tm.setShowNewProjectForm(false)}
+            shortenHome={shortenHome}
+          />
+        )}
+        {pendingFlowCloseTabID && (
+          <RunningFlowDialog
+            onCancelFlow={() => void handleFlowCancelAndClose()}
+            onKeepRunning={() => setPendingFlowCloseTabID(null)}
+          />
+        )}
+        {pendingCloseTabID && (
+          <UnsavedDialog
+            onSave={() => void handleUnsavedSave()}
+            onDiscard={handleUnsavedDiscard}
+            onCancel={() => setPendingCloseTabID(null)}
+          />
+        )}
       </div>
-
-      {/* Save bar — full width below sidebar + content */}
-      {tm.mode === "projects" && tm.activeTab && (
-        <SaveBar isDirty={history.isDirty} onSave={handleSaveProject} />
-      )}
-
-      {/* Dialogs */}
-      {tm.showNewProjectForm && (
-        <NewProjectDialog
-          onCreate={tm.createProject}
-          onCancel={() => tm.setShowNewProjectForm(false)}
-          shortenHome={shortenHome}
-        />
-      )}
-      {pendingFlowCloseTabID && (
-        <RunningFlowDialog
-          onCancelFlow={() => void handleFlowCancelAndClose()}
-          onKeepRunning={() => setPendingFlowCloseTabID(null)}
-        />
-      )}
-      {pendingCloseTabID && (
-        <UnsavedDialog
-          onSave={() => void handleUnsavedSave()}
-          onDiscard={handleUnsavedDiscard}
-          onCancel={() => setPendingCloseTabID(null)}
-        />
-      )}
-    </div>
+    </ActiveFilterProvider>
   );
 }

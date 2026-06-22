@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -34,10 +35,83 @@ func (a *App) NewModelsCmd() *cobra.Command {
 			"`kapi models ollama` manages the local Ollama runtime itself.",
 	}
 	cmd.AddCommand(a.newModelsListCmd())
+	cmd.AddCommand(a.newModelsDefaultCmd())
 	cmd.AddCommand(a.newModelsPullCmd())
 	cmd.AddCommand(a.newModelsPruneCmd())
 	cmd.AddCommand(a.NewOllamaCmd())
 	return cmd
+}
+
+// newModelsDefaultCmd builds `kapi models default` — show or set the default AI
+// model (and the provider it implies). The default is the shared ai.provider /
+// ai.model app config that both the CLI and Kapi Desktop honor when a run names
+// no provider.
+func (a *App) newModelsDefaultCmd() *cobra.Command {
+	var providerFlag string
+	cmd := &cobra.Command{
+		Use:   "default [model]",
+		Short: "Show or set the default AI model (and its provider)",
+		Long: "With no argument, prints the configured default AI provider and model.\n\n" +
+			"With a model argument, sets it as the default used by AI tools and flows\n" +
+			"when no --provider/--model flag or recipe default is given. The provider is\n" +
+			"inferred from the model name by convention (claude-* → anthropic, gpt-* →\n" +
+			"openai, gemini-* → gemini, an Ollama tag like gemma3:4b → ollama); pass\n" +
+			"--provider to choose it explicitly (e.g. Azure OpenAI). Writes ai.provider\n" +
+			"and ai.model to the global config (see `kapi config path`), so the setting\n" +
+			"is shared with Kapi Desktop.",
+		Example: "  kapi models default                  # show the current default\n" +
+			"  kapi models default gemma3:4b        # local Ollama, provider inferred\n" +
+			"  kapi models default claude-sonnet-4  # anthropic, inferred\n" +
+			"  kapi models default gpt-4o --provider azureopenai",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := cmd.OutOrStdout()
+			if len(args) == 0 {
+				if a.Config == nil {
+					return errors.New("config not loaded")
+				}
+				prov := a.Config.GetString(config.KeyAIProvider)
+				modl := a.Config.GetString(config.KeyAIModel)
+				if prov == "" && modl == "" {
+					fmt.Fprintln(out, "No default AI model set (AI tools fall back to the built-in anthropic default).")
+					fmt.Fprintln(out, "Set one with: kapi models default <model>")
+					return nil
+				}
+				fmt.Fprintf(out, "provider: %s\nmodel:    %s\n", orNone(prov), orNone(modl))
+				return nil
+			}
+
+			model := args[0]
+			provider := providerFlag
+			if provider == "" {
+				inferred, ok := aiprovider.ProviderForModel(model)
+				if !ok {
+					return fmt.Errorf("could not infer a provider for model %q; pass --provider <%s>",
+						model, strings.Join(aiprovider.ProviderNames(), "|"))
+				}
+				provider = string(inferred)
+			}
+			if err := config.SetGlobalConfig(config.KeyAIProvider, provider); err != nil {
+				return fmt.Errorf("set %s: %w", config.KeyAIProvider, err)
+			}
+			if err := config.SetGlobalConfig(config.KeyAIModel, model); err != nil {
+				return fmt.Errorf("set %s: %w", config.KeyAIModel, err)
+			}
+			fmt.Fprintf(out, "Default AI model set: %s (provider %s)\n", model, provider)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&providerFlag, "provider", "",
+		"set the provider explicitly instead of inferring it from the model name")
+	return cmd
+}
+
+// orNone renders an empty config value as "(none)" for display.
+func orNone(s string) string {
+	if s == "" {
+		return "(none)"
+	}
+	return s
 }
 
 // pluginModel pairs a declared model asset with the plugin that declares it.

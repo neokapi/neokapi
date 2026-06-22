@@ -7,9 +7,11 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -222,7 +224,7 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 			if err != nil {
 				a.emitRunEvent(RunEvent{
 					Type: "error", FlowID: flowName,
-					Message: fmt.Sprintf("tool %q for %s: %v", step.Tool, lang, err),
+					Message: toolBuildErrorMessage(step.Tool, lang, err),
 				})
 				a.runState.mu.Lock()
 				a.runState.state = RunStateError
@@ -305,6 +307,21 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 		Message: fmt.Sprintf("Completed %d files for %d locale passes in %s",
 			filesDone, len(localePasses), duration.Round(time.Millisecond)),
 	})
+}
+
+// toolBuildErrorMessage renders a tool-construction failure for the run feed.
+// Ambiguous-credential failures get GUI-appropriate guidance — the shared
+// resolver's Error() carries the CLI's "--credential" hint, which is meaningless
+// in the desktop, so we catch the typed error and point at the in-app fixes.
+func toolBuildErrorMessage(toolName, lang string, err error) string {
+	var amb *credentials.AmbiguousCredentialError
+	if errors.As(err, &amb) {
+		return fmt.Sprintf(
+			"%s: multiple AI credentials are configured (%s). Set a default in Settings → AI Models, or choose one on this flow step.",
+			toolName, strings.Join(amb.Candidates, ", "),
+		)
+	}
+	return fmt.Sprintf("tool %q for %s: %v", toolName, lang, err)
 }
 
 // CancelRun cancels the currently running flow.

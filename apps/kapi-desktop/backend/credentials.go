@@ -15,6 +15,8 @@ type ProviderInfo struct {
 	ProviderType string `json:"provider_type"`
 	Model        string `json:"model,omitempty"`
 	BaseURL      string `json:"base_url,omitempty"`
+	// Default marks the credential used when its provider has more than one saved.
+	Default bool `json:"default,omitempty"`
 }
 
 // ProviderSaveRequest is sent from the frontend to save a provider with its key.
@@ -64,6 +66,16 @@ func (a *App) SaveProvider(req ProviderSaveRequest) (*ProviderInfo, error) {
 
 	info := providerInfoFrom(cfg)
 	return &info, nil
+}
+
+// SetProviderDefault marks a credential as the default for its provider type
+// (clearing the flag on the provider's other keys). Used when a provider has
+// more than one saved key so a run resolves deterministically.
+func (a *App) SetProviderDefault(id string) error {
+	if a.credentials == nil {
+		return errors.New("credential store not initialized")
+	}
+	return a.credentials.SetDefault(id)
 }
 
 // DeleteProvider removes a provider config and its API key.
@@ -127,5 +139,6 @@ func providerInfoFrom(c credentials.ProviderConfig) ProviderInfo {
 		ProviderType: c.ProviderType,
 		Model:        c.Model,
 		BaseURL:      c.BaseURL,
+		Default:      c.Default,
 	}
 }
