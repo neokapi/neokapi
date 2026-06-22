@@ -10,6 +10,12 @@ hide_table_of_contents: true
 
 # Where translations & terms live
 
+:::note Better in a project
+`kapi tm` and `kapi termbase` run ad-hoc against a loose or named store, but a
+`.kapi` project gives them an authoritative `.kapi/tm.db` and termbase that the
+extract/merge round-trip and term-check already share.
+:::
+
 The translations kapi reuses and the terms it keeps consistent are kept in a
 small database on disk. That database can live in one of three places, and which
 one a command uses is decided by a flag — or, with no flag, by whether a `.kapi`
@@ -121,6 +127,25 @@ kapi term-check messages_fr.json --source-lang en --target-lang fr \
 `-t`/`--target-locale`. The tool commands that read these stores
 (`kapi recycle`, `kapi term-check`) instead use the processing flags
 `--source-lang` and `--target-lang`, consistent with the other tools.
+
+## In a project
+
+In a `.kapi` project, `kapi tm` and `kapi termbase` resolve the project's
+authoritative `.kapi/tm.db` and termbase with no `--name`, `--local`, or `--file`
+flag — the third storage model above. This is the same store
+[`kapi extract`](/reference/commands/extract) pre-fills from,
+[`kapi merge`](/reference/commands/merge) writes back to, and
+[`kapi term-check`](/reference/commands/term-check) enforces, so lookups, recycle,
+and the round-trip all see one shared memory and glossary. See
+[Create your first project](/kapi/get-started/first-project).
+
+## In Kapi Desktop
+
+Kapi Desktop opens the same project TM and termbase in its TM & terminology
+explorer, where you can browse stored translations and terms, search them, and
+see what a recycle or term-check would match — the visual companion to
+`kapi tm lookup` and `kapi termbase lookup`. See
+[Kapi Desktop](/kapi/desktop/overview).
 
 ## Next
 

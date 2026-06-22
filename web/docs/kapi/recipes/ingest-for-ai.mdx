@@ -7,6 +7,10 @@ hide_table_of_contents: true
 
 # Feed content to your AI
 
+:::note Runs anywhere
+No project needed — `kapi stats`, `kapi inspect`, `kapi check`, and `kapi rewrite` run ad-hoc on any source document.
+:::
+
 **Goal:** turn any document — Word, PDF, JSON, Markdown, HTML — into a stream of
 clean, anchored content blocks an AI assistant or RAG pipeline can read without
 knowing anything about the source format. No translation is involved. Each block
@@ -230,6 +234,16 @@ A typical agent loop: the assistant calls `extract_content` to read blocks,
 and runs `check_file` again to confirm the finding is resolved.
 
 See [MCP server](/reference/mcp) for setup and the full tool list.
+
+## In a project
+
+In a `.kapi` project, ingestion runs against the recipe's declared content set —
+`kapi stats`, `kapi inspect`, and `kapi check` with no file argument survey every
+source the project declares, instead of paths you list by hand. A project also
+makes the write-back loop durable: edits applied with `kapi rewrite` land on the
+recipe's content, and the same `content_hash` anchors stay stable across runs, so
+an AI assistant indexing your project can retrieve and rewrite the same blocks
+over time. See [Create your first project](/kapi/get-started/first-project).
 
 ## Further reading
 

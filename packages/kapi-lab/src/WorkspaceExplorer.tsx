@@ -24,14 +24,23 @@ interface WorkspaceInfo {
   dirty: boolean;
 }
 
-const STEPS = ["extract", "transform", "pack", "merge"] as const;
+const STEPS = ["extract", "transform", "pack", "reopen", "merge"] as const;
 type StepName = (typeof STEPS)[number];
 const TARGET = "qps"; // pseudo-translate's default locale — deterministic, no network
 
-// WorkspaceExplorer drives the real .klz workspace lifecycle in WASM —
-// extract → transform → pack → merge — on a text or Office sample, showing the
-// workspace's recipe, per-locale overlay coverage, and dirty/clean state after
-// each step (via `kapi info --json`), plus the merged output. It is the
+const STEP_LABEL: Record<StepName, string> = {
+  extract: "kapi extract",
+  transform: "kapi pseudo-translate",
+  pack: "kapi pack",
+  reopen: "reopen elsewhere",
+  merge: "kapi merge",
+};
+
+// WorkspaceExplorer drives the real .klz workspace lifecycle in WASM and makes
+// the page's headline — pause & resume — visible. You extract → pseudo-translate
+// → pack a workspace, then *reopen the packed file on a fresh path* (a stand-in
+// for another machine, where the working cache starts empty) and watch kapi
+// rebuild the whole workspace from the file alone before merging the output. The
 // single-file, serverless twin of a .kapi project (AD-025 §5).
 export default function WorkspaceExplorer({
   assets,
@@ -44,18 +53,26 @@ export default function WorkspaceExplorer({
 
   const [done, setDone] = useState<Set<StepName>>(new Set());
   const [info, setInfo] = useState<WorkspaceInfo | null>(null);
+  const [resumed, setResumed] = useState(false);
   const [output, setOutput] = useState<string | null>(null);
   const [busy, setBusy] = useState<StepName | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  // Per-sample workspace + output paths (distinct so explorers/samples don't collide).
-  const klz = `/project/ws-${sampleId}.klz`;
+  // Two workspace paths: the one you work on, and the fresh path you "receive"
+  // the packed parcel on. The working cache is keyed by path, so the received
+  // path has none and the first command there must rebuild from the file — that
+  // reconstruction is the resume.
+  const workKlz = `/project/ws-${sampleId}.klz`;
+  const recvName = `ws-${sampleId}-received.klz`;
+  const recvKlz = `/project/${recvName}`;
   const srcPath = `/project/${sample.filename}`;
   const outPath = `/project/out/${sample.filename}`;
+  const activeKlz = resumed ? recvKlz : workKlz;
 
   const reset = useCallback(() => {
     setDone(new Set());
     setInfo(null);
+    setResumed(false);
     setOutput(null);
     setErr(null);
   }, []);
@@ -65,48 +82,63 @@ export default function WorkspaceExplorer({
     reset();
   }, [sampleId, reset]);
 
-  const refreshInfo = useCallback(async () => {
-    const { code, output: out } = await runtime.runCapture(["info", klz, "--json"]);
-    if (code === 0) {
-      try {
-        setInfo(JSON.parse(out) as WorkspaceInfo);
-      } catch {
-        /* ignore parse error */
+  const refreshInfo = useCallback(
+    async (klz: string) => {
+      const { code, output: out } = await runtime.runCapture(["info", klz, "--json"]);
+      if (code === 0) {
+        try {
+          setInfo(JSON.parse(out) as WorkspaceInfo);
+        } catch {
+          /* ignore parse error */
+        }
       }
-    }
-  }, [runtime, klz]);
+    },
+    [runtime],
+  );
 
   const runStep = useCallback(
     async (step: StepName) => {
       setBusy(step);
       setErr(null);
       try {
+        // Reopen is a filesystem hand-off, not a kapi command: copy the packed
+        // work.klz onto a fresh path with no cache, then let the first `info`
+        // there rebuild the workspace from the file.
+        if (step === "reopen") {
+          const bytes = runtime.readBytes(workKlz);
+          if (!bytes) {
+            setErr("could not read the packed workspace");
+            return;
+          }
+          runtime.writeFile(recvName, bytes);
+          setResumed(true);
+          setDone((d) => new Set(d).add(step));
+          await refreshInfo(recvKlz);
+          return;
+        }
+
         // (Re)seed the source before extract so a sample switch is clean.
         if (step === "extract") {
           runtime.writeFile(sample.filename, sample.bytes());
         }
-        const argv: Record<StepName, string[]> = {
-          extract: [
-            "extract",
-            srcPath,
-            "-o",
-            klz,
-            "--target-lang",
-            TARGET,
-            "--out",
-            "out/{name}.{ext}",
-          ],
-          transform: ["pseudo-translate", klz],
-          pack: ["pack", klz],
-          merge: ["merge", klz],
-        };
-        const code = await runtime.run(argv[step]);
+        let argv: string[];
+        if (step === "extract") {
+          argv = ["extract", srcPath, "-o", workKlz, "--target-lang", TARGET, "--out", "out/{name}.{ext}"];
+        } else if (step === "transform") {
+          argv = ["pseudo-translate", workKlz];
+        } else if (step === "pack") {
+          argv = ["pack", workKlz];
+        } else {
+          // merge runs against whichever workspace is active — the resumed one.
+          argv = ["merge", activeKlz];
+        }
+        const code = await runtime.run(argv);
         if (code !== 0) {
-          setErr(`\`kapi ${argv[step].join(" ")}\` exited ${code}`);
+          setErr(`\`kapi ${argv.join(" ")}\` exited ${code}`);
           return;
         }
         setDone((d) => new Set(d).add(step));
-        await refreshInfo();
+        await refreshInfo(step === "merge" ? activeKlz : workKlz);
         if (step === "merge") {
           if (sample.binary) {
             const bytes = runtime.readBytes(outPath);
@@ -123,7 +155,7 @@ export default function WorkspaceExplorer({
         setBusy(null);
       }
     },
-    [runtime, sample, srcPath, klz, outPath, refreshInfo],
+    [runtime, sample, srcPath, workKlz, recvName, recvKlz, activeKlz, outPath, refreshInfo],
   );
 
   const stepEnabled = (step: StepName, i: number): boolean => {
@@ -164,7 +196,7 @@ export default function WorkspaceExplorer({
             onClick={() => runStep(step)}
           >
             <span className={s.stepNum}>{i + 1}</span>
-            {busy === step ? "…" : `kapi ${step === "transform" ? "pseudo-translate" : step}`}
+            {busy === step ? "…" : STEP_LABEL[step]}
             {done.has(step) && " ✓"}
           </button>
         ))}
@@ -174,14 +206,25 @@ export default function WorkspaceExplorer({
 
       <div className={s.panel} style={{ minHeight: 420 }}>
         <div className={s.card}>
-          <div className={s.cardTitle}>Workspace</div>
+          <div className={s.cardTitle}>
+            Workspace{info ? ` · ${activeKlz.replace("/project/", "")}` : ""}
+          </div>
           {!info && <div className={s.binaryNote}>Run “extract” to create the workspace.</div>}
+          {resumed && (
+            <div className={s.binaryNote}>
+              ↻ reopened on a fresh path — the working cache started empty here, so kapi rebuilt the
+              whole workspace from the packed <code>.klz</code> alone. The work below is the work you
+              left, picked up unchanged.
+            </div>
+          )}
           {info && <InfoView info={info} />}
         </div>
         <div className={s.card}>
           <div className={s.cardTitle}>Merged output</div>
           {output == null && (
-            <div className={s.binaryNote}>Run all four steps to emit the localized file.</div>
+            <div className={s.binaryNote}>
+              Run every step to emit the localized file from the resumed workspace.
+            </div>
           )}
           {output != null &&
             (sample.binary ? (
@@ -195,7 +238,7 @@ export default function WorkspaceExplorer({
       <GateOverlay
         gate={gate}
         title="Workspace"
-        description="Explore a multi-file kapi workspace."
+        description="Pause a .klz workspace and resume it on a fresh path."
       />
     </div>
   );

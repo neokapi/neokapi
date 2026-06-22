@@ -9,6 +9,10 @@ keywords: [klz, workspace, extract, merge, transform, recipe, overlays, handoff]
 
 # Pause & resume a big run
 
+:::note Runs anywhere
+No project needed — a `.klz` workspace is the ad-hoc, no-project path: `kapi extract -o work.klz`, transform in place, then `kapi merge`. Config travels in the file.
+:::
+
 A big translation run doesn't have to finish in one sitting. A `.klz` is a single
 file that holds an entire run in progress — pull your sources into it, run tools
 against it as far as you get, set it down, and resume exactly where you left off,
@@ -49,11 +53,14 @@ import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed
 
 <KapiGuidedEmbed id="kapi-klz-workspace" />
 
-### Inspect it
+### Set it down, pick it up
 
-The lab below is the same workflow, interactive — pick a sample (including binary
-**Word/Excel** documents) and step through it, watching the workspace's recipe,
-per-locale overlays, and **dirty → clean** state update after each step.
+The lab below runs the real lifecycle in your browser — pick a sample (including
+binary **Word/Excel** documents) and step through it. Do some work
+(`extract → pseudo-translate`) and **pack** it into the `.klz`, then **reopen it
+on a fresh path** — a stand-in for another machine, where the working cache
+starts empty. kapi rebuilds the whole workspace from the file alone, the work you
+left intact, and `merge` emits the finished file from the resumed workspace.
 
 import { WorkspaceExplorer } from "@site/src/components/Lab/WorkspaceExplorer";
 
@@ -142,16 +149,13 @@ file, so resuming is correct, idempotent, and crash-safe by construction.
 
 ## Compare: a `.kapi` project
 
-The same engine powers a **`.kapi` project** — the multi-file, team/server form. A
-project keeps its config in a committed `.kapi` *recipe* (declared content, flows,
-target languages) and its working state in a `.kapi/` directory (the persistent
-cache, TM, and termbase). Run a declared flow against it below — and contrast it
-with the single-file `.klz` workspace above: same content, same output, different
+The same engine powers a **[`.kapi` project](/kapi/get-started/first-project)** —
+the multi-file, team/server form. A project keeps its config in a committed
+`.kapi` *recipe* (declared content, flows, target languages) and its working
+state in a `.kapi/` directory (the persistent cache, TM, and termbase). It is the
+day-to-day working model; the single-file `.klz` workspace above is the portable
+*parcel* form of the same round-trip — same content, same output, different
 packaging.
-
-import { ProjectExplorer } from "@site/src/components/Lab/ProjectExplorer";
-
-<ProjectExplorer defaultSampleId="json" />
 
 | | `.kapi` project | `.klz` workspace |
 |---|---|---|

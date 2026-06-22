@@ -11,6 +11,10 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Translate audio & video
 
+:::note Runs anywhere
+No project needed — the media flows run ad-hoc on any audio, video, or image file you pass with `-i`.
+:::
+
 There are two ways to take a media file into another language, and you can use
 both on the same one:
 
@@ -81,9 +85,19 @@ for a cleaner result — point it at the provider you already use for translatio
 When the deliverable is the file itself, give kapi a translated version per
 language and it uses that as the localized asset — the same for images, audio,
 and video. In a [`.kapi` project](/kapi/modes) the translated file lives beside
-the source on the language path (for example `assets/fr/promo.mp4`); `kapi pull`
-and `kapi push` carry it through unchanged. kapi does not generate localized media
-for you (no text-to-speech, no re-encoding) — you provide the translated file.
+the source on the language path (for example `assets/fr/promo.mp4`), and kapi
+picks it up as the localized asset as-is — the extract/merge round-trip carries
+it through unchanged. kapi does not generate localized media for you (no
+text-to-speech, no re-encoding) — you provide the translated file.
+
+## In a project
+
+In a `.kapi` project, the media flows run against the recipe's declared content
+and locales — `kapi run audio-to-subtitles` (and the other flows) as a step you
+run with `kapi run`, no `-i` needed. Subtitle and caption outputs follow the
+project store on the language path rather than an explicit `-o`, and the
+extract/merge round-trip carries replace-the-file assets through unchanged. See
+[Create your first project](/kapi/get-started/first-project).
 
 ## Related
 
