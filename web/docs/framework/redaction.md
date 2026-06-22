@@ -22,6 +22,7 @@ local machine.
     "Project Halcyon",
   ]}
   translated="Envoyez à Sarah Chen la date de lancement de Project Halcyon."
+  notes={["", "what the model sees — opaque tokens", "originals restored locally"]}
 />
 
 For the architecture and design decisions behind this, see

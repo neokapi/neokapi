@@ -42,6 +42,13 @@ export interface RedactionDiagramProps {
   redactLabel?: string;
   /** Edge label for redacted → restored. Default "translate, then unredact". */
   restoreLabel?: string;
+  /**
+   * Row notes `[original, redacted, restored]`. The redacted row's note should
+   * say what actually leaves the machine: by default an AI model sees an opaque
+   * token while an external translator sees the category label — override to be
+   * precise for the page.
+   */
+  notes?: [string, string, string];
   caption?: string;
 }
 
@@ -99,6 +106,7 @@ export function RedactionDiagram({
   translated,
   redactLabel = "redact",
   restoreLabel = "translate, then unredact",
+  notes = ["", "what the model / translator sees", "originals restored locally"],
   caption,
 }: RedactionDiagramProps): React.ReactElement {
   const tokens = tokenize(original, redact);
@@ -123,7 +131,6 @@ export function RedactionDiagram({
   const cx = xLeft + rowW / 2;
   const textX = xLeft + BOX_PAD_X;
 
-  const notes = ["", "what the model / translator sees", "originals restored locally"];
   const noteX = xLeft + rowW + 16;
   const noteW = Math.max(...notes.map((n) => n.length)) * 6.2;
   const totalW = noteX + noteW + PAD;

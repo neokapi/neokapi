@@ -20,7 +20,7 @@ goroutine and connected by buffered channels of [Parts](/framework/content-model
   animated
   stages={[
     { label: "RawDocument" },
-    { label: "Reader", sub: "DataFormat", role: "io", note: "drains first" },
+    { label: "Reader", sub: "DataFormat", role: "io", note: "drains first", channel: "" },
     { label: "Tool 1", note: "goroutine" },
     { label: "Tool 2", note: "goroutine" },
     { label: "⋯" },

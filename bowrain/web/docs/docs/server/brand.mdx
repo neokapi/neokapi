@@ -217,7 +217,8 @@ case:
     },
     { label: "Merged", sub: "ops applied, pilots retired", edge: "merge" },
   ]}
-  caption="A change-set moves draft → in review → approved → merged, or is abandoned. Merge re-validates each op against the current revision, so a stale draft conflicts loudly instead of clobbering."
+  skips={[{ from: 0, to: 3, label: "ordinary merge" }]}
+  caption="A governed change-set moves draft → in review → approved → merged; an ordinary one merges straight from draft. Merge re-validates each op against the current revision, so a stale draft conflicts loudly instead of clobbering."
 />
 
 ## The dashboard and the decision inbox
