@@ -28,14 +28,14 @@ export function tree(format: string, root: ContentNode[]): ContentTree {
 
 function term(text: string, side = "source", props: Record<string, string> = {}): OverlayView {
   return {
-    type: "terms",
+    type: "term",
     side,
     spans: [{ id: "t-" + text, range: zero(), text, props: { match: "exact", ...props } }],
   };
 }
 function entity(text: string, side = "source"): OverlayView {
   return {
-    type: "entities",
+    type: "entity",
     side,
     spans: [{ id: "e-" + text, range: zero(), text, props: { kind: "ORG" } }],
   };
@@ -48,10 +48,19 @@ function qa(text: string, side: string, rule: string): OverlayView {
   };
 }
 function brand(text: string, side = "source"): OverlayView {
+  // Brand-voice violations ride on the `qa` overlay type, distinguished by
+  // props.category="brand-vocabulary" (see preview/overlayHighlight.ts).
   return {
-    type: "brand-voice",
+    type: "qa",
     side,
-    spans: [{ id: "b-" + text, range: zero(), text, props: { rule: "preferred-term" } }],
+    spans: [
+      {
+        id: "b-" + text,
+        range: zero(),
+        text,
+        props: { category: "brand-vocabulary", rule: "preferred-term", severity: "warning" },
+      },
+    ],
   };
 }
 function zero() {
