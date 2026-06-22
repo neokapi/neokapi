@@ -9,8 +9,10 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/structrec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	yamlv3 "gopkg.in/yaml.v3"
 )
 
 // runInspectFixture writes content to a temp file of the given name and runs
@@ -33,7 +35,7 @@ func runInspectFixture(t *testing.T, name, content string, args ...string) strin
 func TestInspect_AnchoredBlocks(t *testing.T) {
 	out := runInspectFixture(t, "en.json", `{"greeting":"Hello","farewell":"Bye"}`)
 
-	var blocks []inspectBlock
+	var blocks []structrec.Record
 	require.NoError(t, json.Unmarshal([]byte(out), &blocks))
 	require.Len(t, blocks, 2)
 
@@ -52,10 +54,22 @@ func TestInspect_JSONLStreamsOnePerLine(t *testing.T) {
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	require.Len(t, lines, 3, "three blocks => three JSONL lines")
 	for _, ln := range lines {
-		var b inspectBlock
+		var b structrec.Record
 		require.NoError(t, json.Unmarshal([]byte(ln), &b), "each line is a JSON object")
 		assert.NotEmpty(t, b.ContentHash)
 		assert.NotEmpty(t, b.Text)
+	}
+}
+
+func TestInspect_YAMLSequence(t *testing.T) {
+	out := runInspectFixture(t, "en.json", `{"greeting":"Hello","farewell":"Bye"}`, "--yaml")
+
+	var blocks []structrec.Record
+	require.NoError(t, yamlv3.Unmarshal([]byte(out), &blocks))
+	require.Len(t, blocks, 2)
+	for _, b := range blocks {
+		assert.NotEmpty(t, b.Text)
+		assert.Equal(t, model.ComputeContentHash(b.Text), b.ContentHash)
 	}
 }
 
@@ -63,10 +77,10 @@ func TestInspect_JSONLStreamsOnePerLine(t *testing.T) {
 func TestInspect_StructuralRole(t *testing.T) {
 	out := runInspectFixture(t, "page.md", "# Title\n\nA paragraph.\n")
 
-	var blocks []inspectBlock
+	var blocks []structrec.Record
 	require.NoError(t, json.Unmarshal([]byte(out), &blocks))
 
-	var heading *inspectBlock
+	var heading *structrec.Record
 	for i := range blocks {
 		if blocks[i].Text == "Title" {
 			heading = &blocks[i]
@@ -93,7 +107,7 @@ func TestInspect_NumberAndFileAcrossFiles(t *testing.T) {
 	cmd.SetArgs([]string{a, b})
 	require.NoError(t, cmd.Execute())
 
-	var blocks []inspectBlock
+	var blocks []structrec.Record
 	require.NoError(t, json.Unmarshal(out.Bytes(), &blocks))
 	require.Len(t, blocks, 3)
 
