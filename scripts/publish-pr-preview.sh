@@ -35,15 +35,48 @@ command -v aws >/dev/null || { echo "error: aws CLI not found (brew install awsc
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-auto}"
 S3=(aws s3 --endpoint-url "$R2_ENDPOINT")
 
+# `aws s3 sync` against R2 occasionally drops individual PUTs under high
+# concurrency — silently, so the deploy stays green while a handful of objects
+# (e.g. a lazy JS chunk) never land, and the site then 404s that chunk at runtime
+# ("Loading chunk failed" / "This page crashed"). Cap concurrency to make PUTs
+# more reliable, and below we re-sync until the object count matches and fail
+# loud if it can't, so a partial deploy is caught instead of shipped.
+aws configure set default.s3.max_concurrent_requests 8 2>/dev/null || true
+
+# syncOne mirrors a local subtree to R2 and verifies completeness. The first
+# pass uses --delete (prune stale objects from earlier builds); subsequent passes
+# are additive self-heal passes that re-upload only what's missing (sync is
+# idempotent). It compares the local file count to the remote object count and
+# retries; if still short after the retries, it exits non-zero so the deploy goes
+# red rather than serving a half-uploaded preview.
+syncOne() {
+  local src="$1" dst="$2"
+  local localN remoteN attempt
+  localN=$(find "$src" -type f | wc -l | tr -d ' ')
+  for attempt in 1 2 3; do
+    if [ "$attempt" -eq 1 ]; then
+      "${S3[@]}" sync "$src" "$dst" --delete --no-progress
+    else
+      echo "::warning::preview sync incomplete for ${dst} (local=${localN}, remote=${remoteN}); self-heal pass ${attempt}"
+      "${S3[@]}" sync "$src" "$dst" --no-progress
+    fi
+    # Count remote objects (exclude any directory-marker keys).
+    remoteN=$("${S3[@]}" ls --recursive "$dst" 2>/dev/null | grep -vc '/$' || true)
+    echo "  sync ${dst}: local=${localN} remote=${remoteN} (attempt ${attempt})"
+    [ "${remoteN:-0}" -ge "$localN" ] && return 0
+  done
+  echo "::error::preview sync for ${dst} still incomplete after retries (local=${localN}, remote=${remoteN}); failing so the partial deploy is not served"
+  return 1
+}
+
 published=0
 for sub in "web/prs/${PR}" "storybook/prs/${PR}"; do
   if [ -d "${ROOT}/${sub}" ] && [ -n "$(ls -A "${ROOT}/${sub}" 2>/dev/null)" ]; then
     DST="s3://${R2_BUCKET}/previews/${sub}"
     echo "→ syncing ${ROOT}/${sub} → ${DST}"
-    # --delete so a re-push that drops files (renamed routes, removed stories)
-    # doesn't leave stale objects behind. Content types are set authoritatively
-    # by the Worker, so no per-extension passes are needed here.
-    "${S3[@]}" sync "${ROOT}/${sub}" "${DST}" --delete --no-progress
+    # Content types are set authoritatively by the Worker, so no per-extension
+    # passes are needed here.
+    syncOne "${ROOT}/${sub}" "${DST}"
     published=1
   fi
 done
