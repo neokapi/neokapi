@@ -9,6 +9,9 @@ hide_table_of_contents: true
 
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 import { PseudoTranslateWidget } from "@site/src/components/Lab";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Preview before you ship
 
@@ -70,12 +73,43 @@ in a flow you run with `kapi run`. The output binding follows the project (the
 store, materialized with `kapi merge`) instead of `-o`. See
 [Create your first project](/kapi/get-started/first-project).
 
-## In Kapi Desktop
+## CLI or Kapi Desktop
 
-Run pseudo-translation as a quick tool against a file, or add it as a step in a
-flow you run from the project. The desktop app re-renders the output as it
-writes, with per-file progress, so you can watch the accented strings land and
-spot the labels that clip. See [Kapi Desktop](/kapi/desktop/overview).
+The same pseudo-translation runs either way — pick the surface you work in. Your
+choice sticks across every recipe (and survives a reload), so a CLI user reads
+the whole site as CLI and a Kapi Desktop user reads it as Desktop.
+
+<Tabs groupId="kapi-surface" queryString="surface">
+<TabItem value="cli" label="CLI">
+
+Run it on a file, choosing the output path with `-o`:
+
+```bash
+kapi pseudo-translate messages.json -o messages.pseudo.json
+```
+
+In a `.kapi` project, drop the file argument and it runs against the recipe's
+declared content and locales.
+
+</TabItem>
+<TabItem value="desktop" label="Kapi Desktop">
+
+Run pseudo-translation as a **quick tool** against a file, or add it as a step in
+a **flow** you run from the project. Kapi Desktop re-renders the output with
+per-file progress, so you watch the accented strings land and spot the labels
+that clip.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-flows-light.webm",
+    dark: "/video/kapi/kapi-desktop-flows-dark.webm",
+  }}
+/>
+
+See [Kapi Desktop](/kapi/desktop/overview) for the full tour.
+
+</TabItem>
+</Tabs>
 
 ## Next
 
