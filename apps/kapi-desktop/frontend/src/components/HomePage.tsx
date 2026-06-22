@@ -19,6 +19,8 @@ import type { KapiProject, FlowSpec, FlowInfo, PluginIssue, ProjectStatus } from
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api, type SampleInfo } from "../hooks/useApi";
 import { useJobFeed } from "../context/JobFeedContext";
+import { useActiveFilter } from "../context/ActiveFilterContext";
+import { filterLanguages } from "../lib/filter";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useError } from "./ErrorBanner";
 
@@ -53,6 +55,7 @@ export function HomePage({
   sampleInfo: propSampleInfo,
 }: HomePageProps) {
   const { hasActive, activeJob } = useJobFeed();
+  const { active: activeFilter } = useActiveFilter();
   const { showError } = useError();
   const [flowValidation, setFlowValidation] = useState<Record<string, FlowInfo>>({});
   const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
@@ -137,6 +140,12 @@ export function HomePage({
   const itemCount =
     project.content?.reduce((sum, c) => sum + (isBareEntry(c) ? 1 : effectiveItems(c).length), 0) ??
     0;
+
+  // Coverage rows narrowed by the Active Filter's collections (languages are
+  // narrowed per-row below). An empty collection filter shows all.
+  const filteredCollections = (status?.collections ?? []).filter(
+    (c) => !activeFilter?.collections?.length || activeFilter.collections.includes(c.name),
+  );
 
   const handleRunFlow = (name: string) => {
     const spec = project.flows?.[name];
@@ -358,9 +367,9 @@ export function HomePage({
                 </Button>
               }
             />
-          ) : status && status.collections.length > 0 ? (
+          ) : status && filteredCollections.length > 0 ? (
             <div className="space-y-2">
-              {status.collections.map((c) => (
+              {filteredCollections.map((c) => (
                 <Card key={c.name} className="p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{c.name}</span>
@@ -368,9 +377,9 @@ export function HomePage({
                       {t("{count} block(s)", { count: c.blockCount })}
                     </span>
                   </div>
-                  {c.targetLanguages.length > 0 && (
+                  {filterLanguages(c.targetLanguages, activeFilter).length > 0 && (
                     <div className="mt-2 space-y-1.5">
-                      {c.targetLanguages.map((loc) => {
+                      {filterLanguages(c.targetLanguages, activeFilter).map((loc) => {
                         const translated = c.coverage?.[loc] ?? 0;
                         const pct =
                           c.blockCount > 0 ? Math.round((translated / c.blockCount) * 100) : 0;

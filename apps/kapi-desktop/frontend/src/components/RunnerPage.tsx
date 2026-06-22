@@ -28,6 +28,8 @@ import { t } from "@neokapi/kapi-react/runtime";
 import type { FlowSpec, KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useJobFeed, type RunEvent } from "../context/JobFeedContext";
+import { useActiveFilter } from "../context/ActiveFilterContext";
+import { filterFiles, filterLanguages } from "../lib/filter";
 import { PipelineProgress } from "./PipelineProgress";
 import { AIModelPromptDialog } from "./AIModelPromptDialog";
 
@@ -62,6 +64,7 @@ export function RunnerPage({
   onLaunched,
 }: RunnerPageProps) {
   const { activeJob, selectedJob, jobs, startJob, hasActive } = useJobFeed();
+  const { active: activeFilter } = useActiveFilter();
 
   // Show selected job, or active job for this flow, or most recent matching.
   const job =
@@ -81,7 +84,6 @@ export function RunnerPage({
   const [targetLang, setTargetLang] = useState("");
   const [projectTargets, setProjectTargets] = useState<string[]>([]);
   const autoRunStarted = useRef(false);
-  const manualPrefilled = useRef(false);
 
   const projectName = project?.name || undefined;
 
@@ -133,36 +135,38 @@ export function RunnerPage({
     // while this flow runs) doesn't relaunch and duplicate it.
     onLaunched?.();
 
-    const targets = project.defaults?.target_languages ?? [];
+    // Apply the project's Active Filter so the run only covers the chosen
+    // languages and (below) the chosen collections/glob.
+    const targets = filterLanguages(project.defaults?.target_languages ?? [], activeFilter);
     if (targets.length === 0) return;
 
     void (async () => {
       const matches = await api.matchContent(tabID);
-      const paths = matches?.map((m) => m.path) ?? [];
+      const paths = filterFiles(matches ?? [], activeFilter).map((m) => m.path);
       if (paths.length === 0) return;
 
       setInputFiles(paths);
       await launchFlow(paths, targets);
     })();
-  }, [autoRun, project, tabID, launchFlow, onLaunched]);
+  }, [autoRun, project, tabID, launchFlow, onLaunched, activeFilter]);
 
   // Manual path: when a project is in scope, pre-populate target language(s)
   // from the project defaults and input files from the matched content — so the
   // manual runner is consistent with the autoRun path instead of starting blank.
+  // The Active Filter narrows both, and re-runs when the filter changes.
   useEffect(() => {
-    if (autoRun || !project || manualPrefilled.current) return;
-    manualPrefilled.current = true;
+    if (autoRun || !project) return;
 
-    const targets = project.defaults?.target_languages ?? [];
+    const targets = filterLanguages(project.defaults?.target_languages ?? [], activeFilter);
     setProjectTargets(targets);
-    if (targets.length > 0) setTargetLang(targets[0]);
+    if (targets.length > 0) setTargetLang((prev) => (targets.includes(prev) ? prev : targets[0]));
 
     void (async () => {
       const matches = await api.matchContent(tabID);
-      const paths = matches?.map((m) => m.path) ?? [];
-      if (paths.length > 0) setInputFiles(paths);
+      const paths = filterFiles(matches ?? [], activeFilter).map((m) => m.path);
+      setInputFiles(paths);
     })();
-  }, [autoRun, project, tabID]);
+  }, [autoRun, project, tabID, activeFilter]);
 
   // Manual run (single language).
   const handleRun = useCallback(async () => {

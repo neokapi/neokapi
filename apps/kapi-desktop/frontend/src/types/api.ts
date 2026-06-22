@@ -245,6 +245,25 @@ export interface TabInfo {
   path: string;
 }
 
+/** A saved "Active Filter": narrows the project to a subset of collections
+ * (optionally a glob within them) and target languages (matches Go ProjectFilter). */
+export interface ProjectFilter {
+  id: string;
+  name: string;
+  collections?: string[];
+  glob?: string;
+  languages?: string[];
+  /** Committed to the project (.kapi/filters.json) vs personal (filters.local.json). */
+  shared?: boolean;
+}
+
+/** The project's saved filters plus the active selection (matches Go ProjectFilters). */
+export interface ProjectFilters {
+  /** Active filter id; "" means no filter ("All"). */
+  active: string;
+  filters: ProjectFilter[];
+}
+
 /** A single file-dialog filter handed to BrowsePath (matches the Go BrowsePathFilter). */
 export interface BrowsePathFilter {
   name: string;

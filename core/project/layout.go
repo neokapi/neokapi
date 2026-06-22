@@ -42,9 +42,27 @@ const CacheDirName = "cache"
 // BlockStoreFilename is the SQLite block store cache file under CacheDir().
 const BlockStoreFilename = "blocks.db"
 
+// FiltersFilename / LocalFiltersFilename hold saved content filters (the
+// desktop "Active Filter"): the shared set is committed; the local set is
+// personal and gitignored.
+const (
+	FiltersFilename      = "filters.json"
+	LocalFiltersFilename = "filters.local.json"
+)
+
 // CacheDir returns the absolute path to the regenerable-cache subdirectory.
 func (l Layout) CacheDir() string {
 	return filepath.Join(l.StateDir, CacheDirName)
+}
+
+// FiltersPath returns the path to the shared (committed) saved-filters file.
+func (l Layout) FiltersPath() string {
+	return filepath.Join(l.StateDir, FiltersFilename)
+}
+
+// LocalFiltersPath returns the path to the personal (gitignored) filters file.
+func (l Layout) LocalFiltersPath() string {
+	return filepath.Join(l.StateDir, LocalFiltersFilename)
 }
 
 // BlockStorePath returns the absolute path of the SQLite block store cache.

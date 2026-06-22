@@ -17,6 +17,8 @@ import type {
   ProviderConfig,
   DefaultModelInfo,
   AIModelOption,
+  ProjectFilter,
+  ProjectFilters,
   PluginDocsSummary,
   FilterDoc,
   StepDoc,
@@ -257,6 +259,13 @@ export const api = {
   testProvider: (id: string) => call<boolean>("TestProvider", id),
   /** Mark a credential as the default for its provider (when several are saved). */
   setProviderDefault: (id: string) => call<void>("SetProviderDefault", id),
+
+  // Active Filter — per-project saved filters (collections + glob + languages).
+  getProjectFilters: (tabID: string) => call<ProjectFilters>("GetProjectFilters", tabID),
+  saveProjectFilter: (tabID: string, filter: ProjectFilter) =>
+    call<ProjectFilter>("SaveProjectFilter", tabID, filter),
+  deleteProjectFilter: (tabID: string, id: string) => call<void>("DeleteProjectFilter", tabID, id),
+  setActiveFilter: (tabID: string, id: string) => call<void>("SetActiveFilter", tabID, id),
 
   // AI models — the shared default provider+model (ai.provider/ai.model), the
   // model-first catalog, and the run-time prompt check.

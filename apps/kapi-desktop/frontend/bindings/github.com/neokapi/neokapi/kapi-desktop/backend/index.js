@@ -56,6 +56,8 @@ export {
     PreviewResult,
     ProjectFacetDTO,
     ProjectFileInfo,
+    ProjectFilter,
+    ProjectFilters,
     ProjectHandles,
     ProjectStatus,
     ProviderInfo,
