@@ -9,7 +9,14 @@ export default defineConfig({
   // overflows TypeScript's instantiation-depth limit when compared against
   // vite-plus's (rolldown-based) UserConfig. Bounding it to vite's own
   // PluginOption keeps the plugin fully type-safe while stopping the recursion.
-  plugins: [neokapi({ mode: "runtime" }) as PluginOption, react(), tailwindcss()],
+  plugins: [
+    // componentMap stabilises i18n hashes for app-local wrapper components
+    // that render translatable text — without it the extractor warns and the
+    // hash could shift once a mapping is added. Map each to its rendered tag.
+    neokapi({ mode: "runtime", componentMap: { TabButton: "button" } }) as PluginOption,
+    react(),
+    tailwindcss(),
+  ],
   build: {
     outDir: "dist",
   },

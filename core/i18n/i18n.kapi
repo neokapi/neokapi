@@ -29,10 +29,10 @@ content:
         target: "klf/{lang}/{name}.klf"
 flows:
   # Custom flow names (avoid collision with built-in flow names like
-  # "pseudo-translate" and "ai-translate" — those bypass project content).
+  # "pseudo-translate" and "translate" — those bypass project content).
   extract-pseudo:
     steps:
       - tool: pseudo-translate
   extract-ai:
     steps:
-      - tool: ai-translate
+      - tool: translate

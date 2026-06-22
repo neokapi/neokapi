@@ -35,11 +35,11 @@ content:
 flows:
   translate:
     steps:
-      - tool: ai-translate
+      - tool: translate
   translate-and-qa:
     steps:
-      - tool: ai-translate
-      - tool: qa-check
+      - tool: translate
+      - tool: qa
   pseudo-translate:
     steps:
       - tool: pseudo-translate

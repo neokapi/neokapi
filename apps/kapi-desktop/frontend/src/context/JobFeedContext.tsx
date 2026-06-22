@@ -185,28 +185,39 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
     });
   });
 
-  // Backfill: if the active job has no events after 500ms (fast flow completed
-  // before the Wails event listener was ready), fetch events from the backend.
-  const backfilledRef = useRef<string | null>(null);
+  // Reconcile with the backend's authoritative event log. The live Wails
+  // listener can drop an event — most damagingly the terminal "complete"
+  // (or "error"), which would otherwise leave a finished job spinning at
+  // 100% forever. After every 500ms quiet window we cheaply probe the run
+  // state; once the backend reports a terminal state the live job hasn't
+  // reached, we pull the full event log and fold it in. The effect re-arms
+  // on each `jobs` change, so a single missed terminal event is always
+  // recovered — not just the "no live events arrived at all" (fast flow)
+  // case the previous one-shot backfill handled.
   useEffect(() => {
     const activeId = activeIdRef.current;
-    if (!activeId || backfilledRef.current === activeId) return;
+    if (!activeId) return;
 
     const timer = setTimeout(() => {
       if (activeIdRef.current !== activeId) return;
-      backfilledRef.current = activeId;
 
       void (async () => {
-        const backfillEvents = await api.getRunEvents();
+        // Cheap string probe first — avoid pulling the whole event buffer
+        // on every quiet tick of a long, genuinely-running flow.
+        const state = await api.getRunState();
+        if (state !== "complete" && state !== "error" && state !== "canceled") return;
+
+        const backfillEvents = (await api.getRunEvents()) as RunEvent[] | null;
         if (!backfillEvents || backfillEvents.length === 0) return;
 
         setJobs((prev) => {
           const job = prev.find((j) => j.id === activeId);
-          if (!job || job.events.length > 0) return prev; // already has events
+          if (!job || job.status !== "running") return prev; // live path already settled it
 
-          // Apply all backfilled events.
-          let updated = { ...job, events: backfillEvents as RunEvent[] };
-          for (const e of backfillEvents as RunEvent[]) {
+          // Fold the authoritative log into a fresh snapshot.
+          let updated: Job = { ...job, events: backfillEvents };
+          let terminal = false;
+          for (const e of backfillEvents) {
             if (e.type === "progress") {
               updated = {
                 ...updated,
@@ -216,7 +227,7 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
                 },
               };
             } else if (e.type === "complete") {
-              activeIdRef.current = null;
+              terminal = true;
               updated = {
                 ...updated,
                 status: "complete",
@@ -226,7 +237,7 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
             } else if (e.type === "pipeline_metrics") {
               updated = { ...updated, stepSnapshots: e.steps ?? updated.stepSnapshots };
             } else if (e.type === "error") {
-              activeIdRef.current = null;
+              terminal = true;
               const rawMsg = e.message ?? "Flow execution failed";
               const isCanceled =
                 rawMsg.includes("context canceled") || rawMsg.includes("context cancelled");
@@ -237,6 +248,9 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
               };
             }
           }
+
+          if (!terminal) return prev; // backend says terminal but log lacks it — wait
+          activeIdRef.current = null;
           return prev.map((j) => (j.id === activeId ? updated : j));
         });
       })();

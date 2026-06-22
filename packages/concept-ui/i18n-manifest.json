@@ -1,0 +1,6 @@
+{
+  "$schema": "https://neokapi.com/schemas/i18n-manifest.json",
+  "components": {
+    "LegendItem": "span"
+  }
+}
