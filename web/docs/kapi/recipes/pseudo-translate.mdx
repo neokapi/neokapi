@@ -14,7 +14,7 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 # Preview before you ship
 
 :::note Runs anywhere
-No project needed — `kapi pseudo-translate` runs ad-hoc on any source catalogue.
+No project needed — pseudo-translation runs ad-hoc on any source catalogue.
 :::
 
 **Goal:** see how your interface holds up in another language before a single
@@ -25,7 +25,7 @@ instead of pulling it from the catalogue. No API key, no waiting, no cost.
 
 ## Steps
 
-1. Run `kapi pseudo-translate` on your source catalogue.
+1. Generate pseudo-translations for your source catalogue.
 2. Load the pseudo-translated file into your UI.
 3. Look for clipped labels, overflowing buttons, and any string that _didn't_
    get accented — an un-accented string is one your code hard-coded instead of
@@ -37,21 +37,20 @@ target language.
 
 ## Try it
 
-Drop a file (or pick the JSON or Word sample) and kapi runs `pseudo-translate`
-on it right here in your browser — no install, no API key, no server. Every value
-comes back accented and wrapped in markers; any string that stays plain is one
-your code hard-coded instead of pulling from the catalogue.
+Drop a file (or pick the JSON or Word sample) and kapi pseudo-translates it right
+here in your browser — no install, no API key, no server. Every value comes back
+accented and wrapped in markers; any string that stays plain is one your code
+hard-coded instead of pulling from the catalogue.
 
 <PseudoTranslateWidget />
 
-Each value is bracketed with markers and expanded with diacritics. Tune the
-shape with `--prefix`, `--suffix`, and `--expansion-percent` (extra padding to
-simulate how much longer real translations tend to run).
+## Run it
 
-### From the CLI
+<Cli>
 
-For scripting and CI, the same step is one command — the output path is just a
-name you choose with `-o`:
+For scripting and CI it's one command — the output path is a name you choose with
+`-o`. Tune the shape with `--prefix`, `--suffix`, and `--expansion-percent` (extra
+padding to simulate how much longer real translations tend to run):
 
 ```bash
 kapi pseudo-translate messages.json -o messages.pseudo.json
@@ -63,39 +62,13 @@ kapi pseudo-translate messages.json -o messages.pseudo.json
 > [`walkthroughs/kapi-pseudo-translate.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/walkthroughs/kapi-pseudo-translate.scene.yaml).
 > Change the scene spec and regenerate; don't edit the generated output by hand.
 
-## In a project
-
-In a `.kapi` project, pseudo-translation runs against the recipe's declared
-content and locales — `kapi pseudo-translate` with no file argument, or as a step
-in a flow you run with `kapi run`. The output binding follows the project (the
-store, materialized with `kapi merge`) instead of `-o`. See
-[Create your first project](/kapi/get-started/first-project).
-
-## CLI or Kapi Desktop
-
-The same pseudo-translation runs either way — use the **CLI / Desktop / Both**
-toggle in the top bar to choose how this site shows it. Your choice sticks across
-every recipe and survives a reload.
-
-<Cli>
-
-Run it on a file, choosing the output path with `-o`:
-
-```bash
-kapi pseudo-translate messages.json -o messages.pseudo.json
-```
-
-In a `.kapi` project, drop the file argument and it runs against the recipe's
-declared content and locales.
-
 </Cli>
 
 <Desktop>
 
-Run pseudo-translation as a **quick tool** against a file, or add it as a step in
-a **flow** you run from the project. Kapi Desktop re-renders the output with
-per-file progress, so you watch the accented strings land and spot the labels
-that clip.
+Run pseudo-translation as a **quick tool** on a file, or add it as a step in a
+**flow**. Kapi Desktop re-renders the output with per-file progress, so you watch
+the accented strings land and spot the labels that clip.
 
 <ThemedVideo
   sources={{
@@ -108,10 +81,43 @@ See [Kapi Desktop](/kapi/desktop/overview) for the full tour.
 
 </Desktop>
 
+## In a project
+
+In a `.kapi` project, pseudo-translation runs against the recipe's declared
+content and locales, and the output follows the project store instead of an
+explicit path.
+
+<Cli>
+
+Run `kapi pseudo-translate` with no file argument, or as a step in a flow you run
+with `kapi run`; materialize the result with `kapi merge`.
+
+</Cli>
+
+<Desktop>
+
+Open the project, pick (or compose) the flow, and run it — the pseudo-translated
+output lands in the project store, ready to merge out.
+
+</Desktop>
+
+See [Create your first project](/kapi/get-started/first-project).
+
 ## Next
 
-- [`kapi pseudo-translate`](/reference/commands/pseudo-translate) — full command
-  reference, including `--prefix`, `--suffix`, and `--expansion-percent`.
 - For broader checks, see [Quality checks](/framework/checks/qa-checks).
 - To run pseudo-translation as the gap-filler after a TM-leverage step, see
   [Pre-translate with TM + termbase](/kapi/recipes/pre-translate-with-tm).
+
+<Cli>
+
+- [`kapi pseudo-translate`](/reference/commands/pseudo-translate) — full command
+  reference, including `--prefix`, `--suffix`, and `--expansion-percent`.
+
+</Cli>
+
+<Desktop>
+
+- [Kapi Desktop](/kapi/desktop/overview) — the visual flow editor and runner.
+
+</Desktop>
