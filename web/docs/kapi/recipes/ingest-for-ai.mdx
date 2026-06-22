@@ -1,0 +1,245 @@
+---
+id: ingest-for-ai
+title: "Feed content to your AI"
+description: "Parse any document format into anchored content blocks for RAG or an AI assistant, survey size and structure first with kapi stats, then stream records with kapi inspect --jsonl. The stable content-hash anchor on every block lets you write edits back to the same blocks later."
+hide_table_of_contents: true
+---
+
+# Feed content to your AI
+
+**Goal:** turn any document — Word, PDF, JSON, Markdown, HTML — into a stream of
+clean, anchored content blocks an AI assistant or RAG pipeline can read without
+knowing anything about the source format. No translation is involved. Each block
+carries a stable `content_hash` anchor that lets you find and rewrite that block
+later, in the same file, without touching the surrounding markup.
+
+## Step 1 — survey before you ingest
+
+Before feeding a document to a model, `kapi stats` gives you a format-agnostic
+size and structure overview: block counts, word and character counts, and a
+breakdown by structural role (heading, paragraph, list-item, table-cell, and so
+on). Use it to estimate token budget and decide how to chunk.
+
+```bash
+kapi stats report.docx
+```
+
+```
+Blocks:                     84
+  translatable:             76
+  non-translatable:          8
+Words:                   11342
+Characters:              71890
+  (no spaces):            60412
+Segments:                  289
+
+By role:
+  paragraph             47
+  heading                9
+  list-item             20
+```
+
+For scripting — sizing content inside a loop or a pipeline — add `--json`:
+
+```bash
+kapi stats --json report.docx docs/*.md | jq '.total.words'
+```
+
+The `total` record in the JSON output has the same shape as the per-file entries:
+`blocks`, `translatable`, `non_translatable`, `words`, `characters`,
+`characters_no_space`, `segments`, and `by_role`. Pass `-f` to declare the input
+format when auto-detection is ambiguous.
+
+## Step 2 — extract blocks with anchors
+
+`kapi inspect` reads a file through its format-aware parser and emits one record
+per content block. Every record contains the plain text, a stable
+`content_hash` (SHA-256 over the normalized source text), the block's structural
+`role`, and its nesting `level`. The format collapses: a Word document, a JSON
+catalog, and a Markdown page all yield the same record shape.
+
+```bash
+kapi inspect report.docx
+```
+
+Produces a JSON array:
+
+```json
+[
+  {
+    "file": "report.docx",
+    "number": 1,
+    "id": "b1",
+    "content_hash": "e3b0c44298fc1c149afb4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "role": "heading",
+    "level": 1,
+    "text": "Introduction"
+  },
+  {
+    "file": "report.docx",
+    "number": 2,
+    "id": "b2",
+    "content_hash": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4d",
+    "role": "paragraph",
+    "level": 0,
+    "text": "This document describes the migration path."
+  }
+]
+```
+
+For large documents or pipeline ingestion, `--jsonl` streams one object per line
+(newline-delimited JSON), which is easier to pipe incrementally than a closed
+array:
+
+```bash
+kapi inspect --jsonl report.docx docs/*.md | \
+  jq -c '{hash: .content_hash, role: .role, text: .text}'
+```
+
+Pass `-f` to declare the input format explicitly:
+
+```bash
+cat page.html | kapi inspect -f html --jsonl
+```
+
+## The anchor and write-back contract
+
+The `content_hash` on each record is computed from the block's normalized text
+(whitespace-trimmed), not from its position in the file. Two blocks with
+identical text have the same hash. This makes it a stable retrieval key: a RAG
+pipeline that indexes blocks by their `content_hash` can later look up the
+original block when an AI assistant produces an edit.
+
+The write-back path closes the loop:
+
+1. **Read** — `kapi inspect --jsonl` extracts blocks with anchors.
+2. **Retrieve** — the AI finds the relevant block by `content_hash` or `id`.
+3. **Edit** — the AI produces a revised version of the text.
+4. **Write-back** — `kapi rewrite` or the MCP `rewrite_file` tool applies the
+   edit back to the file through the same format-aware round-trip, leaving
+   structure and inline markup intact.
+
+The round-trip guarantee is that only the text changes. A `.docx` keeps its
+styles, a JSON catalog keeps its keys, and inline codes (placeholders, markup
+tags) survive. If a rewrite would corrupt an inline code, that block is left
+unchanged rather than written with unbalanced markup.
+
+## Checking content before or after editing
+
+`kapi check` runs a set of content checks over any file and returns a structured
+`kapi.check/v1` Report — the content-first counterpart to a test runner. The
+report includes a pass/fail gate, a 0–100 score, and a located finding per
+triggered rule, so an AI assistant can act on the exact block without parsing
+free-form output.
+
+```bash
+kapi check report.docx
+```
+
+Add length or pattern constraints:
+
+```bash
+kapi check report.docx --max-chars 300 --forbid "TODO"
+```
+
+Bind a brand profile to also run vocabulary and brand-voice checks:
+
+```bash
+kapi check report.docx --pack marketing-blog
+kapi check report.docx --profile my-profile
+kapi check report.docx --profile-file ./brand.yaml
+```
+
+The `--json` flag emits the `kapi.check/v1` Report:
+
+```bash
+kapi check --json report.docx | jq '.findings[] | select(.severity == "critical")'
+```
+
+The report shape:
+
+```json
+{
+  "schema": "kapi.check/v1",
+  "pass": false,
+  "summary": { "score": 74, "critical": 0, "major": 2, "minor": 3 },
+  "gate": { "failed": ["major findings exceed limit"] },
+  "findings": [
+    {
+      "rule": "length.max-chars-exceeded",
+      "severity": "major",
+      "message": "Block exceeds 300 characters (actual: 412).",
+      "suggestion": "Split or shorten the block.",
+      "location": { "file": "report.docx", "block": "b7" }
+    }
+  ]
+}
+```
+
+Exit codes: `0` when the gate passes, `3` when the gate trips. Use `--no-fail`
+to always exit `0` in a fix-loop where you want to inspect findings without
+aborting the script. Use `--lenient` for report-only mode.
+
+See [Checks](/framework/checks) for the full rule taxonomy and gate configuration.
+
+## Applying edits faithfully
+
+Once a block is flagged or an AI has drafted a revision, `kapi rewrite` applies
+a plain-language instruction to the file text:
+
+```bash
+kapi rewrite --instruction "tighten each paragraph to two sentences" report.docx
+```
+
+Review the change before writing it:
+
+```bash
+kapi rewrite --instruction "tighten each paragraph to two sentences" \
+  --diff report.docx
+```
+
+Edit the file in place and keep a backup:
+
+```bash
+kapi rewrite --instruction "fix passive voice" --in-place=.bak report.docx
+```
+
+`--provider` selects the AI provider when the default is not what you want:
+
+```bash
+kapi rewrite --instruction "use UK spelling" --provider anthropic -i report.docx
+```
+
+See [Rewrite tool](/reference/tools/rewrite) for provider configuration and the
+inline-code preservation contract.
+
+## Running the loop via MCP
+
+If your AI assistant is connected to the [kapi MCP server](/reference/mcp),
+it can drive the same workflow through structured tool calls rather than shell
+commands:
+
+- `extract_content` — parse a file and return content blocks (the MCP equivalent
+  of `kapi inspect`).
+- `check_file` — run the check suite and return a `kapi.check/v1` Report.
+- `rewrite_file` — apply a plain-language instruction and write back faithfully.
+- `brand_check` — score text against a brand voice profile.
+
+A typical agent loop: the assistant calls `extract_content` to read blocks,
+`check_file` to find findings, then calls `rewrite_file` on the flagged block,
+and runs `check_file` again to confirm the finding is resolved.
+
+See [MCP server](/reference/mcp) for setup and the full tool list.
+
+## Further reading
+
+- [Content model](/framework/content-model) — how blocks, roles, and inline
+  runs are represented by the neokapi engine.
+- [Checks](/framework/checks) — rule taxonomy, gate configuration, and the
+  `kapi.check/v1` schema.
+- [Rewrite tool](/reference/tools/rewrite) — provider configuration, the
+  inline-code preservation contract, and the `--diff` workflow.
+- [MCP server](/reference/mcp) — connect any MCP-compatible AI assistant to
+  the kapi content engine.
+- [Prepare content](/kapi/recipes/prepare-content) — if your goal is
+  translation rather than AI ingestion, start here instead.
