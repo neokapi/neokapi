@@ -183,6 +183,127 @@ function ConceptShell({
   );
 }
 
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="mb-2 mt-5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 first:mt-0">
+      {children}
+    </div>
+  );
+}
+
+/* ---- Decided — Toolbox home + contextual run ---- */
+
+export const Decided_ToolboxLibrary: Story = {
+  name: "✓ Decided — Toolbox library",
+  render: () => (
+    <ConceptShell
+      title="Decided — Flows live in the Toolbox"
+      blurb="One flows library, beside the single tools. It splits into the project's own flows (in the recipe, shared with the team) and saved flows reusable across every project. Create / edit / delete here; editing opens the full flow-editor canvas."
+      active="toolbox"
+    >
+      <div className="flex-1 overflow-y-auto bg-background p-6">
+        <h2 className="text-lg font-semibold">Toolbox</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">Single tools and saved flows.</p>
+
+        <div className="mt-4 flex gap-1 border-b border-border">
+          <div className="border-b-2 border-transparent px-3 py-1.5 text-sm text-muted-foreground">
+            Tools
+          </div>
+          <div className="-mb-px border-b-2 border-primary px-3 py-1.5 text-sm font-medium text-foreground">
+            Flows
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Run against the open project, or any file.
+          </p>
+          <Button size="xs" variant="outline">
+            <Plus size={13} /> New flow
+          </Button>
+        </div>
+
+        <SectionLabel>This project</SectionLabel>
+        <div className="space-y-2">
+          {configuredFlows.slice(0, 2).map((f) => (
+            <FlowCard key={f.name} flow={f} />
+          ))}
+        </div>
+
+        <SectionLabel>Saved · all projects</SectionLabel>
+        <div className="space-y-2">
+          {configuredFlows.slice(2).map((f) => (
+            <FlowCard key={f.name} flow={f} />
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground/70">
+          Saved flows are available in every project — run one here, or add it to this project.
+        </p>
+      </div>
+    </ConceptShell>
+  ),
+};
+
+export const Decided_RunInContext: Story = {
+  name: "✓ Decided — Run in context",
+  render: () => (
+    <ConceptShell
+      title="Decided — Run a flow where you work"
+      blurb="The library lives in the Toolbox, but you don't have to go there to run one. A 'Run a flow' control in Content (and Checks) opens the same flows to run on what you're looking at; 'Manage flows' jumps to the Toolbox."
+      active="content"
+    >
+      <div className="flex-1 overflow-y-auto bg-background p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Content</h2>
+          <div className="relative">
+            <Button size="xs" className="gap-1">
+              <Workflow size={12} /> Run a flow
+              <ChevronDown size={12} />
+            </Button>
+            {/* Open picker popover. */}
+            <div className="absolute right-0 top-full z-10 mt-1 w-64 rounded-lg border border-border bg-popover p-1.5 shadow-lg">
+              <div className="px-2 pb-1 pt-0.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                Run on selection
+              </div>
+              {configuredFlows.map((f) => (
+                <button
+                  key={f.name}
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                >
+                  <Workflow size={14} className="shrink-0 text-muted-foreground" />
+                  <span className="flex-1 truncate text-left">{f.name}</span>
+                  <FlowKindBadge kind={f.kind} />
+                </button>
+              ))}
+              <div className="my-1 h-px bg-border" />
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
+              >
+                <Wrench size={14} /> Manage flows…
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 space-y-1.5">
+          {["home.en-US.json", "about.en-US.json", "pricing.en-US.json", "faq.en-US.json"].map(
+            (f) => (
+              <div
+                key={f}
+                className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
+              >
+                <FileText size={14} className="text-muted-foreground" />
+                <span className="font-mono text-xs">{f}</span>
+              </div>
+            ),
+          )}
+        </div>
+      </div>
+    </ConceptShell>
+  ),
+};
+
 /* ---- Concept A — flows live in the Project ---- */
 
 export const A_InProject: Story = {
