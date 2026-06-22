@@ -11,9 +11,9 @@ import { ArchitectureDiagram } from "@neokapi/docs-shared";
 
 neokapi is an open-source, format-aware **content engine** built in Go. It parses
 any format into one unified content model, edits the content inside it, checks it,
-and writes it back — byte-for-byte. At heart it is both a localization engine and
-the tool that keeps your source content on brand; the same engine also serves AI
-ingestion and programmatic editing. It provides format-aware document parsing,
+and writes it back — byte-for-byte. Get your content right — edit it, check it,
+keep it on brand — and the same engine makes it work in every language. It also
+serves AI ingestion and programmatic editing. It provides format-aware document parsing,
 composable processing tools, and a concurrent streaming pipeline. The [`kapi` CLI
 and desktop app](/kapi/overview) and [Kapi React](/react/introduction) are
 surfaces built on top of this engine — but the content model, format readers and
