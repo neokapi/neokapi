@@ -1,0 +1,149 @@
+---
+title: Use Kapi with MCP
+description: Run `kapi mcp` to give Claude Desktop, Claude Code, Cursor, Windsurf, or any MCP client a format-aware content layer — structured tools to read, check, and edit content in any format while preserving its structure.
+keywords: [kapi, mcp, model context protocol, claude desktop, claude code, cursor, windsurf, content checks, rewrite, brand voice]
+---
+
+# Use Kapi with MCP
+
+`kapi mcp` exposes kapi's content operations as **structured MCP tools**, so any
+MCP-compatible client — Claude Desktop, Claude Code, Cursor, Windsurf, VS Code —
+can read a document's blocks, check them against rules, and edit them while
+preserving the file's structure. The assistant calls a tool when a task needs it;
+you describe the work in plain language.
+
+The `kapi` CLI must be on your `PATH` — confirm with `kapi version` (see
+[installation](/kapi/get-started/installation)). Rule-based checks need no
+credential; for AI-backed editing (`rewrite_file`) add a provider with
+`kapi credentials add`.
+
+:::tip Driving the CLI from Claude Code instead?
+If you use **Claude Code**, the [Kapi Agent Skills](/kapi/get-started/use-with-skills)
+let Claude drive the `kapi` CLI by natural language — no tool wiring. The two
+approaches can be used together.
+:::
+
+## Set up the MCP server
+
+`kapi mcp` launches a stdio JSON-RPC server; your client starts it as a
+subprocess — you do not run it manually.
+
+**Claude Desktop** — add to
+`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or
+`%APPDATA%\Claude\claude_desktop_config.json` on Windows, then restart Claude
+Desktop:
+
+```json
+{
+  "mcpServers": {
+    "kapi": {
+      "command": "kapi",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+**Claude Code** — create or edit `.mcp.json` at the repository root:
+
+```json
+{
+  "mcpServers": {
+    "kapi": {
+      "command": "kapi",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Claude Code discovers and connects automatically. See [MCP server](/reference/mcp)
+for Cursor, Windsurf, and VS Code configurations and the full tool list.
+
+## The tools
+
+`kapi mcp` registers a focused set of structured tools:
+
+- **`extract_content`** — read a file's blocks into context: one record per
+  block with its text, role, a stable identifier, and a content hash (SHA-256 of
+  the normalized text).
+- **`check_file`** / **`check_text`** — run the configured checkset over a file
+  path or a plain string and return a `kapi.check/v1` Report.
+- **`rewrite_file`** — apply an AI instruction to the text inside a file and
+  return the revised file, structure preserved.
+- **`brand_check`** — score a text snippet against a brand voice profile without
+  reading a full file.
+
+`extract_content` returns one record per block, so the assistant can reason about
+a document before editing it:
+
+```json
+[
+  {
+    "file": "README.md",
+    "number": 1,
+    "id": "p0",
+    "content_hash": "e3b0c44...",
+    "role": "heading",
+    "level": 1,
+    "text": "Getting started"
+  },
+  {
+    "file": "README.md",
+    "number": 2,
+    "id": "p1",
+    "content_hash": "a1b2c3...",
+    "role": "body",
+    "text": "Install the CLI and run your first check."
+  }
+]
+```
+
+`check_file` / `check_text` return a Report with a 0–100 score, a pass/fail gate,
+and one finding per block — its location, the rule it violated, and a suggested
+fix. The stable `rule` id in each finding is the loop's primary key: the
+assistant tracks it across iterations to confirm a fix and detect regressions.
+See [Checks](/framework/checks) for the full rule model and Report structure.
+
+## The author → check → revise loop
+
+The tools compose into a fix loop with no scaffolding:
+
+1. The assistant drafts or edits content.
+2. It calls `check_file` — the Report returns which block failed, which rule,
+   and where in the file.
+3. It calls `rewrite_file` with the instruction and path, keeping the file's
+   structure intact.
+4. It calls `check_file` again. When the gate is green, it stops.
+
+This works for any file type kapi reads — Markdown, JSON, DOCX, HTML, YAML, and
+the rest. The assistant coordinates the tools; neither tool is coupled to the
+other.
+
+## Brand voice
+
+Bind a brand voice profile to a `.kapi` project file and every check picks it up
+automatically:
+
+```yaml
+# myapp.kapi
+defaults:
+  brand_voice:
+    profile_file: brand.yaml
+```
+
+With a profile bound, `check_file` adds vocabulary and style findings across every
+block in a document; `brand_check` scores a snippet against a profile without
+reading a full file. See [Brand voice](/framework/checks/brand-voice) for the
+profile format, pack model, and vocabulary rule syntax.
+
+## Where to go next
+
+- [MCP server](/reference/mcp) — full tool list and setup for every
+  MCP-compatible client.
+- [Use the Kapi Agent Skills](/kapi/get-started/use-with-skills) — the Claude
+  Code path, where Claude drives the `kapi` CLI by natural language.
+- [Checks](/framework/checks) — the check families and the `kapi.check/v1`
+  Report model.
+- [Rewrite tool](/reference/tools/rewrite) — `rewrite` parameters and provider
+  configuration.

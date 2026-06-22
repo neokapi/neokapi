@@ -1,0 +1,203 @@
+---
+title: Use the Kapi Agent Skills
+description: Install kapi's Claude Code Agent Skill so Claude drives the kapi CLI by natural language — read, check, and edit content in any format, the author → check → revise loop, with localization as one application.
+keywords: [kapi, claude, claude code, agent skills, skill, cli, content checks, rewrite, brand voice, localization]
+---
+
+# Use the Kapi Agent Skills
+
+kapi ships a **Claude Code Agent Skill** that teaches Claude to drive the `kapi`
+CLI: parse documents, read their text as structured blocks, check them against
+rules, and edit them while preserving the file's structure. Claude loads the
+skill on demand and runs the right `kapi` commands; you describe the work in
+plain language.
+
+The `kapi` CLI must be on your `PATH` — confirm with `kapi version` (see
+[installation](/kapi/get-started/installation)). Rule-based checks need no
+credential; for AI-backed editing (`kapi rewrite`) add a provider with
+`kapi credentials add`.
+
+:::tip Want structured tool calls instead?
+For Claude Desktop, Cursor, Windsurf, or any programmatic MCP client, run the
+[kapi MCP server](/kapi/get-started/use-with-mcp) — it exposes the same
+operations as structured tools. The two approaches can be used together.
+:::
+
+## Install the skill
+
+The skill registers a command router that Claude Code loads progressively,
+keeping the context window small:
+
+```bash
+kapi skills install                 # ./.claude/skills/kapi/   (this project)
+kapi skills install --target user   # ~/.claude/skills/kapi/   (every project)
+```
+
+Claude Code discovers the skill and invokes it when a task fits its description —
+you never call it by name. The only prerequisite is `kapi` on your `PATH`.
+
+## Read and inspect content
+
+Before editing, Claude gives itself a structured view of a file. `kapi inspect`
+returns one record per content block — text, role, stable identifier, and a
+content hash (SHA-256 of the normalized text):
+
+```bash
+kapi inspect README.md
+kapi inspect content/ --jsonl     # one JSON object per line
+kapi inspect report.docx -f openxml --jsonl
+```
+
+```json
+[
+  {
+    "file": "README.md",
+    "number": 1,
+    "id": "p0",
+    "content_hash": "e3b0c44...",
+    "role": "heading",
+    "level": 1,
+    "text": "Getting started"
+  },
+  {
+    "file": "README.md",
+    "number": 2,
+    "id": "p1",
+    "content_hash": "a1b2c3...",
+    "role": "body",
+    "text": "Install the CLI and run your first check."
+  }
+]
+```
+
+`kapi stats` gives a summary of block, word, and character counts:
+
+```bash
+kapi stats README.md --json
+```
+
+```json
+{
+  "total": {
+    "blocks": 12,
+    "translatable": 10,
+    "non_translatable": 2,
+    "words": 843,
+    "characters": 5102,
+    "characters_no_space": 4259,
+    "segments": 38,
+    "by_role": { "heading": 3, "body": 7, "code": 2 }
+  }
+}
+```
+
+## Check content
+
+`kapi check` reads a file, runs the configured checkset, and returns a
+`kapi.check/v1` Report with a 0–100 score, a pass/fail gate, and one finding per
+block with its location and a suggested fix:
+
+```bash
+kapi check README.md
+kapi check docs/ --max-chars 500 --json
+kapi check docs/ --forbid "TODO|FIXME" --require "Note:" --json
+kapi check docs/ --profile-file brand.yaml --json
+```
+
+Exit code 0 means the gate passed; exit code 3 means it failed. `--json` writes
+the full Report to stdout. `--no-fail` reports findings without failing the exit
+code. `--strict` and `--lenient` adjust the gate threshold. The stable `rule` id
+in each finding lets Claude track a fix across iterations and detect regressions.
+See [Checks](/framework/checks) for the full rule model and finding structure.
+
+## The author → check → revise loop
+
+The commands compose into a fix loop Claude runs on its own:
+
+1. Claude drafts or edits content.
+2. It runs `kapi check` — the Report says which block failed, which rule, and
+   where in the file.
+3. It runs `kapi rewrite` with the instruction and path, keeping the file's
+   structure intact.
+4. It runs `kapi check` again. When the gate is green, it stops.
+
+This loop works for any file type kapi reads — Markdown, JSON, DOCX, HTML, YAML,
+and the rest.
+
+## Edit content
+
+`kapi rewrite` applies an AI instruction to the text inside a file and writes it
+back, preserving structure, formatting, and inline codes:
+
+```bash
+kapi rewrite README.md --instruction "Use sentence case for all headings"
+kapi rewrite README.md --instruction "Remove filler words" --diff     # preview changes
+kapi rewrite README.md --instruction "Tighten to one sentence per paragraph" -i
+kapi rewrite README.md --instruction "Shorten the intro" -i=.bak     # keep backup
+```
+
+`--diff` shows the proposed changes before writing. `-i`/`--in-place` writes back
+to the source file; `-i=.bak` writes a `.bak` alongside the original first.
+`--provider` selects an AI provider when more than one is configured. See
+[Rewrite tool](/reference/tools/rewrite) for the full parameter reference.
+
+## Brand voice
+
+Bind a brand voice profile to a `.kapi` project file and every check picks it up
+automatically:
+
+```yaml
+# myapp.kapi
+defaults:
+  brand_voice:
+    profile_file: brand.yaml
+```
+
+With a profile bound, `kapi check` adds vocabulary and style findings to its
+Report across every block in a document. See
+[Brand voice](/framework/checks/brand-voice) for the profile format, pack model,
+and vocabulary rule syntax.
+
+## Gate checks in CI
+
+`kapi check` is designed to run in CI. Gate a pull request on the exit code:
+
+```bash
+kapi check docs/ --profile-file brand.yaml --json
+```
+
+Exit 0 = pass, exit 3 = gate failure. The Report's `findings` array carries
+`location.file` and `location.block` so a CI tool can annotate the exact line.
+
+## Localization
+
+The content operations above apply to source-language work. When translating
+across languages, kapi adds a localization layer:
+
+```bash
+kapi translate announcement.docx --target-lang ja -o announcement.ja.docx
+kapi recycle content/ --target-lang fr    # apply translation memory before translating
+```
+
+Bilingual checks verify placeholder integrity and do-not-translate terms:
+
+```bash
+kapi check src.json --target src.de.json --target-lang de --json
+```
+
+For human review or a translation vendor, `kapi extract` and `kapi merge` produce
+and consume bilingual interchange files — see
+[Bilingual workflow](/kapi/bilingual-workflow).
+
+## Where to go next
+
+- [Use Kapi with MCP](/kapi/get-started/use-with-mcp) — the same operations as
+  structured tools for any MCP client.
+- [Checks](/framework/checks) — the check families and the `kapi.check/v1`
+  Report model.
+- [Rewrite tool](/reference/tools/rewrite) — `rewrite` parameters and provider
+  configuration.
+- [Brand voice](/framework/checks/brand-voice) — the profile model for
+  vocabulary and style rules.
+- [Bilingual workflow](/kapi/bilingual-workflow) — XLIFF/PO round-trips for
+  localization.
