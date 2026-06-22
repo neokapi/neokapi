@@ -182,6 +182,13 @@ export function CredentialsPage({
     }
   };
 
+  // The provider being edited (fixed by the group the form was opened from).
+  const editingType = editing
+    ? providerTypes.find((pt) => pt.name === editing.provider_type)
+    : undefined;
+  const editingLabel = editingType?.label ?? editing?.provider_type ?? "";
+  const editingIsLocal = !!editingType?.local;
+
   return (
     <div className="p-6">
       <PageHeader
@@ -276,10 +283,10 @@ export function CredentialsPage({
                       variant="outline"
                       size="sm"
                       onClick={() => handleAddKey(g.provider, g.label)}
-                      aria-label={t("Add key for {name}", { name: g.label })}
+                      aria-label={t("Add credentials for {name}", { name: g.label })}
                     >
                       <Plus size={12} />
-                      {t("Add key")}
+                      {t("Add Credentials")}
                     </Button>
                   </div>
                 )}
@@ -310,7 +317,9 @@ export function CredentialsPage({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editing?.id ? t("Edit Provider key") : t("New Provider key")}
+              {editing?.id
+                ? t("Edit {provider} credentials", { provider: editingLabel })
+                : t("Add {provider} credentials", { provider: editingLabel })}
             </DialogTitle>
           </DialogHeader>
           {error && (
@@ -319,53 +328,37 @@ export function CredentialsPage({
             </p>
           )}
           {editing && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="cred-name" className="mb-1 block text-xs text-muted-foreground">
-                  Name
-                </Label>
-                <Input
-                  id="cred-name"
-                  type="text"
-                  value={editing.name}
-                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                  placeholder="My Anthropic Key"
-                />
-              </div>
-              <div>
-                <Label htmlFor="cred-type" className="mb-1 block text-xs text-muted-foreground">
-                  Provider
-                </Label>
-                <select
-                  id="cred-type"
-                  value={editing.provider_type}
-                  onChange={(e) => setEditing({ ...editing, provider_type: e.target.value })}
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2 py-1 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                >
-                  {providerTypes.map((pt) => (
-                    <option key={pt.name} value={pt.name} translate="no">
-                      {pt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="cred-model" className="mb-1 block text-xs text-muted-foreground">
-                  Model (optional)
-                </Label>
-                <Input
-                  id="cred-model"
-                  type="text"
-                  value={editing.model ?? ""}
-                  onChange={(e) => setEditing({ ...editing, model: e.target.value })}
-                  placeholder="claude-sonnet-4-5-20241022"
-                />
-              </div>
-              {providerTypes.find((pt) => pt.name === editing.provider_type)?.local ? (
+            // The provider is fixed by the group this was opened from — no
+            // provider chooser; the form is native to that provider.
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="mb-1 block text-xs text-muted-foreground">API Key</Label>
-                  <Badge variant="secondary">{t("Runs on-device — no API key needed")}</Badge>
+                  <Label htmlFor="cred-name" className="mb-1 block text-xs text-muted-foreground">
+                    Name
+                  </Label>
+                  <Input
+                    id="cred-name"
+                    type="text"
+                    value={editing.name}
+                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                    placeholder={t("{provider} key", { provider: editingLabel })}
+                  />
                 </div>
+                <div>
+                  <Label htmlFor="cred-model" className="mb-1 block text-xs text-muted-foreground">
+                    Model (optional)
+                  </Label>
+                  <Input
+                    id="cred-model"
+                    type="text"
+                    value={editing.model ?? ""}
+                    onChange={(e) => setEditing({ ...editing, model: e.target.value })}
+                    placeholder="claude-sonnet-4-5-20241022"
+                  />
+                </div>
+              </div>
+              {editingIsLocal ? (
+                <Badge variant="secondary">{t("Runs on-device — no API key needed")}</Badge>
               ) : (
                 <div>
                   <Label htmlFor="cred-apikey" className="mb-1 block text-xs text-muted-foreground">

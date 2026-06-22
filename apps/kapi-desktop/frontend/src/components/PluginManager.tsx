@@ -337,75 +337,83 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
                   <ItemCard
                     key={plugin.name}
                     data-testid={`available-plugin-${plugin.name}`}
-                    className="flex items-center gap-3"
+                    className="overflow-hidden p-0"
                   >
-                    <Package
-                      size={20}
-                      className={`shrink-0 ${plugin.installed || status?.state === "done" ? "text-primary" : "text-muted-foreground"}`}
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{plugin.name}</span>
-                        <Badge variant="secondary">v{plugin.version}</Badge>
-                        <Badge variant="secondary">{plugin.type}</Badge>
-                      </div>
-                      {plugin.description && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {plugin.description}
+                    <div className="flex items-center gap-3 p-4">
+                      <Package
+                        size={20}
+                        className={`shrink-0 ${plugin.installed || status?.state === "done" ? "text-primary" : "text-muted-foreground"}`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{plugin.name}</span>
+                          <Badge variant="secondary">v{plugin.version}</Badge>
+                          <Badge variant="secondary">{plugin.type}</Badge>
                         </div>
-                      )}
-                      {/* Download progress bar */}
-                      {status?.state === "downloading" && status.percent !== undefined && (
-                        <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-primary transition-all duration-300"
-                            style={{ width: `${status.percent}%` }}
-                          />
+                        {plugin.description && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {plugin.description}
+                          </div>
+                        )}
+                        {/* Download progress bar */}
+                        {status?.state === "downloading" && status.percent !== undefined && (
+                          <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-primary transition-all duration-300"
+                              style={{ width: `${status.percent}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {/* Status / action */}
+                      {plugin.installed || status?.state === "done" ? (
+                        <span className="text-[10px] text-muted-foreground px-2 py-0.5 rounded bg-muted">
+                          Installed
+                        </span>
+                      ) : status?.state === "downloading" ? (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Loader2 size={12} className="animate-spin" />
+                          {status.percent !== undefined
+                            ? `${status.percent}%`
+                            : t("Downloading...")}
                         </div>
-                      )}
-                    </div>
-                    {/* Status / action */}
-                    {plugin.installed || status?.state === "done" ? (
-                      <span className="text-[10px] text-muted-foreground px-2 py-0.5 rounded bg-muted">
-                        Installed
-                      </span>
-                    ) : status?.state === "downloading" ? (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Loader2 size={12} className="animate-spin" />
-                        {status.percent !== undefined ? `${status.percent}%` : t("Downloading...")}
-                      </div>
-                    ) : status?.state === "error" ? (
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-destructive">
-                          {status.error || "Failed"}
-                        </span>
-                        <Button variant="link" size="xs" onClick={() => handleInstall(plugin.name)}>
-                          Retry
-                        </Button>
-                      </div>
-                    ) : !plugin.available ? (
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-muted-foreground">
-                          {t("No build for")} {plugin.platform}
-                        </span>
+                      ) : status?.state === "error" ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-destructive">
+                            {status.error || "Failed"}
+                          </span>
+                          <Button
+                            variant="link"
+                            size="xs"
+                            onClick={() => handleInstall(plugin.name)}
+                          >
+                            Retry
+                          </Button>
+                        </div>
+                      ) : !plugin.available ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground">
+                            {t("No build for")} {plugin.platform}
+                          </span>
+                          <Button
+                            size="sm"
+                            disabled
+                            data-testid={`install-${plugin.name}`}
+                            title={t("This plugin has no build for your platform")}
+                          >
+                            <Download size={12} /> Install
+                          </Button>
+                        </div>
+                      ) : (
                         <Button
                           size="sm"
-                          disabled
                           data-testid={`install-${plugin.name}`}
-                          title={t("This plugin has no build for your platform")}
+                          onClick={() => handleInstall(plugin.name)}
                         >
                           <Download size={12} /> Install
                         </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        data-testid={`install-${plugin.name}`}
-                        onClick={() => handleInstall(plugin.name)}
-                      >
-                        <Download size={12} /> Install
-                      </Button>
-                    )}
+                      )}
+                    </div>
                   </ItemCard>
                 );
               })}

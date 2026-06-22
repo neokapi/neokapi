@@ -64,27 +64,30 @@ describe("CredentialsPage (AI Models)", () => {
     expect(checked).toHaveLength(1);
   });
 
-  it("offers Add key only for cloud providers (local needs none)", () => {
+  it("offers Add Credentials only for cloud providers (local needs none)", () => {
     renderPage();
-    // OpenAI (cloud) has an Add key affordance; Ollama (local) does not.
-    expect(screen.getByRole("button", { name: /Add key for OpenAI/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Add key for Ollama/ })).not.toBeInTheDocument();
+    // OpenAI (cloud) has an Add Credentials affordance; Ollama (local) does not.
+    expect(screen.getByRole("button", { name: /Add credentials for OpenAI/ })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Add credentials for Ollama/ }),
+    ).not.toBeInTheDocument();
   });
 
-  it("opens the key form pre-set to the provider when adding a key", async () => {
+  it("opens a provider-native key form (no provider chooser) when adding credentials", async () => {
     renderPage();
-    await userEvent.click(screen.getByRole("button", { name: /Add key for OpenAI/ }));
-    expect(screen.getByText("New Provider key")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Add credentials for OpenAI/ }));
+    // Title names the provider; there is no provider <select> to change it.
+    expect(screen.getByText("Add OpenAI credentials")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Provider")).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText("sk-...")).toBeInTheDocument();
-    // The name is seeded from the provider label.
     expect(screen.getByDisplayValue("OpenAI key")).toBeInTheDocument();
   });
 
-  it("can cancel adding a key", async () => {
+  it("can cancel adding credentials", async () => {
     renderPage();
-    await userEvent.click(screen.getByRole("button", { name: /Add key for OpenAI/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Add credentials for OpenAI/ }));
     await userEvent.click(screen.getByText("Cancel"));
-    expect(screen.queryByText("New Provider key")).not.toBeInTheDocument();
+    expect(screen.queryByText("Add OpenAI credentials")).not.toBeInTheDocument();
   });
 
   it("lets you pick the default key when a provider has several", () => {
