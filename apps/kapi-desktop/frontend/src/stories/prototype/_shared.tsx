@@ -21,6 +21,7 @@ import {
   Languages,
   Palette,
   PenLine,
+  Plus,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -197,6 +198,143 @@ export function AdaptiveSidebar({
         />
       </div>
     </aside>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * v2 — source-first (one project shape, languages as a dial)
+ *
+ * The v2 prototype drops the "content project vs localization project" fork.
+ * There is one project; localization is a "Languages" dial you turn up. The
+ * Localization group is ALWAYS present in the sidebar — an empty-state
+ * "Add a language" CTA until a language is added, then the active surface.
+ * ------------------------------------------------------------------ */
+
+export interface SourceFirstSidebarProps {
+  /** Project display name shown in the sidebar header. */
+  project: string;
+  /** Target languages on the project. Empty = source-only (monolingual). */
+  languages: string[];
+  /** Currently active view. */
+  active?: string;
+  /** Empty-state CTA handler (prototype: adds a language). */
+  onAddLanguage?: () => void;
+}
+
+/**
+ * The v2 source-first sidebar. One project shape: the content workspace always
+ * shows, and the Localization group is always rendered — as an "Add a language"
+ * CTA when the project has no languages, or the active Translate / TM / Termbase
+ * surface once one is added. No project-kind label; the header carries a
+ * languages-count state instead.
+ */
+export function SourceFirstSidebar({
+  project,
+  languages,
+  active = "content",
+  onAddLanguage,
+}: SourceFirstSidebarProps) {
+  const hasLangs = languages.length > 0;
+  return (
+    <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-muted/20">
+      {/* Project identity — a languages state, never a "kind". */}
+      <div className="flex items-center gap-2.5 border-b border-border px-3 py-3">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <FolderKanban size={16} strokeWidth={SW} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold">{project}</div>
+          <div className="text-[11px] text-muted-foreground">
+            {hasLangs
+              ? `${languages.length} language${languages.length > 1 ? "s" : ""}`
+              : "No languages yet"}
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2">
+        <NavButton
+          row={{ view: "home", label: "Home", icon: <Home size={17} strokeWidth={SW} /> }}
+          active={active === "home"}
+        />
+
+        <GroupLabel className="mt-2 text-muted-foreground/70">Workspace</GroupLabel>
+        {contentRows.map((row) => (
+          <NavButton key={row.view} row={row} active={active === row.view} />
+        ))}
+
+        {/* Localization is ALWAYS present — CTA when empty, active surface when not. */}
+        <div className="mt-3 rounded-xl border border-primary/15 bg-primary/[0.04] p-1.5">
+          <GroupLabel className="flex items-center gap-1.5 text-primary/80">
+            <Languages size={11} strokeWidth={2} />
+            Localization
+          </GroupLabel>
+          {hasLangs ? (
+            <>
+              <div className="flex flex-wrap gap-1 px-2.5 pb-1.5 pt-0.5">
+                {languages.map((l) => (
+                  <LocalePill key={l} locale={l} />
+                ))}
+              </div>
+              {localizationRows.map((row) => (
+                <NavButton key={row.view} row={row} active={active === row.view} />
+              ))}
+            </>
+          ) : (
+            <div className="px-1 pb-0.5 pt-0.5">
+              <button
+                type="button"
+                onClick={onAddLanguage}
+                className="flex w-full items-center gap-2 rounded-lg border border-dashed border-primary/30 px-2.5 py-1.5 text-sm text-primary transition-colors hover:bg-primary/[0.06]"
+              >
+                <Plus size={15} strokeWidth={SW} />
+                Add a language
+              </button>
+              <p className="px-1.5 pt-1.5 text-[10px] leading-snug text-muted-foreground/80">
+                Turns on Translate, Translation Memory, and Termbases.
+              </p>
+            </div>
+          )}
+        </div>
+      </nav>
+
+      <div className="flex flex-col gap-0.5 border-t border-border p-2">
+        <NavButton
+          row={{
+            view: "project-settings",
+            label: "Project Settings",
+            icon: <SlidersHorizontal size={17} strokeWidth={SW} />,
+          }}
+          active={active === "project-settings"}
+        />
+        <NavButton
+          row={{
+            view: "app-settings",
+            label: "App Settings",
+            icon: <Settings size={17} strokeWidth={SW} />,
+          }}
+          active={active === "app-settings"}
+        />
+      </div>
+    </aside>
+  );
+}
+
+/**
+ * A languages-state chip for recents and window chrome — a derived state, not a
+ * project category. Source-only reads affirmatively ("Source only"), not as an
+ * absence.
+ */
+export function LanguagesChip({ targets }: { targets: string[] }) {
+  return targets.length > 0 ? (
+    <Badge variant="secondary" className="gap-1 text-[10px]">
+      <Languages size={10} />
+      {targets.length} language{targets.length > 1 ? "s" : ""}
+    </Badge>
+  ) : (
+    <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+      Source only
+    </Badge>
   );
 }
 
