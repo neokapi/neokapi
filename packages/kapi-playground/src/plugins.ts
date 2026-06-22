@@ -150,7 +150,7 @@ const DESCRIPTOR_BY_ID = new Map(PLUGIN_DESCRIPTORS.map((d) => [d.id, d]));
  * ModelDescriptor describes one in-browser local LLM model the lab can download.
  * Mirrors LOCAL_MODELS in localLlmBridge.ts — kept as plain data here so importing
  * the manager (e.g. into the navbar) doesn't pull the heavy WebLLM/transformers
- * bridge until a model is actually ensured. ids match the native `kapi ollama` /
+ * bridge until a model is actually ensured. ids match the native `kapi models ollama` /
  * `--model` names, so the web and desktop model lineups read identically.
  */
 export interface ModelDescriptor {

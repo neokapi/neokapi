@@ -22,7 +22,7 @@ import (
 func (a *App) NewModelsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "models",
-		Short: "List and manage the models kapi can translate with",
+		Short: "Manage attached LLMs and ML models",
 		Long: "A single view of every model kapi can use, across three sources:\n\n" +
 			"  • Local · Ollama  — on-device models served by a local Ollama runtime\n" +
 			"                      (`kapi models pull <model>` installs one)\n" +
@@ -30,11 +30,13 @@ func (a *App) NewModelsCmd() *cobra.Command {
 			"                      under $XDG_CACHE_HOME/kapi/models/<plugin>/<id>/<version>/\n" +
 			"  • Cloud providers — remote models that require an API key\n\n" +
 			"`kapi models pull`/`prune` install and remove Ollama and plugin models; cloud\n" +
-			"models are listed for reference. Filter with `--provider <ollama|plugin|cloud-id>`.",
+			"models are listed for reference. Filter with `--provider <ollama|plugin|cloud-id>`.\n" +
+			"`kapi models ollama` manages the local Ollama runtime itself.",
 	}
 	cmd.AddCommand(a.newModelsListCmd())
 	cmd.AddCommand(a.newModelsPullCmd())
 	cmd.AddCommand(a.newModelsPruneCmd())
+	cmd.AddCommand(a.NewOllamaCmd())
 	return cmd
 }
 
@@ -171,7 +173,7 @@ func (a *App) newModelsListCmd() *cobra.Command {
 
 			if wantOllama && !ollamaReachable {
 				fmt.Fprintln(cmd.ErrOrStderr(),
-					"note: Ollama not detected — local models show as available to pull; run `kapi ollama status`.")
+					"note: Ollama not detected — local models show as available to pull; run `kapi models ollama status`.")
 			}
 			return output.Print(cmd, output.ModelsListOutput{Models: rows, Total: len(rows)})
 		},

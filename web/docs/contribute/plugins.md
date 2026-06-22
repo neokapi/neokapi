@@ -160,7 +160,7 @@ without `--unsafe`.
 For on-device **LLM** text generation (translation, chat, QA, brand-voice), kapi
 drives a local [Ollama](https://ollama.com) runtime rather than bundling an
 inference engine: Ollama already runs GGUF models on the GPU (Metal/CUDA) and is
-managed through `kapi ollama` and `--provider ollama` — a free, private
+managed through `kapi models ollama` and `--provider ollama` — a free, private
 alternative to the paid cloud providers. In the browser, the
 [Core Framework lab](/lab) runs a local model via WebGPU instead, since a web
 page cannot reach a local daemon.

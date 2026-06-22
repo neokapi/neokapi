@@ -25,7 +25,7 @@ import { generateLLMText, type InstallGemmaOptions } from "./gemmaBridge";
 
 /** A selectable in-browser local model. */
 export interface LocalModelSpec {
-  /** kapi-facing id, identical to the native `kapi ollama` name (passed as
+  /** kapi-facing id, identical to the native `kapi models ollama` name (passed as
    * --model) so the same model reference works on web and desktop. */
   id: string;
   /** Browser backend that has a build for this model. We pick the best engine
@@ -46,7 +46,7 @@ export interface LocalModelSpec {
   note?: string;
 }
 
-// Parity with the native `kapi ollama` recommended lineup — the SAME model names
+// Parity with the native `kapi models ollama` recommended lineup — the SAME model names
 // on web and desktop, even though the browser backend differs per model: Llama
 // 3.2 and Qwen3 have MLC builds (WebLLM/WebGPU); Gemma 4 has only an ONNX build,
 // so it runs via transformers.js (also WebGPU). aya-expanse:8b is desktop-only

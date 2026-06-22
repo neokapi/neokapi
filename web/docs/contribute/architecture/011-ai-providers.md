@@ -134,7 +134,7 @@ that fits rather than discovering the limit at call time:
 | Anthropic     | `providers/ai/anthropic.go`   | claude-sonnet-4-20250514 | Extended thinking support            |
 | OpenAI        | `providers/ai/openai.go`      | gpt-4o                   | `response_format` JSON schema        |
 | Azure OpenAI  | `providers/ai/azureopenai.go` | deployment-specific      | Managed Identity via `TokenProvider` |
-| Ollama        | `providers/ai/ollama.go`      | llama3.2:3b              | On-device local models (GPU); no key. Streaming, `format: json`, options + `keep_alive`, reasoning disabled. Managed via `kapi ollama` |
+| Ollama        | `providers/ai/ollama.go`      | llama3.2:3b              | On-device local models (GPU); no key. Streaming, `format: json`, options + `keep_alive`, reasoning disabled. Managed via `kapi models ollama` |
 | Google Gemini | `providers/ai/gemini.go`      | gemini-3-flash-preview   | SSE streaming with `includeThoughts` |
 
 Two non-network providers round out the registry: a mock provider
