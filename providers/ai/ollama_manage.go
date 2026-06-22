@@ -49,10 +49,14 @@ type RecommendedOllamaModel struct {
 
 // RecommendedOllamaModels are the vetted local-translation picks (from kapi's
 // own benchmarking), ordered best-default first. DefaultOllamaModel is the head.
+// gemma4:e2b is the quality tier (best multilingual grammar, e.g. German) but is
+// larger and needs a recent Ollama; gemma4:e4b is intentionally absent — it drops
+// inline placeholder tags, which is disqualifying for localization.
 var RecommendedOllamaModels = []RecommendedOllamaModel{
-	{Name: DefaultOllamaModel, Note: "default · best glossary/voice obedience"},
+	{Name: DefaultOllamaModel, Note: "default · smallest, exact inline-tag fidelity"},
+	{Name: "gemma4:e2b", Note: "best multilingual quality · ~7 GB, recent Ollama"},
 	{Name: "qwen3:1.7b", Note: "fastest · smallest viable"},
-	{Name: "aya-expanse:8b", Note: "highest quality · slower"},
+	{Name: "aya-expanse:8b", Note: "high quality · slower"},
 }
 
 // OllamaModelInfo describes one model already installed on the server.

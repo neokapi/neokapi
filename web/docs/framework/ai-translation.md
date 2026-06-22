@@ -181,11 +181,15 @@ steps:
 Small instruction-tuned models translate well while staying fast and private.
 For constrained translation — where the model must honour an approved glossary, a
 brand voice, and inline placeholders, and return only the translation —
-`llama3.2:3b` is a strong default. `qwen3:1.7b` is faster and smaller; larger
-models such as `aya-expanse:8b` trade speed for quality on harder language pairs.
-Any Ollama model reference works; pick by the quality/speed balance the content
-needs. kapi sends a low sampling temperature and disables reasoning output so a
-model returns the translation directly rather than a chain of thought.
+`llama3.2:3b` is a strong, lightweight default with the most reliable inline-tag
+fidelity. `qwen3:1.7b` is faster and smaller. For noticeably better multilingual
+quality (e.g. German grammar), `gemma4:e2b` is the quality pick — larger (~7 GB,
+needs a recent Ollama) and it may reposition inline tags, so prefer it when the
+pipeline protects inline codes rather than relying on the model to pass them
+through. Any Ollama model reference works; pick by the quality/speed balance the
+content needs. kapi sends a low sampling temperature and disables reasoning output
+(`think:false`) so a model returns the translation directly rather than a chain of
+thought.
 
 To make it the default so you can omit `--provider` entirely:
 
