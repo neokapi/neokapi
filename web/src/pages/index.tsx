@@ -38,7 +38,7 @@ function HomepageHeader() {
             </Link>
             <Link
               className={clsx("button button--secondary button--lg", styles.tryButton)}
-              to="/kapi/get-started/use-with-claude"
+              to="/kapi/get-started/use-with-skills"
             >
               <Sparkles size={18} aria-hidden="true" />
               Use with Claude

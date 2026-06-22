@@ -181,7 +181,7 @@ Claude translates in place (locale-additive), runs `kapi qa` / `kapi term-check`
 loops on the findings until the archive passes; you `kapi-react compile` the result as
 usual. Nothing about your components changes — only the catalogue.
 
-See [Use with Claude](/kapi/get-started/use-with-claude) for the MCP setup and the
+See [Use Kapi with MCP](/kapi/get-started/use-with-mcp) for the MCP setup and the
 broader agent loop.
 
 ## Next
