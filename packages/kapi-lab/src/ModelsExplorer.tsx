@@ -14,15 +14,18 @@ export interface ModelsExplorerProps {
   defaultTargetLang?: string;
 }
 
-// The browser's local model lineup — same families/names as the native
-// `kapi ollama` picks, so the experience matches desktop/CLI. (Mirrors
+// The browser's local model lineup — the SAME model names as the native
+// `kapi ollama` picks, so a model reference is identical on web and desktop. Each
+// runs on whichever browser backend has a build for it: Llama/Qwen via WebLLM
+// (MLC), Gemma 4 via transformers.js (ONNX) — both on WebGPU. (Mirrors
 // LOCAL_MODELS in localLlmBridge; duplicated as plain data so selecting a model
-// doesn't eagerly import the multi-MB WebLLM bundle — that loads on Run.)
+// doesn't eagerly import the multi-MB engine bundles — those load on Run.)
 const LOCAL_MODELS = [
-  { id: "llama-3.2-3b", label: "Llama 3.2 3B", size: "~2.3 GB", note: "best obedience" },
-  { id: "qwen3-1.7b", label: "Qwen3 1.7B", size: "~1.4 GB", note: "fastest" },
+  { id: "llama3.2:3b", label: "Llama 3.2 3B", size: "~2.3 GB", note: "reliable inline tags", engine: "WebLLM" },
+  { id: "gemma4:e2b", label: "Gemma 4 E2B", size: "~3 GB", note: "best multilingual quality", engine: "ONNX" },
+  { id: "qwen3:1.7b", label: "Qwen3 1.7B", size: "~1.4 GB", note: "fastest", engine: "WebLLM" },
 ];
-const DEFAULT_LOCAL_MODEL = "llama-3.2-3b";
+const DEFAULT_LOCAL_MODEL = "llama3.2:3b";
 
 // Cloud providers + their default model — the same names the native provider
 // registry reports. Listed for reference; they need an API key, so the browser
@@ -61,7 +64,9 @@ export default function ModelsExplorer({
   const [err, setErr] = useState<string | null>(null);
 
   const webgpu = useMemo(() => hasWebGPU(), []);
-  const cliCommand = `kapi translate input.json --provider ollama --model ${model === "qwen3-1.7b" ? "qwen3:1.7b" : "llama3.2:3b"} --target-lang ${lang}`;
+  // The browser model id is the same as the native Ollama name, so the desktop
+  // command is the identical model reference — only the provider differs.
+  const cliCommand = `kapi translate input.json --provider ollama --model ${model} --target-lang ${lang}`;
 
   const run = useCallback(async () => {
     setErr(null);
@@ -114,10 +119,11 @@ export default function ModelsExplorer({
       style={{ display: "flex", flexDirection: "column", gap: 16 }}
     >
       <p style={{ margin: 0, fontSize: 14, opacity: 0.85 }}>
-        The models kapi can translate with, across three sources. kapi uses the best{" "}
-        <strong>local</strong> engine for each platform — <strong>WebLLM (WebGPU)</strong> here in
-        your browser, <strong>Ollama</strong> on the desktop app and CLI — so the local experience
-        is the same everywhere, no API key, nothing sent to a server.
+        The models kapi can translate with, across three sources. The{" "}
+        <strong>same local models</strong> are offered on web and desktop — only the backend
+        differs: in this browser each runs on the best engine that has a build for it (WebLLM or
+        ONNX, both on WebGPU); on the desktop app and CLI they run via <strong>Ollama</strong>. No
+        API key, nothing sent to a server.
       </p>
 
       {/* Local · on-device — the live section */}
@@ -125,8 +131,8 @@ export default function ModelsExplorer({
         <div style={sectionHeadStyle}>
           <span style={{ fontWeight: 700 }}>Local · on-device</span>
           <span style={{ fontSize: 12, opacity: 0.7 }}>
-            {webgpu ? "this browser → WebLLM (WebGPU)" : "no WebGPU → transformers.js fallback"} ·
-            desktop/CLI → Ollama
+            {webgpu ? "this browser → WebGPU (WebLLM / ONNX)" : "no WebGPU → transformers.js fallback"}{" "}
+            · desktop/CLI → Ollama
           </span>
         </div>
 
@@ -144,7 +150,8 @@ export default function ModelsExplorer({
             <select value={model} onChange={(e) => setModel(e.target.value)} style={{ padding: 6 }}>
               {LOCAL_MODELS.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.label} ({m.size}){m.id === DEFAULT_LOCAL_MODEL ? " — default" : ""} · {m.note}
+                  {m.label} ({m.size}){m.id === DEFAULT_LOCAL_MODEL ? " — default" : ""} · {m.note} ·{" "}
+                  {m.engine}
                 </option>
               ))}
             </select>

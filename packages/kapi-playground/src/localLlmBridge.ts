@@ -23,12 +23,21 @@
 import { CreateMLCEngine, type MLCEngine, type InitProgressReport } from "@mlc-ai/web-llm";
 import { generateLLMText, type InstallGemmaOptions } from "./gemmaBridge";
 
-/** A selectable in-browser local model, with its WebLLM (MLC) model id. */
+/** A selectable in-browser local model. */
 export interface LocalModelSpec {
-  /** kapi-facing id (passed as --model). */
+  /** kapi-facing id, identical to the native `kapi ollama` name (passed as
+   * --model) so the same model reference works on web and desktop. */
   id: string;
-  /** WebLLM prebuilt model id (MLC quantization). */
-  webllm: string;
+  /** Browser backend that has a build for this model. We pick the best engine
+   * per model, not per platform: WebLLM (MLC) for models with an MLC build, and
+   * transformers.js (ONNX) for models that only ship an ONNX build (e.g. Gemma 4,
+   * which has no MLC build but runs well via transformers.js + WebGPU). */
+  engine: "webllm" | "transformers";
+  /** WebLLM prebuilt (MLC) model id — set when engine === "webllm". */
+  webllm?: string;
+  /** transformers.js model key (a gemmaBridge MODELS key) — the ONNX build for
+   * engine "transformers", and the no-WebGPU fallback for "webllm" models. */
+  transformers?: string;
   /** Human label for pickers. */
   label: string;
   /** Approx download size, for the UI. */
@@ -37,27 +46,41 @@ export interface LocalModelSpec {
   note?: string;
 }
 
-// Parity with the native `kapi ollama` lineup — same model families and names,
-// so the browser experience matches desktop/CLI. q4f16 quantization keeps the
-// download practical while staying interactive on Apple Silicon.
+// Parity with the native `kapi ollama` recommended lineup — the SAME model names
+// on web and desktop, even though the browser backend differs per model: Llama
+// 3.2 and Qwen3 have MLC builds (WebLLM/WebGPU); Gemma 4 has only an ONNX build,
+// so it runs via transformers.js (also WebGPU). aya-expanse:8b is desktop-only
+// (no browser build, too large for the browser).
 export const LOCAL_MODELS: LocalModelSpec[] = [
   {
-    id: "llama-3.2-3b",
+    id: "llama3.2:3b",
+    engine: "webllm",
     webllm: "Llama-3.2-3B-Instruct-q4f16_1-MLC",
+    transformers: "llama-3.2-1b", // no-WebGPU fallback
     label: "Llama 3.2 3B",
     size: "~2.3 GB",
-    note: "default · best glossary/voice obedience",
+    note: "default · reliable inline tags",
   },
   {
-    id: "qwen3-1.7b",
+    id: "gemma4:e2b",
+    engine: "transformers",
+    transformers: "gemma-4-e2b",
+    label: "Gemma 4 E2B",
+    size: "~3 GB",
+    note: "best multilingual quality",
+  },
+  {
+    id: "qwen3:1.7b",
+    engine: "webllm",
     webllm: "Qwen3-1.7B-q4f16_1-MLC",
+    transformers: "llama-3.2-1b", // no-WebGPU fallback
     label: "Qwen3 1.7B",
     size: "~1.4 GB",
-    note: "fastest · smallest viable",
+    note: "fastest",
   },
 ];
 
-export const DEFAULT_LOCAL_MODEL = "llama-3.2-3b";
+export const DEFAULT_LOCAL_MODEL = "llama3.2:3b";
 
 /** Progress for the local model's first-run download/initialization. */
 export interface LocalProgress {
@@ -135,11 +158,11 @@ function promptFromMessages(messages: WirePayload["messages"]): string {
 }
 
 async function generateWebLLM(
+  spec: LocalModelSpec,
   payload: WirePayload,
   opts: InstallLocalLLMOptions,
 ): Promise<LocalResult> {
-  const spec = specFor(payload.model ?? opts.model);
-  const engine = await getEngine(spec.webllm, opts.onProgress);
+  const engine = await getEngine(spec.webllm as string, opts.onProgress);
 
   const msgs: Array<{ role: "system" | "user" | "assistant"; content: string }> = [];
   // Qwen3 is a reasoning model: keep it out of "thinking" mode so it returns the
@@ -174,7 +197,11 @@ function stripThink(s: string): string {
   return s.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 }
 
-async function generateFallback(
+// generateTransformers runs a model through transformers.js (gemmaBridge): the
+// ONNX build for an engine:"transformers" model (e.g. Gemma 4), or the small
+// no-WebGPU fallback for a "webllm" model on a browser without WebGPU.
+async function generateTransformers(
+  spec: LocalModelSpec,
   payload: WirePayload,
   opts: InstallLocalLLMOptions,
 ): Promise<LocalResult> {
@@ -190,25 +217,29 @@ async function generateFallback(
   };
   const text = await generateLLMText(
     promptFromMessages(payload.messages),
-    "llama-3.2-1b",
+    spec.transformers ?? "llama-3.2-1b",
     gemmaOpts,
   );
-  return { text: text.trim() };
+  return { text: stripThink(text) };
 }
 
 /**
- * installLocalLLMBridge installs globalThis.kapiLocalGenerate, routing to WebLLM
- * (WebGPU) when available and the transformers.js fallback otherwise. Idempotent;
- * the model only downloads when a generation actually runs.
+ * installLocalLLMBridge installs globalThis.kapiLocalGenerate, routing each model
+ * to the best browser backend that has a build for it: WebLLM (WebGPU) for MLC
+ * models, transformers.js (ONNX) for the rest, and the transformers.js fallback
+ * for WebLLM models on a browser without WebGPU. The model is resolved per call
+ * (from the payload), so switching models in the UI just works. Idempotent; a
+ * model only downloads when a generation actually runs.
  */
 export function installLocalLLMBridge(opts: InstallLocalLLMOptions = {}): void {
   if (typeof window === "undefined") return;
-  const useWebGPU = webgpuAvailable();
   (globalThis as Record<string, unknown>).kapiLocalGenerate = async (
     payloadJSON: string,
   ): Promise<LocalResult> => {
     const payload = JSON.parse(payloadJSON) as WirePayload;
-    return useWebGPU ? generateWebLLM(payload, opts) : generateFallback(payload, opts);
+    const spec = specFor(payload.model ?? opts.model);
+    const useWebLLM = spec.engine === "webllm" && webgpuAvailable();
+    return useWebLLM ? generateWebLLM(spec, payload, opts) : generateTransformers(spec, payload, opts);
   };
 }
 
@@ -226,8 +257,9 @@ export async function ensureLocalLLM(
   opts: InstallLocalLLMOptions = {},
 ): Promise<void> {
   installLocalLLMBridge({ ...opts, model: modelId });
-  if (webgpuAvailable()) {
-    await getEngine(specFor(modelId).webllm, opts.onProgress);
+  const spec = specFor(modelId);
+  if (spec.engine === "webllm" && spec.webllm && webgpuAvailable()) {
+    await getEngine(spec.webllm, opts.onProgress);
   }
-  // No WebGPU: the transformers.js fallback loads lazily on first generate.
+  // transformers.js models (and the no-WebGPU fallback) load lazily on first generate.
 }

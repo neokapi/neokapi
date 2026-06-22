@@ -51,8 +51,9 @@ func init() {
 	)
 }
 
-// defaultLocalModel mirrors the WebLLM bridge's default (Llama 3.2 3B).
-const defaultLocalModel = "llama-3.2-3b"
+// defaultLocalModel mirrors the browser bridge's default (Llama 3.2 3B) and uses
+// the native model name, so a model reference is identical across platforms.
+const defaultLocalModel = "llama3.2:3b"
 
 type localBrowserProvider struct{ cfg aiprovider.Config }
 
