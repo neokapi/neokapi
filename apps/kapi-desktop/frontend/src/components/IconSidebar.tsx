@@ -3,7 +3,6 @@ import {
   FolderKanban,
   BookOpen,
   Database,
-  Workflow,
   Wrench,
   FileText,
   Settings,
@@ -26,6 +25,9 @@ type SidebarItem =
        *  languages (e.g. Translation Memories). Hidden, not disabled, when it
        *  doesn't — a project simply shows the surfaces its languages call for. */
       localeGated?: boolean;
+      /** Extra routes that keep this item highlighted — e.g. the Toolbox stays
+       *  active on its "flows" sub-tab. */
+      activeViews?: string[];
     }
   | { type: "separator" };
 
@@ -34,7 +36,7 @@ interface IconSidebarProps {
   active: string;
   onChange: (view: string) => void;
   projectDisabled?: boolean;
-  /** When true, plugin-gated items (Flows) are disabled. */
+  /** When true, any plugin-gated items are disabled until requirements resolve. */
   pluginsUnresolved?: boolean;
   /** Whether the open project has target languages. Locale-gated items appear
    *  only when it does — the source-first, "languages stay quiet" model. */
@@ -44,8 +46,13 @@ interface IconSidebarProps {
 const adhocItems: SidebarItem[] = [
   { type: "item", view: "home", icon: <Home size={20} strokeWidth={SW} />, label: "Home" },
   { type: "separator" },
-  { type: "item", view: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows" },
-  { type: "item", view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
+  {
+    type: "item",
+    view: "tools",
+    icon: <Wrench size={20} strokeWidth={SW} />,
+    label: "Toolbox",
+    activeViews: ["flows"],
+  },
   {
     type: "item",
     view: "termbases",
@@ -95,12 +102,11 @@ const projectItems: SidebarItem[] = [
   },
   {
     type: "item",
-    view: "flows",
-    icon: <Workflow size={20} strokeWidth={SW} />,
-    label: "Flows",
-    pluginGated: true,
+    view: "tools",
+    icon: <Wrench size={20} strokeWidth={SW} />,
+    label: "Toolbox",
+    activeViews: ["flows"],
   },
-  { type: "item", view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
   {
     type: "item",
     view: "termbases",
@@ -147,6 +153,7 @@ export function IconSidebar({
           const noProject = mode === "projects" && projectDisabled && !item.alwaysEnabled;
           const pluginBlocked = !!(pluginsUnresolved && item.pluginGated);
           const disabled = noProject || pluginBlocked;
+          const isActive = active === item.view || (item.activeViews?.includes(active) ?? false);
           const title = noProject
             ? `${item.label} (open a project first)`
             : pluginBlocked
@@ -158,7 +165,7 @@ export function IconSidebar({
               onClick={() => !disabled && onChange(item.view)}
               disabled={disabled}
               className={`rounded-lg p-2 transition-colors ${
-                active === item.view
+                isActive
                   ? "bg-primary text-primary-foreground"
                   : disabled
                     ? "text-muted-foreground/30 cursor-not-allowed"

@@ -7,6 +7,7 @@ import { AppHome } from "./AppHome";
 import { RunnerPage } from "./RunnerPage";
 import { FlowsPage } from "./FlowsPage";
 import { ToolRunnerPage } from "./ToolRunnerPage";
+import { ToolboxPage } from "./ToolboxPage";
 import { TermbasesPage } from "./TermbasesPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { ChecksPanel } from "./ChecksPanel";
@@ -126,10 +127,18 @@ export function ViewSwitch({
   // Ad-hoc views
   if (mode === "adhoc") {
     switch (effectiveView) {
-      case "flows":
-        return <FlowsPage adoptTabID={adoptTarget?.id} adoptProjectName={adoptTarget?.name} />;
+      // The Toolbox hosts Tools + Flows as route-driven tabs; flows are no
+      // longer a sidebar pillar.
       case "tools":
-        return <ToolRunnerPage />;
+      case "flows":
+        return (
+          <ToolboxPage
+            tab={effectiveView === "flows" ? "flows" : "tools"}
+            onTabChange={navigate}
+            tools={<ToolRunnerPage />}
+            flows={<FlowsPage adoptTabID={adoptTarget?.id} adoptProjectName={adoptTarget?.name} />}
+          />
+        );
       case "termbases":
         return <TermbasesPage />;
       case "memories":
@@ -205,21 +214,32 @@ export function ViewSwitch({
           />
         );
 
+      // The Toolbox hosts Tools + Flows as route-driven tabs. Flows are
+      // authored/managed here (the library); running a flow against the
+      // project's content stays on the Home page.
+      case "tools":
       case "flows":
         return (
-          <FlowsPage
-            tabID={tabID}
-            projectFlows={history.project.flows}
-            onFlowChange={(name, spec) => {
-              updateProject({
-                ...history.project,
-                flows: { ...history.project.flows, [name]: spec },
-              });
-            }}
-            onFlowDelete={(name) => {
-              const { [name]: _, ...rest } = history.project.flows ?? {};
-              updateProject({ ...history.project, flows: rest });
-            }}
+          <ToolboxPage
+            tab={effectiveView === "flows" ? "flows" : "tools"}
+            onTabChange={navigate}
+            tools={<ToolRunnerPage tabID={tabID} />}
+            flows={
+              <FlowsPage
+                tabID={tabID}
+                projectFlows={history.project.flows}
+                onFlowChange={(name, spec) => {
+                  updateProject({
+                    ...history.project,
+                    flows: { ...history.project.flows, [name]: spec },
+                  });
+                }}
+                onFlowDelete={(name) => {
+                  const { [name]: _, ...rest } = history.project.flows ?? {};
+                  updateProject({ ...history.project, flows: rest });
+                }}
+              />
+            }
           />
         );
 
@@ -241,9 +261,6 @@ export function ViewSwitch({
         }
         // View-only runner for a job selected from the feed (no runnerState).
         return <RunnerViewFallback tabID={tabID} project={history.project} navigate={navigate} />;
-
-      case "tools":
-        return <ToolRunnerPage tabID={tabID} />;
 
       case "checks":
         return <ChecksPanel tabID={tabID} />;
