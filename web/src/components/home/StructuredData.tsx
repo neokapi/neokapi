@@ -9,10 +9,10 @@ export default function StructuredData() {
   const { siteConfig } = useDocusaurusContext();
   const siteUrl = siteConfig.url + siteConfig.baseUrl.replace(/\/$/, "");
   const description =
-    "neokapi is an open-source, format-aware content engine in Go. It parses localization, " +
-    "document, and data formats into a faithful content model, then translates, leverages " +
-    "translation memory, and runs verification checks for terminology, QA, and brand voice — " +
-    "for content written by people or AI agents.";
+    "neokapi is an open-source, format-aware content engine in Go. It parses any format — " +
+    "JSON, Markdown, HTML, config, office, and more — into one unified content model, lets " +
+    "a person or an AI agent edit and check the content inside it, and writes it back " +
+    "byte-for-byte. The same engine makes that content work in every language.";
 
   const graph = [
     {
