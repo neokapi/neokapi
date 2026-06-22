@@ -1,6 +1,6 @@
 ---
 id: tm-termbase-storage
-title: "Where TM and termbases live"
+title: "Where translations & terms live"
 sidebar_label: "TM & termbase storage"
 sidebar_position: 4
 description: "The three places a kapi translation memory or termbase can live — a loose file in the current directory, a named store under your config home, or a project's .kapi/tm.db — and the flags that select each."
@@ -8,13 +8,14 @@ keywords: [kapi, translation memory, termbase, storage, named resource, project,
 hide_table_of_contents: true
 ---
 
-# Where TM and termbases live
+# Where translations & terms live
 
-`kapi tm` and `kapi termbase` operate on a SQLite database. That database can
-live in one of three places. Which one a command uses is decided by a flag (or,
-when no flag is given, by whether a `.kapi` project is in scope). The same three
-models apply to both stores; only the default filename differs (`tm.db` vs
-`termbase.db`) and the named-store subdirectory (`tm/` vs `termbases/`).
+The translations kapi reuses and the terms it keeps consistent are kept in a
+small database on disk. That database can live in one of three places, and which
+one a command uses is decided by a flag — or, with no flag, by whether a `.kapi`
+project is in scope. The same three models apply to both stores; only the default
+filename differs (`tm.db` vs `termbase.db`) and the named-store subdirectory
+(`tm/` vs `termbases/`).
 
 ## The three storage models
 

@@ -1,6 +1,6 @@
 ---
 id: estimate-cost
-title: "Estimate a translation job"
+title: "Estimate a run's cost"
 sidebar_label: "Estimate a job"
 sidebar_position: 2
 description: "Count blocks, words, and characters in any supported format to size up a translation job before you commission it."
@@ -10,15 +10,16 @@ hide_table_of_contents: true
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 import { StatsWidget } from "@site/src/components/Lab";
 
-# Estimate a translation job
+# Estimate a run's cost
 
 :::note Runs anywhere
 No project needed — `kapi word-count` runs ad-hoc on any file, directory, or glob.
 :::
 
-**Goal:** put a number on a translation job before you commission it. `kapi
-word-count` reads any supported format and reports the translatable units and
-their word total — the figure you paste into a quote.
+**Goal:** know what a translation run will cost before you start it. `kapi
+word-count` reads any supported format and reports how much there actually is to
+translate — the block and word totals you multiply by a model's or vendor's
+per-word rate to size the run.
 
 ## Steps
 

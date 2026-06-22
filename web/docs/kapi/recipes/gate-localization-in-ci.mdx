@@ -1,6 +1,6 @@
 ---
 id: gate-localization-in-ci
-title: "Gate localization in CI"
+title: "Check translations in CI"
 sidebar_label: "Gate in CI"
 sidebar_position: 7
 description: "Run a project's brand, terminology, and QA gates on every pull request with GitHub Actions, failing the build when a check regresses."
@@ -13,10 +13,11 @@ assumes a committed [`.kapi` recipe](/kapi/get-started/first-project) at the
 repo root — the same project you author and run locally.
 :::
 
-**Goal:** treat localization quality like a test. When a pull request changes
-source content or translations, run the project's checks in CI and **fail the
-build** if a placeholder is dropped, a glossary term drifts, or the brand-voice
-score falls below threshold — so a regression never merges.
+**Goal:** treat your translations like any other test in your pipeline. When a
+pull request changes source content or translated files, run the same checks you
+run locally on the runner and **fail the build** when something regresses — a
+dropped placeholder, a term that drifts, a brand-voice score below your bar — so
+the regression never merges.
 
 ## How `kapi verify` gates
 

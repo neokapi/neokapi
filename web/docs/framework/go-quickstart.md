@@ -13,8 +13,8 @@ the content inside it, and writes it back byte-for-byte. The [`kapi` CLI and
 desktop app](/kapi/overview) and [Kapi React](/react/introduction) are surfaces
 built on top of it, but the same content model, format readers and writers, tools,
 and streaming pipeline are a Go library you can import directly. This page walks
-the shortest path from `go get` to a working program — taking the localization
-flagship route: read a file, fill in a target, and write bilingual XLIFF.
+the shortest path from `go get` to a working program — taking the round-trip
+route: read a file, fill in a target, and write it back as bilingual XLIFF.
 
 If you want the concepts behind the code first, read
 [Architecture](/framework/architecture), the

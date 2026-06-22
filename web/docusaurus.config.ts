@@ -82,7 +82,7 @@ const cdnModelsVersion = (() => {
 
 const config: Config = {
   title: "neokapi",
-  tagline: "The format-aware content engine for people and AI agents",
+  tagline: "The open-source, format-aware content engine — for people and AI agents",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
@@ -374,7 +374,7 @@ const config: Config = {
       {
         name: "description",
         content:
-          "neokapi is an open-source, format-aware content engine in Go. It parses any format into one unified content model, then lets you or your AI agent edit and check the content inside it and write it back, byte-for-byte — at heart a localization engine and the tool that keeps your source content on brand.",
+          "neokapi is an open-source, format-aware content engine in Go. It parses any format into one unified content model, lets you or your AI agent edit and check the content inside it, and writes it back byte-for-byte. The same engine makes that content work in every language.",
       },
     ],
     navbar: {

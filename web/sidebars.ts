@@ -21,7 +21,7 @@ const sidebars: SidebarsConfig = {
   kapiSidebar: [
     {
       type: "category",
-      label: "Get Started",
+      label: "Get started",
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
@@ -31,58 +31,41 @@ const sidebars: SidebarsConfig = {
         "kapi/get-started/first-project",
         "kapi/get-started/quickstart",
         "kapi/get-started/use-with-claude",
+        { type: "doc", id: "kapi/recipes/index", label: "CLI recipes", key: "kapi-recipes-overview" },
+        { type: "doc", id: "kapi/recipes/overview", label: "Get oriented" },
       ],
     },
-    // Work by task. The CLI surface is organized by the jobs the engine does —
-    // parse, edit, check, brand — with localization as one task among them, not
-    // the frame. (The l10n recipes are unchanged; this is the usage-organized
-    // IA from the positioning canon.)
+    // One source-first journey: get your content right, then go multilingual.
+    // Builder-first, forward-looking labels — the localization machinery stays
+    // under the hood (linked from Framework), never in the sidebar text.
     {
       type: "category",
-      label: "Parse & ingest",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: ["kapi/recipes/ingest-for-ai"],
-    },
-    {
-      type: "category",
-      label: "Edit & rewrite",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: ["kapi/recipes/rewrite-content"],
-    },
-    {
-      type: "category",
-      label: "Check & verify",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: ["kapi/recipes/verify-content"],
-    },
-    {
-      type: "category",
-      label: "Brand & voice",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: ["kapi/recipes/keep-source-on-brand"],
-    },
-    {
-      type: "category",
-      label: "Localize",
+      label: "Get your content right",
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
-        { type: "doc", id: "kapi/recipes/index", label: "Overview", key: "kapi-recipes-overview" },
-        "kapi/recipes/overview",
-        "kapi/recipes/estimate-cost",
-        "kapi/recipes/pseudo-translate",
-        "kapi/recipes/tm-termbase-storage",
-        "kapi/recipes/terminology-qa",
-        "kapi/recipes/prepare-content",
-        "kapi/recipes/pre-translate-with-tm",
-        "kapi/recipes/localize-media",
-        "kapi/recipes/resumable-workspace",
-        "kapi/recipes/gate-localization-in-ci",
-        "kapi/bilingual-workflow",
+        "kapi/recipes/ingest-for-ai",
+        "kapi/recipes/rewrite-content",
+        "kapi/recipes/verify-content",
+        "kapi/recipes/keep-source-on-brand",
+      ],
+    },
+    {
+      type: "category",
+      label: "Go multilingual",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        { type: "doc", id: "kapi/recipes/prepare-content", label: "What gets translated" },
+        { type: "doc", id: "kapi/recipes/pre-translate-with-tm", label: "Reuse what you've translated" },
+        { type: "doc", id: "kapi/recipes/terminology-qa", label: "Keep terms consistent" },
+        { type: "doc", id: "kapi/recipes/pseudo-translate", label: "Preview before you ship" },
+        { type: "doc", id: "kapi/recipes/localize-media", label: "Translate audio & video" },
+        { type: "doc", id: "kapi/recipes/resumable-workspace", label: "Pause & resume a big run" },
+        { type: "doc", id: "kapi/recipes/gate-localization-in-ci", label: "Check translations in CI" },
+        { type: "doc", id: "kapi/recipes/estimate-cost", label: "Estimate a run's cost" },
+        { type: "doc", id: "kapi/recipes/tm-termbase-storage", label: "Where translations & terms live" },
+        { type: "doc", id: "kapi/bilingual-workflow", label: "Hand off to translators" },
       ],
     },
     {

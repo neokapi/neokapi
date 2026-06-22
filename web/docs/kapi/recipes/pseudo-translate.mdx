@@ -1,6 +1,6 @@
 ---
 id: pseudo-translate
-title: "Catch UI truncation early"
+title: "Preview before you ship"
 sidebar_label: "Pseudo-translate"
 sidebar_position: 3
 description: "Generate locale-shaped pseudo-translations with kapi to surface UI truncation and missing-string bugs before real translation arrives."
@@ -10,16 +10,17 @@ hide_table_of_contents: true
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 import { PseudoTranslateWidget } from "@site/src/components/Lab";
 
-# Catch UI truncation early
+# Preview before you ship
 
 :::note Runs anywhere
 No project needed — `kapi pseudo-translate` runs ad-hoc on any source catalogue.
 :::
 
-**Goal:** surface UI truncation and missing-string bugs _before_ real
-translations arrive. Pseudo-translation rewrites every extracted string with
-locale-shaped accented characters and padding, so layout problems show up the
-moment the UI re-renders — no API key, no waiting, no cost.
+**Goal:** see how your interface holds up in another language before a single
+real translation exists. kapi fills every string with a longer, accented stand-in,
+so the moment your UI re-renders you can spot the labels that clip, the buttons
+that overflow, and any text that stayed plain — a sign your code hard-coded it
+instead of pulling it from the catalogue. No API key, no waiting, no cost.
 
 ## Steps
 
