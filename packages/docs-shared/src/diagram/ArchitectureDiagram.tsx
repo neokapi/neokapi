@@ -6,11 +6,12 @@ import "./diagram.css";
 
   It tells the whole story in one frame, left to right:
 
-      sources ─▶ Reader ─chan─▶ Annotate ─chan─▶ ⟨fan-out⟩ AI Translate ⟨fan-in⟩
-              ─chan─▶ QA ─chan─▶ Writer ─▶ targets
+      sources ─▶ Reader ─chan─▶ Annotate ─chan─▶ ⟨fan-out⟩ Translate ⟨fan-in⟩
+              ─chan─▶ QA ─chan─▶ Writer ─▶ file or store
 
   with three things layered on:
-    · resources (TM, termbase) feed annotate/translate from above;
+    · resources (TM, termbase, translation provider) feed annotate/translate
+      from above;
     · the gRPC plugin band (Okapi bridge, kapi-sat, remote) feeds reader,
       annotate and a tool stage from below;
     · concurrency is shown literally — each stage is a goroutine joined by
@@ -35,9 +36,7 @@ const WORKER_GAP = 10;
 const workerY = (i: number) => 125 + i * (WORKER_H + WORKER_GAP);
 
 const SOURCES = ["app.json", "page.html", "guide.docx", "strings.xml"];
-const TARGETS = ["app.fr.json", "app.de.json", "app.ja.json"];
 const sourceY = (i: number) => 112 + i * 40;
-const targetY = (i: number) => 152 + i * 40;
 
 interface DotProps {
   path: string;
@@ -130,12 +129,13 @@ export function ArchitectureDiagram({
           >
             <title id="kdx-arch-title">neokapi processing architecture</title>
             <desc id="kdx-arch-desc">
-              A streaming pipeline: format readers and writers at the edges, a serial chain of
-              annotate, translate and QA tools in the middle with the translate stage fanning out
-              across parallel goroutines, translation-memory, termbase and AI-provider resources
-              feeding it from above, and a gRPC plugin band (Okapi bridge, tier-3 segmenter/media/OCR
-              plugins, remote plugins) feeding it from below. Each stage is a goroutine joined by Part channels, and the
-              whole pipeline runs over many documents in parallel.
+              A streaming pipeline: a format reader at the left edge and a writer at the right that
+              sinks to a file (round-trip) or a content store (overlays); a serial chain of annotate,
+              translate and QA tools in the middle, with the translate stage fanning out across
+              parallel goroutines; translation-memory, termbase and a translation provider (LLM or MT)
+              feeding it from above; and a gRPC plugin band (Okapi bridge, tier-3 segmenter/media/OCR
+              plugins, remote plugins) feeding it from below. Each stage is a goroutine joined by Part
+              channels, and the whole pipeline runs over many documents in parallel.
             </desc>
 
             {/* ── document-parallelism: ghost lanes behind the live one ── */}
@@ -191,7 +191,7 @@ export function ArchitectureDiagram({
               </text>
               <path d="M516,56 L516,114" className="kdx-link kdx-link--resource" />
 
-              {/* AI provider over translate workers — the LLM the workers call */}
+              {/* translation provider over the workers — the LLM or MT engine they call */}
               <rect
                 x={618}
                 y={18}
@@ -201,10 +201,10 @@ export function ArchitectureDiagram({
                 className="kdx-chip kdx-chip--resource"
               />
               <text x={684} y={35} textAnchor="middle" fontSize={11} className="kdx-chip-t">
-                AI provider
+                Provider
               </text>
               <text x={684} y={48} textAnchor="middle" fontSize={8} className="kdx-chip-sub">
-                LLM · generate
+                LLM or MT
               </text>
               <path d="M684,56 L620,116" className="kdx-link kdx-link--resource" />
             </g>
@@ -284,7 +284,7 @@ export function ArchitectureDiagram({
                     style={{ animationDelay: `${i * 0.8}s` }}
                   />
                   <text x={WORKER_X + 12} y={wy + 18} fontSize={10.5} className="kdx-label">
-                    AI Translate
+                    Translate
                   </text>
                   <text
                     x={WORKER_X + WORKER_W - 10}
@@ -332,32 +332,42 @@ export function ArchitectureDiagram({
             {/* ── writer ── */}
             <Stage x={786} w={96} role="io" title="Writer" sub="DataFormat" />
 
-            {/* ── targets (right) ── */}
+            {/* ── writer sink (right): a file round-trip or a content store ── */}
             <text x={940} y={98} textAnchor="middle" fontSize={9.5} className="kdx-cap">
-              Targets
+              Sink
             </text>
-            <text x={888} y={252} textAnchor="middle" fontSize={8} className="kdx-note">
-              sink binding · file
+            <text x={888} y={262} textAnchor="middle" fontSize={8} className="kdx-note">
+              sink binding · file or store
             </text>
-            {TARGETS.map((f, i) => {
-              const y = targetY(i);
-              return (
-                <g key={f}>
-                  <path d={`M882,${CY} L894,${y + 14}`} className="kdx-thin" />
-                  <rect x={894} y={y} width={92} height={28} rx={6} className="kdx-file" />
-                  <text x={940} y={y + 18} textAnchor="middle" fontSize={9} className="kdx-file-t">
-                    {f}
-                  </text>
-                  <FlowDot
-                    path={`M882,${CY} L894,${y + 14}`}
-                    dur={2.2}
-                    begin={i * 0.4 + 0.6}
-                    cls="kdx-dot--io"
-                    r={2.4}
-                  />
-                </g>
-              );
-            })}
+
+            {/* file — written back in place (round-trip) */}
+            <path d={`M882,${CY} L894,175`} className="kdx-thin" />
+            <FlowDot path={`M882,${CY} L894,175`} dur={2.2} begin={0.6} cls="kdx-dot--io" r={2.4} />
+            <rect x={894} y={158} width={92} height={34} rx={7} className="kdx-file" />
+            <text x={940} y={174} textAnchor="middle" fontSize={11} className="kdx-file-t">
+              file
+            </text>
+            <text x={940} y={185} textAnchor="middle" fontSize={7.5} className="kdx-note">
+              round-trip
+            </text>
+
+            {/* store — overlays in a content store */}
+            <path d={`M882,${CY} L894,217`} className="kdx-thin" />
+            <FlowDot path={`M882,${CY} L894,217`} dur={2.2} begin={1.2} cls="kdx-dot--io" r={2.4} />
+            <rect
+              x={894}
+              y={200}
+              width={92}
+              height={34}
+              rx={7}
+              className="kdx-chip kdx-chip--resource"
+            />
+            <text x={940} y={216} textAnchor="middle" fontSize={11} className="kdx-chip-t">
+              store
+            </text>
+            <text x={940} y={227} textAnchor="middle" fontSize={7.5} className="kdx-chip-sub">
+              overlays
+            </text>
 
             {/* ── plugin system band (bottom) ── */}
             <rect x={40} y={360} width={920} height={120} rx={14} className="kdx-band" />

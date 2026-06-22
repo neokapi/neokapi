@@ -92,9 +92,9 @@ downstream reader sees the same canonical source**:
 
 - [Translation memory](/framework/translation-memory) matches on the segment
   layer and can generalize over entity spans.
-- [AI translation](/framework/ai-translation) and [MT](/framework/mt-services)
-  translate per segment, with the matched terminology injected as guidance and
-  do-not-translate entities protected.
+- [Translation](/framework/translation) (LLM or MT provider) runs per segment,
+  with the matched terminology injected as guidance and do-not-translate
+  entities protected.
 - Checks point findings at the exact run range that broke — a sentence, a term, a
   placeholder.
 

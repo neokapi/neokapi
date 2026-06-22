@@ -64,7 +64,7 @@ kapi translate i18n/ --target-lang fr --provider anthropic
 
 API keys are never written into the committed recipe. Supply one, in precedence order, with `--api-key`, a saved keychain credential (`kapi credentials add`, then `--credential <name>`), or the provider's standard environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, …). Local Ollama needs no key.
 
-See [AI translation](/framework/ai-translation) for the full provider and configuration surface.
+See [Translation](/framework/translation) for the full provider and configuration surface.
 
 ### Context carries through
 
