@@ -1,14 +1,17 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ArrowRight, FileText, Upload } from "lucide-react";
-import { Button, LocalePill } from "@neokapi/ui-primitives";
+import { type ChangeEvent, useState } from "react";
+import { ChevronDown, Folder } from "lucide-react";
+import { Button, Input, Label, LocalePill } from "@neokapi/ui-primitives";
 
 /**
- * Prototype v2 (source-first): one-door new project.
+ * Prototype v2 (source-first): new project — mirrors the shipped NewProjectDialog.
  *
- * No journey fork, no "content vs localization" self-classification, and no
- * languages dial to narrate. You point Kapi at content and get the workspace.
- * Kapi states the detected source language as a fact; target languages are an
- * ordinary setting added later, from the project — not an onboarding decision.
+ * Creation is name-based, matching the existing flow rather than reinventing it
+ * as a drag/drop: a project is created at ~/KapiProjects/{name} (or a location
+ * you browse to), and content is added afterward. Dropping a file is the ad-hoc
+ * Quick Tools gesture, not project creation. The one source-first addition over
+ * today's dialog is a quiet source-language default (en-US); target languages
+ * stay empty and are added later as an ordinary project setting.
  */
 const meta = {
   title: "Prototype v2/NewProject",
@@ -18,52 +21,58 @@ const meta = {
 export default meta;
 type Story = StoryObj;
 
-function NewProject() {
+function NewProjectDialog() {
+  const [name, setName] = useState("Acme Marketing Site");
+  const trimmed = name.trim();
+  const saveDir = trimmed ? `~/KapiProjects/${trimmed}` : " ";
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-8 text-foreground">
-      <div className="w-full max-w-xl">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-tight">New project</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Point Kapi at your content. You&rsquo;ll get parse, check, rewrite, brand, and stats out
-            of the box.
-          </p>
-        </div>
-
-        {/* The one door — a content source. */}
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
-            <Upload size={22} className="text-muted-foreground" />
-            <div className="text-sm">
-              <span className="font-medium">Drop a file or folder</span>
-              <span className="text-muted-foreground">{" — or "}</span>
-              <button type="button" className="font-medium text-primary hover:underline">
-                browse
-              </button>
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-8 text-foreground">
+      {/* The modal card mirrors the shipped NewProjectDialog. */}
+      <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
+        <h2 className="mb-4 text-lg font-semibold">New Project</h2>
+        <div className="space-y-3">
+          {/* Name (or a browsed Location) — the durable project, in a known place. */}
+          <div>
+            <Label className="mb-1 block text-xs text-muted-foreground">Name</Label>
+            <div className="flex items-center gap-1.5">
+              <Input
+                value={name}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                placeholder="My App"
+                className="flex-1"
+              />
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="Choose location"
+                className="shrink-0"
+              >
+                <Folder size={16} strokeWidth={1.5} />
+              </Button>
             </div>
-            <div className="text-xs text-muted-foreground">
-              A file, a folder, a glob, or a <span className="font-mono">.kapi</span> recipe
-            </div>
+            <p className="mt-1 truncate text-xs text-muted-foreground">{saveDir}</p>
           </div>
-          {/* Selected preview. */}
-          <div className="mt-3 flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-            <FileText size={15} className="text-muted-foreground" />
-            <span className="font-mono text-xs">src/locales/en-US.json</span>
-            <span className="ml-auto text-xs text-muted-foreground">+ 42 files</span>
-          </div>
-          {/* Detected source language — a fact about the content, not a choice. */}
-          <div className="mt-3 flex items-center gap-2 px-1 text-xs text-muted-foreground">
-            <span>Source language</span>
-            <LocalePill locale="en-US" />
-            <span className="text-muted-foreground/70">· detected</span>
-          </div>
-        </div>
 
-        <div className="mt-6 flex items-center justify-end">
-          <Button>
-            Create project
-            <ArrowRight size={15} />
-          </Button>
+          {/* Source language — the one source-first addition; a quiet default. */}
+          <div>
+            <Label className="mb-1 block text-xs text-muted-foreground">Source language</Label>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+            >
+              <span className="flex items-center gap-2">
+                <LocalePill locale="en-US" />
+                <span className="text-muted-foreground">English (United States)</span>
+              </span>
+              <ChevronDown size={15} className="text-muted-foreground" />
+            </button>
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <Button className="flex-1">Create Project</Button>
+            <Button variant="outline">Cancel</Button>
+          </div>
         </div>
       </div>
     </div>
@@ -71,5 +80,5 @@ function NewProject() {
 }
 
 export const Default: Story = {
-  render: () => <NewProject />,
+  render: () => <NewProjectDialog />,
 };
