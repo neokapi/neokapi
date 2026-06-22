@@ -9,8 +9,6 @@ hide_table_of_contents: true
 
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 import { PseudoTranslateWidget } from "@site/src/components/Lab";
-import Tabs from "@theme/Tabs";
-import TabItem from "@theme/TabItem";
 import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Preview before you ship
@@ -75,12 +73,11 @@ store, materialized with `kapi merge`) instead of `-o`. See
 
 ## CLI or Kapi Desktop
 
-The same pseudo-translation runs either way — pick the surface you work in. Your
-choice sticks across every recipe (and survives a reload), so a CLI user reads
-the whole site as CLI and a Kapi Desktop user reads it as Desktop.
+The same pseudo-translation runs either way — use the **CLI / Desktop / Both**
+toggle in the top bar to choose how this site shows it. Your choice sticks across
+every recipe and survives a reload.
 
-<Tabs groupId="kapi-surface" queryString="surface">
-<TabItem value="cli" label="CLI">
+<Cli>
 
 Run it on a file, choosing the output path with `-o`:
 
@@ -91,8 +88,9 @@ kapi pseudo-translate messages.json -o messages.pseudo.json
 In a `.kapi` project, drop the file argument and it runs against the recipe's
 declared content and locales.
 
-</TabItem>
-<TabItem value="desktop" label="Kapi Desktop">
+</Cli>
+
+<Desktop>
 
 Run pseudo-translation as a **quick tool** against a file, or add it as a step in
 a **flow** you run from the project. Kapi Desktop re-renders the output with
@@ -108,8 +106,7 @@ that clip.
 
 See [Kapi Desktop](/kapi/desktop/overview) for the full tour.
 
-</TabItem>
-</Tabs>
+</Desktop>
 
 ## Next
 

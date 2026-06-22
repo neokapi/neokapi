@@ -148,6 +148,26 @@ const config: Config = {
         },
       };
     },
+    // No-flash surface preload: set html[data-surface] from the persisted
+    // localStorage value before first paint, so dual-mode (<Cli>/<Desktop>)
+    // content and the navbar toggle agree from the first frame. See
+    // src/components/surface/.
+    function surfacePreload() {
+      return {
+        name: "surface-preload",
+        injectHtmlTags() {
+          return {
+            headTags: [
+              {
+                tagName: "script",
+                innerHTML:
+                  'try{var s=localStorage.getItem("kapi-surface");document.documentElement.dataset.surface=(s==="cli"||s==="desktop"||s==="both")?s:"both"}catch(e){document.documentElement.dataset.surface="both"}',
+              },
+            ],
+          };
+        },
+      };
+    },
     // Silence a few benign third-party webpack warnings. Each predicate is
     // scoped to the specific offending module/message so an equivalent warning
     // from our OWN code is never suppressed.
@@ -368,7 +388,11 @@ const config: Config = {
         },
         blog: false,
         theme: {
-          customCss: ["./src/css/custom.css", "./src/css/tailwind.css"],
+          customCss: [
+            "./src/css/custom.css",
+            "./src/css/tailwind.css",
+            "./src/css/surface.css",
+          ],
         },
         // @docusaurus/plugin-sitemap is bundled in preset-classic. Explicit
         // config here activates it and sets the change frequency hint that
@@ -486,6 +510,13 @@ const config: Config = {
               label: "Kapi React",
             },
           ],
+        },
+        {
+          // CLI / Desktop / Both surface toggle — sets the global preference that
+          // shows/hides dual-mode content; self-hides on pages without any (custom
+          // type registered in src/theme/NavbarItem/ComponentTypes.tsx).
+          type: "custom-surfaceToggle",
+          position: "right",
         },
         {
           // Neokapi WebAssembly Lab status widget — engine + plugin state for
