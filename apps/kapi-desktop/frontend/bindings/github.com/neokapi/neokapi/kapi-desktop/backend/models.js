@@ -14,6 +14,94 @@ import * as flow$0 from "../../core/flow/models.js";
 import * as model$0 from "../../core/model/models.js";
 
 /**
+ * AIModelOption is one selectable model for the "AI Models" picker. The list is
+ * model-first: the user chooses a Model and Provider follows.
+ */
+export class AIModelOption {
+    /**
+     * Creates a new AIModelOption instance.
+     * @param {Partial<AIModelOption>} [$$source = {}] - The source object to create the AIModelOption.
+     */
+    constructor($$source = {}) {
+        if (!("model" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["model"] = "";
+        }
+        if (!("provider" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["provider"] = "";
+        }
+        if (!("label" in $$source)) {
+            /**
+             * provider display label (e.g. "Ollama")
+             * @member
+             * @type {string}
+             */
+            this["label"] = "";
+        }
+        if (!("local" in $$source)) {
+            /**
+             * Local is true for on-device providers (Ollama) that need no API key.
+             * @member
+             * @type {boolean}
+             */
+            this["local"] = false;
+        }
+        if (!("installed" in $$source)) {
+            /**
+             * Installed (local only) reports the model is already present on the Ollama
+             * server; not-installed local models are pulled on first use.
+             * @member
+             * @type {boolean}
+             */
+            this["installed"] = false;
+        }
+        if (!("needs_key" in $$source)) {
+            /**
+             * NeedsKey is true for a cloud model with no saved credential yet.
+             * @member
+             * @type {boolean}
+             */
+            this["needs_key"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Note is an optional one-line rationale (recommended local models).
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (!("is_default" in $$source)) {
+            /**
+             * IsDefault marks the currently configured default.
+             * @member
+             * @type {boolean}
+             */
+            this["is_default"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AIModelOption instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AIModelOption}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AIModelOption(/** @type {Partial<AIModelOption>} */($$parsedSource));
+    }
+}
+
+/**
  * AddConceptRequest is the request to add a new concept.
  */
 export class AddConceptRequest {
@@ -429,18 +517,6 @@ export class AppSettings {
              * @type {string | undefined}
              */
             this["active_project"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * DefaultCredentialID is the credential the desktop falls back to when a
-             * flow step needs an AI provider but pins none of its own. It holds a
-             * credential ID (which carries the provider it links to). Empty means no
-             * default — a run then auto-detects, which only succeeds unambiguously
-             * with a single saved credential.
-             * @member
-             * @type {string | undefined}
-             */
-            this["default_credential_id"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -963,6 +1039,45 @@ export class CustomLocale {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new CustomLocale(/** @type {Partial<CustomLocale>} */($$parsedSource));
+    }
+}
+
+/**
+ * DefaultModelInfo is the configured default AI model and the provider it
+ * implies — the shared ai.provider/ai.model convention both kapi surfaces read.
+ */
+export class DefaultModelInfo {
+    /**
+     * Creates a new DefaultModelInfo instance.
+     * @param {Partial<DefaultModelInfo>} [$$source = {}] - The source object to create the DefaultModelInfo.
+     */
+    constructor($$source = {}) {
+        if (!("provider" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["provider"] = "";
+        }
+        if (!("model" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["model"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DefaultModelInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DefaultModelInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DefaultModelInfo(/** @type {Partial<DefaultModelInfo>} */($$parsedSource));
     }
 }
 

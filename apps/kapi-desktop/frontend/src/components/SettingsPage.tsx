@@ -133,7 +133,7 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
     <Tabs defaultValue="general" className="flex h-full flex-col">
       <TabsList variant="line">
         <TabsTrigger value="general">General</TabsTrigger>
-        <TabsTrigger value="credentials">AI Credentials</TabsTrigger>
+        <TabsTrigger value="credentials">AI Models</TabsTrigger>
         <TabsTrigger value="plugins">Plugins</TabsTrigger>
         <TabsTrigger value="locales">Locales</TabsTrigger>
       </TabsList>

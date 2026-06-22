@@ -38,6 +38,20 @@ import * as application$0 from "../../../../wailsapp/wails/v3/pkg/application/mo
 import * as $models from "./models.js";
 
 /**
+ * AINeedsModelChoice reports whether running a flow should prompt the user to
+ * pick an AI model first: the flow uses a provider-backed AI tool, no default
+ * provider is configured, and credential auto-detect wouldn't resolve on its
+ * own (zero or several saved credentials). The frontend checks this before
+ * launching so the user chooses up front instead of hitting a run error.
+ * @param {string} tabID
+ * @param {string} flowName
+ * @returns {$CancellablePromise<boolean>}
+ */
+export function AINeedsModelChoice(tabID, flowName) {
+    return $Call.ByID(756241351, tabID, flowName);
+}
+
+/**
  * AcknowledgeSampleRevision marks the on-disk sample as up to date with the
  * embedded revision without re-scaffolding ("keep current"), so the desktop
  * stops offering the upgrade for this copy.
@@ -551,12 +565,14 @@ export function GetConceptForView(handle, conceptID) {
 }
 
 /**
- * GetDefaultCredential returns the ID of the credential the desktop uses when
- * a flow step needs an AI provider but pins none. Empty when no default is set.
- * @returns {$CancellablePromise<string>}
+ * GetDefaultModel returns the configured default AI provider+model (empty when
+ * none is set — AI tools then fall back to the built-in provider default).
+ * @returns {$CancellablePromise<$models.DefaultModelInfo>}
  */
-export function GetDefaultCredential() {
-    return $Call.ByID(3095587212);
+export function GetDefaultModel() {
+    return $Call.ByID(4001834174).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType18($result);
+    }));
 }
 
 /**
@@ -568,7 +584,7 @@ export function GetDefaultCredential() {
  */
 export function GetFilterDoc(filterID) {
     return $Call.ByID(1281331816, filterID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType18($result);
+        return $$createType19($result);
     }));
 }
 
@@ -580,7 +596,7 @@ export function GetFilterDoc(filterID) {
  */
 export function GetFlow(tabID, name) {
     return $Call.ByID(304290764, tabID, name).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType20($result);
+        return $$createType21($result);
     }));
 }
 
@@ -594,7 +610,7 @@ export function GetFlow(tabID, name) {
  */
 export function GetFormatSchema(formatName) {
     return $Call.ByID(719959656, formatName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType18($result);
+        return $$createType19($result);
     }));
 }
 
@@ -623,7 +639,7 @@ export function GetKnownLocales() {
  */
 export function GetLastTrace() {
     return $Call.ByID(173656901).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType22($result);
+        return $$createType23($result);
     }));
 }
 
@@ -636,7 +652,7 @@ export function GetLastTrace() {
  */
 export function GetPluginDocs() {
     return $Call.ByID(1803183312).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType18($result);
+        return $$createType19($result);
     }));
 }
 
@@ -647,7 +663,7 @@ export function GetPluginDocs() {
  */
 export function GetPresetDetails(name) {
     return $Call.ByID(712088315, name).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType18($result);
+        return $$createType19($result);
     }));
 }
 
@@ -671,7 +687,7 @@ export function GetProject(tabID) {
  */
 export function GetProjectHandles(tabID) {
     return $Call.ByID(1036900364, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType23($result);
+        return $$createType24($result);
     }));
 }
 
@@ -701,7 +717,7 @@ export function GetProjectPath(tabID) {
  */
 export function GetProjectStatus(tabID) {
     return $Call.ByID(1376007355, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType25($result);
+        return $$createType26($result);
     }));
 }
 
@@ -735,7 +751,7 @@ export function GetProjectTermbaseHandle(tabID) {
  */
 export function GetRelations(handle, conceptID) {
     return $Call.ByID(211018617, handle, conceptID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType26($result);
+        return $$createType27($result);
     }));
 }
 
@@ -746,7 +762,7 @@ export function GetRelations(handle, conceptID) {
  */
 export function GetRunEvents() {
     return $Call.ByID(3258718056).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType28($result);
+        return $$createType29($result);
     }));
 }
 
@@ -766,7 +782,7 @@ export function GetRunState() {
  */
 export function GetSampleInfo(tabID) {
     return $Call.ByID(1332081630, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType29($result);
+        return $$createType30($result);
     }));
 }
 
@@ -779,7 +795,7 @@ export function GetSampleInfo(tabID) {
  */
 export function GetSessionState() {
     return $Call.ByID(303936325).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType30($result);
+        return $$createType31($result);
     }));
 }
 
@@ -789,7 +805,7 @@ export function GetSessionState() {
  */
 export function GetSettings() {
     return $Call.ByID(2735126073).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType31($result);
+        return $$createType32($result);
     }));
 }
 
@@ -802,7 +818,7 @@ export function GetSettings() {
  */
 export function GetStepDoc(stepID) {
     return $Call.ByID(1229098168, stepID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType18($result);
+        return $$createType19($result);
     }));
 }
 
@@ -813,7 +829,7 @@ export function GetStepDoc(stepID) {
  */
 export function GetTMActivityStats(handle) {
     return $Call.ByID(3959831133, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType33($result);
+        return $$createType34($result);
     }));
 }
 
@@ -825,7 +841,7 @@ export function GetTMActivityStats(handle) {
  */
 export function GetTMEntry(handle, entryID) {
     return $Call.ByID(1732683985, handle, entryID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType35($result);
+        return $$createType36($result);
     }));
 }
 
@@ -835,7 +851,7 @@ export function GetTMEntry(handle, entryID) {
  */
 export function GetTMFacets(handle) {
     return $Call.ByID(848093895, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType37($result);
+        return $$createType38($result);
     }));
 }
 
@@ -849,7 +865,7 @@ export function GetTMFacets(handle) {
  */
 export function GetTMFacetsFiltered(handle, query, anyLocale, requireLocale, filter) {
     return $Call.ByID(4250842328, handle, query, anyLocale, requireLocale, filter).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType37($result);
+        return $$createType38($result);
     }));
 }
 
@@ -861,7 +877,7 @@ export function GetTMFacetsFiltered(handle, query, anyLocale, requireLocale, fil
  */
 export function GetTMImportSession(handle, sessionID) {
     return $Call.ByID(644927338, handle, sessionID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType39($result);
+        return $$createType40($result);
     }));
 }
 
@@ -874,7 +890,7 @@ export function GetTMImportSession(handle, sessionID) {
  */
 export function GetTMLocaleStats(handle) {
     return $Call.ByID(3245876680, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType41($result);
+        return $$createType42($result);
     }));
 }
 
@@ -884,7 +900,7 @@ export function GetTMLocaleStats(handle) {
  */
 export function GetTMStats(handle) {
     return $Call.ByID(2800491194, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType43($result);
+        return $$createType44($result);
     }));
 }
 
@@ -895,7 +911,7 @@ export function GetTMStats(handle) {
  */
 export function GetTermbaseActivityStats(handle) {
     return $Call.ByID(585369705, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType45($result);
+        return $$createType46($result);
     }));
 }
 
@@ -906,7 +922,7 @@ export function GetTermbaseActivityStats(handle) {
  */
 export function GetTermbaseLocaleStats(handle) {
     return $Call.ByID(3626578924, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType47($result);
+        return $$createType48($result);
     }));
 }
 
@@ -917,7 +933,7 @@ export function GetTermbaseLocaleStats(handle) {
  */
 export function GetTermbaseStats(handle) {
     return $Call.ByID(3396033326, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType49($result);
+        return $$createType50($result);
     }));
 }
 
@@ -943,7 +959,7 @@ export function GetTheme() {
  */
 export function GetToolSchema(name) {
     return $Call.ByID(1681112681, name).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType18($result);
+        return $$createType19($result);
     }));
 }
 
@@ -962,7 +978,7 @@ export function GetUILanguage() {
  */
 export function GetUserFlow(id) {
     return $Call.ByID(3160388915, id).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType51($result);
+        return $$createType52($result);
     }));
 }
 
@@ -972,7 +988,7 @@ export function GetUserFlow(id) {
  */
 export function GetVersion() {
     return $Call.ByID(2402937320).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType52($result);
+        return $$createType53($result);
     }));
 }
 
@@ -985,7 +1001,7 @@ export function GetVersion() {
  */
 export function ImportTMXDialog(handle) {
     return $Call.ByID(1560060134, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType54($result);
+        return $$createType55($result);
     }));
 }
 
@@ -999,7 +1015,7 @@ export function ImportTMXDialog(handle) {
  */
 export function ImportTermbaseCSVDialog(handle, srcLocale, tgtLocale, domain) {
     return $Call.ByID(830332458, handle, srcLocale, tgtLocale, domain).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType54($result);
+        return $$createType55($result);
     }));
 }
 
@@ -1010,7 +1026,7 @@ export function ImportTermbaseCSVDialog(handle, srcLocale, tgtLocale, domain) {
  */
 export function ImportTermbaseJSONDialog(handle) {
     return $Call.ByID(1740483588, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType54($result);
+        return $$createType55($result);
     }));
 }
 
@@ -1093,13 +1109,25 @@ export function IsEmptyProject(tabID) {
 }
 
 /**
+ * ListAIModels returns the model-first catalog for the picker: local Ollama
+ * models (installed first, then recommended) followed by each cloud provider's
+ * model (flagged when no credential is saved yet).
+ * @returns {$CancellablePromise<$models.AIModelOption[]>}
+ */
+export function ListAIModels() {
+    return $Call.ByID(2759788968).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType57($result);
+    }));
+}
+
+/**
  * ListAllFormatPresets returns both built-in, plugin, and user presets for a format.
  * @param {string} formatName
  * @returns {$CancellablePromise<$models.FormatPresetInfo[]>}
  */
 export function ListAllFormatPresets(formatName) {
     return $Call.ByID(4147461344, formatName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType56($result);
+        return $$createType59($result);
     }));
 }
 
@@ -1109,7 +1137,7 @@ export function ListAllFormatPresets(formatName) {
  */
 export function ListAvailablePlugins() {
     return $Call.ByID(3801942969).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType58($result);
+        return $$createType61($result);
     }));
 }
 
@@ -1120,7 +1148,7 @@ export function ListAvailablePlugins() {
  */
 export function ListFlows(tabID) {
     return $Call.ByID(254064977, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType60($result);
+        return $$createType63($result);
     }));
 }
 
@@ -1131,7 +1159,7 @@ export function ListFlows(tabID) {
  */
 export function ListFormatPresets(format) {
     return $Call.ByID(3563914789, format).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType56($result);
+        return $$createType59($result);
     }));
 }
 
@@ -1141,7 +1169,7 @@ export function ListFormatPresets(format) {
  */
 export function ListFormats() {
     return $Call.ByID(3840728832).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType62($result);
+        return $$createType65($result);
     }));
 }
 
@@ -1150,7 +1178,7 @@ export function ListFormats() {
  */
 export function ListNamedTMs() {
     return $Call.ByID(138470699).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType64($result);
+        return $$createType67($result);
     }));
 }
 
@@ -1160,7 +1188,7 @@ export function ListNamedTMs() {
  */
 export function ListNamedTermbases() {
     return $Call.ByID(1569783227).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType64($result);
+        return $$createType67($result);
     }));
 }
 
@@ -1180,7 +1208,7 @@ export function ListNamedTermbases() {
  */
 export function ListOutputs(tabID) {
     return $Call.ByID(2429100394, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType67($result);
+        return $$createType70($result);
     }));
 }
 
@@ -1191,7 +1219,7 @@ export function ListOutputs(tabID) {
  */
 export function ListPlugins() {
     return $Call.ByID(2093840368).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType69($result);
+        return $$createType72($result);
     }));
 }
 
@@ -1201,7 +1229,7 @@ export function ListPlugins() {
  */
 export function ListPresets() {
     return $Call.ByID(1022998084).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType71($result);
+        return $$createType74($result);
     }));
 }
 
@@ -1214,7 +1242,7 @@ export function ListPresets() {
  */
 export function ListProjectFiles(tabID) {
     return $Call.ByID(258177568, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType73($result);
+        return $$createType76($result);
     }));
 }
 
@@ -1226,7 +1254,7 @@ export function ListProjectFiles(tabID) {
  */
 export function ListProjectFormats(tabID) {
     return $Call.ByID(1643258051, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType62($result);
+        return $$createType65($result);
     }));
 }
 
@@ -1239,7 +1267,7 @@ export function ListProjectFormats(tabID) {
  */
 export function ListProjectTools(tabID) {
     return $Call.ByID(2643725580, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType75($result);
+        return $$createType78($result);
     }));
 }
 
@@ -1249,7 +1277,7 @@ export function ListProjectTools(tabID) {
  */
 export function ListProviderTypes() {
     return $Call.ByID(2908430146).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType77($result);
+        return $$createType80($result);
     }));
 }
 
@@ -1259,7 +1287,7 @@ export function ListProviderTypes() {
  */
 export function ListProviders() {
     return $Call.ByID(431317626).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType79($result);
+        return $$createType82($result);
     }));
 }
 
@@ -1269,7 +1297,7 @@ export function ListProviders() {
  */
 export function ListRecentFiles() {
     return $Call.ByID(525069106).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType81($result);
+        return $$createType84($result);
     }));
 }
 
@@ -1280,7 +1308,7 @@ export function ListRecentFiles() {
  */
 export function ListTMImportSessions(handle) {
     return $Call.ByID(1524112231, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType82($result);
+        return $$createType85($result);
     }));
 }
 
@@ -1290,7 +1318,7 @@ export function ListTMImportSessions(handle) {
  */
 export function ListTabs() {
     return $Call.ByID(2754032564).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType83($result);
+        return $$createType86($result);
     }));
 }
 
@@ -1300,7 +1328,7 @@ export function ListTabs() {
  */
 export function ListTools() {
     return $Call.ByID(4153492859).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType75($result);
+        return $$createType78($result);
     }));
 }
 
@@ -1310,7 +1338,7 @@ export function ListTools() {
  */
 export function ListUserFlows() {
     return $Call.ByID(2506791156).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType85($result);
+        return $$createType88($result);
     }));
 }
 
@@ -1334,7 +1362,7 @@ export function LoadPlugins() {
  */
 export function LookupTM(handle, req) {
     return $Call.ByID(858147209, handle, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType87($result);
+        return $$createType90($result);
     }));
 }
 
@@ -1348,7 +1376,7 @@ export function LookupTM(handle, req) {
  */
 export function MatchContent(tabID) {
     return $Call.ByID(433231038, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType89($result);
+        return $$createType92($result);
     }));
 }
 
@@ -1388,7 +1416,7 @@ export function NewProject(name, sourceLang, targetLangs, savePath) {
  */
 export function OpenFlowFileDialog() {
     return $Call.ByID(585459070).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType51($result);
+        return $$createType52($result);
     }));
 }
 
@@ -1459,7 +1487,7 @@ export function OpenTermbaseDialog() {
  */
 export function PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang) {
     return $Call.ByID(918288804, tabID, flowName, sampleText, sourceLang, targetLang).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType91($result);
+        return $$createType94($result);
     }));
 }
 
@@ -1548,7 +1576,7 @@ export function ResolveEntityConcepts(tmHandle, tbHandle, entryIDs, force) {
  */
 export function RunChecks(tabID, targetLang) {
     return $Call.ByID(139733492, tabID, targetLang).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType93($result);
+        return $$createType96($result);
     }));
 }
 
@@ -1570,7 +1598,7 @@ export function RunChecks(tabID, targetLang) {
  */
 export function RunExtract(tabID) {
     return $Call.ByID(4222482902, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType95($result);
+        return $$createType98($result);
     }));
 }
 
@@ -1598,7 +1626,7 @@ export function RunFlow(tabID, flowName, inputPaths, targetLangs) {
  */
 export function RunFormatReader(formatName, filePath, config) {
     return $Call.ByID(2298675461, formatName, filePath, config).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType97($result);
+        return $$createType100($result);
     }));
 }
 
@@ -1610,7 +1638,7 @@ export function RunFormatReader(formatName, filePath, config) {
  */
 export function RunFormatReaderDialog(formatName, config) {
     return $Call.ByID(3765990169, formatName, config).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType97($result);
+        return $$createType100($result);
     }));
 }
 
@@ -1685,7 +1713,7 @@ export function SaveProjectDialog(tabID) {
  */
 export function SaveProvider(req) {
     return $Call.ByID(990642140, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType98($result);
+        return $$createType101($result);
     }));
 }
 
@@ -1727,7 +1755,7 @@ export function SaveUserFlow(req) {
  */
 export function SearchPlugins(query) {
     return $Call.ByID(1519277548, query).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType58($result);
+        return $$createType61($result);
     }));
 }
 
@@ -1745,7 +1773,7 @@ export function SearchPlugins(query) {
  */
 export function SearchTMEntries(handle, query, anyLocale, requireLocale, offset, limit) {
     return $Call.ByID(2364570829, handle, query, anyLocale, requireLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType100($result);
+        return $$createType103($result);
     }));
 }
 
@@ -1762,7 +1790,7 @@ export function SearchTMEntries(handle, query, anyLocale, requireLocale, offset,
  */
 export function SearchTMEntriesFiltered(handle, query, anyLocale, requireLocale, filter, offset, limit) {
     return $Call.ByID(1068746654, handle, query, anyLocale, requireLocale, filter, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType100($result);
+        return $$createType103($result);
     }));
 }
 
@@ -1778,7 +1806,7 @@ export function SearchTMEntriesFiltered(handle, query, anyLocale, requireLocale,
  */
 export function SearchTerms(handle, query, srcLocale, tgtLocale, offset, limit) {
     return $Call.ByID(556247463, handle, query, srcLocale, tgtLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType102($result);
+        return $$createType105($result);
     }));
 }
 
@@ -1801,12 +1829,16 @@ export function SetApplication(app) {
 }
 
 /**
- * SetDefaultCredential persists the fallback credential id (pass "" to clear).
- * @param {string} id
+ * SetDefaultModel persists the default AI model (and the provider it implies) to
+ * the shared kapi config, so the kapi CLI honors it too. When provider is empty
+ * it is inferred from the model name (convention over configuration). Pass an
+ * empty model to clear the default.
+ * @param {string} model
+ * @param {string} provider
  * @returns {$CancellablePromise<void>}
  */
-export function SetDefaultCredential(id) {
-    return $Call.ByID(3573536056, id);
+export function SetDefaultModel(model, provider) {
+    return $Call.ByID(3686671258, model, provider);
 }
 
 /**
@@ -1953,7 +1985,7 @@ export function ValidateContentPath(path) {
  */
 export function ValidateProjectFlows(tabID) {
     return $Call.ByID(3090313048, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType104($result);
+        return $$createType107($result);
     }));
 }
 
@@ -1976,90 +2008,93 @@ const $$createType14 = locale$0.LocaleInfo.createFrom;
 const $$createType15 = $Create.Array($$createType14);
 const $$createType16 = $models.ConceptDTO.createFrom;
 const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = $Create.Map($Create.Any, $Create.Any);
-const $$createType19 = flow$0.StepsSpec.createFrom;
-const $$createType20 = $Create.Nullable($$createType19);
-const $$createType21 = flow$0.FlowTrace.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = $models.ProjectHandles.createFrom;
-const $$createType24 = $models.ProjectStatus.createFrom;
-const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = $Create.Array($$createType1);
-const $$createType27 = $models.RunEvent.createFrom;
-const $$createType28 = $Create.Array($$createType27);
-const $$createType29 = $models.SampleInfo.createFrom;
-const $$createType30 = $models.SessionState.createFrom;
-const $$createType31 = $models.AppSettings.createFrom;
-const $$createType32 = sievepen$0.ActivityStat.createFrom;
-const $$createType33 = $Create.Array($$createType32);
-const $$createType34 = $models.TMEntryDTO.createFrom;
-const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = $models.TMFacets.createFrom;
-const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = $models.ImportSessionDTO.createFrom;
-const $$createType39 = $Create.Nullable($$createType38);
-const $$createType40 = sievepen$0.LocaleFacet.createFrom;
-const $$createType41 = $Create.Array($$createType40);
-const $$createType42 = $models.TMStats.createFrom;
-const $$createType43 = $Create.Nullable($$createType42);
-const $$createType44 = termbase$0.ActivityStat.createFrom;
-const $$createType45 = $Create.Array($$createType44);
-const $$createType46 = termbase$0.LocaleStat.createFrom;
-const $$createType47 = $Create.Array($$createType46);
-const $$createType48 = $models.TermbaseStats.createFrom;
-const $$createType49 = $Create.Nullable($$createType48);
-const $$createType50 = $models.UserFlowDetail.createFrom;
-const $$createType51 = $Create.Nullable($$createType50);
-const $$createType52 = $models.VersionInfo.createFrom;
-const $$createType53 = $models.ImportResult.createFrom;
-const $$createType54 = $Create.Nullable($$createType53);
-const $$createType55 = $models.FormatPresetInfo.createFrom;
-const $$createType56 = $Create.Array($$createType55);
-const $$createType57 = $models.AvailablePlugin.createFrom;
-const $$createType58 = $Create.Array($$createType57);
-const $$createType59 = $models.FlowInfo.createFrom;
-const $$createType60 = $Create.Array($$createType59);
-const $$createType61 = $models.FormatInfo.createFrom;
-const $$createType62 = $Create.Array($$createType61);
-const $$createType63 = $models.ResourceInfo.createFrom;
-const $$createType64 = $Create.Array($$createType63);
-const $$createType65 = $models.OutputFileInfo.createFrom;
-const $$createType66 = $Create.Array($$createType65);
-const $$createType67 = $Create.Map($Create.Any, $$createType66);
-const $$createType68 = $models.PluginInfo.createFrom;
+const $$createType18 = $models.DefaultModelInfo.createFrom;
+const $$createType19 = $Create.Map($Create.Any, $Create.Any);
+const $$createType20 = flow$0.StepsSpec.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = flow$0.FlowTrace.createFrom;
+const $$createType23 = $Create.Nullable($$createType22);
+const $$createType24 = $models.ProjectHandles.createFrom;
+const $$createType25 = $models.ProjectStatus.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = $Create.Array($$createType1);
+const $$createType28 = $models.RunEvent.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = $models.SampleInfo.createFrom;
+const $$createType31 = $models.SessionState.createFrom;
+const $$createType32 = $models.AppSettings.createFrom;
+const $$createType33 = sievepen$0.ActivityStat.createFrom;
+const $$createType34 = $Create.Array($$createType33);
+const $$createType35 = $models.TMEntryDTO.createFrom;
+const $$createType36 = $Create.Nullable($$createType35);
+const $$createType37 = $models.TMFacets.createFrom;
+const $$createType38 = $Create.Nullable($$createType37);
+const $$createType39 = $models.ImportSessionDTO.createFrom;
+const $$createType40 = $Create.Nullable($$createType39);
+const $$createType41 = sievepen$0.LocaleFacet.createFrom;
+const $$createType42 = $Create.Array($$createType41);
+const $$createType43 = $models.TMStats.createFrom;
+const $$createType44 = $Create.Nullable($$createType43);
+const $$createType45 = termbase$0.ActivityStat.createFrom;
+const $$createType46 = $Create.Array($$createType45);
+const $$createType47 = termbase$0.LocaleStat.createFrom;
+const $$createType48 = $Create.Array($$createType47);
+const $$createType49 = $models.TermbaseStats.createFrom;
+const $$createType50 = $Create.Nullable($$createType49);
+const $$createType51 = $models.UserFlowDetail.createFrom;
+const $$createType52 = $Create.Nullable($$createType51);
+const $$createType53 = $models.VersionInfo.createFrom;
+const $$createType54 = $models.ImportResult.createFrom;
+const $$createType55 = $Create.Nullable($$createType54);
+const $$createType56 = $models.AIModelOption.createFrom;
+const $$createType57 = $Create.Array($$createType56);
+const $$createType58 = $models.FormatPresetInfo.createFrom;
+const $$createType59 = $Create.Array($$createType58);
+const $$createType60 = $models.AvailablePlugin.createFrom;
+const $$createType61 = $Create.Array($$createType60);
+const $$createType62 = $models.FlowInfo.createFrom;
+const $$createType63 = $Create.Array($$createType62);
+const $$createType64 = $models.FormatInfo.createFrom;
+const $$createType65 = $Create.Array($$createType64);
+const $$createType66 = $models.ResourceInfo.createFrom;
+const $$createType67 = $Create.Array($$createType66);
+const $$createType68 = $models.OutputFileInfo.createFrom;
 const $$createType69 = $Create.Array($$createType68);
-const $$createType70 = $models.PresetInfo.createFrom;
-const $$createType71 = $Create.Array($$createType70);
-const $$createType72 = $models.ProjectFileInfo.createFrom;
-const $$createType73 = $Create.Array($$createType72);
-const $$createType74 = $models.ToolInfo.createFrom;
-const $$createType75 = $Create.Array($$createType74);
-const $$createType76 = $models.ProviderTypeInfo.createFrom;
-const $$createType77 = $Create.Array($$createType76);
-const $$createType78 = $models.ProviderInfo.createFrom;
-const $$createType79 = $Create.Array($$createType78);
-const $$createType80 = $models.RecentFile.createFrom;
-const $$createType81 = $Create.Array($$createType80);
-const $$createType82 = $Create.Array($$createType38);
-const $$createType83 = $Create.Array($$createType12);
-const $$createType84 = $models.UserFlowInfo.createFrom;
-const $$createType85 = $Create.Array($$createType84);
-const $$createType86 = $models.TMMatchDTO.createFrom;
-const $$createType87 = $Create.Array($$createType86);
-const $$createType88 = $models.FileMatch.createFrom;
-const $$createType89 = $Create.Array($$createType88);
-const $$createType90 = $models.PreviewResult.createFrom;
-const $$createType91 = $Create.Nullable($$createType90);
-const $$createType92 = $models.CheckRunResult.createFrom;
-const $$createType93 = $Create.Nullable($$createType92);
-const $$createType94 = $models.ExtractResult.createFrom;
-const $$createType95 = $Create.Nullable($$createType94);
-const $$createType96 = $models.FormatPartInfo.createFrom;
-const $$createType97 = $Create.Array($$createType96);
-const $$createType98 = $Create.Nullable($$createType78);
-const $$createType99 = $models.TMSearchResult.createFrom;
-const $$createType100 = $Create.Nullable($$createType99);
-const $$createType101 = $models.TermSearchResult.createFrom;
-const $$createType102 = $Create.Nullable($$createType101);
-const $$createType103 = project$0.FlowValidationIssue.createFrom;
-const $$createType104 = $Create.Array($$createType103);
+const $$createType70 = $Create.Map($Create.Any, $$createType69);
+const $$createType71 = $models.PluginInfo.createFrom;
+const $$createType72 = $Create.Array($$createType71);
+const $$createType73 = $models.PresetInfo.createFrom;
+const $$createType74 = $Create.Array($$createType73);
+const $$createType75 = $models.ProjectFileInfo.createFrom;
+const $$createType76 = $Create.Array($$createType75);
+const $$createType77 = $models.ToolInfo.createFrom;
+const $$createType78 = $Create.Array($$createType77);
+const $$createType79 = $models.ProviderTypeInfo.createFrom;
+const $$createType80 = $Create.Array($$createType79);
+const $$createType81 = $models.ProviderInfo.createFrom;
+const $$createType82 = $Create.Array($$createType81);
+const $$createType83 = $models.RecentFile.createFrom;
+const $$createType84 = $Create.Array($$createType83);
+const $$createType85 = $Create.Array($$createType39);
+const $$createType86 = $Create.Array($$createType12);
+const $$createType87 = $models.UserFlowInfo.createFrom;
+const $$createType88 = $Create.Array($$createType87);
+const $$createType89 = $models.TMMatchDTO.createFrom;
+const $$createType90 = $Create.Array($$createType89);
+const $$createType91 = $models.FileMatch.createFrom;
+const $$createType92 = $Create.Array($$createType91);
+const $$createType93 = $models.PreviewResult.createFrom;
+const $$createType94 = $Create.Nullable($$createType93);
+const $$createType95 = $models.CheckRunResult.createFrom;
+const $$createType96 = $Create.Nullable($$createType95);
+const $$createType97 = $models.ExtractResult.createFrom;
+const $$createType98 = $Create.Nullable($$createType97);
+const $$createType99 = $models.FormatPartInfo.createFrom;
+const $$createType100 = $Create.Array($$createType99);
+const $$createType101 = $Create.Nullable($$createType81);
+const $$createType102 = $models.TMSearchResult.createFrom;
+const $$createType103 = $Create.Nullable($$createType102);
+const $$createType104 = $models.TermSearchResult.createFrom;
+const $$createType105 = $Create.Nullable($$createType104);
+const $$createType106 = project$0.FlowValidationIssue.createFrom;
+const $$createType107 = $Create.Array($$createType106);

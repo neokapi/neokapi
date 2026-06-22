@@ -317,7 +317,7 @@ func toolBuildErrorMessage(toolName, lang string, err error) string {
 	var amb *credentials.AmbiguousCredentialError
 	if errors.As(err, &amb) {
 		return fmt.Sprintf(
-			"%s: multiple AI credentials are configured (%s). Pick a default in Settings → AI provider, or choose one on this flow step.",
+			"%s: multiple AI credentials are configured (%s). Set a default in Settings → AI Models, or choose one on this flow step.",
 			toolName, strings.Join(amb.Candidates, ", "),
 		)
 	}

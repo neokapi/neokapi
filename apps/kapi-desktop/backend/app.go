@@ -22,6 +22,7 @@ import (
 	// too — command factories, MCP tools, and any cli-registered AI providers —
 	// keeping the desktop's tool and provider lists in sync with the CLI.
 	_ "github.com/neokapi/neokapi/cli"
+	appconfig "github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
@@ -86,6 +87,12 @@ type App struct {
 	recent      *recentStore
 	settings    *settingsStore
 
+	// aiConfig is the shared kapi app config (~/.config/kapi/kapi.yaml) — the
+	// same file the kapi CLI reads. It supplies the default AI provider/model
+	// (ai.provider / ai.model) so a desktop run with no pinned provider uses the
+	// user's configured default, identical to the CLI.
+	aiConfig *appconfig.AppConfig
+
 	// eventSink, when non-nil, receives every emitted event in addition to the
 	// Wails app. The recording wbridge (cmd/wbridge) sets this to stream events
 	// to the browser over SSE, since a plain browser has no Wails event channel.
@@ -117,6 +124,13 @@ func NewApp() *App {
 	// isolated KAPI_CONFIG_DIR fully isolates credentials from the user's own.
 	credStore := credentials.NewStore(filepath.Join(kapiConfigDir(), "providers.json"))
 
+	// Load the shared kapi config (honors KAPI_CONFIG_DIR like the CLI) so the
+	// desktop reads the same ai.provider/ai.model default the CLI does.
+	aiCfg := appconfig.NewAppConfig()
+	if err := aiCfg.Load(); err != nil {
+		logger.Printf("ai config: %v", err)
+	}
+
 	app := &App{
 		formatReg:   formatReg,
 		toolReg:     toolReg,
@@ -128,6 +142,7 @@ func NewApp() *App {
 		credentials: credStore,
 		recent:      newRecentStore(),
 		settings:    newSettingsStore(),
+		aiConfig:    aiCfg,
 		logger:      logger,
 	}
 	// Emit recent:changed whenever the recent-projects list mutates so the
@@ -135,14 +150,13 @@ func NewApp() *App {
 	// once at startup and otherwise never sees later opens — issue #3).
 	app.recent.onChange = func() { app.emitEvent("recent:changed", nil) }
 
-	// Wire credential resolution: tools requiring "credentials" get their
-	// provider/apiKey/model injected from the shared credential store. When a
-	// flow step pins no credential, fall back to the user's chosen default
-	// (Settings → AI provider) so multi-credential setups resolve
-	// deterministically instead of erroring on auto-detect.
-	toolReg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
-		config = app.applyDefaultCredential(requires, config)
-		return credentials.ResolveCredentials(credStore, toolName, requires, config)
+	// Wire AI defaulting + credential resolution, exactly like the CLI: first
+	// fill the default provider/model (ai.provider/ai.model) for AI tools that
+	// pin none — the shared convention — then resolve the API key for that
+	// provider from the credential store.
+	toolReg.SetConfigPreprocessor(func(toolName string, requires []string, cfg map[string]any) (map[string]any, error) {
+		cfg = appconfig.ApplyAIToolDefaults(app.aiConfig, toolName, requires, cfg)
+		return credentials.ResolveCredentials(credStore, toolName, requires, cfg)
 	})
 
 	// The plugin runtime owns discovery, the host, the daemon pool, and the

@@ -3,31 +3,69 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect } from "vitest";
 import { ErrorProvider } from "../components/ErrorBanner";
 import { CredentialsPage } from "../components/CredentialsPage";
+import type { AIModelOption } from "../types/api";
 
 function renderWithProviders(ui: React.ReactElement) {
   return render(<ErrorProvider>{ui}</ErrorProvider>);
 }
 
-describe("CredentialsPage", () => {
-  it("renders title and keychain notice", async () => {
-    renderWithProviders(<CredentialsPage />);
-    expect(screen.getByText("AI Credentials")).toBeInTheDocument();
+const sampleModels: AIModelOption[] = [
+  {
+    model: "llama3.2:3b",
+    provider: "ollama",
+    label: "Ollama",
+    local: true,
+    installed: false,
+    needs_key: false,
+    note: "default · smallest",
+    is_default: true,
+  },
+  {
+    model: "gpt-4o",
+    provider: "openai",
+    label: "OpenAI",
+    local: false,
+    installed: false,
+    needs_key: true,
+    is_default: false,
+  },
+];
+
+describe("CredentialsPage (AI Models)", () => {
+  it("renders the AI Models title and keychain notice", () => {
+    renderWithProviders(
+      <CredentialsPage providers={[]} providerTypes={[]} models={sampleModels} />,
+    );
+    expect(screen.getByText("AI Models")).toBeInTheDocument();
     expect(screen.getByText(/stored in your OS keychain/)).toBeInTheDocument();
   });
 
-  it("shows empty state after loading", async () => {
+  it("renders the model picker and marks the default", () => {
+    renderWithProviders(
+      <CredentialsPage providers={[]} providerTypes={[]} models={sampleModels} />,
+    );
+    expect(screen.getByText("llama3.2:3b")).toBeInTheDocument();
+    expect(screen.getByText("gpt-4o")).toBeInTheDocument();
+
+    // Exactly one model row is the selected default.
+    const checked = screen
+      .getAllByRole("radio")
+      .filter((r) => r.getAttribute("aria-checked") === "true");
+    expect(checked).toHaveLength(1);
+
+    // The cloud model with no saved key is flagged.
+    expect(screen.getByText("needs key")).toBeInTheDocument();
+  });
+
+  it("shows the cloud-keys empty state when no providers are saved", async () => {
     renderWithProviders(<CredentialsPage />);
-    // Wait for async load to finish (api returns null outside Wails).
     await waitFor(() => {
-      expect(screen.getByText(/No AI providers configured/)).toBeInTheDocument();
+      expect(screen.getByText(/No cloud provider keys/)).toBeInTheDocument();
     });
   });
 
   it("shows add form when clicking Add Provider", async () => {
-    renderWithProviders(<CredentialsPage />);
-    await waitFor(() => {
-      expect(screen.queryByText("Loading providers...")).not.toBeInTheDocument();
-    });
+    renderWithProviders(<CredentialsPage providers={[]} providerTypes={[]} models={[]} />);
     await userEvent.click(screen.getByText("Add Provider"));
     expect(screen.getByText("New Provider")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("My Anthropic Key")).toBeInTheDocument();
@@ -35,47 +73,9 @@ describe("CredentialsPage", () => {
   });
 
   it("can cancel adding a provider", async () => {
-    renderWithProviders(<CredentialsPage />);
-    await waitFor(() => {
-      expect(screen.queryByText("Loading providers...")).not.toBeInTheDocument();
-    });
+    renderWithProviders(<CredentialsPage providers={[]} providerTypes={[]} models={[]} />);
     await userEvent.click(screen.getByText("Add Provider"));
     await userEvent.click(screen.getByText("Cancel"));
     expect(screen.queryByText("New Provider")).not.toBeInTheDocument();
-  });
-
-  const twoProviders = [
-    { id: "c1", name: "My OpenAI Key", provider_type: "openai" },
-    { id: "c2", name: "My Gemini Key", provider_type: "gemini" },
-  ];
-
-  it("marks the default provider with a star and badge", () => {
-    renderWithProviders(
-      <CredentialsPage providers={twoProviders} providerTypes={[]} defaultCredentialId="c2" />,
-    );
-    expect(screen.getByText("Default")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Unset My Gemini Key as default/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: /Set My OpenAI Key as default/ })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-  });
-
-  it("starring a provider makes it the default (optimistic)", async () => {
-    renderWithProviders(
-      <CredentialsPage providers={twoProviders} providerTypes={[]} defaultCredentialId="" />,
-    );
-    expect(screen.queryByText("Default")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: /Set My OpenAI Key as default/ }));
-
-    expect(screen.getByText("Default")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Unset My OpenAI Key as default/ })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
   });
 });

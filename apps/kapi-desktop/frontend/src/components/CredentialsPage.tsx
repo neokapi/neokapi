@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2, Star } from "lucide-react";
+import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2 } from "lucide-react";
 import {
   Button,
   Badge,
@@ -12,8 +12,9 @@ import {
   LoadingSpinner,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
-import type { ProviderConfig } from "../types/api";
+import type { ProviderConfig, AIModelOption, DefaultModelInfo } from "../types/api";
 import { api } from "../hooks/useApi";
+import { AIModelList } from "./AIModelList";
 import { useError } from "./ErrorBanner";
 
 interface ProviderTypeOption {
@@ -28,18 +29,19 @@ export interface CredentialsPageProps {
   providers?: ProviderConfig[];
   /** Pre-loaded provider types for Storybook. */
   providerTypes?: ProviderTypeOption[];
-  /** Pre-loaded default credential id for Storybook. */
-  defaultCredentialId?: string;
+  /** Pre-loaded model catalog for Storybook — skips api.listAIModels(). */
+  models?: AIModelOption[];
 }
 
 export function CredentialsPage({
   providers: propProviders,
   providerTypes: propProviderTypes,
-  defaultCredentialId: propDefaultId,
+  models: propModels,
 }: CredentialsPageProps = {}) {
   const [providers, setProviders] = useState<ProviderConfig[]>(propProviders ?? []);
   const [providerTypes, setProviderTypes] = useState<ProviderTypeOption[]>(propProviderTypes ?? []);
-  const [defaultId, setDefaultId] = useState<string>(propDefaultId ?? "");
+  const [models, setModels] = useState<AIModelOption[]>(propModels ?? []);
+  const [defaultModel, setDefaultModel] = useState<DefaultModelInfo>({ provider: "", model: "" });
   const [loading, setLoading] = useState(!propProviders);
   const [editing, setEditing] = useState<ProviderConfig | null>(null);
   const [apiKey, setApiKey] = useState("");
@@ -49,27 +51,42 @@ export function CredentialsPage({
 
   const { showError } = useError();
 
-  const loadProviders = useCallback(async () => {
+  const load = useCallback(async () => {
     if (propProviders) return;
     try {
-      const [result, types, def] = await Promise.all([
+      const [result, types, modelList, def] = await Promise.all([
         api.listProviders(),
         api.listProviderTypes(),
-        api.getDefaultCredential(),
+        api.listAIModels(),
+        api.getDefaultModel(),
       ]);
       if (result) setProviders(result);
       if (types) setProviderTypes(types);
-      setDefaultId(def ?? "");
+      if (modelList) setModels(modelList);
+      if (def) setDefaultModel(def);
     } catch (err) {
-      showError("Failed to load AI providers", err);
+      showError("Failed to load AI models", err);
     } finally {
       setLoading(false);
     }
   }, [showError, propProviders]);
 
   useEffect(() => {
-    void loadProviders();
-  }, [loadProviders]);
+    void load();
+  }, [load]);
+
+  // Choosing a model persists the shared default (ai.provider/ai.model); the
+  // provider follows from the model.
+  const handleSelectModel = async (m: AIModelOption) => {
+    setDefaultModel({ provider: m.provider, model: m.model });
+    try {
+      await api.setDefaultModel(m.model, m.provider);
+      await load();
+    } catch (e) {
+      setError(String(e));
+      void load();
+    }
+  };
 
   const handleAdd = () => {
     setEditing({
@@ -86,13 +103,10 @@ export function CredentialsPage({
     setSaving(true);
     setError(null);
     try {
-      await api.saveProvider({
-        ...editing,
-        api_key: apiKey,
-      });
+      await api.saveProvider({ ...editing, api_key: apiKey });
       setEditing(null);
       setApiKey("");
-      await loadProviders();
+      await load();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -104,28 +118,9 @@ export function CredentialsPage({
     setError(null);
     try {
       await api.deleteProvider(id);
-      // Clear the default if we just removed it, so runs don't reference a
-      // credential that no longer exists.
-      if (id === defaultId) {
-        await api.setDefaultCredential("");
-        setDefaultId("");
-      }
-      await loadProviders();
+      await load();
     } catch (e) {
       setError(String(e));
-    }
-  };
-
-  // Toggle a credential as the run-time default. Clicking the current default
-  // clears it (back to auto-detect).
-  const handleSetDefault = async (id: string) => {
-    const next = id === defaultId ? "" : id;
-    setDefaultId(next);
-    try {
-      await api.setDefaultCredential(next);
-    } catch (e) {
-      setError(String(e));
-      void loadProviders();
     }
   };
 
@@ -141,14 +136,8 @@ export function CredentialsPage({
   return (
     <div className="p-6">
       <PageHeader
-        title="AI Credentials"
-        subtitle="API keys are stored in your OS keychain"
-        actions={
-          <Button size="sm" onClick={handleAdd} aria-label="Add AI provider">
-            <Plus size={12} />
-            Add Provider
-          </Button>
-        }
+        title="AI Models"
+        subtitle="Pick the default model for translation and QA — the provider follows from the model"
       />
 
       {error && (
@@ -158,67 +147,91 @@ export function CredentialsPage({
       )}
 
       {loading ? (
-        <LoadingSpinner text="Loading providers..." className="py-8" />
+        <LoadingSpinner text="Loading AI models..." className="py-8" />
       ) : (
-        <div className="space-y-2">
-          {providers.length > 1 && (
-            <p className="text-xs text-muted-foreground">
-              {t("Star a provider to make it the default when a flow doesn't pick one.")}
+        <div className="space-y-8">
+          {/* Default model — model-first picker */}
+          <section>
+            <h2 className="mb-1 text-sm font-medium">{t("Default model")}</h2>
+            <p className="mb-3 text-xs text-muted-foreground">
+              {t(
+                "Used by flows and tools that don't pick a model. Local models run on-device; cloud models need a key below.",
+              )}
             </p>
-          )}
-          {providers.map((provider) => (
-            <Card key={provider.id} className="!flex-row items-center gap-3 p-4">
-              <KeyRound size={18} className="shrink-0 text-primary" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{provider.name}</span>
-                  <Badge variant="secondary">{provider.provider_type}</Badge>
-                  {provider.id === defaultId && <Badge variant="outline">{t("Default")}</Badge>}
-                  {testResult[provider.id] && <CheckCircle2 size={14} className="text-green-500" />}
-                </div>
-                {provider.model && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">Model: {provider.model}</p>
-                )}
+            {models.length === 0 ? (
+              <EmptyState
+                icon={<KeyRound size={24} />}
+                title="No AI models available yet. Add a provider key, or install a local Ollama model."
+              />
+            ) : (
+              <AIModelList
+                models={models}
+                selected={defaultModel.model ? defaultModel : undefined}
+                onSelect={(m) => void handleSelectModel(m)}
+              />
+            )}
+          </section>
+
+          {/* Provider keys — needed only for cloud providers */}
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-medium">{t("Provider keys")}</h2>
+                <p className="text-xs text-muted-foreground">
+                  {t("API keys for cloud providers — stored in your OS keychain.")}
+                </p>
               </div>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => void handleSetDefault(provider.id)}
-                className={provider.id === defaultId ? "text-amber-500" : ""}
-                aria-pressed={provider.id === defaultId}
-                aria-label={
-                  provider.id === defaultId
-                    ? t("Unset {name} as default", { name: provider.name })
-                    : t("Set {name} as default", { name: provider.name })
-                }
-              >
-                <Star size={14} className={provider.id === defaultId ? "fill-current" : ""} />
+              <Button size="sm" onClick={handleAdd} aria-label="Add AI provider">
+                <Plus size={12} />
+                Add Provider
               </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => handleTest(provider.id)}
-                aria-label={t("Test connection for {name}", { name: provider.name })}
-              >
-                <TestTube size={14} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => handleDelete(provider.id)}
-                className="hover:bg-destructive/10 hover:text-destructive"
-                aria-label={t("Delete {name}", { name: provider.name })}
-              >
-                <Trash2 size={14} />
-              </Button>
-            </Card>
-          ))}
-          {providers.length === 0 && !editing && (
-            <EmptyState
-              icon={<KeyRound size={24} />}
-              title="No AI providers configured. Add one to use AI translation and QA tools."
-            />
-          )}
+            </div>
+
+            <div className="space-y-2">
+              {providers.map((provider) => (
+                <Card key={provider.id} className="!flex-row items-center gap-3 p-4">
+                  <KeyRound size={18} className="shrink-0 text-primary" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{provider.name}</span>
+                      <Badge variant="secondary">{provider.provider_type}</Badge>
+                      {testResult[provider.id] && (
+                        <CheckCircle2 size={14} className="text-green-500" />
+                      )}
+                    </div>
+                    {provider.model && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Model: {provider.model}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => handleTest(provider.id)}
+                    aria-label={t("Test connection for {name}", { name: provider.name })}
+                  >
+                    <TestTube size={14} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => handleDelete(provider.id)}
+                    className="hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={t("Delete {name}", { name: provider.name })}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </Card>
+              ))}
+              {providers.length === 0 && !editing && (
+                <EmptyState
+                  icon={<KeyRound size={24} />}
+                  title="No cloud provider keys. Add one to use Anthropic, OpenAI, Gemini, or Azure."
+                />
+              )}
+            </div>
+          </section>
         </div>
       )}
 
@@ -251,9 +264,9 @@ export function CredentialsPage({
                   onChange={(e) => setEditing({ ...editing, provider_type: e.target.value })}
                   className="h-8 w-full rounded-lg border border-input bg-transparent px-2 py-1 text-base md:text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
                 >
-                  {providerTypes.map((t) => (
-                    <option key={t.name} value={t.name} translate="no">
-                      {t.label}
+                  {providerTypes.map((pt) => (
+                    <option key={pt.name} value={pt.name} translate="no">
+                      {pt.label}
                     </option>
                   ))}
                 </select>
@@ -270,7 +283,7 @@ export function CredentialsPage({
                   placeholder="claude-sonnet-4-5-20241022"
                 />
               </div>
-              {providerTypes.find((t) => t.name === editing.provider_type)?.local ? (
+              {providerTypes.find((pt) => pt.name === editing.provider_type)?.local ? (
                 <div>
                   <Label className="mb-1 block text-xs text-muted-foreground">API Key</Label>
                   <Badge variant="secondary">{t("Runs on-device — no API key needed")}</Badge>

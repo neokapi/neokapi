@@ -3,8 +3,6 @@ package backend
 import (
 	"errors"
 	"fmt"
-	"maps"
-	"slices"
 
 	"github.com/neokapi/neokapi/cli/credentials"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -120,43 +118,6 @@ func (a *App) ListProviderTypes() []ProviderTypeInfo {
 		}
 	}
 	return out
-}
-
-// applyDefaultCredential injects the user's chosen default credential into a
-// tool config when the tool needs an AI provider but the flow step pins
-// nothing (no credential, apiKey, or provider). This makes multi-credential
-// setups resolve deterministically instead of erroring on auto-detect. A
-// pinned selection — or a stale/empty default — is left untouched.
-func (a *App) applyDefaultCredential(requires []string, config map[string]any) map[string]any {
-	if !slices.Contains(requires, "credentials") || credentialPinned(config) {
-		return config
-	}
-	def := a.GetDefaultCredential()
-	if def == "" {
-		return config
-	}
-	// Stale default (credential since deleted) — fall through to auto-detect
-	// rather than fail the run with a "credential not found" error.
-	if a.credentials != nil {
-		if _, err := a.credentials.Get(def); err != nil {
-			return config
-		}
-	}
-	out := make(map[string]any, len(config)+1)
-	maps.Copy(out, config)
-	out["credential"] = def
-	return out
-}
-
-// credentialPinned reports whether the step config already names a provider or
-// credential, in which case the default must not override it.
-func credentialPinned(config map[string]any) bool {
-	for _, k := range []string{"credential", "apiKey", "provider"} {
-		if v, ok := config[k].(string); ok && v != "" {
-			return true
-		}
-	}
-	return false
 }
 
 func providerInfoFrom(c credentials.ProviderConfig) ProviderInfo {

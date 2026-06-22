@@ -15,6 +15,8 @@ import type {
   PluginInfo,
   PluginStatus,
   ProviderConfig,
+  DefaultModelInfo,
+  AIModelOption,
   PluginDocsSummary,
   FilterDoc,
   StepDoc,
@@ -253,9 +255,16 @@ export const api = {
   saveProvider: (req: unknown) => call<ProviderConfig>("SaveProvider", req),
   deleteProvider: (id: string) => call<void>("DeleteProvider", id),
   testProvider: (id: string) => call<boolean>("TestProvider", id),
-  /** The credential a flow falls back to when its step pins no provider ("" = none). */
-  getDefaultCredential: () => call<string>("GetDefaultCredential"),
-  setDefaultCredential: (id: string) => call<void>("SetDefaultCredential", id),
+
+  // AI models — the shared default provider+model (ai.provider/ai.model), the
+  // model-first catalog, and the run-time prompt check.
+  getDefaultModel: () => call<DefaultModelInfo>("GetDefaultModel"),
+  /** Persist the default model; provider "" infers it from the model name. */
+  setDefaultModel: (model: string, provider: string) =>
+    call<void>("SetDefaultModel", model, provider),
+  listAIModels: () => call<AIModelOption[]>("ListAIModels"),
+  aiNeedsModelChoice: (tabID: string, flowName: string) =>
+    call<boolean>("AINeedsModelChoice", tabID, flowName),
 
   // Files
   matchContent: (tabID: string) =>

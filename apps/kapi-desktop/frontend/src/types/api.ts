@@ -213,6 +213,30 @@ export interface ProviderConfig {
   base_url?: string;
 }
 
+/** The configured default AI model and the provider it implies (matches Go DefaultModelInfo). */
+export interface DefaultModelInfo {
+  provider: string;
+  model: string;
+}
+
+/** One selectable model in the model-first "AI Models" picker (matches Go AIModelOption). */
+export interface AIModelOption {
+  model: string;
+  provider: string;
+  /** Provider display label (e.g. "Ollama"). */
+  label: string;
+  /** On-device provider (Ollama) — no API key needed. */
+  local: boolean;
+  /** Local only: already present on the Ollama server. */
+  installed: boolean;
+  /** Cloud model with no saved credential yet. */
+  needs_key: boolean;
+  /** Optional one-line rationale (recommended local models). */
+  note?: string;
+  /** The currently configured default. */
+  is_default: boolean;
+}
+
 export interface TabInfo {
   id: string;
   name: string;

@@ -8,6 +8,7 @@ export {
 };
 
 export {
+    AIModelOption,
     AddConceptRequest,
     AddRelationRequest,
     AddTMEntryRequest,
@@ -23,6 +24,7 @@ export {
     CollectionStatus,
     ConceptDTO,
     CustomLocale,
+    DefaultModelInfo,
     DesktopFinding,
     EntityAdaptationDTO,
     EntityAnnotationDTO,

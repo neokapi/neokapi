@@ -29,6 +29,7 @@ import type { FlowSpec, KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useJobFeed, type RunEvent } from "../context/JobFeedContext";
 import { PipelineProgress } from "./PipelineProgress";
+import { AIModelPromptDialog } from "./AIModelPromptDialog";
 
 type RunState = "idle" | "running" | "complete" | "error" | "canceled";
 
@@ -71,13 +72,14 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
   const projectName = project?.name || undefined;
 
   const [launchError, setLaunchError] = useState<string | null>(null);
+  // Stashed launch args while the "pick an AI model" prompt is open.
+  const [modelPrompt, setModelPrompt] = useState<{ paths: string[]; targets: string[] } | null>(
+    null,
+  );
 
-  // Helper: check if a flow is already running and cancel it before starting.
-  const launchFlow = useCallback(
+  // runNow cancels any in-flight run, then starts this flow.
+  const runNow = useCallback(
     async (paths: string[], targets: string[]) => {
-      setLaunchError(null);
-
-      // If another flow is running, cancel it first.
       const runState = await api.getRunState();
       if (runState === "running") {
         await api.cancelRun();
@@ -93,6 +95,20 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
       }
     },
     [tabID, flowName, projectName, startJob],
+  );
+
+  // launchFlow prompts for a default AI model first when the flow needs one and
+  // none is configured (and credentials don't auto-resolve), then runs.
+  const launchFlow = useCallback(
+    async (paths: string[], targets: string[]) => {
+      setLaunchError(null);
+      if (await api.aiNeedsModelChoice(tabID, flowName)) {
+        setModelPrompt({ paths, targets });
+        return;
+      }
+      await runNow(paths, targets);
+    },
+    [tabID, flowName, runNow],
   );
 
   // Auto-run: resolve content and execute for all target languages.
@@ -345,6 +361,16 @@ export function RunnerPage({ tabID, flowName, flow, onClose, project, autoRun }:
           </CardContent>
         </Card>
       )}
+
+      <AIModelPromptDialog
+        open={modelPrompt !== null}
+        onResolved={() => {
+          const pending = modelPrompt;
+          setModelPrompt(null);
+          if (pending) void runNow(pending.paths, pending.targets);
+        }}
+        onCancel={() => setModelPrompt(null)}
+      />
     </div>
   );
 }
