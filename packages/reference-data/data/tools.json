@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-21T22:32:32Z",
+  "generatedAt": "2026-06-22T10:38:13Z",
   "kind": "tool",
   "entries": [
     {
@@ -110,10 +110,6 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
-              },
-              {
-                "value": "gemma",
-                "label": "Gemma (local)"
               }
             ]
           }
@@ -140,7 +136,7 @@
           "provider": {
             "description": "The LLM provider backend to use.",
             "help": "Selects which model backend performs the brand voice check.\n",
-            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
           }
         },
         "limitations": [
@@ -355,10 +351,6 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
-              },
-              {
-                "value": "gemma",
-                "label": "Gemma (local)"
               }
             ]
           }
@@ -400,7 +392,7 @@
           "provider": {
             "description": "The LLM provider to use.",
             "help": "Selects the backend. Hosted providers require an API key and a model;\nOllama runs locally. The available options are populated from the provider\nregistry.\n",
-            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `gemma` (local, no key) (default `anthropic`)"
+            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (local, no key) (default `anthropic`)"
           }
         },
         "limitations": [
@@ -559,10 +551,6 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
-              },
-              {
-                "value": "gemma",
-                "label": "Gemma (local)"
               }
             ]
           }
@@ -589,7 +577,7 @@
           "provider": {
             "description": "The LLM provider backend to use.",
             "help": "Selects which model backend performs the extraction.\n",
-            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
           }
         },
         "limitations": [
@@ -2759,10 +2747,6 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
-              },
-              {
-                "value": "gemma",
-                "label": "Gemma (local)"
               }
             ]
           },
@@ -3511,10 +3495,6 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
-              },
-              {
-                "value": "gemma",
-                "label": "Gemma (local)"
               }
             ]
           },
@@ -4377,10 +4357,6 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
-              },
-              {
-                "value": "gemma",
-                "label": "Gemma (local)"
               }
             ]
           }
@@ -4402,7 +4378,7 @@
           "provider": {
             "description": "The LLM provider backend to use.",
             "help": "Selects which model backend performs the review.\n",
-            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
           }
         },
         "limitations": [
@@ -4526,10 +4502,6 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
-              },
-              {
-                "value": "gemma",
-                "label": "Gemma (local)"
               }
             ]
           }
@@ -4556,7 +4528,7 @@
           "provider": {
             "description": "The LLM provider backend to use.",
             "help": "Selects which model backend performs the rewrite.\n",
-            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
+            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
           }
         },
         "limitations": [
@@ -5672,10 +5644,6 @@
                 "label": "Demo (illustrative)"
               },
               {
-                "value": "gemma",
-                "label": "Gemma (local)"
-              },
-              {
                 "value": "deepl",
                 "label": "DeepL"
               },
@@ -5726,10 +5694,6 @@
                   {
                     "value": "demo",
                     "label": "Demo (illustrative)"
-                  },
-                  {
-                    "value": "gemma",
-                    "label": "Gemma (local)"
                   }
                 ]
               },

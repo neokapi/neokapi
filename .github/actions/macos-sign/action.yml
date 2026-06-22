@@ -26,7 +26,7 @@ inputs:
     required: false
     default: ''
   label:
-    description: 'Short identifier used to name the notarization zip (e.g. kapi-llm).'
+    description: 'Short identifier used to name the notarization zip (e.g. kapi-sat).'
     required: true
   notarize:
     description: 'Submit the signed set to Apple notarization when "true" (publish runs only).'

@@ -168,7 +168,9 @@ func TestFileRunner_CrossFormatSemanticExport(t *testing.T) {
 	require.NoError(t, err)
 	hs := string(h)
 	assert.Contains(t, hs, "<h2>Overview</h2>", "heading should export as <h2>")
-	assert.Contains(t, hs, "<ul><li>First</li><li>Second</li></ul>", "list should export as <ul>/<li>")
+	for _, want := range []string{"<ul>", "<li>First</li>", "<li>Second</li>", "</ul>"} {
+		assert.Contains(t, hs, want, "list should export as <ul>/<li>")
+	}
 	assert.NotContains(t, hs, "<doclang", "DocLang skeleton must NOT leak into the HTML output")
 }
 

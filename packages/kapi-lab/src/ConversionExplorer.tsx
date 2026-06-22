@@ -271,12 +271,10 @@ export default function ConversionExplorer({
             </div>
 
             {view === "source" &&
-              (output.trim() === "" ? (
+              (output.trim() === "" || output.trim() === "[]" ? (
                 <p className={styles.note}>
                   The {targets.find((t) => t.id === target)?.label} writer produced an empty
-                  document: this is a key-value format and the source has no key-value entries to
-                  express. Try a document or interchange target (Markdown, HTML, DocLang, XLIFF,
-                  PO), or convert from a catalog source.
+                  document: the reader found no translatable content in this source.
                 </p>
               ) : (
                 <CodeView text={output} lang={langForTarget(target)} maxHeight="28rem" />

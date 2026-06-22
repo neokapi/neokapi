@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/formats/structdoc"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/registry"
@@ -134,7 +135,7 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 		return fmt.Errorf("no reader for format %q: %w", inFmt, err)
 	}
 	defer reader.Close()
-	writer, err := a.FormatReg.NewWriter(toFmt)
+	writer, err := a.conversionWriter(toFmt)
 	if err != nil {
 		return fmt.Errorf("no writer for format %q: %w", toFmt, err)
 	}
@@ -221,6 +222,25 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 		return fmt.Errorf("close %s: %w", displayName(path), err)
 	}
 	return nil
+}
+
+// conversionWriter returns the writer for a `convert` target. JSON and YAML
+// document conversions are served by the STRUCTURAL writers — an array of block
+// records (the `kapi inspect` shape) — rather than the catalog key→value
+// writers. A document (DocLang, Markdown, HTML, docx, …) has no catalog keys, so
+// the catalog writers collapse every block onto the empty key; the structural
+// writers capture its structure instead. The catalog json/yaml writers remain
+// the i18n round-trip format, reached by translate/merge/same-format editing or
+// an explicit `--to json-catalog` / `--to yaml-catalog` target. Every other
+// target uses its registered writer.
+func (a *App) conversionWriter(toFmt registry.FormatID) (format.DataFormatWriter, error) {
+	switch toFmt {
+	case "json":
+		return structdoc.NewJSONWriter(), nil
+	case "yaml":
+		return structdoc.NewYAMLWriter(), nil
+	}
+	return a.FormatReg.NewWriter(toFmt)
 }
 
 // resolveTargetFormat resolves the conversion target: an explicit --to (a

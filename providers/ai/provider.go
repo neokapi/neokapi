@@ -228,8 +228,8 @@ const (
 // machine (no remote egress). It is a registration property — a provider sets
 // ProviderInfo.Local at RegisterProvider time — not a hardcoded list, so the
 // framework needs no knowledge of specific local backends. Plugin-registered
-// providers (e.g. the cli's "gemma", driven by the kapi-llm plugin) declare
-// themselves local the same way the built-in Ollama/Demo do. An unregistered or
+// providers declare themselves local the same way the built-in Ollama/Demo do.
+// An unregistered or
 // non-local provider returns false (cloud, fail-closed). The flow placement pass
 // uses this to refine a tool's remote-source-egress side effect (AD-006).
 func IsLocalProvider(id ProviderID) bool {
@@ -254,6 +254,11 @@ type ProviderInfo struct {
 	// needs no API key (Ollama, Demo, and plugin providers like Gemma). Drives
 	// IsLocalProvider and the keyless credential/UX paths.
 	Local bool
+	// DefaultModel is the model a fresh provider uses when the caller names none.
+	// It is the same value each provider applies as its Config.Model fallback,
+	// surfaced here so `kapi models` can list a provider's default without
+	// constructing it. Empty when the provider has no built-in default.
+	DefaultModel string
 }
 
 // providerRegistration bundles a factory with metadata.
@@ -267,16 +272,16 @@ type providerRegistration struct {
 var globalProviders []providerRegistration
 
 func init() {
-	RegisterProvider(ProviderInfo{Name: Anthropic, Label: "Anthropic"},
+	RegisterProvider(ProviderInfo{Name: Anthropic, Label: "Anthropic", DefaultModel: "claude-sonnet-4-20250514"},
 		func(cfg Config) LLMProvider { return NewAnthropicProvider(cfg) })
-	RegisterProvider(ProviderInfo{Name: OpenAI, Label: "OpenAI"},
+	RegisterProvider(ProviderInfo{Name: OpenAI, Label: "OpenAI", DefaultModel: "gpt-4o"},
 		func(cfg Config) LLMProvider { return NewOpenAIProvider(cfg) })
-	RegisterProvider(ProviderInfo{Name: Gemini, Label: "Gemini"},
+	RegisterProvider(ProviderInfo{Name: Gemini, Label: "Gemini", DefaultModel: "gemini-3-flash-preview"},
 		func(cfg Config) LLMProvider { return NewGeminiProvider(cfg) })
-	RegisterProviderWithAliases(ProviderInfo{Name: AzureOpenAI, Label: "Azure OpenAI"},
+	RegisterProviderWithAliases(ProviderInfo{Name: AzureOpenAI, Label: "Azure OpenAI", DefaultModel: "gpt-4o"},
 		func(cfg Config) LLMProvider { return NewAzureOpenAIProvider(cfg) },
 		"azure_openai")
-	RegisterProvider(ProviderInfo{Name: Ollama, Label: "Ollama", Local: true},
+	RegisterProvider(ProviderInfo{Name: Ollama, Label: "Ollama", Local: true, DefaultModel: DefaultOllamaModel},
 		func(cfg Config) LLMProvider { return NewOllamaProvider(cfg) })
 	RegisterProvider(ProviderInfo{Name: Demo, Label: "Demo (illustrative)", Local: true},
 		func(cfg Config) LLMProvider { return NewDemoProvider(cfg) })

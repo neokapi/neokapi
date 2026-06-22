@@ -58,6 +58,14 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetConfig replaces the writer's config — used to control indentation
+// (CompactOutput, IndentString) and geometry/caption emission.
+func (w *Writer) SetConfig(cfg *Config) {
+	if cfg != nil {
+		w.cfg = cfg
+	}
+}
+
 // roleElem maps a normalized SemanticRole to its DocLang block element name and
 // whether the element carries a level attribute.
 func roleElem(role string) (elem string, hasLevel bool) {
@@ -169,20 +177,53 @@ func (w *Writer) parentGroup() string {
 	return ""
 }
 
+// pretty reports whether nested elements are indented. On by default.
+func (w *Writer) pretty() bool { return w.cfg == nil || !w.cfg.CompactOutput }
+
+// indentUnit is the per-level indent string. Defaults to two spaces.
+func (w *Writer) indentUnit() string {
+	if w.cfg != nil && w.cfg.IndentString != "" {
+		return w.cfg.IndentString
+	}
+	return "  "
+}
+
+// padN writes n levels of indentation. The document root <doclang> is level 0,
+// so its direct children (a top-level <heading>/<text>/<list>/<table>) are
+// level 1, and content one group deeper is level 2, and so on. No-op in compact
+// mode. The reader strips this leading whitespace, so it never affects the model.
+func (w *Writer) padN(b *strings.Builder, n int) {
+	if !w.pretty() {
+		return
+	}
+	for range n {
+		b.WriteString(w.indentUnit())
+	}
+}
+
 func (w *Writer) openGroup(b *strings.Builder, g *model.GroupStart) {
 	// A nested group/list that is a direct child of a <list> is the body of a
 	// list_item and must be preceded by <ldiv/> (schema: list = element_head +
 	// list_item*, each item starting with <ldiv/>). Text children get their
-	// <ldiv/> in writeBlock; group/list/table children get it here.
-	if w.parentGroup() == "list" {
+	// <ldiv/> in writeBlock; group/list/table children get it here. When pretty-
+	// printing, the <ldiv/> carries the line's indentation and the container tag
+	// follows it inline; otherwise the container tag carries its own indent.
+	inList := w.parentGroup() == "list"
+	if inList {
+		w.padN(b, 1+len(w.groupStack))
 		b.WriteString("<ldiv/>")
 	}
 	// A table/index caption must precede its cells; flush the buffered caption
-	// before the first OTSL row opens.
+	// before the first OTSL row opens. The caption is a child of the table.
 	if g.Type == "table-row" {
-		w.flushTableCaption(b)
+		w.flushTableCaption(b, 1+len(w.groupStack))
 	}
 	w.groupStack = append(w.groupStack, g.Type)
+	// A container element sits at its own nesting level (= len(groupStack) now
+	// that it is on the stack); a table row emits no opening element.
+	if !inList && g.Type != "table-row" {
+		w.padN(b, len(w.groupStack))
+	}
 	switch g.Type {
 	case "list":
 		class := g.Properties["class"]
@@ -201,9 +242,11 @@ func (w *Writer) openGroup(b *strings.Builder, g *model.GroupStart) {
 		} else {
 			b.WriteString("<picture>\n")
 		}
-		// A finer chart kind (bar_chart/pie_chart/…) rides as a <label>.
+		// A finer chart kind (bar_chart/pie_chart/…) rides as a <label> on its
+		// own line at the picture's child level.
 		if sub := g.Properties[model.PropPictureSubclass]; sub != "" && sub != "chart" && sub != "undefined" {
-			fmt.Fprintf(b, "<label value=%q/>", sub)
+			w.padN(b, 1+len(w.groupStack))
+			fmt.Fprintf(b, "<label value=%q/>\n", sub)
 		}
 	case "table-row":
 		// OTSL rows are delimited by <nl/>; no opening element.
@@ -214,16 +257,23 @@ func (w *Writer) closeGroup(b *strings.Builder) {
 	if len(w.groupStack) == 0 {
 		return
 	}
+	// selfLevel is the closing container's own nesting level (captured before the
+	// pop); childLevel is the level of content directly inside it.
+	selfLevel := len(w.groupStack)
+	childLevel := selfLevel + 1
 	t := w.groupStack[len(w.groupStack)-1]
 	w.groupStack = w.groupStack[:len(w.groupStack)-1]
 	switch t {
 	case "table-row":
-		w.emitOTSLRow(b)
+		// The OTSL cell line is content of the table, at the row's own level.
+		w.emitOTSLRow(b, selfLevel)
 	case "list", "group", "field_region", "field_item", "picture":
+		w.padN(b, selfLevel)
 		fmt.Fprintf(b, "</%s>\n", t)
 	case "table", "index":
 		// A table/index with a caption but no rows still emits its caption.
-		w.flushTableCaption(b)
+		w.flushTableCaption(b, childLevel)
+		w.padN(b, selfLevel)
 		fmt.Fprintf(b, "</%s>\n", t)
 		w.tbl = nil
 	}
@@ -231,10 +281,12 @@ func (w *Writer) closeGroup(b *strings.Builder) {
 
 // flushTableCaption emits the buffered caption(s) of the current table/index as
 // a single <caption> (the schema permits at most one), then clears the buffer.
-func (w *Writer) flushTableCaption(b *strings.Builder) {
+// level is the caption's indentation level (a child of the table).
+func (w *Writer) flushTableCaption(b *strings.Builder, level int) {
 	if len(w.tableCaption) == 0 {
 		return
 	}
+	w.padN(b, level)
 	fmt.Fprintf(b, "<caption>%s</caption>\n", strings.Join(w.tableCaption, " "))
 	w.tableCaption = nil
 }
@@ -287,6 +339,7 @@ func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
 
 	// A checkbox is an empty selection control, not translatable text.
 	if role == model.RoleCheckbox {
+		w.padN(b, 1+len(w.groupStack))
 		if w.parentGroup() == "list" {
 			b.WriteString("<ldiv/>")
 		}
@@ -312,8 +365,11 @@ func (w *Writer) writeBlock(b *strings.Builder, blk *model.Block) {
 		}
 	}
 
-	// Every direct child of a <list> is a list_item and MUST begin with
-	// <ldiv/> (per the schema's list content model), whatever its role.
+	// The block element sits at the current nesting level (a child of the open
+	// group, or of the document root). Every direct child of a <list> is a
+	// list_item and MUST begin with <ldiv/> (per the schema's list content
+	// model), whatever its role; the <ldiv/> follows the line's indentation.
+	w.padN(b, 1+len(w.groupStack))
 	if w.parentGroup() == "list" {
 		b.WriteString("<ldiv/>")
 	}
@@ -486,11 +542,12 @@ func roleToOTSLToken(blk *model.Block) string {
 // emitOTSLRow renders the buffered cells of the current row, interleaving
 // span-continuation tokens (ucel/xcel) for rowspans inherited from rows above
 // and lcel for each cell's own colspan, then the <nl/> row terminator.
-func (w *Writer) emitOTSLRow(b *strings.Builder) {
+func (w *Writer) emitOTSLRow(b *strings.Builder, level int) {
 	t := w.tbl
 	cells := t.rowCells
 	t.rowCells = nil
 
+	w.padN(b, level)
 	col, ci := 0, 0
 	for ci < len(cells) || t.pendingAt(col) {
 		if t.pendingAt(col) {

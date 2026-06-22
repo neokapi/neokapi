@@ -435,6 +435,7 @@ const config: Config = {
             // Gemma/Multimodal pages; plugins load on demand from the navbar
             // status widget. Old per-topic routes redirect to their new home.
             { label: "Core Framework", to: "/lab" },
+            { label: "Models & Providers", to: "/lab/models" },
             { label: "Segmentation", to: "/lab/segmentation" },
             { label: "File Conversion", to: "/lab/convert" },
             { label: "Structure & Layout", to: "/lab/structure" },

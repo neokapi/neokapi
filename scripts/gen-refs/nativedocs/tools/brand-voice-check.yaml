@@ -20,7 +20,7 @@ parameters:
     description: The LLM provider backend to use.
     help: |
       Selects which model backend performs the brand voice check.
-    values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama`, `gemma` (local, no key)"
+    values: "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
   apiKey:
     description: API key for the AI provider.
     help: |

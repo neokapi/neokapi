@@ -1,15 +1,15 @@
 ---
 sidebar_position: 15
 title: Translation
-description: neokapi exposes translation as a single tool whose provider is either an LLM (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Gemma) or a neural MT engine (DeepL, Google Translate, Microsoft Translator, ModernMT, MyMemory). Both routes share the same command, flags, and credential model.
-keywords: [translation, LLM, MT, machine translation, AI translation, DeepL, Google Translate, Microsoft Translator, ModernMT, Anthropic, OpenAI, Gemini, Ollama, Gemma, provider, localization]
+description: neokapi exposes translation as a single tool whose provider is either an LLM (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama) or a neural MT engine (DeepL, Google Translate, Microsoft Translator, ModernMT, MyMemory). Both routes share the same command, flags, and credential model.
+keywords: [translation, LLM, MT, machine translation, AI translation, DeepL, Google Translate, Microsoft Translator, ModernMT, Anthropic, OpenAI, Gemini, Ollama, provider, localization]
 ---
 
 # Translation
 
 neokapi exposes translation through a single `translate` tool. The `--provider`
 flag selects the backend: an LLM provider (Anthropic, OpenAI, Gemini, Azure
-OpenAI, Ollama, Gemma) routes to the AI translation path; a neural MT engine
+OpenAI, Ollama) routes to the AI translation path; a neural MT engine
 (DeepL, Google Translate, Microsoft Translator, ModernMT, MyMemory) routes to
 the machine-translation path. The command, flags, and credential model are the
 same in both cases.
@@ -24,8 +24,7 @@ same in both cases.
 | OpenAI           | `openai`     | GPT models                                           |
 | Google Gemini    | `gemini`     | Supports streaming with live thinking progress       |
 | Azure OpenAI     | `azureopenai`| OpenAI models hosted on Azure                        |
-| Ollama           | `ollama`     | Local models — no API key required                   |
-| Gemma (local)    | `gemma`      | On-device Gemma 4 via the `kapi-llm` plugin — no API key, private |
+| Ollama           | `ollama`     | On-device local models — no API key, free, private, GPU-accelerated |
 
 ### MT engines
 
@@ -79,8 +78,8 @@ When `--provider` is omitted it defaults to `anthropic`. To change the default
 for LLM tools across all commands:
 
 ```bash
-kapi config set ai.provider gemma
-kapi config set ai.model gemma-4-e2b
+kapi config set ai.provider ollama
+kapi config set ai.model llama3.2:3b
 ```
 
 A recipe `defaults` entry also works for project-scoped defaults:
@@ -89,7 +88,8 @@ A recipe `defaults` entry also works for project-scoped defaults:
 defaults:
   tools:
     translate:
-      provider: gemma
+      provider: ollama
+      model: llama3.2:3b
 ```
 
 An explicit `--provider` flag, inline config, or project recipe default always
@@ -123,7 +123,7 @@ environment variable):
    provider is used (see [Environment variables](#environment-variables)).
 
 If no key is found by any of these means, the command reports a clear
-"no credentials" error. Ollama, Gemma, and MyMemory require no API key.
+"no credentials" error. Ollama and MyMemory require no API key.
 
 ### Environment variables
 
@@ -143,7 +143,7 @@ non-empty one wins:
 | `MODERNMT_API_KEY`                                              | ModernMT              |
 | `MYMEMORY_API_KEY`                                              | MyMemory (optional)   |
 
-Ollama and Gemma run local models and require no key. For the full set of
+Ollama runs local models and requires no key. For the full set of
 per-provider parameters, see the generated [Tool Reference](/tools).
 
 ## LLM providers in depth
@@ -160,41 +160,40 @@ kapi translate -i input.html --target-lang fr --provider gemini
 
 The default model is `gemini-3-flash-preview`.
 
-### Local models: Ollama
+### Local models with Ollama
 
-For development and testing without API costs, run a local model through Ollama.
-No API key is required:
+The `ollama` provider runs models entirely on-device — no API key, nothing sent
+to a server, GPU-accelerated (Metal on Apple Silicon, CUDA elsewhere) — a free,
+private alternative to the paid providers. [Ollama](https://ollama.com) is a
+one-time install; kapi drives everything downstream of it:
 
 ```bash
-ollama pull llama3
-kapi translate -i input.html --target-lang fr --provider ollama --model llama3
+kapi models ollama install                # platform-specific install guidance
+kapi models ollama pull llama3.2:3b       # download a translation model
+kapi translate -i input.html --target-lang fr --provider ollama --model llama3.2:3b
 ```
 
-As flow-step config:
+`kapi models ollama status` reports whether the runtime is installed, running,
+and which models are present; `kapi models ollama list` lists installed models.
+When a translation selects the `ollama` provider, kapi checks the runtime is up
+and pulls the requested model if it is missing — so a fresh machine needs only
+Ollama itself. The same selection works as flow-step config:
 
 ```yaml
 steps:
   - tool: translate
     config:
       provider: ollama
-      model: llama3
+      model: llama3.2:3b
 ```
 
-### Local models: Gemma
-
-The `gemma` provider runs Google's Gemma 4 on-device, in-process, with no API
-key and nothing sent to a server. It is delivered by the `kapi-llm` plugin (the
-heavy ONNX runtime stays in the plugin, not the `kapi` binary):
-
-```bash
-kapi plugins install llm          # or: brew install neokapi/tap/kapi-llm
-kapi translate -i input.html --target-lang fr --provider gemma
-```
-
-The model downloads on demand on first use and is cached. The same `gemma`
-provider works across the AI tools (`qa`, `brand-voice-check`, …) and in the
-browser — see the [Core Framework lab](/lab), which runs the same model via
-WebGPU.
+Small instruction-tuned models translate well while staying fast and private.
+`llama3.2:3b` is a strong, lightweight default with reliable inline-tag fidelity;
+`qwen3:1.7b` is faster and smaller; `gemma4:e2b` is the quality pick for tougher
+multilingual grammar (larger, and best when the pipeline protects inline codes
+rather than relying on the model to preserve them). kapi sends a low sampling
+temperature and disables reasoning output (`think:false`) so the model returns
+the translation directly.
 
 ## MT engines in depth
 
@@ -278,7 +277,7 @@ MT engines and LLM providers are both values of `--provider` on the one
 | Cost          | Per-character pricing | Per-token pricing    |
 | Quality       | Consistent            | Context-aware        |
 | Customization | Limited               | Full prompt control  |
-| Offline       | No                    | Yes (with Ollama/Gemma) |
+| Offline       | No                    | Yes (with Ollama)       |
 
 Both approaches can be combined in a flow: use an MT engine for bulk translation
 and an LLM for quality review.

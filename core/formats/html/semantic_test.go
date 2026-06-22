@@ -82,7 +82,10 @@ func TestSemanticExport_Structure(t *testing.T) {
 		"<h1>My Report</h1>",
 		"<h2>Overview</h2>",
 		"<p>Intro text.</p>",
-		"<ul><li>First</li><li>Second</li></ul>",
+		"<ul>",
+		"<li>First</li>",
+		"<li>Second</li>",
+		"</ul>",
 		"<table>",
 		"<tr><th>Region</th><th>Sales</th></tr>",
 		"<tr><td>EU</td><td>100</td></tr>",
@@ -134,6 +137,72 @@ func TestSemanticExport_DocumentTitleFallback(t *testing.T) {
 	)
 	if !strings.Contains(out, "<title>Document</title>") {
 		t.Errorf("expected fallback <title>Document</title>; got:\n%s", out)
+	}
+}
+
+// writeSemanticPartsCfg is writeSemanticParts with an explicit writer config.
+func writeSemanticPartsCfg(t *testing.T, cfg *htmlfmt.Config, parts ...*model.Part) string {
+	t.Helper()
+	var buf bytes.Buffer
+	w := htmlfmt.NewWriter()
+	w.SetConfig(cfg)
+	if err := w.SetOutputWriter(&buf); err != nil {
+		t.Fatalf("SetOutputWriter: %v", err)
+	}
+	ch := make(chan *model.Part)
+	go func() {
+		for _, p := range parts {
+			ch <- p
+		}
+		close(ch)
+	}()
+	if err := w.Write(context.Background(), ch); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	return buf.String()
+}
+
+// TestSemanticExport_PrettyIndent verifies the default (pretty) output puts each
+// block element on its own line and indents list items two spaces under <ul>.
+func TestSemanticExport_PrettyIndent(t *testing.T) {
+	out := writeSemanticParts(t,
+		roleBlock("p", "Top.", model.RoleParagraph, 0),
+		groupStart("g1", "list"),
+		roleBlock("li1", "One", model.RoleListItem, 0),
+		groupEnd("g1"),
+	)
+	for _, want := range []string{
+		"<body>\n<p>Top.</p>\n",
+		"<ul>\n  <li>One</li>\n</ul>\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected %q in pretty output; got:\n%s", want, out)
+		}
+	}
+}
+
+// TestSemanticExport_CodeBlockWhitespacePreserved verifies a <pre><code> block's
+// own (significant) interior whitespace is emitted verbatim — pretty-printing
+// indents the opening <pre> but never reflows the code body.
+func TestSemanticExport_CodeBlockWhitespacePreserved(t *testing.T) {
+	code := model.NewBlock("c", "line1\n  indented\n")
+	code.SetSemanticRole(model.RoleCode, 0)
+	out := writeSemanticParts(t, &model.Part{Type: model.PartBlock, Resource: code})
+	if !strings.Contains(out, "<pre><code>line1\n  indented\n</code></pre>") {
+		t.Errorf("code block interior whitespace altered; got:\n%s", out)
+	}
+}
+
+// TestSemanticExport_CompactOutput verifies CompactOutput restores the legacy
+// single-line body (no inter-block whitespace).
+func TestSemanticExport_CompactOutput(t *testing.T) {
+	cfg := &htmlfmt.Config{CompactOutput: true}
+	out := writeSemanticPartsCfg(t, cfg,
+		roleBlock("h", "T", model.RoleTitle, 0),
+		roleBlock("p", "B.", model.RoleParagraph, 0),
+	)
+	if !strings.Contains(out, "<h1>T</h1><p>B.</p>") {
+		t.Errorf("compact mode should run blocks together; got:\n%s", out)
 	}
 }
 
@@ -200,8 +269,10 @@ func TestSemanticExport_BareListItems(t *testing.T) {
 		roleBlock("li2", "Two", model.RoleListItem, 0),
 		roleBlock("p", "After", model.RoleParagraph, 0),
 	)
-	if !strings.Contains(out, "<ul><li>One</li><li>Two</li></ul>") {
-		t.Errorf("bare list items not auto-wrapped in <ul>; got:\n%s", out)
+	for _, want := range []string{"<ul>", "<li>One</li>", "<li>Two</li>", "</ul>"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("bare list items not auto-wrapped in <ul> (missing %q); got:\n%s", want, out)
+		}
 	}
 	if !strings.Contains(out, "<p>After</p>") {
 		t.Errorf("trailing paragraph missing/misplaced; got:\n%s", out)

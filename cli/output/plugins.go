@@ -12,6 +12,11 @@ type PluginListRow struct {
 	Version string `json:"version"`
 	License string `json:"license,omitempty"`
 	Source  string `json:"source,omitempty"`
+	// Status is "active" normally, or "retired" when the plugin is installed but
+	// no longer loaded by this kapi version. Retired plugins also set Retirement.
+	Status string `json:"status,omitempty"`
+	// Retirement is the multi-line retirement notice, set only for retired rows.
+	Retirement string `json:"retirement,omitempty"`
 }
 
 // PluginListOutput lists installed plugins.
@@ -27,11 +32,25 @@ func (o PluginListOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "NAME\tVERSION\tLICENSE\tSOURCE")
+	fmt.Fprintln(tw, "NAME\tVERSION\tLICENSE\tSOURCE\tSTATUS")
+	var retired []PluginListRow
 	for _, p := range o.Plugins {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", p.Name, p.Version, p.License, p.Source)
+		status := p.Status
+		if status == "" {
+			status = "active"
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", p.Name, p.Version, p.License, p.Source, status)
+		if p.Retirement != "" {
+			retired = append(retired, p)
+		}
 	}
-	return tw.Flush()
+	if err := tw.Flush(); err != nil {
+		return err
+	}
+	for _, p := range retired {
+		fmt.Fprintf(w, "\n⚠ %s\n", p.Retirement)
+	}
+	return nil
 }
 
 // PluginInfoOutput describes one installed plugin.

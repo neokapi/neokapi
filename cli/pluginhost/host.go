@@ -40,6 +40,12 @@ type Plugin struct {
 	// BinaryPath is the absolute path to the plugin's executable
 	// (Dir + "/" + Manifest.Binary).
 	BinaryPath string
+
+	// Retired is set when this discovered plugin matches a compiled-in
+	// Tombstone. A retired plugin stays listed (so it can be surfaced and
+	// pruned) but contributes nothing to dispatch — kapi never loads or runs
+	// it. Nil for an active plugin.
+	Retired *Tombstone
 }
 
 // Name returns the plugin's declared name.
@@ -151,6 +157,15 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 	h.plugins = dedup
 
 	for _, p := range dedup {
+		// A retired plugin stays in the list (for surfacing + prune) but is
+		// inert: it contributes nothing to any dispatch table, so kapi never
+		// loads or runs it. Enforcement is offline (compiled-in tombstone), so
+		// it holds even with no registry and the binary still on disk.
+		if t, ok := LookupTombstone(p.Name()); ok {
+			rt := t
+			p.Retired = &rt
+			continue
+		}
 		for _, c := range p.Manifest.Capabilities.Commands {
 			if existing, ok := h.commandDispatch[c.Name]; ok {
 				conflicts(fmt.Sprintf("command %q is provided by plugins %q and %q — neither will dispatch until one is removed", c.Name, existing.Plugin.Name(), p.Name()))

@@ -167,6 +167,23 @@ across releases. Define a `translate` flow in the recipe (for example
 
 `kapi run` discovers the nearest `.kapi` recipe (or pass `-p translation.kapi`) and executes the flow with the project's declared source and target languages and defaults. See [Flows](/framework/flows) and the [project model](/contribute/architecture/008-project-model).
 
+## Drive it from Claude
+
+The same flows run from your AI assistant. With the [kapi MCP server](/reference/mcp)
+connected, point Claude at your extracted strings and ask it to translate and check
+them — it calls `kapi` to translate the KLF archive, runs the QA checks, and fixes
+anything that breaks, the same author → check → revise loop you'd run by hand:
+
+> "Translate the strings in `i18n/` to French and German — keep the placeholders and
+> inline elements intact — then run QA and fix anything that fails."
+
+Claude translates in place (locale-additive), runs `kapi qa` / `kapi term-check`, and
+loops on the findings until the archive passes; you `kapi-react compile` the result as
+usual. Nothing about your components changes — only the catalogue.
+
+See [Use with Claude](/kapi/get-started/use-with-claude) for the MCP setup and the
+broader agent loop.
+
 ## Next
 
 - [Configuration](./configuration) — componentMap, rules, Storybook, warnings.

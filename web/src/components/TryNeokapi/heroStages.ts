@@ -25,43 +25,46 @@ export interface ProcessStage {
   caption: string;
 }
 
+// One show, the journey in miniature: get the source right (read · check), then
+// get it everywhere (preview · reuse · translate · merge). Captions in the
+// builder voice; no hardcoded counts, no "faithful" — "byte-for-byte".
 export const STAGES: ProcessStage[] = [
   {
     key: "read",
     label: "Read",
     short: "Read",
-    caption: "Parse any of 50+ formats into one faithful content model.",
+    caption: "Parse any format into one content model — structure and styles intact.",
   },
   {
     key: "preprocess",
-    label: "Pre-process",
-    short: "Prep",
-    caption: "Redact sensitive spans, annotate terms, segment sentences.",
+    label: "Get it right",
+    short: "Check",
+    caption: "Check the source — terms and brand on point, sensitive spans protected.",
   },
   {
     key: "pseudo",
     label: "Pseudo-translate",
-    short: "Pseudo",
-    caption: "Expand and accent the text to stress-test layout before real translation.",
+    short: "Preview",
+    caption: "Preview every language before you ship — catch layout breaks and hardcoded strings early.",
   },
   {
     key: "leverage",
     label: "Leverage",
-    short: "Leverage",
-    caption: "Reuse exact and fuzzy matches from translation memory.",
+    short: "Reuse",
+    caption: "Only re-translate what changed — reuse what you've already translated.",
   },
   {
     key: "translate",
     label: "Translate · 日本語",
     short: "日本語",
     caption:
-      "Translate the rest with AI or human linguists, then review — terminology and inline tags preserved.",
+      "Translate the rest with AI, then a quick human check — terms and inline tags intact.",
   },
   {
     key: "merge",
     label: "Merge",
     short: "Merge",
-    caption: "Write the translation back into the original file — byte-faithful.",
+    caption: "Write it back into the original file — byte-for-byte.",
   },
 ];
 

@@ -86,6 +86,21 @@ func (s *semanticState) inContainer(tag string) bool {
 	return slices.Contains(s.stack, tag)
 }
 
+// indentDepth is the number of indentation levels for a block placed on its own
+// line at the current point in the stream. Only block-level containers
+// (lists, tables, figures) increase it; a transparent group ("") and a table
+// row ("tr", whose cells stay inline on the row's line) do not.
+func (s *semanticState) indentDepth() int {
+	d := 0
+	for _, t := range s.stack {
+		switch t {
+		case "ul", "ol", "table", "figure":
+			d++
+		}
+	}
+	return d
+}
+
 func (w *Writer) writeSemantic(events []*model.Part, sourceLocale model.LocaleID) error {
 	// The cross-format export path projects a foreign document (CSV, DocLang,
 	// Docling, DOCX, …) to clean HTML. The role/group stream carries only
@@ -155,8 +170,13 @@ func (w *Writer) openDocument(events []*model.Part, sourceLocale model.LocaleID)
 }
 
 // closeDocument writes the closing </body></html> tags that balance
-// openDocument.
+// openDocument. In pretty mode each body block already ends in a newline, so the
+// closing tags follow directly; in compact mode the body content has no trailing
+// newline, so one is inserted to keep </body> on its own line.
 func (w *Writer) closeDocument() error {
+	if w.prettySemantic() {
+		return w.print("</body>\n</html>\n")
+	}
 	return w.print("\n</body>\n</html>\n")
 }
 
@@ -208,10 +228,22 @@ func (w *Writer) openSemGroup(st *semanticState, g *model.GroupStart) error {
 	default:
 		tag = "" // transparent grouping (group/field_region/…)
 	}
-	st.stack = append(st.stack, tag)
-	if tag != "" {
-		return w.print("<" + tag + ">")
+	// Emit the open tag at the parent's depth (before the new container is
+	// pushed), so its children indent one level deeper. A table row keeps its
+	// cells inline on the same line; other containers open on their own line.
+	switch tag {
+	case "":
+		// transparent grouping — no markup
+	case "tr":
+		if err := w.semOpenInline(st, "<tr>"); err != nil {
+			return err
+		}
+	default:
+		if err := w.semLine(st, "<"+tag+">"); err != nil {
+			return err
+		}
 	}
+	st.stack = append(st.stack, tag)
 	return nil
 }
 
@@ -223,7 +255,7 @@ func (w *Writer) closeSemGroup(st *semanticState) error {
 	st.stack = st.stack[:len(st.stack)-1]
 	if tag == "tr" {
 		// Pad any trailing columns missing from this row, then close it. The
-		// first row establishes the table width.
+		// first row establishes the table width. Padding cells stay inline.
 		if st.tableCols > 0 {
 			for st.colCursor < st.tableCols {
 				if err := w.print("<td></td>"); err != nil {
@@ -232,7 +264,7 @@ func (w *Writer) closeSemGroup(st *semanticState) error {
 				st.colCursor++
 			}
 		}
-		if err := w.print("</tr>"); err != nil {
+		if err := w.semCloseInline("</tr>"); err != nil {
 			return err
 		}
 		if st.rowsSeen == 1 && st.tableCols == 0 {
@@ -241,7 +273,9 @@ func (w *Writer) closeSemGroup(st *semanticState) error {
 		return nil
 	}
 	if tag != "" {
-		return w.print("</" + tag + ">")
+		// The container is already popped, so the close tag lines up with its
+		// matching open tag at the parent's depth.
+		return w.semLine(st, "</"+tag+">")
 	}
 	return nil
 }
@@ -253,32 +287,31 @@ func (w *Writer) closeAutoList(st *semanticState) error {
 		if n := len(st.stack); n > 0 && st.stack[n-1] == "ul" {
 			st.stack = st.stack[:n-1]
 		}
-		return w.print("</ul>")
+		return w.semLine(st, "</ul>")
 	}
 	return nil
 }
 
 func (w *Writer) emitBlock(st *semanticState, b *model.Block) error {
 	// Same-format HTML fallback: a fragment-based skeleton carries the block's
-	// own surrounding markup — emit it verbatim, content spliced at the ref.
+	// own surrounding markup — emit it verbatim, content spliced at the ref. The
+	// assembled fragment is placed on its own line (treated atomically: its
+	// captured whitespace is preserved as-is).
 	if b.Skeleton != nil && b.Skeleton.Strategy == model.SkeletonFragmentBased {
 		if err := w.closeAutoList(st); err != nil {
 			return err
 		}
 		text := w.getBlockText(b)
+		var frag strings.Builder
 		for _, sp := range b.Skeleton.Parts {
 			switch p := sp.(type) {
 			case *model.SkeletonText:
-				if err := w.print(p.Text); err != nil {
-					return err
-				}
+				frag.WriteString(p.Text)
 			case *model.SkeletonRef:
-				if err := w.print(text); err != nil {
-					return err
-				}
+				frag.WriteString(text)
 			}
 		}
-		return nil
+		return w.semLine(st, frag.String())
 	}
 
 	role := b.SemanticRole()
@@ -292,7 +325,7 @@ func (w *Writer) emitBlock(st *semanticState, b *model.Block) error {
 	if role == model.RoleListItem {
 		if t := st.top(); t != "ul" && t != "ol" {
 			if !st.autoList {
-				if err := w.print("<ul>"); err != nil {
+				if err := w.semLine(st, "<ul>"); err != nil {
 					return err
 				}
 				st.stack = append(st.stack, "ul")
@@ -308,23 +341,26 @@ func (w *Writer) emitBlock(st *semanticState, b *model.Block) error {
 	switch role {
 	case model.RoleHeading:
 		level := min(max(headingLevel(b), 1), 6)
-		return w.print(fmt.Sprintf("<h%d>%s</h%d>", level, body, level))
+		return w.semLine(st, fmt.Sprintf("<h%d>%s</h%d>", level, body, level))
 	case model.RoleCode:
 		openTag := "<code>"
 		if lang := b.CodeLanguage(); lang != "" {
 			openTag = `<code class="language-` + html.EscapeString(lang) + `">`
 		}
-		return w.print("<pre>" + openTag + body + "</code></pre>")
+		// Emitted atomically: the indent precedes <pre>, but the code body's own
+		// (significant) whitespace inside <pre>…</pre> is never touched.
+		return w.semLine(st, "<pre>"+openTag+body+"</code></pre>")
 	case model.RoleCaption:
 		tag := "figcaption"
 		if st.top() == "table" {
 			tag = "caption"
 		}
-		return w.print("<" + tag + ">" + body + "</" + tag + ">")
+		return w.semLine(st, "<"+tag+">"+body+"</"+tag+">")
 	case model.RoleTableCell, model.RoleTableHeader:
 		if st.inContainer("table") || st.inContainer("tr") {
 			// Pad the gap before this cell when it carries an explicit column
-			// index (CSV skips empty cells), so the grid stays aligned.
+			// index (CSV skips empty cells), so the grid stays aligned. Cells
+			// stay inline on their row's line.
 			if col, ok := cellColumn(b); ok {
 				for st.colCursor < col {
 					if err := w.print("<td></td>"); err != nil {
@@ -340,13 +376,13 @@ func (w *Writer) emitBlock(st *semanticState, b *model.Block) error {
 			st.colCursor++
 			return w.print("<" + cell + ">" + body + "</" + cell + ">")
 		}
-		return w.print("<p>" + body + "</p>") // bare cell, no table context
+		return w.semLine(st, "<p>"+body+"</p>") // bare cell, no table context
 	default:
 		tag := blockRoleTag[role]
 		if tag == "" {
 			tag = "p"
 		}
-		return w.print("<" + tag + ">" + body + "</" + tag + ">")
+		return w.semLine(st, "<"+tag+">"+body+"</"+tag+">")
 	}
 }
 
@@ -459,4 +495,48 @@ func (w *Writer) renderInlineHTML(b *model.Block) string {
 func (w *Writer) print(s string) error {
 	_, err := fmt.Fprint(w.Output, s)
 	return err
+}
+
+// prettySemantic reports whether the semantic export path pretty-prints
+// (indents block elements onto their own lines). On by default.
+func (w *Writer) prettySemantic() bool {
+	return w.cfg == nil || !w.cfg.CompactOutput
+}
+
+// indentUnit is the per-level indent string for pretty-printed semantic output.
+func (w *Writer) indentUnit() string {
+	if w.cfg != nil && w.cfg.IndentString != "" {
+		return w.cfg.IndentString
+	}
+	return "  "
+}
+
+// semLine emits one block-level element on its own line, indented to the
+// current structural depth, with a trailing newline. In compact mode it writes
+// the element verbatim with no surrounding whitespace (legacy single-line
+// output). The element string is treated atomically — any whitespace inside it
+// (e.g. the significant newlines of a <pre> code block) is left untouched.
+func (w *Writer) semLine(st *semanticState, s string) error {
+	if !w.prettySemantic() {
+		return w.print(s)
+	}
+	return w.print(strings.Repeat(w.indentUnit(), st.indentDepth()) + s + "\n")
+}
+
+// semOpenInline emits an open tag whose children stay inline on the same line
+// (a table row): indented, but with no trailing newline.
+func (w *Writer) semOpenInline(st *semanticState, s string) error {
+	if !w.prettySemantic() {
+		return w.print(s)
+	}
+	return w.print(strings.Repeat(w.indentUnit(), st.indentDepth()) + s)
+}
+
+// semCloseInline closes an inline-children element (a table row): the close tag
+// trails its inline content directly, then a newline ends the line.
+func (w *Writer) semCloseInline(s string) error {
+	if !w.prettySemantic() {
+		return w.print(s)
+	}
+	return w.print(s + "\n")
 }

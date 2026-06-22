@@ -167,6 +167,7 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	root.AddCommand(app.NewToolsCmd())
 	root.AddCommand(app.NewFormatsCmd())
 	root.AddCommand(app.NewPluginCmd())
+	root.AddCommand(app.NewModelsCmd())
 	root.AddCommand(app.NewRegistryCmd())
 	root.AddCommand(app.NewPresetsCmd())
 	root.AddCommand(app.NewTermbaseCmd())

@@ -3,7 +3,13 @@ import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { readCdnConfig, cdnEnabled, cdnHref } from "@neokapi/docs-shared";
 import { usePluginManager, probePluginCaches } from "@neokapi/kapi-playground/plugins";
-import type { PluginDescriptor, PluginState, EngineState } from "@neokapi/kapi-playground/plugins";
+import type {
+  PluginDescriptor,
+  PluginState,
+  EngineState,
+  ModelDescriptor,
+  ModelState,
+} from "@neokapi/kapi-playground/plugins";
 import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
 import styles from "./styles.module.css";
 
@@ -135,6 +141,78 @@ function progressFrac(st: PluginState): number {
   return 0;
 }
 
+// ModelRow renders one on-device LLM model as a child of the "Local LLM" provider
+// group — same controls/markup as a plugin row, plus an engine tag and a default
+// marker. Wired to ensureModel (download via WebLLM/transformers).
+function ModelRow({
+  d,
+  st,
+  onDownload,
+}: {
+  d: ModelDescriptor;
+  st: ModelState;
+  onDownload: () => void;
+}): React.ReactElement {
+  const frac = st.progress?.frac ?? 0;
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowMain}>
+        <div className={styles.rowTitle}>
+          <span className={styles.rowLabel}>{d.label}</span>
+          <span className={styles.rowSize}>{d.size}</span>
+        </div>
+        <div className={styles.rowDesc}>
+          {d.engine}
+          {d.isDefault ? " · default" : ""}
+          {d.note ? ` · ${d.note}` : ""}
+        </div>
+      </div>
+      <div className={styles.rowControl}>
+        {(st.phase === "ready" || st.phase === "cached") && (
+          <span
+            className={`${styles.dot} ${styles.dotReady}`}
+            aria-label={st.phase === "cached" ? "downloaded (cached)" : "loaded"}
+            title={
+              st.phase === "cached" ? "Downloaded — cached, loads instantly when used" : "Loaded"
+            }
+          />
+        )}
+        {st.phase === "idle" && (
+          <button
+            type="button"
+            className={styles.downloadBtn}
+            onClick={onDownload}
+            aria-label={`Download ${d.label}`}
+            title="Download"
+          >
+            <DownloadIcon />
+          </button>
+        )}
+        {st.phase === "error" && (
+          <button
+            type="button"
+            className={`${styles.downloadBtn} ${styles.retryBtn}`}
+            onClick={onDownload}
+          >
+            Retry
+          </button>
+        )}
+        {st.phase === "downloading" && (
+          <div className={styles.progressWrap} aria-label="downloading">
+            <div className={styles.progressBar}>
+              <div
+                className={styles.progressFill}
+                style={{ width: `${Math.round(frac * 100)}%` }}
+              />
+              <span className={styles.progressPct}>{Math.round(frac * 100)}%</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function StatusWidget(): React.ReactElement {
   const config = useKapiPlaygroundConfig();
   const mgr = usePluginManager();
@@ -151,7 +229,7 @@ export default function StatusWidget(): React.ReactElement {
   const localizedModels = useBaseUrl("/models/vision");
   const cdn = readCdnConfig(siteConfig);
   const visionModelBase = cdnEnabled(cdn)
-    ? cdnHref(cdn, "/models/vision")
+    ? cdnHref(cdn, `/models/vision/${cdn.modelsVersion}`)
     : i18n.currentLocale === i18n.defaultLocale
       ? localizedModels
       : localizedModels.replace(`/${i18n.currentLocale}/`, "/");
@@ -253,12 +331,7 @@ export default function StatusWidget(): React.ReactElement {
       </button>
 
       {open && (
-        <div
-          className={styles.panel}
-          style={panelStyle}
-          role="dialog"
-          aria-label="Neokapi plugins"
-        >
+        <div className={styles.panel} style={panelStyle} role="dialog" aria-label="Neokapi plugins">
           <div className={styles.panelHeader}>
             <img src={logo} alt="" className={styles.panelLogo} />
             <div className={styles.panelHeaderText}>
@@ -298,6 +371,33 @@ export default function StatusWidget(): React.ReactElement {
                 onDownload={() => void mgr.ensure(d.id).catch(() => undefined)}
               />
             ))}
+          </div>
+
+          {/* Local LLM provider group — the in-browser local-inference provider
+              (NOT the retired native llm plugin). Its on-device models are listed
+              as nested children, each downloadable via the WebLLM/transformers
+              bridge. Mirrors how `kapi models` lists models under their provider. */}
+          <div className={styles.plugins}>
+            <div className={styles.pluginsHeading}>Local LLM</div>
+            <div className={styles.rowDesc} style={{ margin: "-2px 0 8px" }}>
+              On-device LLMs — same lineup as <code>kapi models ollama</code>.
+            </div>
+            <div
+              style={{
+                marginLeft: 8,
+                paddingLeft: 8,
+                borderLeft: "2px solid var(--ifm-color-emphasis-200, #e3e8ee)",
+              }}
+            >
+              {mgr.modelDescriptors.map((d) => (
+                <ModelRow
+                  key={d.id}
+                  d={d}
+                  st={mgr.state.models[d.id]}
+                  onDownload={() => void mgr.ensureModel(d.id).catch(() => undefined)}
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}

@@ -40,6 +40,7 @@ func (a *App) NewPluginCmd() *cobra.Command {
 	cmd.AddCommand(a.newPluginInstallCmd())
 	cmd.AddCommand(a.newPluginUpdateCmd())
 	cmd.AddCommand(a.newPluginRemoveCmd())
+	cmd.AddCommand(a.newPluginPruneCmd())
 	cmd.AddCommand(a.newPluginSearchCmd())
 	cmd.AddCommand(a.newPluginUpdateIndexCmd())
 	cmd.AddCommand(a.newPluginRebuildCacheCmd())
@@ -59,12 +60,18 @@ func (a *App) newPluginListCmd() *cobra.Command {
 			plugins := a.PluginHost.Plugins()
 			rows := make([]output.PluginListRow, 0, len(plugins))
 			for _, p := range plugins {
-				rows = append(rows, output.PluginListRow{
+				row := output.PluginListRow{
 					Name:    p.Name(),
 					Version: p.Version(),
 					License: p.Manifest.License,
 					Source:  p.Source.Label,
-				})
+					Status:  "active",
+				}
+				if p.Retired != nil {
+					row.Status = "retired"
+					row.Retirement = p.Retired.Notice()
+				}
+				rows = append(rows, row)
 			}
 			return output.Print(cmd, output.PluginListOutput{Plugins: rows, Total: len(rows)})
 		},
@@ -122,6 +129,11 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, constraint := parsePluginRef(args[0])
+			// Refuse to install a plugin kapi has retired (offline-authoritative
+			// built-in tombstone), pointing at the replacement instead.
+			if t, ok := pluginhost.LookupTombstone(name); ok {
+				return fmt.Errorf("plugin %q was retired in kapi %s and can no longer be installed.\n  Reason: %s.\n  Replacement: %s", name, t.RetiredIn, t.Because, t.ReplacementMsg)
+			}
 			opts := pluginhost.InstallOptions{
 				IndexURL:    indexURL,
 				PluginName:  name,
@@ -266,6 +278,80 @@ func (a *App) newPluginRemoveCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// newPluginPruneCmd implements `kapi plugins prune` — clean up plugins kapi has
+// retired but that are still installed from a previous version. Retired plugins
+// are already inert (never loaded); this removes them from disk. It never
+// touches system (Homebrew) installs — it prints the OS command instead — and
+// never removes a plugin's downloaded model cache or config.
+func (a *App) newPluginPruneCmd() *cobra.Command {
+	var yes, dryRun bool
+	cmd := &cobra.Command{
+		Use:   "prune",
+		Short: "Remove retired plugins that are still installed",
+		Long: "Find plugins kapi has retired but that remain installed from an earlier version,\n" +
+			"and remove them. Retired plugins are already inert (kapi never loads them); this\n" +
+			"cleans them off disk after confirmation. System (Homebrew) installs are reported\n" +
+			"with the command to remove them, never deleted by kapi. Downloaded model caches\n" +
+			"and configuration are left untouched.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			a.InitPluginHost()
+			out := cmd.OutOrStdout()
+			if a.PluginHost == nil {
+				fmt.Fprintln(out, "Nothing to prune.")
+				return nil
+			}
+			var retired []*pluginhost.Plugin
+			for _, p := range a.PluginHost.Plugins() {
+				if p.Retired != nil {
+					retired = append(retired, p)
+				}
+			}
+			if len(retired) == 0 {
+				fmt.Fprintln(out, "Nothing to prune — no retired plugins installed.")
+				return nil
+			}
+
+			fmt.Fprintln(out, "Retired plugins still installed:")
+			for _, p := range retired {
+				fmt.Fprintf(out, "  • %s %s  — %s\n      %s\n", p.Name(), p.Version(), p.Dir, p.Retired.Because)
+			}
+			if dryRun {
+				fmt.Fprintln(out, "\n(dry run — nothing removed)")
+				return nil
+			}
+			if !yes {
+				ok, err := confirm(cmd.InOrStdin(), out, "\nRemove these retired plugins? [Y/n] ")
+				if err != nil {
+					return err
+				}
+				if !ok {
+					fmt.Fprintln(out, "Aborted.")
+					return nil
+				}
+			}
+
+			var removed, skipped int
+			for _, p := range retired {
+				if err := a.PluginHost.Remove(p.Name()); err != nil {
+					// System installs are guarded by Remove; report the OS command.
+					fmt.Fprintf(out, "  skipped %s: %v\n", p.Name(), err)
+					fmt.Fprintf(out, "      try: brew uninstall kapi-%s\n", p.Name())
+					skipped++
+					continue
+				}
+				fmt.Fprintf(out, "  removed %s\n", p.Name())
+				removed++
+			}
+			fmt.Fprintf(out, "\nPruned %d, skipped %d.\n", removed, skipped)
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&yes, "yes", false, "remove without confirmation")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "list what would be removed, without removing")
+	return cmd
 }
 
 func (a *App) newPluginSearchCmd() *cobra.Command {

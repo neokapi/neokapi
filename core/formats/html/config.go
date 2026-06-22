@@ -36,6 +36,20 @@ type Config struct {
 	// PreserveWhitespace preserves significant whitespace in text nodes.
 	PreserveWhitespace bool
 
+	// CompactOutput disables pretty-printing in the semantic (cross-format)
+	// export path — when set, body block elements are emitted run-together on a
+	// single line, as before. Zero value = pretty output (one block element per
+	// line, indented at structural nesting depth with IndentString). This only
+	// affects the block-only reconstruction path (no skeleton, no original
+	// content); the skeleton and re-parse round-trip modes stay byte-exact
+	// regardless, so whitespace-significant content (<pre>, xml:space) is never
+	// reflowed.
+	CompactOutput bool
+
+	// IndentString is the per-level indent for pretty-printed semantic output.
+	// Empty → two spaces.
+	IndentString string
+
 	// Elements maps element names to their extraction rules.
 	Elements map[string]*ElementRule
 
@@ -70,6 +84,8 @@ func (c *Config) ConfigKind() config.Kind { return config.FormatConfigKind("html
 // Reset restores default values.
 func (c *Config) Reset() {
 	c.PreserveWhitespace = false
+	c.CompactOutput = false
+	c.IndentString = ""
 	c.Elements = nil
 	c.Attributes = nil
 	c.UseCodeFinder = false
@@ -116,6 +132,18 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("extractNonTranslatableContent: expected bool, got %T", val)
 			}
 			c.disableNonTranslatableContent = !b
+		case "compactOutput":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("compactOutput: expected bool, got %T", val)
+			}
+			c.CompactOutput = b
+		case "indent":
+			s, ok := val.(string)
+			if !ok {
+				return fmt.Errorf("indent: expected string, got %T", val)
+			}
+			c.IndentString = s
 		case "useCodeFinder":
 			b, ok := val.(bool)
 			if !ok {

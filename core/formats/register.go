@@ -244,6 +244,10 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "YAML")
 	reg.RegisterWriter("yaml", func() format.DataFormatWriter { return yaml.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "yaml", func() format.DataFormatReader { return yaml.NewReader() })
+	// `kapi convert ... --to yaml` produces a STRUCTURAL block-array (the catalog
+	// yaml writer is the i18n round-trip format). yaml-catalog is the explicit
+	// opt-in to the key→value catalog writer.
+	reg.RegisterAlias("yaml-catalog", "yaml")
 
 	// JSON
 	reg.RegisterReader("json",
@@ -254,6 +258,10 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		}, "JSON")
 	reg.RegisterWriter("json", func() format.DataFormatWriter { return json.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "json", func() format.DataFormatReader { return json.NewReader() })
+	// `kapi convert ... --to json` produces a STRUCTURAL block-array (the catalog
+	// json writer is the i18n round-trip format). json-catalog is the explicit
+	// opt-in to the key→value catalog writer.
+	reg.RegisterAlias("json-catalog", "json")
 
 	// Apple String Catalog (.xcstrings) — Xcode 15+ JSON localization catalog.
 	// Detection is primarily by the unique .xcstrings extension; the Sniff

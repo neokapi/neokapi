@@ -103,7 +103,7 @@ func TestResolveCredentials_AutoDetectMultiple(t *testing.T) {
 func TestResolveCredentials_KeylessLocalProviders(t *testing.T) {
 	clearProviderEnv(t)
 	store := newTestStore(t) // empty: a remote provider would error here
-	for _, provider := range []string{"gemma", "ollama", "demo"} {
+	for _, provider := range []string{"ollama", "demo"} {
 		t.Run(provider, func(t *testing.T) {
 			config := map[string]any{"provider": provider}
 			got, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)

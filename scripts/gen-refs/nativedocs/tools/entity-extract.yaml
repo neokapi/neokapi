@@ -24,7 +24,7 @@ parameters:
       Selects the backend. Hosted providers require an API key and a model;
       Ollama runs locally. The available options are populated from the provider
       registry.
-    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `gemma` (local, no key) (default `anthropic`)"
+    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (local, no key) (default `anthropic`)"
   apiKey:
     description: API key for the provider.
     help: |
