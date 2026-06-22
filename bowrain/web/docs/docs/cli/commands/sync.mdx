@@ -97,12 +97,13 @@ Each push generates a unique PushID that the server uses to correlate triggered 
     { label: "Event", sub: "connector.push.completed" },
     {
       parallelLabel: "automations linked to abc123",
-      lanes: [{ label: "run translate" }, { label: "run qa" }],
+      lanes: [{ label: "auto_translate" }, { label: "auto_extract" }],
     },
+    { label: "jobs (N/M completed)", sub: "polled by push_id", role: "io" },
   ]}
 />
 
-The wait phase polls `GET /api/v1/projects/:id/sync/push/:pushId/status` until all linked flows complete or the timeout expires. This ensures that `kapi sync` only pulls translations that result from _this_ push, not from unrelated server activity.
+The wait phase polls `GET /api/v1/projects/:id/sync/{ref}/status?push_id=abc123` until all linked flows complete or the timeout expires. This ensures that `kapi sync` only pulls translations that result from _this_ push, not from unrelated server activity.
 
 ## Exit Codes
 

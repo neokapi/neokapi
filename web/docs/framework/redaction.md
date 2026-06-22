@@ -18,10 +18,11 @@ local machine.
 <RedactionDiagram
   original="Email Sarah Chen the Project Halcyon launch date."
   redact={[
-    { text: "Sarah Chen", label: "Person" },
+    { text: "Sarah Chen", label: "<x id=1/>" },
     "Project Halcyon",
   ]}
   translated="Envoyez à Sarah Chen la date de lancement de Project Halcyon."
+  notes={["", "what the model sees — opaque tokens", "originals restored locally"]}
 />
 
 For the architecture and design decisions behind this, see

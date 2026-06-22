@@ -120,13 +120,11 @@ The `brand-voice-check` tool runs in the pipeline alongside other tools:
 
 <PipelineDiagram
   stages={[
-    { label: "Source", role: "io" },
-    { label: "TM Leverage", role: "translate" },
-    { label: "Term Lookup", role: "annotate" },
-    { label: "AI Translate", role: "translate" },
-    { label: "Brand Voice Check", role: "qa" },
-    { label: "AI QA", role: "qa" },
-    { label: "Sink", role: "io" },
+    { label: "recycle", role: "translate" },
+    { label: "term-lookup", role: "annotate" },
+    { label: "translate", sub: "LLM", role: "translate" },
+    { label: "brand-voice-check", sub: "LLM", role: "qa" },
+    { label: "qa", sub: "LLM", role: "qa" },
   ]}
 />
 

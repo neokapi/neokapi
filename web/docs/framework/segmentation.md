@@ -31,8 +31,8 @@ the unsegmented block exactly.
   items={[
     { kind: "Block source", detail: '"Dr. Smith arrived. He was late."', role: "block" },
     { kind: "segmentation overlay", role: "meta", note: "anchored to run-index ranges" },
-    { kind: "segment", detail: '[0 … 18] · "Dr. Smith arrived."', depth: 1, role: "layer" },
-    { kind: "segment", detail: '[19 … 31] · "He was late."', depth: 1, role: "layer" },
+    { kind: "segment", detail: '[0, 18) · "Dr. Smith arrived."', depth: 1, role: "layer" },
+    { kind: "segment", detail: '[19, 31) · "He was late."', depth: 1, role: "layer" },
   ]}
 />
 
@@ -68,7 +68,7 @@ what they cost to run.
 | --- | --- | --- | --- |
 | `srx` (default) | SRX 2.0 rules — Okapi's full ruleset over a UAX-29 base where ICU is linked, a reduced pure-Go ruleset otherwise | nothing (pure Go); uses ICU when present | You want deterministic, language-tunable, Okapi-compatible sentence boundaries — the localization-industry standard. |
 | `uax29` | Unicode UAX-29 sentence rules (ICU) | cgo + ICU | You want the bare Unicode baseline with no exception rules and ICU is available. |
-| `llm` | An LLM asked to chunk semantically | an [AI provider](/framework/ai-translation) | You want meaning-aware chunks (long-form prose, mixed content) rather than sentence boundaries. |
+| `llm` | An LLM asked to chunk semantically | an [LLM provider](/framework/translation) | You want meaning-aware chunks (long-form prose, mixed content) rather than sentence boundaries. |
 | `sat` | The wtpsplit *Segment any Text* ONNX model | the `kapi-sat` plugin | You need robust multilingual or unpunctuated-text segmentation that rules handle poorly. |
 
 `srx`, `uax29` and `sat` produce a **sentence** layer; `llm` produces an

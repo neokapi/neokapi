@@ -28,7 +28,6 @@ export const Document: Story = {
       tree={docxTree}
       filename="welcome.docx"
       bytes={docxBytes}
-      defaultTransition="typewriter"
       className="max-w-2xl"
     />
   ),

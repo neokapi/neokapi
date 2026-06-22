@@ -8,6 +8,10 @@ hide_table_of_contents: true
 
 # Check content and loop with AI
 
+:::note Runs anywhere
+No project needed — `kapi check` runs ad-hoc on any source file.
+:::
+
 **Goal:** verify content before it ships — flag over-long strings, forbidden
 phrases, brand drift, and structural faults — and fix problems in a tightly
 scoped loop: either interactively from the command line or automatically by an
@@ -256,6 +260,15 @@ loop requires no human intervention and works identically over files of any
 format kapi reads.
 
 See [MCP server](/reference/mcp) for setup and the full tool list.
+
+## In a project
+
+In a `.kapi` project, `kapi check` runs against the recipe's declared content and
+locales — `kapi check` with no file argument checks the project's source, and a
+check can run as a step in a flow you launch with `kapi run`. The check profile,
+length budgets, and brand vocabulary come from the recipe instead of inline
+flags, so the same gate applies everywhere it runs. See
+[Create your first project](/kapi/get-started/first-project).
 
 ## Next
 

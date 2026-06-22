@@ -298,17 +298,19 @@ Apps that ship a single bundle don't need this phase at all — keep using `load
     {
       label: "public/translations/{locale}.json",
       sub: '{ "aB3": "Bienvenue" }',
-      edge: "compile",
-      role: "translate",
+      edge: "kapi-react compile",
+      role: "io",
+      loop: ["loadTranslations(locale, url)", "single bundle → app renders"],
     },
     {
       label: "dist/translations/{locale}/",
       sub: "index.json + lazy chunks",
       edge: "kapi-react split (optional)",
+      role: "io",
     },
     {
       label: 'Your app renders "Bienvenue"',
-      edge: "loadTranslations / loadTranslationChunk",
+      edge: "loadTranslationChunk per route",
       role: "io",
     },
   ]}

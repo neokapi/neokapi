@@ -42,7 +42,7 @@ Between the edges runs a [flow](/framework/flows): a serial chain of
 [termbase](/framework/terminology) feed the relevant stages.
 
 Concurrency runs at three levels at once: each stage is its own goroutine joined
-by channels with automatic backpressure; a block-handling stage such as AI
+by channels with automatic backpressure; a block-handling stage such as
 translation can **fan out** across N goroutines with an ordered fan-in; and the
 executor runs many documents in parallel, bounded by `MaxConcurrency`. Context
 cancellation propagates to every stage. Readers, writers, and tools can be

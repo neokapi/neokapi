@@ -12,7 +12,7 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Reuse what you've translated
 
-:::note Works ad-hoc, optimized for a project
+:::note Better in a project
 This pipeline runs ad-hoc against a loose `./tm.db` or a named TM, with the
 source and target languages passed as flags. In a `.kapi` project it's better:
 the recipe carries the languages and the project TM is resolved automatically, so
@@ -41,8 +41,8 @@ The pipeline is three deterministic steps:
 
 <PipelineDiagram
   stages={[
-    { label: "TM leverage", role: "translate" },
-    { label: "pseudo-translate", sub: "the misses", role: "translate" },
+    { label: "recycle", role: "translate" },
+    { label: "pseudo-translate", role: "translate" },
     { label: "term-check", role: "qa" },
   ]}
 />
@@ -136,6 +136,13 @@ kapi run pretranslate
 automatically, and applies the declared languages — no per-command flags. See
 [Create your first project](/kapi/get-started/first-project).
 
+## In Kapi Desktop
+
+Kapi Desktop runs the same recycle, pseudo-translate, and term-check steps from
+the visual flow runner. The reused translation memory is browsable in the TM &
+terminology explorer, where you can inspect the matches a run leveraged and the
+segments it left for translation. See [Kapi Desktop](/kapi/desktop/overview).
+
 ## Try it
 
 The in-browser build pre-seeds a TM and a termbase. The rail tops up the TM from
@@ -155,7 +162,7 @@ Pseudo-translation makes the untranslated segments _visible_; it isn't a real
 translation. To machine-translate the TM misses instead, swap step 3 for
 [`kapi translate`](/reference/commands/translate) (which needs a provider
 and credentials), then keep the `term-check` step as your guardrail. See
-[AI Translation](/framework/ai-translation) for provider setup.
+[Translation](/framework/translation) for provider setup.
 
 ## When this approach fits
 

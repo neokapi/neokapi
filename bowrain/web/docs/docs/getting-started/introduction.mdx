@@ -70,9 +70,11 @@ Content does not have to start locally, though: a [connector](/server/connectors
     { label: "Translators & AI", sub: "web / desktop / MCP", role: "qa" },
   ]}
   messages={[
-    { from: 0, to: 1, label: "sync source", detail: "a connector, or kapi push" },
+    { from: 0, to: 1, label: "sync source", detail: "a connector, or kapi sync" },
     { from: 1, to: 1, label: "translate / QA / brand checks", detail: "server automation" },
+    { from: 1, to: 2, label: "deliver for review", detail: "live-sync to web / desktop" },
     { from: 2, to: 2, label: "review & approve", detail: "in the editor" },
+    { from: 2, to: 1, label: "approved edits", detail: "back to the workspace" },
     { from: 1, to: 0, label: "publish back", detail: "to the source system" },
   ]}
   caption="Content flows in from any connector — a CMS, a design tool, git, or a developer's local files via kapi. The server governs and automates, people and AI tools review, and results publish back."

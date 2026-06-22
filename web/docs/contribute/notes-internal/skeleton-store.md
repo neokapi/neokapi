@@ -201,7 +201,7 @@ boundaries to create interleaved skeleton text and ref entries:
   title={'<p title="Tooltip">'}
   items={[
     { kind: "skeleton.WriteText", detail: `'<p title="'`, role: "meta" },
-    { kind: "skeleton.WriteRef", detail: '"tu1"', role: "block", note: 'block for "Tooltip"' },
+    { kind: "skeleton.WriteRef", detail: "tu1", role: "block", note: 'block for "Tooltip"' },
     { kind: "skeleton.WriteText", detail: `'">'`, role: "meta" },
   ]}
 />

@@ -148,23 +148,44 @@ const config: Config = {
         },
       };
     },
-    // Silence the benign "Critical dependency" webpack warning emitted by the
-    // UMD wrapper in vscode-languageserver-types (pulled in transitively via
-    // @docusaurus/theme-mermaid → mermaid → langium). The `require` it flags is
-    // the module's CommonJS/AMD format detection, not a missing dependency.
-    // Scoped to that module's path so an equivalent warning from our own code
-    // is NOT suppressed.
+    // Silence a few benign third-party webpack warnings. Each predicate is
+    // scoped to the specific offending module/message so an equivalent warning
+    // from our OWN code is never suppressed.
     function ignoreWebpackWarnings() {
       return {
         name: "ignore-webpack-warnings",
         configureWebpack() {
           return {
             ignoreWarnings: [
+              // The UMD wrapper in vscode-languageserver-types (pulled in via
+              // @docusaurus/theme-mermaid → mermaid → langium) flags its own
+              // CommonJS/AMD format-detection `require`, not a missing dependency.
               (warning: { message?: string; module?: { resource?: string } }) =>
                 /Critical dependency: require function is used/.test(warning.message ?? "") &&
                 /[\\/]node_modules[\\/]vscode-languageserver-types[\\/]/.test(
                   warning.module?.resource ?? "",
                 ),
+              // @ffmpeg/ffmpeg (the WASM ffmpeg behind the media/video lab) loads
+              // its worker + core via `new Worker(new URL(…))` / dynamic import
+              // that webpack can't statically analyze. Benign — the URL is real
+              // at runtime.
+              (warning: { message?: string; module?: { resource?: string } }) =>
+                /Critical dependency: the request of a dependency is an expression/.test(
+                  warning.message ?? "",
+                ) && /[\\/]@ffmpeg[\\/]ffmpeg[\\/]/.test(warning.module?.resource ?? ""),
+              // The same ffmpeg/emscripten build emits a circular chunk dependency
+              // for its pthread runtime (em-pthread ↔ runtime~main). Inherent to
+              // emscripten's threaded WASM output; harmless here.
+              (warning: { message?: string }) =>
+                /Circular dependency between chunks with runtime.*em-pthread/.test(
+                  warning.message ?? "",
+                ),
+              // onnxruntime-web (the WASM ML runtime behind the vision/segmentation
+              // labs) flags a `require` in its node-target build that the browser
+              // build never reaches. Benign — scoped to onnxruntime-web's path.
+              (warning: { message?: string; module?: { resource?: string } }) =>
+                /Critical dependency: require function is used/.test(warning.message ?? "") &&
+                /[\\/]onnxruntime-web[\\/]/.test(warning.module?.resource ?? ""),
             ],
           };
         },

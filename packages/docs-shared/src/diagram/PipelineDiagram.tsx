@@ -39,6 +39,12 @@ export interface PipelineStage {
   lanes?: { label: string; sub?: string }[];
   /** Label shown above a `lanes` group (e.g. "fan-out · N goroutines"). */
   parallelLabel?: string;
+  /**
+   * Override the connector label on the edge LEAVING this stage. Pass "" to drop
+   * it on just this hop (e.g. a Reader that fully drains before the tools run, so
+   * its edge is not a live `chan Part`). Falls back to the diagram `channelLabel`.
+   */
+  channel?: string;
 }
 
 export interface PipelineDiagramProps {
@@ -158,7 +164,7 @@ export function PipelineDiagram({
                     className="kdx-channel"
                     markerEnd="url(#kdx-arrow)"
                   />
-                  {channelLabel && (
+                  {(s.channel !== undefined ? s.channel : channelLabel) && (
                     <text
                       x={(s.x + s.w + next.x) / 2}
                       y={cy - 7}
@@ -166,7 +172,7 @@ export function PipelineDiagram({
                       fontSize={7.5}
                       className="kdx-chan"
                     >
-                      {channelLabel}
+                      {s.channel !== undefined ? s.channel : channelLabel}
                     </text>
                   )}
                   {animated && (

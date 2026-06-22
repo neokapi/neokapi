@@ -128,10 +128,10 @@ then into JSX.
   animated
   stages={[
     { label: "Source", sub: "file / store", role: "io" },
-    { label: "Reader", sub: "DataFormatReader", note: "+ skeleton" },
+    { label: "Reader", sub: "DataFormatReader" },
     { label: "ContentTree", sub: "core/editor", note: "Part stream → tree" },
     { label: "RenderDoc", sub: "renderDoc.ts", note: "STRUCTURE_RULES" },
-    { label: "View", sub: "FormatPreview", role: "io" },
+    { label: "View", sub: "DocumentViewer", role: "tool" },
   ]}
   caption="Render path: a Part stream becomes a hierarchical ContentTree, normalized to a format-shaped RenderDoc whose kind drives the JSX renderer."
 />
@@ -229,9 +229,8 @@ round-trip is the `extract` / `merge` workflow
   animated
   channelLabel="edit"
   stages={[
-    { label: "Edit", sub: "target runs", role: "translate" },
+    { label: "Edit", sub: "target runs", role: "tool" },
     { label: "SetTargetRuns", sub: "model.Block", note: "in place" },
-    { label: "Persist", sub: "BlockStore / KLF", note: "host concern" },
     { label: "Reader replay", sub: "source", note: "inject targets" },
     { label: "Writer", sub: "+ skeleton" },
     { label: "Output", sub: "faithful original", role: "io" },

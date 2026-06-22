@@ -97,11 +97,12 @@ kapi ls --stats            # list tracked files + block/word counts
 **1 — Interchange loop** (hand bilingual files to a translator or CAT tool):
 
 <PipelineDiagram
+  channelLabel=""
   stages={[
-    { label: "kapi extract", sub: "TM pre-fill", role: "annotate" },
-    { label: "bilingual file", sub: ".klz / XLIFF / PO", role: "io" },
+    { label: "kapi extract", sub: "TM pre-fill", role: "io" },
+    { label: "bilingual file", sub: "XLIFF / PO / .klz", role: "io" },
     { label: "translate elsewhere", role: "translate" },
-    { label: "kapi merge", sub: "+ TM absorb", role: "qa" },
+    { label: "kapi merge", sub: "+ TM absorb", role: "io" },
     { label: "localized files", role: "io" },
   ]}
 />
@@ -115,10 +116,11 @@ kapi merge -i out/                          # apply back onto sources, absorb in
 **2 — Process-only loop** (work lands in the store; materialize when ready):
 
 <PipelineDiagram
+  channelLabel=""
   stages={[
     { label: "kapi run -i file", sub: "no -o", role: "translate" },
-    { label: "project store", sub: "targets/<locale> overlays", role: "io" },
-    { label: "kapi merge", role: "qa" },
+    { label: "project store", sub: "default sink · targets/<locale> overlays", role: "io" },
+    { label: "kapi merge", role: "io" },
     { label: "localized files", role: "io" },
   ]}
 />

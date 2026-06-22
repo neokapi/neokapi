@@ -28,8 +28,21 @@ export interface PhaseNode {
   loop?: string | string[];
 }
 
+/**
+ * A branch edge from one node to a later one — e.g. an ordinary change-set that
+ * merges directly, skipping review. Drawn on the LEFT, bypassing the nodes in
+ * between, so the linear spine still reads top-to-bottom.
+ */
+export interface PhaseSkip {
+  from: number;
+  to: number;
+  label?: string;
+}
+
 export interface PhaseFlowProps {
   nodes: PhaseNode[];
+  /** Optional branch edges that bypass intermediate nodes (drawn on the left). */
+  skips?: PhaseSkip[];
   caption?: string;
 }
 
@@ -39,15 +52,20 @@ const TOP = 12;
 const NODE_X = 16;
 const CHAR = 7;
 const LOOP_OUT = 30; // how far the self-loop bulges right of the node
+const SKIP_OUT = 26; // how far a left-side skip edge bulges left of the nodes
 
 const roleBox = (role?: StageRole) => (role && role !== "tool" ? ` kdx-box--${role}` : "");
 
-export function PhaseFlow({ nodes, caption }: PhaseFlowProps): React.ReactElement {
+export function PhaseFlow({ nodes, skips = [], caption }: PhaseFlowProps): React.ReactElement {
   const nodeW = Math.max(
     180,
     ...nodes.map((n) => Math.max(n.label.length, (n.sub ?? "").length) * CHAR + 28),
   );
-  const cx = NODE_X + nodeW / 2;
+  // Left room for any skip edges (drawn left of the nodes) and their labels.
+  const skipLabelW = Math.max(0, ...skips.map((s) => (s.label ?? "").length * 5.8));
+  const leftPad = skips.length ? SKIP_OUT + skipLabelW + 14 : 0;
+  const nx = NODE_X + leftPad;
+  const cx = nx + nodeW / 2;
   const nodeY = (i: number) => TOP + i * (NODE_H + V_GAP);
 
   // Right-side room for the widest self-loop label.
@@ -56,7 +74,7 @@ export function PhaseFlow({ nodes, caption }: PhaseFlowProps): React.ReactElemen
     0,
     ...nodes.map((n) => Math.max(0, ...loopLines(n).map((l) => l.length * 6.2))),
   );
-  const totalW = NODE_X + nodeW + LOOP_OUT + 14 + loopLabelW + 14;
+  const totalW = nx + nodeW + LOOP_OUT + 14 + loopLabelW + 14;
   const totalH = nodeY(nodes.length - 1) + NODE_H + (caption ? 6 : 14);
 
   return (
@@ -90,7 +108,45 @@ export function PhaseFlow({ nodes, caption }: PhaseFlowProps): React.ReactElemen
               >
                 <path d="M0,0 L6,0 L3,6 Z" className="kdx-arrow" />
               </marker>
+              <marker
+                id="kdx-arrow-r"
+                markerWidth="8"
+                markerHeight="8"
+                refX="5"
+                refY="3"
+                orient="auto"
+              >
+                <path d="M0,0 L6,3 L0,6 Z" className="kdx-arrow" />
+              </marker>
             </defs>
+
+            {/* Left-side skip / branch edges (e.g. an ordinary direct merge). */}
+            {skips.map((sk, si) => {
+              const yFrom = nodeY(sk.from) + NODE_H / 2;
+              const yTo = nodeY(sk.to) + NODE_H / 2;
+              const bulge = nx - SKIP_OUT;
+              return (
+                <g key={`skip-${si}`}>
+                  <path
+                    d={`M${nx},${yFrom} H${bulge} V${yTo} H${nx - 2}`}
+                    className="kdx-loop"
+                    fill="none"
+                    markerEnd="url(#kdx-arrow-r)"
+                  />
+                  {sk.label && (
+                    <text
+                      x={bulge - 6}
+                      y={(yFrom + yTo) / 2 + 3}
+                      textAnchor="end"
+                      fontSize={9}
+                      className="kdx-note"
+                    >
+                      {sk.label}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
 
             {nodes.map((n, i) => {
               const y = nodeY(i);
@@ -116,7 +172,7 @@ export function PhaseFlow({ nodes, caption }: PhaseFlowProps): React.ReactElemen
 
                   {/* the node */}
                   <rect
-                    x={NODE_X}
+                    x={nx}
                     y={top}
                     width={nodeW}
                     height={NODE_H}
@@ -142,14 +198,14 @@ export function PhaseFlow({ nodes, caption }: PhaseFlowProps): React.ReactElemen
                   {ll.length > 0 && (
                     <>
                       <path
-                        d={`M${NODE_X + nodeW},${top + 9} h${LOOP_OUT} v${NODE_H - 18} h${-LOOP_OUT}`}
+                        d={`M${nx + nodeW},${top + 9} h${LOOP_OUT} v${NODE_H - 18} h${-LOOP_OUT}`}
                         className="kdx-loop"
                         markerEnd="url(#kdx-arrow-back)"
                       />
                       {ll.map((line, li) => (
                         <text
                           key={li}
-                          x={NODE_X + nodeW + LOOP_OUT + 10}
+                          x={nx + nodeW + LOOP_OUT + 10}
                           y={top + NODE_H / 2 - (ll.length - 1) * 6 + li * 12 + 3}
                           fontSize={9}
                           className="kdx-note"

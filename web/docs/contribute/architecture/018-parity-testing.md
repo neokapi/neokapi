@@ -50,7 +50,7 @@ outputs diverge.
 <PipelineDiagram
   channelLabel="[]Part"
   stages={[
-    { label: "TestParityHTML / JSON", sub: "same input", role: "io" },
+    { label: "TestParityHtmlSpec / TestParityJSONSpec", sub: "same input", role: "io" },
     {
       parallelLabel: "run both implementations side by side",
       lanes: [
@@ -58,7 +58,7 @@ outputs diverge.
         { label: "RunBridge", sub: "DaemonPool → JVM daemon (gRPC)" },
       ],
     },
-    { label: "CompareBlockText", sub: "fails on divergence", role: "qa" },
+    { label: "BlockTexts equality", sub: "text-only; fails on divergence", role: "qa" },
   ]}
 />
 

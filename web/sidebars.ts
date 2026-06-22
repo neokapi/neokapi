@@ -35,6 +35,18 @@ const sidebars: SidebarsConfig = {
         { type: "doc", id: "kapi/recipes/overview", label: "Get oriented" },
       ],
     },
+    // Kapi Desktop — the visual companion, surfaced up front (not buried) so it
+    // reads as co-equal with the CLI; recipes carry inline "In Kapi Desktop" notes.
+    {
+      type: "category",
+      label: "Kapi Desktop",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        { type: "doc", id: "kapi/desktop/overview", label: "Overview", key: "kapi-desktop-overview" },
+        { type: "doc", id: "kapi/desktop/tour", label: "A guided tour" },
+      ],
+    },
     // One source-first journey: get your content right, then go multilingual.
     // Builder-first, forward-looking labels — the localization machinery stays
     // under the hood (linked from Framework), never in the sidebar text.
@@ -66,20 +78,6 @@ const sidebars: SidebarsConfig = {
         { type: "doc", id: "kapi/recipes/estimate-cost", label: "Estimate a run's cost" },
         { type: "doc", id: "kapi/recipes/tm-termbase-storage", label: "Where translations & terms live" },
         { type: "doc", id: "kapi/bilingual-workflow", label: "Hand off to translators" },
-      ],
-    },
-    {
-      type: "category",
-      label: "Kapi Desktop",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: [
-        {
-          type: "doc",
-          id: "kapi/desktop/overview",
-          label: "Overview",
-          key: "kapi-desktop-overview",
-        },
       ],
     },
   ],

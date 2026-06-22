@@ -84,7 +84,7 @@ translated differently across a batch, and the terminology validators
 ## LLM-assisted review
 
 Where rule-based checks catch the mechanical errors, running `qa` with an LLM
-`--provider` uses that [LLM provider](/framework/ai-translation) to assess
+`--provider` uses that [LLM provider](/framework/translation) to assess
 qualities a rule cannot easily express — fluency, accuracy against the source,
 and terminology appropriateness — and attaches its assessment to each block. It
 is the natural companion to `translate`: the built-in `translate-qa` flow runs

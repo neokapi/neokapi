@@ -9,10 +9,10 @@ hide_table_of_contents: true
 
 # What gets translated
 
-:::note Best as a project
-The jobs below run **ad-hoc** on any file, but the payoff is a repeatable pass you
-keep in a [`.kapi` project](/kapi/get-started/first-project) so every run prepares
-content the same way and builds up a project-local translation memory and termbase.
+:::note Runs anywhere
+No project needed — each job below runs ad-hoc on any source file. A
+[`.kapi` project](/kapi/get-started/first-project) makes the pass repeatable and
+lets reuse accumulate in a project-local translation memory and termbase.
 :::
 
 **Goal:** decide what actually needs translating before anything goes out in
@@ -113,3 +113,12 @@ Now sensitive content stays local, reuse accumulates in the project TM, and the
 gate keeps regressions out. For the model behind this — how each step is a
 non-destructive overlay on one settled source — see
 [Content preparation](/framework/content-preparation).
+
+## In a project
+
+In a `.kapi` project, the same preparation runs against the recipe's declared
+content and locales — `kapi run prepare` with no file argument resolves the
+sources from the project, and the TM and termbase it builds are the project's own.
+The prepared targets follow the project store and are materialized with
+`kapi merge` instead of `-o`. See
+[Create your first project](/kapi/get-started/first-project).
