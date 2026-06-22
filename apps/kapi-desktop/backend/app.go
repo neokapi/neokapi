@@ -117,12 +117,6 @@ func NewApp() *App {
 	// isolated KAPI_CONFIG_DIR fully isolates credentials from the user's own.
 	credStore := credentials.NewStore(filepath.Join(kapiConfigDir(), "providers.json"))
 
-	// Wire credential resolution: tools requiring "credentials" get their
-	// provider/apiKey/model injected from the shared credential store.
-	toolReg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
-		return credentials.ResolveCredentials(credStore, toolName, requires, config)
-	})
-
 	app := &App{
 		formatReg:   formatReg,
 		toolReg:     toolReg,
@@ -140,6 +134,16 @@ func NewApp() *App {
 	// native File → Recent Projects menu can rebuild itself (the menu is built
 	// once at startup and otherwise never sees later opens — issue #3).
 	app.recent.onChange = func() { app.emitEvent("recent:changed", nil) }
+
+	// Wire credential resolution: tools requiring "credentials" get their
+	// provider/apiKey/model injected from the shared credential store. When a
+	// flow step pins no credential, fall back to the user's chosen default
+	// (Settings → AI provider) so multi-credential setups resolve
+	// deterministically instead of erroring on auto-detect.
+	toolReg.SetConfigPreprocessor(func(toolName string, requires []string, config map[string]any) (map[string]any, error) {
+		config = app.applyDefaultCredential(requires, config)
+		return credentials.ResolveCredentials(credStore, toolName, requires, config)
+	})
 
 	// The plugin runtime owns discovery, the host, the daemon pool, and the
 	// schema/format wiring — the same pluginhost.Runtime the CLI uses. Cache is

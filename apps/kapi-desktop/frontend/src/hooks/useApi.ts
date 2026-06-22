@@ -253,6 +253,9 @@ export const api = {
   saveProvider: (req: unknown) => call<ProviderConfig>("SaveProvider", req),
   deleteProvider: (id: string) => call<void>("DeleteProvider", id),
   testProvider: (id: string) => call<boolean>("TestProvider", id),
+  /** The credential a flow falls back to when its step pins no provider ("" = none). */
+  getDefaultCredential: () => call<string>("GetDefaultCredential"),
+  setDefaultCredential: (id: string) => call<void>("SetDefaultCredential", id),
 
   // Files
   matchContent: (tabID: string) =>

@@ -34,6 +34,13 @@ type AppSettings struct {
 	// ActiveProject is the recipe path of the project tab that was active
 	// (focused) in the last session. Empty when no project was open.
 	ActiveProject string `json:"active_project,omitempty"`
+
+	// DefaultCredentialID is the credential the desktop falls back to when a
+	// flow step needs an AI provider but pins none of its own. It holds a
+	// credential ID (which carries the provider it links to). Empty means no
+	// default — a run then auto-detects, which only succeeds unambiguously
+	// with a single saved credential.
+	DefaultCredentialID string `json:"default_credential_id,omitempty"`
 }
 
 // CustomLocale is a user-defined locale with code and display name.
@@ -145,6 +152,22 @@ func (a *App) SetUILanguage(lang string) {
 	a.settings.save()
 	a.settings.mu.Unlock()
 	a.SetLocale(lang)
+}
+
+// GetDefaultCredential returns the ID of the credential the desktop uses when
+// a flow step needs an AI provider but pins none. Empty when no default is set.
+func (a *App) GetDefaultCredential() string {
+	a.settings.mu.Lock()
+	defer a.settings.mu.Unlock()
+	return a.settings.settings.DefaultCredentialID
+}
+
+// SetDefaultCredential persists the fallback credential id (pass "" to clear).
+func (a *App) SetDefaultCredential(id string) {
+	a.settings.mu.Lock()
+	defer a.settings.mu.Unlock()
+	a.settings.settings.DefaultCredentialID = id
+	a.settings.save()
 }
 
 // DismissSamples marks the sample project cards as dismissed.

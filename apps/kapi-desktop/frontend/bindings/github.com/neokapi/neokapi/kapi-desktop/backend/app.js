@@ -551,6 +551,15 @@ export function GetConceptForView(handle, conceptID) {
 }
 
 /**
+ * GetDefaultCredential returns the ID of the credential the desktop uses when
+ * a flow step needs an AI provider but pins none. Empty when no default is set.
+ * @returns {$CancellablePromise<string>}
+ */
+export function GetDefaultCredential() {
+    return $Call.ByID(3095587212);
+}
+
+/**
  * GetFilterDoc returns documentation for a single filter by ID. The
  * manifest plugin model does not currently surface docs, so this
  * always returns nil.
@@ -1792,6 +1801,15 @@ export function SetApplication(app) {
 }
 
 /**
+ * SetDefaultCredential persists the fallback credential id (pass "" to clear).
+ * @param {string} id
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetDefaultCredential(id) {
+    return $Call.ByID(3573536056, id);
+}
+
+/**
  * SetEventSink registers a listener that receives every emitted event, in
  * addition to the Wails app. Used by the recording wbridge to stream events
  * (plugin install progress, flow:event, …) to the browser over SSE. Passing nil
@@ -1866,7 +1884,10 @@ export function T() {
 }
 
 /**
- * TestProvider verifies that a provider's API key is accessible from the keychain.
+ * TestProvider verifies that a provider is usable. For keyless local providers
+ * (Ollama, Gemma, Demo) there is no API key to check — they run on-device — so
+ * the check passes once the credential record exists. Cloud providers still
+ * require a key in the keychain.
  * @param {string} id
  * @returns {$CancellablePromise<boolean>}
  */

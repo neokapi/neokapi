@@ -110,6 +110,19 @@ func (s *Store) Upsert(cfg ProviderConfig) (ProviderConfig, error) {
 	defer s.mu.Unlock()
 
 	if cfg.ID == "" {
+		// Dedupe by name: adding a credential whose name already exists updates
+		// that entry in place rather than creating a second, indistinguishable
+		// record — two same-named credentials make auto-detect ambiguous and
+		// can't be told apart in a picker. Adopt the existing ID so the
+		// update path below runs (and the caller's key write targets it).
+		for _, c := range s.configs {
+			if strings.EqualFold(c.Name, cfg.Name) {
+				cfg.ID = c.ID
+				break
+			}
+		}
+	}
+	if cfg.ID == "" {
 		cfg.ID = id.New()
 	}
 

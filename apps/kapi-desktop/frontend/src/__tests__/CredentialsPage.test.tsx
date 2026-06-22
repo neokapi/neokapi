@@ -43,4 +43,39 @@ describe("CredentialsPage", () => {
     await userEvent.click(screen.getByText("Cancel"));
     expect(screen.queryByText("New Provider")).not.toBeInTheDocument();
   });
+
+  const twoProviders = [
+    { id: "c1", name: "My OpenAI Key", provider_type: "openai" },
+    { id: "c2", name: "My Gemini Key", provider_type: "gemini" },
+  ];
+
+  it("marks the default provider with a star and badge", () => {
+    renderWithProviders(
+      <CredentialsPage providers={twoProviders} providerTypes={[]} defaultCredentialId="c2" />,
+    );
+    expect(screen.getByText("Default")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Unset My Gemini Key as default/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /Set My OpenAI Key as default/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("starring a provider makes it the default (optimistic)", async () => {
+    renderWithProviders(
+      <CredentialsPage providers={twoProviders} providerTypes={[]} defaultCredentialId="" />,
+    );
+    expect(screen.queryByText("Default")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Set My OpenAI Key as default/ }));
+
+    expect(screen.getByText("Default")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Unset My OpenAI Key as default/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 });

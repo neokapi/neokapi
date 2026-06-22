@@ -430,6 +430,18 @@ export class AppSettings {
              */
             this["active_project"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * DefaultCredentialID is the credential the desktop falls back to when a
+             * flow step needs an AI provider but pins none of its own. It holds a
+             * credential ID (which carries the provider it links to). Empty means no
+             * default — a run then auto-detects, which only succeeds unambiguously
+             * with a single saved credential.
+             * @member
+             * @type {string | undefined}
+             */
+            this["default_credential_id"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -3057,6 +3069,15 @@ export class ProviderTypeInfo {
              * @type {string}
              */
             this["label"] = "";
+        }
+        if (!("local" in $$source)) {
+            /**
+             * Local is true for on-device providers (Ollama, Gemma, Demo) that need no
+             * API key; the frontend uses it to hide the API-key field and show a badge.
+             * @member
+             * @type {boolean}
+             */
+            this["local"] = false;
         }
 
         Object.assign(this, $$source);

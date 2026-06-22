@@ -98,6 +98,28 @@ func TestResolveCredentials_AutoDetectMultiple(t *testing.T) {
 	_, err := ResolveCredentials(store, "translate", []string{"credentials"}, config)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "multiple credentials")
+
+	// The error must be the typed AmbiguousCredentialError so GUIs can catch
+	// it (and avoid surfacing the CLI's --credential hint), carrying the
+	// candidate names and the provider it was filtered by.
+	var amb *AmbiguousCredentialError
+	require.ErrorAs(t, err, &amb)
+	assert.Equal(t, "openai", amb.Provider)
+	assert.ElementsMatch(t, []string{"A", "B"}, amb.Candidates)
+}
+
+func TestStore_UpsertDedupesByName(t *testing.T) {
+	store := newTestStore(t)
+
+	first := mustUpsert(t, store, ProviderConfig{Name: "harness-gemini", ProviderType: "gemini"})
+	// Re-adding the same name (no ID) must update the existing record in place,
+	// not create a second indistinguishable entry that breaks auto-detect.
+	second := mustUpsert(t, store, ProviderConfig{Name: "harness-gemini", ProviderType: "gemini", Model: "gemini-2.0-flash"})
+
+	assert.Equal(t, first.ID, second.ID, "same name should reuse the existing id")
+	all := store.FindByType("gemini")
+	require.Len(t, all, 1, "must not keep two same-named credentials")
+	assert.Equal(t, "gemini-2.0-flash", all[0].Model, "the update should win")
 }
 
 func TestResolveCredentials_KeylessLocalProviders(t *testing.T) {
