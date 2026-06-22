@@ -14,6 +14,16 @@ type Config struct {
 	// content blocks (visible to ingestion, skipped by MT). Default true; disable
 	// to keep captions in skeleton.
 	ExtractNonTranslatableContent bool `json:"extractNonTranslatableContent"`
+
+	// CompactOutput disables indentation of nested elements. Zero value =
+	// pretty output (each structural level indented by IndentString, matching
+	// the canonical DocLang sample). The reader strips indentation whitespace, so
+	// either form round-trips identically.
+	CompactOutput bool `json:"compactOutput"`
+
+	// IndentString is the per-level indent for pretty-printed output. Empty →
+	// two spaces.
+	IndentString string `json:"indent"`
 }
 
 // FormatName returns the format this config applies to.

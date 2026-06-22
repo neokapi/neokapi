@@ -37,6 +37,14 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetConfig replaces the writer's config — used to control the semantic
+// (cross-format) export path's pretty-printing (CompactOutput, IndentString).
+func (w *Writer) SetConfig(cfg *Config) {
+	if cfg != nil {
+		w.cfg = cfg
+	}
+}
+
 // SetSourcePath sets the path to the original document for re-parse mode.
 func (w *Writer) SetSourcePath(path string) {
 	w.sourcePath = path
