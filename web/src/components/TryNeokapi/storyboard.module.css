@@ -1,0 +1,250 @@
+/* Hand-drawn storyboard hero — a marker-on-whiteboard "Content Loop" rendered as
+   one SVG, choreographed with GSAP (self-drawing DrawSVG arrows, MotionPath
+   particles). This module styles only the shell + the SVG's static look (fonts,
+   ink/paper colours, blend modes); all motion lives in HeroStoryboard.tsx.
+
+   Theme: a warm-paper whiteboard in light mode, a slate "board" in dark mode.
+   Every ink/paper colour is a CSS var so GSAP only ever animates geometry and
+   opacity — never colour — and the board re-themes for free. */
+
+.root {
+  /* Marker ink + paper, themed. Light = warm whiteboard; dark = slate board. */
+  --hb-paper: #faf7f0;
+  --hb-paper-edge: #ece6d8;
+  --hb-ink: #1b1c1f;
+  --hb-ink-soft: #4b4c52;
+  --hb-box: #1b1c1f;
+  --hb-box-ink: #faf7f0;
+  --hb-pink: #ff3d8b;
+  --hb-grid: rgba(27, 28, 31, 0.05);
+  --hb-green: var(--ifm-color-primary);
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 32rem;
+  margin-inline: auto;
+}
+
+[data-theme="dark"] .root {
+  --hb-paper: #181a20;
+  --hb-paper-edge: #0f1115;
+  --hb-ink: #ece8df;
+  --hb-ink-soft: #b7b4ac;
+  --hb-box: #ece8df;
+  --hb-box-ink: #14151a;
+  --hb-pink: #ff5fa3;
+  --hb-grid: rgba(236, 232, 223, 0.06);
+}
+
+/* The whole board is one big button that opens the live demo modal. */
+.card {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 18px;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px) rotate(-0.25deg);
+}
+
+.card:focus-visible {
+  outline: 3px solid var(--hb-green);
+  outline-offset: 4px;
+}
+
+.board {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  /* A soft cast shadow so the paper lifts off the page. */
+  filter: drop-shadow(0 18px 38px rgba(0, 0, 0, 0.16));
+}
+
+/* A small "tape" corner peel + a pen tag, drawn in the SVG; the hint badge below
+   the title rotates slightly for the storyboard feel. */
+.hint {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.7rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--hb-box-ink);
+  background: var(--hb-box);
+  transform: rotate(2.5deg);
+  pointer-events: none;
+}
+
+/* ── SVG type ──────────────────────────────────────────────────────────────── */
+.marker {
+  font-family: "Permanent Marker", "Comic Sans MS", "Segoe Print", cursive;
+}
+.hand {
+  font-family: "Caveat", "Segoe Print", "Bradley Hand", cursive;
+}
+
+.boxLabel {
+  fill: var(--hb-box-ink);
+  letter-spacing: 0.01em;
+}
+.headText {
+  fill: var(--hb-ink);
+}
+.note {
+  fill: var(--hb-ink-soft);
+}
+.boxSub {
+  fill: var(--hb-ink-soft);
+}
+
+/* Highlighter swash behind a section header — multiply so it reads like a real
+   marker over paper. */
+.highlight {
+  fill: var(--hb-pink);
+  mix-blend-mode: multiply;
+}
+[data-theme="dark"] .highlight {
+  mix-blend-mode: screen;
+  opacity: 0.85;
+}
+
+/* Marker strokes: arrows, the board frame, the loop. Round caps = felt-tip. */
+.stroke {
+  fill: none;
+  stroke: var(--hb-ink);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.strokeThin {
+  fill: none;
+  stroke: var(--hb-ink);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.frame {
+  fill: var(--hb-paper);
+  stroke: var(--hb-ink);
+  stroke-width: 3;
+}
+
+/* The signature big return loop draws in the brand green so it reads as the
+   through-line tying the two loops together. */
+.loop {
+  fill: none;
+  stroke: var(--hb-green);
+  stroke-width: 3.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.boxFill {
+  fill: var(--hb-box);
+}
+.boxFillGreen {
+  fill: var(--hb-green);
+}
+
+/* Particle defaults: hidden until the timeline (or never, under reduced motion). */
+.particle {
+  opacity: 0;
+}
+.chip {
+  fill: var(--hb-box);
+}
+.chipInk {
+  fill: var(--hb-box-ink);
+  font-size: 13px;
+}
+.seg {
+  fill: var(--hb-green);
+}
+
+/* ── Caption + CTA ─────────────────────────────────────────────────────────── */
+.caption {
+  margin: 0;
+  text-align: center;
+  font-size: 1.18rem;
+  line-height: 1.15;
+  color: var(--hb-ink-soft);
+}
+.caption b {
+  color: var(--ifm-font-color-base);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  align-self: center;
+  padding: 0.6rem 1.3rem;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--ifm-color-primary);
+  cursor: pointer;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--ifm-color-primary) 38%, transparent);
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.cta:hover {
+  background: var(--ifm-color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--ifm-color-primary) 50%, transparent);
+}
+.cta:focus-visible {
+  outline: 3px solid var(--ifm-color-primary);
+  outline-offset: 3px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 575px) {
+  .caption {
+    font-size: 1.05rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .cta {
+    transition: none;
+  }
+  .card:hover,
+  .cta:hover {
+    transform: none;
+  }
+}

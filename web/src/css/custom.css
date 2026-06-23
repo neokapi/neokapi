@@ -131,3 +131,24 @@
     display: none;
   }
 }
+
+/* ── Storyboard hero webfonts (self-hosted, latin subset) ──────────────────────
+   Permanent Marker — the marker-label display face (PREP / WRITE / CHECK …);
+   Caveat — the handwritten annotation voice. Referenced relatively so webpack
+   hashes them and prefixes the site baseUrl (correct under PR-preview subpaths).
+   Only the storyboard hero requests these families, so font-display:swap keeps
+   the rest of the site unaffected until the hero mounts. */
+@font-face {
+  font-family: "Permanent Marker";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/permanent-marker-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Caveat";
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url("./fonts/caveat-latin.woff2") format("woff2");
+}
