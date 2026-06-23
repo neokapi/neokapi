@@ -15,7 +15,8 @@ vocabulary entry says what the type means, how it should be rendered and labeled
 and what a translator is allowed to do with it. This is the layer that makes
 inline handling format-independent: `<b>` (HTML), `**` (Markdown), and `<w:b/>`
 (DOCX) all resolve to the same `fmt:bold` type, so everything downstream treats
-them identically.
+them identically. (See the [Glossary](/framework/glossary) for **Run**, **span**,
+and **semantic type** in one place.)
 
 ## What a semantic type carries
 

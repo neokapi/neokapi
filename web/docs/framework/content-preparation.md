@@ -103,23 +103,11 @@ returns the block to its prior state.
 
 ## Putting it in a flow
 
-The preparation pass is an ordinary [flow](/framework/flows): one ordered list
-of steps — a transformer to settle the model, then annotation steps, then
-translation, then a check gate.
+The preparation pass is an ordinary [flow](/framework/flows) — one ordered list
+of steps: a transformer to settle the model, then annotation steps, then
+translation, then a check gate. In a [`.kapi` project](/reference/project-file)
+it lives as a named flow so every run prepares content the same way and the
+overlays feed the project-local TM and termbase.
 
-```yaml
-steps:
-  - tool: redact              # settle the source first (optional)
-  - tool: segmentation        # sentence boundaries
-    config: { engine: srx }
-  - tool: term-lookup         # match the termbase
-  - tool: entity-extract   # recognize entities
-  - tool: recycle         # reuse prior segment translations
-  - tool: translate           # translate the remainder
-  - tool: qa                  # gate on findings
-```
-
-In a [`.kapi` project](/reference/project-file) this lives as a named flow so
-every run prepares content the same way and the overlays feed the project-local
-TM and termbase. For a runnable, step-by-step version, see the
-[Prepare content for translation](/kapi/recipes/prepare-content) recipe.
+For the runnable, step-by-step version — the actual commands and the flow YAML —
+see the [Prepare content for translation](/kapi/recipes/prepare-content) recipe.

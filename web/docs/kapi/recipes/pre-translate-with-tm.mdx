@@ -28,6 +28,9 @@ from earlier releases and sends only the new and changed parts forward, marking
 anything still untranslated so nothing slips out blank. It runs in seconds, on
 your machine, with no API key.
 
+For the concepts, see [Translation Memory](/framework/translation-memory) and
+[Terminology](/framework/terminology); this recipe walks the task.
+
 ## The scenario
 
 Your project has:
@@ -73,9 +76,9 @@ kapi tm stats
 
 Fill segments that have an exact or fuzzy match in the TM. With no flag,
 `recycle` reads the same TM you just imported into; pass `--tm <name|path>`
-to leverage a different one. Exact matches are applied automatically; fuzzy
-matches (70% similarity by default) are filled too, with the score recorded so
-reviewers know which to double-check:
+to leverage a different one. (See
+[Translation Memory](/framework/translation-memory) for how exact and fuzzy
+matching, default thresholds, and match scoring work.)
 
 ```bash
 kapi recycle messages_en.json \

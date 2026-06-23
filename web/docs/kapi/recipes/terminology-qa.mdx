@@ -35,6 +35,9 @@ carry across (product names, UI actions, the words your domain depends on), and
 kapi checks every translated file against that, flagging anything that drifts
 before it ships.
 
+For the concepts, see [Terminology](/framework/terminology) and
+[Checks](/framework/checks); this recipe walks the task.
+
 ## The scenario
 
 Your team maintains a product glossary as a CSV — source term, approved target,
@@ -95,19 +98,12 @@ kapi term-check messages_fr.json \
   --termbase product-terms
 ```
 
-`kapi term-check` reads the translated file, identifies source segments that
-contain a glossary term, and verifies the corresponding target uses the approved
-equivalent. The check works in two stages:
-
-1. **Term discovery** — kapi scans each source segment for terms that appear in
-   your glossary.
-2. **Term enforcement** — for each discovered term, it checks whether the target
-   contains the approved equivalent.
-
-A violation is raised when, for example, the source contains "password" (a
-glossary term) but the French target uses "code secret" instead of the approved
-"mot de passe". The command exits non-zero when violations are found, so it
-doubles as a CI gate.
+`kapi term-check` flags target segments that don't use the approved equivalent
+for a source glossary term — for example, where the source contains "password"
+but the French target uses "code secret" instead of the approved "mot de passe".
+(See [Terminology](/framework/terminology) for how term discovery and enforcement
+work, and [Checks](/framework/checks) for the findings and gate model.) The
+command exits non-zero when violations are found, so it doubles as a CI gate.
 
 ## Try it
 

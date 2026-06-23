@@ -1,5 +1,6 @@
 ---
-sidebar_position: 2
+sidebar_position: 1
+slug: /framework/go-quickstart
 title: Use neokapi from Go
 description: A minimal end-to-end Go program that uses the neokapi framework as a library — register the built-in formats, read a file into the streaming content model, run a built-in tool, walk the Blocks, and write bilingual XLIFF.
 keywords: [neokapi, go library, quickstart, framework, content model, format reader, format writer, pipeline, golang]

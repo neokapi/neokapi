@@ -1,0 +1,35 @@
+# Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
+# full schema. Regenerate with:
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-rewrite-content
+#
+# STATUS: script authored, NOT yet recorded. The docs reference it via a
+# <PendingMedia> placeholder until the owner approves regeneration via the harness.
+
+id: kapi-rewrite-content
+scene: rewrite-content
+mode: interactive
+
+seed:
+  - release-notes.md
+files: []
+
+steps:
+  - comment: Inspect the file so you know which blocks you are editing
+  - command: kapi inspect release-notes.md
+    narration: >-
+      One anchored record per content block — text, a stable content-hash, and
+      its structural role — so an instruction can target the right content.
+  - comment: Preview the rewrite as a diff before touching the file
+  - command: kapi rewrite release-notes.md --instruction "Make the tone more concise and active" --diff
+    narration: >-
+      Rewrite edits only the text inside each block and shows a reviewable diff;
+      the format, structure, and inline codes round-trip back byte-for-byte.
+  - comment: Apply in place once the diff looks right
+  - command: kapi rewrite release-notes.md --instruction "Make the tone more concise and active" -i
+    narration: >-
+      The same command with -i writes the change back into the original file,
+      preserving everything but the leaf text.
+  - comment: Verify the result with a check
+  - command: kapi check release-notes.md
+    narration: >-
+      Close the loop — confirm the rewritten content still passes the checkset.
