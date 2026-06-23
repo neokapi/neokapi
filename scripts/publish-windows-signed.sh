@@ -191,27 +191,40 @@ echo "✅ Signed Windows artifacts added to release $TAG:"
 for f in "${signed[@]}"; do echo "   • ${f##*/}"; done
 
 # Now that the signed CLI zip + desktop setup.exe are on the release, kick off
-# the winget update workflow. winget.yml bumps both Neokapi.KapiCli (portable
-# zip) and Neokapi.Kapi (desktop setup.exe); the desktop row fails harmlessly
-# until that package is bootstrapped once with `komac new Neokapi.Kapi`.
-# Set SKIP_WINGET=1 to skip (e.g. a re-run that only fixes the signed assets).
-if [ "${SKIP_WINGET:-0}" = "1" ]; then
-  echo ">> SKIP_WINGET=1 — not dispatching winget. Run later: gh workflow run winget.yml -f tag=$TAG"
-elif ! command -v gh >/dev/null 2>&1; then
-  echo ">> gh not found — skipping winget dispatch. Run later: gh workflow run winget.yml -f tag=$TAG" >&2
+# two INDEPENDENT post-signing workflows:
+#
+#   1. winget.yml          — bumps Neokapi.KapiCli + Neokapi.Kapi in winget-pkgs.
+#   2. appcast-windows.yml — publishes the Windows in-app-update feed (the Wails
+#                            native updater swaps the signed .exe).
+#
+# They're decoupled so a prerelease can publish the Windows update feed WITHOUT
+# pushing an rc to the public winget catalog:
+#   SKIP_WINGET=1   skip the winget submission only (still publishes the feed).
+#   SKIP_APPCAST=1  skip the update-feed only (still submits to winget).
+if ! command -v gh >/dev/null 2>&1; then
+  echo ">> gh not found — skipping both dispatches. Run later:" >&2
+  echo "     gh workflow run winget.yml -f tag=$TAG" >&2
+  echo "     gh workflow run appcast-windows.yml -f tag=$TAG" >&2
 else
-  echo ">> Dispatching winget publish (winget.yml) for $TAG ..."
-  if gh workflow run winget.yml --repo "$REPO" -f tag="$TAG"; then
-    echo "   winget.yml dispatched — watch: gh run list --workflow=winget.yml --repo $REPO"
+  if [ "${SKIP_WINGET:-0}" = "1" ]; then
+    echo ">> SKIP_WINGET=1 — not submitting to winget. Run later: gh workflow run winget.yml -f tag=$TAG"
   else
-    echo "   ⚠ winget dispatch failed; the signed assets are still published. Retry: gh workflow run winget.yml -f tag=$TAG" >&2
+    echo ">> Dispatching winget publish (winget.yml) for $TAG ..."
+    if gh workflow run winget.yml --repo "$REPO" -f tag="$TAG"; then
+      echo "   winget.yml dispatched — watch: gh run list --workflow=winget.yml --repo $REPO"
+    else
+      echo "   ⚠ winget dispatch failed; the signed assets are still published. Retry: gh workflow run winget.yml -f tag=$TAG" >&2
+    fi
   fi
-  # Also generate the Windows in-app-update feed from the freshly-signed desktop
-  # zips (the Wails native updater swaps the signed .exe). Same SKIP_WINGET guard.
-  echo ">> Dispatching Windows update-feed publish (appcast-windows.yml) for $TAG ..."
-  if gh workflow run appcast-windows.yml --repo "$REPO" -f tag="$TAG"; then
-    echo "   appcast-windows.yml dispatched — watch: gh run list --workflow=appcast-windows.yml --repo $REPO"
+
+  if [ "${SKIP_APPCAST:-0}" = "1" ]; then
+    echo ">> SKIP_APPCAST=1 — not publishing the Windows update feed. Run later: gh workflow run appcast-windows.yml -f tag=$TAG"
   else
-    echo "   ⚠ appcast-windows dispatch failed. Retry: gh workflow run appcast-windows.yml -f tag=$TAG" >&2
+    echo ">> Dispatching Windows update-feed publish (appcast-windows.yml) for $TAG ..."
+    if gh workflow run appcast-windows.yml --repo "$REPO" -f tag="$TAG"; then
+      echo "   appcast-windows.yml dispatched — watch: gh run list --workflow=appcast-windows.yml --repo $REPO"
+    else
+      echo "   ⚠ appcast-windows dispatch failed. Retry: gh workflow run appcast-windows.yml -f tag=$TAG" >&2
+    fi
   fi
 fi
