@@ -342,11 +342,16 @@ jobs:
               --bundle "${a}.sigstore.json" "$a"
           done
 
-      # Channel is tag-driven: a full tag (v1.2.0) feeds the `stable` channel; a
-      # prerelease tag (v1.2.0-rc.1, v1.2.0-beta.1, …) feeds the `beta` fast
-      # track. Stable formulae are kapi-cli/bowrain-cli; beta formulae are the
-      # kapi-cli-beta/bowrain-cli-beta variants (each channel conflicts with the
-      # other, so a user switches channels rather than installing side by side).
+      # Channel is tag-driven, Model B (beta is a fast ring that also carries
+      # finals, so beta users never fall behind stable):
+      #   prerelease tag (vX.Y.Z-rcN) → beta only.
+      #   final tag      (vX.Y.Z)     → BOTH stable and beta.
+      # Outputs:
+      #   channel       legacy single channel (beta | stable) — for messages.
+      #   channels      per-channel artifacts to publish (formulae, casks):
+      #                 "beta" for a prerelease, "stable beta" for a final.
+      #   reg_channel   the registry channel value: "beta" for a prerelease,
+      #                 "" (universal — matches every query) for a final.
       - name: Resolve release channel
         id: channel
         env:
@@ -354,18 +359,31 @@ jobs:
         run: |
           set -euo pipefail
           case "$REF_NAME" in
-            *-*) echo "channel=beta" >> "$GITHUB_OUTPUT" ;;
-            *)   echo "channel=stable" >> "$GITHUB_OUTPUT" ;;
+            *-*)
+              echo "channel=beta" >> "$GITHUB_OUTPUT"
+              echo "channels=beta" >> "$GITHUB_OUTPUT"
+              echo "reg_channel=beta" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "channel=stable" >> "$GITHUB_OUTPUT"
+              echo "channels=stable beta" >> "$GITHUB_OUTPUT"
+              echo "reg_channel=" >> "$GITHUB_OUTPUT"
+              ;;
           esac
 
       - name: Generate brew formulae
         env:
-          CHANNEL: ${{ steps.channel.outputs.channel }}
+          CHANNELS: ${{ steps.channel.outputs.channels }}
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
-          bash scripts/gen-brew-formula.sh "$VERSION" "${{ github.repository }}" \
-            dist/checksums.txt brew-formulae "$CHANNEL"
+          # A final tag generates both the stable (kapi-cli/bowrain-cli) and beta
+          # (kapi-cli-beta/bowrain-cli-beta) formulae at the same version, so the
+          # beta channel also carries the final; a prerelease generates beta only.
+          for ch in $CHANNELS; do
+            bash scripts/gen-brew-formula.sh "$VERSION" "${{ github.repository }}" \
+              dist/checksums.txt brew-formulae "$ch"
+          done
 
       - name: Publish CLI archives to release
         uses: softprops/action-gh-release@v3
@@ -435,7 +453,9 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           REF_NAME: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
-          CHANNEL: ${{ steps.channel.outputs.channel }}
+          # Empty on a final tag → a universal registry entry that every channel
+          # (stable AND beta) resolves; "beta" on a prerelease → beta-only.
+          REG_CHANNEL: ${{ steps.channel.outputs.reg_channel }}
         run: |
           set -euo pipefail
           VERSION="${REF_NAME#v}"
@@ -487,7 +507,7 @@ jobs:
             --registry /tmp/registry/manifest-plugins.json \
             --plugin bowrain \
             --version "$VERSION" \
-            --channel "$CHANNEL" \
+            --channel "$REG_CHANNEL" \
             --released "$RELEASED" \
             --cert-identity "$CERT_ID" \
             --cert-oidc-issuer "$ISSUER" \
@@ -503,7 +523,7 @@ jobs:
             --registry /tmp/registry/cli.json \
             --plugin kapi \
             --version "$VERSION" \
-            --channel "$CHANNEL" \
+            --channel "$REG_CHANNEL" \
             --released "$RELEASED" \
             --cert-identity "$CERT_ID" \
             --cert-oidc-issuer "$ISSUER" \
@@ -1496,9 +1516,11 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          # Final tag → both kapi/bowrain and kapi@beta/bowrain@beta casks;
+          # prerelease tag → the @beta casks only.
           case "$REF_NAME" in
-            *-*) echo "beta=1" >> "$GITHUB_OUTPUT" ;;
-            *)   echo "beta=0" >> "$GITHUB_OUTPUT" ;;
+            *-*) echo "channels=beta" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "channels=stable beta" >> "$GITHUB_OUTPUT" ;;
           esac
 
       - name: Download DMGs
@@ -1528,11 +1550,12 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
           SHA_BOWRAIN: ${{ steps.checksum.outputs.BOWRAIN_DMG }}
-          IS_BETA: ${{ steps.ch.outputs.beta }}
+          CHANNELS: ${{ steps.ch.outputs.channels }}
         run: |
           set -euo pipefail
           mkdir -p homebrew-tap/Casks
-          if [ "${IS_BETA}" = "1" ]; then
+          for ch in $CHANNELS; do
+          if [ "$ch" = beta ]; then
             CASK_NAME="bowrain@beta"; DEP="bowrain-cli-beta"
             CONFLICTS='  conflicts_with cask: "bowrain"'
           else
@@ -1570,16 +1593,18 @@ jobs:
             ]
           end
           CASK
+          done
 
       - name: Update kapi cask
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
           SHA_KAPI: ${{ steps.checksum.outputs.KAPI_DMG }}
-          IS_BETA: ${{ steps.ch.outputs.beta }}
+          CHANNELS: ${{ steps.ch.outputs.channels }}
         run: |
           set -euo pipefail
           mkdir -p homebrew-tap/Casks
-          if [ "${IS_BETA}" = "1" ]; then
+          for ch in $CHANNELS; do
+          if [ "$ch" = beta ]; then
             CASK_NAME="kapi@beta"; DEP="kapi-cli-beta"
             CONFLICTS='  conflicts_with cask: "kapi"'
           else
@@ -1617,6 +1642,7 @@ jobs:
             ]
           end
           CASK
+          done
 
       - name: Remove old kapi-desktop cask if present
         run: |
