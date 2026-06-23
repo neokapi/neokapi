@@ -27,9 +27,11 @@
     transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1),
     width 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
+/* In the finale the source recedes to a faint backdrop and the reviewed
+   languages sit cleanly on top — the one slide, now in every language. */
 .stageFan .slideWrap {
-  transform: translateY(-3.4rem) scale(0.92);
-  width: 50%;
+  opacity: 0.13;
+  transform: scale(0.96);
 }
 .slide {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
@@ -115,6 +117,7 @@
 .models {
   top: 0.7rem;
   left: 50%;
+  z-index: 4;
   gap: 0.4rem;
   transform: translate(-50%, -12px);
 }
@@ -127,10 +130,12 @@
 .fan {
   position: absolute;
   inset-inline: 0.7rem;
+  top: 3rem;
   bottom: 0.7rem;
-  z-index: 1;
+  z-index: 3;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-content: center;
   gap: 0.45rem;
   opacity: 0;
   transform: translateY(10px);
@@ -158,10 +163,6 @@
 @media (max-width: 575px) {
   .fan {
     grid-template-columns: repeat(2, 1fr);
-  }
-  .stageFan .slideWrap {
-    transform: translateY(-5.5rem) scale(0.8);
-    width: 60%;
   }
 }
 

@@ -300,6 +300,7 @@
 .langCard {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   gap: 0.18rem;
   padding: 0.45rem 0.55rem;
   border-radius: 9px;
