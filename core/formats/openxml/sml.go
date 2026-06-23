@@ -286,8 +286,9 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 						// Intrinsic cell-grid geometry (WS2): a literal/inline-string
 						// cell lives at a single (col,row), so its position is the
 						// cell address itself. Shared-string cells are deduplicated in
-						// sharedStrings.xml — one block backs many cells — so they have
-						// no single position and get no geometry (handled there). The
+						// sharedStrings.xml — one block backs many cells — so the
+						// translatable text has no single position (handled there); we
+						// surface their position separately as a grid anchor below. The
 						// BBox is in cell units (W=H=1 = one cell), flagged by the
 						// "cell-grid" origin; X/Y are the zero-based column/row.
 						if col, row, ok := parseCellRefA1(cellRef); ok {
@@ -304,6 +305,17 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 						p.skelWriteString("<v>")
 						p.skelText(xmlEscape(cellText.String()))
 						p.skelWriteString("</v>")
+						// A shared-string cell carries no translatable text of its own
+						// (the text is deduplicated in sharedStrings.xml), but it does
+						// occupy a position in the grid. Surface that position as a
+						// non-translatable grid anchor so previews can reconstruct the
+						// worksheet — the common case for real spreadsheets, which is
+						// otherwise invisible as a grid. Additive and skeleton-free, so
+						// it never affects extraction, word count, or round-trip.
+						if cellType == "s" && cellRef != "" && p.cfg != nil &&
+							p.cfg.ExtractNonTranslatableContent() {
+							p.emitSharedCellAnchor(text, cellRef, partPath, emitBlock)
+						}
 					}
 
 					p.skelWriteEndElement(t)
@@ -337,6 +349,49 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 		}
 	}
 	return nil
+}
+
+// emitSharedCellAnchor surfaces a shared-string worksheet cell as a
+// non-translatable grid anchor. idxText is the cell's <v> body (the index into
+// the shared string table); it is resolved to the actual string so a preview
+// can place the text at its (col,row). The block carries no skeleton ref, so
+// the writer ignores it and the round-trip is unaffected; its siIndex property
+// links back to the translatable shared-string block (under sharedStrings.xml)
+// so a consumer can join to that block's targets/overlays. Gated by the caller
+// behind ExtractNonTranslatableContent, matching the comment-surfacing path.
+func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, emitBlock func(*model.Block)) {
+	idx, err := strconv.Atoi(strings.TrimSpace(idxText))
+	if err != nil || idx < 0 || idx >= len(p.sharedStrings) {
+		return
+	}
+	text := p.sharedStrings[idx]
+	if strings.TrimSpace(text) == "" {
+		return
+	}
+
+	sheetTag := strings.TrimSuffix(strings.TrimPrefix(partPath, "xl/worksheets/"), ".xml")
+	block := &model.Block{
+		ID:           fmt.Sprintf("cell-%s-%s", sheetTag, cellRef),
+		Type:         "cell",
+		Translatable: false,
+		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
+		Properties: map[string]string{
+			"partPath": partPath,
+			"cell":     cellRef,
+			"siIndex":  strconv.Itoa(idx),
+		},
+	}
+	if col, row, ok := parseCellRefA1(cellRef); ok {
+		if sheet := sheetNumFromPath(partPath); sheet > 0 {
+			block.SetGeometry(&model.GeometryAnnotation{
+				Page:   sheet,
+				BBox:   model.Rect{X: float64(col), Y: float64(row), W: 1, H: 1},
+				Origin: "cell-grid",
+			})
+		}
+	}
+	emitBlock(block)
 }
 
 // parseCellRefA1 parses an A1-style cell reference ("A1", "AB12") into a
