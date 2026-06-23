@@ -1,0 +1,339 @@
+/* Shared visual primitives for the animated hero prototypes. The slide is a
+   composed 16:10 pitch card with its content centred (never crammed in a corner);
+   the chips/cards are the moving pieces each concept choreographs. Site green is
+   the accent. */
+
+.slide {
+  --tint: var(--ifm-color-primary);
+  --surface: var(--ifm-background-surface-color);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-left: 4px solid var(--tint);
+  background: var(--surface);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  transition:
+    background 0.5s ease,
+    border-color 0.5s ease,
+    box-shadow 0.3s ease;
+}
+.slide[data-tint="qps"] {
+  --tint: #d98c00;
+  --surface: color-mix(in srgb, #d98c00 7%, var(--ifm-background-surface-color));
+}
+.slide[data-tint="green"] {
+  --tint: var(--ifm-color-primary);
+  --surface: color-mix(in srgb, var(--ifm-color-primary) 6%, var(--ifm-background-surface-color));
+}
+
+.slideChrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.85rem 0;
+}
+.slideFile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-600);
+}
+.slideDot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--tint);
+  transition: background 0.5s ease;
+}
+
+/* Faint financials growth-bars filling the lower-right. */
+.slideArt {
+  position: absolute;
+  right: 1.1rem;
+  bottom: 2.4rem;
+  z-index: 0;
+  width: 40%;
+  max-width: 11rem;
+  height: 44%;
+  color: var(--tint);
+  fill: currentColor;
+  opacity: 0.1;
+  pointer-events: none;
+  transition: color 0.5s ease;
+}
+
+.slideBody {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0.4rem 1.2rem 0.4rem;
+  text-align: center;
+}
+.kicker {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-500);
+}
+/* The content block, centred in the space between kicker and footer. */
+.slideMain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  flex: 1;
+  min-height: 0;
+}
+.title {
+  margin: 0;
+  font-size: clamp(1.3rem, 1rem + 1.4vw, 1.7rem);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  color: var(--ifm-font-color-base);
+  position: relative;
+  padding-bottom: 0.4rem;
+}
+.title::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 2.4rem;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--tint);
+  transform: translateX(-50%);
+  transition: background 0.5s ease;
+}
+.bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  font-size: 0.98rem;
+  line-height: 1.4;
+  color: var(--ifm-color-emphasis-800);
+}
+.bulletRow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.bulletLabel {
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Redaction: the value collapses into a censor bar. */
+.value {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  padding: 0 0.15rem;
+  transition:
+    background 0.35s ease,
+    color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+.valueText {
+  transition: opacity 0.25s ease;
+}
+.valueMasked {
+  background: var(--ifm-color-emphasis-900, #111);
+  color: transparent;
+  box-shadow: 0 0 0 3px var(--ifm-color-emphasis-900, #111);
+}
+.valueMasked .valueText {
+  opacity: 0;
+}
+
+/* The recycled (TM) claim line. */
+.recycled {
+  color: var(--ifm-color-primary);
+}
+.recycleTag,
+.recycleTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-primary);
+}
+
+.slideFoot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 1.2rem 0.6rem;
+  border-top: 1px solid color-mix(in srgb, var(--tint) 16%, var(--ifm-color-emphasis-200));
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-500);
+}
+.confidential {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.confidential::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 2px;
+  background: var(--ifm-color-emphasis-700);
+}
+
+/* Protection locks surfaced on the slide. */
+.lockRow {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.7rem;
+  z-index: 2;
+  display: flex;
+  gap: 0.3rem;
+}
+.lockPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 13%, var(--ifm-background-color));
+  border: 1px solid color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
+}
+
+/* ── Moving pieces ─────────────────────────────────────────────────────────── */
+.termChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ifm-color-emphasis-800);
+  background: var(--ifm-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+}
+.termChipLocked {
+  color: var(--ifm-color-primary);
+  border-color: color-mix(in srgb, var(--ifm-color-primary) 40%, transparent);
+  background: color-mix(in srgb, var(--ifm-color-primary) 10%, var(--ifm-background-color));
+}
+.termName {
+  font-weight: 800;
+}
+.termDomain {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.paramTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 7px;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  white-space: nowrap;
+  transition:
+    color 0.25s ease,
+    background 0.25s ease,
+    border-color 0.25s ease;
+}
+.paramTagActive {
+  color: #fff;
+  background: var(--ifm-color-emphasis-900, #111);
+  border-color: var(--ifm-color-emphasis-900, #111);
+}
+
+.modelBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.24rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 12%, var(--ifm-background-color));
+  border: 1px solid color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
+  white-space: nowrap;
+}
+
+.langCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 9px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-background-color);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+}
+.langCardReused {
+  border-color: color-mix(in srgb, var(--ifm-color-primary) 22%, var(--ifm-color-emphasis-200));
+}
+.langLabel {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-emphasis-500);
+}
+.langTitle {
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ifm-font-color-base);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.langCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+}
+.langCheckReused {
+  color: var(--ifm-color-emphasis-600);
+}

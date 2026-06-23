@@ -1,0 +1,217 @@
+/* Concept B — Control panel drives the slide. A parameter deck (left) lights up
+   row by row; the live screen (right) shows the slide react, then fan into
+   languages. Reads as "configurable knobs → live document". */
+
+.stage {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  min-height: 20rem;
+}
+
+/* ── Control deck ──────────────────────────────────────────────────────────── */
+.panel {
+  flex: 0 0 12.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.7rem;
+  border-radius: 14px;
+  background:
+    linear-gradient(0deg, transparent 0 calc(100% - 1px), var(--ifm-color-emphasis-200) 0),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 1.9rem,
+      color-mix(in srgb, var(--ifm-color-emphasis-200) 40%, transparent) 1.9rem 1.95rem
+    ),
+    var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+.panelTitle {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-500);
+}
+.rowBtn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.rowBtn:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+.row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    opacity 0.3s ease;
+}
+.rowActive {
+  border-color: color-mix(in srgb, var(--ifm-color-primary) 40%, transparent);
+  background: color-mix(in srgb, var(--ifm-color-primary) 9%, var(--ifm-background-color));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+.rowDone {
+  opacity: 0.62;
+}
+.rowLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-600);
+}
+.rowDot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--ifm-color-emphasis-400);
+  transition: background 0.3s ease;
+}
+.rowActive .rowDot {
+  background: var(--ifm-color-primary);
+}
+.rowBody {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.rowArrow {
+  position: absolute;
+  right: -0.95rem;
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  color: var(--ifm-color-primary);
+  opacity: 0;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+.rowActive .rowArrow {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+.memChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--ifm-color-emphasis-600);
+  background: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  transition:
+    color 0.3s ease,
+    background 0.3s ease;
+}
+.memChipOn {
+  color: var(--ifm-color-primary);
+  background: color-mix(in srgb, var(--ifm-color-primary) 12%, var(--ifm-background-color));
+  border-color: color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
+}
+.dim {
+  opacity: 0.4;
+  filter: grayscale(0.4);
+  transition: opacity 0.3s ease;
+}
+
+/* ── Live screen ───────────────────────────────────────────────────────────── */
+.screen {
+  position: relative;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 0.9rem;
+  border-radius: 14px;
+  background:
+    radial-gradient(
+      90% 80% at 50% 20%,
+      color-mix(in srgb, var(--ifm-color-primary) 8%, transparent),
+      transparent 70%
+    ),
+    var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  overflow: hidden;
+  cursor: pointer;
+}
+.screenSlide {
+  width: 100%;
+  max-width: 17rem;
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.screenSlideOut {
+  opacity: 0;
+  transform: scale(0.9);
+  pointer-events: none;
+}
+.screenSlide .slide {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
+}
+
+.langs {
+  position: absolute;
+  inset: 0.8rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: center;
+  gap: 0.45rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.langsIn {
+  opacity: 1;
+}
+.langCard {
+  opacity: 0;
+  transform: translateY(10px) scale(0.95);
+  transition:
+    opacity 0.4s ease,
+    transform 0.45s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.langsIn .langCard {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@media (max-width: 575px) {
+  .stage {
+    flex-direction: column;
+  }
+  .panel {
+    flex-basis: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .rowArrow,
+  .screenSlide,
+  .langs,
+  .langCard,
+  .memChip,
+  .dim {
+    transition: none;
+  }
+}
