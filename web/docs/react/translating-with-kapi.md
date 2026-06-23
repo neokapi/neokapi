@@ -152,7 +152,7 @@ app you translate every release, a [`.kapi` project file](/contribute/architectu
 is the working model worth adopting: it captures the content patterns, target
 languages, flows, and defaults once, so you drive everything through named flows
 instead of repeating flags, and the project store accumulates translation memory
-across releases. Define a `translate` flow in the recipe (for example
+and terminology across releases. Define a `translate` flow in the recipe (for example
 `recycle` → `translate` → `qa`), then:
 
 ```json title="package.json"
