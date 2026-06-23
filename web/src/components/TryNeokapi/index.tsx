@@ -7,14 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@neokapi/ui-primitives";
-import HeroProcess from "./HeroProcess";
+import HeroLoop from "./HeroLoop";
 import styles from "./styles.module.css";
 
-// The docs landing centerpiece. The hero is a zero-wasm process "show"
-// (HeroProcess): baked RenderDoc frames rendered through the shared FormatPreview
-// that auto-advance through kapi end to end — Read → Pre-process → Pseudo →
-// Leverage → Translate (ja) → Merge — with a stepper and typewriter/crossfade
-// transitions. Clicking it opens a modal (the ui-primitives Dialog) that boots
+// The docs landing centerpiece. The hero is a zero-wasm Motion "Content Loop"
+// (HeroLoop): a themed SVG loop carries a springing traveler through the stages
+// of going multilingual — Read → Prep → Recycle → Translate → Check → Ship →
+// repeat — while one persistent slide morphs through each stage on a single card
+// (baked content). Clicking it opens a modal (the ui-primitives Dialog) that boots
 // the kapi WASM engine and drives a single coherent surface: a FileBrowser of
 // real sample files across formats, opening into a DocumentViewer powered by
 // live extraction (inspect + inspectAnnotated) with a real pseudo-translate
@@ -45,7 +45,7 @@ export default function TryNeokapi(): React.ReactElement {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <HeroProcess onOpen={() => setOpen(true)} />
+      <HeroLoop onOpen={() => setOpen(true)} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         {/* Cap the modal to the viewport and lay it out as a flex column so the

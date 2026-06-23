@@ -1,0 +1,479 @@
+/* The Motion "Content Loop" hero. A brand-true extension of the docs diagram-kit
+   (kdx) visual language: the same teal/cyan/amber/green role palette, the same
+   mono-for-technical-labels convention, themed by CSS custom properties that flip
+   under [data-theme="dark"]. One SVG loop + one morphing slide card; every
+   stage-colored element reads its accent from --stage (the active scene's role)
+   or --n / --seg (a node's own role), so light and dark are both intentional. */
+
+.root {
+  /* role accents (light) — mirror the diagram-kit palette */
+  --hl-io: #2e8555;
+  --hl-annotate: #6d5ae6;
+  --hl-translate: #0e9aab;
+  --hl-qa: #b45309;
+  --hl-resource: #0e7490;
+
+  --hl-ink: #1c1e21;
+  --hl-muted: #5d6b66;
+  --hl-surface: #ffffff;
+  --hl-surface-2: #f4f7f6;
+  --hl-border: #dbe4e0;
+  --hl-channel: #b9c7c1;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  width: 100%;
+  max-width: 30rem;
+  margin-inline: auto;
+  padding: 1.1rem 1.15rem 1.15rem;
+  border: 1px solid var(--hl-border);
+  border-radius: 20px;
+  background:
+    radial-gradient(
+      130% 80% at 50% -10%,
+      color-mix(in srgb, var(--stage) 9%, transparent),
+      transparent 60%
+    ),
+    var(--hl-surface);
+  box-shadow:
+    0 1px 0 0 color-mix(in srgb, #fff 60%, transparent) inset,
+    0 18px 50px -18px rgba(16, 32, 28, 0.35);
+  text-align: left;
+}
+
+:global([data-theme="dark"]) .root {
+  --hl-io: #25c2a0;
+  --hl-annotate: #8b87f7;
+  --hl-translate: #22c8df;
+  --hl-qa: #f59e0b;
+  --hl-resource: #2bd4ee;
+
+  --hl-ink: #f3f7f6;
+  --hl-muted: #93a3ad;
+  --hl-surface: #0f1f1b;
+  --hl-surface-2: #0b1815;
+  --hl-border: #1e3a32;
+  --hl-channel: #2a5246;
+
+  box-shadow:
+    0 1px 0 0 color-mix(in srgb, #fff 6%, transparent) inset,
+    0 22px 60px -20px rgba(0, 0, 0, 0.7);
+}
+
+/* ── Kicker ───────────────────────────────────────────────────────────────── */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--hl-muted);
+}
+.kickerDot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--stage);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--stage) 22%, transparent);
+  transition: background 0.45s ease;
+}
+
+/* ── The loop (SVG) ───────────────────────────────────────────────────────── */
+.loopSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  margin: 0.1rem 0 0.2rem;
+}
+.track {
+  fill: none;
+  stroke: var(--hl-channel);
+  stroke-width: 1.25;
+  opacity: 0.45;
+}
+.seg {
+  fill: none;
+  stroke: var(--hl-channel);
+  stroke-width: 1.5;
+  opacity: 0.3;
+}
+.segLit {
+  fill: none;
+  stroke: var(--seg);
+  stroke-width: 2.5;
+  opacity: 0.9;
+  transition:
+    stroke 0.4s ease,
+    opacity 0.4s ease;
+}
+.arrowHead {
+  fill: var(--hl-channel);
+}
+.chevron {
+  fill: none;
+  stroke: var(--hl-channel);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.5;
+}
+.feeder {
+  fill: none;
+  stroke: var(--hl-muted);
+  stroke-width: 1.1;
+  stroke-dasharray: 3 3;
+  opacity: 0.5;
+}
+.feederLabel,
+.repeatLabel {
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  fill: var(--hl-muted);
+  font-weight: 600;
+}
+.feederLabel {
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.repeatLabel {
+  font-size: 8px;
+  opacity: 0.8;
+}
+
+.node {
+  fill: var(--hl-surface);
+  stroke: var(--n);
+  stroke-width: 1.6;
+  transition: r 0.3s ease;
+}
+.nodePassed {
+  fill: var(--n);
+  stroke: var(--n);
+  opacity: 0.5;
+}
+.nodeActive {
+  fill: var(--n);
+  stroke: var(--n);
+}
+.nodeRing {
+  fill: none;
+  stroke: var(--n);
+  stroke-width: 1.5;
+  opacity: 0.4;
+  animation: hl-breathe 2.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes hl-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.12;
+    transform: scale(1.35);
+  }
+}
+.nodeLabel {
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  fill: var(--hl-muted);
+  font-size: 9px;
+  font-weight: 600;
+}
+.nodeLabelActive {
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  fill: var(--n);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.traveler {
+  fill: var(--stage);
+}
+.travelerHalo {
+  fill: var(--stage);
+  opacity: 0.55;
+}
+
+/* ── The slide card ───────────────────────────────────────────────────────── */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.7rem 0.8rem 0.6rem;
+  border: 1px solid var(--hl-border);
+  border-top: 2px solid var(--stage);
+  border-radius: 13px;
+  background: var(--hl-surface);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 10px 26px -14px rgba(16, 32, 28, 0.45);
+  transition:
+    border-color 0.45s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px -14px rgba(16, 32, 28, 0.5);
+}
+.card:focus-visible {
+  outline: 2px solid var(--stage);
+  outline-offset: 3px;
+}
+
+.chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.file {
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.68rem;
+  color: var(--hl-muted);
+}
+.fileLocale {
+  color: var(--stage);
+  font-weight: 700;
+  transition: color 0.45s ease;
+}
+.badge {
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  color: var(--stage);
+  background: color-mix(in srgb, var(--stage) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stage) 28%, transparent);
+  transition:
+    color 0.45s ease,
+    background 0.45s ease,
+    border-color 0.45s ease;
+}
+
+.doc {
+  list-style: none;
+  margin: 0;
+  padding: 0.2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  min-height: 8.4rem;
+}
+.line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  position: relative;
+  color: var(--hl-ink);
+}
+.line[data-role="title"] .lineBody {
+  font-size: 0.96rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.line[data-role="bullet"] .lineBody {
+  font-size: 0.82rem;
+}
+.lineBody {
+  position: relative;
+  border-radius: 5px;
+  padding: 0 0.18rem;
+  margin: 0 -0.18rem;
+  transition: background 0.4s ease;
+}
+.lineBody[data-memory] {
+  background: color-mix(in srgb, var(--hl-resource) 16%, transparent);
+  box-shadow: inset 2px 0 0 0 var(--hl-resource);
+}
+.lineText {
+  white-space: pre-wrap;
+}
+
+.term {
+  position: relative;
+  display: inline-block;
+  color: var(--hl-annotate);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.termRule {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--hl-annotate);
+  transform-origin: left center;
+  display: block;
+}
+
+.redact {
+  display: inline-block;
+  height: 0.92em;
+  vertical-align: -0.12em;
+  border-radius: 3px;
+  background: var(--hl-ink);
+  transform-origin: left center;
+}
+.figure {
+  display: inline-block;
+  color: var(--hl-ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.approve {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  margin-top: 0.18rem;
+  border-radius: 50%;
+  color: var(--hl-io);
+  background: color-mix(in srgb, var(--hl-io) 18%, transparent);
+}
+.memoryTag {
+  flex: 0 0 auto;
+  align-self: center;
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.56rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  color: var(--hl-resource);
+  background: color-mix(in srgb, var(--hl-resource) 13%, transparent);
+}
+
+.footer {
+  border-top: 1px dashed var(--hl-border);
+  margin-top: 0.15rem;
+  padding-top: 0.4rem;
+  min-height: 1.5rem;
+}
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem;
+}
+.chipLabel {
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--hl-muted);
+  margin-right: 0.1rem;
+}
+.chip {
+  font-family: var(--ifm-font-family-monospace, ui-monospace, monospace);
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 0.06rem 0.36rem;
+  border-radius: 6px;
+  border: 1px solid var(--hl-border);
+  background: var(--hl-surface-2);
+  color: var(--hl-muted);
+}
+.chipMore {
+  color: var(--stage);
+  border-color: color-mix(in srgb, var(--stage) 35%, transparent);
+}
+.langChip[data-active] {
+  color: #fff;
+  background: var(--hl-translate);
+  border-color: var(--hl-translate);
+}
+.footHint {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--hl-muted);
+}
+
+/* ── Stage caption + CTA ──────────────────────────────────────────────────── */
+.stageRow {
+  min-height: 2.9rem;
+  display: flex;
+  align-items: flex-start;
+}
+.caption {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--hl-ink);
+  opacity: 0.92;
+}
+.stageName {
+  color: var(--stage);
+  font-weight: 700;
+  transition: color 0.45s ease;
+}
+
+.cta {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.05rem;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--ifm-color-primary);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.cta:hover {
+  background: var(--ifm-color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--ifm-color-primary) 38%, transparent);
+}
+.cta:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion: freeze the breathe + any transform-based reveals ──────── */
+@media (prefers-reduced-motion: reduce) {
+  .nodeRing {
+    animation: none;
+  }
+  .termRule {
+    transform: none !important;
+  }
+  .redact {
+    transform: none !important;
+  }
+}
+
+/* ── Narrow screens ───────────────────────────────────────────────────────── */
+@media (max-width: 575px) {
+  .root {
+    padding: 0.9rem 0.9rem 1rem;
+  }
+  .line[data-role="title"] .lineBody {
+    font-size: 0.9rem;
+  }
+}
