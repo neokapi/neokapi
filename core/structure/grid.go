@@ -176,8 +176,8 @@ func splitRegions(cells []gridCell) [][]gridCell {
 	for _, gc := range cells {
 		cols, rows := cellSpan(gc.b)
 		origin[[2]int{gc.row, gc.col}] = gc
-		for dr := 0; dr < rows; dr++ {
-			for dc := 0; dc < cols; dc++ {
+		for dr := range rows {
+			for dc := range cols {
 				covered[[2]int{gc.row + dr, gc.col + dc}] = true
 			}
 		}
@@ -244,8 +244,8 @@ func regionParts(region []gridCell, groupCounter *int) []*model.Part {
 		if gc.col < minCol {
 			minCol = gc.col
 		}
-		for dr := 0; dr < rows; dr++ {
-			for dc := 0; dc < cols; dc++ {
+		for dr := range rows {
+			for dc := range cols {
 				pr, pc := gc.row+dr, gc.col+dc
 				covered[[2]int{pr, pc}] = true
 				if pr > maxRow {

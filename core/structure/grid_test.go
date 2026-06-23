@@ -1,6 +1,7 @@
 package structure
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -73,13 +74,13 @@ func tableShape(parts []*model.Part) (tables int, rows int, headerRows int, cell
 }
 
 func runsText(rs []model.Run) string {
-	s := ""
+	var sb strings.Builder
 	for _, r := range rs {
 		if r.Text != nil {
-			s += r.Text.Text
+			sb.WriteString(r.Text.Text)
 		}
 	}
-	return s
+	return sb.String()
 }
 
 func TestSpreadsheetGridToTables(t *testing.T) {
