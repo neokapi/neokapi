@@ -8,6 +8,7 @@ import (
 	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	"github.com/neokapi/neokapi/cli/selfupdate"
+	"github.com/neokapi/neokapi/core/channel"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/spf13/cobra"
 )
@@ -17,7 +18,7 @@ import (
 // inferred from this build (a prerelease defaults to beta).
 func updateChannel() string {
 	if app.Config == nil {
-		return version.Channel()
+		return channel.Resolve()
 	}
 	return app.Config.UpdateChannel()
 }

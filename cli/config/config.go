@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/core/channel"
 	"github.com/spf13/viper"
 )
 
@@ -148,31 +148,23 @@ func (c *AppConfig) RegistryURL() string {
 // later update to a final (non-prerelease) version — see EnsureChannelPinned.
 func (c *AppConfig) UpdateChannel() string {
 	if ch := c.v.GetString(KeyUpdateChannel); ch != "" {
-		return ch
+		return ch // explicit KAPI_UPDATE_CHANNEL env or kapi.yaml update.channel
 	}
-	return version.Channel()
+	return channel.Resolve() // shared persisted preference, else inferred from build
 }
 
-// EnsureChannelPinned makes beta-channel membership sticky: the first time a
-// prerelease build runs with no channel pinned in the config file and no
-// KAPI_UPDATE_CHANNEL override, it persists update.channel=beta to the global
-// config. This way a beta user stays on the fast track after updating to a final
-// release (whose version no longer infers "beta"). No-op otherwise. Best-effort:
-// a read-only config dir or write error must never break startup, so errors are
-// swallowed. appName selects the config file (defaults to "kapi").
-func (c *AppConfig) EnsureChannelPinned(appName ...string) {
+// EnsureChannelPinned makes beta-channel membership sticky via the shared
+// channel preference (core/channel), so the CLI and the desktop apps all honor
+// it. The first time a prerelease build runs with nothing pinned and no
+// KAPI_UPDATE_CHANNEL override, beta is persisted — so a beta user stays on the
+// fast track after updating to a final release (the beta channel also serves
+// finals, so its version no longer infers "beta"). A pre-existing kapi.yaml
+// update.channel is treated as an explicit choice and left untouched. Best-effort.
+func (c *AppConfig) EnsureChannelPinned(_ ...string) {
 	if c.v.InConfig(KeyUpdateChannel) {
-		return // an explicit, persisted choice already exists
+		return // an explicit kapi.yaml choice already exists
 	}
-	if strings.TrimSpace(os.Getenv(EnvUpdateChannel)) != "" {
-		return // an explicit, ephemeral env override — don't persist it
-	}
-	if !version.IsPrerelease() {
-		return // a stable build has nothing to pin
-	}
-	if err := SetGlobalConfig(KeyUpdateChannel, "beta", appName...); err == nil {
-		c.v.Set(KeyUpdateChannel, "beta") // reflect immediately in this process
-	}
+	channel.EnsurePinned()
 }
 
 // RegistryEntry represents a named plugin registry.

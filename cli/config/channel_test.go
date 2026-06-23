@@ -3,78 +3,49 @@ package config
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/core/channel"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// A fresh prerelease build with no config and no env override infers the beta
-// channel, persists it, and the choice survives a later update to a final
-// (non-prerelease) version — so a beta user does not silently fall back to
-// stable when the rc becomes the release.
-func TestUpdateChannelStickyBeta(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", dir)
-	t.Setenv(EnvUpdateChannel, "")
+// An explicit kapi.yaml update.channel wins and is left untouched by the pin.
+func TestUpdateChannelExplicitConfigWins(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	t.Setenv(channel.Env, "")
+	saved := version.Version
+	defer func() { version.Version = saved }()
+	version.Version = "1.2.0" // stable build
 
+	require.NoError(t, SetGlobalConfig(KeyUpdateChannel, "beta", "kapi"))
+	cfg := NewAppConfig()
+	require.NoError(t, cfg.Load())
+	assert.Equal(t, "beta", cfg.UpdateChannel(), "explicit kapi.yaml update.channel should win")
+
+	cfg.EnsureChannelPinned("kapi")
+	assert.Empty(t, channel.Persisted(), "an explicit kapi.yaml choice must not also pin the shared file")
+}
+
+// With no kapi.yaml entry, a prerelease build pins the shared channel preference,
+// which the CLI then resolves through — sticky across a later final release.
+func TestUpdateChannelPinsSharedPreference(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	t.Setenv(channel.Env, "")
 	saved := version.Version
 	defer func() { version.Version = saved }()
 
-	// 1. Fresh beta install: prerelease version, no config yet.
 	version.Version = "1.2.0-rc.1"
 	cfg := NewAppConfig()
 	require.NoError(t, cfg.Load())
-	assert.Equal(t, "beta", cfg.UpdateChannel(), "fresh prerelease build should infer beta")
+	assert.Equal(t, "beta", cfg.UpdateChannel(), "fresh prerelease build infers beta")
 
-	// 2. Pin it (as the CLI/desktop do at startup).
 	cfg.EnsureChannelPinned("kapi")
+	assert.Equal(t, "beta", channel.Persisted(), "beta pinned to the shared preference")
 
-	// 3. Update to the FINAL release: version is no longer a prerelease, so naive
-	//    inference would say "stable" — but the persisted preference must win.
+	// Update to the final release: kapi.yaml still has no entry, but the shared
+	// pin keeps the CLI on beta.
 	version.Version = "1.2.0"
 	after := NewAppConfig()
 	require.NoError(t, after.Load())
-	assert.True(t, after.Viper().InConfig(KeyUpdateChannel), "channel should be persisted to the config file")
-	assert.Equal(t, "beta", after.UpdateChannel(), "beta must stick across the update to a final version")
-}
-
-// A stable build pins nothing and defaults to stable.
-func TestUpdateChannelStableBuildNoPin(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", dir)
-	t.Setenv(EnvUpdateChannel, "")
-
-	saved := version.Version
-	defer func() { version.Version = saved }()
-	version.Version = "1.2.0"
-
-	cfg := NewAppConfig()
-	require.NoError(t, cfg.Load())
-	assert.Equal(t, "stable", cfg.UpdateChannel())
-	cfg.EnsureChannelPinned("kapi")
-
-	after := NewAppConfig()
-	require.NoError(t, after.Load())
-	assert.False(t, after.Viper().InConfig(KeyUpdateChannel), "a stable build must not pin a channel")
-	assert.Equal(t, "stable", after.UpdateChannel())
-}
-
-// An explicit env override is respected and is NOT persisted (it is ephemeral).
-func TestUpdateChannelEnvNotPersisted(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", dir)
-	t.Setenv(EnvUpdateChannel, "beta")
-
-	saved := version.Version
-	defer func() { version.Version = saved }()
-	version.Version = "1.2.0-rc.1"
-
-	cfg := NewAppConfig()
-	require.NoError(t, cfg.Load())
-	assert.Equal(t, "beta", cfg.UpdateChannel())
-	cfg.EnsureChannelPinned("kapi")
-
-	after := NewAppConfig()
-	require.NoError(t, after.Load())
-	assert.False(t, after.Viper().InConfig(KeyUpdateChannel), "an env override must not be written to the config file")
+	assert.Equal(t, "beta", after.UpdateChannel(), "beta sticks across the update to a final version")
 }
