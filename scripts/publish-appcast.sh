@@ -30,6 +30,15 @@
 #   arch     arm64 | amd64
 set -euo pipefail
 
+# Never block on a credential prompt, and abort a clone/push that stalls instead
+# of hanging the CI step indefinitely. macOS runners occasionally hang on the
+# registry git transfer (observed: a >1h hang at "Cloning into …"); these env
+# vars make git give up after ~30s of no progress so the retry loop can recover.
+# (macOS runners have no `timeout`/`gtimeout`, so we rely on git's own knobs.)
+export GIT_TERMINAL_PROMPT=0
+export GIT_HTTP_LOW_SPEED_LIMIT="${GIT_HTTP_LOW_SPEED_LIMIT:-1000}"
+export GIT_HTTP_LOW_SPEED_TIME="${GIT_HTTP_LOW_SPEED_TIME:-30}"
+
 title="${1:?title required}"
 name="${2:?feed name required}"
 version="${3:?version required}"
@@ -82,7 +91,15 @@ gh release upload "$ref" "$artifact" --clobber
 # Publish the feed to the registry repo. Many jobs push here concurrently
 # (per-platform desktop feeds + the CLI cli.json), so rebase-retry the push.
 work="/tmp/registry-${name}-${os}-${arch}"
-git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" "$work"
+for i in 1 2 3; do
+  rm -rf "$work"
+  if git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" "$work"; then
+    break
+  fi
+  echo "registry clone stalled/failed (attempt $i), retrying…" >&2
+  [ "$i" = 3 ] && { echo "publish-appcast.sh: registry clone failed after retries" >&2; exit 1; }
+  sleep $((i * 5))
+done
 cp "$feed" "$work/"
 cd "$work"
 git config user.email "release-bot@neokapi.dev"
