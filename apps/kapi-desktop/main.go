@@ -13,6 +13,7 @@ import (
 	// pulls in extension decoders only — no heavy CLI / connector code.
 	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
 
+	"github.com/neokapi/neokapi/cli/desktopmenu"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/kapi-desktop/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -59,6 +60,14 @@ func main() {
 	// Rebuild the menu whenever the recent-projects list changes so newly
 	// opened projects appear under File → Recent Projects without a restart.
 	app.Event.On("recent:changed", func(*application.CustomEvent) {
+		application.InvokeSync(func() {
+			app.Menu.SetApplicationMenu(buildAppMenu(app, appService))
+		})
+	})
+
+	// Rebuild the menu when the UI language changes so its labels re-localize
+	// without a restart (the backend emits this from SetLocale).
+	app.Event.On("locale:changed", func(*application.CustomEvent) {
 		application.InvokeSync(func() {
 			app.Menu.SetApplicationMenu(buildAppMenu(app, appService))
 		})
@@ -128,6 +137,9 @@ func main() {
 // Recent Projects submenu always mirrors the live list from appService.
 func buildAppMenu(app *application.App, appService *backend.App) *application.Menu {
 	menu := application.NewMenu()
+	// Localize custom menu labels via the active translator (English on a miss).
+	// Standard role items (About, Quit, Services…) are localized by macOS.
+	tr := appService.T()
 
 	// App menu (macOS standard) — built manually (mirrors Wails' NewAppMenu) so
 	// "Check for Updates…" sits directly below "About Kapi", the conventional
@@ -135,7 +147,7 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 	appMenu := menu.AddSubmenu("Kapi")
 	appMenu.AddRole(application.About)
 	appMenu.AddSeparator()
-	appMenu.Add("Check for Updates…").
+	appMenu.Add(desktopmenu.T(tr, "checkForUpdates")).
 		OnClick(func(ctx *application.Context) {
 			backend.CheckForUpdatesNow(app)
 		})
@@ -149,13 +161,13 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 	appMenu.AddRole(application.Quit)
 
 	// File menu
-	fileMenu := menu.AddSubmenu("File")
-	fileMenu.Add("New Project").
+	fileMenu := menu.AddSubmenu(desktopmenu.T(tr, "file"))
+	fileMenu.Add(desktopmenu.T(tr, "newProject")).
 		SetAccelerator("CmdOrCtrl+N").
 		OnClick(func(ctx *application.Context) {
 			app.Event.Emit("menu:new-project", nil)
 		})
-	fileMenu.Add("Open...").
+	fileMenu.Add(desktopmenu.T(tr, "open")).
 		SetAccelerator("CmdOrCtrl+O").
 		OnClick(func(ctx *application.Context) {
 			app.Event.Emit("menu:open-project", nil)
@@ -163,7 +175,7 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 	fileMenu.AddSeparator()
 
 	// Recent Projects submenu — populated from the live recent store.
-	recentMenu := fileMenu.AddSubmenu("Recent Projects")
+	recentMenu := fileMenu.AddSubmenu(desktopmenu.T(tr, "recentProjects"))
 	home, _ := os.UserHomeDir()
 	recents := appService.ListRecentFiles()
 	for _, recent := range recents {
@@ -186,21 +198,21 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 			})
 	}
 	if len(recents) == 0 {
-		recentMenu.Add("No Recent Projects").SetEnabled(false)
+		recentMenu.Add(desktopmenu.T(tr, "noRecentProjects")).SetEnabled(false)
 	} else {
 		recentMenu.AddSeparator()
-		recentMenu.Add("Clear Recent Projects").OnClick(func(ctx *application.Context) {
+		recentMenu.Add(desktopmenu.T(tr, "clearRecentProjects")).OnClick(func(ctx *application.Context) {
 			appService.ClearRecentFiles()
 		})
 	}
 
 	fileMenu.AddSeparator()
-	fileMenu.Add("Save").
+	fileMenu.Add(desktopmenu.T(tr, "save")).
 		SetAccelerator("CmdOrCtrl+S").
 		OnClick(func(ctx *application.Context) {
 			app.Event.Emit("menu:save-project", nil)
 		})
-	fileMenu.Add("Save As...").
+	fileMenu.Add(desktopmenu.T(tr, "saveAs")).
 		SetAccelerator("CmdOrCtrl+Shift+S").
 		OnClick(func(ctx *application.Context) {
 			app.Event.Emit("menu:save-project-as", nil)
