@@ -1,6 +1,8 @@
-import React, { Suspense } from "react";
+import React from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import { useKapiPlaygroundConfig } from "./config";
+import { ChunkSafeSuspense } from "../ChunkErrorBoundary";
+import { lazyWithRetry } from "../../lib/chunkReload";
 
 // Lazily import the heavy kit (xterm + wasm boot path) as a SEPARATE async
 // chunk. A static `import` — or a synchronous `require()` reachable from the
@@ -8,7 +10,7 @@ import { useKapiPlaygroundConfig } from "./config";
 // every page load would ship xterm. React.lazy(() => import(...)) forces a
 // split chunk that is fetched only when this component first renders in the
 // browser.
-const LazyModalWithConfig = React.lazy(async () => {
+const LazyModalWithConfig = lazyWithRetry(async () => {
   const { KapiPlaygroundProvider, KapiModal } = await import("@neokapi/kapi-playground");
   function ModalWithConfig(): React.ReactElement {
     const config = useKapiPlaygroundConfig();
@@ -28,9 +30,9 @@ export default function KapiModalMount(): React.ReactElement {
   return (
     <BrowserOnly>
       {() => (
-        <Suspense fallback={null}>
+        <ChunkSafeSuspense fallback={null}>
           <LazyModalWithConfig />
-        </Suspense>
+        </ChunkSafeSuspense>
       )}
     </BrowserOnly>
   );
