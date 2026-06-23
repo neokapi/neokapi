@@ -454,6 +454,8 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           REF_NAME: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
+          # Human label for the commit message (stable | beta).
+          CHANNEL: ${{ steps.channel.outputs.channel }}
           # Empty on a final tag → a universal registry entry that every channel
           # (stable AND beta) resolves; "beta" on a prerelease → beta-only.
           REG_CHANNEL: ${{ steps.channel.outputs.reg_channel }}
