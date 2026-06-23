@@ -1,0 +1,217 @@
+/* Concept C — Conveyor. A station strip drives a belt; the slide rides through,
+   gets stamped at each station, then ejects into reviewed languages. */
+
+.stations {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 0.4rem;
+}
+.track {
+  position: absolute;
+  top: 0.7rem;
+  left: 1.6rem;
+  right: 1.6rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--ifm-color-emphasis-200);
+  z-index: 0;
+}
+.trackFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--ifm-color-primary);
+  transition: width 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.station {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.28rem;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.stationNo {
+  display: grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--ifm-color-emphasis-600);
+  background: var(--ifm-background-color);
+  border: 2px solid var(--ifm-color-emphasis-300);
+  transition:
+    color 0.3s ease,
+    background 0.3s ease,
+    border-color 0.3s ease,
+    transform 0.3s ease;
+}
+.stationName {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--ifm-color-emphasis-500);
+  transition: color 0.3s ease;
+}
+.stationActive .stationNo {
+  color: #fff;
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  transform: scale(1.12);
+}
+.stationActive .stationName {
+  color: var(--ifm-color-primary);
+}
+.stationDone .stationNo {
+  color: #fff;
+  background: color-mix(in srgb, var(--ifm-color-primary) 60%, var(--ifm-background-color));
+  border-color: transparent;
+}
+.station:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+/* ── Belt ──────────────────────────────────────────────────────────────────── */
+.belt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 17.5rem;
+  margin-top: 0.85rem;
+  padding: 0.9rem;
+  border-radius: 14px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-background-surface-color);
+  overflow: hidden;
+  cursor: pointer;
+  width: 100%;
+}
+.beltTexture {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent 0 14px,
+    color-mix(in srgb, var(--ifm-color-emphasis-300) 22%, transparent) 14px 15px
+  );
+  background-size: 200% 200%;
+  animation: beltMove 2.6s linear infinite;
+  opacity: 0.6;
+}
+
+.carriage {
+  position: relative;
+  z-index: 2;
+  width: 62%;
+  margin-inline: auto;
+  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.carriageOut {
+  transform: translateX(-34%) scale(0.82);
+}
+.slide {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+}
+
+/* Rubber-stamp flourish thumped onto the slide at each station. */
+.stamp {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 5;
+  padding: 0.25rem 0.7rem;
+  border: 2.5px solid color-mix(in srgb, #c0392b 75%, transparent);
+  border-radius: 6px;
+  font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #c0392b 80%, transparent);
+  background: color-mix(in srgb, #c0392b 7%, transparent);
+  white-space: nowrap;
+  animation: stampThump 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+@keyframes stampThump {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-9deg) scale(1.8);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-9deg) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-9deg) scale(1);
+  }
+}
+
+/* Languages ejected onto the belt, to the right of the carriage. */
+.eject {
+  position: absolute;
+  z-index: 3;
+  right: 0.9rem;
+  top: 0.9rem;
+  bottom: 0.9rem;
+  width: 56%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-content: center;
+  gap: 0.45rem;
+  opacity: 0;
+  pointer-events: none;
+}
+.ejectIn {
+  opacity: 1;
+}
+.ejectCard {
+  opacity: 0;
+  transform: translateX(26px);
+  transition:
+    opacity 0.4s ease,
+    transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.ejectIn .ejectCard {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@keyframes beltMove {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@media (max-width: 575px) {
+  .carriageOut {
+    transform: translateX(-40%) scale(0.66);
+  }
+  .eject {
+    width: 62%;
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .beltTexture {
+    animation: none;
+  }
+  .stamp {
+    animation: none;
+  }
+  .carriage,
+  .ejectCard,
+  .trackFill,
+  .stationNo {
+    transition: none;
+  }
+}

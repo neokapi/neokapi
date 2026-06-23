@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@neokapi/ui-primitives";
-import HeroProcess from "./HeroProcess";
+import ConceptConveyor from "./protos/ConceptConveyor";
 import styles from "./styles.module.css";
 
 // The docs landing centerpiece. The hero is a zero-wasm process "show"
@@ -45,7 +45,7 @@ export default function TryNeokapi(): React.ReactElement {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <HeroProcess onOpen={() => setOpen(true)} />
+      <ConceptConveyor onOpen={() => setOpen(true)} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         {/* Cap the modal to the viewport and lay it out as a flex column so the
