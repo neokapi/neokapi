@@ -45,7 +45,7 @@ brew install neokapi/tap/bowrain-cli
 Install the `kapi` CLI, then add the bowrain plugin:
 
 ```powershell
-winget install Neokapi.Kapi
+winget install Neokapi.KapiCli
 kapi plugin install bowrain
 ```
 
