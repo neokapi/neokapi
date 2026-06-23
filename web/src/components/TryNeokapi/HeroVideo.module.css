@@ -1,0 +1,140 @@
+/* Cinematic looping hero — a borderless, theme-matched autoplay/loop video plus
+   the live-engine CTA. The video carries its own background (rendered to the
+   page's light/dark treatment), so the frame stays chromeless; only a soft
+   ambient glow and a focus ring sit around it. */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 30rem;
+  margin-inline: auto;
+}
+
+/* The whole video is one button that opens the live modal. */
+.stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 22px;
+  cursor: pointer;
+  isolation: isolate;
+  transition:
+    transform 0.22s ease,
+    filter 0.22s ease;
+}
+
+.stage:hover {
+  transform: translateY(-3px);
+}
+
+.stage:focus-visible {
+  outline: 3px solid var(--ifm-color-primary);
+  outline-offset: 4px;
+}
+
+/* Soft ambient glow that bleeds out from behind the frame — gives the loop the
+   feeling of sitting in space rather than pasted onto the page. */
+.glow {
+  position: absolute;
+  inset: -8% -8% -10% -8%;
+  z-index: -1;
+  border-radius: 30px;
+  background: radial-gradient(
+    60% 55% at 50% 45%,
+    color-mix(in srgb, var(--ifm-color-primary) 32%, transparent),
+    transparent 72%
+  );
+  filter: blur(34px);
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+[data-theme="dark"] .glow {
+  opacity: 0.7;
+}
+
+.stage:hover .glow {
+  opacity: 0.85;
+}
+
+/* Both the light and dark media render into the DOM; CSS toggles which is shown
+   off the page's data-theme (mirrors the ThemedVideo convention). */
+.media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 22px;
+  box-shadow:
+    0 26px 70px rgba(8, 14, 28, 0.28),
+    0 0 0 1px color-mix(in srgb, var(--ifm-color-emphasis-300) 60%, transparent);
+}
+
+[data-theme="dark"] .media {
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.mediaDark {
+  display: none;
+}
+.mediaLight {
+  display: block;
+}
+[data-theme="dark"] .mediaLight {
+  display: none;
+}
+[data-theme="dark"] .mediaDark {
+  display: block;
+}
+
+/* CTA into the live in-browser engine. */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.6rem 1.3rem;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--ifm-color-primary);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.cta:hover {
+  background: var(--ifm-color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--ifm-color-primary) 38%, transparent);
+}
+
+.cta:focus-visible {
+  outline: 3px solid var(--ifm-color-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage,
+  .glow,
+  .cta {
+    transition: none;
+  }
+  .stage:hover {
+    transform: none;
+  }
+}
