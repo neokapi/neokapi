@@ -118,7 +118,13 @@ export function FilePreview({
 
   return (
     <Sheet open={!!filePath} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="right" className="w-full gap-3 sm:max-w-xl md:max-w-2xl lg:max-w-3xl">
+      {/* Half the window on wide screens; progressively wider on smaller ones
+          (full width on the smallest). Uses the data-[side] variant so it wins
+          over the Sheet's default w-3/4 / sm:max-w-sm. */}
+      <SheetContent
+        side="right"
+        className="gap-3 data-[side=right]:w-full data-[side=right]:sm:w-3/4 data-[side=right]:sm:max-w-none data-[side=right]:lg:w-1/2"
+      >
         <SheetHeader className="pb-0">
           <SheetTitle className="font-mono text-sm" translate="no">
             {filename}
