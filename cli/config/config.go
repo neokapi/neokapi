@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/version"
 	"github.com/spf13/viper"
 )
 
@@ -140,13 +141,38 @@ func (c *AppConfig) RegistryURL() string {
 }
 
 // UpdateChannel returns the release channel `kapi update` and the background
-// update notifier track. Defaults to "stable"; set update.channel (or
-// KAPI_UPDATE_CHANNEL) to "beta" to follow the fast track.
+// update notifier track. A persisted update.channel (or KAPI_UPDATE_CHANNEL env)
+// is the sticky source of truth; when unset it falls back to the channel inferred
+// from the running build (a prerelease build defaults to "beta"), so a fresh beta
+// install tracks beta without configuration. The persisted preference outlives a
+// later update to a final (non-prerelease) version — see EnsureChannelPinned.
 func (c *AppConfig) UpdateChannel() string {
 	if ch := c.v.GetString(KeyUpdateChannel); ch != "" {
 		return ch
 	}
-	return DefaultUpdateChannel
+	return version.Channel()
+}
+
+// EnsureChannelPinned makes beta-channel membership sticky: the first time a
+// prerelease build runs with no channel pinned in the config file and no
+// KAPI_UPDATE_CHANNEL override, it persists update.channel=beta to the global
+// config. This way a beta user stays on the fast track after updating to a final
+// release (whose version no longer infers "beta"). No-op otherwise. Best-effort:
+// a read-only config dir or write error must never break startup, so errors are
+// swallowed. appName selects the config file (defaults to "kapi").
+func (c *AppConfig) EnsureChannelPinned(appName ...string) {
+	if c.v.InConfig(KeyUpdateChannel) {
+		return // an explicit, persisted choice already exists
+	}
+	if strings.TrimSpace(os.Getenv(EnvUpdateChannel)) != "" {
+		return // an explicit, ephemeral env override — don't persist it
+	}
+	if !version.IsPrerelease() {
+		return // a stable build has nothing to pin
+	}
+	if err := SetGlobalConfig(KeyUpdateChannel, "beta", appName...); err == nil {
+		c.v.Set(KeyUpdateChannel, "beta") // reflect immediately in this process
+	}
 }
 
 // RegistryEntry represents a named plugin registry.
@@ -159,8 +185,14 @@ type RegistryEntry struct {
 // DefaultRegistryURL is the official neokapi plugin registry.
 const DefaultRegistryURL = "https://neokapi.github.io/registry/manifest-plugins.json"
 
-// DefaultUpdateChannel is the release channel kapi follows unless overridden.
+// DefaultUpdateChannel is the stable release channel. It is the ultimate
+// fallback; the effective default for an unconfigured build is version.Channel()
+// (a prerelease build defaults to "beta") — see UpdateChannel.
 const DefaultUpdateChannel = "stable"
+
+// EnvUpdateChannel is the environment variable that overrides the update channel
+// for both the CLI and the desktop apps.
+const EnvUpdateChannel = "KAPI_UPDATE_CHANNEL"
 
 // Config key constants for use with Get/Set/BindEnv to avoid scattered magic strings.
 const (

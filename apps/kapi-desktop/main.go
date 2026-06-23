@@ -13,6 +13,7 @@ import (
 	// pulls in extension decoders only — no heavy CLI / connector code.
 	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
 
+	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/kapi-desktop/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -66,7 +67,7 @@ func main() {
 	// --- Window ---
 
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:          "Kapi",
+		Title:          version.WindowTitle("Kapi"),
 		Width:          1280,
 		Height:         800,
 		EnableFileDrop: true,

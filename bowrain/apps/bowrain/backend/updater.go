@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/updater"
@@ -35,13 +36,19 @@ const (
 	appcastName = "bowrain"
 )
 
-// updateChannel mirrors the kapi CLI: stable by default, KAPI_UPDATE_CHANNEL
-// (e.g. "beta") to follow the fast track.
+// updateChannel mirrors the kapi CLI and shares its sticky preference: the
+// KAPI_UPDATE_CHANNEL env wins, else the persisted update.channel in
+// ~/.config/kapi/kapi.yaml, else the channel inferred from this build (a
+// prerelease defaults to "beta"). A fresh prerelease build pins beta so it stays
+// on the fast track after later updating to a final release.
 func updateChannel() string {
-	if c := strings.TrimSpace(os.Getenv("KAPI_UPDATE_CHANNEL")); c != "" {
+	if c := strings.TrimSpace(os.Getenv(config.EnvUpdateChannel)); c != "" {
 		return c
 	}
-	return "stable"
+	cfg := config.NewAppConfig()
+	_ = cfg.Load()
+	cfg.EnsureChannelPinned("kapi")
+	return cfg.UpdateChannel()
 }
 
 // feedURL returns the appcast URL for this platform + channel. There is one

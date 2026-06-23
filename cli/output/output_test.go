@@ -171,6 +171,27 @@ func TestVersionOutputText(t *testing.T) {
 	assert.Equal(t, "kapi 1.0.0\n", buf.String())
 }
 
+func TestVersionOutputTextBetaBadge(t *testing.T) {
+	var buf bytes.Buffer
+	v := VersionOutput{Program: "kapi", Version: "1.2.0-rc.1", Channel: "beta"}
+	require.NoError(t, v.FormatText(&buf))
+	assert.Equal(t, "kapi 1.2.0-rc.1 (beta)\n", buf.String())
+
+	buf.Reset()
+	v = VersionOutput{
+		Program: "kapi", Version: "1.2.0-rc.1", Channel: "beta",
+		Commit: "abc1234", BuildDate: "2026-06-23",
+	}
+	require.NoError(t, v.FormatText(&buf))
+	assert.Equal(t, "kapi 1.2.0-rc.1 (beta, commit: abc1234, built: 2026-06-23)\n", buf.String())
+
+	// A stable channel renders no badge (behaviour unchanged).
+	buf.Reset()
+	v = VersionOutput{Program: "kapi", Version: "1.2.0", Channel: "stable"}
+	require.NoError(t, v.FormatText(&buf))
+	assert.Equal(t, "kapi 1.2.0\n", buf.String())
+}
+
 func TestVersionOutputTextFull(t *testing.T) {
 	var buf bytes.Buffer
 	v := VersionOutput{

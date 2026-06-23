@@ -17,6 +17,7 @@ func (a *App) NewVersionCmd(program string) *cobra.Command {
 			out := output.VersionOutput{
 				Program:   program,
 				Version:   version.Version,
+				Channel:   version.Channel(),
 				Commit:    version.Commit,
 				BuildDate: version.BuildDate,
 			}

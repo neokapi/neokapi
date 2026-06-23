@@ -12,6 +12,7 @@ import (
 	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
 
 	"github.com/neokapi/neokapi/bowrain/apps/bowrain/backend"
+	"github.com/neokapi/neokapi/core/version"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -51,7 +52,7 @@ func main() {
 	backend.InitUpdater(app)
 
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:          "Bowrain",
+		Title:          version.WindowTitle("Bowrain"),
 		Width:          1280,
 		Height:         800,
 		EnableFileDrop: true,

@@ -15,15 +15,16 @@ const (
 	debPackage = "kapi"
 )
 
-// brewFormulaFor returns the Homebrew formula name for a channel. The fast track
-// ships as a separate "-beta" formula (not "@beta": Homebrew only maps "@" to
-// "AT" before a digit, so an "@beta" formula is unloadable), so a beta user must
-// be upgraded against it — not the stable formula.
+// brewFormulaFor returns the Homebrew formula name for a channel. A non-stable
+// channel ships as a separate "-<channel>" formula (e.g. kapi-cli-beta), NOT an
+// "@<channel>" formula: Homebrew only maps "@" to "AT" before a digit, so an
+// "@beta" formula is unloadable. So a beta user must be upgraded against the
+// "-beta" formula, not the stable one.
 func brewFormulaFor(channel string) string {
-	if channel == "beta" {
-		return brewFormula + "-beta"
+	if channel == "" || channel == "stable" {
+		return brewFormula
 	}
-	return brewFormula
+	return brewFormula + "-" + channel
 }
 
 // UpgradeCommand returns the exact shell command a user should run to upgrade a

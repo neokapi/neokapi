@@ -11,16 +11,30 @@ import (
 
 // VersionOutput represents version information.
 type VersionOutput struct {
-	Program   string `json:"program"`
-	Version   string `json:"version"`
+	Program string `json:"program"`
+	Version string `json:"version"`
+	// Channel is the release channel of this build ("beta" for prereleases),
+	// shown as a badge so it is obvious a user is on a pre-release. Empty or
+	// "stable" renders nothing.
+	Channel   string `json:"channel,omitempty"`
 	Commit    string `json:"commit,omitempty"`
 	BuildDate string `json:"build_date,omitempty"`
 }
 
 func (v VersionOutput) FormatText(w io.Writer) error {
-	if v.Commit != "" && v.BuildDate != "" {
+	// A leading badge for non-stable builds, e.g. "kapi 1.2.0-rc.1 (beta, …)".
+	badge := ""
+	if v.Channel != "" && v.Channel != "stable" {
+		badge = v.Channel
+	}
+	switch {
+	case badge != "" && v.Commit != "" && v.BuildDate != "":
+		fmt.Fprintf(w, "%s %s (%s, commit: %s, built: %s)\n", v.Program, v.Version, badge, v.Commit, v.BuildDate)
+	case badge != "":
+		fmt.Fprintf(w, "%s %s (%s)\n", v.Program, v.Version, badge)
+	case v.Commit != "" && v.BuildDate != "":
 		fmt.Fprintf(w, "%s %s (commit: %s, built: %s)\n", v.Program, v.Version, v.Commit, v.BuildDate)
-	} else {
+	default:
 		fmt.Fprintf(w, "%s %s\n", v.Program, v.Version)
 	}
 	return nil

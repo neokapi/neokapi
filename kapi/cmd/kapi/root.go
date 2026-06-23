@@ -12,11 +12,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// updateChannel resolves the release track the background notifier watches —
-// the configured update.channel (KAPI_UPDATE_CHANNEL), defaulting to stable.
+// updateChannel resolves the release track the background notifier watches — the
+// persisted update.channel (KAPI_UPDATE_CHANNEL), falling back to the channel
+// inferred from this build (a prerelease defaults to beta).
 func updateChannel() string {
 	if app.Config == nil {
-		return config.DefaultUpdateChannel
+		return version.Channel()
 	}
 	return app.Config.UpdateChannel()
 }
@@ -38,6 +39,10 @@ var rootCmd = &cobra.Command{
 		// Plugins (e.g. bowrain) register App initializers at init().
 		// Apply them after Init has set up registries and config.
 		cli.ApplyAppInitializers(app)
+		// Make beta-channel membership sticky: a fresh prerelease build pins
+		// update.channel=beta so it stays on the fast track after later updating
+		// to a final release. No-op once pinned or for stable builds.
+		app.Config.EnsureChannelPinned("kapi")
 		// Kick off a detached, time-bounded check for a newer kapi release. It
 		// only warms the on-disk cache; the notice (if any) is rendered in
 		// PostRun. No-ops in CI / non-TTY / when opted out.
