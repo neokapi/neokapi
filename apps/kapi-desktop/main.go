@@ -129,8 +129,24 @@ func main() {
 func buildAppMenu(app *application.App, appService *backend.App) *application.Menu {
 	menu := application.NewMenu()
 
-	// App menu (macOS standard)
-	menu.AddRole(application.AppMenu)
+	// App menu (macOS standard) — built manually (mirrors Wails' NewAppMenu) so
+	// "Check for Updates…" sits directly below "About Kapi", the conventional
+	// macOS placement, rather than in the File menu.
+	appMenu := menu.AddSubmenu("Kapi")
+	appMenu.AddRole(application.About)
+	appMenu.AddSeparator()
+	appMenu.Add("Check for Updates…").
+		OnClick(func(ctx *application.Context) {
+			backend.CheckForUpdatesNow(app)
+		})
+	appMenu.AddSeparator()
+	appMenu.AddRole(application.ServicesMenu)
+	appMenu.AddSeparator()
+	appMenu.AddRole(application.Hide)
+	appMenu.AddRole(application.HideOthers)
+	appMenu.AddRole(application.UnHide)
+	appMenu.AddSeparator()
+	appMenu.AddRole(application.Quit)
 
 	// File menu
 	fileMenu := menu.AddSubmenu("File")
@@ -188,13 +204,6 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 		SetAccelerator("CmdOrCtrl+Shift+S").
 		OnClick(func(ctx *application.Context) {
 			app.Event.Emit("menu:save-project-as", nil)
-		})
-
-	// In-app updater: check → download → verify → swap → relaunch.
-	fileMenu.AddSeparator()
-	fileMenu.Add("Check for Updates…").
-		OnClick(func(ctx *application.Context) {
-			backend.CheckForUpdatesNow(app)
 		})
 
 	// Edit menu (macOS standard)
