@@ -15,8 +15,22 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/structure"
 	"github.com/neokapi/neokapi/core/tool"
 )
+
+// structuralExportWriters are the document writers that render the canonical
+// table structure (GroupStart "table"/"table-row" + table-cell/header roles).
+// On a cross-format export to one of these, spreadsheet cell geometry is
+// normalized into table groups so a grid renders as a real table (see
+// structure.SpreadsheetGridToTables). Catalog/list writers are excluded so
+// their flat extraction is unchanged.
+var structuralExportWriters = map[string]bool{
+	"markdown": true,
+	"html":     true,
+	"asciidoc": true,
+	"doclang":  true,
+}
 
 // FileRunnerConfig configures a FileRunner.
 type FileRunnerConfig struct {
@@ -338,6 +352,13 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	srcPath, srcContent := "", []byte(nil)
 	if reader.Name() == writer.Name() {
 		srcPath, srcContent = inputPath, inputContent
+	} else if structuralExportWriters[writer.Name()] {
+		// Cross-format export to a structural document writer: synthesize table
+		// structure from spreadsheet cell geometry so a worksheet renders as a
+		// real table rather than a flat list of cell values. A no-op when the
+		// stream carries no cell-grid blocks.
+		counter := 0
+		parts = structure.SpreadsheetGridToTables(parts, &counter)
 	}
 	return r.runPipelineToWriter(ctx, flowName, tools, parts, outputPath, targetLang, writer, skeletonStore, srcPath, srcContent)
 }
