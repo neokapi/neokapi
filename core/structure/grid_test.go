@@ -148,3 +148,76 @@ func TestSpreadsheetGridToTables_PassthroughWithoutGrid(t *testing.T) {
 	assert.Equal(t, parts, out)
 	assert.Equal(t, 0, counter)
 }
+
+func gridBlockSpan(id, text, cell string, col, row, cols, rows int) *model.Block {
+	b := &model.Block{
+		ID:         id,
+		Type:       "cell",
+		Source:     []model.Run{{Text: &model.TextRun{Text: text}}},
+		Properties: map[string]string{"cell": cell},
+	}
+	b.SetGeometry(&model.GeometryAnnotation{
+		Page:   1,
+		BBox:   model.Rect{X: float64(col), Y: float64(row), W: float64(cols), H: float64(rows)},
+		Origin: "cell-grid",
+	})
+	return b
+}
+
+func TestSpreadsheetGridToTables_MergedCell(t *testing.T) {
+	// A1 is merged across two columns (a banner header); the covered B1 position
+	// must emit no cell, and A1 must carry ColSpan=2.
+	parts := []*model.Part{
+		layerStart("xl/worksheets/sheet1.xml"),
+		blockPart(gridBlockSpan("a1", "Banner", "A1", 0, 0, 2, 1)),
+		blockPart(gridBlock("a2", "x", "A2", "", 0, 1)),
+		blockPart(gridBlock("b2", "y", "B2", "", 1, 1)),
+		layerEnd("xl/worksheets/sheet1.xml"),
+	}
+	counter := 0
+	out := SpreadsheetGridToTables(parts, &counter)
+
+	// Header row has a single cell (the merge), spanning two columns.
+	var headerCells []*model.Block
+	inHeader := false
+	for _, p := range out {
+		switch p.Type {
+		case model.PartGroupStart:
+			g := p.Resource.(*model.GroupStart)
+			inHeader = g.Type == "table-row" && g.Properties["header"] == "true"
+		case model.PartGroupEnd:
+			inHeader = false
+		case model.PartBlock:
+			if inHeader {
+				headerCells = append(headerCells, p.Resource.(*model.Block))
+			}
+		}
+	}
+	require.Len(t, headerCells, 1, "merged header row emits one cell, not two")
+	s, ok := headerCells[0].Structure()
+	require.True(t, ok)
+	assert.Equal(t, 2, s.ColSpan, "the banner cell spans two columns")
+}
+
+func TestSpreadsheetGridToTables_RegionSplit(t *testing.T) {
+	// Two clusters separated by a blank column → two tables, not one wide sparse
+	// table.
+	parts := []*model.Part{
+		layerStart("xl/worksheets/sheet1.xml"),
+		// Cluster 1: cols 0-1, rows 0-1.
+		blockPart(gridBlock("a", "A", "A1", "", 0, 0)),
+		blockPart(gridBlock("b", "B", "B1", "", 1, 0)),
+		blockPart(gridBlock("c", "1", "A2", "", 0, 1)),
+		blockPart(gridBlock("d", "2", "B2", "", 1, 1)),
+		// Cluster 2: cols 4-5, rows 0-1 (blank cols 2-3 between).
+		blockPart(gridBlock("e", "X", "E1", "", 4, 0)),
+		blockPart(gridBlock("f", "Y", "F1", "", 5, 0)),
+		blockPart(gridBlock("g", "9", "E2", "", 4, 1)),
+		blockPart(gridBlock("h", "8", "F2", "", 5, 1)),
+		layerEnd("xl/worksheets/sheet1.xml"),
+	}
+	counter := 0
+	out := SpreadsheetGridToTables(parts, &counter)
+	tables, _, _, _ := tableShape(out)
+	assert.Equal(t, 2, tables, "disjoint clusters split into two tables")
+}

@@ -2,6 +2,8 @@ package structure
 
 import (
 	"fmt"
+	"math"
+	"sort"
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -138,35 +140,158 @@ func gridTableParts(cells []*model.Block, groupCounter *int) []*model.Part {
 
 	var parts []*model.Part
 	for _, page := range pageOrder {
-		parts = append(parts, oneTableParts(byPage[page], groupCounter)...)
+		for _, region := range splitRegions(byPage[page]) {
+			parts = append(parts, regionParts(region, groupCounter)...)
+		}
 	}
 	return parts
 }
 
-// oneTableParts renders a single worksheet's cells as a dense table: a rectangle
-// spanning the populated extent, row 0 as the header, each cell tagged with its
-// column index. Missing cells become empty placeholders so sequential renderers
-// keep alignment.
-func oneTableParts(cells []gridCell, groupCounter *int) []*model.Part {
-	maxRow, maxCol := 0, 0
-	at := map[[2]int]*model.Block{}
+// cellSpan reads a cell's merged extent (columns × rows) from its geometry BBox
+// W/H, defaulting to 1×1 for an unmerged or geometry-less cell.
+func cellSpan(b *model.Block) (cols, rows int) {
+	g, ok := b.Geometry()
+	if !ok || g == nil {
+		return 1, 1
+	}
+	cols, rows = int(g.BBox.W), int(g.BBox.H)
+	if cols < 1 {
+		cols = 1
+	}
+	if rows < 1 {
+		rows = 1
+	}
+	return cols, rows
+}
+
+// splitRegions partitions a worksheet's cells into disjoint table regions:
+// connected components over occupied grid positions (4-neighbour adjacency,
+// accounting for merged-cell coverage). A sheet with a data table and a separate
+// criteria block (separated by a blank row/column) yields two regions rather
+// than one wide sparse table. Components are returned in reading order (the
+// top-left-most origin first).
+func splitRegions(cells []gridCell) [][]gridCell {
+	origin := map[[2]int]gridCell{}
+	covered := map[[2]int]bool{}
 	for _, gc := range cells {
-		if gc.row > maxRow {
-			maxRow = gc.row
+		cols, rows := cellSpan(gc.b)
+		origin[[2]int{gc.row, gc.col}] = gc
+		for dr := 0; dr < rows; dr++ {
+			for dc := 0; dc < cols; dc++ {
+				covered[[2]int{gc.row + dr, gc.col + dc}] = true
+			}
 		}
-		if gc.col > maxCol {
-			maxCol = gc.col
-		}
-		at[[2]int{gc.row, gc.col}] = gc.b
 	}
 
+	keys := make([][2]int, 0, len(origin))
+	for k := range origin {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i][0] != keys[j][0] {
+			return keys[i][0] < keys[j][0]
+		}
+		return keys[i][1] < keys[j][1]
+	})
+
+	comp := map[[2]int]int{}
+	next := 0
+	neigh := [][2]int{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}
+	for _, k := range keys {
+		if _, ok := comp[k]; ok {
+			continue
+		}
+		id := next
+		next++
+		queue := [][2]int{k}
+		comp[k] = id
+		for len(queue) > 0 {
+			q := queue[0]
+			queue = queue[1:]
+			for _, d := range neigh {
+				n := [2]int{q[0] + d[0], q[1] + d[1]}
+				if covered[n] {
+					if _, ok := comp[n]; !ok {
+						comp[n] = id
+						queue = append(queue, n)
+					}
+				}
+			}
+		}
+	}
+
+	groups := make([][]gridCell, next)
+	for _, k := range keys {
+		groups[comp[k]] = append(groups[comp[k]], origin[k])
+	}
+	return groups
+}
+
+// regionParts renders one region. A region of at least two rows and two columns
+// becomes a table (its first row the header); anything smaller (a stray label or
+// single column) renders as loose blocks so it is not forced into a 1×N table.
+func regionParts(region []gridCell, groupCounter *int) []*model.Part {
+	origin := map[[2]int]*model.Block{}
+	covered := map[[2]int]bool{}
+	minRow, minCol := math.MaxInt, math.MaxInt
+	maxRow, maxCol := 0, 0
+	for _, gc := range region {
+		cols, rows := cellSpan(gc.b)
+		origin[[2]int{gc.row, gc.col}] = gc.b
+		if gc.row < minRow {
+			minRow = gc.row
+		}
+		if gc.col < minCol {
+			minCol = gc.col
+		}
+		for dr := 0; dr < rows; dr++ {
+			for dc := 0; dc < cols; dc++ {
+				pr, pc := gc.row+dr, gc.col+dc
+				covered[[2]int{pr, pc}] = true
+				if pr > maxRow {
+					maxRow = pr
+				}
+				if pc > maxCol {
+					maxCol = pc
+				}
+			}
+		}
+	}
+
+	if maxRow-minRow < 1 || maxCol-minCol < 1 {
+		return looseBlocks(region)
+	}
+	return tableParts(origin, covered, minRow, minCol, maxRow, maxCol, groupCounter)
+}
+
+// looseBlocks emits a region's cells as plain blocks in reading order (used for
+// degenerate single-row / single-column regions).
+func looseBlocks(region []gridCell) []*model.Part {
+	sort.Slice(region, func(i, j int) bool {
+		if region[i].row != region[j].row {
+			return region[i].row < region[j].row
+		}
+		return region[i].col < region[j].col
+	})
+	parts := make([]*model.Part, 0, len(region))
+	for _, gc := range region {
+		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: gc.b})
+	}
+	return parts
+}
+
+// tableParts renders a region's rectangle as a table. Cells carry their
+// region-local column index; merged cells carry ColSpan/RowSpan and the
+// positions they cover emit no cell; genuine gaps emit an empty placeholder so
+// sequential renderers keep alignment.
+func tableParts(origin map[[2]int]*model.Block, covered map[[2]int]bool, minRow, minCol, maxRow, maxCol int, groupCounter *int) []*model.Part {
 	*groupCounter++
 	tid := fmt.Sprintf("xltbl%d", *groupCounter)
 	parts := []*model.Part{{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: tid, Name: "table", Type: "table"}}}
 
-	for row := 0; row <= maxRow; row++ {
+	for row := minRow; row <= maxRow; row++ {
 		rid := fmt.Sprintf("%sr%d", tid, row)
-		header := row == 0
+		header := row == minRow
 		rowProps := map[string]string{}
 		if header {
 			rowProps["header"] = "true"
@@ -177,17 +302,32 @@ func oneTableParts(cells []gridCell, groupCounter *int) []*model.Part {
 		if header {
 			role = model.RoleTableHeader
 		}
-		for col := 0; col <= maxCol; col++ {
-			b := at[[2]int{row, col}]
-			if b == nil {
+		for col := minCol; col <= maxCol; col++ {
+			key := [2]int{row, col}
+			b, isOrigin := origin[key]
+			if !isOrigin {
+				if covered[key] {
+					// Covered by a merged cell that originates elsewhere — its span
+					// accounts for this position, so emit no cell here.
+					continue
+				}
 				b = &model.Block{ID: fmt.Sprintf("%sc%d", rid, col), Targets: map[model.VariantKey]*model.Target{}}
 			}
 			b.Type = "table-cell"
 			b.SetSemanticRole(role, 0)
+			if cols, rows := cellSpan(b); cols > 1 || rows > 1 {
+				s, _ := b.Structure()
+				if s == nil {
+					s = &model.StructureAnnotation{Role: role}
+				}
+				s.ColSpan = cols
+				s.RowSpan = rows
+				b.SetStructure(s)
+			}
 			if b.Properties == nil {
 				b.Properties = map[string]string{}
 			}
-			b.Properties["column"] = strconv.Itoa(col)
+			b.Properties["column"] = strconv.Itoa(col - minCol)
 			parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
 		}
 		parts = append(parts, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: rid}})

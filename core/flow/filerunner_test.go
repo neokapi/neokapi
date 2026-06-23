@@ -1,10 +1,13 @@
 package flow_test
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -483,4 +486,54 @@ func firstLines(s string, n int) string {
 		lines = lines[:n]
 	}
 	return strings.Join(lines, "\n")
+}
+
+// TestFileRunner_XLSXMergedCellToHTML proves the merged-cell chain end-to-end:
+// the reader records a merge as cell-grid span, the structural transform maps it
+// to ColSpan, and the HTML writer renders colspan. The fixture has no merges, so
+// we inject one (A1:B1) by rebuilding the workbook zip.
+func TestFileRunner_XLSXMergedCellToHTML(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	src, err := os.ReadFile("../formats/openxml/testdata/EksempelFiltrering.xlsx")
+	require.NoError(t, err)
+	merged := injectMerge(t, src, "A1:B1")
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "merged.xlsx")
+	require.NoError(t, os.WriteFile(inputPath, merged, 0o644))
+
+	runner := flow.NewFileRunner(flow.FileRunnerConfig{FormatReg: reg, SourceLocale: "en-US"})
+	htmlOut := filepath.Join(dir, "out.html")
+	require.NoError(t, runner.RunFileWithReaderWriter(context.Background(), "convert",
+		[]tool.Tool{&tool.BaseTool{ToolName: "passthrough"}}, inputPath, htmlOut, "",
+		mustReader(t, reg, "openxml"), mustWriter(t, reg, "html")))
+	got, err := os.ReadFile(htmlOut)
+	require.NoError(t, err)
+	assert.Contains(t, string(got), `colspan="2"`, "the merged A1:B1 header should render with colspan=2")
+}
+
+func injectMerge(t *testing.T, src []byte, ref string) []byte {
+	t.Helper()
+	zr, err := zip.NewReader(bytes.NewReader(src), int64(len(src)))
+	require.NoError(t, err)
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		require.NoError(t, err)
+		body, err := io.ReadAll(rc)
+		rc.Close()
+		require.NoError(t, err)
+		if f.Name == "xl/worksheets/sheet1.xml" {
+			body = []byte(strings.Replace(string(body), "</sheetData>",
+				`</sheetData><mergeCells count="1"><mergeCell ref="`+ref+`"/></mergeCells>`, 1))
+		}
+		w, err := zw.Create(f.Name)
+		require.NoError(t, err)
+		_, err = w.Write(body)
+		require.NoError(t, err)
+	}
+	require.NoError(t, zw.Close())
+	return buf.Bytes()
 }

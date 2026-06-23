@@ -164,6 +164,11 @@ func (p *smlParser) parseSMLRunProps(d *xml.Decoder) runProps {
 func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(*model.Block)) error {
 	d := xml.NewDecoder(bytes.NewReader(data))
 
+	// Pre-scan merged-cell ranges so a cell's grid geometry can record its span
+	// (<mergeCells> follows <sheetData> in the part, so we cannot learn it during
+	// the streaming pass). Keyed by the range's top-left cell reference.
+	merges := parseMergeCells(data)
+
 	var inRow, inCell, inValue bool
 	var cellType, cellRef string
 	var cellText strings.Builder
@@ -285,36 +290,34 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 						}
 						// Intrinsic cell-grid geometry (WS2): a literal/inline-string
 						// cell lives at a single (col,row), so its position is the
-						// cell address itself. Shared-string cells are deduplicated in
+						// cell address itself; a merged cell additionally spans
+						// W columns × H rows. Shared-string cells are deduplicated in
 						// sharedStrings.xml — one block backs many cells — so the
 						// translatable text has no single position (handled there); we
-						// surface their position separately as a grid anchor below. The
-						// BBox is in cell units (W=H=1 = one cell), flagged by the
-						// "cell-grid" origin; X/Y are the zero-based column/row.
-						if col, row, ok := parseCellRefA1(cellRef); ok {
-							if sheet := sheetNumFromPath(partPath); sheet > 0 {
-								block.SetGeometry(&model.GeometryAnnotation{
-									Page:   sheet,
-									BBox:   model.Rect{X: float64(col), Y: float64(row), W: 1, H: 1},
-									Origin: "cell-grid",
-								})
-							}
+						// surface their position separately as a grid anchor below.
+						if g := cellGeometry(cellRef, partPath, merges); g != nil {
+							block.SetGeometry(g)
 						}
 						emitBlock(block)
 					} else {
 						p.skelWriteString("<v>")
 						p.skelText(xmlEscape(cellText.String()))
 						p.skelWriteString("</v>")
-						// A shared-string cell carries no translatable text of its own
-						// (the text is deduplicated in sharedStrings.xml), but it does
-						// occupy a position in the grid. Surface that position as a
-						// non-translatable grid anchor so previews can reconstruct the
-						// worksheet — the common case for real spreadsheets, which is
-						// otherwise invisible as a grid. Additive and skeleton-free, so
-						// it never affects extraction, word count, or round-trip.
-						if cellType == "s" && cellRef != "" && p.cfg != nil &&
-							p.cfg.ExtractNonTranslatableContent() {
-							p.emitSharedCellAnchor(text, cellRef, partPath, emitBlock)
+						// A shared-string or value cell carries no translatable text of
+						// its own (a shared string is deduplicated in sharedStrings.xml;
+						// a number/formula result is not translated), but it does occupy
+						// a position in the grid. Surface that position as a
+						// non-translatable grid anchor so previews and structural
+						// exports can reconstruct the worksheet — otherwise invisible as
+						// a grid. Additive and skeleton-free, so it never affects
+						// extraction, word count, or round-trip.
+						if cellRef != "" && p.cfg != nil && p.cfg.ExtractNonTranslatableContent() {
+							switch {
+							case cellType == "s":
+								p.emitSharedCellAnchor(text, cellRef, partPath, merges, emitBlock)
+							case strings.TrimSpace(text) != "":
+								p.emitLiteralCellAnchor(text, cellRef, partPath, merges, emitBlock)
+							}
 						}
 					}
 
@@ -359,7 +362,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 // links back to the translatable shared-string block (under sharedStrings.xml)
 // so a consumer can join to that block's targets/overlays. Gated by the caller
 // behind ExtractNonTranslatableContent, matching the comment-surfacing path.
-func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, emitBlock func(*model.Block)) {
+func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, merges map[string]mergeSpan, emitBlock func(*model.Block)) {
 	idx, err := strconv.Atoi(strings.TrimSpace(idxText))
 	if err != nil || idx < 0 || idx >= len(p.sharedStrings) {
 		return
@@ -382,16 +385,93 @@ func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, emit
 			"siIndex":  strconv.Itoa(idx),
 		},
 	}
-	if col, row, ok := parseCellRefA1(cellRef); ok {
-		if sheet := sheetNumFromPath(partPath); sheet > 0 {
-			block.SetGeometry(&model.GeometryAnnotation{
-				Page:   sheet,
-				BBox:   model.Rect{X: float64(col), Y: float64(row), W: 1, H: 1},
-				Origin: "cell-grid",
-			})
-		}
+	if g := cellGeometry(cellRef, partPath, merges); g != nil {
+		block.SetGeometry(g)
 	}
 	emitBlock(block)
+}
+
+// emitLiteralCellAnchor surfaces a non-string worksheet cell (a number, boolean,
+// or cached formula result) as a non-translatable grid anchor carrying its
+// displayed value, so a structural export or preview can place it in the grid.
+// Like the shared-string anchor it is additive and skeleton-free.
+func (p *smlParser) emitLiteralCellAnchor(text, cellRef, partPath string, merges map[string]mergeSpan, emitBlock func(*model.Block)) {
+	sheetTag := strings.TrimSuffix(strings.TrimPrefix(partPath, "xl/worksheets/"), ".xml")
+	block := &model.Block{
+		ID:           fmt.Sprintf("cell-%s-%s", sheetTag, cellRef),
+		Type:         "cell",
+		Translatable: false,
+		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
+		Properties:   map[string]string{"partPath": partPath, "cell": cellRef},
+	}
+	if g := cellGeometry(cellRef, partPath, merges); g != nil {
+		block.SetGeometry(g)
+	}
+	emitBlock(block)
+}
+
+// mergeSpan is a merged-cell range's extent in cells (cols × rows), ≥1 each.
+type mergeSpan struct{ cols, rows int }
+
+// cellGeometry builds the cell-grid geometry for a worksheet cell: BBox X/Y are
+// the zero-based column/row, W/H the merged-cell span (1×1 when unmerged). Nil
+// for a malformed reference or a non-worksheet part.
+func cellGeometry(cellRef, partPath string, merges map[string]mergeSpan) *model.GeometryAnnotation {
+	col, row, ok := parseCellRefA1(cellRef)
+	if !ok {
+		return nil
+	}
+	sheet := sheetNumFromPath(partPath)
+	if sheet <= 0 {
+		return nil
+	}
+	w, h := 1, 1
+	if m, ok := merges[cellRef]; ok {
+		w, h = m.cols, m.rows
+	}
+	return &model.GeometryAnnotation{
+		Page:   sheet,
+		BBox:   model.Rect{X: float64(col), Y: float64(row), W: float64(w), H: float64(h)},
+		Origin: "cell-grid",
+	}
+}
+
+// parseMergeCells scans a worksheet part for <mergeCell ref="A1:B2"/> ranges and
+// returns each range's extent keyed by its top-left cell reference. Malformed
+// refs are skipped.
+func parseMergeCells(data []byte) map[string]mergeSpan {
+	out := map[string]mergeSpan{}
+	d := xml.NewDecoder(bytes.NewReader(data))
+	for {
+		tok, err := d.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return out
+		}
+		se, ok := tok.(xml.StartElement)
+		if !ok || se.Name.Local != "mergeCell" {
+			continue
+		}
+		ref := attrVal(se, "ref")
+		lo, hi, ok := strings.Cut(ref, ":")
+		if !ok {
+			continue
+		}
+		c0, r0, ok0 := parseCellRefA1(lo)
+		c1, r1, ok1 := parseCellRefA1(hi)
+		if !ok0 || !ok1 {
+			continue
+		}
+		cols, rows := c1-c0+1, r1-r0+1
+		if cols < 1 || rows < 1 {
+			continue
+		}
+		out[lo] = mergeSpan{cols: cols, rows: rows}
+	}
+	return out
 }
 
 // parseCellRefA1 parses an A1-style cell reference ("A1", "AB12") into a

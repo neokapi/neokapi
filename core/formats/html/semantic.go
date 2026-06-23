@@ -373,8 +373,11 @@ func (w *Writer) emitBlock(st *semanticState, b *model.Block) error {
 			if role == model.RoleTableHeader {
 				cell = "th"
 			}
-			st.colCursor++
-			return w.print("<" + cell + ">" + body + "</" + cell + ">")
+			// Merged cells carry their extent as colspan / rowspan; advance the
+			// column cursor by the column span so following cells stay aligned.
+			attrs, colSpan := cellSpanAttrs(b)
+			st.colCursor += colSpan
+			return w.print("<" + cell + attrs + ">" + body + "</" + cell + ">")
 		}
 		return w.semLine(st, "<p>"+body+"</p>") // bare cell, no table context
 	default:
@@ -399,6 +402,25 @@ func cellColumn(b *model.Block) (int, bool) {
 		return 0, false
 	}
 	return n, true
+}
+
+// cellSpanAttrs returns the colspan / rowspan attribute string for a merged
+// table cell (empty when unmerged) and the cell's column span (≥1), used to
+// advance the column cursor.
+func cellSpanAttrs(b *model.Block) (attrs string, colSpan int) {
+	colSpan = 1
+	s, ok := b.Structure()
+	if !ok || s == nil {
+		return "", colSpan
+	}
+	if s.ColSpan > 1 {
+		colSpan = s.ColSpan
+		attrs += fmt.Sprintf(` colspan="%d"`, s.ColSpan)
+	}
+	if s.RowSpan > 1 {
+		attrs += fmt.Sprintf(` rowspan="%d"`, s.RowSpan)
+	}
+	return attrs, colSpan
 }
 
 // headingLevel returns a block's heading level from the structural annotation,
