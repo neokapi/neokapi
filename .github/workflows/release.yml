@@ -345,7 +345,8 @@ jobs:
       # Channel is tag-driven: a full tag (v1.2.0) feeds the `stable` channel; a
       # prerelease tag (v1.2.0-rc.1, v1.2.0-beta.1, …) feeds the `beta` fast
       # track. Stable formulae are kapi-cli/bowrain-cli; beta formulae are the
-      # @beta variants so the two tracks install side by side.
+      # kapi-cli-beta/bowrain-cli-beta variants (each channel conflicts with the
+      # other, so a user switches channels rather than installing side by side).
       - name: Resolve release channel
         id: channel
         env:
@@ -403,9 +404,9 @@ jobs:
             brew install --cask neokapi/tap/bowrain
             ```
 
-      # Push the generated formulae (stable: kapi-cli/bowrain-cli; beta: the
-      # @beta variants) to the tap. Both stable and prerelease tags publish —
-      # only the formula names and channel differ.
+      # Push the generated formulae (stable: kapi-cli/bowrain-cli; beta:
+      # kapi-cli-beta/bowrain-cli-beta) to the tap. Both stable and prerelease
+      # tags publish — only the formula names and channel differ.
       - name: Push brew formulae to homebrew-tap
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

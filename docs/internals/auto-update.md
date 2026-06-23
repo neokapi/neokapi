@@ -70,19 +70,22 @@ Both the `cli.json` index and the Homebrew tap carry both tracks:
 - **Index**: `release.yml` registers each build under its tag-derived channel
   (`registry-update --channel stable|beta`). `registry.Resolve("kapi", "",
   channel, …)` filters on it.
-- **Homebrew**: stable ships `kapi-cli` / `bowrain-cli`; beta ships the
-  `@`-versioned `kapi-cli@beta` / `bowrain-cli@beta` (class `KapiCliATBeta`),
-  so the two tracks install **side by side**. `brew install
-  neokapi/tap/kapi-cli@beta` opts in.
+- **Homebrew**: stable ships `kapi-cli` / `bowrain-cli`; beta ships the separate
+  `kapi-cli-beta` / `bowrain-cli-beta` formulae (class `KapiCliBeta`). They are
+  **not** `@beta`: Homebrew's `Formulary.class_s` only rewrites `@` to `AT` before
+  a digit, so an `@beta` formula expects the invalid class `KapiCli@beta` and can
+  never load. The `-beta` formula conflicts with stable (both install the same
+  `kapi` binary), so a user is on one channel at a time. `brew install
+  neokapi/tap/kapi-cli-beta` opts in.
 
 **Client selection.** `update.channel` config key (env `KAPI_UPDATE_CHANNEL`),
 default `stable`, controls both `kapi update` and the background notifier;
 `kapi update --channel beta` overrides per-invocation. The nudge is
-channel-aware — a beta Homebrew user is told `brew upgrade kapi-cli@beta`, not
+channel-aware — a beta Homebrew user is told `brew upgrade kapi-cli-beta`, not
 the stable formula. Point the in-repo dogfood project at `beta` to ride the
 fast track.
 
-> Caveat: only Homebrew publishes a `@beta` variant today. winget/scoop beta
+> Caveat: only Homebrew publishes a `-beta` variant today. winget/scoop beta
 > tracks are a later add; until then their nudges use the base package name.
 
 ## Decision matrix (target state)

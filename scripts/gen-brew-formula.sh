@@ -11,11 +11,12 @@
 #   repo     e.g. neokapi/neokapi
 #   out      formulae are written here
 #   channel  "stable" (default) → kapi-cli.rb / bowrain-cli.rb
-#            "beta"             → kapi-cli@beta.rb / bowrain-cli@beta.rb
+#            "beta"             → kapi-cli-beta.rb / bowrain-cli-beta.rb
 #
-# The beta variant is an `@`-versioned Homebrew formula (like node@18): the fast
-# track installs alongside, not over, the stable formula. `brew install
-# neokapi/tap/kapi-cli@beta` opts a user into the beta channel.
+# The beta variant is a separate `-beta` formula. `brew install
+# neokapi/tap/kapi-cli-beta` opts a user into the beta channel. It conflicts with
+# the stable formula (both install the same `kapi` binary), so a user is on one
+# channel at a time — switching channels, not installing side by side.
 set -euo pipefail
 
 version="${1:?version required}"
@@ -25,19 +26,26 @@ out="${4:?out dir required}"
 channel="${5:-stable}"
 mkdir -p "$out"
 
-# Channel-derived naming. For beta the formulae get an @beta suffix; Homebrew
-# maps kapi-cli@beta → class KapiCliATBeta (the `@` becomes `AT`). The beta
-# bowrain formula depends on the beta kapi so the fast track is self-consistent.
+# Channel-derived naming. Beta uses a `-beta` suffix, NOT `@beta`: Homebrew's
+# Formulary.class_s only rewrites `@` to `AT` when it precedes a digit
+# (/(.)@(\d)/ → \1AT\2), so `kapi-cli@beta` would expect the class `KapiCli@beta`
+# — an invalid Ruby identifier no class can match. `kapi-cli-beta` maps cleanly to
+# `KapiCliBeta`. Each channel's formula conflicts with the other's (they install
+# the same `kapi` binary) and the beta bowrain formula depends on the beta kapi.
 case "$channel" in
   stable)
     kapi_name="kapi-cli";       kapi_class="KapiCli"
     bowrain_name="bowrain-cli"; bowrain_class="BowrainCli"
     kapi_dep="neokapi/tap/kapi-cli"
+    kapi_conflict="kapi-cli-beta"
+    bowrain_conflict="bowrain-cli-beta"
     ;;
   beta)
-    kapi_name="kapi-cli@beta";       kapi_class="KapiCliATBeta"
-    bowrain_name="bowrain-cli@beta"; bowrain_class="BowrainCliATBeta"
-    kapi_dep="neokapi/tap/kapi-cli@beta"
+    kapi_name="kapi-cli-beta";       kapi_class="KapiCliBeta"
+    bowrain_name="bowrain-cli-beta"; bowrain_class="BowrainCliBeta"
+    kapi_dep="neokapi/tap/kapi-cli-beta"
+    kapi_conflict="kapi-cli"
+    bowrain_conflict="bowrain-cli"
     ;;
   *)
     echo "gen-brew-formula.sh: unknown channel '$channel' (want stable|beta)" >&2
@@ -96,6 +104,8 @@ RUBY
   # plugin formula drops into the shared kapi plugins root; no cycle since
   # kapi-pdfium does not depend on kapi-cli.
   echo '  depends_on "neokapi/tap/kapi-pdfium"'
+  # The stable and beta channels install the same `kapi` binary — only one at a time.
+  echo "  conflicts_with \"${kapi_conflict}\", because: \"both install the kapi binary\""
   echo
   platform_block "kapi-cli"
   cat <<'RUBY'
@@ -128,6 +138,7 @@ RUBY
   echo '  license "Apache-2.0"'
   echo
   echo "  depends_on \"${kapi_dep}\""
+  echo "  conflicts_with \"${bowrain_conflict}\", because: \"both install the bowrain plugin\""
   echo
   platform_block "kapi-bowrain"
   cat <<'RUBY'

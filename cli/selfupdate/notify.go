@@ -16,11 +16,12 @@ const (
 )
 
 // brewFormulaFor returns the Homebrew formula name for a channel. The fast track
-// ships as the @beta-versioned formula, so a beta user must be upgraded against
-// it — not the stable formula.
+// ships as a separate "-beta" formula (not "@beta": Homebrew only maps "@" to
+// "AT" before a digit, so an "@beta" formula is unloadable), so a beta user must
+// be upgraded against it — not the stable formula.
 func brewFormulaFor(channel string) string {
 	if channel == "beta" {
-		return brewFormula + "@beta"
+		return brewFormula + "-beta"
 	}
 	return brewFormula
 }

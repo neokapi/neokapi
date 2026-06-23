@@ -24,9 +24,9 @@ func TestUpgradeCommand(t *testing.T) {
 	if got := UpgradeCommand(SourceRPM, "stable"); !strings.Contains(got, "dnf") {
 		t.Errorf("UpgradeCommand(rpm) = %q, want a dnf command", got)
 	}
-	// The beta channel must upgrade the @beta Homebrew formula, not stable.
-	if got := UpgradeCommand(SourceHomebrew, "beta"); got != "brew upgrade kapi-cli@beta" {
-		t.Errorf("UpgradeCommand(homebrew, beta) = %q, want the @beta formula", got)
+	// The beta channel must upgrade the -beta Homebrew formula, not stable.
+	if got := UpgradeCommand(SourceHomebrew, "beta"); got != "brew upgrade kapi-cli-beta" {
+		t.Errorf("UpgradeCommand(homebrew, beta) = %q, want the -beta formula", got)
 	}
 }
 
@@ -34,8 +34,8 @@ func TestUpgradeArgv(t *testing.T) {
 	if got := UpgradeArgv(SourceHomebrew, "stable"); len(got) != 3 || got[2] != "kapi-cli" {
 		t.Errorf("UpgradeArgv(homebrew, stable) = %v", got)
 	}
-	if got := UpgradeArgv(SourceHomebrew, "beta"); len(got) != 3 || got[2] != "kapi-cli@beta" {
-		t.Errorf("UpgradeArgv(homebrew, beta) = %v, want kapi-cli@beta", got)
+	if got := UpgradeArgv(SourceHomebrew, "beta"); len(got) != 3 || got[2] != "kapi-cli-beta" {
+		t.Errorf("UpgradeArgv(homebrew, beta) = %v, want kapi-cli-beta", got)
 	}
 	// apt/dnf must not be auto-run (need sudo / a TTY).
 	if got := UpgradeArgv(SourceDeb, "stable"); got != nil {
@@ -55,8 +55,8 @@ func TestNotice(t *testing.T) {
 		t.Errorf("Notice(homebrew) = %q, want both versions", managed)
 	}
 	beta := Notice(SourceHomebrew, "beta", "1.0.0", "1.2.0-rc.1")
-	if !strings.Contains(beta, "brew upgrade kapi-cli@beta") {
-		t.Errorf("Notice(homebrew, beta) = %q, want the @beta formula", beta)
+	if !strings.Contains(beta, "brew upgrade kapi-cli-beta") {
+		t.Errorf("Notice(homebrew, beta) = %q, want the -beta formula", beta)
 	}
 	selfUpd := Notice(SourceTarball, "stable", "1.0.0", "1.1.0")
 	if !strings.Contains(selfUpd, "kapi update") {
