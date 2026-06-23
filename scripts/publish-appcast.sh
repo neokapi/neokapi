@@ -18,8 +18,9 @@
 # arch, so arch is disambiguated by the feed URL. The app fetches
 # appcast-<name>-<runtime.GOOS>-<runtime.GOARCH>[-beta].xml.
 #
-# Channel is tag-driven (Model B): a prerelease tag (vX.Y.Z-rc.N) → beta feed
-# only; a final tag (vX.Y.Z) → both the stable and beta feeds.
+# Channel is tag-driven: a prerelease tag (vX.Y.Z-rc.N) → beta feed only; a final
+# tag (vX.Y.Z) → both the stable and beta feeds. Beta is a superset fast ring
+# (see docs/internals/auto-update.md, "Release channels").
 #
 # Required env: UPDATE_ED25519_PRIVATE_KEY, REGISTRY_TOKEN, GH_TOKEN.
 #
@@ -49,9 +50,9 @@ source="${6:?source artifact/app required}"
 os="${7:?os required}"
 arch="${8:?arch required}"
 
-# Model B: a prerelease publishes to the beta feed only; a final publishes to
-# BOTH the stable and beta feeds, so the beta channel also carries finals and
-# beta users never fall behind stable.
+# A prerelease publishes to the beta feed only; a final publishes to BOTH the
+# stable and beta feeds, so the beta channel also carries finals and beta users
+# never fall behind stable.
 case "$ref" in
   *-*) channels="beta" ;;
   *)   channels="stable beta" ;;

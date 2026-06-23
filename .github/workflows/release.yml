@@ -342,8 +342,9 @@ jobs:
               --bundle "${a}.sigstore.json" "$a"
           done
 
-      # Channel is tag-driven, Model B (beta is a fast ring that also carries
-      # finals, so beta users never fall behind stable):
+      # Channel is tag-driven; beta is a superset fast ring that also carries
+      # finals, so beta users never fall behind stable. See
+      # docs/internals/auto-update.md, "Release channels".
       #   prerelease tag (vX.Y.Z-rcN) → beta only.
       #   final tag      (vX.Y.Z)     → BOTH stable and beta.
       # Outputs:
