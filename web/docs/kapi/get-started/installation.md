@@ -42,8 +42,24 @@ Pre-built binaries for all platforms are available on the
      scripts/update-website-downloads.sh from the release's actual assets. -->
 
 <!-- BEGIN:downloads-cli -->
-Direct downloads appear here once a release is published — run
-`scripts/update-website-downloads.sh` to fill in version-pinned links.
+Direct downloads for **kapi 1.2.0-rc1** (CLI):
+
+**macOS** (Apple Silicon)
+- **macOS arm64** — [`kapi-cli_1.2.0-rc1_darwin_arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-cli_1.2.0-rc1_darwin_arm64.tar.gz)
+
+**Linux**
+- **Linux amd64 (tar.gz)** — [`kapi-cli_1.2.0-rc1_linux_amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-cli_1.2.0-rc1_linux_amd64.tar.gz)
+- **Linux arm64 (tar.gz)** — [`kapi-cli_1.2.0-rc1_linux_arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-cli_1.2.0-rc1_linux_arm64.tar.gz)
+- **Linux amd64 (.deb)** — [`kapi-cli_1.2.0-rc1_amd64.deb`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-cli_1.2.0-rc1_amd64.deb)
+- **Linux arm64 (.deb)** — [`kapi-cli_1.2.0-rc1_arm64.deb`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-cli_1.2.0-rc1_arm64.deb)
+- **Linux amd64 (.rpm)** — [`kapi-cli_1.2.0-rc1_amd64.rpm`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-cli_1.2.0-rc1_amd64.rpm)
+- **Linux arm64 (.rpm)** — [`kapi-cli_1.2.0-rc1_arm64.rpm`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-cli_1.2.0-rc1_arm64.rpm)
+
+**Windows** (Authenticode-signed, portable zip)
+- **Windows amd64** — [`kapi-cli_1.2.0-rc1_windows_amd64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-cli_1.2.0-rc1_windows_amd64.zip)
+- **Windows arm64** — [`kapi-cli_1.2.0-rc1_windows_arm64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-cli_1.2.0-rc1_windows_arm64.zip)
+
+Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/checksums.txt).
 <!-- END:downloads-cli -->
 
 ### Verify the install
@@ -85,6 +101,18 @@ uninstaller. Direct, version-pinned links are listed below; the full set is alwa
 on the [GitHub Releases](https://github.com/neokapi/neokapi/releases) page.
 
 <!-- BEGIN:downloads-desktop -->
-Direct downloads appear here once a release is published — run
-`scripts/update-website-downloads.sh` to fill in version-pinned links.
+Direct downloads for **Kapi Desktop 1.2.0-rc1**:
+
+**macOS** (Apple Silicon)
+- **macOS arm64 (.dmg)** — [`kapi-1.2.0-rc1-macOS-arm64.dmg`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-1.2.0-rc1-macOS-arm64.dmg)
+
+**Windows** (signed installer)
+- **Windows amd64 (installer)** — [`kapi-1.2.0-rc1-windows-amd64-setup.exe`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-1.2.0-rc1-windows-amd64-setup.exe)
+- **Windows arm64 (installer)** — [`kapi-1.2.0-rc1-windows-arm64-setup.exe`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-1.2.0-rc1-windows-arm64-setup.exe)
+- **Windows amd64 (portable zip)** — [`kapi-1.2.0-rc1-windows-amd64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-1.2.0-rc1-windows-amd64.zip)
+- **Windows arm64 (portable zip)** — [`kapi-1.2.0-rc1-windows-arm64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-1.2.0-rc1-windows-arm64.zip)
+
+**Linux**
+- **Linux amd64 (tar.gz)** — [`kapi-1.2.0-rc1-linux-amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-1.2.0-rc1-linux-amd64.tar.gz)
+- **Linux arm64 (tar.gz)** — [`kapi-1.2.0-rc1-linux-arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-1.2.0-rc1-linux-arm64.tar.gz)
 <!-- END:downloads-desktop -->
