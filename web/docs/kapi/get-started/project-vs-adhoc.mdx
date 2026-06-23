@@ -3,7 +3,7 @@ id: project-vs-adhoc
 title: "Projects vs ad-hoc"
 sidebar_label: "Projects vs ad-hoc"
 sidebar_position: 3
-description: "The one model both Kapi surfaces share: run ad-hoc on loose files when nothing needs remembering, or set up a .kapi project with a store that accumulates your translations — and pack it into a portable .klz to move work around."
+description: "The one model both Kapi surfaces share: run ad-hoc on loose files when nothing needs remembering, or set up a .kapi project with a store that accumulates your work — and pack it into a portable .klz to move work around."
 keywords: [kapi, project, ad-hoc, store, translation memory, .kapi, .klz, pack]
 ---
 
@@ -38,7 +38,7 @@ after; approve a term and it's enforced everywhere. You stop repeating yourself.
 | | **Ad-hoc** | **Project** |
 | --- | --- | --- |
 | Setup | none | a `.kapi` recipe (commit it) |
-| Memory | nothing saved | a store accumulates translations + terms |
+| Memory | nothing saved | a store accumulates your work (TM + terms) |
 | Finds your files | you name them | discovered automatically |
 | Best for | one-offs, scripts, CI | a repo you localize repeatedly |
 
@@ -51,7 +51,7 @@ Set one up: **[your first project](/kapi/get-started/first-project)** (CLI) or
 A project lives in a folder. When you need to **move that work** — to another
 machine, or to a reviewer who doesn't have your repo — you **pack** it into a
 single portable file, a **`.klz`**: a "project in a file" that carries the recipe,
-the content, and the translation memory with it. The other side unpacks it, works,
+the content, and the store (TM and termbase) with it. The other side unpacks it, works,
 and hands it back.
 
 > A `.klz` is how you move a whole project around without a server.
