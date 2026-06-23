@@ -35,7 +35,7 @@ resolved when you run it:
 
 | Binding | As source | As sink |
 | --- | --- | --- |
-| `file` (default) | read + parse a file | write a localized file |
+| `file` (default) | read + parse a file | write the file back (round-trip via skeleton) |
 | `store` | the project store (blocks + overlays) | commit overlays — **no file** |
 | interchange | import XLIFF / PO / a bilingual `.klz` | emit one for a translator |
 | `none` | — | discard (checks/analysis only) |
