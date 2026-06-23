@@ -116,3 +116,50 @@ Direct downloads for **Kapi Desktop 1.2.0-rc1**:
 - **Linux amd64 (tar.gz)** — [`kapi-1.2.0-rc1-linux-amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-1.2.0-rc1-linux-amd64.tar.gz)
 - **Linux arm64 (tar.gz)** — [`kapi-1.2.0-rc1-linux-arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc1/kapi-1.2.0-rc1-linux-arm64.tar.gz)
 <!-- END:downloads-desktop -->
+
+## Beta channel (opt-in)
+
+The **beta channel** is a fast ring for early adopters. It receives release
+candidates *and* every stable release, so a beta install is never behind stable —
+it just gets things sooner. It is opt-in and ships as separate Homebrew packages.
+
+Beta and stable install the same `kapi` binary (and the same app), so they are
+**mutually exclusive**: you switch channels rather than run both side by side.
+Trying to install one while the other is present is rejected by Homebrew.
+
+### Switch to beta
+
+```bash
+brew update
+# Remove the stable packages (the desktop cask depends on the CLI formula).
+brew uninstall --cask neokapi/tap/kapi
+brew uninstall neokapi/tap/kapi-cli
+# Install the beta packages — the cask pulls kapi-cli-beta automatically.
+brew install --cask neokapi/tap/kapi@beta
+```
+
+For the CLI only, skip the cask: `brew install neokapi/tap/kapi-cli-beta`.
+`kapi-pdfium` is a shared dependency with no beta variant — leave it installed.
+
+A beta build is clearly marked: `kapi version` prints a `(beta)` badge, and the
+desktop window title reads **Kapi (Beta)**. For direct downloads, beta builds are
+the assets attached to the **Pre-release** entries on the
+[Releases](https://github.com/neokapi/neokapi/releases) page.
+
+### Stay current, or switch back
+
+```bash
+brew upgrade kapi-cli-beta                          # newer beta builds
+# Back to stable:
+brew uninstall --cask neokapi/tap/kapi@beta
+brew uninstall neokapi/tap/kapi-cli-beta
+brew install --cask neokapi/tap/kapi
+```
+
+The chosen channel is remembered across updates (kapi pins it on first run, shared
+by the CLI and the desktop app). Set `KAPI_UPDATE_CHANNEL=beta` (or `stable`) to
+override it for a single shell.
+
+> Beta packages are Homebrew-only today. WinGet and direct downloads always track
+> the stable release; for those, the prerelease assets on the Releases page are
+> the beta builds.
