@@ -20,6 +20,13 @@ quirks. It is a deliberate, format-independent abstraction over the content insi
 a document — the unit you read, check, edit, and write back — modeled on the Okapi
 Framework's resource hierarchy.
 
+**By analogy:** read it as a *streaming DOM* (Parts flow past instead of sitting
+in one tree), where each translatable node is a *record with variants* (one source,
+many keyed targets) and annotations are *margin notes* pinned to spans rather than
+edits to the text. Every term below — Part, Layer, Block, Run, Target, Overlay,
+VariantKey — is defined once in the [Glossary](/framework/glossary); this page
+develops them.
+
 :::tip Try it — the content model, every way
 Pick a lesson and a sample (or drop in your own file) and watch the real `kapi`
 reader decompose it in your browser via WebAssembly. **Anatomy** shows the Layers,

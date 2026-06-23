@@ -450,10 +450,10 @@ const config: Config = {
           label: "Reference",
           position: "left",
           items: [
-            // Kept in sync with the /reference overview page and the
-            // referenceSidebar in sidebars.ts — all three list the same set.
-            // Generated, runnable references + interactive grids; R4 fills the
-            // per-entry pages under /reference/{commands,formats,tools}/.
+            // Reader-facing reference only. Project-status dashboards (parity,
+            // benchmarks, eval, test results) are telemetry, not a reader
+            // concept — they live in the "Project status" sidebar section, not
+            // this dropdown.
             { label: "Reference Overview", to: "/reference" },
             { label: "Kapi CLI Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
@@ -461,31 +461,23 @@ const config: Config = {
             { label: "Project file", to: "/reference/project-file" },
             { label: "KLF format", to: "/reference/klf/overview" },
             { label: "MCP Server", to: "/reference/mcp" },
-            { label: "Parity", to: "/parity" },
-            { label: "Format Maturity", to: "/format-maturity" },
-            { label: "Benchmarks", to: "/pseudobench" },
-            { label: "ML Benchmark", to: "/ml-benchmark" },
-            { label: "Check Eval", to: "/check-eval" },
-            { label: "Test Results", to: "/test-comparison" },
           ],
         },
         {
-          type: "dropdown",
+          // Kapi React promoted to a top-level peer (was buried in the Toolbox
+          // dropdown) — it's a first-class way to bring a React app's content
+          // into the Kapi workflow.
+          type: "docSidebar",
+          sidebarId: "reactSidebar",
+          label: "Kapi React",
+          position: "left",
+        },
+        {
+          // Format-aware CLI utilities (kgrep/ksed/kcat/kconv).
+          type: "docSidebar",
+          sidebarId: "toolboxSidebar",
           label: "Toolbox",
           position: "left",
-          items: [
-            {
-              // Format-aware CLI utilities (kgrep/ksed/kcat/kconv).
-              type: "docSidebar",
-              sidebarId: "toolboxSidebar",
-              label: "CLI tools",
-            },
-            {
-              type: "docSidebar",
-              sidebarId: "reactSidebar",
-              label: "Kapi React",
-            },
-          ],
         },
         {
           // Neokapi WebAssembly Lab status widget — engine + plugin state for

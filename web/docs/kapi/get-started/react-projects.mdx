@@ -1,0 +1,50 @@
+---
+id: react-projects
+title: "React apps"
+sidebar_label: "React apps"
+sidebar_position: 7
+description: "If your content lives in a React app, Kapi React extracts the JSX text at build time into KLF — then the same kapi translate / pseudo-translate / qa workflow takes over."
+keywords: [kapi, react, jsx, i18n, localization, KLF, extraction]
+---
+
+# React apps
+
+If the content you want to localize lives in a **React app**, you don't hand-wrap
+strings or maintain message catalogues. [**Kapi React**](/react/introduction)
+extracts the translatable text straight from your JSX **at build time** — no
+`t()` calls, no keys — and writes it into **KLF**, Kapi's native bilingual
+exchange format. From there it's the same Kapi workflow you'd run on any other
+source.
+
+## The shape of it
+
+```
+JSX components ──(Kapi React, build time)──▶ KLF ──▶ kapi translate / pseudo-translate / qa ──▶ compiled locales
+```
+
+1. **Extract** — the Kapi React build plugin pulls JSX text, attributes, plurals,
+   and inline elements into a KLF archive. (KLF carries structural context and
+   placeholders, not flat key-value JSON — see the [KLF spec](/reference/klf/overview).)
+2. **Work the KLF** with the tools you already know:
+   - [`kapi pseudo-translate`](/kapi/recipes/pseudo-translate) to catch clipping and
+     missing strings before any real translation exists;
+   - [`kapi translate`](/kapi/recipes/choose-a-translation-provider) to fill targets
+     with an LLM or MT provider;
+   - [`kapi qa`](/kapi/recipes/verify-content) and `kapi term-check` to check the
+     result.
+3. **Compile** the finished KLF back into per-locale runtime bundles.
+
+## Drive it from your AI assistant
+
+Because the whole loop is `kapi` commands over a KLF archive, your AI assistant
+can run it. With the [Kapi MCP server](/kapi/get-started/use-with-mcp#react-apps-over-mcp)
+connected, point Claude at the extracted strings and ask it to translate and
+check them — it calls `kapi`, runs the checks, and loops on the findings until
+the archive passes.
+
+## Next
+
+- [Kapi React — quick start](/react/quickstart) — install the plugin and extract
+  your first strings.
+- [Localize a React app](/react/translating-with-kapi) — the full extract →
+  translate → check → compile walkthrough.
