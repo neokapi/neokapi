@@ -254,10 +254,16 @@ function docRole(b: ContentNode, index: number): RenderLine["role"] {
   return "body";
 }
 
-/** A short entry key for the list view (the most descriptive property). */
+/** A short entry key for the list view (the most descriptive property).
+ *
+ * Structured/catalog formats anchor each value to a key: JSON/YAML/properties
+ * carry the dotted key path on the block's `name` (and JSON also on
+ * `json.keypath`), gettext on `msgid`, etc. Surfacing it turns the flat list
+ * into a key → value view. Prose formats leave `name` empty, so they stay plain
+ * text. */
 function entryKey(b: ContentNode): string | undefined {
   const p = b.properties ?? {};
-  return p.key ?? p.path ?? p.name ?? p.id ?? p.msgid ?? undefined;
+  return p.key ?? p.path ?? p.name ?? p.id ?? p.msgid ?? p["json.keypath"] ?? b.name ?? undefined;
 }
 
 // ── Per-kind extraction ──────────────────────────────────────────────────────
