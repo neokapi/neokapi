@@ -144,13 +144,28 @@ flag — the third storage model above. This is the same store
 and the round-trip all see one shared memory and glossary. See
 [Create your first project](/kapi/get-started/first-project).
 
-## In Kapi Desktop
+## Run it
+
+<Cli>
+
+`kapi tm lookup` and `kapi termbase lookup` query the resolved store directly —
+the same memory and glossary a recycle or term-check would draw on:
+
+```bash
+kapi termbase lookup "dashboard" -s en -t fr  # reads the project termbase
+```
+
+</Cli>
+
+<Desktop>
 
 Kapi Desktop opens the same project TM and termbase in its TM & terminology
 explorer, where you can browse stored translations and terms, search them, and
 see what a recycle or term-check would match — the visual companion to
 `kapi tm lookup` and `kapi termbase lookup`. See
 [Kapi Desktop](/kapi/desktop/overview).
+
+</Desktop>
 
 ## Next
 

@@ -66,6 +66,8 @@ Neither command modifies the file.
 
 ## Rewrite from a plain-language instruction
 
+<Cli>
+
 Pass the instruction and the file. kapi reads the file, extracts the text into
 blocks, sends them to the LLM with the instruction, and writes the results back:
 
@@ -89,6 +91,18 @@ Multiple files work in one call:
 kapi rewrite --instruction "simplify to plain language, reading level 8" \
   docs/*.md
 ```
+
+</Cli>
+
+<Desktop>
+
+Kapi Desktop composes the rewrite as a reusable flow in the visual flow editor:
+add a rewrite step, set its instruction and provider, and chain it with checks or
+redaction if needed. Running the flow streams live progress block by block and
+shows the faithful diff before you commit the result. See
+[Kapi Desktop](/kapi/desktop/overview).
+
+</Desktop>
 
 ## Review before applying
 
@@ -194,14 +208,6 @@ store and is materialized with `kapi merge`, rather than landing next to the
 input or being toggled with `-i`. Folding the rewrite into a flow you run with
 `kapi run` makes it repeatable across the whole content set. See
 [Create your first project](/kapi/get-started/first-project).
-
-## In Kapi Desktop
-
-Kapi Desktop composes the rewrite as a reusable flow in the visual flow editor:
-add a rewrite step, set its instruction and provider, and chain it with checks or
-redaction if needed. Running the flow streams live progress block by block and
-shows the faithful diff before you commit the result. See
-[Kapi Desktop](/kapi/desktop/overview).
 
 ## Next
 

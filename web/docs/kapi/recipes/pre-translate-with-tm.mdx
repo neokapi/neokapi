@@ -55,6 +55,8 @@ pseudo-translation covers everything the TM didn't, so no segment is silently
 left blank; `term-check` pre-flags any terminology problems before content goes
 out.
 
+<Cli>
+
 ## Step 1 — load your TM
 
 Import the translation memory so leverage can read it. With no flag the import
@@ -113,6 +115,17 @@ kapi term-check step2_translated.json \
 (Import the glossary into `product-terms` first — see
 [Enforce terminology](/kapi/recipes/terminology-qa).)
 
+</Cli>
+
+<Desktop>
+
+Kapi Desktop runs the same recycle, pseudo-translate, and term-check steps from
+the visual flow runner. The reused translation memory is browsable in the TM &
+terminology explorer, where you can inspect the matches a run leveraged and the
+segments it left for translation. See [Kapi Desktop](/kapi/desktop/overview).
+
+</Desktop>
+
 ## In a project
 
 The ad-hoc steps above pass `--source-lang`, `--target-lang`, and a TM on every
@@ -138,13 +151,6 @@ kapi run pretranslate
 `kapi run` discovers the nearest recipe, resolves the project TM and termbase
 automatically, and applies the declared languages — no per-command flags. See
 [Create your first project](/kapi/get-started/first-project).
-
-## In Kapi Desktop
-
-Kapi Desktop runs the same recycle, pseudo-translate, and term-check steps from
-the visual flow runner. The reused translation memory is browsable in the TM &
-terminology explorer, where you can inspect the matches a run leveraged and the
-segments it left for translation. See [Kapi Desktop](/kapi/desktop/overview).
 
 ## Try it
 

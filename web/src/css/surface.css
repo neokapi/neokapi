@@ -1,0 +1,30 @@
+/* Dual-mode (CLI / Kapi Desktop) content visibility, driven by the navbar
+   SurfaceToggle through html[data-surface]. Authors wrap surface-specific
+   content in <Cli> / <Desktop> (rendered with data-surface-kind). With the
+   attribute unset (e.g. before the preload script runs) both are shown. See
+   src/components/surface/. */
+
+html[data-surface="cli"] .surface-block[data-surface-kind="desktop"] {
+  display: none;
+}
+html[data-surface="desktop"] .surface-block[data-surface-kind="cli"] {
+  display: none;
+}
+
+/* "Both" shows every block, so label each one and rail it off to keep the CLI
+   and Desktop variants visually distinct. */
+html[data-surface="both"] .surface-block {
+  border-inline-start: 3px solid var(--ifm-color-emphasis-300);
+  padding-inline-start: 1rem;
+  margin-block: 1rem;
+}
+html[data-surface="both"] .surface-block::before {
+  content: attr(data-surface-label);
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-emphasis-600);
+}

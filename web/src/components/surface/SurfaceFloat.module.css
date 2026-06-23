@@ -1,0 +1,82 @@
+.float {
+  position: fixed;
+  top: calc(var(--ifm-navbar-height, 3.75rem) + 1rem);
+  right: 1.5rem;
+  z-index: 200;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--ifm-background-surface-color, var(--ifm-background-color));
+  border: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.hidden {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+
+.shown {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.filterIcon {
+  color: var(--ifm-color-emphasis-500);
+  margin: 0 1px 0 4px;
+}
+
+.opt {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ifm-color-emphasis-500);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.opt:hover {
+  color: var(--ifm-color-emphasis-800);
+  background: var(--ifm-color-emphasis-100);
+}
+
+/* Toggled on = highlighted; off = muted, so it reads as "filtered out". */
+.on {
+  color: var(--ifm-color-primary);
+  background: var(--ifm-color-primary-contrast-background, var(--ifm-color-emphasis-200));
+}
+
+/* On wide viewports, ride the right edge of the content gutter rather than the
+   very window edge, so it lines up with the table of contents. */
+@media (min-width: 1416px) {
+  .float {
+    right: max(1.5rem, calc((100vw - 1320px) / 2 + 1rem));
+  }
+}
+
+/* On narrow screens (no right TOC), tuck it to the bottom-right as a small FAB
+   so it never collides with the navbar burger. */
+@media (max-width: 996px) {
+  .float {
+    top: auto;
+    bottom: 1.25rem;
+    right: 1.25rem;
+  }
+  .hidden {
+    transform: translateY(8px);
+  }
+}
