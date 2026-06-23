@@ -1037,7 +1037,14 @@ jobs:
       # registry repo. No-ops until the updater signing key + registry token
       # are configured.
       - name: Publish updater appcast (macOS)
+        # Non-blocking: the cask's .dmg is already uploaded to the release above,
+        # so a registry git stall here (a known macOS-runner connect-phase hang)
+        # must never block cask publication or zombie the runner for hours. The
+        # with_timeout retries inside publish-appcast.sh handle the common stall;
+        # these caps bound the worst case — the in-app-update feed is recoverable.
         if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
+        timeout-minutes: 25
+        continue-on-error: true
         env:
           UPDATE_ED25519_PRIVATE_KEY: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY }}
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
@@ -1431,7 +1438,14 @@ jobs:
 
       # Publish the in-app-update feed (Phase 2) — see the bowrain job for notes.
       - name: Publish updater appcast (macOS)
+        # Non-blocking: the cask's .dmg is already uploaded to the release above,
+        # so a registry git stall here (a known macOS-runner connect-phase hang)
+        # must never block cask publication or zombie the runner for hours. The
+        # with_timeout retries inside publish-appcast.sh handle the common stall;
+        # these caps bound the worst case — the in-app-update feed is recoverable.
         if: runner.os == 'macOS' && steps.signing.outputs.enabled == 'true'
+        timeout-minutes: 25
+        continue-on-error: true
         env:
           UPDATE_ED25519_PRIVATE_KEY: ${{ secrets.UPDATE_ED25519_PRIVATE_KEY }}
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}

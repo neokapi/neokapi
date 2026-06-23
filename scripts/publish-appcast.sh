@@ -41,6 +41,31 @@ export GIT_TERMINAL_PROMPT=0
 export GIT_HTTP_LOW_SPEED_LIMIT="${GIT_HTTP_LOW_SPEED_LIMIT:-1000}"
 export GIT_HTTP_LOW_SPEED_TIME="${GIT_HTTP_LOW_SPEED_TIME:-30}"
 
+# Hard wall-clock timeout for a single command. macOS runners ship no
+# `timeout`/`gtimeout`, and the GIT_HTTP_LOW_SPEED knobs above only fire once a
+# transfer is *underway* — they do nothing for a stall in the connect/TLS phase,
+# which is exactly how the registry git clone/push (and an occasional `gh release
+# upload`) hangs on macOS runners (observed: multi-hour hangs before any bytes
+# move). Wrapping each network call in with_timeout makes the surrounding retry
+# loops actually recover: a stalled call is killed at the deadline and retried.
+with_timeout() {
+  local secs="$1"; shift
+  "$@" &
+  local pid=$!
+  (
+    sleep "$secs"
+    kill -TERM "$pid" 2>/dev/null || true
+    sleep 5
+    kill -KILL "$pid" 2>/dev/null || true
+  ) &
+  local killer=$!
+  local rc=0
+  wait "$pid" 2>/dev/null || rc=$?
+  kill -TERM "$killer" 2>/dev/null || true
+  wait "$killer" 2>/dev/null || true
+  return "$rc"
+}
+
 title="${1:?title required}"
 name="${2:?feed name required}"
 version="${3:?version required}"
@@ -77,7 +102,14 @@ else
 fi
 
 echo "Uploading $artifact to release $ref" >&2
-gh release upload "$ref" "$artifact" --clobber
+for i in 1 2 3; do
+  if with_timeout 300 gh release upload "$ref" "$artifact" --clobber; then
+    break
+  fi
+  echo "release upload stalled/failed (attempt $i), retrying…" >&2
+  [ "$i" = 3 ] && { echo "publish-appcast.sh: release upload failed after retries" >&2; exit 1; }
+  sleep $((i * 5))
+done
 
 # One signed feed per channel: a final writes the stable AND beta feeds; a
 # prerelease writes the beta feed only. mkappcast must run from the repo root,
@@ -102,7 +134,7 @@ for channel in $channels; do
   work="/tmp/registry-${name}-${os}-${arch}-${channel}"
   for i in 1 2 3; do
     rm -rf "$work"
-    if git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" "$work"; then
+    if with_timeout 120 git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" "$work"; then
       break
     fi
     echo "registry clone stalled/failed (attempt $i), retrying…" >&2
@@ -121,9 +153,9 @@ for channel in $channels; do
     fi
     git commit -m "appcast: ${name} ${version} ${os}/${arch} (${channel})"
     for i in 1 2 3 4 5; do
-      if git push; then exit 0; fi
-      echo "push race on registry, rebasing (attempt $i)…" >&2
-      git pull --rebase --no-edit || true
+      if with_timeout 120 git push; then exit 0; fi
+      echo "push race/stall on registry, rebasing (attempt $i)…" >&2
+      with_timeout 120 git pull --rebase --no-edit || true
     done
     echo "publish-appcast.sh: failed to push $feed after retries" >&2
     exit 1
