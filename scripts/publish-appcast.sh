@@ -18,7 +18,9 @@
 # arch, so arch is disambiguated by the feed URL. The app fetches
 # appcast-<name>-<runtime.GOOS>-<runtime.GOARCH>[-beta].xml.
 #
-# Channel is tag-driven: a prerelease tag (vX.Y.Z-rc.N) → beta feed.
+# Channel is tag-driven: a prerelease tag (vX.Y.Z-rc.N) → beta feed only; a final
+# tag (vX.Y.Z) → both the stable and beta feeds. Beta is a superset fast ring
+# (see docs/internals/auto-update.md, "Release channels").
 #
 # Required env: UPDATE_ED25519_PRIVATE_KEY, REGISTRY_TOKEN, GH_TOKEN.
 #
@@ -48,9 +50,12 @@ source="${6:?source artifact/app required}"
 os="${7:?os required}"
 arch="${8:?arch required}"
 
+# A prerelease publishes to the beta feed only; a final publishes to BOTH the
+# stable and beta feeds, so the beta channel also carries finals and beta users
+# never fall behind stable.
 case "$ref" in
-  *-*) channel=beta ;;
-  *)   channel=stable ;;
+  *-*) channels="beta" ;;
+  *)   channels="stable beta" ;;
 esac
 
 # sparkle:os value the Wails appcast provider matches against runtime.GOOS.
@@ -71,51 +76,56 @@ else
   artifact="$source"
 fi
 
-# Feed file: per (os, arch) [and channel].
-suffix=""; [ "$channel" = beta ] && suffix="-beta"
-feed="appcast-${name}-${os}-${arch}${suffix}.xml"
-chan_args=(); [ "$channel" = beta ] && chan_args=(--channel beta)
-
-go run ./scripts/mkappcast gen \
-  --title "$title" \
-  --version "$version" \
-  --os "$sparkle_os" \
-  "${chan_args[@]}" \
-  --url-prefix "https://github.com/${repo}/releases/download/${ref}" \
-  --out "$feed" \
-  "$artifact"
-
 echo "Uploading $artifact to release $ref" >&2
 gh release upload "$ref" "$artifact" --clobber
 
-# Publish the feed to the registry repo. Many jobs push here concurrently
-# (per-platform desktop feeds + the CLI cli.json), so rebase-retry the push.
-work="/tmp/registry-${name}-${os}-${arch}"
-for i in 1 2 3; do
-  rm -rf "$work"
-  if git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" "$work"; then
-    break
-  fi
-  echo "registry clone stalled/failed (attempt $i), retrying…" >&2
-  [ "$i" = 3 ] && { echo "publish-appcast.sh: registry clone failed after retries" >&2; exit 1; }
-  sleep $((i * 5))
+# One signed feed per channel: a final writes the stable AND beta feeds; a
+# prerelease writes the beta feed only. mkappcast must run from the repo root,
+# so each channel's git work happens in an isolated subshell (its `cd` and
+# `exit` stay local; a failed push still fails the script via `set -e`).
+for channel in $channels; do
+  suffix=""; [ "$channel" = beta ] && suffix="-beta"
+  feed="appcast-${name}-${os}-${arch}${suffix}.xml"
+  chan_args=(); [ "$channel" = beta ] && chan_args=(--channel beta)
+
+  go run ./scripts/mkappcast gen \
+    --title "$title" \
+    --version "$version" \
+    --os "$sparkle_os" \
+    "${chan_args[@]}" \
+    --url-prefix "https://github.com/${repo}/releases/download/${ref}" \
+    --out "$feed" \
+    "$artifact"
+
+  # Publish the feed to the registry repo. Many jobs push here concurrently
+  # (per-platform desktop feeds + the CLI cli.json), so rebase-retry the push.
+  work="/tmp/registry-${name}-${os}-${arch}-${channel}"
+  for i in 1 2 3; do
+    rm -rf "$work"
+    if git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" "$work"; then
+      break
+    fi
+    echo "registry clone stalled/failed (attempt $i), retrying…" >&2
+    [ "$i" = 3 ] && { echo "publish-appcast.sh: registry clone failed after retries" >&2; exit 1; }
+    sleep $((i * 5))
+  done
+  cp "$feed" "$work/"
+  (
+    cd "$work"
+    git config user.email "release-bot@neokapi.dev"
+    git config user.name "release-bot"
+    git add "$feed"
+    if git diff --staged --quiet; then
+      echo "appcast $feed unchanged; nothing to publish" >&2
+      exit 0
+    fi
+    git commit -m "appcast: ${name} ${version} ${os}/${arch} (${channel})"
+    for i in 1 2 3 4 5; do
+      if git push; then exit 0; fi
+      echo "push race on registry, rebasing (attempt $i)…" >&2
+      git pull --rebase --no-edit || true
+    done
+    echo "publish-appcast.sh: failed to push $feed after retries" >&2
+    exit 1
+  )
 done
-cp "$feed" "$work/"
-cd "$work"
-git config user.email "release-bot@neokapi.dev"
-git config user.name "release-bot"
-git add "$feed"
-if git diff --staged --quiet; then
-  echo "appcast unchanged; nothing to publish" >&2
-  exit 0
-fi
-git commit -m "appcast: ${name} ${version} ${os}/${arch} (${channel})"
-for i in 1 2 3 4 5; do
-  if git push; then
-    exit 0
-  fi
-  echo "push race on registry, rebasing (attempt $i)…" >&2
-  git pull --rebase --no-edit || true
-done
-echo "publish-appcast.sh: failed to push $feed after retries" >&2
-exit 1

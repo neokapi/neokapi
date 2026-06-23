@@ -24,6 +24,7 @@ import (
 	_ "github.com/neokapi/neokapi/cli"
 	appconfig "github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/credentials"
+	cliI18n "github.com/neokapi/neokapi/cli/i18n"
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -717,10 +718,15 @@ type IOPort struct {
 // Returns the resolved locale so the frontend can confirm what took
 // effect — useful when the request was "auto" and the backend chose.
 func (a *App) SetLocale(locale string) string {
-	tr := i18n.Resolve(i18n.ResolveOptions{Flag: locale})
+	// cliI18n.Resolve merges the framework catalogs with the CLI catalog
+	// (command help, output chrome, and the desktop.menu.* labels), so the
+	// native menu localizes from the same catalogs as the rest of the app.
+	tr := cliI18n.Resolve(i18n.ResolveOptions{Flag: locale})
 	a.i18nMu.Lock()
 	a.translator = tr
 	a.i18nMu.Unlock()
+	// Let the native menu (built in main) rebuild against the new translator.
+	a.emitEvent("locale:changed", string(tr.Locale()))
 	return string(tr.Locale())
 }
 

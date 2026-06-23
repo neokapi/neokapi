@@ -573,5 +573,18 @@
         "total": "Total: %d tool(s)"
       }
     }
+  },
+  "desktop": {
+    "menu": {
+      "checkForUpdates": "Check for Updates…",
+      "clearRecentProjects": "Clear Recent Projects",
+      "file": "File",
+      "newProject": "New Project",
+      "noRecentProjects": "No Recent Projects",
+      "open": "Open...",
+      "recentProjects": "Recent Projects",
+      "save": "Save",
+      "saveAs": "Save As..."
+    }
   }
 }

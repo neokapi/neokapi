@@ -26,9 +26,6 @@ const indexName = "kapi"
 // KAPI_CLI_INDEX_URL (tests, mirrors, enterprise).
 const DefaultIndexURL = "https://neokapi.github.io/registry/cli.json"
 
-// defaultChannel is the release track checked by default.
-const defaultChannel = "stable"
-
 // cacheTTL is how long a cached latest-version answer stays fresh. The check is
 // a courtesy, not a guarantee — once a day is plenty and keeps us off the
 // network on the hot path.
@@ -52,7 +49,7 @@ type Release struct {
 // release index. It performs network I/O and does not consult the cache.
 func FetchLatest(ctx context.Context, channel string) (*Release, error) {
 	if channel == "" {
-		channel = defaultChannel
+		channel = version.Channel()
 	}
 	idx, err := registry.FetchIndex(ctx, IndexURL())
 	if err != nil {
@@ -121,7 +118,7 @@ func isTruthy(v string) bool {
 // but never fatal — callers treat any error as "no notice".
 func CachedLatest(ctx context.Context, channel string) (latest string, err error) {
 	if channel == "" {
-		channel = defaultChannel
+		channel = version.Channel()
 	}
 	path := cachePath()
 	if st, ok := readCache(path); ok && st.Channel == channel && time.Since(st.CheckedAt) < cacheTTL {
@@ -181,7 +178,7 @@ func RenderNotice(w io.Writer, channel string) {
 // TTY/opt-out gate so it can be tested without a terminal.
 func renderNotice(w io.Writer, channel string) {
 	if channel == "" {
-		channel = defaultChannel
+		channel = version.Channel()
 	}
 	st, ok := readCache(cachePath())
 	if !ok || st.Channel != channel || !IsNewer(st.Latest) {

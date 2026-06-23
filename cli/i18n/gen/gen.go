@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/cli/desktopmenu"
 	"github.com/neokapi/neokapi/cli/output"
 )
 
@@ -59,6 +60,10 @@ func BuildDocument() map[string]any {
 	walkCommand(root, []string{"cli", "commands", "kapi"}, doc)
 	for key, src := range output.Catalog() {
 		set(doc, append([]string{"cli", "output"}, strings.Split(key, ".")...), src)
+	}
+	// kapi-desktop native menu labels, scoped desktop.menu.<key>.
+	for key, src := range desktopmenu.Catalog() {
+		set(doc, append([]string{"desktop", "menu"}, strings.Split(key, ".")...), src)
 	}
 	return doc
 }

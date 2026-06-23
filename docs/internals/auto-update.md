@@ -54,36 +54,61 @@ Two hard constraints that recur everywhere:
   tarballs, a registry, signature verification in `pluginhost`, and
   `kapi plugin install/update`. **Reuse this infrastructure for the CLI itself.**
 
-## Release channels: `stable` + `beta` (tag-driven)
+## Release channels: `stable` + `beta` (tag-driven, beta is a superset)
 
 Two channels, selected purely by how a release is **tagged** — no promotion step:
 
-- **`stable`** ← a full tag `vX.Y.Z`. The curated track; the default for every
-  install and for `kapi update` / the notifier.
-- **`beta`** ← a prerelease tag `vX.Y.Z-rc.N` / `-beta.N` (anything with a `-`).
-  The fast track for dogfooding and early adopters. Cutting the eventual full
-  `vX.Y.Z` *is* the promotion to stable.
+- **`stable`** ← a full tag `vX.Y.Z`. The curated track; the default for fresh
+  installs and for `kapi update` / the notifier.
+- **`beta`** ← the **fast ring**. It carries every prerelease **and** every final
+  — a strict superset of stable — so a beta user is always at least as current as
+  stable and **never falls behind** between prereleases.
 
-`beta` reuses the channel name already in the plugin registry (`stable`/`beta`).
-Both the `cli.json` index and the Homebrew tap carry both tracks:
+This superset shape is the key design choice. The alternative (beta = prereleases
+only) strands beta users on the last `-rc` when a final/patch ships to stable; the
+superset avoids that, at the cost of beta builds sometimes running a *final*
+(non-prerelease) version — which the sticky channel below handles.
 
-- **Index**: `release.yml` registers each build under its tag-derived channel
-  (`registry-update --channel stable|beta`). `registry.Resolve("kapi", "",
-  channel, …)` filters on it.
-- **Homebrew**: stable ships `kapi-cli` / `bowrain-cli`; beta ships the
-  `@`-versioned `kapi-cli@beta` / `bowrain-cli@beta` (class `KapiCliATBeta`),
-  so the two tracks install **side by side**. `brew install
-  neokapi/tap/kapi-cli@beta` opts in.
+**Publishing (`release.yml` + `scripts/publish-appcast.sh`).** Driven by the tag:
 
-**Client selection.** `update.channel` config key (env `KAPI_UPDATE_CHANNEL`),
-default `stable`, controls both `kapi update` and the background notifier;
-`kapi update --channel beta` overrides per-invocation. The nudge is
-channel-aware — a beta Homebrew user is told `brew upgrade kapi-cli@beta`, not
-the stable formula. Point the in-repo dogfood project at `beta` to ride the
-fast track.
+| | prerelease tag `vX.Y.Z-rc.N` | final tag `vX.Y.Z` |
+|---|---|---|
+| `cli.json` / plugin registry | `--channel beta` (beta-only entry) | `--channel ""` → a **universal** entry that `registry.Resolve` matches for *any* channel |
+| Homebrew formulae | `kapi-cli-beta` / `bowrain-cli-beta` only | **both** `kapi-cli` + `kapi-cli-beta` (and bowrain) at the final version |
+| Desktop appcast feeds | `…-beta.xml` only | **both** `….xml` and `…-beta.xml` |
+| Desktop casks | `kapi@beta` / `bowrain@beta` only | **both** `kapi` + `kapi@beta` (and bowrain) |
 
-> Caveat: only Homebrew publishes a `@beta` variant today. winget/scoop beta
-> tracks are a later add; until then their nudges use the base package name.
+So a final reaches beta users on every install method (Homebrew formula, tarball
+self-update via `cli.json`, and the desktop cask/appcast).
+
+- **Homebrew naming**: the beta CLI is `kapi-cli-beta` / `bowrain-cli-beta` (class
+  `KapiCliBeta`), **not** `@beta` — `Formulary.class_s` only rewrites `@`→`AT`
+  before a digit, so an `@beta` formula expects the invalid class `KapiCli@beta`
+  and can never load. The desktop apps are **casks**, where `@beta` *is* a legal
+  token, so the beta desktop is `kapi@beta` / `bowrain@beta`. The `-beta` formula
+  and `@beta` cask each `conflicts_with` their stable counterpart (same `kapi`
+  binary / same `.app`), so a user is on one channel at a time. `brew install
+  neokapi/tap/kapi-cli-beta` / `--cask neokapi/tap/kapi@beta` opts in.
+
+**Client selection — sticky, shared (`core/channel`).** All apps (the CLI and both
+desktops) resolve the channel through `core/channel`, a Viper-free framework
+package so the bowrain desktop can use it too. Precedence:
+
+1. `KAPI_UPDATE_CHANNEL` env (and, CLI-only, an explicit `update.channel` in
+   `kapi.yaml` via `--channel` / config).
+2. A **persisted** one-line preference next to `kapi.yaml` (`update-channel`).
+3. The channel **inferred from the running build's version** (a prerelease ⇒
+   `beta`, else `stable`).
+
+The persisted preference is what makes beta **sticky**: a fresh prerelease build
+pins `beta` on first run (`channel.EnsurePinned`), so when it later updates to a
+*final* version (which alone would infer `stable`) it **stays on beta**. Because
+the preference lives in one shared file, the CLI and both desktops follow one
+channel per machine. The notifier is channel-aware — a beta Homebrew user is told
+`brew upgrade kapi-cli-beta`.
+
+> Caveat: only Homebrew publishes `-beta`/`@beta` variants today. winget/scoop
+> beta tracks are a later add; until then their nudges use the base package name.
 
 ## Decision matrix (target state)
 

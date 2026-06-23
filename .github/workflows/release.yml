@@ -342,10 +342,17 @@ jobs:
               --bundle "${a}.sigstore.json" "$a"
           done
 
-      # Channel is tag-driven: a full tag (v1.2.0) feeds the `stable` channel; a
-      # prerelease tag (v1.2.0-rc.1, v1.2.0-beta.1, …) feeds the `beta` fast
-      # track. Stable formulae are kapi-cli/bowrain-cli; beta formulae are the
-      # @beta variants so the two tracks install side by side.
+      # Channel is tag-driven; beta is a superset fast ring that also carries
+      # finals, so beta users never fall behind stable. See
+      # docs/internals/auto-update.md, "Release channels".
+      #   prerelease tag (vX.Y.Z-rcN) → beta only.
+      #   final tag      (vX.Y.Z)     → BOTH stable and beta.
+      # Outputs:
+      #   channel       legacy single channel (beta | stable) — for messages.
+      #   channels      per-channel artifacts to publish (formulae, casks):
+      #                 "beta" for a prerelease, "stable beta" for a final.
+      #   reg_channel   the registry channel value: "beta" for a prerelease,
+      #                 "" (universal — matches every query) for a final.
       - name: Resolve release channel
         id: channel
         env:
@@ -353,18 +360,31 @@ jobs:
         run: |
           set -euo pipefail
           case "$REF_NAME" in
-            *-*) echo "channel=beta" >> "$GITHUB_OUTPUT" ;;
-            *)   echo "channel=stable" >> "$GITHUB_OUTPUT" ;;
+            *-*)
+              echo "channel=beta" >> "$GITHUB_OUTPUT"
+              echo "channels=beta" >> "$GITHUB_OUTPUT"
+              echo "reg_channel=beta" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "channel=stable" >> "$GITHUB_OUTPUT"
+              echo "channels=stable beta" >> "$GITHUB_OUTPUT"
+              echo "reg_channel=" >> "$GITHUB_OUTPUT"
+              ;;
           esac
 
       - name: Generate brew formulae
         env:
-          CHANNEL: ${{ steps.channel.outputs.channel }}
+          CHANNELS: ${{ steps.channel.outputs.channels }}
         run: |
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
-          bash scripts/gen-brew-formula.sh "$VERSION" "${{ github.repository }}" \
-            dist/checksums.txt brew-formulae "$CHANNEL"
+          # A final tag generates both the stable (kapi-cli/bowrain-cli) and beta
+          # (kapi-cli-beta/bowrain-cli-beta) formulae at the same version, so the
+          # beta channel also carries the final; a prerelease generates beta only.
+          for ch in $CHANNELS; do
+            bash scripts/gen-brew-formula.sh "$VERSION" "${{ github.repository }}" \
+              dist/checksums.txt brew-formulae "$ch"
+          done
 
       - name: Publish CLI archives to release
         uses: softprops/action-gh-release@v3
@@ -403,9 +423,9 @@ jobs:
             brew install --cask neokapi/tap/bowrain
             ```
 
-      # Push the generated formulae (stable: kapi-cli/bowrain-cli; beta: the
-      # @beta variants) to the tap. Both stable and prerelease tags publish —
-      # only the formula names and channel differ.
+      # Push the generated formulae (stable: kapi-cli/bowrain-cli; beta:
+      # kapi-cli-beta/bowrain-cli-beta) to the tap. Both stable and prerelease
+      # tags publish — only the formula names and channel differ.
       - name: Push brew formulae to homebrew-tap
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
@@ -434,7 +454,9 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           REF_NAME: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
-          CHANNEL: ${{ steps.channel.outputs.channel }}
+          # Empty on a final tag → a universal registry entry that every channel
+          # (stable AND beta) resolves; "beta" on a prerelease → beta-only.
+          REG_CHANNEL: ${{ steps.channel.outputs.reg_channel }}
         run: |
           set -euo pipefail
           VERSION="${REF_NAME#v}"
@@ -486,7 +508,7 @@ jobs:
             --registry /tmp/registry/manifest-plugins.json \
             --plugin bowrain \
             --version "$VERSION" \
-            --channel "$CHANNEL" \
+            --channel "$REG_CHANNEL" \
             --released "$RELEASED" \
             --cert-identity "$CERT_ID" \
             --cert-oidc-issuer "$ISSUER" \
@@ -502,7 +524,7 @@ jobs:
             --registry /tmp/registry/cli.json \
             --plugin kapi \
             --version "$VERSION" \
-            --channel "$CHANNEL" \
+            --channel "$REG_CHANNEL" \
             --released "$RELEASED" \
             --cert-identity "$CERT_ID" \
             --cert-oidc-issuer "$ISSUER" \
@@ -1479,14 +1501,28 @@ jobs:
 
   update-casks:
     name: Update Homebrew Casks
-    # Stable releases only — prerelease (vX.Y.Z-rcN) tags don't move the casks.
-    if: ${{ !contains(github.ref_name, '-') }}
+    # Runs for stable AND prerelease tags. A stable tag (vX.Y.Z) refreshes the
+    # kapi / bowrain casks; a prerelease tag (vX.Y.Z-rcN) refreshes the
+    # kapi@beta / bowrain@beta casks (which depend on the -beta CLI formulae).
     runs-on: ubuntu-latest
     needs: [build-bowrain, build-kapi-desktop]
     steps:
       - name: Extract version
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve cask channel
+        id: ch
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          # Final tag → both kapi/bowrain and kapi@beta/bowrain@beta casks;
+          # prerelease tag → the @beta casks only.
+          case "$REF_NAME" in
+            *-*) echo "channels=beta" >> "$GITHUB_OUTPUT" ;;
+            *)   echo "channels=stable beta" >> "$GITHUB_OUTPUT" ;;
+          esac
 
       - name: Download DMGs
         env:
@@ -1515,10 +1551,19 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
           SHA_BOWRAIN: ${{ steps.checksum.outputs.BOWRAIN_DMG }}
+          CHANNELS: ${{ steps.ch.outputs.channels }}
         run: |
+          set -euo pipefail
           mkdir -p homebrew-tap/Casks
-          cat > homebrew-tap/Casks/bowrain.rb << CASK
-          cask "bowrain" do
+          for ch in $CHANNELS; do
+          if [ "$ch" = beta ]; then
+            CASK_NAME="bowrain@beta"; DEP="bowrain-cli-beta"
+            CONFLICTS='  conflicts_with cask: "bowrain"'
+          else
+            CASK_NAME="bowrain"; DEP="bowrain-cli"; CONFLICTS=""
+          fi
+          cat > "homebrew-tap/Casks/${CASK_NAME}.rb" << CASK
+          cask "${CASK_NAME}" do
             version "${VERSION}"
             sha256 "${SHA_BOWRAIN}"
 
@@ -1527,8 +1572,8 @@ jobs:
             desc "AI-native translation editor"
             homepage "https://github.com/neokapi/neokapi"
 
-            depends_on formula: "neokapi/tap/bowrain-cli"
-
+            depends_on formula: "neokapi/tap/${DEP}"
+          ${CONFLICTS}
             app "Bowrain.app"
 
             postflight do
@@ -1538,7 +1583,7 @@ jobs:
             end
 
             caveats <<~EOS
-              The bowrain CLI is provided by the bowrain-cli formula (installed
+              The bowrain CLI is provided by the ${DEP} formula (installed
               automatically). Run "bowrain ui" to launch the desktop app.
             EOS
 
@@ -1549,15 +1594,25 @@ jobs:
             ]
           end
           CASK
+          done
 
       - name: Update kapi cask
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
           SHA_KAPI: ${{ steps.checksum.outputs.KAPI_DMG }}
+          CHANNELS: ${{ steps.ch.outputs.channels }}
         run: |
+          set -euo pipefail
           mkdir -p homebrew-tap/Casks
-          cat > homebrew-tap/Casks/kapi.rb << CASK
-          cask "kapi" do
+          for ch in $CHANNELS; do
+          if [ "$ch" = beta ]; then
+            CASK_NAME="kapi@beta"; DEP="kapi-cli-beta"
+            CONFLICTS='  conflicts_with cask: "kapi"'
+          else
+            CASK_NAME="kapi"; DEP="kapi-cli"; CONFLICTS=""
+          fi
+          cat > "homebrew-tap/Casks/${CASK_NAME}.rb" << CASK
+          cask "${CASK_NAME}" do
             version "${VERSION}"
             sha256 "${SHA_KAPI}"
 
@@ -1566,8 +1621,8 @@ jobs:
             desc "Localization toolkit - powered by neokapi"
             homepage "https://github.com/neokapi/neokapi"
 
-            depends_on formula: "neokapi/tap/kapi-cli"
-
+            depends_on formula: "neokapi/tap/${DEP}"
+          ${CONFLICTS}
             app "Kapi.app"
 
             postflight do
@@ -1577,7 +1632,7 @@ jobs:
             end
 
             caveats <<~EOS
-              The kapi CLI is provided by the kapi-cli formula (installed
+              The kapi CLI is provided by the ${DEP} formula (installed
               automatically). Run "kapi" for command-line usage.
             EOS
 
@@ -1588,6 +1643,7 @@ jobs:
             ]
           end
           CASK
+          done
 
       - name: Remove old kapi-desktop cask if present
         run: |
