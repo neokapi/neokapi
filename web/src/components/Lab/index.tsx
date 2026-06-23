@@ -1,6 +1,8 @@
-import React, { Suspense } from "react";
+import React from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
+import { ChunkSafeSuspense } from "../ChunkErrorBoundary";
+import { lazyWithRetry } from "../../lib/chunkReload";
 
 // Docusaurus adapters for the @neokapi/kapi-lab explorers. Each is client-only
 // (the WASM runtime boots in the browser) and code-split (React.lazy) so the
@@ -13,37 +15,37 @@ const Loading = (): React.ReactElement => (
   </div>
 );
 
-const LazyContentLab = React.lazy(async () => {
+const LazyContentLab = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.ContentLab };
 });
 
-const LazyPdf = React.lazy(async () => {
+const LazyPdf = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.PdfExplorer };
 });
 
-const LazyVision = React.lazy(async () => {
+const LazyVision = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.VisionExplorer };
 });
 
-const LazyModels = React.lazy(async () => {
+const LazyModels = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.ModelsExplorer };
 });
 
-const LazyMultimodalShowcase = React.lazy(async () => {
+const LazyMultimodalShowcase = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.MultimodalShowcase };
 });
 
-const LazyAudio = React.lazy(async () => {
+const LazyAudio = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.AudioExplorer };
 });
 
-const LazyVideo = React.lazy(async () => {
+const LazyVideo = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.VideoExplorer };
 });
@@ -51,34 +53,34 @@ const LazyVideo = React.lazy(async () => {
 // One consolidated Segmentation lab: every engine (srx / uax29 / hybrid / intl /
 // sat / llm) compared on your own source, sentences shown inline. Docs-local — it
 // dynamic-imports the ICU4X `icu` package + the sat/gemma bridges on demand.
-const LazySegmentationLab = React.lazy(() => import("./SegmentationLabInner"));
+const LazySegmentationLab = lazyWithRetry(() => import("./SegmentationLabInner"));
 
-const LazyBatch = React.lazy(async () => {
+const LazyBatch = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.BatchExplorer };
 });
 
-const LazyConversion = React.lazy(async () => {
+const LazyConversion = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.ConversionExplorer };
 });
 
-const LazyToolDrop = React.lazy(async () => {
+const LazyToolDrop = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.ToolDropWidget };
 });
 
-const LazyPseudoTranslate = React.lazy(async () => {
+const LazyPseudoTranslate = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.PseudoTranslateWidget };
 });
 
-const LazyStats = React.lazy(async () => {
+const LazyStats = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.StatsWidget };
 });
 
-const LazySearchReplace = React.lazy(async () => {
+const LazySearchReplace = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.SearchReplaceWidget };
 });
@@ -105,9 +107,9 @@ export function ContentLab(props: ContentLabProps): React.ReactElement {
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazyContentLab assets={assets} {...props} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;
@@ -115,7 +117,6 @@ export function ContentLab(props: ContentLabProps): React.ReactElement {
     </BrowserOnly>
   );
 }
-
 
 export interface PdfExplorerProps {
   sampleUrl?: string;
@@ -130,9 +131,9 @@ export function PdfExplorer(props: PdfExplorerProps): React.ReactElement {
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazyPdf assets={assets} {...props} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;
@@ -153,9 +154,9 @@ export function ModelsExplorer(props: ModelsExplorerProps): React.ReactElement {
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazyModels assets={assets} {...props} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;
@@ -173,9 +174,9 @@ export function VisionExplorer(props: VisionExplorerProps): React.ReactElement {
   return (
     <BrowserOnly fallback={<Loading />}>
       {() => (
-        <Suspense fallback={<Loading />}>
+        <ChunkSafeSuspense fallback={<Loading />}>
           <LazyVision {...props} />
-        </Suspense>
+        </ChunkSafeSuspense>
       )}
     </BrowserOnly>
   );
@@ -190,9 +191,9 @@ export function MultimodalShowcase(props: MultimodalShowcaseProps): React.ReactE
   return (
     <BrowserOnly fallback={<Loading />}>
       {() => (
-        <Suspense fallback={<Loading />}>
+        <ChunkSafeSuspense fallback={<Loading />}>
           <LazyMultimodalShowcase {...props} />
-        </Suspense>
+        </ChunkSafeSuspense>
       )}
     </BrowserOnly>
   );
@@ -206,9 +207,9 @@ export function AudioExplorer(props: AudioExplorerProps): React.ReactElement {
   return (
     <BrowserOnly fallback={<Loading />}>
       {() => (
-        <Suspense fallback={<Loading />}>
+        <ChunkSafeSuspense fallback={<Loading />}>
           <LazyAudio {...props} />
-        </Suspense>
+        </ChunkSafeSuspense>
       )}
     </BrowserOnly>
   );
@@ -223,9 +224,9 @@ export function VideoExplorer(props: VideoExplorerProps): React.ReactElement {
   return (
     <BrowserOnly fallback={<Loading />}>
       {() => (
-        <Suspense fallback={<Loading />}>
+        <ChunkSafeSuspense fallback={<Loading />}>
           <LazyVideo {...props} />
-        </Suspense>
+        </ChunkSafeSuspense>
       )}
     </BrowserOnly>
   );
@@ -238,9 +239,9 @@ export function SegmentationLab(): React.ReactElement {
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazySegmentationLab assets={assets} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;
@@ -261,9 +262,9 @@ export function BatchExplorer(props: BatchExplorerProps): React.ReactElement {
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazyBatch assets={assets} {...props} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;
@@ -285,9 +286,9 @@ export function ConversionExplorer(props: ConversionExplorerProps): React.ReactE
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazyConversion assets={assets} {...props} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;
@@ -321,9 +322,9 @@ export function ToolDropWidget(props: ToolDropWidgetProps): React.ReactElement {
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazyToolDrop assets={assets} {...props} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;
@@ -346,9 +347,9 @@ export function PseudoTranslateWidget(props: WidgetVariantProps): React.ReactEle
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazyPseudoTranslate assets={assets} {...props} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;
@@ -364,9 +365,9 @@ export function StatsWidget(props: WidgetVariantProps): React.ReactElement {
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazyStats assets={assets} {...props} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;
@@ -387,9 +388,9 @@ export function SearchReplaceWidget(props: SearchReplaceWidgetProps): React.Reac
         function Inner(): React.ReactElement {
           const assets = useKapiPlaygroundConfig();
           return (
-            <Suspense fallback={<Loading />}>
+            <ChunkSafeSuspense fallback={<Loading />}>
               <LazySearchReplace assets={assets} {...props} />
-            </Suspense>
+            </ChunkSafeSuspense>
           );
         }
         return <Inner />;
