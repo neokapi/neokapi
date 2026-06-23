@@ -2,13 +2,15 @@ import { useState, useCallback, useMemo } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import type { ReferenceEntry } from "@neokapi/reference-data";
 import { SchemaForm } from "@neokapi/ui-primitives";
-import Markdown, { unfence } from "./Markdown";
-import { seedDefaults, buildFormatYamlLines, buildToolYamlLines, yamlText } from "./yaml";
-import { buildRunOptions, pickFixture, notRunnableReason } from "./run-config";
-import styles from "./styles.module.css";
+import { seedDefaults, buildFormatYamlLines, buildToolYamlLines, yamlText } from "../yaml";
+import { buildRunOptions, pickFixture, notRunnableReason } from "../run-config";
+import styles from "../styles.module.css";
+import pageStyles from "./pages.module.css";
 
 interface Props {
   entry: ReferenceEntry;
+  /** "format" | "tool" — controls the YAML shape (recipe block vs flow step). */
+  kind: "format" | "tool";
 }
 
 /** All available playground fixture names (must match fixtures.ts). */
@@ -23,13 +25,20 @@ const ALL_FIXTURES = [
 ] as const;
 
 /**
- * The full, interactive reference body for one format/tool: overview,
- * metadata, presets, the live SchemaForm beside a sticky configuration-output
- * panel, and authored docs. Rendered inside {@link ReferenceModal}; kept
- * separate so the card grid stays lightweight and the detail view owns its own
- * form state.
+ * The interactive configuration block for one format/tool static reference
+ * page: preset buttons, a live SchemaForm beside a sticky configuration-output
+ * panel ("Copy YAML"), and a "Run this config" action that opens the in-browser
+ * playground. This is the live configurator that the per-entry reference detail
+ * view once rendered in a modal; it now lives directly on each static page.
+ *
+ * SSR-safe: the SchemaForm and the playground-driven Run controls are wrapped in
+ * {@link BrowserOnly} so they never hydrate on the server. The preset buttons
+ * and the YAML output render from deterministic schema defaults, so the initial
+ * server and client renders match. Renders `null` when there is nothing to offer
+ * (no parameters and not runnable) — the page already shows its own
+ * "no configurable parameters" note in that case.
  */
-export default function ReferenceDetail({ entry }: Props) {
+export default function InteractiveConfig({ entry, kind }: Props) {
   const schema = entry.schema;
   const props = schema?.properties ?? {};
   const paramCount = Object.keys(props).length;
@@ -84,10 +93,10 @@ export default function ReferenceDetail({ entry }: Props) {
 
   const yamlLines = useMemo(
     () =>
-      entry.kind === "format"
+      kind === "format"
         ? buildFormatYamlLines(entry.id, values, schema)
         : buildToolYamlLines(values, schema),
-    [entry.kind, entry.id, values, schema],
+    [kind, entry.id, values, schema],
   );
 
   const copyYaml = useCallback(() => {
@@ -127,31 +136,14 @@ export default function ReferenceDetail({ entry }: Props) {
   const baselineLabel = activePreset ?? "defaults";
   const dirtyCount = dirtyKeys.size;
 
-  return (
-    <div className={`${styles.body} kapi-reference`}>
-      {/* Overview / description */}
-      {doc?.overview ? (
-        <Markdown>{doc.overview}</Markdown>
-      ) : (
-        entry.description && <p className={styles.description}>{entry.description}</p>
-      )}
+  const hasForm = paramCount > 0;
+  // Param-less, non-runnable entries with no hint reason have nothing to show:
+  // the page's own "no configurable parameters" note covers them.
+  if (!hasForm && !runOptions && !whyNotRunnable) return null;
 
-      {/* Metadata grid */}
-      <div className={styles.metaGrid}>
-        <Meta label="ID" value={entry.id} mono />
-        {entry.kind === "format" && entry.mimeTypes && entry.mimeTypes.length > 0 && (
-          <Meta label="MIME Types" value={entry.mimeTypes.join(", ")} mono />
-        )}
-        {entry.kind === "tool" && entry.cardinality && (
-          <Meta label="Cardinality" value={entry.cardinality} />
-        )}
-        {entry.kind === "tool" && entry.requires && entry.requires.length > 0 && (
-          <Meta label="Requires" value={entry.requires.join(", ")} mono />
-        )}
-        {entry.kind === "tool" && entry.tags && entry.tags.length > 0 && (
-          <Meta label="Tags" value={entry.tags.join(", ")} />
-        )}
-      </div>
+  return (
+    <section className={`${pageStyles.page} kapi-reference`}>
+      <h2 className={pageStyles.sectionHeading}>{hasForm ? "Configure it live" : "Run it"}</h2>
 
       {/* Presets */}
       {presetNames.length > 0 && (
@@ -181,49 +173,45 @@ export default function ReferenceDetail({ entry }: Props) {
       )}
 
       {/* Interactive form beside a sticky output panel */}
-      {paramCount === 0 ? (
-        <div>
-          <p className={styles.noConfig}>This {entry.kind} has no configurable parameters.</p>
-          {/* Still offer Run for param-less entries that are offline-capable. */}
-          <BrowserOnly>
-            {() =>
-              runOptions ? (
-                <div className={`${styles.runSection} ${styles.runSectionStandalone}`}>
-                  <div className={styles.runRow}>
-                    <label htmlFor={`fixture-solo-${entry.id}`} className={styles.runLabel}>
-                      Sample input
-                    </label>
-                    <select
-                      id={`fixture-solo-${entry.id}`}
-                      className={styles.fixturePicker}
-                      value={selectedFixture}
-                      onChange={(e) => setSelectedFixture(e.target.value)}
-                    >
-                      {ALL_FIXTURES.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
-                    className={`${styles.runButton} ${styles.runButtonStandalone}`}
-                    onClick={handleRunConfig}
-                    title="Configure and run this tool in your browser"
+      {!hasForm ? (
+        <BrowserOnly>
+          {() =>
+            runOptions ? (
+              <div className={`${styles.runSection} ${styles.runSectionStandalone}`}>
+                <div className={styles.runRow}>
+                  <label htmlFor={`fixture-solo-${entry.id}`} className={styles.runLabel}>
+                    Sample input
+                  </label>
+                  <select
+                    id={`fixture-solo-${entry.id}`}
+                    className={styles.fixturePicker}
+                    value={selectedFixture}
+                    onChange={(e) => setSelectedFixture(e.target.value)}
                   >
-                    <span className={styles.runIcon} aria-hidden="true">
-                      &#9654;
-                    </span>
-                    Configure and run in your browser
-                  </button>
+                    {ALL_FIXTURES.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              ) : whyNotRunnable ? (
-                <p className={styles.notRunnableHint}>{whyNotRunnable}</p>
-              ) : null
-            }
-          </BrowserOnly>
-        </div>
+                <button
+                  type="button"
+                  className={`${styles.runButton} ${styles.runButtonStandalone}`}
+                  onClick={handleRunConfig}
+                  title="Configure and run this tool in your browser"
+                >
+                  <span className={styles.runIcon} aria-hidden="true">
+                    &#9654;
+                  </span>
+                  Configure and run in your browser
+                </button>
+              </div>
+            ) : whyNotRunnable ? (
+              <p className={styles.notRunnableHint}>{whyNotRunnable}</p>
+            ) : null
+          }
+        </BrowserOnly>
       ) : (
         <div className={styles.configGrid}>
           <section className={styles.panel}>
@@ -330,66 +318,6 @@ export default function ReferenceDetail({ entry }: Props) {
           </aside>
         </div>
       )}
-
-      {/* Examples */}
-      {doc?.examples && doc.examples.length > 0 && (
-        <div className={styles.docSection}>
-          <div className={styles.sectionTitle}>Examples</div>
-          {doc.examples.map((ex, i) => (
-            <div key={`${ex.title}-${i}`} className={styles.example}>
-              <div className={styles.exampleTitle}>{ex.title}</div>
-              {ex.description && <Markdown>{ex.description}</Markdown>}
-              {ex.config && <pre className={styles.yaml}>{unfence(ex.config)}</pre>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Processing notes */}
-      {doc?.processingNotes && doc.processingNotes.length > 0 && (
-        <div className={styles.docSection}>
-          <div className={styles.sectionTitle}>Processing notes</div>
-          <ul className={styles.noteList}>
-            {doc.processingNotes.map((note, i) => (
-              <li key={i}>
-                <Markdown>{note}</Markdown>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Limitations */}
-      {doc?.limitations && doc.limitations.length > 0 && (
-        <div className={styles.docSection}>
-          <div className={styles.sectionTitle}>Limitations</div>
-          <ul className={styles.noteList}>
-            {doc.limitations.map((lim, i) => (
-              <li key={i}>
-                <Markdown>{lim}</Markdown>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Wiki link */}
-      {doc?.wikiUrl && (
-        <p className={styles.wikiLink}>
-          <a href={doc.wikiUrl} target="_blank" rel="noreferrer">
-            Reference documentation
-          </a>
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Meta({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className={styles.metaItem}>
-      <span className={styles.metaLabel}>{label}</span>
-      <span className={mono ? styles.metaValueMono : styles.metaValue}>{value}</span>
-    </div>
+    </section>
   );
 }

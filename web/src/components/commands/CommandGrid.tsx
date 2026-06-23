@@ -1,8 +1,6 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { useHistory, useLocation } from "@docusaurus/router";
+import { useState, useMemo } from "react";
 import type { CommandEntry } from "@neokapi/reference-data";
 import CommandCard from "./CommandCard";
-import CommandModal from "./CommandModal";
 import { commandName, commandSummary } from "./commandHelpers";
 import { commandHref } from "@site/src/components/reference/slugs";
 import styles from "./styles.module.css";
@@ -42,45 +40,6 @@ function matches(cmd: CommandEntry, q: string): boolean {
 export default function CommandGrid({ commands }: Props) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const history = useHistory();
-  const location = useLocation();
-
-  // The selected command lives in the URL (?id=) so it's deep-linkable. Gate on
-  // a client-mount flag: the static HTML carries no query, so reading it only
-  // after mount keeps hydration in sync.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  const selectedId = mounted ? new URLSearchParams(location.search).get("id") : null;
-  const selectedCmd = useMemo(
-    () => (selectedId ? commands.find((c) => c.id === selectedId) : undefined),
-    [commands, selectedId],
-  );
-
-  // Track whether we pushed a history entry so closing can pop it (preserving
-  // the back button) rather than stacking a second one.
-  const pushedRef = useRef(false);
-
-  const select = useCallback(
-    (id: string) => {
-      const params = new URLSearchParams(location.search);
-      params.set("id", id);
-      history.push({ search: params.toString() });
-      pushedRef.current = true;
-    },
-    [history, location.search],
-  );
-
-  const close = useCallback(() => {
-    if (pushedRef.current) {
-      pushedRef.current = false;
-      history.goBack();
-      return;
-    }
-    const params = new URLSearchParams(location.search);
-    params.delete("id");
-    history.replace({ search: params.toString() });
-  }, [history, location.search]);
 
   const counts = useMemo(() => {
     const runnable = commands.filter((c) => c.runnableInBrowser && !c.demoMode).length;
@@ -155,17 +114,13 @@ export default function CommandGrid({ commands }: Props) {
           <h2 className={styles.groupHeading}>{group}</h2>
           <div className={styles.grid}>
             {items.map((cmd) => (
-              <CommandCard key={cmd.id} cmd={cmd} href={commandHref(cmd)} onSelect={select} />
+              <CommandCard key={cmd.id} cmd={cmd} href={commandHref(cmd)} />
             ))}
           </div>
         </section>
       ))}
 
       {filtered.length === 0 && <p className={styles.empty}>No commands match your search.</p>}
-
-      {selectedCmd && (
-        <CommandModal cmd={selectedCmd} href={commandHref(selectedCmd)} onClose={close} />
-      )}
     </>
   );
 }
