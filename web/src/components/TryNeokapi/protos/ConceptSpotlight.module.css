@@ -1,0 +1,178 @@
+/* Concept A — Spotlight. The slide sits centred; satellites (params, terms, TM,
+   models) fly in around it per phase, then it fans into reviewed languages. */
+
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 20rem;
+  padding: 0.5rem;
+  border-radius: 14px;
+  background:
+    radial-gradient(
+      80% 70% at 50% 30%,
+      color-mix(in srgb, var(--ifm-color-primary) 7%, transparent),
+      transparent 70%
+    ),
+    var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  overflow: hidden;
+}
+
+.slideWrap {
+  position: relative;
+  z-index: 2;
+  width: 66%;
+  transition:
+    transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1),
+    width 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.stageFan .slideWrap {
+  transform: translateY(-3.4rem) scale(0.92);
+  width: 50%;
+}
+.slide {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
+}
+
+/* ── Satellites ────────────────────────────────────────────────────────────── */
+.satLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.params,
+.terms,
+.memory,
+.models {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  opacity: 0;
+  transition:
+    opacity 0.45s ease,
+    transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  pointer-events: none;
+}
+.params {
+  top: 0.7rem;
+  left: 0.7rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+  transform: translateX(-14px);
+}
+.paramsIn {
+  opacity: 1;
+  transform: translateX(0);
+}
+.terms {
+  top: 2.4rem;
+  right: 0.7rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-end;
+  transform: translateX(14px);
+}
+.termsIn {
+  opacity: 1;
+  transform: translateX(0);
+}
+.memory {
+  bottom: 0.8rem;
+  left: 0.7rem;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  background: var(--ifm-background-color);
+  border: 1px solid color-mix(in srgb, var(--ifm-color-primary) 28%, var(--ifm-color-emphasis-200));
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+  transform: translateY(14px);
+}
+.memoryIn {
+  opacity: 1;
+  transform: translateY(0);
+}
+.memoryTitle {
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ifm-color-primary);
+}
+.memoryHit {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+}
+.models {
+  top: 0.7rem;
+  left: 50%;
+  gap: 0.4rem;
+  transform: translate(-50%, -12px);
+}
+.modelsIn {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* ── Language fan ──────────────────────────────────────────────────────────── */
+.fan {
+  position: absolute;
+  inset-inline: 0.7rem;
+  bottom: 0.7rem;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.45rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.5s ease,
+    transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  pointer-events: none;
+}
+.fanIn {
+  opacity: 1;
+  transform: translateY(0);
+}
+.fanCard {
+  opacity: 0;
+  transform: translateY(12px) scale(0.94);
+  transition:
+    opacity 0.45s ease,
+    transform 0.5s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.fanIn .fanCard {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@media (max-width: 575px) {
+  .fan {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stageFan .slideWrap {
+    transform: translateY(-5.5rem) scale(0.8);
+    width: 60%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slideWrap,
+  .params,
+  .terms,
+  .memory,
+  .models,
+  .fan,
+  .fanCard {
+    transition: none;
+  }
+}
