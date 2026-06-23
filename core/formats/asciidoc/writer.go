@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -257,6 +258,23 @@ func (w *Writer) writeFromEvents(events []*model.Part) error {
 	return nil
 }
 
+// asciidocCellSpan returns the AsciiDoc cell-span prefix for a merged table cell
+// (e.g. "2+" colspan, ".2+" rowspan, "2.3+" both), or "" when unmerged.
+func asciidocCellSpan(b *model.Block) string {
+	s, ok := b.Structure()
+	if !ok || s == nil || (s.ColSpan <= 1 && s.RowSpan <= 1) {
+		return ""
+	}
+	col, row := "", ""
+	if s.ColSpan > 1 {
+		col = strconv.Itoa(s.ColSpan)
+	}
+	if s.RowSpan > 1 {
+		row = "." + strconv.Itoa(s.RowSpan)
+	}
+	return col + row + "+"
+}
+
 // writeBlockNormalized renders one block with canonical AsciiDoc markers keyed
 // on its semantic role.
 func (w *Writer) writeBlockNormalized(block *model.Block, sep func() error) error {
@@ -271,7 +289,7 @@ func (w *Writer) writeBlockNormalized(block *model.Block, sep func() error) erro
 
 	switch role {
 	case model.RoleTableHeader, model.RoleTableCell:
-		_, err := fmt.Fprintf(w.Output, "| %s\n", text)
+		_, err := fmt.Fprintf(w.Output, "%s| %s\n", asciidocCellSpan(block), text)
 		return err
 	case model.RoleListItem:
 		level := max(headingLevel(block), 1)

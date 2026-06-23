@@ -1,10 +1,13 @@
 package flow_test
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -420,4 +423,117 @@ func TestFileRunner_ContextCancellationAborts(t *testing.T) {
 	_, statErr := os.Stat(outputPath)
 	assert.True(t, os.IsNotExist(statErr),
 		"a cancelled run must leave no output file; got statErr=%v", statErr)
+}
+
+// TestFileRunner_XLSXGridToTable verifies that a cross-format export of a
+// spreadsheet (whose translatable text lives in the deduplicated shared-string
+// table, with no per-cell structure) reconstructs a real table from the cells'
+// grid geometry — rendering a GFM table in Markdown and <table> markup in HTML,
+// not a flat list of cell values, and without the shared strings duplicated as
+// loose paragraphs.
+func TestFileRunner_XLSXGridToTable(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	src, err := os.ReadFile("../formats/openxml/testdata/EksempelFiltrering.xlsx")
+	require.NoError(t, err)
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "input.xlsx")
+	require.NoError(t, os.WriteFile(inputPath, src, 0o644))
+
+	runner := flow.NewFileRunner(flow.FileRunnerConfig{FormatReg: reg, SourceLocale: "en-US"})
+
+	// → Markdown: a GFM table with the header row and separator.
+	mdOut := filepath.Join(dir, "out.md")
+	require.NoError(t, runner.RunFileWithReaderWriter(context.Background(), "convert",
+		[]tool.Tool{&tool.BaseTool{ToolName: "passthrough"}}, inputPath, mdOut, "",
+		mustReader(t, reg, "openxml"), mustWriter(t, reg, "markdown")))
+	md, err := os.ReadFile(mdOut)
+	require.NoError(t, err)
+	gotMD := string(md)
+	t.Logf("markdown:\n%s", firstLines(gotMD, 6))
+	assert.Contains(t, gotMD, "| ID | Artist | Tittel |", "the header row should render as a GFM table row")
+	assert.Contains(t, gotMD, "| --- |", "a GFM header separator row should be present")
+	assert.Contains(t, gotMD, "| Nordlys |", "a data cell value should render inside the table")
+	assert.NotContains(t, gotMD, "<worksheet", "openxml skeleton must not leak")
+	// The shared-string source blocks and the Excel table-column names are
+	// represented by the grid, so they must NOT also appear as loose paragraphs.
+	assert.NotContains(t, gotMD, "\n\nID\n", "header text must not duplicate as a loose paragraph")
+	assert.NotContains(t, gotMD, "\n\nRPM\n", "table-column names must not duplicate as loose paragraphs")
+
+	// → HTML: real <table>/<tr>/<td> markup.
+	htmlOut := filepath.Join(dir, "out.html")
+	require.NoError(t, runner.RunFileWithReaderWriter(context.Background(), "convert",
+		[]tool.Tool{&tool.BaseTool{ToolName: "passthrough"}}, inputPath, htmlOut, "",
+		mustReader(t, reg, "openxml"), mustWriter(t, reg, "html")))
+	h, err := os.ReadFile(htmlOut)
+	require.NoError(t, err)
+	gotHTML := string(h)
+	assert.Contains(t, gotHTML, "<table>", "should render an HTML table")
+	assert.Contains(t, gotHTML, "Nordlys", "a data cell value should be present in the HTML table")
+}
+
+func mustWriter(t *testing.T, reg *registry.FormatRegistry, name string) format.DataFormatWriter {
+	t.Helper()
+	w, err := reg.NewWriter(registry.FormatID(name))
+	require.NoError(t, err)
+	return w
+}
+
+func firstLines(s string, n int) string {
+	lines := strings.Split(s, "\n")
+	if len(lines) > n {
+		lines = lines[:n]
+	}
+	return strings.Join(lines, "\n")
+}
+
+// TestFileRunner_XLSXMergedCellToHTML proves the merged-cell chain end-to-end:
+// the reader records a merge as cell-grid span, the structural transform maps it
+// to ColSpan, and the HTML writer renders colspan. The fixture has no merges, so
+// we inject one (A1:B1) by rebuilding the workbook zip.
+func TestFileRunner_XLSXMergedCellToHTML(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	src, err := os.ReadFile("../formats/openxml/testdata/EksempelFiltrering.xlsx")
+	require.NoError(t, err)
+	merged := injectMerge(t, src, "A1:B1")
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "merged.xlsx")
+	require.NoError(t, os.WriteFile(inputPath, merged, 0o644))
+
+	runner := flow.NewFileRunner(flow.FileRunnerConfig{FormatReg: reg, SourceLocale: "en-US"})
+	htmlOut := filepath.Join(dir, "out.html")
+	require.NoError(t, runner.RunFileWithReaderWriter(context.Background(), "convert",
+		[]tool.Tool{&tool.BaseTool{ToolName: "passthrough"}}, inputPath, htmlOut, "",
+		mustReader(t, reg, "openxml"), mustWriter(t, reg, "html")))
+	got, err := os.ReadFile(htmlOut)
+	require.NoError(t, err)
+	assert.Contains(t, string(got), `colspan="2"`, "the merged A1:B1 header should render with colspan=2")
+}
+
+func injectMerge(t *testing.T, src []byte, ref string) []byte {
+	t.Helper()
+	zr, err := zip.NewReader(bytes.NewReader(src), int64(len(src)))
+	require.NoError(t, err)
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		require.NoError(t, err)
+		body, err := io.ReadAll(rc)
+		rc.Close()
+		require.NoError(t, err)
+		if f.Name == "xl/worksheets/sheet1.xml" {
+			body = []byte(strings.Replace(string(body), "</sheetData>",
+				`</sheetData><mergeCells count="1"><mergeCell ref="`+ref+`"/></mergeCells>`, 1))
+		}
+		w, err := zw.Create(f.Name)
+		require.NoError(t, err)
+		_, err = w.Write(body)
+		require.NoError(t, err)
+	}
+	require.NoError(t, zw.Close())
+	return buf.Bytes()
 }

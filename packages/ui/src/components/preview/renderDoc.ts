@@ -254,16 +254,23 @@ function docRole(b: ContentNode, index: number): RenderLine["role"] {
   return "body";
 }
 
-/** A short entry key for the list view (the most descriptive property). */
-function entryKey(b: ContentNode): string | undefined {
+/** A short entry key for the list view (the most descriptive property).
+ *
+ * Structured/catalog formats anchor each value to a key: JSON/YAML/properties
+ * carry the dotted key path on the block's `name` (and JSON also on
+ * `json.keypath`), gettext on `msgid`, etc. Surfacing it turns the flat list
+ * into a key → value view. Prose formats leave `name` empty, so they stay plain
+ * text. */
+export function entryKey(b: ContentNode): string | undefined {
   const p = b.properties ?? {};
-  return p.key ?? p.path ?? p.name ?? p.id ?? p.msgid ?? undefined;
+  return p.key ?? p.path ?? p.name ?? p.id ?? p.msgid ?? p["json.keypath"] ?? b.name ?? undefined;
 }
 
 // ── Per-kind extraction ──────────────────────────────────────────────────────
 
 const SLIDE_RE = /^ppt\/slides\/slide\d+\.xml$/i;
 const WORKSHEET_RE = /^xl\/worksheets\/sheet\d+\.xml$/i;
+const SHARED_STRINGS_RE = /\/sharedStrings\.xml$/i;
 const DOCX_BODY_RE = /^word\/document\.xml$/i;
 
 function extractSlides(tree: ContentTree): RenderSlide[] {
@@ -277,8 +284,28 @@ function extractSlides(tree: ContentTree): RenderSlide[] {
   });
 }
 
+/**
+ * Index the translatable shared-string blocks (under sharedStrings.xml) by their
+ * siIndex, so a worksheet cell anchor can be joined back to the block that
+ * actually holds the source runs, every target locale, and the stand-off
+ * overlays. A single shared string backs many cells, so this is the bridge that
+ * lets the grid show translations without duplicating the text per cell.
+ */
+function sharedStringsByIndex(tree: ContentTree): Map<string, ContentNode> {
+  const byLayer = blocksForLayer(tree, (n) => SHARED_STRINGS_RE.test(n));
+  const map = new Map<string, ContentNode>();
+  for (const blocks of byLayer.values()) {
+    for (const b of blocks) {
+      const si = b.properties?.siIndex;
+      if (si !== undefined) map.set(si, b);
+    }
+  }
+  return map;
+}
+
 function extractSheets(tree: ContentTree): RenderSheet[] {
   const byLayer = blocksForLayer(tree, (n) => WORKSHEET_RE.test(n));
+  const shared = sharedStringsByIndex(tree);
   const names = [...byLayer.keys()].sort(byTrailingNumber);
   return names.map((name) => {
     const blocks = byLayer.get(name) ?? [];
@@ -291,7 +318,20 @@ function extractSheets(tree: ContentTree): RenderSheet[] {
       const pos = ref ? parseCellRef(ref) : null;
       const col = pos ? pos.col : 0;
       const row = pos ? pos.row : fallbackRow++;
-      cells.push({ ...lineFromBlock(b), col, row, ref: ref || colLabel(col) + (row + 1) });
+      // A shared-string cell anchor carries only the resolved source text; the
+      // translatable block (with targets, overlays and rich-text runs) lives in
+      // sharedStrings.xml. Render from that block when the cell references one,
+      // so the grid shows translations and inline formatting — but keep the
+      // cell's own id and position (one block backs many cells).
+      const si = b.properties?.siIndex;
+      const source = si !== undefined ? (shared.get(si) ?? b) : b;
+      cells.push({
+        ...lineFromBlock(source),
+        id: b.id,
+        col,
+        row,
+        ref: ref || colLabel(col) + (row + 1),
+      });
       maxCol = Math.max(maxCol, col);
       maxRow = Math.max(maxRow, row);
     }

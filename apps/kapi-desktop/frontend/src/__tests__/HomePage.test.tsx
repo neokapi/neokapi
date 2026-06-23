@@ -40,8 +40,9 @@ describe("HomePage content status", () => {
       />,
     );
     expect(screen.getByText("Content Overview")).toBeInTheDocument();
-    expect(screen.getByText("ui-strings")).toBeInTheDocument();
-    // fr-FR fully translated, de-DE half.
+    // The collection appears in the distribution legend and its compact row.
+    expect(screen.getAllByText("ui-strings").length).toBeGreaterThan(0);
+    // Cross-collection coverage summary: fr-FR fully translated, de-DE half.
     expect(screen.getByText("100 / 100 (100%)")).toBeInTheDocument();
     expect(screen.getByText("50 / 100 (50%)")).toBeInTheDocument();
   });
