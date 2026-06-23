@@ -30,7 +30,7 @@ brew install neokapi/tap/kapi-cli
 ### WinGet (Windows)
 
 ```powershell
-winget install Neokapi.Kapi
+winget install Neokapi.KapiCli
 ```
 
 ### Binary Downloads

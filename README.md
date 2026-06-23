@@ -16,7 +16,7 @@ The bowrain platform — the team governance platform for on-brand content and t
 
 ```bash
 brew install neokapi/tap/kapi-cli  # macOS/Linux
-winget install Neokapi.Kapi        # Windows
+winget install Neokapi.KapiCli     # Windows
 ```
 
 Pre-built binaries for Linux, macOS, and Windows (amd64 + arm64) are on the [Releases](https://github.com/neokapi/neokapi/releases) page. Kapi Desktop ships a signed Windows installer and a macOS cask — see the [installation guide](https://neokapi.github.io/web/neokapi/kapi/get-started/installation).
