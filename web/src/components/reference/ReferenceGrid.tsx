@@ -1,8 +1,6 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { useHistory, useLocation } from "@docusaurus/router";
+import { useState, useMemo, useCallback } from "react";
 import type { ReferenceEntry, ReferenceSource } from "@neokapi/reference-data";
 import ReferenceCard from "./ReferenceCard";
-import ReferenceModal from "./ReferenceModal";
 import { builtinToolIds, formatHref, toolHref } from "./slugs";
 import styles from "./styles.module.css";
 
@@ -27,45 +25,6 @@ function matches(entry: ReferenceEntry, q: string): boolean {
 export default function ReferenceGrid({ entries, kind }: Props) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const history = useHistory();
-  const location = useLocation();
-
-  // The selected entry lives in the URL (?id=) so it's deep-linkable and
-  // shareable. Gate on a client-mount flag: the static HTML carries no query,
-  // so reading it only after mount keeps hydration in sync.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  const selectedId = mounted ? new URLSearchParams(location.search).get("id") : null;
-  const selectedEntry = useMemo(
-    () => (selectedId ? entries.find((e) => e.id === selectedId) : undefined),
-    [entries, selectedId],
-  );
-
-  // Track whether we pushed a history entry so closing can pop it (preserving
-  // the back button) rather than stacking a second one.
-  const pushedRef = useRef(false);
-
-  const select = useCallback(
-    (id: string) => {
-      const params = new URLSearchParams(location.search);
-      params.set("id", id);
-      history.push({ search: params.toString() });
-      pushedRef.current = true;
-    },
-    [history, location.search],
-  );
-
-  const close = useCallback(() => {
-    if (pushedRef.current) {
-      pushedRef.current = false;
-      history.goBack();
-      return;
-    }
-    const params = new URLSearchParams(location.search);
-    params.delete("id");
-    history.replace({ search: params.toString() });
-  }, [history, location.search]);
 
   const counts = useMemo(() => {
     const by = (s: ReferenceSource) => entries.filter((e) => e.source === s).length;
@@ -175,12 +134,7 @@ export default function ReferenceGrid({ entries, kind }: Props) {
             </h2>
             <div className={styles.grid}>
               {items.map((entry) => (
-                <ReferenceCard
-                  key={entry.id}
-                  entry={entry}
-                  href={hrefFor(entry)}
-                  onSelect={select}
-                />
+                <ReferenceCard key={entry.id} entry={entry} href={hrefFor(entry)} />
               ))}
             </div>
           </section>
@@ -188,7 +142,7 @@ export default function ReferenceGrid({ entries, kind }: Props) {
       ) : (
         <div className={styles.grid}>
           {filtered.map((entry) => (
-            <ReferenceCard key={entry.id} entry={entry} href={hrefFor(entry)} onSelect={select} />
+            <ReferenceCard key={entry.id} entry={entry} href={hrefFor(entry)} />
           ))}
         </div>
       )}
@@ -197,10 +151,6 @@ export default function ReferenceGrid({ entries, kind }: Props) {
         <p className={styles.empty}>
           No {kind === "format" ? "formats" : "tools"} match your search.
         </p>
-      )}
-
-      {selectedEntry && (
-        <ReferenceModal entry={selectedEntry} href={hrefFor(selectedEntry)} onClose={close} />
       )}
     </>
   );

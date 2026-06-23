@@ -19,6 +19,18 @@ run locally on the runner and **fail the build** when something regresses — a
 dropped placeholder, a term that drifts, a brand-voice score below your bar — so
 the regression never merges.
 
+For the shared model behind every gate — findings, severity, the pass/fail
+gate — see [Checks](/framework/checks); this recipe walks the CI task.
+
+:::tip `kapi check` or `kapi verify`?
+Both gate (exit non-zero on failure), but they have different scopes:
+**`kapi check <files>`** runs **one checkset on the files you name** — ideal
+ad-hoc, on a single file, or in a script. **`kapi verify`** runs a **project's
+full bound gate set** (brand + terminology + QA, whichever the recipe binds) in
+one shot — the right default for a project's CI. Use `check` for a targeted,
+file-level gate; use `verify` to gate the whole project.
+:::
+
 ## How `kapi verify` gates
 
 `kapi verify` runs a project's bound quality gates in one shot and returns a

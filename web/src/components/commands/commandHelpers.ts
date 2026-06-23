@@ -44,8 +44,8 @@ export function runnableCommand(cmd: CommandEntry): string {
 /**
  * Returns the first authored example that starts with "kapi", already trimmed,
  * or `null` when `examples` is empty or contains no kapi invocations. Used by
- * CommandDetail as the primary Run snippet (the real, runnable command from the
- * binary's cobra Example string).
+ * CommandReferencePage as the primary Run snippet (the real, runnable command
+ * from the binary's cobra Example string).
  */
 export function firstRunnableExample(cmd: CommandEntry): string | null {
   const example = cmd.examples?.find((e) => e.trim().startsWith("kapi"));

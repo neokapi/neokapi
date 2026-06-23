@@ -21,15 +21,16 @@ word-count` reads any supported format and reports how much there actually is to
 translate — the block and word totals you multiply by a model's or vendor's
 per-word rate to size the run.
 
+For the concept, see [Content model](/framework/content-model); this recipe walks the task.
+
 ## Steps
 
 1. Point `kapi word-count` at a file (or a directory, or a glob).
 2. Read off the block and source-word totals.
 3. Multiply by your vendor's per-word rate to size the job.
 
-Word count operates on the **extracted content**, not the raw bytes: kapi parses
-the file into translatable blocks first, so boilerplate, keys, and markup are
-excluded from the total.
+Word count operates on the **extracted content**, not the raw bytes, so
+boilerplate, keys, and markup are excluded from the total.
 
 ## Try it
 

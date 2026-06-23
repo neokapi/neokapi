@@ -1,4 +1,4 @@
-import useBaseUrl from "@docusaurus/useBaseUrl";
+import Link from "@docusaurus/Link";
 import type { ReferenceEntry, ReferenceSource } from "@neokapi/reference-data";
 import styles from "./styles.module.css";
 
@@ -6,13 +6,10 @@ interface Props {
   entry: ReferenceEntry;
   /**
    * The canonical static page route for this entry (without the docs baseUrl),
-   * e.g. "/reference/formats/json". The card is a real link to this URL so it is
-   * crawlable + middle-clickable; a plain left-click opens the quick modal
-   * instead (see onSelect).
+   * e.g. "/reference/formats/json". The card is a real link to this page —
+   * crawlable, middle-clickable, and shareable.
    */
   href: string;
-  /** Opens the detail modal for this entry (and writes ?id= to the URL). */
-  onSelect: (id: string) => void;
 }
 
 function SourceBadge({ source }: { source: ReferenceSource }) {
@@ -29,35 +26,15 @@ function SourceBadge({ source }: { source: ReferenceSource }) {
 
 /**
  * A compact card in the reference grid. It is a real link to the entry's static,
- * shareable page (good for SEO + open-in-new-tab); a plain left-click instead
- * opens the in-page {@link ReferenceModal} quick view. The heavy detail/form
- * state lives in the modal (and the static page), so the grid stays cheap.
+ * shareable reference page (good for SEO + open-in-new-tab); the page owns the
+ * heavy detail/form state, so the grid stays cheap to render.
  */
-export default function ReferenceCard({ entry, href, onSelect }: Props) {
+export default function ReferenceCard({ entry, href }: Props) {
   const schema = entry.schema;
   const paramCount = Object.keys(schema?.properties ?? {}).length;
-  const resolvedHref = useBaseUrl(href);
 
   return (
-    <a
-      className={styles.gridCard}
-      href={resolvedHref}
-      onClick={(e) => {
-        // Let modifier-clicks / middle-clicks follow the real link (new tab,
-        // copy address, etc.); a plain left-click opens the quick modal.
-        if (
-          e.defaultPrevented ||
-          e.button !== 0 ||
-          e.metaKey ||
-          e.ctrlKey ||
-          e.shiftKey ||
-          e.altKey
-        )
-          return;
-        e.preventDefault();
-        onSelect(entry.id);
-      }}
-    >
+    <Link className={styles.gridCard} to={href}>
       <span className={styles.gridCardHead}>
         <span className={styles.gridCardName}>{entry.displayName}</span>
         <SourceBadge source={entry.source} />
@@ -88,6 +65,6 @@ export default function ReferenceCard({ entry, href, onSelect }: Props) {
           </span>
         )}
       </span>
-    </a>
+    </Link>
   );
 }

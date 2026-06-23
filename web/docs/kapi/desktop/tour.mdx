@@ -17,6 +17,17 @@ still live a click away as **quick tools** (the ad-hoc mode). This tour walks ea
 surface in motion; for what the app is and how to install it, see the
 [overview](/kapi/desktop/overview).
 
+:::note Videos — slimmed + retargeting needed
+The tour now keeps **three orientation clips** (projects, flows, settings); the
+former "content", "explorer", and "Okapi plugin" clips were moved to the task
+recipes ([build a flow](/kapi/desktop/recipes/build-a-flow-visually),
+[manage plugins](/kapi/desktop/recipes/manage-plugins),
+[store credentials](/kapi/desktop/recipes/store-ai-credentials)). **TODO:** the
+three remaining clips should be re-recorded as a quick, narration-light *sweep*
+(this is orientation, not a how-to — the task detail lives in the recipes). Scene
+scripts: [`web/walkthroughs/`](https://github.com/neokapi/neokapi/tree/main/web/walkthroughs).
+:::
+
 ## Create and manage a project
 
 A project pairs a source language with the locales you translate into, the files in scope, and the flows that process them. Naming it is the only required step — everything else is configured visually. The project home shows each content collection's translation status — how many blocks are covered per locale — and lets you extract content into the project store to refresh it.
@@ -31,13 +42,6 @@ A project pairs a source language with the locales you translate into, the files
 ## Manage content in a project
 
 A project's content is the set of files it translates. Glob patterns are grouped into named collections — documentation, store UI, contracts, templates — each mapping source files to their translated counterparts. The Content view shows the patterns alongside the real files they match and the format Kapi detected for each.
-
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/kapi-desktop-content-light.webm",
-    dark: "/video/kapi/kapi-desktop-content-dark.webm",
-  }}
-/>
 
 Opening a file previews it the way the engine parses it: a **Preview** of the
 rendered document with the source ↔ target toggle, a **Blocks** list, and —
@@ -74,23 +78,9 @@ Settings gather everything in one place: light or dark appearance, the AI provid
 
 Kapi keeps a glossary of multi-locale terms and a memory of past translations. Both are searchable, with inline formatting and entity placeholders preserved.
 
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/kapi-desktop-explorer-light.webm",
-    dark: "/video/kapi/kapi-desktop-explorer-dark.webm",
-  }}
-/>
-
 ## Using the Okapi plugin
 
 Plugins extend Kapi with new formats and tools. The Okapi bridge adds the [Okapi Framework](https://okapiframework.org/)'s filters — dozens of document formats beyond the built-in set. Install it from the registry in one click, and projects built on those filters, like the OkapiMart sample, open and process their files through them.
-
-<ThemedVideo
-  sources={{
-    light: "/video/kapi/kapi-desktop-okapi-light.webm",
-    dark: "/video/kapi/kapi-desktop-okapi-dark.webm",
-  }}
-/>
 
 ## Next
 

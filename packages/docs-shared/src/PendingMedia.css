@@ -1,0 +1,81 @@
+/* Placeholder card for an as-yet-unrecorded walkthrough video or screenshot.
+   Theme-aware via Docusaurus's data-theme attribute (no React context), matching
+   ThemedVideo. A dashed border + muted tint marks it clearly as a stand-in so it
+   is never mistaken for finished media. */
+.pending-media {
+  margin: 1.5rem 0;
+}
+
+.pending-media__frame {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem 1.25rem;
+  border: 1px dashed var(--ifm-color-emphasis-400);
+  border-radius: 10px;
+  background: var(--ifm-color-emphasis-100);
+}
+
+.pending-media__badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 8px;
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-emphasis-700);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.pending-media__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pending-media__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.pending-media__label {
+  font-weight: 600;
+  color: var(--ifm-heading-color);
+}
+
+.pending-media__status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ifm-color-warning-darker);
+  background: var(--ifm-color-warning-contrast-background);
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+}
+
+.pending-media__desc {
+  color: var(--ifm-color-emphasis-800);
+  font-size: 0.95rem;
+}
+
+.pending-media__desc > :last-child {
+  margin-bottom: 0;
+}
+
+.pending-media__link {
+  display: inline-block;
+  margin-top: 0.6rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .pending-media__frame {
+  border-color: var(--ifm-color-emphasis-300);
+  background: var(--ifm-color-emphasis-100);
+}

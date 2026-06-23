@@ -30,6 +30,10 @@ and rebuilds your original files byte-for-byte from it. It is an escape hatch,
 there when you need it, not a step in the normal path — and the corrections that
 come back are captured so they carry into the next run.
 
+For the translation-memory model — matching, fuzzy thresholds, and the
+pre-fill/absorb cycle — see [Translation Memory](/framework/translation-memory);
+this recipe walks the extract/merge task.
+
 ## The interchange landscape
 
 "Interchange" spans three distinct boundaries. They share one seam — the
@@ -308,13 +312,9 @@ XLIFF and PO carry exactly one chosen target per locale, the source runs
 and inline codes, and — with the captured skeleton — enough to rebuild the
 original file byte-for-byte. Everything else in kapi's content model is
 **deliberately not** projected into the bilingual file; it stays in project
-state (the translation memory, termbase, and stand-off overlays):
-
-- **Stand-off overlays** — terminology, entity, and QA annotations anchored
-  to run ranges.
-- **Tone / channel variants** — alternate targets keyed by more than locale.
-- **Provenance and status** — where each target came from (TM pre-fill, a
-  specific merge batch, an MT or AI tool) and its review state.
+state — the translation memory, the termbase, and the stand-off overlays,
+tone/channel variants, and per-target provenance and status that the
+[content model](/framework/content-model) records.
 
 This is by design: the bilingual file is the lean, tool-neutral handoff,
 and the project is the system of record. It is also why merge needs the

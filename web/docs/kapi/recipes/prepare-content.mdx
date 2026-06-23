@@ -21,13 +21,14 @@ already translated come back for free, and hold every language to the same bar a
 the source. You ask for those three outcomes; kapi runs the machinery under the
 hood.
 
+For the concepts these jobs rest on, see [Redaction](/framework/redaction) and
+[Translation Memory](/framework/translation-memory); this recipe walks the task.
+
 ## Job 1 — protect sensitive content
 
 Names, unreleased products, internal roles, secrets — these should never leave the
-machine in the clear. [Redaction](/framework/redaction) replaces them with
-protected placeholders before translation and restores the originals afterward.
-It can match a list of terms you declare *and* sensitive entities (people,
-organizations, products) detected automatically — you turn on protection, kapi
+machine in the clear. [Redaction](/framework/redaction) protects them before
+translation and restores the originals afterward — you turn on protection, kapi
 finds the spans:
 
 ```bash
@@ -42,10 +43,8 @@ detection, and the extract/merge path for human translators.
 
 Anything you've translated before should come back for free. kapi's
 [translation memory](/framework/translation-memory) reuses prior translations
-sentence by sentence — and **generalizes over names**, so "Welcome, Bob" already
-translated also covers "Welcome, Alice" at a full match. Sentence-level reuse and
-name generalization are exactly why kapi segments and detects entities for you;
-you just pre-translate:
+sentence by sentence — and generalizes over names, so reuse reaches further. You
+just pre-translate:
 
 ```bash
 # Fill from TM first, then translate only what's left
@@ -73,8 +72,8 @@ kapi check src/locales/en.json --target src/locales/fr.json --target-lang fr
 
 When a check flags a block — an over-long string, an off-voice phrase — fix it in
 place and re-check. `kapi rewrite` edits the text from a plain-language
-instruction, faithfully — only the text changes — with a `--diff` to review the
-edit first:
+instruction, faithfully (see [rewrite](/reference/tools/rewrite)), with a `--diff`
+to review the edit first:
 
 ```bash
 kapi rewrite --instruction "tighten to fit the length budget" --diff src/locales/en.json

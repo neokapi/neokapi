@@ -15,14 +15,14 @@ import styles from "./index.module.css";
 export default function LabPage(): React.ReactElement {
   return (
     <Layout
-      title="Lab"
+      title="Content Model Workspace"
       description="See how neokapi reads a document, breaks it into translatable pieces, and runs a localization flow over it — step by step, on real files, right in your browser. No install."
       noFooter
       wrapperClassName="lab-app-wrapper"
     >
       <main className={styles.appPage}>
         <header className={styles.appHeader}>
-          <h1 className={styles.appTitle}>neokapi Lab</h1>
+          <h1 className={styles.appTitle}>Content Model Workspace</h1>
           <p className={styles.appLede}>
             Pick a lesson and follow along as neokapi reads a file, breaks it into translatable
             pieces, and runs a flow over it — live, in your browser. It&rsquo;s the real engine, so

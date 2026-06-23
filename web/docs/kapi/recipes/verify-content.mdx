@@ -21,6 +21,8 @@ AI assistant working over MCP.
 and returns one machine-readable `kapi.check/v1` Report. It never modifies
 content; that is `kapi rewrite`'s job.
 
+For the concepts, see [Checks](/framework/checks) and the [Rewrite tool](/reference/tools/rewrite); this recipe walks the task.
+
 ## Run a check
 
 ```bash
@@ -64,17 +66,7 @@ kapi check src/locales/en.json --json
 }
 ```
 
-The Report fields:
-
-| Field | Description |
-|---|---|
-| `schema` | Always `kapi.check/v1` — stable across kapi versions |
-| `pass` | `true` when no finding reaches the gate severity |
-| `summary.score` | 0–100 quality score |
-| `summary.{critical,major,minor}` | Counts by severity |
-| `gate` | The severity threshold that trips a non-zero exit |
-| `findings[].rule` | Stable rule id, e.g. `length.max-chars-exceeded` |
-| `findings[].location` | File + block id where the finding is anchored |
+(See [Checks](/framework/checks) for the full `kapi.check/v1` Report schema — every field, the score, the gate, and the finding model.)
 
 ## Add length, pattern, and brand rules
 

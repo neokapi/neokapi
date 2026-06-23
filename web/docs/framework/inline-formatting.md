@@ -11,6 +11,9 @@ import { BlockPreview } from "@site/src/components/curated";
 
 When documents are processed through the pipeline, neokapi preserves inline formatting like **bold**, _italic_, [links](https://example.com), and embedded values like variables and placeholders. This is handled through the **Run** model: a block's content is a flat `[]Run` sequence in which inline markup becomes typed inline-code runs, normalizing format-specific markup into a format-independent representation.
 
+> New to **Run**, **Block**, or **inline code**? Each term is defined once in the
+> [Glossary](/framework/glossary); this page develops the inline-code model in full.
+
 ## Seeing inline codes in the content model
 
 When kapi reads a file with inline markup, the markup does not stay in the text.

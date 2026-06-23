@@ -1,0 +1,37 @@
+# Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
+# full schema. Regenerate with:
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-keep-source-on-brand
+#
+# STATUS: script authored, NOT yet recorded. The docs reference it via a
+# <PendingMedia> placeholder until the owner approves regeneration via the harness.
+
+id: kapi-keep-source-on-brand
+scene: keep-source-on-brand
+mode: interactive
+
+seed:
+  - product-page.md
+  - brand.yaml
+files: []
+
+steps:
+  - comment: Survey the source before checking it
+  - command: kapi stats product-page.md
+    narration: >-
+      A quick content-metrics overview — blocks, words, and a by-role breakdown —
+      so you know the shape of what you are about to check.
+  - comment: Check the source against the brand voice profile
+  - command: kapi brand check product-page.md --profile brand.yaml
+    narration: >-
+      The brand profile carries the vocabulary, forbidden terms, and tone rules.
+      The check returns a 0-100 score and one located finding per off-brand block.
+  - comment: Read the report — each finding names the rule it violated and where
+  - command: kapi brand check product-page.md --profile brand.yaml --json
+    narration: >-
+      The same Report as machine-readable JSON: the stable rule id is the key an
+      AI fix-loop tracks across iterations.
+  - comment: Rewrite the off-brand blocks, then re-check until the gate is green
+  - command: kapi brand rewrite product-page.md --profile brand.yaml --diff
+    narration: >-
+      Rewrite applies the brand guidance and shows a reviewable diff — only the
+      text changes; the document round-trips back in the same format.

@@ -4,6 +4,8 @@ description: "Survey, check, and rewrite source content against a brand voice pr
 hide_table_of_contents: true
 ---
 
+import { PendingMedia } from "@neokapi/docs-shared";
+
 # Keep your source content on brand
 
 :::note Runs anywhere
@@ -14,6 +16,15 @@ No project needed. The commands on this page operate on files you name directly.
 content and rewrite the ones that fail — so what goes to translation (or to
 production) is already on-brand. This is a source-governance workflow, not a
 post-translation check.
+
+For the concepts, see [Checks](/framework/checks) and
+[Brand voice](/framework/checks/brand-voice); this recipe walks the task.
+
+<PendingMedia kind="video" scene="web/walkthroughs/kapi-keep-source-on-brand.scene.yaml">
+  A short walkthrough authoring a brand-voice profile, running the check on a
+  source page, reading the score and located findings, and rewriting the
+  off-brand blocks until the gate passes.
+</PendingMedia>
 
 The four commands involved are:
 
@@ -94,16 +105,16 @@ kapi inspect --jsonl docs/*.md | jq -r '.content_hash + "\t" + .text'
 Add `-f <format>` to override format auto-detection when the file extension is
 ambiguous.
 
-The `content_hash` field is `SHA-256(normalized_text)`, recomputable with
-`model.ComputeContentHash`. It is a stable anchor: if you retrieve on this hash
-later and the text has not changed, the block has not moved.
+The `content_hash` field is a stable retrieval anchor: if you retrieve on this
+hash later and it still matches, the block's text has not changed. (See
+[the content model](/framework/content-model) for how the hash is defined.)
 
 ## Check for off-brand content
 
 `kapi check` reads a file's content blocks, runs a configurable checkset, and
-returns one `kapi.check/v1` Report — the same shape a test runner produces.
-Findings are located to the exact block so an AI assistant or human reviewer
-knows what to fix.
+returns one `kapi.check/v1` Report whose findings are located to the exact block.
+(See [Checks](/framework/checks) for the Report shape, findings, rules, and
+severities.)
 
 ### Forbidden and required patterns
 
@@ -137,8 +148,7 @@ load one:
 kapi check blog-post.md --pack marketing-blog
 ```
 
-Or use `--pack technical-docs` for reference content. Each pack defines preferred
-substitutes, competitor terms to avoid, and a vocabulary of forbidden patterns.
+Or use `--pack technical-docs` for reference content.
 
 ### Brand vocabulary from your own profile
 
@@ -195,11 +205,9 @@ kapi check blog-post.md --pack marketing-blog --json
 }
 ```
 
-Each finding carries a stable `rule` id in `<check>.<category>` form. An AI
-assistant uses this id to track which findings have been fixed across loop
-iterations. The `score` (0–100) is a roll-up over all findings, weighted by
-severity; the `gate` section echoes the thresholds in force and records which
-ones tripped.
+Each finding carries a stable `rule` id; an AI assistant uses it to track which
+findings have been fixed across loop iterations. (See [Checks](/framework/checks)
+for the rule-id form, how the score is rolled up, and what the gate records.)
 
 ### Exit codes and CI gates
 
@@ -242,8 +250,9 @@ kapi check index.html --validate report
 ## Rewrite to fix findings
 
 `kapi rewrite` applies an AI instruction to the text inside a file and writes
-the document back in the same format. Only the editable text changes — styles,
-keys, inline codes, and markup structure survive the round-trip.
+the document back in the same format — only the editable text changes. (See
+[the `rewrite` tool](/reference/tools/rewrite) for the faithful round-trip
+guarantee that keeps styles, keys, inline codes, and markup intact.)
 
 Use `--diff` first to review the proposed changes without writing anything:
 

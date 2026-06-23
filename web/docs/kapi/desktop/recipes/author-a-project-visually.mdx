@@ -1,0 +1,64 @@
+---
+id: author-a-project-visually
+title: "Author a project visually"
+sidebar_label: "Author a project"
+description: "Create and shape a .kapi project in Kapi Desktop — declare source and target languages, group content into collections, and bind flows — without hand-editing YAML."
+hide_table_of_contents: true
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+# Author a project visually
+
+**For the concept** of the project model (the `.kapi` recipe, the state dir,
+discovery), see [Modes &amp; bindings](/kapi/modes) and
+[Your first project](/kapi/get-started/first-project); this recipe walks creating
+and shaping one in Kapi Desktop.
+
+**Goal:** stand up a project — its languages, content patterns, and flows — through
+the app, ending with the same committable `.kapi` recipe you'd get from
+`kapi init`.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-projects-light.webm",
+    dark: "/video/kapi/kapi-desktop-projects-dark.webm",
+  }}
+/>
+
+:::note Video — retargeting needed
+This clip is reused from the [Kapi Desktop tour](/kapi/desktop/tour) "create and
+manage a project" segment. It's close to on-message here (this recipe _is_ the
+desktop-oriented "first project"), but **TODO:** retarget it to land as a
+start-to-finish "your first project in Kapi Desktop" — create → set languages →
+add content collections → see matched files — and trim the broader tour framing.
+Scene scripts:
+[`web/walkthroughs/`](https://github.com/neokapi/neokapi/tree/main/web/walkthroughs).
+:::
+
+## Steps
+
+1. **Create the project.** Choose a folder; the app writes a `<name>.kapi` recipe
+   and the sibling `.kapi/` state dir — the same layout `kapi init` produces.
+2. **Declare languages.** Pick the source language and the locales you translate
+   into. These drive every flow's defaults.
+3. **Group content into collections.** Add glob patterns (docs, UI strings,
+   contracts) as named collections. The Content view shows the patterns alongside
+   the real files they match and the format Kapi detected for each.
+4. **Bind flows.** Attach flows from the [flow editor](/kapi/desktop/recipes/build-a-flow-visually)
+   so the project runs them with its declared languages and defaults.
+5. **Commit the recipe.** The `.kapi` file is portable YAML — commit it, and the
+   project runs identically from the CLI and for teammates.
+
+## Why the desktop
+
+Visual authoring keeps the project's shape in view — which globs match which files,
+what format each is, which flows are bound — and validates as you go. The artifact
+is an ordinary `.kapi` recipe: nothing is desktop-only, so the project is fully
+drivable from `kapi` on the command line and in CI.
+
+## Next
+
+- [Build a flow visually](/kapi/desktop/recipes/build-a-flow-visually)
+- [Hand off to translators](/kapi/bilingual-workflow) — extract bilingual
+  files from the project and merge them back.

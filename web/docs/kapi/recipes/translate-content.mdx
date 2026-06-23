@@ -1,0 +1,84 @@
+---
+id: translate-content
+title: "Translate your content"
+sidebar_label: "Translate your content"
+description: "Translate any file — app locale strings, a Word doc, a Markdown guide — into other languages with kapi, ad-hoc or as a project flow, while the format round-trips back intact."
+hide_table_of_contents: true
+---
+
+# Translate your content
+
+:::note Runs anywhere
+`kapi translate` runs ad-hoc on any file. In a project, `kapi run translate` does
+the same across your declared content and locales.
+:::
+
+**For the concept** — how translation works and the MT-vs-LLM trade-offs — see
+[Translation](/framework/translation). This recipe is the verb: **get your content
+into another language.**
+
+**Goal:** take a file and produce a translated copy — only the text changes; keys,
+tags, and structure round-trip back byte-for-byte.
+
+## Translate one file
+
+Point `kapi translate` at a file and name a target language. For an app's locale
+strings:
+
+```bash
+kapi translate -i src/locales/en.json --target-lang fr -o src/locales/fr.json
+```
+
+It also works on documents — a Word file, a Markdown guide, an HTML page — the same
+way:
+
+```bash
+kapi translate -i guide.md --target-lang de
+```
+
+The default provider is an LLM (Anthropic); add a key once, or pick a different
+backend, in [Choose a translation provider](/kapi/recipes/choose-a-translation-provider).
+No key at all? Translate on-device with Ollama (also in that recipe).
+
+## Translate several languages at once
+
+Pass more than one target, or loop in a script:
+
+```bash
+for lang in fr de ja; do
+  kapi translate -i src/locales/en.json --target-lang "$lang" -o "src/locales/$lang.json"
+done
+```
+
+## In a project — translate everything, reuse everything
+
+Once you have a [`.kapi` project](/kapi/get-started/first-project), you don't name
+files or languages each time — the recipe declares them. Run the project's
+`translate` flow and materialize the results:
+
+```bash
+kapi run translate          # translate the project's content into its locales
+kapi merge                  # write the localized files
+```
+
+The project store **reuses what you've already translated**, so the next run only
+touches what changed — see
+[Reuse what you've translated](/kapi/recipes/pre-translate-with-tm).
+
+## Drive it from your AI assistant
+
+With the [MCP server](/kapi/get-started/use-with-mcp) or the
+[Agent Skills](/kapi/get-started/use-with-skills) connected, just ask:
+
+> "Translate `src/locales/en.json` into French, German, and Japanese — keep the
+> placeholders intact — then run QA and fix anything that fails."
+
+Claude calls `kapi` to translate, checks the result, and loops until it passes.
+
+## Next
+
+- [Estimate a run's cost](/kapi/recipes/estimate-cost) — size the job first.
+- [Reuse what you've translated](/kapi/recipes/pre-translate-with-tm) — don't pay
+  to translate the same string twice.
+- [Keep terms consistent](/kapi/recipes/terminology-qa) — enforce your glossary.
+- [Check translations in CI](/kapi/recipes/gate-localization-in-ci) — gate quality.

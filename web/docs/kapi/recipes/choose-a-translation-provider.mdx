@@ -1,0 +1,130 @@
+---
+id: choose-a-translation-provider
+title: "Choose a translation provider"
+sidebar_label: "Choose a provider"
+sidebar_position: 1
+description: "Select and configure a translation backend for kapi — an LLM provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama) or a neural MT engine (DeepL, Google, Microsoft, ModernMT, MyMemory) — with credentials, defaults, and on-device options."
+keywords: [kapi, translation provider, LLM, MT, DeepL, Anthropic, OpenAI, Ollama, credentials, api key]
+hide_table_of_contents: true
+---
+
+# Choose a translation provider
+
+:::note Runs anywhere
+The `--provider` flag works ad-hoc and in a project. In a project, set it once in
+the recipe `defaults` and every flow inherits it.
+:::
+
+**For the concept** — what translation is (one tool, two backend families) and
+the MT-vs-LLM trade-offs — see [Translation](/framework/translation). This recipe
+walks **picking a backend and wiring its credentials.**
+
+**Goal:** point `kapi translate` at the backend you want, supply its key safely,
+and make that choice the default so you stop repeating flags.
+
+## Pick a backend
+
+`kapi translate` routes through one of two provider families, selected by
+`--provider`:
+
+| Family | Providers | When |
+| --- | --- | --- |
+| **LLM** | `anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` | Context-aware quality, full prompt control, offline with Ollama |
+| **Neural MT** | `deepl`, `google`, `microsoft`, `modernmt`, `mymemory` | Fast, consistent bulk translation; per-character pricing |
+
+The generated [Tool reference](/reference/tools/translate) lists the current
+parameters and default model for each. Switching families is a configuration
+change only — replace `provider: deepl` with `provider: anthropic` and the rest
+of a flow is unchanged.
+
+```bash
+# LLM provider (override the default model with --model)
+kapi translate -i input.html --source-lang en --target-lang fr \
+  --provider anthropic --model claude-sonnet-4-20250514
+
+# MT engine
+kapi translate -i input.html --target-lang fr --provider deepl
+```
+
+## Supply credentials safely
+
+The API key is **never** read from the `.kapi` recipe — the recipe is meant to be
+safe to commit. Provide the key one of three ways (priority order: inline
+`--api-key`, then a saved `--credential`, then the environment variable):
+
+1. **Saved credential** (recommended) — store the key once in the OS keychain and
+   reference it by name:
+
+   ```bash
+   kapi credentials add my-deepl --provider deepl --api-key …
+   kapi translate -i input.html --target-lang fr --provider deepl --credential my-deepl
+   ```
+
+2. **Inline flag** — for a one-off run:
+
+   ```bash
+   kapi translate -i input.html --target-lang fr --provider openai --api-key sk-…
+   ```
+
+3. **Per-provider environment variable** — used when neither of the above is
+   given:
+
+   | Variable | Provider |
+   | --- | --- |
+   | `ANTHROPIC_API_KEY` | Anthropic |
+   | `OPENAI_API_KEY` | OpenAI |
+   | `GEMINI_API_KEY` (then `GOOGLE_API_KEY`) | Google Gemini |
+   | `AZURE_OPENAI_API_KEY` | Azure OpenAI |
+   | `DEEPL_API_KEY` | DeepL |
+   | `GOOGLE_TRANSLATE_API_KEY` (then `GOOGLE_API_KEY`) | Google Translate |
+   | `MICROSOFT_TRANSLATOR_KEY` (then `AZURE_TRANSLATOR_KEY`) | Microsoft Translator |
+   | `MODERNMT_API_KEY` | ModernMT |
+   | `MYMEMORY_API_KEY` | MyMemory (optional) |
+
+`ollama` and `mymemory` need no key.
+
+## Make it the default
+
+Stop repeating `--provider`. Set a global default:
+
+```bash
+kapi config set ai.provider ollama
+kapi config set ai.model llama3.2:3b
+```
+
+…or a project-scoped default in the recipe (safe to commit — it carries no key):
+
+```yaml
+defaults:
+  tools:
+    translate:
+      provider: ollama
+      model: llama3.2:3b
+```
+
+An explicit `--provider` flag, inline step config, or recipe default always
+overrides the stored `ai.provider` value.
+
+## Translate on-device with Ollama
+
+The `ollama` provider runs models entirely on your machine — no API key, nothing
+sent to a server, GPU-accelerated. [Ollama](https://ollama.com) is a one-time
+install; kapi drives everything downstream:
+
+```bash
+kapi models ollama install                # platform-specific install guidance
+kapi models ollama pull llama3.2:3b       # download a translation model
+kapi translate -i input.html --target-lang fr --provider ollama --model llama3.2:3b
+```
+
+When a translation selects `ollama`, kapi checks the runtime is up and pulls the
+requested model if missing — a fresh machine needs only Ollama itself.
+`llama3.2:3b` is a strong, lightweight default; `qwen3:1.7b` is faster and
+smaller; `gemma4:e2b` is the quality pick for tougher multilingual grammar.
+
+## Next
+
+- [Pre-translate with TM](/kapi/recipes/pre-translate-with-tm) — leverage past
+  work before any provider sees content.
+- [Check translations in CI](/kapi/recipes/gate-localization-in-ci) — gate quality
+  once a provider is wired.

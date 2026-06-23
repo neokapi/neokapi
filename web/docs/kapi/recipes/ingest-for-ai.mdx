@@ -17,6 +17,10 @@ knowing anything about the source format. No translation is involved. Each block
 carries a stable `content_hash` anchor that lets you find and rewrite that block
 later, in the same file, without touching the surrounding markup.
 
+For the concepts behind anchored blocks and content checks, see
+[Content model](/framework/content-model) and [Checks](/framework/checks); this
+recipe walks the task.
+
 ## Step 1 — survey before you ingest
 
 Before feeding a document to a model, `kapi stats` gives you a format-agnostic
@@ -108,11 +112,11 @@ cat page.html | kapi inspect -f html --jsonl
 
 ## The anchor and write-back contract
 
-The `content_hash` on each record is computed from the block's normalized text
-(whitespace-trimmed), not from its position in the file. Two blocks with
-identical text have the same hash. This makes it a stable retrieval key: a RAG
-pipeline that indexes blocks by their `content_hash` can later look up the
-original block when an AI assistant produces an edit.
+The `content_hash` is a stable retrieval key derived from the block's text, not
+its position: a RAG pipeline that indexes blocks by their `content_hash` can
+later look up the original block when an AI assistant produces an edit. (See
+[Content model](/framework/content-model) for how blocks and anchors are
+represented.)
 
 The write-back path closes the loop:
 
@@ -123,18 +127,16 @@ The write-back path closes the loop:
    edit back to the file through the same format-aware round-trip, leaving
    structure and inline markup intact.
 
-The round-trip guarantee is that only the text changes. A `.docx` keeps its
-styles, a JSON catalog keeps its keys, and inline codes (placeholders, markup
-tags) survive. If a rewrite would corrupt an inline code, that block is left
-unchanged rather than written with unbalanced markup.
+The write-back is a faithful, format-aware round-trip: only the text changes,
+and a block whose inline codes would be corrupted is left unchanged rather than
+written with unbalanced markup. See [Rewrite tool](/reference/tools/rewrite) for
+the round-trip contract.
 
 ## Checking content before or after editing
 
 `kapi check` runs a set of content checks over any file and returns a structured
-`kapi.check/v1` Report — the content-first counterpart to a test runner. The
-report includes a pass/fail gate, a 0–100 score, and a located finding per
-triggered rule, so an AI assistant can act on the exact block without parsing
-free-form output.
+`kapi.check/v1` Report an AI assistant can act on without parsing free-form
+output.
 
 ```bash
 kapi check report.docx

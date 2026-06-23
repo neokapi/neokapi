@@ -34,6 +34,9 @@ on:
       - "core/formats/constructs.yaml"
       - "core/formats/integrations.yaml"
       - "scripts/format-ops/**"
+      - "web/scripts/gen-reference-pages.ts"
+      - "web/src/components/reference/slugs.ts"
+      - "web/docs/reference/**"
       - ".github/workflows/reference-data-drift.yml"
   pull_request:
     paths:
@@ -54,6 +57,9 @@ on:
       - "core/formats/constructs.yaml"
       - "core/formats/integrations.yaml"
       - "scripts/format-ops/**"
+      - "web/scripts/gen-reference-pages.ts"
+      - "web/src/components/reference/slugs.ts"
+      - "web/docs/reference/**"
       - ".github/workflows/reference-data-drift.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.
@@ -89,6 +95,25 @@ jobs:
       # their verbatim TS copies (packages/*/src/vocabularies/) must not drift.
       - name: Vocabulary pack drift
         run: node scripts/format-ops/check-vocab-packs.mjs
+
+      # The committed static per-entry reference pages under web/docs/reference
+      # are generated from the dataset above (plus the slug helper). Regenerate
+      # them and fail if a committed page is stale — gen-reference-pages.ts needs
+      # only the @neokapi/reference-data package resolvable, so vp install
+      # suffices (no kapi-react/wasm build).
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version: "22"
+          cache: true
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install workspace dependencies
+        run: vp install
+
+      - name: Static reference pages are fresh
+        run: |
+          make generate-reference-pages
+          git diff --exit-code -- web/docs/reference
 
   l10n-drift:
     name: l10n catalogs are fresh

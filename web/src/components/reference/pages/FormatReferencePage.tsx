@@ -5,6 +5,7 @@ import { BlockPreview } from "@site/src/components/curated";
 import Markdown, { unfence } from "@site/src/components/reference/Markdown";
 import { formatPreviewSample } from "@site/src/components/reference/curatedEmbed";
 import ParametersTable from "./ParametersTable";
+import InteractiveConfig from "./InteractiveConfig";
 import styles from "./pages.module.css";
 
 interface Props {
@@ -69,19 +70,18 @@ export default function FormatReferencePage({ id }: Props) {
         </section>
       )}
 
-      {/* Parameters */}
+      {/* Parameters — static, crawlable table (no JS required) */}
       {entry.schema?.properties && Object.keys(entry.schema.properties).length > 0 ? (
         <section>
           <h2 className={styles.sectionHeading}>Parameters</h2>
           <ParametersTable schema={entry.schema} doc={doc} />
-          <p className={styles.configHint}>
-            Configure these parameters interactively and copy the YAML on the{" "}
-            <a href={`${formatsHref}?id=${encodeURIComponent(entry.id)}`}>Format Reference</a>.
-          </p>
         </section>
       ) : (
         <p className={styles.noConfig}>This format has no configurable parameters.</p>
       )}
+
+      {/* Live configurator: form + YAML output + presets + Run */}
+      <InteractiveConfig entry={entry} kind="format" />
 
       {/* Examples */}
       {doc?.examples && doc.examples.length > 0 && (

@@ -1,0 +1,57 @@
+---
+id: manage-plugins
+title: "Install and manage plugins"
+sidebar_label: "Manage plugins"
+description: "Use Kapi Desktop's plugin manager to install format and tool plugins (like the Okapi bridge) from the registry in one click, and keep them up to date."
+hide_table_of_contents: true
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+# Install and manage plugins
+
+**For the concept**, see [Plugins](/contribute/plugins); this recipe walks the
+desktop plugin manager — the visual equivalent of `kapi plugin install`.
+
+**Goal:** add new formats and tools to a project — for example the
+[Okapi bridge](/framework/okapi-comparison), which adds dozens of document
+formats — without touching a terminal.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-okapi-light.webm",
+    dark: "/video/kapi/kapi-desktop-okapi-dark.webm",
+  }}
+/>
+
+:::note Video — retargeting needed
+This clip is the former tour "Using the Okapi plugin" segment. **TODO:** retarget
+it to the plugin-manager _task_ — browsing the registry, the one-click install +
+verification, and the new formats appearing in the project — rather than the
+Okapi-specific framing. Scene scripts:
+[`web/walkthroughs/`](https://github.com/neokapi/neokapi/tree/main/web/walkthroughs).
+:::
+
+## Steps
+
+1. **Open the plugin manager.** From **Settings → Plugins**, browse the registry
+   of available plugins — format readers/writers, segmenters, OCR/ASR engines, and
+   tool packs.
+2. **Install.** Click **Install** on a plugin (for example the Okapi bridge). The
+   app downloads and verifies it, then registers the formats and tools it adds.
+3. **Use it immediately.** New formats appear in the project's content view, and
+   new tools appear in the flow editor's palette — a project built on those
+   filters (like the OkapiMart sample) opens and processes its files through them.
+4. **Keep current.** The manager flags updates; one click pulls the latest version.
+
+## Why the desktop
+
+Discovery and one-click install are the GUI's strength: you see what a plugin
+adds, install it with verification handled for you, and the new capabilities show
+up in the editor without re-reading docs. The underlying plugin model is identical
+to the CLI's — the same plugins, the same registry.
+
+## Next
+
+- [Build a flow visually](/kapi/desktop/recipes/build-a-flow-visually) — use the
+  new tools a plugin provides.

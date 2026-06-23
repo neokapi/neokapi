@@ -430,19 +430,20 @@ const config: Config = {
           label: "Labs",
           position: "left",
           items: [
-            // Consolidated into natural categories. AI/ML (local LLM, OCR, ASR)
-            // is embedded inside the relevant labs rather than split into its own
-            // Gemma/Multimodal pages; plugins load on demand from the navbar
-            // status widget. Old per-topic routes redirect to their new home.
-            { label: "Core Framework", to: "/lab" },
+            // A Labs overview heads the list (what each lab teaches + a
+            // suggested order). AI/ML (local LLM, OCR, ASR) is embedded inside
+            // the relevant labs; plugins load on demand from the navbar status
+            // widget. Old per-topic routes redirect to their new home.
+            { label: "Labs overview", to: "/labs" },
+            { label: "Content Model Workspace", to: "/lab" },
             { label: "Models & Providers", to: "/lab/models" },
             { label: "Segmentation", to: "/lab/segmentation" },
             { label: "File Conversion", to: "/lab/convert" },
             { label: "Structure & Layout", to: "/lab/structure" },
-            { label: "Kapi Vision", to: "/lab/vision" },
+            { label: "Vision", to: "/lab/vision" },
             { label: "Audio & Video", to: "/lab/media" },
             { label: "CLI Playground", to: "/playground-cli" },
-            { label: "Kapi L10N Format", to: "/klf-lab" },
+            { label: "KLF Format", to: "/klf-lab" },
           ],
         },
         {
@@ -450,10 +451,10 @@ const config: Config = {
           label: "Reference",
           position: "left",
           items: [
-            // Kept in sync with the /reference overview page and the
-            // referenceSidebar in sidebars.ts — all three list the same set.
-            // Generated, runnable references + interactive grids; R4 fills the
-            // per-entry pages under /reference/{commands,formats,tools}/.
+            // Reader-facing reference only. Project-status dashboards (parity,
+            // benchmarks, eval, test results) are telemetry, not a reader
+            // concept — they live in the "Project status" sidebar section, not
+            // this dropdown.
             { label: "Reference Overview", to: "/reference" },
             { label: "Kapi CLI Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
@@ -461,15 +462,12 @@ const config: Config = {
             { label: "Project file", to: "/reference/project-file" },
             { label: "KLF format", to: "/reference/klf/overview" },
             { label: "MCP Server", to: "/reference/mcp" },
-            { label: "Parity", to: "/parity" },
-            { label: "Format Maturity", to: "/format-maturity" },
-            { label: "Benchmarks", to: "/pseudobench" },
-            { label: "ML Benchmark", to: "/ml-benchmark" },
-            { label: "Check Eval", to: "/check-eval" },
-            { label: "Test Results", to: "/test-comparison" },
           ],
         },
         {
+          // Toolbox holds the format-aware CLI utilities and Kapi React. Kapi
+          // React is a self-contained library — its own thing, kept out of the
+          // core Kapi narrative — so it lives here, not in the Kapi section.
           type: "dropdown",
           label: "Toolbox",
           position: "left",

@@ -5,6 +5,7 @@ import { BeforeAfter } from "@site/src/components/curated";
 import Markdown, { unfence } from "@site/src/components/reference/Markdown";
 import { toolBeforeAfter } from "@site/src/components/reference/curatedEmbed";
 import ParametersTable from "./ParametersTable";
+import InteractiveConfig from "./InteractiveConfig";
 import styles from "./pages.module.css";
 
 interface Props {
@@ -82,19 +83,18 @@ export default function ToolReferencePage({ id, source }: Props) {
         </section>
       )}
 
-      {/* Parameters */}
+      {/* Parameters — static, crawlable table (no JS required) */}
       {entry.schema?.properties && Object.keys(entry.schema.properties).length > 0 ? (
         <section>
           <h2 className={styles.sectionHeading}>Parameters</h2>
           <ParametersTable schema={entry.schema} doc={doc} />
-          <p className={styles.configHint}>
-            Configure these parameters interactively and copy the flow-step YAML on the{" "}
-            <a href={`${toolsHref}?id=${encodeURIComponent(entry.id)}`}>Tool Reference</a>.
-          </p>
         </section>
       ) : (
         <p className={styles.noConfig}>This tool has no configurable parameters.</p>
       )}
+
+      {/* Live configurator: form + flow-step YAML + presets + Run */}
+      <InteractiveConfig entry={entry} kind="tool" />
 
       {/* Examples */}
       {doc?.examples && doc.examples.length > 0 && (

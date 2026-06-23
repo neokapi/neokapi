@@ -1,0 +1,65 @@
+---
+id: build-a-flow-visually
+title: "Build a flow visually"
+sidebar_label: "Build a flow visually"
+description: "Compose a localization flow in Kapi Desktop's visual editor — drag tools onto the canvas, configure them in a form, and run it live — then save it to the project's .kapi recipe."
+hide_table_of_contents: true
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+# Build a flow visually
+
+**For the concept**, see [Flows](/framework/flows); this recipe walks building one
+in the Kapi Desktop editor instead of writing YAML by hand.
+
+**Goal:** assemble a multi-step flow — say *recycle → translate → qa* — by dragging
+tools onto a canvas, configuring each in a form, and running it against your
+content without leaving the app.
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-flows-light.webm",
+    dark: "/video/kapi/kapi-desktop-flows-dark.webm",
+  }}
+/>
+
+:::note Video — retargeting needed
+This clip is reused from the [Kapi Desktop tour](/kapi/desktop/tour), where it
+showed flow composition as general orientation. **TODO:** re-record (or trim) it
+to tell _this recipe's_ story — adding tools to the canvas, configuring one step,
+and running the flow against content — and drop the tour framing. Scene scripts:
+[`web/walkthroughs/`](https://github.com/neokapi/neokapi/tree/main/web/walkthroughs).
+:::
+
+## Steps
+
+1. **Open the flow editor.** From a project, open **Flows** and create a new flow
+   (or edit an existing one). The canvas shows the ordered steps; the palette
+   lists every tool the project's plugins provide.
+2. **Add tools.** Drag a tool from the palette onto the canvas. The editor places
+   it in reading order and shows what each step *consumes* and *produces*, so
+   incompatible orderings are obvious before you run.
+3. **Configure each step.** Select a step to open its config form — the same
+   parameters as the [Tool reference](/tools), rendered as inputs with their
+   defaults. No YAML, no remembering flag names.
+4. **Run it.** Press **Run** and pick the content to run against. The runner
+   streams per-file progress; output lands in the project store, ready to
+   [merge out](/kapi/bilingual-workflow).
+5. **Save.** The flow is written to the project's `.kapi` recipe (or
+   `.kapi/flows/`), so it is versioned and runs identically from the
+   [`kapi run`](/kapi/cli) CLI.
+
+## Why the desktop
+
+The editor makes a flow's shape legible — the order of steps, what each one needs,
+and where it writes — and runs it live while you tune the configuration. The result
+is an ordinary recipe flow: nothing in the file is desktop-specific, so the same
+flow runs in CI from the command line.
+
+## Next
+
+- [Manage plugins](/kapi/desktop/recipes/manage-plugins) — add the tools and
+  formats a flow needs.
+- [Store AI credentials](/kapi/desktop/recipes/store-ai-credentials) — wire a
+  provider before a `translate` step.

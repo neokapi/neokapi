@@ -1,4 +1,4 @@
-// Helpers for the "Run this config" action in ReferenceDetail.
+// Helpers for the "Run this config" action in InteractiveConfig.
 //
 // Strategy:
 //   - **Formats (built-in)**: `kapi word-count --format <id> <fixture>` —
