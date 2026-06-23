@@ -1,0 +1,66 @@
+---
+id: project-vs-adhoc
+title: "Projects vs ad-hoc"
+sidebar_label: "Projects vs ad-hoc"
+sidebar_position: 3
+description: "The one model both Kapi surfaces share: run ad-hoc on loose files when nothing needs remembering, or set up a .kapi project with a store that accumulates your translations — and pack it into a portable .klz to move work around."
+keywords: [kapi, project, ad-hoc, store, translation memory, .kapi, .klz, pack]
+---
+
+# Projects vs ad-hoc
+
+There are two ways to drive Kapi — and it's the **same commands** either way. What
+changes is whether Kapi **remembers** anything between runs.
+
+## Ad-hoc — one-off, nothing saved
+
+Run a tool or flow directly on the files you name. Nothing is kept; when it's done,
+it's done.
+
+> _Translate this one file to French._ · _Check this folder for off-brand terms._
+
+This is the quick path — great for a one-time job, a script, or a CI step. In the
+CLI you name the files with flags; in Kapi Desktop you pick them as **quick tools**.
+
+## Project — a recipe plus a memory
+
+A **project** is a small `.kapi` recipe file (your languages, which files count as
+content, your flows, your defaults) plus a hidden **store** that **remembers your
+work** — the translations and terminology you build up, ready to reuse on the next
+run. Kapi finds the project automatically by walking up the folder tree, the way
+git finds its repo.
+
+> _Localize this whole repo every release, reusing everything translated last time._
+
+The payoff is the **store**: translate something once and Kapi recycles it forever
+after; approve a term and it's enforced everywhere. You stop repeating yourself.
+
+| | **Ad-hoc** | **Project** |
+| --- | --- | --- |
+| Setup | none | a `.kapi` recipe (commit it) |
+| Memory | nothing saved | a store accumulates translations + terms |
+| Finds your files | you name them | discovered automatically |
+| Best for | one-offs, scripts, CI | a repo you localize repeatedly |
+
+Set one up: **[your first project](/kapi/get-started/first-project)** (CLI) or
+**[author a project visually](/kapi/desktop/recipes/author-a-project-visually)**
+(Desktop).
+
+## Pack it into a `.klz` to move work around
+
+A project lives in a folder. When you need to **move that work** — to another
+machine, or to a reviewer who doesn't have your repo — you **pack** it into a
+single portable file, a **`.klz`**: a "project in a file" that carries the recipe,
+the content, and the translation memory with it. The other side unpacks it, works,
+and hands it back.
+
+> A `.klz` is how you move a whole project around without a server.
+
+Packing and unpacking a `.klz` is a command-line capability (`kapi pack` /
+`kapi unpack`).
+
+## Going deeper
+
+When you're ready, [Modes &amp; bindings](/kapi/modes) (in the Kapi CLI section)
+covers the mechanics: the source/sink binding model, the two project loops, the
+`--explain` flag, and the `.klz` profiles.

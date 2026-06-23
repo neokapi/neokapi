@@ -1,37 +1,21 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 title: Modes & bindings
-description: How Kapi runs the same commands two ways — ad-hoc on loose files, or in a .kapi project — plus the source/sink binding model that unifies them, the .klz parcel that moves work between them, and when it makes sense to mix.
+description: The mechanics behind ad-hoc vs project runs — the source/sink binding model that unifies them, the two project loops, the --explain flag, and the .klz parcel profiles.
 keywords: [kapi, ad-hoc, project mode, binding, source, sink, process-only, .klz, extract, merge, pack, workflows]
 ---
 
 import { PipelineDiagram } from "@neokapi/docs-shared";
 
-# How Kapi runs: modes & bindings
+# Modes & bindings
+
+**New here?** Start with [Projects vs ad-hoc](/kapi/get-started/project-vs-adhoc)
+for the plain-language version. This page is the **mechanics** — for when you want
+to know exactly how a run resolves.
 
 Kapi doesn't have separate "ad-hoc commands" and "project commands." It has **one
 set of commands**, and what changes is the **binding** — where content comes from
-and where results go. Understanding that one idea makes every workflow below click.
-
-## Two ways to run
-
-Kapi runs the **same commands** two ways — the only difference is whether state is kept:
-
-| | **Ad-hoc** | **Project (`.kapi`)** |
-| --- | --- | --- |
-| **State** | loose files · nothing saved | a `.kapi` recipe + `.kapi/` store |
-| **Typical commands** | `kapi translate app.json`<br />`kapi run flow -i a.json -o b.json`<br />`kapi extract src/*.json -o work.klz` | `kapi init · add · ls`<br />`kapi extract / run / merge` |
-| **What persists** | nothing | the store accumulates TM + overlays |
-| **Discovery** | you name the files | found automatically, walking up the tree like git |
-| **Best for** | one-offs, scripting, CI | a repo you localize repeatedly |
-
-- **Ad-hoc** — run a tool or flow directly on files; nothing is saved.
-- **Project** — capture the workflow once in a portable `.kapi` recipe (languages,
-  content patterns, flows, defaults) plus a `.kapi/` state directory that
-  accumulates translation memory and per-block work.
-
-A **`.klz` parcel** moves work between the two: `pack` a project into a single
-file (or `extract` loose files into one), then `merge`/`unpack` on the other side.
+and where results go. Ad-hoc vs project is just which binding gets used.
 
 ## The binding model: source → flow → sink
 
@@ -173,6 +157,7 @@ store (process-only) — that's intentional, and `--explain` shows you which you
 
 ## See also
 
+- [Check translations in CI](/kapi/recipes/gate-localization-in-ci) — run a project's bound gates (`kapi verify`) on every PR.
 - [Bilingual workflow](/kapi/bilingual-workflow) — the `extract` / `merge` interchange loop in depth.
 - [Work in a `.klz` workspace](/kapi/recipes/resumable-workspace) — the serverless single-file path.
 - [Flows](/framework/flows) — authoring composed flows and the source/sink ends.

@@ -1,0 +1,59 @@
+---
+id: cli-vs-desktop
+title: "Kapi CLI or Kapi Desktop?"
+sidebar_label: "CLI or Desktop?"
+sidebar_position: 1
+description: "Kapi comes two ways that share one engine — the kapi command-line tool and the Kapi Desktop app. This page helps you pick the one that fits how you work."
+keywords: [kapi CLI, Kapi Desktop, which to use, automation, visual editor]
+---
+
+# Kapi CLI or Kapi Desktop?
+
+Both run the **same engine** on the **same `.kapi` projects, flows, and tools** — a
+workflow you build in one runs in the other, and you can switch any time. The only
+question is how _you_ like to work.
+
+## Kapi CLI — the command-line tool
+
+A single binary that operates directly on your files. Reach for it when you want to:
+
+- **automate** — scripts, `make` targets, CI gates that fail a PR on a bad check;
+- **stay in the terminal** — flags, pipes, `--json` output you can feed to other tools;
+- **work offline or at scale** — batch a whole directory, no server, no GUI;
+- **drive it from your AI assistant** — over [MCP](/kapi/get-started/use-with-mcp) or
+  the [Agent Skills](/kapi/get-started/use-with-skills), Claude calls `kapi` to read,
+  check, and fix your content.
+
+Start with the **[Kapi CLI recipes](/kapi/cli)**.
+
+## Kapi Desktop — the visual app
+
+A native app that wraps the same tools and flows in a visual interface — no YAML,
+no flags. Reach for it when you want to:
+
+- **build flows on a canvas** — drag tools, configure them in a form, run them live;
+- **see your project** — content collections, matched files, detected formats, and
+  translation memory laid out visually;
+- **install plugins and store credentials** through a UI rather than the keychain
+  and config files.
+
+Start with the **[Kapi Desktop overview](/kapi/desktop/overview)**.
+
+## Which should I pick?
+
+| If you… | Reach for |
+| --- | --- |
+| live in a terminal and want to script or gate things | **Kapi CLI** |
+| are vibe-coding with Claude and want it to localize for you | **Kapi CLI** over [MCP](/kapi/get-started/use-with-mcp) — Claude drives it |
+| prefer clicking to typing, and want to _see_ the flow | **Kapi Desktop** |
+| are setting up a repo's localization once, to commit and share | **Kapi CLI** ([your first project](/kapi/get-started/first-project)) |
+| are reviewing translations and browsing TM/terms day to day | **Kapi Desktop** |
+
+You don't have to choose permanently. The `.kapi` recipe a teammate authors in the
+CLI opens in Desktop, and vice versa — same project, same results.
+
+## Next
+
+- [Installation](/kapi/get-started/installation) — install either (or both).
+- [Projects vs ad-hoc](/kapi/get-started/project-vs-adhoc) — the one model both
+  surfaces share.

@@ -137,21 +137,6 @@ block in a document; `brand_check` scores a snippet against a profile without
 reading a full file. See [Brand voice](/framework/checks/brand-voice) for the
 profile format, pack model, and vocabulary rule syntax.
 
-## React apps over MCP
-
-If the content lives in a [React app](/kapi/get-started/react-projects), the same
-loop runs over the extracted strings. [Kapi React](/react/introduction) extracts
-your JSX text into a KLF archive; with the MCP server connected, point Claude at
-that archive and ask it to translate and check it:
-
-> "Translate the strings in `i18n/` to French and German — keep the placeholders
-> and inline elements intact — then run QA and fix anything that fails."
-
-Claude translates in place (locale-additive), runs `kapi qa` / `kapi term-check`,
-and loops on the findings until the archive passes; you `kapi-react compile` the
-result as usual. Nothing about your components changes — only the catalogue. See
-[Localize a React app](/react/translating-with-kapi) for the full walkthrough.
-
 ## Where to go next
 
 - [MCP server](/reference/mcp) — full tool list and setup for every

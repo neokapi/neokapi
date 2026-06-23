@@ -465,20 +465,25 @@ const config: Config = {
           ],
         },
         {
-          // Kapi React promoted to a top-level peer (was buried in the Toolbox
-          // dropdown) — it's a first-class way to bring a React app's content
-          // into the Kapi workflow.
-          type: "docSidebar",
-          sidebarId: "reactSidebar",
-          label: "Kapi React",
-          position: "left",
-        },
-        {
-          // Format-aware CLI utilities (kgrep/ksed/kcat/kconv).
-          type: "docSidebar",
-          sidebarId: "toolboxSidebar",
+          // Toolbox holds the format-aware CLI utilities and Kapi React. Kapi
+          // React is a self-contained library — its own thing, kept out of the
+          // core Kapi narrative — so it lives here, not in the Kapi section.
+          type: "dropdown",
           label: "Toolbox",
           position: "left",
+          items: [
+            {
+              // Format-aware CLI utilities (kgrep/ksed/kcat/kconv).
+              type: "docSidebar",
+              sidebarId: "toolboxSidebar",
+              label: "CLI tools",
+            },
+            {
+              type: "docSidebar",
+              sidebarId: "reactSidebar",
+              label: "Kapi React",
+            },
+          ],
         },
         {
           // Neokapi WebAssembly Lab status widget — engine + plugin state for

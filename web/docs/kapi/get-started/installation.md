@@ -41,22 +41,6 @@ Pre-built binaries for all platforms are available on the [GitHub Releases](http
 - macOS (amd64, arm64)
 - Windows (amd64, arm64)
 
-### From source (Go developers)
-
-Install the latest with Go:
-
-```bash
-go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest
-```
-
-Or build the repository:
-
-```bash
-git clone https://github.com/neokapi/neokapi.git
-cd neokapi
-make build       # Build kapi CLI → bin/kapi
-```
-
 ### Verify the install
 
 ```bash

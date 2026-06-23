@@ -1,95 +1,56 @@
 ---
 sidebar_position: 0
 title: Kapi
-description: Kapi is the CLI and desktop built on neokapi's format-aware content engine. Point it at any format; you or your AI agent edit and check the content inside it, and it writes the original back byte-for-byte. Get your content right — with checks for terminology, QA, and brand voice that act like tests for AI output — then make it work in every language. It runs the same engine two ways — the kapi command-line tool and the Kapi Desktop app — sharing the same tools, flows, and .kapi projects.
+description: Kapi is built on neokapi's format-aware content engine. Point it at any format; you or your AI agent edit and check the content inside it, and it writes the original back byte-for-byte — then makes it work in every language. It comes two ways that share one engine — the kapi command-line tool and the Kapi Desktop app.
 keywords: [Kapi, kapi CLI, Kapi Desktop, content engine, AI content, checks, overview]
 ---
 
 # Kapi
 
-**Kapi** is the command-line tool and desktop app built on the open-source
-[neokapi content engine](/framework/architecture) — parse content in **any
-format**, edit it, check it, and write it back **byte-for-byte**. At heart it is
-both a **localization engine** and the tool that keeps your **source content on
-brand**, verified by **checks** (terminology, QA, brand voice) that act like
-**tests for AI output**. It comes in two forms that share the same engine, tools,
-flows, and [`.kapi` projects](/reference/project-file):
+**Kapi** parses content in **any format**, lets you (or your AI agent) **edit and
+check** the content inside it, and writes the original back **byte-for-byte** —
+then makes that content work in **every language**. It is built on the open-source
+[neokapi content engine](/framework/architecture).
 
-- **[Kapi CLI](/kapi/cli)** — a single binary that operates directly on files.
-  Best for automation, scripting, CI gates, and offline work; no project or
-  server required. It also serves brand and terminology tools to your AI
+Two jobs, one engine:
+
+- **Keep your source content right** — edit it faithfully and verify it with
+  **checks** for terminology, QA, and brand voice that act like **tests for AI
+  output** (a draft scores 0–100 and a gate passes or fails).
+- **Make it multilingual** — translate it with AI or MT, reuse what you've already
+  translated, enforce your terminology, and hand bilingual files to translators —
+  all without ever mangling the file's structure.
+
+## Two ways to run it
+
+Kapi comes in two forms that share the **same engine, tools, flows, and
+[`.kapi` projects](/reference/project-file)** — a workflow built in one runs in
+the other:
+
+- **Kapi CLI** — a single binary that operates directly on files. Best for
+  automation, scripting, CI, offline work, and for serving tools to your AI
   assistant over [MCP](/reference/mcp).
-- **[Kapi Desktop](/kapi/desktop/overview)** — a visual companion app for
-  building flows, running tools, managing plugins, and storing AI credentials —
-  without writing YAML or remembering flags.
+- **Kapi Desktop** — a visual app for building flows, running tools, managing
+  plugins, and storing credentials — no YAML, no flags.
 
-Because both front-ends run the same engine, a workflow built in one works in
-the other: the flows and the project file are identical.
+Not sure which fits? See **[Kapi CLI or Kapi Desktop?](/kapi/get-started/cli-vs-desktop)**
 
-## Command-line interface
+## How you'll work
 
-Run tools and flows straight from the terminal — `kapi pseudo-translate`,
-`kapi translate`, `kapi brand check`, `kapi run <flow>`. See the
-[Kapi CLI overview](/kapi/cli) for the command surface and the task-by-task
-recipes you can run in the browser.
+You drive Kapi either **ad-hoc** (one-off, on files you name) or as a **project**
+(a `.kapi` recipe plus a store that remembers your translations) — the same
+commands, a different binding. See
+**[Projects vs ad-hoc](/kapi/get-started/project-vs-adhoc)**.
 
-## Read, check, and edit content
+From there it's task by task: the [Kapi CLI recipes](/kapi/cli) walk preparing your
+source and going multilingual, and [Kapi Desktop](/kapi/desktop/overview) does the
+same work visually.
 
-The same engine also runs as a set of **content operations** on any supported
-file, each emitting a structured `--json` form an assistant or pipeline can
-consume — the read / overview / verify / edit surface:
+## Next
 
-- **`kapi inspect`** — parse a file into one anchored record per content block
-  (text, a stable content-hash, structural [role and nesting](/framework/content-model)).
-- **`kapi stats`** — a content-metrics overview: blocks, words, characters,
-  segments, and a by-role breakdown.
-- **`kapi check`** — verify content against a checkset and return a versioned
-  [`kapi.check/v1` Report](/framework/checks) (pass, score, gate, located
-  findings); it exits non-zero when the gate fails.
-- **`kapi rewrite`** — [faithfully edit](/reference/tools/rewrite) the text inside
-  a file from a plain-language instruction, with a reviewable `--diff` — only the
-  text changes, and the format round-trips back byte-for-byte.
-
-The [Quick Start](/kapi/get-started/quickstart#read-check-and-edit-content) runs
-each one end to end; [Checks](/framework/checks) covers the Report and the
-author → check → revise loop an assistant drives over MCP.
-
-## Desktop app
-
-Prefer a visual interface? [Kapi Desktop](/kapi/desktop/overview) wraps the same
-tools and flows in a native app with a flow editor, live runner, plugin manager,
-and credential vault. The [Kapi Desktop overview](/kapi/desktop/overview) walks
-through your first project.
-
-## Projects and ad-hoc
-
-There are two ways to drive Kapi:
-
-- **Project** — the recommended day-to-day model. Capture the workflow once in a
-  portable `.kapi` recipe (languages, content patterns, flows, plugin
-  requirements, defaults) and replay it with `kapi run <flow>`. The project store
-  accumulates translation memory as you work, and the recipe is shareable via
-  git. Best for any repository or content set you localize repeatedly —
-  [create your first project](/kapi/get-started/first-project).
-- **Ad-hoc** — run a tool or flow directly on files, configured by flags (or, in
-  the desktop app, clicks): `kapi translate -i file.json --target-lang fr`.
-  Nothing is saved — the quick path for one-off jobs, scripting, and CI.
-
-**Kapi finds your project automatically.** Like git, it walks up the directory
-tree from wherever you run it; if it finds a `.kapi` recipe, it runs in
-**project mode** with that project's languages, defaults, and flows. Otherwise
-it runs ad-hoc.
-
-Both are the same commands over a different **binding** (where content enters and
-leaves): ad-hoc writes files, while in a project a run commits to the store and
-`kapi merge` materializes the localized files. See **[Modes &
-bindings](/kapi/modes)** for the full model — the source/sink binding diagram, the
-two project loops, the portable `.klz` parcel, and when it makes sense to mix.
-
-See the [project file reference](/reference/project-file) for the full `.kapi`
-format.
-
-## Install
-
-See [Installation](/kapi/get-started/installation) for the CLI (Homebrew or download)
-and Kapi Desktop (macOS cask).
+- **[Installation](/kapi/get-started/installation)** — the CLI (Homebrew or
+  download) and Kapi Desktop (macOS cask).
+- **[Quick Start](/kapi/get-started/quickstart)** — do something in your browser,
+  no install.
+- **[Use Kapi with your AI assistant](/kapi/get-started/use-with-mcp)** — wire it
+  into Claude, Cursor, and more.
