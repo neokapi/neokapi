@@ -15,11 +15,8 @@ Then restart Claude Code. The plugin needs the `kapi` CLI on your `PATH`
 (`kapi version`) — install it from
 [neokapi releases](https://github.com/neokapi/neokapi) or
 `brew install neokapi/tap/kapi-cli`. The skill drives the local CLI; no
-AI-provider credential is required for the attended loop.
-
-> Prefer not to use the plugin system? `kapi skills install` drops the skill
-> alone into `.claude/skills/` (no marketplace, no hooks) straight from the
-> binary.
+AI-provider credential is required for the attended loop. Keep the CLI updated
+alongside the plugin so the skill matches your installed command surface.
 
 ## Plugins
 

@@ -2,7 +2,7 @@
 id: 024-agent-skills
 sidebar_position: 24
 title: "AD-024: Agent Skills"
-description: "Architecture decision: kapi bundles Agent Skills (SKILL.md routers with progressive-disclosure reference files) embedded in the binary, installed into .claude/skills at project or user scope, that teach an AI coding assistant to drive the kapi CLI for brand, terminology, localization, and the toolbox."
+description: "Architecture decision: kapi ships an Agent Skill (a SKILL.md router with progressive-disclosure reference files) whose source lives in the monorepo, in lockstep with the CLI surface, and is distributed to AI coding assistants as a Claude Code plugin through the neokapi-plugins marketplace — teaching the assistant to drive the kapi CLI for editing, brand, terminology, and localization."
 keywords: [agent skills, SKILL.md, Claude, .claude/skills, progressive disclosure, AI assistant, CLI, architecture decision, neokapi]
 ---
 
@@ -15,12 +15,13 @@ assistant (Claude Code and compatible tools) how to use kapi to author, edit, an
 keep content on-brand and terminologically consistent and to publish it
 multilingually. A skill is a directory: a `SKILL.md` router plus
 progressive-disclosure reference files that the assistant reads only when the
-task calls for them. Skills are embedded in the binary as the single source of
-truth; `kapi skills` installs them into a `.claude/skills` directory at project
-or user scope, offline and byte-identical across distribution paths. The skills
-drive the kapi CLI directly (not the MCP server), and rely on the CLI's
-exit-code contract ([AD-013](013-kapi-cli.md)) to distinguish a failed
-quality/brand gate from an operational error.
+task calls for them. The skill source tree is the single source of truth in the
+monorepo (`cli/skills/data`), kept in lockstep with the CLI command surface it
+documents; it is distributed to assistants as a **Claude Code plugin** through
+the `neokapi-plugins` marketplace — there is no `kapi skills` CLI command and the
+binary does not carry the skill. The skills drive the kapi CLI directly (not the
+MCP server), and rely on the CLI's exit-code contract ([AD-013](013-kapi-cli.md))
+to distinguish a failed quality/brand gate from an operational error.
 
 The default Claude + kapi model is symmetric across writing, editing, and
 translating: **the assistant produces the content; kapi supplies the context
@@ -43,12 +44,14 @@ command to run, without bloating its base context.
 
 Requirements:
 
-- **Single source of truth, many install targets.** The same skill content must
-  install via the `kapi` CLI, ship in the Claude Code plugin bundle, and seed
-  the in-repo dogfood — all byte-identical. Drift between copies is a
-  correctness bug.
-- **Offline and self-contained.** Installing a skill must not require a network
-  fetch; the binary already contains everything.
+- **Single source of truth, in lockstep with the CLI.** The skill names specific
+  kapi commands and flags, so its source lives beside the code it documents
+  (`cli/skills/data`) and changes in the same PR — a command change and its skill
+  update are reviewed together. The plugin bundle and the in-repo dogfood are
+  copies of that one tree; drift between them is a correctness bug.
+- **Distributed and self-updating.** Users add the plugin once; Claude Code's
+  plugin manager keeps it current, so the marketplace — not a manual re-install —
+  is the update path.
 - **Progressive disclosure.** A skill's router must stay small so it can sit in
   the assistant's context cheaply; deeper how-to detail loads on demand.
 - **Agent-actionable, not architectural.** Skill content carries only what an
@@ -76,45 +79,38 @@ pointing at the relevant reference file. The reference files carry the
 task-specific detail (one per concern), so the router stays small and the
 assistant pulls deeper instruction only when a task matches.
 
-### Embedding and the single source of truth
+### Source of truth and distribution
 
-The skill tree is embedded into the binary with `//go:embed all:data` in the
-`cli/skills` package. Embedding makes the binary the canonical source: there is
-no separate skills directory to keep in sync, install works offline, and every
-distribution path emits identical bytes. `skills.List` enumerates the embedded
-skills (name and description from frontmatter); `skills.InstallTo` copies a
-skill's full directory tree — router plus references — preserving structure.
+The skill source is the directory tree under `cli/skills/data` — plain files,
+not embedded in the binary, with no CLI command to install them. Three consumers
+**copy** that one tree, so they never diverge:
 
-The same embedded source feeds every path:
-
-- `kapi skills install` writes into `.claude/skills`;
-- `make plugin-bundle` runs `kapi skills export --dir …` to populate the Claude
-  Code plugin bundle;
-- `make dev-skills` installs into the repo's own `.claude/skills` for
+- `make plugin-bundle` assembles the Claude Code plugin bundle
+  (`packages/kapi-claude-plugin`) from the source;
+- `make publish-plugin` mirrors the assembled bundle to the `neokapi-plugins`
+  marketplace repo (`neokapi/claude-plugins`), published on each kapi release;
+- `make dev-skills` copies it into the repo's own `.claude/skills` for
   dogfooding.
 
-Because all three read the one embedded tree, the bundle, the user install, and
-the dogfood copy never diverge.
+Because the source lives next to the CLI it documents, a command change and its
+skill update land in one reviewed PR (lockstep). The marketplace repo is a
+**generated distribution artifact**, like the Homebrew tap — never hand-edited.
 
-### The `kapi skills` command tree
+### Distribution: the Claude Code plugin
 
-`NewSkillsCmd` (`cli/skills_cmd.go`) builds the `kapi skills` group:
-
-| Command | Purpose |
-|---|---|
-| `list` | List the bundled skills (name + description). |
-| `install [names…]` | Install skills into `.claude/skills`; install a subset by name, or all when none are named. |
-| `uninstall <names…>` | Remove installed skills from `.claude/skills`. |
-
-Install and uninstall take a `--target` selecting the scope:
-
-- `--target project` (default) → `./.claude/skills/<name>/`
-- `--target user` → `~/.claude/skills/<name>/`
-
-Project scope keeps a skill local to one repository (committable, shared with a
-team); user scope makes it available across every project for that user. A
-hidden `export --dir` writes every skill to an arbitrary directory and backs the
-plugin-bundle build.
+There is no `kapi skills` user command; the binary neither carries nor installs
+the skill. Distribution is the plugin: a marketplace
+(`packages/kapi-claude-plugin/.claude-plugin/marketplace.json`, name
+`neokapi-plugins`) hosting the `kapi` plugin — the skill plus two project-scoped,
+fail-open hooks: a **Stop** hook that runs `kapi verify` and keeps the assistant
+working until the gates are green, and a **PreToolUse** hook that blocks direct
+hand-edits of files the project generates as translation targets. Users install
+with `/plugin marketplace add neokapi/claude-plugins` then
+`/plugin install kapi@neokapi-plugins`, and the plugin self-updates through
+Claude Code. The publish cadence is **on kapi release**, so the published skill
+always matches a shipped CLI surface — a Claude Code plugin can't pin a CLI
+version, so a skill that referenced an unreleased command would break an
+up-to-date plugin against an older binary.
 
 ### kapi-* and bowrain-* skills
 
@@ -132,8 +128,9 @@ and a project model, with one reference file per concern — edit (the read → 
 write → verify loop), create (the author → parse → check loop), brand, localize
 (translation and terminology), i18n, project, and the toolbox. Terminology folds
 into the brand and localize references rather than a standalone file. The split is
-the organizing principle for the surface a skill targets; the framework binary
-bundles the kapi side, and `kapi skills list` reflects exactly what is embedded.
+the organizing principle for the surface a skill targets; the framework owns the
+kapi skill source (`cli/skills/data`), and a bowrain skill is contributed by the
+bowrain plugin.
 
 ### The edit and create loops — Claude writes, kapi checks
 
@@ -232,10 +229,12 @@ output. The grep-style `ErrSilentExit` used by the toolbox
 
 ## Consequences
 
-- A single embedded skill tree feeds the CLI install, the Claude Code plugin
-  bundle, and the in-repo dogfood byte-identically, so the three never drift.
-- Installation is offline and scope-aware: a skill can be committed to a project
-  or installed once per user.
+- A single source tree (`cli/skills/data`) feeds the plugin bundle and the
+  in-repo dogfood by copy, so they never drift, and the source stays in lockstep
+  with the CLI surface it documents (one PR changes the command and its skill).
+- Distribution is a Claude Code plugin via the `neokapi-plugins` marketplace,
+  self-updating through Claude Code; the binary no longer carries or installs the
+  skill.
 - Progressive disclosure keeps the router small and loads deeper detail only
   when a task matches, so the assistant's context stays cheap.
 - Skills lean on the CLI's exit-code contract to act on quality gates

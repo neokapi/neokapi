@@ -698,11 +698,12 @@ build-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 
 PLUGIN_DIR := packages/kapi-claude-plugin
 PLUGIN_SKILLS_DIR := $(PLUGIN_DIR)/plugins/kapi/skills
-plugin-bundle: build ## Generate the Claude Code plugin skills/ from the embedded source (gitignored; built for release)
+SKILLS_SRC := cli/skills/data
+plugin-bundle: ## Assemble the Claude Code plugin skills/ from the source tree (gitignored; built for release)
 	@rm -rf $(PLUGIN_SKILLS_DIR)
 	@mkdir -p $(PLUGIN_SKILLS_DIR)
-	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi skills export --dir $(PLUGIN_SKILLS_DIR) >/dev/null
-	@echo "Generated $(PLUGIN_SKILLS_DIR) from the embedded skills (cli/skills/data)"
+	@cp -R $(SKILLS_SRC)/kapi $(PLUGIN_SKILLS_DIR)/kapi
+	@echo "Assembled $(PLUGIN_SKILLS_DIR) from $(SKILLS_SRC)"
 
 # publish-plugin syncs the assembled marketplace bundle to the neokapi-plugins
 # marketplace repo. PLUGIN_MARKETPLACE_REPO defaults to the public repo; override
@@ -711,9 +712,11 @@ PLUGIN_MARKETPLACE_REPO ?= neokapi/claude-plugins
 publish-plugin: plugin-bundle ## Sync the assembled plugin bundle → the neokapi-plugins marketplace repo
 	scripts/publish-plugin.sh "$(PLUGIN_DIR)" "$(PLUGIN_MARKETPLACE_REPO)"
 
-dev-skills: build ## Install kapi/bowrain skills into ./.claude/skills for in-repo dogfooding (gitignored)
-	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi skills install --target project >/dev/null
-	@echo "Installed kapi/bowrain skills into .claude/skills (gitignored; canonical source is cli/skills/data)"
+dev-skills: ## Copy the bundled skills into ./.claude/skills for in-repo dogfooding (gitignored)
+	@mkdir -p .claude/skills
+	@rm -rf .claude/skills/kapi
+	@cp -R $(SKILLS_SRC)/kapi .claude/skills/kapi
+	@echo "Copied skills into .claude/skills (gitignored; canonical source is $(SKILLS_SRC))"
 
 build-all: ## Build all Go binaries
 	@mkdir -p $(BIN_DIR)

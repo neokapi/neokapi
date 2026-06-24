@@ -34,25 +34,9 @@ The plugin **updates itself** through Claude Code's plugin manager — it picks 
 each new published version (the marketplace is republished on every kapi release),
 so your guidance stays current without any manual step.
 
-:::note Offline alternative — a static snapshot
-For an air-gapped or no-plugin-system setup, `kapi skills install` copies the
-skill alone into `.claude/skills/` straight from the binary (no marketplace, no
-hooks):
-
-```bash
-kapi skills install                 # ./.claude/skills/kapi/   (this project)
-kapi skills install --target user   # ~/.claude/skills/kapi/   (every project)
-```
-
-Unlike the plugin, this is a **static snapshot** — it does not update itself, and
-even upgrading the kapi binary won't refresh it. You get a newer skill only by
-re-running `kapi skills install`. Prefer the plugin unless you specifically need
-the offline copy.
-:::
-
-Either way, the skill is a small router Claude Code loads progressively, so it
-stays cheap in context. Claude **discovers it automatically** and invokes it when
-a task fits its description — you never name the skill or the commands.
+The skill is a small router Claude Code loads progressively, so it stays cheap in
+context. Claude **discovers it automatically** and invokes it when a task fits its
+description — you never name the skill or the commands.
 
 **Keep the `kapi` CLI updated** alongside the plugin: the skill is written for the
 current CLI surface (it's published with each kapi release), so update the binary
