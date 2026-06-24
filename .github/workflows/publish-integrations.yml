@@ -1,19 +1,21 @@
-name: Publish Claude Code plugin
+name: Publish integrations
 
-# Publishes the kapi Claude Code plugin bundle to the neokapi-plugins marketplace
-# repo (neokapi/claude-plugins) so `/plugin install kapi@neokapi-plugins` serves
-# the current skill.
+# Publishes kapi's assistant integrations from the monorepo source on each kapi
+# RELEASE (and on demand):
+#   - the Claude Code plugin bundle → neokapi/claude-plugins (the neokapi-plugins
+#     marketplace), so `/plugin install kapi@neokapi-plugins` serves the skill + hooks;
+#   - the portable Agent Skill → neokapi/agent-skills, so `npx skills add
+#     neokapi/agent-skills` installs it into Copilot, Cursor, Windsurf, etc.
 #
-# Cadence: on each kapi RELEASE, so the published skill always matches a shipped
-# CLI surface (a Claude Code plugin can't pin "requires kapi >= X"). Also runnable
-# on demand for a binary-compatible wording fix.
+# Cadence is release-coupled so the published skill always matches a shipped CLI
+# surface (neither a Claude Code plugin nor a SKILL.md can pin "requires kapi >= X").
 #
 # This does NOT build the kapi binary: the skill source of truth is
-# cli/skills/data, and `kapi skills export` is a byte-identical copy of that tree
-# (guaranteed by TestInstallToCopiesTreeByteIdentical), so we copy it directly.
+# cli/skills/data, copied directly into both distributions.
 #
-# Requires a repo secret PLUGIN_PUBLISH_TOKEN: a token with contents:write on
-# neokapi/claude-plugins (the default GITHUB_TOKEN cannot push to another repo).
+# Requires a repo secret PLUGIN_PUBLISH_TOKEN with contents:write on BOTH
+# neokapi/claude-plugins and neokapi/agent-skills (the default GITHUB_TOKEN cannot
+# push to another repo).
 
 on:
   release:
@@ -80,3 +82,11 @@ jobs:
           git config --global user.email "bot@neokapi.dev"
           git config --global url."https://x-access-token:${PLUGIN_PUBLISH_TOKEN}@github.com/".insteadOf "https://github.com/"
           scripts/publish-plugin.sh packages/kapi-claude-plugin neokapi/claude-plugins
+
+      - name: Publish portable skill to neokapi/agent-skills
+        env:
+          PLUGIN_PUBLISH_TOKEN: ${{ secrets.PLUGIN_PUBLISH_TOKEN }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          scripts/publish-skill.sh cli/skills/data/kapi neokapi/agent-skills

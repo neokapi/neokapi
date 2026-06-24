@@ -59,8 +59,32 @@ Desktop:
 }
 ```
 
-Claude Code discovers and connects automatically. See [MCP server](/reference/mcp)
-for Cursor, Windsurf, and VS Code configurations and the full tool list.
+Claude Code discovers and connects automatically.
+
+**GitHub Copilot** — Copilot speaks MCP (GA in VS Code, the Copilot CLI, Visual
+Studio, and JetBrains IDEs). In VS Code, add `.vscode/mcp.json` at the repository
+root:
+
+```json
+{
+  "servers": {
+    "kapi": {
+      "command": "kapi",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Copilot then calls kapi's tools automatically — `extract_content`, `apply_edits`,
+`check_file`, `brand_check`. For the **guidance** that drives the loop (when to
+reach for which tool), also install kapi's Agent Skill — Copilot reads `SKILL.md`
+natively: `npx skills add neokapi/agent-skills -a github-copilot`. See
+[Use the Kapi Agent Skills](/kapi/get-started/use-with-skills) for the skill across
+all tools.
+
+See [MCP server](/reference/mcp) for Cursor, Windsurf, Visual Studio, and
+JetBrains configurations and the full tool list.
 
 ## The tools
 

@@ -6,42 +6,63 @@ keywords: [kapi, claude, claude code, agent skills, skill, prompt, content check
 
 # Use the Kapi Agent Skills
 
-kapi ships a **Claude Code Agent Skill**. With it installed, you don't run `kapi`
-yourself — you describe the outcome to Claude in plain language, and Claude loads
-the skill, runs the right `kapi` commands, reads the results, and iterates until
-the work passes kapi's gates. kapi supplies the guardrails (faithful round-trip,
-brand voice, terminology); Claude does the writing and translating; you stay in
-the conversation.
+kapi ships a portable **Agent Skill** (a `SKILL.md`). With it installed, you don't
+run `kapi` yourself — you describe the outcome in plain language, and your AI
+coding assistant loads the skill, runs the right `kapi` commands, reads the
+results, and iterates until the work passes kapi's gates. kapi supplies the
+guardrails (faithful round-trip, brand voice, terminology); the assistant does the
+writing and translating; you stay in the conversation.
 
-This page walks the two things you'll ask for most — **authoring/editing
-content** and **localizing it** — as prompts, and shows what Claude does under
-the hood. (To run the commands yourself, each section links to its CLI recipe.)
+`SKILL.md` is an [open standard](https://github.com/agentskills/agentskills), so
+the skill works in **Claude Code, GitHub Copilot, Cursor, Windsurf, VS Code,
+Codex**, and the rest of the ecosystem. This page is written around **Claude
+Code** — the richest integration — but the loops apply to any tool that runs the
+skill.
 
-## Install the plugin
+## Install
 
-The recommended path is the **Claude Code plugin**, which bundles the skill *and*
-two hooks that make the loop a guarantee (see [Hooks](#what-the-hooks-add)):
+Pick the path for your tool. All paths need the `kapi` CLI on your `PATH`
+(`kapi version`; see [installation](/kapi/get-started/installation)) — keep it
+updated so the skill matches your command surface.
+
+| Your tool | Install | Updates |
+|---|---|---|
+| **Claude Code** | the plugin (below) — skill **+ hooks** | automatic |
+| **Copilot · Cursor · Windsurf · VS Code · Codex · …** | `npx skills add neokapi/agent-skills` | `npx skills update` |
+| **Any MCP client** (structured tool calls) | run `kapi mcp` — see [Use Kapi with MCP](/kapi/get-started/use-with-mcp) | — |
+
+### Claude Code — the plugin
+
+The richest path: the **Claude Code plugin** bundles the skill *and* two hooks
+that make the loop a guarantee (see [Hooks](#what-the-hooks-add)):
 
 ```text
 /plugin marketplace add neokapi/claude-plugins
 /plugin install kapi@neokapi-plugins
 ```
 
-Restart Claude Code. The only prerequisite is the `kapi` CLI on your `PATH`
-(`kapi version`; see [installation](/kapi/get-started/installation)).
+Restart Claude Code. The plugin **updates itself** through Claude Code's plugin
+manager — republished on each kapi release — so your guidance stays current with
+no manual step.
 
-The plugin **updates itself** through Claude Code's plugin manager — it picks up
-each new published version (the marketplace is republished on every kapi release),
-so your guidance stays current without any manual step.
+### Other tools — the portable skill
 
-The skill is a small router Claude Code loads progressively, so it stays cheap in
-context. Claude **discovers it automatically** and invokes it when a task fits its
-description — you never name the skill or the commands.
+The same skill installs into any `SKILL.md`-aware tool with the
+[`skills`](https://github.com/vercel-labs/skills) CLI:
 
-**Keep the `kapi` CLI updated** alongside the plugin: the skill is written for the
-current CLI surface (it's published with each kapi release), so update the binary
-when you update the plugin — otherwise the skill may reach for a command your
-older kapi doesn't have.
+```bash
+npx skills add neokapi/agent-skills                    # all detected tools
+npx skills add neokapi/agent-skills -a github-copilot  # one tool
+```
+
+It copies the skill into your tool's skill directory (`.github/skills/`,
+`.cursor/skills/`, …); run `npx skills update` to refresh it. You get the skill's
+guidance, but not the Claude-Code hooks (there is no portable equivalent). For
+kapi's structured tools in these clients, also run the MCP server (`kapi mcp`).
+
+Either way, the skill is a small router the assistant loads progressively, so it
+stays cheap in context — the assistant **discovers it automatically** and invokes
+it when a task fits its description; you never name the skill or the commands.
 
 ### What the hooks add
 

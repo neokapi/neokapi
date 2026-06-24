@@ -712,6 +712,16 @@ PLUGIN_MARKETPLACE_REPO ?= neokapi/claude-plugins
 publish-plugin: plugin-bundle ## Sync the assembled plugin bundle → the neokapi-plugins marketplace repo
 	scripts/publish-plugin.sh "$(PLUGIN_DIR)" "$(PLUGIN_MARKETPLACE_REPO)"
 
+# publish-skill mirrors the portable Agent Skill into the neokapi/agent-skills
+# collection (under agent-skills/kapi/) so `npx skills add neokapi/agent-skills`
+# installs it into any SKILL.md-aware tool (Copilot, Cursor, Windsurf, …).
+# Requires push access.
+SKILL_REPO ?= neokapi/agent-skills
+publish-skill: ## Sync the portable skill → the neokapi/agent-skills collection (npx skills add)
+	scripts/publish-skill.sh "$(SKILLS_SRC)/kapi" "$(SKILL_REPO)"
+
+publish-integrations: publish-plugin publish-skill ## Publish both the Claude plugin and the portable skill
+
 dev-skills: ## Copy the bundled skills into ./.claude/skills for in-repo dogfooding (gitignored)
 	@mkdir -p .claude/skills
 	@rm -rf .claude/skills/kapi
