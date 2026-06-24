@@ -42,8 +42,8 @@ run-range when the checker pinpointed one). The stable rule id is the loop's
 primary key: an assistant tracks it across iterations to confirm a fix and avoid
 regressions. `--json` emits the Report verbatim; over MCP, the `check_file` and
 `check_text` tools return the same Report — the verifier counterpart to the
-`rewrite_file` editing moat — so an assistant can **author → check → revise →
-re-check** without leaving the conversation.
+`extract_content`/`apply_edits` editing moat — so an assistant can
+**author → check → revise → re-check** without leaving the conversation.
 
 ## One model: findings
 

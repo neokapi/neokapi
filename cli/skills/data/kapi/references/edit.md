@@ -56,12 +56,10 @@ kapi apply edits.jsonl                  # apply in place
 kapi apply edits.jsonl --in-place=.bak  # apply, keeping a .bak of each file
 ```
 
-Default to `kapi apply` — it covers every case (one file or many, content alone
-or content mixed with asset edits; see [Mixed change-sets](#mixed-change-sets)).
-There is one alias: `kapi rewrite --edits FILE…` applies the same content edits
-provider-free under the `rewrite` verb, for when you are already in a `rewrite`
-flow and naming files on the command line (it rejects asset entries and is
-mutually exclusive with `--instruction`). When in doubt, use `kapi apply`.
+`kapi apply` is the sole write verb — it covers every case (one file or many,
+content alone or content mixed with asset edits; see
+[Mixed change-sets](#mixed-change-sets)). kapi never sends content to a model to
+rewrite it; you write the new text and `kapi apply` round-trips it back.
 
 ## 3. The two guards
 

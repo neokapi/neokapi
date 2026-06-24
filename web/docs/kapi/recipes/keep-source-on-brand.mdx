@@ -33,8 +33,8 @@ The four commands involved are:
 | `kapi stats` | Content overview: block counts, words, characters |
 | `kapi inspect` | Per-block detail as JSON — for RAG or AI pipelines |
 | `kapi check` | Check against a brand profile; exit 3 when the gate fails |
-| `kapi apply` | Write your reviewed edits back through the faithful round-trip (no provider) |
-| `kapi rewrite` | `--edits` applies your edits (no provider); `--instruction` is the provider rewrite |
+| `kapi apply` | Write your reviewed edits back through the faithful round-trip (no model) |
+| `kapi brand rewrite` | Offline substitution of forbidden/competitor terms for their approved wording |
 
 ## Survey the content
 
@@ -271,12 +271,10 @@ kapi apply edits.jsonl --diff           # review first
 kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
 ```
 
-`kapi rewrite --edits edits.jsonl blog-post.md` does the same for files named on
-the command line. An edit whose `content_hash` no longer matches, or that drops
-an inline code, is left unchanged and the command exits on the gate code (3) so
-you re-inspect and retry. (See [the `rewrite` tool](/reference/tools/rewrite) for
-the faithful round-trip guarantee that keeps styles, keys, inline codes, and
-markup intact.)
+An edit whose `content_hash` no longer matches, or that drops an inline code, is
+left unchanged and the command exits on the gate code (3) so you re-inspect and
+retry. (See [Edit content](/kapi/recipes/rewrite-content) for the faithful
+round-trip guarantee that keeps styles, keys, inline codes, and markup intact.)
 
 ### Fix the rule, not just the draft
 
@@ -294,24 +292,24 @@ YAML (the `defaults.brand_voice.profile_file` the recipe binds) and compiled int
 the local brand store, so the next check enforces it. `git diff` is the review
 surface. This requires a `.kapi` project.
 
-### Unattended: provider rewrite
+### Offline term substitution
 
-When no assistant is in the loop, `kapi rewrite --instruction "…"` rewrites via a
-configured provider (`kapi credentials add`, or `--provider`). This path is
-mutually exclusive with `--edits`:
+To swap forbidden and competitor terms for their approved wording without an
+assistant in the loop, `kapi brand rewrite` does it deterministically — no model.
+It reads text from `--input-text` or stdin and reports each change; it fixes
+vocabulary only, not tone or phrasing:
 
 ```bash
-kapi rewrite --instruction "replace 'leverage' with 'use'; avoid superlatives" \
-  --provider anthropic --diff blog-post.md
+echo "$DRAFT" | kapi brand rewrite --profile-file brand/voice.yaml --input-text - --json
 ```
 
-After rewriting, run `kapi check` again to confirm the findings are cleared. The
+After fixing, run `kapi check` again to confirm the findings are cleared. The
 stable rule ids in the Report let you track which violations remain.
 
 ## In an AI agent loop (MCP)
 
-`kapi mcp` exposes the check and rewrite surface as MCP tools so an AI assistant
-(Claude Code, Cursor, or any MCP-compatible client) can drive the full
+`kapi mcp` exposes the read, write, and check surface as MCP tools so an AI
+assistant (Claude Code, Cursor, or any MCP-compatible client) can drive the full
 author → check → fix cycle from a conversation:
 
 | MCP tool | What it does |
@@ -321,7 +319,6 @@ author → check → fix cycle from a conversation:
 | `check_text` | Check a text snippet (no file needed) |
 | `check_file` | Check a file's content; returns `kapi.check/v1` Report |
 | `brand_check` | Score text against a brand profile; returns findings |
-| `rewrite_file` | Provider-driven rewrite per an instruction (unattended) |
 
 A typical agent loop:
 
@@ -338,11 +335,12 @@ setup and the full tool list.
 
 ## In a project
 
-In a `.kapi` project, `kapi check` and `kapi rewrite` run against the recipe's
-declared content with no file argument — the brand profile, packs, and gate
-thresholds come from the recipe instead of being passed on each invocation. Wire
-the check into a flow and run it with `kapi run` to gate the whole project's
-source in one pass. See [Create your first project](/kapi/get-started/first-project).
+In a `.kapi` project, `kapi check` runs against the recipe's declared content
+with no file argument — the brand profile, packs, and gate thresholds come from
+the recipe instead of being passed on each invocation, and `kapi apply` lands
+your edits against the named files. Wire the check into a flow and run it with
+`kapi run` to gate the whole project's source in one pass. See
+[Create your first project](/kapi/get-started/first-project).
 
 ## Next
 
@@ -350,8 +348,8 @@ source in one pass. See [Create your first project](/kapi/get-started/first-proj
   rules, and how the score is calculated.
 - [`kapi check` reference](/reference/commands/brand-check) — all flags and the
   full `kapi.check/v1` schema.
-- [`rewrite` tool reference](/reference/tools/rewrite) — provider configuration,
-  inline-code preservation, and the faithful round-trip guarantee.
+- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply`
+  loop, inline-code preservation, and the faithful round-trip guarantee.
 - [MCP server](/reference/mcp) — how to configure kapi as an MCP server for
   Claude Code, Cursor, and other AI tools.
 - [Terminology QA](/kapi/recipes/terminology-qa) — enforce approved term choices

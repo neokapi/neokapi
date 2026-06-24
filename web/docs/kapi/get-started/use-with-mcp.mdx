@@ -13,11 +13,11 @@ preserving the file's structure. The assistant calls a tool when a task needs it
 you describe the work in plain language.
 
 The `kapi` CLI must be on your `PATH` — confirm with `kapi version` (see
-[installation](/kapi/get-started/installation)). The attended edit loop —
+[installation](/kapi/get-started/installation)). The edit loop —
 `extract_content` to read, `apply_edits` to write — needs no provider credential:
-the assistant supplies the edits and kapi applies them with no second model. A
-provider added with `kapi credentials add` is only for `rewrite_file` (the
-unattended, provider-driven rewrite) and the optional `--ai` checks.
+the assistant supplies the edits and kapi applies them, with no model. A provider
+added with `kapi credentials add` is only for unattended translation
+(`kapi translate`) and the optional `--ai` checks.
 
 :::tip Driving the CLI from Claude Code instead?
 If you use **Claude Code**, the [Kapi Agent Skills](/kapi/get-started/use-with-skills)
@@ -76,8 +76,6 @@ for Cursor, Windsurf, and VS Code configurations and the full tool list.
   compiled into the cache. No provider is used.
 - **`check_file`** / **`check_text`** — run the configured checkset over a file
   path or a plain string and return a `kapi.check/v1` Report.
-- **`rewrite_file`** — the provider/unattended path: apply an AI instruction to
-  the text inside a file and return the revised file, structure preserved.
 - **`brand_check`** — score a text snippet against a brand voice profile without
   reading a full file.
 
@@ -125,8 +123,7 @@ The tools compose into a fix loop with no scaffolding:
 
 If an edit drifted (`content_hash` no longer matches) or would corrupt an inline
 code, `apply_edits` returns `ok: false` and leaves that block unchanged, so the
-assistant re-inspects and retries. `rewrite_file` is the provider-driven
-alternative for unattended use. This works for any file type kapi reads —
+assistant re-inspects and retries. This works for any file type kapi reads —
 Markdown, JSON, DOCX, HTML, YAML, and the rest.
 
 ## Brand voice
@@ -154,5 +151,5 @@ profile format, pack model, and vocabulary rule syntax.
   Code path, where Claude drives the `kapi` CLI by natural language.
 - [Checks](/framework/checks) — the check families and the `kapi.check/v1`
   Report model.
-- [Rewrite tool](/reference/tools/rewrite) — `rewrite` parameters and provider
-  configuration.
+- [Edit content in any format](/kapi/recipes/rewrite-content) — the
+  inspect → edit → `apply` loop the MCP tools mirror.

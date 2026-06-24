@@ -99,7 +99,7 @@ parse-accuracy benchmark or enter a parsing leaderboard (PDF is an off-core plug
 
 | Audience | Lead with | Lands on |
 |---|---|---|
-| Builders editing structured files | the **Edit** wedge | `kapi rewrite`, the format-aware toolbox |
+| Builders editing structured files | the **Edit** wedge | `kapi inspect`/`kapi apply`, the format-aware toolbox |
 | AI / agent builders | kapi as an MCP tool / Agent Skill | use-with-Claude, the agent loop |
 | AI / RAG engineers | the **Parse** verb (`inspect`, anchored JSONL) | OSS mindshare |
 | Builders shipping in many languages | "and in every language" — it just works | the translate/TM/segmentation recipes, kapi-react i18n |

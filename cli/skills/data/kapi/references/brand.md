@@ -14,7 +14,7 @@ YAML (`--profile-file`), or the local store (`--profile`). List options with
 **Inside a project, the profile is part of the context — don't pass a flag.** When
 the project binds a brand voice (a `defaults.brand_voice` recipe entry, or a
 `brand.yaml` / `.kapi/brand.yaml` at the project root), run `kapi brand check
-<file>`, `kapi brand rewrite <file>`, and `kapi brand guide` with **no**
+<file>` and `kapi brand guide` with **no**
 `--profile`/`--profile-file`/`--pack` — kapi resolves the project's voice. Pass a
 flag only for a one-off outside a project, or to override the bound profile. See
 [project.md](project.md).
@@ -78,9 +78,11 @@ Returns a 0–100 `score` and `findings` (each with `severity`, `original_text`,
 ## 3. Fix what's flagged — you rewrite, kapi checks
 
 Rewrite the off-voice text on-brand **yourself**, route the change through kapi's
-write verb, then re-check. Don't reach for `kapi brand rewrite --ai` (or any
-`--provider`) here — the provider path is the unattended fallback, for when no
-assistant is in the loop. Load the brand voice as context first:
+write verb, then re-check. kapi does not send content to a model to rewrite it:
+`kapi brand rewrite` only substitutes forbidden/competitor terms with their
+approved replacements, deterministically and offline — it won't fix tone, style,
+or phrasing. For those, rewrite the text yourself with the voice guide as
+context. Load it first:
 
 ```bash
 kapi brand guide                       # the voice to follow — your context
@@ -126,19 +128,19 @@ the next `kapi brand check` / `kapi verify` enforces it. `list` is `forbidden`,
 `competitor`, or `preferred`; the entry requires a `.kapi` project. (Add an
 approved term instead with a `term` entry — see [create.md](create.md).)
 
-### Unattended fallback: let kapi call a provider
+### Offline term substitution
 
-When **no assistant is in the loop** (CI, a batch job), kapi can rewrite via a
-configured provider — the second-model path, gated behind a saved credential:
+`kapi brand rewrite` swaps forbidden and competitor terms for their approved
+replacements — deterministic, offline, no model. It reads text from
+`--input-text` or stdin and prints the rewrite, reporting each `change`:
 
 ```bash
-echo "$DRAFT" | kapi brand rewrite --pack marketing-blog --text - --ai --json
+echo "$DRAFT" | kapi brand rewrite --pack marketing-blog --input-text - --json
 ```
 
-Offline (no `--ai`), `kapi brand rewrite` only substitutes forbidden/competitor
-terms deterministically and reports the `changes`. With `--ai` it rewrites tone
-and style holistically. This is the fallback for unattended runs; when you are in
-the loop, prefer rewriting yourself and applying through `kapi apply`.
+It only changes the terms the profile defines; it won't fix tone, style, or
+phrasing. For those, rewrite the text yourself with the voice guide as context
+and apply through `kapi apply`.
 
 ## CI / quality gate
 

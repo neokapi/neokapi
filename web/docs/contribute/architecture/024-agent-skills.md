@@ -141,7 +141,7 @@ The two productive loops a skill drives are both **provider-free by default**: t
 assistant is the writer, and kapi is the format engine and the checker. This is
 the same asymmetry-correction translation already made (the assistant is a capable
 translator, so kapi routes its output through the round-trip rather than calling a
-separate model) applied to rewrite and creation.
+separate model) applied to editing and creation.
 
 - **Edit existing content.** `kapi inspect` is the read leg: it parses any
   editable format into one record per content block — the block's `text` with
@@ -187,16 +187,15 @@ Two properties make this one verb rather than five:
   an operational error, per the exit-code contract below) so the fix loop
   re-inspects and retries.
 
-`kapi rewrite --edits <file.jsonl>` is the same content-only write under the verb
-users already know (mutually exclusive with the provider path, `--instruction`);
-`kapi apply` is the superset that also lands asset edits and spans several files.
-A mixed change-set — a content fix and the `term` or `brand` rule that justifies
-it — lands atomically, so the draft and the rule that governs future drafts move
-together.
+`kapi apply` is the one write verb. It lands content edits, asset edits (a `term`
+or `brand` rule), or a mix of both, and spans several files. kapi never sends
+content to a model to rewrite it: the assistant rewrites the text and `kapi apply`
+round-trips it back. A mixed change-set — a content fix and the `term` or `brand`
+rule that justifies it — lands atomically, so the draft and the rule that governs
+future drafts move together.
 
 The MCP server exposes the same loop for non-CLI agents: `extract_content` (read
-leg) and `apply_edits` (the typed change-set), with `rewrite_file` retained as the
-provider/unattended path ([AD-022](022-brand-voice.md)).
+leg) and `apply_edits` (the typed change-set, [AD-022](022-brand-voice.md)).
 
 ### Format editability is declarative
 

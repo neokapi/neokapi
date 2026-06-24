@@ -145,36 +145,32 @@ The subcommands:
 | `new` | Scaffold a commented, schema-valid profile YAML to fill in (optionally seeded from a `--pack`). |
 | `guide` / `show` | Render the profile as a markdown voice guide to inject into an assistant's context. |
 | `check` | Score text against the profile (vocab always; `--ai` adds the LLM check). `--min-score` turns it into a gate. |
-| `rewrite` | Rewrite text to comply — deterministic term substitution by default, full LLM rewrite with `--ai`. |
+| `rewrite` | Substitute forbidden/competitor terms for their approved replacements — deterministic, offline, no model. |
 | `profiles` | List profiles (local store + built-in packs). |
 | `import` | Import a profile YAML into the local store. |
 | `pack` | Install a built-in starter pack into the local store. |
 
-`check` and `rewrite` read their subject text from `--text`, a positional file,
-or stdin. `check --min-score` returns the `ErrQualityGate` sentinel when the
-score is below the threshold, which the CLI maps to a distinct exit code
+`check` reads its subject text from `--text`, a positional file, or stdin.
+`check --min-score` returns the `ErrQualityGate` sentinel when the score is below
+the threshold, which the CLI maps to a distinct exit code
 ([AD-013](013-kapi-cli.md)) so skills and CI can tell a failed gate from an
 operational error.
 
-### Two rewrite paths: attended (caller-supplied) and unattended (provider)
+### Fixing off-voice content: rewrite it yourself, apply through `kapi apply`
 
-`kapi brand rewrite` and the format-aware `kapi rewrite` both have **two** ways to
-land an on-brand fix, mirroring the translation model — kapi does not call a
-second model when an assistant is already in the loop:
+kapi does not send content to a model to rewrite it. An on-brand fix is
+caller-supplied: the assistant loads the voice guide (`kapi brand guide`) and the
+approved wording (`kapi termbase lookup`) as context, rewrites the off-voice text
+itself, and applies the result through the one write verb, `kapi apply`. The
+edits land through the byte-faithful round-trip with **no AI provider**
+([AD-024](024-agent-skills.md)): structure and inline codes are preserved, each
+block is drift-guarded by its `content_hash`, and an edit that would corrupt
+markup is rejected.
 
-- **Attended — caller-supplied.** The assistant loads the voice guide
-  (`kapi brand guide`) and the approved wording (`kapi termbase lookup`) as
-  context, rewrites the off-voice text itself, and applies the result through the
-  one write verb, `kapi apply` (or `kapi rewrite --edits`). The edits land through
-  the byte-faithful round-trip with **no AI provider** ([AD-024](024-agent-skills.md)):
-  structure and inline codes are preserved, each block is drift-guarded by its
-  `content_hash`, and an edit that would corrupt markup is rejected. This is the
-  default attended path.
-- **Unattended — provider.** With no assistant in the loop, `kapi brand rewrite
-  --ai` (and `kapi rewrite --instruction`) call an AI provider to rewrite tone and
-  style holistically, gated behind a saved credential. The deterministic, offline
-  `kapi brand rewrite` (no `--ai`) still substitutes forbidden/competitor terms
-  by rule. The provider path is the fallback for batch and CI use.
+`kapi brand rewrite` is a separate, deterministic helper: it substitutes
+forbidden and competitor terms for their approved replacements by rule, offline,
+reading text from `--input-text` or stdin. It does not call a model and does not
+touch tone, style, or phrasing — those are the caller's to rewrite.
 
 ### Brand-vocabulary edits as a change-set entry
 
@@ -255,7 +251,7 @@ it.
 - [AD-010: Terminology](010-terminology.md) — concept-level terminology
   consistency that brand vocabulary intersects
 - [AD-011: AI Providers](011-ai-providers.md) — the LLM provider behind the AI
-  brand check and rewrite
+  brand check
 - [AD-013: Kapi CLI](013-kapi-cli.md) — the `kapi brand` command tree, the MCP
   server, and the gate exit code
 - [AD-024: Agent Skills](024-agent-skills.md) — the bundled skill that drives

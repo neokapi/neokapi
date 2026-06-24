@@ -19,9 +19,10 @@ AI assistant working over MCP.
 
 `kapi check` is the entry point. It reads a file, runs a content-first checkset,
 and returns one machine-readable `kapi.check/v1` Report. It never modifies
-content; that is `kapi rewrite`'s job.
+content; editing the flagged blocks is `kapi apply`'s job.
 
-For the concepts, see [Checks](/framework/checks) and the [Rewrite tool](/reference/tools/rewrite); this recipe walks the task.
+For the concepts, see [Checks](/framework/checks) and
+[Edit content](/kapi/recipes/rewrite-content); this recipe walks the task.
 
 ## Run a check
 
@@ -202,21 +203,17 @@ one `kapi.check/v1` schema.
 
 ## The author → check → revise loop
 
-When a finding points at a block, `kapi rewrite` edits that block's text from a
-plain-language instruction. The file format is preserved; only the text changes:
+When a finding points at a block, read the blocks, rewrite the flagged ones
+yourself, and write them back with `kapi apply`. The file format is preserved;
+only the text changes, and no model is involved:
 
 ```bash
-# See what the rewrite would do
-kapi rewrite \
-  --instruction "shorten to fit 120 characters, keep the core message" \
-  --diff \
-  src/locales/en.json
+# Read the blocks, edit the flagged ones, preview the change
+kapi inspect src/locales/en.json --jsonl | edit-the-blocks > edits.jsonl
+kapi apply edits.jsonl --diff
 
 # Apply in place
-kapi rewrite \
-  --instruction "shorten to fit 120 characters, keep the core message" \
-  --in-place \
-  src/locales/en.json
+kapi apply edits.jsonl
 
 # Re-check
 kapi check src/locales/en.json --max-chars 120
@@ -232,9 +229,10 @@ relevant tools:
 
 | MCP tool | What it does |
 |---|---|
+| `extract_content` | Read a file's blocks (`id`, `content_hash`, placeholder text) — the read leg |
 | `check_file` | Run `kapi check` on a file; returns the `kapi.check/v1` Report |
 | `check_text` | Check a text string inline without a file |
-| `rewrite_file` | Apply a `kapi rewrite` instruction to a file in place |
+| `apply_edits` | Apply a typed change-set of content edits in place — the write leg, no provider |
 | `brand_check` | Run brand vocabulary and voice rules against a file |
 
 A typical assistant turn:
@@ -242,8 +240,8 @@ A typical assistant turn:
 1. Author or edit content in a file.
 2. Call `check_file` — receives the Report with stable rule ids and block
    locations.
-3. For each failing block, call `rewrite_file` with the suggestion from the
-   finding or a derived instruction.
+3. For each failing block, rewrite its text and send it back with `apply_edits`
+   (a `content` entry carrying the block's `content_hash`).
 4. Call `check_file` again. Iterate until `pass` is `true`.
 
 Because rule ids are stable across runs, the assistant can track which findings
@@ -266,8 +264,8 @@ flags, so the same gate applies everywhere it runs. See
 
 - [Checks](/framework/checks) — the check model, the Report schema, and every check
   family.
-- [Rewrite tool](/reference/tools/rewrite) — how `kapi rewrite` edits text faithfully
-  inside any format.
+- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply`
+  loop that fixes the blocks a check flags.
 - [MCP server](/reference/mcp) — connect kapi to Claude, Cursor, and other MCP-compatible
   assistants.
 - [Gate localization in CI](/kapi/recipes/gate-localization-in-ci) — run project-bound

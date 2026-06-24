@@ -15,10 +15,9 @@ plain language.
 The `kapi` CLI must be on your `PATH` — confirm with `kapi version` (see
 [installation](/kapi/get-started/installation)). The attended loop — where Claude
 writes the edits and kapi applies them through `kapi apply` — needs no provider
-credential, the same way translation does (you are the translator; kapi doesn't
-call a second model). A provider added with `kapi credentials add` is only for
-the unattended paths: `kapi translate`, the optional `--ai` checks, and the
-provider rewrite (`kapi rewrite --instruction`).
+credential — the assistant supplies the edits and kapi applies them, with no
+model. A provider added with `kapi credentials add` is only for the unattended
+paths: `kapi translate` and the optional `--ai` checks.
 
 :::tip Want structured tool calls instead?
 For Claude Desktop, Cursor, Windsurf, or any programmatic MCP client, run the
@@ -121,9 +120,9 @@ The commands compose into a fix loop Claude runs on its own:
 2. It runs `kapi check` — the Report says which block failed, which rule, and
    where in the file.
 3. Claude rewrites the flagged blocks itself and applies the edits with
-   `kapi apply` (or `kapi rewrite --edits`) — no second model is called. kapi
-   reconstructs the file in its original format, structure and inline codes
-   intact, and rejects any edit that drifted or would corrupt markup.
+   `kapi apply` — no model is called. kapi reconstructs the file in its original
+   format, structure and inline codes intact, and rejects any edit that drifted
+   or would corrupt markup.
 4. It runs `kapi check` again. When the gate is green, it stops.
 
 This loop works for any file type kapi reads — Markdown, JSON, DOCX, HTML, YAML,
@@ -152,13 +151,11 @@ kapi apply edits.jsonl                    # apply in place
 kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
 ```
 
-Under the verb users already know, `kapi rewrite --edits edits.jsonl README.md`
-applies the same content edits with no provider. (The provider path,
-`kapi rewrite --instruction "…"`, is the unattended alternative; it is mutually
-exclusive with `--edits`.) An edit whose `content_hash` no longer matches, or
-that drops or unbalances an `<x id="…"/>` code, is left unchanged and the command
-exits on the gate code (3) so Claude re-inspects and retries. See
-[Rewrite tool](/reference/tools/rewrite) for the round-trip contract.
+An edit whose `content_hash` no longer matches, or that drops or unbalances an
+`<x id="…"/>` code, is left unchanged and the command exits on the gate code (3)
+so Claude re-inspects and retries. See
+[Edit content in any format](/kapi/recipes/rewrite-content) for the round-trip
+contract and the guards.
 
 ## Brand voice
 
@@ -214,8 +211,8 @@ and consume bilingual interchange files — see
   structured tools for any MCP client.
 - [Checks](/framework/checks) — the check families and the `kapi.check/v1`
   Report model.
-- [Rewrite tool](/reference/tools/rewrite) — `rewrite` parameters and provider
-  configuration.
+- [Edit content in any format](/kapi/recipes/rewrite-content) — the
+  inspect → edit → `apply` loop and its guards.
 - [Brand voice](/framework/checks/brand-voice) — the profile model for
   vocabulary and style rules.
 - [Bilingual workflow](/kapi/bilingual-workflow) — XLIFF/PO round-trips for

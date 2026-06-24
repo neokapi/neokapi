@@ -8,7 +8,7 @@ hide_table_of_contents: true
 # Feed content to your AI
 
 :::note Runs anywhere
-No project needed — `kapi stats`, `kapi inspect`, `kapi check`, and `kapi rewrite` run ad-hoc on any source document.
+No project needed — `kapi stats`, `kapi inspect`, `kapi check`, and `kapi apply` run ad-hoc on any source document.
 :::
 
 **Goal:** turn any document — Word, PDF, JSON, Markdown, HTML — into a stream of
@@ -123,14 +123,15 @@ The write-back path closes the loop:
 1. **Read** — `kapi inspect --jsonl` extracts blocks with anchors.
 2. **Retrieve** — the AI finds the relevant block by `content_hash` or `id`.
 3. **Edit** — the AI produces a revised version of the text.
-4. **Write-back** — `kapi rewrite` or the MCP `rewrite_file` tool applies the
+4. **Write-back** — `kapi apply` (or the MCP `apply_edits` tool) applies the
    edit back to the file through the same format-aware round-trip, leaving
-   structure and inline markup intact.
+   structure and inline markup intact. No model is involved — the AI wrote the
+   text; kapi writes it back.
 
 The write-back is a faithful, format-aware round-trip: only the text changes,
 and a block whose inline codes would be corrupted is left unchanged rather than
-written with unbalanced markup. See [Rewrite tool](/reference/tools/rewrite) for
-the round-trip contract.
+written with unbalanced markup. See [Edit content](/kapi/recipes/rewrite-content)
+for the round-trip contract.
 
 ## Checking content before or after editing
 
@@ -190,34 +191,21 @@ See [Checks](/framework/checks) for the full rule taxonomy and gate configuratio
 
 ## Applying edits faithfully
 
-Once a block is flagged or an AI has drafted a revision, `kapi rewrite` applies
-a plain-language instruction to the file text:
+Once a block is flagged or an AI has drafted a revision, write the new text back
+with `kapi apply`. Produce a JSONL change-set of `content` entries — each naming
+the block's `file`, `id`, the `content_hash` you read, and the new `text` (keep
+the `<x id="…"/>` placeholders) — then apply it:
 
 ```bash
-kapi rewrite --instruction "tighten each paragraph to two sentences" report.docx
+kapi inspect report.docx --jsonl | edit-the-blocks > edits.jsonl
+kapi apply edits.jsonl --diff             # review the change before writing
+kapi apply edits.jsonl --in-place=.bak    # apply in place, keeping a backup
 ```
 
-Review the change before writing it:
-
-```bash
-kapi rewrite --instruction "tighten each paragraph to two sentences" \
-  --diff report.docx
-```
-
-Edit the file in place and keep a backup:
-
-```bash
-kapi rewrite --instruction "fix passive voice" --in-place=.bak report.docx
-```
-
-`--provider` selects the AI provider when the default is not what you want:
-
-```bash
-kapi rewrite --instruction "use UK spelling" --provider anthropic -i report.docx
-```
-
-See [Rewrite tool](/reference/tools/rewrite) for provider configuration and the
-inline-code preservation contract.
+No model is involved — the AI produced the text; `kapi apply` round-trips it back
+faithfully and rejects any edit that drifted or would corrupt an inline code. See
+[Edit content](/kapi/recipes/rewrite-content) for the `content`-entry shape and
+the inline-code preservation contract.
 
 ## Running the loop via MCP
 
@@ -228,12 +216,13 @@ commands:
 - `extract_content` — parse a file and return content blocks (the MCP equivalent
   of `kapi inspect`).
 - `check_file` — run the check suite and return a `kapi.check/v1` Report.
-- `rewrite_file` — apply a plain-language instruction and write back faithfully.
+- `apply_edits` — write a typed change-set of content edits back faithfully (the
+  MCP equivalent of `kapi apply`); no provider.
 - `brand_check` — score text against a brand voice profile.
 
 A typical agent loop: the assistant calls `extract_content` to read blocks,
-`check_file` to find findings, then calls `rewrite_file` on the flagged block,
-and runs `check_file` again to confirm the finding is resolved.
+`check_file` to find findings, rewrites the flagged block itself, sends it back
+with `apply_edits`, and runs `check_file` again to confirm the finding is resolved.
 
 See [MCP server](/reference/mcp) for setup and the full tool list.
 
@@ -242,7 +231,7 @@ See [MCP server](/reference/mcp) for setup and the full tool list.
 In a `.kapi` project, ingestion runs against the recipe's declared content set —
 `kapi stats`, `kapi inspect`, and `kapi check` with no file argument survey every
 source the project declares, instead of paths you list by hand. A project also
-makes the write-back loop durable: edits applied with `kapi rewrite` land on the
+makes the write-back loop durable: edits applied with `kapi apply` land on the
 recipe's content, and the same `content_hash` anchors stay stable across runs, so
 an AI assistant indexing your project can retrieve and rewrite the same blocks
 over time. See [Create your first project](/kapi/get-started/first-project).
@@ -253,8 +242,8 @@ over time. See [Create your first project](/kapi/get-started/first-project).
   runs are represented by the neokapi engine.
 - [Checks](/framework/checks) — rule taxonomy, gate configuration, and the
   `kapi.check/v1` schema.
-- [Rewrite tool](/reference/tools/rewrite) — provider configuration, the
-  inline-code preservation contract, and the `--diff` workflow.
+- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply`
+  loop, the inline-code preservation contract, and the `--diff` workflow.
 - [MCP server](/reference/mcp) — connect any MCP-compatible AI assistant to
   the kapi content engine.
 - [Prepare content](/kapi/recipes/prepare-content) — if your goal is

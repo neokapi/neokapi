@@ -139,7 +139,6 @@ Once connected, your AI assistant can call these tools:
 | `brand_guide`      | Render a brand voice guide from a starter pack or profile YAML   |
 | `brand_check`      | Score text against a brand voice profile (rule-based)            |
 | `brand_rewrite`    | Rewrite text to fix forbidden/competitor terms                   |
-| `rewrite_file`     | Rewrite the text inside a file from an instruction and/or brand profile, format and structure preserved |
 | `check_file`       | Verify a file's content against the checkset; returns a `kapi.check/v1` Report with per-block locations |
 | `check_text`       | Verify a text snippet against the content checkset; returns a `kapi.check/v1` Report |
 | `term_lookup`      | Look up a term in a local termbase                               |
