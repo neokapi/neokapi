@@ -12,6 +12,14 @@
      --kapi-preview-bg; defaults to the page background. */
   --doc-bg: var(--kapi-preview-bg, var(--ifm-background-color, #fff));
   color: var(--doc-fg);
+  /* Paint the document surface on the root so every kind — sheet (xlsx) and list
+     (json/catalogs) included — sits on the light paper, like .page/.slide already
+     do. Without this, kinds that draw no surface of their own show the host's
+     themed background through, so in a dark-themed host (the desktop app) the
+     preview reads as a light page (its tokens resolve light) but xlsx/json fell
+     onto the dark card. With --ifm-* defined (docs) --doc-bg equals the page
+     background, so this is a no-op there and only fixes the bare-token host. */
+  background: var(--doc-bg);
   font-size: 0.82rem;
   line-height: 1.45;
 }
