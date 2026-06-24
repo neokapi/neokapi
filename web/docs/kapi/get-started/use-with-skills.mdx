@@ -28,7 +28,7 @@ updated so the skill matches your command surface.
 | Your tool | Install | Updates |
 |---|---|---|
 | **Claude Code** | the plugin (below) — skill **+ hooks** | automatic |
-| **Copilot · Cursor · Windsurf · VS Code · Codex · …** | `npx skills add neokapi/agent-skills` | `npx skills update` |
+| **Copilot · Cursor · Windsurf · VS Code · Codex · …** | `npx skills add neokapi/agent-skills --skill kapi` | `npx skills update kapi` |
 | **Any MCP client** (structured tool calls) | run `kapi mcp` — see [Use Kapi with MCP](/kapi/get-started/use-with-mcp) | — |
 
 ### Claude Code — the plugin
@@ -48,17 +48,21 @@ no manual step.
 ### Other tools — the portable skill
 
 The same skill installs into any `SKILL.md`-aware tool with the
-[`skills`](https://github.com/vercel-labs/skills) CLI:
+[`skills`](https://github.com/vercel-labs/skills) CLI. `neokapi/agent-skills` is a
+collection, so name the skill with `--skill kapi`:
 
 ```bash
-npx skills add neokapi/agent-skills                    # all detected tools
-npx skills add neokapi/agent-skills -a github-copilot  # one tool
+npx skills add neokapi/agent-skills --skill kapi                     # pick your tools
+npx skills add neokapi/agent-skills --skill kapi -a github-copilot   # a specific tool (repeat -a)
+npx skills update kapi                                               # refresh later
 ```
 
-It copies the skill into your tool's skill directory (`.github/skills/`,
-`.cursor/skills/`, …); run `npx skills update` to refresh it. You get the skill's
-guidance, but not the Claude-Code hooks (there is no portable equivalent). For
-kapi's structured tools in these clients, also run the MCP server (`kapi mcp`).
+`npx skills add neokapi/agent-skills --list` previews the collection; add `-g` to
+install user-wide instead of in the project. It copies the skill into your tool's
+skill directory (`.github/skills/`, `.cursor/skills/`, …) and `update` pulls the
+latest from the repo. You get the skill's guidance, but not the Claude-Code hooks
+(there is no portable equivalent). For kapi's structured tools in these clients,
+also run the MCP server (`kapi mcp`).
 
 Either way, the skill is a small router the assistant loads progressively, so it
 stays cheap in context — the assistant **discovers it automatically** and invokes
