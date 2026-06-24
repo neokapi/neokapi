@@ -7,18 +7,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@neokapi/ui-primitives";
-import HeroProcess from "./HeroProcess";
+import HeroStoryboard from "./HeroStoryboard";
 import styles from "./styles.module.css";
 
-// The docs landing centerpiece. The hero is a zero-wasm process "show"
-// (HeroProcess): baked RenderDoc frames rendered through the shared FormatPreview
-// that auto-advance through kapi end to end — Read → Pre-process → Pseudo →
-// Leverage → Translate (ja) → Merge — with a stepper and typewriter/crossfade
-// transitions. Clicking it opens a modal (the ui-primitives Dialog) that boots
-// the kapi WASM engine and drives a single coherent surface: a FileBrowser of
-// real sample files across formats, opening into a DocumentViewer powered by
-// live extraction (inspect + inspectAnnotated) with a real pseudo-translate
-// target — so the instant teaser and the live proof tell the same story.
+// The docs landing centerpiece. The hero is a zero-wasm, hand-drawn marker
+// storyboard (HeroStoryboard): a GSAP-choreographed SVG of kapi's two interlocking
+// loops — the monolingual "content loop" (prep → write ⇄ check → ship) and "going
+// multilingual" (read → prep → recycle → translate → check → ship), closed by the
+// signature big return loop. DrawSVG draws the marker arrows; MotionPath flies the
+// recycle/translate particles. Clicking it opens a modal (the ui-primitives
+// Dialog) that boots the kapi WASM engine and drives a single coherent surface: a
+// FileBrowser of real sample files across formats, opening into a DocumentViewer
+// powered by live extraction (inspect + inspectAnnotated) with a real
+// pseudo-translate target — so the instant teaser and the live proof tell the
+// same story.
 //
 // The page stays zero-wasm on load: nothing boots the engine until the reader
 // opens the modal. The heavy modal body (which imports the lab runtime) is
@@ -45,7 +47,7 @@ export default function TryNeokapi(): React.ReactElement {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <HeroProcess onOpen={() => setOpen(true)} />
+      <HeroStoryboard onOpen={() => setOpen(true)} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         {/* Cap the modal to the viewport and lay it out as a flex column so the
