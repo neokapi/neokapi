@@ -151,7 +151,9 @@ and write them back with `kapi apply` — faithfully, preserving format structur
 inline markup, and non-text nodes, with no model involved:
 
 ```bash
-kapi inspect docs/guide.md --jsonl | edit-the-blocks > edits.jsonl
+kapi inspect docs/guide.md --jsonl > blocks.jsonl
+# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
+# content entries to edits.jsonl — you (or your assistant) do this, no command
 kapi apply edits.jsonl --diff
 ```
 

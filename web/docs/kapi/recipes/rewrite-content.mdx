@@ -78,7 +78,11 @@ changed block — JSONL, one per line — naming the block's `file`, `id`, the
 argument, or stdin, and writes each named file in place — no model called:
 
 ```bash
-kapi inspect guide.md --jsonl | edit-the-blocks > edits.jsonl
+kapi inspect guide.md --jsonl > blocks.jsonl
+# Now rewrite the "text" of each block you want to change — keeping every
+# <x id="…"/> placeholder — and save the changed ones as content entries to
+# edits.jsonl. (This is the step you, or your AI assistant, do; there is no
+# command for it — that is the point: kapi never sends the text to a model.)
 kapi apply edits.jsonl --diff           # preview the content changes, write nothing
 kapi apply edits.jsonl                    # apply in place
 kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak

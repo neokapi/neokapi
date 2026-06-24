@@ -266,7 +266,9 @@ back a JSONL change-set of `content` entries:
 nothing:
 
 ```bash
-kapi inspect blog-post.md --jsonl | fix-the-flagged-blocks > edits.jsonl
+kapi inspect blog-post.md --jsonl > blocks.jsonl
+# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
+# content entries to edits.jsonl — you (or your assistant) do this, no command
 kapi apply edits.jsonl --diff           # review first
 kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
 ```

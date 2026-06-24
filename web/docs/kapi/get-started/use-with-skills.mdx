@@ -13,11 +13,10 @@ skill on demand and runs the right `kapi` commands; you describe the work in
 plain language.
 
 The `kapi` CLI must be on your `PATH` — confirm with `kapi version` (see
-[installation](/kapi/get-started/installation)). The attended loop — where Claude
-writes the edits and kapi applies them through `kapi apply` — needs no provider
-credential — the assistant supplies the edits and kapi applies them, with no
-model. A provider added with `kapi credentials add` is only for the unattended
-paths: `kapi translate` and the optional `--ai` checks.
+[installation](/kapi/get-started/installation)). The attended loop — Claude
+writes the edits, `kapi apply` writes them back — needs no provider credential;
+there is no model in the loop. A provider added with `kapi credentials add` is
+only for the unattended paths: `kapi translate` and the optional `--ai` checks.
 
 :::tip Want structured tool calls instead?
 For Claude Desktop, Cursor, Windsurf, or any programmatic MCP client, run the
@@ -145,7 +144,9 @@ sends back a JSONL change-set of `content` entries:
 ```
 
 ```bash
-kapi inspect README.md --jsonl | rewrite-the-blocks > edits.jsonl
+kapi inspect README.md --jsonl > blocks.jsonl
+# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
+# content entries to edits.jsonl — you (or your assistant) do this, no command
 kapi apply edits.jsonl --diff           # preview the content changes, write nothing
 kapi apply edits.jsonl                    # apply in place
 kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak

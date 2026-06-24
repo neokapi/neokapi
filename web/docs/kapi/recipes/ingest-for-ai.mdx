@@ -197,7 +197,9 @@ the block's `file`, `id`, the `content_hash` you read, and the new `text` (keep
 the `<x id="…"/>` placeholders) — then apply it:
 
 ```bash
-kapi inspect report.docx --jsonl | edit-the-blocks > edits.jsonl
+kapi inspect report.docx --jsonl > blocks.jsonl
+# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
+# content entries to edits.jsonl — you (or your assistant) do this, no command
 kapi apply edits.jsonl --diff             # review the change before writing
 kapi apply edits.jsonl --in-place=.bak    # apply in place, keeping a backup
 ```
