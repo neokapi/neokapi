@@ -1,0 +1,82 @@
+name: Publish Claude Code plugin
+
+# Publishes the kapi Claude Code plugin bundle to the neokapi-plugins marketplace
+# repo (neokapi/claude-plugins) so `/plugin install kapi@neokapi-plugins` serves
+# the current skill.
+#
+# Cadence: on each kapi RELEASE, so the published skill always matches a shipped
+# CLI surface (a Claude Code plugin can't pin "requires kapi >= X"). Also runnable
+# on demand for a binary-compatible wording fix.
+#
+# This does NOT build the kapi binary: the skill source of truth is
+# cli/skills/data, and `kapi skills export` is a byte-identical copy of that tree
+# (guaranteed by TestInstallToCopiesTreeByteIdentical), so we copy it directly.
+#
+# Requires a repo secret PLUGIN_PUBLISH_TOKEN: a token with contents:write on
+# neokapi/claude-plugins (the default GITHUB_TOKEN cannot push to another repo).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Plugin version to stamp (defaults to the latest kapi release tag)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-plugin
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          v="$INPUT_VERSION"
+          if [ -z "$v" ]; then v="$RELEASE_TAG"; fi
+          if [ -z "$v" ]; then v="$(gh release view --json tagName -q .tagName 2>/dev/null || true)"; fi
+          v="${v#v}"
+          # Only accept a clean semver-ish token; otherwise publish unstamped.
+          case "$v" in
+            *[!0-9.A-Za-z+-]*) echo "::warning::ignoring non-semver version '$v'"; v="" ;;
+          esac
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Publishing plugin version: ${v:-<unset>}"
+
+      - name: Assemble bundle (copy embedded skill, no binary build)
+        run: |
+          set -euo pipefail
+          src=packages/kapi-claude-plugin
+          rm -rf "$src/plugins/kapi/skills"
+          mkdir -p "$src/plugins/kapi/skills"
+          cp -R cli/skills/data/kapi "$src/plugins/kapi/skills/kapi"
+          test -f "$src/plugins/kapi/skills/kapi/SKILL.md"
+
+      - name: Publish to neokapi/claude-plugins
+        env:
+          PLUGIN_PUBLISH_TOKEN: ${{ secrets.PLUGIN_PUBLISH_TOKEN }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PLUGIN_PUBLISH_TOKEN:-}" ]; then
+            echo "::error::PLUGIN_PUBLISH_TOKEN secret is not set (needs contents:write on neokapi/claude-plugins)"
+            exit 1
+          fi
+          git config --global user.name "neokapi-bot"
+          git config --global user.email "bot@neokapi.dev"
+          git config --global url."https://x-access-token:${PLUGIN_PUBLISH_TOKEN}@github.com/".insteadOf "https://github.com/"
+          scripts/publish-plugin.sh packages/kapi-claude-plugin neokapi/claude-plugins

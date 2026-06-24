@@ -17,18 +17,53 @@ This page walks the two things you'll ask for most — **authoring/editing
 content** and **localizing it** — as prompts, and shows what Claude does under
 the hood. (To run the commands yourself, each section links to its CLI recipe.)
 
-## Install the skill
+## Install the plugin
+
+The recommended path is the **Claude Code plugin**, which bundles the skill *and*
+two hooks that make the loop a guarantee (see [Hooks](#what-the-hooks-add)):
+
+```text
+/plugin marketplace add neokapi/claude-plugins
+/plugin install kapi@neokapi-plugins
+```
+
+Restart Claude Code. The only prerequisite is the `kapi` CLI on your `PATH`
+(`kapi version`; see [installation](/kapi/get-started/installation)).
+
+:::note Skill only, no plugin system
+Prefer not to use the plugin system, or want the skill without the hooks?
+`kapi skills install` drops the skill alone into `.claude/skills/` straight from
+the binary — offline, no marketplace:
 
 ```bash
 kapi skills install                 # ./.claude/skills/kapi/   (this project)
 kapi skills install --target user   # ~/.claude/skills/kapi/   (every project)
 ```
+:::
 
-The skill is a small router Claude Code loads progressively, so it stays cheap in
-context. Claude **discovers it automatically** and invokes it when a task fits its
-description — you never name the skill or the commands. The only prerequisite is
-`kapi` on your `PATH` (`kapi version`; see
-[installation](/kapi/get-started/installation)).
+Either way, the skill is a small router Claude Code loads progressively, so it
+stays cheap in context. Claude **discovers it automatically** and invokes it when
+a task fits its description — you never name the skill or the commands.
+
+**Keep the `kapi` CLI updated** alongside whichever path you use: the skill is
+written for the current CLI surface, so an out-of-date binary may lack a command
+the skill reaches for. The CLI install gets this for free (the skill is copied
+from the binary you have); the plugin updates on its own cadence, so update kapi
+when you update the plugin.
+
+### What the hooks add
+
+Installing the **plugin** (not the skill alone) also registers two Claude Code
+hooks, both scoped to the `.kapi` project in the session and both **fail-open**
+(outside a project, or if they can't run, Claude proceeds normally):
+
+- **Stop hook** — when Claude tries to finish, it runs `kapi verify`; if a brand,
+  terminology, or translation-QA gate is failing, it keeps Claude working with the
+  findings. The skill makes the verify loop the default; the hook makes it a
+  guarantee.
+- **PreToolUse hook** — denies direct hand-edits to files the project *generates*
+  as translation targets, steering the change through the source and the
+  round-trip instead.
 
 No AI-provider credential is needed for the attended work below: Claude writes the
 content and `kapi` applies and checks it, with no second model in the loop. A
