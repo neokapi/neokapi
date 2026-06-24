@@ -42,7 +42,7 @@ runs every bound gate together and pairs source↔target for you.
 
 ## Translate the content yourself, through kapi (don't hand-translate files)
 
-You are a capable translator, so kapi doesn't call a separate model — but route the
+Translate the content yourself — don't reach for a provider — but route the
 translation **through kapi** so the guardrails actually apply. Don't read the source
 file, translate it in your head, and write the target file directly: that quietly
 skips terminology, placeholder and format integrity, and the brand voice — the very

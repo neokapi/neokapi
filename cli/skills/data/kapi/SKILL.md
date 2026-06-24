@@ -65,8 +65,8 @@ kapi verify --json        # whole project; or: kapi verify <files> [--brand|--te
   [references/create.md](references/create.md).
 - **Keep content on-brand** — create a brand voice profile, load its guide before
   writing, score a draft (0–100), and fix off-voice text yourself — routed
-  through `kapi apply` (no second model), with `--ai` rewrite only as the
-  unattended fallback. See [references/brand.md](references/brand.md).
+  through `kapi apply`, with `--ai` rewrite only as the unattended fallback. See
+  [references/brand.md](references/brand.md).
 - **Translate, enforce terminology, publish** — translate content into other
   languages and round-trip it back into its original format, with a glossary for
   consistency. Translate it yourself, but route it **through kapi** (extract →
@@ -74,12 +74,10 @@ kapi verify --json        # whole project; or: kapi verify <files> [--brand|--te
   back, or terminology, placeholders, and format go unchecked. A provider is only
   needed for unattended runs. See [references/localize.md](references/localize.md).
 
-  The same symmetry runs through all of these: **kapi doesn't call a second
-  model when you're in the loop.** You write, edit, and translate; kapi supplies
-  the context (brand guide, terms), enforces the faithful round-trip, and is the
-  checker. A provider is the unattended fallback — for `kapi translate`, the
-  optional `--ai` checks, and `kapi rewrite --instruction` — not the attended
-  path.
+  Across all of these, do the writing/editing/translating yourself and route it
+  through kapi — don't reach for a provider. The provider-backed modes
+  (`kapi translate`, `kapi rewrite --instruction`, the optional `--ai` checks)
+  are for unattended runs only.
 - **Add i18n to a project** — set up the kapi-react stack for React apps, or plug
   kapi into the catalogs another stack already uses. See
   [references/i18n.md](references/i18n.md).

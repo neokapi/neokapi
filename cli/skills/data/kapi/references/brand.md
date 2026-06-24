@@ -77,22 +77,21 @@ Returns a 0–100 `score` and `findings` (each with `severity`, `original_text`,
 
 ## 3. Fix what's flagged — you rewrite, kapi checks
 
-You are a capable writer, so the default fix path is the same one translation
-uses: **kapi doesn't call a second model when you're in the loop.** Load the
-brand voice as context, rewrite the off-voice text on-brand yourself, route the
-change through kapi's one write verb, then re-check.
+Rewrite the off-voice text on-brand **yourself**, route the change through kapi's
+write verb, then re-check. Don't reach for `kapi brand rewrite --ai` (or any
+`--provider`) here — the provider path is the unattended fallback, for when no
+assistant is in the loop. Load the brand voice as context first:
 
 ```bash
 kapi brand guide                       # the voice to follow — your context
 kapi termbase lookup "<term>" -t en     # the approved wording for a flagged term
 ```
 
-Rewrite each flagged block, then apply your edits through the faithful
-round-trip — `kapi apply` (the one write verb) or `kapi rewrite --edits` (the
-provider-free mode of rewrite). Both write the file in place, preserve structure
-and inline codes, and reject an edit that drifted or would corrupt markup. See
-[edit.md](edit.md) for the `content`-entry shape, the guards, and the diff/in-place
-flags:
+Rewrite each flagged block, then apply your edits with `kapi apply` — the one
+write verb. It writes the file in place through the faithful round-trip
+(structure and inline codes preserved) and rejects an edit that drifted or would
+corrupt markup. See [edit.md](edit.md) for the `content`-entry shape, the guards,
+and the diff/in-place flags:
 
 ```bash
 kapi inspect blog-post.md --jsonl | rewrite-the-flagged-blocks > edits.jsonl
