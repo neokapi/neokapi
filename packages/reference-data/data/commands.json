@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-22T15:49:51Z",
+  "generatedAt": "2026-06-24T19:25:52Z",
   "commands": [
     {
       "id": "brand",
@@ -409,39 +409,17 @@
         "rewrite"
       ],
       "use": "rewrite",
-      "short": "Rewrite text to comply with a brand voice profile",
-      "long": "Rewrite content to comply with a brand voice profile.\n\nBy default text is read from --input-text or stdin and the rewrite is printed.\nWith -i/--in-place FILE..., kapi instead edits the content inside each file\nthrough the format-aware rewrite tool: the document round-trips in its own format\n(a .docx keeps its styles, a JSON catalog keeps its keys), and only the editable\ntext is rewritten on-brand. In-place editing always uses an AI provider.",
+      "short": "Substitute forbidden/competitor terms for their approved wording (offline)",
+      "long": "Rewrite content against a brand voice profile by substituting forbidden and\ncompetitor terms with their approved replacements. This is the deterministic,\noffline path — it changes only the terms the profile defines and reports each\nchange; it does not call a model.\n\nText is read from --input-text or stdin and the rewrite is printed. To fix tone,\nstyle, or phrasing on-brand, rewrite the text yourself with the voice guide as\ncontext ('kapi brand guide') and apply the edit through 'kapi apply' — kapi does\nnot send content to a model to rewrite it.",
       "flags": [
-        {
-          "name": "ai",
-          "usage": "use an LLM provider in addition to rule-based checks",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "api-key",
-          "usage": "API key for the AI provider",
-          "type": "string"
-        },
         {
           "name": "channel",
           "usage": "apply channel-specific overrides",
           "type": "string"
         },
         {
-          "name": "credential",
-          "usage": "saved credential name (see 'kapi credentials list')",
-          "type": "string"
-        },
-        {
           "name": "file",
           "usage": "explicit path to resource file",
-          "type": "string"
-        },
-        {
-          "name": "in-place",
-          "shorthand": "i",
-          "usage": "rewrite FILE... in place (format-aware); keep a backup with --in-place=.bak",
           "type": "string"
         },
         {
@@ -490,11 +468,6 @@
           "name": "project",
           "shorthand": "p",
           "usage": "path to a .kapi project recipe (auto-discovered from cwd if omitted)",
-          "type": "string"
-        },
-        {
-          "name": "provider",
-          "usage": "AI provider (default: anthropic)",
           "type": "string"
         }
       ],
@@ -2571,6 +2544,32 @@
       "use": "models",
       "short": "Manage attached LLMs and ML models",
       "long": "A single view of every model kapi can use, across three sources:\n\n  • Local · Ollama  — on-device models served by a local Ollama runtime\n                      (`kapi models pull \u003cmodel\u003e` installs one)\n  • Plugin models   — integrity-pinned assets a plugin downloads and caches\n                      under $XDG_CACHE_HOME/kapi/models/\u003cplugin\u003e/\u003cid\u003e/\u003cversion\u003e/\n  • Cloud providers — remote models that require an API key\n\n`kapi models pull`/`prune` install and remove Ollama and plugin models; cloud\nmodels are listed for reference. Filter with `--provider \u003collama|plugin|cloud-id\u003e`.\n`kapi models ollama` manages the local Ollama runtime itself.",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "models.default",
+      "path": [
+        "models",
+        "default"
+      ],
+      "use": "default [model]",
+      "short": "Show or set the default AI model (and its provider)",
+      "long": "With no argument, prints the configured default AI provider and model.\n\nWith a model argument, sets it as the default used by AI tools and flows\nwhen no --provider/--model flag or recipe default is given. The provider is\ninferred from the model name by convention (claude-* → anthropic, gpt-* →\nopenai, gemini-* → gemini, an Ollama tag like gemma3:4b → ollama); pass\n--provider to choose it explicitly (e.g. Azure OpenAI). Writes ai.provider\nand ai.model to the global config (see `kapi config path`), so the setting\nis shared with Kapi Desktop.",
+      "flags": [
+        {
+          "name": "provider",
+          "usage": "set the provider explicitly instead of inferring it from the model name",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi models default                  # show the current default",
+        "kapi models default gemma3:4b        # local Ollama, provider inferred",
+        "kapi models default claude-sonnet-4  # anthropic, inferred",
+        "kapi models default gpt-4o --provider azureopenai"
+      ],
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false

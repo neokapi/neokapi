@@ -11,7 +11,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
+	"github.com/pmezard/go-difflib/difflib"
 	"github.com/spf13/cobra"
 )
 
@@ -314,6 +317,46 @@ func readChangeSet(ctx context.Context, path string) ([]changeEntry, error) {
 		return nil, err
 	}
 	return entries, nil
+}
+
+// rewriteDiffFile prints the per-block unified diff for one file and returns the
+// number of changed blocks. The block source is rewritten in memory only (the
+// applier's plan is applied to the streamed block); nothing is written to disk.
+// It backs `kapi apply --diff`.
+func (a *App) rewriteDiffFile(ctx context.Context, file string, t *tool.BaseTool, out io.Writer) (int, error) {
+	changed := 0
+	label := displayName(file)
+	_, err := a.streamBlocks(ctx, file, func(index int, b *model.Block) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		before := model.RunsText(b.Source)
+		part := &model.Part{Type: model.PartBlock, Resource: b}
+		if _, aerr := t.ApplyContext(ctx, part); aerr != nil {
+			return aerr
+		}
+		after := model.RunsText(b.Source)
+		if before == after {
+			return nil
+		}
+		diff := difflib.UnifiedDiff{
+			A:        difflib.SplitLines(before),
+			B:        difflib.SplitLines(after),
+			FromFile: fmt.Sprintf("%s:%d (before)", label, index),
+			ToFile:   fmt.Sprintf("%s:%d (after)", label, index),
+			Context:  3,
+		}
+		text, derr := difflib.GetUnifiedDiffString(diff)
+		if derr != nil {
+			return derr
+		}
+		if _, werr := out.Write([]byte(text)); werr != nil {
+			return werr
+		}
+		changed++
+		return nil
+	})
+	return changed, err
 }
 
 // printApplyReport writes a short human summary of the apply outcome.

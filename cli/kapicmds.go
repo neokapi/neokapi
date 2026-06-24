@@ -45,9 +45,6 @@ func (a *App) KapiCommandSet() []*cobra.Command {
 	// Toolbox: format-aware cat / grep / sed, registered as hidden proxies
 	// for the kcat / kgrep / ksed multi-call binaries.
 	cmds = append(cmds, a.NewToolboxProxies()...)
-	// rewrite is the AI-driven sibling of ksed: edit the content inside a file
-	// with a plain-language instruction, faithfully, with a reviewable --diff.
-	cmds = append(cmds, a.newRewriteCmd())
 	cmds = append(cmds, a.NewInspectCmd())
 	// apply is the write sibling of inspect: land a typed change-set (content +
 	// asset edits) through one reviewed write path.

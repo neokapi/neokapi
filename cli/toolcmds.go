@@ -145,12 +145,8 @@ var toolExamples = map[string]string{
 
 // bespokeToolCommands names tools that own a dedicated, hand-written top-level
 // command (richer than the generic schema-driven one) and so must be skipped
-// here to avoid a duplicate registration. `rewrite` ships a sed-style command
-// with in-place editing and a reviewable --diff (see newRewriteCmd); the tool
-// stays registered (with its config factory) for flows and MCP.
-var bespokeToolCommands = map[string]bool{
-	"rewrite": true,
-}
+// here to avoid a duplicate registration.
+var bespokeToolCommands = map[string]bool{}
 
 // NewToolCommands creates cobra commands from all CLI-visible tools in the
 // ToolRegistry. This replaces the old hardcoded BuiltinToolCommands list —
