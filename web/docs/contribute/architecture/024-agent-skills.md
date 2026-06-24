@@ -235,6 +235,10 @@ output. The grep-style `ErrSilentExit` used by the toolbox
 - Distribution is a Claude Code plugin via the `neokapi-plugins` marketplace,
   self-updating through Claude Code; the binary no longer carries or installs the
   skill.
+- The skill's `description` — the sole triggering lever, loaded at startup across
+  every `SKILL.md`-aware tool — is tracked against a maintainer eval checklist
+  (`cli/skills/EVALS.md`): positive prompts that must fire the skill and negatives
+  that must not, re-run after any change to the description.
 - Progressive disclosure keeps the router small and loads deeper detail only
   when a task matches, so the assistant's context stays cheap.
 - Skills lean on the CLI's exit-code contract to act on quality gates
