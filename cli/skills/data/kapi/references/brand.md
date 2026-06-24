@@ -14,7 +14,7 @@ YAML (`--profile-file`), or the local store (`--profile`). List options with
 **Inside a project, the profile is part of the context — don't pass a flag.** When
 the project binds a brand voice (a `defaults.brand_voice` recipe entry, or a
 `brand.yaml` / `.kapi/brand.yaml` at the project root), run `kapi brand check
-<file>`, `kapi brand rewrite <file>`, and `kapi brand guide` with **no**
+<file>` and `kapi brand guide` with **no**
 `--profile`/`--profile-file`/`--pack` — kapi resolves the project's voice. Pass a
 flag only for a one-off outside a project, or to override the bound profile. See
 [project.md](project.md).
@@ -75,19 +75,72 @@ Returns a 0–100 `score` and `findings` (each with `severity`, `original_text`,
 `position`, `suggestion`). The rule-based check is deterministic and offline; add
 `--ai` for an LLM tone/style/clarity pass (needs a saved credential).
 
-## 3. Fix what's flagged
+## 3. Fix what's flagged — you rewrite, kapi checks
+
+Rewrite the off-voice text on-brand **yourself**, route the change through kapi's
+write verb, then re-check. kapi does not send content to a model to rewrite it:
+`kapi brand rewrite` only substitutes forbidden/competitor terms with their
+approved replacements, deterministically and offline — it won't fix tone, style,
+or phrasing. For those, rewrite the text yourself with the voice guide as
+context. Load it first:
 
 ```bash
-echo "$DRAFT" | kapi brand rewrite --pack marketing-blog --text - --json
+kapi brand guide                       # the voice to follow — your context
+kapi termbase lookup "<term>" -t en     # the approved wording for a flagged term
 ```
 
-Offline, this substitutes forbidden/competitor terms and reports the `changes`.
-With `--ai` it rewrites tone and style holistically — diff `original` vs
-`rewritten`. Re-run the check to confirm the score improved.
+Rewrite each flagged block, then apply your edits with `kapi apply` — the one
+write verb. It writes the file in place through the faithful round-trip
+(structure and inline codes preserved) and rejects an edit that drifted or would
+corrupt markup. See [edit.md](edit.md) for the `content`-entry shape, the guards,
+and the diff/in-place flags:
 
-When the off-voice text is a file the user owns, **rewrite it in place** — git records
-the change and is how they review and undo it. Don't leave a `.fixed` copy behind. If
-the file has uncommitted edits, say so before overwriting, so unsaved work isn't lost.
+```bash
+kapi inspect blog-post.md --jsonl | rewrite-the-flagged-blocks > edits.jsonl
+kapi apply edits.jsonl --diff           # preview, then drop --diff to apply
+```
+
+When the off-voice text is a file the user owns, apply in place — git records the
+change and is how they review and undo it. Don't leave a `.fixed` copy behind. If
+the file has uncommitted edits, say so before overwriting, so unsaved work isn't
+lost. Re-run the check to confirm the score improved.
+
+### Fix the rule, not just the draft
+
+A recurring off-voice term is better fixed at the source: add a vocabulary rule
+so every future draft is checked against it. That is just another `kind` in the
+**same** `kapi apply` change-set — the content fix and the rule that justifies it
+land together, atomically:
+
+```jsonl
+{"kind":"content","file":"blog-post.md","id":"p2","content_hash":"b74d…","text":"We use our infrastructure."}
+{"kind":"brand","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","severity":"minor"}
+```
+
+```bash
+kapi apply changeset.jsonl
+```
+
+The `brand` entry is written into the project's committed brand voice profile
+YAML (the `defaults.brand_voice.profile_file` the recipe binds), and the existing
+import compiles it into the local brand store. `git diff` shows the one new rule;
+the next `kapi brand check` / `kapi verify` enforces it. `list` is `forbidden`,
+`competitor`, or `preferred`; the entry requires a `.kapi` project. (Add an
+approved term instead with a `term` entry — see [create.md](create.md).)
+
+### Offline term substitution
+
+`kapi brand rewrite` swaps forbidden and competitor terms for their approved
+replacements — deterministic, offline, no model. It reads text from
+`--input-text` or stdin and prints the rewrite, reporting each `change`:
+
+```bash
+echo "$DRAFT" | kapi brand rewrite --pack marketing-blog --input-text - --json
+```
+
+It only changes the terms the profile defines; it won't fix tone, style, or
+phrasing. For those, rewrite the text yourself with the voice guide as context
+and apply through `kapi apply`.
 
 ## CI / quality gate
 

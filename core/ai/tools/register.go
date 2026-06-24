@@ -44,13 +44,6 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// hybrid (feeds redaction's "entities" detector and terminology workflows).
 	reg.RegisterGroup(entityExtractGroup())
 
-	// Rewrite — rewrite the text inside a file following an instruction,
-	// preserving structure and inline codes (the content-editing moat tool).
-	reg.RegisterWithSchema("rewrite", func() tool.Tool {
-		return NewRewriteTool(aiprovider.NewMockProvider(), RewriteConfig{})
-	}, RewriteSchema())
-	reg.SetConfigFactory("rewrite", NewRewriteFromConfig)
-
 	// Media Refine — re-read low-confidence OCR/ASR lines with a multimodal LLM.
 	reg.RegisterWithSchema("media-refine", func() tool.Tool {
 		return NewMediaRefineTool(aiprovider.NewMockProvider(), MediaRefineConfig{})
@@ -64,7 +57,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// ResolveAIEgressContract.
 	for _, name := range []registry.ToolID{
 		"review", "brand-voice-check",
-		"term-extract", "rewrite", "media-refine",
+		"term-extract", "media-refine",
 	} {
 		reg.SetContractResolver(name, ResolveAIEgressContract)
 	}

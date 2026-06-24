@@ -70,18 +70,19 @@ kapi check src/locales/en.json
 kapi check src/locales/en.json --target src/locales/fr.json --target-lang fr
 ```
 
-When a check flags a block — an over-long string, an off-voice phrase — fix it in
-place and re-check. `kapi rewrite` edits the text from a plain-language
-instruction, faithfully (see [rewrite](/reference/tools/rewrite)), with a `--diff`
-to review the edit first:
+When a check flags a block — an over-long string, an off-voice phrase — fix it
+and re-check. Read the blocks with `kapi inspect`, rewrite the flagged ones, and
+write them back with `kapi apply`, faithfully (see
+[Edit content](/kapi/recipes/rewrite-content)), with a `--diff` to review first:
 
 ```bash
-kapi rewrite --instruction "tighten to fit the length budget" --diff src/locales/en.json
+kapi inspect src/locales/en.json --jsonl | edit-the-blocks > edits.jsonl
+kapi apply edits.jsonl --diff
 kapi check src/locales/en.json
 ```
 
 This author → check → revise loop is the same one an AI assistant runs over MCP
-(`check_file` → `rewrite_file`). The
+(`check_file` → `apply_edits`). The
 [Enforce terminology](/kapi/recipes/terminology-qa) recipe covers glossary
 enforcement in full.
 

@@ -77,23 +77,24 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			if !ok || block == nil {
 				continue
 			}
-			text := w.blockText(block)
-			if text == "" {
+			runs := w.blockRuns(block)
+			if model.RunsText(runs) == "" {
 				continue
 			}
 			n++
-			recs = append(recs, structrec.FromBlock(n, block, text))
+			recs = append(recs, structrec.FromBlock(n, block, runs))
 		}
 	}
 }
 
-// blockText returns the target translation when a locale is set and present,
-// else the source text — mirroring the catalog writers' projection.
-func (w *Writer) blockText(block *model.Block) string {
+// blockRuns returns the target runs when a locale is set and present, else the
+// source runs — mirroring the catalog writers' projection. structrec.FromBlock
+// renders these as placeholder-tagged text so inline codes survive.
+func (w *Writer) blockRuns(block *model.Block) []model.Run {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return block.TargetText(w.Locale)
+		return block.TargetRuns(w.Locale)
 	}
-	return block.SourceText()
+	return block.SourceRuns()
 }
 
 func (w *Writer) flush(recs []structrec.Record) error {

@@ -6,6 +6,11 @@
           "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"",
           "short": "Add file patterns to the project's content"
         },
+        "apply": {
+          "example": "  kapi inspect report.docx --jsonl | edit-the-text | kapi apply\n  kapi apply changeset.jsonl\n  kapi apply changeset.jsonl --diff\n  kapi apply changeset.jsonl --in-place=.bak",
+          "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, or an asset edit (glossary term, TM pair,\nbrand rule, recipe field). Content edits land through the same byte-faithful\nround-trip 'kapi rewrite' uses (structure and inline codes preserved), drift-\nguarded by content_hash; asset edits are written into their committed source\nartifact and the existing import compiles them into the cache.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
+          "short": "Apply a typed change-set (content + asset edits) — the one write verb"
+        },
         "brand": {
           "check": {
             "short": "Score text against a brand voice profile"
@@ -28,8 +33,8 @@
             "short": "List brand voice profiles (local store + built-in packs)"
           },
           "rewrite": {
-            "long": "Rewrite content to comply with a brand voice profile.\n\nBy default text is read from --input-text or stdin and the rewrite is printed.\nWith -i/--in-place FILE..., kapi instead edits the content inside each file\nthrough the format-aware rewrite tool: the document round-trips in its own format\n(a .docx keeps its styles, a JSON catalog keeps its keys), and only the editable\ntext is rewritten on-brand. In-place editing always uses an AI provider.",
-            "short": "Rewrite text to comply with a brand voice profile"
+            "long": "Rewrite content against a brand voice profile by substituting forbidden and\ncompetitor terms with their approved replacements. This is the deterministic,\noffline path — it changes only the terms the profile defines and reports each\nchange; it does not call a model.\n\nText is read from --input-text or stdin and the rewrite is printed. To fix tone,\nstyle, or phrasing on-brand, rewrite the text yourself with the voice guide as\ncontext ('kapi brand guide') and apply the edit through 'kapi apply' — kapi does\nnot send content to a model to rewrite it.",
+            "short": "Substitute forbidden/competitor terms for their approved wording (offline)"
           },
           "short": "Keep AI-generated content on brand (voice, tone, terminology)",
           "show": {
@@ -330,11 +335,6 @@
         "review": {
           "example": "  kapi review app.xliff --target-lang fr\n  kapi review messages.json --target-lang de",
           "short": "Review translations with scoring using an LLM provider"
-        },
-        "rewrite": {
-          "example": "  kapi rewrite --instruction \"make it more concise\" guide.md\n  kapi rewrite --instruction \"use UK spelling\" --in-place=.bak *.docx\n  kapi rewrite --instruction \"friendlier tone\" --diff locales/en.json\n  kapi rewrite --instruction \"fix typos\" --provider anthropic -i report.docx",
-          "long": "Rewrite the human-readable text inside any supported format with an LLM,\nfollowing a plain-language --instruction, then write the document back in the\nsame format. Only the editable text changes — a .docx keeps its styles, a JSON\ncatalog keeps its keys and shape, and inline codes/placeholders are preserved.\n\nBy default the rewritten document is written to standard output; use -i to edit\nfiles in place, optionally keeping a backup (--in-place=.bak). With --diff\nnothing is written — kapi prints a unified before/after diff of every changed\nblock so you can review the edit first.\n\nThis is the safe way to let an AI assistant edit content it otherwise cannot\nopen: the structure-preserving pipeline guarantees the rewrite lands only in the\ntext, never the surrounding markup. If a rewrite would drop or alter an inline\ncode (a placeholder or markup tag), that block is left unchanged rather than\nwritten back with unbalanced markup.\n\nWith no FILE, or when FILE is \"-\", standard input is read (not valid with -i).",
-          "short": "Rewrite the text/content inside files with an AI instruction (faithful round-trip)"
         },
         "rm": {
           "long": "Stop tracking files matching the given patterns.\n\nIf a pattern matches one added with 'kapi add', the mapping is removed.\nOtherwise the pattern is added to the exclude list so those files are skipped.\n\n  kapi rm \"src/**/*.html\"       # remove the mapping\n  kapi rm \"src/legacy/*.html\"   # exclude matching files",

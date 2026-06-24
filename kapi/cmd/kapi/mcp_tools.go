@@ -43,7 +43,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "extract_content",
-		Description: "Parse a file and extract translatable content blocks with source text and word counts",
+		Description: "Parse a file into translatable content blocks — each block's id, content_hash, source text (inline codes rendered as <x id=\"…\"/> placeholders), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply).",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ExtractContentInput) (*mcp.CallToolResult, ExtractContentOutput, error) {
 		return handleExtractContent(ctx, a, input)
 	})
@@ -105,7 +105,13 @@ type ExtractContentInput struct {
 }
 
 type BlockEntry struct {
-	ID         string `json:"id"`
+	ID string `json:"id"`
+	// ContentHash is the canonical block identity (SHA-256 of the plain,
+	// normalized source text) — the drift anchor to send back in an apply_edits
+	// content entry.
+	ContentHash string `json:"content_hash"`
+	// SourceText renders inline codes as <x id="…"/> placeholders so an edit can
+	// round-trip without dropping a link, span, or placeholder.
 	SourceText string `json:"source_text"`
 	WordCount  int    `json:"word_count"`
 }
@@ -248,9 +254,10 @@ func handleExtractContent(ctx context.Context, a *cli.App, input ExtractContentI
 			}
 			wc := blk.WordCount()
 			blocks = append(blocks, BlockEntry{
-				ID:         blk.ID,
-				SourceText: blk.SourceText(),
-				WordCount:  wc,
+				ID:          blk.ID,
+				ContentHash: model.ComputeContentHash(blk.SourceText()),
+				SourceText:  model.RunsPlaceholderText(blk.Source),
+				WordCount:   wc,
 			})
 			totalWords += wc
 		}

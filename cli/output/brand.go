@@ -74,7 +74,6 @@ type BrandChange struct {
 // BrandRewriteOutput is the result of `kapi brand rewrite`.
 type BrandRewriteOutput struct {
 	Profile   string        `json:"profile"`
-	AIRewrite bool          `json:"ai_rewrite"`
 	Original  string        `json:"original"`
 	Rewritten string        `json:"rewritten"`
 	Changes   []BrandChange `json:"changes"`

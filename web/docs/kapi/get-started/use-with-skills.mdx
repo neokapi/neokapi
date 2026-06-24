@@ -13,9 +13,11 @@ skill on demand and runs the right `kapi` commands; you describe the work in
 plain language.
 
 The `kapi` CLI must be on your `PATH` — confirm with `kapi version` (see
-[installation](/kapi/get-started/installation)). Rule-based checks need no
-credential; for AI-backed editing (`kapi rewrite`) add a provider with
-`kapi credentials add`.
+[installation](/kapi/get-started/installation)). The attended loop — where Claude
+writes the edits and kapi applies them through `kapi apply` — needs no provider
+credential — the assistant supplies the edits and kapi applies them, with no
+model. A provider added with `kapi credentials add` is only for the unattended
+paths: `kapi translate` and the optional `--ai` checks.
 
 :::tip Want structured tool calls instead?
 For Claude Desktop, Cursor, Windsurf, or any programmatic MCP client, run the
@@ -117,8 +119,10 @@ The commands compose into a fix loop Claude runs on its own:
 1. Claude drafts or edits content.
 2. It runs `kapi check` — the Report says which block failed, which rule, and
    where in the file.
-3. It runs `kapi rewrite` with the instruction and path, keeping the file's
-   structure intact.
+3. Claude rewrites the flagged blocks itself and applies the edits with
+   `kapi apply` — no model is called. kapi reconstructs the file in its original
+   format, structure and inline codes intact, and rejects any edit that drifted
+   or would corrupt markup.
 4. It runs `kapi check` again. When the gate is green, it stops.
 
 This loop works for any file type kapi reads — Markdown, JSON, DOCX, HTML, YAML,
@@ -126,20 +130,32 @@ and the rest.
 
 ## Edit content
 
-`kapi rewrite` applies an AI instruction to the text inside a file and writes it
-back, preserving structure, formatting, and inline codes:
+Claude reads a file's blocks with `kapi inspect`, rewrites the text in the blocks
+it wants to change, and writes the result back through **one write verb** —
+`kapi apply` — which lands both content edits and asset edits (a glossary term, a
+brand rule, a recipe field). No AI provider is involved: Claude is the writer,
+kapi enforces the faithful round-trip.
 
-```bash
-kapi rewrite README.md --instruction "Use sentence case for all headings"
-kapi rewrite README.md --instruction "Remove filler words" --diff     # preview changes
-kapi rewrite README.md --instruction "Tighten to one sentence per paragraph" -i
-kapi rewrite README.md --instruction "Shorten the intro" -i=.bak     # keep backup
+Each block's `text` carries inline codes as `<x id="…"/>` placeholders that must
+survive the edit; its `content_hash` is the identity kapi drift-checks. Claude
+sends back a JSONL change-set of `content` entries:
+
+```json
+{"kind":"content","file":"README.md","id":"p1","content_hash":"a1b2c3…","text":"Install the CLI and run your first check."}
 ```
 
-`--diff` shows the proposed changes before writing. `-i`/`--in-place` writes back
-to the source file; `-i=.bak` writes a `.bak` alongside the original first.
-`--provider` selects an AI provider when more than one is configured. See
-[Rewrite tool](/reference/tools/rewrite) for the full parameter reference.
+```bash
+kapi inspect README.md --jsonl | rewrite-the-blocks > edits.jsonl
+kapi apply edits.jsonl --diff           # preview the content changes, write nothing
+kapi apply edits.jsonl                    # apply in place
+kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
+```
+
+An edit whose `content_hash` no longer matches, or that drops or unbalances an
+`<x id="…"/>` code, is left unchanged and the command exits on the gate code (3)
+so Claude re-inspects and retries. See
+[Edit content in any format](/kapi/recipes/rewrite-content) for the round-trip
+contract and the guards.
 
 ## Brand voice
 
@@ -195,8 +211,8 @@ and consume bilingual interchange files — see
   structured tools for any MCP client.
 - [Checks](/framework/checks) — the check families and the `kapi.check/v1`
   Report model.
-- [Rewrite tool](/reference/tools/rewrite) — `rewrite` parameters and provider
-  configuration.
+- [Edit content in any format](/kapi/recipes/rewrite-content) — the
+  inspect → edit → `apply` loop and its guards.
 - [Brand voice](/framework/checks/brand-voice) — the profile model for
   vocabulary and style rules.
 - [Bilingual workflow](/kapi/bilingual-workflow) — XLIFF/PO round-trips for

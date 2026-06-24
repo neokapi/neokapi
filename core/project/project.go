@@ -116,6 +116,22 @@ type Defaults struct {
 	// directory). Empty means no bound termbase.
 	Termbase string `yaml:"termbase,omitempty" json:"termbase,omitempty"`
 
+	// TermbaseSource binds the committed, git-tracked native source artifact
+	// (a .klftb document) the project termbase is compiled from. This is the
+	// authored, reviewable form: `kapi apply` edits the .klftb here and then
+	// re-imports it into the gitignored Termbase (.db) cache, so the SQLite
+	// store is written by exactly one path and `git diff` is the review
+	// surface. The path resolves relative to the project root. Empty means no
+	// bound source (the .db cache, if any, is the only artifact).
+	TermbaseSource string `yaml:"termbase_source,omitempty" json:"termbase_source,omitempty"`
+
+	// TMSource binds the committed, git-tracked native source artifact (a
+	// .klftm document) the project translation memory is compiled from, the TM
+	// analogue of TermbaseSource. `kapi apply` edits the .klftm here and
+	// re-imports it into the gitignored .kapi/tm.db cache. The path resolves
+	// relative to the project root. Empty means no bound TM source.
+	TMSource string `yaml:"tm_source,omitempty" json:"tm_source,omitempty"`
+
 	// Tools holds project-level tool presets: per-tool config defaults applied
 	// wherever the tool runs in a project flow. A flow step's own config
 	// overrides the preset per key (step wins), so a project can pin, say,

@@ -76,19 +76,20 @@ kapi check release-notes.md --max-chars 280
 kapi check release-notes.md --json          # the kapi.check/v1 Report
 ```
 
-`kapi rewrite` edits the text inside a file from a plain-language instruction and
-writes the document back in the same format — only the text changes, the
-structure round-trips. It calls an LLM, so add a credential first (or run a local
-provider). Preview with `--diff` before writing anything:
+To edit the text inside a file, read its blocks with `kapi inspect --jsonl`,
+rewrite the ones you want to change, and write them back with `kapi apply` —
+only the text changes, the structure round-trips, and no model is involved.
+Preview with `--diff` before writing anything:
 
 ```bash
-kapi rewrite --instruction "make the intro more concise" --diff guide.md
-kapi rewrite --instruction "use UK spelling" -i guide.md
+kapi inspect guide.md --jsonl | edit-the-blocks > edits.jsonl
+kapi apply edits.jsonl --diff     # preview, then drop --diff to apply in place
 ```
 
 Together these are the loop an AI assistant runs over [MCP](/reference/mcp):
-author, `check_file`, fix the flagged block with `rewrite_file`, re-check until
-the gate is green. See [Checks](/framework/checks) for the Report model.
+`extract_content`, `check_file`, fix the flagged block with `apply_edits`,
+re-check until the gate is green. See [Edit content](/kapi/recipes/rewrite-content)
+for the guards and [Checks](/framework/checks) for the Report model.
 
 ## Explore formats, tools, and flows
 

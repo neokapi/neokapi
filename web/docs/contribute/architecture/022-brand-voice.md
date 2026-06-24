@@ -145,16 +145,54 @@ The subcommands:
 | `new` | Scaffold a commented, schema-valid profile YAML to fill in (optionally seeded from a `--pack`). |
 | `guide` / `show` | Render the profile as a markdown voice guide to inject into an assistant's context. |
 | `check` | Score text against the profile (vocab always; `--ai` adds the LLM check). `--min-score` turns it into a gate. |
-| `rewrite` | Rewrite text to comply — deterministic term substitution by default, full LLM rewrite with `--ai`. |
+| `rewrite` | Substitute forbidden/competitor terms for their approved replacements — deterministic, offline, no model. |
 | `profiles` | List profiles (local store + built-in packs). |
 | `import` | Import a profile YAML into the local store. |
 | `pack` | Install a built-in starter pack into the local store. |
 
-`check` and `rewrite` read their subject text from `--text`, a positional file,
-or stdin. `check --min-score` returns the `ErrQualityGate` sentinel when the
-score is below the threshold, which the CLI maps to a distinct exit code
+`check` reads its subject text from `--text`, a positional file, or stdin.
+`check --min-score` returns the `ErrQualityGate` sentinel when the score is below
+the threshold, which the CLI maps to a distinct exit code
 ([AD-013](013-kapi-cli.md)) so skills and CI can tell a failed gate from an
 operational error.
+
+### Fixing off-voice content: rewrite it yourself, apply through `kapi apply`
+
+kapi does not send content to a model to rewrite it. An on-brand fix is
+caller-supplied: the assistant loads the voice guide (`kapi brand guide`) and the
+approved wording (`kapi termbase lookup`) as context, rewrites the off-voice text
+itself, and applies the result through the one write verb, `kapi apply`. The
+edits land through the byte-faithful round-trip with **no AI provider**
+([AD-024](024-agent-skills.md)): structure and inline codes are preserved, each
+block is drift-guarded by its `content_hash`, and an edit that would corrupt
+markup is rejected.
+
+`kapi brand rewrite` is a separate, deterministic helper: it substitutes
+forbidden and competitor terms for their approved replacements by rule, offline,
+reading text from `--input-text` or stdin. It does not call a model and does not
+touch tone, style, or phrasing — those are the caller's to rewrite.
+
+### Brand-vocabulary edits as a change-set entry
+
+Fixing a recurring off-voice term at the *source* — adding a vocabulary rule so
+every future draft is checked against it — is a `brand` entry in the same
+`kapi apply` change-set, alongside the content fix it justifies (one reviewed
+change = one typed entry, [AD-024](024-agent-skills.md)):
+
+```json
+{"kind":"brand","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","severity":"minor"}
+```
+
+The entry adds a `TermRule` to the named vocabulary list (`forbidden`,
+`competitor`, or `preferred`) of the **committed** brand voice profile YAML the
+recipe binds (`defaults.brand_voice.profile_file`, created and bound if none
+exists), then re-imports that profile into the local brand store via the existing
+`brand.LoadProfileYAML` path. The committed YAML is the single source of truth and
+`git diff` is the review surface; the store is a compiled cache, written by the
+one importer. The operation is idempotent — a rule already present with the same
+term, replacement, and severity is a no-op. A binding that points at a starter
+pack or a store profile rather than a `profile_file` is rejected: `apply` edits a
+committed file, not a pack or a store row.
 
 ### Built-in starter packs
 
@@ -213,7 +251,7 @@ it.
 - [AD-010: Terminology](010-terminology.md) — concept-level terminology
   consistency that brand vocabulary intersects
 - [AD-011: AI Providers](011-ai-providers.md) — the LLM provider behind the AI
-  brand check and rewrite
+  brand check
 - [AD-013: Kapi CLI](013-kapi-cli.md) — the `kapi brand` command tree, the MCP
   server, and the gate exit code
 - [AD-024: Agent Skills](024-agent-skills.md) — the bundled skill that drives

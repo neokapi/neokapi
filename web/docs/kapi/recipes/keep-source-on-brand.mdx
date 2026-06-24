@@ -33,7 +33,8 @@ The four commands involved are:
 | `kapi stats` | Content overview: block counts, words, characters |
 | `kapi inspect` | Per-block detail as JSON — for RAG or AI pipelines |
 | `kapi check` | Check against a brand profile; exit 3 when the gate fails |
-| `kapi rewrite` | AI-driven faithful edit of the text inside a file |
+| `kapi apply` | Write your reviewed edits back through the faithful round-trip (no model) |
+| `kapi brand rewrite` | Offline substitution of forbidden/competitor terms for their approved wording |
 
 ## Survey the content
 
@@ -249,60 +250,84 @@ kapi check index.html --validate report
 
 ## Rewrite to fix findings
 
-`kapi rewrite` applies an AI instruction to the text inside a file and writes
-the document back in the same format — only the editable text changes. (See
-[the `rewrite` tool](/reference/tools/rewrite) for the faithful round-trip
-guarantee that keeps styles, keys, inline codes, and markup intact.)
+The primary path is the one translation uses: **you fix the off-brand text and
+kapi applies it — no second model.** Load the voice guide, rewrite each flagged
+block on-brand, and write it back through the one write verb.
 
-Use `--diff` first to review the proposed changes without writing anything:
+`kapi inspect --jsonl` gives each block an `id`, a `content_hash`, and its `text`
+(inline codes as `<x id="…"/>` placeholders). Keep the placeholders, and send
+back a JSONL change-set of `content` entries:
 
-```bash
-kapi rewrite --instruction "replace 'leverage' with 'use' throughout; avoid superlatives" \
-  --diff blog-post.md
+```json
+{"kind":"content","file":"blog-post.md","id":"paragraph-0","content_hash":"b74d19…","text":"Today we use our infrastructure..."}
 ```
 
-When the diff looks correct, run without `--diff` to write to standard output,
-or use `-i` to edit in place:
+`kapi apply` writes each named file in place; `--diff` previews and writes
+nothing:
 
 ```bash
-# Write the rewritten document to stdout
-kapi rewrite --instruction "replace 'leverage' with 'use'; avoid superlatives" blog-post.md
-
-# Edit in place, keeping a backup
-kapi rewrite --instruction "replace 'leverage' with 'use'; avoid superlatives" \
-  --in-place=.bak blog-post.md
+kapi inspect blog-post.md --jsonl | fix-the-flagged-blocks > edits.jsonl
+kapi apply edits.jsonl --diff           # review first
+kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
 ```
 
-`kapi rewrite` requires an AI provider. Set one in your kapi config or pass
-`--provider`:
+An edit whose `content_hash` no longer matches, or that drops an inline code, is
+left unchanged and the command exits on the gate code (3) so you re-inspect and
+retry. (See [Edit content](/kapi/recipes/rewrite-content) for the faithful
+round-trip guarantee that keeps styles, keys, inline codes, and markup intact.)
+
+### Fix the rule, not just the draft
+
+A recurring off-brand term is better fixed at the source. The same `kapi apply`
+change-set can carry a `brand` entry that adds a vocabulary rule, landing it
+alongside the content fix:
+
+```jsonl
+{"kind":"content","file":"blog-post.md","id":"paragraph-0","content_hash":"b74d19…","text":"Today we use our infrastructure..."}
+{"kind":"brand","op":"add-rule","list":"forbidden","term":"leverage","replacement":"use","severity":"minor"}
+```
+
+The `brand` entry is written into the project's committed brand voice profile
+YAML (the `defaults.brand_voice.profile_file` the recipe binds) and compiled into
+the local brand store, so the next check enforces it. `git diff` is the review
+surface. This requires a `.kapi` project.
+
+### Offline term substitution
+
+To swap forbidden and competitor terms for their approved wording without an
+assistant in the loop, `kapi brand rewrite` does it deterministically — no model.
+It reads text from `--input-text` or stdin and reports each change; it fixes
+vocabulary only, not tone or phrasing:
 
 ```bash
-kapi rewrite --instruction "..." --provider anthropic blog-post.md
+echo "$DRAFT" | kapi brand rewrite --profile-file brand/voice.yaml --input-text - --json
 ```
 
-After rewriting, run `kapi check` again to confirm the findings are cleared. The
+After fixing, run `kapi check` again to confirm the findings are cleared. The
 stable rule ids in the Report let you track which violations remain.
 
 ## In an AI agent loop (MCP)
 
-`kapi mcp` exposes the check and rewrite surface as MCP tools so an AI assistant
-(Claude Code, Cursor, or any MCP-compatible client) can drive the full
+`kapi mcp` exposes the read, write, and check surface as MCP tools so an AI
+assistant (Claude Code, Cursor, or any MCP-compatible client) can drive the full
 author → check → fix cycle from a conversation:
 
 | MCP tool | What it does |
 |---|---|
+| `extract_content` | Read a file's blocks: `id`, `content_hash`, `source_text` with inline-code placeholders, and `word_count` — the read leg |
+| `apply_edits` | Apply a typed change-set (content + asset edits) through the faithful round-trip — the one write verb, no provider |
 | `check_text` | Check a text snippet (no file needed) |
 | `check_file` | Check a file's content; returns `kapi.check/v1` Report |
 | `brand_check` | Score text against a brand profile; returns findings |
-| `rewrite_file` | Rewrite a file's text per an instruction; returns the updated content |
 
 A typical agent loop:
 
 1. Call `check_file` on the source file with a `profile_pack` or `profile_file`.
 2. Read the `findings` — each has a stable `rule` id and a `location.block`
    pointing to the exact content block.
-3. Call `rewrite_file` with an instruction derived from the findings (or attach
-   the same `profile_file` so the rewrite aligns with the profile guide).
+3. Rewrite the flagged blocks and call `apply_edits` with a change-set of
+   `content` entries (and, to fix the rule too, a `brand` entry). No second model
+   is called.
 4. Re-run `check_file` to confirm the findings are cleared.
 
 The MCP server starts with `kapi mcp`. See [MCP server](/reference/mcp) for
@@ -310,11 +335,12 @@ setup and the full tool list.
 
 ## In a project
 
-In a `.kapi` project, `kapi check` and `kapi rewrite` run against the recipe's
-declared content with no file argument — the brand profile, packs, and gate
-thresholds come from the recipe instead of being passed on each invocation. Wire
-the check into a flow and run it with `kapi run` to gate the whole project's
-source in one pass. See [Create your first project](/kapi/get-started/first-project).
+In a `.kapi` project, `kapi check` runs against the recipe's declared content
+with no file argument — the brand profile, packs, and gate thresholds come from
+the recipe instead of being passed on each invocation, and `kapi apply` lands
+your edits against the named files. Wire the check into a flow and run it with
+`kapi run` to gate the whole project's source in one pass. See
+[Create your first project](/kapi/get-started/first-project).
 
 ## Next
 
@@ -322,8 +348,8 @@ source in one pass. See [Create your first project](/kapi/get-started/first-proj
   rules, and how the score is calculated.
 - [`kapi check` reference](/reference/commands/brand-check) — all flags and the
   full `kapi.check/v1` schema.
-- [`rewrite` tool reference](/reference/tools/rewrite) — provider configuration,
-  inline-code preservation, and the faithful round-trip guarantee.
+- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply`
+  loop, inline-code preservation, and the faithful round-trip guarantee.
 - [MCP server](/reference/mcp) — how to configure kapi as an MCP server for
   Claude Code, Cursor, and other AI tools.
 - [Terminology QA](/kapi/recipes/terminology-qa) — enforce approved term choices

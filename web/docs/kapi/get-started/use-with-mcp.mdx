@@ -13,9 +13,11 @@ preserving the file's structure. The assistant calls a tool when a task needs it
 you describe the work in plain language.
 
 The `kapi` CLI must be on your `PATH` — confirm with `kapi version` (see
-[installation](/kapi/get-started/installation)). Rule-based checks need no
-credential; for AI-backed editing (`rewrite_file`) add a provider with
-`kapi credentials add`.
+[installation](/kapi/get-started/installation)). The edit loop —
+`extract_content` to read, `apply_edits` to write — needs no provider credential:
+the assistant supplies the edits and kapi applies them, with no model. A provider
+added with `kapi credentials add` is only for unattended translation
+(`kapi translate`) and the optional `--ai` checks.
 
 :::tip Driving the CLI from Claude Code instead?
 If you use **Claude Code**, the [Kapi Agent Skills](/kapi/get-started/use-with-skills)
@@ -64,13 +66,16 @@ for Cursor, Windsurf, and VS Code configurations and the full tool list.
 
 `kapi mcp` registers a focused set of structured tools:
 
-- **`extract_content`** — read a file's blocks into context: one record per
-  block with its text, role, a stable identifier, and a content hash (SHA-256 of
-  the normalized text).
+- **`extract_content`** — the read leg: read a file's blocks into context, one
+  record per block with its text (inline codes rendered as `<x id="…"/>`
+  placeholders), role, a stable `id`, and a `content_hash`.
+- **`apply_edits`** — the one write verb: apply a typed change-set. Content edits
+  land through the byte-faithful round-trip (structure and inline codes
+  preserved, drift-guarded by `content_hash`); asset edits (glossary term, TM
+  pair, brand rule, recipe field) are written to their committed source and
+  compiled into the cache. No provider is used.
 - **`check_file`** / **`check_text`** — run the configured checkset over a file
   path or a plain string and return a `kapi.check/v1` Report.
-- **`rewrite_file`** — apply an AI instruction to the text inside a file and
-  return the revised file, structure preserved.
 - **`brand_check`** — score a text snippet against a brand voice profile without
   reading a full file.
 
@@ -109,16 +114,17 @@ See [Checks](/framework/checks) for the full rule model and Report structure.
 
 The tools compose into a fix loop with no scaffolding:
 
-1. The assistant drafts or edits content.
-2. It calls `check_file` — the Report returns which block failed, which rule,
-   and where in the file.
-3. It calls `rewrite_file` with the instruction and path, keeping the file's
-   structure intact.
-4. It calls `check_file` again. When the gate is green, it stops.
+1. The assistant calls `extract_content` to read the blocks, or `check_file` to find
+   what failed — the Report returns which block, which rule, and where.
+2. It rewrites the flagged blocks itself and calls `apply_edits` with a
+   change-set of `content` entries (each naming the block's `id`, the
+   `content_hash` it read, and the new text). No second model is called.
+3. It calls `check_file` again. When the gate is green, it stops.
 
-This works for any file type kapi reads — Markdown, JSON, DOCX, HTML, YAML, and
-the rest. The assistant coordinates the tools; neither tool is coupled to the
-other.
+If an edit drifted (`content_hash` no longer matches) or would corrupt an inline
+code, `apply_edits` returns `ok: false` and leaves that block unchanged, so the
+assistant re-inspects and retries. This works for any file type kapi reads —
+Markdown, JSON, DOCX, HTML, YAML, and the rest.
 
 ## Brand voice
 
@@ -145,5 +151,5 @@ profile format, pack model, and vocabulary rule syntax.
   Code path, where Claude drives the `kapi` CLI by natural language.
 - [Checks](/framework/checks) — the check families and the `kapi.check/v1`
   Report model.
-- [Rewrite tool](/reference/tools/rewrite) — `rewrite` parameters and provider
-  configuration.
+- [Edit content in any format](/kapi/recipes/rewrite-content) — the
+  inspect → edit → `apply` loop the MCP tools mirror.

@@ -144,35 +144,36 @@ named profiles (`--profile`, `--profile-file`), and severity thresholds
 comparing source against a translated file — adds `--target FILE --target-lang
 LANG`.
 
-## 6. Revise with AI
+## 6. Revise the content
 
-`kapi rewrite` applies a targeted instruction to the text inside a file and
-writes it back faithfully, preserving format structure, inline markup, and
-non-text nodes:
+Read a file's blocks with `kapi inspect`, rewrite the ones you want to change,
+and write them back with `kapi apply` — faithfully, preserving format structure,
+inline markup, and non-text nodes, with no model involved:
 
 ```bash
-kapi rewrite --instruction "Prefer active voice and remove redundant qualifiers" \
-  docs/guide.md --diff
+kapi inspect docs/guide.md --jsonl | edit-the-blocks > edits.jsonl
+kapi apply edits.jsonl --diff
 ```
 
 Review the diff, then apply in place:
 
 ```bash
-kapi rewrite --instruction "Prefer active voice" docs/guide.md --in-place
+kapi apply edits.jsonl
 ```
 
-`--in-place=.bak` keeps a backup alongside the edited file. `--provider`
-selects the AI backend. See the
-[rewrite tool reference](/reference/tools/rewrite) for the full option list.
+`--in-place=.bak` keeps a backup alongside each edited file. An edit that drifted
+or would corrupt an inline code is left unchanged and reported. See
+[Edit content in any format](/kapi/recipes/rewrite-content) for the `content`-entry
+shape and the guards.
 
 ### Automated check–revise loop via MCP
 
 When kapi is connected to an AI assistant via its MCP server, the check–revise
 loop runs without manual steps. The assistant calls `check_file` to read
-findings, calls `rewrite_file` with a targeted fix instruction, then calls
-`check_file` again to confirm the gate passes. `brand_check` runs the full brand
-voice profile in a single call. `check_text` operates on inline text rather than
-a file path. See [MCP tools](/reference/mcp) for the complete tool list.
+findings, rewrites the flagged blocks itself, sends them back with `apply_edits`,
+then calls `check_file` again to confirm the gate passes. `brand_check` runs the
+full brand voice profile in a single call. `check_text` operates on inline text
+rather than a file path. See [MCP tools](/reference/mcp) for the complete tool list.
 
 ## 7. Add localization (optional)
 
