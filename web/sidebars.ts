@@ -62,7 +62,8 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         { type: "doc", id: "kapi/recipes/ingest-for-ai", label: "Feed content to your AI" },
-        { type: "doc", id: "kapi/recipes/rewrite-content", label: "Rewrite content with AI" },
+        { type: "doc", id: "kapi/recipes/rewrite-content", label: "Rewrite content" },
+        { type: "doc", id: "kapi/recipes/create-content", label: "Create content" },
         { type: "doc", id: "kapi/recipes/verify-content", label: "Check content and loop" },
         { type: "doc", id: "kapi/recipes/keep-source-on-brand", label: "Keep source on brand" },
         { type: "doc", id: "kapi/recipes/prepare-content", label: "What gets translated" },

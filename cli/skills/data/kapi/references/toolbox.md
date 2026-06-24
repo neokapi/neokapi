@@ -34,6 +34,14 @@ to a git-tracked `en.json`: `ksed` re-serializes the whole document and may
 reflow it), or when the thing you actually want is the structure, keys or markup
 itself rather than the prose.
 
+**`ksed` is for a regex substitution; `kapi apply` is for block-by-block edits
+you author.** When the change is "replace this pattern with that" across blocks,
+`ksed` expresses it directly. When you are rewriting block text by hand — an
+on-brand fix, a clarity pass, a per-block correction — read the blocks with
+`kapi inspect` and write your edited text back through `kapi apply` (or
+`kapi rewrite --edits`), which drift-checks each block and preserves inline codes.
+See [edit.md](edit.md).
+
 ## kcat — read the content
 
 ```bash

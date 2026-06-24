@@ -79,12 +79,11 @@ func (a *App) runInspect(ctx context.Context, cmd *cobra.Command, args []string,
 
 	for _, file := range files {
 		_, ferr := a.streamBlocks(ctx, file, func(_ int, b *model.Block) error {
-			text := b.SourceText()
-			if text == "" {
+			if b.SourceText() == "" {
 				return nil
 			}
 			n++
-			rec := structrec.FromBlock(n, b, text)
+			rec := structrec.FromBlock(n, b, b.SourceRuns())
 			rec.File = displayName(file)
 			if streaming {
 				return enc.Encode(rec) // Encode writes one object + newline = JSONL

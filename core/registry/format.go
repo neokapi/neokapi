@@ -40,9 +40,27 @@ type FormatInfo struct {
 	// Interchange reports a bilingual translation-interchange format (XLIFF, PO,
 	// TMX, …). These belong to the extract→translate→merge loop and are excluded
 	// as `convert` targets. Declarative, like Generative.
-	Interchange bool   `json:"interchange,omitempty"`
-	Source      string `json:"source"`   // SourceBuiltIn or plugin name
-	Priority    int    `json:"priority"` // higher = preferred when multiple formats match
+	Interchange bool `json:"interchange,omitempty"`
+	// Editable reports that kapi can faithfully write this format back after an
+	// edit — it has both a reader and a writer and is not a bilingual interchange
+	// format. This is the set of formats a caller-supplied content edit
+	// (`kapi apply` / `kapi rewrite --edits`) can target, INCLUDING binary
+	// (DOCX/PPTX/…) whose round-trip is what makes editing them safe. Derived from
+	// HasReader/HasWriter/Interchange when infos are read.
+	Editable bool `json:"editable"`
+	// RoundTrip reports that the writer reconstructs the document from a skeleton,
+	// so an edit changes only the edited text and everything else is reproduced
+	// byte-for-byte. Probed once from the built-in writer's SkeletonStoreConsumer
+	// capability at registration (declarative, like Generative/Interchange).
+	RoundTrip bool   `json:"round_trip,omitempty"`
+	Source    string `json:"source"`   // SourceBuiltIn or plugin name
+	Priority  int    `json:"priority"` // higher = preferred when multiple formats match
+}
+
+// computeEditable derives the Editable flag from the format's capabilities: a
+// readable, writable, non-interchange format is one kapi can edit in place.
+func (f *FormatInfo) computeEditable() {
+	f.Editable = f.HasReader && f.HasWriter && !f.Interchange
 }
 
 // FormatRegistry manages available DataFormats and their configurations.
@@ -172,6 +190,12 @@ func (r *FormatRegistry) RegisterWriter(name FormatID, factory FormatWriterFacto
 		}
 		if iw, ok := w.(format.InterchangeWriter); ok {
 			info.Interchange = iw.IsInterchange()
+		}
+		// A writer that consumes a skeleton store reconstructs the document
+		// byte-for-byte around the edited text — the faithful round-trip that
+		// makes editing binary formats (DOCX/PPTX/…) safe.
+		if _, ok := w.(format.SkeletonStoreConsumer); ok {
+			info.RoundTrip = true
 		}
 	}
 }
@@ -331,6 +355,7 @@ func (r *FormatRegistry) FormatInfos() []FormatInfo {
 		if cp.Source == "" {
 			cp.Source = SourceBuiltIn
 		}
+		cp.computeEditable()
 		result = append(result, cp)
 	}
 
@@ -352,6 +377,7 @@ func (r *FormatRegistry) FormatInfo(name FormatID) *FormatInfo {
 	if cp.Source == "" {
 		cp.Source = SourceBuiltIn
 	}
+	cp.computeEditable()
 	return &cp
 }
 

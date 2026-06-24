@@ -49,6 +49,9 @@ func (a *App) KapiCommandSet() []*cobra.Command {
 	// with a plain-language instruction, faithfully, with a reviewable --diff.
 	cmds = append(cmds, a.newRewriteCmd())
 	cmds = append(cmds, a.NewInspectCmd())
+	// apply is the write sibling of inspect: land a typed change-set (content +
+	// asset edits) through one reviewed write path.
+	cmds = append(cmds, a.NewApplyCmd())
 	cmds = append(cmds, a.NewStatsCmd())
 	cmds = append(cmds,
 		a.NewVerifyCmd(),

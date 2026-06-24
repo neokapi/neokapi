@@ -25,17 +25,20 @@ type Record struct {
 	File   string `json:"file,omitempty" yaml:"file,omitempty"`
 	Number int    `json:"number" yaml:"number"`
 	ID     string `json:"id,omitempty" yaml:"id,omitempty"`
-	// ContentHash is model.ComputeContentHash(Text): a SHA-256 over the block's
-	// NORMALIZED (whitespace-trimmed) source text.
+	// ContentHash is the canonical block identity: a SHA-256 over the block's
+	// NORMALIZED (whitespace-trimmed) plain source text (model.ComputeContentHash
+	// of SourceText). It is NOT a hash of Text — Text carries inline-code
+	// placeholders, the hash does not — so the two anchor different things: Text
+	// for editing, ContentHash for identity and drift detection.
 	ContentHash string `json:"content_hash,omitempty" yaml:"content_hash,omitempty"`
 	Role        string `json:"role,omitempty" yaml:"role,omitempty"`
 	Level       int    `json:"level,omitempty" yaml:"level,omitempty"`
 	Text        string `json:"text" yaml:"text"`
 }
 
-// New builds a Record for one block, computing the content hash from text. The
-// caller supplies text (source or a resolved target translation) and the block's
-// structural role/level.
+// New builds a Record for one block from an explicit text rendering, computing
+// the content hash over that same text. Prefer FromBlock for content blocks —
+// it renders inline codes as placeholders while keeping the hash canonical.
 func New(number int, id, text, role string, level int) Record {
 	return Record{
 		Number:      number,
@@ -47,11 +50,26 @@ func New(number int, id, text, role string, level int) Record {
 	}
 }
 
-// FromBlock builds a Record from a block using the given text (already resolved
-// to source or target by the caller), reading role/level from the block's
-// structure annotation when present.
-func FromBlock(number int, b *model.Block, text string) Record {
-	rec := New(number, b.ID, text, "", 0)
+// FromBlock builds a Record from a block, rendering the given runs (the block's
+// source, or a resolved target) as the record Text.
+//
+// Text is the placeholder rendering (model.RunsPlaceholderText): inline codes
+// appear as <x id="…"/> tokens so the read leg is symmetric with the write-back
+// leg — an agent that reads a record and edits its Text can round-trip the edit
+// without dropping a link, bold span, or placeholder.
+//
+// ContentHash is deliberately NOT computed over that placeholder text. It stays
+// the canonical block identity — model.ComputeContentHash over the block's plain
+// source text — the same hash the sync engine, content stores, and desktop
+// status view use (a frozen on-the-wire contract). Text (for editing) and
+// ContentHash (for identity/drift) are therefore on different bases by design.
+func FromBlock(number int, b *model.Block, runs []model.Run) Record {
+	rec := Record{
+		Number:      number,
+		ID:          b.ID,
+		ContentHash: model.ComputeContentHash(b.SourceText()),
+		Text:        model.RunsPlaceholderText(runs),
+	}
 	if s, ok := b.Structure(); ok {
 		rec.Role, rec.Level = s.Role, s.Level
 	}

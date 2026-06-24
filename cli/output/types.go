@@ -53,10 +53,17 @@ type FormatInfo struct {
 	Generative bool `json:"generative,omitempty"`
 	// Interchange reports a bilingual translation-interchange format (XLIFF, PO,
 	// TMX, …) — the extract/merge loop, excluded as a `convert` target.
-	Interchange bool     `json:"interchange,omitempty"`
-	Source      string   `json:"source,omitempty"`
-	Extensions  []string `json:"extensions,omitempty"`
-	MimeTypes   []string `json:"mime_types,omitempty"`
+	Interchange bool `json:"interchange,omitempty"`
+	// Editable reports kapi can faithfully write this format back after an edit
+	// (reader + writer, not interchange) — the set a caller-supplied content edit
+	// (`kapi apply` / `kapi rewrite --edits`) can target, including binary.
+	Editable bool `json:"editable"`
+	// RoundTrip reports the writer reconstructs from a skeleton, so an edit
+	// changes only the edited text and the rest is byte-for-byte preserved.
+	RoundTrip  bool     `json:"round_trip,omitempty"`
+	Source     string   `json:"source,omitempty"`
+	Extensions []string `json:"extensions,omitempty"`
+	MimeTypes  []string `json:"mime_types,omitempty"`
 }
 
 // FormatsListOutput represents the list of formats.
@@ -68,21 +75,28 @@ type FormatsListOutput struct {
 func (f FormatsListOutput) FormatText(w io.Writer) error {
 	fmt.Fprintln(w, T("formats.available"))
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-12s %-24s %s\n",
+	fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-6s %-12s %-24s %s\n",
 		T("formats.header.format"), T("formats.header.name"), T("formats.header.read"),
-		T("formats.header.write"), T("formats.header.source"),
+		T("formats.header.write"), "Edit", T("formats.header.source"),
 		T("formats.header.extensions"), T("formats.header.mimeTypes"))
-	fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-12s %-24s %s\n",
-		"------", "----", "----", "-----", "------", "----------", "----------")
+	fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-6s %-12s %-24s %s\n",
+		"------", "----", "----", "-----", "----", "------", "----------", "----------")
 
 	for _, info := range f.Formats {
 		read := "-"
 		write := "-"
+		edit := "-"
 		if info.HasReader {
 			read = "yes"
 		}
 		if info.HasWriter {
 			write = "yes"
+		}
+		if info.Editable {
+			edit = "yes"
+			if info.RoundTrip {
+				edit = "faithful"
+			}
 		}
 		displayName := info.DisplayName
 		if len(displayName) > 28 {
@@ -96,8 +110,8 @@ func (f FormatsListOutput) FormatText(w io.Writer) error {
 		if len(mimes) > 44 {
 			mimes = mimes[:41] + "..."
 		}
-		fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-12s %-24s %s\n",
-			info.Name, displayName, read, write, info.Source, exts, mimes)
+		fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-6s %-12s %-24s %s\n",
+			info.Name, displayName, read, write, edit, info.Source, exts, mimes)
 	}
 	fmt.Fprintf(w, "\n"+T("formats.total")+"\n", f.Total)
 	return nil
@@ -433,6 +447,8 @@ type FormatInfoOutput struct {
 	Source      string            `json:"source,omitempty"`
 	HasReader   bool              `json:"has_reader"`
 	HasWriter   bool              `json:"has_writer"`
+	Editable    bool              `json:"editable"`
+	RoundTrip   bool              `json:"round_trip,omitempty"`
 	Extensions  []string          `json:"extensions,omitempty"`
 	MimeTypes   []string          `json:"mime_types,omitempty"`
 	Groups      []FormatInfoGroup `json:"groups,omitempty"`
@@ -473,6 +489,14 @@ func (o FormatInfoOutput) FormatText(w io.Writer) error {
 	}
 	fmt.Fprintf(w, "  Reader:     %s\n", read)
 	fmt.Fprintf(w, "  Writer:     %s\n", write)
+	edit := "no"
+	if o.Editable {
+		edit = "yes"
+		if o.RoundTrip {
+			edit = "yes (faithful round-trip)"
+		}
+	}
+	fmt.Fprintf(w, "  Editable:   %s\n", edit)
 
 	if len(o.Extensions) > 0 {
 		fmt.Fprintf(w, "  Extensions: %s\n", strings.Join(o.Extensions, ", "))

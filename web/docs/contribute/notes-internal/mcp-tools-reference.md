@@ -65,7 +65,11 @@ Detect the file format from a file path based on its extension.
 
 ### `extract_content`
 
-Parse a file and extract translatable content blocks with source text and word counts.
+Parse a file into translatable content blocks — the read leg of the edit loop.
+Each block carries its `id`, its `content_hash` (canonical identity over the
+plain source text, the drift anchor), its `source_text` with inline codes
+rendered as `<x id="…"/>` placeholders, and its `word_count`. Pair it with
+`apply_edits` (or `kapi apply`) to round-trip an edit faithfully.
 
 **Input:**
 | Parameter | Type | Required | Description |
@@ -84,12 +88,28 @@ Parse a file and extract translatable content blocks with source text and word c
   "blocks": [
     {
       "id": "greeting",
-      "source_text": "Hello World",
+      "content_hash": "a3f82c…",
+      "source_text": "Hello <x id=\"1\"/>World<x id=\"/1\"/>",
       "word_count": 2
     }
   ]
 }
 ```
+
+### `apply_edits`
+
+Apply a typed change-set — the one write verb, the write leg of the edit loop.
+Content edits land through the byte-faithful round-trip (structure and inline
+codes preserved, drift-guarded by `content_hash`); asset edits (`term`, `tm`,
+`brand`, `recipe`) are written to their committed source artifact and compiled
+into the cache. No AI provider is used.
+
+**Input:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `changeset` | array | yes | Typed change-set entries (`kind`: `content` / `term` / `tm` / `brand` / `recipe`) |
+
+**Output:** `ok` plus the per-block content outcome (`applied` / `skipped` / `stale` / `guard_failed`) and a per-entry `assets` result. `ok` is false when an edit drifted or was rejected, signalling the caller to re-read and retry.
 
 ### `word_count`
 

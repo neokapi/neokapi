@@ -156,6 +156,48 @@ score is below the threshold, which the CLI maps to a distinct exit code
 ([AD-013](013-kapi-cli.md)) so skills and CI can tell a failed gate from an
 operational error.
 
+### Two rewrite paths: attended (caller-supplied) and unattended (provider)
+
+`kapi brand rewrite` and the format-aware `kapi rewrite` both have **two** ways to
+land an on-brand fix, mirroring the translation model — kapi does not call a
+second model when an assistant is already in the loop:
+
+- **Attended — caller-supplied.** The assistant loads the voice guide
+  (`kapi brand guide`) and the approved wording (`kapi termbase lookup`) as
+  context, rewrites the off-voice text itself, and applies the result through the
+  one write verb, `kapi apply` (or `kapi rewrite --edits`). The edits land through
+  the byte-faithful round-trip with **no AI provider** ([AD-024](024-agent-skills.md)):
+  structure and inline codes are preserved, each block is drift-guarded by its
+  `content_hash`, and an edit that would corrupt markup is rejected. This is the
+  default attended path.
+- **Unattended — provider.** With no assistant in the loop, `kapi brand rewrite
+  --ai` (and `kapi rewrite --instruction`) call an AI provider to rewrite tone and
+  style holistically, gated behind a saved credential. The deterministic, offline
+  `kapi brand rewrite` (no `--ai`) still substitutes forbidden/competitor terms
+  by rule. The provider path is the fallback for batch and CI use.
+
+### Brand-vocabulary edits as a change-set entry
+
+Fixing a recurring off-voice term at the *source* — adding a vocabulary rule so
+every future draft is checked against it — is a `brand` entry in the same
+`kapi apply` change-set, alongside the content fix it justifies (one reviewed
+change = one typed entry, [AD-024](024-agent-skills.md)):
+
+```json
+{"kind":"brand","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","severity":"minor"}
+```
+
+The entry adds a `TermRule` to the named vocabulary list (`forbidden`,
+`competitor`, or `preferred`) of the **committed** brand voice profile YAML the
+recipe binds (`defaults.brand_voice.profile_file`, created and bound if none
+exists), then re-imports that profile into the local brand store via the existing
+`brand.LoadProfileYAML` path. The committed YAML is the single source of truth and
+`git diff` is the review surface; the store is a compiled cache, written by the
+one importer. The operation is idempotent — a rule already present with the same
+term, replacement, and severity is a no-op. A binding that points at a starter
+pack or a store profile rather than a `profile_file` is rejected: `apply` edits a
+committed file, not a pack or a store row.
+
 ### Built-in starter packs
 
 The framework embeds a small set of starter packs (`core/brand/packs`, embedded

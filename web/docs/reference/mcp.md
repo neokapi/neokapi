@@ -129,7 +129,8 @@ Once connected, your AI assistant can call these tools:
 | ------------------ | ---------------------------------------------------------------- |
 | `list_formats`     | List all supported file formats with extensions and capabilities |
 | `detect_format`    | Detect a file's format from its path                             |
-| `extract_content`  | Parse a file and return translatable content blocks              |
+| `extract_content`  | Read a file's blocks (`id`, `content_hash`, placeholder `source_text`, `word_count`) — the read leg |
+| `apply_edits`      | Apply a typed change-set (content + asset edits) — the write leg, no provider |
 | `word_count`       | Count translatable words in a file                               |
 | `run_flow`         | Run a processing flow (pseudo-translate, QA check, etc.)         |
 | `pseudo_translate` | Pseudo-translate a file for localization QA                      |
@@ -164,7 +165,13 @@ The assistant calls `list_formats` and returns a table of formats with their ext
 
 > Show me the translatable strings in `messages.json`
 
-The assistant calls `extract_content`, parses the file, and returns each translatable block with its ID, source text, and word count.
+The assistant calls `extract_content`, parses the file, and returns each translatable block with its ID, content hash, source text (inline codes as `<x id="…"/>` placeholders), and word count.
+
+### "Edit the content, then check it"
+
+> Tighten the intro paragraph in `report.docx`, keeping it on brand
+
+The assistant reads the blocks with `extract_content`, rewrites the text itself (no second model), sends the change back through `apply_edits` (the byte-faithful round-trip, drift- and inline-code-guarded), then calls `check_file` to confirm the gate passes — looping until it does.
 
 ### "Pseudo-translate for QA testing"
 
@@ -182,13 +189,27 @@ The assistant calls `run_flow` with `flow_name: "qa"` and returns the output fil
 
 ### extract_content
 
-Parse a file and return translatable content blocks with source text and word counts.
+Parse a file into translatable content blocks — the read leg of the edit loop.
+Each block carries its `id`, `content_hash` (canonical identity / drift anchor),
+`source_text` with inline codes rendered as `<x id="…"/>` placeholders, and
+`word_count`. Pair with `apply_edits` to round-trip an edit faithfully.
 
 | Parameter     | Type   | Required | Description                         |
 | ------------- | ------ | -------- | ----------------------------------- |
 | `path`        | string | yes      | File path to parse                  |
 | `format`      | string | no       | Override automatic format detection |
 | `source_lang` | string | no       | Source language (default: `en`)     |
+
+### apply_edits
+
+Apply a typed change-set — the one write verb. Content edits land through the
+byte-faithful round-trip (drift-guarded by `content_hash`, inline-code-guarded);
+asset edits (`term`, `tm`, `brand`, `recipe`) are written to their committed
+source and compiled into the cache. No AI provider is used.
+
+| Parameter   | Type  | Required | Description                                                          |
+| ----------- | ----- | -------- | ------------------------------------------------------------------- |
+| `changeset` | array | yes      | Typed entries (`kind`: `content` / `term` / `tm` / `brand` / `recipe`) |
 
 ### run_flow
 

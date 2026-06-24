@@ -75,19 +75,71 @@ Returns a 0–100 `score` and `findings` (each with `severity`, `original_text`,
 `position`, `suggestion`). The rule-based check is deterministic and offline; add
 `--ai` for an LLM tone/style/clarity pass (needs a saved credential).
 
-## 3. Fix what's flagged
+## 3. Fix what's flagged — you rewrite, kapi checks
+
+You are a capable writer, so the default fix path is the same one translation
+uses: **kapi doesn't call a second model when you're in the loop.** Load the
+brand voice as context, rewrite the off-voice text on-brand yourself, route the
+change through kapi's one write verb, then re-check.
 
 ```bash
-echo "$DRAFT" | kapi brand rewrite --pack marketing-blog --text - --json
+kapi brand guide                       # the voice to follow — your context
+kapi termbase lookup "<term>" -t en     # the approved wording for a flagged term
 ```
 
-Offline, this substitutes forbidden/competitor terms and reports the `changes`.
-With `--ai` it rewrites tone and style holistically — diff `original` vs
-`rewritten`. Re-run the check to confirm the score improved.
+Rewrite each flagged block, then apply your edits through the faithful
+round-trip — `kapi apply` (the one write verb) or `kapi rewrite --edits` (the
+provider-free mode of rewrite). Both write the file in place, preserve structure
+and inline codes, and reject an edit that drifted or would corrupt markup. See
+[edit.md](edit.md) for the `content`-entry shape, the guards, and the diff/in-place
+flags:
 
-When the off-voice text is a file the user owns, **rewrite it in place** — git records
-the change and is how they review and undo it. Don't leave a `.fixed` copy behind. If
-the file has uncommitted edits, say so before overwriting, so unsaved work isn't lost.
+```bash
+kapi inspect blog-post.md --jsonl | rewrite-the-flagged-blocks > edits.jsonl
+kapi apply edits.jsonl --diff           # preview, then drop --diff to apply
+```
+
+When the off-voice text is a file the user owns, apply in place — git records the
+change and is how they review and undo it. Don't leave a `.fixed` copy behind. If
+the file has uncommitted edits, say so before overwriting, so unsaved work isn't
+lost. Re-run the check to confirm the score improved.
+
+### Fix the rule, not just the draft
+
+A recurring off-voice term is better fixed at the source: add a vocabulary rule
+so every future draft is checked against it. That is just another `kind` in the
+**same** `kapi apply` change-set — the content fix and the rule that justifies it
+land together, atomically:
+
+```jsonl
+{"kind":"content","file":"blog-post.md","id":"p2","content_hash":"b74d…","text":"We use our infrastructure."}
+{"kind":"brand","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","severity":"minor"}
+```
+
+```bash
+kapi apply changeset.jsonl
+```
+
+The `brand` entry is written into the project's committed brand voice profile
+YAML (the `defaults.brand_voice.profile_file` the recipe binds), and the existing
+import compiles it into the local brand store. `git diff` shows the one new rule;
+the next `kapi brand check` / `kapi verify` enforces it. `list` is `forbidden`,
+`competitor`, or `preferred`; the entry requires a `.kapi` project. (Add an
+approved term instead with a `term` entry — see [create.md](create.md).)
+
+### Unattended fallback: let kapi call a provider
+
+When **no assistant is in the loop** (CI, a batch job), kapi can rewrite via a
+configured provider — the second-model path, gated behind a saved credential:
+
+```bash
+echo "$DRAFT" | kapi brand rewrite --pack marketing-blog --text - --ai --json
+```
+
+Offline (no `--ai`), `kapi brand rewrite` only substitutes forbidden/competitor
+terms deterministically and reports the `changes`. With `--ai` it rewrites tone
+and style holistically. This is the fallback for unattended runs; when you are in
+the loop, prefer rewriting yourself and applying through `kapi apply`.
 
 ## CI / quality gate
 

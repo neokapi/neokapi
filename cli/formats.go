@@ -61,6 +61,8 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 					HasWriter:   info.HasWriter,
 					Generative:  info.Generative,
 					Interchange: info.Interchange,
+					Editable:    info.Editable,
+					RoundTrip:   info.RoundTrip,
 					Source:      info.Source,
 					Extensions:  info.Extensions,
 					MimeTypes:   info.MimeTypes,
@@ -160,6 +162,8 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 				out.Source = info.Source
 				out.HasReader = info.HasReader
 				out.HasWriter = info.HasWriter
+				out.Editable = info.Editable
+				out.RoundTrip = info.RoundTrip
 				if len(out.Extensions) == 0 {
 					out.Extensions = info.Extensions
 				}

@@ -53,6 +53,42 @@ time goes unused.
 
 ## Decision
 
+### The monolingual sibling: `kapi inspect` / `kapi apply`
+
+`extract`/`merge` are the **bilingual** round-trip — source out, target back.
+There is a parallel **monolingual** round-trip on the same content model for
+source-language work — reviewed edits to a single file in its own format, no
+target locale: `kapi inspect` reads a file into anchored content blocks (the read
+leg) and `kapi apply` writes a typed change-set of reviewed edits back through the
+byte-faithful round-trip (the one write verb). The two pairs share the engine — a
+format reader/writer (AD-005), the block content hash as identity, the skeleton
+store for faithful reconstruction — but sit on opposite boundaries: extract/merge
+on boundary 3 (bilingual exchange), inspect/apply on boundaries 1–2 (authored
+source in, edited source out).
+
+**`kapi apply` is deliberate, reviewed edits; `kapi merge` is operational TM
+accretion — keep them distinct.** They look superficially similar (both write
+edits onto source files using the block hash to address blocks), but they answer
+different questions and must not be unified:
+
+- `kapi apply` lands a **human/assistant-reviewed** change-set — a content fix, or
+  an asset edit (term, TM pair, brand rule, recipe field) — with a `content_hash`
+  drift guard and an inline-code fidelity guard, exiting on the gate code when an
+  edit is stale or rejected so a fix loop re-inspects. It is the write half of the
+  inspect/apply loop and never touches a target locale or absorbs TM as a
+  side effect. (Adding a TM pair via an `apply` `tm` entry is itself a *reviewed*
+  edit to the committed `.klftm` source, not the automatic merge-time absorb.)
+- `kapi merge` applies a **translator's returned targets** and, by default,
+  **absorbs** every accepted target segment into the project TM (TM-out, below).
+  That accretion is the point of merge and the engine of compounding leverage; it
+  is operational, not a reviewed edit, and is governed by `merge.conflict_policy`
+  and stale-segment detection rather than a per-block drift guard.
+
+Folding `apply` into `merge` would either contaminate the TM with monolingual
+source edits or strip merge of its absorb behavior; folding `merge` into `apply`
+would lose the conflict policy and the bilingual span mapping. They are separate
+verbs by design.
+
 ### CLI surface: extract and merge as top-level commands
 
 `kapi extract` and `kapi merge` are top-level kapi commands, not
@@ -334,6 +370,9 @@ is absent.
   in v1.
 - **AD-013 (Kapi CLI)** — adds `extract` and `merge` top-level
   commands and describes the auto-discovery resolution order.
+- **AD-024 (Agent Skills)** — defines the monolingual `kapi inspect` /
+  `kapi apply` loop that is the source-side sibling of extract/merge, the typed
+  change-set, and the content-edit drift / inline-code guards.
 - **AD-015 (Testing & Documentation)** — extract/merge each ship
   with an interactive walkthrough embed and a unified workflow guide on the
   docs site.

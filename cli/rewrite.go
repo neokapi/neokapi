@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
+	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/pmezard/go-difflib/difflib"
 	"github.com/spf13/cobra"
 )
@@ -31,6 +32,7 @@ func (a *App) newRewriteCmd() *cobra.Command {
 		modelName   string
 		apiKey      string
 		credential  string
+		editsFile   string
 		diff        bool
 	)
 
@@ -54,15 +56,24 @@ text, never the surrounding markup. If a rewrite would drop or alter an inline
 code (a placeholder or markup tag), that block is left unchanged rather than
 written back with unbalanced markup.
 
+Two sources of the new text: --instruction calls a provider to rewrite (the
+unattended path), or --edits applies caller-supplied edits from a JSONL
+change-set with no provider — for when you (the assistant in the loop) have
+already written the new text and just need it round-tripped faithfully. The two
+are mutually exclusive. For asset edits alongside content, use 'kapi apply'.
+
 With no FILE, or when FILE is "-", standard input is read (not valid with -i).`,
 		Example: `  kapi rewrite --instruction "make it more concise" guide.md
   kapi rewrite --instruction "use UK spelling" --in-place=.bak *.docx
-  kapi rewrite --instruction "friendlier tone" --diff locales/en.json
+  kapi rewrite --edits edits.jsonl -i guide.md          # caller-supplied, no provider
   kapi rewrite --instruction "fix typos" --provider anthropic -i report.docx`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if instruction == "" {
-				return errors.New("an --instruction is required (what should the rewrite do?)")
+			if editsFile != "" && instruction != "" {
+				return errors.New("--edits applies caller-supplied edits; it cannot be combined with --instruction (which calls a provider)")
+			}
+			if editsFile == "" && instruction == "" {
+				return errors.New("an --instruction (provider rewrite) or --edits (caller-supplied edits) is required")
 			}
 
 			inPlace := cmd.Flags().Changed("in-place")
@@ -74,6 +85,13 @@ With no FILE, or when FILE is "-", standard input is read (not valid with -i).`,
 				if v, _ := cmd.Flags().GetString("in-place"); v != sentinelInPlace {
 					backupSuffix = v
 				}
+			}
+
+			// Caller-supplied edits: no provider, no credential. The same faithful
+			// round-trip the provider path uses, sourcing the new text from the
+			// change-set instead of an LLM.
+			if editsFile != "" {
+				return a.runRewriteEdits(cmd, editsFile, args, inPlace, backupSuffix, diff)
 			}
 
 			t, err := a.buildRewriteTool(instruction, provider, modelName, apiKey, credential)
@@ -94,6 +112,7 @@ With no FILE, or when FILE is "-", standard input is read (not valid with -i).`,
 	f.StringVar(&modelName, "model", "", "AI model name")
 	f.StringVar(&apiKey, "api-key", "", "API key for the AI provider")
 	f.StringVar(&credential, "credential", "", "saved credential name (see 'kapi credentials list')")
+	f.StringVar(&editsFile, "edits", "", "apply caller-supplied content edits from a JSONL change-set (no provider); \"-\" reads stdin")
 	f.BoolVar(&diff, "diff", false, "preview a unified diff of changed blocks and write nothing")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format (default: auto-detect by extension/content)")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
@@ -107,6 +126,47 @@ With no FILE, or when FILE is "-", standard input is read (not valid with -i).`,
 	f.Lookup("in-place").NoOptDefVal = sentinelInPlace
 
 	return cmd
+}
+
+// runRewriteEdits drives the provider-free, caller-supplied rewrite: it reads a
+// JSONL change-set of content edits and applies them to the named files through
+// the same faithful round-trip the provider path uses. Entries with no "kind"
+// are treated as content; any asset kind is rejected here (use `kapi apply`).
+// Drift or a rejected edit (inline-code guard) exits on the gate code so a fix
+// loop re-inspects.
+func (a *App) runRewriteEdits(cmd *cobra.Command, editsFile string, args []string, inPlace bool, backupSuffix string, diff bool) error {
+	ctx := cmd.Context()
+	entries, err := readChangeSet(ctx, editsFile)
+	if err != nil {
+		return err
+	}
+	content := make([]changeEntry, 0, len(entries))
+	for _, e := range entries {
+		if e.Kind != "" && e.Kind != kindContent {
+			return fmt.Errorf("rewrite --edits accepts content edits only; use 'kapi apply' for %q entries", e.Kind)
+		}
+		content = append(content, e)
+	}
+	byID, byHash := buildEditMaps(content)
+	report := &coretools.ApplyReport{}
+	t := coretools.NewApplyEditsTool(byID, byHash, report)
+
+	if diff {
+		return a.runRewriteDiff(ctx, args, t, cmd.OutOrStdout())
+	}
+	if rerr := a.runRewrite(ctx, args, t, inPlace, backupSuffix); rerr != nil {
+		return rerr
+	}
+	if !report.OK() {
+		if len(report.Stale) > 0 {
+			fmt.Fprintf(cmd.ErrOrStderr(), "rewrite: %d block(s) stale (source drifted — re-inspect)\n", len(report.Stale))
+		}
+		if len(report.GuardFailed) > 0 {
+			fmt.Fprintf(cmd.ErrOrStderr(), "rewrite: %d block(s) rejected (would corrupt inline codes)\n", len(report.GuardFailed))
+		}
+		return WithExitCode(ExitGate, ErrSilentExit)
+	}
+	return nil
 }
 
 // buildRewriteTool constructs the rewrite tool through the registry so the

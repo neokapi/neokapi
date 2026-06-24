@@ -21,6 +21,10 @@ defaults:
   target_languages: [nb]
   brand_voice:
     profile_file: l10n/brand-voice.yaml
+  # termbase_source is the committed, git-tracked glossary (the review surface
+  # `kapi apply` term-edits write to); termbase is the gitignored cache the
+  # source compiles into. Source of truth lives in git, never in the cache.
+  termbase_source: l10n/termbase.klftb
   termbase: .kapi/termbase.db
   tm:
     fuzzy_threshold: 75

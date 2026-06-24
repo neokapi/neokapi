@@ -14,16 +14,18 @@ import { PendingMedia } from "@neokapi/docs-shared";
 No project needed — `kapi rewrite` runs ad-hoc on any source file.
 :::
 
-:::note Requires an AI provider
-`kapi rewrite` calls an LLM. Configure a provider first — `kapi credentials add`
-— or pass `--provider` on the command line to pick one explicitly.
+:::note Two ways to drive a rewrite
+When **you (or your AI assistant) supply the edits**, `kapi apply` and
+`kapi rewrite --edits` apply them with **no model and no provider** — the primary,
+in-assistant flow below. The provider path, `kapi rewrite --instruction "…"`,
+calls an LLM and is the unattended/CLI-only alternative; it needs a configured
+provider (`kapi credentials add`, or `--provider`).
 :::
 
 **Goal:** edit the text inside a file without touching its structure. The source
 file may be a Word document, a JSON catalog, a Markdown guide, an HTML page, or
-any other format kapi reads. The instruction is plain language. The output is
-a new copy of the same file — same keys, same styles, same inline codes — with
-only the prose changed according to what you asked.
+any other format kapi reads. The output is a new copy of the same file — same
+keys, same styles, same inline codes — with only the prose changed.
 
 <PendingMedia kind="video" scene="web/walkthroughs/kapi-rewrite-content.scene.yaml">
   A short walkthrough inspecting a file's blocks, previewing a rewrite as a diff,
@@ -64,10 +66,49 @@ kapi inspect guide.md -f markdown    # override format detection
 
 Neither command modifies the file.
 
-## Rewrite from a plain-language instruction
+## Rewrite by supplying the edits (no provider)
 
-Pass the instruction and the file. kapi reads the file, extracts the text into
-blocks, sends them to the LLM with the instruction, and writes the results back:
+The primary in-assistant flow: read the blocks, rewrite the text yourself, write
+it back. `kapi inspect --jsonl` gives each block an `id`, a `content_hash`, and
+its `text` with inline codes rendered as `<x id="…"/>` placeholders. Keep those
+placeholders in the edited text and send back a JSONL change-set of `content`
+entries — one per changed block:
+
+```json
+{"kind":"content","file":"guide.md","id":"p3","content_hash":"a1b2c3…","text":"See the <x id=\"1/\"/> dashboard."}
+```
+
+`kapi apply` is the one write verb. It reads the change-set from a file, an
+argument, or stdin, and writes each named file in place — no model called:
+
+```bash
+kapi inspect guide.md --jsonl | rewrite-the-blocks > edits.jsonl
+kapi apply edits.jsonl --diff           # preview the content changes, write nothing
+kapi apply edits.jsonl                    # apply in place
+kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
+```
+
+Under the verb you already know, `kapi rewrite --edits` does the same for the
+files named on the command line:
+
+```bash
+kapi rewrite --edits edits.jsonl guide.md
+```
+
+If a block's `content_hash` no longer matches (the source drifted) or an edit
+drops or unbalances an `<x id="…"/>` code, that block is left unchanged and the
+command exits on the gate code (3) so a fix loop re-inspects and retries. `apply`
+is idempotent — an entry already in the desired state is a no-op — and the same
+change-set can also carry asset edits (a glossary term, a brand rule), so a
+content fix and the rule that justifies it land together. (See
+[Create content](/kapi/recipes/create-content) for the mixed change-set.)
+
+## Rewrite from a plain-language instruction (unattended)
+
+When no assistant is in the loop — a batch job, a CI step — kapi can rewrite via
+a configured provider. Pass the instruction and the file; kapi reads the file,
+extracts the text into blocks, sends them to the LLM, and writes the results
+back. This path is mutually exclusive with `--edits`:
 
 ```bash
 kapi rewrite --instruction "make it more concise" guide.md
@@ -166,24 +207,21 @@ same workflow through structured tool calls. The relevant tools are:
 
 | MCP tool | What it does |
 | --- | --- |
+| `extract_content` | Read a file's blocks: each block's `id`, `content_hash`, `source_text` with inline codes as `<x id="…"/>` placeholders, and `word_count` — the read leg |
+| `apply_edits` | Apply a typed change-set (content + asset edits) through the faithful round-trip — the one write verb, no provider |
 | `check_file` | Run the checkset against a file; returns a `kapi.check/v1` Report with per-block finding locations |
 | `check_text` | Run the checkset against a text snippet |
-| `rewrite_file` | Rewrite the text inside a file from an instruction (and optional brand profile), structure preserved |
+| `rewrite_file` | Provider-driven rewrite from an instruction (unattended), structure preserved |
 | `brand_check` | Score a text against a brand voice profile |
 
-A typical agent pass: the assistant calls `check_file` to read the findings,
-then calls `rewrite_file` with an instruction derived from those findings, then
-calls `check_file` again to confirm the gate passes. The loop is self-correcting:
-each check pinpoints the exact block and rule, so the rewrite instruction can be
-specific.
+A typical agent pass: the assistant calls `extract_content` (or `check_file` to read
+the findings), rewrites the flagged blocks itself, calls `apply_edits` with a
+change-set of `content` entries, then calls `check_file` again to confirm the
+gate passes. No second model is called — the assistant is the writer, kapi
+enforces the faithful round-trip and drift-checks each edit by `content_hash`.
+`rewrite_file` is the provider-driven alternative for unattended use.
 
-`rewrite_file` uses the same faithful round-trip as `kapi rewrite`: only text
-changes, structure is preserved. See [MCP server](/reference/mcp) for setup and
-the full tool list.
-
-For the agent-skills path (an AI calling the `kapi` CLI directly rather than the
-MCP server), `kapi inspect` with `--jsonl` is a convenient way to feed the
-extracted text to the model block by block before issuing a targeted rewrite.
+See [MCP server](/reference/mcp) for setup and the full tool list.
 
 ## In a project
 
@@ -205,6 +243,9 @@ input or being toggled with `-i`. Folding the rewrite into a flow you run with
   faithful round-trip guarantees.
 - [MCP server](/reference/mcp) — wire kapi into Claude, Cursor, and other
   MCP-compatible assistants.
+- [Create content](/kapi/recipes/create-content) — the author → parse → check
+  loop for content you write from scratch, and the mixed change-set that lands a
+  content fix and the asset rule behind it in one `kapi apply`.
 - [Prepare content for translation](/kapi/recipes/prepare-content) — a broader
   preparation pass that combines rewrite with redaction, TM leverage, and
   terminology checks.
