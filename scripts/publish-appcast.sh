@@ -32,20 +32,16 @@
 #   arch     arm64 | amd64
 set -euo pipefail
 
-# Never block on a credential prompt, and abort a clone/push that stalls instead
-# of hanging the CI step indefinitely. macOS runners occasionally hang on the
-# registry git transfer (observed: a >1h hang at "Cloning into …"); these env
-# vars make git give up after ~30s of no progress so the retry loop can recover.
-# (macOS runners have no `timeout`/`gtimeout`, so we rely on git's own knobs.)
+# Never block on a credential prompt.
 export GIT_TERMINAL_PROMPT=0
-export GIT_HTTP_LOW_SPEED_LIMIT="${GIT_HTTP_LOW_SPEED_LIMIT:-1000}"
-export GIT_HTTP_LOW_SPEED_TIME="${GIT_HTTP_LOW_SPEED_TIME:-30}"
 
 # Hard wall-clock timeout for a single command. macOS runners ship no
-# `timeout`/`gtimeout`, and the GIT_HTTP_LOW_SPEED knobs above only fire once a
-# transfer is *underway* — they do nothing for a stall in the connect/TLS phase,
-# which is exactly how the registry git clone/push (and an occasional `gh release
-# upload`) hangs on macOS runners (observed: multi-hour hangs before any bytes
+# `timeout`/`gtimeout`, so we roll our own. The registry write now goes through
+# the Contents API (publish_feed_via_registry_api), not git clone/push, because
+# GitHub-hosted macOS runners deterministically stall on `git clone github.com`
+# in the connect/TLS phase; this wrapper still guards `gh release upload` and the
+# Contents API calls so a stalled request is killed and retried (observed:
+# multi-hour hangs before any bytes
 # move). Wrapping each network call in with_timeout makes the surrounding retry
 # loops actually recover: a stalled call is killed at the deadline and retried.
 with_timeout() {
@@ -64,6 +60,37 @@ with_timeout() {
   kill -TERM "$killer" 2>/dev/null || true
   wait "$killer" 2>/dev/null || true
   return "$rc"
+}
+
+# Upsert one file into the neokapi/registry repo via the GitHub Contents API,
+# authenticated with REGISTRY_TOKEN. This replaces a git clone/commit/push:
+# GitHub-hosted macOS runners deterministically stall on `git clone github.com`
+# in the connect phase — every retry hangs, even with a hard timeout — which
+# silently dropped the macOS in-app-update feeds for every release. `gh api`
+# talks to api.github.com, which works on those same runners (the `gh release
+# upload` calls below prove it). Each feed is a distinct path, so concurrent
+# appcast jobs never contend for the same file, and no rebase dance is needed.
+# Args: <file> <commit-message>. Returns nonzero only if all attempts fail.
+publish_feed_via_registry_api() {
+  local file="$1" msg="$2" path b64 sha
+  path="$file"   # feeds live at the registry repo root
+  b64=$(base64 < "$file" | tr -d '\n')
+  for i in 1 2 3 4 5; do
+    # Current blob sha if the file already exists (empty string for a new file).
+    sha=$(GH_TOKEN="$REGISTRY_TOKEN" with_timeout 60 \
+      gh api "repos/neokapi/registry/contents/${path}" --jq '.sha' 2>/dev/null || true)
+    local args=(--method PUT "repos/neokapi/registry/contents/${path}"
+                -f "message=${msg}" -f "content=${b64}")
+    [ -n "$sha" ] && args+=(-f "sha=${sha}")
+    if GH_TOKEN="$REGISTRY_TOKEN" with_timeout 120 gh api "${args[@]}" >/dev/null 2>&1; then
+      echo "published ${path} to registry via contents API (attempt $i)" >&2
+      return 0
+    fi
+    echo "registry contents API write failed for ${path} (attempt $i), retrying…" >&2
+    sleep $((i * 5))
+  done
+  echo "publish-appcast.sh: failed to publish ${path} via contents API" >&2
+  return 1
 }
 
 title="${1:?title required}"
@@ -129,35 +156,8 @@ for channel in $channels; do
     --out "$feed" \
     "$artifact"
 
-  # Publish the feed to the registry repo. Many jobs push here concurrently
-  # (per-platform desktop feeds + the CLI cli.json), so rebase-retry the push.
-  work="/tmp/registry-${name}-${os}-${arch}-${channel}"
-  for i in 1 2 3; do
-    rm -rf "$work"
-    if with_timeout 120 git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" "$work"; then
-      break
-    fi
-    echo "registry clone stalled/failed (attempt $i), retrying…" >&2
-    [ "$i" = 3 ] && { echo "publish-appcast.sh: registry clone failed after retries" >&2; exit 1; }
-    sleep $((i * 5))
-  done
-  cp "$feed" "$work/"
-  (
-    cd "$work"
-    git config user.email "release-bot@neokapi.dev"
-    git config user.name "release-bot"
-    git add "$feed"
-    if git diff --staged --quiet; then
-      echo "appcast $feed unchanged; nothing to publish" >&2
-      exit 0
-    fi
-    git commit -m "appcast: ${name} ${version} ${os}/${arch} (${channel})"
-    for i in 1 2 3 4 5; do
-      if with_timeout 120 git push; then exit 0; fi
-      echo "push race/stall on registry, rebasing (attempt $i)…" >&2
-      with_timeout 120 git pull --rebase --no-edit || true
-    done
-    echo "publish-appcast.sh: failed to push $feed after retries" >&2
-    exit 1
-  )
+  # Publish the feed to the registry repo via the Contents API (see
+  # publish_feed_via_registry_api) — git clone/push hangs on macOS runners.
+  publish_feed_via_registry_api "$feed" \
+    "appcast: ${name} ${version} ${os}/${arch} (${channel})"
 done
