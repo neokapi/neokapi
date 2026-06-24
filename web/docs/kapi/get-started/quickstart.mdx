@@ -82,7 +82,9 @@ only the text changes, the structure round-trips, and no model is involved.
 Preview with `--diff` before writing anything:
 
 ```bash
-kapi inspect guide.md --jsonl | edit-the-blocks > edits.jsonl
+kapi inspect guide.md --jsonl > blocks.jsonl
+# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
+# content entries to edits.jsonl — you (or your assistant) do this, no command
 kapi apply edits.jsonl --diff     # preview, then drop --diff to apply in place
 ```
 

@@ -697,15 +697,36 @@ build-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 	cd bowrain/cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 
 PLUGIN_DIR := packages/kapi-claude-plugin
-plugin-bundle: build ## Generate the Claude Code plugin skills/ from the embedded source (gitignored; built for release)
-	@rm -rf $(PLUGIN_DIR)/skills
-	@mkdir -p $(PLUGIN_DIR)/skills
-	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi skills export --dir $(PLUGIN_DIR)/skills >/dev/null
-	@echo "Generated $(PLUGIN_DIR)/skills from the embedded skills (cli/skills/data)"
+PLUGIN_SKILLS_DIR := $(PLUGIN_DIR)/plugins/kapi/skills
+SKILLS_SRC := cli/skills/data
+plugin-bundle: ## Assemble the Claude Code plugin skills/ from the source tree (gitignored; built for release)
+	@rm -rf $(PLUGIN_SKILLS_DIR)
+	@mkdir -p $(PLUGIN_SKILLS_DIR)
+	@cp -R $(SKILLS_SRC)/kapi $(PLUGIN_SKILLS_DIR)/kapi
+	@echo "Assembled $(PLUGIN_SKILLS_DIR) from $(SKILLS_SRC)"
 
-dev-skills: build ## Install kapi/bowrain skills into ./.claude/skills for in-repo dogfooding (gitignored)
-	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi skills install --target project >/dev/null
-	@echo "Installed kapi/bowrain skills into .claude/skills (gitignored; canonical source is cli/skills/data)"
+# publish-plugin syncs the assembled marketplace bundle to the neokapi-plugins
+# marketplace repo. PLUGIN_MARKETPLACE_REPO defaults to the public repo; override
+# for testing. Requires push access (a PAT/deploy key in CI).
+PLUGIN_MARKETPLACE_REPO ?= neokapi/claude-plugins
+publish-plugin: plugin-bundle ## Sync the assembled plugin bundle → the neokapi-plugins marketplace repo
+	scripts/publish-plugin.sh "$(PLUGIN_DIR)" "$(PLUGIN_MARKETPLACE_REPO)"
+
+# publish-skill mirrors the portable Agent Skill into the neokapi/agent-skills
+# collection (under agent-skills/kapi/) so `npx skills add neokapi/agent-skills`
+# installs it into any SKILL.md-aware tool (Copilot, Cursor, Windsurf, …).
+# Requires push access.
+SKILL_REPO ?= neokapi/agent-skills
+publish-skill: ## Sync the portable skill → the neokapi/agent-skills collection (npx skills add)
+	scripts/publish-skill.sh "$(SKILLS_SRC)/kapi" "$(SKILL_REPO)"
+
+publish-integrations: publish-plugin publish-skill ## Publish both the Claude plugin and the portable skill
+
+dev-skills: ## Copy the bundled skills into ./.claude/skills for in-repo dogfooding (gitignored)
+	@mkdir -p .claude/skills
+	@rm -rf .claude/skills/kapi
+	@cp -R $(SKILLS_SRC)/kapi .claude/skills/kapi
+	@echo "Copied skills into .claude/skills (gitignored; canonical source is $(SKILLS_SRC))"
 
 build-all: ## Build all Go binaries
 	@mkdir -p $(BIN_DIR)

@@ -165,7 +165,7 @@ platform/docker/traefik/certs
 # skills (e.g. .claude/skills/walkthrough-*) stay committed and are not ignored.
 /.claude/skills/kapi-*/
 /.claude/skills/bowrain-*/
-/packages/kapi-claude-plugin/skills/
+/packages/kapi-claude-plugin/plugins/kapi/skills/
 
 # Throwaway kapi config/data/cache home for in-repo (non-dogfood) invocations — see Makefile KAPI_ISO_ENV
 .kapi-iso/

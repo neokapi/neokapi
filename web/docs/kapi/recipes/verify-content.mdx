@@ -209,7 +209,9 @@ only the text changes, and no model is involved:
 
 ```bash
 # Read the blocks, edit the flagged ones, preview the change
-kapi inspect src/locales/en.json --jsonl | edit-the-blocks > edits.jsonl
+kapi inspect src/locales/en.json --jsonl > blocks.jsonl
+# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
+# content entries to edits.jsonl — you (or your assistant) do this, no command
 kapi apply edits.jsonl --diff
 
 # Apply in place

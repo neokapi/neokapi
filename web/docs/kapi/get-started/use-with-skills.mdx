@@ -1,219 +1,260 @@
 ---
 title: Use the Kapi Agent Skills
-description: Install kapi's Claude Code Agent Skill so Claude drives the kapi CLI by natural language — read, check, and edit content in any format, the author → check → revise loop, with localization as one application.
-keywords: [kapi, claude, claude code, agent skills, skill, cli, content checks, rewrite, brand voice, localization]
+description: Install kapi's Claude Code Agent Skill and drive kapi by plain-language prompts — Claude runs the right kapi commands to write, check, edit, and localize content, with brand voice and terminology enforced. Walks the author path and the localization path.
+keywords: [kapi, claude, claude code, agent skills, skill, prompt, content checks, brand voice, localization, translate]
 ---
 
 # Use the Kapi Agent Skills
 
-kapi ships a **Claude Code Agent Skill** that teaches Claude to drive the `kapi`
-CLI: parse documents, read their text as structured blocks, check them against
-rules, and edit them while preserving the file's structure. Claude loads the
-skill on demand and runs the right `kapi` commands; you describe the work in
-plain language.
+kapi ships a portable **Agent Skill** (a `SKILL.md`). With it installed, you don't
+run `kapi` yourself — you describe the outcome in plain language, and your AI
+coding assistant loads the skill, runs the right `kapi` commands, reads the
+results, and iterates until the work passes kapi's gates. kapi supplies the
+guardrails (faithful round-trip, brand voice, terminology); the assistant does the
+writing and translating; you stay in the conversation.
 
-The `kapi` CLI must be on your `PATH` — confirm with `kapi version` (see
-[installation](/kapi/get-started/installation)). The attended loop — where Claude
-writes the edits and kapi applies them through `kapi apply` — needs no provider
-credential — the assistant supplies the edits and kapi applies them, with no
-model. A provider added with `kapi credentials add` is only for the unattended
-paths: `kapi translate` and the optional `--ai` checks.
+`SKILL.md` is an [open standard](https://github.com/agentskills/agentskills), so
+the skill works in **Claude Code, GitHub Copilot, Cursor, Windsurf, VS Code,
+Codex**, and the rest of the ecosystem. This page is written around **Claude
+Code** — the richest integration — but the loops apply to any tool that runs the
+skill.
 
-:::tip Want structured tool calls instead?
-For Claude Desktop, Cursor, Windsurf, or any programmatic MCP client, run the
-[kapi MCP server](/kapi/get-started/use-with-mcp) — it exposes the same
-operations as structured tools. The two approaches can be used together.
-:::
+## Install
 
-## Install the skill
+Pick the path for your tool. All paths need the `kapi` CLI on your `PATH`
+(`kapi version`; see [installation](/kapi/get-started/installation)) — keep it
+updated so the skill matches your command surface.
 
-The skill registers a command router that Claude Code loads progressively,
-keeping the context window small:
+| Your tool | Install | Updates |
+|---|---|---|
+| **Claude Code** | the plugin (below) — skill **+ hooks** | automatic |
+| **Copilot · Cursor · Windsurf · VS Code · Codex · …** | `npx skills add neokapi/agent-skills --skill kapi` | `npx skills update kapi` |
+| **Any MCP client** (structured tool calls) | run `kapi mcp` — see [Use Kapi with MCP](/kapi/get-started/use-with-mcp) | — |
+
+### Claude Code — the plugin
+
+The richest path: the **Claude Code plugin** bundles the skill *and* two hooks
+that make the loop a guarantee (see [Hooks](#what-the-hooks-add)):
+
+```text
+/plugin marketplace add neokapi/claude-plugins
+/plugin install kapi@neokapi-plugins
+```
+
+Restart Claude Code. The plugin **updates itself** through Claude Code's plugin
+manager — republished on each kapi release — so your guidance stays current with
+no manual step.
+
+### Other tools — the portable skill
+
+The same skill installs into any `SKILL.md`-aware tool with the
+[`skills`](https://github.com/vercel-labs/skills) CLI. `neokapi/agent-skills` is a
+collection, so name the skill with `--skill kapi`:
 
 ```bash
-kapi skills install                 # ./.claude/skills/kapi/   (this project)
-kapi skills install --target user   # ~/.claude/skills/kapi/   (every project)
+npx skills add neokapi/agent-skills --skill kapi                     # pick your tools
+npx skills add neokapi/agent-skills --skill kapi -a github-copilot   # a specific tool (repeat -a)
+npx skills update kapi                                               # refresh later
 ```
 
-Claude Code discovers the skill and invokes it when a task fits its description —
-you never call it by name. The only prerequisite is `kapi` on your `PATH`.
+`npx skills add neokapi/agent-skills --list` previews the collection; add `-g` to
+install user-wide instead of in the project. It copies the skill into your tool's
+skill directory (`.github/skills/`, `.cursor/skills/`, …) and `update` pulls the
+latest from the repo. You get the skill's guidance, but not the Claude-Code hooks
+(there is no portable equivalent). For kapi's structured tools in these clients,
+also run the MCP server (`kapi mcp`).
 
-## Read and inspect content
+Either way, the skill is a small router the assistant loads progressively, so it
+stays cheap in context — the assistant **discovers it automatically** and invokes
+it when a task fits its description; you never name the skill or the commands.
 
-Before editing, Claude gives itself a structured view of a file. `kapi inspect`
-returns one record per content block — text, role, stable identifier, and a
-content hash (SHA-256 of the normalized text):
+### What the hooks add
 
-```bash
-kapi inspect README.md
-kapi inspect content/ --jsonl     # one JSON object per line
-kapi inspect report.docx -f openxml --jsonl
-```
+Installing the **plugin** (not the skill alone) also registers two Claude Code
+hooks, both scoped to the `.kapi` project in the session and both **fail-open**
+(outside a project, or if they can't run, Claude proceeds normally):
 
-```json
-[
-  {
-    "file": "README.md",
-    "number": 1,
-    "id": "p0",
-    "content_hash": "e3b0c44...",
-    "role": "heading",
-    "level": 1,
-    "text": "Getting started"
-  },
-  {
-    "file": "README.md",
-    "number": 2,
-    "id": "p1",
-    "content_hash": "a1b2c3...",
-    "role": "body",
-    "text": "Install the CLI and run your first check."
-  }
-]
-```
+- **Stop hook** — when Claude tries to finish, it runs `kapi verify`; if a brand,
+  terminology, or translation-QA gate is failing, it keeps Claude working with the
+  findings. The skill makes the verify loop the default; the hook makes it a
+  guarantee.
+- **PreToolUse hook** — denies direct hand-edits to files the project *generates*
+  as translation targets, steering the change through the source and the
+  round-trip instead.
 
-`kapi stats` gives a summary of block, word, and character counts:
+No AI-provider credential is needed for the attended work below: Claude writes the
+content and `kapi` applies and checks it, with no second model in the loop. A
+credential (`kapi credentials add`) is only for the **unattended** paths —
+`kapi translate` run without you, or the optional `--ai` checks.
 
-```bash
-kapi stats README.md --json
-```
+## Start here: let Claude set up the project
 
-```json
-{
-  "total": {
-    "blocks": 12,
-    "translatable": 10,
-    "non_translatable": 2,
-    "words": 843,
-    "characters": 5102,
-    "characters_no_space": 4259,
-    "segments": 38,
-    "by_role": { "heading": 3, "body": 7, "code": 2 }
-  }
-}
-```
+The first thing to ask for is the project itself. The guardrails and your prompts
+both get simpler once the source files, brand voice, and glossary are captured in
+a committed `.kapi` recipe.
 
-## Check content
+> Set kapi up for this project.
 
-`kapi check` reads a file, runs the configured checkset, and returns a
-`kapi.check/v1` Report with a 0–100 score, a pass/fail gate, and one finding per
-block with its location and a suggested fix:
+**What Claude does.** It uses kapi together with its own reading of the repo to
+bootstrap everything:
 
-```bash
-kapi check README.md
-kapi check docs/ --max-chars 500 --json
-kapi check docs/ --forbid "TODO|FIXME" --require "Note:" --json
-kapi check docs/ --profile-file brand.yaml --json
-```
+1. **Detect the stack and find the source.** It looks at the layout —
+   `package.json`, config, where strings live — to identify the project type. For
+   a known i18n stack it runs `kapi init --framework <stack>` (it can list the
+   supported stacks with `kapi presets list --framework`), which pre-fills the
+   content mapping; otherwise `kapi init` plus `kapi add "<glob>"` for the
+   translatable files it found.
+2. **Detect the brand voice.** It drafts a `brand.yaml` from signal you already
+   have — README, landing copy, UI strings, or a site you link — starting from the
+   `kapi brand new` template, and binds it in the recipe. You confirm or refine the
+   draft.
+3. **Extract terminology.** It surfaces candidate terms — recurring domain phrases,
+   product names — from its own reading of the content (kapi's `term-extract` tool
+   does the same unattended, via a provider), then lands the ones you approve in
+   the project glossary through `kapi apply` (a `{"kind":"term", …}` change-set
+   entry, which writes the committed glossary source and compiles it into the
+   cache).
 
-Exit code 0 means the gate passed; exit code 3 means it failed. `--json` writes
-the full Report to stdout. `--no-fail` reports findings without failing the exit
-code. `--strict` and `--lenient` adjust the gate threshold. The stable `rule` id
-in each finding lets Claude track a fix across iterations and detect regressions.
-See [Checks](/framework/checks) for the full rule model and finding structure.
-
-## The author → check → revise loop
-
-The commands compose into a fix loop Claude runs on its own:
-
-1. Claude drafts or edits content.
-2. It runs `kapi check` — the Report says which block failed, which rule, and
-   where in the file.
-3. Claude rewrites the flagged blocks itself and applies the edits with
-   `kapi apply` — no model is called. kapi reconstructs the file in its original
-   format, structure and inline codes intact, and rejects any edit that drifted
-   or would corrupt markup.
-4. It runs `kapi check` again. When the gate is green, it stops.
-
-This loop works for any file type kapi reads — Markdown, JSON, DOCX, HTML, YAML,
-and the rest.
-
-## Edit content
-
-Claude reads a file's blocks with `kapi inspect`, rewrites the text in the blocks
-it wants to change, and writes the result back through **one write verb** —
-`kapi apply` — which lands both content edits and asset edits (a glossary term, a
-brand rule, a recipe field). No AI provider is involved: Claude is the writer,
-kapi enforces the faithful round-trip.
-
-Each block's `text` carries inline codes as `<x id="…"/>` placeholders that must
-survive the edit; its `content_hash` is the identity kapi drift-checks. Claude
-sends back a JSONL change-set of `content` entries:
-
-```json
-{"kind":"content","file":"README.md","id":"p1","content_hash":"a1b2c3…","text":"Install the CLI and run your first check."}
-```
-
-```bash
-kapi inspect README.md --jsonl | rewrite-the-blocks > edits.jsonl
-kapi apply edits.jsonl --diff           # preview the content changes, write nothing
-kapi apply edits.jsonl                    # apply in place
-kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
-```
-
-An edit whose `content_hash` no longer matches, or that drops or unbalances an
-`<x id="…"/>` code, is left unchanged and the command exits on the gate code (3)
-so Claude re-inspects and retries. See
-[Edit content in any format](/kapi/recipes/rewrite-content) for the round-trip
-contract and the guards.
-
-## Brand voice
-
-Bind a brand voice profile to a `.kapi` project file and every check picks it up
-automatically:
+The result is committed to git: a recipe, a brand profile, and a glossary —
 
 ```yaml
 # myapp.kapi
+version: v1
+name: myapp
 defaults:
+  source_language: en
+  target_languages: [fr, de, ja]
   brand_voice:
-    profile_file: brand.yaml
+    profile_file: l10n/brand-voice.yaml
+content:
+  - path: "src/locales/en/*.json"
+    target: "src/locales/{lang}"
 ```
 
-With a profile bound, `kapi check` adds vocabulary and style findings to its
-Report across every block in a document. See
-[Brand voice](/framework/checks/brand-voice) for the profile format, pack model,
-and vocabulary rule syntax.
+— so from here your prompts stay short. "Translate the docs" or "check this is on
+brand" needs no flags or file lists: Claude resolves the languages, voice, and
+glossary from the recipe, and `kapi check` / `kapi verify` enforce them
+automatically. See [Create your first project](/kapi/get-started/first-project)
+for the recipe model in full.
 
-## Gate checks in CI
+## How brand voice and terminology are applied
 
-`kapi check` is designed to run in CI. Gate a pull request on the exit code:
+This is the part that keeps the output on-brand and consistent, and it flows in
+**two directions** around Claude:
 
-```bash
-kapi check docs/ --profile-file brand.yaml --json
-```
+- **Context in — *before* Claude writes.** Claude pulls your brand voice with
+  `kapi brand guide` (kapi renders it as a short markdown guide — tone, do/don't,
+  preferred wording — which Claude injects into its own context) and the approved
+  term for anything ambiguous with `kapi termbase lookup`. So the draft or
+  translation starts on-voice and on-term, rather than being corrected afterward.
+- **Gate out — *after* Claude writes.** kapi checks the result against those same
+  sources: `kapi check` (or `kapi verify` in a project) scores the text against the
+  brand profile and flags forbidden/competitor terms and off-glossary wording,
+  each finding anchored to the exact block. Claude fixes what's flagged and
+  re-checks until the gate is green.
 
-Exit 0 = pass, exit 3 = gate failure. The Report's `findings` array carries
-`location.file` and `location.block` so a CI tool can annotate the exact line.
+When the voice and glossary are bound in a `.kapi` project ([above](#start-here-let-claude-set-up-the-project)),
+both directions happen **automatically** — Claude resolves them from the recipe,
+so you don't restate a profile or glossary on each request. And for localization,
+a bound brand voice is injected into the translation prompt itself, so
+target-language output is on-brand at generation time, not merely checked after.
 
-## Localization
+This left-intake / right-gate loop is the same whether you're authoring or
+localizing; the next two sections show each in use.
 
-The content operations above apply to source-language work. When translating
-across languages, kapi adds a localization layer:
+## The author path — write and fix content, on brand
 
-```bash
-kapi translate announcement.docx --target-lang ja -o announcement.ja.docx
-kapi recycle content/ --target-lang fr    # apply translation memory before translating
-```
+Ask Claude to produce or revise content and hold it to your rules. For example:
 
-Bilingual checks verify placeholder integrity and do-not-translate terms:
+> Draft release notes for v2.1 from `CHANGELOG.md`, and make sure they're on brand.
 
-```bash
-kapi check src.json --target src.de.json --target-lang de --json
-```
+> Check `README.md` against our brand voice and fix anything off-brand.
 
-For human review or a translation vendor, `kapi extract` and `kapi merge` produce
-and consume bilingual interchange files — see
+> Tighten the intro of `report.docx` to two sentences — keep the formatting.
+
+> Go through `docs/` and fix anything that fails our content rules.
+
+**What Claude does.** It loads the brand voice with `kapi brand guide` (so it
+writes on-voice in the first place), drafts or edits the content, then runs the
+loop kapi is built around:
+
+1. `kapi check <file>` — kapi returns a `kapi.check/v1` Report: a 0–100 score, a
+   pass/fail gate, and one finding per block (which rule, where, a suggested fix).
+2. For each flagged block, Claude rewrites the text itself and writes it back with
+   `kapi apply` — kapi reconstructs the file in its original format, **structure
+   and inline codes intact**, and rejects any edit that would corrupt markup. No
+   model is called for the rewrite; Claude is the writer.
+3. `kapi check` again. When the gate is green (exit 0), Claude stops and tells you.
+
+Because the check is the gate, Claude keeps iterating on its own until the content
+passes — you don't have to review every step, just the result. This works on any
+format kapi reads, including ones your editor can't open (more below). To drive
+the same loop by hand, see
+[Edit content in any format](/kapi/recipes/rewrite-content) and
+[Keep your source on brand](/kapi/recipes/keep-source-on-brand).
+
+### Editing a document you can't open
+
+The author path shines on binary formats. Ask:
+
+> What does `pitch.pptx` say on slide 3, and can you make the headline punchier?
+
+Claude reads the deck's text with `kapi inspect pitch.pptx --jsonl` (each block as
+`id` + `content_hash` + text, with links and styling shown as `<x id="…"/>`
+placeholders), rewrites the headline, and applies it with `kapi apply`. The
+`.pptx` keeps every style, master, and shape — only the headline text changes.
+
+## The localization path — translate and publish
+
+Ask Claude to ship the content in other languages. For example:
+
+> Translate `announcement.docx` into Japanese.
+
+> Localize `src/locales/en.json` into French and German, using our glossary.
+
+> Re-translate the docs that changed since the last release into Norwegian.
+
+> Get `report.docx` ready for a translation vendor in French.
+
+**What Claude does.** It translates the content itself and routes it **through
+kapi** so the guardrails apply — it does not read the file, translate in its head,
+and write the target directly (that would skip terminology, placeholder integrity,
+and format). The shape depends on the ask:
+
+- **A single file, translated in place.** Claude pulls the approved wording with
+  `kapi termbase lookup`, translates each block, and writes the localized file
+  back through the same faithful round-trip — the `.docx`/`.json` keeps its
+  structure, only the text is in the target language.
+- **Project localization.** In a `.kapi` project it runs `kapi extract` (a
+  bilingual file of source + empty targets), fills the targets, runs `kapi merge`
+  to materialize the localized files, then `kapi verify` — the gate that checks
+  terminology, placeholder integrity, and that nothing was left untranslated.
+- **Hand-off to a vendor or human reviewer.** `kapi extract` produces a standard
+  bilingual interchange file (XLIFF/PO); `kapi merge` consumes the returned
+  translations back into the original format.
+
+Whichever shape, Claude finishes by verifying, and fixes what the gate flags
+before telling you it's done. A provider credential is only needed if you want
+`kapi translate` to run **unattended** (a CI job, no assistant in the loop). To
+drive localization by hand, see
+[Translate and publish](/kapi/recipes/translate-content) and the
 [Bilingual workflow](/kapi/bilingual-workflow).
+
+## Gate it in CI
+
+The same checks Claude runs locally gate a pull request — `kapi check` (or
+`kapi verify` in a project) exits non-zero when the gate fails, so on-brand,
+correctly-localized content is enforced even when no assistant is in the loop.
 
 ## Where to go next
 
 - [Use Kapi with MCP](/kapi/get-started/use-with-mcp) — the same operations as
-  structured tools for any MCP client.
-- [Checks](/framework/checks) — the check families and the `kapi.check/v1`
-  Report model.
+  structured tools for Claude Desktop, Cursor, Windsurf, or any MCP client.
 - [Edit content in any format](/kapi/recipes/rewrite-content) — the
-  inspect → edit → `apply` loop and its guards.
-- [Brand voice](/framework/checks/brand-voice) — the profile model for
-  vocabulary and style rules.
-- [Bilingual workflow](/kapi/bilingual-workflow) — XLIFF/PO round-trips for
-  localization.
+  inspect → edit → `apply` loop, by hand.
+- [Translate and publish](/kapi/recipes/translate-content) — the localization
+  loop, by hand.
+- [Keep your source on brand](/kapi/recipes/keep-source-on-brand) — the brand
+  check-and-fix workflow.
+- [Brand voice](/framework/checks/brand-voice) — the profile model for vocabulary
+  and style rules.

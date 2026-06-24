@@ -96,7 +96,9 @@ corrupt markup. See [edit.md](edit.md) for the `content`-entry shape, the guards
 and the diff/in-place flags:
 
 ```bash
-kapi inspect blog-post.md --jsonl | rewrite-the-flagged-blocks > edits.jsonl
+kapi inspect blog-post.md --jsonl > blocks.jsonl
+# You rewrite the off-voice blocks' "text" on-brand (keeping the <x id="…"/> tags)
+# and save them as content entries to edits.jsonl. Then:
 kapi apply edits.jsonl --diff           # preview, then drop --diff to apply
 ```
 

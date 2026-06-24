@@ -173,7 +173,6 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	root.AddCommand(app.NewTermbaseCmd())
 	root.AddCommand(app.NewTMCmd())
 	root.AddCommand(app.NewBrandCmd())
-	root.AddCommand(app.NewSkillsCmd())
 	root.AddCommand(app.NewCredentialsCmd())
 	root.AddCommand(app.NewVersionCmd("kapi"))
 	root.AddCommand(app.NewCompletionCmd())

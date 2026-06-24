@@ -146,6 +146,14 @@ func PrintText(data any) error {
 	return printText(os.Stdout, data)
 }
 
+// truncate shortens s to at most n runes, appending an ellipsis when cut.
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n-1] + "…"
+}
+
 func printJSON(w io.Writer, data any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")

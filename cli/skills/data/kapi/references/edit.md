@@ -50,7 +50,10 @@ Then apply it. `kapi apply` is the one write verb — it reads the change-set fr
 a file, an argument, or stdin, and writes each named file in place:
 
 ```bash
-kapi inspect report.docx --jsonl | edit-the-text > edits.jsonl
+kapi inspect report.docx --jsonl > blocks.jsonl
+# You rewrite the "text" of each changed block (keeping the <x id="…"/> tags) and
+# write those content entries to edits.jsonl — there is no command for it; you
+# are the writer. Then:
 kapi apply edits.jsonl --diff          # preview the content changes, write nothing
 kapi apply edits.jsonl                  # apply in place
 kapi apply edits.jsonl --in-place=.bak  # apply, keeping a .bak of each file

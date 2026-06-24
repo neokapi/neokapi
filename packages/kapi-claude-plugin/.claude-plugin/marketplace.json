@@ -1,5 +1,5 @@
 {
-  "name": "neokapi",
+  "name": "neokapi-plugins",
   "owner": {
     "name": "neokapi",
     "url": "https://github.com/neokapi/neokapi"
@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "kapi",
-      "source": "./",
+      "source": "./plugins/kapi",
       "description": "Keep AI output on-brand and consistent, and publish in every language and format. One kapi skill driving the local CLI; bowrain is one option for cloud governance."
     }
   ]

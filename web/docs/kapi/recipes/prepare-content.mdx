@@ -76,7 +76,9 @@ write them back with `kapi apply`, faithfully (see
 [Edit content](/kapi/recipes/rewrite-content)), with a `--diff` to review first:
 
 ```bash
-kapi inspect src/locales/en.json --jsonl | edit-the-blocks > edits.jsonl
+kapi inspect src/locales/en.json --jsonl > blocks.jsonl
+# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
+# content entries to edits.jsonl — you (or your assistant) do this, no command
 kapi apply edits.jsonl --diff
 kapi check src/locales/en.json
 ```
