@@ -707,54 +707,6 @@
         }
       }
     },
-    "rewrite": {
-      "displayName": "Rewrite",
-      "description": "Rewrite the text inside a file following an instruction, preserving structure and inline codes",
-      "category": "text-processing",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the AI provider"
-        },
-        "instruction": {
-          "title": "Instruction",
-          "description": "Plain-language instruction describing how to rewrite the text"
-        },
-        "model": {
-          "title": "Model",
-          "description": "AI model name"
-        },
-        "provider": {
-          "title": "AI Provider",
-          "description": "AI provider",
-          "options": {
-            "anthropic": {
-              "label": "Anthropic"
-            },
-            "azureopenai": {
-              "label": "Azure OpenAI"
-            },
-            "demo": {
-              "label": "Demo (illustrative)"
-            },
-            "gemini": {
-              "label": "Gemini"
-            },
-            "ollama": {
-              "label": "Ollama"
-            },
-            "openai": {
-              "label": "OpenAI"
-            }
-          }
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
-    },
     "scoping-report": {
       "displayName": "Scoping Report",
       "category": "analysis"
