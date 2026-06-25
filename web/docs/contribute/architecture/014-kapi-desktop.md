@@ -83,7 +83,8 @@ The module depends on:
   `main.go` so the app validates bowrain recipes on open (server, hooks,
   automations, assets, brand_voice). This is the lightweight schema-only
   sub-module: it pulls in extension decoders only, not the bowrain CLI,
-  connector, or server code.
+  connector, or server code. It is **Apache-2.0** (recipe vocabulary, importing
+  only the framework), so this import keeps the desktop binary free of AGPL code.
 - `github.com/wailsapp/wails/v3` — desktop framework.
 - `github.com/zalando/go-keyring` — OS keychain.
 

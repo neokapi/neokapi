@@ -52,7 +52,11 @@ jobs:
             echo "appcast secrets not set; skipping"
             exit 0
           fi
-          VERSION="${TAG#v}"
+          # Track-aware: kapi releases on v* tags, bowrain on bowrain-v* tags.
+          # Strip whichever prefix applies to get the bare X.Y.Z. A matrix leg
+          # whose app didn't ship in this tag's release (e.g. the Bowrain legs on
+          # a kapi v* tag) finds no zip and skips below.
+          VERSION="${TAG#bowrain-v}"; VERSION="${VERSION#v}"
           ZIP="${NAME}-${VERSION}-windows-${ARCH}.zip"
           if ! gh release download "$TAG" --repo "$REPO" --pattern "$ZIP" --dir .; then
             echo "no signed $ZIP on release $TAG yet; skipping"

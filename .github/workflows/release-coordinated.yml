@@ -1,0 +1,61 @@
+name: Release (coordinated)
+
+# Release kapi and bowrain so they appear in the package managers together.
+#
+# Routine releases stay independent: push a `v1.2.3` tag (release.yml) or a
+# `bowrain-v2.1.0` tag (release-bowrain.yml) and that track ships on its own.
+#
+# Use THIS workflow only for a joint launch — e.g. a feature that spans the kapi
+# CLI and the bowrain plugin. It runs both tracks via their reusable
+# `workflow_call` entry points with `coordinated: true`, which routes each
+# track's publish jobs (Homebrew tap formulae + casks, the plugin/CLI registry)
+# through the `coordinated-release` GitHub Environment. Configure that
+# environment with required reviewers: both tracks build in parallel and then
+# wait at the publish gate, so approving them together lands the tap/registry
+# commits within seconds of each other.
+#
+# Leave a version blank to ship only the other track through the gate.
+#
+# CAVEAT (verify on first use): running the tracks via workflow_call can change
+# the cosign keyless OIDC identity from `release*.yml@refs/tags/<tag>` to this
+# coordinator's ref. The registry-update steps record the former as the expected
+# `--cert-identity`, so a coordinated `cli.json` / `manifest-plugins.json` entry
+# may not verify under `kapi update` / `kapi plugin install`. Confirm the signer
+# identity (or fall back to independent tag pushes) before relying on it. See
+# RELEASE.md → "Coordinated (simultaneous) release". Homebrew (sha256) is fine.
+
+on:
+  workflow_dispatch:
+    inputs:
+      kapi_version:
+        description: "kapi version to release, e.g. 1.2.3 (blank = skip kapi)."
+        type: string
+        required: false
+        default: ""
+      bowrain_version:
+        description: "bowrain version to release, e.g. 2.1.0 (blank = skip bowrain)."
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  kapi:
+    if: ${{ inputs.kapi_version != '' }}
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ inputs.kapi_version }}
+      coordinated: true
+    secrets: inherit
+
+  bowrain:
+    if: ${{ inputs.bowrain_version != '' }}
+    uses: ./.github/workflows/release-bowrain.yml
+    with:
+      version: ${{ inputs.bowrain_version }}
+      coordinated: true
+    secrets: inherit

@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
 #
-# gen-brew-formula.sh — emit the kapi-cli + bowrain-cli Homebrew formulae.
+# gen-brew-formula.sh — emit the kapi-cli and/or bowrain-cli Homebrew formulae.
 #
 # Replaces GoReleaser's `brews:` block (we no longer run GoReleaser for the
-# CLI). Reads the per-archive sha256 from a checksums.txt and writes two Ruby
+# CLI). Reads the per-archive sha256 from a checksums.txt and writes Ruby
 # formulae that download the matching release archive per OS/arch from the
 # public GitHub release (the repo is public).
 #
-# Usage: gen-brew-formula.sh <version> <repo> <checksums.txt> <out-dir> [channel]
-#   repo     e.g. neokapi/neokapi
-#   out      formulae are written here
-#   channel  "stable" (default) → kapi-cli.rb / bowrain-cli.rb
-#            "beta"             → kapi-cli-beta.rb / bowrain-cli-beta.rb
+# Usage: gen-brew-formula.sh <version> <repo> <checksums.txt> <out-dir> [channel] [which] [release-tag]
+#   repo         e.g. neokapi/neokapi
+#   out          formulae are written here
+#   channel      "stable" (default) → kapi-cli.rb / bowrain-cli.rb
+#                "beta"             → kapi-cli-beta.rb / bowrain-cli-beta.rb
+#   which        "both" (default) | "kapi" | "bowrain" — which formula(s) to emit.
+#                kapi and bowrain release on separate tracks (v* vs bowrain-v*),
+#                so each track emits only its own formula.
+#   release-tag  GitHub release tag the archives are attached to; forms the
+#                download base URL. Defaults to "v<version>" (kapi track). The
+#                bowrain track passes "bowrain-v<version>" so the kapi-bowrain_*
+#                archives resolve against the bowrain release.
 #
 # The beta variant is a separate `-beta` formula. `brew install
 # neokapi/tap/kapi-cli-beta` opts a user into the beta channel. It conflicts with
@@ -24,6 +31,12 @@ repo="${2:?repo (owner/name) required}"
 checksums="${3:?checksums.txt required}"
 out="${4:?out dir required}"
 channel="${5:-stable}"
+which="${6:-both}"
+release_tag="${7:-v${version}}"
+case "$which" in
+  both | kapi | bowrain) ;;
+  *) echo "gen-brew-formula.sh: unknown which '$which' (want both|kapi|bowrain)" >&2; exit 1 ;;
+esac
 mkdir -p "$out"
 
 # Channel-derived naming. Beta uses a `-beta` suffix, NOT `@beta`: Homebrew's
@@ -53,7 +66,7 @@ case "$channel" in
     ;;
 esac
 
-base_url="https://github.com/${repo}/releases/download/v${version}"
+base_url="https://github.com/${repo}/releases/download/${release_tag}"
 
 # sha256 for a release filename, looked up in checksums.txt.
 sha_for() {
@@ -92,7 +105,10 @@ platform_block() {
 RUBY
 }
 
+written=()
+
 # ---- kapi-cli ----
+if [ "$which" = both ] || [ "$which" = kapi ]; then
 {
   echo "class ${kapi_class} < Formula"
   echo '  desc "AI-native localization framework — format-aware parsing, concurrent pipelines, and pluggable tools"'
@@ -128,8 +144,11 @@ RUBY
 end
 RUBY
 } > "$out/${kapi_name}.rb"
+written+=("$out/${kapi_name}.rb")
+fi
 
 # ---- bowrain-cli ----
+if [ "$which" = both ] || [ "$which" = bowrain ]; then
 {
   echo "class ${bowrain_class} < Formula"
   echo '  desc "Bowrain plugin for kapi — sync .kapi projects with Bowrain Server"'
@@ -160,5 +179,7 @@ RUBY
 end
 RUBY
 } > "$out/${bowrain_name}.rb"
+written+=("$out/${bowrain_name}.rb")
+fi
 
-echo "wrote $out/${kapi_name}.rb $out/${bowrain_name}.rb (channel=${channel})" >&2
+echo "wrote ${written[*]} (channel=${channel}, which=${which}, tag=${release_tag})" >&2

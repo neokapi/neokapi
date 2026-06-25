@@ -1471,9 +1471,9 @@ v   ?=
 VER := $(patsubst v%,%,$(strip $(v)))
 TAG := v$(VER)
 
-.PHONY: release release-windows release-winget
+.PHONY: release release-windows release-winget release-bowrain release-bowrain-windows release-coordinated
 
-release: ## Tag + push a release (v=1.3.4); CI builds & publishes the rest
+release: ## Tag + push a kapi release (v=1.3.4 → tag v1.3.4); CI builds & publishes the rest
 	@[ -n "$(strip $(v))" ] || { echo "usage: make release v=1.3.4"; exit 1; }
 	@echo "$(VER)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+' || { echo "✗ version must look like 1.3.4 (got '$(v)')"; exit 1; }
 	@test -z "$$(git status --porcelain)" || { echo "✗ working tree not clean"; exit 1; }
@@ -1498,6 +1498,51 @@ release-windows: ## Sign the Windows artifacts, finalize the release, and dispat
 release-winget: ## Re-dispatch the winget update (release-windows already does this; needs WINGET_TOKEN + `komac new` bootstrap)
 	@[ -n "$(strip $(v))" ] || { echo "usage: make release-winget v=1.3.4"; exit 1; }
 	gh workflow run winget.yml --repo neokapi/neokapi -f tag="$(TAG)"
+
+# ── Bowrain release track (independent of kapi; tag bowrain-vX.Y.Z) ───────────
+# The kapi-bowrain plugin, Bowrain Desktop, and bowrain-server images release on
+# their own cadence via release-bowrain.yml. Cut bowrain from a commit whose
+# kapi-bowrain plugin matches a released kapi (the two share the framework + cli
+# modules); they need not be the same commit, but keep them close.
+BTAG := bowrain-v$(VER)
+
+release-bowrain: ## Tag + push a bowrain release (v=2.1.0 → tag bowrain-v2.1.0); CI builds & publishes the rest
+	@[ -n "$(strip $(v))" ] || { echo "usage: make release-bowrain v=2.1.0"; exit 1; }
+	@echo "$(VER)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+' || { echo "✗ version must look like 2.1.0 (got '$(v)')"; exit 1; }
+	@test -z "$$(git status --porcelain)" || { echo "✗ working tree not clean"; exit 1; }
+	@test "$$(git rev-parse --abbrev-ref HEAD)" = "main" || { echo "✗ not on main"; exit 1; }
+	@git fetch --quiet origin main
+	@test "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" || { echo "✗ local main is not in sync with origin/main"; exit 1; }
+	@git rev-parse "$(BTAG)" >/dev/null 2>&1 && { echo "✗ tag $(BTAG) already exists"; exit 1; } || true
+	@printf "Tag and push %s at %s? [y/N] " "$(BTAG)" "$$(git rev-parse --short HEAD)"; read ok; [ "$$ok" = "y" ] || { echo aborted; exit 1; }
+	git tag -a "$(BTAG)" -m "Release $(BTAG)"
+	git push origin "$(BTAG)"
+	@echo ""
+	@echo "Pushed $(BTAG). Follow CI with:  gh run watch"
+	@echo "After CI finishes, sign Windows (with SimplySign Desktop logged in):"
+	@echo "    make release-bowrain-windows v=$(VER)"
+
+release-bowrain-windows: ## Sign the Bowrain Windows artifacts + publish its update feed (after CI; SimplySign logged in)
+	@[ -n "$(strip $(v))" ] || { echo "usage: make release-bowrain-windows v=2.1.0"; exit 1; }
+	JSIGN_KEYSTORE="$${JSIGN_KEYSTORE:-$$HOME/simplysign-pkcs11.cfg}" \
+		./scripts/publish-windows-signed.sh "$(BTAG)"
+	@echo "(winget is kapi-only and is skipped for bowrain tags; the Windows update feed is dispatched automatically)"
+
+# ── Coordinated release (kapi + bowrain land in the package managers together) ─
+# For a joint launch only — routine ships still use `make release` /
+# `make release-bowrain` independently. Dispatches release-coordinated.yml, which
+# builds both tracks and holds their tap/registry publishes behind the
+# `coordinated-release` GitHub Environment; approve both pending deployments at
+# once (Actions UI) and they publish within seconds of each other. Leave a
+# version blank to gate only the other track. Requires the environment to have
+# required reviewers configured.
+release-coordinated: ## Joint launch: kapi=1.3.4 bowrain=2.1.0 → dispatch + manual-approve both publishes together
+	@[ -n "$(strip $(kapi))$(strip $(bowrain))" ] || { echo "usage: make release-coordinated kapi=1.3.4 bowrain=2.1.0 (either may be blank)"; exit 1; }
+	gh workflow run release-coordinated.yml --repo neokapi/neokapi --ref main \
+		-f kapi_version="$(strip $(kapi))" -f bowrain_version="$(strip $(bowrain))"
+	@echo ""
+	@echo "Dispatched. Both tracks build, then wait at the 'coordinated-release' gate."
+	@echo "Approve both pending deployments together:  gh run watch  (or the Actions UI)"
 
 # ── Clean ────────────────────────────────────────────────────────────────────
 

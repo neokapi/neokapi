@@ -73,6 +73,8 @@ for d in "$bins_dir"/cli-bins-*; do
 done
 
 # checksums.txt over the archives (filenames only, no directory component).
-( cd "$out_dir" && sha256 ./*.tar.gz ./*.zip 2>/dev/null | sed 's| \./| |' > checksums.txt )
+# nullglob so a track that produced no .zip (kapi-only: darwin/linux tarballs,
+# no Windows zip) doesn't pass a literal "./*.zip" to sha256.
+( cd "$out_dir" && shopt -s nullglob && files=( ./*.tar.gz ./*.zip ) && sha256 "${files[@]}" | sed 's| \./| |' > checksums.txt )
 echo "packaged archives:" >&2
 ls -l "$out_dir" >&2
