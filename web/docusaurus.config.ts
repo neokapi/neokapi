@@ -385,10 +385,12 @@ const config: Config = {
 
   themeConfig: {
     // Open Graph + Twitter Card metadata for social sharing.
-    // The hero-logo.png is used as the default og:image — it is a wide,
-    // high-contrast image suitable for link previews. Individual pages can
-    // override this via their own frontmatter `image:` field.
-    image: "img/hero-logo.png",
+    // og-card.png is a 1200×630 (1.91:1) banner — the standard social-card
+    // aspect ratio — so Slack/Twitter/LinkedIn render a tidy landscape preview
+    // with the mascot at a natural size, rather than blowing up the square
+    // hero-logo.png full-bleed. Individual pages can override via their own
+    // frontmatter `image:` field.
+    image: "img/og-card.png",
     metadata: [
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@neokapi" },
