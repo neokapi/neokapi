@@ -68,6 +68,37 @@ Windows assets yet.
 > There is no standalone `bowrain` binary — all bowrain commands run as
 > `kapi <command>` once the `kapi-bowrain` plugin is installed.
 
+## Coordinated release (launch together with kapi)
+
+Independent cadence is the default. To make a `bowrain-v*` release appear in the
+package managers at the **same moment** as a kapi `v*` release — e.g. a feature
+that spans the CLI and the plugin — use the coordinated path instead of two
+separate tags:
+
+```bash
+make release-coordinated kapi=1.3.4 bowrain=2.1.0   # either may be blank
+```
+
+This dispatches
+[`release-coordinated.yml`](https://github.com/neokapi/neokapi/blob/main/.github/workflows/release-coordinated.yml),
+which runs both tracks via their reusable `workflow_call` entry points with
+`coordinated: true`. Both build in parallel and then **wait at a manual-approval
+gate** — the `coordinated-release` GitHub Environment — before any tap/registry
+write. Approving both pending deployments together lands the Homebrew
+formulae/casks and the plugin/CLI registry commits within seconds of each other.
+Windows signing stays the per-track Mac-local follow-up.
+
+> **Required one-time setup:** a repo Environment named `coordinated-release`
+> with *required reviewers* must exist, or the gate is a no-op (both tracks
+> publish immediately, so appearance is only as simultaneous as the two build
+> times). The gate is bypassed entirely for routine `bowrain-v*` / `v*` tag
+> pushes. On the **first** coordinated release, verify the cosign signer identity
+> recorded in `manifest-plugins.json` — running via `workflow_call` can change
+> the keyless OIDC certificate identity, which would make `kapi plugin install`
+> reject the artifact. Full detail (cosign caveat + fallback) is in the
+> maintainer runbook:
+> [RELEASE.md → "Coordinated (simultaneous) release"](https://github.com/neokapi/neokapi/blob/main/RELEASE.md).
+
 ## Verifying a release
 
 ```bash
