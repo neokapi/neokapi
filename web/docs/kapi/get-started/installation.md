@@ -21,7 +21,25 @@ the first section alone.
 Once you've [tried kapi in the browser](/kapi/get-started/quickstart), install
 the binary to run it locally against your own files.
 
+:::tip Recommended right now: the beta channel
+kapi 1.2.0 is in its release-candidate phase and has **no stable release yet**, so
+the **beta channel** is the recommended way to install today — it carries the
+current build (the latest release candidate) and, once 1.2.0 ships, every stable
+release too. The plain stable formulae still track the previous stable, which is
+behind 1.2.0. The Homebrew commands below show the beta install first; see
+[Beta channel](#beta-channel) for switching an existing install. Once 1.2.0 stable
+ships, the stable formulae become the recommendation again.
+:::
+
 ### Homebrew (macOS/Linux)
+
+Until 1.2.0 stable ships, install the beta formula (the current build):
+
+```bash
+brew install neokapi/tap/kapi-cli-beta
+```
+
+Once 1.2.0 stable is released, the stable formula is the default:
 
 ```bash
 brew install neokapi/tap/kapi-cli
@@ -90,6 +108,15 @@ Kapi Desktop is the visual companion to the CLI. Each package below installs the
 
 ### macOS (Homebrew)
 
+Until 1.2.0 stable ships, install the beta cask (it pulls `kapi-cli-beta`
+automatically):
+
+```bash
+brew install --cask neokapi/tap/kapi@beta
+```
+
+Once 1.2.0 stable is released, the stable cask is the default:
+
 ```bash
 brew install --cask neokapi/tap/kapi
 ```
@@ -117,15 +144,21 @@ Direct downloads for **Kapi Desktop 1.2.0-rc7**:
 - **Linux arm64 (tar.gz)** — [`kapi-1.2.0-rc7-linux-arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc7/kapi-1.2.0-rc7-linux-arm64.tar.gz)
 <!-- END:downloads-desktop -->
 
-## Beta channel (opt-in)
+## Beta channel
 
-The **beta channel** is a fast ring for early adopters. It receives release
-candidates *and* every stable release, so a beta install is never behind stable —
-it just gets things sooner. It is opt-in and ships as separate Homebrew packages.
+The **beta channel** is a fast ring: it receives release candidates *and* every
+stable release, so a beta install is never behind stable — it just gets things
+sooner. **While 1.2.0 is in release candidates, it is the recommended channel**
+(see above); once 1.2.0 stable ships it returns to being an opt-in early-adopter
+ring. It ships as separate Homebrew packages.
 
 Beta and stable install the same `kapi` binary (and the same app), so they are
 **mutually exclusive**: you switch channels rather than run both side by side.
 Trying to install one while the other is present is rejected by Homebrew.
+
+A fresh install just uses the beta commands above
+(`brew install neokapi/tap/kapi-cli-beta`, or `--cask neokapi/tap/kapi@beta`); the
+steps below are for **switching an existing stable install** to beta.
 
 ### Switch to beta
 
@@ -160,6 +193,8 @@ The chosen channel is remembered across updates (kapi pins it on first run, shar
 by the CLI and the desktop app). Set `KAPI_UPDATE_CHANNEL=beta` (or `stable`) to
 override it for a single shell.
 
-> Beta packages are Homebrew-only today. WinGet and direct downloads always track
-> the stable release; for those, the prerelease assets on the Releases page are
-> the beta builds.
+> Beta packages are a Homebrew concept (separate formula/cask). WinGet tracks the
+> stable release. The version-pinned direct downloads above point to the current
+> release — during the 1.2.0 release-candidate phase that is the latest RC (a beta
+> build); the full set, including any stable, is on the
+> [Releases](https://github.com/neokapi/neokapi/releases) page.
