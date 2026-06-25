@@ -1,31 +1,23 @@
-name: Release
+name: Release Bowrain
 
 on:
   push:
     tags:
-      # CLI/desktop version tags only (v1.2.3). Must NOT be the broad "v*", which
-      # also matches plugin tags that begin with a "v" — notably "vision-v*" and
-      # the "vision-models-*" asset tag — and would wrongly trigger a full
-      # CLI+desktop release. Plugins release via their own release-<plugin>.yml.
-      - "v[0-9]*"
+      # Bowrain track only (bowrain-v1.2.3). The kapi CLI + Kapi Desktop release
+      # on plain v* tags via release.yml; the per-plugin workflows own their own
+      # <plugin>-v* namespaces. This filter matches neither.
+      - "bowrain-v[0-9]*"
 
 permissions:
   contents: write
   packages: write
   # cosign keyless requires a fresh GitHub Actions OIDC token to mint a
-  # short-lived Fulcio cert for signing the kapi CLI archives.
+  # short-lived Fulcio cert for signing the kapi-bowrain plugin tarballs.
   id-token: write
 
 jobs:
-  # Verify the parity workflow (#448) succeeded for the tagged commit
-  # before any release artifact is built or published. Parity runs on
-  # every push to main, so the result is normally already cached by the
-  # time a release tag is pushed.
-  #
-  # If parity has not run for the tagged commit (e.g. the commit only
-  # touched paths excluded from the parity workflow's paths-filter),
-  # this gate fails closed: pre-release work for #448 explicitly
-  # requires the parity report to be fresh for every release.
+  # Verify the parity workflow (#448) succeeded for the tagged commit before any
+  # release artifact is built or published. Mirrors release.yml's gate.
   parity-gate:
     name: Parity Gate (#448)
     runs-on: ubuntu-latest
@@ -62,37 +54,22 @@ jobs:
             exit 1
           fi
 
-  # Build the kapi CLI binary natively per OS/arch with cgo + statically-linked
-  # ICU + the fts5 tag, so it matches the framework the desktop apps use (native
-  # mattn SQLite + ICU FTS5 tokenizer + UAX-29). cgo rules out single-runner
-  # cross-compilation, so each target builds on its own native runner and
-  # uploads the binary as an artifact; the package-cli job below
-  # archives/checksums/signs it and publishes the brew formula.
-  #
-  # The kapi-bowrain plugin is built and released separately by
-  # release-bowrain.yml (tag bowrain-v*).
-  #
-  # ICU provisioning differs per OS (see the per-OS steps): brew on macOS,
-  # built-from-source (PIC, static) on Linux, MSYS2 mingw on Windows. All feed
-  # scripts/gen-icu-static-pc.sh, which forces static linking.
-  #
-  # NOTE: this matrix is new and only macOS has been validated locally; the
-  # Linux (source ICU + PIE/PIC) and Windows (MSYS2 mingw, -static C++ runtime,
-  # ICU archive names) legs are expected to need CI iteration.
-  build-cli:
-    name: Build CLI (${{ matrix.target.goos }}/${{ matrix.target.goarch }})
+  # Build the kapi-bowrain plugin binary natively per OS/arch with cgo +
+  # statically-linked ICU + the fts5 tag, matching the framework the desktop
+  # apps use. Mirrors release.yml's build-cli, but builds ONLY kapi-bowrain (the
+  # kapi CLI itself is built + released by release.yml). The kapi-bowrain binary
+  # is not Apple-notarized (it is cosign-signed in package-bowrain-cli, the same
+  # as in the former combined workflow).
+  build-bowrain-cli:
+    name: Build kapi-bowrain (${{ matrix.target.goos }}/${{ matrix.target.goarch }})
     needs: parity-gate
     strategy:
       fail-fast: false
       matrix:
         target:
           - { goos: darwin, goarch: arm64, os: macos-latest, icu: brew }
-          # macOS is Apple-Silicon only (matches the desktop apps); Intel mac is
-          # not a priority target.
           - { goos: linux, goarch: amd64, os: ubuntu-latest, icu: source }
           - { goos: linux, goarch: arm64, os: ubuntu-24.04-arm, icu: source }
-          # Windows ICU comes from MSYS2: x86_64 uses the gcc MINGW64 env, arm64
-          # uses the clang CLANGARM64 env on a native windows-11-arm runner.
           - { goos: windows, goarch: amd64, os: windows-2025, icu: msys2, msystem: MINGW64, mtriple: x86_64, cc: gcc, cgo_ldflags: "-static -static-libgcc -static-libstdc++", mroot: /mingw64 }
           - { goos: windows, goarch: arm64, os: windows-11-arm, icu: msys2, msystem: CLANGARM64, mtriple: clang-aarch64, cc: clang, cgo_ldflags: "-static", mroot: /clangarm64 }
     runs-on: ${{ matrix.target.os }}
@@ -110,9 +87,9 @@ jobs:
         env:
           GH_SHA: ${{ github.sha }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${GITHUB_REF_NAME#bowrain-v}"
           echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "LDFLAGS=-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "LDFLAGS=-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) -X main.pluginVersion=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Create //go:embed placeholders
         shell: bash
@@ -140,7 +117,7 @@ jobs:
           echo "PKG_CONFIG_PATH=${PCDIR}" >> "$GITHUB_ENV"
 
       # ---- Build (macOS / Linux) ----
-      - name: Build kapi (macOS / Linux)
+      - name: Build kapi-bowrain (macOS / Linux)
         if: matrix.target.goos != 'windows'
         env:
           GOOS: ${{ matrix.target.goos }}
@@ -150,7 +127,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi ./cmd/kapi )
+          ( cd bowrain/cli && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain ./cmd/kapi-bowrain )
 
       # ---- Build (Windows, MSYS2 mingw + static ICU) ----
       - name: Set up MSYS2 (Windows)
@@ -158,55 +135,32 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: ${{ matrix.target.msystem }}
-          # inherit so the Windows-native `go` (from setup-go) is on the msys2
-          # shell's PATH alongside the mingw toolchain/pkg-config.
           path-type: inherit
           install: >-
             mingw-w64-${{ matrix.target.mtriple }}-${{ matrix.target.cc }}
             mingw-w64-${{ matrix.target.mtriple }}-icu
             mingw-w64-${{ matrix.target.mtriple }}-pkg-config
 
-      - name: Build kapi (Windows)
+      - name: Build kapi-bowrain (Windows)
         if: matrix.target.goos == 'windows'
         shell: msys2 {0}
         env:
           GOOS: windows
           GOARCH: ${{ matrix.target.goarch }}
           CGO_ENABLED: "1"
-          # Static C++/toolchain runtimes so kapi.exe needs no mingw DLLs beside it.
           CGO_LDFLAGS: ${{ matrix.target.cgo_ldflags }}
           CC: ${{ matrix.target.cc }}
           MROOT: ${{ matrix.target.mroot }}
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
           set -euo pipefail
-          # go from the Windows runner (setup-go) is on PATH; CC = mingw/clang cc.
           export CC
-          # mingw ICU lives under $MROOT, but the native cc/ld can't open MSYS
-          # virtual paths ($MROOT/...). Feed gen-icu-static-pc.sh Windows-form
-          # paths (cygpath -m) so the .pc references archives ld can open, and
-          # convert the generated .pc dir for the (native) pkg-config too.
           PCDIR=$(ICU_LIBDIR="$(cygpath -m "$MROOT/lib")" ICU_INCLUDEDIR="$(cygpath -m "$MROOT/include")" bash scripts/gen-icu-static-pc.sh)
           export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
           mkdir -p out
-          ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi.exe ./cmd/kapi )
+          ( cd bowrain/cli && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain.exe ./cmd/kapi-bowrain )
 
-      # ---- Sign the macOS kapi binary (quill: Developer ID + notarize) ----
-      - name: Sign + notarize kapi (macOS)
-        if: matrix.target.goos == 'darwin'
-        env:
-          QUILL_SIGN_P12: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
-          QUILL_SIGN_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
-          QUILL_NOTARY_KEY: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
-          QUILL_NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          QUILL_NOTARY_ISSUER: ${{ secrets.APPLE_API_ISSUER_ID }}
-        run: |
-          curl -sSfL https://get.anchore.io/quill | sudo sh -s -- -b /usr/local/bin v0.7.1
-          IS_SNAPSHOT=false
-          [ -z "${QUILL_SIGN_P12:-}" ] && IS_SNAPSHOT=true
-          bash scripts/quill-sign-darwin.sh out/kapi darwin "$IS_SNAPSHOT"
-
-      # ---- Upload binaries for the package-cli job ----
+      # ---- Upload binaries for the package-bowrain-cli job ----
       - name: Upload CLI binaries
         uses: actions/upload-artifact@v7
         with:
@@ -214,35 +168,14 @@ jobs:
           path: out/*
           retention-days: 14
 
-      # Windows kapi.exe is published out of band (Authenticode-signed locally
-      # with Certum, scripts/publish-windows-signed.sh) — keep its zip artifact.
-      # git-bash on the Windows runner has no `zip`; use PowerShell's
-      # Compress-Archive (as the desktop Windows zip steps do).
-      - name: Package Windows kapi CLI zip (out-of-band signing)
-        if: matrix.target.goos == 'windows'
-        shell: pwsh
-        run: Compress-Archive -Path out/kapi.exe -DestinationPath "out/kapi-cli_${{ steps.meta.outputs.VERSION }}_windows_${{ matrix.target.goarch }}.zip" -Force
-      - name: Upload Windows kapi zip
-        if: matrix.target.goos == 'windows'
-        uses: actions/upload-artifact@v7
-        with:
-          name: kapi-cli-windows-${{ matrix.target.goarch }}
-          path: out/kapi-cli_*_windows_${{ matrix.target.goarch }}.zip
-          retention-days: 14
-
-  # Package + publish the kapi CLI binary built by build-cli. This replaces the
-  # former GoReleaser job: GoReleaser OSS can't consume externally-built (cgo +
-  # static-ICU) binaries (`builder: prebuilt` is Pro only), so we reproduce its
-  # CLI outputs directly — archives, checksums, cosign signatures for the kapi
-  # CLI archives, the kapi-cli brew formula, the cli.json self-update index, and
-  # the GitHub release upload — using the same artifact names downstream
-  # consumers (formula, docs, self-update) already expect.
-  #
-  # The kapi-bowrain plugin archive, the bowrain-cli formula, and the
-  # manifest-plugins.json registration are produced by release-bowrain.yml.
-  package-cli:
-    name: Package + publish CLI
-    needs: [parity-gate, build-cli]
+  # Package + publish the kapi-bowrain plugin built by build-bowrain-cli:
+  # archives, checksums, cosign signatures, the bowrain-cli brew formula, the
+  # GitHub release upload, and the manifest-plugins.json registration that backs
+  # `kapi plugin install bowrain`. Mirrors release.yml's package-cli, but for the
+  # plugin only — no deb/rpm, no apt/yum, no cli.json.
+  package-bowrain-cli:
+    name: Package + publish kapi-bowrain
+    needs: [parity-gate, build-bowrain-cli]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -253,11 +186,8 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      # Release gate: shared UI must type-check + pass unit tests (previously
-      # run inside the GoReleaser job).
+      # Release gate: shared UI must type-check + pass unit tests.
       - uses: ./.github/actions/setup-node-ui
-      # The shared UI imports @neokapi/kapi-react/runtime (a built ./dist subpath
-      # export, not committed), so build kapi-react before the type-check/tests.
       - name: Build @neokapi/kapi-react
         working-directory: packages/kapi-react
         run: vp run build
@@ -268,7 +198,7 @@ jobs:
         working-directory: bowrain/packages/ui
         run: vp test
 
-      - name: Install cosign (for kapi CLI archive signing)
+      - name: Install cosign (for kapi-bowrain plugin signing)
         uses: sigstore/cosign-installer@v3
 
       - name: Download CLI binaries
@@ -280,83 +210,26 @@ jobs:
       - name: Package archives + checksums
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${GITHUB_REF_NAME#bowrain-v}"
           bash scripts/package-cli.sh "$VERSION" cli-artifacts dist \
             bowrain/cli/cmd/kapi-bowrain/manifest.json
 
-      # Linux .deb / .rpm for the kapi CLI (nfpm). These are direct-download
-      # system packages; apt/dnf own updates, so they are not in cli.json.
-      - name: Build Linux packages (deb/rpm)
-        run: |
-          set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
-          export VERSION   # nfpm reads ${VERSION} from the environment
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.43.0
-          gopath_bin="$(go env GOPATH)/bin"
-          export PATH="$PATH:$gopath_bin"
-          mkdir -p packaging/.stage
-          for arch in amd64 arm64; do
-            bin="cli-artifacts/cli-bins-linux-${arch}/kapi"
-            if [ ! -f "$bin" ]; then
-              echo "no linux/${arch} kapi binary; skipping"
-              continue
-            fi
-            # nfpm doesn't expand env in contents[].src, so stage at a fixed path.
-            cp "$bin" packaging/.stage/kapi
-            export ARCH="$arch"   # nfpm reads ${ARCH} from the environment
-            nfpm package -f packaging/nfpm.yaml -p deb -t "dist/kapi-cli_${VERSION}_${arch}.deb"
-            nfpm package -f packaging/nfpm.yaml -p rpm -t "dist/kapi-cli_${VERSION}_${arch}.rpm"
-          done
-          # Add the packages to checksums.txt (filenames only, no dir component).
-          ( cd dist && { sha256sum ./*.deb ./*.rpm 2>/dev/null | sed 's| \./| |' || true; } >> checksums.txt )
-          ls -l dist/*.deb dist/*.rpm 2>/dev/null || true
-
-      # Publish the .deb/.rpm into the self-hosted apt + yum repos
-      # (https://neokapi.github.io/packages/). Stable channel only — system
-      # package managers track stable. No-op until the signing key + packages
-      # token are configured.
-      - name: Publish to apt/yum repo
-        if: ${{ !contains(github.ref_name, '-') }}
-        env:
-          PACKAGES_GPG_PRIVATE_KEY: ${{ secrets.PACKAGES_GPG_PRIVATE_KEY }}
-          PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -z "${PACKAGES_GPG_PRIVATE_KEY:-}" ] || [ -z "${PACKAGES_TOKEN:-}" ]; then
-            echo "apt/yum publish secrets not set; skipping"
-            exit 0
-          fi
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq apt-utils createrepo-c
-          VERSION="${GITHUB_REF_NAME#v}"
-          bash scripts/publish-packages.sh "$VERSION" dist
-
-      # Keyless cosign signature (sigstore bundle) for the kapi CLI archives, so
-      # `kapi update` can verify a self-replace — see cli/selfupdate. Mirrors the
-      # former GoReleaser `signs` block. (The kapi-bowrain plugin tarballs are
-      # cosign-signed by release-bowrain.yml.)
-      - name: Sign CLI archives (cosign)
+      # Keyless cosign signature (sigstore bundle) for the kapi-bowrain plugin
+      # tarballs — kapi's plugin-install verifier requires it.
+      - name: Sign plugin archives (cosign)
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
           set -euo pipefail
           shopt -s nullglob
-          for a in dist/kapi-cli_*.tar.gz; do
+          for a in dist/kapi-bowrain_*.tar.gz dist/kapi-bowrain_*.zip; do
             cosign sign-blob --yes --new-bundle-format=true \
               --bundle "${a}.sigstore.json" "$a"
           done
 
-      # Channel is tag-driven; beta is a superset fast ring that also carries
-      # finals, so beta users never fall behind stable. See
-      # docs/internals/auto-update.md, "Release channels".
-      #   prerelease tag (vX.Y.Z-rcN) → beta only.
-      #   final tag      (vX.Y.Z)     → BOTH stable and beta.
-      # Outputs:
-      #   channel       legacy single channel (beta | stable) — for messages.
-      #   channels      per-channel artifacts to publish (formulae, casks):
-      #                 "beta" for a prerelease, "stable beta" for a final.
-      #   reg_channel   the registry channel value: "beta" for a prerelease,
-      #                 "" (universal — matches every query) for a final.
+      # Channel is tag-driven (see release.yml for the rationale):
+      #   prerelease tag (bowrain-vX.Y.Z-rcN) → beta only.
+      #   final tag      (bowrain-vX.Y.Z)     → BOTH stable and beta.
       - name: Resolve release channel
         id: channel
         env:
@@ -376,65 +249,51 @@ jobs:
               ;;
           esac
 
-      - name: Generate brew formulae
+      - name: Generate brew formula
         env:
           CHANNELS: ${{ steps.channel.outputs.channels }}
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
-          # A final tag generates both the stable (kapi-cli) and beta
-          # (kapi-cli-beta) formulae at the same version, so the beta channel
-          # also carries the final; a prerelease generates beta only. The kapi
-          # track emits only the kapi-cli formula (which=kapi); bowrain-cli is
-          # emitted by release-bowrain.yml.
+          VERSION="${GITHUB_REF_NAME#bowrain-v}"
+          # which=bowrain → only the bowrain-cli formula; release-tag is the
+          # bowrain-v* tag so the kapi-bowrain_* archive URLs resolve correctly.
           for ch in $CHANNELS; do
             bash scripts/gen-brew-formula.sh "$VERSION" "${{ github.repository }}" \
-              dist/checksums.txt brew-formulae "$ch" kapi
+              dist/checksums.txt brew-formulae "$ch" bowrain "bowrain-v${VERSION}"
           done
 
-      - name: Publish CLI archives to release
+      - name: Publish plugin archives to release
         uses: softprops/action-gh-release@v3
         with:
-          # Prerelease tags (vX.Y.Z-rcN) produce a GitHub *prerelease* with
-          # downloadable assets but skip every live-channel write below.
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
-            dist/kapi-cli_*.tar.gz
-            dist/kapi-cli_*.deb
-            dist/kapi-cli_*.rpm
+            dist/kapi-bowrain_*.tar.gz
+            dist/kapi-bowrain_*.zip
             dist/*.sigstore.json
             dist/checksums.txt
           body: |
             ## Installation
 
-            **Homebrew (kapi CLI, Apache-2.0, no plugins):**
+            **Homebrew (kapi + bowrain plugin):**
             ```
-            brew install neokapi/tap/kapi-cli
-            ```
-
-            **Homebrew (Kapi desktop app, macOS):**
-            ```
-            brew install --cask neokapi/tap/kapi
+            brew install neokapi/tap/bowrain-cli
             ```
 
-            The bowrain plugin and Bowrain desktop app are released separately
-            (tag `bowrain-v*`):
+            **Homebrew (Bowrain desktop app, macOS):**
             ```
-            brew install neokapi/tap/bowrain-cli      # kapi + bowrain plugin
-            brew install --cask neokapi/tap/bowrain   # Bowrain desktop app
+            brew install --cask neokapi/tap/bowrain
             ```
 
-      # Push the generated kapi-cli formula (stable: kapi-cli; beta:
-      # kapi-cli-beta) to the tap. Both stable and prerelease tags publish — only
-      # the formula name and channel differ. (bowrain-cli is pushed by
-      # release-bowrain.yml.)
-      - name: Push brew formulae to homebrew-tap
+            The kapi CLI (Apache-2.0) and Kapi desktop app are released
+            separately on `v*` tags.
+
+      - name: Push brew formula to homebrew-tap
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           CHANNEL: ${{ steps.channel.outputs.channel }}
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${GITHUB_REF_NAME#bowrain-v}"
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/neokapi/homebrew-tap.git" /tmp/tap
           mkdir -p /tmp/tap/Formula
           cp brew-formulae/*.rb /tmp/tap/Formula/
@@ -443,28 +302,24 @@ jobs:
           git config user.name "release-bot"
           git add Formula/*.rb
           if ! git diff --staged --quiet; then
-            git commit -m "kapi-cli ${VERSION} (${CHANNEL})"
+            git commit -m "bowrain-cli ${VERSION} (${CHANNEL})"
             git push
           fi
 
-      # Push the new kapi CLI version into the cli.json self-update index so
-      # `kapi update` resolves to this build. Includes cosign signature URLs +
-      # cert-identity so kapi's verifier can validate the self-replace.
-      # (manifest-plugins.json — `kapi plugin install bowrain` — is updated by
-      # release-bowrain.yml.)
-      - name: Update kapi self-update index
+      # Push the new kapi-bowrain plugin version into the manifest-plugins
+      # registry so `kapi plugin install bowrain` resolves to this build.
+      # Includes cosign signature URLs + cert-identity so kapi's verifier can
+      # validate the install (signatures are mandatory unless --unsafe).
+      - name: Update manifest plugin registry
         env:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           REF_NAME: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
-          # Human label for the commit message (stable | beta).
           CHANNEL: ${{ steps.channel.outputs.channel }}
-          # Empty on a final tag → a universal registry entry that every channel
-          # (stable AND beta) resolves; "beta" on a prerelease → beta-only.
           REG_CHANNEL: ${{ steps.channel.outputs.reg_channel }}
         run: |
           set -euo pipefail
-          VERSION="${REF_NAME#v}"
+          VERSION="${REF_NAME#bowrain-v}"
           if [ -z "${REGISTRY_TOKEN:-}" ]; then
             echo "REGISTRY_TOKEN not set; skipping registry update"
             exit 0
@@ -480,13 +335,10 @@ jobs:
           done < dist/checksums.txt
 
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
-          CERT_ID="https://github.com/${REPO}/.github/workflows/release.yml@refs/tags/${REF_NAME}"
+          CERT_ID="https://github.com/${REPO}/.github/workflows/release-bowrain.yml@refs/tags/${REF_NAME}"
           RELEASED="$(date -u +%Y-%m-%d)"
           ISSUER="https://token.actions.githubusercontent.com"
 
-          # Build per-platform args for a given archive prefix (kapi-cli). The
-          # kapi CLI ships darwin/linux (Windows kapi is signed + published out
-          # of band, so it is not yet in the self-update index).
           build_args() {
             local prefix="$1"; shift
             CLI_ARGS=()
@@ -506,15 +358,11 @@ jobs:
 
           git clone "https://x-access-token:${REGISTRY_TOKEN}@github.com/neokapi/registry.git" /tmp/registry
 
-          # --- kapi CLI → cli.json (drives `kapi update` self-replace) ---
-          # Archive family is kapi-cli_* (matches the Homebrew formula); the
-          # index key stays "kapi" (what the CLI's self-updater looks up).
-          # Seed the index on first use; registry-update needs valid JSON.
-          [ -f /tmp/registry/cli.json ] || echo '{"schema":"v2","plugins":{}}' > /tmp/registry/cli.json
-          build_args kapi-cli darwin/arm64 linux/arm64 linux/amd64
+          # --- bowrain plugin → manifest-plugins.json ---
+          build_args kapi-bowrain darwin/arm64 linux/arm64 linux/amd64
           /tmp/registry-update \
-            --registry /tmp/registry/cli.json \
-            --plugin kapi \
+            --registry /tmp/registry/manifest-plugins.json \
+            --plugin bowrain \
             --version "$VERSION" \
             --channel "$REG_CHANNEL" \
             --released "$RELEASED" \
@@ -525,15 +373,166 @@ jobs:
           cd /tmp/registry
           git config user.email "release-bot@neokapi.dev"
           git config user.name "release-bot"
-          git add cli.json
+          git add manifest-plugins.json
           if ! git diff --staged --quiet; then
-            git commit -m "Register kapi ${VERSION} (${CHANNEL})"
+            git commit -m "Register bowrain ${VERSION} (${CHANNEL})"
             git push
           fi
 
-  build-kapi-desktop:
-    name: Build Kapi Desktop (${{ matrix.build.platform }})
-    needs: package-cli
+  docker:
+    name: Docker (${{ matrix.image }}, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    needs: package-bowrain-cli
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: bowrain-server, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - { image: bowrain-server, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
+          - { image: bowrain-worker, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - { image: bowrain-worker, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
+          - { image: bowrain-web, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - { image: bowrain-web, arch: arm64, runner: ubuntu-24.04-arm, platform: linux/arm64 }
+          - { image: bravo-agent, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - { image: bravo-sandbox-node, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - {
+              image: bravo-sandbox-python,
+              arch: amd64,
+              runner: ubuntu-latest,
+              platform: linux/amd64,
+            }
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Extract version
+        id: version
+        env:
+          GH_SHA: ${{ github.sha }}
+        run: |
+          {
+            echo "VERSION=${GITHUB_REF_NAME#bowrain-v}"
+            echo "COMMIT=${GH_SHA::7}"
+            echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: bowrain/docker/${{ matrix.image }}/Dockerfile
+          push: true
+          platforms: ${{ matrix.platform }}
+          tags: ghcr.io/neokapi/${{ matrix.image }}:${{ steps.version.outputs.VERSION }}-${{ matrix.arch }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.VERSION }}
+            COMMIT=${{ steps.version.outputs.COMMIT }}
+            BUILD_DATE=${{ steps.version.outputs.BUILD_DATE }}
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
+
+  docker-manifest:
+    name: Docker Manifests
+    runs-on: ubuntu-latest
+    needs: docker
+    steps:
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create multi-platform manifests
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          for IMAGE in bowrain-server bowrain-worker bowrain-web; do
+            docker buildx imagetools create \
+              -t "ghcr.io/neokapi/$IMAGE:$VERSION" \
+              -t "ghcr.io/neokapi/$IMAGE:latest" \
+              "ghcr.io/neokapi/$IMAGE:$VERSION-amd64" \
+              "ghcr.io/neokapi/$IMAGE:$VERSION-arm64"
+          done
+
+      - name: Tag bravo images (amd64 only)
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          for IMAGE in bravo-agent bravo-sandbox-node bravo-sandbox-python; do
+            docker buildx imagetools create \
+              -t "ghcr.io/neokapi/$IMAGE:$VERSION" \
+              -t "ghcr.io/neokapi/$IMAGE:latest" \
+              "ghcr.io/neokapi/$IMAGE:$VERSION-amd64"
+          done
+
+  docker-keycloak:
+    name: Docker (bowrain-keycloak)
+    runs-on: ubuntu-latest
+    needs: package-bowrain-cli
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node-ui
+
+      # The keycloak theme bundles @neokapi/ui, which imports
+      # @neokapi/kapi-react/runtime (a built ./dist subpath export). Build
+      # kapi-react first so the theme's vite build resolves it.
+      - name: Build @neokapi/kapi-react
+        working-directory: packages/kapi-react
+        run: vp run build
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build Keycloak theme
+        run: make -C bowrain keycloak-theme
+
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push keycloak image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: bowrain/docker/keycloak/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/neokapi/bowrain-keycloak:${{ steps.version.outputs.VERSION }}
+            ghcr.io/neokapi/bowrain-keycloak:${{ github.sha }}
+            ghcr.io/neokapi/bowrain-keycloak:latest
+          cache-from: type=gha,scope=bowrain-keycloak
+          cache-to: type=gha,mode=max,scope=bowrain-keycloak
+
+  build-bowrain:
+    name: Build Bowrain (${{ matrix.build.platform }})
+    needs: parity-gate
     strategy:
       fail-fast: false
       matrix:
@@ -562,10 +561,10 @@ jobs:
           GH_SHA: ${{ github.sha }}
         run: |
           {
-            echo "VERSION=${GITHUB_REF_NAME#v}"
+            echo "VERSION=${GITHUB_REF_NAME#bowrain-v}"
             echo "COMMIT=${GH_SHA::7}"
             echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "LDFLAGS=-w -s -X github.com/neokapi/neokapi/core/version.Version=${GITHUB_REF_NAME#v} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "LDFLAGS=-w -s -X github.com/neokapi/neokapi/core/version.Version=${GITHUB_REF_NAME#bowrain-v} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Install Linux dependencies
@@ -620,8 +619,14 @@ jobs:
       - name: Install wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
+      - name: Type-check shared UI package
+        working-directory: bowrain/packages/ui
+        run: vp check --no-fmt --no-lint
+
+      # Build frontend and assets manually to avoid Wails Taskfile running
+      # `npm install` which conflicts with the workspace npm ci above.
       - name: Generate Wails bindings
-        working-directory: apps/kapi-desktop
+        working-directory: bowrain/apps/bowrain
         shell: bash
         env:
           # On macOS/Linux the icu cgo packages compile during bindings analysis
@@ -634,25 +639,29 @@ jobs:
         run: |
           go mod tidy
           wails3 generate bindings -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
+          # shellcheck disable=SC2016
+          sed -i.bak 's/= $0\./= store$0./g' frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js
+          rm -f frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js.bak
 
-      # The kapi-desktop frontend's vite.config.ts imports
-      # @neokapi/kapi-react/vite, whose entry resolves to dist/plugin/vite.js.
-      # That dist tree is built (not committed), so build kapi-react first.
+      # The bowrain frontend bundles @neokapi/flow-editor, which imports
+      # @neokapi/kapi-react/runtime — a built ./dist subpath export (not
+      # committed). Build kapi-react first so the import resolves (mirrors the
+      # kapi-desktop job).
       - name: Build @neokapi/kapi-react
         working-directory: packages/kapi-react
         run: vp run build
 
-      - name: Build Kapi Desktop frontend
-        working-directory: apps/kapi-desktop/frontend
-        run: vp run build:dev
+      - name: Build Bowrain frontend
+        working-directory: bowrain/apps/bowrain/frontend
+        run: vp run build
 
       - name: Generate icons
-        working-directory: apps/kapi-desktop/build
+        working-directory: bowrain/apps/bowrain/build
         run: wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
 
       - name: Generate Windows resources
         if: runner.os == 'Windows'
-        working-directory: apps/kapi-desktop
+        working-directory: bowrain/apps/bowrain
         shell: bash
         env:
           VERSION: ${{ steps.meta.outputs.VERSION }}
@@ -670,20 +679,23 @@ jobs:
           wails3 generate syso -arch "$ARCH" -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.gen.json -out "wails_windows_${ARCH}.syso"
           rm -f build/windows/info.gen.json
 
-      - name: Build Kapi Desktop (Linux)
+      - name: Build Bowrain (Linux)
         if: runner.os == 'Linux'
-        working-directory: apps/kapi-desktop
+        working-directory: bowrain/apps/bowrain
         env:
           GOOS: linux
           CGO_ENABLED: "1"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
-        run: go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
+        run: go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain
 
-      # cgo build under MSYS2 mingw with statically-linked ICU — see the matching
-      # Bowrain step for rationale (native SQLite + ICU parity, no divergence).
-      - name: Build Kapi Desktop (Windows)
+      # cgo build under MSYS2 mingw with statically-linked ICU, so the Windows
+      # desktop app uses the same native SQLite + ICU framework as macOS/Linux
+      # (no unicode61/modernc divergence). Runs in the msys2 shell so gcc +
+      # pkg-config + the static .pc all share one unix-path environment; the
+      # static C++/gcc runtimes mean Bowrain.exe needs no mingw DLLs alongside.
+      - name: Build Bowrain (Windows)
         if: runner.os == 'Windows'
-        working-directory: apps/kapi-desktop
+        working-directory: bowrain/apps/bowrain
         shell: msys2 {0}
         env:
           GOOS: windows
@@ -700,12 +712,12 @@ jobs:
           # native pkg-config too.
           PCDIR=$(ICU_LIBDIR="$(cygpath -m "$MROOT/lib")" ICU_INCLUDEDIR="$(cygpath -m "$MROOT/include")" bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
           export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
-          go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Kapi.exe
+          go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Bowrain.exe
           rm -f ./*.syso
 
-      - name: Build Kapi Desktop (macOS arm64)
+      - name: Build Bowrain (macOS arm64)
         if: runner.os == 'macOS'
-        working-directory: apps/kapi-desktop
+        working-directory: bowrain/apps/bowrain
         env:
           CGO_ENABLED: "1"
           CGO_CFLAGS: "-mmacosx-version-min=11.0"
@@ -713,23 +725,23 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: "11.0"
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          GOOS=darwin GOARCH=arm64 go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
+          GOOS=darwin GOARCH=arm64 go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Bowrain
 
       - name: Create macOS .app bundle
         if: runner.os == 'macOS'
-        working-directory: apps/kapi-desktop
+        working-directory: bowrain/apps/bowrain
         run: |
-          mkdir -p bin/Kapi.app/Contents/MacOS
-          mkdir -p bin/Kapi.app/Contents/Resources
-          cp build/darwin/icons.icns bin/Kapi.app/Contents/Resources
-          cp bin/Kapi bin/Kapi.app/Contents/MacOS
-          cp build/darwin/Info.plist bin/Kapi.app/Contents
+          mkdir -p bin/Bowrain.app/Contents/MacOS
+          mkdir -p bin/Bowrain.app/Contents/Resources
+          cp build/darwin/icons.icns bin/Bowrain.app/Contents/Resources
+          cp bin/Bowrain bin/Bowrain.app/Contents/MacOS
+          cp build/darwin/Info.plist bin/Bowrain.app/Contents
           # Stamp the bundle with the real release version + current copyright
           # year so the native macOS About dialog matches the built binary
           # instead of the static placeholder in build/darwin/Info.plist.
           VERSION="${{ steps.meta.outputs.VERSION }}"
           [ -n "$VERSION" ] || VERSION="0.0.0-dev"
-          PLIST=bin/Kapi.app/Contents/Info.plist
+          PLIST=bin/Bowrain.app/Contents/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$PLIST"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" "$PLIST"
           /usr/libexec/PlistBuddy -c "Set :NSHumanReadableCopyright © 2025-$(date +%Y) neokapi" "$PLIST"
@@ -737,7 +749,7 @@ jobs:
       - name: Extract version
         id: version
         shell: bash
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${GITHUB_REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
 
       - name: Import signing certificate
         id: signing
@@ -787,7 +799,7 @@ jobs:
 
       - name: Sign + notarize app bundle (Wails)
         if: runner.os == 'macOS'
-        working-directory: apps/kapi-desktop
+        working-directory: bowrain/apps/bowrain
         env:
           SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
           APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
@@ -797,33 +809,33 @@ jobs:
             # Hardened runtime is on by default; --notarize submits to the notary
             # service and staples the ticket to the .app.
             wails3 tool sign \
-              --input bin/Kapi.app \
+              --input bin/Bowrain.app \
               --identity "$APPLE_SIGN_IDENTITY" \
               --entitlements build/darwin/entitlements.plist \
               --notarize \
               --keychain-profile neokapi-notary
           else
             echo "No Developer ID — using ad-hoc signing (not distributable)"
-            codesign --force --deep --sign - bin/Kapi.app
+            codesign --force --deep --sign - bin/Bowrain.app
           fi
 
       - name: Create DMG
         if: runner.os == 'macOS'
-        working-directory: apps/kapi-desktop
+        working-directory: bowrain/apps/bowrain
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           mkdir -p dmg
-          cp -R bin/Kapi.app dmg/
+          cp -R bin/Bowrain.app dmg/
           ln -s /Applications dmg/Applications
           # hdiutil flakes with "Resource busy" on macos-latest; retry up to 3x.
           for i in 1 2 3; do
             hdiutil create \
-              -volname "Kapi v${VERSION}" \
+              -volname "Bowrain v${VERSION}" \
               -srcfolder dmg \
               -ov \
               -format UDZO \
-              "../../kapi-${VERSION}-macOS-arm64.dmg" && break
+              "../../../bowrain-${VERSION}-macOS-arm64.dmg" && break
             echo "hdiutil attempt $i failed, retrying after 5s..."
             sleep 5
           done
@@ -834,13 +846,14 @@ jobs:
           APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          DMG="kapi-${VERSION}-macOS-arm64.dmg"
+          DMG="bowrain-${VERSION}-macOS-arm64.dmg"
           codesign --force --sign "$APPLE_SIGN_IDENTITY" "$DMG"
           echo "Submitting $DMG for notarization..."
           xcrun notarytool submit "$DMG" --keychain-profile neokapi-notary --wait
           echo "Stapling notarization ticket to DMG..."
           xcrun stapler staple "$DMG"
 
+      # macOS: Clean up keychain
       - name: Clean up signing keychain
         if: always() && runner.os == 'macOS'
         env:
@@ -855,9 +868,12 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
-          files: "kapi-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
+          files: "bowrain-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
 
-      # Publish the in-app-update feed (Phase 2) — see the bowrain job for notes.
+      # Publish the in-app-update feed (Phase 2): zip the notarized .app, sign
+      # its digest into the appcast, upload the zip, and push the feed to the
+      # registry repo. No-ops until the updater signing key + registry token
+      # are configured.
       - name: Publish updater appcast (macOS)
         # Non-blocking: the cask's .dmg is already uploaded to the release above,
         # so a registry git stall here (a known macOS-runner connect-phase hang)
@@ -880,35 +896,37 @@ jobs:
             echo "updater appcast secrets not set; skipping"
             exit 0
           fi
-          bash scripts/publish-appcast.sh Kapi kapi "$VERSION" "$REF_NAME" "$REPO" \
-            apps/kapi-desktop/bin/Kapi.app darwin arm64
+          bash scripts/publish-appcast.sh Bowrain bowrain "$VERSION" "$REF_NAME" "$REPO" \
+            bowrain/apps/bowrain/bin/Bowrain.app darwin arm64
 
+      # Windows: Create ZIP
       - name: Create ZIP
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "apps/kapi-desktop/bin/Kapi.exe" -DestinationPath "kapi-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          Compress-Archive -Path "bowrain/apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
       - name: Upload Windows ZIP as artifact (Authenticode-signed locally before release)
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v7
         with:
-          name: kapi-desktop-windows-${{ matrix.build.arch }}
-          path: "kapi-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          name: bowrain-windows-${{ matrix.build.arch }}
+          path: "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
           retention-days: 14
 
+      # Linux: Create tarball
       - name: Create tarball
         if: runner.os == 'Linux'
         run: |
-          tar -czf "kapi-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz" \
-            -C apps/kapi-desktop/bin Kapi
+          tar -czf "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz" \
+            -C bowrain/apps/bowrain/bin Bowrain
 
       - name: Upload tarball to release
         if: runner.os == 'Linux'
         uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
-          files: "kapi-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
+          files: "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 
       # Linux in-app-update feed: sign the tarball into the linux/<arch> appcast.
       - name: Publish updater appcast (Linux)
@@ -927,27 +945,20 @@ jobs:
             echo "updater appcast secrets not set; skipping"
             exit 0
           fi
-          bash scripts/publish-appcast.sh Kapi kapi "$VERSION" "$REF_NAME" "$REPO" \
-            "kapi-${VERSION}-linux-${ARCH}.tar.gz" linux "$ARCH"
-
-  # NOTE: the Windows kapi CLI binary is now produced by the `build-cli` matrix
-  # (cgo + static ICU via MSYS2 mingw); it uploads the unsigned
-  # kapi-cli-windows-amd64 zip artifact for out-of-band Authenticode signing
-  # (scripts/publish-windows-signed.sh). The former standalone build-windows-cli
-  # job has been retired.
+          bash scripts/publish-appcast.sh Bowrain bowrain "$VERSION" "$REF_NAME" "$REPO" \
+            "bowrain-${VERSION}-linux-${ARCH}.tar.gz" linux "$ARCH"
 
   update-casks:
-    name: Update Kapi Homebrew Cask
-    # Runs for stable AND prerelease tags. A stable tag (vX.Y.Z) refreshes the
-    # kapi cask; a prerelease tag (vX.Y.Z-rcN) refreshes the kapi@beta cask
-    # (which depends on the kapi-cli-beta formula). The bowrain cask is updated
-    # by release-bowrain.yml.
+    name: Update Bowrain Homebrew Cask
+    # Runs for stable AND prerelease tags. A stable tag (bowrain-vX.Y.Z)
+    # refreshes the bowrain cask; a prerelease tag (bowrain-vX.Y.Z-rcN) refreshes
+    # the bowrain@beta cask (which depends on the bowrain-cli-beta formula).
     runs-on: ubuntu-latest
-    needs: build-kapi-desktop
+    needs: build-bowrain
     steps:
       - name: Extract version
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${GITHUB_REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve cask channel
         id: ch
@@ -955,7 +966,7 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          # Final tag → both kapi and kapi@beta casks; prerelease tag → the
+          # Final tag → both bowrain and bowrain@beta casks; prerelease tag → the
           # @beta cask only.
           case "$REF_NAME" in
             *-*) echo "channels=beta" >> "$GITHUB_OUTPUT" ;;
@@ -968,14 +979,14 @@ jobs:
         run: |
           gh release download "${{ github.ref_name }}" \
             --repo "${{ github.repository }}" \
-            --pattern "kapi-*-macOS-arm64.dmg"
+            --pattern "bowrain-*-macOS-arm64.dmg"
 
       - name: Compute checksum
         id: checksum
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          echo "KAPI_DMG=$(sha256sum "kapi-${VERSION}-macOS-arm64.dmg" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "BOWRAIN_DMG=$(sha256sum "bowrain-${VERSION}-macOS-arm64.dmg" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Checkout homebrew-tap
         uses: actions/checkout@v6
@@ -984,61 +995,56 @@ jobs:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-tap
 
-      - name: Update kapi cask
+      - name: Update bowrain cask
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
-          SHA_KAPI: ${{ steps.checksum.outputs.KAPI_DMG }}
+          SHA_BOWRAIN: ${{ steps.checksum.outputs.BOWRAIN_DMG }}
           CHANNELS: ${{ steps.ch.outputs.channels }}
         run: |
           set -euo pipefail
           mkdir -p homebrew-tap/Casks
           for ch in $CHANNELS; do
           if [ "$ch" = beta ]; then
-            CASK_NAME="kapi@beta"; DEP="kapi-cli-beta"
-            CONFLICTS='  conflicts_with cask: "kapi"'
+            CASK_NAME="bowrain@beta"; DEP="bowrain-cli-beta"
+            CONFLICTS='  conflicts_with cask: "bowrain"'
           else
-            CASK_NAME="kapi"; DEP="kapi-cli"; CONFLICTS=""
+            CASK_NAME="bowrain"; DEP="bowrain-cli"; CONFLICTS=""
           fi
           cat > "homebrew-tap/Casks/${CASK_NAME}.rb" << CASK
           cask "${CASK_NAME}" do
             version "${VERSION}"
-            sha256 "${SHA_KAPI}"
+            sha256 "${SHA_BOWRAIN}"
 
-            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/kapi-#{version}-macOS-arm64.dmg"
-            name "Kapi"
-            desc "Localization toolkit - powered by neokapi"
+            url "https://github.com/neokapi/neokapi/releases/download/bowrain-v#{version}/bowrain-#{version}-macOS-arm64.dmg"
+            name "Bowrain"
+            desc "AI-native translation editor"
             homepage "https://github.com/neokapi/neokapi"
 
             depends_on formula: "neokapi/tap/${DEP}"
           ${CONFLICTS}
-            app "Kapi.app"
+            app "Bowrain.app"
 
             postflight do
               system_command "/usr/bin/xattr",
-                            args: ["-dr", "com.apple.quarantine", "#{appdir}/Kapi.app"],
+                            args: ["-dr", "com.apple.quarantine", "#{appdir}/Bowrain.app"],
                             sudo: false
             end
 
             caveats <<~EOS
-              The kapi CLI is provided by the ${DEP} formula (installed
-              automatically). Run "kapi" for command-line usage.
+              The bowrain CLI is provided by the ${DEP} formula (installed
+              automatically). Run "bowrain ui" to launch the desktop app.
             EOS
 
             zap trash: [
-              "~/Library/Application Support/Kapi",
-              "~/Library/Preferences/io.github.neokapi.kapi-desktop.plist",
-              "~/Library/Caches/Kapi",
+              "~/Library/Application Support/Bowrain",
+              "~/Library/Preferences/com.wails.bowrain.plist",
+              "~/Library/Caches/Bowrain",
             ]
           end
           CASK
           done
 
-      - name: Remove old kapi-desktop cask if present
-        run: |
-          cd homebrew-tap
-          rm -f Casks/kapi-desktop.rb
-
-      - name: Commit and push casks
+      - name: Commit and push cask
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
@@ -1050,48 +1056,5 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update casks and formulas to ${VERSION}" && git push
+            git commit -m "Update bowrain cask to ${VERSION}" && git push
           fi
-
-  update-actions:
-    name: Update GitHub Actions
-    # Stable releases only — don't bump action default versions or tag the
-    # action repos for prerelease (vX.Y.Z-rcN) tags.
-    if: ${{ !contains(github.ref_name, '-') }}
-    runs-on: ubuntu-latest
-    needs: package-cli
-    steps:
-      - name: Extract version
-        id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Bump setup-kapi
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          VERSION: ${{ steps.version.outputs.VERSION }}
-        run: |
-          gh api repos/neokapi/setup-kapi/contents/action.yml --jq '.content' | \
-            base64 -d | sed "s/default: \"latest\"/default: \"${VERSION}\"/" > /tmp/action.yml
-          CURRENT_SHA=$(gh api repos/neokapi/setup-kapi/contents/action.yml --jq '.sha')
-          gh api repos/neokapi/setup-kapi/contents/action.yml \
-            -X PUT \
-            -f message="chore: bump default version to ${VERSION}" \
-            -f content="$(base64 -w0 /tmp/action.yml)" \
-            -f sha="${CURRENT_SHA}" || echo "setup-kapi: no version default to update"
-
-      - name: Tag action repos
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          TAG: ${{ github.ref_name }}
-        run: |
-          for repo in setup-kapi kapi-action; do
-            MAIN_SHA=$(gh api "repos/neokapi/${repo}/git/ref/heads/main" --jq '.object.sha')
-            # Create the version tag
-            gh api "repos/neokapi/${repo}/git/refs" \
-              -f ref="refs/tags/${TAG}" \
-              -f sha="${MAIN_SHA}" 2>/dev/null || \
-            gh api "repos/neokapi/${repo}/git/refs/tags/${TAG}" \
-              -X PATCH \
-              -f sha="${MAIN_SHA}" 2>/dev/null || true
-            echo "Tagged ${repo} at ${TAG}"
-          done

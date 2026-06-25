@@ -35,8 +35,16 @@ REPO="${REPO:-neokapi/neokapi}"
 # Repo root (captured before we cd into the work dir) — the NSIS templates and
 # icons for the desktop installers live in the checkout.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Track-aware: the kapi CLI + Kapi Desktop release on v* tags (release.yml); the
+# bowrain plugin + Bowrain Desktop on bowrain-v* tags (release-bowrain.yml). The
+# tag prefix selects which workflow run to pull Windows artifacts from, the
+# bare version, and (below) whether to dispatch the kapi-only winget update.
+case "$TAG" in
+  bowrain-v*) VER="${TAG#bowrain-v}"; WORKFLOW="release-bowrain.yml"; TRACK="bowrain" ;;
+  v*)         VER="${TAG#v}";         WORKFLOW="release.yml";         TRACK="kapi" ;;
+  *)          VER="$TAG";             WORKFLOW="release.yml";         TRACK="kapi" ;;
+esac
 # vX.Y.Z[-suffix] → X.Y.Z for the installer's numeric VIProductVersion.
-VER="${TAG#v}"
 VER_NUM="$(printf '%s' "$VER" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')"
 [ -n "$VER_NUM" ] || { echo "Could not derive a numeric X.Y.Z version from tag '$TAG'."; exit 1; }
 
@@ -110,10 +118,10 @@ build_nsis_installer() {
 }
 
 # Find the release workflow run that built the Windows artifacts for this tag.
-RUN_ID="${RUN_ID:-$(gh run list --repo "$REPO" --workflow release.yml \
+RUN_ID="${RUN_ID:-$(gh run list --repo "$REPO" --workflow "$WORKFLOW" \
   --json databaseId,headBranch --jq "[.[] | select(.headBranch==\"$TAG\")][0].databaseId")}"
 [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ] || {
-  echo "Could not find a release.yml run for $TAG — pass RUN_ID=<id> (see 'gh run list')."; exit 1; }
+  echo "Could not find a $WORKFLOW run for $TAG — pass RUN_ID=<id> (see 'gh run list')."; exit 1; }
 echo ">> Using workflow run $RUN_ID"
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT; cd "$work"
@@ -206,7 +214,9 @@ if ! command -v gh >/dev/null 2>&1; then
   echo "     gh workflow run winget.yml -f tag=$TAG" >&2
   echo "     gh workflow run appcast-windows.yml -f tag=$TAG" >&2
 else
-  if [ "${SKIP_WINGET:-0}" = "1" ]; then
+  if [ "$TRACK" = "bowrain" ]; then
+    echo ">> bowrain track — winget has no bowrain package (Neokapi.KapiCli/Neokapi.Kapi are kapi-only); skipping winget."
+  elif [ "${SKIP_WINGET:-0}" = "1" ]; then
     echo ">> SKIP_WINGET=1 — not submitting to winget. Run later: gh workflow run winget.yml -f tag=$TAG"
   else
     echo ">> Dispatching winget publish (winget.yml) for $TAG ..."

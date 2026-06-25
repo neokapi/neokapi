@@ -1,30 +1,54 @@
 # Releasing neokapi
 
-This is the maintainer runbook for cutting a release. Releases are **tag-driven**:
-pushing a `vX.Y.Z` tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml),
-which builds and publishes everything except the Windows binaries — those are
-produced as CI artifacts and signed locally (Certum/SimplySign is a Mac-local
-step), then added to the published release.
+This is the maintainer runbook for cutting a release. Releases are **tag-driven**
+and split into **two independent tracks** (Apache kapi vs AGPL bowrain), so each
+ships on its own cadence and version number:
+
+| Track | Tag | Workflow | Ships |
+|-------|-----|----------|-------|
+| **kapi** (Apache-2.0) | `vX.Y.Z` | [`release.yml`](.github/workflows/release.yml) | kapi CLI, Kapi Desktop, `kapi-cli` formula, `kapi` cask, `cli.json` self-update, winget |
+| **bowrain** (AGPL-3.0) | `bowrain-vX.Y.Z` | [`release-bowrain.yml`](.github/workflows/release-bowrain.yml) | `kapi-bowrain` plugin, Bowrain Desktop, `bowrain-server`/`worker`/`web`/`keycloak` images, `bowrain-cli` formula, `bowrain` cask, `manifest-plugins.json` registration |
+
+The tag prefixes don't overlap (`v[0-9]*` vs `bowrain-v[0-9]*`), so a push to one
+track never triggers the other. (The per-plugin workflows own their own
+`<plugin>-v*` namespaces — see `release-sat.yml` etc.) In both tracks CI builds
+and publishes everything except the Windows binaries — those are produced as CI
+artifacts and signed locally (Certum/SimplySign is a Mac-local step), then added
+to the published release.
+
+> The two tracks share the framework + `cli` modules, so the `kapi-bowrain`
+> plugin must stay protocol-compatible with the kapi CLI users have installed.
+> There is no CI-enforced compatibility gate yet, so cut a `bowrain-v*` release
+> from a commit whose plugin matches a released kapi — they need not be the same
+> commit, but keep them close.
 
 ## TL;DR
 
 ```bash
-make release v=1.3.4          # pre-flight + tag + push  →  CI builds & publishes
-gh run watch                  # follow the release workflow
-make release-windows v=1.3.4  # after CI: sign Windows + finalize (SimplySign Desktop logged in)
-make release-winget v=1.3.4   # optional: submit the signed CLI to winget-pkgs
+# kapi track (Apache)
+make release v=1.3.4                  # pre-flight + tag v1.3.4 + push → CI builds & publishes
+gh run watch                          # follow the release workflow
+make release-windows v=1.3.4          # after CI: sign Windows + finalize (SimplySign Desktop logged in)
+make release-winget v=1.3.4           # optional: submit the signed CLI to winget-pkgs
+
+# bowrain track (AGPL)
+make release-bowrain v=2.1.0          # pre-flight + tag bowrain-v2.1.0 + push → CI builds & publishes
+gh run watch
+make release-bowrain-windows v=2.1.0  # after CI: sign Bowrain Windows + publish its update feed
 ```
 
-A leading `v` is tolerated: `v=1.3.4` and `v=v1.3.4` both tag `v1.3.4`.
+A leading `v` is tolerated: `v=1.3.4` and `v=v1.3.4` both tag `v1.3.4`
+(`release-bowrain` likewise tags `bowrain-v2.1.0`). winget is kapi-only, so the
+bowrain Windows step skips it automatically.
 
 ## The model
 
 | Stage | Where | What |
 |-------|-------|------|
-| Build + publish | CI (`release.yml`) | kapi CLI + `kapi-bowrain` plugin, desktop apps (Wails v3), Docker images, Homebrew casks, plugin registry |
-| macOS signing | CI | Desktop `.app`/DMG — Developer ID + notarized; CLI darwin binaries — Developer ID + notarized via quill |
-| Windows signing | **local Mac** | CLI + desktop `.exe` — Authenticode via the Certum cert through SimplySign |
-| Plugin trust | CI | `kapi-bowrain` tarballs cosign/Sigstore-signed (supply-chain, not OS code signing — see [AD-007](web/docs/contribute/architecture/007-plugin-system.md)) |
+| Build + publish | CI (`release.yml` / `release-bowrain.yml`) | kapi: kapi CLI, Kapi Desktop, cask, `cli.json`. bowrain: `kapi-bowrain` plugin, Bowrain Desktop, Docker images, cask, plugin registry |
+| macOS signing | CI | Desktop `.app`/DMG — Developer ID + notarized; kapi CLI darwin binaries — Developer ID + notarized via quill |
+| Windows signing | **local Mac** | kapi/desktop `.exe` — Authenticode via the Certum cert through SimplySign. The track is inferred from the tag prefix (`v*` vs `bowrain-v*`). |
+| Plugin trust | CI (`release-bowrain.yml`) | `kapi-bowrain` tarballs cosign/Sigstore-signed (supply-chain, not OS code signing — see [AD-007](web/docs/contribute/architecture/007-plugin-system.md)) |
 
 Why Windows is split out: the Certum certificate is held in Certum's cloud HSM and
 reached through **SimplySign Desktop**, which only runs on a logged-in Mac — it
@@ -137,15 +161,16 @@ GitHub Actions repo secrets used by `release.yml`:
 
 | Symptom | Cause / fix |
 |---------|-------------|
-| `make release-windows`: "Could not find a release.yml run for <tag>" | CI hasn't finished, or the run isn't associated with the tag. Wait, or pass `RUN_ID=<id>` (`gh run list`). |
+| `make release-windows`: "Could not find a release.yml run for <tag>" | CI hasn't finished, or the run isn't associated with the tag. Wait, or pass `RUN_ID=<id>` (`gh run list`). For bowrain it looks for a `release-bowrain.yml` run for the `bowrain-v*` tag. |
 | jsign: "no certificate found" / empty alias | SimplySign Desktop isn't logged in, or the session expired — log in again. |
 | `osslsigncode verify`: `unable to get local issuer certificate` | Expected on macOS (no Certum code-signing root locally). Not a real failure; verify on Windows if unsure. |
 | Cert reissued (annual, ≤459-day validity) | No change needed — the alias is auto-discovered from the token. If you ever pin it, set `JSIGN_ALIAS`. |
 
 ## Reference
 
-- [`.github/workflows/release.yml`](.github/workflows/release.yml) — the release pipeline
-- [`.github/workflows/winget.yml`](.github/workflows/winget.yml) — winget submission (dispatch-only)
+- [`.github/workflows/release.yml`](.github/workflows/release.yml) — the kapi release pipeline (`v*`)
+- [`.github/workflows/release-bowrain.yml`](.github/workflows/release-bowrain.yml) — the bowrain release pipeline (`bowrain-v*`)
+- [`.github/workflows/winget.yml`](.github/workflows/winget.yml) — winget submission (dispatch-only, kapi-only)
 - [`scripts/publish-windows-signed.sh`](scripts/publish-windows-signed.sh) — local Windows signing
 - [`scripts/quill-sign-darwin.sh`](scripts/quill-sign-darwin.sh) — macOS CLI signing in CI
 - [`Brewfile`](Brewfile) — maintainer toolchain

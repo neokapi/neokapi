@@ -82,7 +82,7 @@ The dependency graph is strictly hierarchical:
 
 <PipelineDiagram
   channelLabel=""
-  caption="kapi and kapi-desktop both build on framework + cli; kapi-desktop additionally blank-imports the AGPL bowrain recipe-schema. CI enforces the boundaries."
+  caption="kapi and kapi-desktop both build on framework + cli; kapi-desktop additionally blank-imports the Apache-2.0 bowrain recipe-schema. CI enforces the boundaries."
   stages={[
     { label: "framework", sub: "core/ · no platform deps" },
     { label: "cli", sub: "shared CLI base" },
@@ -106,15 +106,15 @@ The following invariants are enforced by CI:
   uses Cobra for command parsing and Viper for config.
 - **Kapi** depends on framework + CLI. No heavy dependencies (no Wails, no
   keyring, no OIDC).
-- **Kapi Desktop** depends on framework + CLI, plus the AGPL
+- **Kapi Desktop** depends on framework + CLI, plus the Apache-2.0
   `bowrain/plugin/schema` package, which it blank-imports to validate bowrain
   recipes on open. The Wails v3 and keyring dependencies justify a separate
   module so that Kapi CLI builds stay small.
-- **No framework engine module depends on any separately-licensed platform
-  code.** core, cli, and kapi are Apache-2.0 end-to-end. The one sanctioned
-  exception is Kapi Desktop, which blank-imports the AGPL
-  `bowrain/plugin/schema` package for recipe validation (declared in its
-  `go.mod`).
+- **No framework engine module depends on any AGPL platform code.** core, cli,
+  kapi, and kapi-desktop are all Apache-2.0 end-to-end. `bowrain/plugin/schema`
+  is the recipe *vocabulary* (typed specs + YAML decoders, importing only the
+  framework) and is itself Apache-2.0, so Kapi Desktop's blank-import of it is
+  not an AGPL edge.
 
 These rules are verified in CI with `GOWORK=off` builds per module:
 
@@ -122,7 +122,7 @@ These rules are verified in CI with `GOWORK=off` builds per module:
 GOWORK=off go build ./...                                    # framework
 GOWORK=off bash -c "cd cli && go build ./..."                # cli
 GOWORK=off bash -c "cd kapi && go build ./..."               # kapi
-GOWORK=off bash -c "cd apps/kapi-desktop && go build ./..."  # kapi-desktop (+ AGPL bowrain/plugin/schema)
+GOWORK=off bash -c "cd apps/kapi-desktop && go build ./..."  # kapi-desktop (+ Apache bowrain/plugin/schema)
 ```
 
 A successful `GOWORK=off` build per module proves that each module's imports
@@ -134,12 +134,11 @@ dependency declared in the module's `go.mod`.
 All four framework modules are Apache-2.0. The broader repository also hosts
 a separately-licensed platform, which builds on framework interfaces (content
 model, tools, flows, formats); the framework engine — core, cli, and kapi —
-never imports platform code in return. The license gradient is one-directional
-(with one sanctioned exception, noted below):
+never imports platform code in return. The license gradient is one-directional:
 
 <PipelineDiagram
   channelLabel=""
-  caption="The license gradient is one-directional: the separately-licensed platform consumes the Apache-2.0 framework (core · cli · kapi), never the reverse. Kapi Desktop is the lone sanctioned exception — it blank-imports the AGPL bowrain/plugin/schema package for recipe validation."
+  caption="The license gradient is one-directional: the separately-licensed platform consumes the Apache-2.0 framework (core · cli · kapi), never the reverse. Kapi Desktop blank-imports bowrain/plugin/schema, which is itself Apache-2.0 recipe vocabulary — not an AGPL edge."
   stages={[
     { label: "Apache-2.0 framework", sub: "core · cli · kapi" },
     { label: "Separately-licensed platform" },
@@ -147,12 +146,12 @@ never imports platform code in return. The license gradient is one-directional
 />
 
 This is a structural property, not a convention. The framework engine — core,
-cli, and kapi — never imports platform packages, so accidental upward coupling
-there is a compile error. Kapi Desktop is the one sanctioned exception: it
-blank-imports the AGPL `bowrain/plugin/schema` package to validate bowrain
-recipes on open, a single deliberate AGPL edge declared in
-`apps/kapi-desktop/go.mod`. The rest of the framework stays Apache-2.0
-end-to-end.
+cli, and kapi — never imports AGPL platform packages, so accidental upward
+coupling there is a compile error. Kapi Desktop blank-imports
+`bowrain/plugin/schema` to validate bowrain recipes on open, but that package is
+itself Apache-2.0 recipe vocabulary (typed specs + YAML decoders, importing only
+the framework), declared in `apps/kapi-desktop/go.mod` — so the desktop binary
+links no AGPL code. The framework and both binaries stay Apache-2.0 end-to-end.
 
 ### Framework package layout
 
