@@ -58,10 +58,12 @@ jobs:
             tag="${PUSH_REF}"; ver="${PUSH_REF#v}"; coord="false"
           fi
           case "$ver" in *-*) pre="true" ;; *) pre="false" ;; esac
-          echo "version=$ver" >> "$GITHUB_OUTPUT"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "coordinated=$coord" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$pre" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$ver"
+            echo "tag=$tag"
+            echo "coordinated=$coord"
+            echo "prerelease=$pre"
+          } >> "$GITHUB_OUTPUT"
 
   # Verify the parity workflow (#448) succeeded for the tagged commit
   # before any release artifact is built or published. Parity runs on
