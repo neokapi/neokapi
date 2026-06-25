@@ -37,8 +37,22 @@ export interface DocumentViewerProps {
   filename: string;
   /** Original file bytes, enabling the Download tab/button (optional). */
   bytes?: Uint8Array | null;
-  /** Tab shown first (default "preview"). */
+  /** Tab shown first (default "preview"). Ignored when `value` is supplied. */
   defaultTab?: "preview" | "structure" | "layout" | "media" | "blocks" | "raw" | "stats";
+  /**
+   * Controlled active tab. When supplied (with {@link onValueChange}), the host
+   * owns tab state — needed when selecting a tab triggers lazy work (e.g. the
+   * convert lab converts on demand when an output-format pill is selected). Omit
+   * for the default uncontrolled behavior keyed on {@link defaultTab}.
+   */
+  value?: string;
+  onValueChange?: (value: string) => void;
+  /**
+   * Extra tabs appended after the built-in ones, shown as additional pills in the
+   * same strip (after a separator). The convert lab uses this for one pill per
+   * output format; each pane re-serializes the same content model differently.
+   */
+  extraTabs?: ReadonlyArray<{ value: string; label: React.ReactNode; content: React.ReactNode }>;
   /** Block ids changed by a recent run — flagged + auto-opened in Blocks. */
   changedIds?: ReadonlySet<string>;
   /** Raw-view line numbers changed by a recent run — highlighted in Raw. */
@@ -104,11 +118,15 @@ export default function DocumentViewer({
   filename,
   bytes,
   defaultTab = "preview",
+  value,
+  onValueChange,
+  extraTabs,
   changedIds,
   rawChangedLines,
   resolveMediaUrl = defaultResolveMediaUrl,
   className,
 }: DocumentViewerProps): React.ReactElement {
+  const hasExtra = !!extraTabs && extraTabs.length > 0;
   const ft = fileType(filename);
   const doc = useMemo(() => treeToRenderDoc(tree), [tree]);
   const blocks = useMemo(() => flattenBlocks(tree), [tree]);
@@ -216,9 +234,14 @@ export default function DocumentViewer({
       {/* Force column layout: the Tabs primitive's orientation variant keys on a
           `data-horizontal` attribute that isn't emitted, so without flex-col the
           list renders BESIDE the content (eating half the width). */}
-      <Tabs defaultValue={defaultTab} className="flex flex-col px-3 pb-3">
-        {/* Compact segmented control (w-fit), not a full-width tab bar. */}
-        <TabsList>
+      <Tabs
+        {...(value !== undefined ? { value, onValueChange } : { defaultValue: defaultTab })}
+        className="flex flex-col px-3 pb-3"
+      >
+        {/* Compact segmented control (w-fit), not a full-width tab bar. When the
+            host appends output-format pills (extraTabs), let the strip wrap so a
+            dozen pills don't overflow the card. */}
+        <TabsList className={hasExtra ? "h-auto flex-wrap" : undefined}>
           <TabsTrigger value="preview">Preview</TabsTrigger>
           {hasStructure && <TabsTrigger value="structure">Structure</TabsTrigger>}
           {hasGeometry && <TabsTrigger value="layout">Layout</TabsTrigger>}
@@ -236,6 +259,17 @@ export default function DocumentViewer({
               the single header button above, not a duplicate tab.) */}
           {bytes && <TabsTrigger value="raw">Raw</TabsTrigger>}
           <TabsTrigger value="stats">Stats</TabsTrigger>
+          {/* Output-format pills — appended after a divider so they read as a
+              distinct group ("the same model, re-serialized") from the
+              model-level views to their left. */}
+          {hasExtra && (
+            <span aria-hidden className="mx-1 h-4 w-px self-center bg-border" />
+          )}
+          {extraTabs?.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="preview" className="pt-3">
@@ -326,6 +360,13 @@ export default function DocumentViewer({
             ))}
           </dl>
         </TabsContent>
+
+        {/* Host-supplied output-format panes. */}
+        {extraTabs?.map((tab) => (
+          <TabsContent key={tab.value} value={tab.value} className="pt-3">
+            {tab.content}
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );

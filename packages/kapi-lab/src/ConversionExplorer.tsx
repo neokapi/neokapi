@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { CodeView, FormatPreview } from "@neokapi/ui-primitives/preview";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CodeView, DocumentViewer } from "@neokapi/ui-primitives/preview";
 import type { ContentTree } from "@neokapi/ui-primitives/preview";
 
 // CodeView's highlight languages (mirrors ui-primitives highlight.Lang).
@@ -12,19 +12,15 @@ import FileSource from "./FileSource";
 import type { FileSourceValue } from "./FileSource";
 import { SAMPLES } from "./samples";
 import shared from "./styles.module.css";
-import styles from "./ConversionExplorer.module.css";
 
-// ConversionExplorer re-expresses one document in a different format. It reads
-// the input with its native reader, then writes the content model out through a
-// *generative* writer (one that reconstructs a whole document from the model,
-// no original-file skeleton needed) — the real kapi `convert` (kconv) command
-// running in WASM. The converted output is then read back and shown in the
-// shared FormatPreview, which renders the projected content model (the same
-// render AST every writer emits) — inline formatting, reconstructed tables and
-// all — so you see the chosen format's source and a faithful rendering of the
-// document it reconstructs, side by side. A table that survives md→AsciiDoc, or
-// the bold/links/image in a paragraph, are visible in the preview, not just the
-// raw output.
+// ConversionExplorer shows one document every way at once. The input is parsed
+// into the content model and shown in the shared DocumentViewer (Preview /
+// Blocks / Structure / Layout / Stats — the same widget the other labs use), and
+// alongside the built-in views sits one extra pill per *generative* output
+// format. Selecting a format pill runs the real kapi `convert` (kconv) in WASM
+// and shows that serialization two ways: the rendered page (HTML projection,
+// left) and its raw source (right). The model-level tabs never change as you
+// switch formats — that is the point: one content model, many serializations.
 //
 // Only generative targets are offered. Skeleton-driven formats (docx/odt/idml/
 // epub/…) inject translations back into the *original* file and cannot be
@@ -78,7 +74,7 @@ function langForTarget(id: string): Lang {
   return TARGET_LANG[id] ?? "text";
 }
 
-// formatLabel derives a short dropdown label from a format id / display name.
+// targetLabel derives a short pill label from a format id / display name.
 function targetLabel(id: string, displayName?: string): string {
   if (displayName && displayName.length <= 18) return displayName;
   return id;
@@ -92,7 +88,23 @@ const DEFAULT_SAMPLE_IDS = [
   "app-xliff",
 ];
 
-type ViewTab = "source" | "rendered";
+/** Tab value prefix for an output-format pill (e.g. "out:markdown"). */
+const OUT_PREFIX = "out:";
+const outTab = (id: string): string => `${OUT_PREFIX}${id}`;
+const isOutTab = (v: string): boolean => v.startsWith(OUT_PREFIX);
+const outTabId = (v: string): string => v.slice(OUT_PREFIX.length);
+
+// A converted format, cached per output id for the current input.
+interface OutputState {
+  status: "loading" | "ready" | "error";
+  /** Serialized output (the Source pane). */
+  source?: string;
+  /** HTML projection for the Rendered pane (the output itself when target=html). */
+  previewHtml?: string;
+  error?: string;
+}
+
+const enc = new TextEncoder();
 
 export interface ConversionExplorerProps {
   /** WASM asset URLs from the host; null defers booting (e.g. during SSR). */
@@ -101,7 +113,7 @@ export interface ConversionExplorerProps {
   defaultSampleId?: string;
   /** Restrict the offered samples. */
   sampleIds?: string[];
-  /** Output format selected on first render (default: doclang). */
+  /** Output format whose pill is active on first render (default: doclang). */
   defaultTarget?: string;
 }
 
@@ -124,13 +136,25 @@ export default function ConversionExplorer({
     label: initial.label,
     content: initial.content,
   });
-  const [target, setTarget] = useState<string>(defaultTarget ?? "doclang");
   const [targets, setTargets] = useState<ConversionTarget[]>(GENERATIVE_TARGETS);
-  const [view, setView] = useState<ViewTab>("rendered");
-  const [output, setOutput] = useState<string | null>(null);
-  const [tree, setTree] = useState<ContentTree | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  // The active tab: a DocumentViewer built-in ("preview", "blocks", …) or an
+  // output-format pill ("out:<id>"). Open on the requested format so the lab
+  // demonstrates a conversion immediately.
+  const [activeTab, setActiveTab] = useState<string>(outTab(defaultTarget ?? "doclang"));
+  // The parsed input, feeding the model-level tabs.
+  const [inputTree, setInputTree] = useState<ContentTree | null>(null);
+  const [inputErr, setInputErr] = useState<string | null>(null);
+  const [inputBusy, setInputBusy] = useState(false);
+  // Converted outputs, keyed by format id, for the current input.
+  const [outputs, setOutputs] = useState<Record<string, OutputState>>({});
+  // Format ids whose conversion has been kicked off for the current input — a
+  // ref (not state) so it doesn't retrigger effects; reset when the input changes.
+  const startedRef = useRef<Set<string>>(new Set());
+
+  const inputBytes = useMemo(
+    () => file.bytes ?? enc.encode(file.content),
+    [file.bytes, file.content],
+  );
 
   // Declaratively load the conversion targets from the engine: the writers it
   // reports as `generative` (the declared, no-plugin-load capability). This is
@@ -195,117 +219,128 @@ export default function ConversionExplorer({
     [runtime.runCapture, runtime.readFile],
   );
 
-  const runConversion = useCallback(async () => {
-    if (!runtime.ready) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const inPath = runtime.writeFile(file.filename, file.bytes ?? file.content);
-      const def = targets.find((t) => t.id === target) ?? targets[0];
-      const out = await convertTo(inPath, def.id, def.ext);
-      setOutput(out);
-      // Read the converted output back through the engine to get its content
-      // tree; FormatPreview renders the projected render AST (tree.render) — so
-      // the preview reflects the *target's* reconstruction of the document,
-      // proving the table/inline structure survived the format crossing.
-      const res = await runtime.inspect(`converted.${def.ext}`, out);
-      setTree(res.ok ? (res.tree ?? null) : null);
-    } catch (e) {
-      setOutput(null);
-      setTree(null);
-      setError(e instanceof Error ? e.message : String(e));
-    }
-    setBusy(false);
-  }, [runtime.ready, runtime.writeFile, runtime.inspect, convertTo, file, target, targets]);
-
+  // Parse the input into the content model whenever the engine becomes ready or
+  // the selected file changes. A new input invalidates every cached conversion.
   useEffect(() => {
-    if (runtime.ready) void runConversion();
-  }, [runtime.ready, runConversion]);
+    if (!runtime.ready) return;
+    let cancelled = false;
+    // New input → drop cached outputs and let the active format reconvert.
+    startedRef.current = new Set();
+    setOutputs({});
+    setInputBusy(true);
+    setInputErr(null);
+    void runtime
+      .inspect(file.filename, inputBytes)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok && res.tree) {
+          setInputTree(res.tree);
+        } else {
+          setInputTree(null);
+          setInputErr(res.error ?? "could not read this document");
+        }
+      })
+      .finally(() => !cancelled && setInputBusy(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [runtime.ready, runtime.inspect, file.filename, inputBytes]);
+
+  // ensureOutput lazily converts the input to one format and caches the result.
+  // Guarded by startedRef so each format converts at most once per input.
+  const ensureOutput = useCallback(
+    async (id: string): Promise<void> => {
+      if (!runtime.ready || startedRef.current.has(id)) return;
+      const def = targets.find((t) => t.id === id);
+      if (!def) return;
+      startedRef.current.add(id);
+      setOutputs((o) => ({ ...o, [id]: { status: "loading" } }));
+      try {
+        const inPath = runtime.writeFile(file.filename, inputBytes);
+        const source = await convertTo(inPath, def.id, def.ext);
+        // Rendered pane: reuse the HTML projection (or the output itself when the
+        // target already is HTML). A failed projection just hides the preview.
+        const previewHtml =
+          def.id === "html"
+            ? source
+            : await convertTo(inPath, "html", "html").catch(() => undefined);
+        setOutputs((o) => ({ ...o, [id]: { status: "ready", source, previewHtml } }));
+      } catch (e) {
+        setOutputs((o) => ({
+          ...o,
+          [id]: { status: "error", error: e instanceof Error ? e.message : String(e) },
+        }));
+      }
+    },
+    [runtime.ready, runtime.writeFile, convertTo, targets, file.filename, inputBytes],
+  );
+
+  // Convert the active format on demand: when the engine is ready and the active
+  // tab is an output pill, ensure that format is converted. Re-runs after a new
+  // input (ensureOutput identity changes and startedRef was cleared above).
+  useEffect(() => {
+    if (runtime.ready && isOutTab(activeTab)) void ensureOutput(outTabId(activeTab));
+  }, [runtime.ready, activeTab, ensureOutput]);
+
+  // If the active output pill isn't in the (engine-loaded) target list, fall
+  // back to the first available format so the controlled Tabs always has a match.
+  useEffect(() => {
+    if (!isOutTab(activeTab)) return;
+    const id = outTabId(activeTab);
+    if (targets.length > 0 && !targets.some((t) => t.id === id)) {
+      setActiveTab(outTab(targets[0].id));
+    }
+  }, [activeTab, targets]);
+
+  const onTabChange = useCallback((v: string) => {
+    setActiveTab(v);
+  }, []);
+
+  // Build one extra pill per output format. Each pane renders from the cached
+  // conversion state (loading / error / rendered+source).
+  const extraTabs = useMemo(
+    () =>
+      targets.map((target) => ({
+        value: outTab(target.id),
+        label: target.label,
+        content: <OutputPane state={outputs[target.id]} target={target} />,
+      })),
+    [targets, outputs],
+  );
 
   return (
     <div className={`kapi-reference relative ${shared.explorer}`}>
-      <div className={styles.controls}>
-        <FileSource value={file} onChange={setFile} sampleIds={offered} label="Input" />
-        <label className={styles.targetField}>
-          <span className={styles.targetLabel}>Convert to</span>
-          <select
-            className={styles.targetSelect}
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-          >
-            {targets.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <FileSource value={file} onChange={setFile} sampleIds={offered} label="Input" />
 
-      <div className={`${shared.statusBar} ${error ? shared.statusError : ""}`}>
+      <div className={`${shared.statusBar} ${inputErr ? shared.statusError : ""}`}>
         {runtime.status === "booting" && "Booting kapi (first run downloads the WASM engine)…"}
         {runtime.status === "error" && `Failed to start: ${runtime.error}`}
-        {runtime.ready && busy && "Converting…"}
-        {runtime.ready && !busy && error && `Error: ${error}`}
-        {runtime.ready && !busy && !error && output !== null && (
+        {runtime.ready && inputBusy && "Reading document…"}
+        {runtime.ready && !inputBusy && inputErr && `Error: ${inputErr}`}
+        {runtime.ready && !inputBusy && !inputErr && inputTree && (
           <span className={shared.stats}>
-            <span className={shared.statBadge}>
-              {file.filename} → {targets.find((t) => t.id === target)?.label}
-            </span>
+            <span className={shared.statBadge}>{file.label}</span>
           </span>
         )}
       </div>
 
-      <div className="min-h-[420px]">
-        {output !== null && (
-          <>
-            <div className={styles.tabs} role="tablist" aria-label="Output view">
-              <button
-                role="tab"
-                aria-selected={view === "rendered"}
-                className={`${styles.tab} ${view === "rendered" ? styles.tabActive : ""}`}
-                onClick={() => setView("rendered")}
-              >
-                Rendered
-              </button>
-              <button
-                role="tab"
-                aria-selected={view === "source"}
-                className={`${styles.tab} ${view === "source" ? styles.tabActive : ""}`}
-                onClick={() => setView("source")}
-              >
-                Source
-              </button>
-            </div>
-
-            {view === "source" &&
-              (output.trim() === "" || output.trim() === "[]" ? (
-                <p className={styles.note}>
-                  The {targets.find((t) => t.id === target)?.label} writer produced an empty
-                  document: the reader found no translatable content in this source.
-                </p>
-              ) : (
-                <CodeView text={output} lang={langForTarget(target)} maxHeight="28rem" />
-              ))}
-            {view === "rendered" &&
-              (tree && tree.root.length > 0 ? (
-                <div className={styles.preview}>
-                  <FormatPreview tree={tree} />
-                </div>
-              ) : (
-                <p className={styles.note}>No visual preview for this document.</p>
-              ))}
-
-            <p className={styles.note}>
-              The reader parses the input into the content model (roles, runs, tables, geometry); a
-              generative writer re-serializes it as {targets.find((t) => t.id === target)?.label}.
-              The preview reads that output back and renders the projected content model, so a table
-              or inline styling that survived the crossing shows up as a real grid and formatting —
-              not just text. Skeleton-driven formats (docx, odt, idml, epub) inject into an original
-              file and so cannot be conversion targets.
-            </p>
-          </>
+      <div className="min-h-[460px]">
+        {inputTree && (
+          <DocumentViewer
+            tree={inputTree}
+            filename={file.label}
+            bytes={inputBytes}
+            value={activeTab}
+            onValueChange={onTabChange}
+            extraTabs={extraTabs}
+          />
         )}
+        <p className="mt-3 text-sm text-muted-foreground">
+          The reader parses the input into the content model (roles, runs, tables, geometry); the
+          model-level tabs describe that one model, and each format pill re-serializes it through a
+          generative writer. Skeleton-driven formats (docx, odt, idml, epub) inject into an original
+          file and so cannot be conversion targets.
+        </p>
       </div>
 
       <GateOverlay
@@ -313,6 +348,59 @@ export default function ConversionExplorer({
         title="File conversion"
         description="Convert a document from one format to another."
       />
+    </div>
+  );
+}
+
+// OutputPane renders one converted format: the rendered page (left) and its raw
+// source (right). Until the conversion resolves it shows a status line.
+function OutputPane({
+  state,
+  target,
+}: {
+  state: OutputState | undefined;
+  target: ConversionTarget;
+}): React.ReactElement {
+  if (!state || state.status === "loading") {
+    return <p className="py-3 text-sm text-muted-foreground">Converting to {target.label}…</p>;
+  }
+  if (state.status === "error") {
+    return (
+      <p className="py-3 text-sm text-destructive">
+        Could not convert to {target.label}: {state.error}
+      </p>
+    );
+  }
+  const source = state.source ?? "";
+  const empty = source.trim() === "" || source.trim() === "[]";
+  return (
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-muted-foreground">Rendered</span>
+        {state.previewHtml && state.previewHtml.trim() !== "" ? (
+          <iframe
+            title={`${target.label} preview`}
+            sandbox=""
+            srcDoc={state.previewHtml}
+            className="h-[26rem] w-full rounded-md border bg-white"
+          />
+        ) : (
+          <p className="rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
+            No visual preview for this document.
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-muted-foreground">Source · {target.label}</span>
+        {empty ? (
+          <p className="rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
+            The {target.label} writer produced an empty document: the reader found no translatable
+            content in this source.
+          </p>
+        ) : (
+          <CodeView text={source} lang={langForTarget(target.id)} maxHeight="26rem" />
+        )}
+      </div>
     </div>
   );
 }

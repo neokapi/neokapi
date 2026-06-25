@@ -41,11 +41,11 @@ describe("ConversionExplorer", () => {
     expect(screen.getByLabelText("Run")).toBeTruthy();
   });
 
-  it("renders the output-format selector with the generative targets, without booting WASM", () => {
-    // assets=null → the engine never boots; the body still renders behind the gate.
+  it("renders the input picker behind the gate, without booting WASM", () => {
+    // assets=null → the engine never boots, so there is no parsed input yet and
+    // the DocumentViewer (with its output-format pills) only appears post-Run.
+    // The input picker still lays out behind the zero-shift gate overlay.
     render(<ConversionExplorer assets={null} />);
-    expect(screen.getByText("Convert to")).toBeTruthy();
-    expect(screen.getByRole("option", { name: "DocLang" })).toBeTruthy();
-    expect(screen.getByRole("option", { name: "Markdown" })).toBeTruthy();
+    expect(screen.getByText("Input")).toBeTruthy();
   });
 });

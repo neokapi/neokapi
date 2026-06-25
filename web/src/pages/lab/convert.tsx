@@ -19,11 +19,12 @@ export default function ConversionLabPage(): React.ReactElement {
         <div className={styles.hero}>
           <h1>Conversion Lab</h1>
           <p className={styles.lede}>
-            Pick a document and a target format. neokapi reads it, understands its structure —
-            headings, lists, tables, inline styling — and rewrites it in the new format with all of
-            that kept intact. The original and the result sit side by side, and you can flip the
-            result between the <strong>Rendered</strong> page and its raw <strong>Source</strong>,
-            so you can confirm nothing was lost in the move. It all runs in your browser.
+            Pick a document. neokapi reads it and understands its structure — headings, lists,
+            tables, inline styling — which you can explore in the <strong>Preview</strong>,{" "}
+            <strong>Blocks</strong>, <strong>Structure</strong> and <strong>Layout</strong> tabs.
+            That one content model never changes; each output-format pill on the right re-serializes
+            it, showing the <strong>Rendered</strong> page and its raw <strong>Source</strong> side
+            by side, so you can confirm nothing was lost in the move. It all runs in your browser.
           </p>
         </div>
         <ConversionExplorer defaultSampleId="article-md" defaultTarget="doclang" />
