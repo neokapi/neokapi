@@ -22,6 +22,46 @@ to the published release.
 > from a commit whose plugin matches a released kapi — they need not be the same
 > commit, but keep them close.
 
+### Coordinated (simultaneous) release
+
+Independent cadence is the default. When you want kapi **and** bowrain to appear
+in the package managers at the same moment (e.g. a feature that spans the CLI and
+the plugin), use the coordinated path instead of two separate tags:
+
+```bash
+make release-coordinated kapi=1.3.4 bowrain=2.1.0   # either may be blank
+```
+
+This dispatches [`release-coordinated.yml`](.github/workflows/release-coordinated.yml),
+which runs both tracks via their reusable `workflow_call` entry points with
+`coordinated: true`. Both build in parallel and then **wait at a manual-approval
+gate** — the `coordinated-release` GitHub Environment — before any tap/registry
+write. Approve both pending deployments together (Actions UI or `gh run watch`)
+and the Homebrew formulae/casks + the plugin/CLI registry commits land within
+seconds of each other. Windows signing is still the same Mac-local follow-up per
+track (`make release-windows` / `make release-bowrain-windows`).
+
+> **One-time setup:** create a repo Environment named `coordinated-release` with
+> *required reviewers*. Without reviewers the gate is a no-op (both publish
+> immediately, so appearance is only as simultaneous as the two build times). The
+> gate is bypassed entirely for routine tag-push releases — only the coordinated
+> dispatch sets `coordinated: true`. Correctness never depends on the gate: the
+> `bowrain-cli` formula `depends_on` `kapi-cli` and `min_kapi_version` gates the
+> registry, so a transient skew is always install-consistent; the gate only buys
+> a coordinated launch *moment*. winget (Microsoft's `winget-pkgs` PR queue) and
+> apt/yum propagation have their own latency and are not gated.
+
+> **Verify on the first coordinated release — cosign identity.** The archives are
+> cosign keyless-signed and the registry (`cli.json` / `manifest-plugins.json`)
+> records the expected signer as `…/release.yml@refs/tags/<tag>` /
+> `…/release-bowrain.yml@refs/tags/<tag>`. Running via `workflow_call` can change
+> the Fulcio certificate's SAN to the *coordinator* workflow/ref, which would make
+> `kapi update` / `kapi plugin install` reject the artifact. Before relying on a
+> coordinated release, confirm `cosign verify-blob` against the published archive
+> with the recorded identity, and adjust the `--cert-identity` in the
+> registry-update step (or fall back to independent tag pushes) if it differs.
+> Homebrew formulae/casks are unaffected (they verify by sha256, not cosign).
+
 ## TL;DR
 
 ```bash
@@ -170,6 +210,7 @@ GitHub Actions repo secrets used by `release.yml`:
 
 - [`.github/workflows/release.yml`](.github/workflows/release.yml) — the kapi release pipeline (`v*`)
 - [`.github/workflows/release-bowrain.yml`](.github/workflows/release-bowrain.yml) — the bowrain release pipeline (`bowrain-v*`)
+- [`.github/workflows/release-coordinated.yml`](.github/workflows/release-coordinated.yml) — joint launch: runs both tracks behind the `coordinated-release` approval gate
 - [`.github/workflows/winget.yml`](.github/workflows/winget.yml) — winget submission (dispatch-only, kapi-only)
 - [`scripts/publish-windows-signed.sh`](scripts/publish-windows-signed.sh) — local Windows signing
 - [`scripts/quill-sign-darwin.sh`](scripts/quill-sign-darwin.sh) — macOS CLI signing in CI

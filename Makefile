@@ -1471,7 +1471,7 @@ v   ?=
 VER := $(patsubst v%,%,$(strip $(v)))
 TAG := v$(VER)
 
-.PHONY: release release-windows release-winget release-bowrain release-bowrain-windows
+.PHONY: release release-windows release-winget release-bowrain release-bowrain-windows release-coordinated
 
 release: ## Tag + push a kapi release (v=1.3.4 → tag v1.3.4); CI builds & publishes the rest
 	@[ -n "$(strip $(v))" ] || { echo "usage: make release v=1.3.4"; exit 1; }
@@ -1527,6 +1527,22 @@ release-bowrain-windows: ## Sign the Bowrain Windows artifacts + publish its upd
 	JSIGN_KEYSTORE="$${JSIGN_KEYSTORE:-$$HOME/simplysign-pkcs11.cfg}" \
 		./scripts/publish-windows-signed.sh "$(BTAG)"
 	@echo "(winget is kapi-only and is skipped for bowrain tags; the Windows update feed is dispatched automatically)"
+
+# ── Coordinated release (kapi + bowrain land in the package managers together) ─
+# For a joint launch only — routine ships still use `make release` /
+# `make release-bowrain` independently. Dispatches release-coordinated.yml, which
+# builds both tracks and holds their tap/registry publishes behind the
+# `coordinated-release` GitHub Environment; approve both pending deployments at
+# once (Actions UI) and they publish within seconds of each other. Leave a
+# version blank to gate only the other track. Requires the environment to have
+# required reviewers configured.
+release-coordinated: ## Joint launch: kapi=1.3.4 bowrain=2.1.0 → dispatch + manual-approve both publishes together
+	@[ -n "$(strip $(kapi))$(strip $(bowrain))" ] || { echo "usage: make release-coordinated kapi=1.3.4 bowrain=2.1.0 (either may be blank)"; exit 1; }
+	gh workflow run release-coordinated.yml --repo neokapi/neokapi --ref main \
+		-f kapi_version="$(strip $(kapi))" -f bowrain_version="$(strip $(bowrain))"
+	@echo ""
+	@echo "Dispatched. Both tracks build, then wait at the 'coordinated-release' gate."
+	@echo "Approve both pending deployments together:  gh run watch  (or the Actions UI)"
 
 # ── Clean ────────────────────────────────────────────────────────────────────
 

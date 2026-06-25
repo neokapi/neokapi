@@ -7,6 +7,19 @@ on:
       # on plain v* tags via release.yml; the per-plugin workflows own their own
       # <plugin>-v* namespaces. This filter matches neither.
       - "bowrain-v[0-9]*"
+  # Reusable entry point for release-coordinated.yml — see release.yml for the
+  # mirror. Lets the coordinator run the bowrain track with an explicit version
+  # and gate the publish jobs so kapi + bowrain land together.
+  workflow_call:
+    inputs:
+      version:
+        description: "Release version, e.g. 2.1.0 (no leading bowrain-v)."
+        type: string
+        required: true
+      coordinated:
+        description: "Route publish jobs through the coordinated-release approval gate."
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -16,6 +29,38 @@ permissions:
   id-token: write
 
 jobs:
+  # Resolve version/tag once for both trigger modes (tag push vs coordinated
+  # workflow_call). Mirrors release.yml's setup job; the only difference is the
+  # bowrain-v tag prefix. Downstream jobs read needs.setup.outputs.tag via a
+  # job-level REF_NAME env so existing tag-stripping logic is unchanged.
+  setup:
+    name: Resolve release inputs
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.r.outputs.version }}
+      tag: ${{ steps.r.outputs.tag }}
+      coordinated: ${{ steps.r.outputs.coordinated }}
+      prerelease: ${{ steps.r.outputs.prerelease }}
+    steps:
+      - id: r
+        env:
+          IN_VERSION: ${{ inputs.version }}
+          IN_COORD: ${{ inputs.coordinated }}
+          PUSH_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -n "${IN_VERSION:-}" ]; then
+            ver="${IN_VERSION#bowrain-v}"; ver="${ver#v}"
+            tag="bowrain-v${ver}"; coord="${IN_COORD:-false}"
+          else
+            tag="${PUSH_REF}"; ver="${PUSH_REF#bowrain-v}"; coord="false"
+          fi
+          case "$ver" in *-*) pre="true" ;; *) pre="false" ;; esac
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "coordinated=$coord" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$pre" >> "$GITHUB_OUTPUT"
+
   # Verify the parity workflow (#448) succeeded for the tagged commit before any
   # release artifact is built or published. Mirrors release.yml's gate.
   parity-gate:
@@ -62,7 +107,9 @@ jobs:
   # as in the former combined workflow).
   build-bowrain-cli:
     name: Build kapi-bowrain (${{ matrix.target.goos }}/${{ matrix.target.goarch }})
-    needs: parity-gate
+    needs: [setup, parity-gate]
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -87,7 +134,7 @@ jobs:
         env:
           GH_SHA: ${{ github.sha }}
         run: |
-          VERSION="${GITHUB_REF_NAME#bowrain-v}"
+          VERSION="${REF_NAME#bowrain-v}"
           echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "LDFLAGS=-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ) -X main.pluginVersion=${VERSION}" >> "$GITHUB_OUTPUT"
 
@@ -175,8 +222,13 @@ jobs:
   # plugin only — no deb/rpm, no apt/yum, no cli.json.
   package-bowrain-cli:
     name: Package + publish kapi-bowrain
-    needs: [parity-gate, build-bowrain-cli]
+    needs: [setup, parity-gate, build-bowrain-cli]
     runs-on: ubuntu-latest
+    # Coordinated releases route this publish job through a manual-approval
+    # environment so the bowrain tap/registry writes land together with kapi's.
+    environment: ${{ needs.setup.outputs.coordinated == 'true' && 'coordinated-release' || '' }}
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -210,7 +262,7 @@ jobs:
       - name: Package archives + checksums
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#bowrain-v}"
+          VERSION="${REF_NAME#bowrain-v}"
           bash scripts/package-cli.sh "$VERSION" cli-artifacts dist \
             bowrain/cli/cmd/kapi-bowrain/manifest.json
 
@@ -233,7 +285,7 @@ jobs:
       - name: Resolve release channel
         id: channel
         env:
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ needs.setup.outputs.tag }}
         run: |
           set -euo pipefail
           case "$REF_NAME" in
@@ -254,7 +306,7 @@ jobs:
           CHANNELS: ${{ steps.channel.outputs.channels }}
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#bowrain-v}"
+          VERSION="${REF_NAME#bowrain-v}"
           # which=bowrain → only the bowrain-cli formula; release-tag is the
           # bowrain-v* tag so the kapi-bowrain_* archive URLs resolve correctly.
           for ch in $CHANNELS; do
@@ -265,7 +317,8 @@ jobs:
       - name: Publish plugin archives to release
         uses: softprops/action-gh-release@v3
         with:
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
+          tag_name: ${{ needs.setup.outputs.tag }}
           files: |
             dist/kapi-bowrain_*.tar.gz
             dist/kapi-bowrain_*.zip
@@ -293,7 +346,7 @@ jobs:
           CHANNEL: ${{ steps.channel.outputs.channel }}
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#bowrain-v}"
+          VERSION="${REF_NAME#bowrain-v}"
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/neokapi/homebrew-tap.git" /tmp/tap
           mkdir -p /tmp/tap/Formula
           cp brew-formulae/*.rb /tmp/tap/Formula/
@@ -313,7 +366,7 @@ jobs:
       - name: Update manifest plugin registry
         env:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ needs.setup.outputs.tag }}
           REPO: ${{ github.repository }}
           CHANNEL: ${{ steps.channel.outputs.channel }}
           REG_CHANNEL: ${{ steps.channel.outputs.reg_channel }}
@@ -382,7 +435,9 @@ jobs:
   docker:
     name: Docker (${{ matrix.image }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
-    needs: package-bowrain-cli
+    needs: [setup, package-bowrain-cli]
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -410,7 +465,7 @@ jobs:
           GH_SHA: ${{ github.sha }}
         run: |
           {
-            echo "VERSION=${GITHUB_REF_NAME#bowrain-v}"
+            echo "VERSION=${REF_NAME#bowrain-v}"
             echo "COMMIT=${GH_SHA::7}"
             echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
@@ -443,11 +498,13 @@ jobs:
   docker-manifest:
     name: Docker Manifests
     runs-on: ubuntu-latest
-    needs: docker
+    needs: [setup, docker]
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
       - name: Extract version
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
 
       - name: Login to GHCR
         uses: docker/login-action@v4
@@ -482,7 +539,9 @@ jobs:
   docker-keycloak:
     name: Docker (bowrain-keycloak)
     runs-on: ubuntu-latest
-    needs: package-bowrain-cli
+    needs: [setup, package-bowrain-cli]
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-ui
@@ -505,7 +564,7 @@ jobs:
 
       - name: Extract version
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
 
       - name: Login to GHCR
         uses: docker/login-action@v4
@@ -532,7 +591,9 @@ jobs:
 
   build-bowrain:
     name: Build Bowrain (${{ matrix.build.platform }})
-    needs: parity-gate
+    needs: [setup, parity-gate]
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -561,10 +622,10 @@ jobs:
           GH_SHA: ${{ github.sha }}
         run: |
           {
-            echo "VERSION=${GITHUB_REF_NAME#bowrain-v}"
+            echo "VERSION=${REF_NAME#bowrain-v}"
             echo "COMMIT=${GH_SHA::7}"
             echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "LDFLAGS=-w -s -X github.com/neokapi/neokapi/core/version.Version=${GITHUB_REF_NAME#bowrain-v} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "LDFLAGS=-w -s -X github.com/neokapi/neokapi/core/version.Version=${REF_NAME#bowrain-v} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Install Linux dependencies
@@ -749,7 +810,7 @@ jobs:
       - name: Extract version
         id: version
         shell: bash
-        run: echo "VERSION=${GITHUB_REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
 
       - name: Import signing certificate
         id: signing
@@ -867,7 +928,8 @@ jobs:
         if: runner.os == 'macOS'
         uses: softprops/action-gh-release@v3
         with:
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
+          tag_name: ${{ needs.setup.outputs.tag }}
           files: "bowrain-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
 
       # Publish the in-app-update feed (Phase 2): zip the notarized .app, sign
@@ -888,7 +950,7 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.VERSION }}
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ needs.setup.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -925,7 +987,8 @@ jobs:
         if: runner.os == 'Linux'
         uses: softprops/action-gh-release@v3
         with:
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
+          tag_name: ${{ needs.setup.outputs.tag }}
           files: "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 
       # Linux in-app-update feed: sign the tarball into the linux/<arch> appcast.
@@ -936,7 +999,7 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.VERSION }}
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ needs.setup.outputs.tag }}
           REPO: ${{ github.repository }}
           ARCH: ${{ matrix.build.arch }}
         run: |
@@ -954,16 +1017,19 @@ jobs:
     # refreshes the bowrain cask; a prerelease tag (bowrain-vX.Y.Z-rcN) refreshes
     # the bowrain@beta cask (which depends on the bowrain-cli-beta formula).
     runs-on: ubuntu-latest
-    needs: build-bowrain
+    needs: [setup, build-bowrain]
+    environment: ${{ needs.setup.outputs.coordinated == 'true' && 'coordinated-release' || '' }}
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
       - name: Extract version
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${REF_NAME#bowrain-v}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve cask channel
         id: ch
         env:
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ needs.setup.outputs.tag }}
         run: |
           set -euo pipefail
           # Final tag → both bowrain and bowrain@beta casks; prerelease tag → the
@@ -977,7 +1043,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download "${{ github.ref_name }}" \
+          gh release download "${{ needs.setup.outputs.tag }}" \
             --repo "${{ github.repository }}" \
             --pattern "bowrain-*-macOS-arm64.dmg"
 

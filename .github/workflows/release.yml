@@ -8,6 +8,19 @@ on:
       # the "vision-models-*" asset tag — and would wrongly trigger a full
       # CLI+desktop release. Plugins release via their own release-<plugin>.yml.
       - "v[0-9]*"
+  # Reusable entry point for release-coordinated.yml: lets the coordinator run
+  # the kapi track with an explicit version and route the publish jobs through a
+  # manual-approval gate so kapi + bowrain land in the package managers together.
+  workflow_call:
+    inputs:
+      version:
+        description: "Release version, e.g. 1.2.3 (no leading v)."
+        type: string
+        required: true
+      coordinated:
+        description: "Route publish jobs through the coordinated-release approval gate."
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -17,6 +30,39 @@ permissions:
   id-token: write
 
 jobs:
+  # Resolve the release version + tag once, for both trigger modes:
+  #   - tag push (v1.2.3): version/tag derive from the pushed tag; not coordinated.
+  #   - workflow_call (coordinated release): version comes from inputs.version and
+  #     `coordinated` routes the publish jobs through the approval environment.
+  # Downstream jobs consume needs.setup.outputs.tag via a job-level REF_NAME env,
+  # so the existing tag-stripping logic keeps working unchanged.
+  setup:
+    name: Resolve release inputs
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.r.outputs.version }}
+      tag: ${{ steps.r.outputs.tag }}
+      coordinated: ${{ steps.r.outputs.coordinated }}
+      prerelease: ${{ steps.r.outputs.prerelease }}
+    steps:
+      - id: r
+        env:
+          IN_VERSION: ${{ inputs.version }}
+          IN_COORD: ${{ inputs.coordinated }}
+          PUSH_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -n "${IN_VERSION:-}" ]; then
+            ver="${IN_VERSION#v}"; tag="v${ver}"; coord="${IN_COORD:-false}"
+          else
+            tag="${PUSH_REF}"; ver="${PUSH_REF#v}"; coord="false"
+          fi
+          case "$ver" in *-*) pre="true" ;; *) pre="false" ;; esac
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "coordinated=$coord" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$pre" >> "$GITHUB_OUTPUT"
+
   # Verify the parity workflow (#448) succeeded for the tagged commit
   # before any release artifact is built or published. Parity runs on
   # every push to main, so the result is normally already cached by the
@@ -81,7 +127,9 @@ jobs:
   # ICU archive names) legs are expected to need CI iteration.
   build-cli:
     name: Build CLI (${{ matrix.target.goos }}/${{ matrix.target.goarch }})
-    needs: parity-gate
+    needs: [setup, parity-gate]
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -110,7 +158,7 @@ jobs:
         env:
           GH_SHA: ${{ github.sha }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${REF_NAME#v}"
           echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "LDFLAGS=-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
@@ -242,8 +290,14 @@ jobs:
   # manifest-plugins.json registration are produced by release-bowrain.yml.
   package-cli:
     name: Package + publish CLI
-    needs: [parity-gate, build-cli]
+    needs: [setup, parity-gate, build-cli]
     runs-on: ubuntu-latest
+    # Coordinated releases route this publish job through a manual-approval
+    # environment so the kapi tap/registry writes land together with bowrain's.
+    # Routine tag pushes resolve to an empty environment (no gate).
+    environment: ${{ needs.setup.outputs.coordinated == 'true' && 'coordinated-release' || '' }}
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -280,7 +334,7 @@ jobs:
       - name: Package archives + checksums
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${REF_NAME#v}"
           bash scripts/package-cli.sh "$VERSION" cli-artifacts dist \
             bowrain/cli/cmd/kapi-bowrain/manifest.json
 
@@ -289,7 +343,7 @@ jobs:
       - name: Build Linux packages (deb/rpm)
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${REF_NAME#v}"
           export VERSION   # nfpm reads ${VERSION} from the environment
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.43.0
           gopath_bin="$(go env GOPATH)/bin"
@@ -316,7 +370,7 @@ jobs:
       # package managers track stable. No-op until the signing key + packages
       # token are configured.
       - name: Publish to apt/yum repo
-        if: ${{ !contains(github.ref_name, '-') }}
+        if: ${{ needs.setup.outputs.prerelease != 'true' }}
         env:
           PACKAGES_GPG_PRIVATE_KEY: ${{ secrets.PACKAGES_GPG_PRIVATE_KEY }}
           PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
@@ -328,7 +382,7 @@ jobs:
           fi
           sudo apt-get update -qq
           sudo apt-get install -y -qq apt-utils createrepo-c
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${REF_NAME#v}"
           bash scripts/publish-packages.sh "$VERSION" dist
 
       # Keyless cosign signature (sigstore bundle) for the kapi CLI archives, so
@@ -360,7 +414,7 @@ jobs:
       - name: Resolve release channel
         id: channel
         env:
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ needs.setup.outputs.tag }}
         run: |
           set -euo pipefail
           case "$REF_NAME" in
@@ -381,7 +435,7 @@ jobs:
           CHANNELS: ${{ steps.channel.outputs.channels }}
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${REF_NAME#v}"
           # A final tag generates both the stable (kapi-cli) and beta
           # (kapi-cli-beta) formulae at the same version, so the beta channel
           # also carries the final; a prerelease generates beta only. The kapi
@@ -397,7 +451,8 @@ jobs:
         with:
           # Prerelease tags (vX.Y.Z-rcN) produce a GitHub *prerelease* with
           # downloadable assets but skip every live-channel write below.
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
+          tag_name: ${{ needs.setup.outputs.tag }}
           files: |
             dist/kapi-cli_*.tar.gz
             dist/kapi-cli_*.deb
@@ -434,7 +489,7 @@ jobs:
           CHANNEL: ${{ steps.channel.outputs.channel }}
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${REF_NAME#v}"
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/neokapi/homebrew-tap.git" /tmp/tap
           mkdir -p /tmp/tap/Formula
           cp brew-formulae/*.rb /tmp/tap/Formula/
@@ -455,7 +510,7 @@ jobs:
       - name: Update kapi self-update index
         env:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ needs.setup.outputs.tag }}
           REPO: ${{ github.repository }}
           # Human label for the commit message (stable | beta).
           CHANNEL: ${{ steps.channel.outputs.channel }}
@@ -533,7 +588,9 @@ jobs:
 
   build-kapi-desktop:
     name: Build Kapi Desktop (${{ matrix.build.platform }})
-    needs: package-cli
+    needs: [setup, package-cli]
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -562,10 +619,10 @@ jobs:
           GH_SHA: ${{ github.sha }}
         run: |
           {
-            echo "VERSION=${GITHUB_REF_NAME#v}"
+            echo "VERSION=${REF_NAME#v}"
             echo "COMMIT=${GH_SHA::7}"
             echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "LDFLAGS=-w -s -X github.com/neokapi/neokapi/core/version.Version=${GITHUB_REF_NAME#v} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "LDFLAGS=-w -s -X github.com/neokapi/neokapi/core/version.Version=${REF_NAME#v} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Install Linux dependencies
@@ -737,7 +794,7 @@ jobs:
       - name: Extract version
         id: version
         shell: bash
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Import signing certificate
         id: signing
@@ -854,7 +911,8 @@ jobs:
         if: runner.os == 'macOS'
         uses: softprops/action-gh-release@v3
         with:
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
+          tag_name: ${{ needs.setup.outputs.tag }}
           files: "kapi-${{ steps.version.outputs.VERSION }}-macOS-arm64.dmg"
 
       # Publish the in-app-update feed (Phase 2) — see the bowrain job for notes.
@@ -872,7 +930,7 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.VERSION }}
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ needs.setup.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -907,7 +965,8 @@ jobs:
         if: runner.os == 'Linux'
         uses: softprops/action-gh-release@v3
         with:
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ needs.setup.outputs.prerelease == 'true' }}
+          tag_name: ${{ needs.setup.outputs.tag }}
           files: "kapi-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 
       # Linux in-app-update feed: sign the tarball into the linux/<arch> appcast.
@@ -918,7 +977,7 @@ jobs:
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.VERSION }}
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ needs.setup.outputs.tag }}
           REPO: ${{ github.repository }}
           ARCH: ${{ matrix.build.arch }}
         run: |
@@ -943,16 +1002,19 @@ jobs:
     # (which depends on the kapi-cli-beta formula). The bowrain cask is updated
     # by release-bowrain.yml.
     runs-on: ubuntu-latest
-    needs: build-kapi-desktop
+    needs: [setup, build-kapi-desktop]
+    environment: ${{ needs.setup.outputs.coordinated == 'true' && 'coordinated-release' || '' }}
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
       - name: Extract version
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve cask channel
         id: ch
         env:
-          REF_NAME: ${{ github.ref_name }}
+          REF_NAME: ${{ needs.setup.outputs.tag }}
         run: |
           set -euo pipefail
           # Final tag → both kapi and kapi@beta casks; prerelease tag → the
@@ -966,7 +1028,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release download "${{ github.ref_name }}" \
+          gh release download "${{ needs.setup.outputs.tag }}" \
             --repo "${{ github.repository }}" \
             --pattern "kapi-*-macOS-arm64.dmg"
 
@@ -1057,13 +1119,16 @@ jobs:
     name: Update GitHub Actions
     # Stable releases only — don't bump action default versions or tag the
     # action repos for prerelease (vX.Y.Z-rcN) tags.
-    if: ${{ !contains(github.ref_name, '-') }}
+    if: ${{ needs.setup.outputs.prerelease != 'true' }}
     runs-on: ubuntu-latest
-    needs: package-cli
+    needs: [setup, package-cli]
+    environment: ${{ needs.setup.outputs.coordinated == 'true' && 'coordinated-release' || '' }}
+    env:
+      REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
       - name: Extract version
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Bump setup-kapi
         env:
@@ -1082,7 +1147,7 @@ jobs:
       - name: Tag action repos
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.setup.outputs.tag }}
         run: |
           for repo in setup-kapi kapi-action; do
             MAIN_SHA=$(gh api "repos/neokapi/${repo}/git/ref/heads/main" --jq '.object.sha')
