@@ -1145,6 +1145,21 @@
         }
       }
     },
+    "archive": {
+      "displayName": "Archive (ZIP/TAR)",
+      "extensions": [
+        ".zip",
+        ".tar",
+        ".tgz",
+        ".tar.gz"
+      ],
+      "mimeTypes": [
+        "application/zip",
+        "application/x-tar",
+        "application/gzip",
+        "application/x-gzip"
+      ]
+    },
     "asciidoc": {
       "displayName": "AsciiDoc",
       "extensions": [
