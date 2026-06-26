@@ -7,6 +7,8 @@ import (
 	"compress/gzip"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/container"
@@ -100,52 +102,101 @@ func TestEnumerateUnknownErrors(t *testing.T) {
 	require.Error(t, err)
 }
 
-// TestRepackReplacesAndPreserves is the barrier-sink fidelity guarantee: a
-// replaced entry carries new bytes, every other member is byte-for-byte intact.
-func TestRepackZip(t *testing.T) {
-	jsonSrc := []byte(`{"greeting":"Hello"}`)
+// writeFile writes data to a temp file and returns its path. Transform is
+// path-based because it streams the archive from disk rather than buffering it.
+func writeFile(t *testing.T, data []byte, ext string) string {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), "arc"+ext)
+	require.NoError(t, os.WriteFile(p, data, 0o644))
+	return p
+}
+
+// upperJSON replaces .json entries with uppercased bytes and copies everything
+// else through (without reading it).
+func upperJSON(name string, read func() ([]byte, error)) ([]byte, bool, error) {
+	if filepath.Ext(name) != ".json" {
+		return nil, false, nil
+	}
+	b, err := read()
+	if err != nil {
+		return nil, false, err
+	}
+	return bytes.ToUpper(b), true, nil
+}
+
+// TestTransform* are the barrier-sink fidelity guarantee: a replaced entry
+// carries new bytes; every other member is byte-for-byte intact.
+func TestTransformZip(t *testing.T) {
 	pngSrc := []byte("\x89PNG\r\n\x1a\nbinary-1234")
 	binSrc := []byte("\x00\x01opaque")
-	data := makeZip(t, []entry{
-		{"en.json", jsonSrc},
+	path := writeFile(t, makeZip(t, []entry{
+		{"en.json", []byte(`{"greeting":"hello"}`)},
 		{"logo.png", pngSrc},
 		{"data.bin", binSrc},
-	})
+	}), ".zip")
 
 	var out bytes.Buffer
-	require.NoError(t, container.Repack(container.KindZip, data,
-		map[string][]byte{"en.json": []byte(`{"greeting":"BONJOUR"}`)}, &out))
+	require.NoError(t, container.Transform(path, &out, upperJSON))
 
 	got := readZip(t, out.Bytes())
-	assert.Equal(t, `{"greeting":"BONJOUR"}`, string(got["en.json"]))
+	assert.Equal(t, `{"GREETING":"HELLO"}`, string(got["en.json"]))
 	assert.Equal(t, pngSrc, got["logo.png"], "untouched binary must be byte-identical")
 	assert.Equal(t, binSrc, got["data.bin"])
 }
 
-func TestRepackTar(t *testing.T) {
+func TestTransformTar(t *testing.T) {
 	for _, gz := range []bool{false, true} {
 		name := map[bool]string{false: "tar", true: "tar.gz"}[gz]
+		ext := map[bool]string{false: ".tar", true: ".tar.gz"}[gz]
 		t.Run(name, func(t *testing.T) {
-			jsonSrc := []byte(`{"greeting":"Hello"}`)
 			binSrc := []byte("\x00opaque")
-			data := makeTar(t, []entry{{"en.json", jsonSrc}, {"data.bin", binSrc}}, gz)
-			kind := container.Detect(data)
+			path := writeFile(t, makeTar(t, []entry{
+				{"en.json", []byte(`{"greeting":"hei"}`)},
+				{"data.bin", binSrc},
+			}, gz), ext)
 
 			var out bytes.Buffer
-			require.NoError(t, container.Repack(kind, data,
-				map[string][]byte{"en.json": []byte(`{"greeting":"HEI"}`)}, &out))
+			require.NoError(t, container.Transform(path, &out, upperJSON))
 
 			got := readTar(t, out.Bytes(), gz)
-			assert.Equal(t, `{"greeting":"HEI"}`, string(got["en.json"]))
+			assert.Equal(t, `{"GREETING":"HEI"}`, string(got["en.json"]))
 			assert.Equal(t, binSrc, got["data.bin"])
 		})
 	}
 }
 
-func TestRepackNoReplacementsRoundTrips(t *testing.T) {
-	data := makeZip(t, []entry{{"a.json", []byte(`{"k":"v"}`)}, {"b.bin", []byte("\x00\x01")}})
+func TestTransformRejectsPathTraversal(t *testing.T) {
+	path := writeFile(t, makeZip(t, []entry{{"../evil", []byte("x")}}), ".zip")
 	var out bytes.Buffer
-	require.NoError(t, container.Repack(container.KindZip, data, nil, &out))
+	err := container.Transform(path, &out, upperJSON)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsafe entry name")
+}
+
+func TestEnumerateRejectsPathTraversal(t *testing.T) {
+	for _, bad := range []string{"../evil.txt", "a/../../evil", "/etc/passwd", "..\\evil"} {
+		t.Run(bad, func(t *testing.T) {
+			data := makeZip(t, []entry{{bad, []byte("x")}})
+			_, _, err := container.Enumerate(data)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "unsafe entry name")
+		})
+	}
+	// A normal nested path is fine.
+	data := makeZip(t, []entry{{"a/b/ok.json", []byte("{}")}})
+	_, entries, err := container.Enumerate(data)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"a/b/ok.json"}, names(entries))
+}
+
+func TestTransformNoReplacementsRoundTrips(t *testing.T) {
+	path := writeFile(t, makeZip(t, []entry{
+		{"a.json", []byte(`{"k":"v"}`)}, {"b.bin", []byte("\x00\x01")},
+	}), ".zip")
+	var out bytes.Buffer
+	require.NoError(t, container.Transform(path, &out, func(string, func() ([]byte, error)) ([]byte, bool, error) {
+		return nil, false, nil
+	}))
 	got := readZip(t, out.Bytes())
 	assert.Equal(t, []byte(`{"k":"v"}`), got["a.json"])
 	assert.Equal(t, []byte("\x00\x01"), got["b.bin"])

@@ -1,11 +1,11 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/flow"
@@ -24,21 +24,13 @@ var containerSkipFormats = map[string]bool{
 }
 
 // runContainer localizes an archive (ZIP/TAR/TAR.GZ) as a namespace of inner
-// documents (AD-026 §6). Each eligible entry is run as its own file — through
-// the normal reader/writer with skeleton round-trip, so a DOCX/EPUB inside the
-// archive round-trips faithfully — and the results are repacked over the
-// original container, copying every other member byte-for-byte. The output is
-// written atomically (temp file then rename).
+// documents (AD-026 §6). It streams the container — never loading the whole
+// archive into memory — visiting one entry at a time: each eligible entry is run
+// as its own file (normal reader/writer with skeleton round-trip, so a DOCX/EPUB
+// inside the archive round-trips faithfully) and spliced into the output as it is
+// produced; every other entry is copied through. The output is written
+// atomically (temp file then rename).
 func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, outputPath string, progress progressGroup) error {
-	original, err := os.ReadFile(inputPath)
-	if err != nil {
-		return fmt.Errorf("read %s: %w", inputPath, err)
-	}
-	kind, entries, err := container.Enumerate(original)
-	if err != nil {
-		return fmt.Errorf("%s: %w", filepath.Base(inputPath), err)
-	}
-
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:       a.FormatReg,
 		SourceLocale:    model.LocaleID(a.SourceLang),
@@ -52,38 +44,42 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 	}
 	defer os.RemoveAll(work)
 
-	replacements := make(map[string][]byte)
-	for _, e := range entries {
-		fmtName, eligible := a.containerEntryFormat(e.Name, e.Data)
-		if !eligible {
-			continue // copied verbatim by Repack
-		}
-
-		out, err := a.runContainerEntry(ctx, cfg, runner, work, e)
-		if err != nil {
-			if cfg.FailOnUnknown {
-				return fmt.Errorf("%s!%s: %w", filepath.Base(inputPath), e.Name, err)
-			}
-			if !cfg.NoWarn {
-				warnf(progress, "Warning: skipping %s!%s (%s): %v\n", filepath.Base(inputPath), e.Name, fmtName, err)
-			}
-			continue // leave the entry unchanged
-		}
-		replacements[e.Name] = out
-	}
-
+	base := filepath.Base(inputPath)
+	seq := 0
 	return writeAtomic(outputPath, func(f *os.File) error {
-		return container.Repack(kind, original, replacements, f)
+		return container.Transform(inputPath, f, func(name string, read func() ([]byte, error)) ([]byte, bool, error) {
+			if _, eligible := a.containerEntryFormat(name); !eligible {
+				return nil, false, nil // copied through without being read into memory
+			}
+			content, rerr := read()
+			if rerr != nil {
+				return nil, false, rerr
+			}
+			seq++
+			out, eerr := a.runContainerEntry(ctx, cfg, runner, work, seq, container.Entry{Name: name, Data: content})
+			if eerr != nil {
+				if cfg.FailOnUnknown {
+					return nil, false, fmt.Errorf("%s!%s: %w", base, name, eerr)
+				}
+				if !cfg.NoWarn {
+					warnf(progress, "Warning: leaving %s!%s unchanged: %v\n", base, name, eerr)
+				}
+				return nil, false, nil // pass the original entry through unchanged
+			}
+			return out, true, nil
+		})
 	})
 }
 
 // runContainerEntry runs one archive entry through a single-file pipeline and
-// returns the localized bytes. The entry is materialised under a work dir so the
-// shared FileRunner (which reads/writes paths and wires the skeleton store) can
-// drive it exactly as it would a standalone file.
-func (a *App) runContainerEntry(ctx context.Context, cfg ToolRunConfig, runner *flow.FileRunner, work string, e container.Entry) ([]byte, error) {
-	inPath := filepath.Join(work, "in", filepath.FromSlash(e.Name))
-	outPath := filepath.Join(work, "out", filepath.FromSlash(e.Name))
+// returns the localized bytes. The entry is materialised under a per-entry work
+// dir so the shared FileRunner (which reads/writes paths and wires the skeleton
+// store) can drive it exactly as it would a standalone file. Only this one entry
+// is on disk/in memory at a time.
+func (a *App) runContainerEntry(ctx context.Context, cfg ToolRunConfig, runner *flow.FileRunner, work string, seq int, e container.Entry) ([]byte, error) {
+	dir := filepath.Join(work, strconv.Itoa(seq))
+	inPath := filepath.Join(dir, "in", filepath.FromSlash(e.Name))
+	outPath := filepath.Join(dir, "out", filepath.FromSlash(e.Name))
 	if err := os.MkdirAll(filepath.Dir(inPath), 0o755); err != nil {
 		return nil, err
 	}
@@ -105,23 +101,34 @@ func (a *App) runContainerEntry(ctx context.Context, cfg ToolRunConfig, runner *
 	if err := runner.RunFile(ctx, cfg.ToolName, []tool.Tool{t}, inPath, outPath, cfg.TargetLang); err != nil {
 		return nil, err
 	}
-	return os.ReadFile(outPath)
+	out, err := os.ReadFile(outPath)
+	if err != nil {
+		return nil, err
+	}
+	// Free the entry's on-disk footprint promptly rather than at the end of the run.
+	_ = os.RemoveAll(dir)
+	return out, nil
 }
 
-// containerEntryFormat detects an entry's format and reports whether the
-// container binding should process it: it must have both a reader and a writer,
-// not be a bilingual interchange format (those belong to extract/merge, not
-// in-place rewriting), and not be a binary asset or nested container.
-func (a *App) containerEntryFormat(name string, content []byte) (string, bool) {
-	detected, err := a.FormatReg.Detector().Detect(name, bytes.NewReader(content), "")
+// containerEntryFormat decides, by extension alone (no content read, so an
+// untouched entry is never loaded), whether the container binding should process
+// an entry: it must have both a reader and a writer, not be a bilingual
+// interchange format (those belong to extract/merge, not in-place rewriting),
+// and not be a binary asset or nested container.
+func (a *App) containerEntryFormat(name string) (string, bool) {
+	ext := filepath.Ext(name)
+	if ext == "" {
+		return "", false
+	}
+	detected, err := a.FormatReg.DetectByExtension(ext)
 	if err != nil || detected == "" {
 		return "", false
 	}
-	fmtName := detected
+	fmtName := string(detected)
 	if containerSkipFormats[fmtName] {
 		return fmtName, false
 	}
-	info := a.FormatReg.FormatInfo(registry.FormatID(detected))
+	info := a.FormatReg.FormatInfo(detected)
 	if info == nil || !info.HasReader || !info.HasWriter || info.Interchange {
 		return fmtName, false
 	}

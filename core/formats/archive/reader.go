@@ -28,6 +28,9 @@ type Reader struct {
 
 var _ format.SubfilterAware = (*Reader)(nil)
 
+// errWalkStop unwinds container.Walk when the part consumer's context is done.
+var errWalkStop = errors.New("archive: walk stopped")
+
 // NewReader creates an archive reader bound to the resolver it uses to parse
 // recognised entries. The resolver is supplied by the registration factory (it
 // is the format registry).
@@ -106,15 +109,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	_, entries, err := container.Enumerate(r.data)
+	// Stream entries one at a time (Walk materialises only the current entry,
+	// not the full set) so inspecting a large archive does not hold every
+	// decompressed member at once.
+	stopped := false
+	_, err := container.Walk(r.data, func(e container.Entry) error {
+		if !r.processEntry(ctx, ch, rootLayer.ID, locale, e.Name, e.Data) {
+			stopped = true
+			return errWalkStop
+		}
+		return nil
+	})
+	if stopped {
+		return
+	}
 	if err != nil {
 		r.emitErr(ch, fmt.Errorf("archive: %w", err))
 		return
-	}
-	for _, e := range entries {
-		if !r.processEntry(ctx, ch, rootLayer.ID, locale, e.Name, e.Data) {
-			return
-		}
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: rootLayer})

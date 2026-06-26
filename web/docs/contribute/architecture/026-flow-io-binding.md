@@ -305,12 +305,25 @@ processed by its own reader and writer, not flattened into a parent document.
   binaries — byte-for-byte.
 
 The fan-out and repack are a small, provider-agnostic substrate (`core/container`:
-`Enumerate` / `Repack`) with no dependency on the format registry or the flow
-engine; the per-entry *processing* is injected by the caller. A read-only
-`archive` reader is kept as the **inspection** face only — it surfaces each
-entry's content so `kapi inspect bundle.zip` shows what is inside — but it has no
-writer, because localizing a container is the binding above, not a format
-round-trip.
+`Walk` for an in-memory container, `Transform` for a streaming one) with no
+dependency on the format registry or the flow engine; the per-entry *processing*
+is injected by the caller. A read-only `archive` reader is kept as the
+**inspection** face only — it surfaces each entry's content so `kapi inspect
+bundle.zip` shows what is inside — but it has no writer, because localizing a
+container is the binding above, not a format round-trip.
+
+**Memory: the whole archive is never loaded.** `Transform` opens a ZIP with
+random access (central directory + seeks) and streams a TAR/TAR.GZ; it visits one
+entry at a time, materialises an entry's bytes only when the processor actually
+reads it (so untouched members are raw-copied for ZIP and piped through for TAR,
+never buffered), and writes the output container incrementally. Peak memory is a
+single entry, never the archive and never the full set of entries or results. An
+*individual* entry is still buffered whole while it is processed — that is the
+format engine's whole-document contract, shared by every kapi reader
+([AD-005](005-format-system.md)) — but only one entry is held at once. The
+inspection read path is the one exception: the engine hands a format reader the
+buffered document, so the read-only `archive` reader receives the archive bytes
+up front (it still streams entries one at a time via `Walk`).
 
 **Addressing.** A container fits the locator vocabulary (§5): a bare `.zip` /
 `.tar` / `.tgz` / `.tar.gz` path detects as a container, and a single inner
