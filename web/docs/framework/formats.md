@@ -63,21 +63,20 @@ the PDF's own tags where present and by geometric inference otherwise. You can t
 it on your own files in the [Structure & Layout lab](/lab/structure); the design is described in
 [AD-028](/contribute/architecture/028-pdf-reader-plugin).
 
-An **archive** — a ZIP, TAR, or gzip-compressed TAR — is read as a folder of
-sub-documents. Each entry whose content kapi recognises and can faithfully
-rewrite (JSON, Markdown, HTML, a `.po` catalog, …) is parsed through that
-format's own reader and emitted as a child [layer](/framework/content-model), so
-its translatable text flows through the pipeline exactly as a standalone file
-would; the matching writer reconstructs the entry on output. Entries that cannot
-be safely round-tripped from the content model — binary assets, the packaged
-formats above (DOCX/EPUB/ODF/IDML), bilingual interchange files, nested
-archives, and anything unrecognised — pass through byte-for-byte. The writer
-rebuilds the container from the original bytes, splicing in only the
-re-serialised entries, so non-translatable members and the archive's structure
-are preserved exactly. Scope which entries are processed with the
-`include`/`exclude` entry-path globs in the [Format Reference](/formats). This
-makes an archive a first-class input: `kapi pseudo-translate bundle.zip -o
-out.zip` localizes every recognised file inside it in one pass.
+An **archive** — a ZIP, TAR, or gzip-compressed TAR — is a *namespace* of inner
+documents rather than one document, so it is handled as a **container binding**
+([AD-026](/contribute/architecture/026-flow-io-binding)) rather than a format
+with a writer. Pointed at an output-producing command, each entry is localized
+as its **own file run** — through that entry's normal reader and writer with full
+skeleton round-trip — and the results are repacked over the original container,
+copying every other member byte-for-byte. Because each entry is a real,
+standalone file run, a **packaged format such as a DOCX or EPUB *inside* the
+archive round-trips faithfully**, and each entry resolves its own format
+configuration. Binary assets, nested containers, and bilingual interchange files
+pass through unchanged. So `kapi pseudo-translate bundle.zip -o out.zip`
+localizes every recognised file inside it — including nested Office documents —
+in one pass. For inspection, a read-only `archive` reader surfaces each entry's
+content so `kapi inspect bundle.zip` shows what is inside.
 
 Each format exposes its own configuration (extraction rules, segmentation,
 inline-code handling). Rather than maintain a list by hand, the

@@ -79,9 +79,8 @@ func TestRegisterAllWriters(t *testing.T) {
 		// written out as-is. Extraction (ASR/OCR) Blocks carry no replacement
 		// bytes and pass through.
 		"audio", "video",
-		// Archive container (ZIP/TAR/TAR.GZ) — reconstructs the container,
-		// re-serialising sub-filtered entries and copying the rest byte-for-byte.
-		"archive",
+		// Note: "archive" is intentionally absent — it is read-only (inspection
+		// only); localizing a container is the container binding, not a writer.
 		// Note: "docling" is intentionally absent — it is read-only (extraction
 		// only), so it registers a reader but no writer. "pdf" is absent on
 		// native builds entirely (read out-of-core by the kapi-pdfium plugin).
@@ -92,6 +91,7 @@ func TestRegisterAllWriters(t *testing.T) {
 	}
 	assert.Len(t, reg.WriterNames(), len(expectedFormats))
 	assert.False(t, reg.HasWriter("docling"), "docling must remain read-only (no writer)")
+	assert.False(t, reg.HasWriter("archive"), "archive must remain read-only (containers are localized via the container binding)")
 }
 
 // TestKLFFormatIDAndJSXAlias asserts the user-facing id is "klf" while

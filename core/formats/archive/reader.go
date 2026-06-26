@@ -1,42 +1,37 @@
 package archive
 
 import (
-	"archive/tar"
-	"archive/zip"
 	"bytes"
-	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"strconv"
 
+	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
 
-// Reader implements DataFormatReader for archive containers (ZIP/TAR/TAR.GZ).
-// Each translatable entry is emitted as a child Layer whose body is the full
-// part stream of the entry's own format reader (root layer included), so the
-// matching sub-writer can reconstruct that entry exactly as if it had been
-// processed standalone. Non-translatable entries are emitted as Data parts for
-// visibility and copied byte-for-byte by the writer.
+// Reader is a read-only reader over an archive container. Each recognised entry
+// is surfaced as a child Layer carrying that entry's own part stream (for
+// inspection / analysis); unrecognised or binary entries are listed as Data.
+// There is no archive writer — see the package doc.
 type Reader struct {
 	format.BaseFormatReader
 	cfg      *Config
-	detector *format.Detector
 	resolver format.SubfilterResolver
-	data     []byte // buffered archive bytes
-	layerSeq int    // counter for unique child layer IDs
+	data     []byte
+	layerSeq int
 }
 
 var _ format.SubfilterAware = (*Reader)(nil)
 
-// NewReader creates an archive reader bound to the format detector and resolver
-// it uses to classify and parse entries. Both are supplied by the registration
-// factory (they are the format registry).
-func NewReader(detector *format.Detector, resolver format.SubfilterResolver) *Reader {
+// NewReader creates an archive reader bound to the resolver it uses to parse
+// recognised entries. The resolver is supplied by the registration factory (it
+// is the format registry).
+func NewReader(resolver format.SubfilterResolver) *Reader {
 	cfg := &Config{}
 	cfg.Reset()
 	return &Reader{
@@ -48,14 +43,11 @@ func NewReader(detector *format.Detector, resolver format.SubfilterResolver) *Re
 			Cfg:               cfg,
 		},
 		cfg:      cfg,
-		detector: detector,
 		resolver: resolver,
 	}
 }
 
-// SetSubfilterResolver overrides the resolver used to parse entries. The
-// resolver is normally injected at construction; this satisfies SubfilterAware
-// so a caller (or test) can substitute one.
+// SetSubfilterResolver overrides the resolver used to parse entries.
 func (r *Reader) SetSubfilterResolver(resolver format.SubfilterResolver) {
 	r.resolver = resolver
 }
@@ -68,13 +60,11 @@ func (r *Reader) Signature() format.FormatSignature {
 			"application/gzip", "application/x-gzip",
 		},
 		Extensions: []string{".zip", ".tar", ".tgz", ".tar.gz"},
-		MagicBytes: [][]byte{zipMagic, gzipMagic},
+		MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}, {0x1f, 0x8b}},
 	}
 }
 
-// Open buffers the archive bytes (bounded by the shared safeio budget so an
-// oversized stream fails with a typed error). Random access is needed for ZIP
-// central-directory parsing, so the whole container is held in memory.
+// Open buffers the archive bytes (bounded by the shared safeio budget).
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
 		return errors.New("archive: nil document or reader")
@@ -116,108 +106,48 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	switch detectKind(r.data) {
-	case kindZip:
-		if !r.readZip(ctx, ch, rootLayer.ID, locale) {
-			return
-		}
-	case kindTar:
-		if !r.readTar(ctx, ch, bytes.NewReader(r.data), rootLayer.ID, locale) {
-			return
-		}
-	case kindTarGz:
-		gz, err := gzip.NewReader(bytes.NewReader(r.data))
-		if err != nil {
-			r.emitErr(ch, fmt.Errorf("archive: opening gzip: %w", err))
-			return
-		}
-		defer gz.Close()
-		if !r.readTar(ctx, ch, safeio.DefaultBudget().Reader(gz), rootLayer.ID, locale) {
-			return
-		}
-	default:
-		r.emitErr(ch, errors.New("archive: unrecognised container (expected ZIP, TAR, or TAR.GZ)"))
+	_, entries, err := container.Enumerate(r.data)
+	if err != nil {
+		r.emitErr(ch, fmt.Errorf("archive: %w", err))
 		return
+	}
+	for _, e := range entries {
+		if !r.processEntry(ctx, ch, rootLayer.ID, locale, e.Name, e.Data) {
+			return
+		}
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: rootLayer})
 }
 
-// readZip walks the ZIP central directory, sub-filtering eligible entries and
-// emitting the rest as Data. Returns false if the context was cancelled.
-func (r *Reader) readZip(ctx context.Context, ch chan<- model.PartResult, rootID string, locale model.LocaleID) bool {
-	zr, err := zip.NewReader(bytes.NewReader(r.data), int64(len(r.data)))
-	if err != nil {
-		r.emitErr(ch, fmt.Errorf("archive: opening zip: %w", err))
-		return false
-	}
-	if err := safeio.DefaultZipLimits.CheckReader(zr); err != nil {
-		r.emitErr(ch, fmt.Errorf("archive: %w", err))
-		return false
-	}
-
-	guard := safeio.DefaultZipLimits.NewGuard()
-	for _, f := range zr.File {
-		if f.FileInfo().IsDir() {
-			continue
-		}
-		content, err := guard.ReadEntry(f)
-		if err != nil {
-			r.emitErr(ch, fmt.Errorf("archive: reading %s: %w", f.Name, err))
-			return false
-		}
-		if !r.processEntry(ctx, ch, rootID, locale, f.Name, content, f.UncompressedSize64) {
-			return false
-		}
-	}
-	return true
-}
-
-// readTar walks a (possibly gzip-wrapped) TAR stream sequentially. Per-entry
-// size is bounded by the shared byte budget.
-func (r *Reader) readTar(ctx context.Context, ch chan<- model.PartResult, src io.Reader, rootID string, locale model.LocaleID) bool {
-	tr := tar.NewReader(src)
-	for {
-		hdr, err := tr.Next()
-		if errors.Is(err, io.EOF) {
-			return true
-		}
-		if err != nil {
-			r.emitErr(ch, fmt.Errorf("archive: reading tar: %w", err))
-			return false
-		}
-		if !hdr.FileInfo().Mode().IsRegular() {
-			continue
-		}
-		content, err := io.ReadAll(safeio.DefaultBudget().Reader(tr))
-		if err != nil {
-			r.emitErr(ch, fmt.Errorf("archive: reading %s: %w", hdr.Name, err))
-			return false
-		}
-		if !r.processEntry(ctx, ch, rootID, locale, hdr.Name, content, uint64(len(content))) {
-			return false
-		}
-	}
-}
-
-// processEntry routes one entry: sub-filter it when eligible, otherwise emit it
-// as a Data part. Returns false if the context was cancelled.
+// processEntry surfaces one entry: parse it through its own reader when
+// recognised, else list it as a Data part.
 func (r *Reader) processEntry(ctx context.Context, ch chan<- model.PartResult, rootID string,
-	locale model.LocaleID, name string, content []byte, size uint64) bool {
+	locale model.LocaleID, name string, content []byte) bool {
 
-	if r.resolver != nil && r.detector != nil && r.cfg.matches(name) {
-		if fmtName, err := r.detector.Detect(name, bytes.NewReader(content), ""); err == nil &&
-			canSubfilter(r.resolver, fmtName) {
+	if r.resolver != nil && r.cfg.matches(name) {
+		if fmtName, derr := r.detect(name, content); derr == nil && canInspect(r.resolver, fmtName) {
 			return r.emitChild(ctx, ch, rootID, locale, name, fmtName, content)
 		}
 	}
-	return r.emitData(ctx, ch, name, size)
+	return r.emitData(ctx, ch, name, uint64(len(content)))
 }
 
-// emitChild wraps an entry's full sub-document part stream in an archive child
-// Layer. The sub-reader's own root layer is preserved (not skipped) so the
-// matching sub-writer reconstructs the entry exactly — e.g. the JSON reader's
-// "json.original" property rides through for byte-faithful JSON output.
+// detect resolves an entry's format by name+content via the registry detector,
+// when the resolver exposes one.
+func (r *Reader) detect(name string, content []byte) (string, error) {
+	d, ok := r.resolver.(interface {
+		Detector() *format.Detector
+	})
+	if !ok {
+		return "", errors.New("archive: resolver has no detector")
+	}
+	return d.Detector().Detect(name, bytes.NewReader(content), "")
+}
+
+// emitChild wraps an entry's full sub-document part stream (root layer included)
+// in an archive child Layer, so an inspector sees the entry exactly as if it had
+// been read standalone.
 func (r *Reader) emitChild(ctx context.Context, ch chan<- model.PartResult, rootID string,
 	locale model.LocaleID, name, fmtName string, content []byte) bool {
 
@@ -249,8 +179,6 @@ func (r *Reader) emitChild(ctx context.Context, ch chan<- model.PartResult, root
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 	if err := subReader.Open(ctx, subDoc); err != nil {
-		// Treat a sub-reader open failure as a pass-through rather than failing
-		// the whole archive.
 		return r.emitData(ctx, ch, name, uint64(len(content)))
 	}
 
@@ -273,8 +201,6 @@ func (r *Reader) emitChild(ctx context.Context, ch chan<- model.PartResult, root
 	return r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
 }
 
-// emitData emits a non-translatable entry as a Data part (for inspection); the
-// writer copies its bytes from the original archive.
 func (r *Reader) emitData(ctx context.Context, ch chan<- model.PartResult, name string, size uint64) bool {
 	data := &model.Data{
 		ID:   name,
@@ -300,7 +226,7 @@ func (r *Reader) emitErr(ch chan<- model.PartResult, err error) {
 	ch <- model.PartResult{Error: err}
 }
 
-// Close releases the underlying document reader.
+// Close releases buffered bytes and the document reader.
 func (r *Reader) Close() error {
 	r.data = nil
 	if r.Doc != nil && r.Doc.Reader != nil {
