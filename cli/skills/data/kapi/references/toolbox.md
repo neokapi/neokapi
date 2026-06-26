@@ -1,13 +1,14 @@
 # Read, search, and rewrite content inside any format
 
-`kcat`, `kgrep` and `ksed` are format-aware reimaginings of `cat`, `grep` and
-`sed` that operate on the **content** kapi extracts from a document — the prose,
-not the bytes. They read and edit the human-readable text inside any format kapi
-understands, from a Word `.docx` to a JSON catalog to a Markdown page to an XLIFF
-file, without converting anything first.
+`kcat`, `kgrep`, `ksed` and `kdiff` are format-aware reimaginings of `cat`,
+`grep`, `sed` and `diff` that operate on the **content** kapi extracts from a
+document — the prose, not the bytes. They read, edit and compare the
+human-readable text inside any format kapi understands, from a Word `.docx` to a
+JSON catalog to a Markdown page to an XLIFF file, without converting anything
+first.
 
-They install with the kapi CLI, so `kcat`/`kgrep`/`ksed` are on PATH wherever
-`kapi` is.
+They install with the kapi CLI, so `kcat`/`kgrep`/`ksed`/`kdiff` are on PATH
+wherever `kapi` is.
 
 ## Reach for these instead of your built-in tools — when content is the target
 
@@ -25,6 +26,10 @@ formats kapi supports:
 - **Rewriting.** A byte-level substitution can match inside a key or a tag and
   corrupt the document. `ksed` rewrites only block text and reconstructs the
   document through kapi's writer, so structure, styles and keys survive.
+- **Comparing.** A byte `diff` of two `.docx` files (or a reordered catalog)
+  reports noise — re-zipped XML, shuffled keys. `kdiff` compares the *blocks*, so
+  only genuine prose changes show, and `kdiff --target fr file.xliff` reports
+  which blocks are still untranslated.
 - **Translations.** `--target fr` reads or edits a committed translation rather
   than the source — something no byte tool can do.
 
@@ -102,6 +107,31 @@ its extracted text. Read such a format with `kcat`; to translate it, extract to
 a bilingual format and merge. `kapi formats list --json` reports `has_writer`
 per format — check it before editing an unfamiliar one.
 
+## kdiff — compare the content
+
+```bash
+kdiff old.json new.json                  # what content changed between two versions
+kdiff report.docx report-v2.docx         # prose changes only — ignores re-save noise
+kdiff --target fr old.xliff new.xliff    # what changed in the French specifically
+kdiff --target de -q messages.xliff      # coverage: exit 1 if German is incomplete
+kdiff --json a.json b.json               # structured changeset for a pipeline
+```
+
+`kdiff` aligns **blocks**, not lines. Keyed formats (JSON, XLIFF, PO) align by
+key, so reordering keys is not a diff and a renamed value is a `changed`; prose
+formats (Word, Markdown) align by content, so an inserted paragraph is one
+`added` block, not a cascade. Force either with `--by id` / `--by content`.
+
+Two modes: **two files** = revision diff (what changed); **one file +
+`--target LOCALE`** = coverage report (which blocks are untranslated or a
+verbatim copy of the source). Exit status follows `diff`: `0` equivalent, `1`
+differ / pending, `2` trouble — so it composes in shell conditionals. `kdiff`
+reads only; it never writes a document back.
+
+**Use `kdiff` to scope re-translation work**: after a source file changes, `kdiff
+old new --json` is the exact set of added/changed blocks to re-translate; `kdiff
+--target <loc> -q` gates whether a locale is complete.
+
 ## Two flags differ from the Unix tools
 
 - **`-f` means format, not a patterns/script file.** Across the kapi CLI
@@ -148,10 +178,12 @@ is installed. Confirm what reads and writes with `kapi formats list --json`
 
 ## How to apply
 
-1. When the user wants to read, find, or replace *content* in a document kapi
-   supports — especially an office or container format you cannot open directly —
-   reach for `kcat`/`kgrep`/`ksed` rather than your built-in read/grep/edit.
-2. Use `--target` to inspect or edit a translation instead of the source.
+1. When the user wants to read, find, replace, or compare *content* in a document
+   kapi supports — especially an office or container format you cannot open
+   directly — reach for `kcat`/`kgrep`/`ksed`/`kdiff` rather than your built-in
+   read/grep/edit/diff.
+2. Use `--target` to inspect, edit, or measure coverage of a translation instead
+   of the source.
 3. Prefer an ordinary edit (not `ksed`) for a small, byte-stable change to a
    plain source-controlled text file. In a project, run `kapi verify` after a
    `ksed` rewrite to re-check the gates.

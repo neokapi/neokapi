@@ -1,7 +1,7 @@
 package cli
 
 // Toolbox: format-aware reimaginings of the classic Unix text utilities —
-// cat, grep, sed, plus a convert (conv) verb — that operate on the
+// cat, grep, sed, diff, plus a convert (conv) verb — that operate on the
 // text/content inside any format kapi understands (JSON catalogs, Markdown,
 // HTML, Word documents, …) rather than raw bytes. They share kapi's
 // reader/writer pipeline, so `kgrep` greps the prose inside a .docx, `ksed`
@@ -61,7 +61,7 @@ func mapToolboxErr(err error) error {
 }
 
 // BusyboxRoot returns a standalone root command when prog names a multi-call
-// toolbox utility (kgrep / ksed / kcat / kconv, with an optional .exe suffix), or nil
+// toolbox utility (kgrep / ksed / kcat / kconv / kdiff, with an optional .exe suffix), or nil
 // when it does not — signalling the caller to run the normal kapi root. The
 // returned command owns the app lifecycle (config load, Init, Shutdown) so the
 // utility behaves identically whether launched as `kgrep` or `kapi grep`.
@@ -79,6 +79,8 @@ func BusyboxRoot(app *App, prog string) *cobra.Command {
 		cmd = app.newCatCmd()
 	case "kconv":
 		cmd = app.newConvCmd()
+	case "kdiff":
+		cmd = app.newDiffCmd()
 	default:
 		return nil
 	}
@@ -140,6 +142,7 @@ func (a *App) NewToolboxProxies() []*cobra.Command {
 		proxy("sed", "Stream-edit the text/content inside files (use ksed)", a.newSedCmd, NormalizeSedInPlaceArgs),
 		proxy("cat", "Print the text/content inside files (use kcat)", a.newCatCmd, nil),
 		proxy("convert", "Convert files between formats (use kconv)", a.newConvCmd, nil),
+		proxy("diff", "Compare the text/content of files (use kdiff)", a.newDiffCmd, nil),
 	}
 }
 

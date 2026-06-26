@@ -2,20 +2,23 @@
 id: 023-toolbox-utilities
 sidebar_position: 23
 title: "AD-023: Toolbox Utilities"
-description: "Architecture decision: kcat, kgrep, and ksed are format-aware reimaginings of cat/grep/sed, and kconv converts between formats. They operate on the translatable text of any supported format, ship as busybox-style multi-call symlinks to the kapi binary, project documents to block text, and follow a grep-style exit-code contract."
-keywords: [toolbox, kcat, kgrep, ksed, kconv, busybox, multi-call, block projection, format conversion, exit codes, format-aware, architecture decision, neokapi]
+description: "Architecture decision: kcat, kgrep, ksed and kdiff are format-aware reimaginings of cat/grep/sed/diff, and kconv converts between formats. They operate on the translatable text of any supported format, ship as busybox-style multi-call symlinks to the kapi binary, project documents to block text, and follow a grep-style exit-code contract."
+keywords: [toolbox, kcat, kgrep, ksed, kdiff, kconv, busybox, multi-call, block projection, format conversion, block alignment, exit codes, format-aware, architecture decision, neokapi]
 ---
 
 # AD-023: Toolbox Utilities
 
 ## Summary
 
-`kcat`, `kgrep`, and `ksed` are format-aware reimaginings of the classic Unix
-text utilities — `cat`, `grep`, `sed` — that operate on the **translatable
-text** of any format kapi understands (Word `.docx`, JSON catalogs, XLIFF,
-Markdown, …) rather than on raw bytes. They reuse kapi's reader/writer pipeline,
-so `kgrep` searches the prose inside a `.docx`, and `ksed` rewrites it and saves
-the document back faithfully. A fourth utility, `kconv`, has no classic Unix
+`kcat`, `kgrep`, `ksed`, and `kdiff` are format-aware reimaginings of the classic
+Unix text utilities — `cat`, `grep`, `sed`, `diff` — that operate on the
+**translatable text** of any format kapi understands (Word `.docx`, JSON
+catalogs, XLIFF, Markdown, …) rather than on raw bytes. They reuse kapi's
+reader/writer pipeline, so `kgrep` searches the prose inside a `.docx`, `ksed`
+rewrites it and saves the document back faithfully, and `kdiff` reports which
+*blocks* changed between two documents — by key for catalogs, by content for
+prose — so re-saving or reordering never registers as a diff. A fifth utility,
+`kconv`, has no classic Unix
 analog: it **converts** a document into another format — a `.docx` to Markdown,
 a DocLang document to HTML, any supported format to DocLang — by handing the
 blocks (and the role each carries) to a different format's writer. Because a
@@ -63,14 +66,14 @@ The toolbox commands live in the shared CLI base (`cli/toolbox*.go`) and are
 built into the `kapi` binary. They are reachable two ways:
 
 - **As multi-call symlinks.** The build (and the Homebrew formula) create
-  `kgrep`, `ksed`, `kcat`, and `kconv` as symlinks to `kapi`. At startup `kapi`'s
-  `main()` calls `cli.BusyboxRoot(app, os.Args[0])`: it normalizes the program
+  `kgrep`, `ksed`, `kcat`, `kconv`, and `kdiff` as symlinks to `kapi`. At startup
+  `kapi`'s `main()` calls `cli.BusyboxRoot(app, os.Args[0])`: it normalizes the program
   name (stripping any `.exe` suffix) and, when it matches a toolbox name,
   returns a standalone root for that utility instead of the full kapi command
   tree. The standalone root owns the app lifecycle (config load, `Init`,
   `Shutdown`) so the utility behaves identically however it is launched.
-- **As hidden kapi subcommands.** `kapi grep`, `kapi sed`, `kapi cat`, and
-  `kapi convert` are thin proxies (`NewToolboxProxies`) with `DisableFlagParsing`
+- **As hidden kapi subcommands.** `kapi grep`, `kapi sed`, `kapi cat`,
+  `kapi convert`, and `kapi diff` are thin proxies (`NewToolboxProxies`) with `DisableFlagParsing`
   set, so kapi's persistent flags are *not* merged into them. Each proxy
   delegates the raw argument list to the very same standalone command the symlink
   runs, so `kapi grep` and `kgrep` behave identically. They are hidden from
@@ -84,7 +87,7 @@ kapi's persistent flags, so the same shorthands are free to define.
 
 ### Block-text projection
 
-All three utilities operate over the same projection of a document: stream it
+Every utility operates over the same projection of a document: stream it
 through the format reader, take each Block part in document order, and act on its
 text. This is the one place the toolbox decides what "the text" of a file is.
 
@@ -117,6 +120,21 @@ text. This is the one place the toolbox decides what "the text" of a file is.
   block roles so the source's foreign byte skeleton is never emitted. This is
   the same format-match guard the file runner applies
   ([AD-005](005-format-system.md)).
+- **Compare path (`kdiff`).** `kdiff` projects *two* inputs to block text and
+  **aligns the blocks** rather than the lines, so structural noise (a re-zipped
+  `.docx`, a reflowed container, a reordered catalog) never registers as a diff.
+  Alignment is chosen per pair: **keyed** sides — those whose blocks carry stable
+  semantic keys (a JSON key path or XLIFF resname/unit id, exposed via
+  `blockKey` = `Block.Name` ?? `Block.ID`) — align by key, so added / removed /
+  changed / reordered keys fall out directly (reorder is reported as `moved`, via
+  an LCS over the shared keys' order). **Positional** sides — whose IDs merely
+  encode document order (plaintext `tu1`, Markdown `para1`) — align by an LCS
+  over the block text, so an inserted paragraph is one added block, not a cascade
+  of changes. `--by id|content` overrides the heuristic; the LCS table is capped
+  (`lcsMaxCells`) with a positional fallback that is logged, never silent. A
+  single input plus `--target LOCALE` switches to **coverage mode**: source vs.
+  translation within one file, reporting untranslated and source-identical
+  blocks. `kdiff` reads only — it never writes a document back.
 
 Because the projection is "the translatable Blocks," the utilities inherit the
 content model's notion of what is translatable — the same Blocks the rest of the
@@ -140,6 +158,11 @@ source), `--format`/`-f`, `--source-lang`, and `--encoding`.
   parser before dispatch.
 - **`kcat`** — `-n` (number blocks), `--id` (prefix each block with its source
   ID), and `--json`.
+- **`kdiff`** — `--by auto|id|content` (alignment strategy), `-q`/`--brief`
+  (status only), `--stat` (summary line), `--color`, and `--json`. `--target
+  LOCALE` compares a target translation across two files, or — with a single
+  input — produces a coverage report. It takes one or two `FILE` arguments rather
+  than a glob, and never edits in place.
 - **`kconv`** — `-t`/`--to FORMAT` (target format id or extension) and
   `-o`/`--output PATH` (write to a file, format inferred from its extension;
   default stdout). `-o` takes a single input.
@@ -156,7 +179,11 @@ an error. `kgrep` exits `0` when any block matched, `1` when none did, and `2`
 on an operational error. To express "no match" as a status without printing an
 `Error:` line, a no-match returns the `ErrSilentExit` sentinel: the CLI runner
 maps it to a non-zero exit (`ExitError`) but suppresses the message, since the
-command has already written (or deliberately withheld) its own output. This is
+command has already written (or deliberately withheld) its own output. `kdiff`
+reuses the same spine for the classic `diff` convention — `0` when the inputs are
+equivalent, `1` when they differ (or, in coverage mode, when translation work is
+pending), `2` on trouble — printing the diff first and then returning
+`ErrSilentExit` to signal "differ" without a spurious error line. This is
 the same exit-code spine used across the CLI ([AD-013](013-kapi-cli.md)): `0`
 success, `1` error, `2` usage, and cancellation mapped to the signal code — so
 shell scripts and skills can branch on toolbox results reliably.
@@ -172,6 +199,12 @@ shell scripts and skills can branch on toolbox results reliably.
   conversion round-trips faithfully, while a cross-format one projects the
   document's structure (via block roles) into the target, so a `.docx` becomes
   clean Markdown or HTML without its source packaging.
+- `kdiff` reuses the same projection to compare *content* rather than bytes:
+  re-saving a `.docx` or reordering a catalog produces no diff, only genuine
+  prose changes do — and the localization-shaped changeset (added / removed /
+  changed / moved blocks, or a coverage report) is exactly what a re-translation
+  pass consumes. It surfaces the same block-alignment the sync/diff machinery
+  uses, as a local CLI verb.
 - The block-text projection is defined once and shared by all three, so what
   counts as "the text" is consistent and matches the rest of the pipeline.
 - The grep-style exit-code contract, layered on the CLI's `ErrSilentExit`
