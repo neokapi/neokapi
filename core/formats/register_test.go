@@ -47,6 +47,8 @@ func TestRegisterAllReaders(t *testing.T) {
 		// format list / UI. Open() intentionally errors — actual exec
 		// extraction runs via `kapi extract -p` (Framework AD-002).
 		"exec", "mo",
+		// Archive container (ZIP/TAR/TAR.GZ) — a folder of sub-documents.
+		"archive",
 	}
 
 	for _, name := range expectedFormats {
@@ -77,6 +79,9 @@ func TestRegisterAllWriters(t *testing.T) {
 		// written out as-is. Extraction (ASR/OCR) Blocks carry no replacement
 		// bytes and pass through.
 		"audio", "video",
+		// Archive container (ZIP/TAR/TAR.GZ) — reconstructs the container,
+		// re-serialising sub-filtered entries and copying the rest byte-for-byte.
+		"archive",
 		// Note: "docling" is intentionally absent — it is read-only (extraction
 		// only), so it registers a reader but no writer. "pdf" is absent on
 		// native builds entirely (read out-of-core by the kapi-pdfium plugin).

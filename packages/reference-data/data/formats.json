@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-24T21:49:47Z",
+  "generatedAt": "2026-06-26T18:02:02Z",
   "kind": "format",
   "entries": [
     {
@@ -416,6 +416,41 @@
             "config": "protectPlaceholders: false\n"
           }
         ]
+      }
+    },
+    {
+      "id": "archive",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "Archive (ZIP/TAR)",
+      "description": "Treat a ZIP/TAR/TAR.GZ archive as a folder of sub-documents, translating each recognised entry in place.",
+      "extensions": [
+        ".zip",
+        ".tar",
+        ".tgz",
+        ".tar.gz"
+      ],
+      "mimeTypes": [
+        "application/zip",
+        "application/x-tar",
+        "application/gzip",
+        "application/x-gzip"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "doc": {
+        "overview": "The archive format opens a container — ZIP, TAR, or gzip-compressed TAR\n(`.tar.gz` / `.tgz`) — and walks its entries as if the archive were a\ndirectory. Every entry whose content neokapi recognises and can faithfully\nrewrite (JSON, Markdown, HTML, XML, `.po`, YAML, properties, …) is parsed\nthrough that format's own reader and emitted as a child layer, so the entry's\ntranslatable text flows through the pipeline like any standalone file. The\nmatching format writer reconstructs each entry on output.\n\nEntries that cannot be safely round-tripped from the content model alone pass\nthrough byte-for-byte: binary assets (images, audio, video), skeleton-bound\npackaged formats (DOCX/PPTX/XLSX, EPUB, ODF, IDML), bilingual interchange\nfiles (XLIFF, PO, TMX), nested archives, and anything unrecognised. The writer\nrebuilds the container from the original bytes, splicing in only the\nre-serialised entries, so non-translatable members — and the archive's\nstructure, entry order, and metadata — are preserved exactly.\n\nBecause the shared ZIP signature is also used by OOXML, ODF, IDML, and EPUB,\ndetection resolves those specific formats first (by content) and falls back to\nthe generic archive format for a plain ZIP/TAR. Entry selection can be scoped\nwith `include` / `exclude` glob patterns matched against the entry path.\n",
+        "limitations": [
+          "Entries in skeleton-bound packaged formats (DOCX/EPUB/ODF/IDML), binary assets, interchange files, and nested archives pass through unchanged rather than being translated.",
+          "Each translated entry is reconstructed by its own format writer, so an entry's round-trip fidelity is that format's standalone fidelity; non-translated entries are always byte-for-byte identical.",
+          "Archive-wide size and entry-count limits (zip-bomb guards) apply to the whole container and to each entry."
+        ],
+        "processingNotes": [
+          "Each recognised entry is detected and parsed through its own format reader, emitted as a child layer of the archive document.",
+          "The container is rebuilt from the original bytes; only sub-filtered entries are replaced, everything else is copied verbatim.",
+          "`include` / `exclude` globs (matched against the slash-separated entry path) scope which entries are processed; `**` matches across path separators."
+        ],
+        "wikiUrl": "https://en.wikipedia.org/wiki/Archive_file"
       }
     },
     {

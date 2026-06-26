@@ -1,0 +1,35 @@
+# Native reference doc for the built-in `archive` format.
+# Schema source: core/formats/archive/{reader.go,writer.go,archive.go,config.go}.
+# Upstream analogue: none — the okapi-bridge ships no archive filter, so this is
+# a native-only format. Config exposes only include/exclude entry globs.
+description: Treat a ZIP/TAR/TAR.GZ archive as a folder of sub-documents, translating each recognised entry in place.
+overview: |
+  The archive format opens a container — ZIP, TAR, or gzip-compressed TAR
+  (`.tar.gz` / `.tgz`) — and walks its entries as if the archive were a
+  directory. Every entry whose content neokapi recognises and can faithfully
+  rewrite (JSON, Markdown, HTML, XML, `.po`, YAML, properties, …) is parsed
+  through that format's own reader and emitted as a child layer, so the entry's
+  translatable text flows through the pipeline like any standalone file. The
+  matching format writer reconstructs each entry on output.
+
+  Entries that cannot be safely round-tripped from the content model alone pass
+  through byte-for-byte: binary assets (images, audio, video), skeleton-bound
+  packaged formats (DOCX/PPTX/XLSX, EPUB, ODF, IDML), bilingual interchange
+  files (XLIFF, PO, TMX), nested archives, and anything unrecognised. The writer
+  rebuilds the container from the original bytes, splicing in only the
+  re-serialised entries, so non-translatable members — and the archive's
+  structure, entry order, and metadata — are preserved exactly.
+
+  Because the shared ZIP signature is also used by OOXML, ODF, IDML, and EPUB,
+  detection resolves those specific formats first (by content) and falls back to
+  the generic archive format for a plain ZIP/TAR. Entry selection can be scoped
+  with `include` / `exclude` glob patterns matched against the entry path.
+limitations:
+  - Entries in skeleton-bound packaged formats (DOCX/EPUB/ODF/IDML), binary assets, interchange files, and nested archives pass through unchanged rather than being translated.
+  - Each translated entry is reconstructed by its own format writer, so an entry's round-trip fidelity is that format's standalone fidelity; non-translated entries are always byte-for-byte identical.
+  - Archive-wide size and entry-count limits (zip-bomb guards) apply to the whole container and to each entry.
+processingNotes:
+  - Each recognised entry is detected and parsed through its own format reader, emitted as a child layer of the archive document.
+  - The container is rebuilt from the original bytes; only sub-filtered entries are replaced, everything else is copied verbatim.
+  - "`include` / `exclude` globs (matched against the slash-separated entry path) scope which entries are processed; `**` matches across path separators."
+wikiUrl: "https://en.wikipedia.org/wiki/Archive_file"

@@ -41,6 +41,8 @@ neokapi ships built-in readers and writers spanning several families:
   regex extraction.
 - **Office & desktop publishing** — Office Open XML, OpenDocument, Adobe
   ICML/IDML, FrameMaker MIF, EPUB, PDF.
+- **Containers & archives** — ZIP, TAR, and gzip-compressed TAR, treated as a
+  folder of sub-documents (see below).
 - **Subtitles** — SubRip (SRT), WebVTT, TTML/DFXP.
 - **Images** — PNG and JPEG, as localizable assets.
 - **Plain text variants** — paragraph, Moses, versified, and spliced-line text.
@@ -60,6 +62,22 @@ to WebAssembly. Beyond text, it recovers each fragment's position on the page
 the PDF's own tags where present and by geometric inference otherwise. You can try
 it on your own files in the [Structure & Layout lab](/lab/structure); the design is described in
 [AD-028](/contribute/architecture/028-pdf-reader-plugin).
+
+An **archive** — a ZIP, TAR, or gzip-compressed TAR — is read as a folder of
+sub-documents. Each entry whose content kapi recognises and can faithfully
+rewrite (JSON, Markdown, HTML, a `.po` catalog, …) is parsed through that
+format's own reader and emitted as a child [layer](/framework/content-model), so
+its translatable text flows through the pipeline exactly as a standalone file
+would; the matching writer reconstructs the entry on output. Entries that cannot
+be safely round-tripped from the content model — binary assets, the packaged
+formats above (DOCX/EPUB/ODF/IDML), bilingual interchange files, nested
+archives, and anything unrecognised — pass through byte-for-byte. The writer
+rebuilds the container from the original bytes, splicing in only the
+re-serialised entries, so non-translatable members and the archive's structure
+are preserved exactly. Scope which entries are processed with the
+`include`/`exclude` entry-path globs in the [Format Reference](/formats). This
+makes an archive a first-class input: `kapi pseudo-translate bundle.zip -o
+out.zip` localizes every recognised file inside it in one pass.
 
 Each format exposes its own configuration (extraction rules, segmentation,
 inline-code handling). Rather than maintain a list by hand, the

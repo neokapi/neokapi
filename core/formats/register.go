@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/androidxml"
 	"github.com/neokapi/neokapi/core/formats/applestrings"
 	"github.com/neokapi/neokapi/core/formats/arb"
+	"github.com/neokapi/neokapi/core/formats/archive"
 	"github.com/neokapi/neokapi/core/formats/asciidoc"
 	"github.com/neokapi/neokapi/core/formats/audio"
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
@@ -702,6 +703,31 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			},
 		}, "EPUB E-Book")
 	reg.RegisterWriter("epub", func() format.DataFormatWriter { return epub.NewWriter() })
+
+	// Archive (ZIP / TAR / TAR.GZ) — a folder of sub-documents. Each entry kapi
+	// recognises and can faithfully rewrite (JSON, Markdown, HTML, XML, .po, …)
+	// is parsed through its own format reader and emitted as a child Layer;
+	// binary assets, skeleton-bound formats (DOCX/EPUB/ODF/…), nested archives,
+	// and unrecognised files ride through byte-for-byte. The reader/writer
+	// capture the registry so they can detect each entry's format and resolve
+	// the matching sub-reader/sub-writer (the SubfilterResolver is not injected
+	// by the generic file-run path). Detection is by the unique .zip/.tar/.tgz/
+	// .tar.gz extensions; the shared ZIP/gzip magic is ambiguous (OOXML/ODF/IDML/
+	// EPUB share the PK prefix), so a below-default priority lets those specific
+	// formats win the content-sniff disambiguation — a plain ZIP resolves here.
+	reg.RegisterReader("archive",
+		func() format.DataFormatReader { return archive.NewReader(reg.Detector(), reg) },
+		format.FormatSignature{
+			MIMETypes: []string{
+				"application/zip", "application/x-tar",
+				"application/gzip", "application/x-gzip",
+			},
+			Extensions: []string{".zip", ".tar", ".tgz", ".tar.gz"},
+			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}, {0x1f, 0x8b}},
+		}, "Archive (ZIP/TAR)")
+	reg.RegisterWriter("archive", func() format.DataFormatWriter { return archive.NewWriter(reg) })
+	reg.SetFormatPriority("archive", format.DefaultBuiltInPriority-10)
+	registerSchemaAndDecoder(o, reg, "archive", func() format.DataFormatReader { return archive.NewReader(reg.Detector(), reg) })
 
 	// RTF (Rich Text Format)
 	reg.RegisterReader("rtf",
