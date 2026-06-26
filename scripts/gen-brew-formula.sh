@@ -126,20 +126,22 @@ if [ "$which" = both ] || [ "$which" = kapi ]; then
   platform_block "kapi-cli"
   cat <<'RUBY'
 
-  # Install kapi plus its multi-call toolbox aliases. kgrep / ksed / kcat / kconv
-  # are symlinks to the kapi binary, which dispatches on its invocation name
-  # (busybox-style) — no extra binaries, no extra download size.
+  # Install kapi plus its multi-call toolbox aliases. kgrep / ksed / kcat /
+  # kconv / kdiff are symlinks to the kapi binary, which dispatches on its
+  # invocation name (busybox-style) — no extra binaries, no extra download size.
   def install
     bin.install "kapi"
     bin.install_symlink bin/"kapi" => "kgrep"
     bin.install_symlink bin/"kapi" => "ksed"
     bin.install_symlink bin/"kapi" => "kcat"
     bin.install_symlink bin/"kapi" => "kconv"
+    bin.install_symlink bin/"kapi" => "kdiff"
   end
 
   test do
     system "#{bin}/kapi", "version"
     assert_match "grep", shell_output("#{bin}/kgrep --help 2>&1")
+    assert_match "diff", shell_output("#{bin}/kdiff --help 2>&1")
   end
 end
 RUBY
