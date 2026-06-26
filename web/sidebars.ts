@@ -233,6 +233,7 @@ const sidebars: SidebarsConfig = {
     "toolbox/ksed",
     "toolbox/kcat",
     "toolbox/kconv",
+    "toolbox/kdiff",
   ],
 
   reactSidebar: [

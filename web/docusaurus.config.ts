@@ -475,7 +475,7 @@ const config: Config = {
           position: "left",
           items: [
             {
-              // Format-aware CLI utilities (kgrep/ksed/kcat/kconv).
+              // Format-aware CLI utilities (kgrep/ksed/kcat/kconv/kdiff).
               type: "docSidebar",
               sidebarId: "toolboxSidebar",
               label: "CLI tools",
