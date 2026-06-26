@@ -1,6 +1,6 @@
 ---
 name: kapi
-description: Read, edit, check, and localize the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads and searches the text (kcat/kgrep/ksed); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); authors new content and checks it against a brand voice profile and terminology, looping until it passes; and translates into other languages with glossary enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting on-brand copy, brand voice/tone, forbidden/competitor terms, a glossary or consistent terminology, checking content, translating or localizing (to fr/de/ja…), making a project multilingual, or adding i18n.
+description: Read, edit, check, and localize the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); authors new content and checks it against a brand voice profile and terminology, looping until it passes; and translates into other languages with glossary enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting on-brand copy, brand voice/tone, forbidden/competitor terms, a glossary or consistent terminology, checking content, translating or localizing (to fr/de/ja…), making a project multilingual, or adding i18n.
 ---
 
 # kapi
@@ -51,8 +51,9 @@ kapi verify --json        # whole project; or: kapi verify <files> [--brand|--te
 
 - **Read, search, or rewrite content in any format** — print the prose of a file
   you can't open directly (Word, PowerPoint, JSON, XLIFF…), search it for a
-  phrase, or apply a find-and-replace that leaves keys, tags, and styles intact,
-  using the format-aware toolbox (`kcat`/`kgrep`/`ksed`). See
+  phrase, apply a find-and-replace that leaves keys, tags, and styles intact, or
+  compare two versions block by block (`kdiff`), using the format-aware toolbox
+  (`kcat`/`kgrep`/`ksed`/`kdiff`). See
   [references/toolbox.md](references/toolbox.md).
 - **Edit content in any format** — read a file's blocks (`kapi inspect --jsonl`),
   rewrite the text yourself, and write it back through the one write verb

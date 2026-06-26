@@ -114,6 +114,9 @@
             "short": "Test that a credential's API key is accessible"
           }
         },
+        "diff": {
+          "short": "Compare the text/content of files (use kdiff)"
+        },
         "diff-leverage": {
           "short": "Diff Leverage"
         },

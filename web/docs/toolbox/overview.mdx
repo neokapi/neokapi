@@ -1,8 +1,8 @@
 ---
 sidebar_position: 1
 title: CLI tools
-description: kgrep, ksed and kcat are format-aware reimaginings of grep, sed and cat, and kconv converts between formats. They operate on text inside any format kapi understands — Word documents, JSON catalogs, XLIFF, Markdown — instead of raw bytes.
-keywords: [kgrep, ksed, kcat, kconv, grep, sed, cat, convert, format-aware, docx, localization, CLI]
+description: kgrep, ksed, kcat and kdiff are format-aware reimaginings of grep, sed, cat and diff, and kconv converts between formats. They operate on text inside any format kapi understands — Word documents, JSON catalogs, XLIFF, Markdown — instead of raw bytes.
+keywords: [kgrep, ksed, kcat, kdiff, kconv, grep, sed, cat, diff, convert, format-aware, docx, localization, CLI]
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -10,19 +10,24 @@ import ReferenceCount from "@site/src/components/reference/ReferenceCount";
 
 # CLI tools
 
-`kgrep`, `ksed` and `kcat` are format-aware reimaginings of the classic Unix text
-utilities. Where `grep`, `sed` and `cat` operate on raw bytes — lines of a file
-as the operating system stores them — these read and rewrite the **text content
-inside any format** kapi understands, regardless of how that text is encoded on
-disk. It is the same content engine the rest of kapi runs on, exposed as the Unix
-verbs you already know.
+`kgrep`, `ksed`, `kcat` and `kdiff` are format-aware reimaginings of the classic
+Unix text utilities. Where `grep`, `sed`, `cat` and `diff` operate on raw
+bytes — lines of a file as the operating system stores them — these read,
+rewrite and compare the **text content inside any format** kapi understands,
+regardless of how that text is encoded on disk. It is the same content engine the
+rest of kapi runs on, exposed as the Unix verbs you already know.
 
 The practical consequence: you can search the prose inside a Word `.docx`,
 rewrite a phrase across a directory of JSON catalogs, or print the segments of
 an XLIFF file as plain text — using muscle memory from tools you already know,
 without first converting anything.
 
-A fourth utility, [`kconv`](kconv.md), has no classic Unix analog: it *converts*
+[`kdiff`](kdiff.md) extends the same idea to `diff`: it compares the text of two
+files block by block, so a reflowed `.docx` or a reordered JSON catalog shows
+only the prose that actually changed — and, given a single file and a target
+locale, reports which blocks are still untranslated.
+
+A fifth utility, [`kconv`](kconv.md), has no classic Unix analog: it *converts*
 between formats — a `.docx` to clean Markdown, a DocLang document to HTML, or any
 supported format to DocLang — carrying the document's structure across rather
 than its bytes.
@@ -57,6 +62,9 @@ toolbox operates on those blocks:
   block is one line, so `-n` reads exactly like `grep -n`.
 - `ksed` rewrites a block's text and asks the format writer to reconstruct the
   document, so structure is preserved.
+- `kdiff` aligns the blocks of two files — by key for catalogs, by content for
+  prose — and reports added, removed, changed and moved blocks rather than
+  changed bytes.
 - `kconv` hands the blocks — and the role each one carries (heading, list item,
   table cell) — to a *different* format's writer, projecting the document's
   structure into the target format.
@@ -71,14 +79,14 @@ winget install Neokapi.KapiCli     # Windows
 ```
 
 Every utility is also reachable as a `kapi` subcommand —
-`kapi grep`, `kapi sed`, `kapi cat`, `kapi convert` — which behaves identically
-to the matching short name on every platform.
+`kapi grep`, `kapi sed`, `kapi cat`, `kapi diff`, `kapi convert` — which behaves
+identically to the matching short name on every platform.
 
 :::note Windows
-The Homebrew install adds the short names (`kgrep`, `ksed`, `kcat`, `kconv`) as
-aliases of the `kapi` binary. The winget package installs the single `kapi`
-command, so on Windows use the subcommand form — `kapi grep`, `kapi sed`,
-`kapi cat`, `kapi convert` — which is exactly equivalent.
+The Homebrew install adds the short names (`kgrep`, `ksed`, `kcat`, `kdiff`,
+`kconv`) as aliases of the `kapi` binary. The winget package installs the single
+`kapi` command, so on Windows use the subcommand form — `kapi grep`, `kapi sed`,
+`kapi cat`, `kapi diff`, `kapi convert` — which is exactly equivalent.
 :::
 
 ## Conventions shared across the toolbox

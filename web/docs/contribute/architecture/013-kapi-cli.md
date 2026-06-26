@@ -222,7 +222,7 @@ Commands without a `TextFormatter` fall back to formatted JSON.
 | ---- | ----------------------------------------------------------------------- |
 | 0    | Success (`ExitOK`)                                                      |
 | 1    | Operational error (`ExitError`) — the default for a failed command      |
-| 2    | Usage / toolbox trouble (`ExitUsage`) — e.g. `kgrep`/`ksed`/`kcat` on a bad pattern or unreadable file (grep convention) |
+| 2    | Usage / toolbox trouble (`ExitUsage`) — e.g. `kgrep`/`ksed`/`kcat`/`kdiff` on a bad pattern or unreadable file (grep/diff convention) |
 | 3    | Quality/brand gate failed (`ExitGate`) — distinct from an error, so CI and skills can tell a sub-threshold gate from a crash |
 | 130  | Interrupted (`ExitSignal`) — 128 + SIGINT                               |
 

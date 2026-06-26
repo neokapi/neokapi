@@ -674,11 +674,11 @@ contract-audit-clean: ## Remove the contract-audit working directory
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
-# Busybox multi-call links: kgrep / ksed / kcat / kconv dispatch to the kapi
-# binary by argv[0] (see cli BusyboxRoot). The Homebrew formula creates these
-# symlinks on install; mirror that locally so `make build` yields the short
+# Busybox multi-call links: kgrep / ksed / kcat / kconv / kdiff dispatch to the
+# kapi binary by argv[0] (see cli BusyboxRoot). The Homebrew formula creates
+# these symlinks on install; mirror that locally so `make build` yields the short
 # commands too.
-LINK_KAPI_BUSYBOX = for n in kgrep ksed kcat kconv; do ln -sf kapi $(BIN_DIR)/$$n; done
+LINK_KAPI_BUSYBOX = for n in kgrep ksed kcat kconv kdiff; do ln -sf kapi $(BIN_DIR)/$$n; done
 
 build: ## Build the kapi CLI (Apache-2.0; manifest-driven plugins discovered at runtime)
 	@mkdir -p $(BIN_DIR)
