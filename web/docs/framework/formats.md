@@ -41,6 +41,8 @@ neokapi ships built-in readers and writers spanning several families:
   regex extraction.
 - **Office & desktop publishing** — Office Open XML, OpenDocument, Adobe
   ICML/IDML, FrameMaker MIF, EPUB, PDF.
+- **Containers & archives** — ZIP, TAR, and gzip-compressed TAR, treated as a
+  folder of sub-documents (see below).
 - **Subtitles** — SubRip (SRT), WebVTT, TTML/DFXP.
 - **Images** — PNG and JPEG, as localizable assets.
 - **Plain text variants** — paragraph, Moses, versified, and spliced-line text.
@@ -60,6 +62,21 @@ to WebAssembly. Beyond text, it recovers each fragment's position on the page
 the PDF's own tags where present and by geometric inference otherwise. You can try
 it on your own files in the [Structure & Layout lab](/lab/structure); the design is described in
 [AD-028](/contribute/architecture/028-pdf-reader-plugin).
+
+An **archive** — a ZIP, TAR, or gzip-compressed TAR — is a *namespace* of inner
+documents rather than one document, so it is handled as a **container binding**
+([AD-026](/contribute/architecture/026-flow-io-binding)) rather than a format
+with a writer. Pointed at an output-producing command, each entry is localized
+as its **own file run** — through that entry's normal reader and writer with full
+skeleton round-trip — and the results are repacked over the original container,
+copying every other member byte-for-byte. Because each entry is a real,
+standalone file run, a **packaged format such as a DOCX or EPUB *inside* the
+archive round-trips faithfully**, and each entry resolves its own format
+configuration. Binary assets, nested containers, and bilingual interchange files
+pass through unchanged. So `kapi pseudo-translate bundle.zip -o out.zip`
+localizes every recognised file inside it — including nested Office documents —
+in one pass. For inspection, a read-only `archive` reader surfaces each entry's
+content so `kapi inspect bundle.zip` shows what is inside.
 
 Each format exposes its own configuration (extraction rules, segmentation,
 inline-code handling). Rather than maintain a list by hand, the

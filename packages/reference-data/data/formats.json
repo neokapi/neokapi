@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-24T21:49:47Z",
+  "generatedAt": "2026-06-26T21:51:51Z",
   "kind": "format",
   "entries": [
     {
@@ -416,6 +416,40 @@
             "config": "protectPlaceholders: false\n"
           }
         ]
+      }
+    },
+    {
+      "id": "archive",
+      "source": "built-in",
+      "kind": "format",
+      "displayName": "Archive (ZIP/TAR)",
+      "description": "Look inside a ZIP/TAR/TAR.GZ container and surface the translatable content of each recognised entry.",
+      "extensions": [
+        ".zip",
+        ".tar",
+        ".tgz",
+        ".tar.gz"
+      ],
+      "mimeTypes": [
+        "application/zip",
+        "application/x-tar",
+        "application/gzip",
+        "application/x-gzip"
+      ],
+      "hasReader": true,
+      "doc": {
+        "overview": "An archive — a ZIP, TAR, or gzip-compressed TAR (`.tar.gz` / `.tgz`) — is a\nnamespace of inner documents, not a single document. This reader is the\n**inspection** face of that model: it walks the container's entries and, for\neach one neokapi recognises (JSON, Markdown, HTML, XML, `.po`, YAML, …), parses\nit through that format's own reader and surfaces its content as a child layer,\nso `kapi inspect` and analysis tools can see inside the archive. Binary assets,\nnested containers, and unrecognised entries are listed as opaque data members.\n\n**There is no archive writer.** Localizing a container is the *container\nbinding*, not a format round-trip: when a ZIP/TAR is given to an\noutput-producing command (`kapi translate`, `kapi pseudo-translate`, a flow),\neach eligible entry is run as its **own file** — through the normal reader and\nwriter with full skeleton round-trip — and the results are repacked over the\noriginal container, copying every other member byte-for-byte. Because each\nentry is a real, standalone file run, a skeleton-bound packaged format such as\na DOCX, PPTX, or EPUB *inside* the archive round-trips faithfully, and each\nentry resolves its own format configuration. Binary assets, nested containers,\nand bilingual interchange files (XLIFF/PO/TMX) are copied through unchanged.\n\nBecause the shared ZIP signature is also used by OOXML, ODF, IDML, and EPUB,\ndetection resolves those specific formats first (by content) and falls back to\nthe generic archive reader for a plain ZIP/TAR. Inspection scope can be\nnarrowed with `include` / `exclude` glob patterns matched against the entry\npath.\n",
+        "limitations": [
+          "Read-only — this format has no writer; containers are localized via the container binding, not by reading and re-writing an \"archive document\".",
+          "During inspection, binary assets, nested containers, and unrecognised entries are surfaced as opaque data members rather than parsed.",
+          "Archive-wide size and entry-count limits (zip-bomb guards) apply to the whole container and to each entry."
+        ],
+        "processingNotes": [
+          "Each recognised entry is detected and parsed through its own format reader, surfaced as a child layer of the archive document.",
+          "Localization (output) is handled by the container binding — per-entry file runs with skeleton round-trip, then an atomic repack — not by an archive writer.",
+          "`include` / `exclude` globs (matched against the slash-separated entry path) scope which entries are inspected; `**` matches across path separators."
+        ],
+        "wikiUrl": "https://en.wikipedia.org/wiki/Archive_file"
       }
     },
     {

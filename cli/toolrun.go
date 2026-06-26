@@ -18,6 +18,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -273,7 +274,53 @@ type batchTraceInfo struct {
 	lane    int
 }
 
+// resolveOutputPath computes a run's destination path and whether it produces a
+// file at all, from the output template / in-place / default-layout settings.
+// For the default project layout it also ensures the parent directory exists.
+func (a *App) resolveRunOutputPath(cfg ToolRunConfig, filePath, commonDir string) (outputPath string, producesOutput bool, err error) {
+	producesOutput = cfg.OutputTemplate != "" || cfg.InPlace || cfg.DefaultLayout
+	switch {
+	case !producesOutput:
+		// Tool produces no output file (e.g. an analysis tool).
+	case cfg.InPlace:
+		outputPath = filePath
+	case cfg.OutputTemplate != "":
+		outputPath = expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
+	default: // cfg.DefaultLayout
+		// Project mode: a matched content-item target (the one core resolver)
+		// wins over the locale-swap heuristic, so tool runs honour the recipe's
+		// declared layout too. Outside a project this is a no-op and the ad-hoc
+		// locale-swap default applies.
+		if p, ok := a.projectItemTargetPath(filePath, cfg.TargetLang); ok {
+			outputPath = p
+		} else {
+			outputPath = localeOutputPath(filePath, a.SourceLang, cfg.TargetLang)
+		}
+		if mkErr := os.MkdirAll(filepath.Dir(outputPath), 0o755); mkErr != nil {
+			return "", false, fmt.Errorf("create output dir: %w", mkErr)
+		}
+	}
+	return outputPath, producesOutput, nil
+}
+
 func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string, progress progressGroup, batchInfo *batchTraceInfo) error {
+	// Container binding (AD-026 §6): a ZIP/TAR/TAR.GZ is a namespace of inner
+	// documents, not a single document — handle it before single-document format
+	// detection (which can't classify e.g. ".tar.gz"). When the run produces
+	// output, localize each entry as its own file run (real reader/writer +
+	// skeleton round-trip, so a DOCX/EPUB *inside* the archive round-trips
+	// faithfully) and repack. Analysis-only runs (no output) fall through to the
+	// read-only archive reader, which surfaces each entry's content.
+	if container.IsContainerPath(filePath) {
+		outputPath, producesOutput, err := a.resolveRunOutputPath(cfg, filePath, commonDir)
+		if err != nil {
+			return err
+		}
+		if producesOutput {
+			return a.runContainer(ctx, cfg, filePath, outputPath, progress)
+		}
+	}
+
 	// Resolve format: mapping > global -f flag > auto-detect by extension.
 	fmtName := matchFormatMapping(filePath, cfg.FormatMappings)
 	if fmtName == "" {
@@ -333,28 +380,9 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 	// Resolve the output path once, before creating the writer, so the
 	// writer-format probe and the final write agree on the destination.
-	producesOutput := cfg.OutputTemplate != "" || cfg.InPlace || cfg.DefaultLayout
-	var outputPath string
-	switch {
-	case !producesOutput:
-		// Tool produces no output file (e.g. an analysis tool).
-	case cfg.InPlace:
-		outputPath = filePath
-	case cfg.OutputTemplate != "":
-		outputPath = expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
-	default: // cfg.DefaultLayout
-		// Project mode: a matched content-item target (the one core resolver)
-		// wins over the locale-swap heuristic, so tool runs honour the recipe's
-		// declared layout too. Outside a project this is a no-op and the ad-hoc
-		// locale-swap default applies.
-		if p, ok := a.projectItemTargetPath(filePath, cfg.TargetLang); ok {
-			outputPath = p
-		} else {
-			outputPath = localeOutputPath(filePath, a.SourceLang, cfg.TargetLang)
-		}
-		if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
-			return fmt.Errorf("create output dir: %w", err)
-		}
+	outputPath, producesOutput, oerr := a.resolveRunOutputPath(cfg, filePath, commonDir)
+	if oerr != nil {
+		return oerr
 	}
 
 	// Create writer early so we can wire skeleton store before reading.

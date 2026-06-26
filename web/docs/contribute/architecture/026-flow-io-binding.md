@@ -27,6 +27,13 @@ operation (`merge` / `export` / `pack`). This gives the `.klz` lifecycle a
 first-class shape: `extract` (source → store), `run` / transform (store → store),
 `merge` (store → file).
 
+A binding can also **fan out**: a *container* source (a ZIP/TAR namespace, §6)
+expands to one `file` run per inner entry — so a packaged format nested inside an
+archive round-trips faithfully — and a *barrier* sink repacks the results,
+copying untouched members byte-for-byte. The same enumerate→process→write-back
+shape generalizes from files to **remote providers** (a CMS / API collection of
+items, §7), which is how Bowrain's connectors fit the same abstraction.
+
 **Transformers** ([AD-006](006-tool-system.md)) are of two kinds: *idempotent
 model-settling transforms* that run **once at ingest** and persist to the store,
 and *round-trip-paired brackets* (redact … unredact) that are part of a **run's**
@@ -107,6 +114,7 @@ a small, separate **binding** vocabulary, resolved from invocation context:
 | Binding | Source role (in) | Sink role (out) |
 | --- | --- | --- |
 | `file` | `DataFormatReader` over file bytes | `DataFormatWriter` + skeleton round-trip ([AD-005](005-format-system.md)) |
+| `container` | a ZIP/TAR namespace fanned out to one `file` source per inner entry (§6) | a *barrier* sink that repacks — replaced entries spliced in, every other member copied byte-for-byte |
 | `store` / `klz` | existing blocks + overlays from a persistent store | commit overlays — no materialization |
 | `import` / `export` | overlays landed from an interchange file ([AD-017](017-bilingual-format-interop.md)) | emit interchange (bilingual `.klz`, XLIFF / PO / TMX / TBX) |
 | `none` | — | discard (observation/metrics only) |
@@ -265,6 +273,117 @@ step (`kapi merge`). The store is the working copy: a re-run reuses the overlays
 already present and recomputes only what changed
 ([AD-025](025-klf-package.md) §5).
 
+### 6. Container bindings: a source that fans out, a sink that repacks
+
+Some inputs are not one document but a **namespace of documents**: a ZIP, a TAR,
+a `.tar.gz`. These are **not formats** — a format is the implementation of the
+`file` binding for a *single* document ([AD-005](005-format-system.md)). A
+container is a *binding*: it decides where content enters and leaves, and it
+expands to many `file` bindings.
+
+This is the same shape AD-026 already endorses for `kapi extract src/*.json -o
+work.klz` — `file(glob) → store`, a source that fans out to N documents. A
+container source is that pattern with the namespace *inside* a container instead
+of on the filesystem. The decisive property follows for free: **each inner entry
+is a real, standalone `file` run**, so it inherits the whole file machinery —
+per-entry format detection, per-entry configuration, and the `file` sink's
+**skeleton round-trip**. A packaged, skeleton-bound format (DOCX, PPTX, EPUB,
+ODF, IDML) *inside* the container therefore round-trips faithfully, because it is
+processed by its own reader and writer, not flattened into a parent document.
+
+- **Source (fan-out).** Enumerate the container's regular-file entries; each is
+  resolved and run as its own `file` source. An entry whose format is binary
+  (image/audio/video), a bilingual interchange file, a nested container, or
+  unrecognised is **not** processed — it is carried to the sink untouched.
+  Enumeration is recursive in principle (a ZIP inside a TAR), bounded by the
+  shared zip-bomb / size / entry-count guards.
+- **Sink (barrier repack).** Unlike a folder sink, which writes N independent
+  files, a container sink must emit **one valid container atomically**. It is a
+  *barrier*: it buffers the processed entries, then rebuilds the container from
+  the **original bytes**, splicing in only the entries that were processed and
+  copying every other member — structure, entry order, metadata, compression,
+  binaries — byte-for-byte.
+
+The fan-out and repack are a small, provider-agnostic substrate (`core/container`:
+`Walk` for an in-memory container, `Transform` for a streaming one) with no
+dependency on the format registry or the flow engine; the per-entry *processing*
+is injected by the caller. A read-only `archive` reader is kept as the
+**inspection** face only — it surfaces each entry's content so `kapi inspect
+bundle.zip` shows what is inside — but it has no writer, because localizing a
+container is the binding above, not a format round-trip.
+
+**Memory: the whole archive is never loaded.** `Transform` opens a ZIP with
+random access (central directory + seeks) and streams a TAR/TAR.GZ; it visits one
+entry at a time, materialises an entry's bytes only when the processor actually
+reads it (so untouched members are raw-copied for ZIP and piped through for TAR,
+never buffered), and writes the output container incrementally. Peak memory is a
+single entry, never the archive and never the full set of entries or results. An
+*individual* entry is still buffered whole while it is processed — that is the
+format engine's whole-document contract, shared by every kapi reader
+([AD-005](005-format-system.md)) — but only one entry is held at once. The
+inspection read path is the one exception: the engine hands a format reader the
+buffered document, so the read-only `archive` reader receives the archive bytes
+up front (it still streams entries one at a time via `Walk`).
+
+**Addressing.** A container fits the locator vocabulary (§5): a bare `.zip` /
+`.tar` / `.tgz` / `.tar.gz` path detects as a container, and a single inner
+entry is addressed with the JAR-style bang separator — `release.zip!docs/x.md` —
+repeatable for nesting (`outer.tar.gz!inner.zip!file.json`). No new URL scheme is
+introduced: kapi inputs stay paths, so a scheme prefix is reserved for genuine
+remote endpoints (§7).
+
+**Per-entry configuration.** Because each entry is an ordinary `file` run, the
+recipe's existing per-format config and presets apply to inner content the same
+way they apply to loose files; there is no parallel "entries" configuration
+language. (Matching recipe *content-items* to inner entry paths — so a glob like
+`**/*.docx` can pin an entry's format/config — is an additive refinement on top
+of this, not a new mechanism.)
+
+### 7. Beyond files: provider sources/sinks
+
+The container shape — *enumerate a collection into independent items, process
+each, write the results back as a batch* — is not specific to archives. It is the
+same shape a **remote provider** has: a CMS, a headless API, or a SaaS connector
+exposes a *collection* (a space, a project, a content type) whose *items* are
+individual documents. In Bowrain's connector model these are the WordPress,
+Figma, and HubSpot connectors (server- and desktop-side; the local `file` / `git`
+connectors are the filesystem instance of the same idea).
+
+The binding vocabulary generalizes cleanly:
+
+| | container (file) | provider (remote/CMS) |
+| --- | --- | --- |
+| source fan-out | enumerate archive entries | list collection items (paginated) via the API |
+| per-item run | inner `file` run + skeleton round-trip | item run; the connector supplies the format (often a rich-text JSON or HTML body) |
+| sink | barrier repack into one archive | batch write-back: PATCH/PUT each changed item, or one bulk call |
+| addressing | `release.zip!path` | `wordpress://site/posts/123`, `figma://file/KEY/node/1:2` |
+| identity for resume | entry path | the provider's stable item id + revision |
+
+Two differences matter, and they are properties of the provider, not of the
+binding contract:
+
+1. **The sink is rarely byte-exact and rarely atomic.** A filesystem container is
+   rebuilt wholesale from original bytes; a remote sink writes each item back
+   through the provider's API, item-by-item, and "everything else preserved" is
+   the provider's responsibility, not a byte copy. So a provider sink is an
+   *incremental* barrier (write each processed item; leave the rest) rather than a
+   *whole-artifact* one.
+2. **Identity is provider-defined and must support resume.** An archive entry is
+   addressed by path; a remote item by a stable id + revision/etag. This is
+   exactly what the `store` binding already wants — content-addressed,
+   resumable, process-only overlays ([AD-025](025-klf-package.md) §5) — so the
+   natural pattern is **provider source → store** (extract once, resumable) and a
+   later **store → provider** publish, mirroring `extract` / `merge` for files.
+
+So the recommendation is to treat remote/CMS connectors as the *provider* family
+of the same source/sink abstraction: reuse the `Enumerate → process → write-back`
+contract and the `store` binding for incremental state, and let each connector
+supply enumeration, per-item format, item identity, and write-back. The
+`core/container` substrate is the file instance; a connector is the remote
+instance. What is **not** shared is the byte-exact whole-artifact repack — that is
+a property of a self-contained file, and a remote provider substitutes its own
+API write-back.
+
 ## Consequences
 
 - A flow definition is portable across origins: the same flow runs in the file
@@ -284,6 +403,16 @@ already present and recomputes only what changed
   ([AD-002](002-content-model.md)) are independent of bindings.
 - The executor binds nothing: it orchestrates tools over a session, and the
   bindings sit outside it.
+- A container (ZIP/TAR) is a binding, not a format: it fans out to one `file` run
+  per entry, so per-entry detection, config, and skeleton round-trip come for
+  free — a DOCX/EPUB *inside* an archive round-trips faithfully — and a barrier
+  sink repacks, preserving untouched members byte-for-byte. The fan-out/repack is
+  a provider-agnostic substrate (`core/container`); a read-only `archive` reader
+  remains only as the inspection face.
+- The same enumerate→process→write-back shape extends to remote/CMS providers
+  (§7): a connector supplies enumeration, per-item format, item identity, and an
+  incremental API write-back, while reusing the `store` binding for resumable
+  state. The byte-exact whole-artifact repack is the file-only specialization.
 - The flow noun means *composition*: with I/O at the edges, a flow carries
   configuration, topology, identity, and phase structure. A single tool is a
   tool, not a flow — the concept is load-bearing where it is used and absent where

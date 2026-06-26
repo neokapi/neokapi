@@ -47,6 +47,8 @@ func TestRegisterAllReaders(t *testing.T) {
 		// format list / UI. Open() intentionally errors — actual exec
 		// extraction runs via `kapi extract -p` (Framework AD-002).
 		"exec", "mo",
+		// Archive container (ZIP/TAR/TAR.GZ) — a folder of sub-documents.
+		"archive",
 	}
 
 	for _, name := range expectedFormats {
@@ -77,6 +79,8 @@ func TestRegisterAllWriters(t *testing.T) {
 		// written out as-is. Extraction (ASR/OCR) Blocks carry no replacement
 		// bytes and pass through.
 		"audio", "video",
+		// Note: "archive" is intentionally absent — it is read-only (inspection
+		// only); localizing a container is the container binding, not a writer.
 		// Note: "docling" is intentionally absent — it is read-only (extraction
 		// only), so it registers a reader but no writer. "pdf" is absent on
 		// native builds entirely (read out-of-core by the kapi-pdfium plugin).
@@ -87,6 +91,7 @@ func TestRegisterAllWriters(t *testing.T) {
 	}
 	assert.Len(t, reg.WriterNames(), len(expectedFormats))
 	assert.False(t, reg.HasWriter("docling"), "docling must remain read-only (no writer)")
+	assert.False(t, reg.HasWriter("archive"), "archive must remain read-only (containers are localized via the container binding)")
 }
 
 // TestKLFFormatIDAndJSXAlias asserts the user-facing id is "klf" while

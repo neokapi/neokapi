@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/androidxml"
 	"github.com/neokapi/neokapi/core/formats/applestrings"
 	"github.com/neokapi/neokapi/core/formats/arb"
+	"github.com/neokapi/neokapi/core/formats/archive"
 	"github.com/neokapi/neokapi/core/formats/asciidoc"
 	"github.com/neokapi/neokapi/core/formats/audio"
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
@@ -702,6 +703,30 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			},
 		}, "EPUB E-Book")
 	reg.RegisterWriter("epub", func() format.DataFormatWriter { return epub.NewWriter() })
+
+	// Archive (ZIP / TAR / TAR.GZ) — READ-ONLY. Surfaces the translatable
+	// content of each recognised entry (JSON, Markdown, HTML, XML, .po, …) as a
+	// child Layer for `kapi inspect` / analysis; binary, skeleton-bound, nested,
+	// and unrecognised entries are listed as Data. There is no archive WRITER:
+	// localizing a container is the container binding (AD-026 §6) — each entry is
+	// run as its own file with a real reader/writer + skeleton round-trip and the
+	// results are repacked over core/container. The reader captures the registry
+	// (it is both the SubfilterResolver and the Detector). Detection is by the
+	// unique .zip/.tar/.tgz/.tar.gz extensions; the shared ZIP/gzip magic is
+	// ambiguous (OOXML/ODF/IDML/EPUB share the PK prefix), so a below-default
+	// priority lets those specific formats win the content-sniff disambiguation —
+	// a plain ZIP resolves here.
+	reg.RegisterReader("archive",
+		func() format.DataFormatReader { return archive.NewReader(reg) },
+		format.FormatSignature{
+			MIMETypes: []string{
+				"application/zip", "application/x-tar",
+				"application/gzip", "application/x-gzip",
+			},
+			Extensions: []string{".zip", ".tar", ".tgz", ".tar.gz"},
+			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}, {0x1f, 0x8b}},
+		}, "Archive (ZIP/TAR)")
+	reg.SetFormatPriority("archive", format.DefaultBuiltInPriority-10)
 
 	// RTF (Rich Text Format)
 	reg.RegisterReader("rtf",

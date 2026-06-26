@@ -36,6 +36,13 @@ formats:
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
+  archive:
+    tier: available
+    tier_since: "2026-06-26"
+    last_certified: "2026-06-26"
+    grandfathered: true
+    gates:
+      - .github/workflows/format-acceptance.yml
   asciidoc:
     tier: available
     tier_since: "2026-06-19"

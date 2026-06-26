@@ -1,0 +1,39 @@
+# Native reference doc for the built-in `archive` reader.
+# Schema source: core/formats/archive/{reader.go,config.go}, core/container/.
+# Upstream analogue: Okapi's Archive Filter (okf_archive). This is a READ-ONLY
+# reader — there is no archive writer (see overview).
+description: Look inside a ZIP/TAR/TAR.GZ container and surface the translatable content of each recognised entry.
+overview: |
+  An archive — a ZIP, TAR, or gzip-compressed TAR (`.tar.gz` / `.tgz`) — is a
+  namespace of inner documents, not a single document. This reader is the
+  **inspection** face of that model: it walks the container's entries and, for
+  each one neokapi recognises (JSON, Markdown, HTML, XML, `.po`, YAML, …), parses
+  it through that format's own reader and surfaces its content as a child layer,
+  so `kapi inspect` and analysis tools can see inside the archive. Binary assets,
+  nested containers, and unrecognised entries are listed as opaque data members.
+
+  **There is no archive writer.** Localizing a container is the *container
+  binding*, not a format round-trip: when a ZIP/TAR is given to an
+  output-producing command (`kapi translate`, `kapi pseudo-translate`, a flow),
+  each eligible entry is run as its **own file** — through the normal reader and
+  writer with full skeleton round-trip — and the results are repacked over the
+  original container, copying every other member byte-for-byte. Because each
+  entry is a real, standalone file run, a skeleton-bound packaged format such as
+  a DOCX, PPTX, or EPUB *inside* the archive round-trips faithfully, and each
+  entry resolves its own format configuration. Binary assets, nested containers,
+  and bilingual interchange files (XLIFF/PO/TMX) are copied through unchanged.
+
+  Because the shared ZIP signature is also used by OOXML, ODF, IDML, and EPUB,
+  detection resolves those specific formats first (by content) and falls back to
+  the generic archive reader for a plain ZIP/TAR. Inspection scope can be
+  narrowed with `include` / `exclude` glob patterns matched against the entry
+  path.
+limitations:
+  - Read-only — this format has no writer; containers are localized via the container binding, not by reading and re-writing an "archive document".
+  - During inspection, binary assets, nested containers, and unrecognised entries are surfaced as opaque data members rather than parsed.
+  - Archive-wide size and entry-count limits (zip-bomb guards) apply to the whole container and to each entry.
+processingNotes:
+  - Each recognised entry is detected and parsed through its own format reader, surfaced as a child layer of the archive document.
+  - Localization (output) is handled by the container binding — per-entry file runs with skeleton round-trip, then an atomic repack — not by an archive writer.
+  - "`include` / `exclude` globs (matched against the slash-separated entry path) scope which entries are inspected; `**` matches across path separators."
+wikiUrl: "https://en.wikipedia.org/wiki/Archive_file"
