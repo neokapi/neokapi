@@ -37,10 +37,10 @@ jobs:
           - { platform: windows/amd64, os: windows-2025,     goos: windows, goarch: amd64, asset: pdfium-win-x64.tgz }
     runs-on: ${{ matrix.build.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           # Disable the build cache: cgo bakes the resolved pkg-config flags
@@ -104,7 +104,7 @@ jobs:
             --bundle "${TARBALL}.sigstore.json" "${TARBALL}"
 
       - name: Upload tarball (+ signature on tags)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pdfium-tarball-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
           path: |
@@ -124,7 +124,7 @@ jobs:
 
       - name: Upload checksum artifact
         if: startsWith(github.ref, 'refs/tags/pdfium-v')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pdfium-checksum-${{ matrix.build.goos }}-${{ matrix.build.goarch }}
           path: checksums/*.sha256
@@ -139,7 +139,7 @@ jobs:
       contents: write
     steps:
       - name: Download all tarball + signature artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           pattern: pdfium-tarball-*
@@ -164,12 +164,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: stable
 
       - name: Download checksum artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: pdfium-checksum-*
           path: pdfium-checksums

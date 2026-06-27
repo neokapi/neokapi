@@ -33,7 +33,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Install vp + vpx, mirroring the setup-node-ui composite the rest of CI
       # uses. The kapi-format / kapi-react build.mjs shell out to `vpx` (e.g.

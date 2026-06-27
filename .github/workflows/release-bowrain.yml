@@ -123,7 +123,7 @@ jobs:
           - { goos: windows, goarch: arm64, os: windows-11-arm, icu: msys2, msystem: CLANGARM64, mtriple: clang-aarch64, cc: clang, cgo_ldflags: "-static", mroot: /clangarm64 }
     runs-on: ${{ matrix.target.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v6
@@ -232,7 +232,7 @@ jobs:
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -459,7 +459,7 @@ jobs:
               platform: linux/amd64,
             }
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Extract version
         id: version
@@ -545,7 +545,7 @@ jobs:
     env:
       REF_NAME: ${{ needs.setup.outputs.tag }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
 
       # The keycloak theme bundles @neokapi/ui, which imports
@@ -609,7 +609,7 @@ jobs:
           - { platform: darwin/arm64, os: macos-latest, arch: arm64 }
     runs-on: ${{ matrix.build.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -1057,7 +1057,7 @@ jobs:
           echo "BOWRAIN_DMG=$(sha256sum "bowrain-${VERSION}-macOS-arm64.dmg" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Checkout homebrew-tap
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: neokapi/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}

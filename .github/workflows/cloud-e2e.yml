@@ -23,7 +23,7 @@ jobs:
     #   github.event.workflow_run.conclusion == 'success'
     environment: dev
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Setup VitePlus
         uses: voidzero-dev/setup-vp@v1

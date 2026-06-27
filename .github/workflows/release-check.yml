@@ -54,7 +54,7 @@ jobs:
       ONNXRUNTIME_VERSION: "1.25.0"
       TOKENIZERS_VERSION: "v1.27.0"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

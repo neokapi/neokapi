@@ -66,7 +66,7 @@ jobs:
       # Check out this repo so the PR-preview publish step can run
       # scripts/publish-pr-preview.sh. (The production path clones the org Pages
       # repo into ./pages and works there; this is just for the helper script.)
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Determine target paths (production vs PR preview)
         id: target
