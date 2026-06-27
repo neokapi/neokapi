@@ -215,15 +215,23 @@ bounded window, not the document size. Three edges cooperate:
    `StreamingWriter()`); a writer signals it took the streaming path by checking
    `SkeletonStore.IsStreaming()` in `Write`.
 
-The line/record formats are the natural first adopters: `splicedlines` and
-`versifiedtext` already read incrementally via `bufio` and encode everything a
-round-trip needs in block properties, so they declare both capabilities. A
-whole-document format (JSON tree, XML, OOXML zip) parses the entire input and
-keeps the buffered path unchanged — it simply does not declare the capability,
-and a uniform fallback keeps its output byte-identical. The container binding
-drives one archive entry through `FileRunner.RunStream` (bytes in, bytes out, no
-temp file); a streaming-capable inner format is not even buffered whole
-([AD-026](026-flow-io-binding.md) §6).
+The **line- and record-oriented formats** are the adopters: a reader emits each
+record as it is parsed (typically via a `range`-over-func line/record iterator),
+holding only the in-progress unit, and its writer's `SkeletonRef` rendering is
+factored into a shared `renderRef` so the buffered and streaming skeleton paths
+are byte-identical. The converted formats are `splicedlines`, `versifiedtext`,
+`properties`, `srt`, `fixedwidth`, `paraplaintext`, and `mosestext`. Two
+line-oriented formats stay buffered for a concrete reason rather than the marker:
+`plaintext` transcodes the whole buffer up front (UTF-16/BOM detection), and
+`vtt`'s reader is a multi-function state machine with backward random access into
+a fully-materialised line slice — both are tracked as follow-ups.
+
+A **whole-document format** (JSON tree, XML, OOXML/zip, HTML/Markdown DOM) parses
+the entire input and keeps the buffered path unchanged — it simply does not
+declare the capability, and a uniform fallback keeps its output byte-identical.
+The container binding drives one archive entry through `FileRunner.RunStream`
+(bytes in, bytes out, no temp file); a streaming-capable inner format is not even
+buffered whole ([AD-026](026-flow-io-binding.md) §6).
 
 ### Writer output modes — generative vs skeleton-bound
 
