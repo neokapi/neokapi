@@ -262,9 +262,7 @@ export default function DocumentViewer({
           {/* Output-format pills — appended after a divider so they read as a
               distinct group ("the same model, re-serialized") from the
               model-level views to their left. */}
-          {hasExtra && (
-            <span aria-hidden className="mx-1 h-4 w-px self-center bg-border" />
-          )}
+          {hasExtra && <span aria-hidden className="mx-1 h-4 w-px self-center bg-border" />}
           {extraTabs?.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
               {tab.label}

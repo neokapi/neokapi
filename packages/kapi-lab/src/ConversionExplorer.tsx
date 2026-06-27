@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CodeView, DocumentViewer } from "@neokapi/ui-primitives/preview";
+import { CodeView, DocumentViewer, FormatPreview } from "@neokapi/ui-primitives/preview";
 import type { ContentTree } from "@neokapi/ui-primitives/preview";
 
 // CodeView's highlight languages (mirrors ui-primitives highlight.Lang).
@@ -18,9 +18,12 @@ import shared from "./styles.module.css";
 // Blocks / Structure / Layout / Stats — the same widget the other labs use), and
 // alongside the built-in views sits one extra pill per *generative* output
 // format. Selecting a format pill runs the real kapi `convert` (kconv) in WASM
-// and shows that serialization two ways: the rendered page (HTML projection,
-// left) and its raw source (right). The model-level tabs never change as you
-// switch formats — that is the point: one content model, many serializations.
+// and shows that serialization two ways: a faithful rendering of the document the
+// target reconstructs (the converted output read back and projected via
+// FormatPreview, left) and its raw source (right) — so a table that survives
+// md→AsciiDoc, or inline bold/links, is visible in the preview, not just the raw
+// output. The model-level tabs never change as you switch formats — that is the
+// point: one content model, many serializations.
 //
 // Only generative targets are offered. Skeleton-driven formats (docx/odt/idml/
 // epub/…) inject translations back into the *original* file and cannot be
@@ -99,8 +102,14 @@ interface OutputState {
   status: "loading" | "ready" | "error";
   /** Serialized output (the Source pane). */
   source?: string;
-  /** HTML projection for the Rendered pane (the output itself when target=html). */
-  previewHtml?: string;
+  /**
+   * The content tree of the *converted* output, read back through the engine.
+   * FormatPreview renders its projected render AST (tree.render) for the
+   * Rendered pane — so the preview reflects the target's reconstruction of the
+   * document (reconstructed tables, inline formatting), proving the structure
+   * survived the format crossing rather than re-projecting the source as HTML.
+   */
+  tree?: ContentTree | null;
   error?: string;
 }
 
@@ -258,13 +267,14 @@ export default function ConversionExplorer({
       try {
         const inPath = runtime.writeFile(file.filename, inputBytes);
         const source = await convertTo(inPath, def.id, def.ext);
-        // Rendered pane: reuse the HTML projection (or the output itself when the
-        // target already is HTML). A failed projection just hides the preview.
-        const previewHtml =
-          def.id === "html"
-            ? source
-            : await convertTo(inPath, "html", "html").catch(() => undefined);
-        setOutputs((o) => ({ ...o, [id]: { status: "ready", source, previewHtml } }));
+        // Rendered pane: read the converted output back through the engine and
+        // render its projected tree (FormatPreview), so the preview reflects the
+        // *target's* reconstruction — the same projected-tree preview the rest of
+        // the kit uses, not a separate HTML projection of the source. A read-back
+        // failure just hides the preview.
+        const res = await runtime.inspect(`converted.${def.ext}`, source).catch(() => null);
+        const tree = res && res.ok ? (res.tree ?? null) : null;
+        setOutputs((o) => ({ ...o, [id]: { status: "ready", source, tree } }));
       } catch (e) {
         setOutputs((o) => ({
           ...o,
@@ -272,7 +282,15 @@ export default function ConversionExplorer({
         }));
       }
     },
-    [runtime.ready, runtime.writeFile, convertTo, targets, file.filename, inputBytes],
+    [
+      runtime.ready,
+      runtime.writeFile,
+      runtime.inspect,
+      convertTo,
+      targets,
+      file.filename,
+      inputBytes,
+    ],
   );
 
   // Convert the active format on demand: when the engine is ready and the active
@@ -377,13 +395,10 @@ function OutputPane({
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
       <div className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">Rendered</span>
-        {state.previewHtml && state.previewHtml.trim() !== "" ? (
-          <iframe
-            title={`${target.label} preview`}
-            sandbox=""
-            srcDoc={state.previewHtml}
-            className="h-[26rem] w-full rounded-md border bg-white"
-          />
+        {state.tree ? (
+          <div className="h-[26rem] w-full overflow-auto rounded-md border">
+            <FormatPreview tree={state.tree} />
+          </div>
         ) : (
           <p className="rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
             No visual preview for this document.
