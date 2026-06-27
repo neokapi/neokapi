@@ -340,6 +340,23 @@ type wmlParser struct {
 	// the current cell, applied to its first paragraph (tagged RoleTableCell) so
 	// spanned grids reconstruct aligned. Reset at each cell boundary.
 	pendingColSpan int
+	// pendingVMerge is the vertical-merge state of the current cell (w:vMerge):
+	// "restart" begins a merge, "continue" extends the one above in this grid
+	// column, "" is a normal cell. Reset at each cell boundary.
+	pendingVMerge string
+	// cellCol is the 0-based grid column of the current cell within its row,
+	// advanced by each cell's gridSpan; cellSpan is the current cell's gridSpan
+	// held so the column cursor advances correctly at the cell's close.
+	cellCol  int
+	cellSpan int
+	// vmergeOpen maps a grid column to the StructureAnnotation of the cell that
+	// began a vertical merge there, so a "continue" cell below increments that
+	// cell's RowSpan. The cell block is already emitted; the table consumers
+	// (cross-format writers, projection/anatomy) collect the whole stream before
+	// reading spans, so the post-emit increment is observed (happens-before the
+	// channel close). Cleared when a non-merge cell reuses the column or the
+	// table ends.
+	vmergeOpen map[int]*model.StructureAnnotation
 }
 
 // gridSpanRe extracts the w:val of a <w:gridSpan> inside a captured <w:tcPr>.
@@ -354,6 +371,24 @@ func gridSpanFromTcPr(raw string) int {
 		}
 	}
 	return 0
+}
+
+// vMergeRe matches a <w:vMerge> inside a captured <w:tcPr>, capturing its
+// optional w:val. A bare <w:vMerge/> (no val) means "continue".
+var vMergeRe = regexp.MustCompile(`<w:vMerge(?:\s+w:val="([a-z]+)")?\s*/?>`)
+
+// vMergeFromTcPr returns the vertical-merge state of a captured <w:tcPr>
+// (ECMA-376 §17.4.85 CT_VMerge): "restart" begins a merge, "continue" (the
+// default when w:val is absent) extends the one above, "" when no vMerge.
+func vMergeFromTcPr(raw string) string {
+	m := vMergeRe.FindStringSubmatch(raw)
+	if m == nil {
+		return ""
+	}
+	if m[1] == "restart" {
+		return "restart"
+	}
+	return "continue"
 }
 
 // structFrame is one open table-structure group on the parser's stack.
@@ -375,17 +410,40 @@ func (p *wmlParser) openTableStruct(name string) {
 		return
 	}
 	switch name {
-	case "tbl", "tr":
-		kind := "table"
-		if name == "tr" {
-			kind = "table-row"
-		}
+	case "tbl":
 		id := p.nextGroupID()
-		p.structStack = append(p.structStack, structFrame{kind: kind, id: id})
-		p.emitPart(&model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: id, Name: kind, Type: kind}})
+		p.structStack = append(p.structStack, structFrame{kind: "table", id: id})
+		p.emitPart(&model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: id, Name: "table", Type: "table"}})
+		p.vmergeOpen = map[int]*model.StructureAnnotation{} // vertical merges are table-scoped
+	case "tr":
+		id := p.nextGroupID()
+		p.structStack = append(p.structStack, structFrame{kind: "table-row", id: id})
+		p.emitPart(&model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: id, Name: "table-row", Type: "table-row"}})
+		p.cellCol = 0 // grid column cursor resets each row
 	case "tc":
 		p.cellDepth++
 		p.pendingColSpan = 0 // a fresh cell; its tcPr (if any) sets the span
+		p.pendingVMerge = ""
+		p.cellSpan = 1
+	}
+}
+
+// resolveCellVMerge applies the current cell's vertical-merge state (parsed from
+// its w:tcPr) at its grid column. A "continue" cell extends the merge begun
+// above by bumping that cell's RowSpan; a normal cell ends any open merge in the
+// column. A "restart" cell is registered when its first paragraph creates the
+// block (registerCellVMerge), since the StructureAnnotation to grow lives there.
+func (p *wmlParser) resolveCellVMerge() {
+	if p.vmergeOpen == nil {
+		return
+	}
+	switch p.pendingVMerge {
+	case "continue":
+		if s := p.vmergeOpen[p.cellCol]; s != nil {
+			s.RowSpan++
+		}
+	case "":
+		delete(p.vmergeOpen, p.cellCol)
 	}
 }
 
@@ -407,10 +465,15 @@ func (p *wmlParser) closeTableStruct(name string) {
 			p.structStack = p.structStack[:n-1]
 			p.emitPart(&model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: f.id}})
 		}
+		if name == "tbl" {
+			p.vmergeOpen = nil // table closed; drop its merge bookkeeping
+		}
 	case "tc":
 		if p.cellDepth > 0 {
 			p.cellDepth--
 		}
+		p.cellCol += p.cellSpan // advance the column cursor past this cell
+		p.cellSpan = 1
 	}
 }
 
@@ -627,6 +690,9 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 				}
 				if t.Name.Local == "tcPr" {
 					p.pendingColSpan = gridSpanFromTcPr(raw)
+					p.cellSpan = max(1, p.pendingColSpan)
+					p.pendingVMerge = vMergeFromTcPr(raw)
+					p.resolveCellVMerge()
 				}
 				p.skelText(raw)
 			default:

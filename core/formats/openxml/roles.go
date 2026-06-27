@@ -240,8 +240,28 @@ func (p *wmlParser) applyParagraphRole(block *model.Block, paraStyleID, rawParaP
 				s.ColSpan = p.pendingColSpan
 				block.SetStructure(s)
 			}
-			p.pendingColSpan = 0
 		}
+		switch p.pendingVMerge {
+		case "restart":
+			// Begin a vertical merge: register this cell's StructureAnnotation by
+			// column so continuation cells below grow its RowSpan
+			// (resolveCellVMerge).
+			if s, ok := block.Structure(); ok && s != nil {
+				if s.RowSpan < 1 {
+					s.RowSpan = 1
+				}
+				block.SetStructure(s)
+				if p.vmergeOpen != nil {
+					p.vmergeOpen[p.cellCol] = s
+				}
+			}
+		case "continue":
+			// A non-empty continuation cell: its content belongs to the cell
+			// above, so mark it for the table assemblers to drop.
+			block.SetProperty(model.PropTableVMerge, "continue")
+		}
+		p.pendingColSpan = 0
+		p.pendingVMerge = ""
 	} else if p.partNoteRole != "" {
 		block.SetSemanticRole(p.partNoteRole, 0)
 	}

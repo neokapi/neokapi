@@ -75,6 +75,11 @@ func AssembleTable(parts []*model.Part, start int) (end int, table Table) {
 			if len(table.Rows) == 0 {
 				continue
 			}
+			// Drop a cell that only continues a vertical merge from above — the
+			// originating cell's RowSpan already covers this position.
+			if b.Properties[model.PropTableVMerge] == "continue" {
+				continue
+			}
 			hdr := b.SemanticRole() == model.RoleTableHeader
 			if hdr {
 				table.Rows[len(table.Rows)-1].Header = true

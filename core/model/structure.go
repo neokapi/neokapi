@@ -101,6 +101,11 @@ const (
 	// to `<archive>!<entry>` (the bang locator, AD-026 §6) without tracking the
 	// enclosing child layer. Absent for blocks from a plain (non-container) file.
 	PropContainerEntry = "container.entry"
+	// PropTableVMerge marks a table cell that continues a vertical merge from the
+	// cell above ("continue"): its content belongs to that cell, whose RowSpan
+	// already covers this position, so the table assemblers drop it. The
+	// originating cell carries the resolved RowSpan, not this property.
+	PropTableVMerge = "table.vmerge"
 )
 
 // OTSL table-header sub-kinds — the values PropTableHeaderKind takes. DocLang
@@ -368,6 +373,10 @@ func (b *Block) setProp(key, val string) {
 	}
 	b.Properties[key] = val
 }
+
+// SetProperty upserts a Block.Properties entry, allocating the map if needed.
+// The exported form of setProp, for readers stamping convention keys.
+func (b *Block) SetProperty(key, val string) { b.setProp(key, val) }
 
 // CheckboxChecked reports whether a RoleCheckbox block is selected.
 func (b *Block) CheckboxChecked() bool { return b.Properties[PropCheckboxChecked] == "true" }
