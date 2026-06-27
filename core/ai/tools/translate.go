@@ -260,6 +260,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 			var cached aiTargetCache
 			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" {
 				block.SetTargetText(t.targetLocale, cached.Text)
+				block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
 				return nil
 			}
 		}
@@ -336,6 +337,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 						var cached aiTargetCache
 						if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" {
 							block.SetTargetText(t.targetLocale, cached.Text)
+							block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
 							select {
 							case out <- part:
 							case <-ctx.Done():
@@ -586,6 +588,18 @@ func (t *AITranslateTool) annotateTranslation(v tool.VariantView, resp *aiprovid
 		Score:     resp.Confidence,
 		MatchType: model.MatchAI,
 	})
+	// Stamp how the committed target was produced so coverage and ship gates can
+	// see it. A fresh machine translation lands at draft (produced, not yet
+	// verified); the convergence loop promotes it on a passing check / review.
+	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, model.Origin{
+		Kind:   model.OriginAI,
+		Engine: string(t.provider.Name()),
+	})
+}
+
+// aiOrigin describes a target produced by this AI tool.
+func (t *AITranslateTool) aiOrigin() model.Origin {
+	return model.Origin{Kind: model.OriginAI, Engine: string(t.provider.Name())}
 }
 
 // ---------------------------------------------------------------------------

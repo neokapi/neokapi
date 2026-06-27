@@ -106,6 +106,7 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 			return fmt.Errorf("%s-translate: %w", string(t.provider.Name()), err)
 		}
 		v.SetTargetRuns(t.targetLocale, model.ParseRunsSemanticHTML(resp.Translation, sourceRuns, t.vocab))
+		v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
 		return nil
 	}
 
@@ -119,7 +120,13 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 	}
 
 	v.SetTargetText(t.targetLocale, resp.Translation)
+	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
 	return nil
+}
+
+// mtOrigin describes a target produced by this MT tool.
+func (t *MTTranslateTool) mtOrigin() model.Origin {
+	return model.Origin{Kind: model.OriginMT, Engine: string(t.provider.Name())}
 }
 
 // hasInlineCodes reports whether a Run sequence contains any non-text
@@ -195,6 +202,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 			var cached mtTargetCache
 			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" {
 				block.SetTargetText(t.targetLocale, cached.Text)
+				block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
 				return nil
 			}
 		}

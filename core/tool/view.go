@@ -112,6 +112,9 @@ type VariantView interface {
 	SetTargetVariant(key model.VariantKey, t *model.Target)
 	SetTargetRuns(loc model.LocaleID, runs []model.Run)
 	SetTargetText(loc model.LocaleID, text string)
+	// StampTargetProvenance records how the locale's target was produced
+	// (lifecycle status + origin) without touching its runs; no-op if absent.
+	StampTargetProvenance(loc model.LocaleID, status model.TargetStatus, origin model.Origin)
 	RemoveTarget(loc model.LocaleID)
 	ClearTargets()
 
@@ -248,6 +251,9 @@ func (v *blockView) SetTargetVariant(key model.VariantKey, t *model.Target) {
 }
 func (v *blockView) SetTargetRuns(loc model.LocaleID, runs []model.Run) { v.b.SetTargetRuns(loc, runs) }
 func (v *blockView) SetTargetText(loc model.LocaleID, text string)      { v.b.SetTargetText(loc, text) }
+func (v *blockView) StampTargetProvenance(loc model.LocaleID, status model.TargetStatus, origin model.Origin) {
+	v.b.StampTargetProvenance(loc, status, origin)
+}
 func (v *blockView) TargetUnits(loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
 	return targetUnits(v.b, loc, layer)
 }
