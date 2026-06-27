@@ -252,6 +252,20 @@ type readerVisitor struct {
 	ch     chan<- model.PartResult
 }
 
+func (v *readerVisitor) onContainerStart(groupID, groupType string) {
+	v.reader.emit(v.ctx, v.ch, &model.Part{
+		Type:     model.PartGroupStart,
+		Resource: &model.GroupStart{ID: groupID, Name: groupType, Type: groupType},
+	})
+}
+
+func (v *readerVisitor) onContainerEnd(groupID string) {
+	v.reader.emit(v.ctx, v.ch, &model.Part{
+		Type:     model.PartGroupEnd,
+		Resource: &model.GroupEnd{ID: groupID},
+	})
+}
+
 func (v *readerVisitor) onData(dataID string, n *html.Node, dataName string, props map[string]string) {
 	data := &model.Data{
 		ID:         dataID,
@@ -614,6 +628,32 @@ func (r *Reader) applyStructuralRole(block *model.Block, n *html.Node) {
 		}
 	}
 	block.SetSemanticRole(role, level)
+
+	// Carry merged-cell extents on table cells so cross-format writers and the
+	// preview reconstruct spanned grids aligned (HTML colspan/rowspan default to
+	// 1; only record a real merge).
+	if role == model.RoleTableCell || role == model.RoleTableHeader {
+		cs, rs := spanAttr(n, "colspan"), spanAttr(n, "rowspan")
+		if cs > 1 || rs > 1 {
+			if s, ok := block.Structure(); ok && s != nil {
+				s.ColSpan, s.RowSpan = cs, rs
+				block.SetStructure(s)
+			}
+		}
+	}
+}
+
+// spanAttr reads an integer colspan/rowspan attribute, returning 1 when absent
+// or unparseable (the HTML default).
+func spanAttr(n *html.Node, key string) int {
+	v := strings.TrimSpace(getAttr(n, key))
+	if v == "" {
+		return 1
+	}
+	if i, err := strconv.Atoi(v); err == nil && i > 0 {
+		return i
+	}
+	return 1
 }
 
 // codeLanguageFromPre returns the language key declared on a <pre>'s descendant

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -321,6 +322,159 @@ type wmlParser struct {
 	// triggers the flush; P5 (`<w:p ... />` self-closing, no pPr)
 	// is the trailing wrapper Okapi consumes for the merged block.
 	partAbsorbedTrailingEmpty bool
+	// emitPart, when set, emits a Part directly to the reader's output channel
+	// (in document order, interleaved with emitBlock). It is used to surface
+	// table topology — w:tbl / w:tr become table / table-row Groups, w:tc cells'
+	// paragraphs are tagged RoleTableCell — so cross-format writers and
+	// core/projection rebuild the grid instead of seeing flat paragraphs. Groups
+	// are additive: they carry no skeleton bytes, so docx→docx round-trip stays
+	// byte-exact. nil disables table-structure emission.
+	emitPart func(*model.Part)
+	// structStack tracks the open table/table-row groups so a closing element
+	// pops the matching one; cellDepth tracks w:tc nesting so a paragraph inside
+	// a cell is tagged RoleTableCell. groupCounter names the emitted groups.
+	structStack  []structFrame
+	cellDepth    int
+	groupCounter int
+	// pendingColSpan is the horizontal cell merge (w:tcPr/w:gridSpan) parsed for
+	// the current cell, applied to its first paragraph (tagged RoleTableCell) so
+	// spanned grids reconstruct aligned. Reset at each cell boundary.
+	pendingColSpan int
+	// pendingVMerge is the vertical-merge state of the current cell (w:vMerge):
+	// "restart" begins a merge, "continue" extends the one above in this grid
+	// column, "" is a normal cell. Reset at each cell boundary.
+	pendingVMerge string
+	// cellCol is the 0-based grid column of the current cell within its row,
+	// advanced by each cell's gridSpan; cellSpan is the current cell's gridSpan
+	// held so the column cursor advances correctly at the cell's close.
+	cellCol  int
+	cellSpan int
+	// vmergeOpen maps a grid column to the StructureAnnotation of the cell that
+	// began a vertical merge there, so a "continue" cell below increments that
+	// cell's RowSpan. The cell block is already emitted; the table consumers
+	// (cross-format writers, projection/anatomy) collect the whole stream before
+	// reading spans, so the post-emit increment is observed (happens-before the
+	// channel close). Cleared when a non-merge cell reuses the column or the
+	// table ends.
+	vmergeOpen map[int]*model.StructureAnnotation
+}
+
+// gridSpanRe extracts the w:val of a <w:gridSpan> inside a captured <w:tcPr>.
+var gridSpanRe = regexp.MustCompile(`<w:gridSpan[^>]*\bw:val="(\d+)"`)
+
+// gridSpanFromTcPr returns the horizontal cell span declared by a captured
+// <w:tcPr> (ECMA-376 §17.4.17 CT_TcPrBase/gridSpan), or 0 when unspecified.
+func gridSpanFromTcPr(raw string) int {
+	if m := gridSpanRe.FindStringSubmatch(raw); m != nil {
+		if n, err := strconv.Atoi(m[1]); err == nil {
+			return n
+		}
+	}
+	return 0
+}
+
+// vMergeRe matches a <w:vMerge> inside a captured <w:tcPr>, capturing its
+// optional w:val. A bare <w:vMerge/> (no val) means "continue".
+var vMergeRe = regexp.MustCompile(`<w:vMerge(?:\s+w:val="([a-z]+)")?\s*/?>`)
+
+// vMergeFromTcPr returns the vertical-merge state of a captured <w:tcPr>
+// (ECMA-376 §17.4.85 CT_VMerge): "restart" begins a merge, "continue" (the
+// default when w:val is absent) extends the one above, "" when no vMerge.
+func vMergeFromTcPr(raw string) string {
+	m := vMergeRe.FindStringSubmatch(raw)
+	if m == nil {
+		return ""
+	}
+	if m[1] == "restart" {
+		return "restart"
+	}
+	return "continue"
+}
+
+// structFrame is one open table-structure group on the parser's stack.
+type structFrame struct {
+	kind string // "table" | "table-row"
+	id   string
+}
+
+func (p *wmlParser) nextGroupID() string {
+	p.groupCounter++
+	return fmt.Sprintf("tg%d", p.groupCounter)
+}
+
+// openTableStruct emits a table/table-row Group (or bumps cell depth) when the
+// parser enters a w:tbl / w:tr / w:tc. Additive — no skeleton bytes, so the
+// byte-exact round-trip is unaffected. No-op when emitPart is unset.
+func (p *wmlParser) openTableStruct(name string) {
+	if p.emitPart == nil {
+		return
+	}
+	switch name {
+	case "tbl":
+		id := p.nextGroupID()
+		p.structStack = append(p.structStack, structFrame{kind: "table", id: id})
+		p.emitPart(&model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: id, Name: "table", Type: "table"}})
+		p.vmergeOpen = map[int]*model.StructureAnnotation{} // vertical merges are table-scoped
+	case "tr":
+		id := p.nextGroupID()
+		p.structStack = append(p.structStack, structFrame{kind: "table-row", id: id})
+		p.emitPart(&model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: id, Name: "table-row", Type: "table-row"}})
+		p.cellCol = 0 // grid column cursor resets each row
+	case "tc":
+		p.cellDepth++
+		p.pendingColSpan = 0 // a fresh cell; its tcPr (if any) sets the span
+		p.pendingVMerge = ""
+		p.cellSpan = 1
+	}
+}
+
+// resolveCellVMerge applies the current cell's vertical-merge state (parsed from
+// its w:tcPr) at its grid column. A "continue" cell extends the merge begun
+// above by bumping that cell's RowSpan; a normal cell ends any open merge in the
+// column. A "restart" cell is registered when its first paragraph creates the
+// block (registerCellVMerge), since the StructureAnnotation to grow lives there.
+func (p *wmlParser) resolveCellVMerge() {
+	if p.vmergeOpen == nil {
+		return
+	}
+	switch p.pendingVMerge {
+	case "continue":
+		if s := p.vmergeOpen[p.cellCol]; s != nil {
+			s.RowSpan++
+		}
+	case "":
+		delete(p.vmergeOpen, p.cellCol)
+	}
+}
+
+// closeTableStruct closes the matching table/table-row Group (or drops cell
+// depth) when the parser leaves a w:tbl / w:tr / w:tc. Driven from the single
+// main-loop EndElement site, through which every such close flows.
+func (p *wmlParser) closeTableStruct(name string) {
+	if p.emitPart == nil {
+		return
+	}
+	switch name {
+	case "tbl", "tr":
+		kind := "table"
+		if name == "tr" {
+			kind = "table-row"
+		}
+		if n := len(p.structStack); n > 0 && p.structStack[n-1].kind == kind {
+			f := p.structStack[n-1]
+			p.structStack = p.structStack[:n-1]
+			p.emitPart(&model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: f.id}})
+		}
+		if name == "tbl" {
+			p.vmergeOpen = nil // table closed; drop its merge bookkeeping
+		}
+	case "tc":
+		if p.cellDepth > 0 {
+			p.cellDepth--
+		}
+		p.cellCol += p.cellSpan // advance the column cursor past this cell
+		p.cellSpan = 1
+	}
 }
 
 // pendingMergeable carries the post-mergeRuns slice for a paragraph
@@ -429,8 +583,16 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 					return err
 				}
 			case "tbl":
-				// Table — recurse to find paragraphs inside cells
+				// Table — recurse to find paragraphs inside cells. Bracket it in
+				// a canonical "table" Group so cross-format writers + projection
+				// rebuild the grid (additive; no skeleton bytes).
 				p.skelWriteStartElement(t)
+				p.openTableStruct("tbl")
+			case "tc":
+				// Table cell — recurse into its paragraphs, tagging them
+				// RoleTableCell via cellDepth.
+				p.skelWriteStartElement(t)
+				p.openTableStruct("tc")
 			case "tr":
 				// Table row — inspect <w:trPr> for the row-deletion
 				// marker <w:trPr><w:del .../></w:trPr> (revision tracking,
@@ -461,6 +623,7 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 					continue
 				}
 				p.skelWriteStartElement(t)
+				p.openTableStruct("tr")
 			case "footnote", "endnote":
 				// Skip the auto-generated separator/continuation
 				// footnotes whose body is non-translatable boilerplate
@@ -525,6 +688,12 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 				if err != nil {
 					return err
 				}
+				if t.Name.Local == "tcPr" {
+					p.pendingColSpan = gridSpanFromTcPr(raw)
+					p.cellSpan = max(1, p.pendingColSpan)
+					p.pendingVMerge = vMergeFromTcPr(raw)
+					p.resolveCellVMerge()
+				}
 				p.skelText(raw)
 			default:
 				p.skelWriteStartElement(t)
@@ -532,6 +701,11 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 
 		case xml.EndElement:
 			p.skelWriteEndElement(t)
+			// Close any table/table-row Group or cell depth this end leaves.
+			// Every w:tbl/w:tr/w:tc close funnels through here (handleTableRow
+			// hands control back before the row ends), so this is the single
+			// close site for both row-handling paths.
+			p.closeTableStruct(t.Name.Local)
 
 		case xml.CharData:
 			p.skelText(xmlEscape(string(t)))
@@ -1795,6 +1969,7 @@ func (p *wmlParser) handleTableRow(d *xml.Decoder, start xml.StartElement) error
 				// whitespace/comments, then the trPr raw. Caller
 				// continues normal processing for the rest of the row.
 				p.skelWriteStartElement(start)
+				p.openTableStruct("tr")
 				emitPending()
 				p.skelText(raw)
 				return nil
@@ -1805,6 +1980,7 @@ func (p *wmlParser) handleTableRow(d *xml.Decoder, start xml.StartElement) error
 			// pending whitespace, the child start element, then
 			// hand back to the outer loop.
 			p.skelWriteStartElement(start)
+			p.openTableStruct("tr")
 			emitPending()
 			return p.dispatchInRow(d, tt)
 		case xml.EndElement:
@@ -1831,6 +2007,12 @@ func (p *wmlParser) dispatchInRow(d *xml.Decoder, t xml.StartElement) error {
 			return err
 		}
 		p.skelText(raw)
+	case "tc":
+		// First cell of an accept-revisions row: track cell depth so its
+		// paragraphs tag RoleTableCell (the matching close flows through the
+		// main-loop EndElement site).
+		p.skelWriteStartElement(t)
+		p.openTableStruct("tc")
 	default:
 		p.skelWriteStartElement(t)
 	}

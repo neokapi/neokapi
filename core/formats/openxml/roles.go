@@ -227,6 +227,41 @@ func (p *wmlParser) applyParagraphRole(block *model.Block, paraStyleID, rawParaP
 		block.SetSemanticRole(r.role, r.level)
 	} else if paraHasNumbering(rawParaProps) {
 		block.SetSemanticRole(model.RoleListItem, 0)
+	} else if p.cellDepth > 0 {
+		// A plain paragraph inside a w:tc is the table cell's content; tag it
+		// so the table/table-row Groups + cells form the canonical shape
+		// cross-format writers and projection reconstruct. A styled paragraph
+		// (heading, list) inside a cell keeps its stronger role.
+		block.SetSemanticRole(model.RoleTableCell, 0)
+		// Apply a horizontal cell merge (w:gridSpan) to the cell's first
+		// paragraph so spanned grids reconstruct aligned, then consume it.
+		if p.pendingColSpan > 1 {
+			if s, ok := block.Structure(); ok && s != nil {
+				s.ColSpan = p.pendingColSpan
+				block.SetStructure(s)
+			}
+		}
+		switch p.pendingVMerge {
+		case "restart":
+			// Begin a vertical merge: register this cell's StructureAnnotation by
+			// column so continuation cells below grow its RowSpan
+			// (resolveCellVMerge).
+			if s, ok := block.Structure(); ok && s != nil {
+				if s.RowSpan < 1 {
+					s.RowSpan = 1
+				}
+				block.SetStructure(s)
+				if p.vmergeOpen != nil {
+					p.vmergeOpen[p.cellCol] = s
+				}
+			}
+		case "continue":
+			// A non-empty continuation cell: its content belongs to the cell
+			// above, so mark it for the table assemblers to drop.
+			block.SetProperty(model.PropTableVMerge, "continue")
+		}
+		p.pendingColSpan = 0
+		p.pendingVMerge = ""
 	} else if p.partNoteRole != "" {
 		block.SetSemanticRole(p.partNoteRole, 0)
 	}

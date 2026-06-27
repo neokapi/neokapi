@@ -124,6 +124,29 @@ func TestCrossFormat_MarkdownTableToAsciidoc(t *testing.T) {
 	}
 }
 
+// An HTML table must rebuild as a real grid when converted to another format.
+// The html reader now emits the canonical table/table-row group shape (and
+// carries colspan/rowspan), so the AsciiDoc/Markdown writers reconstruct it.
+func TestCrossFormat_HTMLTableToAsciidoc(t *testing.T) {
+	out := convert(t, htmlfmt.NewReader(), asciidoc.NewWriter(),
+		`<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>`)
+
+	assert.Contains(t, out, "|===", "html table not wrapped in an AsciiDoc table block")
+	for _, cell := range []string{"A", "B", "1", "2"} {
+		assert.Contains(t, out, "| "+cell, "cell %q lost", cell)
+	}
+}
+
+func TestCrossFormat_HTMLTableToMarkdown(t *testing.T) {
+	out := convert(t, htmlfmt.NewReader(), markdown.NewWriter(),
+		`<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>`)
+
+	// GFM table: a header row, a separator, and a body row.
+	assert.Contains(t, out, "| A | B |", "html table header not projected to GFM")
+	assert.Regexp(t, `\|\s*-+\s*\|`, out, "GFM separator row missing")
+	assert.Contains(t, out, "| 1 | 2 |", "html table body not projected to GFM")
+}
+
 // codeBlock builds a non-translatable RoleCode block tagged with a language,
 // the shape every reader produces for a fenced/listing code block.
 func codeBlock(body, lang string) *model.Block {

@@ -180,7 +180,7 @@
           "short": "Scaffold a new kapi project in the current directory"
         },
         "inspect": {
-          "example": "  kapi inspect report.docx\n  kapi inspect --jsonl docs/*.md | jq .content_hash\n  kapi inspect --yaml report.dclg.xml\n  cat page.html | kapi inspect -f html",
+          "example": "  kapi inspect report.docx\n  kapi inspect --jsonl docs/*.md | jq .content_hash\n  kapi inspect --yaml report.dclg.xml\n  kapi inspect report.docx --project html,markdown   # each block rendered per format\n  cat page.html | kapi inspect -f html",
           "long": "Parse each file into one record per content block: the text, a stable\ncontent-hash anchor, and the block's structural role (heading, list-item,\ntable-cell, …) and nesting level. Any format — a Word document, a JSON catalog,\nMarkdown, HTML — yields the same shape, so an AI agent or RAG pipeline can read\ncontent, retrieve against the anchors, and write edits back to the same blocks.\n\nPrints a JSON array by default; --jsonl streams one JSON object per line (JSONL)\nfor piping into an ingestion pipeline; --yaml emits a YAML sequence.\nWith no FILE, or when FILE is \"-\", standard input is read.",
           "short": "Parse any format into anchored, structured content blocks"
         },

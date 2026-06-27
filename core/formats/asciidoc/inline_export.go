@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 )
 
 // adocInlineTag maps a canonical inline run Type to its AsciiDoc delimiters
@@ -36,50 +37,65 @@ var adocInlineTag = map[string][2]string{
 // format. This is the cross-format projection; byte-exact round-trips use the
 // skeleton path (model.RenderRunsWithData) instead.
 func renderInlineAsciidoc(runs []model.Run) string {
-	var sb strings.Builder
-	var open []string // stack of closing delimiters (or "" for dropped wrappers)
-	for _, r := range runs {
-		switch {
-		case r.Text != nil:
-			sb.WriteString(r.Text.Text)
-		case r.PcOpen != nil:
-			switch r.PcOpen.Type {
-			case "link:hyperlink":
-				// link:href[text] — the link text is the paired content.
-				sb.WriteString("link:" + r.PcOpen.Attr(model.AttrHref) + "[")
-				open = append(open, "]")
-			case "media:image", "link:image":
-				// image:src[alt] — the alt text is the paired content.
-				sb.WriteString("image:" + r.PcOpen.Attr(model.AttrSrc) + "[")
-				open = append(open, "]")
-			default:
-				if m, ok := adocInlineTag[r.PcOpen.Type]; ok {
-					sb.WriteString(m[0])
-					open = append(open, m[1])
-				} else {
-					open = append(open, "")
-				}
-			}
-		case r.PcClose != nil:
-			if n := len(open); n > 0 {
-				sb.WriteString(open[n-1])
-				open = open[:n-1]
-			}
-		case r.Ph != nil:
-			switch r.Ph.Type {
-			case "media:image", "link:image":
-				// Self-closing image (e.g. read from HTML <img>): alt lives in
-				// the run attributes, not as paired content.
-				sb.WriteString("image:" + r.Ph.Attr(model.AttrSrc) + "[" + r.Ph.Attr(model.AttrAlt) + "]")
-			default:
-				if r.Ph.Equiv != "" {
-					sb.WriteString(r.Ph.Equiv)
-				}
-			}
+	sink := &adocInlineSink{}
+	projection.WalkInline(runs, sink)
+	sink.flush()
+	return sink.sb.String()
+}
+
+// adocInlineSink maps the shared inline-run stream (projection.WalkInline) to
+// AsciiDoc, owning the open-delimiter stack the paired-code close needs. It
+// replaces the writer's former bespoke run loop; WalkInline now handles run
+// decoding + plural/select 'other'-branch resolution.
+type adocInlineSink struct {
+	sb   strings.Builder
+	open []string // stack of closing delimiters (or "" for dropped wrappers)
+}
+
+func (s *adocInlineSink) Text(t string) { s.sb.WriteString(t) }
+
+func (s *adocInlineSink) Open(r *model.PcOpenRun) {
+	switch r.Type {
+	case "link:hyperlink":
+		// link:href[text] — the link text is the paired content.
+		s.sb.WriteString("link:" + r.Attr(model.AttrHref) + "[")
+		s.open = append(s.open, "]")
+	case "media:image", "link:image":
+		// image:src[alt] — the alt text is the paired content.
+		s.sb.WriteString("image:" + r.Attr(model.AttrSrc) + "[")
+		s.open = append(s.open, "]")
+	default:
+		if m, ok := adocInlineTag[r.Type]; ok {
+			s.sb.WriteString(m[0])
+			s.open = append(s.open, m[1])
+		} else {
+			s.open = append(s.open, "")
 		}
 	}
-	for i := len(open) - 1; i >= 0; i-- {
-		sb.WriteString(open[i])
+}
+
+func (s *adocInlineSink) Close(*model.PcCloseRun) {
+	if n := len(s.open); n > 0 {
+		s.sb.WriteString(s.open[n-1])
+		s.open = s.open[:n-1]
 	}
-	return sb.String()
+}
+
+func (s *adocInlineSink) Placeholder(r *model.PlaceholderRun) {
+	switch r.Type {
+	case "media:image", "link:image":
+		// Self-closing image (e.g. read from HTML <img>): alt lives in the run
+		// attributes, not as paired content.
+		s.sb.WriteString("image:" + r.Attr(model.AttrSrc) + "[" + r.Attr(model.AttrAlt) + "]")
+	default:
+		if r.Equiv != "" {
+			s.sb.WriteString(r.Equiv)
+		}
+	}
+}
+
+func (s *adocInlineSink) flush() {
+	for i := len(s.open) - 1; i >= 0; i-- {
+		s.sb.WriteString(s.open[i])
+	}
 }

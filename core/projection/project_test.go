@@ -222,3 +222,48 @@ func TestRenderNode_Walk(t *testing.T) {
 	})
 	assert.Equal(t, []string{RoleDocument, model.RoleTable, RoleTableRow, model.RoleTableCell}, roles)
 }
+
+func TestAssembleTable(t *testing.T) {
+	parts := []*model.Part{
+		blockPart(model.NewBlock("before", "intro")), // ignored: outside the table
+		groupStart("t", "table"),
+		groupStart("r0", "table-row"),
+		blockPart(cellBlock("a", "A", true)),
+		blockPart(cellBlock("b", "B", true)),
+		groupEnd("r0"),
+		groupStart("r1", "table-row"),
+		blockPart(cellBlock("c", "1", false)),
+		blockPart(cellBlock("d", "2", false)),
+		groupEnd("r1"),
+		groupEnd("t"),
+		blockPart(model.NewBlock("after", "tail")), // ignored: after the table
+	}
+	end, table := AssembleTable(parts, 1) // start at the table GroupStart
+	assert.Equal(t, 10, end, "end should be the table GroupEnd index")
+	rows := table.Rows
+	require.Len(t, rows, 2)
+	assert.True(t, rows[0].Header, "header row flagged from cell roles")
+	require.Len(t, rows[0].Cells, 2)
+	assert.True(t, rows[0].Cells[0].Header)
+	assert.Equal(t, "A", model.RunsText(rows[0].Cells[0].Block.Source))
+	assert.False(t, rows[1].Header)
+	assert.Equal(t, "2", model.RunsText(rows[1].Cells[1].Block.Source))
+}
+
+func TestAssembleTable_CaptionLead(t *testing.T) {
+	caption := model.NewBlock("cap", "Table 1")
+	caption.SetSemanticRole(model.RoleCaption, 0)
+	parts := []*model.Part{
+		groupStart("t", "table"),
+		blockPart(caption), // direct table child, not in a row
+		groupStart("r0", "table-row"),
+		blockPart(cellBlock("a", "A", false)),
+		groupEnd("r0"),
+		groupEnd("t"),
+	}
+	_, table := AssembleTable(parts, 0)
+	require.Len(t, table.Lead, 1, "caption collected as Lead")
+	assert.Equal(t, "Table 1", model.RunsText(table.Lead[0].Source))
+	require.Len(t, table.Rows, 1)
+	assert.Len(t, table.Rows[0].Cells, 1)
+}

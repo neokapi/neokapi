@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 )
 
 // Writer implements DataFormatWriter for DocLang documents. It serializes the
@@ -461,38 +462,54 @@ func (w *Writer) blockRuns(blk *model.Block) []model.Run {
 // vocabulary type (balanced via a tag stack, so the same output results whether
 // the runs came from DocLang or any other source).
 func renderXMLBody(runs []model.Run) string {
-	var sb strings.Builder
-	var open []string
-	for _, r := range runs {
-		switch {
-		case r.Text != nil:
-			sb.WriteString(bodyEscaper.Replace(r.Text.Text))
-		case r.PcOpen != nil:
-			tag := typeToDocTag[r.PcOpen.Type]
-			open = append(open, tag)
-			if tag != "" {
-				sb.WriteString("<" + tag + ">")
-			}
-		case r.PcClose != nil:
-			if n := len(open); n > 0 {
-				tag := open[n-1]
-				open = open[:n-1]
-				if tag != "" {
-					sb.WriteString("</" + tag + ">")
-				}
-			}
-		case r.Ph != nil:
-			if r.Ph.Equiv != "" {
-				sb.WriteString(bodyEscaper.Replace(r.Ph.Equiv))
-			}
+	sink := &doclangInlineSink{}
+	projection.WalkInline(runs, sink)
+	sink.flush()
+	return sink.sb.String()
+}
+
+// doclangInlineSink maps the shared inline-run stream (projection.WalkInline) to
+// DocLang body markup, owning the open-tag stack the paired-code close needs. It
+// replaces the writer's former bespoke run loop; WalkInline now handles run
+// decoding + plural/select 'other'-branch resolution. Types with no DocLang tag
+// (link/image/code/highlight) drop their wrapper but keep their content.
+type doclangInlineSink struct {
+	sb   strings.Builder
+	open []string // stack of element names ("" for a dropped wrapper)
+}
+
+func (s *doclangInlineSink) Text(t string) { s.sb.WriteString(bodyEscaper.Replace(t)) }
+
+func (s *doclangInlineSink) Open(r *model.PcOpenRun) {
+	tag := typeToDocTag[r.Type]
+	s.open = append(s.open, tag)
+	if tag != "" {
+		s.sb.WriteString("<" + tag + ">")
+	}
+}
+
+func (s *doclangInlineSink) Close(*model.PcCloseRun) {
+	if n := len(s.open); n > 0 {
+		tag := s.open[n-1]
+		s.open = s.open[:n-1]
+		if tag != "" {
+			s.sb.WriteString("</" + tag + ">")
 		}
 	}
-	for i := len(open) - 1; i >= 0; i-- {
-		if open[i] != "" {
-			sb.WriteString("</" + open[i] + ">")
+}
+
+func (s *doclangInlineSink) Placeholder(r *model.PlaceholderRun) {
+	if r.Equiv != "" {
+		s.sb.WriteString(bodyEscaper.Replace(r.Equiv))
+	}
+}
+
+func (s *doclangInlineSink) flush() {
+	for i := len(s.open) - 1; i >= 0; i-- {
+		if s.open[i] != "" {
+			s.sb.WriteString("</" + s.open[i] + ">")
 		}
 	}
-	return sb.String()
 }
 
 // --- OTSL span-aware table emission ---

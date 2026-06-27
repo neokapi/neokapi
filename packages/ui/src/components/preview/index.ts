@@ -23,6 +23,8 @@ export type { ContentTreeViewProps } from "./ContentTreeView";
 export { default as DocumentRender } from "./DocumentRender";
 export type { DocumentRenderProps } from "./DocumentRender";
 export { default as RunSequence } from "./RunSequence";
+export { default as RenderedDocument } from "./RenderedDocument";
+export type { RenderedDocumentProps } from "./RenderedDocument";
 export { default as CodeView } from "./CodeView";
 export type { CodeViewProps } from "./CodeView";
 

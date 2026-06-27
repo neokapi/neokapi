@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 	"golang.org/x/net/html"
 )
 
@@ -114,11 +115,23 @@ func (w *Writer) writeSemantic(events []*model.Part, sourceLocale model.LocaleID
 	}
 
 	st := &semanticState{}
-	for _, part := range events {
+	for i := 0; i < len(events); i++ {
+		part := events[i]
 		switch part.Type {
 		case model.PartGroupStart:
 			g, ok := part.Resource.(*model.GroupStart)
 			if !ok {
+				continue
+			}
+			// A table/index is rendered as a unit from the shared assembly
+			// (rows of cells + lead caption), so its table-row groups and cells
+			// are consumed here and the loop skips to the matching GroupEnd.
+			if g.Type == "table" || g.Type == "index" {
+				end, err := w.renderTableSemantic(st, events, i)
+				if err != nil {
+					return err
+				}
+				i = end
 				continue
 			}
 			if err := w.openSemGroup(st, g); err != nil {
@@ -201,6 +214,44 @@ func documentTitle(events []*model.Part) string {
 		}
 	}
 	return "Document"
+}
+
+// renderTableSemantic renders a whole <table> from the shared assembly
+// (projection.AssembleTable). It drives the same openSemGroup / emitBlock /
+// closeSemGroup the streamed path uses — opening the real table group, emitting
+// any lead caption, then a synthetic table-row group per assembled row with its
+// cells — so the column-padding, indentation and <th>/<td> output are identical;
+// only the row/cell structure now comes from one assembler. Returns the index of
+// the table's GroupEnd.
+func (w *Writer) renderTableSemantic(st *semanticState, events []*model.Part, start int) (end int, err error) {
+	tableG, _ := events[start].Resource.(*model.GroupStart)
+	if err = w.openSemGroup(st, tableG); err != nil {
+		return start, err
+	}
+	end, table := projection.AssembleTable(events, start)
+	for _, b := range table.Lead {
+		if err = w.emitBlock(st, b); err != nil {
+			return end, err
+		}
+	}
+	rowG := &model.GroupStart{Type: "table-row"}
+	for _, row := range table.Rows {
+		if err = w.openSemGroup(st, rowG); err != nil {
+			return end, err
+		}
+		for _, c := range row.Cells {
+			if err = w.emitBlock(st, c.Block); err != nil {
+				return end, err
+			}
+		}
+		if err = w.closeSemGroup(st); err != nil { // closes the <tr>
+			return end, err
+		}
+	}
+	if err = w.closeSemGroup(st); err != nil { // closes the <table>
+		return end, err
+	}
+	return end, nil
 }
 
 func (w *Writer) openSemGroup(st *semanticState, g *model.GroupStart) error {
@@ -340,7 +391,7 @@ func (w *Writer) emitBlock(st *semanticState, b *model.Block) error {
 
 	switch role {
 	case model.RoleHeading:
-		level := min(max(headingLevel(b), 1), 6)
+		level := min(max(b.HeadingLevel(), 1), 6)
 		return w.semLine(st, fmt.Sprintf("<h%d>%s</h%d>", level, body, level))
 	case model.RoleCode:
 		openTag := "<code>"
@@ -425,17 +476,6 @@ func cellSpanAttrs(b *model.Block) (attrs string, colSpan int) {
 
 // headingLevel returns a block's heading level from the structural annotation,
 // falling back to the legacy "level" property; 0 when neither is present.
-func headingLevel(b *model.Block) int {
-	if s, ok := b.Structure(); ok && s != nil && s.Level > 0 {
-		return s.Level
-	}
-	if lv := b.Properties["level"]; lv != "" {
-		n := 0
-		_, _ = fmt.Sscanf(lv, "%d", &n)
-		return n
-	}
-	return 0
-}
 
 // renderInlineHTML renders a block's runs (target locale if set, else source)
 // as escaped HTML inline content: text is HTML-escaped; inline formatting runs
@@ -449,68 +489,87 @@ func (w *Writer) renderInlineHTML(b *model.Block) string {
 			runs = t
 		}
 	}
-	var sb strings.Builder
-	var open []string // stack of emitted closing tags (or "" for dropped)
-	for _, r := range runs {
-		switch {
-		case r.Text != nil:
-			sb.WriteString(html.EscapeString(r.Text.Text))
-		case r.PcOpen != nil:
-			switch r.PcOpen.Type {
-			case "link:hyperlink":
-				sb.WriteString("<a" +
-					htmlAttr("href", r.PcOpen.Attr(model.AttrHref)) +
-					htmlAttr("title", r.PcOpen.Attr(model.AttrTitle)) + ">")
-				open = append(open, "</a>")
-			case "media:image", "link:image":
-				// Paired image (e.g. read from Markdown): the alt text is the
-				// content. Open the alt attribute; the content fills it; the
-				// matching close finishes the void element.
-				sb.WriteString("<img" + htmlAttr("src", r.PcOpen.Attr(model.AttrSrc)) + ` alt="`)
-				open = append(open, `"`+htmlAttr("title", r.PcOpen.Attr(model.AttrTitle))+"/>")
-			default:
-				if tag, ok := htmlInlineTag[r.PcOpen.Type]; ok {
-					sb.WriteString(tag[0])
-					open = append(open, tag[1])
-				} else if strings.HasPrefix(strings.TrimSpace(r.PcOpen.Data), "<") {
-					sb.WriteString(r.PcOpen.Data)
-					open = append(open, "") // closing comes from the matching PcClose Data
-				} else {
-					open = append(open, "")
-				}
-			}
-		case r.PcClose != nil:
-			if n := len(open); n > 0 {
-				closer := open[n-1]
-				open = open[:n-1]
-				if closer != "" {
-					sb.WriteString(closer)
-				} else if strings.HasPrefix(strings.TrimSpace(r.PcClose.Data), "<") {
-					sb.WriteString(r.PcClose.Data)
-				}
-			}
-		case r.Ph != nil:
-			switch r.Ph.Type {
-			case "media:image", "link:image":
-				// Self-closing image (e.g. read from HTML <img>): alt lives in
-				// the run attributes, not as paired content.
-				sb.WriteString("<img" +
-					htmlAttr("src", r.Ph.Attr(model.AttrSrc)) +
-					htmlAttr("alt", r.Ph.Attr(model.AttrAlt)) +
-					htmlAttr("title", r.Ph.Attr(model.AttrTitle)) + "/>")
-			default:
-				if r.Ph.Equiv != "" {
-					sb.WriteString(html.EscapeString(r.Ph.Equiv))
-				}
-			}
+	return renderRunsHTML(runs)
+}
+
+// renderRunsHTML projects a run sequence to inline HTML via the shared decoder.
+func renderRunsHTML(runs []model.Run) string {
+	sink := &htmlInlineSink{}
+	projection.WalkInline(runs, sink)
+	sink.flush()
+	return sink.sb.String()
+}
+
+// htmlInlineSink maps the shared inline-run stream (projection.WalkInline) to
+// HTML, owning the open-tag stack the paired-code close behavior needs. It
+// replaces the writer's former bespoke run loop; WalkInline now handles run
+// decoding + plural/select 'other'-branch resolution.
+type htmlInlineSink struct {
+	sb   strings.Builder
+	open []string // stack of emitted closing tags (or "" for dropped)
+}
+
+func (s *htmlInlineSink) Text(t string) { s.sb.WriteString(html.EscapeString(t)) }
+
+func (s *htmlInlineSink) Open(r *model.PcOpenRun) {
+	switch r.Type {
+	case "link:hyperlink":
+		s.sb.WriteString("<a" + htmlAttr("href", r.Attr(model.AttrHref)) + htmlAttr("title", r.Attr(model.AttrTitle)) + ">")
+		s.open = append(s.open, "</a>")
+	case "media:image", "link:image":
+		// Paired image (e.g. read from Markdown): the alt text is the content.
+		// Open the alt attribute; the content fills it; the matching close
+		// finishes the void element.
+		s.sb.WriteString("<img" + htmlAttr("src", r.Attr(model.AttrSrc)) + ` alt="`)
+		s.open = append(s.open, `"`+htmlAttr("title", r.Attr(model.AttrTitle))+"/>")
+	default:
+		if tag, ok := htmlInlineTag[r.Type]; ok {
+			s.sb.WriteString(tag[0])
+			s.open = append(s.open, tag[1])
+		} else if strings.HasPrefix(strings.TrimSpace(r.Data), "<") {
+			s.sb.WriteString(r.Data)
+			s.open = append(s.open, "") // closing comes from the matching PcClose Data
+		} else {
+			s.open = append(s.open, "")
 		}
 	}
-	for i := len(open) - 1; i >= 0; i-- {
-		if open[i] != "" {
-			sb.WriteString(open[i])
+}
+
+func (s *htmlInlineSink) Close(r *model.PcCloseRun) {
+	if n := len(s.open); n > 0 {
+		closer := s.open[n-1]
+		s.open = s.open[:n-1]
+		if closer != "" {
+			s.sb.WriteString(closer)
+		} else if strings.HasPrefix(strings.TrimSpace(r.Data), "<") {
+			s.sb.WriteString(r.Data)
 		}
 	}
-	return sb.String()
+}
+
+func (s *htmlInlineSink) Placeholder(r *model.PlaceholderRun) {
+	switch r.Type {
+	case "media:image", "link:image":
+		// Self-closing image (e.g. read from HTML <img>): alt lives in the run
+		// attributes, not as paired content.
+		s.sb.WriteString("<img" +
+			htmlAttr("src", r.Attr(model.AttrSrc)) +
+			htmlAttr("alt", r.Attr(model.AttrAlt)) +
+			htmlAttr("title", r.Attr(model.AttrTitle)) + "/>")
+	default:
+		if r.Equiv != "" {
+			s.sb.WriteString(html.EscapeString(r.Equiv))
+		}
+	}
+}
+
+// flush emits any trailing unclosed tags (defensive — well-formed runs balance).
+func (s *htmlInlineSink) flush() {
+	for i := len(s.open) - 1; i >= 0; i-- {
+		if s.open[i] != "" {
+			s.sb.WriteString(s.open[i])
+		}
+	}
 }
 
 // print writes a string to the writer's output.

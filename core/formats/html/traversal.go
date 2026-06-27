@@ -42,6 +42,26 @@ type walkVisitor interface {
 	// a block element that has both block and inline children. The run spans
 	// from runStart up to (but not including) runEnd.
 	onMixedContentBlock(blockID string, parent *html.Node, runStart, runEnd *html.Node, preserveWS bool)
+
+	// onContainerStart / onContainerEnd bracket a structural container (a table
+	// or a table row) as a Group in the Part stream, so cross-format writers and
+	// core/projection can rebuild the grid from the canonical table/table-row
+	// shape. groupType is "table" or "table-row".
+	onContainerStart(groupID, groupType string)
+	onContainerEnd(groupID string)
+}
+
+// tableContainerGroup maps a table/row container element to its canonical
+// projection group type, or returns ("", false) for any other element.
+func tableContainerGroup(a atom.Atom) (string, bool) {
+	switch a {
+	case atom.Table:
+		return "table", true
+	case atom.Tr:
+		return "table-row", true
+	default:
+		return "", false
+	}
 }
 
 // domWalker traverses a parsed HTML DOM, assigning sequential block/data IDs
@@ -50,6 +70,7 @@ type domWalker struct {
 	cfg          *Config
 	blockCounter int
 	dataCounter  int
+	groupCounter int
 	visitor      walkVisitor
 	// depth bounds the recursive DOM/inline descent so a pathologically nested
 	// document degrades to a clean truncation instead of a Go stack-overflow
@@ -71,6 +92,11 @@ func (w *domWalker) nextBlockID() string {
 func (w *domWalker) nextDataID() string {
 	w.dataCounter++
 	return fmt.Sprintf("d%d", w.dataCounter)
+}
+
+func (w *domWalker) nextGroupID() string {
+	w.groupCounter++
+	return fmt.Sprintf("g%d", w.groupCounter)
 }
 
 // walk traverses the entire document tree.
@@ -128,6 +154,18 @@ func (w *domWalker) walkElement(n *html.Node, translateNo bool) {
 		} else if tv == "yes" {
 			elemTranslateNo = false
 		}
+	}
+
+	// Bracket table / table-row containers in canonical groups so cross-format
+	// writers and core/projection rebuild the grid from table/table-row/cells
+	// instead of collapsing cells to standalone blocks. This is the read-only
+	// DOM path (convert + inspect/preview); the byte-exact html→html tokenizer
+	// path is separate and unaffected. The cells themselves still emit as
+	// blocks below with their RoleTableCell/RoleTableHeader role.
+	if grp, ok := tableContainerGroup(n.DataAtom); ok {
+		gid := w.nextGroupID()
+		w.visitor.onContainerStart(gid, grp)
+		defer w.visitor.onContainerEnd(gid)
 	}
 
 	// Non-translatable elements (script, style, noscript).

@@ -125,6 +125,11 @@ func ProjectStream(parts []*model.Part) *RenderNode {
 			if !ok {
 				continue
 			}
+			// Drop a cell that only continues a vertical merge from above — the
+			// originating cell's RowSpan already covers this position.
+			if b.Properties[model.PropTableVMerge] == "continue" {
+				continue
+			}
 			n := ProjectBlock(b)
 			// A bare table cell whose enclosing frame is not a row means the
 			// reader did not emit row groups; buffer it for flat-cell assembly.

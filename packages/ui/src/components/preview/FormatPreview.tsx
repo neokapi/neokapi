@@ -11,6 +11,7 @@ import type {
   RenderSlide,
 } from "./renderDoc";
 import { colLabel, treeToRenderDoc } from "./renderDoc";
+import RenderedDocument from "./RenderedDocument";
 import type { ContentTree } from "./types";
 import {
   resolveOverlaySpans,
@@ -585,6 +586,14 @@ export default function FormatPreview({
   );
   const needsMarker = useMemo(() => annotations && docHasRedaction(model), [annotations, model]);
 
+  // When the engine ships a projected render AST (ContentTree.render) and the
+  // call is the plain source preview — no explicit `doc`/`before` override and
+  // no animation — render it faithfully (real inline formatting + reconstructed
+  // tables, preview-fidelity #1/#2). Overlay-highlight / diff / typewriter
+  // previews keep the structured RenderDoc path, which segments flat text.
+  const useProjection =
+    !doc && !before && transition === "none" && side === "source" && !!tree?.render;
+
   const ctx = useMemo<PreviewCtx>(
     () => ({
       side,
@@ -613,7 +622,11 @@ export default function FormatPreview({
       <Ctx.Provider value={ctx}>
         <div className={cn("kapi-reference", styles.root, flush && styles.flush, className)}>
           {needsMarker && <RedactMarkerFilter />}
-          <PreviewBody doc={model} gridHeaders={gridHeaders} />
+          {useProjection && tree?.render ? (
+            <RenderedDocument node={tree.render} />
+          ) : (
+            <PreviewBody doc={model} gridHeaders={gridHeaders} />
+          )}
         </div>
       </Ctx.Provider>
     </TooltipProvider>

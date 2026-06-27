@@ -401,6 +401,12 @@ type writerVisitor struct {
 	sourceLocale model.LocaleID
 }
 
+// onContainerStart / onContainerEnd are no-ops for the writer's re-parse path:
+// it reconstructs output from the original DOM + block text, not from the
+// projection group shape. The grouping is a reader-side concern.
+func (v *writerVisitor) onContainerStart(groupID, groupType string) {}
+func (v *writerVisitor) onContainerEnd(groupID string)              {}
+
 func (v *writerVisitor) onData(dataID string, n *html.Node, dataName string, props map[string]string) {
 	// lang/xml:lang declarations surface here with props["language"] set
 	// (see domWalker.extractLangAttribute). When retargeting to a different
