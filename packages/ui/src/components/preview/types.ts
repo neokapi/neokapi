@@ -117,6 +117,13 @@ export interface CodeRun {
   data?: string;
   equiv?: string;
   disp?: string;
+  /**
+   * Canonical, format-neutral attributes for link/image runs (mirrors the Go
+   * PcOpenRun/PlaceholderRun Attrs map): `href`, `src`, `alt`, `title`. Required
+   * to project a hyperlink/image into the preview's semantic markup — without it
+   * a link renders as bare text. Omitted by older engine builds.
+   */
+  attrs?: Record<string, string>;
 }
 export interface SubRun {
   id: string;
@@ -369,10 +376,60 @@ export interface ContentStats {
   runs: number;
 }
 
+/**
+ * Optional page geometry on a render node (mirrors model.GeometryAnnotation's
+ * JSON), present only for layout-bearing formats (PDF, Docling, slides).
+ */
+export interface RenderGeometry {
+  page?: number;
+  bbox: { x: number; y: number; w: number; h: number };
+  resolution?: number;
+  origin?: string;
+  z?: number;
+}
+
+/**
+ * RenderNode is the normalized generative-projection render AST built in Go
+ * (core/projection) and shipped on ContentTree.render. It mirrors the Go
+ * RenderNode field-for-field: a node is structural (carries `children`:
+ * document, table, table-row, list) or a leaf (carries `runs`: paragraph,
+ * heading, table-cell, list-item, code, …). The preview renders this tree
+ * directly — inline runs as semantic markup, table topology as a real grid —
+ * instead of re-deriving structure from the raw content tree.
+ */
+export interface RenderNode {
+  /** Canonical semantic role (model.Role*) or a projection role ("document", "table-row"). */
+  role?: string;
+  /** Heading level / list nesting depth; 0 when n/a. */
+  level?: number;
+  /** Inline content of a leaf node. */
+  runs?: Run[];
+  /** Structural children (rows of a table, items of a list, cells of a row). */
+  children?: RenderNode[];
+  /** Source block Properties verbatim (code.language, table.header-kind, …). */
+  props?: Record<string, string>;
+  geometry?: RenderGeometry;
+  /** Merged-cell extents, meaningful on table-cell / table-header nodes. */
+  colSpan?: number;
+  rowSpan?: number;
+  /** True for a header cell (table-header). */
+  header?: boolean;
+  /** True for an ordered (numbered) list. */
+  ordered?: boolean;
+  /** Source block ID, for overlay anchoring + cross-reference to the content tree. */
+  blockId?: string;
+}
+
 export interface ContentTree {
   format: string;
   root: ContentNode[];
   stats: ContentStats;
+  /**
+   * The generative-projection render AST for the same stream (core/projection),
+   * built once in Go. Present on newer engine builds; consumers treat it as
+   * optional and fall back to deriving a render model from `root`.
+   */
+  render?: RenderNode;
 }
 
 /** The discriminator key of a run, or "text" as a safe default. */

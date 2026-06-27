@@ -32,6 +32,13 @@ export { FileIcon, fileType, extOf } from "./fileTypes";
 export type { FileTypeInfo, FileGroup, FileIconProps } from "./fileTypes";
 export { downloadBytes, downloadText, formatBytes } from "./download";
 export { treeToRenderDoc, runsText, parseCellRef, colLabel, STRUCTURE_RULES } from "./renderDoc";
+export {
+  inlineSegments,
+  tableFromNode,
+  nodeText,
+  headingLevel,
+} from "./projectionRender";
+export type { InlineSeg, RenderTable, RenderTableCell } from "./projectionRender";
 export type {
   RenderDoc,
   RenderKind,
