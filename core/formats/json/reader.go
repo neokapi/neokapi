@@ -28,9 +28,18 @@ type Reader struct {
 	layerSeq      int          // counter for generating unique child layer IDs
 }
 
-// Ensure Reader implements SubfilterAware and SkeletonStoreEmitter.
+// Ensure Reader implements SubfilterAware, SkeletonStoreEmitter, and StreamingReader.
 var _ format.SubfilterAware = (*Reader)(nil)
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+var _ format.StreamingReader = (*Reader)(nil)
+
+// StreamingReader marks this reader as bounded-memory streaming for its
+// same-format skeleton round-trip (validation off): it walks the JSON
+// token-by-token from a bufio window with an ancestor-only path stack, never
+// materialising the document or its token slice. Cross-format and validation
+// modes keep the buffered path (they need the whole buffer); the reader still
+// emits Parts incrementally there. See [AD-005] "Streaming readers".
+func (r *Reader) StreamingReader() bool { return true }
 
 // NewReader creates a new JSON reader.
 func NewReader() *Reader {
@@ -136,6 +145,26 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	if locale.IsEmpty() {
 		locale = model.LocaleEnglish
 	}
+	layer := &model.Layer{
+		ID:         "doc1",
+		Name:       r.Doc.URI,
+		Format:     "json",
+		Locale:     locale,
+		Encoding:   r.Doc.Encoding,
+		MimeType:   "application/json",
+		Properties: make(map[string]string),
+	}
+
+	// Streaming path: a same-format skeleton round-trip with validation off reads
+	// the document token-by-token from a bounded bufio window (no whole-buffer
+	// io.ReadAll, no materialised token slice). The walk is identical to the
+	// buffered path — only the token source differs. Validation mode needs the
+	// whole buffer for snippet windows, and the non-skeleton (cross-format) path
+	// stores json.original, so both stay buffered below.
+	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
+		r.readContentStreaming(ctx, ch, layer)
+		return
+	}
 
 	// Read all content, bounded by the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
@@ -146,16 +175,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// Emit layer start
-	layer := &model.Layer{
-		ID:         "doc1",
-		Name:       r.Doc.URI,
-		Format:     "json",
-		Locale:     locale,
-		Encoding:   r.Doc.Encoding,
-		MimeType:   "application/json",
-		Properties: make(map[string]string),
-	}
 	// Store original JSON for non-skeleton roundtrip.
 	// Use unsafe.String to share the backing array with the content []byte,
 	// avoiding a full copy of the file content. This is safe because content
@@ -198,12 +217,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	blockCounter := 0
 	dataCounter := 0
 	state := &readState{pendingMaxwidth: -1}
-	pos := 0
-	r.walkTokenValue(ctx, ch, tokens, &pos, "", "", layer.ID, &blockCounter, &dataCounter, state)
+	ts := &sliceStream{toks: tokens}
+	r.walkTokenValue(ctx, ch, ts, "", "", layer.ID, &blockCounter, &dataCounter, state)
 
 	// Write trailing whitespace/comments to skeleton store
-	if r.skeletonStore != nil && pos < len(tokens) && tokens[pos].typ == tokenEOF {
-		r.skelText(tokens[pos].prefix)
+	if r.skeletonStore != nil && !ts.done() && ts.cur().typ == tokenEOF {
+		r.skelText(ts.cur().prefix)
 	}
 	r.skelFlush()
 
@@ -211,40 +230,75 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-// walkTokenValue reads a JSON value from the token stream starting at pos.
-func (r *Reader) walkTokenValue(ctx context.Context, ch chan<- model.PartResult,
-	tokens []token, pos *int, keyName, path, parentLayerID string,
-	blockCounter, dataCounter *int, state *readState) {
-
-	if *pos >= len(tokens) {
+// readContentStreaming is the bounded-memory read path: it walks the JSON
+// token-by-token from a streamScanner over the source stream, emitting blocks and
+// skeleton refs/text incrementally, so peak memory is O(nesting depth + current
+// token + the translatable window), not O(document). Used only for a same-format
+// skeleton round-trip with validation off (see readContent). A streaming scan
+// error is surfaced after the walk, matching the buffered path's parse-error
+// behavior (no layer end on error).
+func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartResult, layer *model.Layer) {
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 		return
 	}
-	tok := tokens[*pos]
+
+	ts := newStreamTokenStream(safeio.DefaultBudget().Reader(r.Doc.Reader))
+	blockCounter := 0
+	dataCounter := 0
+	state := &readState{pendingMaxwidth: -1}
+	r.walkTokenValue(ctx, ch, ts, "", "", layer.ID, &blockCounter, &dataCounter, state)
+
+	if err := ts.err(); err != nil {
+		r.emitErr(ctx, ch, fmt.Errorf("json: parsing: %w", err))
+		return
+	}
+
+	// Trailing whitespace/comments ride on the EOF token's prefix.
+	if ts.cur().typ == tokenEOF {
+		r.skelText(ts.cur().prefix)
+	}
+	r.skelFlush()
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// walkTokenValue reads a JSON value from the token stream. It is forward and
+// ancestor-only: it inspects the current token and descends, never looking back,
+// which is what lets it run over either a materialised slice or the streaming
+// scanner (tokenStream).
+func (r *Reader) walkTokenValue(ctx context.Context, ch chan<- model.PartResult,
+	ts tokenStream, keyName, path, parentLayerID string,
+	blockCounter, dataCounter *int, state *readState) {
+
+	if ts.done() {
+		return
+	}
+	tok := ts.cur()
 
 	switch tok.typ {
 	case tokenObjectStart:
-		r.walkTokenObject(ctx, ch, tokens, pos, path, parentLayerID, blockCounter, dataCounter, state)
+		r.walkTokenObject(ctx, ch, ts, path, parentLayerID, blockCounter, dataCounter, state)
 	case tokenArrayStart:
-		r.walkTokenArray(ctx, ch, tokens, pos, keyName, path, parentLayerID, blockCounter, dataCounter, state)
+		r.walkTokenArray(ctx, ch, ts, keyName, path, parentLayerID, blockCounter, dataCounter, state)
 	case tokenString:
-		*pos++
+		ts.next()
 		r.handleStringValue(ctx, ch, tok, keyName, path, parentLayerID, blockCounter, dataCounter, state)
 	case tokenNumber, tokenTrue, tokenFalse, tokenNull:
-		*pos++
+		ts.next()
 		r.handleNonStringValue(ctx, ch, tok, keyName, path, parentLayerID, blockCounter, dataCounter, state)
 	default:
 		r.skelToken(tok)
-		*pos++ // skip unexpected tokens
+		ts.next() // skip unexpected tokens
 	}
 }
 
 // walkTokenObject reads a JSON object { key: value, ... }.
 func (r *Reader) walkTokenObject(ctx context.Context, ch chan<- model.PartResult,
-	tokens []token, pos *int, parentPath, parentLayerID string,
+	ts tokenStream, parentPath, parentLayerID string,
 	blockCounter, dataCounter *int, state *readState) {
 
-	r.skelToken(tokens[*pos]) // {
-	*pos++
+	r.skelToken(ts.cur()) // {
+	ts.next()
 	// Save and reset pending state for this object scope
 	savedState := *state
 	state.pendingNote = ""
@@ -253,37 +307,37 @@ func (r *Reader) walkTokenObject(ctx context.Context, ch chan<- model.PartResult
 	state.pendingMeta = nil
 	state.pendingMaxwidth = -1
 
-	for *pos < len(tokens) {
-		tok := tokens[*pos]
+	for !ts.done() {
+		tok := ts.cur()
 		if tok.typ == tokenObjectEnd {
 			r.skelToken(tok)
-			*pos++
+			ts.next()
 			break
 		}
 		if tok.typ == tokenComma {
 			r.skelToken(tok)
-			*pos++
+			ts.next()
 			continue
 		}
 		if tok.typ != tokenString {
 			r.skelToken(tok)
-			*pos++
+			ts.next()
 			continue
 		}
 
 		key := tok.value
 		r.skelToken(tok) // key string
-		*pos++
+		ts.next()
 		// skip colon
-		if *pos < len(tokens) && tokens[*pos].typ == tokenColon {
-			r.skelToken(tokens[*pos])
-			*pos++
+		if !ts.done() && ts.cur().typ == tokenColon {
+			r.skelToken(ts.cur())
+			ts.next()
 		}
 
 		childPath := r.buildPath(key, parentPath)
 
 		// Walk the value (skeleton writing handled by value/handle functions)
-		r.walkTokenValue(ctx, ch, tokens, pos, key, childPath, parentLayerID, blockCounter, dataCounter, state)
+		r.walkTokenValue(ctx, ch, ts, key, childPath, parentLayerID, blockCounter, dataCounter, state)
 	}
 
 	// Flush a dangling note: a configured note/description/comment whose owning
@@ -312,23 +366,23 @@ func (r *Reader) walkTokenObject(ctx context.Context, ch chan<- model.PartResult
 
 // walkTokenArray reads a JSON array [ value, ... ].
 func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
-	tokens []token, pos *int, keyName, parentPath, parentLayerID string,
+	ts tokenStream, keyName, parentPath, parentLayerID string,
 	blockCounter, dataCounter *int, state *readState) {
 
-	r.skelToken(tokens[*pos]) // [
-	*pos++
+	r.skelToken(ts.cur()) // [
+	ts.next()
 	index := 0
 
-	for *pos < len(tokens) {
-		tok := tokens[*pos]
+	for !ts.done() {
+		tok := ts.cur()
 		if tok.typ == tokenArrayEnd {
 			r.skelToken(tok)
-			*pos++
+			ts.next()
 			break
 		}
 		if tok.typ == tokenComma {
 			r.skelToken(tok)
-			*pos++
+			ts.next()
 			continue
 		}
 
@@ -346,7 +400,7 @@ func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
 				blockID := "tu" + strconv.Itoa(*blockCounter)
 				r.skelText(tok.prefix)
 				r.skelRef(blockID)
-				*pos++
+				ts.next()
 
 				block := model.NewBlock(blockID, tok.value)
 				block.Name = childPath
@@ -359,7 +413,7 @@ func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
 				// Standalone string in array — skip extraction (opaque Data;
 				// byte-identical to the pre-surfacing behavior).
 				r.skelToken(tok)
-				*pos++
+				ts.next()
 				*dataCounter++
 				data := &model.Data{
 					ID:   "d" + strconv.Itoa(*dataCounter),
@@ -372,7 +426,7 @@ func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
 			if tok.typ == tokenObjectStart {
 				elemKey = ""
 			}
-			r.walkTokenValue(ctx, ch, tokens, pos, elemKey, childPath, parentLayerID, blockCounter, dataCounter, state)
+			r.walkTokenValue(ctx, ch, ts, elemKey, childPath, parentLayerID, blockCounter, dataCounter, state)
 		}
 		index++
 	}

@@ -60,31 +60,49 @@ bound depth). Context (ITS rules, translatable-attr resolution) is resolved by a
 **upward** walk of that ancestor stack. It still `io.ReadAll`s, but only for
 byte-offset skeleton slicing — the same incidental dependency as JSON.
 
-## Proof of concept: a bounded-memory, byte-exact streaming JSON tokenizer
+## JSON: implemented (streaming reader, wired and gated)
 
-The crux uncertainty was *not* the walk (clearly forward) but: **can we tokenize
-JSON byte-exactly from a stream with bounded memory?** This spike builds and
-validates exactly that.
+JSON is now a **full production implementation**, not a spike. The streaming
+tokenizer is wired into the reader behind a `tokenStream` seam:
 
 - `core/formats/json/streamscanner.go` — `streamScanner`, a JSON tokenizer that
   reads from an `io.Reader` through a small `bufio` window (all lookahead ≤ 10
   bytes) and emits the same `token{typ,raw,value,prefix}` sequence as the
   buffered `scanner.next()`. Peak memory is `O(bufio window + current token)`.
-- `core/formats/json/streamscanner_test.go`:
-  - **`TestStreamScannerParity`** — across representative well-formed JSON/JSON5
-    (nesting, escapes, surrogate pairs, numbers, literals, bare identifiers,
-    single quotes, BOM, and `//` `/* */` `#` `<!-- -->` comments) the streaming
-    scanner produces a **byte-identical token sequence** to the buffered scanner.
-    Because the walk is shared and token-equal ⇒ byte-exact, this is sufficient
-    to conclude an end-to-end streaming JSON read would be byte-exact without
-    re-plumbing the walk yet.
-  - **`TestStreamScannerBoundedMemory`** — tokenizing a document supplied as a
-    *pure stream* (an `io.Pipe` generator, never a whole buffer): peak heap is
-    **~1 MiB for a 13 MiB document and ~1 MiB for a 0.6 MiB document** — flat
-    (≈1.01×) across a 20× size change. A buffered tokenizer would hold ≥ the
-    whole document plus a token slice.
+- `core/formats/json/tokenstream.go` — the `tokenStream` interface with two
+  backends: `sliceStream` (the buffered token slice) and `streamTokenStream`
+  (the streaming scanner). The forward, ancestor-only walk
+  (`walkTokenValue/Object/Array`) is unchanged — only the token source differs.
+- `core/formats/json/reader.go` — `readContent` takes the streaming path
+  (`readContentStreaming`) when the read is a **same-format skeleton round-trip
+  with validation off** (`skeletonStore != nil && ValidationMode == Off`); it
+  walks the document token-by-token with an ancestor-only key-path stack, never
+  materialising the document or its token slice. Validation mode (needs the
+  buffer for snippet windows) and the cross-format path (stores `json.original`)
+  keep the buffered walk, byte-identical. `StreamingReader` is declared so the
+  file-runner concurrent-feeds the reader.
 
-This de-risks the core claim: **a 13 MiB JSON tokenizes in under 1 MiB.**
+Memory split: the **reader** is now bounded; the **writer** keeps its buffered
+block map, which holds only the *translatable* blocks (a fraction of the
+document), not the whole DOM — so peak drops from `O(document + token slice +
+DOM)` to `O(nesting depth + current token + translatable blocks)`. A fully
+streaming writer (interleaved skeleton consumption handling the JSON writer's
+`layer:<path>` child-layer refs) is a further, separable step.
+
+Validation:
+- The existing skeleton round-trip suite (`TestSkeletonStore_ByteExact` and its
+  whitespace/comment/nesting/array/unicode/escape subtests, the
+  `SkeletonTranslation_*` tests) now runs **through the streaming path** and is
+  byte-exact.
+- `TestStreamScannerParity` — the streaming tokenizer is token-identical to the
+  buffered one across nesting, escapes, surrogate pairs, JSON5, BOM, and all four
+  comment styles.
+- `TestStreamingReaderMatchesBuffered` — the streaming read emits the same
+  Block/Data part stream as the buffered read.
+- `TestStreamScannerBoundedMemory` / `TestStreamingReaderBoundedMemory` —
+  tokenizing/reading a document supplied as a *pure stream* (an `io.Pipe`
+  generator, never a whole buffer) holds **~1 MiB for a 12–13 MiB document** —
+  flat (≈1.01×) across a 20× size change. **A 13 MiB JSON reads in under 1 MiB.**
 
 ## Per-format classification
 
@@ -105,26 +123,37 @@ tokenizer path — the large majority of the remaining OOM surface. YAML and
 Markdown are blocked by their third-party AST parsers, which is a parser-swap
 project, not a data-model limitation.
 
-## Productionization plan (the low-uncertainty remainder)
+## Productionization plan (remaining formats)
 
-For JSON (then the same shape for XML and the catalogs):
+JSON above is the reference implementation. The same shape applies to the rest:
 
-1. **`tokenStream` seam.** Extract the walk's token access behind a tiny
-   interface (`peek()` / `advance()`), with two backends: the existing slice
-   (`scan()` output) and the new `streamScanner`. The walk body is unchanged.
-2. **Gate the streaming path** in `readContent` to the cases that don't need the
-   whole buffer: **skeleton wired** (same-format round-trip), **validation mode
-   off** (RVM snippet windows need the buffer), and **no subfilter resolver**
-   (embedded HTML-in-JSON dispatch). Everything else keeps the byte-identical
-   buffered path. Declare `format.StreamingReader` (conditional, like
-   paraplaintext) so the file-runner takes the concurrent feed.
-3. **Reuse #1020's machinery** unchanged: the reader emits skeleton refs +
-   prefix text as it walks; the writer consumes them via
-   `format.StreamSkeletonWrite` (the concurrent skeleton store), giving
-   byte-identical output with bounded memory.
-4. **Validate** with the existing JSON suite (buffered path byte-identical
-   through the seam) + a buffered-vs-streaming Part-stream parity test + the
-   memory benchmark.
+1. **`tokenStream`-style seam** — route the walk's token access through an
+   interface with a buffered backend and a streaming one (a streaming
+   tokenizer/decoder). The walk body is unchanged. (XML already has the
+   streaming half — `xml.Decoder` — so the work is emitting skeleton incrementally
+   instead of byte-offset slicing.)
+2. **Gate** to the same-format skeleton round-trip with validation off, declaring
+   `format.StreamingReader`. Everything else keeps the byte-identical buffered
+   path.
+3. **Validate** with the existing skeleton suite (which then runs through the
+   streaming path) + a streaming-vs-buffered Part-stream parity test + a
+   bounded-memory benchmark on an `io.Pipe`-streamed document.
+
+Per-format status / next:
+
+- **JSON** — done (this PR).
+- **XML** — `xml.Decoder` + iterative `elementFrame` stack already; convert the
+  byte-offset skeleton to incremental prefix emission. The XML/JSON-substrate
+  catalogs (resx/ts/tmx/androidxml; arb/i18next/designtokens/xcstrings) follow
+  their substrate.
+- **HTML** — the tokenizer skeleton path is streamable; the DOM path stays for
+  normalization.
+- **YAML, Markdown** — blocked by `yaml.v3` / `goldmark` full-AST parsers; need a
+  streaming parser swap. Out of scope for this line of work.
+
+A fully streaming **writer** (interleaved skeleton consumption) is a separable
+step that would bound the writer's block map too; the current work bounds the
+reader, which removes the document-shaped (DOM/token-slice) part of the peak.
 
 ### Out of scope / caveats
 
@@ -138,9 +167,10 @@ For JSON (then the same shape for XML and the catalogs):
   the `safeio` input cap per server context and bound concurrency for the formats
   that stay buffered.
 
-## Recommendation
+## Status
 
-Proceed to productionize streaming JSON behind the capability (steps 1–4),
-then XML and the JSON/XML-substrate catalogs follow mechanically. This removes
-the dominant OOM vector for structured-data documents. Leave YAML/Markdown
-buffered (or tackle the parser swap separately).
+JSON streaming is **implemented and shipped** in this line of work — the
+dominant structured-data OOM vector for the reader. XML and the JSON/XML-substrate
+catalogs follow the same pattern (each its own byte-exact conversion, validated by
+its existing skeleton suite). YAML/Markdown stay buffered pending a streaming
+parser swap.
