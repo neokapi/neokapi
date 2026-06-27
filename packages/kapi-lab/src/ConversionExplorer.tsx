@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { CodeView } from "@neokapi/ui-primitives/preview";
+import { CodeView, FormatPreview } from "@neokapi/ui-primitives/preview";
+import type { ContentTree } from "@neokapi/ui-primitives/preview";
 
 // CodeView's highlight languages (mirrors ui-primitives highlight.Lang).
 type Lang = "json" | "xml" | "yaml" | "properties" | "po" | "markdown" | "csv" | "text";
@@ -17,9 +18,13 @@ import styles from "./ConversionExplorer.module.css";
 // the input with its native reader, then writes the content model out through a
 // *generative* writer (one that reconstructs a whole document from the model,
 // no original-file skeleton needed) — the real kapi `convert` (kconv) command
-// running in WASM. The same engine powers a live visual preview: the document
-// is also projected to HTML and shown in a sandboxed iframe, so you see both the
-// rendered page and the chosen format's source side by side.
+// running in WASM. The converted output is then read back and shown in the
+// shared FormatPreview, which renders the projected content model (the same
+// render AST every writer emits) — inline formatting, reconstructed tables and
+// all — so you see the chosen format's source and a faithful rendering of the
+// document it reconstructs, side by side. A table that survives md→AsciiDoc, or
+// the bold/links/image in a paragraph, are visible in the preview, not just the
+// raw output.
 //
 // Only generative targets are offered. Skeleton-driven formats (docx/odt/idml/
 // epub/…) inject translations back into the *original* file and cannot be
@@ -121,9 +126,9 @@ export default function ConversionExplorer({
   });
   const [target, setTarget] = useState<string>(defaultTarget ?? "doclang");
   const [targets, setTargets] = useState<ConversionTarget[]>(GENERATIVE_TARGETS);
-  const [view, setView] = useState<ViewTab>("source");
+  const [view, setView] = useState<ViewTab>("rendered");
   const [output, setOutput] = useState<string | null>(null);
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [tree, setTree] = useState<ContentTree | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -199,16 +204,19 @@ export default function ConversionExplorer({
       const def = targets.find((t) => t.id === target) ?? targets[0];
       const out = await convertTo(inPath, def.id, def.ext);
       setOutput(out);
-      // Visual preview: reuse the HTML projection (or the output itself when the
-      // chosen target already is HTML), sandboxed.
-      setPreviewHtml(def.id === "html" ? out : await convertTo(inPath, "html", "html"));
+      // Read the converted output back through the engine to get its content
+      // tree; FormatPreview renders the projected render AST (tree.render) — so
+      // the preview reflects the *target's* reconstruction of the document,
+      // proving the table/inline structure survived the format crossing.
+      const res = await runtime.inspect(`converted.${def.ext}`, out);
+      setTree(res.ok ? (res.tree ?? null) : null);
     } catch (e) {
       setOutput(null);
-      setPreviewHtml(null);
+      setTree(null);
       setError(e instanceof Error ? e.message : String(e));
     }
     setBusy(false);
-  }, [runtime.ready, runtime.writeFile, convertTo, file, target, targets]);
+  }, [runtime.ready, runtime.writeFile, runtime.inspect, convertTo, file, target, targets]);
 
   useEffect(() => {
     if (runtime.ready) void runConversion();
@@ -280,13 +288,10 @@ export default function ConversionExplorer({
                 <CodeView text={output} lang={langForTarget(target)} maxHeight="28rem" />
               ))}
             {view === "rendered" &&
-              (previewHtml !== null && previewHtml.trim() !== "" ? (
-                <iframe
-                  className={styles.preview}
-                  title="Rendered preview"
-                  sandbox=""
-                  srcDoc={previewHtml}
-                />
+              (tree && tree.root.length > 0 ? (
+                <div className={styles.preview}>
+                  <FormatPreview tree={tree} />
+                </div>
               ) : (
                 <p className={styles.note}>No visual preview for this document.</p>
               ))}
@@ -294,8 +299,10 @@ export default function ConversionExplorer({
             <p className={styles.note}>
               The reader parses the input into the content model (roles, runs, tables, geometry); a
               generative writer re-serializes it as {targets.find((t) => t.id === target)?.label}.
-              Skeleton-driven formats (docx, odt, idml, epub) inject into an original file and so
-              cannot be conversion targets.
+              The preview reads that output back and renders the projected content model, so a table
+              or inline styling that survived the crossing shows up as a real grid and formatting —
+              not just text. Skeleton-driven formats (docx, odt, idml, epub) inject into an original
+              file and so cannot be conversion targets.
             </p>
           </>
         )}
