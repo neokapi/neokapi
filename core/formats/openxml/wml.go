@@ -6636,6 +6636,10 @@ var drawingMarkerRE = regexp.MustCompile(`<!--KAPI-(PROP|PARA|TEXT):([a-zA-Z0-9_
 // wordConfiguration.yml's `'wps:txbx': ruleTypes: [GROUP]` (line
 // 141) for textbox descent.
 func (p *wmlParser) extractDrawingTranslations(xmlData, partPath string, emitBlock func(*model.Block)) string {
+	// Resolve the drawing fragment's prefixes from the canonical wrapper
+	// namespaces, isolated from (and not leaking into) the surrounding
+	// document's registry.
+	defer isolateNamespaces()()
 	var out strings.Builder
 	out.Grow(len(xmlData))
 	wrapped := wrapDrawingXMLForDecode(xmlData)
@@ -7735,6 +7739,30 @@ var nsRegistry = struct {
 	sync.RWMutex
 	m map[string]string
 }{m: make(map[string]string)}
+
+// isolateNamespaces snapshots the global namespace registry and replaces it with
+// an empty one for the duration of a nested parse, returning a restore func to
+// defer. Drawing-payload extraction decodes its fragment under a synthetic
+// wrapper that declares the canonical OpenXML prefixes (wrapDrawingXMLForDecode),
+// so resolving the drawing's element prefixes against an empty registry — which
+// falls through to the static nsPrefixMap — keeps that serialization
+// deterministic and immune to a *different* document's leaked declaration (e.g.
+// a prior file binding the markup-compatibility namespace to `ve:` instead of
+// the canonical `mc:`). The surrounding document's registry is restored
+// afterward, so its own — possibly non-canonical — prefixes still round-trip
+// unchanged. Without this, test/processing order (or `-shuffle`) decided whether
+// a drawing emitted `mc:` or a leaked `ve:`.
+func isolateNamespaces() func() {
+	nsRegistry.Lock()
+	saved := nsRegistry.m
+	nsRegistry.m = map[string]string{}
+	nsRegistry.Unlock()
+	return func() {
+		nsRegistry.Lock()
+		nsRegistry.m = saved
+		nsRegistry.Unlock()
+	}
+}
 
 // registerNamespaces scans an element's attributes for xmlns declarations
 // and records the URI → prefix mapping.
