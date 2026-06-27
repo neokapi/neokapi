@@ -38,6 +38,16 @@ var _ format.SubfilterAware = (*Reader)(nil)
 // JSON reader, which does the token-level skeleton emission.
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
+// Ensure Reader is bounded-memory streaming: it forwards the source stream and
+// skeleton store to the inner JSON reader (which streams its same-format skeleton
+// round-trip) and post-processes the Part stream one part at a time, never
+// buffering it. See [AD-005].
+var _ format.StreamingReader = (*Reader)(nil)
+
+// StreamingReader marks this reader as streaming — it inherits the inner JSON
+// reader's bounded-memory token walk.
+func (r *Reader) StreamingReader() bool { return true }
+
 // NewReader creates a new i18next reader.
 func NewReader() *Reader {
 	cfg := &Config{}
