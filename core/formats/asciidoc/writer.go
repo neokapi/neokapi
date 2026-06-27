@@ -256,10 +256,26 @@ func (w *Writer) writeTableNormalized(events []*model.Part, start int, sep func(
 	if err = sep(); err != nil {
 		return start, err
 	}
-	if _, err = io.WriteString(w.Output, "|===\n"); err != nil {
-		return start, err
-	}
 	end, table := projection.AssembleTable(events, start)
+
+	// Emit a `cols` attribute so AsciiDoc groups the per-line cells into rows of
+	// the right width. Without it — and with each cell rendered on its own line —
+	// AsciiDoc has no blank-line row boundary to infer the column count from, so
+	// it collapses the grid into a single column (the reported bug). Promote the
+	// first row to a header when it is one.
+	if cols := tableColumnCount(table); cols > 0 {
+		attr := ""
+		if len(table.Rows) > 0 && table.Rows[0].Header {
+			attr = "%header,"
+		}
+		if _, err = fmt.Fprintf(w.Output, "[%scols=%d]\n", attr, cols); err != nil {
+			return end, err
+		}
+	}
+
+	if _, err = io.WriteString(w.Output, "|===\n"); err != nil {
+		return end, err
+	}
 	for _, b := range table.Lead {
 		if err = w.writeBlockNormalized(b, sep); err != nil {
 			return end, err
@@ -274,6 +290,26 @@ func (w *Writer) writeTableNormalized(events []*model.Part, start int, sep func(
 	}
 	_, err = io.WriteString(w.Output, "|===\n")
 	return end, err
+}
+
+// tableColumnCount returns the table's logical column count — the widest row,
+// summing each cell's column span — for the AsciiDoc `cols=N` attribute.
+func tableColumnCount(t projection.Table) int {
+	maxCols := 0
+	for _, row := range t.Rows {
+		n := 0
+		for _, c := range row.Cells {
+			span := 1
+			if s, ok := c.Block.Structure(); ok && s != nil && s.ColSpan > 1 {
+				span = s.ColSpan
+			}
+			n += span
+		}
+		if n > maxCols {
+			maxCols = n
+		}
+	}
+	return maxCols
 }
 
 // asciidocCellSpan returns the AsciiDoc cell-span prefix for a merged table cell

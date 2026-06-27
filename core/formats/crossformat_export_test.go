@@ -132,6 +132,11 @@ func TestCrossFormat_HTMLTableToAsciidoc(t *testing.T) {
 		`<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>`)
 
 	assert.Contains(t, out, "|===", "html table not wrapped in an AsciiDoc table block")
+	// A cols attribute is required so AsciiDoc groups the per-line cells into
+	// 2-column rows; without it the grid collapses to a single column. The
+	// first row is a header (<th>), so it is promoted with %header.
+	assert.Contains(t, out, "cols=2", "AsciiDoc table missing cols attribute — grid collapses to one column")
+	assert.Contains(t, out, "%header", "AsciiDoc table header row not promoted")
 	for _, cell := range []string{"A", "B", "1", "2"} {
 		assert.Contains(t, out, "| "+cell, "cell %q lost", cell)
 	}
