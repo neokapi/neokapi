@@ -92,6 +92,7 @@ type Reader struct {
 	source       []byte
 	blockCounter int
 	dataCounter  int
+	groupCounter int
 
 	// nonTranslatableDepth, when >0, marks every Block emitted as
 	// Translatable:false. It is raised while walking a sub-tree whose
@@ -210,6 +211,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 
 	r.blockCounter = 0
 	r.dataCounter = 0
+	r.groupCounter = 0
 
 	// Handle YAML front matter.
 	bodyOffset := r.handleFrontMatter(ctx, ch, content)
@@ -2286,10 +2288,26 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 	// the line that immediately follows the header row.
 	separatorLine := r.tableSeparatorLine(node, baseOffset)
 
+	// Wrap the cells in the canonical table / table-row group shape (matching
+	// the docling/asciidoc/csv readers and core/projection). The group parts
+	// carry no skeleton bytes — md→md round-trip stays byte-exact via skeleton
+	// replay, which ignores them — but they give cross-format writers (HTML,
+	// AsciiDoc) and the preview the row topology they need to rebuild a grid
+	// instead of collapsing cells to standalone paragraphs (preview-fidelity #2).
+	r.groupCounter++
+	tableID := fmt.Sprintf("g%d", r.groupCounter)
+	r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: tableID, Name: "table", Type: "table"}})
+
 	for row := node.FirstChild(); row != nil; row = row.NextSibling() {
 		if row.Kind() != east.KindTableHeader && row.Kind() != east.KindTableRow {
 			continue
 		}
+		isHeaderRow := row.Kind() == east.KindTableHeader
+
+		r.groupCounter++
+		rowID := fmt.Sprintf("g%d", r.groupCounter)
+		r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: rowID, Name: "table-row", Type: "table-row"}})
+
 		for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
 			if cell.Kind() != east.KindTableCell {
 				continue
@@ -2306,6 +2324,14 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 			block := model.NewBlock(blockID, cellText)
 			block.Name = fmt.Sprintf("cell%d", r.blockCounter)
 			block.Type = "table-cell"
+			// WS1 role so cross-format writers emit <th>/<td> (or AsciiDoc
+			// header rows) correctly; header cells live in the GFM header row.
+			if isHeaderRow {
+				block.SetSemanticRole(model.RoleTableHeader, 0)
+				block.SetTableHeaderKind(model.TableHeaderColumn)
+			} else {
+				block.SetSemanticRole(model.RoleTableCell, 0)
+			}
 			r.addInlineRuns(block, cell, source)
 			r.skelRef(blockID)
 			r.skelText(" ")
@@ -2313,10 +2339,14 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 		}
 		r.skelText("|\n")
 		// Inject the separator immediately after the header row.
-		if row.Kind() == east.KindTableHeader && separatorLine != "" {
+		if isHeaderRow && separatorLine != "" {
 			r.skelText(separatorLine)
 		}
+
+		r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: rowID}})
 	}
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: tableID}})
 }
 
 // tableSeparatorLine returns the source line that holds the GFM table
