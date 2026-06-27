@@ -95,6 +95,35 @@ func TestCrossFormat_HTMLToMarkdown(t *testing.T) {
 	assert.Contains(t, out, "![alt text](img.png)", "image not projected to Markdown")
 }
 
+const mdTable = "# Title\n\nIntro paragraph.\n\n| A | B |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |\n"
+
+// A GFM table must rebuild as a real grid when converted to another format,
+// not collapse to standalone paragraphs (preview-fidelity evidence #2). The
+// markdown reader now emits the canonical table/table-row group shape, so the
+// existing generative HTML/AsciiDoc writers reconstruct the grid.
+func TestCrossFormat_MarkdownTableToHTML(t *testing.T) {
+	out := convert(t, markdown.NewReader(), htmlfmt.NewWriter(), mdTable)
+
+	assert.Contains(t, out, "<table", "table collapsed — no <table> emitted (the reported gap)")
+	assert.Contains(t, out, "<th", "header cells not emitted as <th>")
+	assert.Contains(t, out, "<td", "body cells not emitted as <td>")
+	// Every cell's text must survive.
+	for _, cell := range []string{"A", "B", "1", "2", "3", "4"} {
+		assert.Contains(t, out, ">"+cell+"<", "cell %q lost", cell)
+	}
+	// Cells must not leak as standalone paragraphs.
+	assert.NotContains(t, out, "<p>A</p>", "cell leaked as a standalone paragraph")
+}
+
+func TestCrossFormat_MarkdownTableToAsciidoc(t *testing.T) {
+	out := convert(t, markdown.NewReader(), asciidoc.NewWriter(), mdTable)
+
+	assert.Contains(t, out, "|===", "table not wrapped in an AsciiDoc table block")
+	for _, cell := range []string{"A", "B", "1", "2", "3", "4"} {
+		assert.Contains(t, out, "| "+cell, "cell %q lost", cell)
+	}
+}
+
 // codeBlock builds a non-translatable RoleCode block tagged with a language,
 // the shape every reader produces for a fenced/listing code block.
 func codeBlock(body, lang string) *model.Block {
