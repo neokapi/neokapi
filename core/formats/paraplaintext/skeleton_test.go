@@ -40,6 +40,63 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	return buf.String()
 }
 
+// streamingRoundtrip drives a concurrent streaming round-trip via a
+// NewStreamingSkeletonStore, forwarding the reader's Parts into the writer while
+// the reader is still producing. Output must match the buffered skeleton path.
+func streamingRoundtrip(t *testing.T, input string) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := paraplaintext.NewReader()
+	writer := paraplaintext.NewWriter()
+	store := format.NewStreamingSkeletonStore()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	partsCh := make(chan *model.Part, 64)
+	readCh := reader.Read(ctx)
+	go func() {
+		defer close(partsCh)
+		for res := range readCh {
+			if res.Error == nil && res.Part != nil {
+				partsCh <- res.Part
+			}
+		}
+		store.CloseWrite()
+		reader.Close()
+	}()
+
+	require.NoError(t, writer.Write(ctx, partsCh))
+	writer.Close()
+	return buf.String()
+}
+
+// TestStreamingMatchesBuffered asserts the streaming skeleton path is
+// byte-identical to the buffered path across the paragraph-grouping edge cases.
+func TestStreamingMatchesBuffered(t *testing.T) {
+	inputs := []string{
+		"Hello world",
+		"First paragraph\n\nSecond paragraph",
+		"Line 1\nLine 2\n\nLine 3\nLine 4",
+		"Para one\r\n\r\nPara two",
+		"Para one\n\nPara two\n",
+		"Para one\n\n\nPara two",
+		"Para one\r\n\r\nPara two\r\n",
+		"\n\nLeading blanks\n\nthen text",
+	}
+	for _, in := range inputs {
+		buffered := snippetRoundtripWithSkeleton(t, in)
+		streaming := streamingRoundtrip(t, in)
+		assert.Equal(t, buffered, streaming, "streaming must match buffered for %q", in)
+		assert.Equal(t, in, streaming, "streaming must be byte-exact for %q", in)
+	}
+}
+
 func TestSkeletonStore_ByteExact_SingleParagraph(t *testing.T) {
 	input := "Hello world"
 	output := snippetRoundtripWithSkeleton(t, input)
