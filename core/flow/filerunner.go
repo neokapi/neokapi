@@ -15,9 +15,46 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/structure"
 	"github.com/neokapi/neokapi/core/tool"
 )
+
+// budgetedSource wraps a source stream with the shared safeio byte budget and a
+// closer, so every reader fed by the file-run path is bounded uniformly
+// (core/safeio) regardless of whether the format reader self-wraps. It is the
+// streaming twin of the old "os.ReadFile then bytes.Reader" — the file's bytes
+// flow through on demand instead of being buffered whole up front.
+type budgetedSource struct {
+	io.Reader
+	closer io.Closer
+}
+
+func (b *budgetedSource) Close() error {
+	if b.closer != nil {
+		return b.closer.Close()
+	}
+	return nil
+}
+
+// openBudgetedFile opens path as a streaming, budget-bounded io.ReadCloser. The
+// reader pulls bytes lazily, so a streaming format never holds the whole file in
+// memory; a whole-document format still io.ReadAll-s it, but only once (no
+// separate up-front os.ReadFile buffer).
+func openBudgetedFile(path string) (io.ReadCloser, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	return &budgetedSource{Reader: safeio.DefaultBudget().Reader(f), closer: f}, nil
+}
+
+// budgetedBytes wraps an in-memory source with the same byte budget, for the
+// buffered path where a writer needs the original bytes (OpenXML/AsciiDoc) and
+// the source is read once and shared with the reader.
+func budgetedBytes(content []byte) io.ReadCloser {
+	return &budgetedSource{Reader: safeio.DefaultBudget().Reader(bytes.NewReader(content))}
+}
 
 // structuralExportWriters are the document writers that render the canonical
 // table structure (GroupStart "table"/"table-row" + table-cell/header roles).
@@ -172,36 +209,39 @@ func (r *FileRunner) RunFileProcessOnly(ctx context.Context, flowName string, to
 	return r.RunFileToStore(ctx, flowName, tools, inputPath, targetLang, reader)
 }
 
-// readParts opens the reader over the input file and drains every Part into a
-// slice, recording reader-stage trace events when a Recorder is configured. It
-// closes the reader before returning (for daemon-backed plugin formats this
-// lets the daemon enter its idle state). The returned inputContent is the raw
-// file bytes, used by skeleton-driven writers downstream. Shared by the
-// file-writing and process-only run paths so they read identically.
-func (r *FileRunner) readParts(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string) (parts []*model.Part, inputContent []byte, err error) {
-	inputContent, err = os.ReadFile(inputPath)
-	if err != nil {
-		reader.Close()
-		return nil, nil, fmt.Errorf("read file: %w", err)
-	}
-
+// openReader opens reader over a budget-bounded streaming source for inputPath.
+// The reader pulls bytes on demand (phase 1: no eager whole-file os.ReadFile);
+// the caller is responsible for closing the reader, which closes the source.
+func (r *FileRunner) openReader(ctx context.Context, reader format.DataFormatReader, source io.ReadCloser, inputPath, targetLang string) error {
 	doc := &model.RawDocument{
 		URI:          inputPath,
 		SourceLocale: r.cfg.SourceLocale,
 		TargetLocale: model.LocaleID(targetLang),
 		Encoding:     r.cfg.Encoding,
-		Reader:       io.NopCloser(bytes.NewReader(inputContent)),
+		Reader:       source,
 	}
-
 	if err := reader.Open(ctx, doc); err != nil {
 		reader.Close()
-		return nil, nil, fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
+		return fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
+	}
+	return nil
+}
+
+// readParts opens the reader over the given source and drains every Part into a
+// slice, recording reader-stage trace events when a Recorder is configured. It
+// closes the reader before returning (for daemon-backed plugin formats this
+// lets the daemon enter its idle state). This is the buffered read path used by
+// non-streaming readers and the structural-grid cross-format case; streaming
+// readers feed the executor directly via feedReader instead.
+func (r *FileRunner) readParts(ctx context.Context, reader format.DataFormatReader, source io.ReadCloser, inputPath, targetLang string) (parts []*model.Part, err error) {
+	if err := r.openReader(ctx, reader, source, inputPath, targetLang); err != nil {
+		return nil, err
 	}
 
 	for result := range reader.Read(ctx) {
 		if result.Error != nil {
 			reader.Close()
-			return nil, nil, fmt.Errorf("read %q: %w", filepath.Base(inputPath), result.Error)
+			return nil, fmt.Errorf("read %q: %w", filepath.Base(inputPath), result.Error)
 		}
 		parts = append(parts, result.Part)
 		// Record the reader-stage trace: an initial snapshot (so per-tool
@@ -217,7 +257,44 @@ func (r *FileRunner) readParts(ctx context.Context, reader format.DataFormatRead
 	// formats this lets the daemon enter its idle state, freeing the
 	// stream for the subsequent writer call.
 	reader.Close()
-	return parts, inputContent, nil
+	return parts, nil
+}
+
+// feedReader streams the reader's Parts directly into inCh (phase 2/3): the
+// reader runs concurrently with the executor and writer, so neither the whole
+// input nor the whole Part stream is buffered. It records reader-stage trace
+// events inline, closes inCh and (for a streaming skeleton) its write side when
+// the reader's channel drains, and closes the reader. A read error is returned
+// via errOut. Used only for StreamingReader formats, which are in-process and
+// pure-Go, so overlapping the read with the write is safe (no daemon "one
+// Process stream at a time" constraint).
+func (r *FileRunner) feedReader(ctx context.Context, feedCtx context.Context, reader format.DataFormatReader, skel *format.SkeletonStore, inCh chan<- *model.Part, errOut *error) {
+	defer func() {
+		close(inCh)
+		if skel != nil {
+			skel.CloseWrite()
+		}
+		reader.Close()
+	}()
+	for result := range reader.Read(ctx) {
+		if result.Error != nil {
+			*errOut = fmt.Errorf("read: %w", result.Error)
+			return
+		}
+		if result.Part == nil {
+			continue
+		}
+		if r.cfg.Recorder != nil && result.Part.Resource != nil {
+			id := result.Part.Resource.ResourceID()
+			r.cfg.Recorder.SnapshotPart(result.Part, "reader", "initial")
+			r.cfg.Recorder.Record(TraceExit, "reader", id, nil)
+		}
+		select {
+		case inCh <- result.Part:
+		case <-feedCtx.Done():
+			return
+		}
+	}
 }
 
 // newExecutor builds the executor, wiring the configured block store when set.
@@ -249,7 +326,12 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 		return errors.New("process-only run requires a persistent block store; the configured store is ephemeral")
 	}
 
-	parts, _, err := r.readParts(ctx, reader, inputPath, targetLang)
+	source, err := openBudgetedFile(inputPath)
+	if err != nil {
+		reader.Close()
+		return fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
+	}
+	parts, err := r.readParts(ctx, reader, source, inputPath, targetLang)
 	if err != nil {
 		return err
 	}
@@ -316,6 +398,8 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 // defaults) before calling. This is the primary integration point for CLI
 // and MCP which need to apply format presets and project config.
 func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string, reader format.DataFormatReader, writer format.DataFormatWriter) error {
+	sameFormat := reader.Name() == writer.Name()
+
 	// Wire skeleton store if both support it AND reader and writer are the
 	// SAME format. A skeleton holds opaque, format-specific bytes (e.g. the
 	// WordprocessingML XML fragments an openxml reader captures); feeding it to
@@ -324,21 +408,97 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// leave the skeleton unwired so the writer reconstructs output from the
 	// content model + the structural layer (SemanticRole/role-driven semantic
 	// export, WS6) rather than the source's byte skeleton.
+	//
+	// When both the reader and writer declare streaming capability, the skeleton
+	// is a concurrent (channel-backed) store so a streaming round-trip stays
+	// bounded-memory; otherwise the file-backed store (the writer buffers the
+	// block map). Output is byte-identical either way.
 	var skeletonStore *format.SkeletonStore
-	if reader.Name() == writer.Name() {
+	if sameFormat {
 		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
 			if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-				if store, storeErr := format.NewSkeletonStore(); storeErr == nil {
+				if isStreamingPair(reader, writer) {
+					skeletonStore = format.NewStreamingSkeletonStore()
+				} else if store, storeErr := format.NewSkeletonStore(); storeErr == nil {
 					skeletonStore = store
-					emitter.SetSkeletonStore(store)
-					consumer.SetSkeletonStore(store)
+				}
+				if skeletonStore != nil {
+					skeletonStore.SetOriginFormat(reader.Name())
+					emitter.SetSkeletonStore(skeletonStore)
+					consumer.SetSkeletonStore(skeletonStore)
 				}
 			}
 		}
 	}
 
-	// Read input file.
-	parts, inputContent, err := r.readParts(ctx, reader, inputPath, targetLang)
+	// Decide how the writer gets the original source (same-format only; a
+	// cross-format writer reconstructs from the content model). A SourcePathSetter
+	// reads the file itself by path; an OriginalContentSetter-only writer
+	// (OpenXML, AsciiDoc) needs the raw bytes, which we read once and share with
+	// the reader (those formats are non-streaming whole-document parsers anyway).
+	srcPath := ""
+	var preReadContent []byte
+	if sameFormat {
+		if _, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
+			srcPath = inputPath
+		} else if _, ok := writer.(format.OriginalContentSetter); ok {
+			content, rerr := os.ReadFile(inputPath)
+			if rerr != nil {
+				reader.Close()
+				if skeletonStore != nil {
+					skeletonStore.Close()
+				}
+				return fmt.Errorf("read %q: %w", filepath.Base(inputPath), rerr)
+			}
+			preReadContent = content
+		}
+	}
+
+	// Streaming path: a StreamingReader feeds the executor directly, concurrently
+	// with the writer, so neither the input nor the Part stream is buffered. This
+	// never co-occurs with the structural-grid case (spreadsheet sources are not
+	// StreamingReaders) nor with preReadContent (OpenXML/AsciiDoc are not
+	// StreamingReaders), so those buffered-only concerns are excluded by
+	// construction.
+	if _, ok := reader.(format.StreamingReader); ok && preReadContent == nil {
+		source, oerr := openBudgetedFile(inputPath)
+		if oerr != nil {
+			reader.Close()
+			if skeletonStore != nil {
+				skeletonStore.Close()
+			}
+			return fmt.Errorf("open %q: %w", filepath.Base(inputPath), oerr)
+		}
+		if err := r.openReader(ctx, reader, source, inputPath, targetLang); err != nil {
+			if skeletonStore != nil {
+				skeletonStore.Close()
+			}
+			return err
+		}
+		feed := func(feedCtx context.Context, inCh chan<- *model.Part, errOut *error) {
+			r.feedReader(ctx, feedCtx, reader, skeletonStore, inCh, errOut)
+		}
+		return r.runPipelineToWriter(ctx, flowName, tools, feed, outputPath, targetLang, writer, skeletonStore, srcPath, preReadContent)
+	}
+
+	// Buffered path (non-streaming readers): read every Part up front, exactly as
+	// before. The source still streams into the reader (phase 1) rather than being
+	// pre-buffered with a separate os.ReadFile.
+	var source io.ReadCloser
+	if preReadContent != nil {
+		source = budgetedBytes(preReadContent)
+	} else {
+		s, oerr := openBudgetedFile(inputPath)
+		if oerr != nil {
+			reader.Close()
+			if skeletonStore != nil {
+				skeletonStore.Close()
+			}
+			return fmt.Errorf("open %q: %w", filepath.Base(inputPath), oerr)
+		}
+		source = s
+	}
+	parts, err := r.readParts(ctx, reader, source, inputPath, targetLang)
 	if err != nil {
 		if skeletonStore != nil {
 			skeletonStore.Close()
@@ -346,13 +506,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 		return err
 	}
 
-	// Hand the source path/bytes to the writer only for same-format
-	// conversions; a cross-format writer must reconstruct from the content
-	// model, not re-parse foreign source bytes.
-	srcPath, srcContent := "", []byte(nil)
-	if reader.Name() == writer.Name() {
-		srcPath, srcContent = inputPath, inputContent
-	} else if structuralExportWriters[writer.Name()] {
+	if !sameFormat && structuralExportWriters[writer.Name()] {
 		// Cross-format export to a structural document writer: synthesize table
 		// structure from spreadsheet cell geometry so a worksheet renders as a
 		// real table rather than a flat list of cell values. A no-op when the
@@ -360,7 +514,31 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 		counter := 0
 		parts = structure.SpreadsheetGridToTables(parts, &counter)
 	}
-	return r.runPipelineToWriter(ctx, flowName, tools, parts, outputPath, targetLang, writer, skeletonStore, srcPath, srcContent)
+	return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, skeletonStore, srcPath, preReadContent)
+}
+
+// sliceFeeder returns a feeder that streams a pre-read Part slice into the
+// executor and closes the input channel — the buffered (non-streaming) feed.
+func sliceFeeder(parts []*model.Part) func(context.Context, chan<- *model.Part, *error) {
+	return func(feedCtx context.Context, inCh chan<- *model.Part, _ *error) {
+		defer close(inCh)
+		for _, p := range parts {
+			select {
+			case inCh <- p:
+			case <-feedCtx.Done():
+				return
+			}
+		}
+	}
+}
+
+// isStreamingPair reports whether both the reader and writer declare streaming
+// capability, so the file-run path can wire a concurrent skeleton store and run
+// a bounded-memory round-trip.
+func isStreamingPair(reader format.DataFormatReader, writer format.DataFormatWriter) bool {
+	_, ro := reader.(format.StreamingReader)
+	_, wo := writer.(format.StreamingWriter)
+	return ro && wo
 }
 
 // RunSkeletonReconstruct runs the tool chain when the raw source is absent but
@@ -394,7 +572,7 @@ func (r *FileRunner) RunSkeletonReconstruct(ctx context.Context, flowName string
 	skeletonStore := format.NewSkeletonStoreFromBytes(skelBytes)
 	consumer.SetSkeletonStore(skeletonStore)
 
-	return r.runPipelineToWriter(ctx, flowName, tools, parts, outputPath, targetLang, writer, skeletonStore, "", nil)
+	return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, skeletonStore, "", nil)
 }
 
 // partsFromSkeleton rebuilds the translatable blocks a skeleton references,
@@ -428,73 +606,21 @@ func partsFromSkeleton(skelBytes []byte) ([]*model.Part, error) {
 	return parts, nil
 }
 
-// runPipelineToWriter executes the tool chain over the given parts and writes
-// the result through writer, finalizing output atomically (temp file then
-// rename) so a tool/writer error never leaves a partial destination. When
-// skeletonStore is non-nil it is closed before returning. sourcePath/
-// inputContent are handed to the writer only when non-empty (same-format
-// runs); skeleton-reconstructed runs pass them empty.
-func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, tools []tool.Tool, parts []*model.Part, outputPath, targetLang string, writer format.DataFormatWriter, skeletonStore *format.SkeletonStore, sourcePath string, inputContent []byte) error {
-	// Build and execute tool pipeline.
+// runExecuteWrite is the shared core of the write paths: it builds the flow,
+// wires the writer's source (path/bytes) and locale, runs the executor while
+// feed supplies Parts concurrently, and streams the result through writer to its
+// already-configured output. It does NOT close the writer or the skeleton store
+// and does NOT finalize the output — the caller owns those, so it can wrap the
+// run in atomic temp-file/rename (runPipelineToWriter) or write straight to an
+// in-memory/stream sink (RunStream). label names the destination for errors.
+func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools []tool.Tool, feed func(context.Context, chan<- *model.Part, *error), targetLang string, writer format.DataFormatWriter, sourcePath string, inputContent []byte, label string) error {
 	fb := NewFlow(flowName)
 	for _, t := range tools {
 		fb.AddTool(t)
 	}
 	f, err := fb.Build()
 	if err != nil {
-		if skeletonStore != nil {
-			skeletonStore.Close()
-		}
 		return fmt.Errorf("build flow: %w", err)
-	}
-
-	// Ensure output directory exists.
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
-		if skeletonStore != nil {
-			skeletonStore.Close()
-		}
-		return fmt.Errorf("create output dir: %w", err)
-	}
-
-	// Open the output file here and hand the writer a buffered io.Writer
-	// rather than letting it open the file directly (#608, S4). Skeleton-
-	// driven writers emit one (often tiny) write per skeleton entry; an
-	// unbuffered *os.File turns each into a syscall. A 64 KiB buffer
-	// coalesces them. The buffer is flushed AFTER writer.Close() returns —
-	// some writers (e.g. the KLF writer) only emit their payload in Close,
-	// so the buffer must outlive Close. Output bytes are unchanged.
-	//
-	// Write into a sibling temp file and rename on success (#608, S1).
-	// The executor and writer now run concurrently — the writer drains
-	// the tool output channel directly instead of buffering every output
-	// Part into a slice and re-feeding a third channel. Because output is
-	// produced incrementally, a tool/writer error could leave a partial
-	// file at outputPath; the temp-then-rename keeps the destination
-	// all-or-nothing, matching the pre-S1 contract where a tool error
-	// produced no output file at all.
-	tmpFile, err := os.CreateTemp(filepath.Dir(outputPath), ".kapi-out-*")
-	if err != nil {
-		if skeletonStore != nil {
-			skeletonStore.Close()
-		}
-		return fmt.Errorf("set output: %w", err)
-	}
-	tmpPath := tmpFile.Name()
-	// failTmp closes + removes the temp file (so outputPath is never left
-	// with partial bytes), closes the skeleton store, and returns the
-	// formatted error. Used on every error path before the final rename.
-	failTmp := func(format string, args ...any) error {
-		_ = tmpFile.Close()
-		_ = os.Remove(tmpPath)
-		if skeletonStore != nil {
-			skeletonStore.Close()
-		}
-		return fmt.Errorf(format, args...)
-	}
-
-	bw := bufio.NewWriterSize(tmpFile, 64*1024)
-	if err := writer.SetOutputWriter(bw); err != nil {
-		return failTmp("set output: %w", err)
 	}
 
 	// Pass the source bytes/path to the writer ONLY for same-format
@@ -513,13 +639,14 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 
 	writer.SetLocale(model.LocaleID(targetLang))
 
-	// Single concurrent pipeline: feed the read parts into the executor's
-	// input channel from a goroutine while the writer drains the executor's
-	// output channel directly. The reader has already been fully read and
-	// closed above, which preserves the read-then-write ordering required
-	// by daemon-backed plugin formats (one Process stream at a time) and
-	// guarantees every skeleton entry is written before the writer's
-	// internal skeleton Flush().
+	// Single concurrent pipeline: feed Parts into the executor's input channel
+	// from a goroutine while the writer drains the executor's output channel
+	// directly. For the buffered feeder the reader has already been fully read
+	// and closed (preserving the read-then-write ordering daemon-backed plugin
+	// formats require). For the streaming feeder the reader runs concurrently
+	// here — safe because only in-process StreamingReaders take that path, never
+	// a daemon plugin — and a streaming skeleton store lets the writer consume
+	// the skeleton interleaved rather than after a Flush.
 	executor := r.newExecutor()
 
 	// Derive a cancellable context for the feeder so a tool error (which
@@ -531,17 +658,13 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
 
+	var feedErr error
 	feedDone := make(chan struct{})
 	go func() {
 		defer close(feedDone)
-		defer close(inCh)
-		for _, p := range parts {
-			select {
-			case inCh <- p:
-			case <-feedCtx.Done():
-				return
-			}
-		}
+		// feed closes inCh itself (and, for a streaming feeder, the skeleton
+		// store's write side and the reader) so the writer/skeleton see EOF.
+		feed(feedCtx, inCh, &feedErr)
 	}()
 
 	// The writer drains outCh (every DataFormatWriter loops
@@ -584,10 +707,70 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 	feedCancel()
 	<-feedDone
 	if waitErr != nil {
-		return failTmp("execute flow: %w", waitErr)
+		return fmt.Errorf("execute flow: %w", waitErr)
+	}
+	if feedErr != nil {
+		return fmt.Errorf("read %q: %w", label, feedErr)
 	}
 	if writeErr != nil {
-		return failTmp("write %q: %w", filepath.Base(outputPath), writeErr)
+		return fmt.Errorf("write %q: %w", label, writeErr)
+	}
+	return nil
+}
+
+// runPipelineToWriter executes the tool chain over the Parts supplied by feed
+// and writes the result through writer, finalizing output atomically (temp file
+// then rename) so a tool/writer error never leaves a partial destination. feed
+// is responsible for closing inCh and reporting any read error via its *error
+// argument; a buffered caller ranges a pre-read slice, a streaming caller drives
+// the reader concurrently (feedReader). When skeletonStore is non-nil it is
+// closed before returning. sourcePath/inputContent are handed to the writer only
+// when non-empty (same-format runs); skeleton-reconstructed runs pass them empty.
+func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, tools []tool.Tool, feed func(context.Context, chan<- *model.Part, *error), outputPath, targetLang string, writer format.DataFormatWriter, skeletonStore *format.SkeletonStore, sourcePath string, inputContent []byte) error {
+	if skeletonStore != nil {
+		defer skeletonStore.Close()
+	}
+	label := filepath.Base(outputPath)
+
+	// Ensure output directory exists.
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+		return fmt.Errorf("create output dir: %w", err)
+	}
+
+	// Open the output file here and hand the writer a buffered io.Writer
+	// rather than letting it open the file directly (#608, S4). Skeleton-
+	// driven writers emit one (often tiny) write per skeleton entry; an
+	// unbuffered *os.File turns each into a syscall. A 64 KiB buffer
+	// coalesces them. The buffer is flushed AFTER writer.Close() returns —
+	// some writers (e.g. the KLF writer) only emit their payload in Close,
+	// so the buffer must outlive Close. Output bytes are unchanged.
+	//
+	// Write into a sibling temp file and rename on success (#608, S1).
+	// The executor and writer run concurrently — the writer drains the tool
+	// output channel directly. Because output is produced incrementally, a
+	// tool/writer error could leave a partial file at outputPath; the
+	// temp-then-rename keeps the destination all-or-nothing, matching the
+	// pre-S1 contract where a tool error produced no output file at all.
+	tmpFile, err := os.CreateTemp(filepath.Dir(outputPath), ".kapi-out-*")
+	if err != nil {
+		return fmt.Errorf("set output: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	failTmp := func(format string, args ...any) error {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf(format, args...)
+	}
+
+	bw := bufio.NewWriterSize(tmpFile, 64*1024)
+	if err := writer.SetOutputWriter(bw); err != nil {
+		return failTmp("set output: %w", err)
+	}
+
+	if err := r.runExecuteWrite(ctx, flowName, tools, feed, targetLang, writer, sourcePath, inputContent, label); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+		return err
 	}
 
 	// Close the writer first (lets writers that emit on Close, like KLF,
@@ -595,29 +778,121 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 	// then close the file, then rename into place. Any error removes the
 	// temp file so outputPath is never left partial.
 	if cerr := writer.Close(); cerr != nil {
-		return failTmp("close writer %q: %w", filepath.Base(outputPath), cerr)
+		return failTmp("close writer %q: %w", label, cerr)
 	}
 	if ferr := bw.Flush(); ferr != nil {
-		return failTmp("flush %q: %w", filepath.Base(outputPath), ferr)
+		return failTmp("flush %q: %w", label, ferr)
 	}
 	if ferr := tmpFile.Close(); ferr != nil {
 		_ = os.Remove(tmpPath)
-		if skeletonStore != nil {
-			skeletonStore.Close()
-		}
-		return fmt.Errorf("close %q: %w", filepath.Base(outputPath), ferr)
+		return fmt.Errorf("close %q: %w", label, ferr)
 	}
 	if rerr := os.Rename(tmpPath, outputPath); rerr != nil {
 		_ = os.Remove(tmpPath)
-		if skeletonStore != nil {
-			skeletonStore.Close()
-		}
-		return fmt.Errorf("finalize %q: %w", filepath.Base(outputPath), rerr)
+		return fmt.Errorf("finalize %q: %w", label, rerr)
 	}
-
-	if skeletonStore != nil {
-		skeletonStore.Close()
-	}
-
 	return nil
+}
+
+// RunStream runs the full read → process → write pipeline from an in-memory /
+// streamed source to an io.Writer, with no temporary files for the document
+// itself (AD-026 §6). It is the stream-based twin of RunFile: the container
+// binding drives one archive entry through it (bytes in, bytes out) without
+// staging the entry on disk, and for a streaming-capable inner format the entry
+// is never even buffered whole. fmtID is the already-detected format of the
+// content (a container knows each entry's format); reader and writer are created
+// and configured exactly as RunFile does.
+func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []tool.Tool, in io.Reader, srcURI string, fmtID registry.FormatID, out io.Writer, targetLang string) error {
+	reg := r.cfg.FormatReg
+	reader, err := reg.NewReader(fmtID)
+	if err != nil {
+		return fmt.Errorf("no reader for %q: %w", fmtID, err)
+	}
+	if r.cfg.ConfigureReader != nil {
+		if err := r.cfg.ConfigureReader(reader, fmtID); err != nil {
+			reader.Close()
+			return fmt.Errorf("configure reader for %q: %w", fmtID, err)
+		}
+	}
+	writer, err := reg.NewWriter(fmtID)
+	if err != nil {
+		reader.Close()
+		return fmt.Errorf("no writer for %q: %w", fmtID, err)
+	}
+	if r.cfg.ConfigureWriter != nil {
+		r.cfg.ConfigureWriter(writer)
+	}
+
+	// Same format in and out (a container round-trips each entry), so wire a
+	// skeleton exactly as the file path does — streaming when both ends opt in.
+	var skeletonStore *format.SkeletonStore
+	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
+		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+			if isStreamingPair(reader, writer) {
+				skeletonStore = format.NewStreamingSkeletonStore()
+			} else if store, serr := format.NewSkeletonStore(); serr == nil {
+				skeletonStore = store
+			}
+			if skeletonStore != nil {
+				skeletonStore.SetOriginFormat(reader.Name())
+				emitter.SetSkeletonStore(skeletonStore)
+				consumer.SetSkeletonStore(skeletonStore)
+			}
+		}
+	}
+	if skeletonStore != nil {
+		defer skeletonStore.Close()
+	}
+
+	// A writer that needs the original bytes (OpenXML/AsciiDoc) is not a
+	// StreamingReader's writer, so it only co-occurs with the buffered path;
+	// materialise the source once and share it with the reader.
+	var preReadContent []byte
+	if _, ok := writer.(format.OriginalContentSetter); ok {
+		if _, isSP := writer.(format.SourcePathSetter); !isSP {
+			content, rerr := io.ReadAll(safeio.DefaultBudget().Reader(in))
+			if rerr != nil {
+				reader.Close()
+				return fmt.Errorf("read %q: %w", srcURI, rerr)
+			}
+			preReadContent = content
+		}
+	}
+
+	if err := writer.SetOutputWriter(out); err != nil {
+		reader.Close()
+		return fmt.Errorf("set output: %w", err)
+	}
+
+	label := filepath.Base(srcURI)
+	if _, ok := reader.(format.StreamingReader); ok && preReadContent == nil {
+		// Streaming inner format: feed the reader directly from the source
+		// stream — the entry is never buffered whole.
+		if err := r.openReader(ctx, reader, &budgetedSource{Reader: safeio.DefaultBudget().Reader(in)}, srcURI, targetLang); err != nil {
+			return err
+		}
+		feed := func(feedCtx context.Context, inCh chan<- *model.Part, errOut *error) {
+			r.feedReader(ctx, feedCtx, reader, skeletonStore, inCh, errOut)
+		}
+		if err := r.runExecuteWrite(ctx, flowName, tools, feed, targetLang, writer, "", preReadContent, label); err != nil {
+			return err
+		}
+		return writer.Close()
+	}
+
+	// Buffered inner format.
+	var source io.ReadCloser
+	if preReadContent != nil {
+		source = budgetedBytes(preReadContent)
+	} else {
+		source = &budgetedSource{Reader: safeio.DefaultBudget().Reader(in)}
+	}
+	parts, err := r.readParts(ctx, reader, source, srcURI, targetLang)
+	if err != nil {
+		return err
+	}
+	if err := r.runExecuteWrite(ctx, flowName, tools, sliceFeeder(parts), targetLang, writer, "", preReadContent, label); err != nil {
+		return err
+	}
+	return writer.Close()
 }

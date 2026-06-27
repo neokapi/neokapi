@@ -1,6 +1,7 @@
 package splicedlines
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -18,8 +19,15 @@ type Writer struct {
 	firstEntry    bool
 }
 
-// Ensure Writer implements SkeletonStoreConsumer.
-var _ format.SkeletonStoreConsumer = (*Writer)(nil)
+// Ensure Writer implements SkeletonStoreConsumer and StreamingWriter.
+var (
+	_ format.SkeletonStoreConsumer = (*Writer)(nil)
+	_ format.StreamingWriter       = (*Writer)(nil)
+)
+
+// StreamingWriter marks this writer as able to consume a streaming skeleton
+// interleaved with the Part stream (see Write → StreamSkeletonWrite). See [AD-005].
+func (w *Writer) StreamingWriter() bool { return true }
 
 // NewWriter creates a new spliced lines writer.
 func NewWriter() *Writer {
@@ -39,6 +47,9 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 // Write consumes Parts from a channel and writes reconstructed spliced lines.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	if w.skeletonStore != nil {
+		if w.skeletonStore.IsStreaming() {
+			return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output, w.renderRef, nil)
+		}
 		return w.writeWithSkeleton(ctx, parts)
 	}
 
@@ -99,46 +110,56 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 				return err
 			}
 		case format.SkeletonRef:
-			if block, ok := blocks[string(entry.Data)]; ok {
-				text := w.blockText(block)
-				// Re-add backslash continuations for multi-line blocks
-				lines := strings.Split(text, "\n")
-				if len(lines) > 1 {
-					// Use stored continuation endings if available
-					endings := w.continuationEndings(block, len(lines)-1)
-					for i, line := range lines {
-						if i < len(lines)-1 {
-							ending := "\n"
-							if i < len(endings) {
-								ending = endings[i]
-							}
-							if _, err := fmt.Fprintf(w.Output, "%s\\%s", line, ending); err != nil {
-								return err
-							}
-						} else {
-							if _, err := fmt.Fprint(w.Output, line); err != nil {
-								return err
-							}
-						}
-					}
-				} else {
-					if _, err := io.WriteString(w.Output, text); err != nil {
-						return err
-					}
-				}
-				// Re-emit the trailing `\` byte for blocks that ended
-				// the file mid-continuation; the reader strips it from
-				// the block's logical text but tags the block so we can
-				// restore byte-exact output here.
-				if block.Properties["trailing-splicer"] == "true" {
-					if _, err := io.WriteString(w.Output, `\`); err != nil {
-						return err
-					}
-				}
+			data, err := w.renderRef(blocks[string(entry.Data)])
+			if err != nil {
+				return err
+			}
+			if _, err := w.Output.Write(data); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
+}
+
+// renderRef returns the bytes a SkeletonRef contributes for the given block,
+// shared by the buffered (writeFromSkeleton) and streaming (StreamSkeletonWrite)
+// paths so both produce identical output. It re-adds the backslash continuations
+// (using the block's stored continuation endings) and the trailing-splicer byte
+// the reader stripped, for a byte-exact round-trip. A nil block contributes
+// nothing, matching the buffered path's map miss.
+func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
+	if block == nil {
+		return nil, nil
+	}
+	var buf bytes.Buffer
+	text := w.blockText(block)
+	// Re-add backslash continuations for multi-line blocks.
+	lines := strings.Split(text, "\n")
+	if len(lines) > 1 {
+		// Use stored continuation endings if available.
+		endings := w.continuationEndings(block, len(lines)-1)
+		for i, line := range lines {
+			if i < len(lines)-1 {
+				ending := "\n"
+				if i < len(endings) {
+					ending = endings[i]
+				}
+				fmt.Fprintf(&buf, "%s\\%s", line, ending)
+			} else {
+				buf.WriteString(line)
+			}
+		}
+	} else {
+		buf.WriteString(text)
+	}
+	// Re-emit the trailing `\` byte for blocks that ended the file
+	// mid-continuation; the reader strips it from the block's logical text but
+	// tags the block so we can restore byte-exact output here.
+	if block.Properties["trailing-splicer"] == "true" {
+		buf.WriteString(`\`)
+	}
+	return buf.Bytes(), nil
 }
 
 // continuationEndings extracts stored continuation line endings from block properties.

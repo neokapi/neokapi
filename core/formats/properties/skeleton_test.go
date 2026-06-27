@@ -40,6 +40,62 @@ func skelRoundtrip(t *testing.T, input string) string {
 	return buf.String()
 }
 
+// streamingRoundtrip drives a concurrent streaming round-trip via a
+// NewStreamingSkeletonStore, forwarding the reader's Parts into the writer while
+// the reader is still producing. Output must match the buffered skeleton path.
+func streamingRoundtrip(t *testing.T, input string) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := properties.NewReader()
+	writer := properties.NewWriter()
+	store := format.NewStreamingSkeletonStore()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	partsCh := make(chan *model.Part, 64)
+	readCh := reader.Read(ctx)
+	go func() {
+		defer close(partsCh)
+		for res := range readCh {
+			if res.Error == nil && res.Part != nil {
+				partsCh <- res.Part
+			}
+		}
+		store.CloseWrite()
+		reader.Close()
+	}()
+
+	require.NoError(t, writer.Write(ctx, partsCh))
+	writer.Close()
+	return buf.String()
+}
+
+// TestStreamingMatchesBuffered asserts the streaming skeleton path is
+// byte-identical to the buffered path across representative inputs.
+func TestStreamingMatchesBuffered(t *testing.T) {
+	inputs := []string{
+		"app.title=Hello World",
+		"a=1\nb=2\nc=3",
+		"a=1\r\nb=2\r\n",
+		"# a comment\napp.title=Hi\n",
+		"key=line one \\\n  line two",
+		"\n\napp.title=After blanks\n",
+		"app.title=Caf\\u00e9",
+		"#_skip\nsecret=hidden\napp.title=Shown",
+	}
+	for _, in := range inputs {
+		buffered := skelRoundtrip(t, in)
+		streaming := streamingRoundtrip(t, in)
+		assert.Equal(t, buffered, streaming, "streaming must match buffered for %q", in)
+	}
+}
+
 func TestSkeletonStore_ByteExact_SimpleKeyValue(t *testing.T) {
 	input := "app.title=Hello World"
 	output := skelRoundtrip(t, input)

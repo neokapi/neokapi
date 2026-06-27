@@ -47,6 +47,64 @@ func fwSkeletonRoundtrip(t *testing.T, input string, cols []fixedwidth.ColumnDef
 	return buf.String()
 }
 
+// fwStreamingRoundtrip drives a concurrent streaming round-trip via a
+// NewStreamingSkeletonStore, forwarding the reader's Parts into the writer while
+// the reader is still producing. Output must match the buffered skeleton path.
+func fwStreamingRoundtrip(t *testing.T, input string, cols []fixedwidth.ColumnDef, cfgFn func(*fixedwidth.Config)) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := fixedwidth.NewReader()
+	cfg := reader.Config().(*fixedwidth.Config)
+	cfg.Columns = cols
+	if cfgFn != nil {
+		cfgFn(cfg)
+	}
+	writer := fixedwidth.NewWriter()
+	writer.SetColumns(cols)
+
+	store := format.NewStreamingSkeletonStore()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	partsCh := make(chan *model.Part, 64)
+	readCh := reader.Read(ctx)
+	go func() {
+		defer close(partsCh)
+		for res := range readCh {
+			if res.Error == nil && res.Part != nil {
+				partsCh <- res.Part
+			}
+		}
+		store.CloseWrite()
+		reader.Close()
+	}()
+
+	require.NoError(t, writer.Write(ctx, partsCh))
+	writer.Close()
+	return buf.String()
+}
+
+// TestStreamingMatchesBuffered asserts the streaming skeleton path is
+// byte-identical to the buffered path.
+func TestStreamingMatchesBuffered(t *testing.T) {
+	assert.Equal(t,
+		fwSkeletonRoundtrip(t, "id001Hello World    \nid002Goodbye World  \n", twoCols, nil),
+		fwStreamingRoundtrip(t, "id001Hello World    \nid002Goodbye World  \n", twoCols, nil))
+	header := func(cfg *fixedwidth.Config) { cfg.HasHeader = true }
+	assert.Equal(t,
+		fwSkeletonRoundtrip(t, "ID   Text           \nid001Hello World    \n", twoCols, header),
+		fwStreamingRoundtrip(t, "ID   Text           \nid001Hello World    \n", twoCols, header))
+	assert.Equal(t,
+		fwSkeletonRoundtrip(t, "id001Hello World    \r\nid002Goodbye World  \r\n", twoCols, nil),
+		fwStreamingRoundtrip(t, "id001Hello World    \r\nid002Goodbye World  \r\n", twoCols, nil))
+}
+
 func TestSkeletonStore_ByteExact_BasicTwoColumns(t *testing.T) {
 	input := "id001Hello World    \nid002Goodbye World  \n"
 	output := fwSkeletonRoundtrip(t, input, twoCols, nil)

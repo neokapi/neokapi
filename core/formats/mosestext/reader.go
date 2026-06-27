@@ -1,11 +1,12 @@
 package mosestext
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
+	"iter"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -23,7 +24,15 @@ type Reader struct {
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
-var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+var (
+	_ format.SkeletonStoreEmitter = (*Reader)(nil)
+	_ format.StreamingReader      = (*Reader)(nil)
+)
+
+// StreamingReader marks this reader as bounded-memory streaming: it reads lines
+// via bufio (CR/LF/CRLF) and emits each Moses entry incrementally, holding only
+// the in-progress entry (a multi-line <mrk> segment until its close). See [AD-005].
+func (r *Reader) StreamingReader() bool { return true }
 
 // NewReader creates a new Moses Text reader.
 func NewReader() *Reader {
@@ -131,13 +140,10 @@ type entry struct {
 
 // readLinesNormal reads all lines without skeleton tracking.
 func (r *Reader) readLinesNormal(ctx context.Context, ch chan<- model.PartResult) {
-	lines := r.scanRawLines()
-	entries := groupEntries(lines)
-
 	blockCounter := 0
 	dataCounter := 0
 
-	for _, e := range entries {
+	for e := range r.entries() {
 		if e.body == "" && e.markerStart == "" && e.markerEnd == "" {
 			dataCounter++
 			data := &model.Data{
@@ -160,13 +166,10 @@ func (r *Reader) readLinesNormal(ctx context.Context, ch chan<- model.PartResult
 
 // readLinesSkeleton reads lines while recording skeleton entries for byte-exact roundtrip.
 func (r *Reader) readLinesSkeleton(ctx context.Context, ch chan<- model.PartResult) {
-	lines := r.scanRawLines()
-	entries := groupEntries(lines)
-
 	blockCounter := 0
 	dataCounter := 0
 
-	for _, e := range entries {
+	for e := range r.entries() {
 		if e.body == "" && e.markerStart == "" && e.markerEnd == "" {
 			// Empty line is non-translatable data.
 			r.skelText(e.skel)
@@ -232,52 +235,65 @@ func (r *Reader) newBlock(counter int, body string) *model.Block {
 // line becomes a one-line entry; an `<mrk mtype="seg">…</mrk>`
 // annotation becomes one entry whose body spans every line up to the
 // closing `</mrk>`.
-func groupEntries(lines []rawLine) []entry {
-	var entries []entry
-	for i := 0; i < len(lines); i++ {
-		ln := lines[i]
-		if ln.content == "" {
-			entries = append(entries, entry{skel: ln.ending})
-			continue
-		}
-
-		// Detect the start of an `<mrk mtype="seg">` segment.
-		if loc := startSegment.FindStringIndex(ln.content); loc != nil && loc[0] == 0 {
-			marker := ln.content[:loc[1]]
-			rest := ln.content[loc[1]:]
-			var sb strings.Builder
-			ending := ln.ending
-			// Same line closes the segment?
-			if before, ok := strings.CutSuffix(rest, endSegment); ok {
-				sb.WriteString(before)
-			} else {
-				sb.WriteString(rest)
-				sb.WriteString("\n")
-				// Continuation lines until one ends with </mrk>.
-				for i+1 < len(lines) {
-					i++
-					cont := lines[i]
-					ending = cont.ending
-					if before, ok := strings.CutSuffix(cont.content, endSegment); ok {
-						sb.WriteString(before)
-						break
-					}
-					sb.WriteString(cont.content)
-					sb.WriteString("\n")
-				}
+func (r *Reader) entries() iter.Seq[entry] {
+	return func(yield func(entry) bool) {
+		next, stop := iter.Pull(r.rawLines())
+		defer stop()
+		for {
+			ln, ok := next()
+			if !ok {
+				return
 			}
-			entries = append(entries, entry{
-				body:        sb.String(),
-				markerStart: marker,
-				markerEnd:   endSegment,
-				skel:        ending,
-			})
-			continue
-		}
+			if ln.content == "" {
+				if !yield(entry{skel: ln.ending}) {
+					return
+				}
+				continue
+			}
 
-		entries = append(entries, entry{body: ln.content, skel: ln.ending})
+			// Detect the start of an `<mrk mtype="seg">` segment.
+			if loc := startSegment.FindStringIndex(ln.content); loc != nil && loc[0] == 0 {
+				marker := ln.content[:loc[1]]
+				rest := ln.content[loc[1]:]
+				var sb strings.Builder
+				ending := ln.ending
+				// Same line closes the segment?
+				if before, ok := strings.CutSuffix(rest, endSegment); ok {
+					sb.WriteString(before)
+				} else {
+					sb.WriteString(rest)
+					sb.WriteString("\n")
+					// Continuation lines until one ends with </mrk>.
+					for {
+						cont, ok := next()
+						if !ok {
+							break
+						}
+						ending = cont.ending
+						if before, ok := strings.CutSuffix(cont.content, endSegment); ok {
+							sb.WriteString(before)
+							break
+						}
+						sb.WriteString(cont.content)
+						sb.WriteString("\n")
+					}
+				}
+				if !yield(entry{
+					body:        sb.String(),
+					markerStart: marker,
+					markerEnd:   endSegment,
+					skel:        ending,
+				}) {
+					return
+				}
+				continue
+			}
+
+			if !yield(entry{body: ln.content, skel: ln.ending}) {
+				return
+			}
+		}
 	}
-	return entries
 }
 
 // applyCodeFinder rewrites a block's source runs so that any region
@@ -348,36 +364,45 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 // a line — while retaining the original terminator bytes so the
 // skeleton path can reconstruct the input verbatim. A trailing
 // terminator does not introduce a phantom empty line.
-func (r *Reader) scanRawLines() []rawLine {
-	data, err := io.ReadAll(r.Doc.Reader)
-	if err != nil || len(data) == 0 {
-		return nil
-	}
-	s := string(data)
-
-	var lines []rawLine
-	start := 0
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c != '\n' && c != '\r' {
-			continue
+func (r *Reader) rawLines() iter.Seq[rawLine] {
+	return func(yield func(rawLine) bool) {
+		br := bufio.NewReader(r.Doc.Reader)
+		var sb strings.Builder
+		for {
+			b, err := br.ReadByte()
+			if err != nil {
+				// EOF: trailing content with no terminator is a final line. A
+				// trailing terminator already emitted its line and left sb
+				// empty, so no phantom empty line is produced.
+				if sb.Len() > 0 {
+					yield(rawLine{content: sb.String(), ending: ""})
+				}
+				return
+			}
+			switch b {
+			case '\n':
+				if !yield(rawLine{content: sb.String(), ending: "\n"}) {
+					return
+				}
+				sb.Reset()
+			case '\r':
+				ending := "\r"
+				if nb, nerr := br.ReadByte(); nerr == nil {
+					if nb == '\n' {
+						ending = "\r\n"
+					} else {
+						_ = br.UnreadByte()
+					}
+				}
+				if !yield(rawLine{content: sb.String(), ending: ending}) {
+					return
+				}
+				sb.Reset()
+			default:
+				sb.WriteByte(b)
+			}
 		}
-		ending := string(c)
-		if c == '\r' && i+1 < len(s) && s[i+1] == '\n' {
-			ending = "\r\n"
-		}
-		lines = append(lines, rawLine{content: s[start:i], ending: ending})
-		if ending == "\r\n" {
-			i++ // skip the LF of a CRLF pair
-		}
-		start = i + 1
 	}
-	// Trailing content with no terminator forms a final line. A trailing
-	// terminator (start == len(s)) does not create a phantom empty line.
-	if start < len(s) {
-		lines = append(lines, rawLine{content: s[start:], ending: ""})
-	}
-	return lines
 }
 
 // skelText appends text to the skeleton buffer if active.

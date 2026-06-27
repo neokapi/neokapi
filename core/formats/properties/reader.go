@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 	"strings"
 	"unicode/utf8"
 
@@ -22,8 +23,16 @@ type Reader struct {
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
 
-// Ensure Reader implements SkeletonStoreEmitter.
-var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+// Ensure Reader implements SkeletonStoreEmitter and StreamingReader.
+var (
+	_ format.SkeletonStoreEmitter = (*Reader)(nil)
+	_ format.StreamingReader      = (*Reader)(nil)
+)
+
+// StreamingReader marks this reader as bounded-memory streaming: it reads
+// physical lines via bufio and emits each logical line (key=value, comment, or
+// blank) incrementally, holding only the in-progress continuation. See [AD-005].
+func (r *Reader) StreamingReader() bool { return true }
 
 // NewReader creates a new Properties reader.
 func NewReader() *Reader {
@@ -110,7 +119,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	lines := r.readLogicalLines()
 	blockID := 0
 	dataID := 0
 	var pendingNote string // accumulated comment text for commentsAreNotes
@@ -128,7 +136,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return directiveStack[len(directiveStack)-1]
 	}
 
-	for _, line := range lines {
+	for line := range r.logicalLines() {
 		if line.isBlank {
 			// Skeleton: write the blank line's raw text + line ending
 			r.skelText(r.rawLineText(line))
@@ -307,110 +315,119 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-// readLogicalLines reads all lines, joining continuation lines (backslash at EOL).
-// It preserves raw line text and line endings for skeleton reconstruction.
-func (r *Reader) readLogicalLines() []logicalLine {
-	// Bound the streamed read with the shared safeio byte budget so an
-	// unbounded/oversized stream fails with a typed error (identical limit
-	// across CLI/server/WASM — see core/safeio).
-	br := bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader))
-	var lines []logicalLine
-	var continuation strings.Builder
-	var contRawLines []string
-	var contLineEndings []string
-	inContinuation := false
+// logicalLines streams the file's logical lines, joining continuation lines
+// (backslash at EOL), one at a time. It is a range-over-func iterator so the
+// reader emits each line as it is parsed — only the in-progress continuation is
+// held, never the whole file — which is what lets the properties format declare
+// the StreamingReader capability. It preserves raw line text and line endings
+// for skeleton reconstruction.
+func (r *Reader) logicalLines() iter.Seq[logicalLine] {
+	return func(yield func(logicalLine) bool) {
+		// Bound the streamed read with the shared safeio byte budget so an
+		// unbounded/oversized stream fails with a typed error (identical limit
+		// across CLI/server/WASM — see core/safeio).
+		br := bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader))
+		var continuation strings.Builder
+		var contRawLines []string
+		var contLineEndings []string
+		inContinuation := false
 
-	for {
-		content, lineEnding, eof := readPhysicalLine(br)
-		if content == "" && lineEnding == "" && eof {
-			break
-		}
-		// The trailing physical line of the file (no terminator) is
-		// signalled by an empty lineEnding; the loop must still process
-		// its content before stopping on the next iteration.
+		for {
+			content, lineEnding, eof := readPhysicalLine(br)
+			if content == "" && lineEnding == "" && eof {
+				break
+			}
+			// The trailing physical line of the file (no terminator) is
+			// signalled by an empty lineEnding; the loop must still process
+			// its content before stopping on the next iteration.
 
-		if inContinuation {
-			contRawLines = append(contRawLines, content)
-			contLineEndings = append(contLineEndings, lineEnding)
-			// Continuation: trim leading whitespace for logical content
+			if inContinuation {
+				contRawLines = append(contRawLines, content)
+				contLineEndings = append(contLineEndings, lineEnding)
+				// Continuation: trim leading whitespace for logical content
+				trimmed := strings.TrimLeft(content, " \t")
+				if hasContinuation(trimmed) {
+					continuation.WriteString(trimmed[:len(trimmed)-1])
+				} else {
+					continuation.WriteString(trimmed)
+					if !yield(logicalLine{
+						content:     continuation.String(),
+						rawLines:    contRawLines,
+						lineEndings: contLineEndings,
+					}) {
+						return
+					}
+					inContinuation = false
+					continuation.Reset()
+					contRawLines = nil
+					contLineEndings = nil
+				}
+				if eof {
+					break
+				}
+				continue
+			}
+
+			// Blank line
+			if strings.TrimSpace(content) == "" {
+				if !yield(logicalLine{
+					isBlank:     true,
+					rawLines:    []string{content},
+					lineEndings: []string{lineEnding},
+				}) {
+					return
+				}
+				if eof {
+					break
+				}
+				continue
+			}
+
+			// Comment line (# or !) — and optionally ; or // when ExtraComments is enabled
 			trimmed := strings.TrimLeft(content, " \t")
-			if hasContinuation(trimmed) {
-				continuation.WriteString(trimmed[:len(trimmed)-1])
-			} else {
-				continuation.WriteString(trimmed)
-				lines = append(lines, logicalLine{
-					content:     continuation.String(),
-					rawLines:    contRawLines,
-					lineEndings: contLineEndings,
-				})
-				inContinuation = false
-				continuation.Reset()
-				contRawLines = nil
-				contLineEndings = nil
+			if len(trimmed) > 0 && r.isCommentStart(trimmed) {
+				if !yield(logicalLine{
+					content:     content,
+					isComment:   true,
+					rawLines:    []string{content},
+					lineEndings: []string{lineEnding},
+				}) {
+					return
+				}
+				if eof {
+					break
+				}
+				continue
 			}
-			if eof {
-				break
-			}
-			continue
-		}
 
-		// Blank line
-		if strings.TrimSpace(content) == "" {
-			lines = append(lines, logicalLine{
-				isBlank:     true,
-				rawLines:    []string{content},
-				lineEndings: []string{lineEnding},
-			})
-			if eof {
-				break
-			}
-			continue
-		}
-
-		// Comment line (# or !) — and optionally ; or // when ExtraComments is enabled
-		trimmed := strings.TrimLeft(content, " \t")
-		if len(trimmed) > 0 && r.isCommentStart(trimmed) {
-			lines = append(lines, logicalLine{
-				content:     content,
-				isComment:   true,
-				rawLines:    []string{content},
-				lineEndings: []string{lineEnding},
-			})
-			if eof {
-				break
-			}
-			continue
-		}
-
-		// Regular or continuation line
-		if hasContinuation(content) {
-			continuation.WriteString(content[:len(content)-1])
-			contRawLines = []string{content}
-			contLineEndings = []string{lineEnding}
-			inContinuation = true
-		} else {
-			lines = append(lines, logicalLine{
+			// Regular or continuation line
+			if hasContinuation(content) {
+				continuation.WriteString(content[:len(content)-1])
+				contRawLines = []string{content}
+				contLineEndings = []string{lineEnding}
+				inContinuation = true
+			} else if !yield(logicalLine{
 				content:     content,
 				rawLines:    []string{content},
 				lineEndings: []string{lineEnding},
+			}) {
+				return
+			}
+
+			if eof {
+				break
+			}
+		}
+
+		// If the file ends mid-continuation, emit what we have
+		if inContinuation {
+			yield(logicalLine{
+				content:     continuation.String(),
+				rawLines:    contRawLines,
+				lineEndings: contLineEndings,
 			})
 		}
-
-		if eof {
-			break
-		}
 	}
-
-	// If the file ends mid-continuation, emit what we have
-	if inContinuation {
-		lines = append(lines, logicalLine{
-			content:     continuation.String(),
-			rawLines:    contRawLines,
-			lineEndings: contLineEndings,
-		})
-	}
-
-	return lines
 }
 
 // readPhysicalLine reads one physical line from br, recognising LF ("\n"),

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 // SkeletonEntryType identifies the type of a skeleton entry.
@@ -60,6 +61,58 @@ type SkeletonStore struct {
 	// consume a foreign skeleton (it reconstructs from the content model
 	// instead). Empty = untyped (legacy callers).
 	originFormat string
+
+	// stream, when non-nil, switches the store into concurrent streaming mode:
+	// the reader appends entries while the writer pops them, so a streaming
+	// round-trip never materialises the whole skeleton in memory. In this mode
+	// the file/buf backings are unused; Flush is a no-op and Bytes is
+	// unsupported. See NewStreamingSkeletonStore.
+	stream *skeletonStream
+}
+
+// skeletonStream is the unbounded, concurrency-safe queue backing a streaming
+// SkeletonStore. The reader (one goroutine) appends entries; the writer (one
+// goroutine) pops them, blocking until an entry is available or the write side
+// is closed. It is unbounded on purpose: the reader must never block writing a
+// skeleton entry (it would stall the Part stream that the writer is draining,
+// deadlocking the pipeline). With an order-preserving tool chain the writer
+// keeps pace and the queue holds only a small window; a fully-buffering tool
+// makes it grow to O(n), trading the memory win for guaranteed liveness.
+type skeletonStream struct {
+	mu     sync.Mutex
+	cond   *sync.Cond
+	queue  []SkeletonEntry
+	closed bool
+}
+
+// NewStreamingSkeletonStore creates a skeleton store in concurrent streaming
+// mode. The reader writes entries (WriteText/WriteRef/WriteLang) from its read
+// goroutine and calls CloseWrite when done; the writer reads them via Next from
+// its write goroutine, interleaved with the arriving Part stream (see
+// StreamSkeletonWrite). Output is byte-identical to the buffered skeleton path;
+// peak memory is bounded to a small window for an order-preserving flow.
+func NewStreamingSkeletonStore() *SkeletonStore {
+	st := &skeletonStream{}
+	st.cond = sync.NewCond(&st.mu)
+	return &SkeletonStore{stream: st}
+}
+
+// IsStreaming reports whether the store is in concurrent streaming mode. A
+// StreamingWriter checks this to choose its interleaved write path.
+func (s *SkeletonStore) IsStreaming() bool { return s.stream != nil }
+
+// CloseWrite signals that no more entries will be written, so a blocked Next
+// returns io.EOF once the queue drains. Streaming mode only; a no-op otherwise.
+// The reader's feeder calls this after the read channel closes (which is
+// strictly after the reader's final skeleton write).
+func (s *SkeletonStore) CloseWrite() {
+	if s.stream == nil {
+		return
+	}
+	s.stream.mu.Lock()
+	s.stream.closed = true
+	s.stream.cond.Broadcast()
+	s.stream.mu.Unlock()
 }
 
 // OriginFormat returns the format id that produced this skeleton, or "".
@@ -84,6 +137,9 @@ func (s *SkeletonStore) EntriesWritten() int { return s.entries }
 // after the store is closed. Used by kapi to capture a source's skeleton into
 // a portable package (AD-025 §6).
 func (s *SkeletonStore) Bytes() ([]byte, error) {
+	if s.stream != nil {
+		return nil, errors.New("skeleton store: Bytes is unsupported in streaming mode")
+	}
 	if s.writer != nil {
 		if err := s.writer.Flush(); err != nil {
 			return nil, err
@@ -206,6 +262,18 @@ func (s *SkeletonStore) WriteLang(value string) error {
 }
 
 func (s *SkeletonStore) writeEntry(typ SkeletonEntryType, data []byte) error {
+	if s.stream != nil {
+		// Copy: callers reuse their buffer (e.g. skelBuf.Reset()) right after
+		// WriteText, so the queued slice must own its bytes.
+		cp := make([]byte, len(data))
+		copy(cp, data)
+		s.stream.mu.Lock()
+		s.stream.queue = append(s.stream.queue, SkeletonEntry{Type: typ, Data: cp})
+		s.entries++
+		s.stream.cond.Signal()
+		s.stream.mu.Unlock()
+		return nil
+	}
 	if err := s.writer.WriteByte(byte(typ)); err != nil {
 		return err
 	}
@@ -224,6 +292,11 @@ func (s *SkeletonStore) writeEntry(typ SkeletonEntryType, data []byte) error {
 // Flush finishes writing and prepares the store for reading. On stores
 // opened via OpenSkeletonStore (already in read mode) this is a no-op.
 func (s *SkeletonStore) Flush() error {
+	if s.stream != nil {
+		// Streaming stores are read concurrently via Next; there is nothing to
+		// flush or seek.
+		return nil
+	}
 	if s.reader != nil && s.writer == nil {
 		// Already prepared for reading by OpenSkeletonStore — nothing to
 		// flush. The seek-to-start guarantee still holds since the file
@@ -250,6 +323,20 @@ func (s *SkeletonStore) Flush() error {
 
 // Next reads the next skeleton entry. Returns io.EOF when done.
 func (s *SkeletonStore) Next() (SkeletonEntry, error) {
+	if s.stream != nil {
+		s.stream.mu.Lock()
+		defer s.stream.mu.Unlock()
+		for len(s.stream.queue) == 0 && !s.stream.closed {
+			s.stream.cond.Wait()
+		}
+		if len(s.stream.queue) == 0 {
+			return SkeletonEntry{}, io.EOF
+		}
+		entry := s.stream.queue[0]
+		s.stream.queue[0] = SkeletonEntry{}
+		s.stream.queue = s.stream.queue[1:]
+		return entry, nil
+	}
 	if s.reader == nil {
 		return SkeletonEntry{}, errors.New("skeleton store: must call Flush before reading")
 	}
@@ -277,6 +364,12 @@ func (s *SkeletonStore) Next() (SkeletonEntry, error) {
 // created with NewSkeletonStoreAt / OpenSkeletonStore leave the file in
 // place for later reuse.
 func (s *SkeletonStore) Close() error {
+	if s.stream != nil {
+		// Unblock any reader still parked in Next so the pipeline can unwind on
+		// an early error.
+		s.CloseWrite()
+		return nil
+	}
 	if s.writer != nil {
 		_ = s.writer.Flush()
 	}

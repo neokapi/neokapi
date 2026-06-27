@@ -19,11 +19,17 @@ type Writer struct {
 	firstLine     bool
 }
 
-// Ensure Writer implements SkeletonStoreConsumer and WriterConfigurable.
+// Ensure Writer implements SkeletonStoreConsumer, WriterConfigurable, and
+// StreamingWriter.
 var (
 	_ format.SkeletonStoreConsumer = (*Writer)(nil)
 	_ format.WriterConfigurable    = (*Writer)(nil)
+	_ format.StreamingWriter       = (*Writer)(nil)
 )
+
+// StreamingWriter marks this writer as able to consume a streaming skeleton
+// interleaved with the Part stream (Write → StreamSkeletonWrite). See [AD-005].
+func (w *Writer) StreamingWriter() bool { return true }
 
 // NewWriter creates a new Properties writer.
 func NewWriter() *Writer {
@@ -75,6 +81,9 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 // Write consumes Parts from a channel and writes reconstructed properties content.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	if w.skeletonStore != nil {
+		if w.skeletonStore.IsStreaming() {
+			return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output, w.renderRef, nil)
+		}
 		return w.writeWithSkeleton(ctx, parts)
 	}
 
@@ -135,15 +144,27 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 				return err
 			}
 		case format.SkeletonRef:
-			if block, ok := blocks[string(entry.Data)]; ok {
-				text := w.blockValue(block)
-				if _, err := io.WriteString(w.Output, text); err != nil {
-					return err
-				}
+			data, err := w.renderRef(blocks[string(entry.Data)])
+			if err != nil {
+				return err
+			}
+			if _, err := w.Output.Write(data); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
+}
+
+// renderRef returns the bytes a SkeletonRef contributes for the given block,
+// shared by the buffered (writeFromSkeleton) and streaming (StreamSkeletonWrite)
+// paths so both produce identical output. A nil block contributes nothing,
+// matching the buffered path's map miss.
+func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
+	if block == nil {
+		return nil, nil
+	}
+	return []byte(w.blockValue(block)), nil
 }
 
 // blockValue returns the appropriate value text for skeleton output.

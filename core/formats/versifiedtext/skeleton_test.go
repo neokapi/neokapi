@@ -40,6 +40,60 @@ func versifiedSkeletonRoundtrip(t *testing.T, input string) string {
 	return buf.String()
 }
 
+// versifiedStreamingRoundtrip drives a concurrent streaming round-trip via a
+// NewStreamingSkeletonStore, forwarding the reader's Parts into the writer while
+// the reader is still producing. Output must match the buffered skeleton path.
+func versifiedStreamingRoundtrip(t *testing.T, input string) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := versifiedtext.NewReader()
+	writer := versifiedtext.NewWriter()
+	store := format.NewStreamingSkeletonStore()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	partsCh := make(chan *model.Part, 64)
+	readCh := reader.Read(ctx)
+	go func() {
+		defer close(partsCh)
+		for res := range readCh {
+			if res.Error == nil && res.Part != nil {
+				partsCh <- res.Part
+			}
+		}
+		store.CloseWrite()
+		reader.Close()
+	}()
+
+	require.NoError(t, writer.Write(ctx, partsCh))
+	writer.Close()
+	return buf.String()
+}
+
+// TestVersifiedStreamingMatchesBuffered asserts the streaming skeleton path is
+// byte-identical to the buffered path across a range of inputs.
+func TestVersifiedStreamingMatchesBuffered(t *testing.T) {
+	inputs := []string{
+		"\\v1 In the beginning",
+		"\\v1 First verse\n\\v2 Second verse",
+		"\\v1 First\r\n\\v2 Second",
+		"\\v1 First\n\n\\v2 After a stanza break",
+		"A plain line\n\\v1 A verse\nAnother plain line",
+		"\\v1 With trailing newline\n",
+	}
+	for _, in := range inputs {
+		buffered := versifiedSkeletonRoundtrip(t, in)
+		streaming := versifiedStreamingRoundtrip(t, in)
+		assert.Equal(t, buffered, streaming, "streaming must match buffered for %q", in)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Byte-exact roundtrip tests
 // ---------------------------------------------------------------------------

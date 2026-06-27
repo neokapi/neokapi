@@ -1,11 +1,11 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/flow"
@@ -38,25 +38,18 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 		ConfigureReader: a.containerConfigureReader(),
 	})
 
-	work, err := os.MkdirTemp("", "kapi-container-*")
-	if err != nil {
-		return fmt.Errorf("create work dir: %w", err)
-	}
-	defer os.RemoveAll(work)
-
 	base := filepath.Base(inputPath)
-	seq := 0
 	return writeAtomic(outputPath, func(f *os.File) error {
 		return container.Transform(inputPath, f, func(name string, read func() ([]byte, error)) ([]byte, bool, error) {
-			if _, eligible := a.containerEntryFormat(name); !eligible {
+			fmtName, eligible := a.containerEntryFormat(name)
+			if !eligible {
 				return nil, false, nil // copied through without being read into memory
 			}
 			content, rerr := read()
 			if rerr != nil {
 				return nil, false, rerr
 			}
-			seq++
-			out, eerr := a.runContainerEntry(ctx, cfg, runner, work, seq, container.Entry{Name: name, Data: content})
+			out, eerr := a.runContainerEntry(ctx, cfg, runner, fmtName, container.Entry{Name: name, Data: content})
 			if eerr != nil {
 				if cfg.FailOnUnknown {
 					return nil, false, fmt.Errorf("%s!%s: %w", base, name, eerr)
@@ -72,24 +65,12 @@ func (a *App) runContainer(ctx context.Context, cfg ToolRunConfig, inputPath, ou
 }
 
 // runContainerEntry runs one archive entry through a single-file pipeline and
-// returns the localized bytes. The entry is materialised under a per-entry work
-// dir so the shared FileRunner (which reads/writes paths and wires the skeleton
-// store) can drive it exactly as it would a standalone file. Only this one entry
-// is on disk/in memory at a time.
-func (a *App) runContainerEntry(ctx context.Context, cfg ToolRunConfig, runner *flow.FileRunner, work string, seq int, e container.Entry) ([]byte, error) {
-	dir := filepath.Join(work, strconv.Itoa(seq))
-	inPath := filepath.Join(dir, "in", filepath.FromSlash(e.Name))
-	outPath := filepath.Join(dir, "out", filepath.FromSlash(e.Name))
-	if err := os.MkdirAll(filepath.Dir(inPath), 0o755); err != nil {
-		return nil, err
-	}
-	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
-		return nil, err
-	}
-	if err := os.WriteFile(inPath, e.Data, 0o644); err != nil {
-		return nil, err
-	}
-
+// returns the localized bytes. It drives the shared FileRunner stream-to-stream
+// (FileRunner.RunStream): the entry's bytes go in and the localized bytes come
+// out with no temp files staged on disk, and for a streaming-capable inner
+// format (AD-005) the entry is not even buffered whole. Only this one entry is
+// held at a time (AD-026 §6).
+func (a *App) runContainerEntry(ctx context.Context, cfg ToolRunConfig, runner *flow.FileRunner, fmtName string, e container.Entry) ([]byte, error) {
 	t, err := cfg.NewTool()
 	if err != nil {
 		return nil, fmt.Errorf("create tool: %w", err)
@@ -98,16 +79,11 @@ func (a *App) runContainerEntry(ctx context.Context, cfg ToolRunConfig, runner *
 		t = tool.NewParallelBlockTool(t, cfg.ParallelBlocks)
 	}
 
-	if err := runner.RunFile(ctx, cfg.ToolName, []tool.Tool{t}, inPath, outPath, cfg.TargetLang); err != nil {
+	var out bytes.Buffer
+	if err := runner.RunStream(ctx, cfg.ToolName, []tool.Tool{t}, bytes.NewReader(e.Data), e.Name, registry.FormatID(fmtName), &out, cfg.TargetLang); err != nil {
 		return nil, err
 	}
-	out, err := os.ReadFile(outPath)
-	if err != nil {
-		return nil, err
-	}
-	// Free the entry's on-disk footprint promptly rather than at the end of the run.
-	_ = os.RemoveAll(dir)
-	return out, nil
+	return out.Bytes(), nil
 }
 
 // containerEntryFormat decides, by extension alone (no content read, so an

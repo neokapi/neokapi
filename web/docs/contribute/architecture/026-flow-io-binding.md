@@ -317,13 +317,17 @@ random access (central directory + seeks) and streams a TAR/TAR.GZ; it visits on
 entry at a time, materialises an entry's bytes only when the processor actually
 reads it (so untouched members are raw-copied for ZIP and piped through for TAR,
 never buffered), and writes the output container incrementally. Peak memory is a
-single entry, never the archive and never the full set of entries or results. An
-*individual* entry is still buffered whole while it is processed — that is the
-format engine's whole-document contract, shared by every kapi reader
-([AD-005](005-format-system.md)) — but only one entry is held at once. The
-inspection read path is the one exception: the engine hands a format reader the
-buffered document, so the read-only `archive` reader receives the archive bytes
-up front (it still streams entries one at a time via `Walk`).
+single entry, never the archive and never the full set of entries or results.
+Each entry runs through `FileRunner.RunStream` — bytes in, bytes out, with **no
+per-entry temp file** staged on disk. For a **streaming-capable** inner format
+([AD-005](005-format-system.md) "Streaming readers and bounded-memory I/O") the
+entry is not even buffered whole: it is read and written as a stream. A
+whole-document inner format (DOCX, JSON, …) is still buffered for the duration of
+its own processing — that is the format engine's whole-document contract — but
+only one entry is held at once. The inspection read path is the one exception:
+the engine hands a format reader the buffered document, so the read-only
+`archive` reader receives the archive bytes up front (it still streams entries
+one at a time via `Walk`).
 
 **Addressing.** A container fits the locator vocabulary (§5): a bare `.zip` /
 `.tar` / `.tgz` / `.tar.gz` path detects as a container, and a single inner entry
