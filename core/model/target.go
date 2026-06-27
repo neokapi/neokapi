@@ -69,6 +69,29 @@ const (
 	TargetStatusSignedOff  TargetStatus = "signed-off"
 )
 
+// TargetStatusLadder is the lifecycle order, lowest to highest. Membership and
+// order define "at least this status" coverage (used by ship gates). New ("") is
+// not listed — it means "no committed status yet" and sits below every rung.
+func TargetStatusLadder() []TargetStatus {
+	return []TargetStatus{
+		TargetStatusDraft,
+		TargetStatusTranslated,
+		TargetStatusReviewed,
+		TargetStatusSignedOff,
+	}
+}
+
+// Rank returns the 0-based position of s on the ladder, or -1 for New ("") or an
+// unknown status. A higher rank is a more advanced lifecycle state.
+func (s TargetStatus) Rank() int {
+	for i, t := range TargetStatusLadder() {
+		if t == s {
+			return i
+		}
+	}
+	return -1
+}
+
 // Origin records how content was produced. On a Target it records how the
 // committed translation was made; on a Block's source it records how a
 // *recognized* source was extracted (ocr, asr) — source and target provenance
