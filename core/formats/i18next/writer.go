@@ -39,6 +39,13 @@ var _ format.SubfilterAware = (*Writer)(nil)
 // inner JSON writer, whose writeFromSkeleton path reproduces the document.
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
+// StreamingWriter marks this writer streaming (it forwards to the streaming JSON
+// writer), so the file runner pairs the streaming i18next reader with a
+// synchronized streaming skeleton store rather than a buffered one they race on.
+var _ format.StreamingWriter = (*Writer)(nil)
+
+func (w *Writer) StreamingWriter() bool { return true }
+
 // NewWriter creates a new i18next writer.
 func NewWriter() *Writer {
 	cfg := &Config{}

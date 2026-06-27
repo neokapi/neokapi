@@ -21,9 +21,19 @@ type Writer struct {
 	skeletonStore *format.SkeletonStore
 }
 
-// Ensure Writer implements SubfilterAware and SkeletonStoreConsumer.
+// Ensure Writer implements SubfilterAware, SkeletonStoreConsumer and
+// StreamingWriter.
 var _ format.SubfilterAware = (*Writer)(nil)
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
+var _ format.StreamingWriter = (*Writer)(nil)
+
+// StreamingWriter marks this writer as able to consume a streaming skeleton — it
+// drains the Part stream then reads the skeleton via store.Next(), which the
+// concurrent streaming store serves with synchronization. Pairing it with the
+// streaming JSON reader (also a StreamingReader) makes the file runner wire a
+// synchronized streaming skeleton store, instead of an unsynchronized buffered
+// one the streaming reader and writer would race on.
+func (w *Writer) StreamingWriter() bool { return true }
 
 // NewWriter creates a new JSON writer.
 func NewWriter() *Writer {
