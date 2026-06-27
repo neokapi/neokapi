@@ -170,6 +170,38 @@ func (r *Reader) emitChild(ctx context.Context, ch chan<- model.PartResult, root
 		sa.SetSubfilterResolver(r.resolver)
 	}
 
+	subDoc := &model.RawDocument{
+		URI:          name,
+		SourceLocale: locale,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(bytes.NewReader(content)),
+	}
+	if err := subReader.Open(ctx, subDoc); err != nil {
+		return r.emitData(ctx, ch, name, uint64(len(content)))
+	}
+
+	// Buffer the entry's parts so that a sub-reader which fails partway through —
+	// a binary member mis-detected as a text format (e.g. a `.dat` blob matched
+	// to fixedwidth, whose scanner then hits "token too long"), a corrupt file,
+	// an over-long line — falls back to listing the entry as opaque Data, exactly
+	// like an Open failure, instead of aborting the WHOLE archive (and every
+	// sibling archive on the command line). Only one entry's parts are held at a
+	// time, preserving the archive's stream-one-member-at-a-time memory profile.
+	var parts []*model.Part
+	for pr := range subReader.Read(ctx) {
+		if pr.Error != nil {
+			subReader.Close()
+			r.AddDiagnostic(format.Diagnostic{
+				Severity: format.SeverityMinor,
+				Category: "archive.entry-unreadable",
+				Message:  fmt.Sprintf("%s: %v", name, pr.Error),
+			})
+			return r.emitData(ctx, ch, name, uint64(len(content)))
+		}
+		parts = append(parts, pr.Part)
+	}
+	subReader.Close()
+
 	r.layerSeq++
 	childLayer := &model.Layer{
 		ID:       fmt.Sprintf("ar%d", r.layerSeq),
@@ -182,45 +214,26 @@ func (r *Reader) emitChild(ctx context.Context, ch chan<- model.PartResult, root
 			"entry":            name,
 		},
 	}
-
-	subDoc := &model.RawDocument{
-		URI:          name,
-		SourceLocale: locale,
-		Encoding:     "UTF-8",
-		Reader:       io.NopCloser(bytes.NewReader(content)),
-	}
-	if err := subReader.Open(ctx, subDoc); err != nil {
-		return r.emitData(ctx, ch, name, uint64(len(content)))
-	}
-
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: childLayer}) {
-		subReader.Close()
 		return false
 	}
-	for pr := range subReader.Read(ctx) {
-		if pr.Error != nil {
-			r.emitErr(ch, fmt.Errorf("archive: parsing %s: %w", name, pr.Error))
-			subReader.Close()
-			return false
-		}
+	for _, part := range parts {
 		// Stamp each block with its originating entry so downstream consumers
 		// (inspect, word-count, grep) can attribute it to `<archive>!<entry>`
 		// without tracking the enclosing child layer. The sub-reader's own blocks
 		// carry their format-local Name/keypath, not the entry, so we add it here.
-		if pr.Part != nil && pr.Part.Type == model.PartBlock {
-			if b, ok := pr.Part.Resource.(*model.Block); ok && b != nil {
+		if part != nil && part.Type == model.PartBlock {
+			if b, ok := part.Resource.(*model.Block); ok && b != nil {
 				if b.Properties == nil {
 					b.Properties = map[string]string{}
 				}
 				b.Properties[model.PropContainerEntry] = name
 			}
 		}
-		if !r.emit(ctx, ch, pr.Part) {
-			subReader.Close()
+		if !r.emit(ctx, ch, part) {
 			return false
 		}
 	}
-	subReader.Close()
 	return r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
 }
 

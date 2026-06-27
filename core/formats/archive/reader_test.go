@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"math/rand"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats"
@@ -139,4 +140,34 @@ func TestExcludeGlobListsEntryAsData(t *testing.T) {
 	assert.Contains(t, childNames, "app.json")
 	assert.Contains(t, dataNames, "vendor/lib.json")
 	assert.NotContains(t, childNames, "vendor/lib.json")
+}
+
+// A binary entry that DETECTS as a text format (a .dat blob matched to
+// fixedwidth) but fails partway through reading must be listed as opaque Data,
+// not abort the whole archive. Regression for `kgrep …*.zip` crashing on a
+// binary icudtl.dat ("fixedwidth: reading: bufio.Scanner: token too long").
+func TestUnreadableEntryFallsBackToData(t *testing.T) {
+	reg := buildRegistry(t)
+	// 160 KB of incompressible bytes (so the zip-bomb guard does not trip) with
+	// no newline (so fixedwidth's bufio.Scanner trips "token too long") and NUL
+	// bytes (so it is unmistakably binary) — like a real icudtl.dat.
+	rng := rand.New(rand.NewSource(1))
+	binary := make([]byte, 160*1024)
+	_, _ = rng.Read(binary)
+	for i := range binary {
+		if binary[i] == '\n' {
+			binary[i] = ' '
+		}
+	}
+	data := makeZip(t, map[string][]byte{
+		"data/icudtl.dat": binary,
+		"locales/en.json": []byte(`{"greeting":"Hello"}`),
+	}, []string{"data/icudtl.dat", "locales/en.json"})
+
+	// readArchive asserts no pr.Error — i.e. the archive does not abort.
+	childFormats, dataNames, blockTexts := readArchive(t, reg, "bundle.zip", data)
+
+	assert.Contains(t, dataNames, "data/icudtl.dat", "unreadable binary entry must be listed as opaque Data")
+	assert.Contains(t, childFormats, "json", "the sibling text entry still parses")
+	assert.Contains(t, blockTexts, "Hello")
 }
