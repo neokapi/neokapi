@@ -35,6 +35,26 @@ type DataFormatReader interface {
 	SetConfig(cfg DataFormatConfig) error
 }
 
+// StreamingReader is a capability marker a reader implements to declare that it
+// reads its input incrementally from doc.Reader (via bufio, never io.ReadAll /
+// os.ReadFile) and emits Parts incrementally — so it can be fed straight into
+// the executor without the whole input or the whole Part stream being buffered.
+// It also promises the reader is in-process and pure-Go (never a daemon-backed
+// plugin), so its read may safely overlap a same-format writer's write: there is
+// no "one Process stream at a time" ordering constraint to honour.
+//
+// The file-run path (core/flow.FileRunner) consults this marker to choose the
+// bounded-memory streaming path; readers that do not implement it keep the
+// read-fully-then-write buffered path unchanged. See
+// [AD-005](../../web/docs/contribute/architecture/005-format-system.md)
+// "Streaming readers and bounded-memory I/O".
+type StreamingReader interface {
+	// StreamingReader reports that this reader streams its input. The method
+	// exists only to mark the capability; its presence (not its return value,
+	// which is always true) is what the file-run path probes.
+	StreamingReader() bool
+}
+
 // FormatSignature describes how to detect a data format.
 type FormatSignature struct {
 	MIMETypes  []string          // e.g., ["text/html", "application/xhtml+xml"]

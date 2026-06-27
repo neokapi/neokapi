@@ -40,6 +40,66 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	return buf.String()
 }
 
+// snippetRoundtripStreaming drives a concurrent streaming round-trip: a
+// NewStreamingSkeletonStore wired into both reader and writer, the reader's
+// Parts forwarded into the writer while the reader is still producing. Output
+// must be byte-identical to the buffered skeleton path.
+func snippetRoundtripStreaming(t *testing.T, input string) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := splicedlines.NewReader()
+	writer := splicedlines.NewWriter()
+
+	store := format.NewStreamingSkeletonStore()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	partsCh := make(chan *model.Part, 64)
+	readCh := reader.Read(ctx)
+	go func() {
+		defer close(partsCh)
+		for res := range readCh {
+			if res.Error == nil && res.Part != nil {
+				partsCh <- res.Part
+			}
+		}
+		store.CloseWrite()
+		reader.Close()
+	}()
+
+	require.NoError(t, writer.Write(ctx, partsCh))
+	writer.Close()
+	return buf.String()
+}
+
+// TestStreamingMatchesBuffered asserts the streaming skeleton path produces the
+// same bytes as the buffered path across the byte-exact fixtures.
+func TestStreamingMatchesBuffered(t *testing.T) {
+	inputs := []string{
+		"Hello world",
+		"Line 1\nLine 2\nLine 3",
+		"Line 1\r\nLine 2\r\nLine 3",
+		"Line 1\\\nContinued\nLine 2",
+		"Line 1\\\r\nContinued\r\nLine 2",
+		"Line 1\n\nLine 2",
+		"Line 1\nLine 2\n",
+		"Line 1\nLine 2",
+		"A\\\nB\\\nC\nD",
+	}
+	for _, in := range inputs {
+		buffered := snippetRoundtripWithSkeleton(t, in)
+		streaming := snippetRoundtripStreaming(t, in)
+		assert.Equal(t, buffered, streaming, "streaming output must match buffered for %q", in)
+		assert.Equal(t, in, streaming, "streaming output must be byte-exact for %q", in)
+	}
+}
+
 func TestSkeletonStore_ByteExact_SimpleLine(t *testing.T) {
 	input := "Hello world"
 	output := snippetRoundtripWithSkeleton(t, input)

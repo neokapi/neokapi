@@ -24,8 +24,16 @@ type Reader struct {
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
 
-// Ensure Reader implements SkeletonStoreEmitter.
-var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+// Ensure Reader implements SkeletonStoreEmitter and StreamingReader.
+var (
+	_ format.SkeletonStoreEmitter = (*Reader)(nil)
+	_ format.StreamingReader      = (*Reader)(nil)
+)
+
+// StreamingReader marks this reader as bounded-memory streaming: it reads its
+// input line-by-line via bufio and emits each block incrementally (holding only
+// the in-progress continuation), never buffering the whole document. See [AD-005].
+func (r *Reader) StreamingReader() bool { return true }
 
 // NewReader creates a new spliced lines reader.
 func NewReader() *Reader {

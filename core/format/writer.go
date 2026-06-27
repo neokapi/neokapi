@@ -46,6 +46,29 @@ type WriterConfigurable interface {
 	WriterConfig() DataFormatConfig
 }
 
+// StreamingWriter is a capability marker a writer implements to declare that it
+// can reconstruct a document by consuming a *streaming* skeleton interleaved
+// with the arriving Part stream — pulling each block referenced by a skeleton
+// ref on demand rather than buffering every block into a map first. This keeps
+// peak memory bounded to a small window for a streaming round-trip while
+// remaining byte-identical to the buffered skeleton path (the reader emits
+// skeleton refs and their blocks in the same order, so on-demand lookup yields
+// the same bytes).
+//
+// A writer signals it took the streaming path by checking
+// SkeletonStore.IsStreaming() inside Write and delegating to
+// format.StreamSkeletonWrite. Writers that do not implement this keep the
+// buffered (collect-all-blocks) skeleton path; the file-run path only wires a
+// streaming skeleton store when both the reader (StreamingReader) and the writer
+// (StreamingWriter) opt in. See
+// [AD-005](../../web/docs/contribute/architecture/005-format-system.md)
+// "Streaming readers and bounded-memory I/O".
+type StreamingWriter interface {
+	// StreamingWriter reports that this writer can consume a streaming skeleton.
+	// As with StreamingReader, presence is the signal; it always returns true.
+	StreamingWriter() bool
+}
+
 // DataFormatWriter reconstructs a document from Parts.
 type DataFormatWriter interface {
 	// Name returns the format name matching the reader.

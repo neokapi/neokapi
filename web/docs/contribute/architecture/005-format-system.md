@@ -182,6 +182,49 @@ roundtrip writing. A format picks the one that fits its structure:
 All three strategies present the same `DataFormatWriter` interface to the
 pipeline.
 
+### Streaming readers and bounded-memory I/O
+
+The read → process → write path streams end-to-end so peak memory tracks a
+bounded window, not the document size. Three edges cooperate:
+
+1. **Source edge.** The file-run path
+   ([`core/flow.FileRunner`](026-flow-io-binding.md)) hands the reader a
+   *streaming*, byte-budgeted `io.ReadCloser` over the file
+   (`core/safeio` enforced uniformly) instead of reading the whole file into a
+   buffer up front. A line/record reader pulls bytes on demand and never holds
+   the whole input; a whole-document reader still `io.ReadAll`s, but only once.
+2. **Reader → executor.** When the reader declares the **`StreamingReader`**
+   capability, its `Read` channel is fed straight into the executor — the Part
+   stream is no longer collected into a `[]*Part` slice between reader and tools.
+   The reader runs concurrently with the writer. This is gated on the capability
+   because it overlaps the read and the write: only in-process, pure-Go readers
+   may opt in, never a daemon-backed plugin (those keep the
+   read-fully-then-write order their one-Process-stream-at-a-time contract
+   requires).
+3. **Skeleton.** A byte-exact round-trip needs the skeleton, but the buffered
+   skeleton writer collects every block into a map and replays the skeleton only
+   after it is fully written — O(blocks) memory. A reader and writer that both
+   declare streaming (**`StreamingReader`** + **`StreamingWriter`**) instead share
+   a **concurrent (channel-backed) skeleton store**: the reader appends entries
+   while the writer pops them, consuming each `SkeletonRef`'s block from the Part
+   stream *on demand* (`format.StreamSkeletonWrite`). Because a streaming reader
+   emits refs and their blocks in the same order, the pending-block window stays
+   small. **Output is byte-identical to the buffered skeleton path** — the same
+   entries in the same order, just consumed interleaved instead of after a
+   `Flush`. The two capabilities are markers (`StreamingReader()` /
+   `StreamingWriter()`); a writer signals it took the streaming path by checking
+   `SkeletonStore.IsStreaming()` in `Write`.
+
+The line/record formats are the natural first adopters: `splicedlines` and
+`versifiedtext` already read incrementally via `bufio` and encode everything a
+round-trip needs in block properties, so they declare both capabilities. A
+whole-document format (JSON tree, XML, OOXML zip) parses the entire input and
+keeps the buffered path unchanged — it simply does not declare the capability,
+and a uniform fallback keeps its output byte-identical. The container binding
+drives one archive entry through `FileRunner.RunStream` (bytes in, bytes out, no
+temp file); a streaming-capable inner format is not even buffered whole
+([AD-026](026-flow-io-binding.md) §6).
+
 ### Writer output modes — generative vs skeleton-bound
 
 A skeleton is **format-specific** — it is the non-translatable scaffolding of
