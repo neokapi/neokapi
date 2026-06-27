@@ -119,3 +119,38 @@ func TestInspect_NumberAndFileAcrossFiles(t *testing.T) {
 	assert.Equal(t, displayName(b), blocks[1].File)
 	assert.Equal(t, displayName(b), blocks[2].File)
 }
+
+func TestInspect_ProjectRendersBlocksPerFormat(t *testing.T) {
+	out := runInspectFixture(t, "doc.md", "# Title\n\nSome **bold** text.\n", "--project", "html,markdown")
+
+	var recs []map[string]any
+	require.NoError(t, json.Unmarshal([]byte(out), &recs))
+	require.NotEmpty(t, recs)
+
+	// Find the paragraph record and check its projected fragments carry faithful
+	// markup (not the flattened Text anchor).
+	var para map[string]any
+	for _, r := range recs {
+		if proj, ok := r["projected"].(map[string]any); ok {
+			if h, _ := proj["html"].(string); strings.Contains(h, "<strong>") {
+				para = r
+			}
+		}
+	}
+	require.NotNil(t, para, "paragraph projection not found")
+	proj := para["projected"].(map[string]any)
+	assert.Equal(t, "<p>Some <strong>bold</strong> text.</p>", proj["html"])
+	assert.Equal(t, "Some **bold** text.", proj["markdown"])
+}
+
+func TestInspect_ProjectRejectsUnknownFormat(t *testing.T) {
+	app := newAppForTest(t)
+	cmd := app.NewInspectCmd()
+	cmd.SetArgs([]string{"--project", "pdf", "-"})
+	cmd.SetIn(strings.NewReader("x"))
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported format")
+}

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
+	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/structrec"
 	"github.com/spf13/cobra"
@@ -18,8 +20,9 @@ import (
 // streams one object per line, --yaml emits a YAML sequence.
 func (a *App) NewInspectCmd() *cobra.Command {
 	var (
-		jsonl  bool
-		asYAML bool
+		jsonl   bool
+		asYAML  bool
+		project []string
 	)
 	cmd := &cobra.Command{
 		Use:     "inspect [flags] [FILE...]",
@@ -37,6 +40,7 @@ With no FILE, or when FILE is "-", standard input is read.`,
 		Example: `  kapi inspect report.docx
   kapi inspect --jsonl docs/*.md | jq .content_hash
   kapi inspect --yaml report.dclg.xml
+  kapi inspect report.docx --project html,markdown   # each block rendered per format
   cat page.html | kapi inspect -f html`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -50,19 +54,26 @@ With no FILE, or when FILE is "-", standard input is read.`,
 			case asYAML:
 				outFormat = "yaml"
 			}
-			return a.runInspect(cmd.Context(), cmd, args, outFormat)
+			supported := formats.BlockFragmentFormats()
+			for _, p := range project {
+				if !slices.Contains(supported, p) {
+					return fmt.Errorf("--project: unsupported format %q (supported: %v)", p, supported)
+				}
+			}
+			return a.runInspect(cmd.Context(), cmd, args, outFormat, project)
 		},
 	}
 	f := cmd.Flags()
 	f.BoolVar(&jsonl, "jsonl", false, "stream one JSON object per line (JSONL) instead of a JSON array")
 	f.BoolVar(&asYAML, "yaml", false, "emit a YAML sequence instead of a JSON array")
+	f.StringSliceVar(&project, "project", nil, "also render each block to these target formats (html, markdown, asciidoc) under \"projected\"")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
 	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input encoding")
 	return cmd
 }
 
-func (a *App) runInspect(ctx context.Context, cmd *cobra.Command, args []string, outFormat string) error {
+func (a *App) runInspect(ctx context.Context, cmd *cobra.Command, args []string, outFormat string, project []string) error {
 	hadError := false
 	files, err := expandInputs(args, false, func(path string, err error) {
 		hadError = true
@@ -86,6 +97,16 @@ func (a *App) runInspect(ctx context.Context, cmd *cobra.Command, args []string,
 			rec := structrec.FromBlock(n, b, b.SourceRuns())
 			// Attribute blocks read from inside an archive to `<archive>!<entry>`.
 			rec.File = entryLabel(displayName(file), b)
+			// Per-block projection: render the block to each requested target
+			// format (faithful markup, not the flattened Text anchor).
+			if len(project) > 0 {
+				rec.Projected = make(map[string]string, len(project))
+				for _, p := range project {
+					if frag, ok := formats.RenderBlockFragment(b, p); ok {
+						rec.Projected[p] = frag
+					}
+				}
+			}
 			if streaming {
 				return enc.Encode(rec) // Encode writes one object + newline = JSONL
 			}

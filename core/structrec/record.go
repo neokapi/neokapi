@@ -34,6 +34,12 @@ type Record struct {
 	Role        string `json:"role,omitempty" yaml:"role,omitempty"`
 	Level       int    `json:"level,omitempty" yaml:"level,omitempty"`
 	Text        string `json:"text" yaml:"text"`
+	// Projected carries the block rendered to one or more target formats
+	// (`kapi inspect --project html,md`), keyed by format id. Unlike Text (a
+	// flattened plain-text anchor), each value is faithful markup — inline
+	// formatting, links, table-cell structure — produced by the per-block
+	// projection serializer. Omitted unless --project was requested.
+	Projected map[string]string `json:"projected,omitempty" yaml:"projected,omitempty"`
 }
 
 // New builds a Record for one block from an explicit text rendering, computing

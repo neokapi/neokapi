@@ -489,6 +489,11 @@ func (w *Writer) renderInlineHTML(b *model.Block) string {
 			runs = t
 		}
 	}
+	return renderRunsHTML(runs)
+}
+
+// renderRunsHTML projects a run sequence to inline HTML via the shared decoder.
+func renderRunsHTML(runs []model.Run) string {
 	sink := &htmlInlineSink{}
 	projection.WalkInline(runs, sink)
 	sink.flush()
