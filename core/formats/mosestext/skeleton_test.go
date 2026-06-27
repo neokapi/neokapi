@@ -40,6 +40,61 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 	return buf.String()
 }
 
+// streamingRoundtrip drives a concurrent streaming round-trip via a
+// NewStreamingSkeletonStore, forwarding the reader's Parts into the writer while
+// the reader is still producing. Output must match the buffered skeleton path.
+func streamingRoundtrip(t *testing.T, input string) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := mosestext.NewReader()
+	writer := mosestext.NewWriter()
+	store := format.NewStreamingSkeletonStore()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	partsCh := make(chan *model.Part, 64)
+	readCh := reader.Read(ctx)
+	go func() {
+		defer close(partsCh)
+		for res := range readCh {
+			if res.Error == nil && res.Part != nil {
+				partsCh <- res.Part
+			}
+		}
+		store.CloseWrite()
+		reader.Close()
+	}()
+
+	require.NoError(t, writer.Write(ctx, partsCh))
+	writer.Close()
+	return buf.String()
+}
+
+// TestStreamingMatchesBuffered asserts the streaming skeleton path is
+// byte-identical to the buffered path, including a multi-line <mrk> segment.
+func TestStreamingMatchesBuffered(t *testing.T) {
+	inputs := []string{
+		"Hello world",
+		"Line 1\nLine 2\nLine 3",
+		"Line 1\r\nLine 2\r\nLine 3",
+		"Line 1\rLine 2\rLine 3",
+		"Plain line\n\nAfter blank",
+		"<mrk mtype=\"seg\">First\nSecond\nThird</mrk>\nPlain after",
+		"<mrk mtype=\"seg\">One-liner</mrk>\n",
+	}
+	for _, in := range inputs {
+		buffered := snippetRoundtripWithSkeleton(t, in)
+		streaming := streamingRoundtrip(t, in)
+		assert.Equal(t, buffered, streaming, "streaming must match buffered for %q", in)
+	}
+}
+
 func TestSkeletonStore_ByteExact_SimpleLine(t *testing.T) {
 	input := "Hello world"
 	output := snippetRoundtripWithSkeleton(t, input)
