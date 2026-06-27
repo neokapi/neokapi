@@ -53,3 +53,16 @@ func TestDocxTableCapture(t *testing.T) {
 	assert.Equal(t, projection.RoleTableRow, found.Children[0].Role)
 	assert.NotEmpty(t, found.Children[0].Children, "row should have cells")
 }
+
+func TestGridSpanFromTcPr(t *testing.T) {
+	cases := map[string]int{
+		`<w:tcPr><w:gridSpan w:val="3"/></w:tcPr>`:                   3,
+		`<w:tcPr><w:tcW w:w="100"/><w:gridSpan w:val="2"/></w:tcPr>`: 2,
+		`<w:tcPr></w:tcPr>`:                            0,
+		`<w:tcPr><w:vMerge w:val="restart"/></w:tcPr>`: 0,
+		`<w:tcPr><w:gridSpan w:val="1"/></w:tcPr>`:     1,
+	}
+	for raw, want := range cases {
+		assert.Equal(t, want, gridSpanFromTcPr(raw), raw)
+	}
+}

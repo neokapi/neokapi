@@ -233,6 +233,15 @@ func (p *wmlParser) applyParagraphRole(block *model.Block, paraStyleID, rawParaP
 		// cross-format writers and projection reconstruct. A styled paragraph
 		// (heading, list) inside a cell keeps its stronger role.
 		block.SetSemanticRole(model.RoleTableCell, 0)
+		// Apply a horizontal cell merge (w:gridSpan) to the cell's first
+		// paragraph so spanned grids reconstruct aligned, then consume it.
+		if p.pendingColSpan > 1 {
+			if s, ok := block.Structure(); ok && s != nil {
+				s.ColSpan = p.pendingColSpan
+				block.SetStructure(s)
+			}
+			p.pendingColSpan = 0
+		}
 	} else if p.partNoteRole != "" {
 		block.SetSemanticRole(p.partNoteRole, 0)
 	}

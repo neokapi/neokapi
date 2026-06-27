@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -335,6 +336,24 @@ type wmlParser struct {
 	structStack  []structFrame
 	cellDepth    int
 	groupCounter int
+	// pendingColSpan is the horizontal cell merge (w:tcPr/w:gridSpan) parsed for
+	// the current cell, applied to its first paragraph (tagged RoleTableCell) so
+	// spanned grids reconstruct aligned. Reset at each cell boundary.
+	pendingColSpan int
+}
+
+// gridSpanRe extracts the w:val of a <w:gridSpan> inside a captured <w:tcPr>.
+var gridSpanRe = regexp.MustCompile(`<w:gridSpan[^>]*\bw:val="(\d+)"`)
+
+// gridSpanFromTcPr returns the horizontal cell span declared by a captured
+// <w:tcPr> (ECMA-376 §17.4.17 CT_TcPrBase/gridSpan), or 0 when unspecified.
+func gridSpanFromTcPr(raw string) int {
+	if m := gridSpanRe.FindStringSubmatch(raw); m != nil {
+		if n, err := strconv.Atoi(m[1]); err == nil {
+			return n
+		}
+	}
+	return 0
 }
 
 // structFrame is one open table-structure group on the parser's stack.
@@ -366,6 +385,7 @@ func (p *wmlParser) openTableStruct(name string) {
 		p.emitPart(&model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: id, Name: kind, Type: kind}})
 	case "tc":
 		p.cellDepth++
+		p.pendingColSpan = 0 // a fresh cell; its tcPr (if any) sets the span
 	}
 }
 
@@ -604,6 +624,9 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 				raw, err := captureRawElement(d, t)
 				if err != nil {
 					return err
+				}
+				if t.Name.Local == "tcPr" {
+					p.pendingColSpan = gridSpanFromTcPr(raw)
 				}
 				p.skelText(raw)
 			default:
