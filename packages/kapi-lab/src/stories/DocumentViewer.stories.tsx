@@ -76,3 +76,30 @@ export const NoBytes: Story = {
   name: "No download bytes",
   render: () => <DocumentViewer tree={jsonTree} filename="messages.json" className="max-w-2xl" />,
 };
+
+// extraTabs appends host-supplied pills after a divider — the convert lab uses
+// this for one pill per output format, each re-serializing the same model.
+export const OutputFormatPills: Story = {
+  name: "Output-format pills (extraTabs)",
+  render: () => (
+    <DocumentViewer
+      tree={doclangTree}
+      filename="report.dclg.xml"
+      className="max-w-2xl"
+      extraTabs={[
+        {
+          value: "out:markdown",
+          label: "Markdown",
+          content: (
+            <pre className="rounded-md border bg-muted/30 p-3 text-xs"># Report{"\n\n"}Body…</pre>
+          ),
+        },
+        {
+          value: "out:json",
+          label: "JSON",
+          content: <pre className="rounded-md border bg-muted/30 p-3 text-xs">{"[ … ]"}</pre>,
+        },
+      ]}
+    />
+  ),
+};
