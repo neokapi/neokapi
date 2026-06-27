@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"strconv"
 	"strings"
 
@@ -22,8 +23,16 @@ type Reader struct {
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
 
-// Ensure Reader implements SkeletonStoreEmitter.
-var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+// Ensure Reader implements SkeletonStoreEmitter and StreamingReader.
+var (
+	_ format.SkeletonStoreEmitter = (*Reader)(nil)
+	_ format.StreamingReader      = (*Reader)(nil)
+)
+
+// StreamingReader marks this reader as bounded-memory streaming: it reads lines
+// via bufio and emits each row's cells incrementally, holding only the current
+// row. See [AD-005].
+func (r *Reader) StreamingReader() bool { return true }
 
 // NewReader creates a new fixed-width reader.
 func NewReader() *Reader {
@@ -106,81 +115,85 @@ type fwRawLine struct {
 	lineEnding string // "\n", "\r\n", or "" for last line
 }
 
+// rawLines streams the document's lines one at a time, preserving exact line
+// endings ("\n"/"\r\n", "" for an unterminated last line), so the skeleton path
+// processes each row as it is read rather than after buffering the whole file.
+func (r *Reader) rawLines() iter.Seq[fwRawLine] {
+	return func(yield func(fwRawLine) bool) {
+		br := bufio.NewReader(r.Doc.Reader)
+		for {
+			raw, err := br.ReadString('\n')
+			if raw == "" && err != nil {
+				break
+			}
+			content := raw
+			ending := ""
+			if strings.HasSuffix(content, "\r\n") {
+				content = content[:len(content)-2]
+				ending = "\r\n"
+			} else if strings.HasSuffix(content, "\n") {
+				content = content[:len(content)-1]
+				ending = "\n"
+			}
+			if !yield(fwRawLine{content: content, lineEnding: ending}) {
+				return
+			}
+			if err == io.EOF {
+				break
+			}
+		}
+	}
+}
+
 func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult) {
-	raw, err := io.ReadAll(r.Doc.Reader)
-	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("fixedwidth: reading: %w", err)}
-		return
-	}
-
-	// Split into raw lines preserving exact line endings
-	var lines []fwRawLine
-	remaining := string(raw)
-	for len(remaining) > 0 {
-		idx := strings.Index(remaining, "\n")
-		if idx < 0 {
-			lines = append(lines, fwRawLine{content: remaining})
-			break
-		}
-		lineContent := remaining[:idx]
-		ending := "\n"
-		if strings.HasSuffix(lineContent, "\r") {
-			lineContent = lineContent[:len(lineContent)-1]
-			ending = "\r\n"
-		}
-		lines = append(lines, fwRawLine{content: lineContent, lineEnding: ending})
-		remaining = remaining[idx+1:]
-	}
-
-	if len(lines) == 0 {
-		return
-	}
-
-	startRow := 0
 	dataCounter := 0
 	blockCounter := 0
+	rowNum := 0
+	first := true
 
-	// Handle header row
-	if r.cfg.HasHeader && len(lines) > 0 {
-		if r.cfg.ExtractNonTranslatableContent() {
-			// Surface the header / column-label line as a non-translatable
-			// caption block (visible to ingestion/LLM consumers, skipped by
-			// MT). Its body rides a skeleton ref; the line ending stays
-			// skeleton so the round-trip is byte-exact.
-			blockCounter++
-			blockID := fmt.Sprintf("tu%d", blockCounter)
-			r.skelRef(blockID)
-			r.skelText(lines[0].lineEnding)
-			block := model.NewBlock(blockID, lines[0].content)
-			block.Name = "header-row"
-			block.Translatable = false
-			block.PreserveWhitespace = true
-			block.SetSemanticRole(model.RoleCaption, 0)
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-				return
-			}
-		} else {
-			r.skelText(lines[0].content + lines[0].lineEnding)
-			dataCounter++
-			data := &model.Data{
-				ID:   fmt.Sprintf("d%d", dataCounter),
-				Name: "header-row",
-				Properties: map[string]string{
-					"content": lines[0].content,
-				},
-			}
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
-				return
+	for rl := range r.rawLines() {
+		// Handle header row (the first line) once.
+		if first {
+			first = false
+			if r.cfg.HasHeader {
+				if r.cfg.ExtractNonTranslatableContent() {
+					// Surface the header / column-label line as a non-translatable
+					// caption block (visible to ingestion/LLM consumers, skipped by
+					// MT). Its body rides a skeleton ref; the line ending stays
+					// skeleton so the round-trip is byte-exact.
+					blockCounter++
+					blockID := fmt.Sprintf("tu%d", blockCounter)
+					r.skelRef(blockID)
+					r.skelText(rl.lineEnding)
+					block := model.NewBlock(blockID, rl.content)
+					block.Name = "header-row"
+					block.Translatable = false
+					block.PreserveWhitespace = true
+					block.SetSemanticRole(model.RoleCaption, 0)
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+						return
+					}
+				} else {
+					r.skelText(rl.content + rl.lineEnding)
+					dataCounter++
+					data := &model.Data{
+						ID:   fmt.Sprintf("d%d", dataCounter),
+						Name: "header-row",
+						Properties: map[string]string{
+							"content": rl.content,
+						},
+					}
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+						return
+					}
+				}
+				continue
 			}
 		}
-		startRow = 1
-	}
 
-	for rowIdx := startRow; rowIdx < len(lines); rowIdx++ {
-		rl := lines[rowIdx]
+		rowNum++
 		line := rl.content
 		runes := []rune(line)
-		rowNum := rowIdx - startRow + 1
 
 		// Track how far we've written in this line for skeleton
 		runePos := 0
@@ -276,57 +289,49 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 
 func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResult) {
 	scanner := bufio.NewScanner(r.Doc.Reader)
-	var lines []string
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("fixedwidth: reading: %w", err)}
-		return
-	}
-
-	if len(lines) == 0 {
-		return
-	}
-
-	startRow := 0
 	dataCounter := 0
 	blockCounter := 0
+	rowNum := 0
+	first := true
 
-	// Handle header row
-	if r.cfg.HasHeader && len(lines) > 0 {
-		if r.cfg.ExtractNonTranslatableContent() {
-			// Surface the header / column-label line as a non-translatable
-			// caption block (visible to ingestion/LLM consumers, skipped by MT).
-			blockCounter++
-			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), lines[0])
-			block.Name = "header-row"
-			block.Translatable = false
-			block.PreserveWhitespace = true
-			block.SetSemanticRole(model.RoleCaption, 0)
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-				return
-			}
-		} else {
-			dataCounter++
-			data := &model.Data{
-				ID:   fmt.Sprintf("d%d", dataCounter),
-				Name: "header-row",
-				Properties: map[string]string{
-					"content": lines[0],
-				},
-			}
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
-				return
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Handle header row (the first line) once.
+		if first {
+			first = false
+			if r.cfg.HasHeader {
+				if r.cfg.ExtractNonTranslatableContent() {
+					// Surface the header / column-label line as a non-translatable
+					// caption block (visible to ingestion/LLM consumers, skipped by MT).
+					blockCounter++
+					block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), line)
+					block.Name = "header-row"
+					block.Translatable = false
+					block.PreserveWhitespace = true
+					block.SetSemanticRole(model.RoleCaption, 0)
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+						return
+					}
+				} else {
+					dataCounter++
+					data := &model.Data{
+						ID:   fmt.Sprintf("d%d", dataCounter),
+						Name: "header-row",
+						Properties: map[string]string{
+							"content": line,
+						},
+					}
+					if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+						return
+					}
+				}
+				continue
 			}
 		}
-		startRow = 1
-	}
 
-	for rowIdx := startRow; rowIdx < len(lines); rowIdx++ {
-		line := lines[rowIdx]
+		rowNum++
 		runes := []rune(line)
-		rowNum := rowIdx - startRow + 1
 
 		for _, col := range r.cfg.Columns {
 			value := r.extractColumn(runes, col)
@@ -384,6 +389,9 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 				return
 			}
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("fixedwidth: reading: %w", err)}
 	}
 }
 
