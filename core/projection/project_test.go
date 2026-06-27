@@ -222,3 +222,29 @@ func TestRenderNode_Walk(t *testing.T) {
 	})
 	assert.Equal(t, []string{RoleDocument, model.RoleTable, RoleTableRow, model.RoleTableCell}, roles)
 }
+
+func TestAssembleTable(t *testing.T) {
+	parts := []*model.Part{
+		blockPart(model.NewBlock("before", "intro")), // ignored: outside the table
+		groupStart("t", "table"),
+		groupStart("r0", "table-row"),
+		blockPart(cellBlock("a", "A", true)),
+		blockPart(cellBlock("b", "B", true)),
+		groupEnd("r0"),
+		groupStart("r1", "table-row"),
+		blockPart(cellBlock("c", "1", false)),
+		blockPart(cellBlock("d", "2", false)),
+		groupEnd("r1"),
+		groupEnd("t"),
+		blockPart(model.NewBlock("after", "tail")), // ignored: after the table
+	}
+	end, rows := AssembleTable(parts, 1) // start at the table GroupStart
+	assert.Equal(t, 10, end, "end should be the table GroupEnd index")
+	require.Len(t, rows, 2)
+	assert.True(t, rows[0].Header, "header row flagged from cell roles")
+	require.Len(t, rows[0].Cells, 2)
+	assert.True(t, rows[0].Cells[0].Header)
+	assert.Equal(t, "A", model.RunsText(rows[0].Cells[0].Block.Source))
+	assert.False(t, rows[1].Header)
+	assert.Equal(t, "2", model.RunsText(rows[1].Cells[1].Block.Source))
+}

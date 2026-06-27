@@ -334,49 +334,28 @@ type mdRow struct {
 // index of the matching GroupEnd (so the caller can resume after it) and the
 // accumulated rows.
 func (w *Writer) collectTable(events []*model.Part, start int) (end int, rows []mdRow) {
-	depth := 0
-	inRow := false
-	for j := start; j < len(events); j++ {
-		p := events[j]
-		switch p.Type {
-		case model.PartGroupStart:
-			depth++
-			g, _ := p.Resource.(*model.GroupStart)
-			if depth >= 2 && g != nil && g.Type == "table-row" {
-				rows = append(rows, mdRow{header: g.Properties["header"] == "true"})
-				inRow = true
-			}
-		case model.PartGroupEnd:
-			depth--
-			if depth == 0 {
-				return j, rows
-			}
-			if depth == 1 {
-				inRow = false
-			}
-		case model.PartBlock:
-			if !inRow || len(rows) == 0 {
-				continue
-			}
-			b, ok := p.Resource.(*model.Block)
-			if !ok {
-				continue
-			}
+	// Group the table's parts into rows of cell blocks with the shared
+	// assembler (projection.AssembleTable), then render each cell to GFM here —
+	// the writer keeps its locale choice (blockRuns), sparse-column property,
+	// and cell escaping; only the row/cell grouping is shared.
+	end, asm := projection.AssembleTable(events, start)
+	rows = make([]mdRow, 0, len(asm))
+	for _, r := range asm {
+		mr := mdRow{header: r.Header}
+		for _, c := range r.Cells {
 			col := -1
-			if v, ok := b.Properties["column"]; ok {
+			if v, ok := c.Block.Properties["column"]; ok {
 				n := 0
 				if _, err := fmt.Sscanf(v, "%d", &n); err == nil {
 					col = n
 				}
 			}
-			if b.SemanticRole() == model.RoleTableHeader {
-				rows[len(rows)-1].header = true
-			}
-			text := escapeTableCell(renderInlineMarkdown(w.blockRuns(b)))
-			rows[len(rows)-1].cells = append(rows[len(rows)-1].cells, mdCell{col: col, text: text})
+			text := escapeTableCell(renderInlineMarkdown(w.blockRuns(c.Block)))
+			mr.cells = append(mr.cells, mdCell{col: col, text: text})
 		}
+		rows = append(rows, mr)
 	}
-	return len(events) - 1, rows
+	return end, rows
 }
 
 // writeTable renders accumulated rows as a GFM table. The header row is the
