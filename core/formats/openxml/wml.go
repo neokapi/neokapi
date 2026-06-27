@@ -321,6 +321,77 @@ type wmlParser struct {
 	// triggers the flush; P5 (`<w:p ... />` self-closing, no pPr)
 	// is the trailing wrapper Okapi consumes for the merged block.
 	partAbsorbedTrailingEmpty bool
+	// emitPart, when set, emits a Part directly to the reader's output channel
+	// (in document order, interleaved with emitBlock). It is used to surface
+	// table topology — w:tbl / w:tr become table / table-row Groups, w:tc cells'
+	// paragraphs are tagged RoleTableCell — so cross-format writers and
+	// core/projection rebuild the grid instead of seeing flat paragraphs. Groups
+	// are additive: they carry no skeleton bytes, so docx→docx round-trip stays
+	// byte-exact. nil disables table-structure emission.
+	emitPart func(*model.Part)
+	// structStack tracks the open table/table-row groups so a closing element
+	// pops the matching one; cellDepth tracks w:tc nesting so a paragraph inside
+	// a cell is tagged RoleTableCell. groupCounter names the emitted groups.
+	structStack  []structFrame
+	cellDepth    int
+	groupCounter int
+}
+
+// structFrame is one open table-structure group on the parser's stack.
+type structFrame struct {
+	kind string // "table" | "table-row"
+	id   string
+}
+
+func (p *wmlParser) nextGroupID() string {
+	p.groupCounter++
+	return fmt.Sprintf("tg%d", p.groupCounter)
+}
+
+// openTableStruct emits a table/table-row Group (or bumps cell depth) when the
+// parser enters a w:tbl / w:tr / w:tc. Additive — no skeleton bytes, so the
+// byte-exact round-trip is unaffected. No-op when emitPart is unset.
+func (p *wmlParser) openTableStruct(name string) {
+	if p.emitPart == nil {
+		return
+	}
+	switch name {
+	case "tbl", "tr":
+		kind := "table"
+		if name == "tr" {
+			kind = "table-row"
+		}
+		id := p.nextGroupID()
+		p.structStack = append(p.structStack, structFrame{kind: kind, id: id})
+		p.emitPart(&model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: id, Name: kind, Type: kind}})
+	case "tc":
+		p.cellDepth++
+	}
+}
+
+// closeTableStruct closes the matching table/table-row Group (or drops cell
+// depth) when the parser leaves a w:tbl / w:tr / w:tc. Driven from the single
+// main-loop EndElement site, through which every such close flows.
+func (p *wmlParser) closeTableStruct(name string) {
+	if p.emitPart == nil {
+		return
+	}
+	switch name {
+	case "tbl", "tr":
+		kind := "table"
+		if name == "tr" {
+			kind = "table-row"
+		}
+		if n := len(p.structStack); n > 0 && p.structStack[n-1].kind == kind {
+			f := p.structStack[n-1]
+			p.structStack = p.structStack[:n-1]
+			p.emitPart(&model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: f.id}})
+		}
+	case "tc":
+		if p.cellDepth > 0 {
+			p.cellDepth--
+		}
+	}
 }
 
 // pendingMergeable carries the post-mergeRuns slice for a paragraph
@@ -429,8 +500,16 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 					return err
 				}
 			case "tbl":
-				// Table — recurse to find paragraphs inside cells
+				// Table — recurse to find paragraphs inside cells. Bracket it in
+				// a canonical "table" Group so cross-format writers + projection
+				// rebuild the grid (additive; no skeleton bytes).
 				p.skelWriteStartElement(t)
+				p.openTableStruct("tbl")
+			case "tc":
+				// Table cell — recurse into its paragraphs, tagging them
+				// RoleTableCell via cellDepth.
+				p.skelWriteStartElement(t)
+				p.openTableStruct("tc")
 			case "tr":
 				// Table row — inspect <w:trPr> for the row-deletion
 				// marker <w:trPr><w:del .../></w:trPr> (revision tracking,
@@ -461,6 +540,7 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 					continue
 				}
 				p.skelWriteStartElement(t)
+				p.openTableStruct("tr")
 			case "footnote", "endnote":
 				// Skip the auto-generated separator/continuation
 				// footnotes whose body is non-translatable boilerplate
@@ -532,6 +612,11 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 
 		case xml.EndElement:
 			p.skelWriteEndElement(t)
+			// Close any table/table-row Group or cell depth this end leaves.
+			// Every w:tbl/w:tr/w:tc close funnels through here (handleTableRow
+			// hands control back before the row ends), so this is the single
+			// close site for both row-handling paths.
+			p.closeTableStruct(t.Name.Local)
 
 		case xml.CharData:
 			p.skelText(xmlEscape(string(t)))
@@ -1795,6 +1880,7 @@ func (p *wmlParser) handleTableRow(d *xml.Decoder, start xml.StartElement) error
 				// whitespace/comments, then the trPr raw. Caller
 				// continues normal processing for the rest of the row.
 				p.skelWriteStartElement(start)
+				p.openTableStruct("tr")
 				emitPending()
 				p.skelText(raw)
 				return nil
@@ -1805,6 +1891,7 @@ func (p *wmlParser) handleTableRow(d *xml.Decoder, start xml.StartElement) error
 			// pending whitespace, the child start element, then
 			// hand back to the outer loop.
 			p.skelWriteStartElement(start)
+			p.openTableStruct("tr")
 			emitPending()
 			return p.dispatchInRow(d, tt)
 		case xml.EndElement:
@@ -1831,6 +1918,12 @@ func (p *wmlParser) dispatchInRow(d *xml.Decoder, t xml.StartElement) error {
 			return err
 		}
 		p.skelText(raw)
+	case "tc":
+		// First cell of an accept-revisions row: track cell depth so its
+		// paragraphs tag RoleTableCell (the matching close flows through the
+		// main-loop EndElement site).
+		p.skelWriteStartElement(t)
+		p.openTableStruct("tc")
 	default:
 		p.skelWriteStartElement(t)
 	}

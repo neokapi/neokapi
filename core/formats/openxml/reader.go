@@ -319,6 +319,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				// Namespaces.StrictWordProcessingML
 				// (Namespaces.java:26-27).
 				strict: bytes.Contains(partData, []byte(wmlStrictNamespace)),
+				// Surface table topology (w:tbl/w:tr → Groups, cells → RoleTableCell)
+				// so cross-format writers and core/projection rebuild the grid.
+				emitPart: func(part *model.Part) { r.emit(ctx, ch, part) },
 			}
 			parser.partPlane, parser.partNoteRole = docxPartStructure(partPath)
 			err = parser.parsePart(partData, partPath, emitBlock, func() {})

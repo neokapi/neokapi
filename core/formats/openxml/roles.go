@@ -227,6 +227,12 @@ func (p *wmlParser) applyParagraphRole(block *model.Block, paraStyleID, rawParaP
 		block.SetSemanticRole(r.role, r.level)
 	} else if paraHasNumbering(rawParaProps) {
 		block.SetSemanticRole(model.RoleListItem, 0)
+	} else if p.cellDepth > 0 {
+		// A plain paragraph inside a w:tc is the table cell's content; tag it
+		// so the table/table-row Groups + cells form the canonical shape
+		// cross-format writers and projection reconstruct. A styled paragraph
+		// (heading, list) inside a cell keeps its stronger role.
+		block.SetSemanticRole(model.RoleTableCell, 0)
 	} else if p.partNoteRole != "" {
 		block.SetSemanticRole(p.partNoteRole, 0)
 	}
