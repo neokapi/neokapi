@@ -12,20 +12,20 @@ import (
 type recordingSink struct{ trace []string }
 
 func (s *recordingSink) Text(t string) { s.trace = append(s.trace, "text:"+t) }
-func (s *recordingSink) Open(typ string, attrs map[string]string) {
-	if h := attrs[model.AttrHref]; h != "" {
-		s.trace = append(s.trace, fmt.Sprintf("open:%s(%s)", typ, h))
+func (s *recordingSink) Open(r *model.PcOpenRun) {
+	if h := r.Attr(model.AttrHref); h != "" {
+		s.trace = append(s.trace, fmt.Sprintf("open:%s(%s)", r.Type, h))
 		return
 	}
-	s.trace = append(s.trace, "open:"+typ)
+	s.trace = append(s.trace, "open:"+r.Type)
 }
-func (s *recordingSink) Close(typ string) { s.trace = append(s.trace, "close:"+typ) }
-func (s *recordingSink) Placeholder(typ, equiv string, attrs map[string]string) {
-	if src := attrs[model.AttrSrc]; src != "" {
-		s.trace = append(s.trace, fmt.Sprintf("ph:%s(%s)", typ, src))
+func (s *recordingSink) Close(r *model.PcCloseRun) { s.trace = append(s.trace, "close:"+r.Type) }
+func (s *recordingSink) Placeholder(r *model.PlaceholderRun) {
+	if src := r.Attr(model.AttrSrc); src != "" {
+		s.trace = append(s.trace, fmt.Sprintf("ph:%s(%s)", r.Type, src))
 		return
 	}
-	s.trace = append(s.trace, fmt.Sprintf("ph:%s=%s", typ, equiv))
+	s.trace = append(s.trace, fmt.Sprintf("ph:%s=%s", r.Type, r.Equiv))
 }
 
 func TestWalkInline_BoldAndLink(t *testing.T) {

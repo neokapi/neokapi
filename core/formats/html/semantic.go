@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 	"golang.org/x/net/html"
 )
 
@@ -449,68 +450,82 @@ func (w *Writer) renderInlineHTML(b *model.Block) string {
 			runs = t
 		}
 	}
-	var sb strings.Builder
-	var open []string // stack of emitted closing tags (or "" for dropped)
-	for _, r := range runs {
-		switch {
-		case r.Text != nil:
-			sb.WriteString(html.EscapeString(r.Text.Text))
-		case r.PcOpen != nil:
-			switch r.PcOpen.Type {
-			case "link:hyperlink":
-				sb.WriteString("<a" +
-					htmlAttr("href", r.PcOpen.Attr(model.AttrHref)) +
-					htmlAttr("title", r.PcOpen.Attr(model.AttrTitle)) + ">")
-				open = append(open, "</a>")
-			case "media:image", "link:image":
-				// Paired image (e.g. read from Markdown): the alt text is the
-				// content. Open the alt attribute; the content fills it; the
-				// matching close finishes the void element.
-				sb.WriteString("<img" + htmlAttr("src", r.PcOpen.Attr(model.AttrSrc)) + ` alt="`)
-				open = append(open, `"`+htmlAttr("title", r.PcOpen.Attr(model.AttrTitle))+"/>")
-			default:
-				if tag, ok := htmlInlineTag[r.PcOpen.Type]; ok {
-					sb.WriteString(tag[0])
-					open = append(open, tag[1])
-				} else if strings.HasPrefix(strings.TrimSpace(r.PcOpen.Data), "<") {
-					sb.WriteString(r.PcOpen.Data)
-					open = append(open, "") // closing comes from the matching PcClose Data
-				} else {
-					open = append(open, "")
-				}
-			}
-		case r.PcClose != nil:
-			if n := len(open); n > 0 {
-				closer := open[n-1]
-				open = open[:n-1]
-				if closer != "" {
-					sb.WriteString(closer)
-				} else if strings.HasPrefix(strings.TrimSpace(r.PcClose.Data), "<") {
-					sb.WriteString(r.PcClose.Data)
-				}
-			}
-		case r.Ph != nil:
-			switch r.Ph.Type {
-			case "media:image", "link:image":
-				// Self-closing image (e.g. read from HTML <img>): alt lives in
-				// the run attributes, not as paired content.
-				sb.WriteString("<img" +
-					htmlAttr("src", r.Ph.Attr(model.AttrSrc)) +
-					htmlAttr("alt", r.Ph.Attr(model.AttrAlt)) +
-					htmlAttr("title", r.Ph.Attr(model.AttrTitle)) + "/>")
-			default:
-				if r.Ph.Equiv != "" {
-					sb.WriteString(html.EscapeString(r.Ph.Equiv))
-				}
-			}
+	sink := &htmlInlineSink{}
+	projection.WalkInline(runs, sink)
+	sink.flush()
+	return sink.sb.String()
+}
+
+// htmlInlineSink maps the shared inline-run stream (projection.WalkInline) to
+// HTML, owning the open-tag stack the paired-code close behavior needs. It
+// replaces the writer's former bespoke run loop; WalkInline now handles run
+// decoding + plural/select 'other'-branch resolution.
+type htmlInlineSink struct {
+	sb   strings.Builder
+	open []string // stack of emitted closing tags (or "" for dropped)
+}
+
+func (s *htmlInlineSink) Text(t string) { s.sb.WriteString(html.EscapeString(t)) }
+
+func (s *htmlInlineSink) Open(r *model.PcOpenRun) {
+	switch r.Type {
+	case "link:hyperlink":
+		s.sb.WriteString("<a" + htmlAttr("href", r.Attr(model.AttrHref)) + htmlAttr("title", r.Attr(model.AttrTitle)) + ">")
+		s.open = append(s.open, "</a>")
+	case "media:image", "link:image":
+		// Paired image (e.g. read from Markdown): the alt text is the content.
+		// Open the alt attribute; the content fills it; the matching close
+		// finishes the void element.
+		s.sb.WriteString("<img" + htmlAttr("src", r.Attr(model.AttrSrc)) + ` alt="`)
+		s.open = append(s.open, `"`+htmlAttr("title", r.Attr(model.AttrTitle))+"/>")
+	default:
+		if tag, ok := htmlInlineTag[r.Type]; ok {
+			s.sb.WriteString(tag[0])
+			s.open = append(s.open, tag[1])
+		} else if strings.HasPrefix(strings.TrimSpace(r.Data), "<") {
+			s.sb.WriteString(r.Data)
+			s.open = append(s.open, "") // closing comes from the matching PcClose Data
+		} else {
+			s.open = append(s.open, "")
 		}
 	}
-	for i := len(open) - 1; i >= 0; i-- {
-		if open[i] != "" {
-			sb.WriteString(open[i])
+}
+
+func (s *htmlInlineSink) Close(r *model.PcCloseRun) {
+	if n := len(s.open); n > 0 {
+		closer := s.open[n-1]
+		s.open = s.open[:n-1]
+		if closer != "" {
+			s.sb.WriteString(closer)
+		} else if strings.HasPrefix(strings.TrimSpace(r.Data), "<") {
+			s.sb.WriteString(r.Data)
 		}
 	}
-	return sb.String()
+}
+
+func (s *htmlInlineSink) Placeholder(r *model.PlaceholderRun) {
+	switch r.Type {
+	case "media:image", "link:image":
+		// Self-closing image (e.g. read from HTML <img>): alt lives in the run
+		// attributes, not as paired content.
+		s.sb.WriteString("<img" +
+			htmlAttr("src", r.Attr(model.AttrSrc)) +
+			htmlAttr("alt", r.Attr(model.AttrAlt)) +
+			htmlAttr("title", r.Attr(model.AttrTitle)) + "/>")
+	default:
+		if r.Equiv != "" {
+			s.sb.WriteString(html.EscapeString(r.Equiv))
+		}
+	}
+}
+
+// flush emits any trailing unclosed tags (defensive — well-formed runs balance).
+func (s *htmlInlineSink) flush() {
+	for i := len(s.open) - 1; i >= 0; i-- {
+		if s.open[i] != "" {
+			s.sb.WriteString(s.open[i])
+		}
+	}
 }
 
 // print writes a string to the writer's output.
