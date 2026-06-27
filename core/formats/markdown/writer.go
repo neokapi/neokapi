@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 )
 
 // Writer implements DataFormatWriter for Markdown files.
@@ -169,53 +170,69 @@ func mdLinkClose(attrs map[string]string, destKey string) string {
 // it never consults a run's Data, so the same Markdown results whatever the
 // source format.
 func renderInlineMarkdown(runs []model.Run) string {
-	var sb strings.Builder
-	var open []string // stack of closing delimiters (or "" for dropped tags)
-	for _, r := range runs {
-		switch {
-		case r.Text != nil:
-			sb.WriteString(r.Text.Text)
-		case r.PcOpen != nil:
-			switch r.PcOpen.Type {
-			case "link:hyperlink":
-				// [text](href "title") — the link text is the paired content.
-				sb.WriteString("[")
-				open = append(open, mdLinkClose(r.PcOpen.Attrs, model.AttrHref))
-			case "media:image", "link:image":
-				// ![alt](src "title") — the alt text is the paired content.
-				sb.WriteString("![")
-				open = append(open, mdLinkClose(r.PcOpen.Attrs, model.AttrSrc))
-			default:
-				if m, ok := mdInlineTag[r.PcOpen.Type]; ok {
-					sb.WriteString(m[0])
-					open = append(open, m[1])
-				} else {
-					open = append(open, "")
-				}
-			}
-		case r.PcClose != nil:
-			if n := len(open); n > 0 {
-				c := open[n-1]
-				open = open[:n-1]
-				sb.WriteString(c)
-			}
-		case r.Ph != nil:
-			switch r.Ph.Type {
-			case "media:image", "link:image":
-				// Self-closing image (e.g. read from HTML <img>): the alt text
-				// lives in the run attributes, not as paired content.
-				sb.WriteString("![" + r.Ph.Attr(model.AttrAlt) + mdLinkClose(r.Ph.Attrs, model.AttrSrc))
-			default:
-				if r.Ph.Equiv != "" {
-					sb.WriteString(r.Ph.Equiv)
-				}
-			}
+	sink := &mdInlineSink{}
+	projection.WalkInline(runs, sink)
+	sink.flush()
+	return sink.sb.String()
+}
+
+// mdInlineSink maps the shared inline-run stream (projection.WalkInline) to
+// Markdown, owning the open-delimiter stack the paired-code close needs. It
+// replaces the writer's former bespoke run loop; WalkInline now handles run
+// decoding + plural/select 'other'-branch resolution. Like the old loop it never
+// consults a run's Data — the same Markdown results whatever the source format.
+type mdInlineSink struct {
+	sb   strings.Builder
+	open []string // stack of closing delimiters (or "" for dropped tags)
+}
+
+func (s *mdInlineSink) Text(t string) { s.sb.WriteString(t) }
+
+func (s *mdInlineSink) Open(r *model.PcOpenRun) {
+	switch r.Type {
+	case "link:hyperlink":
+		// [text](href "title") — the link text is the paired content.
+		s.sb.WriteString("[")
+		s.open = append(s.open, mdLinkClose(r.Attrs, model.AttrHref))
+	case "media:image", "link:image":
+		// ![alt](src "title") — the alt text is the paired content.
+		s.sb.WriteString("![")
+		s.open = append(s.open, mdLinkClose(r.Attrs, model.AttrSrc))
+	default:
+		if m, ok := mdInlineTag[r.Type]; ok {
+			s.sb.WriteString(m[0])
+			s.open = append(s.open, m[1])
+		} else {
+			s.open = append(s.open, "")
 		}
 	}
-	for i := len(open) - 1; i >= 0; i-- {
-		sb.WriteString(open[i])
+}
+
+func (s *mdInlineSink) Close(*model.PcCloseRun) {
+	if n := len(s.open); n > 0 {
+		c := s.open[n-1]
+		s.open = s.open[:n-1]
+		s.sb.WriteString(c)
 	}
-	return sb.String()
+}
+
+func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
+	switch r.Type {
+	case "media:image", "link:image":
+		// Self-closing image (e.g. read from HTML <img>): the alt text lives in
+		// the run attributes, not as paired content.
+		s.sb.WriteString("![" + r.Attr(model.AttrAlt) + mdLinkClose(r.Attrs, model.AttrSrc))
+	default:
+		if r.Equiv != "" {
+			s.sb.WriteString(r.Equiv)
+		}
+	}
+}
+
+func (s *mdInlineSink) flush() {
+	for i := len(s.open) - 1; i >= 0; i-- {
+		s.sb.WriteString(s.open[i])
+	}
 }
 
 // writeFromEvents reconstructs markdown from the ordered block + group event
