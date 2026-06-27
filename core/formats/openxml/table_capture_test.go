@@ -51,5 +51,5 @@ func TestDocxTableCapture(t *testing.T) {
 	require.NotNil(t, found, "projection did not rebuild a table")
 	require.GreaterOrEqual(t, len(found.Children), 2, "table should have >= 2 rows")
 	assert.Equal(t, projection.RoleTableRow, found.Children[0].Role)
-	assert.Positive(t, len(found.Children[0].Children), "row should have cells")
+	assert.NotEmpty(t, found.Children[0].Children, "row should have cells")
 }
