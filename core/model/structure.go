@@ -303,6 +303,22 @@ func (b *Block) SemanticRole() string {
 	return ""
 }
 
+// HeadingLevel returns the block's heading / nesting level: the
+// StructureAnnotation Level when set, else the legacy "level" property (a reader
+// convention), else 0. The single source for the level a writer projects to its
+// own markup (`<h2>`, `##`, `==`).
+func (b *Block) HeadingLevel() int {
+	if s, ok := b.Structure(); ok && s != nil && s.Level > 0 {
+		return s.Level
+	}
+	if lv := b.Properties["level"]; lv != "" {
+		if n, err := strconv.Atoi(lv); err == nil {
+			return n
+		}
+	}
+	return 0
+}
+
 // SetSemanticRole sets the block's normalized role (upserting the structure
 // annotation). An optional level applies to roles that carry one (heading,
 // list nesting); pass 0 when not applicable.

@@ -391,7 +391,7 @@ func (w *Writer) emitBlock(st *semanticState, b *model.Block) error {
 
 	switch role {
 	case model.RoleHeading:
-		level := min(max(headingLevel(b), 1), 6)
+		level := min(max(b.HeadingLevel(), 1), 6)
 		return w.semLine(st, fmt.Sprintf("<h%d>%s</h%d>", level, body, level))
 	case model.RoleCode:
 		openTag := "<code>"
@@ -476,17 +476,6 @@ func cellSpanAttrs(b *model.Block) (attrs string, colSpan int) {
 
 // headingLevel returns a block's heading level from the structural annotation,
 // falling back to the legacy "level" property; 0 when neither is present.
-func headingLevel(b *model.Block) int {
-	if s, ok := b.Structure(); ok && s != nil && s.Level > 0 {
-		return s.Level
-	}
-	if lv := b.Properties["level"]; lv != "" {
-		n := 0
-		_, _ = fmt.Sscanf(lv, "%d", &n)
-		return n
-	}
-	return 0
-}
 
 // renderInlineHTML renders a block's runs (target locale if set, else source)
 // as escaped HTML inline content: text is HTML-escaped; inline formatting runs

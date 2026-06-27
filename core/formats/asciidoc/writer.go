@@ -310,7 +310,7 @@ func (w *Writer) writeBlockNormalized(block *model.Block, sep func() error) erro
 		_, err := fmt.Fprintf(w.Output, "%s| %s\n", asciidocCellSpan(block), text)
 		return err
 	case model.RoleListItem:
-		level := max(headingLevel(block), 1)
+		level := max(block.HeadingLevel(), 1)
 		_, err := fmt.Fprintf(w.Output, "%s %s\n", strings.Repeat("*", level), text)
 		return err
 	}
@@ -348,7 +348,7 @@ func (w *Writer) writeBlockNormalized(block *model.Block, sep func() error) erro
 	var prefix string
 	switch role {
 	case model.RoleHeading:
-		level := max(headingLevel(block), 1)
+		level := max(block.HeadingLevel(), 1)
 		prefix = strings.Repeat("=", level) + " "
 	case model.RoleCaption:
 		prefix = "."
@@ -359,14 +359,3 @@ func (w *Writer) writeBlockNormalized(block *model.Block, sep func() error) erro
 
 // headingLevel returns a block's level from the structural annotation, falling
 // back to the legacy "level" property; 0 when neither is present.
-func headingLevel(block *model.Block) int {
-	if s, ok := block.Structure(); ok && s != nil && s.Level > 0 {
-		return s.Level
-	}
-	if v, ok := block.Properties["level"]; ok {
-		n := 0
-		_, _ = fmt.Sscanf(v, "%d", &n)
-		return n
-	}
-	return 0
-}

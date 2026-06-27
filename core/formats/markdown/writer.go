@@ -296,7 +296,7 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	case model.RoleTitle:
 		prefix = "# "
 	case model.RoleHeading:
-		if n := headingLevel(block); n > 0 {
+		if n := block.HeadingLevel(); n > 0 {
 			prefix = strings.Repeat("#", n) + " "
 		}
 	case model.RoleListItem:
@@ -483,17 +483,6 @@ func escapeTableCell(s string) string {
 // headingLevel returns a block's heading level, preferring the normalized
 // structural annotation (WS1) and falling back to the legacy "level" property;
 // 0 when neither is present.
-func headingLevel(block *model.Block) int {
-	if s, ok := block.Structure(); ok && s != nil && s.Level > 0 {
-		return s.Level
-	}
-	if level, ok := block.Properties["level"]; ok {
-		n := 0
-		_, _ = fmt.Sscanf(level, "%d", &n)
-		return n
-	}
-	return 0
-}
 
 // trailSpaceTrimmer is an io.Writer that mirrors upstream Okapi's
 // MarkdownFilterWriter trimming algorithm: it buffers bytes per
