@@ -17,40 +17,45 @@ const (
 // leaf (carries Runs: paragraph, heading, table-cell, list-item, code, …).
 // Roles are the canonical model.Role* vocabulary plus the two projection-local
 // roles above; unknown roles are permitted and degrade to a generic block.
+// The JSON tags make RenderNode the wire form shipped over the anatomy/inspect
+// boundary (ContentTree.Render): the TS preview kit consumes this projected tree
+// directly instead of re-deriving structure from the content tree. Runs marshal
+// to the same discriminated-union shape the preview already reads on
+// ContentNode.source, so the existing TS Run type applies unchanged.
 type RenderNode struct {
 	// Role is the canonical semantic role (model.Role* or a projection role).
-	Role string
+	Role string `json:"role,omitempty"`
 	// Level is the heading level (1–6) or list nesting depth; 0 when n/a.
-	Level int
+	Level int `json:"level,omitempty"`
 	// Runs is the inline content of a leaf node (paragraph/heading/cell/list
 	// item/caption/code). Structural nodes leave it nil.
-	Runs []model.Run
+	Runs []model.Run `json:"runs,omitempty"`
 	// Children are the structural children (rows of a table, items of a list,
 	// cells of a row, blocks of the document).
-	Children []*RenderNode
+	Children []*RenderNode `json:"children,omitempty"`
 
 	// Props carries the source block's Properties verbatim (code.language,
 	// table.header-kind, checkbox.checked, picture.subclass, …) so a tier-2
 	// serializer can read format-specialized detail from the model rather than a
 	// foreign skeleton. Nil when the block had none.
-	Props map[string]string
+	Props map[string]string `json:"props,omitempty"`
 	// Geometry is the optional spatial anchor (layout view / layout-target
 	// serializers); nil for reflowable content.
-	Geometry *model.GeometryAnnotation
+	Geometry *model.GeometryAnnotation `json:"geometry,omitempty"`
 
 	// ColSpan / RowSpan are the merged-cell extents, meaningful only for
 	// table-cell / table-header nodes. 0 or 1 = a normal single cell.
-	ColSpan int
-	RowSpan int
+	ColSpan int `json:"colSpan,omitempty"`
+	RowSpan int `json:"rowSpan,omitempty"`
 	// Header marks a header cell (RoleTableHeader). HeaderKind (PropTableHeaderKind)
 	// names the OTSL sub-kind when known.
-	Header bool
+	Header bool `json:"header,omitempty"`
 	// Ordered marks an ordered (numbered) list; meaningful only on RoleList.
-	Ordered bool
+	Ordered bool `json:"ordered,omitempty"`
 
 	// BlockID is the source block's ID, carried so the preview can anchor
 	// run-indexed overlays and so inspect can cross-reference the content tree.
-	BlockID string
+	BlockID string `json:"blockId,omitempty"`
 }
 
 // IsLeaf reports whether the node carries inline content rather than structural

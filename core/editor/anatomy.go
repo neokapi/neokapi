@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 )
 
 // ContentTree is a hierarchical, JSON-serializable view of a document's Part
@@ -25,6 +26,13 @@ type ContentTree struct {
 	Format string         `json:"format"`
 	Root   []*ContentNode `json:"root"`
 	Stats  ContentStats   `json:"stats"`
+	// Render is the normalized generative-projection render AST for the same
+	// Part stream (core/projection): roles + inline runs + table topology + list
+	// nesting, built once in Go. The preview kit renders this directly — inline
+	// formatting and reconstructed tables — instead of re-deriving structure from
+	// Root in TypeScript (see strategy/preview-fidelity #5). Root stays the raw
+	// anatomy view for the inspector; Render is the renderable projection.
+	Render *projection.RenderNode `json:"render,omitempty"`
 }
 
 // ContentStats are document-wide counts, handy for a learner's at-a-glance
@@ -328,6 +336,10 @@ func BuildContentTree(parts []*model.Part, format string) *ContentTree {
 			tree.Stats.Media++
 		}
 	}
+
+	// The generative-projection render AST for the same stream, so the preview
+	// renders inline runs + reconstructed tables from one Go-built tree.
+	tree.Render = projection.ProjectStream(parts)
 
 	return tree
 }
