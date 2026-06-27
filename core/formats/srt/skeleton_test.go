@@ -40,6 +40,58 @@ func srtSkeletonRoundtrip(t *testing.T, input string) string {
 	return buf.String()
 }
 
+// srtStreamingRoundtrip drives a concurrent streaming round-trip via a
+// NewStreamingSkeletonStore, forwarding the reader's Parts into the writer while
+// the reader is still producing. Output must match the buffered skeleton path.
+func srtStreamingRoundtrip(t *testing.T, input string) string {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := srt.NewReader()
+	writer := srt.NewWriter()
+	store := format.NewStreamingSkeletonStore()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	partsCh := make(chan *model.Part, 64)
+	readCh := reader.Read(ctx)
+	go func() {
+		defer close(partsCh)
+		for res := range readCh {
+			if res.Error == nil && res.Part != nil {
+				partsCh <- res.Part
+			}
+		}
+		store.CloseWrite()
+		reader.Close()
+	}()
+
+	require.NoError(t, writer.Write(ctx, partsCh))
+	writer.Close()
+	return buf.String()
+}
+
+// TestStreamingMatchesBuffered asserts the streaming skeleton path is
+// byte-identical to the buffered path across representative inputs.
+func TestStreamingMatchesBuffered(t *testing.T) {
+	inputs := []string{
+		"1\n00:00:01,000 --> 00:00:04,000\nHello world\n\n2\n00:00:05,000 --> 00:00:08,000\nSecond subtitle\n",
+		"1\r\n00:00:01,000 --> 00:00:04,000\r\nHello world\r\n\r\n2\r\n00:00:05,000 --> 00:00:08,000\r\nSecond\r\n",
+		"1\n00:00:01,000 --> 00:00:04,000\nFirst line\nSecond line\n\n2\n00:00:05,000 --> 00:00:08,000\nAnother\n",
+		"1\n00:00:01,000 --> 00:00:04,000\nHello world",
+	}
+	for _, in := range inputs {
+		buffered := srtSkeletonRoundtrip(t, in)
+		streaming := srtStreamingRoundtrip(t, in)
+		assert.Equal(t, buffered, streaming, "streaming must match buffered for %q", in)
+	}
+}
+
 func TestSkeletonStore_ByteExact_BasicSRT(t *testing.T) {
 	input := "1\n00:00:01,000 --> 00:00:04,000\nHello world\n\n2\n00:00:05,000 --> 00:00:08,000\nSecond subtitle\n"
 	output := srtSkeletonRoundtrip(t, input)

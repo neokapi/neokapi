@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -21,8 +22,16 @@ type Reader struct {
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
 
-// Ensure Reader implements SkeletonStoreEmitter.
-var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+// Ensure Reader implements SkeletonStoreEmitter and StreamingReader.
+var (
+	_ format.SkeletonStoreEmitter = (*Reader)(nil)
+	_ format.StreamingReader      = (*Reader)(nil)
+)
+
+// StreamingReader marks this reader as bounded-memory streaming: it reads lines
+// via bufio and emits each subtitle entry incrementally, holding only the
+// in-progress entry. See [AD-005].
+func (r *Reader) StreamingReader() bool { return true }
 
 // NewReader creates a new SRT reader.
 func NewReader() *Reader {
@@ -108,12 +117,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 }
 
 func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult) {
-	entries := r.parseEntries()
-
 	blockCounter := 0
 	dataCounter := 0
 
-	for _, entry := range entries {
+	for entry := range r.entries() {
 		// Emit sequence number as Data
 		dataCounter++
 		seqData := &model.Data{
@@ -146,8 +153,6 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 // For multi-line subtitles, each text line's line ending is tracked so the block text
 // preserves the original line ending style (LF vs CRLF).
 func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult) {
-	lines := r.readRawLines()
-
 	type state int
 	const (
 		stateSequence state = iota
@@ -213,7 +218,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		return true
 	}
 
-	for _, l := range lines {
+	for l := range r.rawLines() {
 		switch st {
 		case stateSequence:
 			if l.content == "" {
@@ -259,91 +264,97 @@ type rawLine struct {
 	lineEnding string
 }
 
-// readRawLines reads all lines from the document, preserving exact line endings.
-func (r *Reader) readRawLines() []rawLine {
-	br := bufio.NewReader(r.Doc.Reader)
-	var lines []rawLine
+// rawLines streams the document's lines one at a time, preserving exact line
+// endings, so the skeleton state machine processes each line as it is read
+// rather than after the whole file is buffered.
+func (r *Reader) rawLines() iter.Seq[rawLine] {
+	return func(yield func(rawLine) bool) {
+		br := bufio.NewReader(r.Doc.Reader)
+		for {
+			raw, err := br.ReadString('\n')
+			if raw == "" && err != nil {
+				break
+			}
 
-	for {
-		raw, err := br.ReadString('\n')
-		if raw == "" && err != nil {
-			break
-		}
+			content := raw
+			lineEnding := ""
+			if strings.HasSuffix(content, "\r\n") {
+				content = content[:len(content)-2]
+				lineEnding = "\r\n"
+			} else if strings.HasSuffix(content, "\n") {
+				content = content[:len(content)-1]
+				lineEnding = "\n"
+			}
 
-		content := raw
-		lineEnding := ""
-		if strings.HasSuffix(content, "\r\n") {
-			content = content[:len(content)-2]
-			lineEnding = "\r\n"
-		} else if strings.HasSuffix(content, "\n") {
-			content = content[:len(content)-1]
-			lineEnding = "\n"
-		}
+			if !yield(rawLine{content: content, lineEnding: lineEnding}) {
+				return
+			}
 
-		lines = append(lines, rawLine{content: content, lineEnding: lineEnding})
-
-		if err == io.EOF {
-			break
+			if err == io.EOF {
+				break
+			}
 		}
 	}
-
-	return lines
 }
 
-func (r *Reader) parseEntries() []*srtEntry {
-	scanner := bufio.NewScanner(r.Doc.Reader)
-	var entries []*srtEntry
+// entries streams parsed subtitle entries (the no-skeleton path), emitting each
+// as soon as its blank-line terminator is read so only the in-progress entry is
+// held.
+func (r *Reader) entries() iter.Seq[*srtEntry] {
+	return func(yield func(*srtEntry) bool) {
+		scanner := bufio.NewScanner(r.Doc.Reader)
 
-	type state int
-	const (
-		stateSequence state = iota
-		stateTimecode
-		stateText
-	)
+		type state int
+		const (
+			stateSequence state = iota
+			stateTimecode
+			stateText
+		)
 
-	current := &srtEntry{}
-	st := stateSequence
-	var textLines []string
+		current := &srtEntry{}
+		st := stateSequence
+		var textLines []string
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		line = strings.TrimRight(line, "\r")
+		for scanner.Scan() {
+			line := scanner.Text()
+			line = strings.TrimRight(line, "\r")
 
-		switch st {
-		case stateSequence:
-			trimmed := strings.TrimSpace(line)
-			if trimmed == "" {
-				continue
-			}
-			current.sequence = trimmed
-			st = stateTimecode
+			switch st {
+			case stateSequence:
+				trimmed := strings.TrimSpace(line)
+				if trimmed == "" {
+					continue
+				}
+				current.sequence = trimmed
+				st = stateTimecode
 
-		case stateTimecode:
-			current.timecode = strings.TrimSpace(line)
-			st = stateText
-			textLines = nil
+			case stateTimecode:
+				current.timecode = strings.TrimSpace(line)
+				st = stateText
+				textLines = nil
 
-		case stateText:
-			trimmed := strings.TrimSpace(line)
-			if trimmed == "" {
-				// End of entry
-				current.text = strings.Join(textLines, "\n")
-				entries = append(entries, current)
-				current = &srtEntry{}
-				st = stateSequence
-			} else {
-				textLines = append(textLines, line)
+			case stateText:
+				trimmed := strings.TrimSpace(line)
+				if trimmed == "" {
+					// End of entry
+					current.text = strings.Join(textLines, "\n")
+					if !yield(current) {
+						return
+					}
+					current = &srtEntry{}
+					st = stateSequence
+				} else {
+					textLines = append(textLines, line)
+				}
 			}
 		}
-	}
 
-	// Don't forget the last entry if file doesn't end with blank line
-	if st == stateText && len(textLines) > 0 {
-		current.text = strings.Join(textLines, "\n")
-		entries = append(entries, current)
+		// Don't forget the last entry if file doesn't end with blank line
+		if st == stateText && len(textLines) > 0 {
+			current.text = strings.Join(textLines, "\n")
+			yield(current)
+		}
 	}
-
-	return entries
 }
 
 // skelText appends text to the skeleton buffer if active.
