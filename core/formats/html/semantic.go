@@ -115,11 +115,23 @@ func (w *Writer) writeSemantic(events []*model.Part, sourceLocale model.LocaleID
 	}
 
 	st := &semanticState{}
-	for _, part := range events {
+	for i := 0; i < len(events); i++ {
+		part := events[i]
 		switch part.Type {
 		case model.PartGroupStart:
 			g, ok := part.Resource.(*model.GroupStart)
 			if !ok {
+				continue
+			}
+			// A table/index is rendered as a unit from the shared assembly
+			// (rows of cells + lead caption), so its table-row groups and cells
+			// are consumed here and the loop skips to the matching GroupEnd.
+			if g.Type == "table" || g.Type == "index" {
+				end, err := w.renderTableSemantic(st, events, i)
+				if err != nil {
+					return err
+				}
+				i = end
 				continue
 			}
 			if err := w.openSemGroup(st, g); err != nil {
@@ -202,6 +214,44 @@ func documentTitle(events []*model.Part) string {
 		}
 	}
 	return "Document"
+}
+
+// renderTableSemantic renders a whole <table> from the shared assembly
+// (projection.AssembleTable). It drives the same openSemGroup / emitBlock /
+// closeSemGroup the streamed path uses — opening the real table group, emitting
+// any lead caption, then a synthetic table-row group per assembled row with its
+// cells — so the column-padding, indentation and <th>/<td> output are identical;
+// only the row/cell structure now comes from one assembler. Returns the index of
+// the table's GroupEnd.
+func (w *Writer) renderTableSemantic(st *semanticState, events []*model.Part, start int) (end int, err error) {
+	tableG, _ := events[start].Resource.(*model.GroupStart)
+	if err = w.openSemGroup(st, tableG); err != nil {
+		return start, err
+	}
+	end, table := projection.AssembleTable(events, start)
+	for _, b := range table.Lead {
+		if err = w.emitBlock(st, b); err != nil {
+			return end, err
+		}
+	}
+	rowG := &model.GroupStart{Type: "table-row"}
+	for _, row := range table.Rows {
+		if err = w.openSemGroup(st, rowG); err != nil {
+			return end, err
+		}
+		for _, c := range row.Cells {
+			if err = w.emitBlock(st, c.Block); err != nil {
+				return end, err
+			}
+		}
+		if err = w.closeSemGroup(st); err != nil { // closes the <tr>
+			return end, err
+		}
+	}
+	if err = w.closeSemGroup(st); err != nil { // closes the <table>
+		return end, err
+	}
+	return end, nil
 }
 
 func (w *Writer) openSemGroup(st *semanticState, g *model.GroupStart) error {

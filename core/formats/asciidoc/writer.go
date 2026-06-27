@@ -11,6 +11,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 )
 
 // Writer implements DataFormatWriter for AsciiDoc (.adoc) documents.
@@ -197,7 +198,6 @@ func (w *Writer) blockTextNormalized(block *model.Block) string {
 // writeFromEvents renders a normalized AsciiDoc document from the ordered block
 // + data + group event stream. Not byte-exact (see the Mode 2 note on Write).
 func (w *Writer) writeFromEvents(events []*model.Part) error {
-	var groupStack []string
 	first := true
 	sep := func() error {
 		if !first {
@@ -209,33 +209,23 @@ func (w *Writer) writeFromEvents(events []*model.Part) error {
 		return nil
 	}
 
-	for _, part := range events {
+	for i := 0; i < len(events); i++ {
+		part := events[i]
 		switch part.Type {
 		case model.PartGroupStart:
-			g, _ := part.Resource.(*model.GroupStart)
-			typ := ""
-			if g != nil {
-				typ = g.Type
-			}
-			groupStack = append(groupStack, typ)
-			if typ == "table" {
-				if err := sep(); err != nil {
+			// A table is rendered as a unit from the shared assembly; its
+			// table-row groups and cells are consumed here, so the main loop
+			// skips to the matching GroupEnd. Other groups (lists, …) carry no
+			// AsciiDoc markup — their items render block-by-block.
+			if g, _ := part.Resource.(*model.GroupStart); g != nil && g.Type == "table" {
+				end, err := w.writeTableNormalized(events, i, sep)
+				if err != nil {
 					return err
 				}
-				if _, err := io.WriteString(w.Output, "|===\n"); err != nil {
-					return err
-				}
+				i = end
 			}
 		case model.PartGroupEnd:
-			if n := len(groupStack); n > 0 {
-				typ := groupStack[n-1]
-				groupStack = groupStack[:n-1]
-				if typ == "table" {
-					if _, err := io.WriteString(w.Output, "|===\n"); err != nil {
-						return err
-					}
-				}
-			}
+			// no-op (a table's GroupEnd is consumed by writeTableNormalized)
 		case model.PartData:
 			if d, ok := part.Resource.(*model.Data); ok {
 				if raw := d.Properties["raw"]; raw != "" {
@@ -256,6 +246,34 @@ func (w *Writer) writeFromEvents(events []*model.Part) error {
 		}
 	}
 	return nil
+}
+
+// writeTableNormalized renders a whole AsciiDoc table from the shared assembly
+// (projection.AssembleTable): the |=== delimiters wrap any lead blocks (a
+// caption) and each row's cells, rendered by the same writeBlockNormalized used
+// for streamed content. Returns the index of the table's GroupEnd.
+func (w *Writer) writeTableNormalized(events []*model.Part, start int, sep func() error) (end int, err error) {
+	if err = sep(); err != nil {
+		return start, err
+	}
+	if _, err = io.WriteString(w.Output, "|===\n"); err != nil {
+		return start, err
+	}
+	end, table := projection.AssembleTable(events, start)
+	for _, b := range table.Lead {
+		if err = w.writeBlockNormalized(b, sep); err != nil {
+			return end, err
+		}
+	}
+	for _, row := range table.Rows {
+		for _, c := range row.Cells {
+			if err = w.writeBlockNormalized(c.Block, sep); err != nil {
+				return end, err
+			}
+		}
+	}
+	_, err = io.WriteString(w.Output, "|===\n")
+	return end, err
 }
 
 // asciidocCellSpan returns the AsciiDoc cell-span prefix for a merged table cell

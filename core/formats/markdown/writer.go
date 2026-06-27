@@ -339,8 +339,8 @@ func (w *Writer) collectTable(events []*model.Part, start int) (end int, rows []
 	// the writer keeps its locale choice (blockRuns), sparse-column property,
 	// and cell escaping; only the row/cell grouping is shared.
 	end, asm := projection.AssembleTable(events, start)
-	rows = make([]mdRow, 0, len(asm))
-	for _, r := range asm {
+	rows = make([]mdRow, 0, len(asm.Rows))
+	for _, r := range asm.Rows {
 		mr := mdRow{header: r.Header}
 		for _, c := range r.Cells {
 			col := -1
