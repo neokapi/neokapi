@@ -32,7 +32,8 @@ export const SAMPLES: LabSample[] = [
     id: "page-html",
     label: "page.html",
     filename: "page.html",
-    blurb: "HTML — inline tags (<strong>, <a>) become paired codes inside a block's runs.",
+    blurb:
+      "HTML — inline tags (<strong>, <a>, <img>) become paired codes inside a block's runs, and a <table> becomes table-cell blocks. The preview reconstructs the grid and inline formatting from the content model.",
     content: `<!doctype html>
 <html lang="en">
   <head>
@@ -42,6 +43,12 @@ export const SAMPLES: LabSample[] = [
   <body>
     <h1>Welcome aboard</h1>
     <p>Thanks for trying <strong>kapi</strong>. Read the <a href="/docs">documentation</a>.</p>
+    <p><img src="/img/logo.png" alt="kapi logo" /></p>
+    <table>
+      <tr><th>Plan</th><th>Price</th></tr>
+      <tr><td>Free</td><td>$0</td></tr>
+      <tr><td>Pro</td><td>$9</td></tr>
+    </table>
   </body>
 </html>
 `,
@@ -81,16 +88,26 @@ cart.checkout = Proceed to checkout
     label: "article.md",
     filename: "article.md",
     blurb:
-      "Markdown — headings, a list, an inline-styled paragraph, and a fenced code block (with a language). A rich source for cross-format conversion.",
+      "Markdown — headings, a list, inline styling, an image, a GFM table, and a fenced code block. Convert it to HTML or AsciiDoc to watch the table and inline formatting survive the format crossing.",
     content: `# Release notes
 
 The **2.0** release adds format-aware conversion. See the [docs](/docs) for details.
+
+![Conversion overview](/img/convert.png)
 
 ## Highlights
 
 - Convert between formats
 - Preserve structure and inline styling
 - Keep code blocks intact
+
+## Format support
+
+| Format   | Read | Write |
+| -------- | ---- | ----- |
+| Markdown | yes  | yes   |
+| HTML     | yes  | yes   |
+| AsciiDoc | yes  | yes   |
 
 \`\`\`go
 fmt.Println("hello, world")
