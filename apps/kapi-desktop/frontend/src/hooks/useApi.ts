@@ -444,6 +444,12 @@ export const api = {
   inspectFile: (tabID: string, filePath: string) => call<string>("InspectFile", tabID, filePath),
   inspectFileAnnotated: (tabID: string, filePath: string) =>
     call<string>("InspectFileAnnotated", tabID, filePath),
+  // Archive (ZIP/TAR/TAR.GZ) container support — list inner entries and preview
+  // one of them (the desktop equivalent of the `archive.zip!entry` locator).
+  listArchiveEntries: (filePath: string) =>
+    call<Array<{ name: string; format: string; size: number }>>("ListArchiveEntries", filePath),
+  inspectArchiveEntry: (tabID: string, archivePath: string, entry: string) =>
+    call<string>("InspectArchiveEntry", tabID, archivePath, entry),
   // Reads a media file (image/audio/video) from disk and returns a base64 data:
   // URL the DocumentViewer can render directly. The path is a tree media node's URI.
   mediaDataURL: (path: string) => call<string>("MediaDataURL", path),

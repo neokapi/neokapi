@@ -146,7 +146,7 @@ func (a *App) runStats(cmd *cobra.Command, args []string) error {
 
 	out := StatsOutput{Total: StatsRecord{ByRole: map[string]int{}}}
 	for _, file := range files {
-		rec, ferr := a.fileStats(ctx, file)
+		recs, ferr := a.fileStats(ctx, file)
 		if ferr != nil {
 			if ctx.Err() != nil {
 				return ferr
@@ -155,8 +155,12 @@ func (a *App) runStats(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(cmd.ErrOrStderr(), "kapi stats: %s: %v\n", displayName(file), ferr)
 			continue
 		}
-		out.Files = append(out.Files, rec)
-		out.Total.add(rec)
+		// One row per source: a plain file yields a single record; an archive
+		// yields one per inner entry (keyed `<archive>!<entry>`).
+		for _, rec := range recs {
+			out.Files = append(out.Files, rec)
+			out.Total.add(rec)
+		}
 	}
 
 	if err := output.Print(cmd, out); err != nil {
@@ -168,10 +172,21 @@ func (a *App) runStats(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// fileStats streams one file's blocks and computes its content metrics.
-func (a *App) fileStats(ctx context.Context, file string) (StatsRecord, error) {
-	rec := StatsRecord{File: displayName(file), ByRole: map[string]int{}}
+// fileStats streams one source's blocks and computes content metrics, bucketed
+// by origin: a plain file yields a single record; an archive yields one record
+// per inner entry (keyed `<archive>!<entry>`) so the table breaks the container
+// down by file rather than aggregating it into one opaque row.
+func (a *App) fileStats(ctx context.Context, file string) ([]StatsRecord, error) {
+	byLabel := map[string]*StatsRecord{}
+	var order []string
 	_, err := a.streamBlocks(ctx, file, func(_ int, b *model.Block) error {
+		label := entryLabel(displayName(file), b)
+		rec := byLabel[label]
+		if rec == nil {
+			rec = &StatsRecord{File: label, ByRole: map[string]int{}}
+			byLabel[label] = rec
+			order = append(order, label)
+		}
 		rec.Blocks++
 		if s, ok := b.Structure(); ok && s.Role != "" {
 			rec.ByRole[s.Role]++
@@ -188,7 +203,14 @@ func (a *App) fileStats(ctx context.Context, file string) (StatsRecord, error) {
 		rec.Segments += b.SourceSegmentCount()
 		return nil
 	})
-	return rec, err
+	if err != nil {
+		return nil, err
+	}
+	recs := make([]StatsRecord, 0, len(order))
+	for _, l := range order {
+		recs = append(recs, *byLabel[l])
+	}
+	return recs, nil
 }
 
 // add accumulates another record's metrics into r (the running total).

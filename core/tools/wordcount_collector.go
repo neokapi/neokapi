@@ -123,11 +123,28 @@ func NewWordCountCollector() *WordCountCollector {
 }
 
 // Collect reads word count properties from block parts and aggregates them.
+// Blocks read from inside an archive are bucketed per `<archive>!<entry>` so a
+// container reports one row per inner file; plain files yield a single row.
 func (wc *WordCountCollector) Collect(_ context.Context, item *flow.Item, parts []*model.Part) error {
-	doc := DocumentWordCount{
-		URI:         item.Input.URI,
-		TargetWords: make(map[model.LocaleID]int),
+	base := item.Input.URI
+	docs := map[string]*DocumentWordCount{}
+	var order []string
+	docFor := func(b *model.Block) *DocumentWordCount {
+		uri := base
+		if e := b.Properties[model.PropContainerEntry]; e != "" {
+			uri = base + "!" + e
+		}
+		d := docs[uri]
+		if d == nil {
+			d = &DocumentWordCount{URI: uri, TargetWords: make(map[model.LocaleID]int)}
+			docs[uri] = d
+			order = append(order, uri)
+		}
+		return d
 	}
+	// Ensure a plain file still produces its (possibly empty) row.
+	docs[base] = &DocumentWordCount{URI: base, TargetWords: make(map[model.LocaleID]int)}
+	order = append(order, base)
 
 	for _, p := range parts {
 		if p.Type != model.PartBlock {
@@ -137,8 +154,8 @@ func (wc *WordCountCollector) Collect(_ context.Context, item *flow.Item, parts 
 		if !ok || !block.Translatable {
 			continue
 		}
+		doc := docFor(block)
 		doc.BlockCount++
-
 		if wcf, ok := model.AnnoAs[*WordCountAnnotation](block, string(model.AnnoWordCount)); ok {
 			doc.SourceWords += wcf.Source
 			for locale, n := range wcf.Targets {
@@ -149,11 +166,17 @@ func (wc *WordCountCollector) Collect(_ context.Context, item *flow.Item, parts 
 
 	wc.mu.Lock()
 	defer wc.mu.Unlock()
-
-	wc.perDocument[doc.URI] = doc
-	wc.totalSource += doc.SourceWords
-	for loc, n := range doc.TargetWords {
-		wc.totalTarget[loc] += n
+	for _, uri := range order {
+		doc := docs[uri]
+		// Drop the synthetic empty base row when the archive produced entry rows.
+		if uri == base && doc.BlockCount == 0 && len(order) > 1 {
+			continue
+		}
+		wc.perDocument[uri] = *doc
+		wc.totalSource += doc.SourceWords
+		for loc, n := range doc.TargetWords {
+			wc.totalTarget[loc] += n
+		}
 	}
 	return nil
 }

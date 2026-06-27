@@ -234,7 +234,9 @@ func (a *App) runGrep(ctx context.Context, args []string, m *matcher, opts grepO
 
 	// Show file-name prefixes when scanning more than one file, or when -H is
 	// set; -h always suppresses them.
-	showName := (len(files) > 1 || opts.withFilename) && !opts.noFilename
+	// A single archive argument still expands to many inner files, so show the
+	// per-entry filename for containers/locators just as for multiple inputs.
+	showName := (len(files) > 1 || opts.withFilename || anyContainerInput(files)) && !opts.noFilename
 
 	anyMatch := false
 	var jsonMatches []grepMatch
@@ -255,15 +257,17 @@ func (a *App) runGrep(ctx context.Context, args []string, m *matcher, opts grepO
 			if opts.quiet || opts.filesWith || opts.filesWithout || opts.count {
 				return nil // counting / existence only — no per-line output
 			}
+			// Attribute matches inside an archive to `<archive>!<entry>`.
+			label := entryLabel(displayName(file), b)
 			if opts.json {
-				jm := grepMatch{File: displayName(file), Number: fileCount, ID: b.ID, Text: text}
+				jm := grepMatch{File: label, Number: fileCount, ID: b.ID, Text: text}
 				if opts.onlyMatching {
 					jm.Matches = m.findAll(text)
 				}
 				jsonMatches = append(jsonMatches, jm)
 				return nil
 			}
-			a.printGrepMatch(file, fileCount, b.ID, text, showName, m, opts)
+			a.printGrepMatch(label, fileCount, b.ID, text, showName, m, opts)
 			return nil
 		})
 		if ferr != nil {

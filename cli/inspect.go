@@ -84,7 +84,8 @@ func (a *App) runInspect(ctx context.Context, cmd *cobra.Command, args []string,
 			}
 			n++
 			rec := structrec.FromBlock(n, b, b.SourceRuns())
-			rec.File = displayName(file)
+			// Attribute blocks read from inside an archive to `<archive>!<entry>`.
+			rec.File = entryLabel(displayName(file), b)
 			if streaming {
 				return enc.Encode(rec) // Encode writes one object + newline = JSONL
 			}

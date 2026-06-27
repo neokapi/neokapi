@@ -395,6 +395,32 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
+             * TermbaseSource binds the committed, git-tracked native source artifact
+             * (a .klftb document) the project termbase is compiled from. This is the
+             * authored, reviewable form: `kapi apply` edits the .klftb here and then
+             * re-imports it into the gitignored Termbase (.db) cache, so the SQLite
+             * store is written by exactly one path and `git diff` is the review
+             * surface. The path resolves relative to the project root. Empty means no
+             * bound source (the .db cache, if any, is the only artifact).
+             * @member
+             * @type {string | undefined}
+             */
+            this["termbase_source"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * TMSource binds the committed, git-tracked native source artifact (a
+             * .klftm document) the project translation memory is compiled from, the TM
+             * analogue of TermbaseSource. `kapi apply` edits the .klftm here and
+             * re-imports it into the gitignored .kapi/tm.db cache. The path resolves
+             * relative to the project root. Empty means no bound TM source.
+             * @member
+             * @type {string | undefined}
+             */
+            this["tm_source"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Tools holds project-level tool presets: per-tool config defaults applied
              * wherever the tool runs in a project flow. A flow step's own config
              * overrides the preset per key (step wins), so a project can pin, say,
@@ -426,7 +452,7 @@ export class Defaults {
         const $$createField10_0 = $$createType12;
         const $$createField11_0 = $$createType6;
         const $$createField12_0 = $$createType14;
-        const $$createField14_0 = $$createType16;
+        const $$createField16_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -453,7 +479,7 @@ export class Defaults {
             $$parsedSource["brand_voice"] = $$createField12_0($$parsedSource["brand_voice"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField14_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField16_0($$parsedSource["tools"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }

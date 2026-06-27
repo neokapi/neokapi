@@ -44,6 +44,7 @@ import { api, type OutputFileInfo } from "../hooks/useApi";
 import { FormatConfigDialog, type FormatConfigValue } from "./FormatConfigDialog";
 import { TranslationStatusPanel } from "./TranslationStatusPanel";
 import { FilePreview } from "./FilePreview";
+import { ArchiveEntries, isArchivePath } from "./ArchiveEntries";
 import { useError } from "./ErrorBanner";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { useWailsEvent } from "../hooks/useWailsEvent";
@@ -129,6 +130,14 @@ export function ContentPage({
   const [expandedOutputs, setExpandedOutputs] = useState<Set<string>>(new Set());
   // Preview target: the file whose content is shown in the PreviewKit sheet.
   const [preview, setPreview] = useState<{ path: string; relative: string } | null>(null);
+  // Archive rows that are expanded to show their inner entries, keyed by path.
+  const [expandedArchives, setExpandedArchives] = useState<Set<string>>(new Set());
+  // Per-entry preview target: a single file inside an archive container.
+  const [archivePreview, setArchivePreview] = useState<{
+    path: string;
+    relative: string;
+    entry: string;
+  } | null>(null);
 
   const content = project.content ?? [];
 
@@ -745,29 +754,71 @@ export function ContentPage({
         </tr>
       </thead>
       <tbody>
-        {files.map((f) => (
-          <tr
-            key={f.relative}
-            onClick={
-              f.format ? () => setPreview({ path: f.path, relative: f.relative }) : undefined
-            }
-            className={`border-b border-border last:border-0 text-muted-foreground hover:bg-accent/30 ${
-              f.format ? "cursor-pointer" : ""
-            }`}
-            title={f.format ? t("Preview {file}", { file: f.relative }) : undefined}
-          >
-            <td className="px-3 py-1.5">
-              <span className="flex items-center gap-1.5 font-mono">
-                <FileText size={12} className="shrink-0" />
-                {f.relative}
-              </span>
-            </td>
-            <td className="px-3 py-1.5">
-              {f.format ? <Badge variant="secondary">{f.format}</Badge> : <span>&mdash;</span>}
-            </td>
-            <td className="px-3 py-1.5 text-right">{formatSize(f.size)}</td>
-          </tr>
-        ))}
+        {files.map((f) => {
+          // An archive is a namespace of files: clicking it expands an inner-entry
+          // list rather than previewing the container as one document.
+          const archive = isArchivePath(f.relative);
+          const expanded = expandedArchives.has(f.path);
+          const onRow = archive
+            ? () =>
+                setExpandedArchives((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(f.path)) next.delete(f.path);
+                  else next.add(f.path);
+                  return next;
+                })
+            : f.format
+              ? () => setPreview({ path: f.path, relative: f.relative })
+              : undefined;
+          return (
+            <Fragment key={f.relative}>
+              <tr
+                onClick={onRow}
+                className={`border-b border-border last:border-0 text-muted-foreground hover:bg-accent/30 ${
+                  onRow ? "cursor-pointer" : ""
+                }`}
+                title={
+                  archive
+                    ? t("Browse entries in {file}", { file: f.relative })
+                    : f.format
+                      ? t("Preview {file}", { file: f.relative })
+                      : undefined
+                }
+              >
+                <td className="px-3 py-1.5">
+                  <span className="flex items-center gap-1.5 font-mono">
+                    {archive ? (
+                      expanded ? (
+                        <ChevronDown size={12} className="shrink-0" />
+                      ) : (
+                        <ChevronRight size={12} className="shrink-0" />
+                      )
+                    ) : (
+                      <FileText size={12} className="shrink-0" />
+                    )}
+                    {f.relative}
+                  </span>
+                </td>
+                <td className="px-3 py-1.5">
+                  {f.format ? <Badge variant="secondary">{f.format}</Badge> : <span>&mdash;</span>}
+                </td>
+                <td className="px-3 py-1.5 text-right">{formatSize(f.size)}</td>
+              </tr>
+              {archive && expanded && (
+                <tr className="border-b border-border last:border-0">
+                  <td colSpan={3} className="px-3 py-1.5">
+                    <ArchiveEntries
+                      archivePath={f.path}
+                      onSelect={(entry) =>
+                        setArchivePreview({ path: f.path, relative: f.relative, entry })
+                      }
+                    />
+                  </td>
+                </tr>
+              )}
+            </Fragment>
+          );
+        })}
       </tbody>
     </table>
   );
@@ -975,6 +1026,14 @@ export function ContentPage({
         filePath={preview?.path ?? null}
         filename={preview?.relative ?? ""}
         onClose={() => setPreview(null)}
+      />
+
+      <FilePreview
+        tabID={tabID}
+        filePath={archivePreview?.path ?? null}
+        filename={archivePreview ? `${archivePreview.relative}!${archivePreview.entry}` : ""}
+        entryPath={archivePreview?.entry ?? null}
+        onClose={() => setArchivePreview(null)}
       />
     </div>
   );

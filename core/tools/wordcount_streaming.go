@@ -47,7 +47,13 @@ func (wc *StreamingWordCountCollector) Observe(part *model.Part) {
 	wc.mu.Lock()
 	defer wc.mu.Unlock()
 
+	// Blocks read from inside an archive carry their entry path; bucket them per
+	// `<archive>!<entry>` so a container reports one row per inner file rather
+	// than one opaque row for the whole archive. Plain files are unaffected.
 	uri := wc.currentURI
+	if e := block.Properties[model.PropContainerEntry]; e != "" {
+		uri = uri + "!" + e
+	}
 	doc := wc.perDocument[uri]
 	if doc == nil {
 		doc = &DocumentWordCount{

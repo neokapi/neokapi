@@ -151,6 +151,176 @@ func Walk(data []byte, fn func(Entry) error) (Kind, error) {
 	}
 }
 
+// ErrEntryNotFound is returned by OpenEntry when the named entry is absent.
+var ErrEntryNotFound = errors.New("container: entry not found")
+
+// OpenEntry reads a single named entry from an on-disk container without loading
+// the whole archive: ZIP is opened with random access (central directory +
+// seek), TAR/TAR.GZ are scanned sequentially and reading stops at the match. The
+// name is matched as stored (slash-separated; a leading "./" is ignored on both
+// sides). It returns [ErrEntryNotFound] if the entry is absent. Reads are bounded
+// by the shared safeio budget, and the unsafeEntryName guard rejects traversal.
+func OpenEntry(path, name string) ([]byte, Kind, error) {
+	if unsafeEntryName(name) {
+		return nil, KindUnknown, fmt.Errorf("container: unsafe entry name %q (path traversal)", name)
+	}
+	want := normalizeEntry(name)
+	kind, err := DetectFile(path)
+	if err != nil {
+		return nil, KindUnknown, fmt.Errorf("container: %w", err)
+	}
+	switch kind {
+	case KindZip:
+		b, err := openZipEntry(path, want)
+		return b, kind, err
+	case KindTar:
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, kind, err
+		}
+		defer f.Close()
+		b, err := scanTarEntry(f, want)
+		return b, kind, err
+	case KindTarGz:
+		f, err := os.Open(path)
+		if err != nil {
+			return nil, kind, err
+		}
+		defer f.Close()
+		gz, err := gzip.NewReader(f)
+		if err != nil {
+			return nil, kind, fmt.Errorf("container: opening gzip: %w", err)
+		}
+		defer gz.Close()
+		b, err := scanTarEntry(safeio.DefaultBudget().Reader(gz), want)
+		return b, kind, err
+	default:
+		return nil, KindUnknown, errors.New("container: unrecognised archive (expected ZIP, TAR, or TAR.GZ)")
+	}
+}
+
+// normalizeEntry canonicalises an entry path for matching: forward slashes, no
+// leading "./".
+func normalizeEntry(name string) string {
+	return strings.TrimPrefix(filepath.ToSlash(name), "./")
+}
+
+func openZipEntry(path, want string) ([]byte, error) {
+	zrc, err := zip.OpenReader(path)
+	if err != nil {
+		return nil, fmt.Errorf("container: opening zip: %w", err)
+	}
+	defer zrc.Close()
+	if err := safeio.DefaultZipLimits.CheckReader(&zrc.Reader); err != nil {
+		return nil, fmt.Errorf("container: %w", err)
+	}
+	guard := safeio.DefaultZipLimits.NewGuard()
+	for _, f := range zrc.File {
+		if f.FileInfo().IsDir() || normalizeEntry(f.Name) != want {
+			continue
+		}
+		if unsafeEntryName(f.Name) {
+			return nil, fmt.Errorf("container: unsafe entry name %q (path traversal)", f.Name)
+		}
+		return guard.ReadEntry(f)
+	}
+	return nil, fmt.Errorf("%w: %q", ErrEntryNotFound, want)
+}
+
+func scanTarEntry(src io.Reader, want string) ([]byte, error) {
+	tr := tar.NewReader(src)
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			return nil, fmt.Errorf("%w: %q", ErrEntryNotFound, want)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("container: reading tar: %w", err)
+		}
+		if !hdr.FileInfo().Mode().IsRegular() || normalizeEntry(hdr.Name) != want {
+			continue
+		}
+		if unsafeEntryName(hdr.Name) {
+			return nil, fmt.Errorf("container: unsafe entry name %q (path traversal)", hdr.Name)
+		}
+		return io.ReadAll(safeio.DefaultBudget().Reader(tr))
+	}
+}
+
+// EntryHeader is an archive entry's metadata without its content.
+type EntryHeader struct {
+	Name string
+	Size int64 // uncompressed size in bytes
+}
+
+// ListEntries returns the regular-file entries' names and uncompressed sizes
+// without reading their content — ZIP from the central directory, TAR by scanning
+// headers (bodies are skipped, not buffered). Unsafe (traversal) names are
+// skipped. This is the cheap listing the desktop archive tree uses.
+func ListEntries(path string) (Kind, []EntryHeader, error) {
+	kind, err := DetectFile(path)
+	if err != nil {
+		return KindUnknown, nil, fmt.Errorf("container: %w", err)
+	}
+	switch kind {
+	case KindZip:
+		zrc, err := zip.OpenReader(path)
+		if err != nil {
+			return kind, nil, fmt.Errorf("container: opening zip: %w", err)
+		}
+		defer zrc.Close()
+		var out []EntryHeader
+		for _, f := range zrc.File {
+			if f.FileInfo().IsDir() || unsafeEntryName(f.Name) {
+				continue
+			}
+			out = append(out, EntryHeader{Name: f.Name, Size: int64(f.UncompressedSize64)})
+		}
+		return kind, out, nil
+	case KindTar:
+		f, err := os.Open(path)
+		if err != nil {
+			return kind, nil, err
+		}
+		defer f.Close()
+		out, err := listTar(f)
+		return kind, out, err
+	case KindTarGz:
+		f, err := os.Open(path)
+		if err != nil {
+			return kind, nil, err
+		}
+		defer f.Close()
+		gz, err := gzip.NewReader(f)
+		if err != nil {
+			return kind, nil, fmt.Errorf("container: opening gzip: %w", err)
+		}
+		defer gz.Close()
+		out, err := listTar(gz)
+		return kind, out, err
+	default:
+		return KindUnknown, nil, errors.New("container: unrecognised archive (expected ZIP, TAR, or TAR.GZ)")
+	}
+}
+
+func listTar(src io.Reader) ([]EntryHeader, error) {
+	tr := tar.NewReader(src)
+	var out []EntryHeader
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("container: reading tar: %w", err)
+		}
+		if !hdr.FileInfo().Mode().IsRegular() || unsafeEntryName(hdr.Name) {
+			continue
+		}
+		out = append(out, EntryHeader{Name: hdr.Name, Size: hdr.Size})
+	}
+}
+
 // Enumerate is a convenience wrapper over Walk that collects every entry. It
 // holds all entries at once and so is intended for tests and small archives;
 // streaming consumers should use Walk or Transform.
