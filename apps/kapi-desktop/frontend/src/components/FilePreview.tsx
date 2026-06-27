@@ -37,6 +37,12 @@ export interface FilePreviewProps {
   /** Called when the user dismisses the sheet. */
   onClose: () => void;
   /**
+   * When set, `filePath` is treated as an archive container and only this inner
+   * entry is previewed (via InspectArchiveEntry) — the desktop equivalent of the
+   * `archive.zip!entry` locator. Unset previews the whole file.
+   */
+  entryPath?: string | null;
+  /**
    * Pre-loaded ContentTree for Storybook/tests, skipping the backend call.
    * When set, `filePath` only needs to be non-null to open the sheet.
    */
@@ -60,6 +66,7 @@ export function FilePreview({
   filePath,
   filename,
   onClose,
+  entryPath,
   tree: presetTree,
 }: FilePreviewProps) {
   const [tree, setTree] = useState<ContentTree | null>(presetTree ?? null);
@@ -79,8 +86,11 @@ export function FilePreview({
     setError(null);
     setTree(null);
     setMediaUrls({});
-    api
-      .inspectFileAnnotated(tabID, filePath)
+    // An entryPath previews one file inside an archive; otherwise the whole file.
+    const inspect = entryPath
+      ? api.inspectArchiveEntry(tabID, filePath, entryPath)
+      : api.inspectFileAnnotated(tabID, filePath);
+    inspect
       .then(async (json) => {
         if (cancelled) return;
         if (!json) {
@@ -114,7 +124,7 @@ export function FilePreview({
     return () => {
       cancelled = true;
     };
-  }, [tabID, filePath, presetTree]);
+  }, [tabID, filePath, entryPath, presetTree]);
 
   return (
     <Sheet open={!!filePath} onOpenChange={(open) => !open && onClose()}>

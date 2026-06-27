@@ -203,6 +203,18 @@ func (r *Reader) emitChild(ctx context.Context, ch chan<- model.PartResult, root
 			subReader.Close()
 			return false
 		}
+		// Stamp each block with its originating entry so downstream consumers
+		// (inspect, word-count, grep) can attribute it to `<archive>!<entry>`
+		// without tracking the enclosing child layer. The sub-reader's own blocks
+		// carry their format-local Name/keypath, not the entry, so we add it here.
+		if pr.Part != nil && pr.Part.Type == model.PartBlock {
+			if b, ok := pr.Part.Resource.(*model.Block); ok && b != nil {
+				if b.Properties == nil {
+					b.Properties = map[string]string{}
+				}
+				b.Properties[model.PropContainerEntry] = name
+			}
+		}
 		if !r.emit(ctx, ch, pr.Part) {
 			subReader.Close()
 			return false

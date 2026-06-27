@@ -16,6 +16,7 @@ export {
     AnnotateEntitiesRequest,
     AnnotateResult,
     AppSettings,
+    ArchiveEntryInfo,
     AvailablePlugin,
     BrowsePathFilter,
     BrowsePathRequest,

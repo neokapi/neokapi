@@ -173,6 +173,71 @@ func TestTransformRejectsPathTraversal(t *testing.T) {
 	assert.Contains(t, err.Error(), "unsafe entry name")
 }
 
+func TestOpenEntry(t *testing.T) {
+	entries := []entry{
+		{"a/en.json", []byte(`{"k":"v"}`)},
+		{"b/logo.png", []byte("\x89PNGbinary")},
+	}
+	cases := []struct {
+		name string
+		path string
+	}{
+		{"zip", writeFile(t, makeZip(t, entries), ".zip")},
+		{"tar", writeFile(t, makeTar(t, entries, false), ".tar")},
+		{"tar.gz", writeFile(t, makeTar(t, entries, true), ".tar.gz")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			b, kind, err := container.OpenEntry(tc.path, "a/en.json")
+			require.NoError(t, err)
+			assert.NotEqual(t, container.KindUnknown, kind)
+			assert.Equal(t, []byte(`{"k":"v"}`), b)
+
+			// Binary entry round-trips exactly.
+			b2, _, err := container.OpenEntry(tc.path, "b/logo.png")
+			require.NoError(t, err)
+			assert.Equal(t, []byte("\x89PNGbinary"), b2)
+
+			// Missing entry.
+			_, _, err = container.OpenEntry(tc.path, "nope.json")
+			require.ErrorIs(t, err, container.ErrEntryNotFound)
+		})
+	}
+}
+
+func TestListEntries(t *testing.T) {
+	entries := []entry{
+		{"a/en.json", []byte(`{"k":"v"}`)},
+		{"b/logo.png", []byte("\x89PNGbinary")},
+	}
+	for _, tc := range []struct {
+		name string
+		path string
+	}{
+		{"zip", writeFile(t, makeZip(t, entries), ".zip")},
+		{"tar", writeFile(t, makeTar(t, entries, false), ".tar")},
+		{"tar.gz", writeFile(t, makeTar(t, entries, true), ".tar.gz")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, hdrs, err := container.ListEntries(tc.path)
+			require.NoError(t, err)
+			got := map[string]int64{}
+			for _, h := range hdrs {
+				got[h.Name] = h.Size
+			}
+			assert.Equal(t, int64(len(`{"k":"v"}`)), got["a/en.json"])
+			assert.Equal(t, int64(len("\x89PNGbinary")), got["b/logo.png"])
+		})
+	}
+}
+
+func TestOpenEntryRejectsTraversal(t *testing.T) {
+	path := writeFile(t, makeZip(t, []entry{{"ok.json", []byte("{}")}}), ".zip")
+	_, _, err := container.OpenEntry(path, "../escape")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsafe entry name")
+}
+
 func TestEnumerateRejectsPathTraversal(t *testing.T) {
 	for _, bad := range []string{"../evil.txt", "a/../../evil", "/etc/passwd", "..\\evil"} {
 		t.Run(bad, func(t *testing.T) {

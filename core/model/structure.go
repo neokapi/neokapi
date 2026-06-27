@@ -95,6 +95,12 @@ const (
 	// cell: TableHeaderColumn (ched), TableHeaderRow (rhed), TableHeaderCorner
 	// (corn), or TableHeaderSection (srow). Absent = an unqualified header.
 	PropTableHeaderKind = "table.header-kind"
+	// PropContainerEntry is the slash-separated path of the archive entry a block
+	// was read from, when the source document is a container (ZIP/TAR). The
+	// archive reader stamps it on every block so consumers can attribute content
+	// to `<archive>!<entry>` (the bang locator, AD-026 §6) without tracking the
+	// enclosing child layer. Absent for blocks from a plain (non-container) file.
+	PropContainerEntry = "container.entry"
 )
 
 // OTSL table-header sub-kinds — the values PropTableHeaderKind takes. DocLang

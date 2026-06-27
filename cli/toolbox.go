@@ -31,6 +31,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/core/container"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
@@ -216,6 +217,10 @@ func (a *App) resolveFormatName(path string, content []byte) string {
 // streamBlocks opens path (or stdin), detects its format, and calls fn for each
 // Block part in document order. Read-only — the backbone of cat and grep.
 func (a *App) streamBlocks(ctx context.Context, path string, fn func(index int, b *model.Block) error) (string, error) {
+	// A `container!entry` locator reads just that one entry, not the whole archive.
+	if loc, ok := ParseEntryLocator(path); ok {
+		return a.streamEntryBlocks(ctx, loc, fn)
+	}
 	content, err := readContent(ctx, path)
 	if err != nil {
 		return "", err
@@ -262,6 +267,15 @@ func (a *App) streamBlocks(ctx context.Context, path string, fn func(index int, 
 // changes. writeLocale
 // selects which locale the writer emits ("" = source / monolingual round-trip).
 func (a *App) editDocument(ctx context.Context, path string, t *tool.BaseTool, writeLocale model.LocaleID, inPlace bool, backupSuffix string, out io.Writer) error {
+	// A `container!entry` locator edits one inner file; a bare container path edits
+	// every eligible entry. Both repack through the container binding (AD-026 §6) —
+	// the archive format has no writer of its own.
+	if loc, ok := ParseEntryLocator(path); ok {
+		return a.editArchiveEntry(ctx, loc, t, writeLocale, inPlace, backupSuffix, out)
+	}
+	if container.IsContainerPath(path) {
+		return a.editArchiveAll(ctx, path, t, writeLocale, inPlace, backupSuffix, out)
+	}
 	if inPlace && (path == "" || path == stdinName) {
 		return errors.New("in-place editing requires a file argument")
 	}
@@ -382,6 +396,13 @@ func expandInputs(args []string, recursive bool, onSkip func(path string, err er
 	var files []string
 	for _, arg := range args {
 		if arg == stdinName {
+			files = append(files, arg)
+			continue
+		}
+		// A `container!entry` locator (AD-026 §6) names one file inside an archive;
+		// keep it verbatim — os.Stat on the whole string would fail. The archive
+		// part's existence was already verified by ParseEntryLocator.
+		if HasEntryLocator(arg) {
 			files = append(files, arg)
 			continue
 		}

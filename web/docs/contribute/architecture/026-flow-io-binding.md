@@ -326,11 +326,25 @@ buffered document, so the read-only `archive` reader receives the archive bytes
 up front (it still streams entries one at a time via `Walk`).
 
 **Addressing.** A container fits the locator vocabulary (§5): a bare `.zip` /
-`.tar` / `.tgz` / `.tar.gz` path detects as a container, and a single inner
-entry is addressed with the JAR-style bang separator — `release.zip!docs/x.md` —
-repeatable for nesting (`outer.tar.gz!inner.zip!file.json`). No new URL scheme is
-introduced: kapi inputs stay paths, so a scheme prefix is reserved for genuine
-remote endpoints (§7).
+`.tar` / `.tgz` / `.tar.gz` path detects as a container, and a single inner entry
+is addressed with the JAR-style bang separator — `release.zip!docs/x.md`. The
+split is single-level (the part before the first `!` that is an existing
+container file; the remainder, slashes included, is the entry), so a real
+filename containing `!` is never mistaken for a locator and nested-archive
+addressing is out of scope. No new URL scheme is introduced: kapi inputs stay
+paths, so a scheme prefix is reserved for genuine remote endpoints (§7).
+
+Reads honour the locator by opening just that entry (`container.OpenEntry` —
+random access for ZIP, scan for TAR; the archive is not loaded whole), so
+`kapi inspect release.zip!docs/x.md` and `kcat`/`kgrep` on one inner file work.
+Inner content is attributed back as `<archive>!<entry>` everywhere a source is
+shown — `kapi inspect` records, `word-count` rows, `kgrep` match prefixes — via a
+`container.entry` property the archive reader stamps on every block. Writes
+follow the binding: editing a single entry (`ksed -i 's/…/…/' release.zip!a.json`)
+splices just that entry back through the barrier sink, leaving every other member
+byte-for-byte; editing a whole container edits each eligible entry and repacks.
+Without `-i`, a single-entry edit prints the edited entry and a whole-container
+edit streams the repacked archive to stdout.
 
 **Per-entry configuration.** Because each entry is an ordinary `file` run, the
 recipe's existing per-format config and presets apply to inner content the same

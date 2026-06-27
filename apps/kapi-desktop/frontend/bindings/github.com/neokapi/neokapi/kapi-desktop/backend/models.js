@@ -546,6 +546,55 @@ export class AppSettings {
 }
 
 /**
+ * ArchiveEntryInfo describes one inner file of an archive container, for the
+ * file-explorer tree. Format is extension-derived (cheap); empty means kapi has
+ * no reader for that extension (the entry is shown but not previewable).
+ */
+export class ArchiveEntryInfo {
+    /**
+     * Creates a new ArchiveEntryInfo instance.
+     * @param {Partial<ArchiveEntryInfo>} [$$source = {}] - The source object to create the ArchiveEntryInfo.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * slash-separated path inside the archive
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("format" in $$source)) {
+            /**
+             * detected format id, or ""
+             * @member
+             * @type {string}
+             */
+            this["format"] = "";
+        }
+        if (!("size" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["size"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ArchiveEntryInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ArchiveEntryInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ArchiveEntryInfo(/** @type {Partial<ArchiveEntryInfo>} */($$parsedSource));
+    }
+}
+
+/**
  * AvailablePlugin represents a plugin available from the registry.
  */
 export class AvailablePlugin {
