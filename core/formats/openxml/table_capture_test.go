@@ -123,3 +123,34 @@ func TestDocxVMergeRowspan(t *testing.T) {
 	assert.Equal(t, "R2C2", table.Children[1].Children[0].Text())
 	assert.Equal(t, 2, table.Children[0].Children[0].RowSpan, "projected merged cell rowspan")
 }
+
+// A prior document binding the markup-compatibility namespace to a non-canonical
+// prefix (ve:) must not leak into a later drawing extraction — it resolves the
+// canonical mc: deterministically, and restores the document registry after.
+// Regression for the -shuffle-exposed global nsRegistry leak.
+func TestExtractDrawingTranslations_NamespaceIsolation(t *testing.T) {
+	const mcURI = "http://schemas.openxmlformats.org/markup-compatibility/2006"
+	nsRegistry.Lock()
+	nsRegistry.m[mcURI] = "ve" // pollute, as a prior ve:-binding document would
+	nsRegistry.Unlock()
+	defer func() {
+		nsRegistry.Lock()
+		delete(nsRegistry.m, mcURI)
+		nsRegistry.Unlock()
+	}()
+
+	counter := 0
+	cfg := &Config{}
+	cfg.Reset()
+	p := &wmlParser{blockCounter: &counter, cfg: cfg}
+	in := `<mc:AlternateContent><mc:Choice Requires="wpg"><w:t xml:space="preserve">Grouping options</w:t></mc:Choice></mc:AlternateContent>`
+	out := p.extractDrawingTranslations(in, "word/document.xml", func(*model.Block) {})
+
+	assert.Contains(t, out, "<mc:AlternateContent>", "drawing must emit canonical mc:, not leaked ve:")
+	assert.NotContains(t, out, "ve:", "leaked prefix must not surface")
+
+	nsRegistry.RLock()
+	got := nsRegistry.m[mcURI]
+	nsRegistry.RUnlock()
+	assert.Equal(t, "ve", got, "the surrounding document's registry must be restored after isolation")
+}
