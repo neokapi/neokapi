@@ -28,6 +28,7 @@ import (
 	"sort"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 
 	"gopkg.in/yaml.v3"
@@ -53,6 +54,17 @@ type KapiProject struct {
 	Content  []ContentCollection        `yaml:"content,omitempty" json:"content,omitempty"`
 	Preset   string                     `yaml:"preset,omitempty" json:"preset,omitempty"`
 	Flows    map[string]*flow.StepsSpec `yaml:"flows,omitempty" json:"flows,omitempty"`
+
+	// Ship gates decide when localized content is shippable, as coverage
+	// thresholds over the lifecycle ladder (see core/gate). Three optional,
+	// additive forms:
+	//   ShipGate  — a single catch-all gate ({translated: 100, reviewed: 100}).
+	//   ShipGates — a when/gate rule list; most-specific rule wins.
+	//   Gates     — a named registry referenced by a rule's `gate: <name>`.
+	// BuildShipGates resolves these into an evaluatable gate.RuleSet.
+	ShipGate  gate.Gate            `yaml:"ship_gate,omitempty" json:"ship_gate,omitempty"`
+	ShipGates []ShipGateRule       `yaml:"ship_gates,omitempty" json:"ship_gates,omitempty"`
+	Gates     map[string]gate.Gate `yaml:"gates,omitempty" json:"gates,omitempty"`
 
 	// Requires lists plugin dependencies as a map of plugin name → version
 	// constraint. Validation fails if any named plugin (or extension group
