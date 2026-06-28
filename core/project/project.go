@@ -167,9 +167,25 @@ type Defaults struct {
 	// exactly as an inline config would.
 	Tools map[string]map[string]any `yaml:"tools,omitempty" json:"tools,omitempty"`
 
+	// Locales holds per-target-language overrides, keyed by locale. Each entry's
+	// tool presets merge on top of the project-wide Tools presets (and under a
+	// flow step's own config) whenever a flow runs for that target locale — so a
+	// project can declare an advanced feature once per locale ("de needs
+	// redaction, others don't") without forking the flow. Convergence and any
+	// targeted run honor it; locales with no entry use the project defaults.
+	Locales map[string]LocaleDefaults `yaml:"locales,omitempty" json:"locales,omitempty"`
+
 	// Extras captures unknown keys under `defaults:`. Platform layers decode
 	// their own defaults from this map.
 	Extras map[string]yaml.Node `yaml:",inline" json:"-"`
+}
+
+// LocaleDefaults holds per-target-language overrides applied when a flow runs
+// for that locale. Tool presets are the lever: they merge on top of the
+// project-wide defaults.tools (per-locale wins) and under a flow step's own
+// config (the step still wins), the same precedence as the project presets.
+type LocaleDefaults struct {
+	Tools map[string]map[string]any `yaml:"tools,omitempty" json:"tools,omitempty"`
 }
 
 // BrandVoiceBinding binds a brand voice profile to a project under

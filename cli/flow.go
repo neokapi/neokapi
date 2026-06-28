@@ -1287,6 +1287,11 @@ type projectBindings struct {
 	// that tool runs in a project flow (the step wins per key). nil when the
 	// recipe declares none.
 	toolPresets map[string]map[string]any
+	// localePresets holds per-target-locale tool presets (defaults.locales.<lang>.tools).
+	// For a run whose target locale has an entry, these merge on top of
+	// toolPresets (per-locale wins) and under the step's own config (the step
+	// still wins). nil when the recipe declares none.
+	localePresets map[string]project.LocaleDefaults
 }
 
 // resolveProjectBindings resolves the standing brand-voice + glossary context
@@ -1323,10 +1328,15 @@ func (a *App) resolveProjectBindings(cmd *cobra.Command, proj *project.KapiProje
 		return nil, err
 	}
 
-	if profile == nil && len(glossary) == 0 && len(proj.Defaults.Tools) == 0 {
+	if profile == nil && len(glossary) == 0 && len(proj.Defaults.Tools) == 0 && len(proj.Defaults.Locales) == 0 {
 		return nil, nil
 	}
-	return &projectBindings{profile: profile, glossary: glossary, toolPresets: proj.Defaults.Tools}, nil
+	return &projectBindings{
+		profile:       profile,
+		glossary:      glossary,
+		toolPresets:   proj.Defaults.Tools,
+		localePresets: proj.Defaults.Locales,
+	}, nil
 }
 
 // toolRequires reports whether the tool schema declares the named requirement.
@@ -1587,7 +1597,14 @@ func (a *App) applyProjectBindings(toolName string, s *schema.ComponentSchema, c
 		return config
 	}
 
-	config = mergeToolPreset(b.toolPresets[toolName], config)
+	// Project preset, then the per-locale preset for the current target locale
+	// on top (per-locale wins), then the step's own config on top of both (the
+	// step still wins): step > locale > project.
+	preset := b.toolPresets[toolName]
+	if lp, ok := b.localePresets[a.TargetLang]; ok && len(lp.Tools) > 0 {
+		preset = mergeToolPreset(preset, lp.Tools[toolName])
+	}
+	config = mergeToolPreset(preset, config)
 
 	clone := func() {
 		next := make(map[string]any, len(config)+1)

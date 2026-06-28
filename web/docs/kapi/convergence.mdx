@@ -156,6 +156,20 @@ the pass cap (`--max-passes`, default 5) is reached. Whatever cannot be advanced
 unaided **parks**: it is reported as awaiting a human and the command still exits
 zero. Convergence never blocks the author.
 
+One default flow can still vary by locale. `defaults.locales.<lang>.tools`
+overrides a tool's config for that target language only — merged on top of the
+project-wide `defaults.tools` and under a flow step's own config — so a single
+flow turns an advanced step on where a locale needs it:
+
+```yaml
+defaults:
+  flow: translate-and-check
+  locales:
+    de:
+      tools:
+        redact: { enabled: true }   # German redacts PII; other locales don't
+```
+
 ## Review: corrections as assets
 
 A machine takes a unit to *translated*; a person takes it to *reviewed*. Approving
