@@ -37,6 +37,11 @@ a false-trigger on a negative is fixed by narrowing it. Re-run after any change.
 | 8 | "Get `report.docx` ready for a translation vendor in French." | localize (interchange) | | |
 | 9 | "Add i18n to this React app." | i18n | | |
 | 10 | "Set kapi up for this project." | bootstrap | | |
+| 11 | "Bring our project's Norwegian translations up to date and flag what still needs review." | localize (convergence) | | |
+
+Scenario 11 is the convergence loop end to end: read state (`kapi status`),
+converge (`kapi run`), then surface the review queue (`kapi status --review`) —
+"completed" means it drove the gate, not just translated one file.
 
 ## Negative — must NOT trigger
 
