@@ -100,6 +100,6 @@ func (a *App) ApproveReviewItem(tabID, locale, file, key string) error {
 		return errors.New("project has no recipe loaded")
 	}
 	src := string(op.Project.Defaults.SourceLanguage)
-	_, err := a.convergenceCLI().ApproveReviewUnit(context.Background(), op.Path, src, locale, file, key)
+	_, err := a.convergenceCLI().ApproveReviewUnit(context.Background(), op.Path, src, locale, file, key, "reviewed")
 	return err
 }

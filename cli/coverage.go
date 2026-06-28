@@ -97,39 +97,54 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 	return sc, nil
 }
 
-// reviewedIndex is the set of human-approved source→target corrections drawn
-// from the project's committed .klftm — the reviewed-translation corpus. The
-// committed .klftm is written only by `kapi apply` (a human/agent correction);
-// automatic TM write-back lands in the .db cache, never the source. So an exact
-// match here means a person signed off on this exact translation: it is the
-// file-project carrier for review state (a plain target file holds no status).
+// reviewedIndex maps each human-approved source→target correction (drawn from
+// the project's committed .klftm — the reviewed-translation corpus) to its review
+// state. The committed .klftm is written only by `kapi apply` (a human/agent
+// correction); automatic TM write-back lands in the .db cache, never the source.
+// So an exact match here means a person signed off on this exact translation: it
+// is the file-project carrier for review state (a plain target file holds no
+// status). A correction is `reviewed` by default; a `review: signed-off` property
+// on its entry promotes the match to `signed-off`, the top rung.
 type reviewedIndex struct {
-	set map[string]struct{} // key: source \x00 target \x00 locale
+	status map[string]model.TargetStatus // key → reviewed | signed-off
 }
+
+// reviewPropertyKey is the .klftm entry property carrying the review state of an
+// approved correction. Absent (or any value other than signed-off) reads as
+// `reviewed`.
+const reviewPropertyKey = "review"
 
 func reviewKey(src, tgt, locale string) string {
 	return strings.TrimSpace(src) + "\x00" + strings.TrimSpace(tgt) + "\x00" + locale
 }
 
-// reviewed reports whether (src, tgt, locale) is an approved correction.
-func (r reviewedIndex) reviewed(src, tgt, locale string) bool {
-	if r.set == nil {
-		return false
+// lookup returns the review state of (src, tgt, locale) and whether it is an
+// approved correction at all.
+func (r reviewedIndex) lookup(src, tgt, locale string) (model.TargetStatus, bool) {
+	if r.status == nil {
+		return "", false
 	}
-	_, ok := r.set[reviewKey(src, tgt, locale)]
+	st, ok := r.status[reviewKey(src, tgt, locale)]
+	return st, ok
+}
+
+// reviewed reports whether (src, tgt, locale) is an approved correction (at least
+// reviewed) — used by the review queue to drop approved units.
+func (r reviewedIndex) reviewed(src, tgt, locale string) bool {
+	_, ok := r.lookup(src, tgt, locale)
 	return ok
 }
 
-// upgrade promotes a base coverage state to `reviewed` when the block's
-// source→target pair for the locale is an approved correction; otherwise it
-// returns the base state unchanged. Only a `translated` unit is upgraded — an
-// absent target stays untranslated, and an already-higher state is left alone.
+// upgrade promotes a `translated` unit to its approved review state (reviewed or
+// signed-off) when the block's source→target pair for the locale matches an
+// approved correction; otherwise it returns the base state unchanged. An absent
+// target stays untranslated, and an already-higher state is left alone.
 func (r reviewedIndex) upgrade(base string, b *model.Block, locale string) string {
 	if base != string(model.TargetStatusTranslated) {
 		return base
 	}
-	if r.reviewed(b.SourceText(), b.TargetText(model.LocaleID(locale)), locale) {
-		return string(model.TargetStatusReviewed)
+	if st, ok := r.lookup(b.SourceText(), b.TargetText(model.LocaleID(locale)), locale); ok {
+		return string(st)
 	}
 	return base
 }
@@ -139,7 +154,7 @@ func (r reviewedIndex) upgrade(base string, b *model.Block, locale string) strin
 // empty index (nothing reviewed yet) — never an error, so status stays
 // informational.
 func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (reviewedIndex, error) {
-	idx := reviewedIndex{set: map[string]struct{}{}}
+	idx := reviewedIndex{status: map[string]model.TargetStatus{}}
 	if proj.Defaults.TMSource == "" || root == "" {
 		return idx, nil
 	}
@@ -154,6 +169,10 @@ func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (r
 		if strings.TrimSpace(st) == "" {
 			continue
 		}
+		state := model.TargetStatusReviewed
+		if e.Properties[reviewPropertyKey] == string(model.TargetStatusSignedOff) {
+			state = model.TargetStatusSignedOff
+		}
 		for loc := range e.Variants {
 			if loc == src {
 				continue
@@ -162,7 +181,7 @@ func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (r
 			if strings.TrimSpace(tt) == "" {
 				continue
 			}
-			idx.set[reviewKey(st, tt, string(loc))] = struct{}{}
+			idx.status[reviewKey(st, tt, string(loc))] = state
 		}
 	}
 	return idx, nil

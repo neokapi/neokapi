@@ -319,7 +319,16 @@ func (a *App) applyTMEntry(ctx context.Context, cmd *cobra.Command, e changeEntr
 		return errResult(res, "tm: target_locale is required")
 	}
 
-	entries, changed := upsertTMPair(entries, e.Source, e.Target, model.LocaleID(srcLocale), model.LocaleID(tgtLocale))
+	// For a tm correction, `status` carries the review state: empty/`reviewed`
+	// records a reviewed correction, `signed-off` the final sign-off.
+	reviewState := e.Status
+	switch reviewState {
+	case "", string(model.TargetStatusReviewed), string(model.TargetStatusSignedOff):
+	default:
+		return errResult(res, fmt.Sprintf("tm: status must be empty, %q, or %q", model.TargetStatusReviewed, model.TargetStatusSignedOff))
+	}
+
+	entries, changed := upsertTMPair(entries, e.Source, e.Target, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), reviewState)
 	if !changed {
 		res.Status = "skipped"
 		res.Detail = "already present"
@@ -413,13 +422,21 @@ func writeKLFTM(path string, entries []sievepen.TMEntry) error {
 // upsertTMPair adds a source→target pair as a bilingual entry, keyed by a
 // stable id so re-applying the same pair is idempotent. When the entry already
 // holds the same target text for the target locale, it returns changed=false.
-func upsertTMPair(entries []sievepen.TMEntry, source, target string, srcLocale, tgtLocale model.LocaleID) ([]sievepen.TMEntry, bool) {
+// upsertTMPair adds or updates a source→target correction in the .klftm entry
+// list. reviewState, when non-empty, is recorded on the entry's `review` property
+// (the carrier that distinguishes `reviewed` from `signed-off`); an empty
+// reviewState leaves the entry at the `reviewed` baseline. It returns changed =
+// true when the target text OR the review state changed, so promoting an
+// already-present translation to signed-off is not mistaken for a no-op.
+func upsertTMPair(entries []sievepen.TMEntry, source, target string, srcLocale, tgtLocale model.LocaleID, reviewState string) ([]sievepen.TMEntry, bool) {
 	id := tmEntryID(source, srcLocale, tgtLocale)
 	for i := range entries {
 		if entries[i].ID != id {
 			continue
 		}
-		if entries[i].VariantText(tgtLocale) == target {
+		sameTarget := entries[i].VariantText(tgtLocale) == target
+		reviewChanged := setReviewProperty(&entries[i], reviewState)
+		if sameTarget && !reviewChanged {
 			return entries, false
 		}
 		if entries[i].Variants == nil {
@@ -431,7 +448,7 @@ func upsertTMPair(entries []sievepen.TMEntry, source, target string, srcLocale, 
 		return entries, true
 	}
 	now := time.Now().UTC()
-	entries = append(entries, sievepen.TMEntry{
+	e := sievepen.TMEntry{
 		ID:          id,
 		HintSrcLang: srcLocale,
 		Variants: map[model.LocaleID][]model.Run{
@@ -445,8 +462,32 @@ func upsertTMPair(entries []sievepen.TMEntry, source, target string, srcLocale, 
 		}},
 		CreatedAt: now,
 		UpdatedAt: now,
-	})
+	}
+	setReviewProperty(&e, reviewState)
+	entries = append(entries, e)
 	return entries, true
+}
+
+// setReviewProperty records the review state (signed-off; reviewed is the
+// property-absent baseline) on a TM entry, returning whether it changed. An empty
+// or `reviewed` state clears the property so the entry round-trips minimally.
+func setReviewProperty(e *sievepen.TMEntry, reviewState string) bool {
+	want := reviewState
+	if want == string(model.TargetStatusReviewed) {
+		want = "" // reviewed is the property-absent baseline
+	}
+	if e.Properties[reviewPropertyKey] == want {
+		return false
+	}
+	if want == "" {
+		delete(e.Properties, reviewPropertyKey)
+		return true
+	}
+	if e.Properties == nil {
+		e.Properties = map[string]string{}
+	}
+	e.Properties[reviewPropertyKey] = want
+	return true
 }
 
 // tmEntryID derives a stable id for a source/locale-pair TM entry.

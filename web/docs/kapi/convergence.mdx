@@ -184,6 +184,15 @@ kapi status --review
 #   …
 ```
 
+A second, optional human gate sits above review: *signed-off* — a final approval
+for content that needs it (a contractual locale, a regulated string). It is the
+same correction with a `signed-off` review state, the top rung a
+`{ signed-off: … }` gate measures:
+
+```bash
+kapi apply <<<'{"kind":"tm","source":"Save","target":"Lagre","source_locale":"en","target_locale":"nb","status":"signed-off"}'
+```
+
 See also [Where translations & terms live](/kapi/recipes/tm-termbase-storage) for
 the memory and termbase model, and [Keep source on brand](/kapi/recipes/keep-source-on-brand)
 for the source-side checks that drive the authoring ladder.
