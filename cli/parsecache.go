@@ -299,19 +299,18 @@ func (a *App) openParseCacheDefer(root string) func() {
 // cache is currently open (a nil cache simply misses).
 type appPartCache struct{ a *App }
 
-func (p appPartCache) GetDocument(path, configKey string) ([]*model.Part, bool) {
+func (p appPartCache) GetDocument(path, configKey string) ([]*model.Part, []byte, string, bool) {
 	if p.a.parseCache == nil {
-		return nil, false
+		return nil, nil, "", false
 	}
 	st, err := os.Stat(path)
 	if err != nil {
-		return nil, false
+		return nil, nil, "", false
 	}
-	parts, _, _, ok := p.a.parseCache.getDoc(path, configKey, st)
-	return parts, ok
+	return p.a.parseCache.getDoc(path, configKey, st)
 }
 
-func (p appPartCache) PutDocument(path, configKey string, parts []*model.Part) {
+func (p appPartCache) PutDocument(path, configKey string, parts []*model.Part, skeleton []byte, originFormat string) {
 	if p.a.parseCache == nil {
 		return
 	}
@@ -319,9 +318,7 @@ func (p appPartCache) PutDocument(path, configKey string, parts []*model.Part) {
 	if err != nil {
 		return
 	}
-	// The process-only runner path needs no skeleton (it writes no file); the
-	// origin format is carried in the runner's config key, so store neither here.
-	p.a.parseCache.putDoc(path, configKey, st, parts, nil, "")
+	p.a.parseCache.putDoc(path, configKey, st, parts, skeleton, originFormat)
 }
 
 // runnerPartCache returns the runner document-cache seam and its config-key

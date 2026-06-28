@@ -296,3 +296,37 @@ func layoutCacheDir(t *testing.T, recipe string) string {
 	require.NoError(t, err)
 	return layout.CacheDir()
 }
+
+// TestRun_InProjectExplicitOutput_DocumentCacheByteIdentical verifies the real
+// CLI wiring of the file-writing document cache: a project-mode `kapi run -o`
+// populates a "|write|" document, and a second run (served from the cache) writes
+// byte-identical output.
+func TestRun_InProjectExplicitOutput_DocumentCacheByteIdentical(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, srcRel, root := processOnlyProjectFixture(t, []model.LocaleID{"fr-FR"})
+	src := filepath.Join(root, srcRel)
+
+	out1 := filepath.Join(t.TempDir(), "o1.json")
+	o, err := runRunCmd(t, a, recipe, "pseudo", "-i", src, "-o", out1)
+	require.NoError(t, err, o)
+
+	hasWriteKey := false
+	for _, k := range runDocCacheKeys(t, recipe) {
+		if strings.Contains(k, "|write|") {
+			hasWriteKey = true
+		}
+	}
+	assert.True(t, hasWriteKey, "a file-writing run must populate a |write| document")
+
+	out2 := filepath.Join(t.TempDir(), "o2.json")
+	a2 := processOnlyApp(t)
+	o2, err := runRunCmd(t, a2, recipe, "pseudo", "-i", src, "-o", out2)
+	require.NoError(t, err, o2)
+
+	b1, err := os.ReadFile(out1)
+	require.NoError(t, err)
+	b2, err := os.ReadFile(out2)
+	require.NoError(t, err)
+	assert.Equal(t, string(b1), string(b2), "the cache-served run must be byte-identical")
+	assert.Contains(t, string(b1), "greeting", "structure preserved by the skeleton round-trip")
+}

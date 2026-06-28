@@ -549,13 +549,13 @@ type fakePartCache struct {
 
 func newFakePartCache() *fakePartCache { return &fakePartCache{store: map[string][]*model.Part{}} }
 
-func (c *fakePartCache) GetDocument(path, configKey string) ([]*model.Part, bool) {
+func (c *fakePartCache) GetDocument(path, configKey string) ([]*model.Part, []byte, string, bool) {
 	c.gets++
 	p, ok := c.store[path+"\x00"+configKey]
-	return p, ok
+	return p, nil, "", ok
 }
 
-func (c *fakePartCache) PutDocument(path, configKey string, parts []*model.Part) {
+func (c *fakePartCache) PutDocument(path, configKey string, parts []*model.Part, _ []byte, _ string) {
 	c.puts++
 	c.store[path+"\x00"+configKey] = parts
 }
@@ -640,4 +640,89 @@ func TestFileRunner_ProcessOnly_UsesPartCache(t *testing.T) {
 		"pseudo-translate", []tool.Tool{pseudo()}, inputPath, "qps"))
 	assert.Equal(t, []string{"sentinel-hash"}, overlayHashes(store3),
 		"the run was driven by the cached parts, not by re-parsing the file")
+}
+
+// docCache is a fake flow.PartCache that stores the full document including the
+// skeleton bytes, so the file-writing cache path (snapshot on miss, replay on
+// hit) can be exercised end to end.
+type docCache struct {
+	parts map[string][]*model.Part
+	skel  map[string][]byte
+	fmts  map[string]string
+}
+
+func newDocCache() *docCache {
+	return &docCache{parts: map[string][]*model.Part{}, skel: map[string][]byte{}, fmts: map[string]string{}}
+}
+
+func (c *docCache) GetDocument(path, key string) ([]*model.Part, []byte, string, bool) {
+	k := path + "\x00" + key
+	p, ok := c.parts[k]
+	return p, c.skel[k], c.fmts[k], ok
+}
+
+func (c *docCache) PutDocument(path, key string, parts []*model.Part, skel []byte, fmtName string) {
+	k := path + "\x00" + key
+	c.parts[k] = parts
+	c.skel[k] = skel
+	c.fmts[k] = fmtName
+}
+
+// TestFileRunner_CachedWrite_ByteIdenticalToLive is the byte-fidelity gate for
+// the file-writing document cache: for each format, the cached miss (parse →
+// snapshot skeleton → write from snapshot) and the cached hit (replay parts +
+// skeleton, no reader) must each produce output byte-identical to the live,
+// uncached round-trip. This proves the snapshot/replay reconstruction matches the
+// live skeleton-wired path.
+func TestFileRunner_CachedWrite_ByteIdenticalToLive(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	cases := []struct{ name, file, content string }{
+		{"json", "m.json", `{"greeting":"Hello World","bye":"Goodbye"}`},
+		{"markdown", "m.md", "# Title\n\nHello World and more text.\n"},
+		{"properties", "m.properties", "greeting = Hello World\nbye = Goodbye\n"},
+		{"yaml", "m.yaml", "greeting: Hello World\nbye: Goodbye\n"},
+	}
+	pseudo := func(t *testing.T) tool.Tool {
+		pt, err := tools.NewPseudoTranslateFromConfig(map[string]any{"target_locale": "qps"}, "qps")
+		require.NoError(t, err)
+		return pt
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			src := filepath.Join(dir, tc.file)
+			require.NoError(t, os.WriteFile(src, []byte(tc.content), 0o644))
+
+			run := func(cache flow.PartCache, out string) {
+				r := flow.NewFileRunner(flow.FileRunnerConfig{
+					FormatReg: reg, SourceLocale: "en-US",
+					PartCache: cache, PartCacheKey: "k",
+				})
+				require.NoError(t, r.RunFile(context.Background(), "pseudo-translate", []tool.Tool{pseudo(t)}, src, out, "qps"))
+			}
+
+			liveOut := filepath.Join(dir, "live."+tc.name)
+			run(nil, liveOut) // no cache → live skeleton-wired path
+			live, err := os.ReadFile(liveOut)
+			require.NoError(t, err)
+
+			cache := newDocCache()
+			missOut := filepath.Join(dir, "miss."+tc.name)
+			run(cache, missOut) // cache miss → snapshot path
+			hitOut := filepath.Join(dir, "hit."+tc.name)
+			run(cache, hitOut) // cache hit → replay path
+
+			miss, err := os.ReadFile(missOut)
+			require.NoError(t, err)
+			hit, err := os.ReadFile(hitOut)
+			require.NoError(t, err)
+
+			assert.Equal(t, string(live), string(miss), "cached miss (snapshot) must equal the live output")
+			assert.Equal(t, string(live), string(hit), "cached hit (replay) must equal the live output")
+			assert.NotEqual(t, tc.content, string(hit), "pseudo must have altered the source")
+			require.Len(t, cache.parts, 1, "exactly one document cached under the |write| key")
+		})
+	}
 }
