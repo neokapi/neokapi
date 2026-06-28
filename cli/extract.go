@@ -83,6 +83,7 @@ plus one bilingual file per source → target pair in --out-dir (default "out/")
 	cmd.Flags().String("format", ExtractFormatXLIFF2, "bilingual output format (xliff2 | po | klz)")
 	cmd.Flags().String("xliff-version", "", "XLIFF 2.x version to emit (2.0, 2.1, 2.2; default 2.2)")
 	cmd.Flags().Bool("no-tm", false, "skip TM pre-fill on extract")
+	cmd.Flags().Bool("force", false, "re-extract every file, ignoring the incremental reuse of unchanged sources")
 	cmd.Flags().Bool("with-source", false, "embed raw source bytes in the .klz (default: identity + skeleton only)")
 	cmd.Flags().String("out-dir", "out", "directory for emitted bilingual files (relative to project)")
 	cmd.Flags().Bool("redact", false, "replace sensitive content with placeholders; originals stay in a local vault for merge")
@@ -270,10 +271,19 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 		},
 	}
 
+	manifest.InputsHash = project.ExtractionInputsHash(layout, manifest.Options)
+
+	// Incremental: reuse the latest prior batch's result for any source whose
+	// bytes AND inputs (recipe, TM, options) are unchanged, so a re-extract only
+	// re-parses what actually changed. --force re-extracts everything.
+	force, _ := cmd.Flags().GetBool("force")
+	prior := loadReusablePrior(layout, manifest.InputsHash, force)
+
 	fmt.Fprintf(cmd.OutOrStdout(), "Extracting batch %s (format=%s, targets=%v, sources=%d)\n",
 		batchID, format, targets, len(files))
 
 	failures := 0
+	reused := 0
 
 	for _, tgt := range targets {
 		pair := project.ExtractionPair{TargetLocale: tgt}
@@ -288,6 +298,23 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 				fmt.Fprintf(os.Stderr, "extract: hash %s: %v\n", src.Path, err)
 				failures++
 				continue
+			}
+
+			// Reuse a prior batch's output when the source bytes are unchanged
+			// (inputs already matched). Copies the content-addressed skeleton into
+			// this batch dir — a byte copy, no re-parse — so merge resolves it here.
+			if pe, ok := prior.reuse(string(tgt), src.Relative, sourceHash); ok {
+				if err := pe.copySkeleton(layout, batchDir, outPath); err == nil {
+					if pair.Output == "" {
+						rel, _ := filepath.Rel(layout.Root, outPath)
+						pair.Output = rel
+					}
+					pair.Files = append(pair.Files, pe.ef)
+					manifest.Totals.Add(pe.ef.Leverage)
+					reused++
+					continue
+				}
+				// Skeleton copy failed — fall through to a fresh extract.
 			}
 
 			ef, err := a.extractOne(cmd.Context(), extractTask{
@@ -339,6 +366,9 @@ func (a *App) runExtract(cmd *cobra.Command) error {
 	total := manifest.Totals
 	fmt.Fprintf(cmd.OutOrStdout(), "\nBatch %s complete. Manifest: %s\n",
 		batchID, filepath.Join(batchDir, project.ExtractionManifestFilename))
+	if reused > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "Reused %d unchanged file(s) from a prior batch (no re-parse).\n", reused)
+	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Aggregate TM leverage: exact=%d fuzzy=%d new=%d (total=%d)\n",
 		total.Exact, total.Fuzzy, total.New, total.Total())
 
@@ -786,6 +816,110 @@ func sumLeverage(files []project.ExtractionFile) project.ExtractionLeverageStats
 		s.Add(f.Leverage)
 	}
 	return s
+}
+
+// priorEntry is one reusable per-file result and the batch dir its skeleton
+// lives in.
+type priorEntry struct {
+	ef      project.ExtractionFile
+	batchID string
+}
+
+// priorBatch indexes every reusable per-file result across all prior batches
+// whose inputs (recipe, options) match the current run, keyed by content — the
+// (target, source, sourceHash) triple. Indexing by source hash (not just path)
+// means a file is reused exactly when its bytes match a prior extraction,
+// regardless of which batch produced it, so same-second batch timestamps can't
+// pick the wrong one.
+type priorBatch struct {
+	byKey map[string]priorEntry
+}
+
+func reuseKey(tgt, srcRel, sourceHash string) string {
+	return tgt + "\x00" + srcRel + "\x00" + sourceHash
+}
+
+// loadReusablePrior indexes the reusable results of every prior batch whose
+// InputsHash matches. Returns nil (everything re-extracts) when forced, when
+// there are no batches, or when none matches the current inputs.
+func loadReusablePrior(layout project.Layout, inputsHash string, force bool) *priorBatch {
+	if force || inputsHash == "" {
+		return nil
+	}
+	// List the batch dirs directly and skip any that fail to load — notably the
+	// current run's own dir, which exists (created above) but has no manifest yet.
+	entries, err := os.ReadDir(project.ExtractionsRoot(layout))
+	if err != nil {
+		return nil
+	}
+	pb := &priorBatch{byKey: map[string]priorEntry{}}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		m, err := project.LoadExtractionManifest(layout, e.Name())
+		if err != nil || m.InputsHash != inputsHash {
+			continue
+		}
+		for _, pair := range m.Pairs {
+			for _, ef := range pair.Files {
+				if ef.Skeleton == "" {
+					continue
+				}
+				pb.byKey[reuseKey(string(pair.TargetLocale), ef.Source, ef.SourceHash)] = priorEntry{ef: ef, batchID: m.BatchID}
+			}
+		}
+	}
+	if len(pb.byKey) == 0 {
+		return nil
+	}
+	return pb
+}
+
+// reuse reports whether a prior batch holds a result for (tgt, srcRel) at exactly
+// this sourceHash — i.e. the source bytes are unchanged — and returns it plus the
+// batch dir its skeleton lives in.
+func (p *priorBatch) reuse(tgt, srcRel, sourceHash string) (priorEntry, bool) {
+	if p == nil {
+		return priorEntry{}, false
+	}
+	e, ok := p.byKey[reuseKey(tgt, srcRel, sourceHash)]
+	return e, ok
+}
+
+// copySkeleton brings the prior batch's content-addressed skeleton into the new
+// batch dir and verifies the bilingual output still exists, so the reused result
+// is fully resolvable from this batch. A byte copy — no re-parse.
+func (e priorEntry) copySkeleton(layout project.Layout, batchDir, outPath string) error {
+	if _, err := os.Stat(outPath); err != nil {
+		return err // the prior bilingual output is gone — re-extract
+	}
+	src := filepath.Join(layout.ExtractionsDir(), e.batchID, e.ef.Skeleton)
+	dst := filepath.Join(batchDir, e.ef.Skeleton)
+	if src == dst {
+		return nil
+	}
+	return copyFileContents(src, dst)
+}
+
+func copyFileContents(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return err
+	}
+	return out.Close()
 }
 
 func effectiveXLIFFVersion(flag string) string {
