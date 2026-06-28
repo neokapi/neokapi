@@ -1,0 +1,189 @@
+---
+sidebar_position: 3
+title: Convergence
+description: How kapi keeps a project up to date — the derived state model behind status, gates, run, and review. Convergence produces, review promotes, the gate releases.
+keywords: [kapi, convergence, ship gate, source gate, status, verify, review, lifecycle, coverage, kapi run, kapi apply]
+---
+
+import { AxisLadderDiagram, PhaseFlow } from "@neokapi/docs-shared";
+
+# Convergence
+
+Localization is continuous toil: source content changes, and its translations
+fall behind. Kapi treats catching up as the normal state of a project, not an
+error. **Convergence** is the model that drives a project's content toward
+*shippable* and reports what still needs a person — without ever blocking the
+author.
+
+Three verbs, kept separate:
+
+- **Convergence produces** — it drives each unit as far up its lifecycle as a
+  flow can take it unaided (typically to *translated*).
+- **Review promotes** — a person advances a unit past what a machine can decide
+  (*translated → reviewed*).
+- **The gate releases** — it drives nothing; it answers one question, *is this
+  scope shippable?*
+
+## State is derived, not tracked
+
+Kapi stores no workflow state — no "in progress" flags, no cursors. Every command
+**recomputes** a unit's state from the content on disk and the project's assets,
+the way `git status` recomputes from the working tree. Run a command twice with
+no changes and you get the same answer; change a source file and the affected
+units fall back to *pending* on their own.
+
+The unit of state is a **target**: one translatable block in one locale.
+
+## The lifecycle ladders
+
+A target climbs a monotone ladder — each rung implies the ones below it. An
+absent target sits below the lowest rung; a present, non-empty target is at least
+*translated*.
+
+<AxisLadderDiagram
+  rungs={[
+    { grade: "1", name: "draft", gloss: "machine placeholder or fuzzy leverage" },
+    { grade: "2", name: "translated", gloss: "a real translation exists" },
+    { grade: "3", name: "reviewed", gloss: "a person approved this exact pair" },
+    { grade: "4", name: "signed-off", gloss: "final" },
+  ]}
+  caption="Target lifecycle — how far a translation has progressed."
+/>
+
+Source content has its own, symmetric ladder — what keeps the author *in check*
+before anything is translated:
+
+<AxisLadderDiagram
+  rungs={[
+    { grade: "1", name: "authored", gloss: "source content exists" },
+    { grade: "2", name: "checked", gloss: "clears its brand & terminology checks" },
+    { grade: "3", name: "approved", gloss: "a person signed off on the source" },
+  ]}
+  caption="Source authoring readiness — the source-side counterpart."
+/>
+
+Where state is recorded depends on the carrier. A plain target file (JSON, an
+XLIFF, …) records presence only, so a file-based project reads a present target
+as *translated*. The higher rungs ride a carrier that can hold them: *reviewed*
+comes from an approved correction in the project's translation memory (see
+[Review](#review-corrections-as-assets) below), and a `.klf` parcel carries the
+full status across a hand-off.
+
+## The gate — coverage thresholds
+
+A **gate** is a set of coverage thresholds over the ladder: a state name to a
+minimum percent. A scope clears a gate when, for every threshold, at least that
+percent of its units have reached that rung or higher.
+
+```yaml
+# my-app.kapi
+ship_gate: { translated: 100, reviewed: 80 }
+```
+
+This reads *"every unit translated, and the important 80% reviewed — ship the long
+tail machine-translated."* A bare `100% reviewed` is the degenerate case.
+
+Gates can be selected by rule, so different collections or locales answer to
+different bars (the most specific matching rule wins):
+
+```yaml
+ship_gates:
+  - when: { locales: [de] }      # German is contractually reviewed
+    gate: { translated: 100, reviewed: 100 }
+  - gate: { translated: 100, reviewed: 80 }   # the default
+```
+
+The source ladder has its own optional bar, `source_gate` (e.g.
+`{ checked: 100 }`) — the source-side counterpart of `ship_gate`.
+
+A gate never fails an ordinary build. Target-language drift is expected work, not
+a break; a gate is a **release** check you opt into (see below).
+
+## Seeing it: `status` and `verify`
+
+`kapi status` is the derived dashboard — coverage per locale and each scope's
+standing against its gate, recomputed on every run:
+
+```bash
+kapi status
+# source: 2 units  authored 100%  checked 0%  approved 0%
+#
+# scope    units   draft  translated  reviewed  signed-off  ship
+# de          42    100%        100%       80%         0%  ✓ shippable
+# nb          42    100%         60%        0%         0%  pending (translated 60%<100%)
+```
+
+`kapi verify` is the enforcing counterpart — it runs the project's quality gates
+(brand, terminology, QA). It stays non-blocking about coverage by default; pass
+`--ship` to also evaluate the ship and source gates as a pre-release bar (a
+failing gate then exits non-zero, for a release tag or a `main` check). See
+[Check translations in CI](/kapi/recipes/gate-localization-in-ci).
+
+## Convergence: `kapi run`
+
+A flow is one linear pass. *Convergence* is that pass looped to the gate — so
+there is no new verb. With no flow name, `kapi run` runs the project's default
+flow (`defaults.flow`) over all content across every target language, in one
+pass, materializing the localized files:
+
+```yaml
+defaults:
+  flow: translate-and-check   # a flow defined under flows:
+```
+
+```bash
+kapi run               # one pass: bring every locale up to date
+kapi run --until-gate  # loop the pass until each scope ships, or parks
+```
+
+<PhaseFlow
+  nodes={[
+    {
+      label: "produce",
+      sub: "kapi run — default flow over pending units",
+      role: "translate",
+      loop: ["--until-gate re-derives", "coverage and repeats"],
+    },
+    { label: "promote", sub: "kapi apply — review approves a unit", role: "annotate", edge: "a person / agent" },
+    { label: "release", sub: "kapi verify --ship — the gate", role: "qa", edge: "gate met" },
+  ]}
+  caption="Produce loops to the gate; review promotes what a machine can't decide; the gate releases."
+/>
+
+Under `--until-gate`, each pass re-derives coverage and runs again on what is
+still short — until every gated scope is shippable, a pass makes no progress, or
+the pass cap (`--max-passes`, default 5) is reached. Whatever cannot be advanced
+unaided **parks**: it is reported as awaiting a human and the command still exits
+zero. Convergence never blocks the author.
+
+## Review: corrections as assets
+
+A machine takes a unit to *translated*; a person takes it to *reviewed*. Approving
+a translation is an edit like any other, recorded with the one write verb,
+`kapi apply` — a translation-memory correction:
+
+```bash
+# the approved source→target pair, applied as a tm correction
+kapi apply <<<'{"kind":"tm","source":"Save","target":"Lagre","source_locale":"en","target_locale":"nb"}'
+```
+
+The correction lands in the project's committed translation-memory source
+(`defaults.tm_source`, a `.klf` term/TM document) — the human-curated corpus.
+Automatic memory write-back goes to the regenerable cache, never this source, so
+an exact match here means a person signed off on this exact translation. Coverage
+then reads that unit as *reviewed*, `reviewed%` climbs, and a `{ reviewed: … }`
+gate flips to shippable. The next convergence recycles the correction for free.
+
+`kapi status --review` is the worklist — every translated unit not yet approved:
+
+```bash
+kapi status --review
+# 3 unit(s) awaiting review:
+#   nb       src/locales/en.json:greeting
+#            Welcome back
+#   …
+```
+
+See also [Where translations & terms live](/kapi/recipes/tm-termbase-storage) for
+the memory and termbase model, and [Keep source on brand](/kapi/recipes/keep-source-on-brand)
+for the source-side checks that drive the authoring ladder.
