@@ -57,6 +57,7 @@ func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) {
 		Runs   []model.Run `json:"runs"`
 		Text   string      `json:"text"`
 		Target string      `json:"target"`
+		Status string      `json:"status"`
 	}
 	if err := json.Unmarshal(payload, &p); err != nil {
 		return
@@ -68,5 +69,13 @@ func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) {
 		b.SetTargetText(locale, p.Text)
 	case p.Target != "":
 		b.SetTargetText(locale, p.Target)
+	}
+	// Carry the lifecycle status the overlay recorded (additive; absent in
+	// older overlays) onto the hydrated target, so review state survives the
+	// extract → workspace → merge round-trip.
+	if p.Status != "" {
+		if t := b.Target(locale); t != nil {
+			t.Status = model.TargetStatus(p.Status)
+		}
 	}
 }
