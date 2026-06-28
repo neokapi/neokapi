@@ -11,16 +11,18 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// LocaleCoverage is the ship-gate view for one target locale: the state
-// distribution of its translatable units, whether it clears its gate, and which
-// thresholds are still pending.
+// LocaleCoverage is the ship-gate view for one (collection, locale) scope: the
+// state distribution of its translatable units, whether it clears its gate, and
+// which thresholds are still pending. Collection is empty for content not in a
+// named collection (the common case), where the rows are effectively per-locale.
 type LocaleCoverage struct {
-	Locale    string           `json:"locale"`
-	Total     int              `json:"total"`
-	Pct       map[string]int   `json:"pct"`               // ladder state → "at least" percent (rounded)
-	Gated     bool             `json:"gated"`             // a ship gate applies to this locale
-	Shippable bool             `json:"shippable"`         // gate satisfied (or no gate)
-	Pending   []gate.Shortfall `json:"pending,omitempty"` // unmet gate thresholds
+	Locale     string           `json:"locale"`
+	Collection string           `json:"collection,omitempty"`
+	Total      int              `json:"total"`
+	Pct        map[string]int   `json:"pct"`               // ladder state → "at least" percent (rounded)
+	Gated      bool             `json:"gated"`             // a ship gate applies to this scope
+	Shippable  bool             `json:"shippable"`         // gate satisfied (or no gate)
+	Pending    []gate.Shortfall `json:"pending,omitempty"` // unmet gate thresholds
 }
 
 // unitState derives a translatable block's lifecycle state for a locale. When a
@@ -43,17 +45,20 @@ func unitState(b *model.Block, locale string) string {
 
 // computeShipCoverage rolls up per-locale coverage over the verify units and
 // evaluates each locale against its resolved ship gate. Collection-scoped gate
-// rules are not yet threaded through verify units, so gates resolve at locale
-// scope (collection ""); collection rules are a follow-up (the gate engine
-// already supports them).
+// rules resolve against (collection, locale); content not in a named collection
+// has an empty collection, where the rollup is effectively per-locale.
 func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject, units []verifyUnit) ([]LocaleCoverage, error) {
 	rs, err := proj.BuildShipGates()
 	if err != nil {
 		return nil, err
 	}
 
-	statesByLocale := map[string][]string{}
+	type scope struct{ collection, locale string }
+	statesByScope := map[scope][]string{}
+	add := func(s scope, state string) { statesByScope[s] = append(statesByScope[s], state) }
+
 	for _, u := range units {
+		s := scope{collection: u.collection, locale: u.locale}
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
 			return nil, berr
@@ -66,41 +71,44 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 			}
 			for _, b := range srcs {
 				if b.Translatable {
-					statesByLocale[u.locale] = append(statesByLocale[u.locale], "")
+					add(s, "")
 				}
 			}
 			continue
 		}
 		for _, b := range blocks {
-			if !b.Translatable {
-				continue
+			if b.Translatable {
+				add(s, unitState(b, u.locale))
 			}
-			statesByLocale[u.locale] = append(statesByLocale[u.locale], unitState(b, u.locale))
 		}
 	}
 
 	ladder := gate.TargetLadder()
-	locales := make([]string, 0, len(statesByLocale))
-	for loc := range statesByLocale {
-		locales = append(locales, loc)
+	scopes := make([]scope, 0, len(statesByScope))
+	for s := range statesByScope {
+		scopes = append(scopes, s)
 	}
-	sort.Strings(locales)
-
-	out := make([]LocaleCoverage, 0, len(locales))
-	for _, loc := range locales {
-		cov := gate.NewCoverage(statesByLocale[loc])
-		lc := LocaleCoverage{Locale: loc, Total: cov.Total, Pct: map[string]int{}}
-		for _, s := range ladder {
-			lc.Pct[s] = int(math.Round(cov.AtLeastPct(ladder, s)))
+	sort.Slice(scopes, func(i, j int) bool {
+		if scopes[i].locale != scopes[j].locale {
+			return scopes[i].locale < scopes[j].locale
 		}
-		if g, ok := rs.Resolve("", loc); ok {
+		return scopes[i].collection < scopes[j].collection
+	})
+
+	out := make([]LocaleCoverage, 0, len(scopes))
+	for _, s := range scopes {
+		cov := gate.NewCoverage(statesByScope[s])
+		lc := LocaleCoverage{Locale: s.locale, Collection: s.collection, Total: cov.Total, Pct: map[string]int{}}
+		for _, st := range ladder {
+			lc.Pct[st] = int(math.Round(cov.AtLeastPct(ladder, st)))
+		}
+		if g, ok := rs.Resolve(s.collection, s.locale); ok {
 			lc.Gated = true
 			res := gate.Evaluate(g, cov, ladder)
 			lc.Shippable = res.Pass
 			lc.Pending = res.Shortfalls
 		} else {
-			// No gate matched this locale — nothing to gate on.
-			lc.Shippable = true
+			lc.Shippable = true // no gate matched this scope
 		}
 		out = append(out, lc)
 	}

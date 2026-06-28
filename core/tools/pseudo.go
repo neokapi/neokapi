@@ -184,6 +184,9 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 			}
 			v.SetTargetText(cfg.TargetLocale, pseudoTranslate(sourceText, cfg))
 		}
+		// Pseudo output is a placeholder, not a real translation: stamp it
+		// `draft` so coverage/ship gates never count it as `translated`.
+		v.StampTargetProvenance(cfg.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: cfg.ToolName()})
 		return nil
 	}
 	return &PseudoTranslateTool{BaseTool: base, cfg: cfg}
@@ -218,6 +221,7 @@ func applyPseudo(part *model.Part, conf *PseudoConfig) (*model.Part, error) {
 		pseudoText := pseudoTranslate(sourceText, conf)
 		block.SetTargetText(conf.TargetLocale, pseudoText)
 	}
+	block.StampTargetProvenance(conf.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: conf.ToolName()})
 	return part, nil
 }
 
@@ -280,6 +284,7 @@ func (t *PseudoTranslateTool) processOne(
 			var cached pseudoCache
 			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Target != "" {
 				block.SetTargetText(t.cfg.TargetLocale, cached.Target)
+				block.StampTargetProvenance(t.cfg.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: t.cfg.ToolName()})
 				return nil
 			}
 		}

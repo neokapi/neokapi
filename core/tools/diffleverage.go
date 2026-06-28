@@ -131,6 +131,11 @@ func NewDiffLeverageTool(cfg *DiffLeverageConfig) *tool.BaseTool {
 				v.SetProperty(PropDiffLeverageScore, strconv.Itoa(score))
 				if prev.TargetText != "" {
 					v.SetTargetText(conf.TargetLocale, prev.TargetText)
+					// A fuzzy-leveraged target was carried over onto a *changed*
+					// source: it no longer exactly fits, so mark it `draft` —
+					// it counts as work-in-progress, not as `translated`, until
+					// a human or translator revisits it.
+					v.StampTargetProvenance(conf.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: t.ToolName, Kind: model.OriginTM})
 				}
 				return nil
 			}

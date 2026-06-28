@@ -29,20 +29,30 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "No localized content tracked (no content collections with target locales).")
 		return nil
 	}
-	// Header.
-	fmt.Fprintf(w, "%-8s %6s", "locale", "units")
+	// Header. The scope is the locale, or "locale/collection" when the project
+	// has named collections with their own gates.
+	fmt.Fprintf(w, "%-14s %6s", "scope", "units")
 	for _, s := range statusLadder {
 		fmt.Fprintf(w, " %11s", s)
 	}
 	fmt.Fprintf(w, "  %s\n", "ship")
 	for _, lc := range o.Locales {
-		fmt.Fprintf(w, "%-8s %6d", lc.Locale, lc.Total)
+		fmt.Fprintf(w, "%-14s %6d", scopeLabel(lc), lc.Total)
 		for _, s := range statusLadder {
 			fmt.Fprintf(w, " %10d%%", lc.Pct[s])
 		}
 		fmt.Fprintf(w, "  %s\n", shipCell(lc))
 	}
 	return nil
+}
+
+// scopeLabel renders a coverage row's scope: the locale, or "locale/collection"
+// when the row is collection-scoped.
+func scopeLabel(lc LocaleCoverage) string {
+	if lc.Collection != "" {
+		return lc.Locale + "/" + lc.Collection
+	}
+	return lc.Locale
 }
 
 // shipCell renders the ship column: shippable, pending (with the binding

@@ -369,12 +369,16 @@ func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, units [
 			continue
 		}
 		g.Pass = false
+		scope := lc.Locale
+		if lc.Collection != "" {
+			scope = lc.Locale + "/" + lc.Collection
+		}
 		for _, sf := range lc.Pending {
 			g.Findings = append(g.Findings, VerifyFinding{
 				Gate:       gateShip,
 				Locale:     lc.Locale,
 				Severity:   "error",
-				Message:    fmt.Sprintf("%s coverage %d%% is below the required %d%%", sf.State, int(sf.Actual), sf.Required),
+				Message:    fmt.Sprintf("%s: %s coverage %d%% is below the required %d%%", scope, sf.State, int(sf.Actual), sf.Required),
 				Suggestion: "translate or review more content for this locale, or relax its ship gate",
 			})
 		}
@@ -586,6 +590,9 @@ type verifyUnit struct {
 	sourcePath string
 	targetPath string
 	locale     string
+	// collection is the parent content-collection name (empty for a bare
+	// content entry). Ship-gate rules resolve against (collection, locale).
+	collection string
 	// displayPath is the path reported in findings (the target file, relative
 	// to the project root when possible).
 	displayPath string
@@ -633,6 +640,7 @@ func (a *App) unitsFromProject(proj *project.KapiProject, root string, localeFil
 				sourcePath:  rf.Path,
 				targetPath:  targetPath,
 				locale:      string(loc),
+				collection:  rf.Collection,
 				displayPath: rel,
 			})
 		}

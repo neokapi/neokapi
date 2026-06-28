@@ -40,6 +40,12 @@ func TestDiffLeverageUnchangedSource(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "unchanged", resultBlock.Properties[tools.PropDiffLeverageStatus])
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
+
+	// An identical source keeps its prior translation as-is: no draft downgrade.
+	// (Coverage falls to the presence baseline of `translated`.)
+	if tgt := resultBlock.Target(model.LocaleFrench); assert.NotNil(t, tgt) {
+		assert.Empty(t, tgt.Status, "unchanged leverage must not downgrade to draft")
+	}
 }
 
 func TestDiffLeverageModifiedSource(t *testing.T) {
@@ -105,6 +111,13 @@ func TestDiffLeverageFuzzyMatch(t *testing.T) {
 
 	score := resultBlock.Properties[tools.PropDiffLeverageScore]
 	require.NotEmpty(t, score, "Expected a similarity score")
+
+	// The leveraged target rode over onto a changed source, so it needs review:
+	// it must be stamped `draft`, not counted as fully `translated`.
+	tgt := resultBlock.Target(model.LocaleFrench)
+	if assert.NotNil(t, tgt) {
+		assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+	}
 }
 
 func TestDiffLeverageFuzzyMatchBelowThreshold(t *testing.T) {

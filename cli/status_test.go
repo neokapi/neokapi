@@ -40,6 +40,63 @@ ship_gates:
 	return root
 }
 
+// writeCollectionProject creates a project with two named collections (docs, ui)
+// and a collection-scoped gate: docs requires nothing (always shippable), ui
+// requires 100% translated. Both sources are untranslated.
+func writeCollectionProject(t *testing.T) string {
+	t.Helper()
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "docs"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "ui"), 0o755))
+
+	recipe := `version: v1
+name: coll
+defaults:
+  source_language: en
+  target_languages: [nb]
+content:
+  - name: docs
+    items:
+      - path: docs/a.md
+        target: "{lang}/docs/a.md"
+  - name: ui
+    items:
+      - path: ui/b.json
+        target: "{lang}/ui/b.json"
+ship_gates:
+  - when: { collections: [docs] }
+    gate: { translated: 0 }
+  - gate: { translated: 100 }
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "a.md"), []byte("# Title\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "ui", "b.json"), []byte(`{"k":"Save"}`), 0o644))
+	return root
+}
+
+func scope(o StatusOutput, locale, collection string) (LocaleCoverage, bool) {
+	for _, lc := range o.Locales {
+		if lc.Locale == locale && lc.Collection == collection {
+			return lc, true
+		}
+	}
+	return LocaleCoverage{}, false
+}
+
+func TestStatus_CollectionScopedGates(t *testing.T) {
+	t.Chdir(writeCollectionProject(t))
+	out := runStatusJSON(t)
+
+	docs, ok := scope(out, "nb", "docs")
+	require.True(t, ok, "expected a nb/docs row")
+	assert.True(t, docs.Shippable, "docs gate requires nothing → shippable even untranslated")
+
+	ui, ok := scope(out, "nb", "ui")
+	require.True(t, ok, "expected a nb/ui row")
+	assert.False(t, ui.Shippable, "ui gate requires 100% translated")
+}
+
 func runStatusJSON(t *testing.T) StatusOutput {
 	t.Helper()
 	a := &App{}
