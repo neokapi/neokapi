@@ -61,4 +61,10 @@ type FormatSignature struct {
 	Extensions []string          // e.g., [".html", ".htm", ".xhtml"]
 	MagicBytes [][]byte          // Byte prefixes to match
 	Sniff      func([]byte) bool // Custom content sniffing function (optional)
+	// Binary marks a format whose reader consumes binary content (e.g. gettext
+	// .mo, video containers). It tells detection NOT to decline this format for
+	// binary input the way it does for a text format matched only by extension.
+	// Formats that declare MagicBytes or a Sniff are already treated as binary-
+	// capable; set this only for binary formats that have neither.
+	Binary bool
 }

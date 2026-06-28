@@ -43,6 +43,7 @@ func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
 		MIMETypes:  []string{"video/mp4", "video/quicktime", "video/x-matroska", "video/webm"},
 		Extensions: []string{".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"},
+		Binary:     true, // video containers are binary
 	}
 }
 

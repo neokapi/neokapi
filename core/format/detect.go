@@ -93,7 +93,15 @@ func (d *Detector) Detect(path string, reader io.ReadSeeker, mimeType string) (s
 				}
 			}
 			if name, err := d.DetectByExtension(ext); err == nil {
-				return name, nil
+				// A binary file whose extension claims a TEXT format (e.g.
+				// icudtl.dat → fixedwidth by ".dat") is a misdetection: a text
+				// reader chokes on binary bytes ("bufio.Scanner: token too long").
+				// Decline an extension-only match (no magic bytes / sniffer) for
+				// binary content and fall through to content sniffing, which finds
+				// a binary-native format by magic or declines outright.
+				if d.isBinaryNativeFormat(name) || !looksBinary(reader) {
+					return name, nil
+				}
 			}
 		}
 	}
@@ -111,6 +119,35 @@ func (d *Detector) Detect(path string, reader io.ReadSeeker, mimeType string) (s
 // DetectByMIME maps a MIME type to a registered format name. When multiple
 // formats match, the one with the highest priority is returned.
 // When priorities are equal, the lexicographically first name wins.
+// looksBinary reports whether content looks binary — a NUL byte in the first
+// chunk, which authored text never contains (it is, however, present in ICU
+// data, fonts, images, executables and the like). It peeks and restores the
+// reader's position. A nil reader (no content to inspect) is treated as text, so
+// extension-only resolution still works.
+func looksBinary(reader io.ReadSeeker) bool {
+	if reader == nil {
+		return false
+	}
+	buf := make([]byte, 8192)
+	n, _ := io.ReadFull(reader, buf)
+	_, _ = reader.Seek(0, io.SeekStart)
+	return bytes.IndexByte(buf[:n], 0) >= 0
+}
+
+// isBinaryNativeFormat reports whether a format is content-aware — it declares
+// magic bytes or a sniffer — and so legitimately handles binary input. A
+// text-only format, matched solely by extension, is not, and must not be chosen
+// for binary content.
+func (d *Detector) isBinaryNativeFormat(name string) bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	sig, ok := d.signatures[name]
+	if !ok {
+		return false
+	}
+	return len(sig.MagicBytes) > 0 || sig.Sniff != nil || sig.Binary
+}
+
 func (d *Detector) DetectByMIME(mimeType string) (string, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
