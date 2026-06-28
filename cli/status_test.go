@@ -97,6 +97,90 @@ func TestStatus_CollectionScopedGates(t *testing.T) {
 	assert.False(t, ui.Shippable, "ui gate requires 100% translated")
 }
 
+// writeSourceGateProject creates a project with a source_gate. The source files
+// carry no committed SourceStatus, so they sit at the authored baseline.
+func writeSourceGateProject(t *testing.T, sourceGate string) string {
+	t.Helper()
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := t.TempDir()
+	recipe := `version: v1
+name: src
+defaults:
+  source_language: en
+  target_languages: [nb]
+content:
+  - path: en.json
+    target: "{lang}.json"
+` + sourceGate + "\n"
+	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
+		[]byte(`{"a":"Apple","b":"Banana","c":"Cherry"}`), 0o644))
+	return root
+}
+
+func TestStatus_SourceReadiness(t *testing.T) {
+	// A {checked: 100} source gate against an all-authored source: readiness is
+	// reported (100% authored, 0% checked) and the gate is pending — never an error.
+	t.Chdir(writeSourceGateProject(t, "source_gate: { checked: 100 }"))
+	out := runStatusJSON(t)
+
+	require.NotNil(t, out.Source, "source readiness must be reported")
+	assert.Equal(t, 3, out.Source.Total)
+	assert.Equal(t, 100, out.Source.Pct["authored"], "all source present → authored baseline")
+	assert.Equal(t, 0, out.Source.Pct["checked"], "no source has been checked yet")
+	assert.True(t, out.Source.Gated)
+	assert.False(t, out.Source.Shippable, "checked:100 is unmet at the authored baseline")
+}
+
+func TestStatus_SourceReadiness_AuthoredGateClears(t *testing.T) {
+	// An {authored: 100} gate is satisfied by the presence baseline.
+	t.Chdir(writeSourceGateProject(t, "source_gate: { authored: 100 }"))
+	out := runStatusJSON(t)
+	require.NotNil(t, out.Source)
+	assert.True(t, out.Source.Shippable, "authored:100 is met when all source is present")
+}
+
+func TestVerify_SourceGate(t *testing.T) {
+	t.Chdir(writeSourceGateProject(t, "source_gate: { checked: 100 }"))
+
+	// Without --ship: the source gate is not evaluated (source drift is non-blocking).
+	a := &App{}
+	cmd := a.NewVerifyCmd()
+	require.NoError(t, cmd.Flags().Set("json", "true"))
+	out, _ := captureStdout(t, func() error { return a.runVerify(cmd, nil) })
+	var parsed VerifyOutput
+	require.NoError(t, json.Unmarshal([]byte(out), &parsed))
+	assert.False(t, hasGate(parsed, gateSource), "source gate must be opt-in (--ship)")
+
+	// With --ship: the source gate runs and fails (source is only authored).
+	a2 := &App{}
+	cmd2 := a2.NewVerifyCmd()
+	require.NoError(t, cmd2.Flags().Set("json", "true"))
+	require.NoError(t, cmd2.Flags().Set("ship", "true"))
+	out2, runErr := captureStdout(t, func() error { return a2.runVerify(cmd2, nil) })
+	var parsed2 VerifyOutput
+	require.NoError(t, json.Unmarshal([]byte(out2), &parsed2))
+	sg, has := findGate(parsed2, gateSource)
+	require.True(t, has, "--ship adds the source gate")
+	assert.False(t, sg.Pass, "source is below checked:100")
+	assert.NotEmpty(t, sg.Findings)
+	assert.Error(t, runErr, "a failed source gate exits non-zero")
+}
+
+func hasGate(out VerifyOutput, name string) bool {
+	_, ok := findGate(out, name)
+	return ok
+}
+
+func findGate(out VerifyOutput, name string) (VerifyGateResult, bool) {
+	for _, g := range out.Gates {
+		if g.Gate == name {
+			return g, true
+		}
+	}
+	return VerifyGateResult{}, false
+}
+
 func runStatusJSON(t *testing.T) StatusOutput {
 	t.Helper()
 	a := &App{}

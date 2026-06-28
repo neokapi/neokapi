@@ -17,6 +17,7 @@ import (
 // and ship-gate standing for the project's tracked content.
 type StatusOutput struct {
 	Project string           `json:"project,omitempty"`
+	Source  *SourceCoverage  `json:"source,omitempty"`
 	Locales []LocaleCoverage `json:"locales"`
 }
 
@@ -25,6 +26,11 @@ var statusLadder = gate.TargetLadder()
 
 // FormatText renders the coverage grid, implementing output.TextFormatter.
 func (o StatusOutput) FormatText(w io.Writer) error {
+	// Source readiness — how far the author's own content has progressed, shown
+	// above the translation grid (the source feeds every target).
+	if o.Source != nil && o.Source.Total > 0 {
+		writeSourceLine(w, *o.Source)
+	}
 	if len(o.Locales) == 0 {
 		fmt.Fprintln(w, "No localized content tracked (no content collections with target locales).")
 		return nil
@@ -44,6 +50,33 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "  %s\n", shipCell(lc))
 	}
 	return nil
+}
+
+// sourceLadder is the column order for the source-readiness line.
+var sourceLadder = gate.SourceLadder()
+
+// writeSourceLine renders the one-line source-readiness summary: per-rung
+// coverage of the author's content (labeled, since its ladder differs from the
+// translation grid) plus its source-gate standing.
+func writeSourceLine(w io.Writer, sc SourceCoverage) {
+	cells := make([]string, 0, len(sourceLadder))
+	for _, s := range sourceLadder {
+		cells = append(cells, fmt.Sprintf("%s %d%%", s, sc.Pct[s]))
+	}
+	var standing string
+	switch {
+	case !sc.Gated:
+		standing = ""
+	case sc.Shippable:
+		standing = "  ✓ ready"
+	default:
+		parts := make([]string, 0, len(sc.Pending))
+		for _, sf := range sc.Pending {
+			parts = append(parts, fmt.Sprintf("%s %d%%<%d%%", sf.State, int(sf.Actual), sf.Required))
+		}
+		standing = "  pending (" + strings.Join(parts, ", ") + ")"
+	}
+	fmt.Fprintf(w, "source: %d units  %s%s\n\n", sc.Total, strings.Join(cells, "  "), standing)
 }
 
 // scopeLabel renders a coverage row's scope: the locale, or "locale/collection"
@@ -138,5 +171,14 @@ func (a *App) runStatus(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("compute coverage: %w", err)
 	}
 
-	return output.Print(cmd, StatusOutput{Project: proj.Name, Locales: cov})
+	src, err := a.computeSourceReadiness(cmd.Context(), proj, units)
+	if err != nil {
+		return fmt.Errorf("compute source readiness: %w", err)
+	}
+
+	out := StatusOutput{Project: proj.Name, Locales: cov}
+	if src.Total > 0 {
+		out.Source = &src
+	}
+	return output.Print(cmd, out)
 }

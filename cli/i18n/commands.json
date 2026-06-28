@@ -371,6 +371,9 @@
           "short": "Split source text into sentence or chunk segments (stand-off overlay)"
         },
         "short": "A format-aware content toolkit — parse, edit, check, and localize any format",
+        "source-check": {
+          "short": "Source Readiness"
+        },
         "stats": {
           "example": "  kapi stats report.docx\n  kapi stats --json docs/*.md | jq '.total.words'\n  cat page.html | kapi stats -f html",
           "long": "Summarize the content of one or more files: total and translatable blocks,\nword and character counts (with and without spaces), segments, and a breakdown\nby structural role (heading, paragraph, list-item, table-cell, …). Any format —\na Word document, a JSON catalog, Markdown, HTML — yields the same shape.\n\nWord, character, and segment counts cover the translatable content; block and\nrole counts cover the whole document. Prints a human table by default; --json\nemits the structured record for piping into a pipeline.\n\nWith no FILE, or when FILE is \"-\", standard input is read.",

@@ -66,6 +66,13 @@ type KapiProject struct {
 	ShipGates []ShipGateRule       `yaml:"ship_gates,omitempty" json:"ship_gates,omitempty"`
 	Gates     map[string]gate.Gate `yaml:"gates,omitempty" json:"gates,omitempty"`
 
+	// SourceGate is the source-readiness bar: a single coverage gate over the
+	// source authoring ladder (authored → checked → approved), e.g.
+	// {checked: 100}. It is the source-side counterpart of ShipGate — it gates
+	// the author's own content, not the translations. Evaluated by
+	// `kapi verify --ship` (never an ordinary build).
+	SourceGate gate.Gate `yaml:"source_gate,omitempty" json:"source_gate,omitempty"`
+
 	// Requires lists plugin dependencies as a map of plugin name → version
 	// constraint. Validation fails if any named plugin (or extension group
 	// of the same name) has no registered extension in the loading process.

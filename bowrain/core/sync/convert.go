@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 
@@ -26,6 +27,17 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 		SourceText:         b.SourceText(),
 		PreserveWhitespace: b.PreserveWhitespace,
 		Properties:         b.Properties,
+	}
+
+	// Source authoring state (authored → checked → approved) rides as a reserved
+	// block property, symmetric with how a Target's status rides in its segment
+	// properties — keeping the round-trip lossless without a wire-shape change.
+	// Copy-on-write so we never mutate the caller's Properties map.
+	if b.SourceStatus != "" {
+		props := make(map[string]string, len(b.Properties)+1)
+		maps.Copy(props, b.Properties)
+		props[propSourceStatus] = string(b.SourceStatus)
+		sb.Properties = props
 	}
 
 	// Source content — the flat run sequence rides as a single wire segment.
@@ -99,6 +111,24 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 		Translatable:       sb.Translatable,
 		PreserveWhitespace: sb.PreserveWhitespace,
 		Properties:         sb.Properties,
+	}
+
+	// Restore the source authoring state from its reserved property and strip the
+	// key so it never leaks back out as a real block property. Copy-on-write so we
+	// don't mutate the proto's Properties map.
+	if status, ok := sb.Properties[propSourceStatus]; ok {
+		b.SourceStatus = model.SourceStatus(status)
+		props := make(map[string]string, len(sb.Properties))
+		for k, v := range sb.Properties {
+			if k == propSourceStatus {
+				continue
+			}
+			props[k] = v
+		}
+		if len(props) == 0 {
+			props = nil
+		}
+		b.Properties = props
 	}
 
 	// Source content — concatenate the runs of every wire segment back into the
@@ -178,6 +208,11 @@ func runsToSyncSegment(id string, runs []model.Run) *pb.SyncSegment {
 		Runs: runsToSyncProto(runs),
 	}
 }
+
+// propSourceStatus is the reserved block-property key carrying a Block's source
+// authoring state (authored → checked → approved) across the sync protocol — the
+// block-level counterpart of the per-target __status segment property.
+const propSourceStatus = "__source_status"
 
 // Wire-segment property keys carrying Target metadata across the protocol.
 const (

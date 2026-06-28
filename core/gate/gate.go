@@ -43,6 +43,18 @@ func TargetLadder() Ladder {
 	return l
 }
 
+// SourceLadder is the ladder for source authoring readiness, derived from the
+// canonical model order (authored → checked → approved). A source gate
+// (project source_gate) evaluates coverage against it, mirroring TargetLadder.
+func SourceLadder() Ladder {
+	statuses := model.SourceStatusLadder()
+	l := make(Ladder, len(statuses))
+	for i, s := range statuses {
+		l[i] = string(s)
+	}
+	return l
+}
+
 // rank returns the 0-based position of a state on the ladder, or -1 if unknown.
 func (l Ladder) rank(state string) int {
 	for i, s := range l {
