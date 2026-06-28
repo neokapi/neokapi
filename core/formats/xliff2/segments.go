@@ -87,6 +87,25 @@ func targetStatusFromXLIFF2State(state string) model.TargetStatus {
 	}
 }
 
+// xliff2StateFromTargetStatus maps a target lifecycle status to an XLIFF 2.0
+// segment `state` (the inverse of targetStatusFromXLIFF2State). A draft is a
+// translation awaiting review, so it surfaces as "translated" — a vendor reading
+// the file sees there is something to review. An unset/new status emits no state
+// (XLIFF defaults to "initial"). Used only on the scratch-build write path so a
+// produced XLIFF (e.g. `kapi extract`) reports where each unit stands.
+func xliff2StateFromTargetStatus(s model.TargetStatus) string {
+	switch s {
+	case model.TargetStatusSignedOff:
+		return "final"
+	case model.TargetStatusReviewed:
+		return "reviewed"
+	case model.TargetStatusTranslated, model.TargetStatusDraft:
+		return "translated"
+	default:
+		return ""
+	}
+}
+
 func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgLang model.LocaleID) {
 	ann := &UnitSegmentsAnnotation{
 		Source: map[string]*Content{},
