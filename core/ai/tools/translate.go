@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync/atomic"
 
@@ -35,6 +36,11 @@ type AITranslateTool struct {
 	onProgress   func(aiprovider.ProgressEvent)
 	blockIndex   atomic.Int32
 	totalBlocks  int
+	// configFP fingerprints the output-affecting config (provider, model, locales,
+	// glossary, brand voice). The session overlay cache stores it so a re-run with
+	// a changed model/prompt/voice re-translates instead of serving the stale
+	// cached target. See tool.OverlayConfigFingerprint.
+	configFP string
 }
 
 // Default values for AITranslateConfig — used in both the schema tags
@@ -170,10 +176,36 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	}
 	t.ToolName = "translate"
 	t.ToolDescription = "Translates Blocks using AI/LLM"
+	t.configFP = aiConfigFingerprint(cfg, t.voiceGuide)
 	// Translate: writes the target locale; source stays read-only. The batched
 	// and session paths (Process overrides) reuse translate() via NewVariantView.
 	t.Produce = t.translate
 	return t
+}
+
+// aiConfigFingerprint hashes the AI translate settings that change a block's
+// output, so the session overlay cache reuses a cached target only when they are
+// unchanged. The model and provider, the source/target locales, the brand voice
+// guidance, and the glossary all shape the result; the API key, batch sizing, and
+// progress callback do not.
+func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
+	parts := []string{
+		"ai",
+		cfg.Provider,
+		cfg.Model,
+		string(cfg.SourceLocale),
+		string(cfg.TargetLocale),
+		voiceGuide,
+	}
+	keys := make([]string, 0, len(cfg.Glossary))
+	for k := range cfg.Glossary {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		parts = append(parts, k+"="+cfg.Glossary[k])
+	}
+	return tool.OverlayConfigFingerprint(parts...)
 }
 
 // Process overrides BaseTool.Process to support batch + concurrent translation.
@@ -254,11 +286,12 @@ func (t *AITranslateTool) sessionHandleBlock(
 		return t.translate(tool.NewVariantViewWithContext(ctx, block))
 	}
 
-	// Skip if already cached.
+	// Skip if already cached under the same config (a changed model/prompt/voice
+	// invalidates the cached target — re-translate rather than serve it stale).
 	if randomAccess {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached aiTargetCache
-			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" {
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" && cached.Config == t.configFP {
 				block.SetTargetText(t.targetLocale, cached.Text)
 				block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
 				return nil
@@ -274,6 +307,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 		payload, err := json.Marshal(aiTargetCache{
 			Text:     target,
 			Provider: string(t.provider.Name()),
+			Config:   t.configFP,
 		})
 		if err != nil {
 			return fmt.Errorf("translate: encode overlay: %w", err)
@@ -335,7 +369,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 				if caps.RandomAccess {
 					if sc, err := sess.GetOverlay(overlayKind, block.ID); err == nil && len(sc.Payload) > 0 {
 						var cached aiTargetCache
-						if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" {
+						if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" && cached.Config == t.configFP {
 							block.SetTargetText(t.targetLocale, cached.Text)
 							block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
 							select {
@@ -369,6 +403,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 				payload, err := json.Marshal(aiTargetCache{
 					Text:     target,
 					Provider: string(t.provider.Name()),
+					Config:   t.configFP,
 				})
 				if err == nil {
 					if werr := sess.PutOverlay(blockstore.Overlay{
@@ -399,6 +434,10 @@ func (t *AITranslateTool) processBatchedWithSession(
 type aiTargetCache struct {
 	Text     string `json:"text"`
 	Provider string `json:"provider,omitempty"`
+	// Config is the tool-config fingerprint at write time. A cached target is
+	// reused only when it matches the current tool's fingerprint, so a changed
+	// model/prompt/voice re-translates rather than serving stale output.
+	Config string `json:"config,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
