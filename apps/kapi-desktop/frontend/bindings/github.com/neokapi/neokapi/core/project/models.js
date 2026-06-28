@@ -11,6 +11,9 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as flow$0 from "../flow/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as gate$0 from "../gate/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as model$0 from "../model/models.js";
 
 /**
@@ -290,6 +293,17 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Flow names the project's default flow — the one `kapi run` (with no flow
+             * argument) executes to bring the project's content up to date across every
+             * target language. It is a built-in composed flow name or a key in `flows:`.
+             * Empty means there is no default; `kapi run` then requires an explicit flow.
+             * @member
+             * @type {string | undefined}
+             */
+            this["flow"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * "bcp-47" (default) or "posix"
              * @member
              * @type {string | undefined}
@@ -445,41 +459,41 @@ export class Defaults {
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType0;
-        const $$createField6_0 = $$createType8;
-        const $$createField7_0 = $$createType9;
-        const $$createField8_0 = $$createType10;
-        const $$createField9_0 = $$createType11;
-        const $$createField10_0 = $$createType12;
-        const $$createField11_0 = $$createType6;
-        const $$createField12_0 = $$createType14;
-        const $$createField16_0 = $$createType16;
+        const $$createField7_0 = $$createType8;
+        const $$createField8_0 = $$createType9;
+        const $$createField9_0 = $$createType10;
+        const $$createField10_0 = $$createType11;
+        const $$createField11_0 = $$createType12;
+        const $$createField12_0 = $$createType6;
+        const $$createField13_0 = $$createType14;
+        const $$createField17_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
         }
         if ("formats" in $$parsedSource) {
-            $$parsedSource["formats"] = $$createField6_0($$parsedSource["formats"]);
+            $$parsedSource["formats"] = $$createField7_0($$parsedSource["formats"]);
         }
         if ("exclude" in $$parsedSource) {
-            $$parsedSource["exclude"] = $$createField7_0($$parsedSource["exclude"]);
+            $$parsedSource["exclude"] = $$createField8_0($$parsedSource["exclude"]);
         }
         if ("merge" in $$parsedSource) {
-            $$parsedSource["merge"] = $$createField8_0($$parsedSource["merge"]);
+            $$parsedSource["merge"] = $$createField9_0($$parsedSource["merge"]);
         }
         if ("tm" in $$parsedSource) {
-            $$parsedSource["tm"] = $$createField9_0($$parsedSource["tm"]);
+            $$parsedSource["tm"] = $$createField10_0($$parsedSource["tm"]);
         }
         if ("segmentation" in $$parsedSource) {
-            $$parsedSource["segmentation"] = $$createField10_0($$parsedSource["segmentation"]);
+            $$parsedSource["segmentation"] = $$createField11_0($$parsedSource["segmentation"]);
         }
         if ("redaction" in $$parsedSource) {
-            $$parsedSource["redaction"] = $$createField11_0($$parsedSource["redaction"]);
+            $$parsedSource["redaction"] = $$createField12_0($$parsedSource["redaction"]);
         }
         if ("brand_voice" in $$parsedSource) {
-            $$parsedSource["brand_voice"] = $$createField12_0($$parsedSource["brand_voice"]);
+            $$parsedSource["brand_voice"] = $$createField13_0($$parsedSource["brand_voice"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField16_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField17_0($$parsedSource["tools"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -654,6 +668,52 @@ export class FormatSpec {
 }
 
 /**
+ * GateRef is a rule's gate value: either an inline threshold map
+ * (`gate: {translated: 100}`) or a name into the `gates:` registry
+ * (`gate: machine`).
+ */
+export class GateRef {
+    /**
+     * Creates a new GateRef instance.
+     * @param {Partial<GateRef>} [$$source = {}] - The source object to create the GateRef.
+     */
+    constructor($$source = {}) {
+        if (!("Name" in $$source)) {
+            /**
+             * set when the YAML value is a scalar (a registry name)
+             * @member
+             * @type {string}
+             */
+            this["Name"] = "";
+        }
+        if (!("Inline" in $$source)) {
+            /**
+             * set when the YAML value is a map (inline thresholds)
+             * @member
+             * @type {gate$0.Gate}
+             */
+            this["Inline"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GateRef instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {GateRef}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType17;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("Inline" in $$parsedSource) {
+            $$parsedSource["Inline"] = $$createField1_0($$parsedSource["Inline"]);
+        }
+        return new GateRef(/** @type {Partial<GateRef>} */($$parsedSource));
+    }
+}
+
+/**
  * KapiProject is the root type for a .kapi project file.
  */
 export class KapiProject {
@@ -713,6 +773,46 @@ export class KapiProject {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Ship gates decide when localized content is shippable, as coverage
+             * thresholds over the lifecycle ladder (see core/gate). Three optional,
+             * additive forms:
+             *   ShipGate  — a single catch-all gate ({translated: 100, reviewed: 100}).
+             *   ShipGates — a when/gate rule list; most-specific rule wins.
+             *   Gates     — a named registry referenced by a rule's `gate: <name>`.
+             * BuildShipGates resolves these into an evaluatable gate.RuleSet.
+             * @member
+             * @type {gate$0.Gate | undefined}
+             */
+            this["ship_gate"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ShipGateRule[] | undefined}
+             */
+            this["ship_gates"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: gate$0.Gate } | undefined}
+             */
+            this["gates"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * SourceGate is the source-readiness bar: a single coverage gate over the
+             * source authoring ladder (authored → checked → approved), e.g.
+             * {checked: 100}. It is the source-side counterpart of ShipGate — it gates
+             * the author's own content, not the translations. Evaluated by
+             * `kapi verify --ship` (never an ordinary build).
+             * @member
+             * @type {gate$0.Gate | undefined}
+             */
+            this["source_gate"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Requires lists plugin dependencies as a map of plugin name → version
              * constraint. Validation fails if any named plugin (or extension group
              * of the same name) has no registered extension in the loading process.
@@ -737,11 +837,15 @@ export class KapiProject {
      * @returns {KapiProject}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType18;
-        const $$createField3_0 = $$createType19;
-        const $$createField4_0 = $$createType21;
-        const $$createField6_0 = $$createType24;
-        const $$createField7_0 = $$createType25;
+        const $$createField2_0 = $$createType20;
+        const $$createField3_0 = $$createType21;
+        const $$createField4_0 = $$createType23;
+        const $$createField6_0 = $$createType26;
+        const $$createField7_0 = $$createType17;
+        const $$createField8_0 = $$createType28;
+        const $$createField9_0 = $$createType29;
+        const $$createField10_0 = $$createType17;
+        const $$createField11_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField2_0($$parsedSource["plugins"]);
@@ -755,8 +859,20 @@ export class KapiProject {
         if ("flows" in $$parsedSource) {
             $$parsedSource["flows"] = $$createField6_0($$parsedSource["flows"]);
         }
+        if ("ship_gate" in $$parsedSource) {
+            $$parsedSource["ship_gate"] = $$createField7_0($$parsedSource["ship_gate"]);
+        }
+        if ("ship_gates" in $$parsedSource) {
+            $$parsedSource["ship_gates"] = $$createField8_0($$parsedSource["ship_gates"]);
+        }
+        if ("gates" in $$parsedSource) {
+            $$parsedSource["gates"] = $$createField9_0($$parsedSource["gates"]);
+        }
+        if ("source_gate" in $$parsedSource) {
+            $$parsedSource["source_gate"] = $$createField10_0($$parsedSource["source_gate"]);
+        }
         if ("requires" in $$parsedSource) {
-            $$parsedSource["requires"] = $$createField7_0($$parsedSource["requires"]);
+            $$parsedSource["requires"] = $$createField11_0($$parsedSource["requires"]);
         }
         return new KapiProject(/** @type {Partial<KapiProject>} */($$parsedSource));
     }
@@ -937,7 +1053,7 @@ export class PluginStatus {
      * @returns {PluginStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType28;
+        const $$createField1_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
@@ -1060,6 +1176,54 @@ export class SegmentationDefaults {
 }
 
 /**
+ * ShipGateRule is one recipe `ship_gates` entry: a selector (`when:`) plus the
+ * gate that applies where it matches (`gate:`). A bare entry with no `when:` is
+ * the catch-all default.
+ */
+export class ShipGateRule {
+    /**
+     * Creates a new ShipGateRule instance.
+     * @param {Partial<ShipGateRule>} [$$source = {}] - The source object to create the ShipGateRule.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {gate$0.Selector | null | undefined}
+             */
+            this["when"] = undefined;
+        }
+        if (!("gate" in $$source)) {
+            /**
+             * @member
+             * @type {GateRef}
+             */
+            this["gate"] = (new GateRef());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ShipGateRule instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ShipGateRule}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType35;
+        const $$createField1_0 = $$createType36;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("when" in $$parsedSource) {
+            $$parsedSource["when"] = $$createField0_0($$parsedSource["when"]);
+        }
+        if ("gate" in $$parsedSource) {
+            $$parsedSource["gate"] = $$createField1_0($$parsedSource["gate"]);
+        }
+        return new ShipGateRule(/** @type {Partial<ShipGateRule>} */($$parsedSource));
+    }
+}
+
+/**
  * TMDefaults governs TM pre-fill on extract and TM write-back on merge (AD-017).
  */
 export class TMDefaults {
@@ -1123,20 +1287,33 @@ const $$createType13 = BrandVoiceBinding.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);
 const $$createType15 = $Create.Map($Create.Any, $Create.Any);
 const $$createType16 = $Create.Map($Create.Any, $$createType15);
-const $$createType17 = PluginSpec.createFrom;
-const $$createType18 = $Create.Map($Create.Any, $$createType17);
-const $$createType19 = Defaults.createFrom;
-const $$createType20 = ContentCollection.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = flow$0.StepsSpec.createFrom;
-const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = $Create.Map($Create.Any, $$createType23);
-var $$createType25 = /** @type {(...args: any[]) => any} */(function $$initCreateType25(...args) {
-    if ($$createType25 === $$initCreateType25) {
-        $$createType25 = $$createType26;
+var $$createType17 = /** @type {(...args: any[]) => any} */(function $$initCreateType17(...args) {
+    if ($$createType17 === $$initCreateType17) {
+        $$createType17 = $$createType18;
     }
-    return $$createType25(...args);
+    return $$createType17(...args);
 });
-const $$createType26 = $Create.Map($Create.Any, $Create.Any);
-const $$createType27 = PluginIssue.createFrom;
+const $$createType18 = $Create.Map($Create.Any, $Create.Any);
+const $$createType19 = PluginSpec.createFrom;
+const $$createType20 = $Create.Map($Create.Any, $$createType19);
+const $$createType21 = Defaults.createFrom;
+const $$createType22 = ContentCollection.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = flow$0.StepsSpec.createFrom;
+const $$createType25 = $Create.Nullable($$createType24);
+const $$createType26 = $Create.Map($Create.Any, $$createType25);
+const $$createType27 = ShipGateRule.createFrom;
 const $$createType28 = $Create.Array($$createType27);
+const $$createType29 = $Create.Map($Create.Any, $$createType17);
+var $$createType30 = /** @type {(...args: any[]) => any} */(function $$initCreateType30(...args) {
+    if ($$createType30 === $$initCreateType30) {
+        $$createType30 = $$createType31;
+    }
+    return $$createType30(...args);
+});
+const $$createType31 = $Create.Map($Create.Any, $Create.Any);
+const $$createType32 = PluginIssue.createFrom;
+const $$createType33 = $Create.Array($$createType32);
+const $$createType34 = gate$0.Selector.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);
+const $$createType36 = GateRef.createFrom;

@@ -399,6 +399,53 @@ export interface ProjectStatus {
   collections: CollectionStatus[];
 }
 
+// --- Convergence (the derived state model: cli.ConvergenceReport) ---
+
+/** One unmet gate threshold: a state below its required percent. */
+export interface GateShortfall {
+  state: string;
+  actual: number;
+  required: number;
+}
+
+/** Per-(collection, locale) target coverage + ship-gate standing. */
+export interface LocaleCoverage {
+  locale: string;
+  collection?: string;
+  total: number;
+  /** Ladder state → "at least" percent (draft|translated|reviewed|signed-off). */
+  pct: Record<string, number>;
+  gated: boolean;
+  shippable: boolean;
+  pending?: GateShortfall[];
+}
+
+/** Project-wide source authoring readiness (authored|checked|approved). */
+export interface SourceCoverage {
+  total: number;
+  pct: Record<string, number>;
+  gated: boolean;
+  shippable: boolean;
+  pending?: GateShortfall[];
+}
+
+/** One translated-but-unreviewed unit awaiting human review. */
+export interface ReviewItem {
+  locale: string;
+  file: string;
+  key: string;
+  source: string;
+  target?: string;
+}
+
+/** The full derived convergence picture for a project. */
+export interface ConvergenceReport {
+  project?: string;
+  source?: SourceCoverage;
+  locales: LocaleCoverage[];
+  review: ReviewItem[];
+}
+
 /** One skipped file from an extraction request. */
 export interface ExtractSkip {
   path: string;
