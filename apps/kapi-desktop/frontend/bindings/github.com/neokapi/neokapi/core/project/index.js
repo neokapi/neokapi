@@ -10,6 +10,7 @@ export {
     FlowValidationIssue,
     FormatDefaults,
     FormatSpec,
+    GateRef,
     KapiProject,
     MergeDefaults,
     PluginIssue,
@@ -17,6 +18,7 @@ export {
     PluginStatus,
     RedactionSpec,
     SegmentationDefaults,
+    ShipGateRule,
     TMDefaults
 } from "./models.js";
 

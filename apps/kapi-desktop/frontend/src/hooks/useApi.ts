@@ -27,6 +27,7 @@ import type {
   SessionState,
   ProjectStatus,
   ExtractResult,
+  ConvergenceReport,
   AdoptFlowResult,
   ProjectHandles,
 } from "../types/api";
@@ -103,6 +104,8 @@ export const api = {
   getProjectPath: (tabID: string) => call<string>("GetProjectPath", tabID),
   getProjectStatus: (tabID: string) => call<ProjectStatus>("GetProjectStatus", tabID),
   runExtract: (tabID: string) => call<ExtractResult>("RunExtract", tabID),
+  getConvergence: (tabID: string) => call<ConvergenceReport>("GetConvergence", tabID),
+  bringUpToDate: (tabID: string) => call<void>("BringUpToDate", tabID),
 
   // App mode + session (project-first restore)
   getAppMode: () => call<string>("GetAppMode"),

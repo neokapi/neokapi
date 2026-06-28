@@ -21,7 +21,7 @@ import (
 	// Blank-import the cli package so its init() registrations run in the desktop
 	// too — command factories, MCP tools, and any cli-registered AI providers —
 	// keeping the desktop's tool and provider lists in sync with the CLI.
-	_ "github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/cli"
 	appconfig "github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/credentials"
 	cliI18n "github.com/neokapi/neokapi/cli/i18n"
@@ -78,6 +78,14 @@ type App struct {
 
 	// Flow runner
 	runState *runner
+
+	// convergence is the shared cli.App used to derive convergence reports
+	// (per-locale coverage, ship gates, source readiness, the review queue) — the
+	// same file-based derivation `kapi status` / `kapi verify` use, so the desktop
+	// project view shows the same numbers as the CLI. Built lazily so its format
+	// and tool registries register once, not per request.
+	convergence   *cli.App
+	convergenceMu sync.Mutex
 
 	// TM and Termbase handles
 	tmHandles *handleStore[*sievepen.SQLiteTM]
