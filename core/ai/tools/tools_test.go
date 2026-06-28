@@ -49,6 +49,13 @@ func TestAITranslateToolSetsTarget(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
 	assert.Len(t, mock.TranslateCalls, 1)
+
+	// The producer stamps lifecycle + provenance so coverage and ship gates can
+	// see how far the unit has progressed (a fresh machine translation = draft).
+	tgt := resultBlock.Target(model.LocaleFrench)
+	require.NotNil(t, tgt)
+	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+	assert.Equal(t, model.OriginAI, tgt.Origin.Kind)
 }
 
 func TestAITranslateToolSkipsNonTranslatable(t *testing.T) {

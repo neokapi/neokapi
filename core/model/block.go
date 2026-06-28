@@ -140,6 +140,18 @@ func (b *Block) Target(locale LocaleID) *Target { return b.Targets[Variant(local
 // TargetVariant returns the committed target for a full variant key, or nil.
 func (b *Block) TargetVariant(key VariantKey) *Target { return b.Targets[key] }
 
+// StampTargetProvenance records how a locale's committed target was produced —
+// its lifecycle status and origin — without touching its runs. It is a no-op
+// when no target exists for the locale, so producers can set the text and stamp
+// provenance in two steps. A producer (AI/MT/recycle/…) calls this so coverage
+// and ship gates can see how far each unit has progressed.
+func (b *Block) StampTargetProvenance(locale LocaleID, status TargetStatus, origin Origin) {
+	if t := b.Target(locale); t != nil {
+		t.Status = status
+		t.Origin = origin
+	}
+}
+
 // SetTarget stores a committed target for a locale variant.
 func (b *Block) SetTarget(locale LocaleID, t *Target) { b.SetTargetVariant(Variant(locale), t) }
 
