@@ -139,44 +139,48 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 		maxPasses = 1
 	}
 
-	passes := 0
-	for {
-		cov, err := a.deriveCoverage(ctx, proj, root)
-		if err != nil {
-			return err
-		}
-		pending := localesNeedingPass(cov, locales)
-		if len(pending) == 0 {
-			// Already converged before this pass (or after the previous one).
-			return a.printConverge(cmd, flowName, passes, cov, locales)
-		}
+	// Share one parse cache across every pass: unchanged source files parse once,
+	// not once per pass; only the targets a pass rewrites re-parse.
+	return a.withParseCache(root, func() error {
+		passes := 0
+		for {
+			cov, err := a.deriveCoverage(ctx, proj, root)
+			if err != nil {
+				return err
+			}
+			pending := localesNeedingPass(cov, locales)
+			if len(pending) == 0 {
+				// Already converged before this pass (or after the previous one).
+				return a.printConverge(cmd, flowName, passes, cov, locales)
+			}
 
-		before := producedUnits(cov)
-		passes++
-		for _, loc := range pending {
-			a.TargetLang = string(loc)
-			rCtx := flow.ResourceContext{ProjectDir: projectDir, SourceLocale: a.SourceLang, TargetLocale: string(loc)}
-			if err := a.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, sources); err != nil {
-				return fmt.Errorf("converge %s: %w", loc, err)
+			before := producedUnits(cov)
+			passes++
+			for _, loc := range pending {
+				a.TargetLang = string(loc)
+				rCtx := flow.ResourceContext{ProjectDir: projectDir, SourceLocale: a.SourceLang, TargetLocale: string(loc)}
+				if err := a.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, sources); err != nil {
+					return fmt.Errorf("converge %s: %w", loc, err)
+				}
+			}
+
+			cov2, err := a.deriveCoverage(ctx, proj, root)
+			if err != nil {
+				return err
+			}
+			if !untilGate {
+				return a.printConverge(cmd, flowName, passes, cov2, locales)
+			}
+			if len(localesNeedingPass(cov2, locales)) == 0 {
+				return a.printConverge(cmd, flowName, passes, cov2, locales)
+			}
+			// Stop looping when capped or when a full pass produced nothing new —
+			// the remaining locales park (the flow can't advance them unaided).
+			if passes >= maxPasses || producedUnits(cov2) <= before {
+				return a.printConverge(cmd, flowName, passes, cov2, locales)
 			}
 		}
-
-		cov2, err := a.deriveCoverage(ctx, proj, root)
-		if err != nil {
-			return err
-		}
-		if !untilGate {
-			return a.printConverge(cmd, flowName, passes, cov2, locales)
-		}
-		if len(localesNeedingPass(cov2, locales)) == 0 {
-			return a.printConverge(cmd, flowName, passes, cov2, locales)
-		}
-		// Stop looping when capped or when a full pass produced nothing new —
-		// the remaining locales park (the flow can't advance them unaided).
-		if passes >= maxPasses || producedUnits(cov2) <= before {
-			return a.printConverge(cmd, flowName, passes, cov2, locales)
-		}
-	}
+	})
 }
 
 // deriveCoverage recomputes per-scope ship coverage from the working tree —
