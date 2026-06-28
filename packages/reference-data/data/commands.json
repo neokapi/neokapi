@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-28T12:05:04Z",
+  "generatedAt": "2026-06-28T13:38:38Z",
   "commands": [
     {
       "id": "brand",
@@ -4121,8 +4121,8 @@
         "run"
       ],
       "use": "run [flow-name] [flags]",
-      "short": "Run a composed flow (multi-tool pipeline)",
-      "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi",
+      "short": "Run a composed flow, or converge the project's default flow",
+      "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\n\nWith no flow name, kapi runs the project's default flow (defaults.flow) over\nall content across every target language — bringing the project up to date in\none pass. Add --until-gate to loop that pass until every gated scope is\nshippable (or a pass stalls), parking whatever still needs a human. Convergence\nnever fails the build: parked, drifted target content is normal toil, reported\nrather than thrown.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi",
       "groupID": "processing",
       "flags": [
         {
@@ -4167,6 +4167,12 @@
           "usage": "input file path(s); repeat for multiple files",
           "default": "[]",
           "type": "stringSlice"
+        },
+        {
+          "name": "max-passes",
+          "usage": "cap on --until-gate passes (default 5)",
+          "default": "0",
+          "type": "int"
         },
         {
           "name": "model",
@@ -4234,9 +4240,17 @@
           "name": "trace",
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
+        },
+        {
+          "name": "until-gate",
+          "usage": "loop the default flow until every gated scope is shippable (or a pass stalls); parks the rest",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
+        "kapi run                                  # converge the project's default flow",
+        "kapi run --until-gate                     # loop until every gated scope ships",
         "kapi run translate-qa -i app.xliff --target-lang fr",
         "kapi run translate-qa -i messages.json --target-lang de"
       ],

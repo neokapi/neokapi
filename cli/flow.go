@@ -273,7 +273,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	// `targets/<locale>` overlays to the project store and emits no file.
 	// Materializing the localized files is then a separate `kapi merge`. An
 	// explicit -o (or no project) keeps the file-writing path below.
-	processOnly := a.projectContext != nil && projStore != nil && !cmd.Flags().Changed("output")
+	processOnly := a.projectContext != nil && projStore != nil && !cmd.Flags().Changed("output") && !a.convergeWriteFiles
 
 	// Build reader configuration callback: applies preset config + project defaults.
 	configureReader := func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
@@ -1447,6 +1447,14 @@ func (a *App) resolveProjectGlossary(cmd *cobra.Command, targetLang string) ([]c
 // and runs the flow using the standard single/multi-file execution path.
 func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName string, spec *flow.StepsSpec, rCtx *flow.ResourceContext) error {
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
+	return a.runProjectStepsOver(ctx, cmd, flowName, spec, rCtx, inputPaths)
+}
+
+// runProjectStepsOver runs a project flow's steps over an explicit input set,
+// rather than reading --input from the command. The convergence loop uses it to
+// drive the default flow over a chosen (locale, pending-files) slice per pass;
+// runProjectSteps is the thin wrapper that sources inputs from the flag.
+func (a *App) runProjectStepsOver(ctx context.Context, cmd *cobra.Command, flowName string, spec *flow.StepsSpec, rCtx *flow.ResourceContext, inputPaths []string) error {
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 
 	if a.TargetLang == "" {

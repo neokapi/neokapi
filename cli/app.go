@@ -85,6 +85,13 @@ type App struct {
 	// methods (reader creation, writer setup) can apply project format defaults.
 	projectContext *project.ProjectContext
 
+	// convergeWriteFiles forces the file-writing path even for a single input in
+	// a project, overriding the process-only default (AD-026). Convergence
+	// (`kapi run` with no flow) sets it so it materializes the localized target
+	// files its file-derived coverage then reads — uniformly, whether the project
+	// has one content file or many.
+	convergeWriteFiles bool
+
 	// projectFlowTools is set temporarily by runProjectSteps to override
 	// buildFlowTools for project-defined flows.
 	projectFlowTools []tool.Tool

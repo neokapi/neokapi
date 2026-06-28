@@ -93,13 +93,19 @@ type KapiProject struct {
 
 // Defaults holds project-wide processing defaults.
 type Defaults struct {
-	SourceLanguage  model.LocaleID            `yaml:"source_language,omitempty" json:"source_language,omitempty"`
-	TargetLanguages []model.LocaleID          `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
-	LocaleFormat    string                    `yaml:"locale_format,omitempty" json:"locale_format,omitempty"` // "bcp-47" (default) or "posix"
-	Concurrency     int                       `yaml:"concurrency,omitempty" json:"concurrency,omitempty"`
-	ParallelBlocks  int                       `yaml:"parallel_blocks,omitempty" json:"parallel_blocks,omitempty"`
-	Encoding        string                    `yaml:"encoding,omitempty" json:"encoding,omitempty"`
-	Formats         map[string]FormatDefaults `yaml:"formats,omitempty" json:"formats,omitempty"`
+	SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty" json:"source_language,omitempty"`
+	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
+
+	// Flow names the project's default flow — the one `kapi run` (with no flow
+	// argument) executes to bring the project's content up to date across every
+	// target language. It is a built-in composed flow name or a key in `flows:`.
+	// Empty means there is no default; `kapi run` then requires an explicit flow.
+	Flow           string                    `yaml:"flow,omitempty" json:"flow,omitempty"`
+	LocaleFormat   string                    `yaml:"locale_format,omitempty" json:"locale_format,omitempty"` // "bcp-47" (default) or "posix"
+	Concurrency    int                       `yaml:"concurrency,omitempty" json:"concurrency,omitempty"`
+	ParallelBlocks int                       `yaml:"parallel_blocks,omitempty" json:"parallel_blocks,omitempty"`
+	Encoding       string                    `yaml:"encoding,omitempty" json:"encoding,omitempty"`
+	Formats        map[string]FormatDefaults `yaml:"formats,omitempty" json:"formats,omitempty"`
 
 	// Exclude is a list of glob patterns skipped during content scanning.
 	Exclude []string `yaml:"exclude,omitempty" json:"exclude,omitempty"`
