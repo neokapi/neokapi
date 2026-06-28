@@ -80,6 +80,43 @@ func TestStatus_Coverage(t *testing.T) {
 	assert.False(t, ja.Shippable)
 }
 
+func shipGate(out VerifyOutput) (VerifyGateResult, bool) {
+	for _, g := range out.Gates {
+		if g.Gate == gateShip {
+			return g, true
+		}
+	}
+	return VerifyGateResult{}, false
+}
+
+func TestVerify_ShipGate(t *testing.T) {
+	t.Chdir(writeStatusProject(t))
+
+	// Without --ship: no ship gate is evaluated (drift is non-blocking here).
+	a := &App{}
+	cmd := a.NewVerifyCmd()
+	require.NoError(t, cmd.Flags().Set("json", "true"))
+	out, _ := captureStdout(t, func() error { return a.runVerify(cmd, nil) })
+	var parsed VerifyOutput
+	require.NoError(t, json.Unmarshal([]byte(out), &parsed))
+	_, has := shipGate(parsed)
+	assert.False(t, has, "ship gate must be opt-in (--ship)")
+
+	// With --ship: the ship gate runs and fails (nb/ja are below their gates).
+	a2 := &App{}
+	cmd2 := a2.NewVerifyCmd()
+	require.NoError(t, cmd2.Flags().Set("json", "true"))
+	require.NoError(t, cmd2.Flags().Set("ship", "true"))
+	out2, runErr := captureStdout(t, func() error { return a2.runVerify(cmd2, nil) })
+	var parsed2 VerifyOutput
+	require.NoError(t, json.Unmarshal([]byte(out2), &parsed2))
+	sg, has := shipGate(parsed2)
+	require.True(t, has, "--ship adds the ship gate")
+	assert.False(t, sg.Pass, "nb/ja are not shippable")
+	assert.NotEmpty(t, sg.Findings)
+	assert.Error(t, runErr, "a failed ship gate exits non-zero (the pre-release bar)")
+}
+
 func TestStatus_NeverFails(t *testing.T) {
 	// status is informational: a behind locale is reported, not an error.
 	t.Chdir(writeStatusProject(t))

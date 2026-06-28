@@ -30,6 +30,7 @@ const (
 	gateBrand = "brand"
 	gateTerms = "terminology"
 	gateQA    = "qa"
+	gateShip  = "ship"
 )
 
 // DefaultBrandMinScore is the brand compliance score below which the brand
@@ -168,6 +169,7 @@ an assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 
 	cmd.Flags().String("locale", "", "scope terminology and QA to a single target locale (e.g. fr)")
 	cmd.Flags().String("termbase", "", "named termbase or path to a glossary (defaults to the project termbase)")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
+	cmd.Flags().Bool("ship", false, "also enforce the project's ship gates: fail if any locale's coverage is below its gate (the pre-release bar). Off by default — target drift is non-blocking; see 'kapi status'.")
 	cmd.Flags().Bool("no-fail", false, "report only: exit 0 even when a gate fails (verdict is in the output/--json). Use inside an assistant fix-loop; omit for CI gating.")
 	return cmd
 }
@@ -334,7 +336,50 @@ func (a *App) computeVerify(cmd *cobra.Command, args []string) (VerifyOutput, er
 		}
 	}
 
+	// --- ship gate (opt-in: the pre-release coverage bar) ----------------
+	// By default the ship gate is *not* evaluated here — coverage is the job of
+	// `kapi status`, and target drift is non-blocking. With --ship, a locale that
+	// doesn't clear its ship gate fails verify (exit 3), for a release/tag check.
+	if ship, _ := cmd.Flags().GetBool("ship"); ship && proj.HasShipGates() {
+		units, err := a.resolveVerifyUnits(cmd, proj, root, args, localeFilter)
+		if err != nil {
+			return VerifyOutput{}, err
+		}
+		shipGate, err := a.verifyShip(cmdContext(cmd), proj, units)
+		if err != nil {
+			return VerifyOutput{}, err
+		}
+		gates = append(gates, shipGate)
+	}
+
 	return buildVerifyOutput(gates), nil
+}
+
+// verifyShip evaluates the project's ship gates over per-locale coverage. A
+// locale that does not clear its gate produces one finding per unmet threshold
+// and fails the gate. It is the enforcing counterpart of `kapi status`.
+func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, units []verifyUnit) (VerifyGateResult, error) {
+	cov, err := a.computeShipCoverage(ctx, proj, units)
+	if err != nil {
+		return VerifyGateResult{}, err
+	}
+	g := VerifyGateResult{Gate: gateShip, Pass: true}
+	for _, lc := range cov {
+		if !lc.Gated || lc.Shippable {
+			continue
+		}
+		g.Pass = false
+		for _, sf := range lc.Pending {
+			g.Findings = append(g.Findings, VerifyFinding{
+				Gate:       gateShip,
+				Locale:     lc.Locale,
+				Severity:   "error",
+				Message:    fmt.Sprintf("%s coverage %d%% is below the required %d%%", sf.State, int(sf.Actual), sf.Required),
+				Suggestion: "translate or review more content for this locale, or relax its ship gate",
+			})
+		}
+	}
+	return g, nil
 }
 
 // buildVerifyOutput aggregates per-gate results into the final structured
