@@ -144,6 +144,25 @@ func TestApplyTMEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	assert.Equal(t, "skipped", res2.Status)
 }
 
+func TestApplyTMEntry_reviewStatus(t *testing.T) {
+	a, cmd, _, _ := newApplyAssetProject(t)
+	ctx := context.Background()
+
+	base := changeEntry{Kind: kindTM, Source: "Save", Target: "Enregistrer", SourceLocale: "en", TargetLocale: "fr"}
+
+	// A signed-off status is accepted and applied.
+	so := base
+	so.Status = "signed-off"
+	res := a.applyAssetEntry(ctx, cmd, so)
+	assert.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
+
+	// An unknown review status is rejected.
+	bad := changeEntry{Kind: kindTM, Source: "Cancel", Target: "Annuler", SourceLocale: "en", TargetLocale: "fr", Status: "bogus"}
+	res2 := a.applyAssetEntry(ctx, cmd, bad)
+	assert.Equal(t, "error", res2.Status)
+	assert.Contains(t, res2.Detail, "status")
+}
+
 func TestApplyBrandEntry_writesProfileCompilesStore(t *testing.T) {
 	a, cmd, root, recipe := newApplyAssetProject(t)
 	ctx := context.Background()

@@ -91,7 +91,9 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 // correction, so an embedder can treat a redundant click as a no-op. Binding the
 // .klftm source on first use writes `defaults.tm_source` into the recipe, the
 // same one-time effect as the CLI apply path.
-func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, locale, file, key string) (bool, error) {
+// reviewState is "reviewed" (the default approval) or "signed-off" (the final
+// sign-off, the top rung). An empty string means reviewed.
+func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, locale, file, key, reviewState string) (bool, error) {
 	a.InitRegistries()
 	if ctx == nil {
 		ctx = context.Background()
@@ -135,7 +137,7 @@ func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, lo
 			if strings.TrimSpace(target) == "" {
 				return false, fmt.Errorf("unit %s has no %s translation to approve", key, locale)
 			}
-			return a.recordApprovedCorrection(ctx, projectPath, root, source, target, sourceLang, locale)
+			return a.recordApprovedCorrection(ctx, projectPath, root, source, target, sourceLang, locale, reviewState)
 		}
 	}
 	return false, fmt.Errorf("review unit %q (%s) not found in %s", key, locale, file)
@@ -144,7 +146,7 @@ func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, lo
 // recordApprovedCorrection writes one approved source→target pair into the
 // project's committed .klftm and recompiles the cache — the shared core of the
 // `kapi apply` tm path, reused so approval and apply write the corpus one way.
-func (a *App) recordApprovedCorrection(ctx context.Context, projectPath, root, source, target, sourceLang, targetLang string) (bool, error) {
+func (a *App) recordApprovedCorrection(ctx context.Context, projectPath, root, source, target, sourceLang, targetLang, reviewState string) (bool, error) {
 	srcPath, err := a.ensureTMSourceBinding(projectPath, root)
 	if err != nil {
 		return false, err
@@ -153,7 +155,7 @@ func (a *App) recordApprovedCorrection(ctx context.Context, projectPath, root, s
 	if err != nil {
 		return false, err
 	}
-	entries, changed := upsertTMPair(entries, source, target, model.LocaleID(sourceLang), model.LocaleID(targetLang))
+	entries, changed := upsertTMPair(entries, source, target, model.LocaleID(sourceLang), model.LocaleID(targetLang), reviewState)
 	if !changed {
 		return false, nil // already an approved correction
 	}
