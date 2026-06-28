@@ -187,7 +187,7 @@ func (a *App) deriveCoverage(ctx context.Context, proj *project.KapiProject, roo
 	if err != nil {
 		return nil, err
 	}
-	return a.computeShipCoverage(ctx, proj, units)
+	return a.computeShipCoverage(ctx, proj, root, units)
 }
 
 // localesNeedingPass returns the locales (in target order) that still have work:

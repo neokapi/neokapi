@@ -347,7 +347,7 @@ func (a *App) computeVerify(cmd *cobra.Command, args []string) (VerifyOutput, er
 			return VerifyOutput{}, err
 		}
 		if proj.HasShipGates() {
-			shipGate, err := a.verifyShip(cmdContext(cmd), proj, shipUnits)
+			shipGate, err := a.verifyShip(cmdContext(cmd), proj, root, shipUnits)
 			if err != nil {
 				return VerifyOutput{}, err
 			}
@@ -393,8 +393,8 @@ func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, u
 // verifyShip evaluates the project's ship gates over per-locale coverage. A
 // locale that does not clear its gate produces one finding per unmet threshold
 // and fails the gate. It is the enforcing counterpart of `kapi status`.
-func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, units []verifyUnit) (VerifyGateResult, error) {
-	cov, err := a.computeShipCoverage(ctx, proj, units)
+func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, root string, units []verifyUnit) (VerifyGateResult, error) {
+	cov, err := a.computeShipCoverage(ctx, proj, root, units)
 	if err != nil {
 		return VerifyGateResult{}, err
 	}
