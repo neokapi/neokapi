@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -59,6 +60,9 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 	for _, u := range units {
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
+			if errors.Is(berr, errTargetUnreadable) {
+				continue // can't read the target (e.g. a compiled .mo) — not reviewable per unit
+			}
 			return nil, berr
 		}
 		if missing {

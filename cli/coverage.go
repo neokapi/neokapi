@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"math"
 	"path/filepath"
 	"sort"
@@ -232,7 +233,23 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 		s := scope{collection: u.collection, locale: u.locale}
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
-			return nil, berr
+			if !errors.Is(berr, errTargetUnreadable) {
+				return nil, berr
+			}
+			// The target exists but its format can't be read back (a compiled
+			// .mo catalog, say). Per-unit measurement is impossible, so count by
+			// file-presence: the materialized target stands in for its source
+			// units as `translated`.
+			srcs, serr := a.readBlocks(ctx, u.sourcePath, a.SourceLang)
+			if serr != nil {
+				return nil, serr
+			}
+			for _, b := range srcs {
+				if b.Translatable {
+					add(s, string(model.TargetStatusTranslated))
+				}
+			}
+			continue
 		}
 		if missing {
 			// No target file yet — every translatable source unit is untranslated.

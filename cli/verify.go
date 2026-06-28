@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -798,6 +799,9 @@ func (a *App) verifyTerminology(cmd *cobra.Command, units []verifyUnit) (VerifyG
 		}
 		blocks, missing, err := a.bilingualBlocks(ctx, u)
 		if err != nil {
+			if errors.Is(err, errTargetUnreadable) {
+				continue // unmeasurable target (e.g. a compiled .mo) — can't check
+			}
 			return gate, err
 		}
 		if missing {
@@ -845,6 +849,9 @@ func (a *App) verifyQA(ctx context.Context, units []verifyUnit) (VerifyGateResul
 	for _, u := range units {
 		blocks, missing, err := a.bilingualBlocks(ctx, u)
 		if err != nil {
+			if errors.Is(err, errTargetUnreadable) {
+				continue // unmeasurable target (e.g. a compiled .mo) — can't check
+			}
 			return gate, err
 		}
 		if missing {
@@ -976,6 +983,12 @@ func defaultPlaceholderPatterns() []coretools.QAPattern {
 // format's stable key, e.g. the JSON key path), falling back to ID. Source
 // blocks with no matching target keep an empty target so QA flags them as
 // untranslated. Returns missing=true when the target file does not exist.
+// errTargetUnreadable signals that a unit's target file exists but its format
+// cannot be read back to measure it (a write-only compiled catalog like .mo).
+// Coverage treats such a target as present (file-presence); quality and review
+// paths skip the unit. Test with errors.Is.
+var errTargetUnreadable = errors.New("target format is not readable")
+
 func (a *App) bilingualBlocks(ctx context.Context, u verifyUnit) ([]*model.Block, bool, error) {
 	if _, err := os.Stat(u.targetPath); err != nil {
 		if os.IsNotExist(err) {
@@ -997,7 +1010,13 @@ func (a *App) bilingualBlocks(ctx context.Context, u verifyUnit) ([]*model.Block
 	} else {
 		targetBlocks, err = a.readBlocks(ctx, u.targetPath, a.SourceLang)
 		if err != nil {
-			return nil, false, fmt.Errorf("read target %s: %w", u.targetPath, err)
+			// The target file exists (we stat'd it above) but its format cannot
+			// be read back — e.g. a compiled .mo catalog, which is write-only
+			// through the pipeline. Per-unit measurement is impossible, so signal
+			// the caller with a typed error: coverage falls back to file-presence
+			// and the quality/review paths skip the unit, rather than the whole
+			// command failing on one unmeasurable collection.
+			return nil, false, fmt.Errorf("%w: %s: %w", errTargetUnreadable, u.targetPath, err)
 		}
 	}
 
