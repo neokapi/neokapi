@@ -181,6 +181,36 @@ func findGate(out VerifyOutput, name string) (VerifyGateResult, bool) {
 	return VerifyGateResult{}, false
 }
 
+// TestStatus_UnreadableTargetFallsBackToPresence: a content target whose format
+// is write-only (a compiled .mo catalog) cannot be read back to measure, so
+// status must not crash — it counts the materialized target by presence and
+// still reports the other collections.
+func TestStatus_UnreadableTargetFallsBackToPresence(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := t.TempDir()
+	recipe := `version: v1
+name: mo
+defaults:
+  source_language: en
+  target_languages: [nb]
+content:
+  - path: en.json
+    target: "{lang}.mo"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
+		[]byte(`{"a":"Apple","b":"Banana"}`), 0o644))
+	// A compiled .mo target exists but is not readable through the pipeline.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.mo"), []byte("\xde\x12\x04\x95compiled"), 0o644))
+
+	t.Chdir(root)
+	out := runStatusJSON(t) // must not error
+	nb, ok := locale(out, "nb")
+	require.True(t, ok)
+	assert.Equal(t, 2, nb.Total)
+	assert.Equal(t, 100, nb.Pct["translated"], "a present but unreadable target counts by presence")
+}
+
 func runStatusJSON(t *testing.T) StatusOutput {
 	t.Helper()
 	a := &App{}

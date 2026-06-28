@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -122,6 +123,9 @@ func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, lo
 		}
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
+			if errors.Is(berr, errTargetUnreadable) {
+				continue // unreadable target (e.g. a compiled .mo) — not approvable per unit
+			}
 			return false, berr
 		}
 		if missing {
