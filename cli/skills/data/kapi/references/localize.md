@@ -87,6 +87,36 @@ kapi translate ./deck.pptx --target-lang ja -o ./out/deck.ja.pptx
 profile and termbase still apply. Format is detected from the extension and
 written back unchanged (round-trip), preserving structure, tags, and placeholders.
 
+## Bring a project up to date (status → run → review)
+
+In a project, don't translate file by file — converge. State is derived from the
+files on every command (like `git status`), so always start by reading it:
+
+```bash
+kapi status                  # per-locale coverage + each scope's ship standing
+kapi run                     # converge: run the project's default flow over ALL
+                             #   content × every target language, in one pass
+kapi run --until-gate        # loop the pass until each scope ships or "parks"
+```
+
+`kapi run` with no flow name needs `defaults.flow` in the recipe; it materializes
+the localized files. Drift is never an error — a behind locale is *pending*, and
+work a machine can't finish *parks* (reported, exit 0), so neither blocks you.
+
+Review promotes a translation past `translated` to `reviewed`. The queue and the
+approval are two commands:
+
+```bash
+kapi status --review         # translated units awaiting a human
+# approve one — record its source→target as a correction (the review record):
+kapi apply <<<'{"kind":"tm","source":"Save","target":"Lagre","source_locale":"en","target_locale":"nb"}'
+```
+
+An approved correction lands in the project TM, counts the unit as `reviewed`,
+and the next `kapi run` recycles it for free. `kapi verify --ship` is the opt-in
+release bar (the `ship_gate` / `source_gate`); plain `kapi verify` stays
+non-blocking about coverage.
+
 ## Keep terminology consistent
 
 ```bash
