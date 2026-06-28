@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
@@ -228,4 +229,70 @@ func newRunSingleFileCmd(t *testing.T, a *App) *cobra.Command {
 	cmd := &cobra.Command{Use: "x", RunE: func(*cobra.Command, []string) error { return nil }}
 	a.addFlowRunFlags(cmd)
 	return cmd
+}
+
+// runDocCacheKeys returns the document-cache config keys present after a run,
+// opening the project's parse cache directly. A "|run|" key proves the flow
+// runner populated the L1 document cache through the real wiring.
+func runDocCacheKeys(t *testing.T, recipe string) []string {
+	t.Helper()
+	layout, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	c, err := openParseCache(layout.CacheDir())
+	require.NoError(t, err)
+	defer c.close()
+	rows, err := c.db.Query(`SELECT config_key FROM file_documents`)
+	require.NoError(t, err)
+	defer rows.Close()
+	var keys []string
+	for rows.Next() {
+		var k string
+		require.NoError(t, rows.Scan(&k))
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+// TestRun_InProject_PopulatesAndReusesDocumentCache verifies the real CLI wiring:
+// a process-only run populates the project document cache (L1) under a "|run|"
+// key, and a second run produces the identical work (served from the cache).
+func TestRun_InProject_PopulatesAndReusesDocumentCache(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, srcRel, root := processOnlyProjectFixture(t, []model.LocaleID{"fr-FR"})
+	src := filepath.Join(root, srcRel)
+
+	out, err := runRunCmd(t, a, recipe, "pseudo", "-i", src)
+	require.NoError(t, err, "run output: %s", out)
+
+	keys := runDocCacheKeys(t, recipe)
+	hasRunKey := false
+	for _, k := range keys {
+		if strings.Contains(k, "|run|") {
+			hasRunKey = true
+		}
+	}
+	assert.True(t, hasRunKey, "the flow runner must populate the document cache under a |run| key; got %v", keys)
+	first := storeOverlayCount(t, recipe, "targets/fr-FR")
+	assert.Equal(t, 1, first)
+
+	// Second run: served from the cache, identical committed work.
+	a2 := processOnlyApp(t)
+	out2, err := runRunCmd(t, a2, recipe, "pseudo", "-i", src)
+	require.NoError(t, err, "second run output: %s", out2)
+	assert.Equal(t, first, storeOverlayCount(t, recipe, "targets/fr-FR"),
+		"a cache-served re-run commits the identical overlays")
+
+	// Rebuild invariant: delete the cache, re-run → still correct.
+	require.NoError(t, os.RemoveAll(layoutCacheDir(t, recipe)))
+	a3 := processOnlyApp(t)
+	out3, err := runRunCmd(t, a3, recipe, "pseudo", "-i", src)
+	require.NoError(t, err, "post-rebuild run output: %s", out3)
+	assert.Equal(t, first, storeOverlayCount(t, recipe, "targets/fr-FR"))
+}
+
+func layoutCacheDir(t *testing.T, recipe string) string {
+	t.Helper()
+	layout, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	return layout.CacheDir()
 }

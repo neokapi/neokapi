@@ -260,12 +260,21 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	// overlays — that is what lets a later run skip already-done steps and
 	// makes the project's working state packable (AD-025 §5). Identical
 	// output either way; the store only adds the overlay cache.
+	// In project mode also open the document cache (L1): the runner parses
+	// each source once and replays it on a later run — the parse companion to
+	// the block store's overlay cache. Both live in .kapi/cache and rebuild
+	// from the files. Identical output either way.
 	var projStore blockstore.Store
+	var runnerCache flow.PartCache
+	var runnerCacheKey string
 	if a.projectContext != nil {
 		if s := a.openProjectBlockStore(); s != nil {
 			projStore = s
 			defer s.Close()
 		}
+		closeCache := a.openParseCacheDefer(a.projectContext.ProjectDir)
+		defer closeCache()
+		runnerCache, runnerCacheKey = a.runnerPartCache(a.projectContext.ProjectDir, mergedConfig)
 	}
 
 	// Process-only default in a project (AD-026 §3/§5): when a .kapi recipe is
@@ -299,6 +308,8 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		Recorder:        recorder,
 		Store:           projStore,
 		ConfigureReader: configureReader,
+		PartCache:       runnerCache,
+		PartCacheKey:    runnerCacheKey,
 	})
 
 	if processOnly {

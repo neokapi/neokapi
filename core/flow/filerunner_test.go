@@ -537,3 +537,107 @@ func injectMerge(t *testing.T, src []byte, ref string) []byte {
 	require.NoError(t, zw.Close())
 	return buf.Bytes()
 }
+
+// fakePartCache is an in-memory flow.PartCache that records Get/Put calls so a
+// test can prove the runner consulted it and, on a hit, drove the run from the
+// cached parts rather than re-parsing the file.
+type fakePartCache struct {
+	store map[string][]*model.Part
+	gets  int
+	puts  int
+}
+
+func newFakePartCache() *fakePartCache { return &fakePartCache{store: map[string][]*model.Part{}} }
+
+func (c *fakePartCache) GetDocument(path, configKey string) ([]*model.Part, bool) {
+	c.gets++
+	p, ok := c.store[path+"\x00"+configKey]
+	return p, ok
+}
+
+func (c *fakePartCache) PutDocument(path, configKey string, parts []*model.Part) {
+	c.puts++
+	c.store[path+"\x00"+configKey] = parts
+}
+
+// TestFileRunner_ProcessOnly_UsesPartCache proves the process-only runner reads
+// through the document cache: a first run parses and stores the file's parts; a
+// second run is served from the cache (no put). And when the cache is pre-seeded
+// with sentinel parts, the run is driven by THOSE parts, not the file — decisive
+// evidence the reader is bypassed on a hit.
+func TestFileRunner_ProcessOnly_UsesPartCache(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "input.json")
+	require.NoError(t, os.WriteFile(inputPath, []byte(`{"greeting":"Hello World"}`), 0o644))
+
+	newStore := func(name string) blockstore.Store {
+		s, err := sqlitestore.New(filepath.Join(dir, name))
+		require.NoError(t, err)
+		t.Cleanup(func() { s.Close() })
+		return s
+	}
+	pseudo := func() tool.Tool {
+		pt, err := tools.NewPseudoTranslateFromConfig(map[string]any{"target_locale": "qps"}, "qps")
+		require.NoError(t, err)
+		return pt
+	}
+	overlayHashes := func(s blockstore.Store) []string {
+		sess, err := s.Begin(context.Background())
+		require.NoError(t, err)
+		defer sess.Close()
+		var out []string
+		for ov, err := range sess.ListOverlays("targets/qps") {
+			require.NoError(t, err)
+			out = append(out, ov.BlockHash)
+		}
+		return out
+	}
+
+	cache := newFakePartCache()
+
+	// First run: cache miss → parse the file and store its parts.
+	store1 := newStore("blocks1.db")
+	r1 := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg: reg, SourceLocale: "en-US", Store: store1,
+		PartCache: cache, PartCacheKey: "k",
+	})
+	require.NoError(t, r1.RunFileProcessOnly(context.Background(),
+		"pseudo-translate", []tool.Tool{pseudo()}, inputPath, "qps"))
+	assert.Equal(t, 1, cache.gets, "first run consults the cache once")
+	assert.Equal(t, 1, cache.puts, "a cache miss stores the parsed document")
+	require.Len(t, cache.store, 1, "exactly one document cached")
+
+	// Second run: cache hit → no new put (served from the cache).
+	store2 := newStore("blocks2.db")
+	r2 := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg: reg, SourceLocale: "en-US", Store: store2,
+		PartCache: cache, PartCacheKey: "k",
+	})
+	require.NoError(t, r2.RunFileProcessOnly(context.Background(),
+		"pseudo-translate", []tool.Tool{pseudo()}, inputPath, "qps"))
+	assert.Equal(t, 2, cache.gets)
+	assert.Equal(t, 1, cache.puts, "the second run is served from the cache; no re-parse, no put")
+	assert.Equal(t, overlayHashes(store1), overlayHashes(store2),
+		"a cache-served run produces the identical work as the parsed run")
+
+	// Decisive: pre-seed the cache for a fresh key with a SENTINEL block that is
+	// not in the file. The run must commit an overlay for the sentinel's hash —
+	// proving cached parts, not the file, drove it.
+	sentinel := model.NewBlock("sentinel-hash", "Only In Cache")
+	sentinel.Translatable = true
+	cache.store[inputPath+"\x00"+"json|run|seed"] = []*model.Part{
+		{Type: model.PartBlock, Resource: sentinel},
+	}
+	store3 := newStore("blocks3.db")
+	r3 := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg: reg, SourceLocale: "en-US", Store: store3,
+		PartCache: cache, PartCacheKey: "seed",
+	})
+	require.NoError(t, r3.RunFileProcessOnly(context.Background(),
+		"pseudo-translate", []tool.Tool{pseudo()}, inputPath, "qps"))
+	assert.Equal(t, []string{"sentinel-hash"}, overlayHashes(store3),
+		"the run was driven by the cached parts, not by re-parsing the file")
+}

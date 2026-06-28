@@ -108,6 +108,35 @@ type FileRunnerConfig struct {
 	// (AD-025 §5). nil (the default) uses an ephemeral in-memory store, so
 	// one-shot runs are unchanged.
 	Store blockstore.Store
+
+	// PartCache, when non-nil, is the project's document cache: the runner
+	// consults it before parsing a source so a file another operation (status,
+	// a prior run) already parsed under the same config is replayed from the
+	// cache instead of re-read. It is the L1 companion to Store's L2 overlay
+	// cache — together they are the project's one internal model. nil (ad-hoc,
+	// no project) parses directly. See PartCacheKey for the config key.
+	PartCache PartCache
+
+	// PartCacheKey fingerprints the parse configuration the caller applied
+	// (format config map + source locale) so the document cache never serves a
+	// document parsed under different config. The runner combines it with the
+	// per-file detected format. Empty when PartCache is nil.
+	PartCacheKey string
+}
+
+// PartCache is the file runner's optional document cache: a hit returns a file's
+// full Part stream from a prior parse under the same config, so the reader never
+// runs. Implemented by the CLI over the project's `.kapi/cache` (rebuildable from
+// the files), it is the seam that makes kapi parse each source once in project
+// mode. The configKey the runner passes already folds in the detected format and
+// the caller's PartCacheKey, so implementations key on (path, configKey) plus
+// their own staleness check (content hash) over the file.
+type PartCache interface {
+	// GetDocument returns the cached Part stream for a file under configKey when
+	// it is fresh relative to the file on disk. ok=false → the runner parses.
+	GetDocument(path, configKey string) (parts []*model.Part, ok bool)
+	// PutDocument records a freshly-parsed Part stream for a file under configKey.
+	PutDocument(path, configKey string, parts []*model.Part)
 }
 
 // FileRunner runs a full read → process → write pipeline for a single file.
@@ -260,6 +289,57 @@ func (r *FileRunner) readParts(ctx context.Context, reader format.DataFormatRead
 	return parts, nil
 }
 
+// cachedReadParts is readParts with the document cache in front: on a cache hit
+// it returns the file's Part stream from a prior parse (under the same config)
+// without opening the reader; on a miss it parses, stores the result, and
+// returns it. Used by the process-only project path, where there is no writer or
+// skeleton round-trip — only the parts feeding the executor matter, so replaying
+// a cached parse is exact. It opens the source file itself (readParts' caller
+// did) so the open is skipped entirely on a hit.
+func (r *FileRunner) cachedReadParts(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string) ([]*model.Part, error) {
+	key := r.partCacheKey(reader.Name())
+	if r.cfg.PartCache != nil {
+		if parts, ok := r.cfg.PartCache.GetDocument(inputPath, key); ok {
+			reader.Close() // never opened — release the unused reader
+			// Replay reader-stage trace events so --trace is identical to a parse.
+			if r.cfg.Recorder != nil {
+				for _, p := range parts {
+					if p != nil && p.Resource != nil {
+						r.cfg.Recorder.SnapshotPart(p, "reader", "initial")
+						r.cfg.Recorder.Record(TraceExit, "reader", p.Resource.ResourceID(), nil)
+					}
+				}
+			}
+			return parts, nil
+		}
+	}
+
+	source, err := openBudgetedFile(inputPath)
+	if err != nil {
+		reader.Close()
+		return nil, fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
+	}
+	parts, err := r.readParts(ctx, reader, source, inputPath, targetLang)
+	if err != nil {
+		return nil, err
+	}
+	if r.cfg.PartCache != nil {
+		r.cfg.PartCache.PutDocument(inputPath, key, parts)
+	}
+	return parts, nil
+}
+
+// partCacheKey is the document-cache key for a parse: the per-file detected
+// format plus the caller's config fingerprint (format config + source locale).
+// Namespaced "run|" so it never collides with other consumers' keys for the same
+// file. Returns "" when no cache is configured (the key is then unused).
+func (r *FileRunner) partCacheKey(formatName string) string {
+	if r.cfg.PartCache == nil {
+		return ""
+	}
+	return formatName + "|run|" + r.cfg.PartCacheKey
+}
+
 // feedReader streams the reader's Parts directly into inCh (phase 2/3): the
 // reader runs concurrently with the executor and writer, so neither the whole
 // input nor the whole Part stream is buffered. It records reader-stage trace
@@ -326,12 +406,7 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 		return errors.New("process-only run requires a persistent block store; the configured store is ephemeral")
 	}
 
-	source, err := openBudgetedFile(inputPath)
-	if err != nil {
-		reader.Close()
-		return fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
-	}
-	parts, err := r.readParts(ctx, reader, source, inputPath, targetLang)
+	parts, err := r.cachedReadParts(ctx, reader, inputPath, targetLang)
 	if err != nil {
 		return err
 	}
