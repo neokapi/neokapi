@@ -61,6 +61,14 @@ func TestPseudoTranslateTool(t *testing.T) {
 	assert.Contains(t, targetText, "\u00e9")
 	// The 'o' in "Hello" should have been replaced with 'ö'.
 	assert.Contains(t, targetText, "\u00f6")
+
+	// Pseudo output is a placeholder: it must be stamped `draft`, never
+	// `translated`, so ship-gate coverage never counts it as real translation.
+	tgt := resultBlock.Target("qps")
+	if assert.NotNil(t, tgt) {
+		assert.Equal(t, model.TargetStatusDraft, tgt.Status)
+		assert.Equal(t, "pseudo-translate", tgt.Origin.Tool)
+	}
 }
 
 func TestPseudoTranslateToolPreservesPlaceholders(t *testing.T) {
