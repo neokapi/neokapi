@@ -75,6 +75,12 @@ var (
 	// `N+` (colspan N), `.M+` (rowspan M), `N.M+` (both). Alignment/style/repeat
 	// operators are not parsed here.
 	reCellSpec = regexp.MustCompile(`^(\d+)?(?:\.(\d+))?\+$`)
+
+	// reColsAttr captures the value of a table `cols=` attribute, quoted or bare
+	// (e.g. cols=3, cols="1,1,1", cols="3*"). reHeaderOpt matches the header
+	// option in either the `%header` shorthand or `options="header"` long form.
+	reColsAttr  = regexp.MustCompile(`cols\s*=\s*(?:"([^"]*)"|([^,\s\]]+))`)
+	reHeaderOpt = regexp.MustCompile(`%header\b|options\s*=\s*"?[^"\]]*\bheader\b`)
 )
 
 // NewReader creates a new AsciiDoc reader.
@@ -242,6 +248,16 @@ func (r *Reader) processBlock(ctx context.Context, ch chan<- model.PartResult, l
 		return i + 1
 
 	case reBlockAttr.MatchString(text):
+		// A block-attribute line applies to the block that immediately follows.
+		// When that block is a table, capture its `cols=` / `%header` so the table
+		// parses with the right column count and header even when each cell is on
+		// its own line (no blank-line row boundary to infer the width from). The
+		// attribute bytes still ride the skeleton for a byte-exact round-trip.
+		if r.cfg.ExtractTableCells && i+1 < len(lines) && reTableDelim.MatchString(lines[i+1].text) {
+			cols, header := parseTableAttrs(text)
+			r.emitData(ctx, ch, "block-attribute", string(r.source[line.start:line.end]))
+			return r.processTableWith(ctx, ch, lines, i+1, cols, header)
+		}
 		r.emitData(ctx, ch, "block-attribute", string(r.source[line.start:line.end]))
 		return i + 1
 
@@ -381,6 +397,15 @@ func (r *Reader) processList(ctx context.Context, ch chan<- model.PartResult, li
 // Cell text round-trips byte-exact via the skeleton; the pipes, specs, and
 // newlines stay skeleton.
 func (r *Reader) processTable(ctx context.Context, ch chan<- model.PartResult, lines []srcLine, i int) int {
+	return r.processTableWith(ctx, ch, lines, i, 0, false)
+}
+
+// processTableWith is processTable with optional column/header overrides parsed
+// from a preceding `[cols=N,%header]` block attribute. attrCols > 0 sets the
+// column count (so per-line cells group into rows of N); attrHeader promotes the
+// first row to a header. When both are zero/false the table is inferred from its
+// content (cells on the first row; header when a blank line follows it).
+func (r *Reader) processTableWith(ctx context.Context, ch chan<- model.PartResult, lines []srcLine, i, attrCols int, attrHeader bool) int {
 	// Find the closing delimiter (or run to EOF).
 	closeIdx := -1
 	for j := i + 1; j < len(lines); j++ {
@@ -406,9 +431,16 @@ func (r *Reader) processTable(ctx context.Context, ch chan<- model.PartResult, l
 	}
 
 	// Default column count = cells on the first content row. Header row when a
-	// blank line immediately follows the first content row.
+	// blank line immediately follows the first content row. An explicit
+	// `[cols=N]` / `%header` attribute overrides the inference.
 	colCount := cells[0].rowCells
 	header := cells[0].headerRow
+	if attrCols > 0 {
+		colCount = attrCols
+	}
+	if attrHeader {
+		header = true
+	}
 
 	if !r.openGroup(ctx, ch, "table", "table", 0, nil) {
 		return len(lines)
@@ -459,6 +491,43 @@ func (r *Reader) processTable(ctx context.Context, ch chan<- model.PartResult, l
 		return len(lines)
 	}
 	return closeIdx + 1
+}
+
+// parseTableAttrs extracts the column count and header flag from a table
+// block-attribute line (e.g. `[%header,cols=3]`). cols is 0 when no parseable
+// `cols=` is present (the caller then infers from content).
+func parseTableAttrs(line string) (cols int, header bool) {
+	if m := reColsAttr.FindStringSubmatch(line); m != nil {
+		val := m[1]
+		if val == "" {
+			val = m[2]
+		}
+		cols = colsCount(val)
+	}
+	header = reHeaderOpt.MatchString(line)
+	return cols, header
+}
+
+// colsCount derives the logical column count from a `cols=` value: a plain
+// integer (`3`), a comma list of column specs (`1,1,1` → 3), or the repeat form
+// (`3*` / `3*<spec>` → 3). Returns 0 when it cannot be determined.
+func colsCount(spec string) int {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return 0
+	}
+	if star := strings.IndexByte(spec, '*'); star > 0 {
+		if n, err := strconv.Atoi(strings.TrimSpace(spec[:star])); err == nil && n > 0 {
+			return n
+		}
+	}
+	if strings.Contains(spec, ",") {
+		return len(strings.Split(spec, ","))
+	}
+	if n, err := strconv.Atoi(spec); err == nil && n > 0 {
+		return n
+	}
+	return 0
 }
 
 // tableCell is one non-empty cell's content byte range plus per-first-cell
