@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 )
 
@@ -75,4 +77,91 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 		report.Source = &src
 	}
 	return report, nil
+}
+
+// ApproveReviewUnit promotes one review-queue unit to `reviewed` by recording its
+// current source→target translation as an approved correction in the project's
+// committed .klftm — exactly what `kapi apply` (a tm correction) does, the same
+// review record `kapi status --review` derives from. The unit is addressed by
+// (locale, file, key) as listed in the review queue: the method re-reads the
+// exact source and target text (not the truncated previews) before writing, so
+// the approved pair is precise.
+//
+// It returns approved=false (no error) when the pair is already an approved
+// correction, so an embedder can treat a redundant click as a no-op. Binding the
+// .klftm source on first use writes `defaults.tm_source` into the recipe, the
+// same one-time effect as the CLI apply path.
+func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, locale, file, key string) (bool, error) {
+	a.InitRegistries()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return false, fmt.Errorf("load project: %w", err)
+	}
+	root := filepath.Dir(projectPath)
+	if sourceLang == "" {
+		sourceLang = string(proj.Defaults.SourceLanguage)
+	}
+	if sourceLang == "" {
+		sourceLang = "en"
+	}
+	a.SourceLang = sourceLang
+
+	units, err := a.unitsFromProject(proj, root, locale)
+	if err != nil {
+		return false, fmt.Errorf("resolve content: %w", err)
+	}
+
+	for _, u := range units {
+		if u.locale != locale || u.displayPath != file {
+			continue
+		}
+		blocks, missing, berr := a.bilingualBlocks(ctx, u)
+		if berr != nil {
+			return false, berr
+		}
+		if missing {
+			continue
+		}
+		loc := model.LocaleID(locale)
+		for _, b := range blocks {
+			if !b.Translatable || blockKey(b) != key {
+				continue
+			}
+			source := b.SourceText()
+			target := b.TargetText(loc)
+			if strings.TrimSpace(target) == "" {
+				return false, fmt.Errorf("unit %s has no %s translation to approve", key, locale)
+			}
+			return a.recordApprovedCorrection(ctx, projectPath, root, source, target, sourceLang, locale)
+		}
+	}
+	return false, fmt.Errorf("review unit %q (%s) not found in %s", key, locale, file)
+}
+
+// recordApprovedCorrection writes one approved source→target pair into the
+// project's committed .klftm and recompiles the cache — the shared core of the
+// `kapi apply` tm path, reused so approval and apply write the corpus one way.
+func (a *App) recordApprovedCorrection(ctx context.Context, projectPath, root, source, target, sourceLang, targetLang string) (bool, error) {
+	srcPath, err := a.ensureTMSourceBinding(projectPath, root)
+	if err != nil {
+		return false, err
+	}
+	entries, err := loadKLFTMEntries(srcPath)
+	if err != nil {
+		return false, err
+	}
+	entries, changed := upsertTMPair(entries, source, target, model.LocaleID(sourceLang), model.LocaleID(targetLang))
+	if !changed {
+		return false, nil // already an approved correction
+	}
+	if err := writeKLFTM(srcPath, entries); err != nil {
+		return false, err
+	}
+	if err := a.compileTMSource(ctx, root, srcPath); err != nil {
+		return false, err
+	}
+	return true, nil
 }

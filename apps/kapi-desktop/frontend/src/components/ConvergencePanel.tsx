@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button, Card, CardContent } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
-import { CheckCircle2, ClipboardCheck, Loader2, PlayCircle, RefreshCw } from "lucide-react";
+import { Check, CheckCircle2, ClipboardCheck, Loader2, PlayCircle, RefreshCw } from "lucide-react";
 import { api } from "../hooks/useApi";
 import type {
   ConvergenceReport,
   GateShortfall,
   LocaleCoverage,
+  ReviewItem,
   SourceCoverage,
 } from "../types/api";
 
@@ -19,6 +20,8 @@ export interface ConvergencePanelProps {
   tabID: string;
   /** Pre-loaded report for Storybook/tests — skips the Wails call. */
   report?: ConvergenceReport;
+  /** Override the approve action (tests/Storybook); defaults to the Wails call. */
+  onApprove?: (item: ReviewItem) => Promise<void>;
 }
 
 /**
@@ -29,10 +32,11 @@ export interface ConvergencePanelProps {
  * the same derived state `kapi status` / `kapi verify` report — the desktop
  * embodiment of the convergence model.
  */
-export function ConvergencePanel({ tabID, report: propReport }: ConvergencePanelProps) {
+export function ConvergencePanel({ tabID, report: propReport, onApprove }: ConvergencePanelProps) {
   const [report, setReport] = useState<ConvergenceReport | null>(propReport ?? null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [approving, setApproving] = useState<Set<string>>(new Set());
 
   const refresh = useCallback(() => {
     if (propReport) return;
@@ -75,6 +79,31 @@ export function ConvergencePanel({ tabID, report: propReport }: ConvergencePanel
       setRunning(false);
     }
   }, [tabID, refresh]);
+
+  const approve = useCallback(
+    async (item: ReviewItem) => {
+      const id = `${item.locale}:${item.file}:${item.key}`;
+      setApproving((s) => new Set(s).add(id));
+      setError(null);
+      try {
+        if (onApprove) {
+          await onApprove(item);
+        } else {
+          await api.approveReviewItem(tabID, item.locale, item.file, item.key);
+        }
+        refresh();
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setApproving((s) => {
+          const next = new Set(s);
+          next.delete(id);
+          return next;
+        });
+      }
+    },
+    [tabID, onApprove, refresh],
+  );
 
   if (error && !report) {
     return (
@@ -143,7 +172,7 @@ export function ConvergencePanel({ tabID, report: propReport }: ConvergencePanel
         </Card>
       )}
 
-      <ReviewQueue items={review} />
+      <ReviewQueue items={review} approving={approving} onApprove={approve} />
     </div>
   );
 }
@@ -251,7 +280,15 @@ function SourceReadinessRow({ source }: { source: SourceCoverage }) {
   );
 }
 
-function ReviewQueue({ items }: { items: ConvergenceReport["review"] }) {
+function ReviewQueue({
+  items,
+  approving,
+  onApprove,
+}: {
+  items: ReviewItem[];
+  approving: Set<string>;
+  onApprove: (item: ReviewItem) => void;
+}) {
   if (items.length === 0) {
     return (
       <div
@@ -271,17 +308,46 @@ function ReviewQueue({ items }: { items: ConvergenceReport["review"] }) {
           {t("{count} awaiting review", { count: items.length })}
         </header>
         <ul className="space-y-1.5">
-          {items.slice(0, 50).map((it, i) => (
-            <li key={`${it.file}:${it.key}:${i}`} className="text-xs" data-locale={it.locale}>
-              <div className="flex items-center gap-2">
-                <span className="font-mono uppercase text-muted-foreground">{it.locale}</span>
-                <span className="truncate text-muted-foreground" title={`${it.file}:${it.key}`}>
-                  {it.file}:{it.key}
-                </span>
-              </div>
-              <div className="truncate pl-1">{it.source}</div>
-            </li>
-          ))}
+          {items.slice(0, 50).map((it, i) => {
+            const id = `${it.locale}:${it.file}:${it.key}`;
+            const busy = approving.has(id);
+            return (
+              <li
+                key={`${it.file}:${it.key}:${i}`}
+                className="flex items-start gap-2 text-xs"
+                data-locale={it.locale}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono uppercase text-muted-foreground">{it.locale}</span>
+                    <span className="truncate text-muted-foreground" title={`${it.file}:${it.key}`}>
+                      {it.file}:{it.key}
+                    </span>
+                  </div>
+                  <div className="truncate pl-1" title={it.source}>
+                    {it.source}
+                  </div>
+                  {it.target && (
+                    <div className="truncate pl-1 text-muted-foreground" title={it.target}>
+                      → {it.target}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="shrink-0"
+                  disabled={busy}
+                  onClick={() => onApprove(it)}
+                  data-slot="convergence-review-approve"
+                  aria-label={t("Approve this translation")}
+                >
+                  {busy ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                  {t("Approve")}
+                </Button>
+              </li>
+            );
+          })}
         </ul>
         {items.length > 50 && (
           <p className="text-xs text-muted-foreground">

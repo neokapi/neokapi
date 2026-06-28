@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { ConvergencePanel } from "../components/ConvergencePanel";
-import type { ConvergenceReport } from "../types/api";
+import type { ConvergenceReport, ReviewItem } from "../types/api";
 
 function reportFixture(overrides: Partial<ConvergenceReport> = {}): ConvergenceReport {
   return {
@@ -82,5 +83,19 @@ describe("ConvergencePanel", () => {
   it("renders the bring-up-to-date action", () => {
     render(<ConvergencePanel tabID="t1" report={reportFixture()} />);
     expect(document.querySelector("[data-slot='convergence-bring-up-to-date']")).not.toBeNull();
+  });
+
+  it("approves a review item via onApprove with its (locale, file, key)", async () => {
+    const onApprove = vi.fn<(item: ReviewItem) => Promise<void>>().mockResolvedValue(undefined);
+    render(<ConvergencePanel tabID="t1" report={reportFixture()} onApprove={onApprove} />);
+
+    const buttons = document.querySelectorAll("[data-slot='convergence-review-approve']");
+    expect(buttons).toHaveLength(2);
+
+    await userEvent.click(buttons[0] as HTMLElement);
+    await waitFor(() => expect(onApprove).toHaveBeenCalledTimes(1));
+    expect(onApprove).toHaveBeenCalledWith(
+      expect.objectContaining({ locale: "nb", file: "en.json", key: "greeting" }),
+    );
   });
 });

@@ -202,6 +202,22 @@ export function ApplyTemplate(tabID, template) {
 }
 
 /**
+ * ApproveReviewItem promotes one review-queue unit to `reviewed`: it records the
+ * unit's current source→target translation as an approved correction in the
+ * project's committed .klftm (the same write `kapi apply` makes). After it
+ * returns, GetConvergence shows the unit reviewed and it leaves the queue. The
+ * unit is addressed by (locale, file, key) as listed in the review queue.
+ * @param {string} tabID
+ * @param {string} locale
+ * @param {string} file
+ * @param {string} key
+ * @returns {$CancellablePromise<void>}
+ */
+export function ApproveReviewItem(tabID, locale, file, key) {
+    return $Call.ByID(613262262, tabID, locale, file, key);
+}
+
+/**
  * BringUpToDate runs the project's default flow (defaults.flow) over all of its
  * content across every target language — one convergence pass that materializes
  * the localized files. It returns once the run is launched; progress streams
