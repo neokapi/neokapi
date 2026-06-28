@@ -51,6 +51,7 @@ func (a *App) KapiCommandSet() []*cobra.Command {
 	cmds = append(cmds, a.NewApplyCmd())
 	cmds = append(cmds, a.NewStatsCmd())
 	cmds = append(cmds,
+		a.NewStatusCmd(),
 		a.NewVerifyCmd(),
 		a.NewCheckCmd(),
 		a.NewHookCmd(),
