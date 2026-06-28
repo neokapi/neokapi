@@ -1077,6 +1077,24 @@ func runCheckTool(ctx context.Context, t interface {
 // around readBlocksValidated, so every caller that does not opt into Reader
 // Validation-Mode keeps the byte-identical lenient behavior.
 func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model.Block, error) {
+	// When a project parse cache is open, serve unchanged files from it. The key
+	// includes every input to this parse besides the bytes: the format override
+	// and the source locale. (This read path applies no project format config, so
+	// those plus the file's content hash are the complete key.)
+	if a.parseCache != nil {
+		if st, serr := os.Stat(path); serr == nil {
+			configKey := a.FormatFlag + "|" + sourceLang
+			if blocks, ok := a.parseCache.get(path, configKey, st); ok {
+				return blocks, nil
+			}
+			blocks, _, err := a.readBlocksValidated(ctx, path, sourceLang, format.ValidationOff)
+			if err != nil {
+				return nil, err
+			}
+			a.parseCache.put(path, configKey, st, blocks)
+			return blocks, nil
+		}
+	}
 	blocks, _, err := a.readBlocksValidated(ctx, path, sourceLang, format.ValidationOff)
 	return blocks, err
 }

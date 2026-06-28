@@ -92,6 +92,14 @@ type App struct {
 	// has one content file or many.
 	convergeWriteFiles bool
 
+	// parseCache is a content-hash-keyed cache of parsed file blocks, opened by a
+	// project-level command (withParseCache) so repeated reads of unchanged files
+	// — across `status` re-runs, `verify`, and every `run --until-gate` pass —
+	// skip re-parsing. It is a rebuildable optimization over the files (the source
+	// of truth): blow it away and a re-read reconstructs the identical blocks. nil
+	// for ad-hoc reads (no project), which parse directly.
+	parseCache *parseCache
+
 	// projectFlowTools is set temporarily by runProjectSteps to override
 	// buildFlowTools for project-defined flows.
 	projectFlowTools []tool.Tool

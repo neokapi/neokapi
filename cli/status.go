@@ -167,30 +167,32 @@ func (a *App) runStatus(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("resolve content: %w", err)
 	}
 
-	// --review lists the units awaiting human review (translated, not yet an
-	// approved correction) — the review surface, the derived counterpart of the
-	// convergence loop's "parked" outcome.
-	if review, _ := cmd.Flags().GetBool("review"); review {
-		items, qerr := a.computeReviewQueue(cmd.Context(), proj, root, units)
-		if qerr != nil {
-			return fmt.Errorf("compute review queue: %w", qerr)
+	return a.withParseCache(root, func() error {
+		// --review lists the units awaiting human review (translated, not yet an
+		// approved correction) — the review surface, the derived counterpart of the
+		// convergence loop's "parked" outcome.
+		if review, _ := cmd.Flags().GetBool("review"); review {
+			items, qerr := a.computeReviewQueue(cmd.Context(), proj, root, units)
+			if qerr != nil {
+				return fmt.Errorf("compute review queue: %w", qerr)
+			}
+			return output.Print(cmd, ReviewQueueOutput{Project: proj.Name, Pending: items})
 		}
-		return output.Print(cmd, ReviewQueueOutput{Project: proj.Name, Pending: items})
-	}
 
-	cov, err := a.computeShipCoverage(cmd.Context(), proj, root, units)
-	if err != nil {
-		return fmt.Errorf("compute coverage: %w", err)
-	}
+		cov, err := a.computeShipCoverage(cmd.Context(), proj, root, units)
+		if err != nil {
+			return fmt.Errorf("compute coverage: %w", err)
+		}
 
-	src, err := a.computeSourceReadiness(cmd.Context(), proj, units)
-	if err != nil {
-		return fmt.Errorf("compute source readiness: %w", err)
-	}
+		src, err := a.computeSourceReadiness(cmd.Context(), proj, units)
+		if err != nil {
+			return fmt.Errorf("compute source readiness: %w", err)
+		}
 
-	out := StatusOutput{Project: proj.Name, Locales: cov}
-	if src.Total > 0 {
-		out.Source = &src
-	}
-	return output.Print(cmd, out)
+		out := StatusOutput{Project: proj.Name, Locales: cov}
+		if src.Total > 0 {
+			out.Source = &src
+		}
+		return output.Print(cmd, out)
+	})
 }

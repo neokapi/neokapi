@@ -60,22 +60,28 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 		return nil, fmt.Errorf("resolve content: %w", err)
 	}
 
-	cov, err := a.computeShipCoverage(ctx, proj, root, units)
-	if err != nil {
-		return nil, fmt.Errorf("compute coverage: %w", err)
-	}
-	src, err := a.computeSourceReadiness(ctx, proj, units)
-	if err != nil {
-		return nil, fmt.Errorf("compute source readiness: %w", err)
-	}
-	review, err := a.computeReviewQueue(ctx, proj, root, units)
-	if err != nil {
-		return nil, fmt.Errorf("compute review queue: %w", err)
-	}
-
-	report := &ConvergenceReport{Project: proj.Name, Locales: cov, Review: review}
-	if src.Total > 0 {
-		report.Source = &src
+	var report *ConvergenceReport
+	cacheErr := a.withParseCache(root, func() error {
+		cov, err := a.computeShipCoverage(ctx, proj, root, units)
+		if err != nil {
+			return fmt.Errorf("compute coverage: %w", err)
+		}
+		src, err := a.computeSourceReadiness(ctx, proj, units)
+		if err != nil {
+			return fmt.Errorf("compute source readiness: %w", err)
+		}
+		review, err := a.computeReviewQueue(ctx, proj, root, units)
+		if err != nil {
+			return fmt.Errorf("compute review queue: %w", err)
+		}
+		report = &ConvergenceReport{Project: proj.Name, Locales: cov, Review: review}
+		if src.Total > 0 {
+			report.Source = &src
+		}
+		return nil
+	})
+	if cacheErr != nil {
+		return nil, cacheErr
 	}
 	return report, nil
 }
