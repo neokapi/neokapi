@@ -79,6 +79,36 @@ func TestReaderTableStructure(t *testing.T) {
 	requireRole(t, blockByText(t, blocks, "a"), model.RoleTableCell)
 }
 
+// TestReaderTableColsAttribute asserts a `[%header,cols=N]` table whose cells
+// are each on their own line (no blank-line row boundary — the shape the
+// generative writer emits) is parsed into N-wide rows with a header, by honoring
+// the cols/%header block attribute rather than inferring 1 column from the first
+// line.
+func TestReaderTableColsAttribute(t *testing.T) {
+	t.Parallel()
+	input := "[%header,cols=3]\n|===\n| Format\n| Read\n| Write\n| Markdown\n| yes\n| yes\n| HTML\n| no\n| yes\n|===\n"
+	parts := readParts(t, input)
+
+	rowCount, headerRows := 0, 0
+	for _, p := range parts {
+		if p.Type == model.PartGroupStart {
+			g := p.Resource.(*model.GroupStart)
+			if g.Type == "table-row" {
+				rowCount++
+				if g.Properties["header"] == "true" {
+					headerRows++
+				}
+			}
+		}
+	}
+	assert.Equal(t, 3, rowCount, "cols=3 must group 9 cells into a header + two body rows")
+	assert.Equal(t, 1, headerRows, "%header must promote the first row")
+
+	blocks := readBlocks(t, input)
+	requireRole(t, blockByText(t, blocks, "Format"), model.RoleTableHeader)
+	requireRole(t, blockByText(t, blocks, "Markdown"), model.RoleTableCell)
+}
+
 // TestReaderReadingOrderGroups asserts groups are emitted (reading order, G2)
 // and balanced: document wraps sections, sections nest, lists/tables bracket
 // their items.
