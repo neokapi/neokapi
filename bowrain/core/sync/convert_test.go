@@ -61,6 +61,23 @@ func TestBlockWithTargets(t *testing.T) {
 	assert.Equal(t, "Hallo", b2.TargetText("de"))
 }
 
+// TestBlockTargetStatusRoundTrip verifies the target's lifecycle status survives
+// the sync round-trip (carried on the segment, so coverage/ship gates see review
+// state pulled back from the server) — the bowrain transport carrier.
+func TestBlockTargetStatusRoundTrip(t *testing.T) {
+	b := &model.Block{ID: "b1", Translatable: true}
+	b.SetSourceText("Hello")
+	b.SetTargetText("fr", "Bonjour")
+	b.StampTargetProvenance("fr", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+
+	b2, err := ProtoToBlock(BlockToProto(b, "en.json"))
+	require.NoError(t, err)
+	tgt := b2.Target("fr")
+	require.NotNil(t, tgt)
+	assert.Equal(t, "Bonjour", b2.TargetText("fr"))
+	assert.Equal(t, model.TargetStatusReviewed, tgt.Status, "lifecycle status survives sync")
+}
+
 func TestBlockWithAnnotations(t *testing.T) {
 	b := &model.Block{ID: "b1"}
 	b.SetSourceText("Test")
