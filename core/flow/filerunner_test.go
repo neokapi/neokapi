@@ -726,3 +726,35 @@ func TestFileRunner_CachedWrite_ByteIdenticalToLive(t *testing.T) {
 		})
 	}
 }
+
+// TestFileRunner_PartCacheSizeGuard verifies the document cache is bypassed for a
+// source above the size ceiling: the run still produces correct output (via the
+// live streaming/buffered path) but nothing is buffered into the cache — so a
+// large file is never serialized whole into memory.
+func TestFileRunner_PartCacheSizeGuard(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "m.json")
+	content := `{"greeting":"Hello World","bye":"Goodbye"}`
+	require.NoError(t, os.WriteFile(src, []byte(content), 0o644))
+
+	pseudo, err := tools.NewPseudoTranslateFromConfig(map[string]any{"target_locale": "qps"}, "qps")
+	require.NoError(t, err)
+
+	cache := newDocCache()
+	out := filepath.Join(dir, "out.json")
+	r := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg: reg, SourceLocale: "en-US",
+		PartCache: cache, PartCacheKey: "k",
+		PartCacheMaxBytes: 8, // tiny ceiling → every real file is "too large"
+	})
+	require.NoError(t, r.RunFile(context.Background(), "pseudo-translate", []tool.Tool{pseudo}, src, out, "qps"))
+
+	got, err := os.ReadFile(out)
+	require.NoError(t, err)
+	assert.NotEqual(t, content, string(got), "the run still produces translated output via the live path")
+	assert.Contains(t, string(got), "greeting", "structure preserved")
+	assert.Empty(t, cache.parts, "an oversized source must not be buffered into the cache")
+}

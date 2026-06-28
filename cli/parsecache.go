@@ -36,6 +36,12 @@ type parseCache struct {
 	db *storage.DB
 }
 
+// docCacheMaxBytes caps the source size the document cache will buffer. A larger
+// file is parsed directly (not cached), so the cache never serializes a
+// whole-document blob proportional to an arbitrarily large source into memory or
+// SQLite. Mirrors the flow runner's partCacheMaxBytes.
+const docCacheMaxBytes int64 = 8 << 20 // 8 MiB
+
 var parseCacheMigrations = []storage.Migration{
 	{
 		Version:     1,
@@ -178,6 +184,9 @@ func fromCachedParts(cps []cachedPart) []*model.Part {
 // hash matches (handling `touch`/clock skew without re-parsing). Returns ok=false
 // on any miss or staleness, so the caller re-parses.
 func (c *parseCache) getDoc(path, configKey string, st os.FileInfo) (parts []*model.Part, skeleton []byte, originFormat string, ok bool) {
+	if st.Size() > docCacheMaxBytes {
+		return nil, nil, "", false // too large to have been cached; parse directly
+	}
 	var contentHash string
 	var mtime, size int64
 	var blob []byte
@@ -210,6 +219,9 @@ func (c *parseCache) getDoc(path, configKey string, st os.FileInfo) (parts []*mo
 
 // putDoc records the freshly-parsed full document for (path, configKey).
 func (c *parseCache) putDoc(path, configKey string, st os.FileInfo, parts []*model.Part, skeleton []byte, originFormat string) {
+	if st.Size() > docCacheMaxBytes {
+		return // do not buffer a whole-document blob for an oversized source
+	}
 	h, err := project.HashFile(path)
 	if err != nil {
 		return

@@ -122,7 +122,20 @@ type FileRunnerConfig struct {
 	// document parsed under different config. The runner combines it with the
 	// per-file detected format. Empty when PartCache is nil.
 	PartCacheKey string
+
+	// PartCacheMaxBytes caps the source size the document cache will buffer.
+	// Above it, the runner bypasses the cache and uses the streaming/live read
+	// path, so a large file is never loaded whole into memory — the cache
+	// serializes the parsed document and materializes the skeleton bytes, both
+	// proportional to the source. 0 uses the default (partCacheMaxBytes).
+	PartCacheMaxBytes int64
 }
+
+// partCacheMaxBytes is the default source-size ceiling for the document cache. A
+// localization source is almost always far below it; the cap exists so an
+// unusually large file falls back to the bounded-memory streaming path rather
+// than being buffered (parsed parts + skeleton bytes) for the cache.
+const partCacheMaxBytes int64 = 8 << 20 // 8 MiB
 
 // PartCache is the file runner's optional document cache: a hit returns a file's
 // full Part stream from a prior parse under the same config, so the reader never
@@ -301,8 +314,9 @@ func (r *FileRunner) readParts(ctx context.Context, reader format.DataFormatRead
 // a cached parse is exact. It opens the source file itself (readParts' caller
 // did) so the open is skipped entirely on a hit.
 func (r *FileRunner) cachedReadParts(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string) ([]*model.Part, error) {
+	useCache := r.cacheEligible(inputPath)
 	key := r.partCacheKey(reader.Name(), "run")
-	if r.cfg.PartCache != nil {
+	if useCache {
 		if parts, _, _, ok := r.cfg.PartCache.GetDocument(inputPath, key); ok {
 			reader.Close() // never opened — release the unused reader
 			// Replay reader-stage trace events so --trace is identical to a parse.
@@ -327,7 +341,7 @@ func (r *FileRunner) cachedReadParts(ctx context.Context, reader format.DataForm
 	if err != nil {
 		return nil, err
 	}
-	if r.cfg.PartCache != nil {
+	if useCache {
 		r.cfg.PartCache.PutDocument(inputPath, key, parts, nil, reader.Name())
 	}
 	return parts, nil
@@ -417,6 +431,23 @@ func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools
 
 	store := wireSkeleton(skelBytes)
 	return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, store, "", nil)
+}
+
+// cacheEligible reports whether the document cache should be used for a source:
+// a cache must be configured and the file must be within the size ceiling, so a
+// large file is never buffered (parts + skeleton) into memory but instead uses
+// the streaming/live path. A stat failure declines the cache (the live path will
+// surface the real open error).
+func (r *FileRunner) cacheEligible(path string) bool {
+	if r.cfg.PartCache == nil {
+		return false
+	}
+	max := r.cfg.PartCacheMaxBytes
+	if max <= 0 {
+		max = partCacheMaxBytes
+	}
+	st, err := os.Stat(path)
+	return err == nil && st.Size() <= max
 }
 
 // partCacheKey is the document-cache key for a parse: the per-file detected
@@ -574,7 +605,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// reader never runs. The raw-source-coupled binary/markup writers (openxml,
 	// odf, epub, idml, html, asciidoc) reconstruct from the original file and stay
 	// on the live path below.
-	if r.cfg.PartCache != nil && sameFormat && cacheableWriter(writer) {
+	if sameFormat && cacheableWriter(writer) && r.cacheEligible(inputPath) {
 		return r.cachedFileWrite(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer)
 	}
 
