@@ -21,29 +21,38 @@ func TestParseCache_StalenessLadder(t *testing.T) {
 	f := filepath.Join(dir, "x.json")
 	require.NoError(t, os.WriteFile(f, []byte(`{"a":"Apple"}`), 0o644))
 	st, _ := os.Stat(f)
-	c.put(f, "k", st, []*model.Block{model.NewBlock("a", "Apple")})
+	block := model.NewBlock("a", "Apple")
+	block.Translatable = true
+	c.putDoc(f, "k", st, []*model.Part{{Type: model.PartBlock, Resource: block}}, nil, "json")
 
-	// Same file → hit.
-	got, ok := c.get(f, "k", st)
+	// Same file → hit (translatable-block projection).
+	got, ok := c.getBlocks(f, "k", st)
 	require.True(t, ok)
 	require.Len(t, got, 1)
 	assert.Equal(t, "Apple", got[0].SourceText())
+
+	// Full-document round-trip preserves the Part stream + format.
+	parts, _, fmtName, okDoc := c.getDoc(f, "k", st)
+	require.True(t, okDoc)
+	require.Len(t, parts, 1)
+	assert.Equal(t, model.PartBlock, parts[0].Type)
+	assert.Equal(t, "json", fmtName)
 
 	// Touch (new mtime, same bytes) → still a hit (re-hash path, no re-parse).
 	future := time.Now().Add(2 * time.Second)
 	require.NoError(t, os.Chtimes(f, future, future))
 	st2, _ := os.Stat(f)
-	_, ok = c.get(f, "k", st2)
+	_, ok = c.getBlocks(f, "k", st2)
 	assert.True(t, ok, "touch with identical bytes stays a hit")
 
 	// Changed bytes → miss.
 	require.NoError(t, os.WriteFile(f, []byte(`{"a":"Banana","b":"Cherry"}`), 0o644))
 	st3, _ := os.Stat(f)
-	_, ok = c.get(f, "k", st3)
+	_, ok = c.getBlocks(f, "k", st3)
 	assert.False(t, ok, "changed content is a miss")
 
 	// Different config key → miss (the key includes the config).
-	_, ok = c.get(f, "other-config", st)
+	_, ok = c.getBlocks(f, "other-config", st)
 	assert.False(t, ok)
 }
 
@@ -78,7 +87,7 @@ func countCacheRows(t *testing.T, root string) int {
 	require.NoError(t, err)
 	defer c.close()
 	var n int
-	require.NoError(t, c.db.QueryRow(`SELECT COUNT(*) FROM file_blocks`).Scan(&n))
+	require.NoError(t, c.db.QueryRow(`SELECT COUNT(*) FROM file_documents`).Scan(&n))
 	return n
 }
 

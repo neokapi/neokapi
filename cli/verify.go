@@ -1080,23 +1080,82 @@ func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model
 	// When a project parse cache is open, serve unchanged files from it. The key
 	// includes every input to this parse besides the bytes: the format override
 	// and the source locale. (This read path applies no project format config, so
-	// those plus the file's content hash are the complete key.)
+	// those plus the file's content hash are the complete key.) The cache holds the
+	// full parsed document; this read path returns only the translatable-block
+	// projection, but caching the whole document lets the flow runner reuse the
+	// same parse.
 	if a.parseCache != nil {
 		if st, serr := os.Stat(path); serr == nil {
-			configKey := a.FormatFlag + "|" + sourceLang
-			if blocks, ok := a.parseCache.get(path, configKey, st); ok {
+			configKey := readBlocksConfigKey(a.FormatFlag, sourceLang)
+			if blocks, ok := a.parseCache.getBlocks(path, configKey, st); ok {
 				return blocks, nil
 			}
-			blocks, _, err := a.readBlocksValidated(ctx, path, sourceLang, format.ValidationOff)
+			parts, fmtName, err := a.readDocument(ctx, path, sourceLang)
 			if err != nil {
 				return nil, err
 			}
-			a.parseCache.put(path, configKey, st, blocks)
-			return blocks, nil
+			a.parseCache.putDoc(path, configKey, st, parts, nil, fmtName)
+			return translatableBlocks(parts), nil
 		}
 	}
 	blocks, _, err := a.readBlocksValidated(ctx, path, sourceLang, format.ValidationOff)
 	return blocks, err
+}
+
+// readBlocksConfigKey is the cache config key for the read/coverage path. It is
+// namespaced ("rb|") so it never collides with the flow runner's key for the
+// same file (the runner applies project format config the read path does not).
+func readBlocksConfigKey(formatFlag, sourceLang string) string {
+	return "rb|" + formatFlag + "|" + sourceLang
+}
+
+// readDocument parses a file into its full ordered Part stream (blocks plus the
+// surrounding structure) with validation off, returning the detected format
+// name. It is the read path's miss handler — it collects every Part so the cached
+// document is complete enough for the flow runner to replay, not just the
+// translatable blocks this caller projects out.
+func (a *App) readDocument(ctx context.Context, path, sourceLang string) ([]*model.Part, string, error) {
+	fmtName := a.FormatFlag
+	if fmtName == "" {
+		ext := filepath.Ext(path)
+		detected, err := a.FormatReg.DetectByExtension(ext)
+		if err != nil {
+			return nil, "", fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
+		}
+		fmtName = string(detected)
+	}
+
+	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
+	if err != nil {
+		return nil, "", fmt.Errorf("no reader for %q: %w", fmtName, err)
+	}
+	defer reader.Close()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, "", fmt.Errorf("read %s: %w", path, err)
+	}
+	declaredEnc := firstNonEmpty(a.Encoding, "UTF-8")
+	doc := &model.RawDocument{
+		URI:          path,
+		SourceLocale: model.LocaleID(sourceLang),
+		Encoding:     declaredEnc,
+		Reader:       io.NopCloser(bytes.NewReader(content)),
+	}
+	if err := reader.Open(ctx, doc); err != nil {
+		return nil, "", fmt.Errorf("open %q: %w", filepath.Base(path), err)
+	}
+
+	var parts []*model.Part
+	for result := range reader.Read(ctx) {
+		if result.Error != nil {
+			return nil, "", fmt.Errorf("read %q: %w", filepath.Base(path), result.Error)
+		}
+		if result.Part != nil {
+			parts = append(parts, result.Part)
+		}
+	}
+	return parts, fmtName, nil
 }
 
 // readBlocksValidated reads a file's translatable blocks and, when mode is not
