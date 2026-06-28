@@ -47,11 +47,18 @@ func (a *App) resolveFallbackRunE(opts RunCmdOptions) func(cmd *cobra.Command, f
 func (a *App) NewRunCmd(opts RunCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run [flow-name] [flags]",
-		Short: "Run a composed flow (multi-tool pipeline)",
+		Short: "Run a composed flow, or converge the project's default flow",
 		Long: `Run a composed flow that chains multiple tools together.
 
 Flows are multi-tool pipelines. For single-tool operations, use the
 tool directly (e.g. "kapi translate" instead of "kapi run translate").
+
+With no flow name, kapi runs the project's default flow (defaults.flow) over
+all content across every target language — bringing the project up to date in
+one pass. Add --until-gate to loop that pass until every gated scope is
+shippable (or a pass stalls), parking whatever still needs a human. Convergence
+never fails the build: parked, drifted target content is normal toil, reported
+rather than thrown.
 
 Built-in flows:
   translate-qa    Translate + quality check using AI/LLM
@@ -60,15 +67,38 @@ Custom flows can be defined in .kapi project files or .bowrain/flows/ as YAML fi
 
 Use -p to run a flow from a .kapi project file:
   kapi run translate -p myproject.kapi`,
-		Example: `  kapi run translate-qa -i app.xliff --target-lang fr
+		Example: `  kapi run                                  # converge the project's default flow
+  kapi run --until-gate                     # loop until every gated scope ships
+  kapi run translate-qa -i app.xliff --target-lang fr
   kapi run translate-qa -i messages.json --target-lang de`,
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			flowName := args[0]
 			projectPath, err := ResolveProjectPath(cmd)
 			if err != nil {
 				return err
 			}
+
+			// No flow argument → convergence: run the project's default flow
+			// (defaults.flow) over all content × target languages. Requires a
+			// project; one pass by default, looped to the ship gate with --until-gate.
+			if len(args) == 0 {
+				if projectPath == "" {
+					return errors.New("kapi run needs a flow name, or a project with a default flow (defaults.flow); none found")
+				}
+				proj, perr := a.LoadProjectInteractive(cmd.Context(), projectPath, LoadProjectInteractiveOptions{AssumeYes: a.AssumeYes})
+				if perr != nil {
+					return fmt.Errorf("load project: %w", perr)
+				}
+				a.InitRegistries()
+				untilGate, _ := cmd.Flags().GetBool("until-gate")
+				maxPasses, _ := cmd.Flags().GetInt("max-passes")
+				if maxPasses == 0 {
+					maxPasses = convergeMaxPassesDefault
+				}
+				return a.runDefaultFlowConverge(cmd, proj, projectPath, untilGate, maxPasses)
+			}
+
+			flowName := args[0]
 
 			fallbackRunE := a.resolveFallbackRunE(opts)
 
@@ -99,6 +129,8 @@ Use -p to run a flow from a .kapi project file:
 
 	AddProjectFlag(cmd)
 	a.addFlowRunFlags(cmd)
+	cmd.Flags().Bool("until-gate", false, "loop the default flow until every gated scope is shippable (or a pass stalls); parks the rest")
+	cmd.Flags().Int("max-passes", 0, "cap on --until-gate passes (default 5)")
 	return cmd
 }
 
