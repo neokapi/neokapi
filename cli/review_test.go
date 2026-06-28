@@ -1,0 +1,143 @@
+package cli
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// writeReviewProject writes a project with a fully-translated nb target and a
+// gate that needs 50% reviewed, plus a bound (initially absent) .klftm source.
+func writeReviewProject(t *testing.T) string {
+	t.Helper()
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := t.TempDir()
+	recipe := `version: v1
+name: rev
+defaults:
+  source_language: en
+  target_languages: [nb]
+  tm_source: tm.klftm
+content:
+  - path: en.json
+    target: "{lang}.json"
+ship_gate: { translated: 100, reviewed: 50 }
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
+		[]byte(`{"a":"Apple","b":"Banana"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
+		[]byte(`{"a":"Eple","b":"Banan"}`), 0o644))
+	return root
+}
+
+// writeReviewedCorrection appends an approved source→target pair to the project's
+// committed .klftm — the human-review record `kapi apply` would write.
+func writeReviewedCorrection(t *testing.T, root, srcText, tgtText string) {
+	t.Helper()
+	path := filepath.Join(root, "tm.klftm")
+	entries, err := loadKLFTMEntries(path)
+	require.NoError(t, err)
+	entries = append(entries, sievepen.TMEntry{
+		Variants: map[model.LocaleID][]model.Run{
+			"en": {{Text: &model.TextRun{Text: srcText}}},
+			"nb": {{Text: &model.TextRun{Text: tgtText}}},
+		},
+	})
+	require.NoError(t, writeKLFTM(path, entries))
+}
+
+func reviewQueue(t *testing.T) ReviewQueueOutput {
+	t.Helper()
+	a := &App{}
+	cmd := a.NewStatusCmd()
+	require.NoError(t, cmd.Flags().Set("review", "true"))
+	require.NoError(t, cmd.Flags().Set("json", "true"))
+	out, err := captureStdout(t, func() error { return a.runStatus(cmd, nil) })
+	require.NoError(t, err)
+	var q ReviewQueueOutput
+	require.NoError(t, json.Unmarshal([]byte(out), &q), "review queue must emit valid JSON: %s", out)
+	return q
+}
+
+func TestReview_KlftmMatchPromotesToReviewed(t *testing.T) {
+	root := writeReviewProject(t)
+	t.Chdir(root)
+
+	// Before any approval: both units are translated (presence), none reviewed.
+	before := runStatusJSON(t)
+	nb, ok := locale(before, "nb")
+	require.True(t, ok)
+	assert.Equal(t, 100, nb.Pct["translated"])
+	assert.Equal(t, 0, nb.Pct["reviewed"], "no approved corrections yet")
+	assert.False(t, nb.Shippable, "reviewed:50 unmet at 0% reviewed")
+
+	// Approve one of the two translations (Apple→Eple).
+	writeReviewedCorrection(t, root, "Apple", "Eple")
+
+	after := runStatusJSON(t)
+	nb2, ok := locale(after, "nb")
+	require.True(t, ok)
+	assert.Equal(t, 100, nb2.Pct["translated"], "still fully translated")
+	assert.Equal(t, 50, nb2.Pct["reviewed"], "1 of 2 units now matches an approved correction")
+	assert.True(t, nb2.Shippable, "reviewed:50 is now met")
+}
+
+func TestReview_QueueListsUnreviewedUnits(t *testing.T) {
+	root := writeReviewProject(t)
+	t.Chdir(root)
+
+	// Initially both translated units await review.
+	q := reviewQueue(t)
+	require.Len(t, q.Pending, 2)
+	for _, it := range q.Pending {
+		assert.Equal(t, "nb", it.Locale)
+	}
+
+	// Approve one; the queue shrinks to the other.
+	writeReviewedCorrection(t, root, "Apple", "Eple")
+	q2 := reviewQueue(t)
+	require.Len(t, q2.Pending, 1)
+	assert.Equal(t, "Banana", q2.Pending[0].Source, "only the unreviewed unit remains")
+}
+
+// TestReview_ApplyTMCorrectionPromotesToReviewed drives the real `kapi apply`
+// verb: a tm correction lands in the committed .klftm, and the next status
+// derivation counts that unit as reviewed.
+func TestReview_ApplyTMCorrectionPromotesToReviewed(t *testing.T) {
+	root := writeReviewProject(t)
+	t.Chdir(root)
+
+	a := &App{}
+	a.InitRegistries()
+	cmd := &cobra.Command{Use: "apply"}
+	res := a.applyAssetEntry(context.Background(), cmd, changeEntry{
+		Kind: kindTM, Op: "add", Source: "Apple", Target: "Eple",
+		SourceLocale: "en", TargetLocale: "nb",
+	})
+	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
+
+	after := runStatusJSON(t)
+	nb, ok := locale(after, "nb")
+	require.True(t, ok)
+	assert.Equal(t, 50, nb.Pct["reviewed"], "the applied tm correction counts as reviewed")
+	assert.True(t, nb.Shippable, "reviewed:50 met via apply")
+}
+
+func TestReview_EmptyQueueWhenNothingTranslated(t *testing.T) {
+	t.Chdir(writeStatusProject(t)) // nb partially translated, ja absent; no tm_source
+	q := reviewQueue(t)
+	// Every present nb target awaits review; ja has no targets. Just assert it
+	// renders and only lists translated units (no panics, no ja entries).
+	for _, it := range q.Pending {
+		assert.NotEqual(t, "ja", it.Locale, "absent targets are upstream of review")
+	}
+}

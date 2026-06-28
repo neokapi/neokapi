@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"math"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -96,6 +97,77 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 	return sc, nil
 }
 
+// reviewedIndex is the set of human-approved source→target corrections drawn
+// from the project's committed .klftm — the reviewed-translation corpus. The
+// committed .klftm is written only by `kapi apply` (a human/agent correction);
+// automatic TM write-back lands in the .db cache, never the source. So an exact
+// match here means a person signed off on this exact translation: it is the
+// file-project carrier for review state (a plain target file holds no status).
+type reviewedIndex struct {
+	set map[string]struct{} // key: source \x00 target \x00 locale
+}
+
+func reviewKey(src, tgt, locale string) string {
+	return strings.TrimSpace(src) + "\x00" + strings.TrimSpace(tgt) + "\x00" + locale
+}
+
+// reviewed reports whether (src, tgt, locale) is an approved correction.
+func (r reviewedIndex) reviewed(src, tgt, locale string) bool {
+	if r.set == nil {
+		return false
+	}
+	_, ok := r.set[reviewKey(src, tgt, locale)]
+	return ok
+}
+
+// upgrade promotes a base coverage state to `reviewed` when the block's
+// source→target pair for the locale is an approved correction; otherwise it
+// returns the base state unchanged. Only a `translated` unit is upgraded — an
+// absent target stays untranslated, and an already-higher state is left alone.
+func (r reviewedIndex) upgrade(base string, b *model.Block, locale string) string {
+	if base != string(model.TargetStatusTranslated) {
+		return base
+	}
+	if r.reviewed(b.SourceText(), b.TargetText(model.LocaleID(locale)), locale) {
+		return string(model.TargetStatusReviewed)
+	}
+	return base
+}
+
+// loadReviewedCorrections builds the reviewedIndex from the project's bound
+// .klftm source (defaults.tm_source). An absent or unbound source yields an
+// empty index (nothing reviewed yet) — never an error, so status stays
+// informational.
+func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (reviewedIndex, error) {
+	idx := reviewedIndex{set: map[string]struct{}{}}
+	if proj.Defaults.TMSource == "" || root == "" {
+		return idx, nil
+	}
+	entries, err := loadKLFTMEntries(filepath.Join(root, proj.Defaults.TMSource))
+	if err != nil {
+		return idx, err
+	}
+	src := model.LocaleID(a.SourceLang)
+	for i := range entries {
+		e := &entries[i]
+		st := e.VariantText(src)
+		if strings.TrimSpace(st) == "" {
+			continue
+		}
+		for loc := range e.Variants {
+			if loc == src {
+				continue
+			}
+			tt := e.VariantText(loc)
+			if strings.TrimSpace(tt) == "" {
+				continue
+			}
+			idx.set[reviewKey(st, tt, string(loc))] = struct{}{}
+		}
+	}
+	return idx, nil
+}
+
 // unitState derives a translatable block's lifecycle state for a locale. When a
 // committed status is present (set by a producer / a future store-backed read)
 // it is authoritative; otherwise a present, non-empty target counts as
@@ -118,8 +190,17 @@ func unitState(b *model.Block, locale string) string {
 // evaluates each locale against its resolved ship gate. Collection-scoped gate
 // rules resolve against (collection, locale); content not in a named collection
 // has an empty collection, where the rollup is effectively per-locale.
-func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject, units []verifyUnit) ([]LocaleCoverage, error) {
+//
+// `reviewed` (loaded from the project's committed .klftm corrections) upgrades a
+// unit from the `translated` presence baseline to `reviewed` when its
+// source→target pair exactly matches an approved correction — the file-project
+// carrier for review state, since a plain target file holds no status.
+func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject, root string, units []verifyUnit) ([]LocaleCoverage, error) {
 	rs, err := proj.BuildShipGates()
+	if err != nil {
+		return nil, err
+	}
+	reviewed, err := a.loadReviewedCorrections(proj, root)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +230,7 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 		}
 		for _, b := range blocks {
 			if b.Translatable {
-				add(s, unitState(b, u.locale))
+				add(s, reviewed.upgrade(unitState(b, u.locale), b, u.locale))
 			}
 		}
 	}

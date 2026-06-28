@@ -131,6 +131,7 @@ target-language drift is normal, expected work, not a build break.`,
 	AddProjectFlag(cmd)
 	cmd.Flags().String("locale", "", "limit to a single target locale")
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
+	cmd.Flags().Bool("review", false, "list translated units awaiting human review instead of the coverage grid")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 	return cmd
 }
@@ -166,7 +167,18 @@ func (a *App) runStatus(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("resolve content: %w", err)
 	}
 
-	cov, err := a.computeShipCoverage(cmd.Context(), proj, units)
+	// --review lists the units awaiting human review (translated, not yet an
+	// approved correction) — the review surface, the derived counterpart of the
+	// convergence loop's "parked" outcome.
+	if review, _ := cmd.Flags().GetBool("review"); review {
+		items, qerr := a.computeReviewQueue(cmd.Context(), proj, root, units)
+		if qerr != nil {
+			return fmt.Errorf("compute review queue: %w", qerr)
+		}
+		return output.Print(cmd, ReviewQueueOutput{Project: proj.Name, Pending: items})
+	}
+
+	cov, err := a.computeShipCoverage(cmd.Context(), proj, root, units)
 	if err != nil {
 		return fmt.Errorf("compute coverage: %w", err)
 	}
