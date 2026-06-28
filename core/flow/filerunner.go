@@ -122,7 +122,20 @@ type FileRunnerConfig struct {
 	// document parsed under different config. The runner combines it with the
 	// per-file detected format. Empty when PartCache is nil.
 	PartCacheKey string
+
+	// PartCacheMaxBytes caps the source size the document cache will buffer.
+	// Above it, the runner bypasses the cache and uses the streaming/live read
+	// path, so a large file is never loaded whole into memory — the cache
+	// serializes the parsed document and materializes the skeleton bytes, both
+	// proportional to the source. 0 uses the default (partCacheMaxBytes).
+	PartCacheMaxBytes int64
 }
+
+// partCacheMaxBytes is the default source-size ceiling for the document cache. A
+// localization source is almost always far below it; the cap exists so an
+// unusually large file falls back to the bounded-memory streaming path rather
+// than being buffered (parsed parts + skeleton bytes) for the cache.
+const partCacheMaxBytes int64 = 8 << 20 // 8 MiB
 
 // PartCache is the file runner's optional document cache: a hit returns a file's
 // full Part stream from a prior parse under the same config, so the reader never
@@ -132,11 +145,15 @@ type FileRunnerConfig struct {
 // the caller's PartCacheKey, so implementations key on (path, configKey) plus
 // their own staleness check (content hash) over the file.
 type PartCache interface {
-	// GetDocument returns the cached Part stream for a file under configKey when
-	// it is fresh relative to the file on disk. ok=false → the runner parses.
-	GetDocument(path, configKey string) (parts []*model.Part, ok bool)
-	// PutDocument records a freshly-parsed Part stream for a file under configKey.
-	PutDocument(path, configKey string, parts []*model.Part)
+	// GetDocument returns the cached Part stream — and the reconstruction skeleton
+	// bytes + origin format when one was captured — for a file under configKey,
+	// when it is fresh relative to the file on disk. ok=false → the runner parses.
+	// The process-only path stores no skeleton (nil); the file-writing path stores
+	// the source skeleton so a writer can reconstruct byte-exact output on a hit.
+	GetDocument(path, configKey string) (parts []*model.Part, skeleton []byte, originFormat string, ok bool)
+	// PutDocument records a freshly-parsed Part stream (and optional skeleton) for
+	// a file under configKey.
+	PutDocument(path, configKey string, parts []*model.Part, skeleton []byte, originFormat string)
 }
 
 // FileRunner runs a full read → process → write pipeline for a single file.
@@ -297,9 +314,10 @@ func (r *FileRunner) readParts(ctx context.Context, reader format.DataFormatRead
 // a cached parse is exact. It opens the source file itself (readParts' caller
 // did) so the open is skipped entirely on a hit.
 func (r *FileRunner) cachedReadParts(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string) ([]*model.Part, error) {
-	key := r.partCacheKey(reader.Name())
-	if r.cfg.PartCache != nil {
-		if parts, ok := r.cfg.PartCache.GetDocument(inputPath, key); ok {
+	useCache := r.cacheEligible(inputPath)
+	key := r.partCacheKey(reader.Name(), "run")
+	if useCache {
+		if parts, _, _, ok := r.cfg.PartCache.GetDocument(inputPath, key); ok {
 			reader.Close() // never opened — release the unused reader
 			// Replay reader-stage trace events so --trace is identical to a parse.
 			if r.cfg.Recorder != nil {
@@ -323,21 +341,126 @@ func (r *FileRunner) cachedReadParts(ctx context.Context, reader format.DataForm
 	if err != nil {
 		return nil, err
 	}
-	if r.cfg.PartCache != nil {
-		r.cfg.PartCache.PutDocument(inputPath, key, parts)
+	if useCache {
+		r.cfg.PartCache.PutDocument(inputPath, key, parts, nil, reader.Name())
 	}
 	return parts, nil
 }
 
+// cacheableWriter reports whether a same-format writer reconstructs output from
+// the content model (+ skeleton bytes) alone, so the file-writing path may
+// replay it from the document cache. Writers that re-read the original source —
+// by path (SourcePathSetter) or as raw bytes (OriginalContentSetter), i.e. the
+// packaged/binary formats — are excluded; they stay on the live read path.
+func cacheableWriter(w format.DataFormatWriter) bool {
+	if _, ok := w.(format.SourcePathSetter); ok {
+		return false
+	}
+	if _, ok := w.(format.OriginalContentSetter); ok {
+		return false
+	}
+	return true
+}
+
+// cachedFileWrite serves the same-format file-writing path through the document
+// cache. On a hit it replays the cached Part stream — and, for a skeleton-backed
+// writer, the cached skeleton bytes — straight to the writer (the reader never
+// runs). On a miss it parses once with a snapshottable skeleton store, captures
+// the parts + skeleton bytes into the cache, then writes from that snapshot — the
+// same from-bytes reconstruction a hit uses, so the first and subsequent runs are
+// byte-identical (and identical to the uncached buffered path). It always handles
+// the run (the caller gated on cacheableWriter).
+func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string, reader format.DataFormatReader, writer format.DataFormatWriter) error {
+	key := r.partCacheKey(reader.Name(), "write")
+	consumer, isConsumer := writer.(format.SkeletonStoreConsumer)
+
+	// wireSkeleton attaches a fresh from-bytes skeleton store to the writer when
+	// the writer consumes one and we captured skeleton bytes. Returns the store
+	// (or nil) so runPipelineToWriter can close it.
+	wireSkeleton := func(skel []byte) *format.SkeletonStore {
+		if !isConsumer || len(skel) == 0 {
+			return nil
+		}
+		store := format.NewSkeletonStoreFromBytes(skel)
+		consumer.SetSkeletonStore(store)
+		return store
+	}
+
+	// Hit: replay parts (+ skeleton) to the writer without opening the reader.
+	if parts, skel, _, ok := r.cfg.PartCache.GetDocument(inputPath, key); ok {
+		reader.Close()
+		store := wireSkeleton(skel)
+		return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, store, "", nil)
+	}
+
+	// Miss: parse buffered with a snapshottable (file-backed) skeleton store wired
+	// to the reader, so a skeleton-backed format captures its reconstruction bytes.
+	var captureStore *format.SkeletonStore
+	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok && isConsumer {
+		if s, serr := format.NewSkeletonStore(); serr == nil {
+			captureStore = s
+			captureStore.SetOriginFormat(reader.Name())
+			emitter.SetSkeletonStore(captureStore)
+		}
+	}
+
+	source, oerr := openBudgetedFile(inputPath)
+	if oerr != nil {
+		reader.Close()
+		if captureStore != nil {
+			captureStore.Close()
+		}
+		return fmt.Errorf("open %q: %w", filepath.Base(inputPath), oerr)
+	}
+	parts, perr := r.readParts(ctx, reader, source, inputPath, targetLang) // closes reader, fills captureStore
+	if perr != nil {
+		if captureStore != nil {
+			captureStore.Close()
+		}
+		return perr
+	}
+
+	var skelBytes []byte
+	if captureStore != nil {
+		if b, berr := captureStore.Bytes(); berr == nil {
+			skelBytes = b
+		}
+		captureStore.Close()
+	}
+	r.cfg.PartCache.PutDocument(inputPath, key, parts, skelBytes, reader.Name())
+
+	store := wireSkeleton(skelBytes)
+	return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, store, "", nil)
+}
+
+// cacheEligible reports whether the document cache should be used for a source:
+// a cache must be configured and the file must be within the size ceiling, so a
+// large file is never buffered (parts + skeleton) into memory but instead uses
+// the streaming/live path. A stat failure declines the cache (the live path will
+// surface the real open error).
+func (r *FileRunner) cacheEligible(path string) bool {
+	if r.cfg.PartCache == nil {
+		return false
+	}
+	max := r.cfg.PartCacheMaxBytes
+	if max <= 0 {
+		max = partCacheMaxBytes
+	}
+	st, err := os.Stat(path)
+	return err == nil && st.Size() <= max
+}
+
 // partCacheKey is the document-cache key for a parse: the per-file detected
-// format plus the caller's config fingerprint (format config + source locale).
-// Namespaced "run|" so it never collides with other consumers' keys for the same
-// file. Returns "" when no cache is configured (the key is then unused).
-func (r *FileRunner) partCacheKey(formatName string) string {
+// format, a kind namespace, and the caller's config fingerprint (format config +
+// source locale). The kind keeps the process-only entries ("run", parts only,
+// no skeleton) separate from the file-writing entries ("write", parts + skeleton)
+// so a skeleton-less process-only entry is never served to a writer that needs
+// the skeleton. Returns "" when no cache is configured (the key is then unused).
+func (r *FileRunner) partCacheKey(formatName, kind string) string {
 	if r.cfg.PartCache == nil {
 		return ""
 	}
-	return formatName + "|run|" + r.cfg.PartCacheKey
+	return formatName + "|" + kind + "|" + r.cfg.PartCacheKey
 }
 
 // feedReader streams the reader's Parts directly into inCh (phase 2/3): the
@@ -474,6 +597,17 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 // and MCP which need to apply format presets and project config.
 func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string, reader format.DataFormatReader, writer format.DataFormatWriter) error {
 	sameFormat := reader.Name() == writer.Name()
+
+	// Document-cache fast path (project mode): for a same-format round-trip whose
+	// writer reconstructs from the content model + skeleton (not the raw source
+	// bytes), a prior parse of this source under the same config replays straight
+	// to the writer — parts from the cache, skeleton from the cached bytes — so the
+	// reader never runs. The raw-source-coupled binary/markup writers (openxml,
+	// odf, epub, idml, html, asciidoc) reconstruct from the original file and stay
+	// on the live path below.
+	if sameFormat && cacheableWriter(writer) && r.cacheEligible(inputPath) {
+		return r.cachedFileWrite(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer)
+	}
 
 	// Wire skeleton store if both support it AND reader and writer are the
 	// SAME format. A skeleton holds opaque, format-specific bytes (e.g. the
