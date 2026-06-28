@@ -876,6 +876,27 @@
         }
       }
     },
+    "source-check": {
+      "displayName": "Source Readiness",
+      "category": "quality",
+      "properties": {
+        "blockSeverity": {
+          "title": "Blocking severity",
+          "description": "Lowest finding severity that keeps a block from being marked checked (minor|major|critical)",
+          "options": {
+            "critical": {
+              "label": "critical"
+            },
+            "major": {
+              "label": "major"
+            },
+            "minor": {
+              "label": "minor"
+            }
+          }
+        }
+      }
+    },
     "term-check": {
       "displayName": "Terminology Check",
       "category": "quality",

@@ -99,6 +99,15 @@ type BlockView interface {
 	SetProperty(key, value string)
 	Property(key string) string
 
+	// SourceStatus reports the block's authoring lifecycle state (authored →
+	// checked → approved); "" means the authored baseline.
+	SourceStatus() model.SourceStatus
+	// SetSourceStatus stamps the block's authoring lifecycle state. This is
+	// metadata about the source, not a rewrite of its runs, so it is available
+	// at the read-only Annotate tier (like SetProperty) — a check tool that
+	// clears a block stamps `checked` without touching the source content.
+	SetSourceStatus(s model.SourceStatus)
+
 	// Drop removes this block from the stream (e.g. remove-target with
 	// RemoveBlockIfEmpty). The dispatcher emits nothing for a dropped block.
 	Drop()
@@ -232,6 +241,9 @@ func (v *blockView) Properties() map[string]string {
 }
 func (v *blockView) SetProperty(key, value string) { v.Properties()[key] = value }
 func (v *blockView) Property(key string) string    { return v.b.Properties[key] }
+
+func (v *blockView) SourceStatus() model.SourceStatus     { return v.b.SourceStatus }
+func (v *blockView) SetSourceStatus(s model.SourceStatus) { v.b.SourceStatus = s }
 
 func (v *blockView) Drop() { v.dropped = true }
 

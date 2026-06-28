@@ -97,3 +97,19 @@ func (p *KapiProject) BuildShipGates() (gate.RuleSet, error) {
 func (p *KapiProject) HasShipGates() bool {
 	return len(p.ShipGates) > 0 || len(p.ShipGate) > 0
 }
+
+// BuildSourceGate validates and returns the recipe's source-readiness gate (a
+// single gate over the source authoring ladder), or an empty gate when none is
+// configured. It is the source-side counterpart of BuildShipGates.
+func (p *KapiProject) BuildSourceGate() (gate.Gate, error) {
+	if len(p.SourceGate) == 0 {
+		return gate.Gate{}, nil
+	}
+	if err := p.SourceGate.Validate(gate.SourceLadder()); err != nil {
+		return nil, fmt.Errorf("source_gate: %w", err)
+	}
+	return p.SourceGate, nil
+}
+
+// HasSourceGate reports whether the recipe configures a source-readiness gate.
+func (p *KapiProject) HasSourceGate() bool { return len(p.SourceGate) > 0 }

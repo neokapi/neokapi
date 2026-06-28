@@ -151,6 +151,11 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(&XMLValidationConfig{CheckSource: true, WrapRoot: true}, toolMeta("xml-validation", "XML Validation", schema.CategoryQuality,
 		withTags("quality"), withCardinality(schema.Monolingual), withProduces(tgtF(model.OverlayQA)))))
 
+	reg.RegisterWithSchema("source-check", func() tool.Tool {
+		return NewSourceCheckTool(&SourceCheckConfig{})
+	}, toolSchema(&SourceCheckConfig{}, toolMeta("source-check", "Source Readiness", schema.CategoryQuality,
+		withTags("quality"), withCardinality(schema.Monolingual), withConsumes(srcF(schema.PortSource)))))
+
 	reg.RegisterWithSchema("content-lint", func() tool.Tool {
 		return NewContentLintTool(&ContentLintConfig{})
 	}, toolSchema(&ContentLintConfig{}, toolMeta("content-lint", "Content Lint", schema.CategoryTextProcessing,
@@ -364,6 +369,7 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("chars-check", NewCharsCheckFromConfig)
 	reg.SetConfigFactory("pattern-check", NewPatternCheckFromConfig)
 	reg.SetConfigFactory("term-check", NewTermCheckFromConfig)
+	reg.SetConfigFactory("source-check", NewSourceCheckFromConfig)
 	reg.SetConfigFactory("content-lint", NewContentLintFromConfig)
 	reg.SetConfigFactory("scoping-report", NewScopingReportFromConfig)
 	reg.SetConfigFactory("repetition-analysis", NewRepetitionAnalysisFromConfig)

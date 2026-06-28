@@ -18,8 +18,14 @@ type Block struct {
 	// authored content from the surrounding non-content structure. Blocks left
 	// unmarked stay in the skeleton, untouched by tools that edit, check, or
 	// translate.
-	Translatable       bool
-	SourceLocale       LocaleID // locale of the source runs (set by reader)
+	Translatable bool
+	SourceLocale LocaleID // locale of the source runs (set by reader)
+	// SourceStatus is the authoring lifecycle state of the source content
+	// (authored → checked → approved): the source-side counterpart of
+	// Target.Status. New ("") means "no committed status yet" and reads as the
+	// authored baseline. A source edit resets it; a clean source check stamps
+	// `checked`; an explicit human/agent approval stamps `approved`.
+	SourceStatus       SourceStatus
 	Skeleton           *Skeleton
 	Source             []Run                  // source content
 	Targets            map[VariantKey]*Target // committed translations, keyed by variant

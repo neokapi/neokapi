@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-24T21:49:47Z",
+  "generatedAt": "2026-06-28T12:05:04Z",
   "kind": "tool",
   "entries": [
     {
@@ -5081,6 +5081,60 @@
             "hasSchema": true
           }
         ]
+      }
+    },
+    {
+      "id": "source-check",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Source Readiness",
+      "category": "quality",
+      "tags": [
+        "quality"
+      ],
+      "cardinality": "monolingual",
+      "consumes": [
+        "source@source"
+      ],
+      "schema": {
+        "$id": "source-check",
+        "title": "Source Readiness",
+        "type": "object",
+        "toolMeta": {
+          "id": "source-check",
+          "category": "quality",
+          "displayName": "Source Readiness",
+          "tags": [
+            "quality"
+          ],
+          "cardinality": "monolingual",
+          "consumes": [
+            {
+              "type": "source"
+            }
+          ]
+        },
+        "properties": {
+          "blockSeverity": {
+            "type": "string",
+            "title": "Blocking severity",
+            "description": "Lowest finding severity that keeps a block from being marked checked (minor|major|critical)",
+            "options": [
+              {
+                "value": "minor",
+                "label": "minor"
+              },
+              {
+                "value": "major",
+                "label": "major"
+              },
+              {
+                "value": "critical",
+                "label": "critical"
+              }
+            ]
+          }
+        }
       }
     },
     {

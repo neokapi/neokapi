@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-24T21:49:47Z",
+  "generatedAt": "2026-06-28T12:05:04Z",
   "commands": [
     {
       "id": "brand",
@@ -4945,6 +4945,111 @@
       "demoMode": true
     },
     {
+      "id": "source-check",
+      "path": [
+        "source-check"
+      ],
+      "use": "source-check [files...]",
+      "short": "Source Readiness",
+      "groupID": "quality",
+      "flags": [
+        {
+          "name": "block-severity",
+          "usage": "Lowest finding severity that keeps a block from being marked checked (minor|major|critical) (minor, major, critical)",
+          "type": "string"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "term-check",
       "path": [
         "term-check"
@@ -6517,6 +6622,12 @@
         {
           "name": "qa",
           "usage": "run only the QA gate",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "ship",
+          "usage": "also enforce the project's ship gates: fail if any locale's coverage is below its gate (the pre-release bar). Off by default — target drift is non-blocking; see 'kapi status'.",
           "default": "false",
           "type": "bool"
         },

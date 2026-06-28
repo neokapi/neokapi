@@ -27,10 +27,11 @@ import (
 
 // Gate names for `kapi verify`.
 const (
-	gateBrand = "brand"
-	gateTerms = "terminology"
-	gateQA    = "qa"
-	gateShip  = "ship"
+	gateBrand  = "brand"
+	gateTerms  = "terminology"
+	gateQA     = "qa"
+	gateShip   = "ship"
+	gateSource = "source"
 )
 
 // DefaultBrandMinScore is the brand compliance score below which the brand
@@ -340,19 +341,53 @@ func (a *App) computeVerify(cmd *cobra.Command, args []string) (VerifyOutput, er
 	// By default the ship gate is *not* evaluated here — coverage is the job of
 	// `kapi status`, and target drift is non-blocking. With --ship, a locale that
 	// doesn't clear its ship gate fails verify (exit 3), for a release/tag check.
-	if ship, _ := cmd.Flags().GetBool("ship"); ship && proj.HasShipGates() {
-		units, err := a.resolveVerifyUnits(cmd, proj, root, args, localeFilter)
+	if ship, _ := cmd.Flags().GetBool("ship"); ship && (proj.HasShipGates() || proj.HasSourceGate()) {
+		shipUnits, err := a.resolveVerifyUnits(cmd, proj, root, args, localeFilter)
 		if err != nil {
 			return VerifyOutput{}, err
 		}
-		shipGate, err := a.verifyShip(cmdContext(cmd), proj, units)
-		if err != nil {
-			return VerifyOutput{}, err
+		if proj.HasShipGates() {
+			shipGate, err := a.verifyShip(cmdContext(cmd), proj, shipUnits)
+			if err != nil {
+				return VerifyOutput{}, err
+			}
+			gates = append(gates, shipGate)
 		}
-		gates = append(gates, shipGate)
+		if proj.HasSourceGate() {
+			srcGate, err := a.verifySourceGate(cmdContext(cmd), proj, shipUnits)
+			if err != nil {
+				return VerifyOutput{}, err
+			}
+			gates = append(gates, srcGate)
+		}
 	}
 
 	return buildVerifyOutput(gates), nil
+}
+
+// verifySourceGate evaluates the project's source-readiness gate over the
+// author's content. It is the source-side counterpart of verifyShip: it gates
+// the source (authored → checked → approved), not the translations. Like the
+// ship gate it is opt-in (--ship) — source drift never blocks an ordinary build.
+func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, units []verifyUnit) (VerifyGateResult, error) {
+	sc, err := a.computeSourceReadiness(ctx, proj, units)
+	if err != nil {
+		return VerifyGateResult{}, err
+	}
+	g := VerifyGateResult{Gate: gateSource, Pass: true}
+	if !sc.Gated || sc.Shippable {
+		return g, nil
+	}
+	g.Pass = false
+	for _, sf := range sc.Pending {
+		g.Findings = append(g.Findings, VerifyFinding{
+			Gate:       gateSource,
+			Severity:   "error",
+			Message:    fmt.Sprintf("source %s readiness %d%% is below the required %d%%", sf.State, int(sf.Actual), sf.Required),
+			Suggestion: "run the source checks (e.g. brand/terminology) and resolve findings, or relax the source gate",
+		})
+	}
+	return g, nil
 }
 
 // verifyShip evaluates the project's ship gates over per-locale coverage. A
