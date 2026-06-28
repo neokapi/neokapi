@@ -70,6 +70,23 @@ func init() {
 // applySegmentsToBlock writes the source and target seg lists onto the block
 // as flat runs + segmentation overlays + a UnitSegmentsAnnotation carrying
 // the inline IR. trgLang names the target locale (may be empty).
+// targetStatusFromXLIFF2State maps an XLIFF 2.0 segment `state` to a target
+// lifecycle status. The XLIFF 2 vocabulary is initial → translated → reviewed →
+// final; "initial" / unknown leave the status unset (untranslated / new on our
+// ladder, where presence then implies translated).
+func targetStatusFromXLIFF2State(state string) model.TargetStatus {
+	switch state {
+	case "final":
+		return model.TargetStatusSignedOff
+	case "reviewed":
+		return model.TargetStatusReviewed
+	case "translated":
+		return model.TargetStatusTranslated
+	default:
+		return ""
+	}
+}
+
 func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgLang model.LocaleID) {
 	ann := &UnitSegmentsAnnotation{
 		Source: map[string]*Content{},
@@ -86,6 +103,16 @@ func applySegmentsToBlock(block *model.Block, srcSegs []seg, tgtSegs []seg, trgL
 		block.SetTargetRuns(trgLang, runs)
 		key := model.Variant(trgLang)
 		block.SetSegmentation(&key, buildSegmentSpans(tgtSegs))
+		// Map the XLIFF 2 segment state (captured as a block property by both
+		// reader paths) onto the target's lifecycle status, so coverage and ship
+		// gates see review progress that came in over the interchange. This is
+		// read-only enrichment: the raw `state` attribute still round-trips via
+		// the property, so the writer is unaffected and byte-exact output holds.
+		if st := targetStatusFromXLIFF2State(block.Properties["state"]); st != "" {
+			if t := block.Target(trgLang); t != nil {
+				t.Status = st
+			}
+		}
 	}
 
 	if len(ann.Source) > 0 || len(ann.Target) > 0 {
