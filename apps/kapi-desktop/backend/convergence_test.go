@@ -123,3 +123,47 @@ func TestGetConvergence_UnknownTab(t *testing.T) {
 	_, err := app.GetConvergence("nope")
 	require.Error(t, err)
 }
+
+func TestApproveReviewItem_PromotesToReviewed(t *testing.T) {
+	app := NewApp()
+	tab, root := newConvergenceProject(t, app)
+
+	// Materialize a fully-translated fr-FR target so its units enter the review
+	// queue (translated, not yet approved).
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, "locales", "fr-FR.json"),
+		[]byte(`{"greeting":"Bonjour","farewell":"Au revoir"}`), 0o644))
+
+	rep, err := app.GetConvergence(tab.ID)
+	require.NoError(t, err)
+	var item *struct{ Locale, File, Key string }
+	for _, it := range rep.Review {
+		if it.Locale == "fr-FR" {
+			item = &struct{ Locale, File, Key string }{it.Locale, it.File, it.Key}
+			break
+		}
+	}
+	require.NotNil(t, item, "fr-FR has translated units awaiting review")
+
+	require.NoError(t, app.ApproveReviewItem(tab.ID, item.Locale, item.File, item.Key))
+
+	after, err := app.GetConvergence(tab.ID)
+	require.NoError(t, err)
+	for _, lc := range after.Locales {
+		if lc.Locale == "fr-FR" {
+			assert.Equal(t, 50, lc.Pct["reviewed"], "1 of 2 fr-FR units approved")
+		}
+	}
+	// The approved unit left the queue.
+	for _, it := range after.Review {
+		if it.Locale == "fr-FR" {
+			assert.NotEqual(t, item.Key, it.Key, "the approved unit is gone")
+		}
+	}
+}
+
+func TestApproveReviewItem_UnknownTab(t *testing.T) {
+	app := NewApp()
+	err := app.ApproveReviewItem("nope", "fr-FR", "f.json", "k")
+	require.Error(t, err)
+}

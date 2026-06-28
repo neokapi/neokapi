@@ -106,6 +106,8 @@ export const api = {
   runExtract: (tabID: string) => call<ExtractResult>("RunExtract", tabID),
   getConvergence: (tabID: string) => call<ConvergenceReport>("GetConvergence", tabID),
   bringUpToDate: (tabID: string) => call<void>("BringUpToDate", tabID),
+  approveReviewItem: (tabID: string, locale: string, file: string, key: string) =>
+    call<void>("ApproveReviewItem", tabID, locale, file, key),
 
   // App mode + session (project-first restore)
   getAppMode: () => call<string>("GetAppMode"),

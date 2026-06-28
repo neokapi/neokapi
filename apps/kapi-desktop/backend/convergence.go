@@ -85,3 +85,21 @@ func (a *App) BringUpToDate(tabID string) error {
 
 	return a.RunFlow(tabID, flowName, paths, targets)
 }
+
+// ApproveReviewItem promotes one review-queue unit to `reviewed`: it records the
+// unit's current source→target translation as an approved correction in the
+// project's committed .klftm (the same write `kapi apply` makes). After it
+// returns, GetConvergence shows the unit reviewed and it leaves the queue. The
+// unit is addressed by (locale, file, key) as listed in the review queue.
+func (a *App) ApproveReviewItem(tabID, locale, file, key string) error {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return fmt.Errorf("project tab %q not found", tabID)
+	}
+	if op.Project == nil || op.Path == "" {
+		return errors.New("project has no recipe loaded")
+	}
+	src := string(op.Project.Defaults.SourceLanguage)
+	_, err := a.convergenceCLI().ApproveReviewUnit(context.Background(), op.Path, src, locale, file, key)
+	return err
+}
