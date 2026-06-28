@@ -382,3 +382,44 @@ func TestDefaultPriorityConstants(t *testing.T) {
 	assert.Equal(t, 100, format.DefaultPluginPriority)
 	assert.Greater(t, format.DefaultPluginPriority, format.DefaultBuiltInPriority)
 }
+
+// A binary file whose extension claims a text format (the icudtl.dat → fixedwidth
+// case) must not be detected as that text format — its reader would choke on
+// binary bytes. Detection declines the extension-only match for binary content,
+// while still honouring it for text content and honouring binary-native formats.
+func TestDetectDeclinesTextFormatForBinaryContent(t *testing.T) {
+	d := format.NewDetector()
+	// A text-only format claimed by extension, with no magic / sniff.
+	d.Register("fixedwidth", format.FormatSignature{Extensions: []string{".dat"}})
+	// A binary-native format that declares a magic prefix.
+	d.Register("blob", format.FormatSignature{
+		Extensions: []string{".blob"},
+		MagicBytes: [][]byte{[]byte("BLOB")},
+	})
+
+	// Text content with a .dat extension still resolves to the text format.
+	name, err := d.Detect("data.dat", bytes.NewReader([]byte("col1 col2\nrow1 row2\n")), "")
+	require.NoError(t, err)
+	assert.Equal(t, "fixedwidth", name)
+
+	// Binary content (a NUL byte) with the same extension is NOT forced onto the
+	// text format — detection declines and reports it can't tell.
+	_, err = d.Detect("icudtl.dat", bytes.NewReader([]byte("\x00\x01\x02ICU binary data")), "")
+	require.Error(t, err, "binary content must not be detected as a text format by extension")
+
+	// A binary-native format (declares magic) still resolves for binary content.
+	name, err = d.Detect("x.blob", bytes.NewReader([]byte("BLOB\x00\x01payload")), "")
+	require.NoError(t, err)
+	assert.Equal(t, "blob", name)
+}
+
+// A binary-content format that declares neither magic nor sniff but sets Binary
+// (gettext .mo, video) must still be chosen for its (binary) content — the
+// decline-on-binary guard does not apply to it.
+func TestDetectBinaryFlaggedFormatNotDeclined(t *testing.T) {
+	d := format.NewDetector()
+	d.Register("mo", format.FormatSignature{Extensions: []string{".mo"}, Binary: true})
+	name, err := d.Detect("messages.mo", bytes.NewReader([]byte("\xde\x12\x04\x95\x00\x00binary catalog")), "")
+	require.NoError(t, err)
+	assert.Equal(t, "mo", name)
+}

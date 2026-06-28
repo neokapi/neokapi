@@ -64,5 +64,6 @@ func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
 		MIMETypes:  []string{"application/x-gettext-translation"},
 		Extensions: []string{".mo"},
+		Binary:     true, // gettext .mo is a binary catalog
 	}
 }
