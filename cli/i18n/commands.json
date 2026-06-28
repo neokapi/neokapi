@@ -376,6 +376,10 @@
           "long": "Summarize the content of one or more files: total and translatable blocks,\nword and character counts (with and without spaces), segments, and a breakdown\nby structural role (heading, paragraph, list-item, table-cell, …). Any format —\na Word document, a JSON catalog, Markdown, HTML — yields the same shape.\n\nWord, character, and segment counts cover the translatable content; block and\nrole counts cover the whole document. Prints a human table by default; --json\nemits the structured record for piping into a pipeline.\n\nWith no FILE, or when FILE is \"-\", standard input is read.",
           "short": "Summarize content metrics for files — blocks, words, characters, segments, by role"
         },
+        "status": {
+          "long": "Show, per target locale, how much of the project's tracked content is\ntranslated and whether it clears its ship gate — a derived dashboard, like\ngit status. Coverage is recomputed from the content × target files on every run;\nnothing is tracked as state.\n\nThis is the informational counterpart to 'kapi verify' (the quality gate). It\nnever fails: a locale that is behind is reported as pending, not an error —\ntarget-language drift is normal, expected work, not a build break.",
+          "short": "Show per-locale translation coverage and ship-gate standing"
+        },
         "term-check": {
           "example": "  kapi term-check app.xliff --source-lang en --target-lang fr\n  kapi term-check messages.json --source-lang en --target-lang fr",
           "short": "Terminology Check"

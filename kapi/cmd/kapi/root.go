@@ -79,6 +79,13 @@ func init() {
 	// exposes, so the localization inventory can never drift from the
 	// binary).
 	for _, cmd := range app.KapiCommandSet() {
+		// A plugin may provide its own version of a built-in command (e.g.
+		// kapi-bowrain's `status` shows server sync state). A built-in shadows a
+		// plugin command of the same name, so to let the plugin win we skip
+		// registering the built-in when a plugin already declares that command.
+		if app.PluginHost != nil && app.PluginHost.CommandRoute(cmd.Name()) != nil {
+			continue
+		}
 		rootCmd.AddCommand(cmd)
 	}
 
