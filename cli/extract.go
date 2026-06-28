@@ -945,7 +945,13 @@ func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error 
 		if task.tm != nil {
 			if matches, merr := task.tm.Lookup(ctx, b, task.ctx.SourceLocale, task.targetLocale, sievepen.LookupOptions{MinScore: threshold, MaxResults: 1}); merr == nil && len(matches) > 0 && !matches[0].Ambiguous {
 				if text := matches[0].Entry.VariantText(task.targetLocale); text != "" {
-					payload, _ := json.Marshal(map[string]string{"text": text})
+					// A TM-leveraged prefill is a draft; carry that status so the
+					// workspace → merge round-trip preserves it (the matching read
+					// is applyTargetOverlay).
+					payload, _ := json.Marshal(map[string]string{
+						"text":   text,
+						"status": string(model.TargetStatusDraft),
+					})
 					overlays = append(overlays, klz.OverlayDoc{
 						Kind: "targets/" + string(task.targetLocale), BlockHash: b.ID, Payload: payload, Source: srcArchive,
 					})
