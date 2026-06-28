@@ -23,6 +23,10 @@ type MTTranslateTool struct {
 	sourceLocale model.LocaleID
 	targetLocale model.LocaleID
 	vocab        *model.VocabularyRegistry
+	// configFP fingerprints the output-affecting config (provider, locales) so the
+	// session overlay cache re-translates after a provider/locale change instead
+	// of serving a stale cached target. See tool.OverlayConfigFingerprint.
+	configFP string
 }
 
 // MTTranslateConfig holds configuration for the MT translate tool.
@@ -76,6 +80,7 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 	}
 	t.ToolName = name
 	t.ToolDescription = "Translates Blocks using " + string(p.Name())
+	t.configFP = tool.OverlayConfigFingerprint("mt", string(p.Name()), string(cfg.SourceLocale), string(cfg.TargetLocale))
 	// Translate: writes the target locale; source stays read-only.
 	t.Produce = t.translate
 	return t
@@ -179,6 +184,9 @@ func (t *MTTranslateTool) SessionProcess(
 type mtTargetCache struct {
 	Text     string `json:"text"`
 	Provider string `json:"provider,omitempty"`
+	// Config is the tool-config fingerprint at write time; a cached target is
+	// reused only when it matches the current tool's fingerprint.
+	Config string `json:"config,omitempty"`
 }
 
 func (t *MTTranslateTool) sessionHandleBlock(
@@ -200,7 +208,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 	if randomAccess {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached mtTargetCache
-			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" {
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" && cached.Config == t.configFP {
 				block.SetTargetText(t.targetLocale, cached.Text)
 				block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.mtOrigin())
 				return nil
@@ -213,7 +221,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 	}
 
 	if target := block.TargetText(t.targetLocale); target != "" {
-		payload, err := json.Marshal(mtTargetCache{Text: target, Provider: string(t.provider.Name())})
+		payload, err := json.Marshal(mtTargetCache{Text: target, Provider: string(t.provider.Name()), Config: t.configFP})
 		if err != nil {
 			return fmt.Errorf("translate: encode overlay: %w", err)
 		}

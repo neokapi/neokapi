@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -279,10 +280,11 @@ func (t *PseudoTranslateTool) processOne(
 	// Consult existing overlay when the provider supports random
 	// access. If one exists, hydrate the block from it and skip the
 	// translator.
+	configFP := pseudoConfigFingerprint(t.cfg)
 	if randomAccess {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached pseudoCache
-			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Target != "" {
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Target != "" && cached.Config == configFP {
 				block.SetTargetText(t.cfg.TargetLocale, cached.Target)
 				block.StampTargetProvenance(t.cfg.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: t.cfg.ToolName()})
 				return nil
@@ -298,7 +300,7 @@ func (t *PseudoTranslateTool) processOne(
 	// runs can skip the work. Pure text cache — runs-level targets
 	// round-trip through the block model itself.
 	if target := block.TargetText(t.cfg.TargetLocale); target != "" {
-		payload, err := json.Marshal(pseudoCache{Target: target})
+		payload, err := json.Marshal(pseudoCache{Target: target, Config: configFP})
 		if err != nil {
 			return fmt.Errorf("pseudo-translate: encode overlay: %w", err)
 		}
@@ -330,6 +332,23 @@ func pseudoOverlayKind(locale model.LocaleID) string {
 // a follow-up.
 type pseudoCache struct {
 	Target string `json:"target"`
+	// Config is the tool-config fingerprint at write time; a cached target is
+	// reused only when it matches the current config (prefix/suffix/expansion/
+	// locale), so changing the pseudo style re-runs rather than serving stale.
+	Config string `json:"config,omitempty"`
+}
+
+// pseudoConfigFingerprint hashes the pseudo settings that change a block's
+// output — every field of the config does — so the session overlay cache reuses
+// a cached target only when the style is unchanged.
+func pseudoConfigFingerprint(cfg *PseudoConfig) string {
+	return tool.OverlayConfigFingerprint(
+		"pseudo",
+		strconv.Itoa(cfg.ExpansionPercent),
+		cfg.Prefix,
+		cfg.Suffix,
+		string(cfg.TargetLocale),
+	)
 }
 
 // pseudoLocalizeMedia pseudo-localizes an image Media part in place: it replaces
