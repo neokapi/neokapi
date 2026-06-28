@@ -409,3 +409,42 @@ func TestExtract_SegmentationSplitsSourceIntoMultipleSegments(t *testing.T) {
 	count := strings.Count(content, "<segment ")
 	assert.GreaterOrEqual(t, count, 2, "expected multiple segments when segmentation.source=true, got %d in:\n%s", count, content)
 }
+
+func TestExtract_IncrementalReuse(t *testing.T) {
+	dir := t.TempDir()
+	real, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+	recipe := extractProjectFixture(t, real, []model.LocaleID{"nb"})
+
+	srcDir := filepath.Join(real, "src", "locales", "en")
+	require.NoError(t, os.MkdirAll(srcDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.json"), []byte(`{"x":"Hello"}`), 0o644))
+	outDir := filepath.Join(real, "out")
+
+	// First extract: nothing to reuse.
+	out1, err := runExtractCmd(t, recipe, "--out-dir", outDir)
+	require.NoError(t, err, out1)
+	assert.NotContains(t, out1, "Reused")
+
+	// Second extract, source unchanged: reuse it (no re-parse).
+	out2, err := runExtractCmd(t, recipe, "--out-dir", outDir)
+	require.NoError(t, err, out2)
+	assert.Contains(t, out2, "Reused 1", "an unchanged source is reused")
+
+	// Change the source: it must re-extract (not reuse a stale result).
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.json"), []byte(`{"x":"Hello","y":"World"}`), 0o644))
+	out3, err := runExtractCmd(t, recipe, "--out-dir", outDir)
+	require.NoError(t, err, out3)
+	assert.NotContains(t, out3, "Reused", "a changed source re-extracts")
+
+	// Unchanged again: reuse the new (3-key) result — content-addressed, so it
+	// must not pick the stale 1-key batch from the same test second.
+	out4, err := runExtractCmd(t, recipe, "--out-dir", outDir)
+	require.NoError(t, err, out4)
+	assert.Contains(t, out4, "Reused 1")
+
+	// --force bypasses reuse.
+	out5, err := runExtractCmd(t, recipe, "--out-dir", outDir, "--force")
+	require.NoError(t, err, out5)
+	assert.NotContains(t, out5, "Reused")
+}
