@@ -369,8 +369,10 @@ function syncSmokeContract(spec: SceneSpec): { changed: boolean; path: string } 
 
   // Find the `smoke_contract:` key and its indented list within the front
   // matter, then replace the whole block. We match the key line plus all
-  // following lines that are list items ("- ") at a deeper indent.
-  const smokeRe = /^(\s*)smoke_contract:\s*\n((?:\1\s+-\s.*\n?)*)/m;
+  // following lines that are list items ("- ") at a deeper indent. An empty
+  // contract round-trips as inline `[]` (what we emit below when there are no
+  // offline commands), so the key line may carry a `[]` and no items.
+  const smokeRe = /^(\s*)smoke_contract:[ \t]*(?:\[\][ \t]*)?\n((?:\1[ \t]+-[ \t].*\n?)*)/m;
   const sm = original.match(smokeRe);
   if (!sm) {
     throw new Error(`${spec.id}: no "smoke_contract:" block found in ${mdPath} front matter`);

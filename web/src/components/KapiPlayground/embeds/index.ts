@@ -9,6 +9,7 @@ import kapiKlzWorkspace from "./kapi-klz-workspace.embed";
 import kapiOverview from "./kapi-overview.embed";
 import kapiProjectWorkflow from "./kapi-project-workflow.embed";
 import kapiPseudoTranslate from "./kapi-pseudo-translate.embed";
+import kapiReviewAndApprove from "./kapi-review-and-approve.embed";
 import kapiTerminologyPretranslation from "./kapi-terminology-pretranslation.embed";
 import kapiTerminologyQa from "./kapi-terminology-qa.embed";
 import kapiWordCount from "./kapi-word-count.embed";
@@ -19,6 +20,7 @@ export const EMBED_CONFIGS: Record<string, WalkthroughEmbedConfig> = {
   "kapi-overview": kapiOverview,
   "kapi-project-workflow": kapiProjectWorkflow,
   "kapi-pseudo-translate": kapiPseudoTranslate,
+  "kapi-review-and-approve": kapiReviewAndApprove,
   "kapi-terminology-pretranslation": kapiTerminologyPretranslation,
   "kapi-terminology-qa": kapiTerminologyQa,
   "kapi-word-count": kapiWordCount,
