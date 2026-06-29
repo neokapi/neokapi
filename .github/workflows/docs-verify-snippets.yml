@@ -61,3 +61,6 @@ jobs:
       - name: Verify .klz + .kapi workflows in wasm (JSON + Office)
         run: GOROOT="$(go env GOROOT)" node --experimental-strip-types scripts/klz-wasm-smoke.ts
 
+      - name: Verify the review → approve loop in wasm (status, apply, state store)
+        run: node --experimental-strip-types scripts/verify-snippets/review-smoke.ts
+
