@@ -16,7 +16,7 @@ func TestBlockKey_NameThenID(t *testing.T) {
 func TestTargetState_PresenceBaselineAndCommitted(t *testing.T) {
 	b := model.NewBlock("a", "Apple")
 	b.Translatable = true
-	assert.Equal(t, "", convergence.TargetState(b, "nb"), "no target → below every rung")
+	assert.Empty(t, convergence.TargetState(b, "nb"), "no target → below every rung")
 	b.SetTargetText("nb", "Eple")
 	assert.Equal(t, string(model.TargetStatusTranslated), convergence.TargetState(b, "nb"),
 		"a present target counts as translated (presence baseline)")
@@ -30,7 +30,7 @@ func TestSourceState_PresenceBaselineAndCommitted(t *testing.T) {
 	assert.Equal(t, string(model.SourceStatusAuthored), convergence.SourceState(b))
 	b.SourceStatus = model.SourceStatusApproved
 	assert.Equal(t, string(model.SourceStatusApproved), convergence.SourceState(b))
-	assert.Equal(t, "", convergence.SourceState(model.NewBlock("e", "  ")), "empty source is below every rung")
+	assert.Empty(t, convergence.SourceState(model.NewBlock("e", "  ")), "empty source is below every rung")
 }
 
 func TestPreview_TrimsAndCollapses(t *testing.T) {
