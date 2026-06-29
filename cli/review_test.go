@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,20 +37,26 @@ ship_gate: { translated: 100, reviewed: 50 }
 	return root
 }
 
-// writeReviewedCorrection appends an approved source→target pair to the project's
-// committed .klftm — the human-review record `kapi apply` would write.
-func writeReviewedCorrection(t *testing.T, root, srcText, tgtText string) {
+// writeReviewedCorrection approves the unit whose source matches srcText (for nb)
+// through the real state-store approval path — ApproveReviewUnit records the
+// decision in the project state store, the authoritative carrier of review state.
+// The target argument is ignored: approval blesses the translation already in the
+// file. (Named for historical continuity with the prior .klftm-based helper.)
+func writeReviewedCorrection(t *testing.T, root, srcText, _ string) {
 	t.Helper()
-	path := filepath.Join(root, "tm.klftm")
-	entries, err := loadKLFTMEntries(path)
+	a := &App{}
+	proj := filepath.Join(root, "proj.kapi")
+	rep, err := a.ProjectConvergence(context.Background(), proj, "en")
 	require.NoError(t, err)
-	entries = append(entries, sievepen.TMEntry{
-		Variants: map[model.LocaleID][]model.Run{
-			"en": {{Text: &model.TextRun{Text: srcText}}},
-			"nb": {{Text: &model.TextRun{Text: tgtText}}},
-		},
-	})
-	require.NoError(t, writeKLFTM(path, entries))
+	for _, it := range rep.Review {
+		if it.Source == srcText {
+			ok, err := a.ApproveReviewUnit(context.Background(), proj, "en", it.Locale, it.File, it.Key, "reviewed")
+			require.NoError(t, err)
+			require.True(t, ok)
+			return
+		}
+	}
+	t.Fatalf("no review unit with source %q in %v", srcText, rep.Review)
 }
 
 func reviewQueue(t *testing.T) ReviewQueueOutput {
@@ -68,7 +72,7 @@ func reviewQueue(t *testing.T) ReviewQueueOutput {
 	return q
 }
 
-func TestReview_KlftmMatchPromotesToReviewed(t *testing.T) {
+func TestReview_ApprovalPromotesToReviewed(t *testing.T) {
 	root := writeReviewProject(t)
 	t.Chdir(root)
 
@@ -87,7 +91,7 @@ func TestReview_KlftmMatchPromotesToReviewed(t *testing.T) {
 	nb2, ok := locale(after, "nb")
 	require.True(t, ok)
 	assert.Equal(t, 100, nb2.Pct["translated"], "still fully translated")
-	assert.Equal(t, 50, nb2.Pct["reviewed"], "1 of 2 units now matches an approved correction")
+	assert.Equal(t, 50, nb2.Pct["reviewed"], "1 of 2 units now approved in the state store")
 	assert.True(t, nb2.Shippable, "reviewed:50 is now met")
 }
 
@@ -109,10 +113,11 @@ func TestReview_QueueListsUnreviewedUnits(t *testing.T) {
 	assert.Equal(t, "Banana", q2.Pending[0].Source, "only the unreviewed unit remains")
 }
 
-// TestReview_ApplyTMCorrectionPromotesToReviewed drives the real `kapi apply`
-// verb: a tm correction lands in the committed .klftm, and the next status
-// derivation counts that unit as reviewed.
-func TestReview_ApplyTMCorrectionPromotesToReviewed(t *testing.T) {
+// TestReview_ApplyTMCorrectionIsRecycleNotReview drives the real `kapi apply` verb
+// and asserts the migrated boundary: a tm correction lands in the .klftm as
+// RECYCLE leverage — it does NOT promote review coverage. Review state lives in
+// the project state store now (set by ApproveReviewUnit), not the TM.
+func TestReview_ApplyTMCorrectionIsRecycleNotReview(t *testing.T) {
 	root := writeReviewProject(t)
 	t.Chdir(root)
 
@@ -128,8 +133,8 @@ func TestReview_ApplyTMCorrectionPromotesToReviewed(t *testing.T) {
 	after := runStatusJSON(t)
 	nb, ok := locale(after, "nb")
 	require.True(t, ok)
-	assert.Equal(t, 50, nb.Pct["reviewed"], "the applied tm correction counts as reviewed")
-	assert.True(t, nb.Shippable, "reviewed:50 met via apply")
+	assert.Equal(t, 0, nb.Pct["reviewed"], "a tm correction is recycle leverage, not a review decision")
+	assert.False(t, nb.Shippable, "reviewed:50 is not met by a tm correction alone")
 }
 
 func TestReview_EmptyQueueWhenNothingTranslated(t *testing.T) {
@@ -140,4 +145,28 @@ func TestReview_EmptyQueueWhenNothingTranslated(t *testing.T) {
 	for _, it := range q.Pending {
 		assert.NotEqual(t, "ja", it.Locale, "absent targets are upstream of review")
 	}
+}
+
+// TestReview_EditAfterApprovalInvalidatesReview proves the state model's upgrade
+// over the old content-keyed .klftm: an approval is bound to the targetHash of the
+// translation it blessed, so editing that translation drops the unit back below
+// the reviewed rung — something the content-keyed TM index could not express.
+func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
+	root := writeReviewProject(t)
+	t.Chdir(root)
+
+	writeReviewedCorrection(t, root, "Apple", "Eple") // approve a→Eple
+	assert.FileExists(t, filepath.Join(root, ".kapi-state.json"),
+		"approval exports the committed state artifact")
+	nb, ok := locale(runStatusJSON(t), "nb")
+	require.True(t, ok)
+	assert.Equal(t, 50, nb.Pct["reviewed"], "the approved unit counts as reviewed")
+
+	// Edit the approved translation — the decision no longer blesses this text.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
+		[]byte(`{"a":"Eple-EDITED","b":"Banan"}`), 0o644))
+	nb2, ok := locale(runStatusJSON(t), "nb")
+	require.True(t, ok)
+	assert.Equal(t, 0, nb2.Pct["reviewed"],
+		"editing the approved translation invalidates the review (targetHash link)")
 }

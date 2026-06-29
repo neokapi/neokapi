@@ -157,6 +157,14 @@ type Defaults struct {
 	// relative to the project root. Empty means no bound TM source.
 	TMSource string `yaml:"tm_source,omitempty" json:"tm_source,omitempty"`
 
+	// State binds the committed, git-tracked project state artifact (a
+	// kapi-project-state JSON document, core/state) — the authoritative carrier of
+	// per-unit workflow decisions (review ladder, approvals, parking) that a plain
+	// target file cannot hold. It is the export *sink* for state in git mode (a
+	// bowrain project pushes state to the server instead). The path resolves
+	// relative to the project root; empty defaults to `.kapi-state.json`.
+	State string `yaml:"state,omitempty" json:"state,omitempty"`
+
 	// Tools holds project-level tool presets: per-tool config defaults applied
 	// wherever the tool runs in a project flow. A flow step's own config
 	// overrides the preset per key (step wins), so a project can pin, say,
