@@ -678,7 +678,7 @@ func TestFileRunner_ProcessOnly_UsesPartCache(t *testing.T) {
 	// proving cached parts, not the file, drove it.
 	sentinel := model.NewBlock("sentinel-hash", "Only In Cache")
 	sentinel.Translatable = true
-	cache.seed(inputPath, "json|doc|seed", []*model.Part{{Type: model.PartBlock, Resource: sentinel}})
+	cache.seed(inputPath, "json|run|seed", []*model.Part{{Type: model.PartBlock, Resource: sentinel}})
 	store3 := newStore("blocks3.db")
 	r3 := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg: reg, SourceLocale: "en-US", Store: store3,

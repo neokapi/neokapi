@@ -171,19 +171,13 @@ func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder 
 	if err != nil {
 		return nil
 	}
-	skelTmp := filepath.Join(c.dir, skelRef+".tmp")
-	skel, err := format.NewSkeletonStoreAt(skelTmp)
-	if err != nil {
-		_ = pf.Close()
-		_ = os.Remove(partsTmp)
-		return nil
-	}
-	skel.SetOriginFormat(formatName)
+	// The skeleton store is created lazily, on the first SkeletonStore() call, so a
+	// lean (non-reconstructing) recording writes no skeleton file at all.
 	return &docRecorder{
 		c: c, path: path, configKey: configKey, contentHash: hash, format: formatName,
 		st: st, partsRef: partsRef, skelRef: skelRef,
-		partsTmp: partsTmp, skelTmp: skelTmp,
-		pf: pf, pw: bufio.NewWriter(pf), skel: skel,
+		partsTmp: partsTmp, skelTmp: filepath.Join(c.dir, skelRef+".tmp"),
+		pf: pf, pw: bufio.NewWriter(pf),
 	}
 }
 
@@ -254,9 +248,20 @@ type docRecorder struct {
 	parts                                int
 }
 
-// SkeletonStore is wired to the reader's emitter so the skeleton is written to
-// its file as the document parses.
-func (r *docRecorder) SkeletonStore() *format.SkeletonStore { return r.skel }
+// SkeletonStore returns the recorder's skeleton store, creating its file lazily on
+// first use — so a lean recording (a process-only/read run that never calls this)
+// writes no skeleton file. nil if the file can't be created.
+func (r *docRecorder) SkeletonStore() *format.SkeletonStore {
+	if r.skel == nil {
+		s, err := format.NewSkeletonStoreAt(r.skelTmp)
+		if err != nil {
+			return nil
+		}
+		s.SetOriginFormat(r.format)
+		r.skel = s
+	}
+	return r.skel
+}
 
 // Add appends one parsed part to the log (streamed; not buffered into a slice).
 func (r *docRecorder) Add(p *model.Part) error {
@@ -291,10 +296,12 @@ func (r *docRecorder) Commit() error {
 		return err
 	}
 	skelRef := r.skelRef
-	hadSkeleton := r.skel.EntriesWritten() > 0
-	if err := r.skel.Close(); err != nil { // persistent: flushes + closes, keeps file
-		r.Abort()
-		return err
+	hadSkeleton := r.skel != nil && r.skel.EntriesWritten() > 0
+	if r.skel != nil {
+		if err := r.skel.Close(); err != nil { // persistent: flushes + closes, keeps file
+			r.Abort()
+			return err
+		}
 	}
 	if err := os.Rename(r.partsTmp, filepath.Join(r.c.dir, r.partsRef)); err != nil {
 		r.Abort()
@@ -323,7 +330,9 @@ func (r *docRecorder) Commit() error {
 func (r *docRecorder) Abort() {
 	_ = r.pw.Flush()
 	_ = r.pf.Close()
-	_ = r.skel.Close()
+	if r.skel != nil {
+		_ = r.skel.Close()
+	}
 	_ = os.Remove(r.partsTmp)
 	_ = os.Remove(r.skelTmp)
 }

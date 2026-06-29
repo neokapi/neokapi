@@ -267,11 +267,11 @@ func TestRun_InProject_PopulatesAndReusesDocumentCache(t *testing.T) {
 	keys := runDocCacheKeys(t, recipe)
 	hasRunKey := false
 	for _, k := range keys {
-		if strings.Contains(k, "|doc|") {
+		if strings.Contains(k, "|run|") {
 			hasRunKey = true
 		}
 	}
-	assert.True(t, hasRunKey, "the flow runner must populate the document cache under a |doc| key; got %v", keys)
+	assert.True(t, hasRunKey, "the process-only run must populate the document cache under a |run| key; got %v", keys)
 	first := storeOverlayCount(t, recipe, "targets/fr-FR")
 	assert.Equal(t, 1, first)
 
@@ -312,11 +312,11 @@ func TestRun_InProjectExplicitOutput_DocumentCacheByteIdentical(t *testing.T) {
 
 	hasWriteKey := false
 	for _, k := range runDocCacheKeys(t, recipe) {
-		if strings.Contains(k, "|doc|") {
+		if strings.Contains(k, "|write|") {
 			hasWriteKey = true
 		}
 	}
-	assert.True(t, hasWriteKey, "a file-writing run must populate a |doc| document")
+	assert.True(t, hasWriteKey, "a file-writing run must populate a |write| document")
 
 	out2 := filepath.Join(t.TempDir(), "o2.json")
 	a2 := processOnlyApp(t)
@@ -329,4 +329,43 @@ func TestRun_InProjectExplicitOutput_DocumentCacheByteIdentical(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, string(b1), string(b2), "the cache-served run must be byte-identical")
 	assert.Contains(t, string(b1), "greeting", "structure preserved by the skeleton round-trip")
+}
+
+// docCacheSkelFiles counts skeleton files written to the document cache.
+func docCacheSkelFiles(t *testing.T, recipe string) int {
+	t.Helper()
+	layout, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	entries, err := os.ReadDir(filepath.Join(layout.CacheDir(), "docs"))
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "skel-") && strings.HasSuffix(e.Name(), ".bin") {
+			n++
+		}
+	}
+	return n
+}
+
+// TestRun_ProcessOnlyRecordsLean_NoSkeleton verifies the demand-driven recording:
+// a process-only run (no reconstruction) records the document WITHOUT a skeleton —
+// the default run writes no skeleton file at all — while a file-writing run does.
+func TestRun_ProcessOnlyRecordsLean_NoSkeleton(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, srcRel, root := processOnlyProjectFixture(t, []model.LocaleID{"fr-FR"})
+	src := filepath.Join(root, srcRel)
+
+	out, err := runRunCmd(t, a, recipe, "pseudo", "-i", src)
+	require.NoError(t, err, "run output: %s", out)
+	assert.Equal(t, 0, docCacheSkelFiles(t, recipe),
+		"a process-only run records lean — no skeleton file")
+
+	// A file-writing run of the same source records the skeleton it needs.
+	a2 := processOnlyApp(t)
+	out2, err := runRunCmd(t, a2, recipe, "pseudo", "-i", src, "-o", filepath.Join(t.TempDir(), "o.json"))
+	require.NoError(t, err, "run output: %s", out2)
+	assert.Equal(t, 1, docCacheSkelFiles(t, recipe),
+		"the file-writing run records the skeleton (a separate |write| entry)")
 }
