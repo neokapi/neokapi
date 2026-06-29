@@ -209,6 +209,35 @@ export const AxisLadder: Story = {
   ),
 };
 
+export const ConvergenceTargetLadder: Story = {
+  name: "AxisLadderDiagram (convergence — target lifecycle)",
+  render: () => (
+    <AxisLadderDiagram
+      rungs={[
+        { grade: "1", name: "draft", gloss: "machine placeholder or fuzzy leverage" },
+        { grade: "2", name: "translated", gloss: "a real translation exists" },
+        { grade: "3", name: "reviewed", gloss: "a person approved this exact pair" },
+        { grade: "4", name: "signed-off", gloss: "final" },
+      ]}
+      caption="Target lifecycle — how far a translation has progressed."
+    />
+  ),
+};
+
+export const ConvergenceSourceLadder: Story = {
+  name: "AxisLadderDiagram (convergence — source readiness)",
+  render: () => (
+    <AxisLadderDiagram
+      rungs={[
+        { grade: "1", name: "authored", gloss: "source content exists" },
+        { grade: "2", name: "checked", gloss: "clears its brand & terminology checks" },
+        { grade: "3", name: "approved", gloss: "a person signed off on the source" },
+      ]}
+      caption="Source authoring readiness — the source-side counterpart."
+    />
+  ),
+};
+
 export const AxisFamilies: Story = {
   name: "AxisFamiliesDiagram (axes grouped by family)",
   render: () => (

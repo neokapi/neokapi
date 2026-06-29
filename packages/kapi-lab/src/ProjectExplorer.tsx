@@ -364,6 +364,13 @@ export default function ProjectExplorer({
         writes the files. A <strong>.klz workspace</strong> folds the same content + work into one
         portable file — built for ad-hoc, single-file hand-off. Same engine underneath.
       </p>
+      <p style={{ fontSize: "0.85rem", opacity: 0.8, marginTop: "0.4rem" }}>
+        The <code>.kapi/</code> store is <strong>regenerable</strong> — delete it and a re-run
+        rebuilds it. The one thing it can&rsquo;t rebuild is your{" "}
+        <strong>authored decisions</strong>: approving a translation lands in a committed{" "}
+        <code>.kapi-state.json</code> state store you keep in git, separate from the cache and the
+        translation memory.
+      </p>
 
       <GateOverlay
         gate={gate}
