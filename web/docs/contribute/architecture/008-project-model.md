@@ -15,7 +15,9 @@ and a sibling `.kapi/` state directory. The recipe captures the user's
 declarative intent — identity, content collections, flows, store selection,
 plus any platform extensions (such as a `server:` block) when a platform layer
 is in use — while `.kapi/` holds working state, with all regenerable caches under
-`.kapi/cache/`. A `ProjectContext` resolves the recipe into a runtime
+`.kapi/cache/`. Review decisions — which a plain target file cannot carry —
+live in a committed `.kapi-state.json` state store (`defaults.state`) beside the
+recipe. A `ProjectContext` resolves the recipe into a runtime
 configuration, and a `BlockStore` interface with pluggable providers gives
 tools random-access storage beyond the streaming pipeline.
 
@@ -50,11 +52,12 @@ a project, work in the folder, and pack to ship.
 
 ### Project layout
 
-Three ownership zones at the project root:
+Ownership zones at the project root:
 
 ```
 my-app/
 ├── my-app.kapi             ← RECIPE (user edits, click-to-open)
+├── .kapi-state.json        ← STATE STORE (review decisions, committed like the recipe)
 ├── .kapi/                  ← WORKING STATE (kapi maintains)
 │   ├── manifest.yaml       ← bookkeeping: block counts, fingerprints, timestamps
 │   ├── tm.db               ← project translation memory (AD-009) — authoritative
@@ -84,6 +87,15 @@ Ownership:
 
 - **`{name}.kapi`** — the user's. Hand-edited YAML. The click-to-open handle
   for kapi-desktop. Committed to git.
+- **`.kapi-state.json`** — the project **state store** (`defaults.state`, the
+  default path). The committed, git-tracked record of per-unit review decisions
+  (the review ladder: approvals, sign-off, parking) that a plain target file
+  cannot hold. Authored by approvals (`kapi apply` with `kind:"review"`), not
+  hand-edited; committed alongside the recipe, so a decision travels with the
+  project. It is the export *sink* for state in git mode — a server-backed
+  project pushes this state to a remote instead. Distinct from the TM (AD-009),
+  which is recycle leverage, not a decision carrier. See
+  [the project store](/kapi/project-store).
 - **`.kapi/`** — kapi's. Authoritative state (`tm.db`, `termbase.db`,
   `manifest.yaml`) sits at the top level; all regenerable caches live under
   `.kapi/cache/` so users can blow them away without losing translation work.
