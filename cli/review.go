@@ -78,7 +78,7 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 			if unitState(b, u.locale) != string(model.TargetStatusTranslated) {
 				continue
 			}
-			if reviewed.reviewed(b.SourceText(), b.TargetText(loc), u.locale) {
+			if reviewed.reviewed(b, u.locale) {
 				continue
 			}
 			items = append(items, ReviewItem{

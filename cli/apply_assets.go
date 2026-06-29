@@ -471,6 +471,11 @@ func upsertTMPair(entries []sievepen.TMEntry, source, target string, srcLocale, 
 // setReviewProperty records the review state (signed-off; reviewed is the
 // property-absent baseline) on a TM entry, returning whether it changed. An empty
 // or `reviewed` state clears the property so the entry round-trips minimally.
+// reviewPropertyKey is the .klftm entry property `kapi apply` uses to tag a
+// correction's review state in the TM corpus. (Project review STATE now lives in
+// the state store, core/state; this is the TM-side tag the apply path still sets.)
+const reviewPropertyKey = "review"
+
 func setReviewProperty(e *sievepen.TMEntry, reviewState string) bool {
 	want := reviewState
 	if want == string(model.TargetStatusReviewed) {

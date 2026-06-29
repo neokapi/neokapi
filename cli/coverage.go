@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -98,91 +97,80 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 	return sc, nil
 }
 
-// reviewedIndex maps each human-approved source→target correction (drawn from
-// the project's committed .klftm — the reviewed-translation corpus) to its review
-// state. The committed .klftm is written only by `kapi apply` (a human/agent
-// correction); automatic TM write-back lands in the .db cache, never the source.
-// So an exact match here means a person signed off on this exact translation: it
-// is the file-project carrier for review state (a plain target file holds no
-// status). A correction is `reviewed` by default; a `review: signed-off` property
-// on its entry promotes the match to `signed-off`, the top rung.
+// reviewedIndex maps each unit (block identity + locale) to its committed review
+// state, loaded from the project state store (core/state). A unit reads as
+// reviewed/signed-off only while its recorded decision still blesses the CURRENT
+// translation — the decision carries the targetHash it approved, so an edit since
+// approval invalidates it and the unit drops back to the `translated` baseline.
+// This is the authoritative carrier for review state (a plain target file holds
+// no status), replacing the old content-keyed .klftm overload — the TM is now the
+// recycle corpus only.
 type reviewedIndex struct {
-	status map[string]model.TargetStatus // key → reviewed | signed-off
+	byUnit map[string]reviewedEntry
 }
 
-// reviewPropertyKey is the .klftm entry property carrying the review state of an
-// approved correction. Absent (or any value other than signed-off) reads as
-// `reviewed`.
-const reviewPropertyKey = "review"
-
-func reviewKey(src, tgt, locale string) string {
-	return strings.TrimSpace(src) + "\x00" + strings.TrimSpace(tgt) + "\x00" + locale
+type reviewedEntry struct {
+	status     model.TargetStatus
+	targetHash string
 }
 
-// lookup returns the review state of (src, tgt, locale) and whether it is an
-// approved correction at all.
-func (r reviewedIndex) lookup(src, tgt, locale string) (model.TargetStatus, bool) {
-	if r.status == nil {
+func reviewUnitKey(unit, locale string) string { return unit + "\x00" + locale }
+
+// statusFor returns a block's recorded review state for the locale, or ok=false
+// when none applies — including when the recorded decision is stale (the
+// translation changed since it was approved).
+func (r reviewedIndex) statusFor(b *model.Block, locale string) (model.TargetStatus, bool) {
+	if r.byUnit == nil {
 		return "", false
 	}
-	st, ok := r.status[reviewKey(src, tgt, locale)]
-	return st, ok
+	e, ok := r.byUnit[reviewUnitKey(blockKey(b), locale)]
+	if !ok {
+		return "", false
+	}
+	if e.targetHash != "" && targetHash(b.TargetText(model.LocaleID(locale))) != e.targetHash {
+		return "", false // the translation changed since the decision — stale
+	}
+	return e.status, true
 }
 
-// reviewed reports whether (src, tgt, locale) is an approved correction (at least
-// reviewed) — used by the review queue to drop approved units.
-func (r reviewedIndex) reviewed(src, tgt, locale string) bool {
-	_, ok := r.lookup(src, tgt, locale)
+// reviewed reports whether a block is an approved unit (at least reviewed) for the
+// locale — used by the review queue to drop approved units.
+func (r reviewedIndex) reviewed(b *model.Block, locale string) bool {
+	_, ok := r.statusFor(b, locale)
 	return ok
 }
 
-// upgrade promotes a `translated` unit to its approved review state (reviewed or
-// signed-off) when the block's source→target pair for the locale matches an
-// approved correction; otherwise it returns the base state unchanged. An absent
-// target stays untranslated, and an already-higher state is left alone.
+// upgrade promotes a `translated` unit to its recorded review state (reviewed or
+// signed-off) when the block has a non-stale decision for the locale; otherwise it
+// returns the base state unchanged.
 func (r reviewedIndex) upgrade(base string, b *model.Block, locale string) string {
 	if base != string(model.TargetStatusTranslated) {
 		return base
 	}
-	if st, ok := r.lookup(b.SourceText(), b.TargetText(model.LocaleID(locale)), locale); ok {
+	if st, ok := r.statusFor(b, locale); ok {
 		return string(st)
 	}
 	return base
 }
 
-// loadReviewedCorrections builds the reviewedIndex from the project's bound
-// .klftm source (defaults.tm_source). An absent or unbound source yields an
-// empty index (nothing reviewed yet) — never an error, so status stays
-// informational.
+// loadReviewedCorrections builds the reviewedIndex from the project state store.
+// An absent store yields an empty index (nothing reviewed yet) — never an error,
+// so status stays informational.
 func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (reviewedIndex, error) {
-	idx := reviewedIndex{status: map[string]model.TargetStatus{}}
-	if proj.Defaults.TMSource == "" || root == "" {
+	idx := reviewedIndex{byUnit: map[string]reviewedEntry{}}
+	if root == "" {
 		return idx, nil
 	}
-	entries, err := loadKLFTMEntries(filepath.Join(root, proj.Defaults.TMSource))
+	st, err := openProjectState(proj, root)
 	if err != nil {
 		return idx, err
 	}
-	src := model.LocaleID(a.SourceLang)
-	for i := range entries {
-		e := &entries[i]
-		st := e.VariantText(src)
-		if strings.TrimSpace(st) == "" {
+	for _, u := range st.All() {
+		if u.Status != model.TargetStatusReviewed && u.Status != model.TargetStatusSignedOff {
 			continue
 		}
-		state := model.TargetStatusReviewed
-		if e.Properties[reviewPropertyKey] == string(model.TargetStatusSignedOff) {
-			state = model.TargetStatusSignedOff
-		}
-		for loc := range e.Variants {
-			if loc == src {
-				continue
-			}
-			tt := e.VariantText(loc)
-			if strings.TrimSpace(tt) == "" {
-				continue
-			}
-			idx.status[reviewKey(st, tt, string(loc))] = state
+		idx.byUnit[reviewUnitKey(u.Unit, string(u.Variant.Locale))] = reviewedEntry{
+			status: u.Status, targetHash: u.TargetHash,
 		}
 	}
 	return idx, nil

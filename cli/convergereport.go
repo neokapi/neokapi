@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/state"
 )
 
 // ConvergenceReport is the full derived convergence picture for a project: the
@@ -86,20 +87,19 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 	return report, nil
 }
 
-// ApproveReviewUnit promotes one review-queue unit to `reviewed` by recording its
-// current source→target translation as an approved correction in the project's
-// committed .klftm — exactly what `kapi apply` (a tm correction) does, the same
-// review record `kapi status --review` derives from. The unit is addressed by
-// (locale, file, key) as listed in the review queue: the method re-reads the
-// exact source and target text (not the truncated previews) before writing, so
-// the approved pair is precise.
+// ApproveReviewUnit promotes one review-queue unit by recording its review
+// decision in the project STATE store (core/state) — the authoritative carrier of
+// workflow state, keyed by unit identity + locale and bound to the content hash of
+// the translation it blesses, so a later edit invalidates a stale approval. The
+// unit is addressed by (locale, file, key) as listed in the review queue; the
+// method re-reads the exact target text before recording. The decision is exported
+// to the committed state artifact (defaults.state) — distinct from the `.klftm`,
+// which stays the recycle corpus.
 //
-// It returns approved=false (no error) when the pair is already an approved
-// correction, so an embedder can treat a redundant click as a no-op. Binding the
-// .klftm source on first use writes `defaults.tm_source` into the recipe, the
-// same one-time effect as the CLI apply path.
-// reviewState is "reviewed" (the default approval) or "signed-off" (the final
-// sign-off, the top rung). An empty string means reviewed.
+// It returns approved=false (no error) when the unit is already at this review
+// state for this exact translation, so an embedder can treat a redundant click as
+// a no-op. reviewState is "reviewed" (the default approval) or "signed-off" (the
+// final sign-off, the top rung). An empty string means reviewed.
 func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, locale, file, key, reviewState string) (bool, error) {
 	a.InitRegistries()
 	if ctx == nil {
@@ -142,37 +142,46 @@ func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, lo
 			if !b.Translatable || blockKey(b) != key {
 				continue
 			}
-			source := b.SourceText()
 			target := b.TargetText(loc)
 			if strings.TrimSpace(target) == "" {
 				return false, fmt.Errorf("unit %s has no %s translation to approve", key, locale)
 			}
-			return a.recordApprovedCorrection(ctx, projectPath, root, source, target, sourceLang, locale, reviewState)
+			return a.recordApprovedState(proj, root, blockKey(b), loc, target, reviewState)
 		}
 	}
 	return false, fmt.Errorf("review unit %q (%s) not found in %s", key, locale, file)
 }
 
-// recordApprovedCorrection writes one approved source→target pair into the
-// project's committed .klftm and recompiles the cache — the shared core of the
-// `kapi apply` tm path, reused so approval and apply write the corpus one way.
-func (a *App) recordApprovedCorrection(ctx context.Context, projectPath, root, source, target, sourceLang, targetLang, reviewState string) (bool, error) {
-	srcPath, err := a.ensureTMSourceBinding(projectPath, root)
+// recordApprovedState records a unit's review decision in the project state store
+// — the authoritative carrier of workflow state — keyed by unit identity + locale,
+// bound to the content hash of the translation it blesses so a later edit drops
+// the unit back down the ladder. The decision is transient until Export persists
+// it to the committed state artifact (the export sink). The TM (.klftm) is no
+// longer touched here: it is the recycle corpus, not the state carrier.
+func (a *App) recordApprovedState(proj *project.KapiProject, root, unit string, locale model.LocaleID, target, reviewState string) (bool, error) {
+	st, err := openProjectState(proj, root)
 	if err != nil {
 		return false, err
 	}
-	entries, err := loadKLFTMEntries(srcPath)
-	if err != nil {
-		return false, err
+	status := model.TargetStatusReviewed
+	if reviewState == string(model.TargetStatusSignedOff) {
+		status = model.TargetStatusSignedOff
 	}
-	entries, changed := upsertTMPair(entries, source, target, model.LocaleID(sourceLang), model.LocaleID(targetLang), reviewState)
-	if !changed {
-		return false, nil // already an approved correction
+	k := state.Key{Unit: unit, Variant: model.Variant(locale)}
+	th := targetHash(target)
+	if prev, ok := st.Get(k); ok && prev.Status == status && prev.TargetHash == th {
+		return false, nil // already at this review state for this exact translation
 	}
-	if err := writeKLFTM(srcPath, entries); err != nil {
-		return false, err
-	}
-	if err := a.compileTMSource(ctx, root, srcPath); err != nil {
+	now := nowRFC3339()
+	st.Put(state.UnitState{
+		Unit:       unit,
+		Variant:    model.Variant(locale),
+		Status:     status,
+		TargetHash: th,
+		Decision:   state.Decision{ReviewState: firstNonEmpty(reviewState, "approved"), At: now},
+		Updated:    now,
+	})
+	if err := st.Export(); err != nil {
 		return false, err
 	}
 	return true, nil
