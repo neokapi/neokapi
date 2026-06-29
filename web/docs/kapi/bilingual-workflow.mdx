@@ -102,6 +102,14 @@ The two commands that define this workflow are `kapi extract` and
   originating XLIFF filename) so a later `kapi tm audit --batch <id>`
   can trace every TU back to the merge that introduced it.
 
+TM absorb is **recycle leverage** — it makes the pair available to pre-fill
+future translation. It is *not* a review decision. Whether a reviewer
+**approved** a particular target is a separate, committed fact recorded in the
+project [state store](/kapi/project-store) (`.kapi-state.json`) by `kapi apply`
+(a `kind:"review"` change), not in the TM. Merge keeps the TM as the recycle
+corpus; approval is the deliberate, content-hash-bound decision that lives
+elsewhere.
+
 ### See the round-trip on a bilingual file
 
 The diagram above is the workflow; the explorer below is the engine that

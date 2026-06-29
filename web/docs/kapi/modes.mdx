@@ -46,6 +46,12 @@ The mode you're in is just which binding gets resolved:
 - **In a project**, the default *sink* becomes the **store** (a *process-only* run);
   pass `-o` to force a file instead.
 
+A process-only run persists only *working* output — the target overlays in the
+block store, pre-merge. It does **not** touch the committed **state store** (the
+review decisions in `.kapi-state.json`): those are authored by `kapi apply`, not
+by a flow's sink. Caches are rebuildable; the state store is the one committed,
+authored artifact. See [the project store](/kapi/project-store).
+
 Run `kapi run <flow> --explain` any time to print the resolved `source → sink`
 without executing:
 

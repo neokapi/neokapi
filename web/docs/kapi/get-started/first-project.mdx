@@ -225,6 +225,31 @@ kapi merge
 This writes `src/locales/fr/*.json`, `src/locales/de/*.json`, and so on — no
 flags, because the recipe already says where each locale goes.
 
+### Review and approve
+
+A run takes each translation as far as a machine can (to *translated*); a person
+takes the ones that matter to *reviewed*. The worklist and the approval are one
+command each:
+
+```bash
+kapi status --review        # the units awaiting human review (file, id, locale)
+# approve one, addressed exactly as the worklist lists it:
+kapi apply <<<'{"kind":"review","file":"src/locales/fr/app.json","id":"save.label","locale":"fr","status":"reviewed"}'
+```
+
+The decision lands in the project's committed **state store** —
+`.kapi-state.json` beside the recipe — and is bound to the translation's content
+hash, so a later edit drops the unit back below *reviewed*. Commit it with your
+sources, so the decision travels with the project:
+
+```bash
+git add .kapi-state.json
+```
+
+This is the one authored artifact the caches can't rebuild; see
+[the project store](/kapi/project-store) for how it relates to the rebuildable
+caches and the TM.
+
 ## Inspect a project
 
 The lab below is a live project. Pick a sample, step through a declared flow,
