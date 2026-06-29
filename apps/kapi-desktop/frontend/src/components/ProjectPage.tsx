@@ -5,7 +5,7 @@ import { t } from "@neokapi/kapi-react/runtime";
 import type { KapiProject, TabInfo } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";
-import { ConvergencePanel } from "./ConvergencePanel";
+import { ProjectStatusPanel } from "./ProjectStatusPanel";
 
 interface ProjectPageProps {
   project: KapiProject;
@@ -219,9 +219,10 @@ export function ProjectPage({
         </Card>
       </div>
 
-      {/* Convergence — derived coverage, ship gates, and the review queue. */}
+      {/* Project status — one surface, two stages: Working (block-store
+          coverage, pre-merge) ↔ Ship (files + state: ladder, gates, review). */}
       <div className="mt-6">
-        <ConvergencePanel tabID={tabID} />
+        <ProjectStatusPanel tabID={tabID} defaultView="ship" />
       </div>
 
       {/* Preset & plugins */}

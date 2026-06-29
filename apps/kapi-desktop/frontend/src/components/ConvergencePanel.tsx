@@ -22,6 +22,12 @@ export interface ConvergencePanelProps {
   report?: ConvergenceReport;
   /** Override the approve action (tests/Storybook); defaults to the Wails call. */
   onApprove?: (item: ReviewItem) => Promise<void>;
+  /**
+   * Show the panel's own "Convergence" heading. Off when embedded in the
+   * unified {@link ProjectStatusPanel}, whose Working↔Ship toggle is the
+   * heading — the action buttons (refresh, bring up to date) still render.
+   */
+  showTitle?: boolean;
 }
 
 /**
@@ -32,7 +38,12 @@ export interface ConvergencePanelProps {
  * the same derived state `kapi status` / `kapi verify` report — the desktop
  * embodiment of the convergence model.
  */
-export function ConvergencePanel({ tabID, report: propReport, onApprove }: ConvergencePanelProps) {
+export function ConvergencePanel({
+  tabID,
+  report: propReport,
+  onApprove,
+  showTitle = true,
+}: ConvergencePanelProps) {
   const [report, setReport] = useState<ConvergenceReport | null>(propReport ?? null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
@@ -126,7 +137,7 @@ export function ConvergencePanel({ tabID, report: propReport, onApprove }: Conve
   return (
     <div className="space-y-3" data-slot="convergence-panel">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">{t("Convergence")}</h3>
+        {showTitle ? <h3 className="text-sm font-medium">{t("Convergence")}</h3> : <span />}
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
