@@ -17,12 +17,12 @@ require (
 	github.com/labstack/echo/v4 v4.15.4
 	github.com/lmittmann/tint v1.1.3
 	github.com/modelcontextprotocol/go-sdk v1.6.1
-	github.com/nats-io/nats-server/v2 v2.14.2
+	github.com/nats-io/nats-server/v2 v2.14.3
 	github.com/nats-io/nats.go v1.52.0
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/bowrain/core v0.0.0
 	github.com/neokapi/neokapi/bowrain/plugin/schema v0.0.0-00010101000000-000000000000
-	github.com/posthog/posthog-go v1.16.1
+	github.com/posthog/posthog-go v1.17.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/samber/slog-echo v1.23.0
@@ -53,6 +53,7 @@ require (
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.7.2 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/adrg/xdg v0.5.3 // indirect
+	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/antithesishq/antithesis-sdk-go v0.7.0-default-no-op // indirect
 	github.com/beevik/etree v1.6.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
