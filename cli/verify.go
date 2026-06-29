@@ -1046,13 +1046,6 @@ func (a *App) bilingualBlocks(ctx context.Context, u verifyUnit) ([]*model.Block
 
 // blockKey returns the stable pairing key for a block: its Name when set
 // (the format's content key), else its ID.
-func blockKey(b *model.Block) string {
-	if b.Name != "" {
-		return b.Name
-	}
-	return b.ID
-}
-
 // runCheckTool runs an annotate-only block tool (qa / term-check) over a
 // single block in place. The tool records its findings on block.Properties.
 func runCheckTool(ctx context.Context, t interface {

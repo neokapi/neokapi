@@ -6,23 +6,10 @@ import (
 	"fmt"
 	"io"
 	"sort"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 )
-
-// ReviewItem is one translated-but-unreviewed unit: a translation a person has
-// not yet signed off on. It is the work item a reviewer (or a connected agent)
-// acts on, then records the approval with `kapi apply` (a tm correction), which
-// promotes it to `reviewed` on the next derivation.
-type ReviewItem struct {
-	Locale string `json:"locale"`
-	File   string `json:"file"`
-	Key    string `json:"key"`
-	Source string `json:"source"`           // short source preview
-	Target string `json:"target,omitempty"` // short target preview
-}
 
 // ReviewQueueOutput is the structured result of `kapi status --review`: every
 // unit awaiting human review, the derived counterpart of the convergence loop's
@@ -100,14 +87,4 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 		return items[i].Key < items[j].Key
 	})
 	return items, nil
-}
-
-// preview trims a string to a short single-line preview for queue listings.
-func preview(s string) string {
-	s = strings.Join(strings.Fields(s), " ")
-	const max = 72
-	if len(s) > max {
-		return s[:max-1] + "…"
-	}
-	return s
 }
