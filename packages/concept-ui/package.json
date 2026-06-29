@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@neokapi/ui-primitives": "*",
-    "lucide-react": "^1.21.0"
+    "lucide-react": "^1.22.0"
   },
   "devDependencies": {
     "@storybook/react-vite": "^10.4.6",
