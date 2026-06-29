@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/encoding"
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -1077,26 +1078,21 @@ func runCheckTool(ctx context.Context, t interface {
 // around readBlocksValidated, so every caller that does not opt into Reader
 // Validation-Mode keeps the byte-identical lenient behavior.
 func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model.Block, error) {
-	// When a project parse cache is open, serve unchanged files from it. The key
-	// includes every input to this parse besides the bytes: the format override
-	// and the source locale. (This read path applies no project format config, so
-	// those plus the file's content hash are the complete key.) The cache holds the
-	// full parsed document; this read path returns only the translatable-block
-	// projection, but caching the whole document lets the flow runner reuse the
-	// same parse.
-	if a.parseCache != nil {
-		if st, serr := os.Stat(path); serr == nil {
-			configKey := readBlocksConfigKey(a.FormatFlag, sourceLang)
-			if blocks, ok := a.parseCache.getBlocks(path, configKey, st); ok {
+	// When the project document cache is open, serve unchanged files from it,
+	// streaming the parts one at a time and projecting out the translatable blocks
+	// — the read/coverage path never reconstructs output, so it never opens the
+	// skeleton. The key is namespaced ("rb|") and disjoint from the runner's key.
+	if a.docCache != nil {
+		configKey := readBlocksConfigKey(a.FormatFlag, sourceLang)
+		if doc := a.docCache.OpenDocument(path, configKey); doc != nil {
+			blocks, err := streamTranslatableBlocks(ctx, doc)
+			_ = doc.Close()
+			if err == nil {
 				return blocks, nil
 			}
-			parts, fmtName, err := a.readDocument(ctx, path, sourceLang)
-			if err != nil {
-				return nil, err
-			}
-			a.parseCache.putDoc(path, configKey, st, parts, nil, fmtName)
-			return translatableBlocks(parts), nil
+			// A corrupt log → fall through and re-parse (re-records the entry).
 		}
+		return a.recordAndCollectBlocks(ctx, path, configKey, sourceLang)
 	}
 	blocks, _, err := a.readBlocksValidated(ctx, path, sourceLang, format.ValidationOff)
 	return blocks, err
@@ -1104,58 +1100,85 @@ func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model
 
 // readBlocksConfigKey is the cache config key for the read/coverage path. It is
 // namespaced ("rb|") so it never collides with the flow runner's key for the
-// same file (the runner applies project format config the read path does not).
+// same file (the runner applies project format config the read path does not),
+// and read-path entries carry no skeleton (status writes no file).
 func readBlocksConfigKey(formatFlag, sourceLang string) string {
 	return "rb|" + formatFlag + "|" + sourceLang
 }
 
-// readDocument parses a file into its full ordered Part stream (blocks plus the
-// surrounding structure) with validation off, returning the detected format
-// name. It is the read path's miss handler — it collects every Part so the cached
-// document is complete enough for the flow runner to replay, not just the
-// translatable blocks this caller projects out.
-func (a *App) readDocument(ctx context.Context, path, sourceLang string) ([]*model.Part, string, error) {
+// streamTranslatableBlocks streams a cached document's parts one at a time and
+// collects the translatable blocks — never holding the whole document.
+func streamTranslatableBlocks(ctx context.Context, doc flow.CachedDocument) ([]*model.Block, error) {
+	ch := make(chan *model.Part, 1)
+	errc := make(chan error, 1)
+	go func() { errc <- doc.Feed(ctx, ch) }()
+	var blocks []*model.Block
+	for p := range ch {
+		if b, ok := p.Resource.(*model.Block); ok && b.Translatable {
+			blocks = append(blocks, b)
+		}
+	}
+	return blocks, <-errc
+}
+
+// recordAndCollectBlocks is the read-path cache miss: it parses the file once,
+// streaming each part into the document-cache recorder (so the next read replays
+// it) AND collecting the translatable blocks — holding only the blocks it returns,
+// not the whole document. The recorded entry has no skeleton (the reader's
+// emitter is not wired): the read path never reconstructs output, and its "rb|"
+// key is disjoint from the runner's, so no writer ever reads a skeleton-less entry.
+func (a *App) recordAndCollectBlocks(ctx context.Context, path, configKey, sourceLang string) ([]*model.Block, error) {
 	fmtName := a.FormatFlag
 	if fmtName == "" {
-		ext := filepath.Ext(path)
-		detected, err := a.FormatReg.DetectByExtension(ext)
+		detected, err := a.FormatReg.DetectByExtension(filepath.Ext(path))
 		if err != nil {
-			return nil, "", fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
+			return nil, fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
 		}
 		fmtName = string(detected)
 	}
-
 	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {
-		return nil, "", fmt.Errorf("no reader for %q: %w", fmtName, err)
+		return nil, fmt.Errorf("no reader for %q: %w", fmtName, err)
 	}
 	defer reader.Close()
 
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, "", fmt.Errorf("read %s: %w", path, err)
+		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
-	declaredEnc := firstNonEmpty(a.Encoding, "UTF-8")
 	doc := &model.RawDocument{
 		URI:          path,
 		SourceLocale: model.LocaleID(sourceLang),
-		Encoding:     declaredEnc,
+		Encoding:     firstNonEmpty(a.Encoding, "UTF-8"),
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 	if err := reader.Open(ctx, doc); err != nil {
-		return nil, "", fmt.Errorf("open %q: %w", filepath.Base(path), err)
+		return nil, fmt.Errorf("open %q: %w", filepath.Base(path), err)
 	}
 
-	var parts []*model.Part
+	rec := a.docCache.RecordDocument(path, configKey, fmtName)
+	var blocks []*model.Block
 	for result := range reader.Read(ctx) {
 		if result.Error != nil {
-			return nil, "", fmt.Errorf("read %q: %w", filepath.Base(path), result.Error)
+			if rec != nil {
+				rec.Abort()
+			}
+			return nil, fmt.Errorf("read %q: %w", filepath.Base(path), result.Error)
 		}
-		if result.Part != nil {
-			parts = append(parts, result.Part)
+		if result.Part == nil {
+			continue
+		}
+		if rec != nil {
+			_ = rec.Add(result.Part)
+		}
+		if b, ok := result.Part.Resource.(*model.Block); ok && b.Translatable {
+			blocks = append(blocks, b)
 		}
 	}
-	return parts, fmtName, nil
+	if rec != nil {
+		_ = rec.Commit()
+	}
+	return blocks, nil
 }
 
 // readBlocksValidated reads a file's translatable blocks and, when mode is not

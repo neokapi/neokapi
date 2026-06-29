@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -117,8 +118,8 @@ func (c *docCache) lookup(path, configKey string, st os.FileInfo) (docRow, bool)
 }
 
 // OpenDocument returns a streaming reader for a fresh cached document, or nil on
-// a miss.
-func (c *docCache) OpenDocument(path, configKey string) *cachedDocument {
+// a miss. Implements flow.PartCache.
+func (c *docCache) OpenDocument(path, configKey string) flow.CachedDocument {
 	st, err := os.Stat(path)
 	if err != nil {
 		return nil
@@ -139,8 +140,18 @@ func (c *docCache) OpenDocument(path, configKey string) *cachedDocument {
 }
 
 // RecordDocument returns a sink that persists a freshly-parsed document as it
-// streams.
-func (c *docCache) RecordDocument(path, configKey, formatName string) *docRecorder {
+// streams. Implements flow.PartCache. Returns a nil interface (not a typed nil)
+// when a recorder can't be created, so the runner's nil check works.
+func (c *docCache) RecordDocument(path, configKey, formatName string) flow.DocumentRecorder {
+	rec := c.newRecorder(path, configKey, formatName)
+	if rec == nil {
+		return nil
+	}
+	return rec
+}
+
+// newRecorder builds a docRecorder for a fresh parse, or nil on setup failure.
+func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder {
 	st, err := os.Stat(path)
 	if err != nil {
 		return nil
@@ -316,3 +327,10 @@ func (r *docRecorder) Abort() {
 	_ = os.Remove(r.partsTmp)
 	_ = os.Remove(r.skelTmp)
 }
+
+// compile-time checks that docCache satisfies the streaming flow seam.
+var (
+	_ flow.PartCache        = (*docCache)(nil)
+	_ flow.CachedDocument   = (*cachedDocument)(nil)
+	_ flow.DocumentRecorder = (*docRecorder)(nil)
+)
