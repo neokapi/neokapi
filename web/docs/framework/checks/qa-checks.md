@@ -25,6 +25,8 @@ inconsistent glossary term. `kapi check` runs them over a file or a
 source/target pair and exits non-zero when the gate fails, so a regression is
 caught in CI, or in an assistant's fix-loop, the same way a failing test is.
 
+### A check in motion
+
 <ThemedVideo
   sources={{
     light: "/video/kapi/kapi-checks-guardrail-light.webm",

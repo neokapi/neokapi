@@ -36,6 +36,7 @@ const sidebars: SidebarsConfig = {
       // / Kapi Desktop, not here.
       items: [
         { type: "doc", id: "kapi/overview", label: "Overview", key: "kapi-overview" },
+        { type: "doc", id: "kapi/walkthroughs", label: "See it in action" },
         { type: "doc", id: "kapi/get-started/cli-vs-desktop", label: "CLI or Desktop?" },
         "kapi/get-started/installation",
         { type: "doc", id: "kapi/get-started/project-vs-adhoc", label: "Projects vs ad-hoc" },

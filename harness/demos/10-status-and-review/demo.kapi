@@ -1,0 +1,8 @@
+version: v1
+name: demo
+defaults:
+  source_language: en
+  target_languages: [nb]
+content:
+  - path: messages.json
+    target: "messages.{lang}.json"

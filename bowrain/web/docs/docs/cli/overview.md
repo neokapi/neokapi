@@ -3,9 +3,23 @@ sidebar_position: 1
 title: Overview
 ---
 
+import { ThemedVideo } from "@neokapi/docs-shared";
+
 # Project sync
 
 The bowrain plugin adds project sync to [kapi](https://neokapi.github.io/web/neokapi/): it connects a `.kapi` project in your repository to a Bowrain server, so a team shares one source of brand voice, terminology, memory, and translations.
+
+`kapi init` connects a checkout to a server; `push` and `pull` move translations like git. This walkthrough runs the commands against a live server.
+
+<ThemedVideo
+  sources={{
+    light: "/video/bowrain-cli/bowrain-cli-getting-started-light.webm",
+    dark: "/video/bowrain-cli/bowrain-cli-getting-started-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+For the full version, see the [Connect a project walkthrough](/walkthroughs/bowrain-getting-started).
 
 kapi is the **local-files / git connector** — one of [several ways content reaches Bowrain](/server/connectors), and the path for a developer working from a codebase. Content can just as well arrive server-side from a CMS, a design tool, or a git host with no local checkout.
 

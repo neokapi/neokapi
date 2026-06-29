@@ -1,0 +1,115 @@
+id: 10-status-and-review
+title: Know what's left, then approve it
+subtitle: A machine took every string to translated. kapi status shows what a person still needs to review, and kapi apply records the approval.
+tagline: coverage, the review worklist, and a content-hash-bound approval that lands in the committed project state.
+kind: use-case
+publishAs: kapi-status-and-review
+# A scripted plain-shell demo (no Claude): coverage and review are derived from
+# the files plus the committed state store, so the commands run for real and
+# their output is recorded exactly. Mirrors the interactive walkthrough embedded
+# on the Convergence page.
+terminal: shell
+brand: kapi
+cwd: ~/checkout
+needsAi: false
+captureTimeoutSec: 120
+aspects:
+  - coverage at a glance
+  - the review worklist
+  - approve a unit
+  - state travels with the project
+
+script:
+  - comment: The Norwegian translation is in. How far along is it?
+  - command: kapi status
+  - comment: Translated everywhere, reviewed nowhere. List what's waiting on a person.
+  - command: kapi status --review
+  - comment: Approve one unit — a review decision, recorded with the one write verb.
+  - command: kapi apply review.jsonl
+  - comment: The same status, recomputed. Reviewed climbs; the decision is committed.
+  - command: kapi status
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      The Norwegian translation is in. A machine took every string as far as it
+      can — to translated. What still needs a person, and where does that
+      decision live?
+  - id: status
+    kind: terminal
+    text: >
+      kapi status reads the files plus the project's committed state and reports
+      coverage per language. Norwegian is translated across the board, and
+      reviewed nowhere — the machine is done, the human review is pending.
+    caption: "kapi status — coverage per language, derived not tracked"
+  - id: review
+    kind: terminal
+    text: >
+      kapi status --review is the worklist: every translated unit not yet
+      approved, named by file, id, and locale — exactly how an approval is
+      addressed.
+    caption: "kapi status --review — the units awaiting a person"
+  - id: apply
+    kind: terminal
+    text: >
+      kapi apply records the approval in the project's committed state file,
+      bound to the content hash of the translation it blesses. Edit that
+      translation later and the unit drops back below reviewed — an approval
+      can't outlive the text it approved.
+    caption: "kapi apply — the decision lands in .kapi-state.json"
+  - id: done
+    kind: terminal
+    text: >
+      The same status, recomputed: reviewed coverage climbs. Commit the state
+      file and the approval travels with the project — a {reviewed} gate now
+      counts it.
+  - id: outro
+    kind: outro
+    text: >
+      Coverage you can see, a worklist you can clear, and approvals that ride
+      with the project — the source-content and review state that the machine
+      can't decide for you, kept where the rest of the work lives.
+
+# Norwegian Bokmål narration (full coverage — required for published demos).
+# Follows l10n/brand-voice.yaml (nb: du-form, plain register, product names and
+# CLI commands untranslated) and l10n/termbase.csv terminology.
+locales:
+  nb:
+    narration:
+      - id: title
+        text: >
+          Den norske oversettelsen er på plass. En maskin har tatt hver streng
+          så langt den kan — til oversatt. Hva trenger fortsatt et menneske, og
+          hvor havner den avgjørelsen?
+      - id: status
+        text: >
+          kapi status leser filene pluss prosjektets committede tilstand og
+          rapporterer dekning per språk. Norsk er oversatt over hele linja, og
+          gjennomgått ingen steder — maskinen er ferdig, den menneskelige
+          gjennomgangen står igjen.
+        caption: "kapi status — dekning per språk, utledet ikke sporet"
+      - id: review
+        text: >
+          kapi status --review er arbeidslista: hver oversatte enhet som ennå
+          ikke er godkjent, navngitt med fil, id og språk — akkurat slik en
+          godkjenning adresseres.
+        caption: "kapi status --review — enhetene som venter på et menneske"
+      - id: apply
+        text: >
+          kapi apply registrerer godkjenningen i prosjektets committede
+          tilstandsfil, bundet til innholdshashen til oversettelsen den
+          godkjenner. Endrer du oversettelsen senere, faller enheten tilbake
+          under gjennomgått — en godkjenning kan ikke overleve teksten den
+          godkjente.
+        caption: "kapi apply — avgjørelsen havner i .kapi-state.json"
+      - id: done
+        text: >
+          Samme status, regnet på nytt: gjennomgått-dekningen stiger. Commit
+          tilstandsfila, og godkjenningen følger prosjektet — en {reviewed}-port
+          teller den nå.
+      - id: outro
+        text: >
+          Dekning du kan se, en arbeidsliste du kan tømme, og godkjenninger som
+          følger prosjektet — kilde- og gjennomgangstilstanden maskinen ikke kan
+          avgjøre for deg, holdt der resten av arbeidet bor.

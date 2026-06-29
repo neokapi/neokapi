@@ -48,9 +48,9 @@ narration:
     kind: terminal
     text: >
       Claude hands the document to kapi, which reads the Word format directly. It translates
-      the text into Japanese and writes a new document back — a structured round-trip, the
-      same one command for any document or language. Just a simple and unverified AI translation
-      in this demo, but kapi could also route this through human review and do compliance checks.
+      the text into Japanese and writes a new document back — the same one command for any
+      document or language. This demo runs a plain AI translation; the same step can route
+      through human review or a quality check before it is written back.
     caption: "kapi reads the .docx, translates the text, writes a new document"
   - id: before
     kind: artifact
@@ -66,5 +66,5 @@ narration:
   - id: outro
     kind: outro
     text: >
-      One command, and the document speaks Japanese — its structure intact. The same approach
-      can be applied to over 50 file formats with kapi.
+      One command, and the document speaks Japanese — its structure intact. The same step
+      handles the document, data, and localization formats kapi reads, not just Word.

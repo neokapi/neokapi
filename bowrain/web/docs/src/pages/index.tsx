@@ -4,6 +4,7 @@ import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import Heading from "@theme/Heading";
+import { ThemedVideo } from "@neokapi/docs-shared";
 
 import styles from "./index.module.css";
 
@@ -63,12 +64,10 @@ function HomepageHeader() {
             {siteConfig.title}
           </Heading>
           <p className={styles.heroSubtitle}>
-            The team platform for keeping content <strong>on brand and in every language</strong>:
-            shared, versioned governance of brand voice, terminology, and translation memory &mdash;
-            that learns from every correction &mdash; plus collaborative editing, connectors to the
-            systems your content already lives in, and automation. It governs the content{" "}
-            <strong>kapi</strong> parses and edits &mdash; the persistent, multi-user layer a team
-            needs.
+            The team platform for keeping content <strong>on brand and in every language</strong>.
+            Bowrain is to <strong>kapi</strong> what GitHub is to git &mdash; a shared, versioned
+            home for brand voice, terminology, and translation memory, with collaborative review,
+            connectors, and automation, that learns from every correction.
           </p>
           <div className={styles.buttons}>
             <Link className={clsx("button button--lg", styles.tryButton)} to="/quickstart">
@@ -137,6 +136,36 @@ function ProductCard({ title, description, link, linkText }: ProductItem) {
   );
 }
 
+function SeeItWork() {
+  return (
+    <section className={styles.features}>
+      <div className="container">
+        <div className="text--center margin-bottom--lg">
+          <Heading as="h2">See it work</Heading>
+          <p className={styles.sectionSubtitle}>
+            How a change ships: a team reviews, approves, and stays on brand &mdash; on one shared
+            workspace.
+          </p>
+        </div>
+        <div className="row margin-bottom--md">
+          <div className="col col--8 col--offset-2">
+            <ThemedVideo
+              sources={{
+                light: "/video/bowrain-web/bowrain-web-collaboration-light.webm",
+                dark: "/video/bowrain-web/bowrain-web-collaboration-dark.webm",
+              }}
+              maxWidth="100%"
+            />
+          </div>
+        </div>
+        <div className="text--center">
+          <Link to="/introduction">How Bowrain fits with kapi &rarr;</Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function HomepageFeatures() {
   return (
     <section className={styles.features}>
@@ -160,6 +189,7 @@ export default function Home() {
     >
       <HomepageHeader />
       <main>
+        <SeeItWork />
         <HomepageFeatures />
       </main>
     </Layout>

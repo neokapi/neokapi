@@ -251,6 +251,10 @@ it resolved and which it introduced, and stop when the Report is clean. The
 loop requires no human intervention and works identically over files of any
 format kapi reads.
 
+For this loop in motion — `kapi check` reading an AI translation against its source
+and reporting exactly what would break — see the
+[checks walkthrough](/framework/checks/qa-checks#a-check-in-motion).
+
 See [MCP server](/reference/mcp) for setup and the full tool list.
 
 ## In a project
@@ -266,6 +270,8 @@ flags, so the same gate applies everywhere it runs. See
 
 - [Checks](/framework/checks) — the check model, the Report schema, and every check
   family.
+- [Checks walkthrough](/framework/checks/qa-checks#a-check-in-motion) — the
+  check-as-test-for-AI-output loop, recorded.
 - [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply`
   loop that fixes the blocks a check flags.
 - [MCP server](/reference/mcp) — connect kapi to Claude, Cursor, and other MCP-compatible

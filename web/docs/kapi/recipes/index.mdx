@@ -26,16 +26,16 @@ For what kapi is and how the CLI and Kapi Desktop relate, see the
 
 ## Get oriented
 
-`kapi` runs entirely in your browser here — no install, no server. Three commands
-orient you: `kapi --help` lists the top-level commands, `kapi formats` enumerates
-the format readers, and `kapi tools` lists the processing tools you can run on
-extracted content. Step through the tour from the rail, or press **Run all**.
+Three commands orient you: `kapi --help` lists the top-level commands,
+`kapi formats` enumerates the format readers, and `kapi tools` lists the
+processing tools you can run on extracted content. Step through the tour from the
+rail, or press **Run all**.
 
 <KapiGuidedEmbed id="kapi-overview" />
 
 The explorer below shows the format engine round-trip: run a file through
-`pseudo-translate` and compare the source with the output — only the leaf text
-changes, while the non-translatable skeleton (tags, keys, attributes) returns
+`pseudo-translate` and compare the source with the output — only the text
+changes, while the surrounding structure — tags, keys, attributes — returns
 byte-for-byte. This is the same reader and writer the recipes drive.
 
 <ContentLab lessonIds={["roundtrip"]} defaultSampleId="page-html" />

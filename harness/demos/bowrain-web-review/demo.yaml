@@ -20,8 +20,8 @@ narration:
   - id: title
     kind: title
     text: >-
-      From kapi to a reviewed translation — the approval loop a team runs on
-      Bowrain.
+      From kapi to a reviewed translation — the approve-and-ship loop a team runs
+      on Bowrain, then pulls back with kapi status.
 
   - id: intro
     kind: desktop
@@ -69,5 +69,6 @@ narration:
   - id: outro
     kind: outro
     text: >-
-      Reviewed on the server, then pulled back into the repository with kapi —
-      one round trip, governed end to end.
+      Approved on the server, then pulled back with kapi — where kapi status
+      shows coverage and kapi status --review lists exactly what is still waiting
+      on a reviewer. One governed round trip, end to end.
