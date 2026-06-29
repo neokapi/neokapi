@@ -124,7 +124,18 @@ kapi term-check messages_fr.json --source-lang en --target-lang fr \
 | --- | --- | --- | --- |
 | Loose file | default, `--local`, `--file <path>` | `./tm.db` / `./termbase.db`, or the path you give | a one-off or throwaway store |
 | Named store | `--name <n>` | `~/.config/kapi/tm/<n>.db` / `~/.config/kapi/termbases/<n>.db` | a glossary or memory reused across directories |
-| Project store | no flag, inside a `.kapi` project | `<root>/.kapi/tm.db` / project termbase | a repository you localize repeatedly |
+| Project TM/termbase | no flag, inside a `.kapi` project | `<root>/.kapi/tm.db` / project termbase | a repository you localize repeatedly |
+
+## The TM is not the review state
+
+The project TM is a **recycle** corpus — source→target pairs reused to pre-fill
+and leverage future translation. It is *not* where a review decision lands.
+Whether a person has approved or signed off a particular target is a workflow
+decision, recorded in the project's separate **[state store](/kapi/project-store)**
+(`.kapi-state.json`, `defaults.state`) — the committed third artifact a project
+keeps alongside its TM and termbase. Approving a unit (`kapi apply` with
+`kind:"review"`) writes the state store; adding a TM pair (`kapi apply` with
+`kind:"tm"`) is recycle leverage and does **not** promote a unit to *reviewed*.
 
 ## Note on locale flags
 

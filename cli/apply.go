@@ -125,11 +125,19 @@ func (a *App) NewApplyCmd() *cobra.Command {
 		Short:   "Apply a typed change-set (content + asset edits) — the one write verb",
 		GroupID: "processing",
 		Long: `Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is
-one reviewed change — a content edit, or an asset edit (glossary term, TM pair,
-brand rule, recipe field). Content edits land through the same byte-faithful
-round-trip 'kapi rewrite' uses (structure and inline codes preserved), drift-
-guarded by content_hash; asset edits are written into their committed source
-artifact and the existing import compiles them into the cache.
+one reviewed change — a content edit, an asset edit (glossary term, TM pair,
+brand rule, recipe field), or a review decision (kind:"review"). Content edits
+land through the same byte-faithful round-trip 'kapi rewrite' uses (structure and
+inline codes preserved), drift-guarded by content_hash; asset edits are written
+into their committed source artifact and the existing import compiles them into
+the cache; a review decision is recorded in the project state store.
+
+A TM pair (kind:"tm") is recycle leverage for future translation — it does not
+promote a unit to reviewed. To approve a translated unit, use a kind:"review"
+entry addressed by its file/id/locale (as 'kapi status --review' lists it), with
+status "reviewed" (default) or "signed-off"; the decision lands in the project
+state store (defaults.state, default .kapi-state.json) and is bound to the
+translation's content hash, so a later edit drops the unit back below reviewed.
 
 The change-set is JSONL (one entry per line), read from CHANGESET or, with no
 argument or "-", from standard input. Content entries name their own file, so
@@ -138,6 +146,7 @@ writes nothing. No AI provider is required.`,
 		Example: `  kapi inspect report.docx --jsonl | edit-the-text | kapi apply
   kapi apply changeset.jsonl
   kapi apply changeset.jsonl --diff
+  kapi status --review --json | approve-units | kapi apply
   kapi apply changeset.jsonl --in-place=.bak`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

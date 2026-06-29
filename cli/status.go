@@ -131,7 +131,7 @@ target-language drift is normal, expected work, not a build break.`,
 	AddProjectFlag(cmd)
 	cmd.Flags().String("locale", "", "limit to a single target locale")
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
-	cmd.Flags().Bool("review", false, "list translated units awaiting human review instead of the coverage grid")
+	cmd.Flags().Bool("review", false, "list translated units not yet approved in the project state store (the review worklist), instead of the coverage grid; approve a unit with `kapi apply` (kind:\"review\")")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 	return cmd
 }

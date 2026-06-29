@@ -21,6 +21,13 @@ exact, plain exact, fuzzy) — complemented by semantic retrieval for paraphrase
 PostgreSQL backend can be supplied by a platform layer behind the same
 interface.
 
+The TM is the project's **recycle** corpus: a pool of source→target pairs reused
+to pre-fill and leverage future translation. It is not the carrier of workflow
+**decisions** — whether a person has reviewed or signed off a particular target
+lives in the project **state store** ([AD-008](008-project-model.md),
+`defaults.state`), not here. Adding a pair to the TM (`kapi apply` with
+`kind:"tm"`) is recycle leverage; it does not promote a unit to *reviewed*.
+
 ## Context
 
 Translation memory is a core localization primitive: previously translated
