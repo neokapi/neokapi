@@ -170,3 +170,41 @@ func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
 	assert.Equal(t, 0, nb2.Pct["reviewed"],
 		"editing the approved translation invalidates the review (targetHash link)")
 }
+
+// TestReview_ApplyReviewKindPromotesViaStateStore drives the CLI approval verb:
+// `kapi apply` with a `kind:"review"` change-set records the decision in the
+// project state store (the counterpart of the desktop approve), so the unit
+// counts as reviewed — unlike a `kind:"tm"` entry, which is recycle-only.
+func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
+	root := writeReviewProject(t)
+	t.Chdir(root)
+
+	a := &App{}
+	rep, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "proj.kapi"), "en")
+	require.NoError(t, err)
+	var item ReviewItem
+	for _, it := range rep.Review {
+		if it.Source == "Apple" {
+			item = it
+		}
+	}
+	require.NotEmpty(t, item.Key, "expected an 'Apple' review unit")
+
+	a2 := &App{}
+	a2.InitRegistries()
+	res := a2.applyReviewEntry(context.Background(), &cobra.Command{Use: "apply"}, changeEntry{
+		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "reviewed",
+	})
+	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
+	assert.FileExists(t, filepath.Join(root, ".kapi-state.json"), "approval exports the state artifact")
+
+	nb, ok := locale(runStatusJSON(t), "nb")
+	require.True(t, ok)
+	assert.Equal(t, 50, nb.Pct["reviewed"], "a kind:review apply promotes via the state store")
+
+	// Idempotent: re-applying the same decision is a no-op.
+	res2 := a2.applyReviewEntry(context.Background(), &cobra.Command{Use: "apply"}, changeEntry{
+		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "reviewed",
+	})
+	assert.Equal(t, "skipped", res2.Status)
+}
