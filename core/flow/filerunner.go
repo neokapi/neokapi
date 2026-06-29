@@ -122,38 +122,49 @@ type FileRunnerConfig struct {
 	// document parsed under different config. The runner combines it with the
 	// per-file detected format. Empty when PartCache is nil.
 	PartCacheKey string
-
-	// PartCacheMaxBytes caps the source size the document cache will buffer.
-	// Above it, the runner bypasses the cache and uses the streaming/live read
-	// path, so a large file is never loaded whole into memory — the cache
-	// serializes the parsed document and materializes the skeleton bytes, both
-	// proportional to the source. 0 uses the default (partCacheMaxBytes).
-	PartCacheMaxBytes int64
 }
 
-// partCacheMaxBytes is the default source-size ceiling for the document cache. A
-// localization source is almost always far below it; the cap exists so an
-// unusually large file falls back to the bounded-memory streaming path rather
-// than being buffered (parsed parts + skeleton bytes) for the cache.
-const partCacheMaxBytes int64 = 8 << 20 // 8 MiB
-
-// PartCache is the file runner's optional document cache: a hit returns a file's
-// full Part stream from a prior parse under the same config, so the reader never
-// runs. Implemented by the CLI over the project's `.kapi/cache` (rebuildable from
-// the files), it is the seam that makes kapi parse each source once in project
-// mode. The configKey the runner passes already folds in the detected format and
-// the caller's PartCacheKey, so implementations key on (path, configKey) plus
-// their own staleness check (content hash) over the file.
+// PartCache is the file runner's optional streaming document cache: a parse-once
+// source/sink in front of the file collections. Implemented by the CLI over the
+// project's `.kapi/cache` (rebuildable from the files), it makes kapi parse each
+// source once in project mode and hold no whole document in memory. The configKey
+// the runner passes folds in the detected format and the caller's PartCacheKey, so
+// implementations key on (path, configKey) plus a staleness check over the file.
 type PartCache interface {
-	// GetDocument returns the cached Part stream — and the reconstruction skeleton
-	// bytes + origin format when one was captured — for a file under configKey,
-	// when it is fresh relative to the file on disk. ok=false → the runner parses.
-	// The process-only path stores no skeleton (nil); the file-writing path stores
-	// the source skeleton so a writer can reconstruct byte-exact output on a hit.
-	GetDocument(path, configKey string) (parts []*model.Part, skeleton []byte, originFormat string, ok bool)
-	// PutDocument records a freshly-parsed Part stream (and optional skeleton) for
-	// a file under configKey.
-	PutDocument(path, configKey string, parts []*model.Part, skeleton []byte, originFormat string)
+	// OpenDocument returns a streaming reader for a fresh cached document under
+	// (path, configKey), or nil on a miss/staleness. The caller streams parts one
+	// at a time and, ONLY when reconstructing output, opens the skeleton — so a
+	// process-only flow never materializes it. Nothing whole is held in memory.
+	OpenDocument(path, configKey string) CachedDocument
+	// RecordDocument returns a sink to persist a freshly-parsed document as it
+	// streams: the reader's skeleton emitter is wired to the recorder, each part is
+	// Add()-ed as it is read, then Commit() (or Abort()). nil → don't record.
+	RecordDocument(path, configKey, format string) DocumentRecorder
+}
+
+// CachedDocument is a streaming reader over a previously-parsed document. Parts
+// come one at a time; the skeleton is opened lazily, only by a reconstructing
+// writer.
+type CachedDocument interface {
+	// Feed streams the document's parts to inCh one at a time and closes inCh.
+	Feed(ctx context.Context, inCh chan<- *model.Part) error
+	// OpenSkeleton opens the reconstruction skeleton (streamed from its file) for a
+	// writer, or nil when the document has none. The caller closes it.
+	OpenSkeleton() *format.SkeletonStore
+	Close() error
+}
+
+// DocumentRecorder persists a document as it parses, without buffering it: the
+// skeleton is written to its file via the wired SkeletonStore, each part appended
+// to a streamed log.
+type DocumentRecorder interface {
+	// SkeletonStore is wired to the reader's skeleton emitter so structure is
+	// captured as the document parses. May be nil if unavailable.
+	SkeletonStore() *format.SkeletonStore
+	// Add persists one parsed part (streamed; not buffered into a slice).
+	Add(p *model.Part) error
+	Commit() error
+	Abort()
 }
 
 // FileRunner runs a full read → process → write pipeline for a single file.
@@ -306,45 +317,92 @@ func (r *FileRunner) readParts(ctx context.Context, reader format.DataFormatRead
 	return parts, nil
 }
 
-// cachedReadParts is readParts with the document cache in front: on a cache hit
-// it returns the file's Part stream from a prior parse (under the same config)
-// without opening the reader; on a miss it parses, stores the result, and
-// returns it. Used by the process-only project path, where there is no writer or
-// skeleton round-trip — only the parts feeding the executor matter, so replaying
-// a cached parse is exact. It opens the source file itself (readParts' caller
-// did) so the open is skipped entirely on a hit.
-func (r *FileRunner) cachedReadParts(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string) ([]*model.Part, error) {
-	useCache := r.cacheEligible(inputPath)
-	key := r.partCacheKey(reader.Name(), "run")
-	if useCache {
-		if parts, _, _, ok := r.cfg.PartCache.GetDocument(inputPath, key); ok {
-			reader.Close() // never opened — release the unused reader
-			// Replay reader-stage trace events so --trace is identical to a parse.
-			if r.cfg.Recorder != nil {
-				for _, p := range parts {
-					if p != nil && p.Resource != nil {
-						r.cfg.Recorder.SnapshotPart(p, "reader", "initial")
-						r.cfg.Recorder.Record(TraceExit, "reader", p.Resource.ResourceID(), nil)
-					}
-				}
-			}
-			return parts, nil
-		}
-	}
+// errCacheUnavailable signals that the document cache could not serve or record a
+// document (no cache configured, or the recorder could not be created). It always
+// leaves the reader OPEN so the caller can fall back to the live read path.
+var errCacheUnavailable = errors.New("document cache unavailable")
 
+// cachedSource ensures the document is in the streaming cache and returns a
+// streaming reader over it. On a hit it closes the (unused) reader. On a miss it
+// parses the source ONCE, recording the parts (append log) + skeleton (file)
+// without running tools or a writer, then returns a reader over the fresh entry —
+// so every consumer (process-only executor, file-writing writer) replays from the
+// cache uniformly, one part at a time, with the skeleton opened lazily and only
+// when a writer needs it. Returns errCacheUnavailable (reader left open) when no
+// cache is configured.
+func (r *FileRunner) cachedSource(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string) (CachedDocument, error) {
+	if r.cfg.PartCache == nil {
+		return nil, errCacheUnavailable
+	}
+	key := r.partCacheKey(reader.Name())
+	if doc := r.cfg.PartCache.OpenDocument(inputPath, key); doc != nil {
+		reader.Close()
+		return doc, nil
+	}
+	rec := r.cfg.PartCache.RecordDocument(inputPath, key, reader.Name())
+	if rec == nil {
+		return nil, errCacheUnavailable
+	}
+	if err := r.recordDocument(ctx, reader, inputPath, targetLang, rec); err != nil {
+		return nil, err
+	}
+	doc := r.cfg.PartCache.OpenDocument(inputPath, key)
+	if doc == nil {
+		return nil, errCacheUnavailable
+	}
+	return doc, nil
+}
+
+// recordDocument drives the reader once, streaming each part into the recorder
+// (and the skeleton into its file via the wired emitter) without buffering the
+// document. The reader is consumed and closed.
+func (r *FileRunner) recordDocument(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string, rec DocumentRecorder) error {
+	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok && rec.SkeletonStore() != nil {
+		emitter.SetSkeletonStore(rec.SkeletonStore())
+	}
 	source, err := openBudgetedFile(inputPath)
 	if err != nil {
 		reader.Close()
-		return nil, fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
+		rec.Abort()
+		return fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
 	}
-	parts, err := r.readParts(ctx, reader, source, inputPath, targetLang)
-	if err != nil {
-		return nil, err
+	if err := r.openReader(ctx, reader, source, inputPath, targetLang); err != nil {
+		rec.Abort()
+		return err
 	}
-	if useCache {
-		r.cfg.PartCache.PutDocument(inputPath, key, parts, nil, reader.Name())
+	for result := range reader.Read(ctx) {
+		if result.Error != nil {
+			reader.Close()
+			rec.Abort()
+			return fmt.Errorf("read %q: %w", filepath.Base(inputPath), result.Error)
+		}
+		if result.Part == nil {
+			continue
+		}
+		if err := rec.Add(result.Part); err != nil {
+			reader.Close()
+			rec.Abort()
+			return fmt.Errorf("cache document: %w", err)
+		}
 	}
-	return parts, nil
+	reader.Close()
+	return rec.Commit()
+}
+
+// sliceFeed adapts a buffered Part slice to the streaming feed shape (closes
+// inCh) so the live (no-cache) path shares the executor-feeding helper.
+func sliceFeed(parts []*model.Part) func(context.Context, chan<- *model.Part) error {
+	return func(ctx context.Context, inCh chan<- *model.Part) error {
+		defer close(inCh)
+		for _, p := range parts {
+			select {
+			case inCh <- p:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		return nil
+	}
 }
 
 // cacheableWriter reports whether a same-format writer reconstructs output from
@@ -362,105 +420,46 @@ func cacheableWriter(w format.DataFormatWriter) bool {
 	return true
 }
 
-// cachedFileWrite serves the same-format file-writing path through the document
-// cache. On a hit it replays the cached Part stream — and, for a skeleton-backed
-// writer, the cached skeleton bytes — straight to the writer (the reader never
-// runs). On a miss it parses once with a snapshottable skeleton store, captures
-// the parts + skeleton bytes into the cache, then writes from that snapshot — the
-// same from-bytes reconstruction a hit uses, so the first and subsequent runs are
-// byte-identical (and identical to the uncached buffered path). It always handles
-// the run (the caller gated on cacheableWriter).
+// cachedFileWrite serves the same-format file-writing path through the streaming
+// document cache: it ensures the source is cached (parse → record on a miss),
+// then replays the parts one at a time to the writer and opens the skeleton
+// lazily from its file — the reader never runs on a hit, and nothing is held
+// whole in memory. Returns errCacheUnavailable (reader left open) when the cache
+// can't serve, so the caller falls back to the live read path.
 func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string, reader format.DataFormatReader, writer format.DataFormatWriter) error {
-	key := r.partCacheKey(reader.Name(), "write")
-	consumer, isConsumer := writer.(format.SkeletonStoreConsumer)
-
-	// wireSkeleton attaches a fresh from-bytes skeleton store to the writer when
-	// the writer consumes one and we captured skeleton bytes. Returns the store
-	// (or nil) so runPipelineToWriter can close it.
-	wireSkeleton := func(skel []byte) *format.SkeletonStore {
-		if !isConsumer || len(skel) == 0 {
-			return nil
-		}
-		store := format.NewSkeletonStoreFromBytes(skel)
-		consumer.SetSkeletonStore(store)
-		return store
+	doc, err := r.cachedSource(ctx, reader, inputPath, targetLang)
+	if err != nil {
+		return err
 	}
+	defer doc.Close()
 
-	// Hit: replay parts (+ skeleton) to the writer without opening the reader.
-	if parts, skel, _, ok := r.cfg.PartCache.GetDocument(inputPath, key); ok {
-		reader.Close()
-		store := wireSkeleton(skel)
-		return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, store, "", nil)
-	}
-
-	// Miss: parse buffered with a snapshottable (file-backed) skeleton store wired
-	// to the reader, so a skeleton-backed format captures its reconstruction bytes.
-	var captureStore *format.SkeletonStore
-	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok && isConsumer {
-		if s, serr := format.NewSkeletonStore(); serr == nil {
-			captureStore = s
-			captureStore.SetOriginFormat(reader.Name())
-			emitter.SetSkeletonStore(captureStore)
+	// Open the reconstruction skeleton ONLY for a writer that consumes one,
+	// streamed from its file. A generative writer (no consumer) reconstructs from
+	// the content model alone and never touches it.
+	var skel *format.SkeletonStore
+	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+		if s := doc.OpenSkeleton(); s != nil {
+			skel = s
+			consumer.SetSkeletonStore(skel)
 		}
 	}
-
-	source, oerr := openBudgetedFile(inputPath)
-	if oerr != nil {
-		reader.Close()
-		if captureStore != nil {
-			captureStore.Close()
-		}
-		return fmt.Errorf("open %q: %w", filepath.Base(inputPath), oerr)
+	feed := func(fctx context.Context, inCh chan<- *model.Part, errOut *error) {
+		*errOut = doc.Feed(fctx, inCh)
 	}
-	parts, perr := r.readParts(ctx, reader, source, inputPath, targetLang) // closes reader, fills captureStore
-	if perr != nil {
-		if captureStore != nil {
-			captureStore.Close()
-		}
-		return perr
-	}
-
-	var skelBytes []byte
-	if captureStore != nil {
-		if b, berr := captureStore.Bytes(); berr == nil {
-			skelBytes = b
-		}
-		captureStore.Close()
-	}
-	r.cfg.PartCache.PutDocument(inputPath, key, parts, skelBytes, reader.Name())
-
-	store := wireSkeleton(skelBytes)
-	return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, store, "", nil)
-}
-
-// cacheEligible reports whether the document cache should be used for a source:
-// a cache must be configured and the file must be within the size ceiling, so a
-// large file is never buffered (parts + skeleton) into memory but instead uses
-// the streaming/live path. A stat failure declines the cache (the live path will
-// surface the real open error).
-func (r *FileRunner) cacheEligible(path string) bool {
-	if r.cfg.PartCache == nil {
-		return false
-	}
-	max := r.cfg.PartCacheMaxBytes
-	if max <= 0 {
-		max = partCacheMaxBytes
-	}
-	st, err := os.Stat(path)
-	return err == nil && st.Size() <= max
+	return r.runPipelineToWriter(ctx, flowName, tools, feed, outputPath, targetLang, writer, skel, "", nil)
 }
 
 // partCacheKey is the document-cache key for a parse: the per-file detected
-// format, a kind namespace, and the caller's config fingerprint (format config +
-// source locale). The kind keeps the process-only entries ("run", parts only,
-// no skeleton) separate from the file-writing entries ("write", parts + skeleton)
-// so a skeleton-less process-only entry is never served to a writer that needs
-// the skeleton. Returns "" when no cache is configured (the key is then unused).
-func (r *FileRunner) partCacheKey(formatName, kind string) string {
+// format and the caller's config fingerprint (format config + source locale).
+// One key per (file, config): the recorded document carries both the parts and
+// the skeleton, so a process-only run and a later file-writing run of the same
+// source share the entry — the writer simply opens the skeleton the process-only
+// run ignored. Returns "" when no cache is configured (the key is then unused).
+func (r *FileRunner) partCacheKey(formatName string) string {
 	if r.cfg.PartCache == nil {
 		return ""
 	}
-	return formatName + "|" + kind + "|" + r.cfg.PartCacheKey
+	return formatName + "|doc|" + r.cfg.PartCacheKey
 }
 
 // feedReader streams the reader's Parts directly into inCh (phase 2/3): the
@@ -529,11 +528,34 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 		return errors.New("process-only run requires a persistent block store; the configured store is ephemeral")
 	}
 
-	parts, err := r.cachedReadParts(ctx, reader, inputPath, targetLang)
-	if err != nil {
+	// Project mode: stream the source through the document cache (parse → record
+	// once on a miss, replay one part at a time thereafter). No whole document is
+	// buffered, and the skeleton is never opened (a process-only run writes no
+	// file). Falls back to the live read when no cache is configured.
+	if doc, err := r.cachedSource(ctx, reader, inputPath, targetLang); err == nil {
+		defer doc.Close()
+		return r.runProcessOnly(ctx, flowName, tools, targetLang, doc.Feed)
+	} else if !errors.Is(err, errCacheUnavailable) {
 		return err
 	}
 
+	source, err := openBudgetedFile(inputPath)
+	if err != nil {
+		reader.Close()
+		return fmt.Errorf("open %q: %w", filepath.Base(inputPath), err)
+	}
+	parts, err := r.readParts(ctx, reader, source, inputPath, targetLang)
+	if err != nil {
+		return err
+	}
+	return r.runProcessOnly(ctx, flowName, tools, targetLang, sliceFeed(parts))
+}
+
+// runProcessOnly builds the flow (with the implicit commit-targets step), runs
+// the executor against the persistent store, and feeds it from `feed` (a cache
+// replay or a buffered slice) while draining the output — a process-only run that
+// commits `targets/<locale>` overlays and writes no file. `feed` closes inCh.
+func (r *FileRunner) runProcessOnly(ctx context.Context, flowName string, tools []tool.Tool, targetLang string, feed func(context.Context, chan<- *model.Part) error) error {
 	fb := NewFlow(flowName)
 	for _, t := range tools {
 		fb.AddTool(t)
@@ -558,16 +580,10 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 	inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
 
 	feedDone := make(chan struct{})
+	var feedErr error
 	go func() {
 		defer close(feedDone)
-		defer close(inCh)
-		for _, p := range parts {
-			select {
-			case inCh <- p:
-			case <-feedCtx.Done():
-				return
-			}
-		}
+		feedErr = feed(feedCtx, inCh) // feed closes inCh
 	}()
 
 	// Drain (and discard) the executor output — there is no sink. Draining is
@@ -588,6 +604,9 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 	if waitErr != nil {
 		return fmt.Errorf("execute flow: %w", waitErr)
 	}
+	if feedErr != nil && !errors.Is(feedErr, context.Canceled) {
+		return fmt.Errorf("feed document: %w", feedErr)
+	}
 	return nil
 }
 
@@ -605,8 +624,11 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// reader never runs. The raw-source-coupled binary/markup writers (openxml,
 	// odf, epub, idml, html, asciidoc) reconstruct from the original file and stay
 	// on the live path below.
-	if sameFormat && cacheableWriter(writer) && r.cacheEligible(inputPath) {
-		return r.cachedFileWrite(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer)
+	if sameFormat && cacheableWriter(writer) && r.cfg.PartCache != nil {
+		if err := r.cachedFileWrite(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer); !errors.Is(err, errCacheUnavailable) {
+			return err
+		}
+		// errCacheUnavailable → the reader was left open; fall through to live.
 	}
 
 	// Wire skeleton store if both support it AND reader and writer are the

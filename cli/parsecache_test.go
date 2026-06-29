@@ -5,56 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestParseCache_StalenessLadder(t *testing.T) {
-	dir := t.TempDir()
-	c, err := openParseCache(filepath.Join(dir, "cache"))
-	require.NoError(t, err)
-	defer c.close()
-
-	f := filepath.Join(dir, "x.json")
-	require.NoError(t, os.WriteFile(f, []byte(`{"a":"Apple"}`), 0o644))
-	st, _ := os.Stat(f)
-	block := model.NewBlock("a", "Apple")
-	block.Translatable = true
-	c.putDoc(f, "k", st, []*model.Part{{Type: model.PartBlock, Resource: block}}, nil, "json")
-
-	// Same file → hit (translatable-block projection).
-	got, ok := c.getBlocks(f, "k", st)
-	require.True(t, ok)
-	require.Len(t, got, 1)
-	assert.Equal(t, "Apple", got[0].SourceText())
-
-	// Full-document round-trip preserves the Part stream + format.
-	parts, _, fmtName, okDoc := c.getDoc(f, "k", st)
-	require.True(t, okDoc)
-	require.Len(t, parts, 1)
-	assert.Equal(t, model.PartBlock, parts[0].Type)
-	assert.Equal(t, "json", fmtName)
-
-	// Touch (new mtime, same bytes) → still a hit (re-hash path, no re-parse).
-	future := time.Now().Add(2 * time.Second)
-	require.NoError(t, os.Chtimes(f, future, future))
-	st2, _ := os.Stat(f)
-	_, ok = c.getBlocks(f, "k", st2)
-	assert.True(t, ok, "touch with identical bytes stays a hit")
-
-	// Changed bytes → miss.
-	require.NoError(t, os.WriteFile(f, []byte(`{"a":"Banana","b":"Cherry"}`), 0o644))
-	st3, _ := os.Stat(f)
-	_, ok = c.getBlocks(f, "k", st3)
-	assert.False(t, ok, "changed content is a miss")
-
-	// Different config key → miss (the key includes the config).
-	_, ok = c.getBlocks(f, "other-config", st)
-	assert.False(t, ok)
-}
 
 // writeCacheProject scaffolds a project WITH a .kapi/ state dir (so the parse
 // cache's layout resolution succeeds) and a fully-translated nb target.
@@ -83,11 +37,11 @@ ship_gate: { translated: 100 }
 
 func countCacheRows(t *testing.T, root string) int {
 	t.Helper()
-	c, err := openParseCache(filepath.Join(root, ".kapi", "cache"))
+	c, err := openDocCache(filepath.Join(root, ".kapi", "cache"))
 	require.NoError(t, err)
 	defer c.close()
 	var n int
-	require.NoError(t, c.db.QueryRow(`SELECT COUNT(*) FROM file_documents`).Scan(&n))
+	require.NoError(t, c.db.QueryRow(`SELECT COUNT(*) FROM documents`).Scan(&n))
 	return n
 }
 

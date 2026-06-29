@@ -232,16 +232,16 @@ func newRunSingleFileCmd(t *testing.T, a *App) *cobra.Command {
 }
 
 // runDocCacheKeys returns the document-cache config keys present after a run,
-// opening the project's parse cache directly. A "|run|" key proves the flow
-// runner populated the L1 document cache through the real wiring.
+// opening the project's streaming document cache directly. A "|doc|" key proves
+// the flow runner populated the document cache through the real wiring.
 func runDocCacheKeys(t *testing.T, recipe string) []string {
 	t.Helper()
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
-	c, err := openParseCache(layout.CacheDir())
+	c, err := openDocCache(layout.CacheDir())
 	require.NoError(t, err)
 	defer c.close()
-	rows, err := c.db.Query(`SELECT config_key FROM file_documents`)
+	rows, err := c.db.Query(`SELECT config_key FROM documents`)
 	require.NoError(t, err)
 	defer rows.Close()
 	var keys []string
@@ -254,8 +254,8 @@ func runDocCacheKeys(t *testing.T, recipe string) []string {
 }
 
 // TestRun_InProject_PopulatesAndReusesDocumentCache verifies the real CLI wiring:
-// a process-only run populates the project document cache (L1) under a "|run|"
-// key, and a second run produces the identical work (served from the cache).
+// a process-only run populates the project document cache under a "|doc|" key, and
+// a second run produces the identical work (served from the cache).
 func TestRun_InProject_PopulatesAndReusesDocumentCache(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, srcRel, root := processOnlyProjectFixture(t, []model.LocaleID{"fr-FR"})
@@ -267,11 +267,11 @@ func TestRun_InProject_PopulatesAndReusesDocumentCache(t *testing.T) {
 	keys := runDocCacheKeys(t, recipe)
 	hasRunKey := false
 	for _, k := range keys {
-		if strings.Contains(k, "|run|") {
+		if strings.Contains(k, "|doc|") {
 			hasRunKey = true
 		}
 	}
-	assert.True(t, hasRunKey, "the flow runner must populate the document cache under a |run| key; got %v", keys)
+	assert.True(t, hasRunKey, "the flow runner must populate the document cache under a |doc| key; got %v", keys)
 	first := storeOverlayCount(t, recipe, "targets/fr-FR")
 	assert.Equal(t, 1, first)
 
@@ -312,11 +312,11 @@ func TestRun_InProjectExplicitOutput_DocumentCacheByteIdentical(t *testing.T) {
 
 	hasWriteKey := false
 	for _, k := range runDocCacheKeys(t, recipe) {
-		if strings.Contains(k, "|write|") {
+		if strings.Contains(k, "|doc|") {
 			hasWriteKey = true
 		}
 	}
-	assert.True(t, hasWriteKey, "a file-writing run must populate a |write| document")
+	assert.True(t, hasWriteKey, "a file-writing run must populate a |doc| document")
 
 	out2 := filepath.Join(t.TempDir(), "o2.json")
 	a2 := processOnlyApp(t)
