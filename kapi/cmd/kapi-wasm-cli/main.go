@@ -157,6 +157,14 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(app.NewAddCmd())
 	root.AddCommand(app.NewRmCmd())
 	root.AddCommand(app.NewLsCmd())
+	// status derives project coverage from the files plus the committed state
+	// store, and apply writes a review decision into that state store
+	// (.kapi-state.json) — both pure local-filesystem + JSON, no SQLite/cgo, so
+	// the review→approve loop runs against the in-memory filesystem in the
+	// browser. (apply's tm/term kinds, which compile a SQLite cache, are not
+	// exercised in the browser; the review kind is.)
+	root.AddCommand(app.NewStatusCmd())
+	root.AddCommand(app.NewApplyCmd())
 	root.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
 	root.AddCommand(app.NewToolsCmd())
 	root.AddCommand(app.NewFormatsCmd())
