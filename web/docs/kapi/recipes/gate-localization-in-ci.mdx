@@ -59,6 +59,16 @@ A failing gate exits `3`, which fails the workflow step. (The `--no-fail` flag
 turns verify into report-only mode — it always exits `0`. Use it inside an
 assistant fix-loop; **omit it for CI gating.**)
 
+:::tip Gating on coverage and review
+The gates above are the quality checks. To also gate on *coverage* — the
+[convergence](/kapi/convergence) ship and source thresholds, including a
+`reviewed` bar — add `kapi verify --ship` (off by default, since target drift is
+non-blocking). A `reviewed` threshold reads its decisions from the project's
+committed [state store](/kapi/project-store) (`.kapi-state.json`,
+`defaults.state`), so **commit that file in the PR** — otherwise the runner sees
+no approvals and a `reviewed` gate can't pass.
+:::
+
 ## The workflow
 
 Install the CLI on the runner with the companion

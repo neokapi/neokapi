@@ -113,6 +113,12 @@ carry asset edits (a glossary term, a brand rule), so a content fix and the rule
 that justifies it land together — see
 [Create content](/kapi/recipes/create-content) for the mixed change-set.
 
+`apply` is also how a *decision* is recorded, not just an edit: a
+`kind:"review"` entry approves a translated unit, landing in the project
+[state store](/kapi/project-store) rather than rewriting a file. Editing content
+and approving a translation are the same verb with different `kind`s — see
+[Convergence](/kapi/convergence#review-a-decision-in-the-project-state-store).
+
 ## What "faithfully" means
 
 Only the extracted prose changes; everything outside it — `.docx` character
