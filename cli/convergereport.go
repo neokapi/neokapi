@@ -12,19 +12,6 @@ import (
 	"github.com/neokapi/neokapi/core/state"
 )
 
-// ConvergenceReport is the full derived convergence picture for a project: the
-// per-(collection,locale) target coverage and ship-gate standing, the source
-// authoring readiness, and the review queue. It is exactly what `kapi status`,
-// `kapi status --review`, and `kapi verify --ship` derive — one shape, so an
-// embedding surface (the Kapi Desktop project view) shows the same numbers the
-// CLI does rather than a parallel computation.
-type ConvergenceReport struct {
-	Project string           `json:"project,omitempty"`
-	Source  *SourceCoverage  `json:"source,omitempty"`
-	Locales []LocaleCoverage `json:"locales"`
-	Review  []ReviewItem     `json:"review"`
-}
-
 // ProjectConvergence computes the convergence report for a project recipe,
 // deriving everything from the working tree (content × target files) and the
 // committed .klftm corrections — the same file-based derivation the CLI status
