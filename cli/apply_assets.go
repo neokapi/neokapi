@@ -282,6 +282,42 @@ func conceptID(text string, locale model.LocaleID) string {
 // tm → committed .klftm source → tm import compile into .kapi/tm.db
 // ---------------------------------------------------------------------------
 
+// applyReviewEntry records a review decision in the project STATE store via the
+// shared ApproveReviewUnit path — the CLI counterpart of the desktop "approve"
+// action and the write side of `kapi status --review`. The unit is addressed by
+// (file, id, locale) exactly as the review queue lists it; `status` is "reviewed"
+// (default) or "signed-off". This is distinct from a `kind:"tm"` entry: a TM
+// correction is recycle leverage, not a review decision.
+func (a *App) applyReviewEntry(ctx context.Context, cmd *cobra.Command, e changeEntry) assetResult {
+	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.ID}
+	if e.Op != "" && e.Op != "add" {
+		return errResult(res, fmt.Sprintf("review: unsupported op %q (want \"add\")", e.Op))
+	}
+	if strings.TrimSpace(e.File) == "" || strings.TrimSpace(e.ID) == "" || strings.TrimSpace(e.Locale) == "" {
+		return errResult(res, "review: file, id, and locale are required (as listed by `kapi status --review`)")
+	}
+	recipePath, _, err := a.resolveProjectRoot(cmd)
+	if err != nil {
+		return errResult(res, err.Error())
+	}
+	reviewState := strings.TrimSpace(e.Status)
+	if reviewState == "" {
+		reviewState = string(model.TargetStatusReviewed)
+	}
+	changed, aerr := a.ApproveReviewUnit(ctx, recipePath, a.SourceLang, e.Locale, e.File, e.ID, reviewState)
+	if aerr != nil {
+		return errResult(res, aerr.Error())
+	}
+	if !changed {
+		res.Status = "skipped"
+		res.Detail = "already at this review state"
+		return res
+	}
+	res.Status = "applied"
+	res.Detail = fmt.Sprintf("%s %s → %s", e.Locale, e.ID, reviewState)
+	return res
+}
+
 // applyTMEntry adds a source→target TM pair. It edits the committed .klftm
 // source the recipe binds (creating l10n/tm.klftm and binding it when none
 // exists), then re-imports the .klftm into the project TM (.kapi/tm.db) cache.

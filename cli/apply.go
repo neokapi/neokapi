@@ -31,6 +31,7 @@ const (
 	kindTM      changeKind = "tm"
 	kindBrand   changeKind = "brand"
 	kindRecipe  changeKind = "recipe"
+	kindReview  changeKind = "review"
 )
 
 // changeEntry is one line of a `kapi apply` change-set (JSONL; one entry per
@@ -190,6 +191,9 @@ func (a *App) runApply(cmd *cobra.Command, path string, diff bool, backupSuffix 
 			byFile[e.File] = append(byFile[e.File], e)
 		case kindTerm, kindTM, kindBrand, kindRecipe:
 			res := a.applyAssetEntry(ctx, cmd, e)
+			out.Assets = append(out.Assets, res)
+		case kindReview:
+			res := a.applyReviewEntry(ctx, cmd, e)
 			out.Assets = append(out.Assets, res)
 		case "":
 			return errors.New("apply: change-set entry has no \"kind\"")

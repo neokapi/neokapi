@@ -31,13 +31,13 @@ func (o ReviewQueueOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "           %s\n", it.Source)
 	}
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Approve a translation with `kapi apply` (a tm correction); it then counts as reviewed.")
+	fmt.Fprintln(w, "Approve a unit with `kapi apply` (a `review` change-set, addressed by its file/id/locale) — the decision lands in the project state store and the unit then counts as reviewed.")
 	return nil
 }
 
-// computeReviewQueue lists the translated units that are not yet an approved
-// correction — the review queue. It is derived (recomputed from content + the
-// .klftm corpus), never tracked.
+// computeReviewQueue lists the translated units that are not yet approved — the
+// review queue. It is derived (recomputed from content + the project state store),
+// never tracked.
 func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units []verifyUnit) ([]ReviewItem, error) {
 	reviewed, err := a.loadReviewedCorrections(proj, root)
 	if err != nil {

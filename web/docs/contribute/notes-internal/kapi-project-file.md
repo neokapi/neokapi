@@ -100,6 +100,16 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
 - `termbase` (string) — path to a glossary/termbase, resolved relative to the
   project root, used for project-scoped term enforcement with no `--termbase`
   flag.
+- `termbase_source` / `tm_source` (string) — committed, git-tracked native source
+  artifacts (`.klftb` / `.klftm`) the project termbase and TM are compiled from.
+  `kapi apply` edits the source and re-imports into the gitignored `.db` cache, so
+  the SQLite store is written by exactly one path and `git diff` is the review
+  surface.
+- `state` (string) — committed, git-tracked project state store (a
+  kapi-project-state JSON document, `core/state`): the authoritative carrier of
+  per-unit workflow decisions (review ladder, approvals, parking) that a plain
+  target file cannot hold. It is the export *sink* for state in git mode (a bowrain
+  project pushes state to the server instead); empty defaults to `.kapi-state.json`.
 
 ## Platform extensions and the `server:` block
 

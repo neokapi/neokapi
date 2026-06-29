@@ -65,9 +65,9 @@ before anything is translated:
 Where state is recorded depends on the carrier. A plain target file (JSON, an
 XLIFF, …) records presence only, so a file-based project reads a present target
 as *translated*. The higher rungs ride a carrier that can hold them: *reviewed*
-comes from an approved correction in the project's translation memory (see
-[Review](#review-corrections-as-assets) below), and a `.klf` parcel carries the
-full status across a hand-off.
+comes from an approved decision in the project's
+[state store](#review-a-decision-in-the-project-state-store) (below), and a `.klf`
+parcel carries the full status across a hand-off.
 
 ## The gate — coverage thresholds
 
@@ -170,25 +170,36 @@ defaults:
         redact: { enabled: true }   # German redacts PII; other locales don't
 ```
 
-## Review: corrections as assets
+## Review: a decision in the project state store
 
-A machine takes a unit to *translated*; a person takes it to *reviewed*. Approving
-a translation is an edit like any other, recorded with the one write verb,
-`kapi apply` — a translation-memory correction:
+A machine takes a unit to *translated*; a person takes it to *reviewed*. That
+approval is a workflow **decision** — who signed off on which exact translation —
+so it lands in the project's [state store](/kapi/project-store), the committed
+carrier of decisions (`defaults.state`, default `.kapi-state.json`), not the
+translation memory.
+
+`kapi status --review` is the worklist — every translated unit not yet approved —
+and you approve a unit with the one write verb, `kapi apply`, as a `review`
+change-set addressed by the unit's `file` / `id` / `locale` exactly as the worklist
+lists them:
 
 ```bash
-# the approved source→target pair, applied as a tm correction
-kapi apply <<<'{"kind":"tm","source":"Save","target":"Lagre","source_locale":"en","target_locale":"nb"}'
+kapi status --review        # the worklist: file, id, locale per pending unit
+kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
 ```
 
-The correction lands in the project's committed translation-memory source
-(`defaults.tm_source`, a `.klf` term/TM document) — the human-curated corpus.
-Automatic memory write-back goes to the regenerable cache, never this source, so
-an exact match here means a person signed off on this exact translation. Coverage
-then reads that unit as *reviewed*, `reviewed%` climbs, and a `{ reviewed: … }`
-gate flips to shippable. The next convergence recycles the correction for free.
+The decision is bound to the **content hash** of the translation it blesses, so
+editing that translation afterwards drops the unit back below *reviewed* — an
+approval can't silently outlive the text it approved. Once recorded, coverage reads
+the unit as *reviewed*, `reviewed%` climbs, and a `{ reviewed: … }` gate flips to
+shippable. The state file is committed with your sources, so the decision travels
+with the project (a server-backed project pushes it to a remote instead).
 
-`kapi status --review` is the worklist — every translated unit not yet approved:
+This is distinct from the translation memory: `kapi apply` with `kind:"tm"` adds a
+source→target pair to the **recycle** corpus (`defaults.tm_source`) for future
+leverage — it does **not** promote a unit to *reviewed*.
+
+`kapi status --review` shows the worklist — every translated unit not yet approved:
 
 ```bash
 kapi status --review

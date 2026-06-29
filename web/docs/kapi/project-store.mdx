@@ -1,0 +1,85 @@
+---
+sidebar_position: 2
+title: The project store
+description: Where a kapi project's work lives — the derived caches, the pre-merge working state, and the committed state store that carries review decisions. The recipe is config, the store is work, the files are the deliverable.
+keywords: [kapi, project store, state store, .kapi-state.json, defaults.state, review, coverage, cache, overlays, working state, ship state]
+---
+
+# The project store
+
+A kapi project has three things, and it helps to keep them straight:
+
+- the **recipe** (`*.kapi`) — your *config*: languages, content, flows, defaults;
+- the **files** — your *deliverable*: the source and target files on disk;
+- the **project store** — your *work*: what kapi keeps under `.kapi/` while you
+  build, plus the committed record of the decisions you make along the way.
+
+This page is about the third one. The guiding rule:
+
+> **Files are the source of truth. The store's caches are rebuildable. Your
+> authored decisions live in the committed state store — never only in a cache,
+> never in the translation memory.**
+
+## What's in the store
+
+| Layer | Lives in | Kind | Lose it? |
+|---|---|---|---|
+| document cache | `.kapi/cache/docs/` | **derived** — parsed content, so operations don't re-read files | rebuilds on next run |
+| block store | `.kapi/cache/blocks.db` | **working** — in-progress tool output (translations) committed as overlays, *before merge* | re-run the flow |
+| **state store** | **`.kapi-state.json`** (`defaults.state`) | **authored** — your review/sign-off decisions | **committed — keep it in git** |
+
+The caches are pure optimization: `rm -rf .kapi/cache` and a re-run reconstructs
+identical results. The **state store is different** — it holds decisions that
+aren't derivable from anything (who approved which translation, what's parked), so
+it is a small, diff-friendly file you **commit alongside your sources**.
+
+## Two stages: working, then ship
+
+The store also explains the two stages of a run:
+
+1. **Working** — `kapi run` (with no `-o`, in a project) lands its translations in
+   the **block store** as overlays. The work is *in the store, not yet in your
+   files*.
+2. **Ship** — `kapi merge` writes those overlays out to the **target files**;
+   `kapi status` then reads the files (plus the state store) for the real ship
+   state — the [convergence](/kapi/convergence) ladder and gates.
+
+So coverage has two honest readings: "what's translated in the store" (working,
+pre-merge) and "what's in the files and reviewed" (ship). The Kapi desktop shows
+both as one **Project status** surface you can toggle between; the CLI's
+`kapi status` reports the ship reading.
+
+## Decisions are transient until you export them
+
+Approving a translation is a *decision*, and decisions are explicit, like a git
+commit. When you approve a unit (see [Review](/kapi/convergence#review-a-decision-in-the-project-state-store)),
+the decision is recorded in the state store and **written to `.kapi-state.json`**,
+which you then commit. The decision is bound to the **content hash** of the
+translation it blesses, so editing that translation later drops the unit back
+below *reviewed* — an approval can't silently outlive the text it approved.
+
+```bash
+kapi status --review        # the worklist: units awaiting approval
+kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
+git add .kapi-state.json    # the decision travels with the project
+```
+
+The same model maps to a server-backed project: instead of committing a file,
+it **pushes** its state to a remote (`kapi push`) and **pulls** it back
+(`kapi pull`) — same decisions, different sink.
+
+## What the store is *not*
+
+- It is **not** the translation memory. The `.klftm` (`defaults.tm_source`) is a
+  **recycle** corpus — `kapi apply` with `kind:"tm"` adds leverage for future
+  translation; it does **not** record a review decision. Review state lives in the
+  state store. See [TM & termbase storage](/kapi/recipes/tm-termbase-storage).
+- It is **not** authoritative for your translations — the **files** are. The store
+  caches and stages; the deliverable is the source of truth.
+
+## See also
+
+- [Convergence](/kapi/convergence) — the derived ladder, gates, and review queue.
+- [Modes & bindings](/kapi/modes) — how a run's source and sink resolve.
+- [Project file reference](/reference/project-file) — `defaults.state` and the
+  other recipe fields.

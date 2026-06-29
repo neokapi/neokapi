@@ -53,6 +53,7 @@ const sidebars: SidebarsConfig = {
         { type: "doc", id: "kapi/recipes/index", label: "Overview", key: "kapi-recipes-overview" },
         { type: "doc", id: "kapi/get-started/first-project", label: "Your first project" },
         { type: "doc", id: "kapi/modes", label: "Modes & bindings" },
+        { type: "doc", id: "kapi/project-store", label: "The project store" },
         { type: "doc", id: "kapi/convergence", label: "Convergence" },
       ],
     },
