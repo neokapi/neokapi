@@ -23,37 +23,48 @@ type file struct {
 	Units         []UnitState `json:"units"`
 }
 
-// Store is the project state store: an authoritative record of unit workflow
-// decisions. The working set lives in memory (or, behind the same interface, a
-// SQLite index); the durable source of truth is the committed serialization that
-// Save writes and Open reads — delete any derived index and Open rebuilds it.
+// Store is the project state store: a record of unit workflow decisions whose
+// working set is explicitly TRANSIENT — mutations (Put/Delete) are in-transit and
+// NOT durable until an explicit Export materializes them to the durable home (a
+// committed serialization in git mode, or the server via `kapi push` in bowrain
+// mode). This mirrors git/bowrain: decisions are like staged changes; you export
+// deliberately (a CI step commits the state file or pushes to the server). The
+// working set can be discarded and re-imported (Import / `kapi pull`) from the
+// durable home — only un-exported decisions are lost, exactly like uncommitted
+// changes. Pending() reports whether un-exported decisions exist so they are
+// never lost silently.
 type Store interface {
 	// Get returns the unit's state, or ok=false when none is recorded.
 	Get(k Key) (UnitState, bool)
-	// Put records (or replaces) a unit's state.
+	// Put records (or replaces) a unit's state in the transient working set.
 	Put(s UnitState)
-	// Delete removes a unit's state.
+	// Delete removes a unit's state from the transient working set.
 	Delete(k Key)
 	// All returns every recorded state in deterministic order.
 	All() []UnitState
-	// Save persists the working set to the committed serialization. No-op when
-	// nothing changed since Open/Save.
-	Save() error
+	// Pending reports whether the working set holds decisions not yet exported.
+	Pending() bool
+	// Export materializes the working set to the durable home (the committed
+	// serialization). No-op when nothing changed since Import/Export. The export
+	// destination is a binding: a committed file now; the server (`kapi push`)
+	// when the project binds one.
+	Export() error
 }
 
-// FileStore is a Store whose source of truth is a committed JSON file. Open loads
-// it into an in-memory working set; Put/Delete mutate the set; Save writes it
-// back atomically. The file is the authoritative, diff-friendly artifact; the
-// in-memory set is a derived index that can be thrown away and rebuilt from it.
+// FileStore is a Store whose durable home is a committed JSON file. Open imports
+// it into a transient in-memory working set; Put/Delete mutate the set in transit;
+// Export writes it back atomically. The file is the authoritative, diff-friendly
+// artifact (the "remote" for git mode); the in-memory set is transient and can be
+// thrown away and re-imported from it.
 type FileStore struct {
 	path  string
 	units map[Key]UnitState
 	dirty bool
 }
 
-// Open loads the committed state file at path into a working store. A missing
-// file yields an empty store (the project has no recorded state yet); a malformed
-// file is an error (state is authoritative — never silently discard it).
+// Open imports the committed state file at path into a transient working store. A
+// missing file yields an empty store (no recorded state yet); a malformed file is
+// an error (state is authoritative — never silently discard it).
 func Open(path string) (*FileStore, error) {
 	s := &FileStore{path: path, units: map[Key]UnitState{}}
 	data, err := os.ReadFile(path)
@@ -111,9 +122,14 @@ func (s *FileStore) All() []UnitState {
 	return out
 }
 
-// Save writes the working set back to the committed file atomically (temp +
-// rename), deterministically ordered. No-op when nothing changed.
-func (s *FileStore) Save() error {
+// Pending reports whether the transient working set holds decisions not yet
+// exported to the committed file — the "you have N unexported decisions" signal.
+func (s *FileStore) Pending() bool { return s.dirty }
+
+// Export writes the working set back to the committed file atomically (temp +
+// rename), deterministically ordered. No-op when nothing changed. This is the
+// explicit materialization step — mutations are transient until it runs.
+func (s *FileStore) Export() error {
 	if !s.dirty {
 		return nil
 	}

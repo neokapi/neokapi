@@ -33,7 +33,9 @@ func TestFileStore_RoundTripAndAuthoritative(t *testing.T) {
 	require.Empty(t, s.All(), "a project with no recorded state opens empty")
 
 	s.Put(approved("h1", "fr-FR", "sha256:aaa"))
-	require.NoError(t, s.Save())
+	assert.True(t, s.Pending(), "an un-exported decision is pending")
+	require.NoError(t, s.Export())
+	assert.False(t, s.Pending(), "export clears pending")
 	require.FileExists(t, path, "Save writes the committed source-of-truth file")
 
 	// Reopen: the decision survives entirely from the committed file.
@@ -66,7 +68,7 @@ func TestFileStore_DeterministicSerialization(t *testing.T) {
 		for _, u := range order {
 			s.Put(approved(u, "fr-FR", "sha256:"+u))
 		}
-		require.NoError(t, s.Save())
+		require.NoError(t, s.Export())
 		b, err := os.ReadFile(path)
 		require.NoError(t, err)
 		return b
