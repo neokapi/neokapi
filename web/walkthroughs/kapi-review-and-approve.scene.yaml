@@ -1,0 +1,70 @@
+# Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
+# full schema. Regenerate with:
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-review-and-approve
+#
+# The review→approve loop of the convergence model. A flow takes each unit as far
+# as a machine can (to *translated*); a person takes the ones that matter to
+# *reviewed*. That decision is the one thing the caches can't rebuild, so it lands
+# in the committed project state store (.kapi-state.json), bound to the
+# translation's content hash. The funnel is:
+#
+#   status → status --review → apply (kind:"review") → status
+#
+# Everything runs offline in the wasm embed against the in-memory filesystem:
+# status derives coverage from the files plus the state store, and apply writes a
+# review decision into that state store — no LLM, no SQLite. The project starts
+# already translated (machine-done) so the scene isolates the review step; see
+# kapi-project-workflow for how the translations get there.
+
+id: kapi-review-and-approve
+scene: review-and-approve
+mode: interactive
+
+# messages.json is the kit fixture (greeting / farewell / cart). demo.kapi is a
+# project whose one content file is already fully translated into fr — a flat
+# target path (messages.fr.json, no subdirectory) seeds cleanly into the embed's
+# in-memory volume. review.jsonl is the approval change-set for the greeting unit,
+# exactly as `kapi status --review` lists it (file / id / locale).
+seed:
+  - messages.json
+files:
+  - path: demo.kapi
+    content: |
+      version: v1
+      name: demo
+      defaults:
+        source_language: en
+        target_languages: [fr]
+      content:
+        - path: messages.json
+          target: "messages.{lang}.json"
+  - path: messages.fr.json
+    content: |
+      {
+        "greeting": "Bonjour le monde !",
+        "farewell": "À demain",
+        "items": {
+          "cart": "Votre panier est vide"
+        }
+      }
+  - path: review.jsonl
+    content: |
+      {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"reviewed"}
+
+steps:
+  - comment: The project is translated — a machine took every unit to *translated*. Now a person takes the ones that matter to *reviewed*.
+  - command: kapi status
+    narration: status derives coverage from the files plus the committed state store. fr is translated 100%, reviewed 0% — the machine is done, the human review is pending.
+    # smoke:false — needs the multi-file project seeded; the wasm review loop is
+    # covered by scripts/verify-snippets/review-smoke.ts, which seeds a project.
+    smoke: false
+  - command: kapi status --review
+    narration: The review worklist — every translated unit not yet approved, addressed by file / id / locale exactly as a kind:"review" change-set names it.
+    smoke: false
+  - comment: Approving a unit is a decision, recorded with the one write verb. review.jsonl blesses the greeting unit's fr translation.
+  - command: kapi apply review.jsonl
+    narration: apply records the decision in the committed state store (.kapi-state.json), bound to the translation's content hash — edit that translation later and the unit drops back below reviewed.
+    smoke: false
+  - command: kapi status
+    narration: reviewed coverage climbs to 33% — derived straight back from the committed decision. Commit .kapi-state.json and the approval travels with the project; a {reviewed} gate now sees it.
+    smoke: false

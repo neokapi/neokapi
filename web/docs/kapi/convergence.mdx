@@ -6,6 +6,7 @@ keywords: [kapi, convergence, ship gate, source gate, status, verify, review, li
 ---
 
 import { AxisLadderDiagram, PhaseFlow } from "@neokapi/docs-shared";
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 
 # Convergence
 
@@ -208,6 +209,13 @@ kapi status --review
 #            Welcome back
 #   …
 ```
+
+Run the loop yourself — this is the real kapi compiled to WebAssembly, working on
+an in-memory project. `status` shows the translated-but-unreviewed state,
+`status --review` lists the worklist, `apply` records the decision in the state
+store, and the closing `status` shows *reviewed* climb:
+
+<KapiGuidedEmbed id="kapi-review-and-approve" />
 
 A second, optional human gate sits above review: *signed-off* — a final approval
 for content that needs it (a contractual locale, a regulated string). It is the
