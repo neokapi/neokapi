@@ -100,15 +100,25 @@ export function ViewSwitch({
     flowName: string;
     flow: FlowSpec;
     runId: number;
+    scopePaths?: string[];
+    scopeLabel?: string;
   } | null>(null);
   const runCounter = useRef(0);
   const launchedRunIdRef = useRef<number | null>(null);
 
-  // Run a project flow from the home page: navigate to the runner view.
+  // Run a project flow from the home page: navigate to the runner view. An
+  // optional scope (the per-collection "Run") restricts the run to a single
+  // collection's files.
   const handleRunFlow = useCallback(
-    (_flowName: string, spec: FlowSpec) => {
+    (_flowName: string, spec: FlowSpec, opts?: { scopePaths?: string[]; scopeLabel?: string }) => {
       runCounter.current += 1;
-      setRunnerState({ flowName: _flowName, flow: spec, runId: runCounter.current });
+      setRunnerState({
+        flowName: _flowName,
+        flow: spec,
+        runId: runCounter.current,
+        scopePaths: opts?.scopePaths,
+        scopeLabel: opts?.scopeLabel,
+      });
       navigate("runner");
     },
     [navigate],
@@ -253,6 +263,8 @@ export function ViewSwitch({
               flow={runnerState.flow}
               project={history.project}
               autoRun={runnerState.runId !== launchedRunIdRef.current}
+              scopePaths={runnerState.scopePaths}
+              scopeLabel={runnerState.scopeLabel}
               onLaunched={() => {
                 launchedRunIdRef.current = runnerState.runId;
               }}

@@ -10,13 +10,15 @@ import {
   ShieldCheck,
   AlertTriangle,
   RefreshCw,
+  Filter,
 } from "lucide-react";
 import { Button, Badge, Card, EmptyState, ActionCard, LocalePill } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
-import type { KapiProject, FlowSpec, FlowInfo, PluginIssue, ProjectStatus } from "../types/api";
+import type { KapiProject, FlowInfo, PluginIssue, ProjectStatus } from "../types/api";
 import { api, type SampleInfo } from "../hooks/useApi";
 import { useJobFeed } from "../context/JobFeedContext";
-import { CollectionsPanel } from "./CollectionsPanel";
+import { useActiveFilter } from "../context/ActiveFilterContext";
+import { CollectionsPanel, type RunFlowHandler } from "./CollectionsPanel";
 
 export interface HomePageProps {
   project: KapiProject;
@@ -24,7 +26,7 @@ export interface HomePageProps {
   tabID?: string;
   /** Persist project edits made on the merged collection surface. */
   onUpdate?: (project: KapiProject) => void;
-  onRunFlow?: (flowName: string, flow: FlowSpec) => void;
+  onRunFlow?: RunFlowHandler;
   onNavigate: (view: string) => void;
   /** When false, plugin requirements are unmet — show warning banner. */
   pluginsResolved?: boolean;
@@ -58,6 +60,11 @@ export function HomePage({
   basePath,
 }: HomePageProps) {
   const { hasActive, activeJob } = useJobFeed();
+  const {
+    active: activeFilter,
+    setActive: setActiveFilter,
+    enabled: filterEnabled,
+  } = useActiveFilter();
   const [flowValidation, setFlowValidation] = useState<Record<string, FlowInfo>>({});
   const [installingPlugin, setInstallingPlugin] = useState<string | null>(null);
   const [sampleInfo, setSampleInfo] = useState<SampleInfo | null>(propSampleInfo ?? null);
@@ -279,6 +286,8 @@ export function HomePage({
           project={project}
           onUpdate={onUpdate ?? (() => {})}
           tabID={tabID}
+          flows={project.flows}
+          onRunFlow={onRunFlow}
           formatList={formatList}
           basePath={basePath}
           status={status}
@@ -291,6 +300,24 @@ export function HomePage({
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <Workflow size={14} />
             Run Flows
+            {/* Runs honour the active filter — surface its scope so a narrowed
+                run is never a surprise (each card's Run scopes to one collection). */}
+            {filterEnabled && activeFilter && (
+              <span className="ml-auto flex items-center gap-1.5 normal-case">
+                <Filter size={12} className="text-primary" />
+                <span className="text-xs font-normal text-muted-foreground">
+                  {t("Scoped to {name}", { name: activeFilter.name })}
+                </span>
+                <Button
+                  variant="link"
+                  size="xs"
+                  className="h-auto px-0"
+                  onClick={() => void setActiveFilter("")}
+                >
+                  {t("Run on all")}
+                </Button>
+              </span>
+            )}
           </h2>
           <div className="space-y-2">
             {flowNames.map((name) => {

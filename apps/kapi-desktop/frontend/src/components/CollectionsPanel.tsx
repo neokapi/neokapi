@@ -18,6 +18,7 @@ import {
   PackageOpen,
   AlertTriangle,
   Filter,
+  Play,
 } from "lucide-react";
 import {
   Button,
@@ -32,12 +33,18 @@ import {
   ItemCard,
   ConfirmDeleteButton,
   LocalePill,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
 } from "@neokapi/ui-primitives";
 import type {
   KapiProject,
   ContentCollection,
   ContentItem,
   FormatSpec,
+  FlowSpec,
   FormatInfo,
   FormatDefaults,
   ProjectStatus,
@@ -54,7 +61,15 @@ import { useShortenHome } from "../hooks/useShortenHome";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useLocales } from "../hooks/useLocales";
 import { useActiveFilter } from "../context/ActiveFilterContext";
+import { useJobFeed } from "../context/JobFeedContext";
 import { filterLanguages } from "../lib/filter";
+
+/** Run a project flow, optionally scoped to a subset of files (a collection). */
+export type RunFlowHandler = (
+  flowName: string,
+  flow: FlowSpec,
+  opts?: { scopePaths?: string[]; scopeLabel?: string },
+) => void;
 
 interface FileMatch {
   path: string;
@@ -76,6 +91,10 @@ export interface CollectionsPanelProps {
   project: KapiProject;
   onUpdate: (project: KapiProject) => void;
   tabID: string;
+  /** The project's flows, offered as a per-collection "Run" menu on each card. */
+  flows?: Record<string, FlowSpec>;
+  /** Run a flow scoped to a single collection's files. */
+  onRunFlow?: RunFlowHandler;
   /** Pre-loaded formats for Storybook — skips api.listFormats(). */
   formatList?: FormatInfo[];
   /** Pre-loaded base path for Storybook — skips api.getBasePath(). */
@@ -148,12 +167,15 @@ export function CollectionsPanel({
   project,
   onUpdate,
   tabID,
+  flows,
+  onRunFlow,
   formatList: propFormats,
   basePath: propBasePath,
   status: propStatus,
 }: CollectionsPanelProps) {
   const { showError } = useError();
   const { locales } = useLocales();
+  const { hasActive } = useJobFeed();
   const shortenHome = useShortenHome();
   const {
     active: activeFilter,
@@ -191,6 +213,7 @@ export function CollectionsPanel({
   } | null>(null);
 
   const content = project.content ?? [];
+  const flowNames = Object.keys(flows ?? {});
 
   const hasPreloadedData = !!(propFormats && propBasePath);
 
@@ -1176,6 +1199,64 @@ export function CollectionsPanel({
                           </span>
                         </span>
                       )}
+                      {/* Per-collection Run — run any flow scoped to just this
+                          collection's files, so flows feel part of the surface. */}
+                      {onRunFlow &&
+                        files.length > 0 &&
+                        flowNames.length > 0 &&
+                        (flowNames.length === 1 ? (
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            disabled={hasActive}
+                            onClick={() =>
+                              onRunFlow(flowNames[0], flows![flowNames[0]], {
+                                scopePaths: files.map((m) => m.path),
+                                scopeLabel: title,
+                              })
+                            }
+                            aria-label={t("Run {flow} on {collection}", {
+                              flow: flowNames[0],
+                              collection: title,
+                            })}
+                          >
+                            <Play size={12} />
+                            {t("Run")}
+                          </Button>
+                        ) : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                disabled={hasActive}
+                                aria-label={t("Run a flow on {collection}", { collection: title })}
+                              >
+                                <Play size={12} />
+                                {t("Run")}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>
+                                {t("Run on {collection}", { collection: title })}
+                              </DropdownMenuLabel>
+                              {flowNames.map((fn) => (
+                                <DropdownMenuItem
+                                  key={fn}
+                                  onClick={() =>
+                                    onRunFlow(fn, flows![fn], {
+                                      scopePaths: files.map((m) => m.path),
+                                      scopeLabel: title,
+                                    })
+                                  }
+                                >
+                                  <Play size={12} />
+                                  {fn}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ))}
                       <Button
                         variant={isEditing ? "secondary" : "ghost"}
                         size="xs"
