@@ -1,4 +1,13 @@
 version: 2
+
+# Dependabot `cooldown` holds a freshly-published version back for N days before
+# opening (or grouping) a PR for it. We apply it to every ecosystem as
+# supply-chain hygiene — and, for npm specifically, so Dependabot stops opening
+# PRs that CI rejects: `vp install` enforces a pnpm `minimumReleaseAge` gate
+# (currently ~1 day), and an uncooled Dependabot would otherwise raise npm PRs
+# minutes after a release (e.g. #1058) that fail with
+# ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION. The patch window (3 days) clears that
+# gate with margin; majors are held longest. Tune the day counts to taste.
 updates:
   # ── Framework Go modules (Apache-2.0) ──────────────────────────────────────
   - package-ecosystem: gomod
@@ -6,6 +15,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, go, framework]
     open-pull-requests-limit: 10
     groups:
@@ -17,6 +31,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, go, framework]
     open-pull-requests-limit: 5
     groups:
@@ -28,6 +47,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, go, framework]
     open-pull-requests-limit: 5
     groups:
@@ -39,6 +63,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, go, framework]
     open-pull-requests-limit: 5
     groups:
@@ -54,6 +83,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, go, bowrain]
     open-pull-requests-limit: 5
     groups:
@@ -65,6 +99,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, go, bowrain]
     open-pull-requests-limit: 5
     groups:
@@ -76,6 +115,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, go, bowrain]
     open-pull-requests-limit: 5
     groups:
@@ -87,6 +131,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, go, bowrain]
     open-pull-requests-limit: 5
     groups:
@@ -98,6 +147,11 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, go, bowrain]
     open-pull-requests-limit: 10
     groups:
@@ -112,17 +166,29 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, ci]
     groups:
       actions:
         patterns: ["*"]
 
   # ── npm (root workspace covers all frontend packages) ──────────────────────
+  # cooldown here is load-bearing: it keeps Dependabot from opening npm PRs that
+  # the pnpm minimumReleaseAge gate in `vp install` would immediately fail.
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, npm]
     open-pull-requests-limit: 10
     groups:
@@ -134,18 +200,33 @@ updates:
     directory: /bowrain/docker/bowrain-server
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, docker, bowrain]
 
   - package-ecosystem: docker
     directory: /bowrain/docker/bowrain-worker
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, docker, bowrain]
 
   - package-ecosystem: docker
     directory: /bowrain/docker/bowrain-web
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, docker, bowrain]
     ignore:
       # Track Node LTS for the web-builder stage; skip Current-line majors
@@ -157,4 +238,9 @@ updates:
     directory: /bowrain/docker/keycloak
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
     labels: [dependencies, docker, bowrain]
