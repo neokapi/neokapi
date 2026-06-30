@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
@@ -13,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/version"
 )
 
 // CollectionStatus is the JSON-serialisable summary the UI renders on the
@@ -35,9 +37,15 @@ type CollectionStatus struct {
 // BlockCount/Coverage are zero — the frontend renders a "no data yet, run
 // extract" state rather than an error.
 type ProjectStatus struct {
-	ProjectPath string             `json:"projectPath"`
-	ProjectName string             `json:"projectName"`
-	HasData     bool               `json:"hasData"`
+	ProjectPath string `json:"projectPath"`
+	ProjectName string `json:"projectName"`
+	HasData     bool   `json:"hasData"`
+	// Stale reports that the block store exists but was written by a different
+	// kapi version than the running binary, so its counts may be wrong (e.g. a
+	// store extracted before the `**`-glob fix shows too few blocks). The UI
+	// should offer a Re-extract rather than trusting the numbers. It is always
+	// false for the "no data yet" shells (no store ⇒ nothing to be stale about).
+	Stale       bool               `json:"stale"`
 	Collections []CollectionStatus `json:"collections"`
 }
 
@@ -110,6 +118,10 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	defer sess.Close()
 
 	out.HasData = true
+	// A store whose version stamp is missing or doesn't match the running kapi
+	// was produced by another (likely older) build — its counts can be silently
+	// wrong, so flag it for re-extraction.
+	out.Stale = blockStoreStale(storePath)
 	out.Collections = make([]CollectionStatus, 0, len(collOrder))
 	for _, label := range collOrder {
 		targets := collTargets[label]
@@ -182,6 +194,24 @@ func (a *App) projectBlockStorePath(op *openProject) (string, bool) {
 		return "", false
 	}
 	return layout.BlockStorePath(), true
+}
+
+// blockStoreVersionStampPath is the sidecar file recording the kapi version
+// that last wrote the block store, e.g. `.kapi/cache/blocks.db.kapiversion`.
+func blockStoreVersionStampPath(storePath string) string {
+	return storePath + ".kapiversion"
+}
+
+// blockStoreStale reports whether the block store at storePath was written by a
+// different kapi version than the running binary — true when the version stamp
+// is missing/unreadable, or its contents don't match version.Version. Callers
+// invoke this only once the store is known to exist.
+func blockStoreStale(storePath string) bool {
+	data, err := os.ReadFile(blockStoreVersionStampPath(storePath))
+	if err != nil {
+		return true
+	}
+	return strings.TrimSpace(string(data)) != version.Version
 }
 
 // projectBlockStore returns the project's block store, opening it once and
@@ -302,6 +332,11 @@ func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 	if err := sess.Commit(); err != nil {
 		return nil, fmt.Errorf("commit extraction: %w", err)
 	}
+
+	// Stamp the store with the version that wrote it so GetProjectStatus can tell
+	// when a later kapi would extract different content. Best-effort: a failed
+	// write only means the next status read flags the store stale.
+	_ = os.WriteFile(blockStoreVersionStampPath(storePath), []byte(version.Version), 0o644)
 
 	result.Log = fmt.Sprintf("Extracted %d block(s) from %d file(s).", result.Blocks, result.Files)
 	if len(result.Skipped) > 0 {

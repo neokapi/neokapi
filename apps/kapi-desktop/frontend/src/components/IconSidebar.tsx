@@ -96,12 +96,6 @@ const projectItems: SidebarItem[] = [
   },
   {
     type: "item",
-    view: "content",
-    icon: <FileText size={20} strokeWidth={SW} />,
-    label: "Content",
-  },
-  {
-    type: "item",
     view: "tools",
     icon: <Wrench size={20} strokeWidth={SW} />,
     label: "Toolbox",

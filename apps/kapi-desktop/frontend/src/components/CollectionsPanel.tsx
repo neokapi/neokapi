@@ -6,8 +6,6 @@ import {
   RefreshCw,
   Loader2,
   Upload,
-  EyeOff,
-  Eye,
   Globe,
   Pencil,
   Settings2,
@@ -17,10 +15,14 @@ import {
   Layers,
   Check,
   Files,
+  PackageOpen,
+  AlertTriangle,
+  Filter,
 } from "lucide-react";
 import {
   Button,
   Badge,
+  Card,
   Label,
   GlobInput,
   TargetPathInput,
@@ -38,6 +40,8 @@ import type {
   FormatSpec,
   FormatInfo,
   FormatDefaults,
+  ProjectStatus,
+  CollectionStatus,
 } from "../types/api";
 import { isBareEntry } from "../types/api";
 import { api, type OutputFileInfo } from "../hooks/useApi";
@@ -49,6 +53,8 @@ import { useError } from "./ErrorBanner";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useLocales } from "../hooks/useLocales";
+import { useActiveFilter } from "../context/ActiveFilterContext";
+import { filterLanguages } from "../lib/filter";
 
 interface FileMatch {
   path: string;
@@ -66,15 +72,16 @@ interface ProjectFile {
   is_dir: boolean;
 }
 
-export interface ContentPageProps {
+export interface CollectionsPanelProps {
   project: KapiProject;
-  projectPath: string;
   onUpdate: (project: KapiProject) => void;
   tabID: string;
   /** Pre-loaded formats for Storybook — skips api.listFormats(). */
   formatList?: FormatInfo[];
   /** Pre-loaded base path for Storybook — skips api.getBasePath(). */
   basePath?: string;
+  /** Pre-loaded status for Storybook/tests — skips api.getProjectStatus(). */
+  status?: ProjectStatus;
 }
 
 function formatSize(bytes: number): string {
@@ -99,29 +106,73 @@ function globExtension(pattern: string): string | undefined {
   return m ? "." + m[1].toLowerCase() : undefined;
 }
 
-export function ContentPage({
+/**
+ * The status label the backend keys a collection's coverage under — the
+ * collection name, or "(unnamed)" for a bare entry / a name-less collection.
+ * Mirrors `collectionLabel` in the Go backend (status.go).
+ */
+function statusLabelOf(coll: ContentCollection): string {
+  if (isBareEntry(coll)) return "(unnamed)";
+  return coll.name && coll.name.length > 0 ? coll.name : "(unnamed)";
+}
+
+/** A compact inline coverage cell for the project-wide strip: "loc ▮▮▯ 78%". */
+function StripBar({ label, pct }: { label: string; pct: number }) {
+  return (
+    <span className="flex min-w-40 flex-1 items-center gap-2">
+      <span className="w-14 shrink-0 text-xs text-muted-foreground" translate="no">
+        {label}
+      </span>
+      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent">
+        <span
+          className="block h-full rounded-full bg-primary transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </span>
+      <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+        {pct}%
+      </span>
+    </span>
+  );
+}
+
+/**
+ * CollectionsPanel is the collection-centric spine of the project home: one card
+ * per content collection carrying its own stats (file count, block count,
+ * coverage bar), expandable to its matched-file table and editable inline. It
+ * folds together what used to be the standalone Content page and the Home
+ * page's read-only Content Overview (issue #1068) — collections, files,
+ * patterns, languages, coverage and the unmatched "Other files" all live here.
+ */
+export function CollectionsPanel({
   project,
-  projectPath: _projectPath,
   onUpdate,
   tabID,
   formatList: propFormats,
   basePath: propBasePath,
-}: ContentPageProps) {
+  status: propStatus,
+}: CollectionsPanelProps) {
   const { showError } = useError();
   const { locales } = useLocales();
   const shortenHome = useShortenHome();
+  const {
+    active: activeFilter,
+    setActive: setActiveFilter,
+    enabled: filterEnabled,
+  } = useActiveFilter();
   const [matches, setMatches] = useState<FileMatch[]>([]);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [basePath, setBasePath] = useState(propBasePath ?? "");
   const [scanning, setScanning] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [formats, setFormats] = useState<FormatInfo[]>(propFormats ?? []);
-  const [hideUnmatched, setHideUnmatched] = useState(false);
+  const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
   const [dragging, setDragging] = useState(false);
   // configKey of the content item whose format-config modal is open (one at a time).
   const [dialogKey, setDialogKey] = useState<string | null>(null);
-  // Per-collection-card UI state: which cards are collapsed (body hidden) and
-  // which are in edit mode (config editor vs the files view). Keyed by index.
-  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+  // Per-collection-card UI state: which cards are expanded (file table visible)
+  // and which are in edit mode (config editor over the files). Keyed by index.
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [editing, setEditing] = useState<Set<number>>(new Set());
   const [otherCollapsed, setOtherCollapsed] = useState(false);
   // Generated output files keyed by their source file's relative path (issue #5),
@@ -173,7 +224,7 @@ export function ContentPage({
   );
 
   // Formats detected among the files a content item matches (for the wildcard
-  // modal's default selection), and the glob's extension if it carries one.
+  // modal's default selection).
   const matchedFormatsForItem = useCallback(
     (item: ContentItem) => {
       const set = new Set<string>();
@@ -204,6 +255,18 @@ export function ContentPage({
         .catch((err) => showError("Failed to get base path", err));
     }
   }, [tabID, showError, propFormats, propBasePath]);
+
+  const refreshStatus = useCallback(() => {
+    if (propStatus) return;
+    void api
+      .getProjectStatus(tabID)
+      .then((s) => {
+        if (s) setStatus(s);
+      })
+      .catch(() => {
+        /* status is best-effort */
+      });
+  }, [tabID, propStatus]);
 
   const rescanFiles = useCallback(async () => {
     if (hasPreloadedData) return;
@@ -237,9 +300,14 @@ export function ContentPage({
       });
   }, [tabID, hasPreloadedData]);
 
+  // Scan files + load coverage on mount and whenever the collection set changes.
   useEffect(() => {
     void rescanFiles();
   }, [rescanFiles, content.length]);
+
+  useEffect(() => {
+    refreshStatus();
+  }, [refreshStatus, project.content]);
 
   useWailsEvent("project-files-changed", (data) => {
     if (data === tabID) void rescanFiles();
@@ -248,6 +316,25 @@ export function ContentPage({
   // A flow run wrote an output file — refresh so it appears beneath its source
   // immediately, even while the run is still in progress (issue #5).
   useWailsEvent("outputs-changed", () => refreshOutputs());
+
+  // An extraction completed (e.g. from another surface) — refresh coverage.
+  useWailsEvent("project:extracted", () => refreshStatus());
+
+  // Re-extract reads every source file into the block store (refreshing block
+  // counts + coverage) and re-scans the file tables in one go.
+  const handleExtract = useCallback(async () => {
+    if (!tabID || hasPreloadedData) return;
+    setExtracting(true);
+    try {
+      await api.runExtract(tabID);
+      refreshStatus();
+      await rescanFiles();
+    } catch (err) {
+      showError("Extraction failed", err);
+    } finally {
+      setExtracting(false);
+    }
+  }, [tabID, hasPreloadedData, refreshStatus, rescanFiles, showError]);
 
   // --- Project update helpers ---
   const updateContent = (newContent: ContentCollection[]) => {
@@ -312,6 +399,73 @@ export function ContentPage({
   const unmatchedFiles = projectFiles.filter(
     (f) => !f.is_dir && !matchedSet.has(f.relative) && !outputSet.has(f.relative),
   );
+
+  // ── Active-filter narrowing (bug #1 — consistent everywhere) ───────────────
+  // The active filter narrows which collections are shown. We track which
+  // collections it hides so a visible "show all" affordance keeps anything from
+  // vanishing without explanation. Filtering by collection name; an empty
+  // collection dimension shows all. Indices are preserved so editing still
+  // targets the right project.content entry.
+  const filterCollections = activeFilter?.collections ?? [];
+  const collectionVisible = useCallback(
+    (coll: ContentCollection) =>
+      filterCollections.length === 0 || filterCollections.includes(statusLabelOf(coll)),
+    [filterCollections],
+  );
+  const visibleContent = content
+    .map((coll, ci) => ({ coll, ci }))
+    .filter(({ coll }) => collectionVisible(coll));
+  const hiddenCount = content.length - visibleContent.length;
+  const filterActive = filterEnabled && !!activeFilter;
+
+  // ── Per-collection stats (block counts + coverage), keyed by status label ──
+  const statusByLabel = useMemo(() => {
+    const map = new Map<string, CollectionStatus>();
+    for (const c of status?.collections ?? []) map.set(c.name, c);
+    return map;
+  }, [status]);
+
+  // Languages of a collection narrowed by the active filter (an empty filter
+  // language dimension keeps all). Falls back to the status's target list, then
+  // the collection/project declared targets.
+  const langsFor = useCallback(
+    (coll: ContentCollection, cs?: CollectionStatus) => {
+      const declared =
+        cs?.targetLanguages ??
+        (coll.target_languages ?? project.defaults?.target_languages ?? []).map(String);
+      return filterLanguages(declared, activeFilter);
+    },
+    [activeFilter, project.defaults?.target_languages],
+  );
+
+  // Mean coverage across a collection's filtered languages, for the header bar.
+  const collAvgPct = (cs: CollectionStatus | undefined, langs: string[]) =>
+    !cs || langs.length === 0 || cs.blockCount === 0
+      ? 0
+      : Math.round(
+          (langs.reduce((s, l) => s + (cs.coverage?.[l] ?? 0) / cs.blockCount, 0) / langs.length) *
+            100,
+        );
+
+  // ── Project-wide coverage strip (over the visible collections) ─────────────
+  const visibleStatuses = visibleContent
+    .map(({ coll }) => statusByLabel.get(statusLabelOf(coll)))
+    .filter((c): c is CollectionStatus => !!c);
+  const totalBlocks = visibleStatuses.reduce((s, c) => s + c.blockCount, 0);
+  const stripLangs = Array.from(
+    new Set(visibleStatuses.flatMap((c) => filterLanguages(c.targetLanguages, activeFilter))),
+  );
+  const stripCoverage = stripLangs.map((lang) => {
+    let translated = 0;
+    let total = 0;
+    for (const c of visibleStatuses) {
+      if (!c.targetLanguages.includes(lang)) continue;
+      translated += c.coverage?.[lang] ?? 0;
+      total += c.blockCount;
+    }
+    return { lang, pct: total > 0 ? Math.round((translated / total) * 100) : 0 };
+  });
+  const hasData = !!status?.hasData;
 
   // --- Item editing helpers ---
   const renderItemEditor = (
@@ -407,7 +561,7 @@ export function ContentPage({
           </div>
         )}
 
-        {/* Format configuration \u2014 schema-driven modal */}
+        {/* Format configuration — schema-driven modal */}
         {(fmt || matchedFormats.length > 0) && (
           <div>
             <Button
@@ -442,7 +596,7 @@ export function ContentPage({
               onOpenChange={(o) => !o && setDialogKey(null)}
               title={t("Configure formats")}
               description={t(
-                "This pattern auto-detects a format per file. Tune any of them here \u2014 settings apply project-wide.",
+                "This pattern auto-detects a format per file. Tune any of them here — settings apply project-wide.",
               )}
               formats={matchedFormats}
               allFormats={formats}
@@ -451,7 +605,7 @@ export function ContentPage({
               values={projectFormatValues}
               onChange={updateProjectFormat}
               scopeNote={t(
-                "Stored in the project's defaults.formats \u2014 shared by every content item.",
+                "Stored in the project's defaults.formats — shared by every content item.",
               )}
             />
           ) : (
@@ -485,6 +639,8 @@ export function ContentPage({
       else next.add(key);
       return next;
     });
+
+  const openCard = (ci: number) => setExpanded((prev) => new Set(prev).add(ci));
 
   // The glob patterns a content entry declares, and the matched files for them.
   const patternsOf = (coll: ContentCollection) =>
@@ -758,7 +914,7 @@ export function ContentPage({
           // An archive is a namespace of files: clicking it expands an inner-entry
           // list rather than previewing the container as one document.
           const archive = isArchivePath(f.relative);
-          const expanded = expandedArchives.has(f.path);
+          const fileExpanded = expandedArchives.has(f.path);
           const onRow = archive
             ? () =>
                 setExpandedArchives((prev) => {
@@ -788,7 +944,7 @@ export function ContentPage({
                 <td className="px-3 py-1.5">
                   <span className="flex items-center gap-1.5 font-mono">
                     {archive ? (
-                      expanded ? (
+                      fileExpanded ? (
                         <ChevronDown size={12} className="shrink-0" />
                       ) : (
                         <ChevronRight size={12} className="shrink-0" />
@@ -804,7 +960,7 @@ export function ContentPage({
                 </td>
                 <td className="px-3 py-1.5 text-right">{formatSize(f.size)}</td>
               </tr>
-              {archive && expanded && (
+              {archive && fileExpanded && (
                 <tr className="border-b border-border last:border-0">
                   <td colSpan={3} className="px-3 py-1.5">
                     <ArchiveEntries
@@ -824,17 +980,19 @@ export function ContentPage({
   );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden p-6">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Content</h1>
-          {basePath && (
-            <p className="text-xs text-muted-foreground">
-              {t("All paths relative to {base}", { base: shortenHome(basePath) })}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
+    <section className="mb-8">
+      {/* Section header — Collections is the spine; actions live here. */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <FileText size={14} />
+          {t("Collections")}
+        </h2>
+        {basePath && (
+          <span className="hidden text-xs text-muted-foreground sm:inline">
+            {t("relative to {base}", { base: shortenHome(basePath) })}
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -842,49 +1000,122 @@ export function ContentPage({
             aria-label="Add content collection"
           >
             <Plus size={12} />
-            Add Collection
+            {t("Add Collection")}
           </Button>
           <Button variant="outline" size="sm" onClick={handleAddFiles} aria-label="Add files">
             <Plus size={12} />
-            Add Files
+            {t("Add Files")}
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setHideUnmatched(!hideUnmatched)}
-            className={hideUnmatched ? "bg-accent" : ""}
-            aria-label={hideUnmatched ? "Show all files" : "Hide unmatched files"}
-            title={hideUnmatched ? "Show all files" : "Hide unmatched files"}
+            onClick={() => void handleExtract()}
+            disabled={extracting || scanning}
+            aria-label={hasData ? "Re-extract content" : "Run extract"}
           >
-            {hideUnmatched ? <Eye size={12} /> : <EyeOff size={12} />}
-            {hideUnmatched ? t("Show all") : t("Matched only")}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            onClick={rescanFiles}
-            disabled={scanning}
-            aria-label="Rescan files"
-          >
-            {scanning ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            {extracting ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            {hasData ? t("Re-extract") : t("Extract")}
           </Button>
         </div>
       </div>
 
-      {content.some((c) => c.archive) && (
-        <section className="mb-4">
-          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Translation state
-          </h2>
-          <TranslationStatusPanel tabID={tabID} />
-        </section>
+      {/* Active-filter escape hatch (bug #1) — collections never vanish silently. */}
+      {filterActive && (
+        <div className="mb-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs">
+          <Filter size={12} className="shrink-0 text-muted-foreground" />
+          <span className="text-muted-foreground">
+            {hiddenCount > 0
+              ? t("Filtered by {name} — {count} collection(s) hidden", {
+                  name: activeFilter.name,
+                  count: hiddenCount,
+                })
+              : t("Filtered by {name}", { name: activeFilter.name })}
+          </span>
+          <Button
+            variant="link"
+            size="xs"
+            className="ml-auto h-auto px-0"
+            onClick={() => void setActiveFilter("")}
+          >
+            {t("Show all")}
+          </Button>
+        </div>
       )}
 
+      {/* Stale store banner (bug #2) — counts produced by an older kapi. */}
+      {status?.stale && (
+        <div className="mb-3 flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs">
+          <AlertTriangle size={13} className="shrink-0 text-amber-500" />
+          <span className="text-muted-foreground">
+            {t("These counts were produced by an earlier version of kapi and may be out of date.")}
+          </span>
+          <Button
+            variant="outline"
+            size="xs"
+            className="ml-auto"
+            onClick={() => void handleExtract()}
+            disabled={extracting}
+          >
+            {extracting ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+            {t("Re-extract")}
+          </Button>
+        </div>
+      )}
+
+      {/* Slim project-wide coverage strip (replaces the donut card). */}
+      {content.length > 0 &&
+        (hasData ? (
+          <Card className="mb-3 p-4">
+            <div className="mb-2 text-xs font-medium text-foreground">
+              {t("{blocks} blocks · {collections} collections", {
+                blocks: totalBlocks,
+                collections: visibleStatuses.length,
+              })}
+            </div>
+            {stripCoverage.length > 0 && (
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                {stripCoverage.map((p) => (
+                  <StripBar key={p.lang} label={p.lang} pct={p.pct} />
+                ))}
+              </div>
+            )}
+          </Card>
+        ) : (
+          <Card className="mb-3 flex items-center gap-3 p-4">
+            <PackageOpen size={18} className="shrink-0 text-muted-foreground/50" />
+            <div className="flex-1 text-xs text-muted-foreground">
+              {t("Nothing extracted yet — run extract to read your content and analyze coverage.")}
+            </div>
+            <Button
+              size="sm"
+              onClick={() => void handleExtract()}
+              disabled={extracting || scanning}
+            >
+              {extracting ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  {t("Extracting...")}
+                </>
+              ) : (
+                t("Run extract")
+              )}
+            </Button>
+          </Card>
+        ))}
+
+      {/* Archive collections get the translation-state panel (unchanged). */}
+      {content.some((c) => c.archive) && (
+        <div className="mb-4">
+          <TranslationStatusPanel tabID={tabID} />
+        </div>
+      )}
+
+      {/* The collection cards + unmatched "Other files", with drop-to-add. */}
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className={`min-h-0 flex-1 overflow-auto rounded-lg border-2 transition-colors ${
+        className={`rounded-lg border-2 transition-colors ${
           dragging ? "border-primary bg-primary/5" : "border-transparent"
         }`}
       >
@@ -896,23 +1127,25 @@ export function ContentPage({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
-            {content.map((coll, ci) => {
+          <div className="space-y-2">
+            {visibleContent.map(({ coll, ci }) => {
               const isEditing = editing.has(ci);
-              const isOpen = !collapsed.has(ci);
+              const isOpen = expanded.has(ci);
               const files = filesForEntry(coll);
               const bare = isBareEntry(coll);
               const title = bare ? coll.path || t("Files") : coll.name || t("Untitled collection");
+              const cs = statusByLabel.get(statusLabelOf(coll));
+              const langs = langsFor(coll, cs);
+              const avg = collAvgPct(cs, langs);
+              const showCoverage = hasData && cs && cs.blockCount > 0 && langs.length > 0;
               return (
-                <ItemCard
-                  key={ci}
-                  className={`overflow-hidden p-0 ${isEditing ? "xl:col-span-2" : ""}`}
-                >
+                <ItemCard key={ci} className="overflow-hidden p-0">
                   <div className="flex items-center gap-2 px-4 py-3">
                     <button
-                      onClick={() => toggle(setCollapsed, ci)}
+                      onClick={() => toggle(setExpanded, ci)}
                       className="shrink-0 text-muted-foreground hover:text-foreground"
                       aria-label={isOpen ? t("Collapse") : t("Expand")}
+                      aria-expanded={isOpen}
                     >
                       {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </button>
@@ -924,17 +1157,30 @@ export function ContentPage({
                     <Badge variant="secondary" className="shrink-0 text-[10px] font-normal">
                       {t("{count} files", { count: files.length })}
                     </Badge>
-                    <div className="ml-auto flex shrink-0 items-center gap-1">
+                    {hasData && cs && (
+                      <Badge variant="secondary" className="shrink-0 text-[10px] font-normal">
+                        {t("{count} blocks", { count: cs.blockCount })}
+                      </Badge>
+                    )}
+                    <div className="ml-auto flex shrink-0 items-center gap-2">
+                      {showCoverage && (
+                        <span className="flex w-32 items-center gap-2">
+                          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent">
+                            <span
+                              className="block h-full rounded-full bg-primary"
+                              style={{ width: `${avg}%` }}
+                            />
+                          </span>
+                          <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {avg}%
+                          </span>
+                        </span>
+                      )}
                       <Button
                         variant={isEditing ? "secondary" : "ghost"}
                         size="xs"
                         onClick={() => {
-                          // Editing implies the body is open.
-                          setCollapsed((prev) => {
-                            const next = new Set(prev);
-                            next.delete(ci);
-                            return next;
-                          });
+                          openCard(ci); // editing implies the body is open
                           toggle(setEditing, ci);
                         }}
                         aria-label={isEditing ? t("Done editing") : t("Edit collection")}
@@ -974,11 +1220,7 @@ export function ContentPage({
                               {" "}
                               <button
                                 onClick={() => {
-                                  setCollapsed((prev) => {
-                                    const next = new Set(prev);
-                                    next.delete(ci);
-                                    return next;
-                                  });
+                                  openCard(ci);
                                   setEditing((prev) => new Set(prev).add(ci));
                                 }}
                                 className="text-primary hover:underline"
@@ -995,8 +1237,9 @@ export function ContentPage({
               );
             })}
 
-            {/* Other files — unmatched, not owned by any collection. */}
-            {!hideUnmatched && unmatchedFiles.length > 0 && (
+            {/* Other files — unmatched, not owned by any collection. Hidden while
+                a collection filter is active (they belong to no collection). */}
+            {!filterCollections.length && unmatchedFiles.length > 0 && (
               <ItemCard className="overflow-hidden p-0">
                 <div className="flex items-center gap-2 px-4 py-3">
                   <button
@@ -1035,6 +1278,6 @@ export function ContentPage({
         entryPath={archivePreview?.entry ?? null}
         onClose={() => setArchivePreview(null)}
       />
-    </div>
+    </section>
   );
 }

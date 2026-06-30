@@ -14,7 +14,6 @@ import { ChecksPanel } from "./ChecksPanel";
 import { FormatsPage } from "./FormatsPage";
 import { SettingsPage } from "./SettingsPage";
 import { HomePage } from "./HomePage";
-import { ContentPage } from "./ContentPage";
 import { ProjectSetupPage } from "./ProjectSetupPage";
 import { ProjectSettingsPage } from "./ProjectSettingsPage";
 import { ProjectPresetPage } from "./ProjectPresetPage";
@@ -176,6 +175,10 @@ export function ViewSwitch({
   // key includes pluginsResolved so a successful install remounts the view.
   const projectView = ((): ReactNode => {
     switch (effectiveView) {
+      // `content` folds into the merged project home (issue #1068). Kept as an
+      // alias so existing onNavigate("content") calls and saved deep links still
+      // resolve to the collection-centric surface.
+      case "content":
       case "project-home":
         if (activeTab.isEmpty) {
           return (
@@ -203,21 +206,12 @@ export function ViewSwitch({
             project={history.project}
             displayName={activeTab.info.name}
             tabID={tabID}
+            onUpdate={updateProject}
             onRunFlow={handleRunFlow}
             onNavigate={navigate}
             pluginsResolved={activeTab.pluginsResolved}
             pluginIssues={activeTab.pluginIssues}
             onResetSample={() => onResetSample(tabID)}
-          />
-        );
-
-      case "content":
-        return (
-          <ContentPage
-            project={history.project}
-            projectPath={activeTab.info.path}
-            onUpdate={updateProject}
-            tabID={tabID}
           />
         );
 

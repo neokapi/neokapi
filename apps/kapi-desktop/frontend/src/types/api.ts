@@ -55,7 +55,7 @@ export interface ContentCollection {
   base?: string;
 
   // Optional archived-state marker; gates the Translation-state section in
-  // ContentPage (absent on most collections).
+  // the CollectionsPanel (absent on most collections).
   archive?: boolean;
 }
 
@@ -396,6 +396,10 @@ export interface ProjectStatus {
   projectName: string;
   /** false ⇒ never extracted; show the shell + a "run extract" prompt. */
   hasData: boolean;
+  /** true ⇒ the block store exists but was written by a different kapi version
+   *  than the running binary, so the counts may be wrong — surface a
+   *  "re-extract" affordance rather than showing stale numbers as authoritative. */
+  stale?: boolean;
   collections: CollectionStatus[];
 }
 

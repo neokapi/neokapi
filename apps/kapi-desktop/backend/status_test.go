@@ -82,6 +82,48 @@ func TestGetProjectStatusUnknownTab(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// A fresh extract stamps the store with the running kapi version, so status is
+// not stale; the "no data yet" shell is never stale (nothing to mismatch).
+func TestGetProjectStatusStaleVersionStamp(t *testing.T) {
+	app := NewApp()
+	tab, root := newCoverageProject(t, app)
+
+	// Before any extract: no store, so not stale.
+	pre, err := app.GetProjectStatus(tab.ID)
+	require.NoError(t, err)
+	assert.False(t, pre.HasData)
+	assert.False(t, pre.Stale, "no data yet ⇒ never stale")
+
+	_, err = app.RunExtract(tab.ID)
+	require.NoError(t, err)
+
+	layout, err := project.LayoutFor(filepath.Join(root, "project.kapi"))
+	require.NoError(t, err)
+	stamp := blockStoreVersionStampPath(layout.BlockStorePath())
+
+	// Extract wrote the stamp and status reports fresh.
+	_, statErr := os.Stat(stamp)
+	require.NoError(t, statErr, "extract should write the version stamp")
+	fresh, err := app.GetProjectStatus(tab.ID)
+	require.NoError(t, err)
+	assert.True(t, fresh.HasData)
+	assert.False(t, fresh.Stale, "store stamped by the running version ⇒ not stale")
+
+	// A missing stamp (store predates this feature) ⇒ stale.
+	require.NoError(t, os.Remove(stamp))
+	missing, err := app.GetProjectStatus(tab.ID)
+	require.NoError(t, err)
+	assert.True(t, missing.HasData)
+	assert.True(t, missing.Stale, "missing stamp ⇒ stale")
+
+	// A stamp from a different kapi version ⇒ stale.
+	require.NoError(t, os.WriteFile(stamp, []byte("v0.0.0-old"), 0o644))
+	old, err := app.GetProjectStatus(tab.ID)
+	require.NoError(t, err)
+	assert.True(t, old.HasData)
+	assert.True(t, old.Stale, "version mismatch ⇒ stale")
+}
+
 func TestRunExtractPopulatesStoreAndCoverage(t *testing.T) {
 	app := NewApp()
 	tab, root := newCoverageProject(t, app)
