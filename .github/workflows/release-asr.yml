@@ -40,7 +40,7 @@ jobs:
           - { platform: windows/arm64, os: windows-11-arm, goos: windows, goarch: arm64, whisper: source }
     runs-on: ${{ matrix.build.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - uses: actions/setup-go@v6
         with: { go-version: "1.26.0" }

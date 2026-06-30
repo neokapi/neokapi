@@ -46,13 +46,13 @@ jobs:
       FILTERS: ${{ inputs.filters || 'html' }}
     steps:
       - name: Checkout neokapi
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: neokapi
           fetch-depth: 0
 
       - name: Checkout Okapi (upstream tests)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Fetched from the GitHub mirror — adjust if the org/repo moves.
           repository: okapi-framework/okapi

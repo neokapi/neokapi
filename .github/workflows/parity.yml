@@ -63,13 +63,13 @@ jobs:
       OKAPI_VERSION: ${{ inputs.okapi_version || '1.48.0' }}
     steps:
       - name: Checkout neokapi
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: neokapi
           fetch-depth: 0
 
       - name: Checkout okapi-bridge
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: neokapi/okapi-bridge
           path: okapi-bridge

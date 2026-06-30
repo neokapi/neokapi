@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
         with:
           go-version: stable
@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
         with:
           go-version: stable
@@ -83,14 +83,14 @@ jobs:
       ONNXRUNTIME_VERSION: "1.25.0" # matches yalue/onnxruntime_go (ORT_API_VERSION 25)
       VISION_MODELS_TAG: "vision-models-v1"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
         with:
           go-version: stable
 
       - name: Cache onnxruntime
         id: cache-ort
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/ort
           key: onnxruntime-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
@@ -105,7 +105,7 @@ jobs:
 
       - name: Cache vision models
         id: cache-models
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/models
           key: vision-models-${{ env.VISION_MODELS_TAG }}
@@ -145,7 +145,7 @@ jobs:
       VISION_MODELS_TAG: "vision-models-v1"
       PDFIUM_RELEASE: "chromium/7891" # matches release-pdfium.yml
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
         with:
           go-version: stable
@@ -157,7 +157,7 @@ jobs:
 
       - name: Cache onnxruntime
         id: cache-ort
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/ort
           key: onnxruntime-linux-x64-${{ env.ONNXRUNTIME_VERSION }}
@@ -172,7 +172,7 @@ jobs:
 
       - name: Cache vision models
         id: cache-models
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/models
           key: vision-models-${{ env.VISION_MODELS_TAG }}
@@ -187,7 +187,7 @@ jobs:
 
       - name: Cache libpdfium
         id: cache-pdfium
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/pdfium
           key: pdfium-linux-x64-${{ env.PDFIUM_RELEASE }}

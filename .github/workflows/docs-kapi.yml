@@ -36,7 +36,7 @@ jobs:
   build-wasm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
           go-version: "1.26.0"
@@ -68,7 +68,7 @@ jobs:
     env:
       CDN_URL: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.DOCS_CDN_URL || '' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # The neokapi docs site is downstream-clean by contract: zero bowrain
       # references in user-facing pages/landing, no bowrain video assets staged

@@ -37,7 +37,7 @@ jobs:
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_cli || steps.filter.outputs.bowrain_plugin || steps.filter.outputs.bowrain }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Detect changed paths
@@ -91,7 +91,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
 
       # Job body lives in `make ci-frontend` (single source of truth, runnable
@@ -106,7 +106,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.kapi_desktop == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
 
       # Job body lives in `make ci-kapi-desktop-frontend` (single source of
@@ -140,7 +140,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.bowrain_desktop == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
 
       # Job body lives in `make ci-bowrain-desktop-frontend`. The Go backend
@@ -168,7 +168,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.kapi_react == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
 
       # Job body lives in `make ci-kapi-react` (single source of truth).
@@ -191,7 +191,7 @@ jobs:
         # both PR and push.
         go-version: ["1.26.0"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
         with:
           go-version: ${{ matrix.go-version }}
@@ -249,7 +249,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
 
       - name: Run platform tests
@@ -291,7 +291,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
 
       - name: Run cli tests
@@ -337,7 +337,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.kapi == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
 
       - name: Run kapi tests
@@ -379,7 +379,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
 
       - name: Run Bowrain CLI tests
@@ -421,7 +421,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true' || needs.changes.outputs.bowrain_plugin == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
 
       # The shared setup action does not cover the plugin modules (separate
@@ -503,7 +503,7 @@ jobs:
       # them — keeps PR speed). Empty on PRs so they don't touch the service.
       BOWRAIN_TEST_POSTGRES_URL: ${{ github.event_name == 'push' && 'postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable' || '' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
 
       - name: Run bowrain tests
@@ -571,7 +571,7 @@ jobs:
     # to merge — and uploading near-empty coverage would spam Codecov PR comments.
     if: always() && !cancelled() && github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download coverage artifacts
         uses: actions/download-artifact@v8
@@ -608,7 +608,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.kapi == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -647,7 +647,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true' || needs.changes.outputs.bowrain == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v6
         with:
@@ -688,7 +688,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.workflows == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install actionlint
         run: bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/v1.7.10/scripts/download-actionlint.bash) 1.7.10
@@ -703,7 +703,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.any_go == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
         with:
           cache-flavor: plain
@@ -719,7 +719,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.any_go == 'true'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
         with:
           cache-flavor: plain
