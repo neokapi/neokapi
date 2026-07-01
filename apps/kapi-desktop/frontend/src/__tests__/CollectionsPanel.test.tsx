@@ -17,6 +17,7 @@ vi.mock("../hooks/useApi", () => ({
     listOutputs: vi.fn().mockResolvedValue({}),
     getProjectStatus: vi.fn().mockResolvedValue(null),
     runExtract: vi.fn().mockResolvedValue({}),
+    listFlows: vi.fn().mockResolvedValue([{ name: "translate", valid: true }]),
   },
 }));
 
@@ -85,7 +86,28 @@ describe("CollectionsPanel per-collection Run", () => {
     });
   });
 
-  it("hides the Run affordance when the collection has no matched files", async () => {
+  it("runs a flow across all collections from the scope-aware header picker", async () => {
+    const onRunFlow = vi.fn();
+    render(
+      <ErrorProvider>
+        <CollectionsPanel
+          project={project}
+          onUpdate={vi.fn()}
+          tabID="t1"
+          flows={project.flows}
+          onRunFlow={onRunFlow}
+          status={status}
+        />
+      </ErrorProvider>,
+    );
+    // With nothing selected, the header runs the flow across the whole project
+    // (no explicit scope — the runner narrows by the active filter).
+    const runAll = await screen.findByRole("button", { name: "Run translate on all collections" });
+    await userEvent.click(runAll);
+    expect(onRunFlow).toHaveBeenCalledWith("translate", project.flows!.translate);
+  });
+
+  it("hides the per-collection Run when the collection has no matched files", async () => {
     matchContentMock.mockResolvedValue([]);
     render(
       <ErrorProvider>
@@ -99,9 +121,13 @@ describe("CollectionsPanel per-collection Run", () => {
         />
       </ErrorProvider>,
     );
-    // The card renders (block badge), but there is nothing to run.
+    // The card renders (block badge), but its per-collection Run is absent.
     await waitFor(() => expect(screen.getByText("12 blocks")).toBeInTheDocument());
-    expect(screen.queryByRole("button", { name: /Run translate/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Run translate on Website" }),
+    ).not.toBeInTheDocument();
+    // The header runner is present but disabled (nothing matched to run on).
+    expect(screen.getByRole("button", { name: "Run translate on all collections" })).toBeDisabled();
   });
 
   it("runs a flow across the selected collections via the batch bar", async () => {

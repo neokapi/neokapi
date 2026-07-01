@@ -46,6 +46,7 @@ import type {
   ContentItem,
   FormatSpec,
   FlowSpec,
+  FlowInfo,
   FormatInfo,
   FormatDefaults,
   ProjectStatus,
@@ -190,6 +191,9 @@ export function CollectionsPanel({
   const [extracting, setExtracting] = useState(false);
   const [formats, setFormats] = useState<FormatInfo[]>(propFormats ?? []);
   const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
+  // Flow validity (unknown tools, undeclared plugins) so we never offer to run a
+  // broken flow — the run menus disable invalid flows with the reason.
+  const [flowValidation, setFlowValidation] = useState<Record<string, FlowInfo>>({});
   const [dragging, setDragging] = useState(false);
   // configKey of the content item whose format-config modal is open (one at a time).
   const [dialogKey, setDialogKey] = useState<string | null>(null);
@@ -334,6 +338,17 @@ export function CollectionsPanel({
   useEffect(() => {
     refreshStatus();
   }, [refreshStatus, project.content]);
+
+  // Validate the project's flows so the run menus can disable broken ones.
+  useEffect(() => {
+    if (!tabID || !onRunFlow) return;
+    void api.listFlows(tabID).then((fl) => {
+      if (!fl) return;
+      const map: Record<string, FlowInfo> = {};
+      for (const f of fl) map[f.name] = f;
+      setFlowValidation(map);
+    });
+  }, [tabID, onRunFlow, project.flows]);
 
   useWailsEvent("project-files-changed", (data) => {
     if (data === tabID) void rescanFiles();
@@ -1023,12 +1038,34 @@ export function CollectionsPanel({
   const clearSelection = () => setSelected(new Set());
   const toggleSelectAll = () =>
     setSelected(allVisibleSelected ? new Set() : new Set(visibleIndices));
-  const runSelected = (name: string, spec: FlowSpec) => {
-    onRunFlow?.(name, spec, {
-      scopePaths: selectedPaths,
-      scopeLabel: t("{count} collections", { count: selected.size }),
-    });
-    clearSelection();
+
+  // The single flow picker in the section header is scope-aware: it runs across
+  // the ticked collections when any are selected, else across the whole project
+  // (the runner narrows "all" by the active filter). This is what folds the old
+  // standalone "Run Flows" list into the collection surface (issue #1068).
+  const hasSelection = selected.size > 0;
+  const runReady = hasSelection ? selectedPaths.length > 0 : matches.length > 0;
+  const flowValid = (name: string) => flowValidation[name]?.valid !== false;
+  const flowRunTitle = (name: string) => {
+    const v = flowValidation[name];
+    if (v && v.valid === false) {
+      return t("Cannot run: {issues}", {
+        issues: (v.issues ?? []).map((i) => i.message).join("; "),
+      });
+    }
+    if (!runReady) return t("No matched files to run on");
+    return undefined;
+  };
+  const runFlowScoped = (name: string, spec: FlowSpec) => {
+    if (hasSelection) {
+      onRunFlow?.(name, spec, {
+        scopePaths: selectedPaths,
+        scopeLabel: t("{count} collections", { count: selected.size }),
+      });
+      clearSelection();
+    } else {
+      onRunFlow?.(name, spec);
+    }
   };
 
   return (
@@ -1045,6 +1082,54 @@ export function CollectionsPanel({
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
+          {/* Scope-aware flow runner — folds the old "Run Flows" list in here.
+              Runs across the ticked collections, or the whole project (narrowed
+              by the active filter) when nothing is selected. */}
+          {selectable &&
+            (flowNames.length === 1 ? (
+              <Button
+                size="sm"
+                disabled={hasActive || !runReady || !flowValid(flowNames[0])}
+                title={flowRunTitle(flowNames[0])}
+                onClick={() => runFlowScoped(flowNames[0], flows![flowNames[0]])}
+                aria-label={
+                  hasSelection
+                    ? t("Run {flow} on selected collections", { flow: flowNames[0] })
+                    : t("Run {flow} on all collections", { flow: flowNames[0] })
+                }
+              >
+                <Play size={12} />
+                {hasSelection ? t("Run on selected") : t("Run {flow}", { flow: flowNames[0] })}
+              </Button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" disabled={hasActive || !runReady} aria-label={t("Run a flow")}>
+                    <Play size={12} />
+                    {hasSelection ? t("Run on selected") : t("Run flow")}
+                    <ChevronDown size={12} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>
+                    {hasSelection
+                      ? t("Run on {count} collections", { count: selected.size })
+                      : t("Run on all collections")}
+                  </DropdownMenuLabel>
+                  {flowNames.map((fn) => (
+                    <DropdownMenuItem
+                      key={fn}
+                      disabled={!runReady || !flowValid(fn)}
+                      title={flowRunTitle(fn)}
+                      onClick={() => runFlowScoped(fn, flows![fn])}
+                    >
+                      <Play size={12} />
+                      {fn}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ))}
           <Button
             variant="outline"
             size="sm"
@@ -1162,15 +1247,17 @@ export function CollectionsPanel({
         </div>
       )}
 
-      {/* Batch-run bar — appears once collections are ticked. Runs a flow across
-          the union of the selected collections' files (single via a card's Run,
-          all via the Run Flows section below). */}
+      {/* Selection bar — appears once collections are ticked. The run action
+          itself lives in the scope-aware "Run" picker in the section header
+          (which switches to "Run on selected" while a selection is active). */}
       {selectable && selected.size > 0 && (
         <div className="sticky top-2 z-10 mb-3 flex flex-wrap items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-xs shadow-sm backdrop-blur">
           <span className="font-medium">{t("{count} selected", { count: selected.size })}</span>
           <span className="text-muted-foreground">
             {t("{count} files", { count: selectedPaths.length })}
           </span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-muted-foreground">{t("run via Run on selected, above")}</span>
           <div className="ml-auto flex items-center gap-2">
             <Button variant="ghost" size="xs" onClick={toggleSelectAll}>
               {allVisibleSelected ? t("Deselect all") : t("Select all")}
@@ -1178,41 +1265,6 @@ export function CollectionsPanel({
             <Button variant="ghost" size="xs" onClick={clearSelection}>
               {t("Clear")}
             </Button>
-            {flowNames.length === 1 ? (
-              <Button
-                size="xs"
-                disabled={hasActive || selectedPaths.length === 0}
-                onClick={() => runSelected(flowNames[0], flows![flowNames[0]])}
-                aria-label={t("Run {flow} on selected collections", { flow: flowNames[0] })}
-              >
-                <Play size={12} />
-                {t("Run {flow}", { flow: flowNames[0] })}
-              </Button>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    size="xs"
-                    disabled={hasActive || selectedPaths.length === 0}
-                    aria-label={t("Run a flow on selected collections")}
-                  >
-                    <Play size={12} />
-                    {t("Run")}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>
-                    {t("Run on {count} collections", { count: selected.size })}
-                  </DropdownMenuLabel>
-                  {flowNames.map((fn) => (
-                    <DropdownMenuItem key={fn} onClick={() => runSelected(fn, flows![fn])}>
-                      <Play size={12} />
-                      {fn}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
           </div>
         </div>
       )}

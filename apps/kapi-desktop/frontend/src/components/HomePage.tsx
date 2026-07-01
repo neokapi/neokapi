@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Play,
   Globe,
   Workflow,
   Loader2,
@@ -10,14 +9,11 @@ import {
   ShieldCheck,
   AlertTriangle,
   RefreshCw,
-  Filter,
 } from "lucide-react";
-import { Button, Badge, Card, EmptyState, ActionCard, LocalePill } from "@neokapi/ui-primitives";
+import { Button, Badge, EmptyState, ActionCard, LocalePill } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
-import type { KapiProject, FlowInfo, PluginIssue, ProjectStatus } from "../types/api";
+import type { KapiProject, PluginIssue, ProjectStatus } from "../types/api";
 import { api, type SampleInfo } from "../hooks/useApi";
-import { useJobFeed } from "../context/JobFeedContext";
-import { useActiveFilter } from "../context/ActiveFilterContext";
 import { CollectionsPanel, type RunFlowHandler } from "./CollectionsPanel";
 
 export interface HomePageProps {
@@ -59,13 +55,6 @@ export function HomePage({
   formatList,
   basePath,
 }: HomePageProps) {
-  const { hasActive, activeJob } = useJobFeed();
-  const {
-    active: activeFilter,
-    setActive: setActiveFilter,
-    enabled: filterEnabled,
-  } = useActiveFilter();
-  const [flowValidation, setFlowValidation] = useState<Record<string, FlowInfo>>({});
   const [installingPlugin, setInstallingPlugin] = useState<string | null>(null);
   const [sampleInfo, setSampleInfo] = useState<SampleInfo | null>(propSampleInfo ?? null);
   // "Keep current" dismisses the upgrade prompt for this session.
@@ -95,30 +84,9 @@ export function HomePage({
     void api.installPlugin(plugin);
   }, []);
 
-  // Fetch flow validation on mount / project change.
-  useEffect(() => {
-    if (!tabID) return;
-    void api.listFlows(tabID).then((flows) => {
-      if (!flows) return;
-      const map: Record<string, FlowInfo> = {};
-      for (const f of flows) {
-        map[f.name] = f;
-      }
-      setFlowValidation(map);
-    });
-  }, [tabID, project.flows]);
-
   const defaults = project.defaults ?? {};
   const plugins = project.plugins ?? {};
-  const flowNames = Object.keys(project.flows ?? {});
-  const hasContent = (project.content?.length ?? 0) > 0;
-  const flowCount = flowNames.length;
-
-  const handleRunFlow = (name: string) => {
-    const spec = project.flows?.[name];
-    if (!spec || !onRunFlow) return;
-    onRunFlow(name, spec);
-  };
+  const flowCount = Object.keys(project.flows ?? {}).length;
 
   return (
     <div className="p-6">
@@ -280,7 +248,8 @@ export function HomePage({
         />
       </div>
 
-      {/* Collections — the merged spine: stats, files, patterns, coverage. */}
+      {/* Collections — the merged spine: stats, files, patterns, coverage, and
+          flow-running (per collection, across a selection, or across all). */}
       {tabID && (
         <CollectionsPanel
           project={project}
@@ -294,102 +263,8 @@ export function HomePage({
         />
       )}
 
-      {/* Run flows */}
-      {flowNames.length > 0 && (
-        <section>
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            <Workflow size={14} />
-            Run Flows
-            {/* Runs honour the active filter — surface its scope so a narrowed
-                run is never a surprise (each card's Run scopes to one collection). */}
-            {filterEnabled && activeFilter && (
-              <span className="ml-auto flex items-center gap-1.5 normal-case">
-                <Filter size={12} className="text-primary" />
-                <span className="text-xs font-normal text-muted-foreground">
-                  {t("Scoped to {name}", { name: activeFilter.name })}
-                </span>
-                <Button
-                  variant="link"
-                  size="xs"
-                  className="h-auto px-0"
-                  onClick={() => void setActiveFilter("")}
-                >
-                  {t("Run on all")}
-                </Button>
-              </span>
-            )}
-          </h2>
-          <div className="space-y-2">
-            {flowNames.map((name) => {
-              const spec = project.flows?.[name];
-              if (!spec) return null;
-              const validation = flowValidation[name];
-              const isValid = validation?.valid !== false;
-              const flowIssues = validation?.issues ?? [];
-              const canRun = isValid && hasContent && !hasActive;
-              const runTitle = !isValid
-                ? `Cannot run: ${flowIssues.map((i) => i.message).join("; ")}`
-                : !hasContent
-                  ? "Configure content patterns first"
-                  : undefined;
-
-              return (
-                <Card
-                  key={name}
-                  className={`flex flex-row items-center gap-3 p-3 ${!isValid ? "border-amber-500/30 bg-amber-500/5" : ""}`}
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-medium">{name}</span>
-                      {!isValid && <AlertTriangle size={12} className="text-amber-500" />}
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      {spec.steps.map((step, i) => {
-                        const stepHasIssue = flowIssues.some((issue) => issue.tool === step.tool);
-                        return (
-                          <span key={i} className="flex items-center gap-1">
-                            {i > 0 && <span>&rarr;</span>}
-                            <Badge
-                              variant={stepHasIssue ? "destructive" : "secondary"}
-                              className={stepHasIssue ? "line-through opacity-70" : ""}
-                            >
-                              {step.tool}
-                            </Badge>
-                          </span>
-                        );
-                      })}
-                    </div>
-                    {flowIssues.length > 0 && (
-                      <div className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">
-                        {flowIssues.map((issue, i) => (
-                          <div key={i}>{issue.message}</div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleRunFlow(name)}
-                    disabled={!canRun}
-                    aria-label={t("Run flow {name}", { name })}
-                    title={runTitle}
-                  >
-                    {activeJob?.flowName === name ? (
-                      <Loader2 size={12} className="animate-spin" />
-                    ) : (
-                      <Play size={12} />
-                    )}
-                    Run
-                  </Button>
-                </Card>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Empty state */}
-      {flowNames.length === 0 && (
+      {/* No flows yet — nudge toward authoring one in the Flows library. */}
+      {flowCount === 0 && (
         <EmptyState
           icon={<Workflow size={24} className="text-muted-foreground/50" />}
           title="No flows defined yet."
