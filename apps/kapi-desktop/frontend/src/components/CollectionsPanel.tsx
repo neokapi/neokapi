@@ -33,6 +33,7 @@ import {
   ItemCard,
   ConfirmDeleteButton,
   LocalePill,
+  Checkbox,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -196,6 +197,8 @@ export function CollectionsPanel({
   // and which are in edit mode (config editor over the files). Keyed by index.
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [editing, setEditing] = useState<Set<number>>(new Set());
+  // Collections ticked for a batch run (keyed by index into project.content).
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [otherCollapsed, setOtherCollapsed] = useState(false);
   // Generated output files keyed by their source file's relative path (issue #5),
   // plus the set of source rows whose outputs are expanded.
@@ -1002,6 +1005,32 @@ export function CollectionsPanel({
     </table>
   );
 
+  // ── Batch selection → run a flow across the ticked collections ─────────────
+  // Selecting is only meaningful when there are flows to run; the union of the
+  // selected collections' matched files is the run scope.
+  const selectable = !!onRunFlow && flowNames.length > 0;
+  const visibleIndices = visibleContent.map((v) => v.ci);
+  const allVisibleSelected =
+    visibleIndices.length > 0 && visibleIndices.every((i) => selected.has(i));
+  const selectedPaths = Array.from(
+    new Set(
+      visibleContent
+        .filter((v) => selected.has(v.ci))
+        .flatMap(({ coll }) => filesForEntry(coll).map((m) => m.path)),
+    ),
+  );
+  const toggleSelect = (ci: number) => toggle(setSelected, ci);
+  const clearSelection = () => setSelected(new Set());
+  const toggleSelectAll = () =>
+    setSelected(allVisibleSelected ? new Set() : new Set(visibleIndices));
+  const runSelected = (name: string, spec: FlowSpec) => {
+    onRunFlow?.(name, spec, {
+      scopePaths: selectedPaths,
+      scopeLabel: t("{count} collections", { count: selected.size }),
+    });
+    clearSelection();
+  };
+
   return (
     <section className="mb-8">
       {/* Section header — Collections is the spine; actions live here. */}
@@ -1133,6 +1162,61 @@ export function CollectionsPanel({
         </div>
       )}
 
+      {/* Batch-run bar — appears once collections are ticked. Runs a flow across
+          the union of the selected collections' files (single via a card's Run,
+          all via the Run Flows section below). */}
+      {selectable && selected.size > 0 && (
+        <div className="sticky top-2 z-10 mb-3 flex flex-wrap items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-xs shadow-sm backdrop-blur">
+          <span className="font-medium">{t("{count} selected", { count: selected.size })}</span>
+          <span className="text-muted-foreground">
+            {t("{count} files", { count: selectedPaths.length })}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="ghost" size="xs" onClick={toggleSelectAll}>
+              {allVisibleSelected ? t("Deselect all") : t("Select all")}
+            </Button>
+            <Button variant="ghost" size="xs" onClick={clearSelection}>
+              {t("Clear")}
+            </Button>
+            {flowNames.length === 1 ? (
+              <Button
+                size="xs"
+                disabled={hasActive || selectedPaths.length === 0}
+                onClick={() => runSelected(flowNames[0], flows![flowNames[0]])}
+                aria-label={t("Run {flow} on selected collections", { flow: flowNames[0] })}
+              >
+                <Play size={12} />
+                {t("Run {flow}", { flow: flowNames[0] })}
+              </Button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="xs"
+                    disabled={hasActive || selectedPaths.length === 0}
+                    aria-label={t("Run a flow on selected collections")}
+                  >
+                    <Play size={12} />
+                    {t("Run")}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>
+                    {t("Run on {count} collections", { count: selected.size })}
+                  </DropdownMenuLabel>
+                  {flowNames.map((fn) => (
+                    <DropdownMenuItem key={fn} onClick={() => runSelected(fn, flows![fn])}>
+                      <Play size={12} />
+                      {fn}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* The collection cards + unmatched "Other files", with drop-to-add. */}
       <div
         onDrop={handleDrop}
@@ -1164,6 +1248,14 @@ export function CollectionsPanel({
               return (
                 <ItemCard key={ci} className="overflow-hidden p-0">
                   <div className="flex items-center gap-2 px-4 py-3">
+                    {selectable && (
+                      <Checkbox
+                        checked={selected.has(ci)}
+                        onCheckedChange={() => toggleSelect(ci)}
+                        aria-label={t("Select {collection}", { collection: title })}
+                        className="shrink-0"
+                      />
+                    )}
                     <button
                       onClick={() => toggle(setExpanded, ci)}
                       className="shrink-0 text-muted-foreground hover:text-foreground"

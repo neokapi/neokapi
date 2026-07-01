@@ -103,4 +103,34 @@ describe("CollectionsPanel per-collection Run", () => {
     await waitFor(() => expect(screen.getByText("12 blocks")).toBeInTheDocument());
     expect(screen.queryByRole("button", { name: /Run translate/ })).not.toBeInTheDocument();
   });
+
+  it("runs a flow across the selected collections via the batch bar", async () => {
+    const onRunFlow = vi.fn();
+    render(
+      <ErrorProvider>
+        <CollectionsPanel
+          project={project}
+          onUpdate={vi.fn()}
+          tabID="t1"
+          flows={project.flows}
+          onRunFlow={onRunFlow}
+          status={status}
+        />
+      </ErrorProvider>,
+    );
+
+    // Tick the collection → the batch-run bar appears.
+    const checkbox = await screen.findByRole("checkbox", { name: "Select Website" });
+    await userEvent.click(checkbox);
+
+    const runBtn = await screen.findByRole("button", {
+      name: "Run translate on selected collections",
+    });
+    await userEvent.click(runBtn);
+
+    expect(onRunFlow).toHaveBeenCalledWith("translate", project.flows!.translate, {
+      scopePaths: ["/p/docs/a.md"],
+      scopeLabel: "1 collections",
+    });
+  });
 });
