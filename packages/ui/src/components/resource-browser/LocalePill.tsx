@@ -32,10 +32,12 @@ export function LocalePill({ locale, className, muted }: LocalePillProps) {
       style={
         muted
           ? {
-              // Chroma 0 → neutral grey at the same lightness, so it still adapts
-              // to dark mode via the shared --pill-*-l custom properties.
+              // Neutral grey chip with softened text — the design system's muted
+              // foreground, so the de-emphasised pill reads as clearly inactive
+              // and adapts to light/dark. Background stays a chroma-0 grey at the
+              // shared pill lightness.
               backgroundColor: `oklch(var(--pill-bg-l, 0.92) 0 0)`,
-              color: `oklch(var(--pill-fg-l, 0.4) 0 0)`,
+              color: "var(--muted-foreground)",
             }
           : {
               backgroundColor: `oklch(var(--pill-bg-l, 0.92) 0.03 ${hue})`,
