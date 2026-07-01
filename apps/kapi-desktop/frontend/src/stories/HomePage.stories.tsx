@@ -148,6 +148,50 @@ export const WithCoverage: Story = {
   },
 };
 
+/** Three target languages — the per-language bar columns (Option A). */
+export const ThreeLanguages: Story = {
+  args: {
+    ...Default.args,
+    displayName: "Acme App Localization",
+    project: {
+      version: "v1",
+      name: "Acme App Localization",
+      defaults: { source_language: "en-US", target_languages: ["fr-FR", "de-DE", "ja-JP"] },
+      content: [
+        { name: "Website", items: [{ path: "docs/**/*.md", format: { name: "markdown" } }] },
+        { name: "UI Strings", items: [{ path: "src/i18n/en/*.json" }] },
+        { name: "Emails", items: [{ path: "emails/**/*.html" }] },
+      ],
+      flows: { translate: { steps: [{ tool: "translate" }] } },
+    },
+    status: {
+      projectPath: "/Users/dev/projects/acme/acme.kapi",
+      projectName: "Acme App Localization",
+      hasData: true,
+      collections: [
+        {
+          name: "Website",
+          blockCount: 245,
+          coverage: { "fr-FR": 245, "de-DE": 191, "ja-JP": 110 },
+          targetLanguages: ["fr-FR", "de-DE", "ja-JP"],
+        },
+        {
+          name: "UI Strings",
+          blockCount: 88,
+          coverage: { "fr-FR": 88, "de-DE": 40, "ja-JP": 0 },
+          targetLanguages: ["fr-FR", "de-DE", "ja-JP"],
+        },
+        {
+          name: "Emails",
+          blockCount: 32,
+          coverage: { "fr-FR": 16, "de-DE": 0, "ja-JP": 0 },
+          targetLanguages: ["fr-FR", "de-DE", "ja-JP"],
+        },
+      ],
+    },
+  },
+};
+
 /** Project configured but never extracted — the strip prompts a run. */
 export const NeverExtracted: Story = {
   args: {

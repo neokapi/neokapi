@@ -44,14 +44,14 @@ describe("HomePage merged collection surface", () => {
         status={status}
       />,
     );
-    // The collection card carries its own name + block-count badge.
-    expect(screen.getByText("ui-strings")).toBeInTheDocument();
+    // The collection appears in the cake legend and its own row.
+    expect(screen.getAllByText("ui-strings").length).toBeGreaterThan(0);
+    // The cake legend shows the total block count.
     expect(screen.getByText("100 blocks")).toBeInTheDocument();
-    // The slim coverage strip shows per-language percentages (fr 100%, de 50%).
-    expect(screen.getByText("100%")).toBeInTheDocument();
-    expect(screen.getByText("50%")).toBeInTheDocument();
-    // The per-collection header bar shows the mean coverage (75%).
-    expect(screen.getByText("75%")).toBeInTheDocument();
+    // Per-language coverage (fr 100%, de 50%) shows in the strip + the aligned
+    // per-language columns (2 languages ⇒ Option A bar columns).
+    expect(screen.getAllByText("100%").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("50%").length).toBeGreaterThan(0);
   });
 
   it("prompts to run extract when nothing has been extracted yet", () => {

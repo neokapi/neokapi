@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, DragEvent, useMemo, Fragment } from "react";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { t } from "@neokapi/kapi-react/runtime";
 import {
   Plus,
@@ -6,7 +7,6 @@ import {
   RefreshCw,
   Loader2,
   Upload,
-  Globe,
   Pencil,
   Settings2,
   ChevronDown,
@@ -30,7 +30,6 @@ import {
   LocaleSelect,
   MultiLocaleSelect,
   FormatSelect,
-  ItemCard,
   ConfirmDeleteButton,
   LocalePill,
   Checkbox,
@@ -72,6 +71,24 @@ export type RunFlowHandler = (
   flow: FlowSpec,
   opts?: { scopePaths?: string[]; scopeLabel?: string },
 ) => void;
+
+// Palette for the block-distribution "cake" — each collection gets a slice and a
+// matching row dot (theme chart vars, cycled for >5 collections).
+const CHART_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
+const collectionColor = (idx: number) => CHART_COLORS[idx % CHART_COLORS.length];
+
+// A coverage tint from 0% (muted) to 100% (primary), for the heatmap tiles.
+const coverageTint = (p: number) => `color-mix(in oklch, var(--primary) ${p}%, var(--muted))`;
+
+// Above this many target languages the per-language bar columns get cramped, so
+// the coverage layout switches to the compact heatmap (issue #1068 review).
+const HEATMAP_LANG_THRESHOLD = 5;
 
 interface FileMatch {
   path: string;
@@ -466,28 +483,6 @@ export function CollectionsPanel({
     return map;
   }, [status]);
 
-  // Languages of a collection narrowed by the active filter (an empty filter
-  // language dimension keeps all). Falls back to the status's target list, then
-  // the collection/project declared targets.
-  const langsFor = useCallback(
-    (coll: ContentCollection, cs?: CollectionStatus) => {
-      const declared =
-        cs?.targetLanguages ??
-        (coll.target_languages ?? project.defaults?.target_languages ?? []).map(String);
-      return filterLanguages(declared, activeFilter);
-    },
-    [activeFilter, project.defaults?.target_languages],
-  );
-
-  // Mean coverage across a collection's filtered languages, for the header bar.
-  const collAvgPct = (cs: CollectionStatus | undefined, langs: string[]) =>
-    !cs || langs.length === 0 || cs.blockCount === 0
-      ? 0
-      : Math.round(
-          (langs.reduce((s, l) => s + (cs.coverage?.[l] ?? 0) / cs.blockCount, 0) / langs.length) *
-            100,
-        );
-
   // ── Project-wide coverage strip (over the visible collections) ─────────────
   const visibleStatuses = visibleContent
     .map(({ coll }) => statusByLabel.get(statusLabelOf(coll)))
@@ -689,46 +684,6 @@ export function CollectionsPanel({
   const filesForEntry = (coll: ContentCollection) => {
     const pats = new Set(patternsOf(coll).filter(Boolean));
     return matches.filter((m) => pats.has(m.pattern));
-  };
-
-  // Read-only source→targets summary shown in a collection card's header.
-  // Non-active languages render grey when a language filter is applied.
-  const filterLangs = activeFilter?.languages ?? [];
-  const langSummary = (coll: ContentCollection) => {
-    const source = String(coll.source_language || project.defaults?.source_language || "?");
-    const targets = (coll.target_languages ?? project.defaults?.target_languages ?? []).map(String);
-    const overridden = !!(coll.source_language || coll.target_languages);
-    return (
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Globe size={10} className="shrink-0" />
-        <LocalePill locale={source} />
-        <span>&rarr;</span>
-        {targets.length === 0 ? (
-          <span>?</span>
-        ) : targets.length <= 2 ? (
-          targets.map((l) => (
-            <LocalePill
-              key={l}
-              locale={l}
-              muted={filterLangs.length > 0 && !filterLangs.includes(l)}
-            />
-          ))
-        ) : (
-          <Badge
-            variant="secondary"
-            className="px-1.5 py-0 text-[10px] font-normal"
-            title={targets.join(", ")}
-          >
-            {t("{count} languages", { count: targets.length })}
-          </Badge>
-        )}
-        {overridden && (
-          <Badge variant="secondary" className="ml-0.5 px-1 py-0 text-[9px]">
-            override
-          </Badge>
-        )}
-      </span>
-    );
   };
 
   // The editor body for a collection card (name, language overrides, patterns).
@@ -1076,6 +1031,46 @@ export function CollectionsPanel({
     }
   };
 
+  // ── Aligned coverage layout + colour-coded cake (issue #1068 review) ────────
+  // Collections are coloured by their position in the displayed list so a row's
+  // dot matches its cake slice. The coverage columns are the union of the
+  // displayed collections' target languages (narrowed by the filter); with many
+  // languages the per-language bars give way to a compact heatmap.
+  const columnLangs = filterLanguages(
+    Array.from(
+      new Set(
+        visibleContent.flatMap(({ coll }) =>
+          (coll.target_languages ?? project.defaults?.target_languages ?? []).map(String),
+        ),
+      ),
+    ),
+    activeFilter,
+  );
+  const heatmap = columnLangs.length >= HEATMAP_LANG_THRESHOLD;
+  const showCoverageCols = hasData && columnLangs.length > 0;
+  // Per-(collection, language) coverage %, or null when the collection doesn't
+  // target that language / nothing is extracted (rendered as a blank cell).
+  const covPct = (coll: ContentCollection, lang: string): number | null => {
+    const cs = statusByLabel.get(statusLabelOf(coll));
+    if (!cs || cs.blockCount === 0 || !cs.targetLanguages.includes(lang)) return null;
+    return Math.round(((cs.coverage?.[lang] ?? 0) / cs.blockCount) * 100);
+  };
+  // Cake slices: one per displayed collection with blocks, coloured by position.
+  const cake = visibleContent.map(({ coll }, idx) => ({
+    name: statusLabelOf(coll),
+    value: statusByLabel.get(statusLabelOf(coll))?.blockCount ?? 0,
+    fill: collectionColor(idx),
+  }));
+  const cakeSlices = cake.filter((d) => d.value > 0);
+
+  // Grid template shared by the header + every row so columns line up. The
+  // coverage block is N language columns (bars or heatmap tiles), or a single
+  // flexible spacer before the actions when there's nothing to show.
+  const coverageCols = showCoverageCols
+    ? `repeat(${columnLangs.length}, minmax(${heatmap ? 40 : 60}px, 1fr))`
+    : "1fr";
+  const gridCols = `${selectable ? "24px " : ""}minmax(150px,1.6fr) 52px 62px ${coverageCols} auto`;
+
   return (
     <section className="mb-8">
       {/* Section header — Collections is the spine; actions live here. */}
@@ -1207,23 +1202,67 @@ export function CollectionsPanel({
         </div>
       )}
 
-      {/* Slim project-wide coverage strip (replaces the donut card). */}
+      {/* Colour-coded "cake": block distribution per collection (slices match
+          the row dots below) + project-wide coverage per language. */}
       {content.length > 0 &&
         (hasData ? (
           <Card className="mb-3 p-4">
-            <div className="mb-2 text-xs font-medium text-foreground">
-              {t("{blocks} blocks · {collections} collections", {
-                blocks: totalBlocks,
-                collections: visibleStatuses.length,
-              })}
-            </div>
-            {stripCoverage.length > 0 && (
-              <div className="flex flex-wrap gap-x-6 gap-y-2">
-                {stripCoverage.map((p) => (
-                  <StripBar key={p.lang} label={p.lang} pct={p.pct} />
-                ))}
+            <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-center">
+              <div className="flex items-center gap-3">
+                {cakeSlices.length > 0 ? (
+                  <div className="h-28 w-28 shrink-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={cakeSlices}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius="56%"
+                          outerRadius="100%"
+                          paddingAngle={cakeSlices.length > 1 ? 2 : 0}
+                          strokeWidth={0}
+                        >
+                          {cakeSlices.map((d) => (
+                            <Cell key={d.name} fill={d.fill} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full border border-dashed text-[10px] text-muted-foreground">
+                    {t("No blocks")}
+                  </div>
+                )}
+                <ul className="space-y-1 text-xs">
+                  <li className="font-medium text-foreground">
+                    {t("{count} blocks", { count: totalBlocks })}
+                  </li>
+                  {cake.map((d, idx) => (
+                    <li key={d.name} className="flex items-center gap-1.5">
+                      <span
+                        className="size-2 shrink-0 rounded-[2px]"
+                        style={{ background: collectionColor(idx) }}
+                      />
+                      <span className="truncate text-muted-foreground">{d.name}</span>
+                      <span className="tabular-nums text-foreground">{d.value}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            )}
+              {stripCoverage.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {t("Coverage across collections")}
+                  </div>
+                  <div className="flex flex-wrap gap-x-6 gap-y-1.5">
+                    {stripCoverage.map((p) => (
+                      <StripBar key={p.lang} label={p.lang} pct={p.pct} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </Card>
         ) : (
           <Card className="mb-3 flex items-center gap-3 p-4">
@@ -1294,20 +1333,43 @@ export function CollectionsPanel({
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {visibleContent.map(({ coll, ci }) => {
+          <div className="overflow-hidden rounded-lg border border-border">
+            {/* Column header — shares the row grid so everything lines up. */}
+            {visibleContent.length > 0 && (
+              <div
+                className="grid items-center gap-x-3 border-b border-border bg-muted/30 px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
+                style={{ gridTemplateColumns: gridCols }}
+              >
+                {selectable && <span />}
+                <span>{t("Collection")}</span>
+                <span className="text-right">{t("Files")}</span>
+                <span className="text-right">{t("Blocks")}</span>
+                {showCoverageCols ? (
+                  columnLangs.map((l) => (
+                    <span key={l} className="text-center normal-case" translate="no">
+                      {heatmap ? l.split("-")[0] : l}
+                    </span>
+                  ))
+                ) : (
+                  <span>{hasData ? "" : t("Coverage")}</span>
+                )}
+                <span />
+              </div>
+            )}
+
+            {visibleContent.map(({ coll, ci }, idx) => {
               const isEditing = editing.has(ci);
               const isOpen = expanded.has(ci);
               const files = filesForEntry(coll);
               const bare = isBareEntry(coll);
               const title = bare ? coll.path || t("Files") : coll.name || t("Untitled collection");
               const cs = statusByLabel.get(statusLabelOf(coll));
-              const langs = langsFor(coll, cs);
-              const avg = collAvgPct(cs, langs);
-              const showCoverage = hasData && cs && cs.blockCount > 0 && langs.length > 0;
               return (
-                <ItemCard key={ci} className="overflow-hidden p-0">
-                  <div className="flex items-center gap-2 px-4 py-3">
+                <div key={ci} className="border-b border-border last:border-0">
+                  <div
+                    className="grid items-center gap-x-3 px-3 py-2.5 hover:bg-accent/20"
+                    style={{ gridTemplateColumns: gridCols }}
+                  >
                     {selectable && (
                       <Checkbox
                         checked={selected.has(ci)}
@@ -1316,50 +1378,89 @@ export function CollectionsPanel({
                         className="shrink-0"
                       />
                     )}
+                    {/* Name cell — chevron + colour dot (matches cake) + name. */}
                     <button
                       onClick={() => toggle(setExpanded, ci)}
-                      className="shrink-0 text-muted-foreground hover:text-foreground"
+                      className="flex min-w-0 items-center gap-2 text-left"
                       aria-label={isOpen ? t("Collapse") : t("Expand")}
                       aria-expanded={isOpen}
                     >
-                      {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </button>
-                    <Layers size={14} className="shrink-0 text-primary" />
-                    <span className="truncate text-sm font-medium" title={title}>
-                      {title}
-                    </span>
-                    {!bare && langSummary(coll)}
-                    <Badge variant="secondary" className="shrink-0 text-[10px] font-normal">
-                      {t("{count} files", { count: files.length })}
-                    </Badge>
-                    {hasData && cs && (
-                      <Badge variant="secondary" className="shrink-0 text-[10px] font-normal">
-                        {t("{count} blocks", { count: cs.blockCount })}
-                      </Badge>
-                    )}
-                    <div className="ml-auto flex shrink-0 items-center gap-2">
-                      {showCoverage && (
-                        <span className="flex w-32 items-center gap-2">
-                          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent">
-                            <span
-                              className="block h-full rounded-full bg-primary"
-                              style={{ width: `${avg}%` }}
-                            />
-                          </span>
-                          <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
-                            {avg}%
-                          </span>
-                        </span>
+                      {isOpen ? (
+                        <ChevronDown size={13} className="shrink-0 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight size={13} className="shrink-0 text-muted-foreground" />
                       )}
-                      {/* Per-collection Run — run any flow scoped to just this
-                          collection's files, so flows feel part of the surface. */}
+                      <span
+                        className="size-2.5 shrink-0 rounded-[3px]"
+                        style={{ background: collectionColor(idx) }}
+                      />
+                      <Layers size={13} className="shrink-0 text-primary" />
+                      <span className="truncate text-sm font-medium" title={title}>
+                        {title}
+                      </span>
+                    </button>
+                    <span className="text-right text-xs tabular-nums text-muted-foreground">
+                      {files.length}
+                    </span>
+                    <span className="text-right text-xs tabular-nums">
+                      {hasData && cs ? cs.blockCount : "—"}
+                    </span>
+                    {showCoverageCols ? (
+                      columnLangs.map((l) => {
+                        const p = covPct(coll, l);
+                        if (p === null) {
+                          return (
+                            <span
+                              key={l}
+                              className="text-center text-[10px] text-muted-foreground/40"
+                            >
+                              &mdash;
+                            </span>
+                          );
+                        }
+                        return heatmap ? (
+                          <span
+                            key={l}
+                            className="flex h-6 items-center justify-center rounded text-[10px] font-medium tabular-nums"
+                            style={{
+                              background: coverageTint(p),
+                              color:
+                                p > 55 ? "var(--primary-foreground)" : "var(--muted-foreground)",
+                            }}
+                            title={`${l}: ${p}%`}
+                          >
+                            {p}
+                          </span>
+                        ) : (
+                          <span
+                            key={l}
+                            className="flex flex-col items-center gap-1"
+                            title={`${l}: ${p}%`}
+                          >
+                            <span className="h-1.5 w-full overflow-hidden rounded-full bg-accent">
+                              <span
+                                className="block h-full rounded-full bg-primary"
+                                style={{ width: `${p}%` }}
+                              />
+                            </span>
+                            <span className="text-[10px] tabular-nums text-muted-foreground">
+                              {p}%
+                            </span>
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span />
+                    )}
+                    {/* Actions — per-collection Run, Edit, delete (icon-only). */}
+                    <span className="flex items-center justify-end gap-1">
                       {onRunFlow &&
                         files.length > 0 &&
                         flowNames.length > 0 &&
                         (flowNames.length === 1 ? (
                           <Button
                             variant="ghost"
-                            size="xs"
+                            size="icon-sm"
                             disabled={hasActive}
                             onClick={() =>
                               onRunFlow(flowNames[0], flows![flowNames[0]], {
@@ -1372,20 +1473,18 @@ export function CollectionsPanel({
                               collection: title,
                             })}
                           >
-                            <Play size={12} />
-                            {t("Run")}
+                            <Play size={13} />
                           </Button>
                         ) : (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
                                 variant="ghost"
-                                size="xs"
+                                size="icon-sm"
                                 disabled={hasActive}
                                 aria-label={t("Run a flow on {collection}", { collection: title })}
                               >
-                                <Play size={12} />
-                                {t("Run")}
+                                <Play size={13} />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
@@ -1411,27 +1510,25 @@ export function CollectionsPanel({
                         ))}
                       <Button
                         variant={isEditing ? "secondary" : "ghost"}
-                        size="xs"
+                        size="icon-sm"
                         onClick={() => {
                           openCard(ci); // editing implies the body is open
                           toggle(setEditing, ci);
                         }}
                         aria-label={isEditing ? t("Done editing") : t("Edit collection")}
                       >
-                        {isEditing ? <Check size={12} /> : <Pencil size={12} />}
-                        {isEditing ? t("Done") : t("Edit")}
+                        {isEditing ? <Check size={13} /> : <Pencil size={13} />}
                       </Button>
                       <ConfirmDeleteButton
                         onDelete={() => handleDeleteCollection(ci)}
                         mode="icon"
                       />
-                    </div>
+                    </span>
                   </div>
 
                   {isOpen && (
-                    <div className="border-t border-border">
-                      {/* Editor slides in over the output; both stay visible,
-                          separated by a distinct tint + accent rule. */}
+                    <div className="border-t border-border bg-muted/10">
+                      {/* Editor slides in over the output; both stay visible. */}
                       {isEditing && (
                         <div className="animate-in slide-in-from-top-2 fade-in border-b-2 border-primary/40 bg-muted/40 p-4 shadow-inner duration-200">
                           <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
@@ -1466,32 +1563,36 @@ export function CollectionsPanel({
                       )}
                     </div>
                   )}
-                </ItemCard>
+                </div>
               );
             })}
 
             {/* Other files — unmatched, not owned by any collection. Hidden while
                 a collection filter is active (they belong to no collection). */}
             {!filterCollections.length && unmatchedFiles.length > 0 && (
-              <ItemCard className="overflow-hidden p-0">
-                <div className="flex items-center gap-2 px-4 py-3">
-                  <button
-                    onClick={() => setOtherCollapsed((v) => !v)}
-                    className="shrink-0 text-muted-foreground hover:text-foreground"
-                    aria-label={otherCollapsed ? t("Expand") : t("Collapse")}
-                  >
-                    {otherCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                  </button>
-                  <Files size={14} className="shrink-0 text-muted-foreground" />
+              <div className="border-b border-border last:border-0">
+                <button
+                  onClick={() => setOtherCollapsed((v) => !v)}
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-accent/20"
+                  aria-label={otherCollapsed ? t("Expand") : t("Collapse")}
+                >
+                  {otherCollapsed ? (
+                    <ChevronRight size={13} className="shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown size={13} className="shrink-0 text-muted-foreground" />
+                  )}
+                  <Files size={13} className="shrink-0 text-muted-foreground" />
                   <span className="text-sm font-medium">{t("Other files")}</span>
                   <Badge variant="secondary" className="text-[10px] font-normal">
                     {t("{count} files", { count: unmatchedFiles.length })}
                   </Badge>
-                </div>
+                </button>
                 {!otherCollapsed && (
-                  <div className="border-t border-border">{unmatchedTable(unmatchedFiles)}</div>
+                  <div className="border-t border-border bg-muted/10">
+                    {unmatchedTable(unmatchedFiles)}
+                  </div>
                 )}
-              </ItemCard>
+              </div>
             )}
           </div>
         )}
