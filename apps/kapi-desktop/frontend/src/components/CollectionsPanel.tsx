@@ -692,6 +692,8 @@ export function CollectionsPanel({
   };
 
   // Read-only source→targets summary shown in a collection card's header.
+  // Non-active languages render grey when a language filter is applied.
+  const filterLangs = activeFilter?.languages ?? [];
   const langSummary = (coll: ContentCollection) => {
     const source = String(coll.source_language || project.defaults?.source_language || "?");
     const targets = (coll.target_languages ?? project.defaults?.target_languages ?? []).map(String);
@@ -704,7 +706,13 @@ export function CollectionsPanel({
         {targets.length === 0 ? (
           <span>?</span>
         ) : targets.length <= 2 ? (
-          targets.map((l) => <LocalePill key={l} locale={l} />)
+          targets.map((l) => (
+            <LocalePill
+              key={l}
+              locale={l}
+              muted={filterLangs.length > 0 && !filterLangs.includes(l)}
+            />
+          ))
         ) : (
           <Badge
             variant="secondary"

@@ -54,3 +54,21 @@ export const AllLocales: Story = {
     </div>
   ),
 };
+
+/**
+ * When an active language filter is applied, filtered-in locales keep their
+ * colour and the rest render grey (`muted`) — used on the project header and
+ * collection cards so the language scope reads at a glance. Here fr-FR and
+ * ja-JP are the active languages.
+ */
+export const MutedOutsideFilter: Story = {
+  render: () => (
+    <div className="flex items-center gap-2">
+      <LocalePill locale="de-DE" muted />
+      <LocalePill locale="fr-FR" />
+      <LocalePill locale="ja-JP" />
+      <LocalePill locale="nb-NO" muted />
+      <LocalePill locale="ar-SA" muted />
+    </div>
+  ),
+};

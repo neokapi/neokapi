@@ -14,6 +14,7 @@ import { Button, Badge, EmptyState, ActionCard, LocalePill } from "@neokapi/ui-p
 import { t } from "@neokapi/kapi-react/runtime";
 import type { KapiProject, PluginIssue, ProjectStatus } from "../types/api";
 import { api, type SampleInfo } from "../hooks/useApi";
+import { useActiveFilter } from "../context/ActiveFilterContext";
 import { CollectionsPanel, type RunFlowHandler } from "./CollectionsPanel";
 
 export interface HomePageProps {
@@ -55,6 +56,7 @@ export function HomePage({
   formatList,
   basePath,
 }: HomePageProps) {
+  const { active: activeFilter } = useActiveFilter();
   const [installingPlugin, setInstallingPlugin] = useState<string | null>(null);
   const [sampleInfo, setSampleInfo] = useState<SampleInfo | null>(propSampleInfo ?? null);
   // "Keep current" dismisses the upgrade prompt for this session.
@@ -87,6 +89,9 @@ export function HomePage({
   const defaults = project.defaults ?? {};
   const plugins = project.plugins ?? {};
   const flowCount = Object.keys(project.flows ?? {}).length;
+  // When the active filter narrows to specific languages, only those target
+  // pills keep their colour; the rest render grey so the scope reads at a glance.
+  const filterLangs = activeFilter?.languages ?? [];
 
   return (
     <div className="p-6">
@@ -104,7 +109,11 @@ export function HomePage({
             <span>&rarr;</span>
             {defaults.target_languages?.length ? (
               defaults.target_languages.map((l) => (
-                <LocalePill key={String(l)} locale={String(l)} />
+                <LocalePill
+                  key={String(l)}
+                  locale={String(l)}
+                  muted={filterLangs.length > 0 && !filterLangs.includes(String(l))}
+                />
               ))
             ) : (
               <span>{t("No targets")}</span>
