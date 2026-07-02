@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -125,13 +126,13 @@ func storeBlockTexts(t *testing.T, root string) []string {
 	tr := true
 	for b, berr := range sess.Blocks(blockstore.BlockFilter{Translatable: &tr}) {
 		require.NoError(t, berr)
-		var text string
+		var sb strings.Builder
 		for _, r := range b.Source {
 			if r.Text != nil {
-				text += r.Text.Text
+				sb.WriteString(r.Text.Text)
 			}
 		}
-		texts = append(texts, text)
+		texts = append(texts, sb.String())
 	}
 	return texts
 }

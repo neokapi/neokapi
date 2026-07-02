@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -44,18 +45,6 @@ func (e *checkExclusions) failingForLocale(locale string) int {
 		return 0
 	}
 	return e.byLocale[locale]
-}
-
-// total returns the count of failing units across every locale.
-func (e *checkExclusions) total() int {
-	if e == nil {
-		return 0
-	}
-	n := 0
-	for _, c := range e.byLocale {
-		n += c
-	}
-	return n
 }
 
 // computeLoopCheckExclusions runs the project's bound target-side checks over
@@ -123,14 +112,8 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd *cobra.Command
 			if strings.TrimSpace(b.TargetText(model.LocaleID(u.locale))) == "" {
 				continue
 			}
-			fails := false
 			runCheckTool(ctx, qa, b)
-			for _, f := range check.Findings(tool.NewBlockView(b)) {
-				if qaFindingFails(f) {
-					fails = true
-					break
-				}
-			}
+			fails := slices.ContainsFunc(check.Findings(tool.NewBlockView(b)), qaFindingFails)
 			if !fails && termTool != nil {
 				runCheckTool(ctx, termTool, b)
 				if b.Properties[coretools.PropTermCheckPassed] == "false" {

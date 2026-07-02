@@ -19,7 +19,7 @@ func TestDemoteFailing(t *testing.T) {
 	assert.Equal(t, "draft", demoteFailing("reviewed"))
 	assert.Equal(t, "draft", demoteFailing("signed-off"))
 	assert.Equal(t, "draft", demoteFailing("draft"), "draft demotes to itself (rank below translated is untouched)")
-	assert.Equal(t, "", demoteFailing(""))
+	assert.Empty(t, demoteFailing(""))
 }
 
 // TestUp_ChecksInLoop_FailingPlaceholderParks: a produced unit that drops a
