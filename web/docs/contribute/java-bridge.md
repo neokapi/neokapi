@@ -16,10 +16,6 @@ plugin protocol honest: it is the reference implementation of a third-party
 kapi plugin in a non-Go language, and its CI runs the protocol conformance
 suite against released kapi versions.
 
-For working with formats kapi no longer ships natively, see
-[Exotic and legacy formats](/kapi/exotic-legacy-formats) — the supported
-migration path is XLIFF interchange, not the bridge.
-
 The plugin *protocol* (manifest model, subprocess lifecycle, gRPC services) is
 documented in [Plugin system](./architecture/007-plugin-system.md) and the
 [plugin bridge protocol notes](./notes-internal/plugin-bridge-protocol.md).

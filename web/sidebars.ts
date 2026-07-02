@@ -88,7 +88,6 @@ const sidebars: SidebarsConfig = {
         { type: "doc", id: "kapi/recipes/gate-localization-in-ci", label: "Check translations in CI" },
         { type: "doc", id: "kapi/recipes/tm-termbase-storage", label: "Where translations & terms live" },
         { type: "doc", id: "kapi/bilingual-workflow", label: "Hand off to translators" },
-        { type: "doc", id: "kapi/exotic-legacy-formats", label: "Exotic & legacy formats" },
       ],
     },
     {
