@@ -44,15 +44,15 @@ func TestScaffoldKapiMart(t *testing.T) {
 	// 3 flows.
 	assert.NotEmpty(t, proj.Flows)
 
-	// Check input file counts per collection.
-	assertDirCount(t, filepath.Join(dir, "input", "docs"), 7)
-	assertDirCount(t, filepath.Join(dir, "input", "store"), 5)
-	assertDirCount(t, filepath.Join(dir, "input", "contracts"), 2)
-	assertDirCount(t, filepath.Join(dir, "input", "templates"), 2)
+	// Source file counts per area (natural layout: <area>/en-US/…).
+	assertDirCount(t, filepath.Join(dir, "web", "en-US"), 7)
+	assertDirCount(t, filepath.Join(dir, "src", "en-US"), 5)
+	assertDirCount(t, filepath.Join(dir, "legal", "en-US"), 2)
+	assertDirCount(t, filepath.Join(dir, "marketing", "en-US"), 2)
 
-	// Output directory should exist.
+	// No separate output/ tree — localized files land beside source in locale dirs.
 	_, err = os.Stat(filepath.Join(dir, "output"))
-	require.NoError(t, err)
+	require.True(t, os.IsNotExist(err), "KapiMart must not scaffold an output/ dir")
 
 	// TM should have 200+ entries. Under the multilingual model each TU
 	// becomes a single entry with N variants instead of N entries per TU,
