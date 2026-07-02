@@ -492,6 +492,14 @@ const memoryRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/memory"), "MemoryRoute"),
 });
 
+// Locale demand — DESIGN PROTOTYPE (mock data only, no plan-tier gating yet).
+const localeDemandRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "locale-demand",
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/locale-demand"), "LocaleDemandRoute"),
+});
+
 const binRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "bin",
@@ -665,6 +673,7 @@ const routeTree = rootRoute.addChildren([
     ]),
     termbaseRoute,
     memoryRoute,
+    localeDemandRoute,
     auditlogRoute,
     activitiesRoute,
     tasksRoute,
