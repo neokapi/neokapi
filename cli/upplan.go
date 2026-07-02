@@ -84,7 +84,6 @@ func (a *App) runUpPlan(cmd *cobra.Command, proj *project.KapiProject, projectPa
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	root := filepath.Dir(projectPath)
 
 	// Source language: an explicit --source-lang wins; otherwise the project's
 	// source_language (the flag's static default would shadow it).
@@ -95,13 +94,24 @@ func (a *App) runUpPlan(cmd *cobra.Command, proj *project.KapiProject, projectPa
 		a.SourceLang = "en"
 	}
 
+	plan, err := a.computeProjectPlan(ctx, proj, projectPath)
+	if err != nil {
+		return err
+	}
+	return output.Print(cmd, plan)
+}
+
+// computeProjectPlan resolves the project's units, opens the project TM as a
+// read-only leverage source (only an existing tm.db — a plan must not create
+// files), and derives the dry-run work plan. Shared by `kapi up --plan` and
+// the exported UpPlan the desktop binds to.
+func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject, projectPath string) (UpPlanOutput, error) {
+	root := filepath.Dir(projectPath)
 	units, err := a.unitsFromProject(proj, root, "")
 	if err != nil {
-		return fmt.Errorf("resolve content: %w", err)
+		return UpPlanOutput{}, fmt.Errorf("resolve content: %w", err)
 	}
 
-	// Project TM, read-only leverage source. Only an existing tm.db is
-	// opened — plan must not create files.
 	var tm sievepen.TranslationMemory
 	if a.TMBackend != nil {
 		tm = a.TMBackend
@@ -115,11 +125,38 @@ func (a *App) runUpPlan(cmd *cobra.Command, proj *project.KapiProject, projectPa
 		}
 	}
 
-	plan, err := a.computeUpPlan(ctx, tm, proj, units)
-	if err != nil {
-		return err
+	return a.computeUpPlan(ctx, tm, proj, units)
+}
+
+// UpPlan computes the dry-run convergence plan `kapi up --plan` reports — per
+// (collection, locale): units missing a target, exact TM leverage, the
+// remaining AI work, and a chars/4 token estimate — for an embedding caller
+// (the desktop's pre-flight dialog). It is read-only and self-contained: no
+// provider calls, nothing written, state derived from the working tree on
+// every call. sourceLang overrides the project's source language when
+// non-empty.
+func (a *App) UpPlan(ctx context.Context, projectPath, sourceLang string) (*UpPlanOutput, error) {
+	a.InitRegistries()
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	return output.Print(cmd, plan)
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return nil, fmt.Errorf("load project: %w", err)
+	}
+	if sourceLang == "" {
+		sourceLang = string(proj.Defaults.SourceLanguage)
+	}
+	if sourceLang == "" {
+		sourceLang = "en"
+	}
+	a.SourceLang = sourceLang
+
+	plan, err := a.computeProjectPlan(ctx, proj, projectPath)
+	if err != nil {
+		return nil, err
+	}
+	return &plan, nil
 }
 
 // computeUpPlan derives the per-scope work plan from the verify units.
