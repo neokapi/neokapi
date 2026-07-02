@@ -68,6 +68,7 @@ gates (e.g. before a release tag).
 				untilGate: untilGate,
 				maxPasses: maxPasses,
 				noExtract: boolFlag(cmd, "no-extract"),
+				noChecks:  boolFlag(cmd, "no-checks"),
 			})
 		},
 	}
@@ -76,5 +77,6 @@ gates (e.g. before a release tag).
 	a.addFlowRunFlags(cmd)
 	cmd.Flags().Int("passes", 0, "maximum reconciliation passes (0 = loop until converged or parked, capped at 5; 1 = single pass)")
 	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
+	cmd.Flags().Bool("no-checks", false, "skip the bound checks in the loop (produced units count as translated even when failing guardrails)")
 	return cmd
 }

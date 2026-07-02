@@ -179,7 +179,7 @@ func (a *App) runStatus(cmd *cobra.Command, _ []string) error {
 			return output.Print(cmd, ReviewQueueOutput{Project: proj.Name, Pending: items})
 		}
 
-		cov, err := a.computeShipCoverage(cmd.Context(), proj, root, units)
+		cov, err := a.computeShipCoverage(cmd.Context(), proj, root, units, nil)
 		if err != nil {
 			return fmt.Errorf("compute coverage: %w", err)
 		}

@@ -26,6 +26,10 @@ type convergeOptions struct {
 	// noExtract skips the pre-pass block-store drift check + auto-extract
 	// (`up --no-extract`).
 	noExtract bool
+	// noChecks skips running the project's bound checks in the loop
+	// (`up --no-checks`): produced units then count as translated even when
+	// they would fail the guardrails.
+	noChecks bool
 }
 
 // ConvergeLocaleResult is the per-locale outcome of a convergence run.
@@ -34,6 +38,10 @@ type ConvergeLocaleResult struct {
 	Shippable bool           `json:"shippable"`        // every gated scope for this locale clears its gate
 	Parked    bool           `json:"parked,omitempty"` // still short of its gate after the loop (needs human)
 	Pct       map[string]int `json:"pct,omitempty"`    // ladder state → "at least" percent
+	// FailingChecks counts units that are produced but fail the project's
+	// bound checks (#1078 G4) — they read at `draft`, not `translated`, for
+	// gating, so they hold the locale below its gate until fixed.
+	FailingChecks int `json:"failingChecks,omitempty"`
 }
 
 // ConvergeOutput is the structured result of `kapi run` driving the default
@@ -63,7 +71,11 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		}
 		drafted := lc.Pct["draft"]
 		translated := lc.Pct["translated"]
-		fmt.Fprintf(w, "  %-10s drafted %d%%  translated %d%%  %s\n", lc.Locale, drafted, translated, state)
+		checks := ""
+		if lc.FailingChecks > 0 {
+			checks = fmt.Sprintf("  %d failing check(s)", lc.FailingChecks)
+		}
+		fmt.Fprintf(w, "  %-10s drafted %d%%  translated %d%%  %s%s\n", lc.Locale, drafted, translated, state, checks)
 	}
 	fmt.Fprintln(w)
 	if o.Converged {
@@ -170,14 +182,14 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 				}
 			}
 
-			cov, err := a.deriveCoverage(ctx, proj, root)
+			cov, excl, err := a.deriveCoverage(ctx, cmd, proj, root, !opts.noChecks)
 			if err != nil {
 				return err
 			}
 			pending := localesNeedingPass(cov, locales)
 			if len(pending) == 0 {
 				// Already converged before this pass (or after the previous one).
-				return a.printConverge(cmd, flowName, passes, cov, locales)
+				return a.printConverge(cmd, flowName, passes, cov, locales, excl)
 			}
 
 			before := producedUnits(cov)
@@ -190,20 +202,23 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 				}
 			}
 
-			cov2, err := a.deriveCoverage(ctx, proj, root)
+			// Post-pass derivation re-runs the bound checks over what the pass
+			// produced (#1078 G4): a unit with critical/major findings reads at
+			// `draft`, so it cannot lift its locale over the gate.
+			cov2, excl2, err := a.deriveCoverage(ctx, cmd, proj, root, !opts.noChecks)
 			if err != nil {
 				return err
 			}
 			if !untilGate {
-				return a.printConverge(cmd, flowName, passes, cov2, locales)
+				return a.printConverge(cmd, flowName, passes, cov2, locales, excl2)
 			}
 			if len(localesNeedingPass(cov2, locales)) == 0 {
-				return a.printConverge(cmd, flowName, passes, cov2, locales)
+				return a.printConverge(cmd, flowName, passes, cov2, locales, excl2)
 			}
 			// Stop looping when capped or when a full pass produced nothing new —
 			// the remaining locales park (the flow can't advance them unaided).
 			if passes >= maxPasses || producedUnits(cov2) <= before {
-				return a.printConverge(cmd, flowName, passes, cov2, locales)
+				return a.printConverge(cmd, flowName, passes, cov2, locales, excl2)
 			}
 		}
 	})
@@ -264,13 +279,23 @@ func describeDrift(d project.StoreDrift) string {
 
 // deriveCoverage recomputes per-scope ship coverage from the working tree —
 // the same derivation `kapi status` uses, re-read each pass (state is derived,
-// never tracked).
-func (a *App) deriveCoverage(ctx context.Context, proj *project.KapiProject, root string) ([]LocaleCoverage, error) {
+// never tracked). With withChecks it first runs the project's bound checks over
+// the produced units and feeds the failing set into the coverage rollup as an
+// exclusion (#1078 G4), returning it so callers can report per-locale counts.
+func (a *App) deriveCoverage(ctx context.Context, cmd *cobra.Command, proj *project.KapiProject, root string, withChecks bool) ([]LocaleCoverage, *checkExclusions, error) {
 	units, err := a.unitsFromProject(proj, root, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return a.computeShipCoverage(ctx, proj, root, units)
+	var excl *checkExclusions
+	if withChecks {
+		excl, err = a.computeLoopCheckExclusions(ctx, cmd, units)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	cov, err := a.computeShipCoverage(ctx, proj, root, units, excl)
+	return cov, excl, err
 }
 
 // localesNeedingPass returns the locales (in target order) that still have work:
@@ -316,7 +341,7 @@ func producedUnits(cov []LocaleCoverage) int {
 
 // printConverge derives the final per-locale standing and emits the structured
 // convergence result. It always returns nil (parked work is not a build error).
-func (a *App) printConverge(cmd *cobra.Command, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID) error {
+func (a *App) printConverge(cmd *cobra.Command, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *checkExclusions) error {
 	out := ConvergeOutput{Flow: flowName, Passes: passes, Converged: true}
 	pendingSet := map[string]bool{}
 	for _, loc := range localesNeedingPass(cov, locales) {
@@ -324,7 +349,7 @@ func (a *App) printConverge(cmd *cobra.Command, flowName string, passes int, cov
 	}
 	for _, loc := range locales {
 		l := string(loc)
-		res := ConvergeLocaleResult{Locale: l, Shippable: true, Pct: map[string]int{}}
+		res := ConvergeLocaleResult{Locale: l, Shippable: true, Pct: map[string]int{}, FailingChecks: excl.failingForLocale(l)}
 		gatedSomewhere := false
 		for _, c := range cov {
 			if c.Locale != l {
