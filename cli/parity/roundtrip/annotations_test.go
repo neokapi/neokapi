@@ -47,15 +47,15 @@ func TestAnnotations_LoaderFindsOpenxml(t *testing.T) {
 // coverage_test.go now relies on at every fixture.
 func TestAnnotations_LookupSkipReturnsMigratedDirective(t *testing.T) {
 	roundtrip.ResetAnnotations()
-	skip, ok := roundtrip.LookupSkip("ttml", "example1.ttml")
+	skip, ok := roundtrip.LookupSkip("csv", "some_blank_columns.csv")
 	if !ok {
-		t.Fatal("expected skip directive for ttml/example1.ttml")
+		t.Fatal("expected skip directive for csv/some_blank_columns.csv")
 	}
-	if len(skip.Engines) != 1 || skip.Engines[0] != "native" {
-		t.Errorf("engines: got %v want [native]", skip.Engines)
+	if len(skip.Engines) != 1 || skip.Engines[0] != "okapi" {
+		t.Errorf("engines: got %v want [okapi]", skip.Engines)
 	}
-	if !strings.Contains(skip.Reason, "encoding/xml") {
-		t.Errorf("reason doesn't mention encoding/xml: %q", skip.Reason)
+	if !strings.Contains(skip.Reason, "empty cell") {
+		t.Errorf("reason doesn't mention empty cells: %q", skip.Reason)
 	}
 }
 

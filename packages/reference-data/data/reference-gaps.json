@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-06-28T13:38:38Z",
+  "generatedAt": "2026-07-02T15:59:18Z",
   "summary": {
     "built-in/format/description": 3,
-    "built-in/format/doc.examples": 5,
+    "built-in/format/doc.examples": 3,
     "built-in/format/doc.overview": 3,
     "built-in/tool/description": 2,
     "built-in/tool/doc.overview": 3,
     "plugin/format/doc.overview": 1,
-    "total": 17
+    "total": 15
   },
   "gaps": [
     {
@@ -65,20 +65,6 @@
       "id": "pdf",
       "field": "doc.overview",
       "detail": "no overview / rich documentation"
-    },
-    {
-      "kind": "format",
-      "source": "built-in",
-      "id": "rtf",
-      "field": "doc.examples",
-      "detail": "configurable but no worked examples"
-    },
-    {
-      "kind": "format",
-      "source": "built-in",
-      "id": "tex",
-      "field": "doc.examples",
-      "detail": "configurable but no worked examples"
     },
     {
       "kind": "format",

@@ -119,39 +119,37 @@ families:
     description: >-
       Marked-up text documents with native inline styling and block
       structure.
-    examples: [html, epub, markdown, mdx, wiki, tex, doxygen, jsx]
+    examples: [html, epub, markdown, mdx, jsx]
   office-doc:
     description: >-
       Word-processor / DTP document formats with styled runs, structural
       styles, and review features.
-    examples: [openxml, odf, rtf, idml, icml, mif]
+    examples: [openxml, odf]
   bilingual-interchange:
     description: >-
       Localization interchange formats built around source/target pairs and
       typed inline codes.
-    examples: [xliff, xliff2, tmx, ts, ttx, txml]
+    examples: [xliff, xliff2, tmx, ts]
   catalog-keyvalue:
     description: >-
       String-resource catalogs keyed by identifier; values are messages,
       possibly with placeholders and plural machinery.
     examples: [json, yaml, properties, po, mo, resx, androidxml,
-      applestrings, arb, xcstrings, i18next, designtokens, messageformat,
-      dtd, phpcontent]
+      applestrings, arb, xcstrings, i18next, designtokens, messageformat]
   subtitle-timedtext:
     description: >-
       Timed-text and subtitle formats: cues with timing, limited inline
       styling.
-    examples: [srt, vtt, ttml]
+    examples: [srt, vtt]
   plain-text:
     description: >-
       Unmarked text; structure is lines/paragraphs only.
-    examples: [plaintext, paraplaintext, mosestext, versifiedtext,
-      splicedlines]
+    examples: [plaintext]
   data-config:
     description: >-
       Structured data and configuration carriers; translatable strings are
       embedded in cells/fields, semantics live in the surrounding structure.
-    examples: [csv, xml, fixedwidth, transtable, regex, vignette]
+    examples: [csv, xml]
   binary-readonly:
     description: >-
       Binary or render-oriented formats neokapi reads but does not write
@@ -676,7 +674,7 @@ constructs:
     model_mapping: block:type
     block_type: paragraph
     xliff_module: fs
-    notes: HTML p; OOXML w:p; paraplaintext's unit of extraction.
+    notes: HTML p; OOXML w:p; plaintext's paragraph unit of extraction.
     default_expressibility:
       rich-markup: true
       office-doc: true
@@ -713,8 +711,7 @@ constructs:
     block_type: cell
     xliff_module: fs
     notes: >-
-      HTML td/th; OOXML w:tc; the natural block kind for csv / fixedwidth /
-      transtable fields.
+      HTML td/th; OOXML w:tc; the natural block kind for csv fields.
     default_expressibility:
       rich-markup: true
       office-doc: true

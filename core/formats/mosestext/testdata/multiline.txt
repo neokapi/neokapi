@@ -1,5 +1,0 @@
-First line of text
-Second line with special chars: <test> & "quotes"
-
-Fourth line after empty line
-Fifth line

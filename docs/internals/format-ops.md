@@ -235,7 +235,7 @@ Structured fields with non-obvious semantics:
   **versioned by the rubric they were graded under**. Calibration refuses
   cross-rubric comparison; a rubric change queues a re-adjudication `pending`
   item scoped to the axes the change touched. The golden set uses `po`, not
-  `mo` (`mo` is the standing retirement candidate); replacing a golden member
+  `mo`; replacing a golden member
   is itself a recorded procedure (adjudicate the substitute, note the
   discontinuity in `runs[]`).
 - **`corpus-census.external_verification`**: per-file results of re-fetching

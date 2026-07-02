@@ -391,26 +391,18 @@ func discoverCompanions(t *testing.T, inputAbs string) map[string][]byte {
 var canonClassByFormat = map[string]roundtrip.CanonClass{
 	// XML / zip family — skeleton-exact native vs okapi XML re-serialization.
 	"openxml": roundtrip.CanonFaithful,
-	"idml":    roundtrip.CanonFaithful,
 	"odf":     roundtrip.CanonFaithful,
 	"xliff":   roundtrip.CanonFaithful,
 	"xliff2":  roundtrip.CanonFaithful,
 	"xml":     roundtrip.CanonFaithful,
 	"tmx":     roundtrip.CanonFaithful,
 	"ts":      roundtrip.CanonFaithful,
-	"icml":    roundtrip.CanonFaithful,
 	"html":    roundtrip.CanonFaithful,
-	"ttx":     roundtrip.CanonFaithful,
 	// Text formats — native preserves source bytes; okapi normalizes line
 	// endings, adds trailing newlines, reflows whitespace, or re-parses.
-	"wiki":       roundtrip.CanonFaithful,
 	"properties": roundtrip.CanonFaithful,
 	"markdown":   roundtrip.CanonFaithful,
 	"vtt":        roundtrip.CanonFaithful,
-	"phpcontent": roundtrip.CanonFaithful,
-	"tex":        roundtrip.CanonFaithful,
-	"dtd":        roundtrip.CanonFaithful,
-	"doxygen":    roundtrip.CanonFaithful,
 	"po":         roundtrip.CanonFaithful,
 	// yaml: the genuine closeable case (Test01.yml mixing CRLF/LF on
 	// re-encoded scalars) is now fixed to byte-equal. The residual canon
@@ -448,49 +440,6 @@ func coverageScans() []formatScan {
 			extensions:  []string{".txt"},
 			normalizer:  roundtrip.LFLineEndings{},
 			minTier:     map[string]roundtrip.Tier{"native": roundtrip.TierDivergent},
-		},
-		{
-			formatID:      "paraplaintext",
-			filterClass:   "okf_paraplaintext",
-			explicitFiles: []string{"integration-tests/okapi/src/test/resources/plaintext/test_paragraphs1.txt"},
-			normalizer:    roundtrip.LFLineEndings{},
-			minTier:       map[string]roundtrip.Tier{"native": roundtrip.TierDivergent},
-		},
-		{
-			// Splicedlines is an okf_plaintext config variant exposed
-			// in the bridge as `okf_splicedlines` (default config is
-			// the backslash splicer, matching the canonical fixtures).
-			formatID:    "splicedlines",
-			filterClass: "okf_splicedlines",
-			explicitFiles: []string{
-				"okapi/filters/plaintext/src/test/resources/combined_lines.txt",
-				"okapi/filters/plaintext/src/test/resources/combined_lines_end.txt",
-				"okapi/filters/plaintext/src/test/resources/combined_lines2.txt",
-			},
-		},
-		{
-			// Mosestext: upstream ships Test01/Test02 and an XLIFF
-			// backref pair; we round-trip the .txt source files.
-			//
-			// useCodeFinder + the rules below carve XML-style inline
-			// markup (`<mrk mtype="seg">`, `<lb/>`, `</mrk>`) and named
-			// entity references (`&lt;`, `&amp;`) out of the source as
-			// placeholder runs so they round-trip as literal codes
-			// instead of being pseudo-translated character by character.
-			// okapi's mosestext filter recognises the same constructs as
-			// inline codes by default; this is the parity-equivalent
-			// config on the native side.
-			formatID:    "mosestext",
-			filterClass: "okf_mosestext",
-			sources:     []string{"okapi/filters/mosestext/src/test/resources"},
-			extensions:  []string{".txt"},
-			nativeConfig: map[string]any{
-				"useCodeFinder": true,
-				"codeFinderRules": []any{
-					`<[^>]+>`,
-					`&[a-zA-Z][a-zA-Z0-9]*;`,
-				},
-			},
 		},
 
 		// ── HTML / markup ─────────────────────────────────────────
@@ -549,13 +498,6 @@ func coverageScans() []formatScan {
 			minTier: map[string]roundtrip.Tier{
 				"native": roundtrip.TierCanonicalEqual,
 			},
-		},
-		{
-			formatID:    "wiki",
-			filterClass: "okf_wiki",
-			sources:     []string{"integration-tests/okapi/src/test/resources/wikitext"},
-			extensions:  []string{".wiki"},
-			normalizer:  roundtrip.IgnoreTrailingNewline{},
 		},
 
 		// ── Key-value & structured data ───────────────────────────
@@ -677,21 +619,6 @@ func coverageScans() []formatScan {
 			// — both sides round-trip through gopkg.in/yaml.v3.
 			normalizer: roundtrip.YAMLCanonical{},
 		},
-		{
-			// Phpcontent has no integration-tests dir — fall back to
-			// the unit-test resources dir.
-			formatID:    "phpcontent",
-			filterClass: "okf_phpcontent",
-			sources:     []string{"okapi/filters/php/src/test/resources"},
-			extensions:  []string{".phpcnt"},
-			// okapi normalises heredoc line-endings to LF and emits a
-			// trailing newline; native preserves source CRLF and omits
-			// the trailing newline. Both are valid PHP — fold to canonical.
-			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
-				roundtrip.LFLineEndings{},
-				roundtrip.IgnoreTrailingNewline{},
-			}},
-		},
 
 		// ── Tabular ───────────────────────────────────────────────
 		{
@@ -728,27 +655,6 @@ func coverageScans() []formatScan {
 				"hasHeader":           false,
 				"translatableColumns": []any{1},
 			},
-		},
-		{
-			formatID:    "fixedwidth",
-			filterClass: "okf_fixedwidthcolumns",
-			explicitFiles: []string{
-				"okapi/filters/table/src/test/resources/fwc_test4.txt",
-				"okapi/filters/table/src/test/resources/fwc_test5.txt",
-			},
-		},
-
-		// ── Code/markup ───────────────────────────────────────────
-		{
-			formatID:    "doxygen",
-			filterClass: "okf_doxygen",
-			sources:     []string{"integration-tests/okapi/src/test/resources/doxygen"},
-			extensions:  []string{".h", ".py"},
-			// special_commands.h has cosmetic whitespace divergences
-			// (blank-line indentation inside non-star-decorated blocks,
-			// paragraph reflow in \note / @copydoc, trailing space on
-			// one prose line). The canonical normalizer absorbs these.
-			normalizer: roundtrip.DoxygenCanonical{},
 		},
 
 		// ── XML / bilingual exchange formats ──────────────────────
@@ -917,73 +823,6 @@ func coverageScans() []formatScan {
 			// TS is XML (Qt Linguist); same canonical normalizer.
 			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
 		},
-		{
-			// Trados TTX bilingual XML — 4 fixtures upstream. The
-			// upstream .ttx files are UTF-16 LE with BOM (TRADOS
-			// convention); native handles that via encoding.ToUTF8
-			// in the ttx reader (see core/formats/ttx/reader.go).
-			//
-			// Like xliff2, TTX is bilingual on disk: each <Tu> has
-			// <Tuv Lang="EN-US"> + <Tuv Lang="FR-FR"> pairs. Okapi's
-			// PseudoTranslationStep ignores the existing target and
-			// pseudo-translates the source, then writes the pseudo'd
-			// source into the target Tuv. bridgeForcePseudoSourceBase
-			// mirrors that for the bridge daemon (the Go side's
-			// applyPseudoToBlock defaults to using the existing target
-			// as the pseudo base — same flag fix that xliff2 uses).
-			//
-			// Per-fixture divergences are annotated in
-			// core/formats/ttx/parity-annotations.yaml.
-			formatID:                    "ttx",
-			filterClass:                 "okf_ttx",
-			sources:                     []string{"okapi/filters/ttx/src/test/resources"},
-			extensions:                  []string{".ttx"},
-			normalizer:                  roundtrip.XMLCanonical{SortAttrs: true},
-			bridgeForcePseudoSourceBase: true,
-			minTier: map[string]roundtrip.Tier{
-				"native": roundtrip.TierDivergent,
-				"bridge": roundtrip.TierDivergent,
-			},
-		},
-		{
-			// TXML bilingual XML — 3 fixtures: Test01.docx.txml,
-			// Test02.html.txml, Test03.mif.txml. All three are
-			// structurally identical to the Okapi reference after XML
-			// canonicalization; the residual byte diffs are Okapi
-			// normalizing source metadata that Wordfast (and native)
-			// preserve verbatim — targetlocale FR→fr, and dropped
-			// modified/unconfirmed attrs + recomputed gtmt on the
-			// regenerated <segment> tag. native-more-correct, documented
-			// in core/formats/txml/parity-annotations.yaml.
-			formatID:    "txml",
-			filterClass: "okf_txml",
-			sources:     []string{"okapi/filters/txml/src/test/resources"},
-			extensions:  []string{".txml"},
-			normalizer:  roundtrip.XMLCanonical{SortAttrs: true},
-			minTier: map[string]roundtrip.Tier{
-				"native": roundtrip.TierDivergent,
-				"bridge": roundtrip.TierDivergent,
-			},
-		},
-		{
-			// Vignette CMS XML — 1 fixture (Test01.xml). XML extension
-			// shared with many formats; cherry-pick via explicitFiles
-			// to keep this scan tight. The harness drives src=en/tgt=fr;
-			// Test01.xml carries only en_US/es_ES/zh_CN locale instances,
-			// so Okapi's locale-pair-driven VignetteFilter extracts
-			// nothing (no LOCALE_ID == fr) and emits the file unchanged.
-			// Native now honours the requested target locale the same way
-			// (reader.go emitBlocks bilingual gate), so both engines are
-			// byte-equal to the reference.
-			formatID:      "vignette",
-			filterClass:   "okf_vignette",
-			explicitFiles: []string{"okapi/filters/vignette/src/test/resources/Test01.xml"},
-			normalizer:    roundtrip.XMLCanonical{SortAttrs: true},
-			minTier: map[string]roundtrip.Tier{
-				"native": roundtrip.TierByteEqual,
-				"bridge": roundtrip.TierByteEqual,
-			},
-		},
 
 		// ── Subtitle / timed-text ─────────────────────────────────
 		{
@@ -1016,30 +855,6 @@ mergeCaptions.b=false
 				roundtrip.VTTCueFlattenWS{},
 			}},
 		},
-		{
-			// Same mergeCaptions story as VTT.
-			formatID:    "ttml",
-			filterClass: "okf_ttml",
-			sources:     []string{"integration-tests/okapi/src/test/resources/ttml"},
-			extensions:  []string{".ttml"},
-			okapiParamConfig: `#v1
-timeFormat=HH:mm:ss.SSS
-maxLinesPerCaption.i=2
-maxCharsPerLine.i=47
-cjkCharsPerLine.i=18
-mergeCaptions.b=false
-`,
-			bridgeParams: map[string]string{"mergeCaptions": "false"},
-			// Native default replaces <br/> with a space; okapi preserves
-			// <br/> as literal text inside the translatable unit. Override
-			// to match okapi's semantic — without this, native diverges
-			// on every fixture that contains <br/>.
-			nativeConfig: map[string]any{
-				"escapeBR": false,
-			},
-			// TTML is XML; same canonical normalizer.
-			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
-		},
 		// srt + regex are intentionally NOT scanned here:
 		//
 		//   srt — upstream Okapi has no dedicated okf_subrip filter;
@@ -1061,114 +876,6 @@ mergeCaptions.b=false
 		//   wiring is a separate test-infrastructure change (formatScan
 		//   needs a fixtureToFprm map and the engines need to consume it).
 
-		// ── Misc text formats ─────────────────────────────────────
-		{
-			// /dtd/ exists in integration-tests but is empty; fall
-			// back to the unit-test resources where Test01/Test02 live.
-			formatID:    "dtd",
-			filterClass: "okf_dtd",
-			sources:     []string{"okapi/filters/dtd/src/test/resources"},
-			extensions:  []string{".dtd"},
-			// okapi DTDFilter defaults useCodeFinder=true with one rule —
-			// HTML tag detection — and nothing else. Native default is off,
-			// so HTML markup inside entity values gets pseudo-translated
-			// character by character (`<i>HTML</i>` → `<ĩ>ĤŢMĹ</ĩ>`).
-			nativeConfig: map[string]any{
-				"useCodeFinder": true,
-				"codeFinderRules": []any{
-					`</?([A-Z0-9a-z]*)\b[^>]*>`,
-				},
-			},
-			// okapi strips blank lines between declarations on round-
-			// trip; our skeleton-driven writer preserves them. okapi
-			// also re-parses every declaration through `com.wutka.dtd
-			// .DTDParser` and re-serialises through `DTDOutput`, which
-			// inlines parameter-entity refs (`%name;` → its value),
-			// folds quote style to `"`, normalises spacing inside
-			// content-model parens (`(a, b)` ↔ `(a,b)` ↔ `( a | b)`),
-			// and strips per-line leading whitespace. Run the source-
-			// preserving native bytes and the okapi reference through
-			// a shared canonicaliser so all those stylistic choices
-			// collapse to one form before comparison.
-			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
-				roundtrip.DTDCanonical{},
-				roundtrip.IgnoreTrailingNewline{},
-				roundtrip.CollapseBlankLines{},
-			}},
-		},
-		{
-			formatID:    "tex",
-			filterClass: "okf_tex",
-			sources:     []string{"integration-tests/okapi/src/test/resources/tex"},
-			extensions:  []string{".tex"},
-			// okapi normalises CRLF → LF on round-trip; native preserves
-			// source line endings. Both are valid LaTeX. okapi also
-			// appends an extra trailing newline on output that the source
-			// doesn't have — IgnoreTrailingNewline folds that asymmetry.
-			normalizer: roundtrip.Chain{Steps: []roundtrip.Normalizer{
-				roundtrip.LFLineEndings{},
-				roundtrip.IgnoreTrailingNewline{},
-			}},
-		},
-		{
-			formatID:    "transtable",
-			filterClass: "okf_transtable",
-			sources:     []string{"integration-tests/okapi/src/test/resources/transtable"},
-			extensions:  []string{".txt"},
-		},
-
-		// ── Binary / compound formats ─────────────────────────────
-		{
-			// Upstream filter dir has the curated round-trip set
-			// (~70 .idml fixtures). Bridge passes ~24 of 70; the
-			// remaining 46 are skipped per-file via idmlBridgeSkips()
-			// (kept in coverage_skips_test.go to keep this file readable).
-			formatID:    "idml",
-			filterClass: "okf_idml",
-			sources:     []string{"okapi/filters/idml/src/test/resources"},
-			extensions:  []string{".idml"},
-			isZip:       true,
-			// IDML is a zip of XML. okapi emits XML decls with
-			// single-quoted attrs ('1.0' encoding='UTF-8'); native
-			// emits double-quoted ("1.0" encoding="UTF-8"). Beyond the
-			// decl, okapi rewrites every IDML zip entry through its
-			// own XML reader/writer cycle which strips
-			// non-significant inter-element whitespace, reorders
-			// attributes, and (importantly) alphabetises the children
-			// of `<Properties>` containers (`BasedOn,PreviewColor,
-			// AppliedFont` becomes `AppliedFont,BasedOn,
-			// PreviewColor`). Pure byte parity is unrealistic, so we
-			// chain XMLCanonical with attr-sort + child-sort to
-			// capture the structural equivalence.
-			normalizer: roundtrip.ZipEntryNormalizer{Inner: roundtrip.Chain{Steps: []roundtrip.Normalizer{
-				roundtrip.StripXMLDeclaration{},
-				roundtrip.XMLCanonical{
-					SortAttrs:             true,
-					SortChildElements:     true,
-					MergeAdjacentCSRs:     true,
-					MergeDefaultCSRs:      true,
-					StripEmptyIDMLContent: true,
-					StripIDMLACEPIs:       true,
-					UnwrapIDMLXMLElement:  true,
-					StripEmptyIDMLPSRCSR:  true,
-				},
-			}}},
-		},
-		{
-			// 5 fixtures crash upstream Okapi's icml merge; 7 more
-			// diverge in bridge's inline-rewrite path. Bridge passes
-			// 2 of 9 testable fixtures. icmlMergedSkips() returns
-			// both buckets in one map.
-			formatID:    "icml",
-			filterClass: "okf_icml",
-			sources:     []string{"integration-tests/okapi/src/test/resources/icml"},
-			extensions:  []string{".icml", ".wcml"},
-			// ICML is Adobe InDesign XML; same canonical normalizer as
-			// other XML formats reaches canonical-equal when source and
-			// reference differ only in attribute order or non-significant
-			// whitespace.
-			normalizer: roundtrip.XMLCanonical{SortAttrs: true},
-		},
 		{
 			// 185 .docx fixtures in the upstream filter dir. Bridge
 			// passes ~61 of 185; the other 124 are skipped per-file
@@ -1257,14 +964,6 @@ mergeCaptions.b=false
 			}},
 		},
 		{
-			// Bridge passes ~2 of 41 fixtures; the rest are flagged
-			// per-file via mifBridgeSkips().
-			formatID:    "mif",
-			filterClass: "okf_mif",
-			sources:     []string{"integration-tests/okapi/src/test/resources/mif"},
-			extensions:  []string{".mif"},
-		},
-		{
 			// PDF — 3 upstream fixtures. PDF has no in-core native engine:
 			// it is read out-of-core by the kapi-pdfium plugin (read-only,
 			// not in this harness). Bridge runs through okapi's PDFFilter
@@ -1281,25 +980,6 @@ mergeCaptions.b=false
 			formatDefaultSkip: fileSkip{
 				Engines: []string{"native"},
 				Reason:  "no in-core native pdf engine (read out-of-core by the kapi-pdfium plugin)",
-			},
-		},
-		{
-			// RTF — 6 upstream fixtures. Per the existing PARITY_NOTES
-			// commentary, upstream Okapi's only RTF round-trip path
-			// goes through okf_tradosrtf (a separate filter that
-			// expects TRADOS bilingual RTF, not plain RTF). The
-			// okf_rtf filter exists but doesn't have an end-to-end
-			// pseudo pipeline that matches the upstream test fixtures.
-			// formatDefaultSkip[okapi] keeps the scan visible — the
-			// dashboard shows "all-okapi-skipped" rather than
-			// scan-missing — without crashing on the okapi reference.
-			formatID:    "rtf",
-			filterClass: "okf_rtf",
-			sources:     []string{"okapi/filters/rtf/src/test/resources"},
-			extensions:  []string{".rtf"},
-			formatDefaultSkip: fileSkip{
-				Engines: []string{"okapi"},
-				Reason:  "upstream Okapi has no usable okf_rtf pseudo pipeline (only okf_tradosrtf works end-to-end); the .rtf corpus here is reference material for tradosrtf",
 			},
 		},
 

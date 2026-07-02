@@ -19,7 +19,7 @@ func TestParityKnowledgeFromSpecYAML(t *testing.T) {
 	// Load-all probe: every core/formats/*/spec.yaml must load + validate.
 	idx, err := loadSpecIndex()
 	require.NoError(t, err, "every core/formats/*/spec.yaml must load and validate")
-	require.GreaterOrEqual(t, len(idx), 40, "spec index should cover the format corpus")
+	require.GreaterOrEqual(t, len(idx), 30, "spec index should cover the format corpus (33 native formats since the 2026-07 legacy purge)")
 
 	// Every formatSpecs row resolves cleanly and yields a non-empty bridge
 	// filter class (the dispatch key sent to BridgeService.Process).
@@ -60,11 +60,7 @@ func TestParityKnowledgeFromSpecYAML(t *testing.T) {
 		// so it has no spec.yaml and keeps an inline SkipBinary on its
 		// formatSpecs row, like the other bridge-only rows (okf_odf, okf_archive).
 		for _, id := range []string{
-			"okf_phpcontent", "okf_doxygen", "okf_tex", "okf_transtable",
-			"okf_commaseparatedvalues", "okf_fixedwidthcolumns", "okf_ttx",
-			"okf_txml", "okf_vignette", "okf_ttml",
-			"okf_idml", "okf_icml", "okf_openxml", "okf_openoffice",
-			"okf_mif", "okf_rtf",
+			"okf_commaseparatedvalues", "okf_openxml", "okf_openoffice",
 		} {
 			got, err := resolveParity(FormatSpec{ID: id})
 			require.NoError(t, err)
