@@ -29,7 +29,7 @@ ship_gate: { translated: 100, reviewed: 100 }
 	// A catch-all gate applies to any (collection, locale).
 	g, ok := rs.Resolve("docs", "nb")
 	require.True(t, ok)
-	assert.Equal(t, gate.Gate{"translated": 100, "reviewed": 100}, g)
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 100}}, g)
 }
 
 func TestShipGates_RuleList_MostSpecificWins(t *testing.T) {
@@ -49,16 +49,16 @@ ship_gates:
 	require.NoError(t, err)
 
 	g, _ := rs.Resolve("docs", "nb")
-	assert.Equal(t, gate.Gate{"translated": 100, "reviewed": 50}, g)
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 50}}, g)
 
 	g, _ = rs.Resolve("legal", "nb")
-	assert.Equal(t, gate.Gate{"signed-off": 100}, g, "2-axis rule wins")
+	assert.Equal(t, gate.Gate{"signed-off": {Pct: 100}}, g, "2-axis rule wins")
 
 	g, _ = rs.Resolve("ui", "ja")
-	assert.Equal(t, gate.Gate{"translated": 100, "reviewed": 0}, g)
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 0}}, g)
 
 	g, _ = rs.Resolve("ui", "de")
-	assert.Equal(t, gate.Gate{"translated": 100, "reviewed": 100}, g, "falls to default")
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 100}}, g, "falls to default")
 }
 
 func TestShipGates_NamedRegistryReference(t *testing.T) {
@@ -76,9 +76,9 @@ ship_gates:
 	require.NoError(t, err)
 
 	g, _ := rs.Resolve("docs", "ja")
-	assert.Equal(t, gate.Gate{"translated": 100, "reviewed": 0}, g, "name expands to registry gate")
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 0}}, g, "name expands to registry gate")
 	g, _ = rs.Resolve("docs", "ko")
-	assert.Equal(t, gate.Gate{"translated": 100, "reviewed": 0}, g)
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 0}}, g)
 }
 
 func TestShipGates_UnknownRegistryName(t *testing.T) {
@@ -136,5 +136,41 @@ ship_gates:
 	require.NoError(t, err)
 	g, ok := rs.Resolve("docs", "ja")
 	require.True(t, ok)
-	assert.Equal(t, gate.Gate{"translated": 100, "reviewed": 0}, g)
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 0}}, g)
+}
+
+func TestShipGate_ApproverClassExtendedForm(t *testing.T) {
+	p := loadProject(t, `
+version: v1
+name: app
+gates:
+  ship: { translated: 100, reviewed: { pct: 100, by: human } }
+ship_gates:
+  - gate: ship
+  - when: { locales: [ja] }
+    gate: { reviewed: { pct: 80, by: any } }
+`)
+	rs, err := p.BuildShipGates()
+	require.NoError(t, err)
+
+	g, ok := rs.Resolve("", "nb")
+	require.True(t, ok)
+	assert.Equal(t, gate.Gate{
+		"translated": {Pct: 100},
+		"reviewed":   {Pct: 100, By: gate.ByHuman},
+	}, g, "registry gate carries the extended-form approver class")
+
+	g, _ = rs.Resolve("", "ja")
+	assert.Equal(t, gate.Gate{"reviewed": {Pct: 80, By: gate.ByAny}}, g)
+}
+
+func TestShipGate_UnknownApproverClassRejected(t *testing.T) {
+	p := loadProject(t, `
+version: v1
+name: app
+ship_gate: { reviewed: { pct: 100, by: robot } }
+`)
+	_, err := p.BuildShipGates()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "approver class")
 }
