@@ -7,6 +7,7 @@ import {
   FileText,
   Loader2,
   RefreshCw,
+  Sparkles,
   Undo2,
   X,
 } from "lucide-react";
@@ -14,7 +15,16 @@ import { Badge, Button, Card, CardContent, LocalePill, ScrollArea } from "@neoka
 import { t } from "@neokapi/kapi-react/runtime";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
-import type { DesktopFinding, ReviewItem, ReviewUnitDetail } from "../types/api";
+import type {
+  DesktopFinding,
+  PreReviewPolicy,
+  PreReviewResult,
+  PreReviewScope,
+  ReviewAIActionKind,
+  ReviewAIActionResult,
+  ReviewItem,
+  ReviewUnitDetail,
+} from "../types/api";
 
 /** Initial queue narrowing handed in by an entry point (a ship-gate cell or a
  *  timeline tag on the Collections surface). */
@@ -37,6 +47,18 @@ export interface ReviewPageProps {
   onDecide?: (item: ReviewItem, decision: ReviewDecision, note?: string) => Promise<void>;
   /** Override the target-save handler (Storybook/tests); defaults to api.updateReviewTarget. */
   onSaveTarget?: (item: ReviewItem, text: string) => Promise<void>;
+  /** Override the per-unit AI action (Storybook/tests); defaults to api.reviewAIAction. */
+  onAIAction?: (
+    item: ReviewItem,
+    action: ReviewAIActionKind,
+    instruction: string,
+  ) => Promise<ReviewAIActionResult | null>;
+  /** Override the pre-review runner (Storybook/tests); defaults to api.runAIPreReview. */
+  onPreReview?: (
+    locale: string,
+    scope: PreReviewScope,
+    policy: PreReviewPolicy,
+  ) => Promise<PreReviewResult | null>;
 }
 
 type Chip = "all" | "findings" | "clean";
@@ -74,14 +96,21 @@ function severityBadgeClass(severity: string): string {
 }
 
 /**
- * The translation review surface (issue #1077, phases 1–2): a keyboard-first
+ * The translation review surface (issue #1077, phases 1–3): a keyboard-first
  * three-pane page — the queue on the left (findings-first, filterable by
  * findings/locale/collection), the unit in the center (read-only SOURCE,
  * editable TARGET), and the unit's CHECKS findings + CONTEXT (state, note,
- * provenance, TM match) below. Every decision (a approve / r reject / s sign
- * off) records through cli.ApplyReviewDecision, hash-bound to the translation
- * it judged; editing the target re-runs the unit's checks and re-bases the
- * next approval on the new text.
+ * provenance, TM match, AI review score) below. Every decision (a approve /
+ * r reject / s sign off) records through cli.ApplyReviewDecision, hash-bound
+ * to the translation it judged; editing the target re-runs the unit's checks
+ * and re-bases the next approval on the new text.
+ *
+ * Phase 3 adds AI: per-unit actions (Fix with AI / Retranslate… / Explain)
+ * that yield a proposal diff — nothing is written until Accept, which routes
+ * through the same save path as a manual edit — and the AI pre-review modal
+ * (annotate-only by default; optional auto-approve recorded as ai/<model>,
+ * which human-required gates deliberately ignore). Provider calls happen only
+ * on these explicit clicks, never while listing or loading the queue.
  */
 export function ReviewPage({
   tabID,
@@ -90,6 +119,8 @@ export function ReviewPage({
   loadUnit,
   onDecide,
   onSaveTarget,
+  onAIAction,
+  onPreReview,
 }: ReviewPageProps) {
   const { showError } = useError();
   const [queue, setQueue] = useState<ReviewItem[] | null>(propItems ?? null);
@@ -104,6 +135,19 @@ export function ReviewPage({
   const [saving, setSaving] = useState(false);
   const [deciding, setDeciding] = useState(false);
   const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
+  // Per-unit AI actions (phase 3): a running action, the proposed replacement
+  // shown as a diff (Accept routes through the save-target path), and the
+  // explain text.
+  const [aiBusy, setAIBusy] = useState<ReviewAIActionKind | null>(null);
+  const [aiProposal, setAIProposal] = useState<string | null>(null);
+  const [aiExplanation, setAIExplanation] = useState<string | null>(null);
+  // AI pre-review modal state.
+  const [preReviewOpen, setPreReviewOpen] = useState(false);
+  const [preReviewAuto, setPreReviewAuto] = useState(false);
+  const [preReviewMinScore, setPreReviewMinScore] = useState(90);
+  const [preReviewRunning, setPreReviewRunning] = useState(false);
+  const [preReviewResult, setPreReviewResult] = useState<PreReviewResult | null>(null);
+  const [reviewerModel, setReviewerModel] = useState<string>("");
   const editRef = useRef<HTMLTextAreaElement>(null);
 
   const refreshQueue = useCallback(async () => {
@@ -163,8 +207,11 @@ export function ReviewPage({
     }
   }, [visible, selectedId]);
 
-  // Load the unit detail when the selection changes.
+  // Load the unit detail when the selection changes. Any pending AI proposal
+  // or explanation belongs to the previous unit — drop it.
   useEffect(() => {
+    setAIProposal(null);
+    setAIExplanation(null);
     if (!selected) {
       setUnit(null);
       setEditText("");
@@ -273,6 +320,133 @@ export function ReviewPage({
       setSaving(false);
     }
   }, [selected, unit, editText, tabID, onSaveTarget, loadUnit, showError]);
+
+  // Per-unit AI actions — the only review paths that call a provider, and only
+  // on explicit click. Fix/retranslate yield a PROPOSAL (diff + Accept/Discard);
+  // explain yields text. Nothing is written until Accept, which routes through
+  // the same save-target path as a manual edit.
+  const runAIAction = useCallback(
+    async (action: ReviewAIActionKind) => {
+      if (!selected || aiBusy) return;
+      let instruction = "";
+      if (action === "retranslate") {
+        const answer = window.prompt(
+          t(
+            "Retranslate with AI — what should change? (e.g. “more informal”, “keep it under 40 characters”)",
+          ),
+          "",
+        );
+        if (answer === null || answer.trim() === "") return;
+        instruction = answer;
+      }
+      setAIBusy(action);
+      setAIExplanation(null);
+      if (action !== "explain") setAIProposal(null);
+      try {
+        const run =
+          onAIAction ??
+          ((it: ReviewItem, act: ReviewAIActionKind, ins: string) =>
+            api.reviewAIAction(tabID, it.locale, it.file, it.key, act, ins));
+        const res = await run(selected, action, instruction);
+        if (!res) return;
+        if (action === "explain") {
+          setAIExplanation(res.explanation ?? "");
+        } else if (res.proposed_target) {
+          setAIProposal(res.proposed_target);
+        }
+      } catch (err) {
+        showError("AI action failed", err);
+      } finally {
+        setAIBusy(null);
+      }
+    },
+    [selected, aiBusy, tabID, onAIAction, showError],
+  );
+
+  // Accept the AI proposal: write it through the same path a manual edit takes
+  // (UpdateReviewTarget), then re-load the unit so checks re-run and the next
+  // approval binds to the new text.
+  const acceptProposal = useCallback(async () => {
+    if (!selected || !unit || aiProposal === null) return;
+    setSaving(true);
+    try {
+      if (onSaveTarget) {
+        await onSaveTarget(selected, aiProposal);
+      } else {
+        await api.updateReviewTarget(
+          tabID,
+          selected.locale,
+          selected.file,
+          selected.key,
+          aiProposal,
+        );
+      }
+      setAIProposal(null);
+      const load =
+        loadUnit ?? ((it: ReviewItem) => api.getReviewUnit(tabID, it.locale, it.file, it.key));
+      const d = await load(selected);
+      setUnit(d ?? null);
+      setEditText(d?.target ?? aiProposal);
+      if (d) {
+        const has = d.findings.length > 0;
+        setQueue((q) =>
+          (q ?? []).map((it) =>
+            itemId(it) === itemId(selected) ? { ...it, target: d.target, hasFindings: has } : it,
+          ),
+        );
+      }
+    } catch (err) {
+      showError("Failed to apply the AI proposal", err);
+    } finally {
+      setSaving(false);
+    }
+  }, [selected, unit, aiProposal, tabID, onSaveTarget, loadUnit, showError]);
+
+  // AI pre-review modal: load the reviewer model for display when it opens.
+  useEffect(() => {
+    if (!preReviewOpen) return;
+    void api.getDefaultModel().then((info) => {
+      if (info) setReviewerModel(info.model || info.provider || "");
+    });
+  }, [preReviewOpen]);
+
+  const preReviewPending = useMemo(() => {
+    let items = queue ?? [];
+    if (localeFilter) items = items.filter((it) => it.locale === localeFilter);
+    if (collectionFilter) items = items.filter((it) => (it.collection ?? "") === collectionFilter);
+    return items;
+  }, [queue, localeFilter, collectionFilter]);
+
+  const runPreReview = useCallback(async () => {
+    setPreReviewRunning(true);
+    setPreReviewResult(null);
+    try {
+      const run =
+        onPreReview ??
+        ((locale: string, sc: PreReviewScope, policy: PreReviewPolicy) =>
+          api.runAIPreReview(tabID, locale, sc, policy));
+      const res = await run(
+        localeFilter,
+        { collection: collectionFilter || undefined },
+        { autoApprove: preReviewAuto, minScore: preReviewMinScore },
+      );
+      setPreReviewResult(res ?? null);
+      await refreshQueue();
+    } catch (err) {
+      showError("AI pre-review failed", err);
+    } finally {
+      setPreReviewRunning(false);
+    }
+  }, [
+    tabID,
+    onPreReview,
+    localeFilter,
+    collectionFilter,
+    preReviewAuto,
+    preReviewMinScore,
+    refreshQueue,
+    showError,
+  ]);
 
   // Keyboard-first: j/k navigate, a approve, r reject, s sign off, space skip,
   // e focuses the target editor. Typing in the editor is left alone (Escape
@@ -426,6 +600,19 @@ export function ReviewPage({
           <Button
             variant="outline"
             size="xs"
+            onClick={() => {
+              setPreReviewResult(null);
+              setPreReviewOpen(true);
+            }}
+            disabled={loadingQueue || (queue ?? []).length === 0}
+            data-slot="review-prereview-open"
+          >
+            <Sparkles size={12} />
+            {t("AI pre-review…")}
+          </Button>
+          <Button
+            variant="outline"
+            size="xs"
             onClick={() => void refreshQueue()}
             disabled={loadingQueue}
             aria-label={t("Refresh the review queue")}
@@ -438,6 +625,129 @@ export function ReviewPage({
           </Button>
         </div>
       </div>
+
+      {/* AI pre-review modal: reviewer model, policy (annotate-only default),
+          scope summary, unit count; then progress and the result summary. */}
+      {preReviewOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          data-slot="review-prereview-modal"
+        >
+          <Card className="w-[26rem] max-w-[90vw]">
+            <CardContent className="space-y-3 p-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Sparkles size={14} className="text-primary" />
+                <span className="font-semibold">{t("AI pre-review")}</span>
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <div>
+                  {t("Reviewer model")}:{" "}
+                  <span className="text-foreground" translate="no">
+                    {reviewerModel || t("project default")}
+                  </span>
+                </div>
+                <div>
+                  {t("Scope")}:{" "}
+                  <span className="text-foreground">
+                    {localeFilter || t("all languages")}
+                    {collectionFilter ? ` · ${collectionFilter}` : ""}
+                  </span>{" "}
+                  — {t("{count} pending units", { count: preReviewPending.length })}
+                </div>
+              </div>
+              <div className="space-y-1.5 text-xs" role="radiogroup" aria-label={t("Policy")}>
+                <label className="flex items-start gap-2">
+                  <input
+                    type="radio"
+                    name="prereview-policy"
+                    checked={!preReviewAuto}
+                    onChange={() => setPreReviewAuto(false)}
+                    data-slot="review-prereview-annotate"
+                  />
+                  <span>
+                    <span className="font-medium">{t("Annotate only")}</span>{" "}
+                    <span className="text-muted-foreground">
+                      {t("— store score and findings; every decision stays yours.")}
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2">
+                  <input
+                    type="radio"
+                    name="prereview-policy"
+                    checked={preReviewAuto}
+                    onChange={() => setPreReviewAuto(true)}
+                    data-slot="review-prereview-auto"
+                  />
+                  <span>
+                    <span className="font-medium">
+                      {t("Auto-approve clean units scoring at least")}
+                    </span>{" "}
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={preReviewMinScore}
+                      onChange={(e) => setPreReviewMinScore(Number(e.target.value))}
+                      className="w-14 rounded border border-input bg-transparent px-1 text-xs"
+                      aria-label={t("Minimum score")}
+                    />{" "}
+                    <span className="text-muted-foreground">
+                      {t(
+                        "— approvals are recorded as ai/<model>; human-required gates ignore them.",
+                      )}
+                    </span>
+                  </span>
+                </label>
+              </div>
+              {preReviewResult && (
+                <div
+                  className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs"
+                  data-slot="review-prereview-result"
+                >
+                  {t("{approved} auto-approved · {left} left for you", {
+                    approved: preReviewResult.auto_approved,
+                    left: preReviewResult.remaining,
+                  })}
+                  {preReviewResult.skipped ? (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      ({t("{count} skipped", { count: preReviewResult.skipped })})
+                    </span>
+                  ) : null}
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPreReviewOpen(false)}
+                  disabled={preReviewRunning}
+                >
+                  {preReviewResult ? t("Close") : t("Cancel")}
+                </Button>
+                {!preReviewResult && (
+                  <Button
+                    size="sm"
+                    onClick={() => void runPreReview()}
+                    disabled={preReviewRunning || preReviewPending.length === 0}
+                    data-slot="review-prereview-run"
+                  >
+                    {preReviewRunning ? (
+                      <>
+                        <Loader2 size={12} className="animate-spin" />
+                        {t("Reviewing…")}
+                      </>
+                    ) : (
+                      t("Run pre-review")
+                    )}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Batch bar (Phase 2): approve all clean units in the current filter. */}
       {cleanVisible.length > 0 && (
@@ -534,6 +844,19 @@ export function ReviewPage({
                                   {it.key}
                                 </span>
                                 <LocalePill locale={it.locale} />
+                                {it.aiScore !== undefined && (
+                                  <span
+                                    className="rounded bg-muted px-1 text-[10px] tabular-nums text-muted-foreground"
+                                    title={
+                                      it.aiModel
+                                        ? t("AI review score ({model})", { model: it.aiModel })
+                                        : t("AI review score")
+                                    }
+                                    data-slot="review-queue-ai-score"
+                                  >
+                                    {t("ai {score}", { score: it.aiScore })}
+                                  </span>
+                                )}
                               </span>
                               <span
                                 className="block truncate text-muted-foreground"
@@ -640,8 +963,128 @@ export function ReviewPage({
                         </Button>
                       </div>
                     )}
+                    {/* Per-unit AI actions (phase 3): explicit clicks only. */}
+                    <div
+                      className="mt-2 flex flex-wrap items-center gap-2"
+                      data-slot="review-ai-actions"
+                    >
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => void runAIAction("fix-findings")}
+                        disabled={!unit || !unit.editable || aiBusy !== null || saving}
+                        data-slot="review-ai-fix"
+                      >
+                        {aiBusy === "fix-findings" ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <Sparkles size={12} />
+                        )}
+                        {t("Fix with AI")}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => void runAIAction("retranslate")}
+                        disabled={!unit || !unit.editable || aiBusy !== null || saving}
+                        data-slot="review-ai-retranslate"
+                      >
+                        {aiBusy === "retranslate" ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <Sparkles size={12} />
+                        )}
+                        {t("Retranslate…")}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => void runAIAction("explain")}
+                        disabled={!unit || aiBusy !== null}
+                        data-slot="review-ai-explain"
+                      >
+                        {aiBusy === "explain" ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                          <Sparkles size={12} />
+                        )}
+                        {t("Explain")}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
+
+                {/* AI proposal: current vs proposed, Accept / Discard. Accept
+                    routes through the same save path as a manual edit. */}
+                {aiProposal !== null && unit && (
+                  <Card data-slot="review-ai-proposal">
+                    <CardContent className="space-y-2 p-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {t("AI proposal")}
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1">
+                          <span className="mr-1 text-[10px] uppercase text-muted-foreground">
+                            {t("Current")}
+                          </span>
+                          <span className="whitespace-pre-wrap" translate="no">
+                            {unit.target}
+                          </span>
+                        </div>
+                        <div className="rounded-md border border-primary/30 bg-primary/5 px-2 py-1">
+                          <span className="mr-1 text-[10px] uppercase text-muted-foreground">
+                            {t("Proposed")}
+                          </span>
+                          <span className="whitespace-pre-wrap" translate="no">
+                            {aiProposal}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="xs"
+                          onClick={() => void acceptProposal()}
+                          disabled={saving}
+                          data-slot="review-ai-accept"
+                        >
+                          {saving ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <Check size={12} />
+                          )}
+                          {t("Accept")}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => setAIProposal(null)}
+                          disabled={saving}
+                          data-slot="review-ai-discard"
+                        >
+                          <X size={12} />
+                          {t("Discard")}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* AI explanation (read-only). */}
+                {aiExplanation !== null && (
+                  <Card data-slot="review-ai-explanation">
+                    <CardContent className="space-y-1 p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {t("AI explanation")}
+                        </div>
+                        <Button variant="ghost" size="xs" onClick={() => setAIExplanation(null)}>
+                          <X size={12} />
+                        </Button>
+                      </div>
+                      <div className="whitespace-pre-wrap text-xs">{aiExplanation}</div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* CHECKS: the unit's findings. */}
                 <Card data-slot="review-findings">
@@ -699,6 +1142,15 @@ export function ReviewPage({
                       <div className="flex items-center gap-1.5" data-slot="review-tm-score">
                         <span className="text-muted-foreground">{t("TM best match")}</span>
                         <span className="tabular-nums">{unit?.tm_score}%</span>
+                      </div>
+                    )}
+                    {unit?.ai_review_score !== undefined && (
+                      <div className="flex items-center gap-1.5" data-slot="review-ai-score">
+                        <span className="text-muted-foreground">{t("AI review")}</span>
+                        <span className="tabular-nums">
+                          {unit.ai_review_score}
+                          {unit.ai_review_model ? ` (${unit.ai_review_model})` : ""}
+                        </span>
                       </div>
                     )}
                     {unit?.review_state && (

@@ -73,7 +73,7 @@ func runConverge(t *testing.T, a *App, recipe string, flags ...string) (string, 
 // converged when the (presence-baseline) ship gate is met.
 func TestConverge_MaterializesFilesAndConverges(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
 	out, err := runConverge(t, a, recipe)
 	require.NoError(t, err, out)
@@ -95,7 +95,7 @@ func TestConverge_MaterializesFilesAndConverges(t *testing.T) {
 // just the first.
 func TestConverge_AllTargetLocales(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO", "de-DE"}, gate.Gate{"translated": 100})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO", "de-DE"}, gate.Gate{"translated": {Pct: 100}})
 
 	out, err := runConverge(t, a, recipe)
 	require.NoError(t, err, out)
@@ -113,7 +113,7 @@ func TestConverge_AllTargetLocales(t *testing.T) {
 // actionable error (not a silent no-op).
 func TestConverge_NoDefaultFlow(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 	// Strip the default flow.
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestConverge_NoDefaultFlow(t *testing.T) {
 // cannot satisfy (reviewed needs a human) parks after the pass cap — never an error.
 func TestConverge_UntilGateParksUnreachableGate(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": {Pct: 100}})
 
 	out, err := runConverge(t, a, recipe, "--until-gate", "--max-passes", "2")
 	require.NoError(t, err, "parked work is reported, never a build failure")

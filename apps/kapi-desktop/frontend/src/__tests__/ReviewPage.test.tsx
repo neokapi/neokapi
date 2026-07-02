@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { ReviewPage, type ReviewDecision } from "../components/ReviewPage";
 import { ErrorProvider } from "../components/ErrorBanner";
-import type { ReviewItem, ReviewUnitDetail } from "../types/api";
+import type { PreReviewResult, ReviewItem, ReviewUnitDetail } from "../types/api";
 
 const ITEMS: ReviewItem[] = [
   {
@@ -230,5 +230,150 @@ describe("ReviewPage", () => {
     await waitFor(() =>
       expect(document.querySelector("[data-slot='review-empty']")).not.toBeNull(),
     );
+  });
+
+  it("runs Explain and renders the explanation text (read-only)", async () => {
+    const onAIAction = vi.fn(async () => ({ explanation: "Score: 87/100\n• [minor] literal" }));
+    renderPage({ onAIAction });
+    const explain = await screen.findByRole("button", { name: /Explain/ });
+    await userEvent.click(explain);
+    await waitFor(() => expect(onAIAction).toHaveBeenCalledTimes(1));
+    expect(onAIAction.mock.calls[0][1]).toBe("explain");
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-ai-explanation']")).not.toBeNull(),
+    );
+    expect(document.querySelector("[data-slot='review-ai-explanation']")?.textContent).toContain(
+      "Score: 87/100",
+    );
+    expect(document.querySelector("[data-slot='review-ai-proposal']")).toBeNull();
+  });
+
+  it("retranslate prompts for an instruction, shows the diff, and Accept saves", async () => {
+    vi.spyOn(window, "prompt").mockReturnValue("more informal");
+    const onAIAction = vi.fn(async () => ({ proposed_target: "Hallo {name}!" }));
+    const onSaveTarget = vi.fn(async () => {});
+    renderPage({ onAIAction, onSaveTarget });
+    const retranslate = await screen.findByRole("button", { name: /Retranslate/ });
+    await userEvent.click(retranslate);
+    await waitFor(() => expect(onAIAction).toHaveBeenCalledTimes(1));
+    expect(onAIAction.mock.calls[0][1]).toBe("retranslate");
+    expect(onAIAction.mock.calls[0][2]).toBe("more informal");
+
+    // The diff shows current vs proposed; Accept routes through the save path.
+    const proposal = await waitFor(() => {
+      const el = document.querySelector("[data-slot='review-ai-proposal']");
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(proposal.textContent).toContain("Hallo");
+    expect(proposal.textContent).toContain("Hallo {name}!");
+    await userEvent.click(screen.getByRole("button", { name: /^Accept$/ }));
+    await waitFor(() => expect(onSaveTarget).toHaveBeenCalledTimes(1));
+    expect(onSaveTarget.mock.calls[0][1]).toBe("Hallo {name}!");
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-ai-proposal']")).toBeNull(),
+    );
+  });
+
+  it("discarding an AI proposal writes nothing", async () => {
+    vi.spyOn(window, "prompt").mockReturnValue("shorter");
+    const onAIAction = vi.fn(async () => ({ proposed_target: "Hi" }));
+    const onSaveTarget = vi.fn(async () => {});
+    renderPage({ onAIAction, onSaveTarget });
+    await userEvent.click(await screen.findByRole("button", { name: /Retranslate/ }));
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-ai-proposal']")).not.toBeNull(),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Discard/ }));
+    expect(document.querySelector("[data-slot='review-ai-proposal']")).toBeNull();
+    expect(onSaveTarget).not.toHaveBeenCalled();
+  });
+
+  it("cancelling the retranslate prompt calls nothing", async () => {
+    vi.spyOn(window, "prompt").mockReturnValue(null);
+    const onAIAction = vi.fn(async () => ({ proposed_target: "Hi" }));
+    renderPage({ onAIAction });
+    await userEvent.click(await screen.findByRole("button", { name: /Retranslate/ }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(onAIAction).not.toHaveBeenCalled();
+  });
+
+  it("shows the AI review score in CONTEXT and on queue items", async () => {
+    const items: ReviewItem[] = ITEMS.map((it) =>
+      it.key === "greeting" && it.locale === "fr-FR"
+        ? { ...it, aiScore: 92, aiModel: "claude-x" }
+        : it,
+    );
+    const loadUnit = vi.fn(async (item: ReviewItem) => ({
+      ...unitFor(item),
+      ai_review_score: item.aiScore,
+      ai_review_model: item.aiModel,
+    }));
+    render(
+      <ErrorProvider>
+        <ReviewPage tabID="t1" items={items} loadUnit={loadUnit} />
+      </ErrorProvider>,
+    );
+    await screen.findByText("ai 92");
+    // Select the annotated unit → CONTEXT shows "AI review: 92 (claude-x)".
+    const annotated = Array.from(document.querySelectorAll("[data-slot='review-queue-item']")).find(
+      (el) => el.textContent?.includes("ai 92"),
+    ) as HTMLElement;
+    await userEvent.click(annotated);
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-ai-score']")).not.toBeNull(),
+    );
+    expect(document.querySelector("[data-slot='review-ai-score']")?.textContent).toContain(
+      "92 (claude-x)",
+    );
+  });
+
+  it("opens the pre-review modal and runs annotate-only by default", async () => {
+    const result: PreReviewResult = {
+      model: "claude-x",
+      reviewed: 3,
+      auto_approved: 0,
+      remaining: 3,
+    };
+    const onPreReview = vi.fn(async () => result);
+    renderPage({ onPreReview });
+    await userEvent.click(await screen.findByRole("button", { name: /AI pre-review/ }));
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-prereview-modal']")).not.toBeNull(),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Run pre-review/ }));
+    await waitFor(() => expect(onPreReview).toHaveBeenCalledTimes(1));
+    // Annotate-only is the default policy.
+    expect(onPreReview.mock.calls[0][2]).toEqual({ autoApprove: false, minScore: 90 });
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot='review-prereview-result']")).not.toBeNull(),
+    );
+    expect(document.querySelector("[data-slot='review-prereview-result']")?.textContent).toContain(
+      "0 auto-approved",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Close/ }));
+    expect(document.querySelector("[data-slot='review-prereview-modal']")).toBeNull();
+  });
+
+  it("pre-review passes the auto-approve policy and scope filters", async () => {
+    const onPreReview = vi.fn(async () => ({
+      model: "claude-x",
+      reviewed: 1,
+      auto_approved: 1,
+      remaining: 0,
+    }));
+    renderPage({ onPreReview, scope: { locale: "fr-FR", collection: "Docs" } });
+    await userEvent.click(await screen.findByRole("button", { name: /AI pre-review/ }));
+    const auto = await waitFor(() => {
+      const el = document.querySelector("[data-slot='review-prereview-auto']") as HTMLInputElement;
+      expect(el).not.toBeNull();
+      return el;
+    });
+    await userEvent.click(auto);
+    await userEvent.click(screen.getByRole("button", { name: /Run pre-review/ }));
+    await waitFor(() => expect(onPreReview).toHaveBeenCalledTimes(1));
+    expect(onPreReview.mock.calls[0][0]).toBe("fr-FR");
+    expect(onPreReview.mock.calls[0][1]).toEqual({ collection: "Docs" });
+    expect(onPreReview.mock.calls[0][2]).toEqual({ autoApprove: true, minScore: 90 });
   });
 });

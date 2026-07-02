@@ -30,6 +30,11 @@ import type {
   ConvergenceReport,
   ReviewItem,
   ReviewUnitDetail,
+  ReviewAIActionResult,
+  ReviewAIActionKind,
+  PreReviewScope,
+  PreReviewPolicy,
+  PreReviewResult,
   AdoptFlowResult,
   ProjectHandles,
 } from "../types/api";
@@ -122,6 +127,19 @@ export const api = {
     call<void>("SignOffReviewItem", tabID, locale, file, key),
   updateReviewTarget: (tabID: string, locale: string, file: string, key: string, text: string) =>
     call<void>("UpdateReviewTarget", tabID, locale, file, key, text),
+  /** Per-unit AI action (fix-findings | retranslate | explain). Explicit
+   * invocation only — the sole review paths that reach a provider. */
+  reviewAIAction: (
+    tabID: string,
+    locale: string,
+    file: string,
+    key: string,
+    action: ReviewAIActionKind,
+    instruction: string,
+  ) => call<ReviewAIActionResult>("ReviewAIAction", tabID, locale, file, key, action, instruction),
+  /** Batch AI pre-review over the pending queue for a locale. */
+  runAIPreReview: (tabID: string, locale: string, scope: PreReviewScope, policy: PreReviewPolicy) =>
+    call<PreReviewResult>("RunAIPreReview", tabID, locale, scope, policy),
 
   // App mode + session (project-first restore)
   getAppMode: () => call<string>("GetAppMode"),

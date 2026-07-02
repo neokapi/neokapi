@@ -41,7 +41,7 @@ func newReviewProject(t *testing.T, app *App) (*TabInfo, string) {
 			Name:  "App",
 			Items: []project.ContentItem{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
 		}},
-		ShipGate: gate.Gate{"translated": 100, "reviewed": 50},
+		ShipGate: gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 50}},
 	}
 	path := filepath.Join(root, "project.kapi")
 	require.NoError(t, project.Save(path, proj))

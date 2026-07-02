@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/state"
 )
 
 // computeSourceReadiness rolls up source-authoring readiness over the project's
@@ -68,30 +69,50 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 // corpus only.
 type reviewedIndex struct {
 	byUnit map[string]reviewedEntry
+	// aiReviews carries advisory AI pre-review annotations (score + model),
+	// independent of any decision, so the review queue can display them.
+	aiReviews map[string]aiReviewEntry
 }
 
 type reviewedEntry struct {
 	status     model.TargetStatus
 	targetHash string
+	// by is the recorded decider identity ("" for a plain human decision,
+	// "ai/<model>" for an autonomous AI approval, "agent/<client>" for an MCP
+	// agent). Gate evaluation distinguishes only the "ai/" prefix.
+	by string
+}
+
+type aiReviewEntry struct {
+	score      int
+	model      string
+	targetHash string
 }
 
 func reviewUnitKey(unit, locale string) string { return unit + "\x00" + locale }
 
-// statusFor returns a block's recorded review state for the locale, or ok=false
+// entryFor returns a block's recorded review entry for the locale, or ok=false
 // when none applies — including when the recorded decision is stale (the
 // translation changed since it was approved).
-func (r reviewedIndex) statusFor(b *model.Block, locale string) (model.TargetStatus, bool) {
+func (r reviewedIndex) entryFor(b *model.Block, locale string) (reviewedEntry, bool) {
 	if r.byUnit == nil {
-		return "", false
+		return reviewedEntry{}, false
 	}
 	e, ok := r.byUnit[reviewUnitKey(blockKey(b), locale)]
 	if !ok {
-		return "", false
+		return reviewedEntry{}, false
 	}
 	if e.targetHash != "" && targetHash(b.TargetText(model.LocaleID(locale))) != e.targetHash {
-		return "", false // the translation changed since the decision — stale
+		return reviewedEntry{}, false // the translation changed since the decision — stale
 	}
-	return e.status, true
+	return e, true
+}
+
+// statusFor returns a block's recorded review state for the locale, or ok=false
+// when none applies (no decision, or a stale one).
+func (r reviewedIndex) statusFor(b *model.Block, locale string) (model.TargetStatus, bool) {
+	e, ok := r.entryFor(b, locale)
+	return e.status, ok
 }
 
 // decided reports whether a block carries a non-stale review decision for the
@@ -105,22 +126,39 @@ func (r reviewedIndex) decided(b *model.Block, locale string) bool {
 // apply moves a `translated` unit to its recorded decision rung — up to reviewed
 // or signed-off for an approval, down to draft for a rejection — when the block
 // has a non-stale decision for the locale; otherwise it returns the base state
-// unchanged.
-func (r reviewedIndex) apply(base string, b *model.Block, locale string) string {
+// unchanged. aiDecided reports whether the applied rung came from an autonomous
+// AI decision ("ai/…" identity), which gate evaluation treats separately.
+func (r reviewedIndex) apply(base string, b *model.Block, locale string) (st string, aiDecided bool) {
 	if base != string(model.TargetStatusTranslated) {
-		return base
+		return base, false
 	}
-	if st, ok := r.statusFor(b, locale); ok {
-		return string(st)
+	if e, ok := r.entryFor(b, locale); ok {
+		return string(e.status), state.IsAIDecision(e.by)
 	}
-	return base
+	return base, false
+}
+
+// aiReviewFor returns a block's fresh AI pre-review annotation for the locale,
+// or ok=false when none was recorded or the translation changed since.
+func (r reviewedIndex) aiReviewFor(b *model.Block, locale string) (aiReviewEntry, bool) {
+	if r.aiReviews == nil {
+		return aiReviewEntry{}, false
+	}
+	e, ok := r.aiReviews[reviewUnitKey(blockKey(b), locale)]
+	if !ok {
+		return aiReviewEntry{}, false
+	}
+	if e.targetHash != "" && targetHash(b.TargetText(model.LocaleID(locale))) != e.targetHash {
+		return aiReviewEntry{}, false
+	}
+	return e, true
 }
 
 // loadReviewedCorrections builds the reviewedIndex from the project state store.
 // An absent store yields an empty index (nothing decided yet) — never an error,
 // so status stays informational.
 func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (reviewedIndex, error) {
-	idx := reviewedIndex{byUnit: map[string]reviewedEntry{}}
+	idx := reviewedIndex{byUnit: map[string]reviewedEntry{}, aiReviews: map[string]aiReviewEntry{}}
 	if root == "" {
 		return idx, nil
 	}
@@ -132,7 +170,12 @@ func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (r
 		switch u.Status {
 		case model.TargetStatusReviewed, model.TargetStatusSignedOff, model.TargetStatusDraft:
 			idx.byUnit[reviewUnitKey(u.Unit, string(u.Variant.Locale))] = reviewedEntry{
-				status: u.Status, targetHash: u.TargetHash,
+				status: u.Status, targetHash: u.TargetHash, by: u.Decision.By,
+			}
+		}
+		if u.AIReview != nil {
+			idx.aiReviews[reviewUnitKey(u.Unit, string(u.Variant.Locale))] = aiReviewEntry{
+				score: u.AIReview.Score, model: u.AIReview.Model, targetHash: u.AIReview.TargetHash,
 			}
 		}
 	}
@@ -144,15 +187,16 @@ func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (r
 // rules resolve against (collection, locale); content not in a named collection
 // has an empty collection, where the rollup is effectively per-locale.
 //
-// `reviewed` (loaded from the project's committed .klftm corrections) upgrades a
-// unit from the `translated` presence baseline to `reviewed` when its
-// source→target pair exactly matches an approved correction — the file-project
-// carrier for review state, since a plain target file holds no status.
+// `reviewed` (loaded from the project state store) upgrades a unit from the
+// `translated` presence baseline to its decided rung. Units promoted by an
+// autonomous AI decision ("ai/…" identity) are tallied separately: they read as
+// reviewed in the display percentages, but a gate's reviewed/signed-off
+// threshold only admits them under `by: any` (core/gate approver classes).
 //
 // `excl` (optional, nil = off) is the check-findings exclusion set (#1078 G4):
 // a unit in it is produced but failing the project's bound checks, so its state
-// demotes to `draft` — it does not count toward the `translated` rung when the
-// gate is evaluated.
+// demotes to `draft` — it does not count toward the `translated` rung (nor can
+// an AI decision promote it) when the gate is evaluated.
 func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject, root string, units []verifyUnit, excl *checkExclusions) ([]LocaleCoverage, error) {
 	rs, err := proj.BuildShipGates()
 	if err != nil {
@@ -164,8 +208,20 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 	}
 
 	type scope struct{ collection, locale string }
-	statesByScope := map[scope][]string{}
-	add := func(s scope, state string) { statesByScope[s] = append(statesByScope[s], state) }
+	type scopeTally struct {
+		cov        gate.Coverage
+		aiReviewed int
+	}
+	tallies := map[scope]*scopeTally{}
+	tally := func(s scope) *scopeTally {
+		t, ok := tallies[s]
+		if !ok {
+			t = &scopeTally{}
+			tallies[s] = t
+		}
+		return t
+	}
+	add := func(s scope, state string) { tally(s).cov.Add(state) }
 
 	for _, u := range units {
 		s := scope{collection: u.collection, locale: u.locale}
@@ -203,19 +259,32 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 			continue
 		}
 		for _, b := range blocks {
-			if b.Translatable {
-				state := reviewed.apply(unitState(b, u.locale), b, u.locale)
-				if excl.excluded(u.sourcePath, b, u.locale) {
-					state = demoteFailing(state)
-				}
-				add(s, state)
+			if !b.Translatable {
+				continue
 			}
+			st, aiDecided := reviewed.apply(unitState(b, u.locale), b, u.locale)
+			// Check-findings exclusion wins over any decision: a unit failing
+			// the project's bound checks demotes to draft regardless of who
+			// approved it.
+			if excl.excluded(u.sourcePath, b, u.locale) {
+				add(s, demoteFailing(st))
+				continue
+			}
+			if aiDecided {
+				t := tally(s)
+				// The AI decision promoted the unit from the `translated`
+				// baseline; a human-class threshold sees it there.
+				t.cov.AddAIDecided(st, string(model.TargetStatusTranslated))
+				t.aiReviewed++
+				continue
+			}
+			add(s, st)
 		}
 	}
 
 	ladder := gate.TargetLadder()
-	scopes := make([]scope, 0, len(statesByScope))
-	for s := range statesByScope {
+	scopes := make([]scope, 0, len(tallies))
+	for s := range tallies {
 		scopes = append(scopes, s)
 	}
 	sort.Slice(scopes, func(i, j int) bool {
@@ -227,8 +296,12 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 
 	out := make([]LocaleCoverage, 0, len(scopes))
 	for _, s := range scopes {
-		cov := gate.NewCoverage(statesByScope[s])
-		lc := LocaleCoverage{Locale: s.locale, Collection: s.collection, Total: cov.Total, Pct: map[string]int{}}
+		t := tallies[s]
+		cov := t.cov
+		lc := LocaleCoverage{
+			Locale: s.locale, Collection: s.collection, Total: cov.Total,
+			Pct: map[string]int{}, AIReviewed: t.aiReviewed,
+		}
 		for _, st := range ladder {
 			lc.Pct[st] = int(math.Round(cov.AtLeastPct(ladder, st)))
 		}

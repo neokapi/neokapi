@@ -39,6 +39,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/sievepen"
@@ -78,6 +79,13 @@ type App struct {
 
 	// Flow runner
 	runState *runner
+
+	// aiToolFactory builds the AI tool a review AI action / pre-review uses.
+	// Nil in production (the default path resolves provider config exactly
+	// like the flow runner: shared ai.provider/ai.model defaults + the
+	// credential store); tests inject a MockProvider-backed factory so no
+	// network is touched.
+	aiToolFactory func(name string, cfg map[string]any, targetLang string) (tool.Tool, error)
 
 	// convergence is the shared cli.App used to derive convergence reports
 	// (per-locale coverage, ship gates, source readiness, the review queue) — the
