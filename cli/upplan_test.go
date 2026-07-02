@@ -40,7 +40,7 @@ func seedPlanTM(t *testing.T, root string) {
 // chars/4 token estimate — and writes nothing.
 func TestUpPlan_TMLeverageAndTokenEstimate(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 	seedPlanTM(t, root)
 
 	out, err := runUp(t, a, recipe, "--plan", "--json")
@@ -70,7 +70,7 @@ func TestUpPlan_TMLeverageAndTokenEstimate(t *testing.T) {
 // the estimation note.
 func TestUpPlan_TextTable(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--plan")
 	require.NoError(t, err, out)
@@ -84,7 +84,7 @@ func TestUpPlan_TextTable(t *testing.T) {
 // leaves it byte-for-byte alone (mtime unchanged).
 func TestUpPlan_NoWritesToExistingStore(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	// Materialize the store via a real up first.
 	out, err := runUp(t, a, recipe)
@@ -107,7 +107,7 @@ func TestUpPlan_NoWritesToExistingStore(t *testing.T) {
 // nothing to do.
 func TestUpPlan_ConvergedProjectHasNoWork(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 

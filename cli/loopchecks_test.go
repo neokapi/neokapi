@@ -28,7 +28,7 @@ func TestDemoteFailing(t *testing.T) {
 // the failing count surfaced. Fixing the source lets the next up converge.
 func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 	src := filepath.Join(root, "src/locales/en/a.json")
 	// The pseudo flow accent-transforms text (it protects `{...}` but not
 	// printf verbs), so the literal `%s` cannot survive into the target
@@ -59,7 +59,7 @@ func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 // placeholder-dropping output counts as translated and the gate is met.
 func TestUp_NoChecksOptsOut(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 	require.NoError(t, os.WriteFile(filepath.Join(root, "src/locales/en/a.json"),
 		[]byte(`{"greeting":"Hello %s, welcome."}`), 0o644))
 
@@ -74,7 +74,7 @@ func TestUp_NoChecksOptsOut(t *testing.T) {
 // (draft) but not toward the translated rung.
 func TestComputeShipCoverage_ExclusionDemotes(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	// Materialize targets so every unit reads translated.
 	out, err := runUp(t, a, recipe, "--no-checks")

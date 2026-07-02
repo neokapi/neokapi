@@ -142,7 +142,7 @@ func storeBlockTexts(t *testing.T, root string) []string {
 // between runs — re-extracts so the store mirrors the edited working tree.
 func TestUp_AutoExtractsOnDrift(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
@@ -174,7 +174,7 @@ func TestUp_AutoExtractsOnDrift(t *testing.T) {
 // store is never stamped by the convergence loop.
 func TestUp_NoExtractOptsOut(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--no-extract")
 	require.NoError(t, err, out)
@@ -187,7 +187,7 @@ func TestUp_NoExtractOptsOut(t *testing.T) {
 // a converged up does not run the post-loop materialize step.
 func TestUp_MaterializePolicyManualByDefault(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
@@ -200,7 +200,7 @@ func TestUp_MaterializePolicyManualByDefault(t *testing.T) {
 // after the loop, and the counts are reported.
 func TestUp_MaterializeOnConverge(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	proj.Defaults.Materialize = project.MaterializeOnConverge
@@ -220,7 +220,7 @@ func TestUp_MaterializeOnConverge(t *testing.T) {
 // when the recipe policy is manual.
 func TestUp_MaterializeFlagForces(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--materialize")
 	require.NoError(t, err, out)
@@ -231,7 +231,7 @@ func TestUp_MaterializeFlagForces(t *testing.T) {
 // does not materialize — its content isn't at the bar yet.
 func TestUp_MaterializeSkipsParkedLocale(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": gate.Threshold{Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--materialize")
 	require.NoError(t, err, out)
