@@ -43,8 +43,9 @@ func ApplyAIToolDefaults(cfg *AppConfig, toolName string, requires []string, c m
 }
 
 // isMTToolName reports whether toolName is a machine-translation tool, which
-// encodes its provider in the name ("deepl-translate"). "ai-translate" is the
-// legacy LLM tool name and is explicitly NOT MT.
+// encodes its provider in the name ("<provider>-translate", as registered by
+// MT plugins). "ai-translate" is the legacy LLM tool name and is explicitly
+// NOT MT.
 func isMTToolName(name string) bool {
 	return name != "ai-translate" && strings.HasSuffix(name, "-translate")
 }

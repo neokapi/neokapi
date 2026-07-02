@@ -60,8 +60,7 @@ func extractTagName(html string) string {
 
 // RunsSemanticHTML renders a Run sequence as semantic HTML using the
 // vocabulary registry to map run types to HTML elements. This is the
-// projection used for MT APIs that handle HTML natively (DeepL,
-// Google, Amazon).
+// projection used for MT APIs that handle HTML natively.
 //
 // PcOpen runs become `<tag>` openers, PcClose runs become `</tag>`
 // closers, and Ph runs become self-closing placeholder elements. Sub

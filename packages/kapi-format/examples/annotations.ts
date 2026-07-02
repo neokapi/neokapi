@@ -92,7 +92,7 @@ export const exampleAnnotations: AnnotationFile = {
       data: {
         kind: "mt-confidence",
         locale: "de",
-        engine: "deepl",
+        engine: "acme-mt",
         model: "v2",
         confidence: 0.87,
       },

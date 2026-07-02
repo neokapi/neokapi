@@ -12,31 +12,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestProvidersListed verifies the canonical MT engine list the unified
-// `translate` tool dispatches to. There is no longer a per-engine command —
-// these ids select the engine via `kapi translate --provider <id>`.
+// TestProvidersListed verifies the framework ships no classic MT engines — the
+// translation core is LLM-first. Plugins hosting MT engines append to
+// tools.Providers to surface them in `kapi translate --provider <id>`.
 func TestProvidersListed(t *testing.T) {
-	ids := make([]string, 0, len(tools.Providers))
-	for _, p := range tools.Providers {
-		ids = append(ids, string(p.ID))
-		assert.NotEmpty(t, p.Label, "provider %q should carry a label", p.ID)
-	}
-	assert.ElementsMatch(t, []string{
-		"deepl", "google", "microsoft", "modernmt", "mymemory",
-	}, ids)
+	assert.Empty(t, tools.Providers, "no built-in MT engines: the translation core is LLM-only")
 }
 
-// TestNewMTTranslateFromConfigBuildsEachEngine verifies every MT engine builds
-// from a config map through its bound config factory. The reported tool name is
-// the unified `translate` (the engine is an implementation detail of --provider).
-func TestNewMTTranslateFromConfigBuildsEachEngine(t *testing.T) {
-	for _, p := range tools.Providers {
-		factory := tools.NewMTTranslateFromConfig(p.ID)
-		tl, err := factory(map[string]any{"apiKey": "test-key"}, "fr")
-		require.NoErrorf(t, err, "engine %q should build from config", p.ID)
-		require.NotNilf(t, tl, "engine %q should be non-nil", p.ID)
-		assert.Equalf(t, "translate", tl.Name(), "engine %q reports the unified tool name", p.ID)
-	}
+// TestNewMTTranslateFromConfigBuildsRegisteredEngine verifies a registered MT
+// engine (here the offline demo provider) builds from a config map through its
+// bound config factory. The reported tool name is the unified `translate` (the
+// engine is an implementation detail of --provider).
+func TestNewMTTranslateFromConfigBuildsRegisteredEngine(t *testing.T) {
+	factory := tools.NewMTTranslateFromConfig(mtprovider.Demo)
+	tl, err := factory(map[string]any{"apiKey": "test-key"}, "fr")
+	require.NoError(t, err, "registered engine should build from config")
+	require.NotNil(t, tl)
+	assert.Equal(t, "translate", tl.Name(), "engine reports the unified tool name")
 }
 
 // TestMTTranslateDemoRun exercises the Process/target-set behaviour

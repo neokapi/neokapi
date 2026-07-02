@@ -1,55 +1,42 @@
 ---
 sidebar_position: 15
 title: Translation
-description: neokapi exposes translation as a single tool whose provider is either an LLM (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama) or a neural MT engine (DeepL, Google Translate, Microsoft Translator, ModernMT, MyMemory). Both routes share the same command, flags, and credential model.
-keywords: [translation, LLM, MT, machine translation, AI translation, DeepL, Google Translate, Microsoft Translator, ModernMT, Anthropic, OpenAI, Gemini, Ollama, provider, localization]
+description: neokapi exposes translation as a single LLM-backed tool — Anthropic, OpenAI, Gemini, Azure OpenAI, or on-device Ollama — selected with one --provider flag under a shared command, flag, and credential model. Plugins can add machine-translation engines.
+keywords: [translation, LLM, AI translation, Anthropic, OpenAI, Gemini, Ollama, provider, machine translation, localization]
 ---
 
 # Translation
 
 neokapi exposes translation through a single `translate` tool. One `--provider`
 flag selects the backend, and the command, flags, and credential model are the
-same whichever backend you choose. There are two provider families:
+same whichever backend you choose:
 
 - **LLM providers** — Anthropic, OpenAI, Google Gemini, Azure OpenAI, Ollama.
   Context-aware, full prompt control, and (with Ollama) fully on-device.
-- **Neural MT engines** — DeepL, Google Translate, Microsoft Translator,
-  ModernMT, MyMemory. Fast, consistent, per-character bulk translation.
+- **The offline demo provider** — keyless, deterministic, clearly-marked
+  illustrative output for trying flows without credentials.
+- **Plugin-hosted MT engines** — classic machine-translation engines (DeepL,
+  Google Translate, Microsoft Translator, and the like) are not built in; a
+  plugin can register one and it appears under the same `--provider` flag.
 
 The generated [Tool reference](/reference/tools/translate) lists the current
 parameters and default model for each provider.
 
 :::tip Configuring a provider is a task, not a concept
-Selecting a backend, supplying credentials, and setting a default are walked
+Selecting a model, supplying credentials, and setting a default are walked
 step by step in the recipe
-**[Choose a translation provider](/kapi/recipes/choose-a-translation-provider)** —
+**[Choose a translation model](/kapi/recipes/choose-a-translation-provider)** —
 including on-device translation with Ollama. This page covers what translation
 *is* and how it composes.
 :::
 
-## A single tool, two families
+## A single tool
 
-Because both families are values of `--provider` on the same `translate`
-command, switching between them — or from an MT engine to an LLM — is a
-configuration change only. Replace `provider: deepl` with `provider: anthropic`
-and the rest of a flow is unchanged. The API key is never read from the recipe;
-credentials are supplied out-of-band (see the recipe).
-
-## Provider trade-offs
-
-MT engines and LLM providers are both values of `--provider` on the one
-`translate` command; the choice is a trade-off:
-
-| Factor        | MT engines            | LLM providers        |
-| ------------- | --------------------- | -------------------- |
-| Speed         | Faster for bulk       | Slower per segment   |
-| Cost          | Per-character pricing | Per-token pricing    |
-| Quality       | Consistent            | Context-aware        |
-| Customization | Limited               | Full prompt control  |
-| Offline       | No                    | Yes (with Ollama)    |
-
-Both approaches can be combined in a flow: an MT engine for bulk translation and
-an LLM for quality review.
+Because every backend is a value of `--provider` on the same `translate`
+command, switching between them is a configuration change only. Replace
+`provider: anthropic` with `provider: ollama` and the rest of a flow is
+unchanged. The API key is never read from the recipe; credentials are supplied
+out-of-band (see the recipe).
 
 ## Related AI tools
 
@@ -57,7 +44,7 @@ Translation composes with other LLM-backed tools in the same [flow](/framework/f
 
 | Tool           | Purpose                                                               |
 | -------------- | --------------------------------------------------------------------- |
-| `translate`    | Translate untranslated blocks (LLM or MT provider)                    |
+| `translate`    | Translate untranslated blocks with the selected provider              |
 | `qa`           | LLM-judged quality check (fluency, accuracy, terminology)             |
 | `review`       | Detailed translation review with explanations                         |
 | `term-extract` | Extract candidate terminology from source blocks                      |
@@ -77,17 +64,17 @@ steps:
   - tool: recycle
   - tool: translate
     config:
-      provider: deepl
+      provider: anthropic
   - tool: review
   - tool: qa
 ```
 
-Switching providers — `deepl` to `anthropic`, or vice versa — is a configuration
-change; the surrounding steps are unchanged.
+Switching providers — `anthropic` to `ollama`, or vice versa — is a
+configuration change; the surrounding steps are unchanged.
 
 ## Prompt engineering
 
-Prompt templates in `core/ai/prompt/` are context-aware for LLM providers: they
-include surrounding blocks, glossary constraints,
+Prompt templates in `core/ai/prompt/` are context-aware: they include
+surrounding blocks, glossary constraints,
 [TM matches](/framework/translation-memory), and format metadata. Templates are
 centralized for tuning.

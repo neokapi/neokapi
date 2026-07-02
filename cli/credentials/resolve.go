@@ -20,24 +20,15 @@ import (
 // given, slotting in just above store auto-detect in the resolution order.
 //
 // Provider ids match the constants in providers/ai (anthropic, openai, gemini,
-// azureopenai, ollama, demo) and providers/mt (deepl, google, microsoft,
-// modernmt, mymemory). The map is the single source of truth for the fallback;
-// keep it self-contained here to avoid import cycles with the provider
-// packages.
+// azureopenai, ollama, demo). The map is the single source of truth for the
+// fallback; keep it self-contained here to avoid import cycles with the
+// provider packages.
 var providerEnvVars = map[string][]string{
-	// AI providers.
 	"anthropic":   {"ANTHROPIC_API_KEY"},
 	"openai":      {"OPENAI_API_KEY"},
 	"gemini":      {"GEMINI_API_KEY", "GOOGLE_API_KEY"},
 	"azureopenai": {"AZURE_OPENAI_API_KEY"},
 	// ollama and demo never require a key; they have no entry on purpose.
-
-	// MT providers.
-	"deepl":     {"DEEPL_API_KEY"},
-	"google":    {"GOOGLE_TRANSLATE_API_KEY", "GOOGLE_API_KEY"},
-	"microsoft": {"MICROSOFT_TRANSLATOR_KEY", "AZURE_TRANSLATOR_KEY"},
-	"modernmt":  {"MODERNMT_API_KEY"},
-	"mymemory":  {"MYMEMORY_API_KEY"},
 }
 
 // keylessProviders are the local, on-device providers that never require an API

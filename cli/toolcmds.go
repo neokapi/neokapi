@@ -119,7 +119,7 @@ var toolExamples = map[string]string{
 	"pseudo-translate": `  kapi pseudo-translate messages.json -o messages.pseudo.json
   kapi pseudo-translate app.xliff -o app.pseudo.xliff --target-lang qps`,
 	"translate": `  kapi translate messages.json --target-lang fr
-  kapi translate app.xliff --target-lang de --provider deepl
+  kapi translate app.xliff --target-lang de --provider openai
   kapi translate app.xliff --target-lang de -o app.de.xliff`,
 	"recycle": `  kapi recycle app.xliff --target-lang fr
   kapi recycle messages.json --target-lang de`,

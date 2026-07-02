@@ -72,8 +72,8 @@ func (c *DemoToolConfig) Validate() error {
 // ---------------------------------------------------------------------------
 
 // ProviderFactory creates an MTProvider from a generic config map. Only the
-// demo provider is registered by default; real providers are constructed with
-// their typed configs (e.g. NewDeepLProvider) because they require credentials.
+// demo provider is registered by default; plugin-hosted providers that require
+// credentials register a ConfigFactory instead (see provider.go).
 type ProviderFactory func() MTProvider
 
 var (

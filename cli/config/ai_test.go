@@ -25,7 +25,7 @@ func TestApplyAIToolDefaults(t *testing.T) {
 	})
 
 	t.Run("MT tools are untouched (provider encoded in name)", func(t *testing.T) {
-		got := ApplyAIToolDefaults(cfg, "deepl-translate", []string{"credentials"}, map[string]any{})
+		got := ApplyAIToolDefaults(cfg, "acme-translate", []string{"credentials"}, map[string]any{})
 		_, ok := got["provider"]
 		assert.False(t, ok)
 	})
@@ -44,8 +44,8 @@ func TestApplyAIToolDefaults(t *testing.T) {
 }
 
 func TestIsMTToolName(t *testing.T) {
-	assert.True(t, isMTToolName("deepl-translate"))
-	assert.True(t, isMTToolName("google-translate"))
+	assert.True(t, isMTToolName("acme-translate"))
+	assert.True(t, isMTToolName("plugin-mt-translate"))
 	assert.False(t, isMTToolName("translate"), "the unified LLM translate tool is not MT")
 	assert.False(t, isMTToolName("ai-translate"), "legacy LLM tool name is not MT")
 	assert.False(t, isMTToolName("qa"))

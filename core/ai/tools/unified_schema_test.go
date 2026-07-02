@@ -77,8 +77,8 @@ func optionSetValues(p schema.PropertySchema, field, value string) []string {
 
 // TestTranslateSchemaComposition asserts the unified `translate` tool is a
 // two-level engine→provider group: an engine selector (LLM / MT) whose provider
-// options cascade off the engine, and each MT provider's extra credentials shown
-// only when both the MT engine and that provider are selected.
+// options cascade off the engine. The framework ships no classic MT engines, so
+// the MT branch offers only plugin-registered providers (none by default).
 func TestTranslateSchemaComposition(t *testing.T) {
 	s := TranslateSchema()
 	require.NotNil(t, s)
@@ -94,37 +94,22 @@ func TestTranslateSchemaComposition(t *testing.T) {
 	assert.Equal(t, "select", prov.Widget)
 	assert.Equal(t, "anthropic", prov.Default)
 	vals := optionValues(prov)
-	for _, want := range []string{"anthropic", "openai", "deepl", "google", "microsoft", "mymemory"} {
+	for _, want := range []string{"anthropic", "openai", "gemini", "ollama", "demo"} {
 		assert.Contains(t, vals, want)
 	}
 	assert.NotContains(t, vals, "", "no empty provider option values")
-
-	// Cascading option-sets: LLM engine offers LLM providers, MT engine offers MT.
-	assert.Contains(t, optionSetValues(prov, "engine", "llm"), "anthropic")
-	assert.NotContains(t, optionSetValues(prov, "engine", "llm"), "deepl")
-	assert.Contains(t, optionSetValues(prov, "engine", "mt"), "deepl")
-	assert.NotContains(t, optionSetValues(prov, "engine", "mt"), "anthropic")
-
-	// The MT credentials live in one section gated on the MT engine...
-	for _, field := range []string{"subscriptionKey", "region", "projectId", "email"} {
-		require.Contains(t, s.Properties, field)
-		g := groupVisibleForField(s, field)
-		require.NotNil(t, g, "field %q's group gated", field)
-		assert.Equal(t, "engine", g.Field)
-		assert.Equal(t, "mt", g.Eq)
+	for _, gone := range []string{"deepl", "modernmt", "mymemory"} {
+		assert.NotContains(t, vals, gone, "classic MT engines are no longer built in")
 	}
 
-	// ...and each credential field is further gated on its own provider.
-	for field, provider := range map[string]string{
-		"subscriptionKey": "microsoft",
-		"region":          "microsoft",
-		"projectId":       "google",
-		"email":           "mymemory",
-	} {
-		v := s.Properties[field].Visible
-		require.NotNil(t, v, "field %q gated on its provider", field)
-		assert.Equal(t, "provider", v.Field)
-		assert.Equal(t, provider, v.Eq)
+	// Cascading option-sets: LLM engine offers LLM providers; the MT engine
+	// offers only plugin-registered providers (empty in the bare framework).
+	assert.Contains(t, optionSetValues(prov, "engine", "llm"), "anthropic")
+	assert.Empty(t, optionSetValues(prov, "engine", "mt"))
+
+	// The removed per-engine credential fields are gone from the composed schema.
+	for _, field := range []string{"subscriptionKey", "region", "projectId", "email"} {
+		assert.NotContains(t, s.Properties, field)
 	}
 
 	// Shared credential stays common (its group is ungated).

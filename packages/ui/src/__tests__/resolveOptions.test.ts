@@ -8,11 +8,11 @@ const provider: PropertySchema = {
   type: "string",
   options: [
     { value: "anthropic", label: "Anthropic" },
-    { value: "deepl", label: "DeepL" },
+    { value: "acme-mt", label: "Acme MT" },
   ],
   "ui:option-sets": [
     { when: { field: "engine", eq: "llm" }, options: [{ value: "anthropic", label: "Anthropic" }] },
-    { when: { field: "engine", eq: "mt" }, options: [{ value: "deepl", label: "DeepL" }] },
+    { when: { field: "engine", eq: "mt" }, options: [{ value: "acme-mt", label: "Acme MT" }] },
   ],
 };
 
@@ -26,11 +26,11 @@ describe("resolveEffectiveOptions", () => {
   });
 
   it("offers only the MT providers when engine=mt", () => {
-    expect(values(provider, { engine: "mt" })).toEqual(["deepl"]);
+    expect(values(provider, { engine: "mt" })).toEqual(["acme-mt"]);
   });
 
   it("falls back to the flat union when the gating field is unset", () => {
-    expect(values(provider, {})).toEqual(["anthropic", "deepl"]);
+    expect(values(provider, {})).toEqual(["anthropic", "acme-mt"]);
   });
 
   it("returns the plain options when no option-sets are declared", () => {

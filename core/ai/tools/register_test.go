@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/ai/tools"
+	mttools "github.com/neokapi/neokapi/core/mt/tools"
 	"github.com/neokapi/neokapi/core/registry"
+	mtprovider "github.com/neokapi/neokapi/providers/mt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,7 +21,9 @@ func TestRegisterAllRegistersBrandAndTerminology(t *testing.T) {
 }
 
 // TestTranslateDispatch verifies the unified translate tool builds the LLM
-// backend by default and the MT backend when --provider names an engine.
+// backend by default and the MT backend when --provider names a
+// plugin-registered engine (the framework itself ships no MT engines, so the
+// test registers one the way a plugin would).
 func TestTranslateDispatch(t *testing.T) {
 	reg := registry.NewToolRegistry()
 	tools.RegisterAll(reg)
@@ -30,8 +34,18 @@ func TestTranslateDispatch(t *testing.T) {
 	require.NotNil(t, tl)
 	assert.Equal(t, "translate", tl.Name())
 
-	// MT engine → machine-translation tool, still reported as "translate".
-	mtTool, err := reg.NewToolWithConfig("translate", map[string]any{"provider": "deepl", "apiKey": "test"}, "fr")
+	// Plugin-registered MT engine → machine-translation tool, still reported
+	// as "translate".
+	const pluginMT mtprovider.ProviderID = "plugin-test-mt"
+	mtprovider.RegisterConfigFactory(pluginMT, func(_ mtprovider.MTConfig) mtprovider.MTProvider {
+		return mtprovider.NewDemoProvider()
+	})
+	mttools.Providers = append(mttools.Providers, mttools.Provider{ID: pluginMT, Label: "Plugin Test MT"})
+	t.Cleanup(func() {
+		mttools.Providers = mttools.Providers[:len(mttools.Providers)-1]
+	})
+
+	mtTool, err := reg.NewToolWithConfig("translate", map[string]any{"provider": string(pluginMT), "apiKey": "test"}, "fr")
 	require.NoError(t, err)
 	require.NotNil(t, mtTool)
 	assert.Equal(t, "translate", mtTool.Name())

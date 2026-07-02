@@ -1,50 +1,52 @@
 ---
 id: choose-a-translation-provider
-title: "Choose a translation provider"
+title: "Choose a translation model"
 sidebar_label: "Choose a provider"
 sidebar_position: 1
-description: "Select and configure a translation backend for kapi — an LLM provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama) or a neural MT engine (DeepL, Google, Microsoft, ModernMT, MyMemory) — with credentials, defaults, and on-device options."
-keywords: [kapi, translation provider, LLM, MT, DeepL, Anthropic, OpenAI, Ollama, credentials, api key]
+description: "Select and configure the LLM behind kapi translate — Anthropic, OpenAI, Gemini, Azure OpenAI, or on-device Ollama — with credentials, defaults, and the offline demo provider."
+keywords: [kapi, translation provider, LLM, model, Anthropic, OpenAI, Ollama, credentials, api key]
 hide_table_of_contents: true
 ---
 
-# Choose a translation provider
+# Choose a translation model
 
 :::note Runs anywhere
 The `--provider` flag works ad-hoc and in a project. In a project, set it once in
 the recipe `defaults` and every flow inherits it.
 :::
 
-**For the concept** — what translation is (one tool, two backend families) and
-the MT-vs-LLM trade-offs — see [Translation](/framework/translation). This recipe
-walks **picking a backend and wiring its credentials.**
+**For the concept** — how translation works as a single tool — see
+[Translation](/framework/translation). This recipe walks **picking a model and
+wiring its credentials.**
 
-**Goal:** point `kapi translate` at the backend you want, supply its key safely,
+**Goal:** point `kapi translate` at the model you want, supply its key safely,
 and make that choice the default so you stop repeating flags.
 
-## Pick a backend
+## Pick a provider and model
 
-`kapi translate` routes through one of two provider families, selected by
-`--provider`:
-
-| Family | Providers | When |
-| --- | --- | --- |
-| **LLM** | `anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` | Context-aware quality, full prompt control, offline with Ollama |
-| **Neural MT** | `deepl`, `google`, `microsoft`, `modernmt`, `mymemory` | Fast, consistent bulk translation; per-character pricing |
-
-The generated [Tool reference](/reference/tools/translate) lists the current
-parameters and default model for each. Switching families is a configuration
-change only — replace `provider: deepl` with `provider: anthropic` and the rest
-of a flow is unchanged.
+`kapi translate` is LLM-first: `--provider` selects a large-language-model
+backend, and `--model` a specific model within it. `kapi models` shows every
+model kapi can use — local Ollama models, plugin models, and cloud providers:
 
 ```bash
-# LLM provider (override the default model with --model)
+kapi models                       # list available models across providers
 kapi translate -i input.html --source-lang en --target-lang fr \
   --provider anthropic --model claude-sonnet-4-20250514
-
-# MT engine
-kapi translate -i input.html --target-lang fr --provider deepl
 ```
+
+The default provider is `anthropic`; `openai`, `gemini`, `azureopenai`, and
+on-device `ollama` are built in. The generated
+[Tool reference](/reference/tools/translate) lists the current parameters and
+default model for each.
+
+Two special cases:
+
+- **`demo`** — a keyless, offline provider that produces deterministic,
+  clearly-marked illustrative output. Useful for trying flows and CI smoke
+  tests without a key; never for real translation.
+- **Classic MT engines** (DeepL, Google Translate, Microsoft Translator, and
+  the like) are no longer built into kapi. A plugin can host an MT engine and
+  surface it through the same `--provider` flag.
 
 ## Supply credentials safely
 
@@ -56,8 +58,8 @@ safe to commit. Provide the key one of three ways (priority order: inline
    reference it by name:
 
    ```bash
-   kapi credentials add my-deepl --provider deepl --api-key …
-   kapi translate -i input.html --target-lang fr --provider deepl --credential my-deepl
+   kapi credentials add my-anthropic --provider anthropic --api-key …
+   kapi translate -i input.html --target-lang fr --credential my-anthropic
    ```
 
 2. **Inline flag** — for a one-off run:
@@ -75,13 +77,8 @@ safe to commit. Provide the key one of three ways (priority order: inline
    | `OPENAI_API_KEY` | OpenAI |
    | `GEMINI_API_KEY` (then `GOOGLE_API_KEY`) | Google Gemini |
    | `AZURE_OPENAI_API_KEY` | Azure OpenAI |
-   | `DEEPL_API_KEY` | DeepL |
-   | `GOOGLE_TRANSLATE_API_KEY` (then `GOOGLE_API_KEY`) | Google Translate |
-   | `MICROSOFT_TRANSLATOR_KEY` (then `AZURE_TRANSLATOR_KEY`) | Microsoft Translator |
-   | `MODERNMT_API_KEY` | ModernMT |
-   | `MYMEMORY_API_KEY` | MyMemory (optional) |
 
-`ollama` and `mymemory` need no key.
+`ollama` and `demo` need no key.
 
 ## Make it the default
 

@@ -38,11 +38,6 @@ func TestValidateProviderType(t *testing.T) {
 		{name: "azureopenai accepted", provider: "azureopenai"},
 		{name: "ollama accepted", provider: "ollama"},
 		{name: "demo accepted", provider: "demo"},
-		{name: "deepl MT accepted", provider: "deepl"},
-		{name: "google MT accepted", provider: "google"},
-		{name: "microsoft MT accepted", provider: "microsoft"},
-		{name: "modernmt MT accepted", provider: "modernmt"},
-		{name: "mymemory MT accepted", provider: "mymemory"},
 		{name: "case insensitive", provider: "Anthropic"},
 		{name: "surrounding whitespace tolerated", provider: "  openai  "},
 		{
@@ -89,9 +84,13 @@ func TestKnownProviderTypes(t *testing.T) {
 		assert.Less(t, known[i-1], known[i], "expected sorted, deduplicated providers")
 	}
 
-	// Both AI and MT canonical providers are present.
-	for _, want := range []string{"anthropic", "openai", "gemini", "azureopenai", "ollama", "demo", "deepl", "google", "microsoft", "modernmt", "mymemory"} {
+	// The canonical AI providers are present (classic MT engines are no longer
+	// built in; plugin-registered AI providers surface automatically).
+	for _, want := range []string{"anthropic", "openai", "gemini", "azureopenai", "ollama", "demo"} {
 		assert.Contains(t, known, want, "expected %q in known providers", want)
+	}
+	for _, gone := range []string{"deepl", "modernmt", "mymemory"} {
+		assert.NotContains(t, known, gone, "classic MT engine %q must not be a built-in credential type", gone)
 	}
 }
 
