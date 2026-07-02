@@ -1048,7 +1048,7 @@ func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error 
 	formatID := registry.FormatID(task.source.Format)
 	sourceHash := project.HashBytes(data)
 
-	blocks, _, err := readSourceBlocks(ctx, a.FormatReg, string(formatID), srcAbs, task.ctx.SourceLocale, task.targetLocale,
+	blocks, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, string(formatID), srcAbs, task.ctx.SourceLocale, task.targetLocale,
 		mergedFormatConfig(task.ctx.Project, string(formatID), task.source.Item))
 	if err != nil {
 		return fmt.Errorf("read blocks: %w", err)

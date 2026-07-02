@@ -173,6 +173,19 @@ func (s *cacheSession) PutBlock(collection string, b *blockstore.Block) error {
 	return nil
 }
 
+// DeleteBlocks drops every block in this session's transaction, leaving
+// overlays intact. Implements blockstore.BlockPurger so a full re-extraction
+// can rebuild the block set from scratch without stale rows lingering.
+func (s *cacheSession) DeleteBlocks() error {
+	if s.done {
+		return blockstore.ErrClosed
+	}
+	if _, err := s.tx.ExecContext(s.ctx, `DELETE FROM blocks`); err != nil {
+		return fmt.Errorf("blockstore: delete blocks: %w", err)
+	}
+	return nil
+}
+
 func (s *cacheSession) GetOverlay(kind, blockHash string) (blockstore.Overlay, error) {
 	if s.done {
 		return blockstore.Overlay{}, blockstore.ErrClosed

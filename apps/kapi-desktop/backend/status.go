@@ -10,9 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/klf"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/registry"
 )
 
 // CollectionStatus is the JSON-serialisable summary the UI renders on the
@@ -281,16 +279,52 @@ func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 		return nil, fmt.Errorf("open block store session: %w", err)
 	}
 
+	// Blocks are a pure cache re-derived from source on every extract. Clear the
+	// prior set first so stale rows can't linger under the content-unique keys
+	// (re-extraction is a full rebuild; target overlays live in a separate table
+	// and are preserved).
+	if purger, ok := sess.(blockstore.BlockPurger); ok {
+		if perr := purger.DeleteBlocks(); perr != nil {
+			_ = sess.Rollback()
+			return nil, fmt.Errorf("clear block store: %w", perr)
+		}
+	}
+
 	result := &ExtractResult{}
 	for _, rf := range resolved {
-		blocks, rerr := a.extractFileBlocks(ctx, pctx, rf)
+		if rf.Format == "" {
+			result.Skipped = append(result.Skipped, ExtractSkip{
+				Path:   rf.Relative,
+				Reason: "no format detected (plugin may not be installed)",
+			})
+			continue
+		}
+		// Per-format project defaults, applied the same way a run configures the
+		// reader — block numbering must match the CLI's.
+		var cfg map[string]any
+		if fd, ok := pctx.FormatDefaults[rf.Format]; ok {
+			cfg = fd.Config
+		}
+		// Shared source-reading path (core/project), identical to the CLI.
+		blocks, _, rerr := project.ReadSourceBlocks(
+			ctx, a.formatReg, rf.Format, rf.Path, pctx.SourceLocale, "", cfg,
+		)
 		if rerr != nil {
 			result.Skipped = append(result.Skipped, ExtractSkip{Path: rf.Relative, Reason: rerr.Error()})
 			continue
 		}
 		collection := collectionLabel(rf.Collection)
 		for _, b := range blocks {
-			if perr := sess.PutBlock(collection, b); perr != nil {
+			// Key the block globally-unique per (source file, in-file id) so
+			// blocks from different files/collections don't collide in the
+			// hash-keyed store (issue: "Website 0 blocks").
+			kb := &klf.Block{
+				ID:           b.ID,
+				Hash:         project.BlockStoreHash(rf.Relative, b.ID, b.SourceText()),
+				Translatable: b.Translatable,
+				Source:       b.Source,
+			}
+			if perr := sess.PutBlock(collection, kb); perr != nil {
 				_ = sess.Rollback()
 				return nil, fmt.Errorf("write block from %q: %w", rf.Relative, perr)
 			}
@@ -315,87 +349,6 @@ func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 		"blocks": result.Blocks,
 	})
 	return result, nil
-}
-
-// extractFileBlocks reads one resolved source file with its detected format
-// reader and returns the translatable blocks as content-addressed klf.Blocks
-// ready for the block store. The block ID is preserved (overlays key on it,
-// matching the CLI's `targets/<locale>` overlay addressing) and Hash is set so
-// PutBlock — which requires a non-empty Hash — accepts the block. The read path
-// mirrors the CLI's readSourceBlocks: detected reader → drain Parts → keep
-// translatable Blocks.
-func (a *App) extractFileBlocks(ctx context.Context, pctx *project.ProjectContext, rf project.ResolvedFile) ([]*klf.Block, error) {
-	if rf.Format == "" {
-		return nil, errors.New("no format detected (plugin may not be installed)")
-	}
-
-	reader, err := a.formatReg.NewReader(registry.FormatID(rf.Format))
-	if err != nil {
-		return nil, fmt.Errorf("no reader for %q: %w", rf.Format, err)
-	}
-	defer reader.Close()
-
-	// Apply project format defaults / presets to the reader, same as a run.
-	if err := pctx.ConfigureReader(reader, rf.Format); err != nil {
-		return nil, fmt.Errorf("configure reader: %w", err)
-	}
-
-	f, err := os.Open(rf.Path)
-	if err != nil {
-		return nil, fmt.Errorf("open file: %w", err)
-	}
-	defer f.Close()
-
-	doc := &model.RawDocument{
-		URI:          rf.Path,
-		SourceLocale: pctx.SourceLocale,
-		FormatID:     rf.Format,
-		Reader:       f,
-	}
-	if err := reader.Open(ctx, doc); err != nil {
-		return nil, fmt.Errorf("open document: %w", err)
-	}
-
-	var out []*klf.Block
-	for res := range reader.Read(ctx) {
-		if res.Error != nil {
-			return nil, fmt.Errorf("read: %w", res.Error)
-		}
-		if res.Part == nil || res.Part.Type != model.PartBlock {
-			continue
-		}
-		b, ok := res.Part.Resource.(*model.Block)
-		if !ok || b == nil {
-			continue
-		}
-		out = append(out, modelBlockToKLF(b))
-	}
-	return out, nil
-}
-
-// modelBlockToKLF converts a runtime model.Block into the wire-level klf.Block
-// the block store persists. Source runs are the same Run type
-// (klf.Run = model.Run), so they carry over directly. A non-empty Hash is
-// required by PutBlock; we use the block's content hash when available and fall
-// back to its ID.
-func modelBlockToKLF(b *model.Block) *klf.Block {
-	hash := b.ID
-	if b.Identity != nil && b.Identity.ContentHash != "" {
-		hash = b.Identity.ContentHash
-	}
-	if hash == "" {
-		// Daemon-backed readers (okapi-bridge okf_*) deliver blocks without an
-		// ID or a populated Identity, so derive the content hash here — the same
-		// value the native path stores — guaranteeing PutBlock gets a non-empty,
-		// content-addressed Hash.
-		hash = model.ComputeContentHash(b.SourceText())
-	}
-	return &klf.Block{
-		ID:           b.ID,
-		Hash:         hash,
-		Translatable: b.Translatable,
-		Source:       b.Source,
-	}
 }
 
 func collectionLabel(name string) string {

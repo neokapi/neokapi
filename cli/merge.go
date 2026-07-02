@@ -334,7 +334,7 @@ func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
 // `targets/<locale>` overlays, and writes accepted source+target pairs into
 // the project TM with kapi-merge provenance. Returns (new, updated) counts.
 func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, tm *sievepen.SQLiteTM, sourceRel string) (int, int, error) {
-	blocks, _, err := readSourceBlocks(ctx, reg, srcFormat, sourceAbs, source, target, nil)
+	blocks, _, err := project.ReadSourceBlocks(ctx, reg, srcFormat, sourceAbs, source, target, nil)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -462,7 +462,7 @@ func (a *App) mergeOneKlz(cmd *cobra.Command, klzInput string) error {
 		}
 		fileStale := si.ContentHash != "" && currentHash != si.ContentHash
 
-		currentBlocks, _, rerr := readSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, pctx.SourceLocale, targetLocale,
+		currentBlocks, _, rerr := project.ReadSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, pctx.SourceLocale, targetLocale,
 			formatConfigForSource(pctx.Project, srcFormat, srcRel))
 		if rerr != nil {
 			return fmt.Errorf("re-read source %s: %w", sourceAbs, rerr)
@@ -648,7 +648,7 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 	if srcFormat == "" {
 		return stats, fmt.Errorf("merge: cannot detect format for source %s", sourceAbs)
 	}
-	currentSourceBlocks, currentSourceLayer, err := readSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, task.ctx.SourceLocale, targetLocale,
+	currentSourceBlocks, currentSourceLayer, err := project.ReadSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, task.ctx.SourceLocale, targetLocale,
 		formatConfigForSource(task.ctx.Project, srcFormat, entry.Source))
 	if err != nil {
 		return stats, fmt.Errorf("re-read source %s: %w", sourceAbs, err)
@@ -781,7 +781,7 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 	if srcFormat == "" {
 		return stats, fmt.Errorf("merge: cannot detect format for source %s", sourceAbs)
 	}
-	currentSourceBlocks, _, err := readSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, task.ctx.SourceLocale, targetLocale,
+	currentSourceBlocks, _, err := project.ReadSourceBlocks(ctx, a.FormatReg, srcFormat, sourceAbs, task.ctx.SourceLocale, targetLocale,
 		formatConfigForSource(task.ctx.Project, srcFormat, entry.Source))
 	if err != nil {
 		return stats, fmt.Errorf("re-read source %s: %w", sourceAbs, err)
@@ -922,54 +922,6 @@ func detectSourceFormat(reg *registry.FormatRegistry, ctx *project.ProjectContex
 		}
 	}
 	return ctx.DetectFormat(reg, abs)
-}
-
-func readSourceBlocks(ctx context.Context, reg *registry.FormatRegistry, formatName, path string, src, tgt model.LocaleID, cfg map[string]any) ([]*model.Block, *model.Layer, error) {
-	reader, err := reg.NewReader(registry.FormatID(formatName))
-	if err != nil {
-		return nil, nil, err
-	}
-	// Per-item format config (e.g. translateFrontMatter on a docs item)
-	// must apply on the merge-time re-read exactly as it did at extract
-	// time — block numbering depends on it.
-	if err := applyFormatConfig(reader, cfg); err != nil {
-		return nil, nil, fmt.Errorf("apply format config: %w", err)
-	}
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer f.Close()
-	doc := &model.RawDocument{
-		URI:          path,
-		SourceLocale: src,
-		TargetLocale: tgt,
-		FormatID:     formatName,
-		Reader:       f,
-	}
-	if err := reader.Open(ctx, doc); err != nil {
-		return nil, nil, err
-	}
-	defer reader.Close()
-
-	var blocks []*model.Block
-	var layer *model.Layer
-	for res := range reader.Read(ctx) {
-		if res.Error != nil {
-			return nil, nil, res.Error
-		}
-		switch res.Part.Type {
-		case model.PartBlock:
-			if b, ok := res.Part.Resource.(*model.Block); ok {
-				blocks = append(blocks, b)
-			}
-		case model.PartLayerStart:
-			if l, ok := res.Part.Resource.(*model.Layer); ok && layer == nil {
-				layer = l
-			}
-		}
-	}
-	return blocks, layer, nil
 }
 
 // resolveMergeOutputPath returns the path to write the merged target
