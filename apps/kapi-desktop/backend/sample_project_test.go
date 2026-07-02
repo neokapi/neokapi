@@ -141,11 +141,11 @@ func TestCreateSampleProjectRecoversStaleRecipe(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("KAPI_HOME_DIR", home)
 
-	targetDir := filepath.Join(home, "KapiProjects", sample.DisplayName["okapimart"])
+	targetDir := filepath.Join(home, "KapiProjects", sample.DisplayName["kapimart"])
 	require.NoError(t, os.MkdirAll(targetDir, 0o755))
 	// Legacy schema: top-level languages + list-form plugins (the exact shape
 	// that triggered "cannot unmarshal !!seq into map[string]project.PluginSpec").
-	stale := "version: v1\nname: OkapiMart\nsource_language: en-US\ntarget_languages:\n  - fr-FR\nplugins:\n  - okapi-bridge\ncontent:\n  - path: \"input/*.json\"\n    format: okf_json\n"
+	stale := "version: v1\nname: KapiMart\nsource_language: en-US\ntarget_languages:\n  - fr-FR\nplugins:\n  - okapi-bridge\ncontent:\n  - path: \"input/*.json\"\n    format: okf_json\n"
 	kapiPath := filepath.Join(targetDir, "project.kapi")
 	require.NoError(t, os.WriteFile(kapiPath, []byte(stale), 0o644))
 
@@ -161,7 +161,7 @@ func TestCreateSampleProjectRecoversStaleRecipe(t *testing.T) {
 	require.Error(t, err, "precondition: stale recipe should fail to parse")
 
 	app := NewApp()
-	tab, err := app.CreateSampleProject("okapimart")
+	tab, err := app.CreateSampleProject("kapimart")
 	require.NoError(t, err, "CreateSampleProject should recover a stale sample recipe")
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 
@@ -172,16 +172,15 @@ func TestCreateSampleProjectRecoversStaleRecipe(t *testing.T) {
 
 func TestSampleProjectFilesExist(t *testing.T) {
 	dir := t.TempDir()
-	require.NoError(t, sample.Scaffold("okapimart", dir))
+	require.NoError(t, sample.Scaffold("kapimart", dir))
 
 	// Verify all expected files.
 	for _, path := range []string{
 		"project.kapi",
-		"input/store-ui.json",
-		"input/changelog.md",
+		"src/en-US/store-ui.json",
+		"web/en-US/getting-started.md",
 		".kapi/tm.db",
 		".kapi/termbase.db",
-		"output",
 	} {
 		_, err := os.Stat(filepath.Join(dir, path))
 		assert.NoError(t, err, "missing: %s", path)

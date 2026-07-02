@@ -126,18 +126,6 @@ export function AppHome({
                 needed.
               </p>
             </Button>
-            <Button
-              variant="outline"
-              data-testid="sample-okapimart"
-              onClick={() => onCreateSampleProject("okapimart")}
-              className="h-auto whitespace-normal rounded-lg border-primary/20 bg-primary/5 p-4 text-left flex-col items-start hover:border-primary/40 hover:bg-primary/10"
-            >
-              <div className="text-sm font-medium">OkapiMart</div>
-              <p className="mt-1 text-xs text-muted-foreground font-normal">
-                Same store files processed through Okapi Java filters. Requires the okapi-bridge
-                plugin.
-              </p>
-            </Button>
           </div>
         </section>
       )}

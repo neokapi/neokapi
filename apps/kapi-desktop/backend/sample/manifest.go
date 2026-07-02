@@ -15,8 +15,7 @@ import (
 // binary version: a plain upgrade should not prompt when the sample itself did
 // not change.
 var Revision = map[string]int{
-	"kapimart":  3, // r3: natural web/src/legal/marketing layout, localized files in locale dirs (was input/output)
-	"okapimart": 3, // r3: single wildcard + auto-detected engines (was per-extension items)
+	"kapimart": 3, // r3: natural web/src/legal/marketing layout, localized files in locale dirs (was input/output)
 }
 
 // CurrentRevision returns the embedded content revision for a sample (0 if the

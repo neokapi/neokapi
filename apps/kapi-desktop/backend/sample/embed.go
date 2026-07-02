@@ -1,7 +1,6 @@
-// Package sample provides embedded sample projects for the kapi-desktop app.
-// Two sample projects ("kapimart" and "okapimart") share identical source files
-// but use different format engines — native Go vs Okapi Bridge — so users can
-// compare them side by side.
+// Package sample provides the embedded sample project for the kapi-desktop
+// app: KapiMart, a multi-collection localization project in the natural
+// per-area layout (web/src/legal/marketing with locale dirs beside source).
 package sample
 
 import (
@@ -22,39 +21,33 @@ import (
 	"github.com/neokapi/neokapi/termbase"
 )
 
-//go:embed shared/* kapimart/* okapimart/*
+//go:embed kapimart/*
 var assetsFS embed.FS
 
 // DisplayName maps an internal sample name to its user-facing name.
 var DisplayName = map[string]string{
-	"kapimart":  "KapiMart",
-	"okapimart": "OkapiMart",
+	"kapimart": "KapiMart",
 }
 
 // List returns the available sample project names.
 func List() []string {
-	return []string{"kapimart", "okapimart"}
+	return []string{"kapimart"}
 }
 
 // Scaffold creates a sample project on disk at targetDir.
-// name must be "kapimart" or "okapimart".
+// name must be "kapimart".
 func Scaffold(name, targetDir string) error {
 	if _, ok := DisplayName[name]; !ok {
 		return fmt.Errorf("unknown sample project %q", name)
 	}
 
-	// Copy source files. KapiMart uses a natural per-area layout (source under
-	// <area>/en-US/, localized files beside it under sibling locale dirs — no
-	// separate output/ tree). OkapiMart keeps a single input/ tree materialized
-	// to output/{lang} to demonstrate the single-wildcard Okapi flow.
-	if name == "kapimart" {
-		for _, area := range []string{"web", "src", "legal", "marketing"} {
-			if err := copyEmbeddedDir("kapimart/"+area, filepath.Join(targetDir, area)); err != nil {
-				return fmt.Errorf("copy %s files: %w", area, err)
-			}
+	// Copy source files: natural per-area layout (source under <area>/en-US/,
+	// localized files beside it under sibling locale dirs — no separate
+	// output/ tree).
+	for _, area := range []string{"web", "src", "legal", "marketing"} {
+		if err := copyEmbeddedDir("kapimart/"+area, filepath.Join(targetDir, area)); err != nil {
+			return fmt.Errorf("copy %s files: %w", area, err)
 		}
-	} else if err := copyEmbeddedDir("shared/input", filepath.Join(targetDir, "input")); err != nil {
-		return fmt.Errorf("copy input files: %w", err)
 	}
 
 	// Copy the project-specific .kapi file.
@@ -69,34 +62,17 @@ func Scaffold(name, targetDir string) error {
 		return fmt.Errorf("write project.kapi: %w", err)
 	}
 
-	// OkapiMart materializes into a dedicated output/ tree; KapiMart embeds
-	// localized files beside source under per-area locale dirs, so it has none.
-	if name != "kapimart" {
-		if err := os.MkdirAll(filepath.Join(targetDir, "output"), 0o755); err != nil {
-			return fmt.Errorf("create output dir: %w", err)
-		}
-	}
-
 	kapiDir := filepath.Join(targetDir, ".kapi")
 	if err := os.MkdirAll(kapiDir, 0o755); err != nil {
 		return fmt.Errorf("create .kapi dir: %w", err)
 	}
 
-	// Seed TM and termbase — v2 for kapimart, v1 for okapimart.
-	if name == "kapimart" {
-		if err := seedTMv2(filepath.Join(kapiDir, "tm.db")); err != nil {
-			return fmt.Errorf("seed TM: %w", err)
-		}
-		if err := seedTermbasev2(filepath.Join(kapiDir, "termbase.db")); err != nil {
-			return fmt.Errorf("seed termbase: %w", err)
-		}
-	} else {
-		if err := seedTM(filepath.Join(kapiDir, "tm.db")); err != nil {
-			return fmt.Errorf("seed TM: %w", err)
-		}
-		if err := seedTermbase(filepath.Join(kapiDir, "termbase.db")); err != nil {
-			return fmt.Errorf("seed termbase: %w", err)
-		}
+	// Seed TM and termbase.
+	if err := seedTMv2(filepath.Join(kapiDir, "tm.db")); err != nil {
+		return fmt.Errorf("seed TM: %w", err)
+	}
+	if err := seedTermbasev2(filepath.Join(kapiDir, "termbase.db")); err != nil {
+		return fmt.Errorf("seed termbase: %w", err)
 	}
 
 	// Stamp the sample manifest (.kapi/sample.json) so the desktop can detect an
@@ -108,49 +84,7 @@ func Scaffold(name, targetDir string) error {
 	return nil
 }
 
-// --- OkapiMart v1 seed functions (unchanged) ---
-
-func seedTM(dbPath string) error {
-	tmxData, err := assetsFS.ReadFile("shared/tm-seed.tmx")
-	if err != nil {
-		return fmt.Errorf("read TMX: %w", err)
-	}
-	tm, err := sievepen.NewSQLiteTM(dbPath)
-	if err != nil {
-		return err
-	}
-	defer tm.Close()
-	// The TMX already has all target locales on each TU; a single import
-	// creates one multilingual entry per TU with every variant populated.
-	if _, _, err := sievepen.ImportTMXSession(context.Background(), tm, bytes.NewReader(tmxData),
-		sievepen.ImportTMXOptions{
-			OriginKey:     "tm-seed.tmx",
-			OriginAddedBy: "kapi-sample",
-		}); err != nil {
-		return fmt.Errorf("import TMX: %w", err)
-	}
-	spreadTimestamps(tm.DB(), "tm_entries", 30)
-	return nil
-}
-
-func seedTermbase(dbPath string) error {
-	tbData, err := assetsFS.ReadFile("shared/termbase-seed.json")
-	if err != nil {
-		return fmt.Errorf("read termbase JSON: %w", err)
-	}
-	tb, err := termbase.NewSQLiteTermBase(dbPath)
-	if err != nil {
-		return err
-	}
-	defer tb.Close()
-	if _, err := termbase.ImportJSON(context.Background(), tb, bytes.NewReader(tbData)); err != nil {
-		return fmt.Errorf("import termbase: %w", err)
-	}
-	spreadTimestamps(tb.DB(), "tb_concepts", 30)
-	return nil
-}
-
-// --- KapiMart v2 seed functions ---
+// --- KapiMart seed functions ---
 
 var v2Targets = []model.LocaleID{"de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"}
 
