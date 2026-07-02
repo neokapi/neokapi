@@ -104,7 +104,7 @@ func TestAITranslate_SessionOverlayWrittenUnderStoreKey(t *testing.T) {
 
 	// …and NOT under the raw file-local id (that key would collide across files).
 	_, err = check.GetOverlay("targets/fr", "tu1")
-	assert.ErrorIs(t, err, blockstore.ErrNotFound)
+	require.ErrorIs(t, err, blockstore.ErrNotFound)
 }
 
 // TestAITranslate_SessionOverlayRawIDFallback: without a source file in
@@ -285,7 +285,7 @@ func TestAITranslate_ErrorPropagation(t *testing.T) {
 		close(in)
 		err := tl.Process(t.Context(), in, out)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, provErr)
+		require.ErrorIs(t, err, provErr)
 		assert.Contains(t, err.Error(), "translate batch:")
 	})
 
@@ -329,7 +329,7 @@ func TestAITranslate_ErrorPropagation(t *testing.T) {
 		close(in)
 		err = tl.SessionProcess(ctx, sess, in, out)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, provErr)
+		require.ErrorIs(t, err, provErr)
 	})
 }
 
@@ -357,5 +357,5 @@ func TestAITranslate_SessionBlockWithoutID(t *testing.T) {
 	require.NoError(t, err)
 	defer check.Close()
 	_, err = check.GetOverlay("targets/fr", "")
-	assert.ErrorIs(t, err, blockstore.ErrNotFound, "an id-less block writes no overlay")
+	require.ErrorIs(t, err, blockstore.ErrNotFound, "an id-less block writes no overlay")
 }

@@ -124,7 +124,7 @@ func TestAIReviewTool_ErrorPropagation(t *testing.T) {
 
 	err := tl.Process(t.Context(), in, out)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, provErr)
+	require.ErrorIs(t, err, provErr)
 	assert.Contains(t, err.Error(), "review:")
 }
 
