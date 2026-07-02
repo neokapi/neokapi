@@ -173,10 +173,11 @@ describe("HomePage merged collection surface", () => {
       />,
     );
     // fr-FR clears its gate → Shippable; de-DE has reviews but isn't shippable → In review.
-    expect(screen.getByText("Shippable")).toBeInTheDocument();
-    expect(screen.getByText("In review")).toBeInTheDocument();
-    // The project-wide strip reframes as ship-readiness.
-    expect(screen.getByText("Shippable across collections")).toBeInTheDocument();
+    // (Both labels also appear in the timeline legend, hence getAllByText.)
+    expect(screen.getAllByText("Shippable").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("In review").length).toBeGreaterThan(0);
+    // The project-wide overview is now the per-language completeness timeline.
+    expect(screen.getByText("Completeness by language")).toBeInTheDocument();
   });
 
   it("drops the standalone Content quick-action card (the page is content now)", () => {

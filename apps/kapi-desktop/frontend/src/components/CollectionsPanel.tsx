@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, DragEvent, useMemo, Fragment } from "react";
+import { useState, useEffect, useCallback, useRef, DragEvent, useMemo, Fragment } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { t } from "@neokapi/kapi-react/runtime";
 import {
@@ -87,6 +87,14 @@ const collectionColor = (idx: number) => CHART_COLORS[idx % CHART_COLORS.length]
 
 // A coverage tint from 0% (muted) to 100% (primary), for the heatmap tiles.
 const coverageTint = (p: number) => `color-mix(in oklch, var(--primary) ${p}%, var(--muted))`;
+
+// Ship-gate stage colours, shared by the per-language timeline + the row cells.
+const STAGE_COLOR: Record<string, string> = {
+  shippable: "oklch(0.62 0.17 150)", // green
+  review: "oklch(0.72 0.15 80)", // amber
+  translated: "var(--primary)", // blue
+  none: "var(--muted-foreground)",
+};
 
 // The ship-gate ladder rung for a (collection, locale) scope, derived from the
 // convergence report. `pct` is the translated coverage shown as a secondary
@@ -226,6 +234,106 @@ function StripBar({ label, pct, color }: { label: string; pct: number; color?: s
         {pct}%
       </span>
     </span>
+  );
+}
+
+/** TimelineItem: one language's overall standing for the completeness timeline. */
+interface TimelineItem {
+  lang: string;
+  pct: number; // overall translated coverage, 0–100
+  stage: keyof typeof STAGE_COLOR;
+}
+
+/** LanguageTimeline plots each language on a 0→100% completeness axis, coloured
+ *  by its ship-gate stage, auto-stacking into lanes where languages cluster. It
+ *  answers "how close is each language, and where does the pack sit?" at a
+ *  glance — the project-wide overview above the per-collection rows. */
+function LanguageTimeline({ items }: { items: TimelineItem[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => setWidth(entries[0].contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const CHIP = 64; // approx chip width incl. gap, for overlap detection
+  const ROW = 26;
+  const color = (s: string) => STAGE_COLOR[s] ?? STAGE_COLOR.none;
+
+  // Greedy lane assignment on an ascending copy so dense regions stack upward.
+  const sorted = [...items].sort((a, b) => a.pct - b.pct);
+  const laneLast: number[] = [];
+  const usable = Math.max(0, width - CHIP);
+  const placed = sorted.map((it) => {
+    const x = (it.pct / 100) * usable;
+    let lane = 0;
+    while (lane < laneLast.length && x - laneLast[lane] < CHIP) lane++;
+    laneLast[lane] = x;
+    return { it, x, lane };
+  });
+  const lanes = width > 0 ? Math.max(1, laneLast.length) : 1;
+
+  return (
+    <div>
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {t("Completeness by language")}
+      </div>
+      <div ref={ref} className="relative" style={{ height: lanes * ROW + 20 }}>
+        {/* axis + gridlines */}
+        <div className="absolute inset-x-0 top-3 h-px bg-border" />
+        {[25, 50, 75].map((g) => (
+          <div
+            key={g}
+            className="absolute top-3 bottom-0 w-px bg-border/40"
+            style={{ left: `${g}%` }}
+          />
+        ))}
+        <span className="absolute top-0 left-0 text-[9px] text-muted-foreground">0%</span>
+        <span className="absolute top-0 left-1/2 -translate-x-1/2 text-[9px] text-muted-foreground">
+          50%
+        </span>
+        <span className="absolute top-0 right-0 text-[9px] text-muted-foreground">100%</span>
+        {/* language chips */}
+        {width > 0 &&
+          placed.map(({ it, x, lane }) => (
+            <span key={it.lang} className="absolute" style={{ left: x, top: 16 + lane * ROW }}>
+              <span
+                className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium shadow-sm"
+                style={{
+                  borderColor: color(it.stage),
+                  background: `color-mix(in oklch, ${color(it.stage)} 12%, var(--card))`,
+                }}
+                title={`${it.lang}: ${it.pct}% translated`}
+              >
+                <span
+                  className="size-1.5 shrink-0 rounded-full"
+                  style={{ background: color(it.stage) }}
+                />
+                <span translate="no">{it.lang}</span>
+                <span className="tabular-nums text-muted-foreground">{it.pct}</span>
+              </span>
+            </span>
+          ))}
+      </div>
+      {/* legend */}
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+        {(
+          [
+            ["shippable", t("Shippable")],
+            ["review", t("In review")],
+            ["translated", t("Translated")],
+          ] as const
+        ).map(([k, label]) => (
+          <span key={k} className="flex items-center gap-1">
+            <span className="size-2 rounded-full" style={{ background: color(k) }} />
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1180,18 +1288,35 @@ export function CollectionsPanel({
   };
   // Coverage columns render once there's either extracted data or gate standing.
   const showCoverageCols = (hasData || hasGates) && columnLangs.length > 0;
-  // Project-wide ship-gate summary per language: the share of units in shippable
-  // (collection, locale) scopes. Replaces the translated-% strip when gates exist.
-  const stripGates = hasGates
+  // Per-language standing for the completeness timeline: overall translated
+  // coverage (position) + the ship-gate stage (colour), aggregated across every
+  // (collection, locale) scope for that language, weighted by unit count.
+  const timelineItems: TimelineItem[] | null = hasGates
     ? columnLangs.map((lang) => {
-        let shippable = 0;
         let total = 0;
+        let tSum = 0;
+        let rSum = 0;
+        let shippableUnits = 0;
         for (const lc of convergence?.locales ?? []) {
           if (lc.locale !== lang) continue;
           total += lc.total;
-          if (lc.shippable) shippable += lc.total;
+          tSum += (lc.total * (lc.pct?.translated ?? 0)) / 100;
+          rSum += (lc.total * (lc.pct?.reviewed ?? 0)) / 100;
+          if (lc.shippable) shippableUnits += lc.total;
         }
-        return { lang, pct: total > 0 ? Math.round((shippable / total) * 100) : 0 };
+        const pct = total > 0 ? Math.round((tSum / total) * 100) : 0;
+        const reviewed = total > 0 ? Math.round((rSum / total) * 100) : 0;
+        const stage: TimelineItem["stage"] =
+          total === 0
+            ? "none"
+            : shippableUnits / total >= 0.999
+              ? "shippable"
+              : reviewed > 0
+                ? "review"
+                : pct > 0
+                  ? "translated"
+                  : "none";
+        return { lang, pct, stage };
       })
     : null;
   // Per-(collection, language) translated coverage %, or null when the
@@ -1450,22 +1575,8 @@ export function CollectionsPanel({
                   ))}
                 </ul>
               </div>
-              {stripGates && stripGates.length > 0 ? (
-                <div className="space-y-1.5">
-                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t("Shippable across collections")}
-                  </div>
-                  <div className="flex flex-wrap gap-x-6 gap-y-1.5">
-                    {stripGates.map((p) => (
-                      <StripBar
-                        key={p.lang}
-                        label={p.lang}
-                        pct={p.pct}
-                        color="oklch(0.62 0.17 150)"
-                      />
-                    ))}
-                  </div>
-                </div>
+              {timelineItems && timelineItems.length > 0 ? (
+                <LanguageTimeline items={timelineItems} />
               ) : (
                 stripCoverage.length > 0 && (
                   <div className="space-y-1.5">
