@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
   useApi,
+  type NavItem,
   type User,
   type View,
   type Workspace,
@@ -36,11 +37,18 @@ import {
   useBravoAssistantRuntime,
 } from "@neokapi/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Earth } from "lucide-react";
 import { useUIStore } from "../stores/ui-store";
-import { viewFromPath } from "./view-from-path";
+import { viewFromPath, type WorkspaceView } from "./view-from-path";
 import { activitiesQueryOptions, myTasksQueryOptions } from "../queries";
 import { useWorkspaceEvents } from "../hooks/useWorkspaceEvents";
 import type { WorkspaceRouteContext } from ".";
+
+// Web-only workspace nav entries appended after the shared ones (Projects,
+// Brand, Memory). Locale demand is a design prototype surface (mock data).
+const workspaceExtraNavItems: NavItem[] = [
+  { id: "locale-demand", label: "Locale demand", icon: <Earth /> },
+];
 
 // ---------------------------------------------------------------------------
 // Helpers to extract project context from URL
@@ -425,8 +433,9 @@ export function WorkspaceLayout() {
   const sidebarContext = useMemo<SidebarContext | undefined>(() => {
     const projectParams = parseProjectParams(pathname, workspaceSlug ?? "");
     if (!projectParams) {
-      // Workspace-level: use default flat nav
-      return { level: "workspace", activeView: effectiveView };
+      // Workspace-level: use default flat nav. The cast covers web-only views
+      // ("locale-demand") that the shared SidebarContext type doesn't know yet.
+      return { level: "workspace", activeView: effectiveView as View };
     }
 
     // Try to read project from React Query cache (populated by child route loaders)
@@ -440,7 +449,7 @@ export function WorkspaceLayout() {
     if (!project) {
       // Project data not yet in cache — fall back to workspace nav.
       // This can happen briefly during navigation; child loader will populate it.
-      return { level: "workspace", activeView: effectiveView };
+      return { level: "workspace", activeView: effectiveView as View };
     }
 
     // Determine which project sub-page is active.
@@ -545,11 +554,17 @@ export function WorkspaceLayout() {
   }, [queryClient]);
 
   const handleViewChange = useCallback(
-    (view: View) => {
+    (view: WorkspaceView) => {
       const wsSlug = workspaceSlug ?? "";
       switch (view) {
         case "translate":
           void navigate({ to: "/$workspace", params: { workspace: wsSlug } });
+          break;
+        case "locale-demand":
+          void navigate({
+            to: "/$workspace/locale-demand",
+            params: { workspace: wsSlug },
+          });
           break;
         case "brand":
           void navigate({
@@ -672,6 +687,7 @@ export function WorkspaceLayout() {
               onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
               activeView={effectiveView}
               onViewChange={handleViewChange}
+              extraNavItems={workspaceExtraNavItems}
               user={user}
               onSignOut={serverMode === "server" ? handleSignOut : undefined}
               collapsed={sidebarCollapsed}
