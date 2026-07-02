@@ -16,7 +16,7 @@ const config = createMainConfig(
       // Bowrain apps
       "../../emails/src/**/*.stories.@(ts|tsx)",
       "../../apps/keycloak-theme/src/**/*.stories.@(ts|tsx)",
-      "../../apps/web/src/auth/**/*.stories.@(ts|tsx)",
+      "../../apps/web/src/**/*.stories.@(ts|tsx)",
       "../../apps/bowrain/frontend/src/**/*.stories.@(ts|tsx)",
     ],
   },
