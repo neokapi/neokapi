@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -52,6 +53,12 @@ type RunEvent struct {
 	// Stats (when type == "complete")
 	DurationMs     int64 `json:"duration_ms,omitempty"`
 	FilesProcessed int   `json:"files_processed,omitempty"`
+
+	// Convergence-run fields (BringUpToDate — the shared `kapi up` engine):
+	// Converge carries one pass snapshot (when type == "converge_pass") and
+	// ConvergeResult the final structured outcome (on the run's "complete").
+	Converge       *cli.ConvergePassEvent `json:"converge,omitempty"`
+	ConvergeResult *cli.ConvergeOutput    `json:"converge_result,omitempty"`
 }
 
 // runner manages flow execution state with proper synchronization.

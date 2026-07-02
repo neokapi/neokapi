@@ -28,6 +28,7 @@ import type {
   ProjectStatus,
   ExtractResult,
   ConvergenceReport,
+  ConvergePlan,
   ReviewItem,
   ReviewUnitDetail,
   ReviewAIActionResult,
@@ -112,6 +113,7 @@ export const api = {
   getProjectStatus: (tabID: string) => call<ProjectStatus>("GetProjectStatus", tabID),
   runExtract: (tabID: string) => call<ExtractResult>("RunExtract", tabID),
   getConvergence: (tabID: string) => call<ConvergenceReport>("GetConvergence", tabID),
+  getConvergePlan: (tabID: string) => call<ConvergePlan>("GetConvergePlan", tabID),
   bringUpToDate: (tabID: string) => call<void>("BringUpToDate", tabID),
   approveReviewItem: (tabID: string, locale: string, file: string, key: string) =>
     call<void>("ApproveReviewItem", tabID, locale, file, key),

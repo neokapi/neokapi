@@ -10,7 +10,15 @@ export {
 import * as $models from "./models.js";
 
 /**
- * Gate is a set of coverage thresholds: state name → minimum percent in [0,100].
- * A threshold of 0 means "not required". An empty Gate is satisfied by anything.
+ * Gate is a set of coverage thresholds: state name → threshold (minimum percent
+ * in [0,100], optional approver class). A threshold of 0 means "not required".
+ * An empty Gate is satisfied by anything.
  * @typedef {$models.Gate} Gate
+ */
+
+/**
+ * Threshold is one gate requirement: the minimum percent of units at (or above)
+ * a rung, plus the approver class the rung must be reached by. The zero By
+ * means the default class: human for decision rungs (see the package doc).
+ * @typedef {$models.Threshold} Threshold
  */

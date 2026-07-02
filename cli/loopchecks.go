@@ -47,6 +47,18 @@ func (e *checkExclusions) failingForLocale(locale string) int {
 	return e.byLocale[locale]
 }
 
+// totalFailing returns the count of failing units across every locale (0 when nil).
+func (e *checkExclusions) totalFailing() int {
+	if e == nil {
+		return 0
+	}
+	total := 0
+	for _, n := range e.byLocale {
+		total += n
+	}
+	return total
+}
+
 // computeLoopCheckExclusions runs the project's bound target-side checks over
 // the produced units — the same engines `kapi check --ship` gates on: the QA
 // checkset (placeholder/tag integrity, plus the default placeholder patterns)

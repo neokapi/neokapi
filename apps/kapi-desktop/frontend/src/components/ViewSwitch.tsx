@@ -99,10 +99,13 @@ export function ViewSwitch({
   // but must not relaunch the flow.
   const [runnerState, setRunnerState] = useState<{
     flowName: string;
-    flow: FlowSpec;
+    flow?: FlowSpec;
     runId: number;
     scopePaths?: string[];
     scopeLabel?: string;
+    /** Convergence run (Bring up to date): the runner renders passes and
+     *  launches through the shared `kapi up` engine. */
+    converge?: boolean;
   } | null>(null);
   const runCounter = useRef(0);
   const launchedRunIdRef = useRef<number | null>(null);
@@ -138,6 +141,22 @@ export function ViewSwitch({
     },
     [navigate],
   );
+
+  // Bring up to date (the home hero / plan dialog): open the runner in its
+  // convergence view. The backend drives the shared `kapi up` engine over the
+  // project's default flow; nothing else travels from here.
+  const handleBringUpToDate = useCallback(() => {
+    const project = history.project;
+    const flowName = project?.defaults?.flow ?? "";
+    runCounter.current += 1;
+    setRunnerState({
+      flowName,
+      flow: flowName ? project?.flows?.[flowName] : undefined,
+      runId: runCounter.current,
+      converge: true,
+    });
+    navigate("runner");
+  }, [history, navigate]);
 
   // Home — global overlay in both modes
   if (effectiveView === "home") {
@@ -233,6 +252,7 @@ export function ViewSwitch({
             tabID={tabID}
             onUpdate={updateProject}
             onRunFlow={handleRunFlow}
+            onBringUpToDate={handleBringUpToDate}
             onNavigate={navigate}
             onOpenReview={handleOpenReview}
             pluginsResolved={activeTab.pluginsResolved}
@@ -281,6 +301,8 @@ export function ViewSwitch({
               autoRun={runnerState.runId !== launchedRunIdRef.current}
               scopePaths={runnerState.scopePaths}
               scopeLabel={runnerState.scopeLabel}
+              converge={runnerState.converge}
+              onOpenReview={handleOpenReview}
               onLaunched={() => {
                 launchedRunIdRef.current = runnerState.runId;
               }}

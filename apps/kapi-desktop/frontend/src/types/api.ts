@@ -28,6 +28,8 @@ export interface ProjectDefaults {
   parallel_blocks?: number;
   encoding?: string;
   formats?: Record<string, FormatDefaults>;
+  /** The default flow `kapi up` / Bring up to date converges with. */
+  flow?: string;
 }
 
 export interface FormatDefaults {
@@ -528,6 +530,78 @@ export interface ConvergenceReport {
   source?: SourceCoverage;
   locales: LocaleCoverage[];
   review: ReviewItem[];
+}
+
+// --- Convergence pre-flight plan + run result (the shared `kapi up` engine) ---
+
+/** One (collection, locale) scope of the dry-run work plan (cli.UpPlanScope). */
+export interface UpPlanScope {
+  locale?: string;
+  collection?: string;
+  /** Translatable units with no committed target for the locale. */
+  missingTarget: number;
+  /** Missing units covered by an exact-hash TM hit. */
+  tmExact: number;
+  /** Missing units left for AI translation after TM leverage. */
+  aiRemaining: number;
+  /** Rough input-token estimate for the remaining AI work (chars/4). */
+  tokenEstimate: number;
+}
+
+/** The dry-run plan `kapi up --plan` computes (cli.UpPlanOutput). */
+export interface UpPlanOutput {
+  flow?: string;
+  scopes: UpPlanScope[] | null;
+  totals: UpPlanScope;
+  /** Discloses the estimation heuristic (TM exact-hash only, chars/4 tokens). */
+  note: string;
+}
+
+/** Desktop pre-flight picture: the work plan + the block-store drift the
+ * run's auto-extract would heal (backend ConvergePlan). */
+export interface ConvergePlan {
+  plan: UpPlanOutput;
+  changedFiles: number;
+  removedFiles: number;
+  storeMissing: boolean;
+  versionStale: boolean;
+}
+
+/** One structured pass snapshot of a convergence run (cli.ConvergePassEvent). */
+export interface ConvergePassEvent {
+  pass: number;
+  extractedFiles?: number;
+  extractedBlocks?: number;
+  produced: number;
+  producedDelta: number;
+  failingChecks?: number;
+  pendingLocales?: string[];
+}
+
+/** A gated (collection, locale) scope still short of its gate after a run. */
+export interface ParkedScope {
+  locale: string;
+  collection?: string;
+}
+
+/** Per-locale outcome of a convergence run (cli.ConvergeLocaleResult). */
+export interface ConvergeLocaleResult {
+  locale: string;
+  shippable: boolean;
+  parked?: boolean;
+  pct?: Record<string, number>;
+  failingChecks?: number;
+  materialized?: number;
+}
+
+/** Structured result of a convergence run (cli.ConvergeOutput). */
+export interface ConvergeOutput {
+  flow: string;
+  passes: number;
+  converged: boolean;
+  locales: ConvergeLocaleResult[];
+  parkedScopes?: ParkedScope[];
+  materializedFiles?: number;
 }
 
 /** One skipped file from an extraction request. */

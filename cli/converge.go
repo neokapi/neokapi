@@ -33,6 +33,35 @@ type convergeOptions struct {
 	// materialize forces the post-loop materialize step (`up --materialize`)
 	// regardless of the recipe's defaults.materialize policy.
 	materialize bool
+	// onPass, when set, receives a structured snapshot after each pass — the
+	// hook an embedding UI (the desktop runner) renders its passes view from.
+	onPass func(ConvergePassEvent)
+	// capture, when non-nil, receives the final ConvergeOutput instead of it
+	// being printed through the command's output formatter (embedders).
+	capture *ConvergeOutput
+}
+
+// ConvergePassEvent is the structured per-pass progress of a convergence run,
+// emitted through convergeOptions.onPass / UpOptions.OnPass after each pass's
+// post-derivation. It carries what the desktop's convergence view renders:
+// "pass N: extracted X, produced Y, checks failing Z" plus the locales still
+// short of their gate.
+type ConvergePassEvent struct {
+	Pass int `json:"pass"`
+	// ExtractedFiles/ExtractedBlocks report the pre-pass auto-extract on
+	// drift; both zero when the block store was already in sync.
+	ExtractedFiles  int `json:"extractedFiles,omitempty"`
+	ExtractedBlocks int `json:"extractedBlocks,omitempty"`
+	// Produced is the count of units at ≥ draft (any committed target) after
+	// the pass; ProducedDelta is the pass's progress over that metric.
+	Produced      int `json:"produced"`
+	ProducedDelta int `json:"producedDelta"`
+	// FailingChecks counts produced units that fail the project's bound
+	// checks after the pass (they read at draft for gating).
+	FailingChecks int `json:"failingChecks,omitempty"`
+	// PendingLocales are the locales still short of their gate after the pass
+	// (the candidates to park if the loop stalls).
+	PendingLocales []string `json:"pendingLocales,omitempty"`
 }
 
 // ConvergeLocaleResult is the per-locale outcome of a convergence run.
@@ -52,6 +81,13 @@ type ConvergeLocaleResult struct {
 	Materialized int `json:"materialized,omitempty"`
 }
 
+// ParkedScope identifies one gated (collection, locale) scope still short of
+// its gate after the run — the address a review surface can deep-link to.
+type ParkedScope struct {
+	Locale     string `json:"locale"`
+	Collection string `json:"collection,omitempty"`
+}
+
 // ConvergeOutput is the structured result of `kapi run` driving the default
 // flow over a project's content. One pass by default; looped to the ship gate
 // under --until-gate.
@@ -60,6 +96,10 @@ type ConvergeOutput struct {
 	Passes    int                    `json:"passes"`
 	Converged bool                   `json:"converged"` // every gated scope is shippable
 	Locales   []ConvergeLocaleResult `json:"locales"`
+	// ParkedScopes lists the gated (collection, locale) scopes that remain
+	// short of their gate — per-scope detail under the per-locale rollup, so
+	// a UI can link each parked scope to its review queue.
+	ParkedScopes []ParkedScope `json:"parkedScopes,omitempty"`
 	// MaterializedFiles is the total count of localized files written by the
 	// post-loop materialize step across every shippable locale (0 when the
 	// policy is manual and --materialize was not passed).
@@ -191,9 +231,12 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 			// missing store, a version-stamp mismatch, or edited source files
 			// all trigger a re-extract through the same shared path the
 			// desktop's Re-extract uses. `up --no-extract` opts out.
+			var extracted *project.ExtractStats
 			if !opts.noExtract {
-				if err := a.syncProjectBlockStore(ctx, cmd, pctx, projectPath, resolved); err != nil {
-					return fmt.Errorf("sync project block store: %w", err)
+				var serr error
+				extracted, serr = a.syncProjectBlockStore(ctx, cmd, pctx, projectPath, resolved)
+				if serr != nil {
+					return fmt.Errorf("sync project block store: %w", serr)
 				}
 			}
 
@@ -224,6 +267,9 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 			if err != nil {
 				return err
 			}
+			if opts.onPass != nil {
+				opts.onPass(newConvergePassEvent(passes, extracted, before, cov2, excl2, locales))
+			}
 			if !untilGate {
 				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov2, locales, excl2, opts)
 			}
@@ -247,33 +293,47 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 // desktop's Re-extract — and is a full rebuild of the block set (blocks are a
 // pure cache; target overlays are preserved). No drift → no work beyond cheap
 // stat checks.
-func (a *App) syncProjectBlockStore(ctx context.Context, cmd *cobra.Command, pctx *project.ProjectContext, projectPath string, resolved []project.ResolvedFile) error {
+func (a *App) syncProjectBlockStore(ctx context.Context, cmd *cobra.Command, pctx *project.ProjectContext, projectPath string, resolved []project.ResolvedFile) (*project.ExtractStats, error) {
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	storePath := layout.BlockStorePath()
 	drift := project.DetectStoreDrift(storePath, resolved)
 	if !drift.Any() {
-		return nil
+		return nil, nil
 	}
 	if err := project.EnsureLayout(layout); err != nil {
-		return err
+		return nil, err
 	}
 	store, err := sqlitestore.New(storePath)
 	if err != nil {
-		return fmt.Errorf("open project block store: %w", err)
+		return nil, fmt.Errorf("open project block store: %w", err)
 	}
 	defer store.Close()
 	stats, err := project.ExtractToBlockStore(ctx, a.FormatReg, pctx, store, storePath, resolved)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !a.Quiet {
 		fmt.Fprintf(cmd.OutOrStdout(), "Extracted %d block(s) from %d file(s) into the project store (%s).\n",
 			stats.Blocks, stats.Files, describeDrift(drift))
 	}
-	return nil
+	return &stats, nil
+}
+
+// newConvergePassEvent snapshots one pass for convergeOptions.onPass.
+func newConvergePassEvent(pass int, extracted *project.ExtractStats, before int, cov []LocaleCoverage, excl *checkExclusions, locales []model.LocaleID) ConvergePassEvent {
+	ev := ConvergePassEvent{Pass: pass, Produced: producedUnits(cov), FailingChecks: excl.totalFailing()}
+	ev.ProducedDelta = ev.Produced - before
+	if extracted != nil {
+		ev.ExtractedFiles = extracted.Files
+		ev.ExtractedBlocks = extracted.Blocks
+	}
+	for _, loc := range localesNeedingPass(cov, locales) {
+		ev.PendingLocales = append(ev.PendingLocales, string(loc))
+	}
+	return ev
 }
 
 // describeDrift renders a short reason for an auto-extract, for the run log.
@@ -388,6 +448,10 @@ func (a *App) finishConverge(cmd *cobra.Command, proj *project.KapiProject, proj
 		}
 	}
 
+	if opts.capture != nil {
+		*opts.capture = out
+		return nil
+	}
 	return output.Print(cmd, out)
 }
 
@@ -424,6 +488,13 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 			out.Converged = false
 		}
 		out.Locales = append(out.Locales, res)
+	}
+	// Per-scope parked detail: every gated (collection, locale) scope still
+	// short of its gate, in the coverage's stable order.
+	for _, c := range cov {
+		if c.Gated && !c.Shippable {
+			out.ParkedScopes = append(out.ParkedScopes, ParkedScope{Locale: c.Locale, Collection: c.Collection})
+		}
 	}
 	return out
 }

@@ -11,6 +11,258 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as convergence$0 from "../core/convergence/models.js";
 
 /**
+ * ConvergeLocaleResult is the per-locale outcome of a convergence run.
+ */
+export class ConvergeLocaleResult {
+    /**
+     * Creates a new ConvergeLocaleResult instance.
+     * @param {Partial<ConvergeLocaleResult>} [$$source = {}] - The source object to create the ConvergeLocaleResult.
+     */
+    constructor($$source = {}) {
+        if (!("locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["locale"] = "";
+        }
+        if (!("shippable" in $$source)) {
+            /**
+             * every gated scope for this locale clears its gate
+             * @member
+             * @type {boolean}
+             */
+            this["shippable"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * still short of its gate after the loop (needs human)
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["parked"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ladder state → "at least" percent
+             * @member
+             * @type {{ [_ in string]?: number } | undefined}
+             */
+            this["pct"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * FailingChecks counts units that are produced but fail the project's
+             * bound checks (#1078 G4) — they read at `draft`, not `translated`, for
+             * gating, so they hold the locale below its gate until fixed.
+             * @member
+             * @type {number | undefined}
+             */
+            this["failingChecks"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Materialized counts the localized files written for this locale by the
+             * post-loop materialize step (defaults.materialize: on-converge, or
+             * --materialize). Only shippable locales materialize; a parked locale
+             * stays at 0.
+             * @member
+             * @type {number | undefined}
+             */
+            this["materialized"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConvergeLocaleResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ConvergeLocaleResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("pct" in $$parsedSource) {
+            $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
+        }
+        return new ConvergeLocaleResult(/** @type {Partial<ConvergeLocaleResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * ConvergeOutput is the structured result of `kapi run` driving the default
+ * flow over a project's content. One pass by default; looped to the ship gate
+ * under --until-gate.
+ */
+export class ConvergeOutput {
+    /**
+     * Creates a new ConvergeOutput instance.
+     * @param {Partial<ConvergeOutput>} [$$source = {}] - The source object to create the ConvergeOutput.
+     */
+    constructor($$source = {}) {
+        if (!("flow" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["flow"] = "";
+        }
+        if (!("passes" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["passes"] = 0;
+        }
+        if (!("converged" in $$source)) {
+            /**
+             * every gated scope is shippable
+             * @member
+             * @type {boolean}
+             */
+            this["converged"] = false;
+        }
+        if (!("locales" in $$source)) {
+            /**
+             * @member
+             * @type {ConvergeLocaleResult[]}
+             */
+            this["locales"] = [];
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ParkedScopes lists the gated (collection, locale) scopes that remain
+             * short of their gate — per-scope detail under the per-locale rollup, so
+             * a UI can link each parked scope to its review queue.
+             * @member
+             * @type {ParkedScope[] | undefined}
+             */
+            this["parkedScopes"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * MaterializedFiles is the total count of localized files written by the
+             * post-loop materialize step across every shippable locale (0 when the
+             * policy is manual and --materialize was not passed).
+             * @member
+             * @type {number | undefined}
+             */
+            this["materializedFiles"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConvergeOutput instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ConvergeOutput}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType2;
+        const $$createField4_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("locales" in $$parsedSource) {
+            $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
+        }
+        if ("parkedScopes" in $$parsedSource) {
+            $$parsedSource["parkedScopes"] = $$createField4_0($$parsedSource["parkedScopes"]);
+        }
+        return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
+    }
+}
+
+/**
+ * ConvergePassEvent is the structured per-pass progress of a convergence run,
+ * emitted through convergeOptions.onPass / UpOptions.OnPass after each pass's
+ * post-derivation. It carries what the desktop's convergence view renders:
+ * "pass N: extracted X, produced Y, checks failing Z" plus the locales still
+ * short of their gate.
+ */
+export class ConvergePassEvent {
+    /**
+     * Creates a new ConvergePassEvent instance.
+     * @param {Partial<ConvergePassEvent>} [$$source = {}] - The source object to create the ConvergePassEvent.
+     */
+    constructor($$source = {}) {
+        if (!("pass" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["pass"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ExtractedFiles/ExtractedBlocks report the pre-pass auto-extract on
+             * drift; both zero when the block store was already in sync.
+             * @member
+             * @type {number | undefined}
+             */
+            this["extractedFiles"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["extractedBlocks"] = undefined;
+        }
+        if (!("produced" in $$source)) {
+            /**
+             * Produced is the count of units at ≥ draft (any committed target) after
+             * the pass; ProducedDelta is the pass's progress over that metric.
+             * @member
+             * @type {number}
+             */
+            this["produced"] = 0;
+        }
+        if (!("producedDelta" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["producedDelta"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * FailingChecks counts produced units that fail the project's bound
+             * checks after the pass (they read at draft for gating).
+             * @member
+             * @type {number | undefined}
+             */
+            this["failingChecks"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * PendingLocales are the locales still short of their gate after the pass
+             * (the candidates to park if the loop stalls).
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["pendingLocales"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConvergePassEvent instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ConvergePassEvent}
+     */
+    static createFrom($$source = {}) {
+        const $$createField6_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("pendingLocales" in $$parsedSource) {
+            $$parsedSource["pendingLocales"] = $$createField6_0($$parsedSource["pendingLocales"]);
+        }
+        return new ConvergePassEvent(/** @type {Partial<ConvergePassEvent>} */($$parsedSource));
+    }
+}
+
+/**
  * The convergence report MODEL and the per-block ladder helpers live in the
  * framework (core/convergence) so any surface derives the same shape from the
  * same rules. The CLI owns the file-IO orchestration that feeds them
@@ -39,6 +291,45 @@ export const ConvergenceReport = convergence$0.Report;
  */
 
 /**
+ * ParkedScope identifies one gated (collection, locale) scope still short of
+ * its gate after the run — the address a review surface can deep-link to.
+ */
+export class ParkedScope {
+    /**
+     * Creates a new ParkedScope instance.
+     * @param {Partial<ParkedScope>} [$$source = {}] - The source object to create the ParkedScope.
+     */
+    constructor($$source = {}) {
+        if (!("locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["locale"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["collection"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ParkedScope instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ParkedScope}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ParkedScope(/** @type {Partial<ParkedScope>} */($$parsedSource));
+    }
+}
+
+/**
  * The convergence report MODEL and the per-block ladder helpers live in the
  * framework (core/convergence) so any surface derives the same shape from the
  * same rules. The CLI owns the file-IO orchestration that feeds them
@@ -57,3 +348,154 @@ export const ReviewItem = convergence$0.ReviewItem;
  * the generated Wails bindings — are unchanged.
  * @typedef {convergence$0.ReviewItem} ReviewItem
  */
+
+/**
+ * UpPlanOutput is the structured result of `kapi up --plan`: the dry-run work
+ * plan per (collection, locale), with totals. No provider calls are made and
+ * nothing is written.
+ */
+export class UpPlanOutput {
+    /**
+     * Creates a new UpPlanOutput instance.
+     * @param {Partial<UpPlanOutput>} [$$source = {}] - The source object to create the UpPlanOutput.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["flow"] = undefined;
+        }
+        if (!("scopes" in $$source)) {
+            /**
+             * @member
+             * @type {UpPlanScope[]}
+             */
+            this["scopes"] = [];
+        }
+        if (!("totals" in $$source)) {
+            /**
+             * @member
+             * @type {UpPlanScope}
+             */
+            this["totals"] = (new UpPlanScope());
+        }
+        if (!("note" in $$source)) {
+            /**
+             * Note documents the estimation method for agents reading the JSON.
+             * @member
+             * @type {string}
+             */
+            this["note"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpPlanOutput instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {UpPlanOutput}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType7;
+        const $$createField2_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("scopes" in $$parsedSource) {
+            $$parsedSource["scopes"] = $$createField1_0($$parsedSource["scopes"]);
+        }
+        if ("totals" in $$parsedSource) {
+            $$parsedSource["totals"] = $$createField2_0($$parsedSource["totals"]);
+        }
+        return new UpPlanOutput(/** @type {Partial<UpPlanOutput>} */($$parsedSource));
+    }
+}
+
+/**
+ * UpPlanScope is the planned work for one (collection, locale) scope: how many
+ * units have no target yet, how many of those an exact TM hit would cover, and
+ * what remains for AI translation with a rough token estimate.
+ */
+export class UpPlanScope {
+    /**
+     * Creates a new UpPlanScope instance.
+     * @param {Partial<UpPlanScope>} [$$source = {}] - The source object to create the UpPlanScope.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["collection"] = undefined;
+        }
+        if (!("missingTarget" in $$source)) {
+            /**
+             * MissingTarget is the count of translatable units with no committed
+             * target for the locale.
+             * @member
+             * @type {number}
+             */
+            this["missingTarget"] = 0;
+        }
+        if (!("tmExact" in $$source)) {
+            /**
+             * TMExact is the count of missing units covered by an exact-hash TM hit
+             * (the cheap leverage estimate — fuzzy leverage is not counted).
+             * @member
+             * @type {number}
+             */
+            this["tmExact"] = 0;
+        }
+        if (!("aiRemaining" in $$source)) {
+            /**
+             * AIRemaining is the count of missing units left for AI translation
+             * after TM leverage.
+             * @member
+             * @type {number}
+             */
+            this["aiRemaining"] = 0;
+        }
+        if (!("tokenEstimate" in $$source)) {
+            /**
+             * TokenEstimate approximates the input tokens for the remaining AI work:
+             * source characters / 4 (a common chars-per-token heuristic — the
+             * providers expose no tokenizer here, so this is an estimate, not a
+             * quote).
+             * @member
+             * @type {number}
+             */
+            this["tokenEstimate"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpPlanScope instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {UpPlanScope}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpPlanScope(/** @type {Partial<UpPlanScope>} */($$parsedSource));
+    }
+}
+
+// Private type creation functions
+const $$createType0 = $Create.Map($Create.Any, $Create.Any);
+const $$createType1 = ConvergeLocaleResult.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = ParkedScope.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $Create.Array($Create.Any);
+const $$createType6 = UpPlanScope.createFrom;
+const $$createType7 = $Create.Array($$createType6);

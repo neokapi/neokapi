@@ -12,10 +12,17 @@ import {
 } from "lucide-react";
 import { Button, Badge, EmptyState, ActionCard, LocalePill } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
-import type { KapiProject, PluginIssue, ProjectStatus, ConvergenceReport } from "../types/api";
+import type {
+  KapiProject,
+  PluginIssue,
+  ProjectStatus,
+  ConvergenceReport,
+  ConvergePlan,
+} from "../types/api";
 import { api, type SampleInfo } from "../hooks/useApi";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { CollectionsPanel, type RunFlowHandler } from "./CollectionsPanel";
+import { ConvergenceHero } from "./ConvergenceHero";
 
 export interface HomePageProps {
   project: KapiProject;
@@ -35,6 +42,10 @@ export interface HomePageProps {
   status?: ProjectStatus;
   /** Pre-loaded convergence for Storybook/tests — skips api.getConvergence(). */
   convergence?: ConvergenceReport;
+  /** Pre-loaded pre-flight plan for Storybook/tests — skips api.getConvergePlan(). */
+  plan?: ConvergePlan;
+  /** Launch the convergence run (Bring up to date → runner passes view). */
+  onBringUpToDate?: () => void;
   /** Refresh this sample to the version bundled with the current kapi. */
   onResetSample?: () => void;
   /** Pre-loaded sample info for Storybook — skips api.getSampleInfo(). */
@@ -57,6 +68,8 @@ export function HomePage({
   pluginIssues,
   status,
   convergence,
+  plan,
+  onBringUpToDate,
   onResetSample,
   sampleInfo: propSampleInfo,
   formatList,
@@ -229,6 +242,17 @@ export function HomePage({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Convergence hero — the primary verb of the home (issue #1078 C4):
+          drift summary + Bring up to date + the pre-flight Plan… dialog. */}
+      {tabID && (
+        <ConvergenceHero
+          tabID={tabID}
+          onBringUpToDate={onBringUpToDate}
+          convergence={convergence}
+          plan={plan}
+        />
       )}
 
       {/* Quick actions — the Content card is gone; the page is content now. */}
