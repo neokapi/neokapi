@@ -18,7 +18,8 @@ function HomepageHeader() {
         <div className={styles.heroIntro}>
           <img src={useBaseUrl("/img/hero-logo.png")} alt="neokapi" className={styles.heroLogo} />
           <Heading as="h1" className={clsx("hero__title", styles.heroTitle)}>
-            Get your content right. Then get it everywhere.
+            Consistent, on-brand content &mdash; in one language or twenty &mdash; with the AI you
+            already have.
           </Heading>
           <p className={styles.heroSubtitle}>
             kapi parses any format into one content model, lets you &mdash; or your AI agent &mdash;
@@ -38,7 +39,7 @@ function HomepageHeader() {
             </Link>
             <Link
               className={clsx("button button--secondary button--lg", styles.tryButton)}
-              to="/kapi/get-started/use-with-skills"
+              to="/kapi/get-started/use-with-claude"
             >
               <Sparkles size={18} aria-hidden="true" />
               Use with Claude
@@ -125,8 +126,8 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Every language — and you can trust it",
     description:
-      "The same content, in every language, translated by AI with structure intact. A native speaker confirms tone and brand once, and kapi remembers it — so it sticks and propagates. On-brand everywhere, only re-doing what changed, gated in CI.",
-    link: "/kapi/recipes/pre-translate-with-tm",
+      "One command — kapi up — reconciles every language toward its ship gates and parks what needs a person. You review, edit, and approve in the desktop Review surface; approvals stick, and only what changed is re-done. The gate check runs in CI.",
+    link: "/kapi/get-started/add-languages",
     linkText: "Go multilingual",
   },
   {
