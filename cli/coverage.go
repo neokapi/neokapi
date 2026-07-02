@@ -148,7 +148,12 @@ func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (r
 // unit from the `translated` presence baseline to `reviewed` when its
 // source→target pair exactly matches an approved correction — the file-project
 // carrier for review state, since a plain target file holds no status.
-func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject, root string, units []verifyUnit) ([]LocaleCoverage, error) {
+//
+// `excl` (optional, nil = off) is the check-findings exclusion set (#1078 G4):
+// a unit in it is produced but failing the project's bound checks, so its state
+// demotes to `draft` — it does not count toward the `translated` rung when the
+// gate is evaluated.
+func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject, root string, units []verifyUnit, excl *checkExclusions) ([]LocaleCoverage, error) {
 	rs, err := proj.BuildShipGates()
 	if err != nil {
 		return nil, err
@@ -199,7 +204,11 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 		}
 		for _, b := range blocks {
 			if b.Translatable {
-				add(s, reviewed.apply(unitState(b, u.locale), b, u.locale))
+				state := reviewed.apply(unitState(b, u.locale), b, u.locale)
+				if excl.excluded(u.sourcePath, b, u.locale) {
+					state = demoteFailing(state)
+				}
+				add(s, state)
 			}
 		}
 	}

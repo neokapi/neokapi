@@ -100,7 +100,14 @@ type Defaults struct {
 	// argument) executes to bring the project's content up to date across every
 	// target language. It is a built-in composed flow name or a key in `flows:`.
 	// Empty means there is no default; `kapi run` then requires an explicit flow.
-	Flow           string                    `yaml:"flow,omitempty" json:"flow,omitempty"`
+	Flow string `yaml:"flow,omitempty" json:"flow,omitempty"`
+
+	// Materialize governs when the convergence loop (`kapi up`) writes the
+	// localized target files from the project block store (#1078 C2/C3).
+	// "manual" (the default) leaves materialization to an explicit
+	// `kapi merge` (or `up --materialize`); "on-converge" writes the files
+	// after the loop for every locale whose gated scopes are all shippable.
+	Materialize    string                    `yaml:"materialize,omitempty" json:"materialize,omitempty"`
 	LocaleFormat   string                    `yaml:"locale_format,omitempty" json:"locale_format,omitempty"` // "bcp-47" (default) or "posix"
 	Concurrency    int                       `yaml:"concurrency,omitempty" json:"concurrency,omitempty"`
 	ParallelBlocks int                       `yaml:"parallel_blocks,omitempty" json:"parallel_blocks,omitempty"`
@@ -277,6 +284,36 @@ const (
 	ConflictPolicyExistingWins   = "existing-wins"
 	ConflictPolicyNewestWins     = "newest-wins"
 )
+
+// Materialize policy values for Defaults.Materialize (#1078 C2/C3).
+const (
+	// MaterializeManual: localized files are written only by an explicit
+	// `kapi merge` (or `kapi up --materialize`). The safer default.
+	MaterializeManual = "manual"
+	// MaterializeOnConverge: after the convergence loop, `kapi up` writes the
+	// localized files for every locale whose gated scopes are all shippable.
+	MaterializeOnConverge = "on-converge"
+)
+
+// ResolvedMaterialize returns the effective materialize policy, applying the
+// default (manual) when the recipe does not set one.
+func (d Defaults) ResolvedMaterialize() string {
+	if d.Materialize == "" {
+		return MaterializeManual
+	}
+	return d.Materialize
+}
+
+// validateMaterialize checks Defaults.Materialize.
+func (d Defaults) validateMaterialize() error {
+	switch d.Materialize {
+	case "", MaterializeManual, MaterializeOnConverge:
+		return nil
+	default:
+		return fmt.Errorf("defaults.materialize: unknown value %q (expected %q or %q)",
+			d.Materialize, MaterializeOnConverge, MaterializeManual)
+	}
+}
 
 // DefaultFuzzyThreshold is the TM fuzzy-match cutoff (percent) applied when
 // the recipe does not specify one (AD-017).
@@ -651,6 +688,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		return fmt.Errorf("unsupported version %q (expected %q)", p.Version, CurrentVersion)
 	}
 	if err := p.Defaults.Merge.validate(); err != nil {
+		return err
+	}
+	if err := p.Defaults.validateMaterialize(); err != nil {
 		return err
 	}
 	if err := p.Defaults.TM.validate(); err != nil {

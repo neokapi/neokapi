@@ -50,7 +50,7 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 
 	var report *ConvergenceReport
 	cacheErr := a.withParseCache(root, func() error {
-		cov, err := a.computeShipCoverage(ctx, proj, root, units)
+		cov, err := a.computeShipCoverage(ctx, proj, root, units, nil)
 		if err != nil {
 			return fmt.Errorf("compute coverage: %w", err)
 		}

@@ -405,7 +405,7 @@ func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, u
 // locale that does not clear its gate produces one finding per unmet threshold
 // and fails the gate. It is the enforcing counterpart of `kapi status`.
 func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, root string, units []verifyUnit) (VerifyGateResult, error) {
-	cov, err := a.computeShipCoverage(ctx, proj, root, units)
+	cov, err := a.computeShipCoverage(ctx, proj, root, units, nil)
 	if err != nil {
 		return VerifyGateResult{}, err
 	}

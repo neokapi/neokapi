@@ -101,7 +101,10 @@ Use -p to run a flow from a .kapi project file:
 				if maxPasses == 0 {
 					maxPasses = convergeMaxPassesDefault
 				}
-				return a.runDefaultFlowConverge(cmd, proj, projectPath, untilGate, maxPasses)
+				return a.runDefaultFlowConverge(cmd, proj, projectPath, convergeOptions{
+					untilGate: untilGate,
+					maxPasses: maxPasses,
+				})
 			}
 
 			flowName := args[0]

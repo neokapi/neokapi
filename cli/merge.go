@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -234,35 +235,55 @@ func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
 	}
-	pctx := project.NewProjectContext(proj, projectPath)
-	layout, err := project.LayoutFor(projectPath)
-	if err != nil {
-		return fmt.Errorf("resolve project layout: %w", err)
-	}
-
 	locales := proj.Defaults.TargetLanguages
 	if len(locales) == 0 {
 		return errors.New("merge: project declares no target languages (defaults.target_languages)")
 	}
+	noTMUpdate, _ := cmd.Flags().GetBool("no-tm-update")
+
+	written, err := a.materializeFromProjectStore(ctx, cmd.OutOrStdout(), proj, projectPath, locales, noTMUpdate)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "\nMerge complete. wrote=%d file(s) from the project store.\n", written)
+	return nil
+}
+
+// materializeFromProjectStore is the shared materialize path (#1078 C2/C3):
+// it writes the localized files for the given locales from the project block
+// store — each source read once, the stored `targets/<locale>` overlays
+// hydrated onto it, the localized file written via the source format's
+// skeleton round-trip. `kapi merge` (no -i) calls it over every target
+// language; `kapi up` calls it after the loop for the shippable locales when
+// the materialize policy (defaults.materialize / --materialize) says so.
+// Returns the number of files written.
+func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noTMUpdate bool) (int, error) {
+	pctx := project.NewProjectContext(proj, projectPath)
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return 0, fmt.Errorf("resolve project layout: %w", err)
+	}
+	if len(locales) == 0 {
+		return 0, errors.New("merge: no target locales to materialize")
+	}
 
 	if err := project.EnsureLayout(layout); err != nil {
-		return fmt.Errorf("merge: ensure project layout: %w", err)
+		return 0, fmt.Errorf("merge: ensure project layout: %w", err)
 	}
 	store, err := sqlitestore.New(layout.BlockStorePath())
 	if err != nil {
-		return fmt.Errorf("merge: open project block store: %w", err)
+		return 0, fmt.Errorf("merge: open project block store: %w", err)
 	}
 	defer store.Close()
 
 	files, err := pctx.ResolveContent(a.FormatReg)
 	if err != nil {
-		return fmt.Errorf("merge: resolve project content: %w", err)
+		return 0, fmt.Errorf("merge: resolve project content: %w", err)
 	}
 	if len(files) == 0 {
-		return errors.New("merge: project has no source files to materialize (check content patterns)")
+		return 0, errors.New("merge: project has no source files to materialize (check content patterns)")
 	}
 
-	noTMUpdate, _ := cmd.Flags().GetBool("no-tm-update")
 	var tm *sievepen.SQLiteTM
 	// Browser/seeded build (a.TMBackend set): no SQLite driver / on-disk TM —
 	// skip write-back silently. Native CLI opens the project SQLite TM as before.
@@ -283,7 +304,7 @@ func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
 			srcFormat = detectSourceFormat(a.FormatReg, pctx, f.Relative, f.Path)
 		}
 		if srcFormat == "" {
-			return fmt.Errorf("merge: cannot detect format for source %s", f.Path)
+			return written, fmt.Errorf("merge: cannot detect format for source %s", f.Path)
 		}
 		for _, locale := range locales {
 			entry := &project.ExtractionFile{Source: f.Relative}
@@ -315,7 +336,7 @@ func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
 			fileCtx := blockstore.WithSourceRel(ctx, f.Relative)
 			tools := []tool.Tool{newHydrateTargetsTool(locale)}
 			if rerr := runner.RunFile(fileCtx, "merge", tools, f.Path, targetPath, string(locale)); rerr != nil {
-				return fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, rerr)
+				return written, fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, rerr)
 			}
 			written++
 
@@ -328,12 +349,11 @@ func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
 				}
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Merged %s → %s\n", f.Relative, targetPath)
+			fmt.Fprintf(out, "Merged %s → %s\n", f.Relative, targetPath)
 		}
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "\nMerge complete. wrote=%d file(s) from the project store.\n", written)
-	return nil
+	return written, nil
 }
 
 // absorbStoreTargets reads the source blocks, applies the stored

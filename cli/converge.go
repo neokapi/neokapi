@@ -8,11 +8,32 @@ import (
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/spf13/cobra"
 )
+
+// convergeOptions carries the knobs of one convergence run (`kapi up` /
+// no-argument `kapi run`).
+type convergeOptions struct {
+	// untilGate loops the pass until every gated scope ships (or a pass
+	// stalls); false runs a single pass.
+	untilGate bool
+	// maxPasses caps the loop.
+	maxPasses int
+	// noExtract skips the pre-pass block-store drift check + auto-extract
+	// (`up --no-extract`).
+	noExtract bool
+	// noChecks skips running the project's bound checks in the loop
+	// (`up --no-checks`): produced units then count as translated even when
+	// they would fail the guardrails.
+	noChecks bool
+	// materialize forces the post-loop materialize step (`up --materialize`)
+	// regardless of the recipe's defaults.materialize policy.
+	materialize bool
+}
 
 // ConvergeLocaleResult is the per-locale outcome of a convergence run.
 type ConvergeLocaleResult struct {
@@ -20,6 +41,15 @@ type ConvergeLocaleResult struct {
 	Shippable bool           `json:"shippable"`        // every gated scope for this locale clears its gate
 	Parked    bool           `json:"parked,omitempty"` // still short of its gate after the loop (needs human)
 	Pct       map[string]int `json:"pct,omitempty"`    // ladder state → "at least" percent
+	// FailingChecks counts units that are produced but fail the project's
+	// bound checks (#1078 G4) — they read at `draft`, not `translated`, for
+	// gating, so they hold the locale below its gate until fixed.
+	FailingChecks int `json:"failingChecks,omitempty"`
+	// Materialized counts the localized files written for this locale by the
+	// post-loop materialize step (defaults.materialize: on-converge, or
+	// --materialize). Only shippable locales materialize; a parked locale
+	// stays at 0.
+	Materialized int `json:"materialized,omitempty"`
 }
 
 // ConvergeOutput is the structured result of `kapi run` driving the default
@@ -30,6 +60,10 @@ type ConvergeOutput struct {
 	Passes    int                    `json:"passes"`
 	Converged bool                   `json:"converged"` // every gated scope is shippable
 	Locales   []ConvergeLocaleResult `json:"locales"`
+	// MaterializedFiles is the total count of localized files written by the
+	// post-loop materialize step across every shippable locale (0 when the
+	// policy is manual and --materialize was not passed).
+	MaterializedFiles int `json:"materializedFiles,omitempty"`
 }
 
 // FormatText renders the convergence summary.
@@ -49,13 +83,20 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		}
 		drafted := lc.Pct["draft"]
 		translated := lc.Pct["translated"]
-		fmt.Fprintf(w, "  %-10s drafted %d%%  translated %d%%  %s\n", lc.Locale, drafted, translated, state)
+		checks := ""
+		if lc.FailingChecks > 0 {
+			checks = fmt.Sprintf("  %d failing check(s)", lc.FailingChecks)
+		}
+		fmt.Fprintf(w, "  %-10s drafted %d%%  translated %d%%  %s%s\n", lc.Locale, drafted, translated, state, checks)
 	}
 	fmt.Fprintln(w)
 	if o.Converged {
 		fmt.Fprintln(w, "Converged: every gated scope is shippable.")
 	} else {
 		fmt.Fprintln(w, "Not fully converged — parked locales await human review (never a build failure).")
+	}
+	if o.MaterializedFiles > 0 {
+		fmt.Fprintf(w, "Materialized %d localized file(s) from the project store.\n", o.MaterializedFiles)
 	}
 	return nil
 }
@@ -67,7 +108,8 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 // makes no progress, or maxPasses is reached — parking the locales that remain
 // short of their gate. It never fails the build: parked work is reported, not an
 // error (target drift is normal toil, not a break).
-func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProject, projectPath string, untilGate bool, maxPasses int) error {
+func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProject, projectPath string, opts convergeOptions) error {
+	untilGate, maxPasses := opts.untilGate, opts.maxPasses
 	flowName := proj.Defaults.Flow
 	if flowName == "" {
 		return errors.New("no default flow configured: set `defaults.flow` in the project, or name one explicitly (kapi run <flow>)")
@@ -144,14 +186,25 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 	return a.withParseCache(root, func() error {
 		passes := 0
 		for {
-			cov, err := a.deriveCoverage(ctx, proj, root)
+			// Auto-extract on drift (#1078 C2): before each pass, bring the
+			// project block store back in sync with the working tree — a
+			// missing store, a version-stamp mismatch, or edited source files
+			// all trigger a re-extract through the same shared path the
+			// desktop's Re-extract uses. `up --no-extract` opts out.
+			if !opts.noExtract {
+				if err := a.syncProjectBlockStore(ctx, cmd, pctx, projectPath, resolved); err != nil {
+					return fmt.Errorf("sync project block store: %w", err)
+				}
+			}
+
+			cov, excl, err := a.deriveCoverage(ctx, cmd, proj, root, !opts.noChecks)
 			if err != nil {
 				return err
 			}
 			pending := localesNeedingPass(cov, locales)
 			if len(pending) == 0 {
 				// Already converged before this pass (or after the previous one).
-				return a.printConverge(cmd, flowName, passes, cov, locales)
+				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov, locales, excl, opts)
 			}
 
 			before := producedUnits(cov)
@@ -164,34 +217,100 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 				}
 			}
 
-			cov2, err := a.deriveCoverage(ctx, proj, root)
+			// Post-pass derivation re-runs the bound checks over what the pass
+			// produced (#1078 G4): a unit with critical/major findings reads at
+			// `draft`, so it cannot lift its locale over the gate.
+			cov2, excl2, err := a.deriveCoverage(ctx, cmd, proj, root, !opts.noChecks)
 			if err != nil {
 				return err
 			}
 			if !untilGate {
-				return a.printConverge(cmd, flowName, passes, cov2, locales)
+				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov2, locales, excl2, opts)
 			}
 			if len(localesNeedingPass(cov2, locales)) == 0 {
-				return a.printConverge(cmd, flowName, passes, cov2, locales)
+				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov2, locales, excl2, opts)
 			}
 			// Stop looping when capped or when a full pass produced nothing new —
 			// the remaining locales park (the flow can't advance them unaided).
 			if passes >= maxPasses || producedUnits(cov2) <= before {
-				return a.printConverge(cmd, flowName, passes, cov2, locales)
+				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov2, locales, excl2, opts)
 			}
 		}
 	})
 }
 
+// syncProjectBlockStore detects block-store drift against the working tree and
+// re-extracts the project's content into the store when any is found: missing
+// store, version-stamped by a different kapi, or source files whose bytes
+// drifted from their extract-time stamps. Extraction goes through the shared
+// core path (project.ExtractToBlockStore) — the same implementation behind the
+// desktop's Re-extract — and is a full rebuild of the block set (blocks are a
+// pure cache; target overlays are preserved). No drift → no work beyond cheap
+// stat checks.
+func (a *App) syncProjectBlockStore(ctx context.Context, cmd *cobra.Command, pctx *project.ProjectContext, projectPath string, resolved []project.ResolvedFile) error {
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return err
+	}
+	storePath := layout.BlockStorePath()
+	drift := project.DetectStoreDrift(storePath, resolved)
+	if !drift.Any() {
+		return nil
+	}
+	if err := project.EnsureLayout(layout); err != nil {
+		return err
+	}
+	store, err := sqlitestore.New(storePath)
+	if err != nil {
+		return fmt.Errorf("open project block store: %w", err)
+	}
+	defer store.Close()
+	stats, err := project.ExtractToBlockStore(ctx, a.FormatReg, pctx, store, storePath, resolved)
+	if err != nil {
+		return err
+	}
+	if !a.Quiet {
+		fmt.Fprintf(cmd.OutOrStdout(), "Extracted %d block(s) from %d file(s) into the project store (%s).\n",
+			stats.Blocks, stats.Files, describeDrift(drift))
+	}
+	return nil
+}
+
+// describeDrift renders a short reason for an auto-extract, for the run log.
+func describeDrift(d project.StoreDrift) string {
+	switch {
+	case d.StoreMissing:
+		return "no block store yet"
+	case d.VersionStale:
+		return "store written by another kapi version"
+	case len(d.Changed) > 0 && len(d.Removed) > 0:
+		return fmt.Sprintf("%d source file(s) changed, %d removed", len(d.Changed), len(d.Removed))
+	case len(d.Changed) > 0:
+		return fmt.Sprintf("%d source file(s) changed", len(d.Changed))
+	default:
+		return fmt.Sprintf("%d source file(s) removed", len(d.Removed))
+	}
+}
+
 // deriveCoverage recomputes per-scope ship coverage from the working tree —
 // the same derivation `kapi status` uses, re-read each pass (state is derived,
-// never tracked).
-func (a *App) deriveCoverage(ctx context.Context, proj *project.KapiProject, root string) ([]LocaleCoverage, error) {
+// never tracked). With withChecks it first runs the project's bound checks over
+// the produced units and feeds the failing set into the coverage rollup as an
+// exclusion (#1078 G4), returning it so callers can report per-locale counts.
+func (a *App) deriveCoverage(ctx context.Context, cmd *cobra.Command, proj *project.KapiProject, root string, withChecks bool) ([]LocaleCoverage, *checkExclusions, error) {
 	units, err := a.unitsFromProject(proj, root, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return a.computeShipCoverage(ctx, proj, root, units)
+	var excl *checkExclusions
+	if withChecks {
+		excl, err = a.computeLoopCheckExclusions(ctx, cmd, units)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	cov, err := a.computeShipCoverage(ctx, proj, root, units, excl)
+	return cov, excl, err
 }
 
 // localesNeedingPass returns the locales (in target order) that still have work:
@@ -235,9 +354,46 @@ func producedUnits(cov []LocaleCoverage) int {
 	return total
 }
 
-// printConverge derives the final per-locale standing and emits the structured
-// convergence result. It always returns nil (parked work is not a build error).
-func (a *App) printConverge(cmd *cobra.Command, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID) error {
+// finishConverge derives the final per-locale standing, applies the
+// materialize policy (#1078 G2), and emits the structured convergence result.
+// It always returns nil for parked work (not a build error); only an
+// operational materialize failure is an error.
+//
+// Materialize policy: when the recipe sets `defaults.materialize: on-converge`
+// (or the run forces it with --materialize), every locale whose gated scopes
+// are ALL shippable has its localized files written from the project block
+// store via the shared merge/materialize path; parked locales are skipped —
+// their content isn't at the bar yet.
+func (a *App) finishConverge(cmd *cobra.Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *checkExclusions, opts convergeOptions) error {
+	out := buildConvergeOutput(flowName, passes, cov, locales, excl)
+
+	if opts.materialize || proj.Defaults.ResolvedMaterialize() == project.MaterializeOnConverge {
+		ctx := cmd.Context()
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		for i := range out.Locales {
+			lc := &out.Locales[i]
+			if !lc.Shippable {
+				continue // parked / pending locales do not materialize
+			}
+			// Per-file progress lines go nowhere: the structured result carries
+			// the counts, and stray lines would corrupt --json output.
+			n, merr := a.materializeFromProjectStore(ctx, io.Discard, proj, projectPath, []model.LocaleID{model.LocaleID(lc.Locale)}, false)
+			if merr != nil {
+				return fmt.Errorf("materialize %s: %w", lc.Locale, merr)
+			}
+			lc.Materialized = n
+			out.MaterializedFiles += n
+		}
+	}
+
+	return output.Print(cmd, out)
+}
+
+// buildConvergeOutput rolls the per-scope coverage up into the per-locale
+// convergence result.
+func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *checkExclusions) ConvergeOutput {
 	out := ConvergeOutput{Flow: flowName, Passes: passes, Converged: true}
 	pendingSet := map[string]bool{}
 	for _, loc := range localesNeedingPass(cov, locales) {
@@ -245,7 +401,7 @@ func (a *App) printConverge(cmd *cobra.Command, flowName string, passes int, cov
 	}
 	for _, loc := range locales {
 		l := string(loc)
-		res := ConvergeLocaleResult{Locale: l, Shippable: true, Pct: map[string]int{}}
+		res := ConvergeLocaleResult{Locale: l, Shippable: true, Pct: map[string]int{}, FailingChecks: excl.failingForLocale(l)}
 		gatedSomewhere := false
 		for _, c := range cov {
 			if c.Locale != l {
@@ -269,7 +425,7 @@ func (a *App) printConverge(cmd *cobra.Command, flowName string, passes int, cov
 		}
 		out.Locales = append(out.Locales, res)
 	}
-	return output.Print(cmd, out)
+	return out
 }
 
 // convergeMaxPassesDefault caps the --until-gate loop. A handful of passes is
