@@ -61,19 +61,22 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 				continue
 			}
 			// Only a translated unit can await review; an absent target is
-			// upstream of review, and an already-reviewed pair is done.
+			// upstream of review, and a decided pair is out of the queue —
+			// approved is done, rejected is back in the work queue (draft)
+			// until its translation changes.
 			if unitState(b, u.locale) != string(model.TargetStatusTranslated) {
 				continue
 			}
-			if reviewed.reviewed(b, u.locale) {
+			if reviewed.decided(b, u.locale) {
 				continue
 			}
 			items = append(items, ReviewItem{
-				Locale: u.locale,
-				File:   u.displayPath,
-				Key:    blockKey(b),
-				Source: preview(b.SourceText()),
-				Target: preview(b.TargetText(loc)),
+				Locale:     u.locale,
+				File:       u.displayPath,
+				Key:        blockKey(b),
+				Collection: u.collection,
+				Source:     preview(b.SourceText()),
+				Target:     preview(b.TargetText(loc)),
 			})
 		}
 	}

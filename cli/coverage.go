@@ -57,13 +57,15 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 }
 
 // reviewedIndex maps each unit (block identity + locale) to its committed review
-// state, loaded from the project state store (core/state). A unit reads as
-// reviewed/signed-off only while its recorded decision still blesses the CURRENT
-// translation — the decision carries the targetHash it approved, so an edit since
-// approval invalidates it and the unit drops back to the `translated` baseline.
-// This is the authoritative carrier for review state (a plain target file holds
-// no status), replacing the old content-keyed .klftm overload — the TM is now the
-// recycle corpus only.
+// decision, loaded from the project state store (core/state). A unit reads at its
+// decided rung — reviewed/signed-off for an approval, draft for a rejection —
+// only while the recorded decision still judges the CURRENT translation: the
+// decision carries the targetHash it applied to, so an edit since the decision
+// invalidates it and the unit drops back to the `translated` presence baseline
+// (a rejected unit re-enters review once retranslated). This is the
+// authoritative carrier for review state (a plain target file holds no status),
+// replacing the old content-keyed .klftm overload — the TM is now the recycle
+// corpus only.
 type reviewedIndex struct {
 	byUnit map[string]reviewedEntry
 }
@@ -92,17 +94,19 @@ func (r reviewedIndex) statusFor(b *model.Block, locale string) (model.TargetSta
 	return e.status, true
 }
 
-// reviewed reports whether a block is an approved unit (at least reviewed) for the
-// locale — used by the review queue to drop approved units.
-func (r reviewedIndex) reviewed(b *model.Block, locale string) bool {
+// decided reports whether a block carries a non-stale review decision for the
+// locale — approved, signed-off, or rejected. The review queue drops decided
+// units: an approved unit is done, a rejected one is back in the work queue.
+func (r reviewedIndex) decided(b *model.Block, locale string) bool {
 	_, ok := r.statusFor(b, locale)
 	return ok
 }
 
-// upgrade promotes a `translated` unit to its recorded review state (reviewed or
-// signed-off) when the block has a non-stale decision for the locale; otherwise it
-// returns the base state unchanged.
-func (r reviewedIndex) upgrade(base string, b *model.Block, locale string) string {
+// apply moves a `translated` unit to its recorded decision rung — up to reviewed
+// or signed-off for an approval, down to draft for a rejection — when the block
+// has a non-stale decision for the locale; otherwise it returns the base state
+// unchanged.
+func (r reviewedIndex) apply(base string, b *model.Block, locale string) string {
 	if base != string(model.TargetStatusTranslated) {
 		return base
 	}
@@ -113,7 +117,7 @@ func (r reviewedIndex) upgrade(base string, b *model.Block, locale string) strin
 }
 
 // loadReviewedCorrections builds the reviewedIndex from the project state store.
-// An absent store yields an empty index (nothing reviewed yet) — never an error,
+// An absent store yields an empty index (nothing decided yet) — never an error,
 // so status stays informational.
 func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (reviewedIndex, error) {
 	idx := reviewedIndex{byUnit: map[string]reviewedEntry{}}
@@ -125,11 +129,11 @@ func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (r
 		return idx, err
 	}
 	for _, u := range st.All() {
-		if u.Status != model.TargetStatusReviewed && u.Status != model.TargetStatusSignedOff {
-			continue
-		}
-		idx.byUnit[reviewUnitKey(u.Unit, string(u.Variant.Locale))] = reviewedEntry{
-			status: u.Status, targetHash: u.TargetHash,
+		switch u.Status {
+		case model.TargetStatusReviewed, model.TargetStatusSignedOff, model.TargetStatusDraft:
+			idx.byUnit[reviewUnitKey(u.Unit, string(u.Variant.Locale))] = reviewedEntry{
+				status: u.Status, targetHash: u.TargetHash,
+			}
 		}
 	}
 	return idx, nil
@@ -195,7 +199,7 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 		}
 		for _, b := range blocks {
 			if b.Translatable {
-				add(s, reviewed.upgrade(unitState(b, u.locale), b, u.locale))
+				add(s, reviewed.apply(unitState(b, u.locale), b, u.locale))
 			}
 		}
 	}
