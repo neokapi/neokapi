@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	coreenc "github.com/neokapi/neokapi/core/encoding"
@@ -27,7 +28,8 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new plain text reader.
 func NewReader() *Reader {
-	cfg := &Config{SegmentByLine: true}
+	cfg := &Config{}
+	cfg.Reset()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "plaintext",
@@ -105,10 +107,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	if r.cfg.SegmentByLine {
-		r.readByLine(ctx, ch, string(utf8Bytes))
-	} else {
+	switch {
+	case r.cfg.SpliceLines:
+		r.readSpliced(ctx, ch, string(utf8Bytes))
+	case r.cfg.ParagraphMode():
 		r.readByParagraph(ctx, ch, string(utf8Bytes))
+	default:
+		r.readByLine(ctx, ch, string(utf8Bytes))
 	}
 
 	r.skelFlush()
@@ -170,6 +175,117 @@ func nextPlainLine(text string) (content, ending, rest string) {
 		}
 	}
 	return text, "", ""
+}
+
+// readSpliced implements splice mode (the behavior of the retired
+// splicedlines format): lines ending with the configured marker are
+// continuation lines, joined with the following line(s) into a single
+// Block whose logical text separates the pieces with '\n'. The markers
+// themselves never enter block text; the writer re-adds them (with the
+// original line endings) from the block properties recorded here, so the
+// skeleton round-trip is byte-exact.
+func (r *Reader) readSpliced(ctx context.Context, ch chan<- model.PartResult, text string) {
+	marker := r.cfg.Marker()
+
+	type splicedLine struct {
+		content    string // line content, continuation marker stripped
+		lineEnding string
+	}
+
+	var accumulated []splicedLine
+	blockID := 0
+	dataID := 0
+	// hadTrailingSplicer is set when the EOF flush deals with an
+	// accumulator whose final raw line ended in the marker (and thus had
+	// it stripped). The writer reads the resulting block property to add
+	// the marker back on emit, matching Okapi's okf_splicedlines
+	// round-trip behavior (SplicedLinesFilterTest#testTrailingBackslash).
+	hadTrailingSplicer := false
+
+	flushBlock := func() bool {
+		if len(accumulated) == 0 {
+			return true
+		}
+		pieces := make([]string, len(accumulated))
+		for i, sl := range accumulated {
+			pieces[i] = sl.content
+		}
+		joined := strings.Join(pieces, "\n")
+
+		if strings.TrimSpace(joined) == "" {
+			// Whitespace-only group: reconstruct the raw bytes (including
+			// any stripped markers) as skeleton and emit a Data part.
+			for i, sl := range accumulated {
+				if i < len(accumulated)-1 || hadTrailingSplicer {
+					r.skelText(sl.content + marker + sl.lineEnding)
+				} else {
+					r.skelText(sl.content + sl.lineEnding)
+				}
+			}
+			accumulated = nil
+			dataID++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataID),
+				Name: fmt.Sprintf("empty.%d", dataID),
+			}
+			return r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
+		}
+
+		blockID++
+		blockIDStr := fmt.Sprintf("tu%d", blockID)
+		numLines := len(accumulated)
+
+		// Skeleton: the block ref carries the joined content (markers and
+		// continuation endings restored by the writer); the last line's
+		// ending stays in the skeleton.
+		r.skelRef(blockIDStr)
+		r.skelText(accumulated[numLines-1].lineEnding)
+
+		block := model.NewBlock(blockIDStr, joined)
+		block.Name = fmt.Sprintf("block%d", blockID)
+		block.Properties["continued"] = strconv.Itoa(numLines)
+		block.Properties["splice-marker"] = marker
+		if hadTrailingSplicer {
+			block.Properties["trailing-splicer"] = "true"
+		}
+		// Store the continuation line endings so the writer can reconstruct.
+		if numLines > 1 {
+			endings := make([]string, 0, numLines-1)
+			for i := range numLines - 1 {
+				endings = append(endings, accumulated[i].lineEnding)
+			}
+			block.Properties["continuation-endings"] = strings.Join(endings, "|")
+		}
+
+		accumulated = nil
+		return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	}
+
+	remaining := text
+	for len(remaining) > 0 {
+		content, lineEnding, rest := nextPlainLine(remaining)
+		remaining = rest
+
+		if stripped, ok := strings.CutSuffix(content, marker); ok {
+			// Continuation line: strip the marker and accumulate.
+			accumulated = append(accumulated, splicedLine{content: stripped, lineEnding: lineEnding})
+			continue
+		}
+		// Non-continuation: add to accumulator and flush.
+		accumulated = append(accumulated, splicedLine{content: content, lineEnding: lineEnding})
+		if !flushBlock() {
+			return
+		}
+	}
+
+	// The accumulator can only be non-empty here if the input ended
+	// mid-continuation (every non-continuation flushes immediately).
+	if len(accumulated) > 0 {
+		hadTrailingSplicer = true
+		if !flushBlock() {
+			return
+		}
+	}
 }
 
 func (r *Reader) readByParagraph(ctx context.Context, ch chan<- model.PartResult, text string) {
@@ -238,8 +354,9 @@ func (r *Reader) readByParagraphSkeleton(ctx context.Context, ch chan<- model.Pa
 	// Between paragraphs we track the exact separator bytes (line endings of
 	// the last content line + empty line endings).
 	type paragraph struct {
-		text           string // joined content (internal newlines use \n)
-		lastLineEnding string // line ending after the last line of the paragraph
+		text            string // joined content (internal newlines use \n)
+		lastLineEnding  string // line ending after the last line of the paragraph
+		internalEndings string // "|"-joined endings of all lines but the last, when any is not "\n"
 	}
 
 	var paragraphs []paragraph
@@ -260,7 +377,23 @@ func (r *Reader) readByParagraphSkeleton(ctx context.Context, ch chan<- model.Pa
 			sb.WriteString(l.content)
 		}
 		lastEnding := curLines[len(curLines)-1].lineEnding
-		paragraphs = append(paragraphs, paragraph{text: sb.String(), lastLineEnding: lastEnding})
+		// Record the internal line endings when any differ from plain
+		// "\n" (e.g. CRLF), so the writer can restore them byte-exact.
+		internal := ""
+		if len(curLines) > 1 {
+			endings := make([]string, 0, len(curLines)-1)
+			nonLF := false
+			for _, l := range curLines[:len(curLines)-1] {
+				endings = append(endings, l.lineEnding)
+				if l.lineEnding != "\n" {
+					nonLF = true
+				}
+			}
+			if nonLF {
+				internal = strings.Join(endings, "|")
+			}
+		}
+		paragraphs = append(paragraphs, paragraph{text: sb.String(), lastLineEnding: lastEnding, internalEndings: internal})
 		curLines = nil
 	}
 
@@ -311,6 +444,9 @@ func (r *Reader) readByParagraphSkeleton(ctx context.Context, ch chan<- model.Pa
 
 		block := model.NewBlock(blockIDStr, para.text)
 		block.Name = fmt.Sprintf("para%d", blockID)
+		if para.internalEndings != "" {
+			block.Properties["line-endings"] = para.internalEndings
+		}
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return
 		}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -99,7 +100,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 			}
 		case format.SkeletonRef:
 			if block, ok := blocks[string(entry.Data)]; ok {
-				text := w.blockText(block)
+				text := w.renderText(block)
 				if _, err := io.WriteString(w.Output, text); err != nil {
 					return err
 				}
@@ -127,7 +128,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		return errors.New("plaintext writer: expected Block resource")
 	}
 
-	text := w.blockText(block)
+	text := w.renderText(block)
 
 	if !w.firstBlock {
 		if _, err := fmt.Fprintln(w.Output); err != nil {
@@ -156,4 +157,63 @@ func (w *Writer) blockText(block *model.Block) string {
 		return block.TargetText(w.Locale)
 	}
 	return block.SourceText()
+}
+
+// renderText returns the bytes a block contributes to the output. For
+// blocks produced by splice mode (marked by the reader with splice
+// properties) it re-adds the continuation markers — using the stored
+// per-line endings — and the trailing-splicer marker the reader
+// stripped, so the round-trip is byte-exact. Other blocks render their
+// text verbatim.
+func (w *Writer) renderText(block *model.Block) string {
+	text := w.blockText(block)
+	marker := block.Properties["splice-marker"]
+	if marker == "" {
+		// Paragraph-mode blocks may carry non-LF internal line endings
+		// (e.g. CRLF) recorded by the reader; restore them byte-exact.
+		if raw := block.Properties["line-endings"]; raw != "" {
+			lines := strings.Split(text, "\n")
+			endings := strings.SplitN(raw, "|", len(lines)-1)
+			var sb strings.Builder
+			for i, line := range lines {
+				sb.WriteString(line)
+				if i < len(lines)-1 {
+					if i < len(endings) && endings[i] != "" {
+						sb.WriteString(endings[i])
+					} else {
+						sb.WriteString("\n")
+					}
+				}
+			}
+			return sb.String()
+		}
+		return text
+	}
+
+	var sb strings.Builder
+	lines := strings.Split(text, "\n")
+	var endings []string
+	if raw := block.Properties["continuation-endings"]; raw != "" {
+		endings = strings.SplitN(raw, "|", len(lines)-1)
+	}
+	for i, line := range lines {
+		if i < len(lines)-1 {
+			ending := "\n"
+			if i < len(endings) && endings[i] != "" {
+				ending = endings[i]
+			}
+			sb.WriteString(line)
+			sb.WriteString(marker)
+			sb.WriteString(ending)
+		} else {
+			sb.WriteString(line)
+		}
+	}
+	// Re-emit the trailing marker for blocks that ended the input
+	// mid-continuation; the reader strips it from the block's logical
+	// text but tags the block so output stays byte-exact.
+	if block.Properties["trailing-splicer"] == "true" {
+		sb.WriteString(marker)
+	}
+	return sb.String()
 }

@@ -21,6 +21,16 @@ type Config struct {
 	// (source ID / record ID). Values from these columns are concatenated with "."
 	// to form the block ID. If empty, row-based IDs are used.
 	KeyColumns []int
+	// SourceColumn is the 0-based column index that carries source text when
+	// the file is a bilingual translation table (one row per unit, e.g. the
+	// tables the retired transtable format covered). -1 (the default)
+	// disables column-role mapping. Must be set together with TargetColumn.
+	SourceColumn int
+	// TargetColumn is the 0-based column index that carries target text in a
+	// bilingual translation table. On merge, the target column is filled
+	// with the block's target text; the source column is left untouched.
+	// -1 (the default) disables column-role mapping.
+	TargetColumn int
 	// CommentColumns specifies which column indices (0-based) contain comments
 	// or notes. These are stored as block properties.
 	CommentColumns []int
@@ -62,6 +72,8 @@ func (c *Config) Reset() {
 		Separator:     ',',
 		TextQualifier: '"',
 		HasHeader:     true,
+		SourceColumn:  -1,
+		TargetColumn:  -1,
 	}
 }
 
@@ -70,7 +82,21 @@ func (c *Config) Validate() error {
 	if c.Separator == 0 {
 		return errors.New("csv: separator must not be zero")
 	}
+	if (c.SourceColumn >= 0) != (c.TargetColumn >= 0) {
+		return errors.New("csv: columns.source and columns.target must be set together")
+	}
+	if (c.SourceColumn > 0 || c.TargetColumn > 0) && c.SourceColumn == c.TargetColumn {
+		return errors.New("csv: columns.source and columns.target must differ")
+	}
 	return nil
+}
+
+// BilingualMode reports whether column-role mapping is active: one row per
+// unit with dedicated source and target columns. A zero-value Config
+// (SourceColumn == TargetColumn == 0) does not enable it — column roles
+// require two distinct non-negative columns.
+func (c *Config) BilingualMode() bool {
+	return c.SourceColumn >= 0 && c.TargetColumn >= 0 && c.SourceColumn != c.TargetColumn
 }
 
 // ExtractNonTranslatableContent reports whether non-translatable contextual
@@ -129,6 +155,27 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return err
 			}
 			c.KeyColumns = cols
+		case "columns":
+			m, ok := val.(map[string]any)
+			if !ok {
+				return fmt.Errorf("columns: expected map, got %T", val)
+			}
+			for role, v := range m {
+				n, err := parseIntValue(v, "columns."+role)
+				if err != nil {
+					return err
+				}
+				switch role {
+				case "key":
+					c.KeyColumns = []int{n}
+				case "source":
+					c.SourceColumn = n
+				case "target":
+					c.TargetColumn = n
+				default:
+					return fmt.Errorf("columns: unknown role %q (want key, source, target)", role)
+				}
+			}
 		case "commentColumns":
 			cols, err := parseIntSlice(val, key)
 			if err != nil {
