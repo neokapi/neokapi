@@ -40,6 +40,7 @@ package gate
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 
@@ -316,9 +317,7 @@ func (c *Coverage) AddAIDecided(state, baseline string) {
 		// Materialize the human-only view lazily, seeded from everything
 		// tallied so far (all human until now).
 		c.HumanCounts = make(map[string]int, len(c.Counts)+1)
-		for s, n := range c.Counts {
-			c.HumanCounts[s] = n
-		}
+		maps.Copy(c.HumanCounts, c.Counts)
 	}
 	c.Total++
 	c.Counts[state]++
