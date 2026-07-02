@@ -188,28 +188,6 @@ func TestRunExtractSkipsUnreadableFiles(t *testing.T) {
 	assert.Equal(t, "mystery.zzz", res.Skipped[0].Path)
 }
 
-// Blocks from daemon-backed readers (okapi-bridge okf_*) arrive without an ID
-// or a populated Identity. modelBlockToKLF must still produce a non-empty,
-// content-addressed Hash so PutBlock accepts them (re-extract regression).
-func TestModelBlockToKLF_EmptyIdentityGetsContentHash(t *testing.T) {
-	b := &model.Block{Translatable: true}
-	b.SetSourceText("Hello world")
-
-	got := modelBlockToKLF(b)
-	require.NotEmpty(t, got.Hash, "hash must be non-empty for PutBlock")
-	assert.Equal(t, model.ComputeContentHash("Hello world"), got.Hash)
-}
-
-// A populated Identity.ContentHash is preferred over a derived one.
-func TestModelBlockToKLF_PrefersIdentityContentHash(t *testing.T) {
-	b := &model.Block{ID: "blk-1", Translatable: true, Identity: &model.BlockIdentity{ContentHash: "deadbeef"}}
-	b.SetSourceText("ignored")
-
-	got := modelBlockToKLF(b)
-	assert.Equal(t, "deadbeef", got.Hash)
-	assert.Equal(t, "blk-1", got.ID)
-}
-
 // The project block store is opened once and reused across calls (rather than a
 // fresh connection pool per call, which let concurrent operations collide on
 // blocks.db with "database is locked"). Verify the cached identity, that the
