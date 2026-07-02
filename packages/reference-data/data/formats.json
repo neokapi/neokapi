@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-02T17:52:04Z",
+  "generatedAt": "2026-07-02T18:26:22Z",
   "kind": "format",
   "entries": [
     {
@@ -562,6 +562,7 @@
               "translatableColumns",
               "keyColumns",
               "commentColumns",
+              "columns",
               "trimValues",
               "extractNonTranslatableContent"
             ]
@@ -591,6 +592,11 @@
             "title": "Column Names Row",
             "description": "1-based row number containing column names. 0 means auto-detect.",
             "default": 0
+          },
+          "columns": {
+            "type": "object",
+            "title": "Column Roles",
+            "description": "Column-role mapping for bilingual translation tables: an object with 0-based column indices for key, source and target (e.g. {key: 0, source: 1, target: 2}). On merge only the target column is rewritten."
           },
           "commentColumns": {
             "type": "array",
@@ -3245,15 +3251,40 @@
             "id": "segmentation",
             "label": "Segmentation",
             "fields": [
-              "segmentByLine"
+              "segmentByLine",
+              "paragraphs",
+              "spliceLines",
+              "spliceMarker"
             ]
           }
         ],
         "properties": {
+          "paragraphs": {
+            "type": "boolean",
+            "title": "Paragraphs",
+            "description": "If true, blank-line-separated paragraphs become blocks instead of individual lines.",
+            "default": false
+          },
           "segmentByLine": {
             "type": "boolean",
             "description": "If true, each line becomes a separate block. If false, paragraphs (separated by blank lines) are blocks.",
             "default": true
+          },
+          "spliceLines": {
+            "type": "boolean",
+            "title": "Splice Lines",
+            "description": "If true, lines ending with the splice marker are joined with the next line into a single block.",
+            "default": false
+          },
+          "spliceMarker": {
+            "type": "string",
+            "title": "Splice Marker",
+            "description": "Continuation marker recognized at the end of a line in splice mode.",
+            "default": "\\",
+            "ui:visible": {
+              "field": "spliceLines",
+              "eq": true
+            }
           }
         }
       },
@@ -3730,6 +3761,7 @@
               "translatableColumns",
               "keyColumns",
               "commentColumns",
+              "columns",
               "trimValues",
               "extractNonTranslatableContent"
             ]
@@ -3759,6 +3791,11 @@
             "title": "Column Names Row",
             "description": "1-based row number containing column names. 0 means auto-detect.",
             "default": 0
+          },
+          "columns": {
+            "type": "object",
+            "title": "Column Roles",
+            "description": "Column-role mapping for bilingual translation tables: an object with 0-based column indices for key, source and target (e.g. {key: 0, source: 1, target: 2}). On merge only the target column is rewritten."
           },
           "commentColumns": {
             "type": "array",
