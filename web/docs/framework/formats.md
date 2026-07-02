@@ -46,12 +46,6 @@ neokapi ships built-in readers and writers spanning several families:
 - **Containers & archives** — ZIP, TAR, and gzip-compressed TAR, treated as a
   folder of sub-documents (see below).
 
-Formats from the project's early porting days that fell outside this focus
-(desktop-publishing interchange, legacy CAT formats, niche text variants) are
-no longer built in; the migration path for an exotic format is XLIFF
-interchange — convert to XLIFF with any CAT tool, and kapi takes it from there.
-The Okapi bridge plugin (below) also remains available for Okapi's filters.
-
 An **image** is read as a localizable asset: the picture itself is the unit a
 workflow can replace with a per-locale variant. With the `kapi-vision` plugin
 installed (and the `ocr`/`layout` options on), the reader also extracts in-image
