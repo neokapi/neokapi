@@ -1,7 +1,10 @@
 package tools
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -10,6 +13,26 @@ import (
 )
 
 // AIReviewTool reviews translations with explanations using an LLM.
+//
+// Output contract: for every block that has a target in the configured
+// locale the tool sets these block properties:
+//
+//   - "review" — the review payload. When the model returns the requested
+//     JSON contract
+//
+//     {"score": <0-100>, "findings": [{"severity": "critical|major|minor|info",
+//     "message": "...", "suggestion": "..."}]}
+//
+//     the property holds that result re-marshalled canonically (parsed via
+//     [ParseReviewResult]: score clamped to 0–100, severities normalized,
+//     empty-message findings dropped). When the model output is not
+//     parseable as JSON the raw prose is stored unchanged — the lenient
+//     fallback that keeps older prose-style model output working.
+//
+//   - "review-score" — the integer score as a decimal string. Only set when
+//     the JSON contract parsed.
+//
+//   - "review-provider" — the provider id that produced the review. Always set.
 type AIReviewTool struct {
 	tool.BaseTool
 	usageAccumulator
@@ -39,8 +62,9 @@ func AIReviewSchema() *schema.ComponentSchema {
 		DefaultParallelBlocks: 5,
 		Requires:              []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
 		Cardinality:           schema.Bilingual,
-		// review writes a free-text "review" property, not a registered
-		// findings annotation, so it declares no Produces type.
+		// review writes the "review" block property (the JSON contract
+		// documented on AIReviewTool, or raw prose as fallback), not a
+		// registered findings annotation, so it declares no Produces type.
 		SideEffects: []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 	})
 	injectProviderOptions(s)
@@ -76,6 +100,68 @@ func NewAIReviewTool(p aiprovider.LLMProvider, cfg AIReviewConfig) *AIReviewTool
 	return t
 }
 
+// ReviewFinding is one issue reported by the review tool.
+type ReviewFinding struct {
+	// Severity is one of "critical", "major", "minor", or "info".
+	// Unknown or missing values normalize to "info".
+	Severity string `json:"severity"`
+	// Message describes the issue. Findings without a message are dropped.
+	Message string `json:"message"`
+	// Suggestion is an optional improved translation or fix.
+	Suggestion string `json:"suggestion,omitempty"`
+}
+
+// ReviewResult is the structured output contract of the review tool:
+// an overall 0–100 quality score plus zero or more findings.
+type ReviewResult struct {
+	Score    int             `json:"score"`
+	Findings []ReviewFinding `json:"findings"`
+}
+
+// reviewSeverities are the severity values the contract admits.
+var reviewSeverities = map[string]bool{
+	"critical": true, "major": true, "minor": true, "info": true,
+}
+
+// ParseReviewResult parses a model response against the review output
+// contract {score: 0-100, findings: [{severity, message, suggestion}]}.
+// It is lenient about transport noise — a markdown code fence, leading
+// prose, or trailing commentary around the JSON value are tolerated (see
+// decodeFirstJSON) — and normalizes the payload: the score is clamped to
+// [0, 100], severities are lower-cased and default to "info" when unknown
+// or absent, and findings without a message are dropped. It returns an
+// error only when no JSON object can be found at all; callers fall back
+// to treating the response as prose.
+func ParseReviewResult(content string) (*ReviewResult, error) {
+	var raw struct {
+		Score    float64         `json:"score"`
+		Findings []ReviewFinding `json:"findings"`
+	}
+	if err := decodeFirstJSON(content, &raw); err != nil {
+		return nil, fmt.Errorf("review: parse response: %w", err)
+	}
+
+	res := &ReviewResult{Score: int(raw.Score)}
+	if res.Score < 0 {
+		res.Score = 0
+	}
+	if res.Score > 100 {
+		res.Score = 100
+	}
+	res.Findings = make([]ReviewFinding, 0, len(raw.Findings))
+	for _, f := range raw.Findings {
+		if strings.TrimSpace(f.Message) == "" {
+			continue
+		}
+		f.Severity = strings.ToLower(strings.TrimSpace(f.Severity))
+		if !reviewSeverities[f.Severity] {
+			f.Severity = "info"
+		}
+		res.Findings = append(res.Findings, f)
+	}
+	return res, nil
+}
+
 func (t *AIReviewTool) annotate(v tool.BlockView) error {
 	if !v.HasTarget(t.targetLocale) {
 		return nil
@@ -85,15 +171,14 @@ func (t *AIReviewTool) annotate(v tool.BlockView) error {
 	targetText := v.TargetText(t.targetLocale)
 
 	prompt := fmt.Sprintf(
-		`Review the following translation. Provide a brief assessment of accuracy, fluency, and any suggested improvements. Be concise.
+		`Review the following translation for accuracy and fluency.
 
 Source (%s): %s
 Translation (%s): %s
 
-Format your response as:
-Score: <1-10>
-Assessment: <brief assessment>
-Suggestion: <improved translation if needed, or "none">`,
+Respond with ONLY a JSON object in this exact shape, no other text:
+{"score": <overall quality 0-100>, "findings": [{"severity": "critical|major|minor|info", "message": "<issue>", "suggestion": "<improved translation or fix, optional>"}]}
+Return an empty findings array when the translation has no issues.`,
 		t.sourceLocale, sourceText,
 		t.targetLocale, targetText,
 	)
@@ -106,7 +191,18 @@ Suggestion: <improved translation if needed, or "none">`,
 	}
 	t.addUsage(resp.Usage)
 
-	v.SetProperty("review", resp.Content)
+	// Structured contract when the model honored it; raw prose otherwise
+	// (backward-lenient — older models answered in free text).
+	if result, perr := ParseReviewResult(resp.Content); perr == nil {
+		payload, merr := json.Marshal(result)
+		if merr != nil {
+			return fmt.Errorf("review: encode result: %w", merr)
+		}
+		v.SetProperty("review", string(payload))
+		v.SetProperty("review-score", strconv.Itoa(result.Score))
+	} else {
+		v.SetProperty("review", resp.Content)
+	}
 	v.SetProperty("review-provider", string(t.provider.Name()))
 
 	return nil

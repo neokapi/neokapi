@@ -160,6 +160,57 @@ func TestStreamingSegCountCollector_IsStreamingCollector(t *testing.T) {
 	assert.True(t, ok, "streaming segment-count collector must implement flow.StreamingCollector")
 }
 
+// TestSegCountCollector_EmptyStream: a file with no parts still yields its
+// zero row so the report lists every input.
+func TestSegCountCollector_EmptyStream(t *testing.T) {
+	t.Parallel()
+	sc := tools.NewSegCountCollector()
+
+	require.NoError(t, sc.Collect(t.Context(), &flow.Item{Input: &model.RawDocument{URI: "empty.html"}}, nil))
+
+	result, err := sc.Result()
+	require.NoError(t, err)
+	summary := result.Data.(*tools.SegCountSummary)
+	assert.Equal(t, 1, summary.DocumentCount)
+	doc, ok := summary.Documents["empty.html"]
+	require.True(t, ok, "an empty file still gets its row")
+	assert.Equal(t, 0, doc.SourceSegments)
+	assert.Equal(t, 0, doc.BlockCount)
+}
+
+// TestStreamingSegCountCollector_MultipleDocuments: Collect switches the
+// document context between files, so interleaved Observe calls accumulate
+// into the right per-file rows and shared totals.
+func TestStreamingSegCountCollector_MultipleDocuments(t *testing.T) {
+	t.Parallel()
+	sc := tools.NewStreamingSegCountCollector()
+
+	observe := func(id string, source, target int) {
+		b := model.NewBlock(id, "text")
+		b.SetAnno(string(model.AnnoSegCount), &tools.SegCountAnnotation{Source: source, Target: target})
+		sc.Observe(&model.Part{Type: model.PartBlock, Resource: b})
+	}
+
+	require.NoError(t, sc.Collect(t.Context(), &flow.Item{Input: &model.RawDocument{URI: "a.html"}}, nil))
+	observe("tu1", 2, 2)
+	observe("tu2", 1, 0)
+
+	require.NoError(t, sc.Collect(t.Context(), &flow.Item{Input: &model.RawDocument{URI: "b.html"}}, nil))
+	observe("tu1", 4, 1)
+
+	result, err := sc.Result()
+	require.NoError(t, err)
+	summary := result.Data.(*tools.SegCountSummary)
+
+	assert.Equal(t, 2, summary.DocumentCount)
+	assert.Equal(t, 7, summary.TotalSourceSegments)
+	assert.Equal(t, 3, summary.TotalTargetSegments)
+	assert.Equal(t, 3, summary.Documents["a.html"].SourceSegments)
+	assert.Equal(t, 2, summary.Documents["a.html"].BlockCount)
+	assert.Equal(t, 4, summary.Documents["b.html"].SourceSegments)
+	assert.Equal(t, 1, summary.Documents["b.html"].BlockCount)
+}
+
 // TestSegCountSummary_FormatTable renders the text table and asserts the
 // totals appear — proving non-JSON output is non-empty (the visible symptom of
 // the original bug was empty output).
