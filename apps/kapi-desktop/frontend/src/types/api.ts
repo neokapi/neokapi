@@ -410,6 +410,8 @@ export interface GateShortfall {
   state: string;
   actual: number;
   required: number;
+  /** Approver class of the unmet threshold when explicitly set (human|any). */
+  by?: string;
 }
 
 /** Per-(collection, locale) target coverage + ship-gate standing. */
@@ -431,6 +433,9 @@ export interface SourceCoverage {
   gated: boolean;
   shippable: boolean;
   pending?: GateShortfall[];
+  /** Units whose reviewed rung came from an autonomous AI decision ("ai/…").
+   * Shown with an "(ai)" qualifier; human-required gates do not count them. */
+  aiReviewed?: number;
 }
 
 /** One translated-but-unreviewed unit awaiting human review. */
@@ -445,6 +450,11 @@ export interface ReviewItem {
   /** Whether the unit currently trips a check — set by GetReviewQueue's
    * enrichment; absent when not computed. */
   hasFindings?: boolean;
+  /** AI pre-review score (0–100) when a fresh annotation exists for the
+   * current translation — read from the state store, never a live call. */
+  aiScore?: number;
+  /** Model that produced aiScore. */
+  aiModel?: string;
 }
 
 /** Provenance of a translation (matches Go model.Origin). */
@@ -476,6 +486,40 @@ export interface ReviewUnitDetail {
   findings: DesktopFinding[];
   /** Whether the target is a single plain-text run (safe to edit in place). */
   editable: boolean;
+  /** Fresh AI pre-review annotation (state-store read; no provider call). */
+  ai_review_score?: number;
+  ai_review_model?: string;
+}
+
+/** One per-unit review AI action (matches Go backend constants). */
+export type ReviewAIActionKind = "fix-findings" | "retranslate" | "explain";
+
+/** Outcome of a per-unit review AI action: a proposed target (fix-findings /
+ * retranslate — nothing written until accepted) or explanation text. */
+export interface ReviewAIActionResult {
+  proposed_target?: string;
+  explanation?: string;
+}
+
+/** Narrowing for an AI pre-review run. */
+export interface PreReviewScope {
+  collection?: string;
+}
+
+/** What an AI pre-review may do: annotate-only (default) or auto-approve
+ * units at/above minScore with no blocking check findings. */
+export interface PreReviewPolicy {
+  autoApprove: boolean;
+  minScore: number;
+}
+
+/** Summary of an AI pre-review run. */
+export interface PreReviewResult {
+  model: string;
+  reviewed: number;
+  auto_approved: number;
+  remaining: number;
+  skipped?: number;
 }
 
 /** The full derived convergence picture for a project. */

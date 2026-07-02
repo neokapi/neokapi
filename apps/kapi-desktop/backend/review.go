@@ -49,6 +49,10 @@ type ReviewUnitDetail struct {
 	// do-not-translate, brand vocabulary — the same checkers the Checks panel
 	// runs, scoped to this one block).
 	Findings []DesktopFinding `json:"findings"`
+	// AIReviewScore/AIReviewModel surface a fresh AI pre-review annotation from
+	// the state store (read-derived; loading a unit never calls a provider).
+	AIReviewScore *int   `json:"ai_review_score,omitempty"`
+	AIReviewModel string `json:"ai_review_model,omitempty"`
 	// Editable reports whether the target is a single plain-text run, the only
 	// shape UpdateReviewTarget can rewrite safely.
 	Editable bool `json:"editable"`
@@ -227,6 +231,12 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 			if us.Origin.Kind != "" {
 				o := us.Origin
 				detail.Origin = &o
+			}
+			// Fresh AI pre-review annotation → CONTEXT row ("AI review: 92 (model)").
+			if us.AIReview.Fresh(th) {
+				score := us.AIReview.Score
+				detail.AIReviewScore = &score
+				detail.AIReviewModel = us.AIReview.Model
 			}
 		}
 	}

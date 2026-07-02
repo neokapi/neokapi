@@ -40,7 +40,7 @@ func newConvergenceProject(t *testing.T, app *App) (*TabInfo, string) {
 		Flows: map[string]*flow.StepsSpec{
 			"pseudo": {Steps: []flow.FlowStep{{Tool: "pseudo-translate"}}},
 		},
-		ShipGate: gate.Gate{"translated": 100},
+		ShipGate: gate.Gate{"translated": {Pct: 100}},
 	}
 	path := filepath.Join(root, "project.kapi")
 	require.NoError(t, project.Save(path, proj))
