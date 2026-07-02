@@ -6,13 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
-	"github.com/neokapi/neokapi/core/klf"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/version"
 )
 
 // CollectionStatus is the JSON-serialisable summary the UI renders on the
@@ -196,20 +193,17 @@ func (a *App) projectBlockStorePath(op *openProject) (string, bool) {
 
 // blockStoreVersionStampPath is the sidecar file recording the kapi version
 // that last wrote the block store, e.g. `.kapi/cache/blocks.db.kapiversion`.
+// Thin alias over the shared core implementation (core/project owns the
+// stamp mechanism so the CLI's `kapi up` drift check and the desktop agree).
 func blockStoreVersionStampPath(storePath string) string {
-	return storePath + ".kapiversion"
+	return project.BlockStoreVersionStampPath(storePath)
 }
 
 // blockStoreStale reports whether the block store at storePath was written by a
-// different kapi version than the running binary — true when the version stamp
-// is missing/unreadable, or its contents don't match version.Version. Callers
-// invoke this only once the store is known to exist.
+// different kapi version than the running binary. Callers invoke this only once
+// the store is known to exist. Delegates to the shared core implementation.
 func blockStoreStale(storePath string) bool {
-	data, err := os.ReadFile(blockStoreVersionStampPath(storePath))
-	if err != nil {
-		return true
-	}
-	return strings.TrimSpace(string(data)) != version.Version
+	return project.BlockStoreStale(storePath)
 }
 
 // projectBlockStore returns the project's block store, opening it once and
@@ -264,11 +258,10 @@ type ExtractSkip struct {
 // per-collection denominator; targets remain at zero until a translate flow
 // runs and commits `targets/<locale>` overlays).
 //
-// Extraction resolves the project's content patterns against the filesystem
-// (reusing project.ProjectContext.ResolveContent), reads each source file with
-// the detected format reader, and PutBlocks every block under its collection
-// name. It is best-effort per file: a file with no reader or a read error is
-// recorded in Skipped rather than failing the whole run.
+// It is a thin binding over the shared core extract-into-store path
+// (project.ExtractToBlockStore) — the same implementation the CLI's `kapi up`
+// uses when it auto-extracts on source drift — so the desktop and CLI read,
+// number, and key blocks identically.
 func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -303,74 +296,15 @@ func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 		return nil, fmt.Errorf("open project block store: %w", err)
 	}
 
-	ctx := context.Background()
-	sess, err := store.Begin(ctx)
+	stats, err := project.ExtractToBlockStore(context.Background(), a.formatReg, pctx, store, storePath, resolved)
 	if err != nil {
-		return nil, fmt.Errorf("open block store session: %w", err)
+		return nil, err
 	}
 
-	// Blocks are a pure cache re-derived from source on every extract. Clear the
-	// prior set first so stale rows can't linger under the content-unique keys
-	// (re-extraction is a full rebuild; target overlays live in a separate table
-	// and are preserved).
-	if purger, ok := sess.(blockstore.BlockPurger); ok {
-		if perr := purger.DeleteBlocks(); perr != nil {
-			_ = sess.Rollback()
-			return nil, fmt.Errorf("clear block store: %w", perr)
-		}
+	result := &ExtractResult{Files: stats.Files, Blocks: stats.Blocks}
+	for _, s := range stats.Skipped {
+		result.Skipped = append(result.Skipped, ExtractSkip{Path: s.Path, Reason: s.Reason})
 	}
-
-	result := &ExtractResult{}
-	for _, rf := range resolved {
-		if rf.Format == "" {
-			result.Skipped = append(result.Skipped, ExtractSkip{
-				Path:   rf.Relative,
-				Reason: "no format detected (plugin may not be installed)",
-			})
-			continue
-		}
-		// Per-format project defaults, applied the same way a run configures the
-		// reader — block numbering must match the CLI's.
-		var cfg map[string]any
-		if fd, ok := pctx.FormatDefaults[rf.Format]; ok {
-			cfg = fd.Config
-		}
-		// Shared source-reading path (core/project), identical to the CLI.
-		blocks, _, rerr := project.ReadSourceBlocks(
-			ctx, a.formatReg, rf.Format, rf.Path, pctx.SourceLocale, "", cfg,
-		)
-		if rerr != nil {
-			result.Skipped = append(result.Skipped, ExtractSkip{Path: rf.Relative, Reason: rerr.Error()})
-			continue
-		}
-		collection := collectionLabel(rf.Collection)
-		for _, b := range blocks {
-			// Key the block globally-unique per (source file, in-file id) so
-			// blocks from different files/collections don't collide in the
-			// hash-keyed store (issue: "Website 0 blocks").
-			kb := &klf.Block{
-				ID:           b.ID,
-				Hash:         project.BlockStoreHash(rf.Relative, b.ID, b.SourceText()),
-				Translatable: b.Translatable,
-				Source:       b.Source,
-			}
-			if perr := sess.PutBlock(collection, kb); perr != nil {
-				_ = sess.Rollback()
-				return nil, fmt.Errorf("write block from %q: %w", rf.Relative, perr)
-			}
-			result.Blocks++
-		}
-		result.Files++
-	}
-
-	if err := sess.Commit(); err != nil {
-		return nil, fmt.Errorf("commit extraction: %w", err)
-	}
-
-	// Stamp the store with the version that wrote it so GetProjectStatus can tell
-	// when a later kapi would extract different content. Best-effort: a failed
-	// write only means the next status read flags the store stale.
-	_ = os.WriteFile(blockStoreVersionStampPath(storePath), []byte(version.Version), 0o644)
 
 	result.Log = fmt.Sprintf("Extracted %d block(s) from %d file(s).", result.Blocks, result.Files)
 	if len(result.Skipped) > 0 {
@@ -386,9 +320,8 @@ func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 	return result, nil
 }
 
+// collectionLabel maps a collection name to its block-store label; shared
+// definition lives in core/project so store writers and readers agree.
 func collectionLabel(name string) string {
-	if name == "" {
-		return "(unnamed)"
-	}
-	return name
+	return project.CollectionLabel(name)
 }

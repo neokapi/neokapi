@@ -64,12 +64,17 @@ gates (e.g. before a release tag).
 			if maxPasses == 0 {
 				maxPasses = convergeMaxPassesDefault
 			}
-			return a.runDefaultFlowConverge(cmd, proj, projectPath, untilGate, maxPasses)
+			return a.runDefaultFlowConverge(cmd, proj, projectPath, convergeOptions{
+				untilGate: untilGate,
+				maxPasses: maxPasses,
+				noExtract: boolFlag(cmd, "no-extract"),
+			})
 		},
 	}
 
 	AddProjectFlag(cmd)
 	a.addFlowRunFlags(cmd)
 	cmd.Flags().Int("passes", 0, "maximum reconciliation passes (0 = loop until converged or parked, capped at 5; 1 = single pass)")
+	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
 	return cmd
 }

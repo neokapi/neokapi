@@ -8,11 +8,25 @@ import (
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/spf13/cobra"
 )
+
+// convergeOptions carries the knobs of one convergence run (`kapi up` /
+// no-argument `kapi run`).
+type convergeOptions struct {
+	// untilGate loops the pass until every gated scope ships (or a pass
+	// stalls); false runs a single pass.
+	untilGate bool
+	// maxPasses caps the loop.
+	maxPasses int
+	// noExtract skips the pre-pass block-store drift check + auto-extract
+	// (`up --no-extract`).
+	noExtract bool
+}
 
 // ConvergeLocaleResult is the per-locale outcome of a convergence run.
 type ConvergeLocaleResult struct {
@@ -67,7 +81,8 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 // makes no progress, or maxPasses is reached — parking the locales that remain
 // short of their gate. It never fails the build: parked work is reported, not an
 // error (target drift is normal toil, not a break).
-func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProject, projectPath string, untilGate bool, maxPasses int) error {
+func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProject, projectPath string, opts convergeOptions) error {
+	untilGate, maxPasses := opts.untilGate, opts.maxPasses
 	flowName := proj.Defaults.Flow
 	if flowName == "" {
 		return errors.New("no default flow configured: set `defaults.flow` in the project, or name one explicitly (kapi run <flow>)")
@@ -144,6 +159,17 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 	return a.withParseCache(root, func() error {
 		passes := 0
 		for {
+			// Auto-extract on drift (#1078 C2): before each pass, bring the
+			// project block store back in sync with the working tree — a
+			// missing store, a version-stamp mismatch, or edited source files
+			// all trigger a re-extract through the same shared path the
+			// desktop's Re-extract uses. `up --no-extract` opts out.
+			if !opts.noExtract {
+				if err := a.syncProjectBlockStore(ctx, cmd, pctx, projectPath, resolved); err != nil {
+					return fmt.Errorf("sync project block store: %w", err)
+				}
+			}
+
 			cov, err := a.deriveCoverage(ctx, proj, root)
 			if err != nil {
 				return err
@@ -181,6 +207,59 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 			}
 		}
 	})
+}
+
+// syncProjectBlockStore detects block-store drift against the working tree and
+// re-extracts the project's content into the store when any is found: missing
+// store, version-stamped by a different kapi, or source files whose bytes
+// drifted from their extract-time stamps. Extraction goes through the shared
+// core path (project.ExtractToBlockStore) — the same implementation behind the
+// desktop's Re-extract — and is a full rebuild of the block set (blocks are a
+// pure cache; target overlays are preserved). No drift → no work beyond cheap
+// stat checks.
+func (a *App) syncProjectBlockStore(ctx context.Context, cmd *cobra.Command, pctx *project.ProjectContext, projectPath string, resolved []project.ResolvedFile) error {
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return err
+	}
+	storePath := layout.BlockStorePath()
+	drift := project.DetectStoreDrift(storePath, resolved)
+	if !drift.Any() {
+		return nil
+	}
+	if err := project.EnsureLayout(layout); err != nil {
+		return err
+	}
+	store, err := sqlitestore.New(storePath)
+	if err != nil {
+		return fmt.Errorf("open project block store: %w", err)
+	}
+	defer store.Close()
+	stats, err := project.ExtractToBlockStore(ctx, a.FormatReg, pctx, store, storePath, resolved)
+	if err != nil {
+		return err
+	}
+	if !a.Quiet {
+		fmt.Fprintf(cmd.OutOrStdout(), "Extracted %d block(s) from %d file(s) into the project store (%s).\n",
+			stats.Blocks, stats.Files, describeDrift(drift))
+	}
+	return nil
+}
+
+// describeDrift renders a short reason for an auto-extract, for the run log.
+func describeDrift(d project.StoreDrift) string {
+	switch {
+	case d.StoreMissing:
+		return "no block store yet"
+	case d.VersionStale:
+		return "store written by another kapi version"
+	case len(d.Changed) > 0 && len(d.Removed) > 0:
+		return fmt.Sprintf("%d source file(s) changed, %d removed", len(d.Changed), len(d.Removed))
+	case len(d.Changed) > 0:
+		return fmt.Sprintf("%d source file(s) changed", len(d.Changed))
+	default:
+		return fmt.Sprintf("%d source file(s) removed", len(d.Removed))
+	}
 }
 
 // deriveCoverage recomputes per-scope ship coverage from the working tree —

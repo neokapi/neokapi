@@ -2,12 +2,16 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -104,6 +108,78 @@ func TestUp_RequiresProject(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "needs a project")
+}
+
+// storeBlockTexts reads every translatable block's source text from a
+// project's block store.
+func storeBlockTexts(t *testing.T, root string) []string {
+	t.Helper()
+	storePath := filepath.Join(root, ".kapi", "cache", "blocks.db")
+	store, err := sqlitestore.New(storePath)
+	require.NoError(t, err)
+	defer store.Close()
+	sess, err := store.Begin(context.Background())
+	require.NoError(t, err)
+	defer sess.Close()
+	var texts []string
+	tr := true
+	for b, berr := range sess.Blocks(blockstore.BlockFilter{Translatable: &tr}) {
+		require.NoError(t, berr)
+		var text string
+		for _, r := range b.Source {
+			if r.Text != nil {
+				text += r.Text.Text
+			}
+		}
+		texts = append(texts, text)
+	}
+	return texts
+}
+
+// TestUp_AutoExtractsOnDrift: `kapi up` populates the project block store on
+// first run (missing store = drift), stamps it, and — after a source edit
+// between runs — re-extracts so the store mirrors the edited working tree.
+func TestUp_AutoExtractsOnDrift(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+
+	out, err := runUp(t, a, recipe)
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "into the project store", "first up must auto-extract (missing store)")
+
+	storePath := filepath.Join(root, ".kapi", "cache", "blocks.db")
+	assert.False(t, project.BlockStoreStale(storePath), "auto-extract must stamp the store version")
+	assert.Contains(t, storeBlockTexts(t, root), "Hello, world.")
+
+	// No drift → the next up does not re-extract.
+	a2 := processOnlyApp(t)
+	out2, err := runUp(t, a2, recipe)
+	require.NoError(t, err, out2)
+	assert.NotContains(t, out2, "into the project store", "clean store must not re-extract")
+
+	// Edit a source file → the next up re-extracts and the store reflects it.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src/locales/en/a.json"),
+		[]byte(`{"greeting":"Hello, edited world."}`), 0o644))
+	a3 := processOnlyApp(t)
+	out3, err := runUp(t, a3, recipe)
+	require.NoError(t, err, out3)
+	assert.Contains(t, out3, "source file(s) changed", "edited source must trigger a re-extract")
+	texts := storeBlockTexts(t, root)
+	assert.Contains(t, texts, "Hello, edited world.")
+	assert.NotContains(t, texts, "Hello, world.", "re-extraction is a full rebuild — no stale blocks")
+}
+
+// TestUp_NoExtractOptsOut: --no-extract skips the drift check entirely; the
+// store is never stamped by the convergence loop.
+func TestUp_NoExtractOptsOut(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+
+	out, err := runUp(t, a, recipe, "--no-extract")
+	require.NoError(t, err, out)
+	assert.NotContains(t, out, "into the project store")
+	_, statErr := os.Stat(project.BlockStoreVersionStampPath(filepath.Join(root, ".kapi", "cache", "blocks.db")))
+	assert.True(t, os.IsNotExist(statErr), "--no-extract must not stamp the store")
 }
 
 // TestRun_BareRunPointsAtUp: the no-argument `kapi run` keeps working but
