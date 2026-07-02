@@ -433,12 +433,6 @@ const config: Config = {
           position: "left",
         },
         {
-          type: "docSidebar",
-          sidebarId: "frameworkSidebar",
-          label: "Framework",
-          position: "left",
-        },
-        {
           type: "dropdown",
           label: "Labs",
           position: "left",
@@ -497,6 +491,14 @@ const config: Config = {
               label: "Kapi React",
             },
           ],
+        },
+        {
+          // The engine internals — demoted behind the product sections: readers
+          // arrive for Kapi; contributors and embedders find the framework here.
+          type: "docSidebar",
+          sidebarId: "frameworkSidebar",
+          label: "Framework",
+          position: "left",
         },
         {
           // Neokapi WebAssembly Lab status widget — engine + plugin state for

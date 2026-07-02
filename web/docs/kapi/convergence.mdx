@@ -1,8 +1,8 @@
 ---
 sidebar_position: 3
 title: Convergence
-description: How kapi keeps a project up to date — the derived state model behind status, gates, run, and review. Convergence produces, review promotes, the gate releases.
-keywords: [kapi, convergence, ship gate, source gate, status, verify, review, lifecycle, coverage, kapi run, kapi apply]
+description: How kapi keeps a project up to date — the derived state model behind up, status, gates, and review. Convergence produces, review promotes, the gate releases.
+keywords: [kapi, convergence, ship gate, source gate, status, check --ship, review, lifecycle, coverage, kapi up, kapi apply]
 ---
 
 import { AxisLadderDiagram, PhaseFlow } from "@neokapi/docs-shared";
@@ -100,7 +100,7 @@ The source ladder has its own optional bar, `source_gate` (e.g.
 A gate never fails an ordinary build. Target-language drift is expected work, not
 a break; a gate is a **release** check you opt into (see below).
 
-## Seeing it: `status` and `verify`
+## Seeing it: `status` and `check --ship`
 
 `kapi status` is the derived dashboard — coverage per locale and each scope's
 standing against its gate, recomputed on every run:
@@ -114,18 +114,18 @@ kapi status
 # nb          42    100%         60%        0%         0%  pending (translated 60%<100%)
 ```
 
-`kapi verify` is the enforcing counterpart — it runs the project's quality gates
-(brand, terminology, QA). It stays non-blocking about coverage by default; pass
-`--ship` to also evaluate the ship and source gates as a pre-release bar (a
-failing gate then exits non-zero, for a release tag or a `main` check). See
-[Check translations in CI](/kapi/recipes/gate-localization-in-ci).
+`kapi check --ship` is the enforcing counterpart — it runs the project's bound
+quality gates (brand, terminology, QA) plus the ship and source coverage gates
+as a pre-release bar (a failing gate exits non-zero, for a release tag or a
+`main` check). Ordinary `kapi check` stays file-scoped and non-blocking about
+coverage. See [Ship gates & CI](/kapi/recipes/gate-localization-in-ci).
 
-## Convergence: `kapi run`
+## Convergence: `kapi up`
 
-A flow is one linear pass. *Convergence* is that pass looped to the gate — so
-there is no new verb. With no flow name, `kapi run` runs the project's default
-flow (`defaults.flow`) over all content across every target language, in one
-pass, materializing the localized files:
+A flow is one linear pass. *Convergence* is that pass looped to the gate — and
+`kapi up` is that loop as a verb. It runs the project's default flow
+(`defaults.flow`) over all content across every target language, re-deriving
+coverage between passes, until every gated scope is shippable or parked:
 
 ```yaml
 defaults:
@@ -133,29 +133,29 @@ defaults:
 ```
 
 ```bash
-kapi run               # one pass: bring every locale up to date
-kapi run --until-gate  # loop the pass until each scope ships, or parks
+kapi up                # loop the default flow until each scope ships, or parks
+kapi up --passes 1     # a single pass (the behavior of the bare 'kapi run')
 ```
 
 <PhaseFlow
   nodes={[
     {
       label: "produce",
-      sub: "kapi run — default flow over pending units",
+      sub: "kapi up — default flow over pending units",
       role: "translate",
-      loop: ["--until-gate re-derives", "coverage and repeats"],
+      loop: ["each pass re-derives", "coverage and repeats"],
     },
     { label: "promote", sub: "kapi apply — review approves a unit", role: "annotate", edge: "a person / agent" },
-    { label: "release", sub: "kapi verify --ship — the gate", role: "qa", edge: "gate met" },
+    { label: "release", sub: "kapi check --ship — the gate", role: "qa", edge: "gate met" },
   ]}
   caption="Produce loops to the gate; review promotes what a machine can't decide; the gate releases."
 />
 
-Under `--until-gate`, each pass re-derives coverage and runs again on what is
-still short — until every gated scope is shippable, a pass makes no progress, or
-the pass cap (`--max-passes`, default 5) is reached. Whatever cannot be advanced
-unaided **parks**: it is reported as awaiting a human and the command still exits
-zero. Convergence never blocks the author.
+Each pass re-derives coverage and runs again on what is still short — until
+every gated scope is shippable, a pass makes no progress, or the pass cap
+(`--passes`, capped at 5) is reached. Whatever cannot be advanced unaided
+**parks**: it is reported as awaiting a human and the command still exits zero.
+Convergence never blocks the author.
 
 One default flow can still vary by locale. `defaults.locales.<lang>.tools`
 overrides a tool's config for that target language only — merged on top of the

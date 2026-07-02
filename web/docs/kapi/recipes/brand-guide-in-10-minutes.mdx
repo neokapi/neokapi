@@ -1,0 +1,68 @@
+---
+id: brand-guide-in-10-minutes
+title: "Set up your brand guide in 10 minutes"
+sidebar_label: "Brand guide in 10 minutes"
+description: "From nothing to a bound, enforced brand voice profile: start from a starter pack, fill in your vocabulary, bind it in the project, and run the first check."
+hide_table_of_contents: true
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+# Set up your brand guide in 10 minutes
+
+**Goal:** a working brand voice profile — tone, do/don't, forbidden and preferred vocabulary — bound to your project and enforced by every check, starting from a template rather than a blank page. The profile is one YAML file, committed to git; the [profile format](/framework/checks/brand-voice) documents every field. You don't need it perfect — one forbidden term already pays for the setup, and rules accumulate from real findings.
+
+The built-in starter packs are honest bases to edit down: `professional-b2b`, `friendly-dtc`, `technical-docs`, `marketing-blog`, `customer-support`.
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+1. **Start from your assistant or the CLI** to produce `brand/voice.yaml` (the tabs to the right) — the profile is authored as a file either way.
+2. **Bind it** in **Project Settings**, so the project enforces it.
+3. **See it work.** The **Checks** view now carries brand findings over everything the project tracks, and the brand gate joins each locale's [ship-gate cell](/kapi/recipes/gate-localization-in-ci).
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+The fastest ten minutes — the assistant drafts from signal you already have:
+
+> Draft a brand voice profile for us. Base the tone on our README and landing page, forbid the usual filler ("leverage", "seamless", "cutting-edge"), and use "sign in" not "log in". Bind it in the recipe.
+
+The assistant scaffolds from `kapi brand new`, fills tone and vocabulary from your existing copy, writes `brand/voice.yaml`, and binds it under `defaults.brand_voice`. You review the YAML — it's short — and correct the judgment calls. Then ask for the proof:
+
+> Now check the README against it.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+Four commands, one file:
+
+```bash
+kapi brand new --pack technical-docs -o brand/voice.yaml   # 1. scaffold from a pack
+$EDITOR brand/voice.yaml                                   # 2. your terms, your tone
+kapi brand validate brand/voice.yaml                       # 3. structure, enums, regex
+kapi check README.md --profile-file brand/voice.yaml       # 4. first enforced check
+```
+
+The profile is plain YAML — a tone description, do/don't examples, and vocabulary lists (forbidden terms with replacements, preferred spellings, competitor names). Bind it in the recipe so every surface picks it up without flags:
+
+```yaml title="my-app.kapi"
+defaults:
+  brand_voice:
+    profile_file: brand/voice.yaml
+```
+
+`kapi brand guide` renders the same profile as a short markdown guide — the form you inject into an assistant's context so drafts start on-voice. `kapi brand import` puts a profile in the local store for use across projects.
+
+</TabItem>
+</Tabs>
+
+## Growing it
+
+Treat the profile like a test suite: every real off-brand finding that reaches review becomes a rule. The [keep-source-on-brand loop](/kapi/recipes/keep-source-on-brand) shows the change-set shape that fixes a draft and adds the rule in one apply; [Content governance for AI](/kapi/recipes/content-governance-for-ai) is the standing model the profile slots into.
+
+## Next
+
+- [Keep your source content on brand](/kapi/recipes/keep-source-on-brand) — the day-to-day enforcement loop.
+- [Brand voice](/framework/checks/brand-voice) — profile format, scoring, packs.
