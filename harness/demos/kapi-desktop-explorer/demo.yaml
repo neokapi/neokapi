@@ -48,8 +48,8 @@ narration:
     beat: open-glossary
     caption: Opening a glossary shows every concept it holds.
     text: >-
-      Opening the product glossary brings up every concept it holds — eight here
-      — with an activity chart of recent edits across the top.
+      Opening the product glossary brings up every concept it holds, with an
+      activity chart of recent edits across the top.
 
   - id: concept
     kind: desktop
@@ -126,8 +126,8 @@ locales:
         caption: Termbase-seksjonen lister hver ordliste på disk.
       - id: glossary
         text: >-
-          Åpner du produktordlisten, får du opp hvert begrep den inneholder —
-          åtte her — med et aktivitetsdiagram over de siste endringene øverst.
+          Åpner du produktordlisten, får du opp hvert begrep den inneholder, med
+          et aktivitetsdiagram over de siste endringene øverst.
         caption: En åpnet ordliste viser hvert begrep den inneholder.
       - id: concept
         text: >-

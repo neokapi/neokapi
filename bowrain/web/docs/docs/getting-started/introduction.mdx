@@ -8,9 +8,9 @@ import { SwimlaneDiagram, ThemedVideo } from "@neokapi/docs-shared";
 
 # Bowrain
 
-Bowrain is the server-side platform companion to [kapi](https://neokapi.github.io/web/neokapi/). Kapi gives a solo builder or a small team everything they need locally — extracting content, enforcing brand voice and terminology, leveraging translation memory, and localizing into every language and format, all from files you own. Bowrain is where a team hosts, governs, and stewards that work over time: shared profiles and memory, collaborative editing, connectors to the systems content already lives in, automation, and version history.
+Bowrain is the server-side platform companion to [kapi](https://neokapi.github.io/web/neokapi/). Kapi gives a solo builder or a small team a complete local toolchain — extracting content, enforcing brand voice and terminology, leveraging translation memory, and localizing into every language and format, from files you own. Bowrain is where a team hosts, governs, and stewards that work over time: shared profiles and memory, collaborative editing, connectors to the systems content already lives in, automation, and version history.
 
-It is to kapi what GitHub is to git. The toolchain stays open and runs anywhere; Bowrain adds the persistent, multi-user, governed layer an organization needs.
+It is to kapi what GitHub is to git: the toolchain stays open and runs anywhere, and Bowrain adds the persistent, multi-user, governed layer an organization needs. For when to reach for which, see [Kapi vs Bowrain](/getting-started/kapi-vs-bowrain).
 
 A team shares one workspace through a browser and a native desktop app — editing, terminology, translation memory, presence, and reviews all live on the server.
 
@@ -81,6 +81,18 @@ Content does not have to start locally, though: a [connector](/server/connectors
 />
 
 Content enters the workspace from a connector — a CMS, a design tool, a git repository, or a developer's local files via `kapi sync`. Server automation orchestrates translation and checks; translators (and AI tools, over MCP) work in the web or desktop editor with translation memory and terminology support; and the content store keeps the history.
+
+## How a change ships
+
+The review step in that loop is where a team accepts the work. A developer pushes content with kapi; in the workspace it becomes a project the team reviews together, one block at a time — source, target, and the status that tracks each block from draft to translated to reviewed. Approvals are recorded against the workspace, and the result is pulled back into the repository with kapi. See [Review](/server/review).
+
+<ThemedVideo
+  sources={{
+    light: "/video/bowrain-web/bowrain-web-review-light.webm",
+    dark: "/video/bowrain-web/bowrain-web-review-dark.webm",
+  }}
+  maxWidth="820px"
+/>
 
 ## Parts of the platform
 

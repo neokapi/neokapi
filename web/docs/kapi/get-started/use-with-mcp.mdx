@@ -4,6 +4,8 @@ description: Run `kapi mcp` to give Claude Desktop, Claude Code, Cursor, Windsur
 keywords: [kapi, mcp, model context protocol, claude desktop, claude code, cursor, windsurf, content checks, rewrite, brand voice]
 ---
 
+import { ThemedVideo } from "@neokapi/docs-shared";
+
 # Use Kapi with MCP
 
 `kapi mcp` exposes kapi's content operations as **structured MCP tools**, so any
@@ -11,6 +13,16 @@ MCP-compatible client — Claude Desktop, Claude Code, Cursor, Windsurf, VS Code
 can read a document's blocks, check them against rules, and edit them while
 preserving the file's structure. The assistant calls a tool when a task needs it;
 you describe the work in plain language.
+
+The same engine, reached as MCP tools:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/08-mcp-tools-light.webm",
+    dark: "/video/kapi/08-mcp-tools-dark.webm",
+  }}
+  maxWidth="820px"
+/>
 
 The `kapi` CLI must be on your `PATH` — confirm with `kapi version` (see
 [installation](/kapi/get-started/installation)). The edit loop —

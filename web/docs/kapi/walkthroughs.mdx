@@ -1,0 +1,163 @@
+---
+id: walkthroughs
+title: See it in action
+sidebar_label: See it in action
+description: Short narrated walkthroughs of kapi at work — driving it from Claude, the desktop app, the format-aware toolbox, and the translator hand-off. Each clip is a real command sequence, recorded exactly.
+keywords: [kapi, walkthrough, video, demo, claude, desktop, toolbox, bilingual, localization]
+hide_table_of_contents: true
+---
+
+import { ThemedVideo } from "@neokapi/docs-shared";
+
+# See it in action
+
+Describe the outcome you want — translate this page, ship the app in Japanese,
+keep a glossary consistent — and let kapi do the work. Each clip below is a real
+command sequence, run for real and recorded exactly; nothing is staged. Pick the
+surface you work in.
+
+For where to start, see the [Kapi overview](/kapi/overview); to follow along
+yourself, the [CLI recipes](/kapi/cli) run the same commands in your browser.
+
+## Drive it from Claude
+
+Install [the Agent Skill](/kapi/get-started/use-with-skills) and you describe the
+result in plain language — Claude runs the right `kapi` commands, reads the output,
+and loops until the work passes kapi's gates.
+
+A plain request — translate this page — keeps the HTML intact:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/01-localize-landing-page-light.webm",
+    dark: "/video/kapi/01-localize-landing-page-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+A Word announcement, translated to Japanese with headings, lists, and formatting
+preserved:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/claude-translate-document-light.webm",
+    dark: "/video/kapi/claude-translate-document-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+A working English app, shipped in Japanese — same UI, translated strings:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/claude-app-i18n-light.webm",
+    dark: "/video/kapi/claude-app-i18n-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+One source file into four target languages, including a non-Latin script:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/07-global-launch-many-languages-light.webm",
+    dark: "/video/kapi/07-global-launch-many-languages-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+The same engine reached over [MCP](/kapi/get-started/use-with-mcp), exposed to the
+assistant as structured tools:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/08-mcp-tools-light.webm",
+    dark: "/video/kapi/08-mcp-tools-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+## Desktop
+
+[Kapi Desktop](/kapi/desktop/overview) is project-first: it opens to your projects
+and works from a `.kapi` recipe — its languages, content, flows, and memory.
+
+Create and manage a project — pair a source language with the locales you
+translate into and the files in scope:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-projects-light.webm",
+    dark: "/video/kapi/kapi-desktop-projects-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+Compose a flow — a named sequence of steps the project runs over its content:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-flows-light.webm",
+    dark: "/video/kapi/kapi-desktop-flows-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+Manage content — open a file and preview it the way the engine parses it:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-content-light.webm",
+    dark: "/video/kapi/kapi-desktop-content-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+Browse the terminology and translation-memory explorer:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-explorer-light.webm",
+    dark: "/video/kapi/kapi-desktop-explorer-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+Configure appearance, AI providers, and plugins in one place:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/kapi-desktop-config-light.webm",
+    dark: "/video/kapi/kapi-desktop-config-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+## Toolbox
+
+The [format-aware toolbox](/toolbox/overview) — `kcat`, `kgrep`, `ksed` — works on
+the text kapi reads out of a document, not raw bytes. Here it prints, finds, and
+rebrands a product name across a Markdown pitch, a Word proposal, and an Excel
+price list, rewriting each back into its own format:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/toolbox-explainer-light.webm",
+    dark: "/video/kapi/toolbox-explainer-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+## Hand-off and bilingual round-trip
+
+When a document goes to a translator or a CAT tool, kapi extracts a bilingual file
+and merges the result back into the original format — see the
+[bilingual workflow](/kapi/bilingual-workflow):
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/bilingual-workflow-light.webm",
+    dark: "/video/kapi/bilingual-workflow-dark.webm",
+  }}
+  maxWidth="820px"
+/>

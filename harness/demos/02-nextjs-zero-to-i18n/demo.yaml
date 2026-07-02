@@ -94,9 +94,8 @@ narration:
     kind: artifact
     artifact: japanese
     text: >
-      And the same app, now in Japanese — in this demo it is just AI generated Japanese, but
-      Kapi could just as well have looped this through human review and more advanced workflows
-      with automated compliance checks.
+      And the same app, now in Japanese. This demo uses AI-generated Japanese directly; the
+      same translate step can instead route through human review before it ships.
   - id: outro
     kind: outro
     text: >

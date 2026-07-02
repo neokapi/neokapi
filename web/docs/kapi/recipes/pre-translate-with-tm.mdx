@@ -31,6 +31,19 @@ your machine, with no API key.
 For the concepts, see [Translation Memory](/framework/translation-memory) and
 [Terminology](/framework/terminology); this recipe walks the task.
 
+Run it yourself first — the in-browser build pre-seeds a TM and a termbase. The
+rail tops up the TM from `project.tmx`, then runs the three-step pipeline. Open the
+intermediate `step1_tm.json` / `step2_translated.json` files in the pane to watch
+each step's output feed the next.
+
+<KapiGuidedEmbed id="kapi-terminology-pretranslation" />
+
+{/*
+The interactive embed and the recorded video both come from
+walkthroughs/kapi-terminology-pretranslation.scene.yaml. Change the scene spec
+and regenerate; don't edit the generated output by hand.
+*/}
+
 ## The scenario
 
 Your project has:
@@ -138,19 +151,6 @@ kapi run pretranslate
 `kapi run` discovers the nearest recipe, resolves the project TM and termbase
 automatically, and applies the declared languages — no per-command flags. See
 [Create your first project](/kapi/get-started/first-project).
-
-## Try it
-
-The in-browser build pre-seeds a TM and a termbase. The rail tops up the TM from
-`project.tmx`, then runs the three-step pipeline. Open the intermediate
-`step1_tm.json` / `step2_translated.json` files in the pane to watch each step's
-output feed the next.
-
-<KapiGuidedEmbed id="kapi-terminology-pretranslation" />
-
-> The interactive embed and the recorded video both come from
-> [`walkthroughs/kapi-terminology-pretranslation.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/walkthroughs/kapi-terminology-pretranslation.scene.yaml).
-> Change the scene spec and regenerate; don't edit the generated output by hand.
 
 ## Going further: AI for the gaps
 

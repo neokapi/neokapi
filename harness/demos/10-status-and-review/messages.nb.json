@@ -1,0 +1,7 @@
+{
+  "greeting": "Hei, verden!",
+  "farewell": "Vi ses i morgen",
+  "items": {
+    "cart": "Handlekurven din er tom"
+  }
+}

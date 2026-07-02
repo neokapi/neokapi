@@ -422,6 +422,11 @@ const config: Config = {
           position: "left",
         },
         {
+          to: "/kapi/walkthroughs",
+          label: "Walkthroughs",
+          position: "left",
+        },
+        {
           type: "docSidebar",
           sidebarId: "frameworkSidebar",
           label: "Framework",

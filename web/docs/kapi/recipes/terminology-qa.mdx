@@ -38,6 +38,20 @@ before it ships.
 For the concepts, see [Terminology](/framework/terminology) and
 [Checks](/framework/checks); this recipe walks the task.
 
+Run it yourself first — the in-browser build pre-seeds a termbase from the project
+glossary (shown as `glossary.csv` in the files pane), so the termbase commands
+operate on a real backend. Step through the rail: inspect the termbase, look up and
+search terms, then pseudo-translate `messages_en.json` and run `kapi term-check` to
+see the seeded terminology enforced against the result.
+
+<KapiGuidedEmbed id="kapi-terminology-qa" />
+
+{/*
+The interactive embed and the recorded video both come from
+walkthroughs/kapi-terminology-qa.scene.yaml. Change the scene spec and
+regenerate; don't edit the generated output by hand.
+*/}
+
 ## The scenario
 
 Your team maintains a product glossary as a CSV — source term, approved target,
@@ -104,20 +118,6 @@ but the French target uses "code secret" instead of the approved "mot de passe".
 (See [Terminology](/framework/terminology) for how term discovery and enforcement
 work, and [Checks](/framework/checks) for the findings and gate model.) The
 command exits non-zero when violations are found, so it doubles as a CI gate.
-
-## Try it
-
-The in-browser build pre-seeds a termbase from the project glossary (shown as
-`glossary.csv` in the files pane), so the termbase commands operate on a real
-backend. Step through the rail: inspect the termbase, look up and search terms,
-then pseudo-translate `messages_en.json` and run `kapi term-check` to see the
-seeded terminology enforced against the result.
-
-<KapiGuidedEmbed id="kapi-terminology-qa" />
-
-> The interactive embed and the recorded video both come from
-> [`walkthroughs/kapi-terminology-qa.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/walkthroughs/kapi-terminology-qa.scene.yaml).
-> Change the scene spec and regenerate; don't edit the generated output by hand.
 
 ## Scale up
 

@@ -4,6 +4,8 @@ description: Install kapi's Claude Code Agent Skill and drive kapi by plain-lang
 keywords: [kapi, claude, claude code, agent skills, skill, prompt, content checks, brand voice, localization, translate]
 ---
 
+import { ThemedVideo } from "@neokapi/docs-shared";
+
 # Use the Kapi Agent Skills
 
 kapi ships a portable **Agent Skill** (a `SKILL.md`). With it installed, you don't
@@ -12,6 +14,17 @@ coding assistant loads the skill, runs the right `kapi` commands, reads the
 results, and iterates until the work passes kapi's gates. kapi supplies the
 guardrails (faithful round-trip, brand voice, terminology); the assistant does the
 writing and translating; you stay in the conversation.
+
+A plain request — translate this page — and the skill drives the rest, keeping the
+markup intact:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/01-localize-landing-page-light.webm",
+    dark: "/video/kapi/01-localize-landing-page-dark.webm",
+  }}
+  maxWidth="820px"
+/>
 
 `SKILL.md` is an [open standard](https://github.com/agentskills/agentskills), so
 the skill works in **Claude Code, GitHub Copilot, Cursor, Windsurf, VS Code,
@@ -206,7 +219,18 @@ placeholders), rewrites the headline, and applies it with `kapi apply`. The
 
 ## The localization path — translate and publish
 
-Ask Claude to ship the content in other languages. For example:
+Ask Claude to ship the content in other languages. A Word announcement, translated
+to Japanese with its headings, lists, and formatting preserved:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/claude-translate-document-light.webm",
+    dark: "/video/kapi/claude-translate-document-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
+For example:
 
 > Translate `announcement.docx` into Japanese.
 
@@ -233,6 +257,17 @@ and format). The shape depends on the ask:
   bilingual interchange file (XLIFF/PO); `kapi merge` consumes the returned
   translations back into the original format.
 
+Project localization in full — Claude wires up the i18n setup and ships a working
+English app in Japanese, same UI, translated:
+
+<ThemedVideo
+  sources={{
+    light: "/video/kapi/claude-app-i18n-light.webm",
+    dark: "/video/kapi/claude-app-i18n-dark.webm",
+  }}
+  maxWidth="820px"
+/>
+
 Whichever shape, Claude finishes by verifying, and fixes what the gate flags
 before telling you it's done. A provider credential is only needed if you want
 `kapi translate` to run **unattended** (a CI job, no assistant in the loop). To
@@ -248,6 +283,7 @@ correctly-localized content is enforced even when no assistant is in the loop.
 
 ## Where to go next
 
+- [See it in action](/kapi/walkthroughs) — more short walkthroughs of these loops.
 - [Use Kapi with MCP](/kapi/get-started/use-with-mcp) — the same operations as
   structured tools for Claude Desktop, Cursor, Windsurf, or any MCP client.
 - [Edit content in any format](/kapi/recipes/rewrite-content) — the

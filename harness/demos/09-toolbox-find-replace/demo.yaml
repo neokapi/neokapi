@@ -48,9 +48,10 @@ narration:
   - id: title
     kind: title
     text: >
-      What if you could run classic CLI tools — like cat and grep, or even sed —
-      across both text and the content inside binary formats, like Word and Excel
-      documents? Well, now you can.
+      kcat, kgrep and ksed are cat, grep and sed for the text inside a document.
+      They read the words kapi extracts from a Word file, a spreadsheet, or
+      Markdown — not the raw bytes — so the tools you already know work on content
+      they normally can't see into.
   - id: cat
     kind: terminal
     text: >
@@ -79,8 +80,8 @@ narration:
   - id: outro
     kind: outro
     text: >
-      kcat, kgrep and ksed: grep, sed and cat, for the words inside any of the
-      more than fifty file formats neokapi reads.
+      kcat, kgrep and ksed: grep, sed and cat, for the words inside the document,
+      data, and localization formats neokapi reads.
 
 # Norwegian Bokmål narration (full coverage — required for published demos).
 # Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology.
@@ -89,9 +90,10 @@ locales:
     narration:
       - id: title
         text: >
-          Hva om du kunne kjøre klassiske kommandolinjeverktøy — som cat og
-          grep, eller til og med sed — på både tekst og innholdet i binære
-          formater, som Word- og Excel-dokumenter? Nå kan du det.
+          kcat, kgrep og ksed er cat, grep og sed for teksten inni et dokument.
+          De leser ordene kapi henter ut av en Word-fil, et regneark eller
+          Markdown — ikke de rå bytene — så verktøyene du allerede kan, virker på
+          innhold de vanligvis ikke ser inn i.
       - id: cat
         text: >
           Her er salgsmateriellet til et team: en pitch i Markdown, et forslag
@@ -114,5 +116,5 @@ locales:
           struktur er intakt. Bare ordene er endret.
       - id: outro
         text: >
-          kcat, kgrep og ksed: grep, sed og cat, for ordene inni alle de over
-          femti filformatene neokapi leser.
+          kcat, kgrep og ksed: grep, sed og cat, for ordene inni dokument-,
+          data- og lokaliseringsformatene neokapi leser.
