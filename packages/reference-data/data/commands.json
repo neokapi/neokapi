@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-28T13:38:38Z",
+  "generatedAt": "2026-07-02T15:59:18Z",
   "commands": [
     {
       "id": "brand",
@@ -1817,6 +1817,12 @@
       "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a .kapi project, pre-filled from the project's translation\nmemory.\n\nEach invocation writes one batch of outputs under .kapi/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
       "groupID": "localization",
       "flags": [
+        {
+          "name": "force",
+          "usage": "re-extract every file, ignoring the incremental reuse of unchanged sources",
+          "default": "false",
+          "type": "bool"
+        },
         {
           "name": "format",
           "usage": "bilingual output format (xliff2 | po | klz)",

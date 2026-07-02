@@ -18,7 +18,7 @@ func TestWriterGenerativeCapability(t *testing.T) {
 	formats.RegisterAll(reg)
 
 	// Skeleton-bound: packaged / binary formats that need the original file.
-	skeletonBound := []string{"openxml", "odf", "idml", "icml", "mif", "epub", "image"}
+	skeletonBound := []string{"openxml", "odf", "epub", "image"}
 	// Generative: document / interchange / catalog writers that build standalone.
 	generative := []string{
 		"doclang", "markdown", "html", "asciidoc", "plaintext",
@@ -48,7 +48,7 @@ func TestWriterGenerativeCapability(t *testing.T) {
 
 	// Bilingual interchange formats: generative-capable, but flagged Interchange
 	// so `convert` excludes them (the extract→translate→merge loop owns them).
-	interchange := []string{"xliff", "xliff2", "po", "tmx", "mo", "ttx", "txml", "transtable", "mosestext", "klf"}
+	interchange := []string{"xliff", "xliff2", "po", "tmx", "mo", "klf"}
 	for _, id := range interchange {
 		info := reg.FormatInfo(registry.FormatID(id))
 		if info == nil || !info.HasWriter {

@@ -18,48 +18,28 @@ import (
 	"github.com/neokapi/neokapi/core/formats/designtokens"
 	"github.com/neokapi/neokapi/core/formats/doclang"
 	"github.com/neokapi/neokapi/core/formats/docling"
-	"github.com/neokapi/neokapi/core/formats/doxygen"
-	dtdfmt "github.com/neokapi/neokapi/core/formats/dtd"
 	"github.com/neokapi/neokapi/core/formats/epub"
 	execfmt "github.com/neokapi/neokapi/core/formats/exec"
-	"github.com/neokapi/neokapi/core/formats/fixedwidth"
 	"github.com/neokapi/neokapi/core/formats/html"
 	"github.com/neokapi/neokapi/core/formats/i18next"
-	"github.com/neokapi/neokapi/core/formats/icml"
-	"github.com/neokapi/neokapi/core/formats/idml"
 	imagefmt "github.com/neokapi/neokapi/core/formats/image"
 	"github.com/neokapi/neokapi/core/formats/json"
 	"github.com/neokapi/neokapi/core/formats/jsx"
 	"github.com/neokapi/neokapi/core/formats/markdown"
 	"github.com/neokapi/neokapi/core/formats/mdx"
 	"github.com/neokapi/neokapi/core/formats/messageformat"
-	"github.com/neokapi/neokapi/core/formats/mif"
 	"github.com/neokapi/neokapi/core/formats/mo"
-	"github.com/neokapi/neokapi/core/formats/mosestext"
 	"github.com/neokapi/neokapi/core/formats/odf"
 	"github.com/neokapi/neokapi/core/formats/openxml"
-	"github.com/neokapi/neokapi/core/formats/paraplaintext"
-	"github.com/neokapi/neokapi/core/formats/phpcontent"
 	"github.com/neokapi/neokapi/core/formats/plaintext"
 	"github.com/neokapi/neokapi/core/formats/po"
 	"github.com/neokapi/neokapi/core/formats/properties"
-	regexfmt "github.com/neokapi/neokapi/core/formats/regex"
 	"github.com/neokapi/neokapi/core/formats/resx"
-	"github.com/neokapi/neokapi/core/formats/rtf"
-	"github.com/neokapi/neokapi/core/formats/splicedlines"
 	"github.com/neokapi/neokapi/core/formats/srt"
-	"github.com/neokapi/neokapi/core/formats/tex"
 	"github.com/neokapi/neokapi/core/formats/tmx"
-	"github.com/neokapi/neokapi/core/formats/transtable"
 	tsfmt "github.com/neokapi/neokapi/core/formats/ts"
-	"github.com/neokapi/neokapi/core/formats/ttml"
-	"github.com/neokapi/neokapi/core/formats/ttx"
-	"github.com/neokapi/neokapi/core/formats/txml"
-	"github.com/neokapi/neokapi/core/formats/versifiedtext"
 	"github.com/neokapi/neokapi/core/formats/video"
-	"github.com/neokapi/neokapi/core/formats/vignette"
 	"github.com/neokapi/neokapi/core/formats/vtt"
-	"github.com/neokapi/neokapi/core/formats/wiki"
 	"github.com/neokapi/neokapi/core/formats/xcstrings"
 	"github.com/neokapi/neokapi/core/formats/xliff"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
@@ -438,12 +418,6 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("tsv", func() format.DataFormatWriter { return csvfmt.NewTSVWriter() })
 
 	// Moses Text
-	reg.RegisterReader("mosestext",
-		func() format.DataFormatReader { return mosestext.NewReader() },
-		format.FormatSignature{
-			MIMETypes: []string{"text/x-mosestext"},
-		}, "Moses Text")
-	reg.RegisterWriter("mosestext", func() format.DataFormatWriter { return mosestext.NewWriter() })
 
 	// Audio — transcribed to timing-anchored Blocks when the kapi-asr plugin is
 	// available (AD-030); otherwise emitted as a Media asset. The writer emits the
@@ -481,14 +455,6 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	registerSchemaAndDecoder(o, reg, "srt", func() format.DataFormatReader { return srt.NewReader() })
 
 	// TTML Subtitles
-	reg.RegisterReader("ttml",
-		func() format.DataFormatReader { return ttml.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/ttml+xml"},
-			Extensions: []string{".ttml", ".dfxp"},
-		}, "TTML Subtitles")
-	reg.RegisterWriter("ttml", func() format.DataFormatWriter { return ttml.NewWriter() })
-	registerSchemaAndDecoder(o, reg, "ttml", func() format.DataFormatReader { return ttml.NewReader() })
 
 	// WebVTT Subtitles
 	reg.RegisterReader("vtt",
@@ -527,13 +493,6 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	registerSchemaAndDecoder(o, reg, "openxml", func() format.DataFormatReader { return openxml.NewReader() })
 
 	// DTD
-	reg.RegisterReader("dtd",
-		func() format.DataFormatReader { return dtdfmt.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/xml-dtd"},
-			Extensions: []string{".dtd"},
-		}, "DTD")
-	reg.RegisterWriter("dtd", func() format.DataFormatWriter { return dtdfmt.NewWriter() })
 
 	// Qt TS
 	reg.RegisterReader("ts",
@@ -547,42 +506,12 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("ts", func() format.DataFormatWriter { return tsfmt.NewWriter() })
 
 	// Wiki (MediaWiki/DokuWiki)
-	reg.RegisterReader("wiki",
-		func() format.DataFormatReader { return wiki.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"text/x-wiki"},
-			Extensions: []string{".wiki", ".mediawiki"},
-		}, "Wiki")
-	reg.RegisterWriter("wiki", func() format.DataFormatWriter { return wiki.NewWriter() })
-	registerSchemaAndDecoder(o, reg, "wiki", func() format.DataFormatReader { return wiki.NewReader() })
 
 	// TeX/LaTeX
-	reg.RegisterReader("tex",
-		func() format.DataFormatReader { return tex.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/x-tex", "text/x-tex"},
-			Extensions: []string{".tex", ".latex"},
-		}, "TeX/LaTeX")
-	reg.RegisterWriter("tex", func() format.DataFormatWriter { return tex.NewWriter() })
 
 	// Regex
-	reg.RegisterReader("regex",
-		func() format.DataFormatReader { return regexfmt.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"text/x-regex"},
-			Extensions: []string{".ini", ".info", ".rls"},
-		}, "Regex Extraction")
-	reg.RegisterWriter("regex", func() format.DataFormatWriter { return regexfmt.NewWriter() })
 
 	// Doxygen
-	reg.RegisterReader("doxygen",
-		func() format.DataFormatReader { return doxygen.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"text/x-doxygen-txt"},
-			Extensions: []string{".c", ".cpp", ".h", ".java", ".m", ".py"},
-		}, "Doxygen Comments")
-	reg.RegisterWriter("doxygen", func() format.DataFormatWriter { return doxygen.NewWriter() })
-	registerSchemaAndDecoder(o, reg, "doxygen", func() format.DataFormatReader { return doxygen.NewReader() })
 
 	// ICU MessageFormat
 	reg.RegisterReader("messageformat",
@@ -594,70 +523,20 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("messageformat", func() format.DataFormatWriter { return messageformat.NewWriter() })
 
 	// PHP Content
-	reg.RegisterReader("phpcontent",
-		func() format.DataFormatReader { return phpcontent.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/x-php"},
-			Extensions: []string{".php", ".phpcnt"},
-		}, "PHP Content")
-	reg.RegisterWriter("phpcontent", func() format.DataFormatWriter { return phpcontent.NewWriter() })
-	registerSchemaAndDecoder(o, reg, "phpcontent", func() format.DataFormatReader { return phpcontent.NewReader() })
 
 	// ICML (InCopy Markup Language)
-	reg.RegisterReader("icml",
-		func() format.DataFormatReader { return icml.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/x-icml+xml"},
-			Extensions: []string{".icml", ".wcml"},
-		}, "ICML (Adobe InCopy)")
-	reg.RegisterWriter("icml", func() format.DataFormatWriter { return icml.NewWriter() })
 
 	// IDML (InDesign Markup Language)
-	reg.RegisterReader("idml",
-		func() format.DataFormatReader { return idml.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/vnd.adobe.indesign-idml-package"},
-			Extensions: []string{".idml"},
-			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
-		}, "Adobe InDesign Markup Language")
-	reg.RegisterWriter("idml", func() format.DataFormatWriter { return idml.NewWriter() })
 
 	// Fixed-Width Table
-	reg.RegisterReader("fixedwidth",
-		func() format.DataFormatReader { return fixedwidth.NewReader() },
-		format.FormatSignature{
-			Extensions: []string{".dat", ".fixed"},
-		}, "Fixed-Width")
-	reg.RegisterWriter("fixedwidth", func() format.DataFormatWriter { return fixedwidth.NewWriter() })
 
 	// Translation Table
-	reg.RegisterReader("transtable",
-		func() format.DataFormatReader { return transtable.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"text/tab-separated-values"},
-			Extensions: []string{".tab", ".tsv"},
-		}, "Translation Table")
-	reg.RegisterWriter("transtable", func() format.DataFormatWriter { return transtable.NewWriter() })
 
 	// Paragraph Plain Text
-	reg.RegisterReader("paraplaintext",
-		func() format.DataFormatReader { return paraplaintext.NewReader() },
-		format.FormatSignature{}, "Paragraph Plain Text")
-	reg.RegisterWriter("paraplaintext", func() format.DataFormatWriter { return paraplaintext.NewWriter() })
 
 	// Spliced Lines
-	reg.RegisterReader("splicedlines",
-		func() format.DataFormatReader { return splicedlines.NewReader() },
-		format.FormatSignature{}, "Spliced Lines")
-	reg.RegisterWriter("splicedlines", func() format.DataFormatWriter { return splicedlines.NewWriter() })
 
 	// Versified Text
-	reg.RegisterReader("versifiedtext",
-		func() format.DataFormatReader { return versifiedtext.NewReader() },
-		format.FormatSignature{
-			Extensions: []string{".ver"},
-		}, "Versified Text")
-	reg.RegisterWriter("versifiedtext", func() format.DataFormatWriter { return versifiedtext.NewWriter() })
 
 	// Vignette CMS export/import XML (the `vgnexport` tool's output).
 	// Detection is sniff-based because the file uses the generic .xml
@@ -666,16 +545,6 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	// the document carries the Vignette importexport namespace or an
 	// importContentInstance element, leaving generic XML files routed
 	// to the xml reader.
-	reg.RegisterReader("vignette",
-		func() format.DataFormatReader { return vignette.NewReader() },
-		format.FormatSignature{
-			Sniff: func(data []byte) bool {
-				s := string(data)
-				return strings.Contains(s, "vignette.com/xmlschemas/importexport") ||
-					strings.Contains(s, "<importContentInstance")
-			},
-		}, "Vignette CMS Export")
-	reg.RegisterWriter("vignette", func() format.DataFormatWriter { return vignette.NewWriter() })
 
 	// ODF (Open Document Format)
 	reg.RegisterReader("odf",
@@ -729,56 +598,12 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.SetFormatPriority("archive", format.DefaultBuiltInPriority-10)
 
 	// RTF (Rich Text Format)
-	reg.RegisterReader("rtf",
-		func() format.DataFormatReader { return rtf.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/rtf", "text/rtf"},
-			Extensions: []string{".rtf"},
-			MagicBytes: [][]byte{[]byte("{\\rtf")},
-		}, "Rich Text Format")
-	reg.RegisterWriter("rtf", func() format.DataFormatWriter { return rtf.NewWriter() })
-	registerSchemaAndDecoder(o, reg, "rtf", func() format.DataFormatReader { return rtf.NewReader() })
 
 	// MIF (Adobe FrameMaker)
-	reg.RegisterReader("mif",
-		func() format.DataFormatReader { return mif.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/x-mif", "application/vnd.mif"},
-			Extensions: []string{".mif"},
-			Sniff: func(data []byte) bool {
-				return len(data) >= 9 && string(data[:9]) == "<MIFFile "
-			},
-		}, "Adobe FrameMaker MIF")
-	reg.RegisterWriter("mif", func() format.DataFormatWriter { return mif.NewWriter() })
-	registerSchemaAndDecoder(o, reg, "mif", func() format.DataFormatReader { return mif.NewReader() })
 
 	// TTX (Trados TagEditor)
-	reg.RegisterReader("ttx",
-		func() format.DataFormatReader { return ttx.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/x-ttx+xml"},
-			Extensions: []string{".ttx"},
-			Sniff: func(data []byte) bool {
-				s := string(data)
-				return strings.Contains(s, "<TRADOStag")
-			},
-		}, "Trados TagEditor TTX")
-	reg.RegisterWriter("ttx", func() format.DataFormatWriter { return ttx.NewWriter() })
-	registerSchemaAndDecoder(o, reg, "ttx", func() format.DataFormatReader { return ttx.NewReader() })
 
 	// TXML (Trados XML)
-	reg.RegisterReader("txml",
-		func() format.DataFormatReader { return txml.NewReader() },
-		format.FormatSignature{
-			MIMETypes:  []string{"application/x-txml+xml"},
-			Extensions: []string{".txml"},
-			Sniff: func(data []byte) bool {
-				s := string(data)
-				return strings.Contains(s, "<txml")
-			},
-		}, "Trados XML")
-	reg.RegisterWriter("txml", func() format.DataFormatWriter { return txml.NewWriter() })
-	registerSchemaAndDecoder(o, reg, "txml", func() format.DataFormatReader { return txml.NewReader() })
 
 	// Exec — declarative subprocess extractor. Registered here so
 	// kapi-desktop's FormatSelect (and other UI surfaces) can list

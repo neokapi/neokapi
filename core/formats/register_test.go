@@ -25,12 +25,10 @@ func TestRegisterAllReaders(t *testing.T) {
 	expectedFormats := []registry.FormatID{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "klf", "po", "properties",
-		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
-		"mosestext", "dtd", "ts", "wiki", "tex",
-		"regex", "doxygen", "messageformat", "phpcontent",
-		"icml", "idml", "fixedwidth",
-		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
-		"odf", "epub", "rtf", "mif", "ttx", "txml", "doclang", "docling", "xcstrings", "arb", "resx",
+		"markdown", "csv", "tsv", "srt", "vtt", "tmx", "openxml",
+		"ts",
+		"messageformat",
+		"odf", "epub", "doclang", "docling", "xcstrings", "arb", "resx",
 		"androidxml", "applestrings", "i18next", "designtokens", "mdx", "asciidoc",
 		// "image" (PNG/JPEG) is read-only: text + structure come from OCR via the
 		// kapi-vision plugin when installed, else just the image as Media.
@@ -64,12 +62,10 @@ func TestRegisterAllWriters(t *testing.T) {
 	expectedFormats := []registry.FormatID{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "klf", "po", "mo", "properties",
-		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
-		"mosestext", "dtd", "ts", "wiki", "tex",
-		"regex", "doxygen", "messageformat", "phpcontent",
-		"icml", "idml", "fixedwidth",
-		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
-		"odf", "epub", "rtf", "mif", "ttx", "txml", "doclang", "xcstrings", "arb", "resx",
+		"markdown", "csv", "tsv", "srt", "vtt", "tmx", "openxml",
+		"ts",
+		"messageformat",
+		"odf", "epub", "doclang", "xcstrings", "arb", "resx",
 		"androidxml", "applestrings", "i18next", "designtokens", "mdx", "asciidoc",
 		// "image" has a writer: it emits the (possibly localized, e.g.
 		// pseudo-localized) image bytes — the whole-image localization sink.
@@ -170,8 +166,8 @@ func TestCollectNativeDecoders(t *testing.T) {
 	expectedFormats := []string{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
-		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx",
-		"ts", "fixedwidth", "phpcontent", "asciidoc",
+		"markdown", "csv", "tsv", "srt", "vtt", "tmx",
+		"ts", "asciidoc",
 	}
 	for _, name := range expectedFormats {
 		kind := config.FormatConfigKind(name)

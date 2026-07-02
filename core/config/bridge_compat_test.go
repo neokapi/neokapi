@@ -34,8 +34,6 @@ func TestBridgeKindNaming(t *testing.T) {
 		"po":         "OkfPoFilterConfig",
 		"xmlstream":  "OkfXmlstreamFilterConfig",
 		"openxml":    "OkfOpenxmlFilterConfig",
-		"idml":       "OkfIdmlFilterConfig",
-		"regex":      "OkfRegexFilterConfig",
 		"archive":    "OkfArchiveFilterConfig",
 	}
 
@@ -166,8 +164,8 @@ func TestBridgeResolveByKindCompatibility(t *testing.T) {
 	t.Parallel()
 	formats := []string{
 		"html", "json", "xml", "yaml", "properties",
-		"po", "xmlstream", "openxml", "idml", "regex",
-		"archive", "autoxliff", "dtd", "ts",
+		"po", "xmlstream", "openxml",
+		"archive", "autoxliff", "ts",
 	}
 
 	for _, format := range formats {
@@ -292,8 +290,6 @@ func TestBridgeVersionsJsonKindConsistency(t *testing.T) {
 		{"okf_po", "OkfPoFilterConfig"},
 		{"okf_xmlstream", "OkfXmlstreamFilterConfig"},
 		{"okf_openxml", "OkfOpenxmlFilterConfig"},
-		{"okf_idml", "OkfIdmlFilterConfig"},
-		{"okf_regex", "OkfRegexFilterConfig"},
 		{"okf_archive", "OkfArchiveFilterConfig"},
 		{"okf_autoxliff", "OkfAutoxliffFilterConfig"},
 		{"okf_baseplaintext", "OkfBaseplaintextFilterConfig"},

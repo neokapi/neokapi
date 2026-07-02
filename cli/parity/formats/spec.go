@@ -38,37 +38,18 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	formatspec "github.com/neokapi/neokapi/core/format/spec"
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
-	doxygenfmt "github.com/neokapi/neokapi/core/formats/doxygen"
-	dtdfmt "github.com/neokapi/neokapi/core/formats/dtd"
-	fixedwidthfmt "github.com/neokapi/neokapi/core/formats/fixedwidth"
 	htmlfmt "github.com/neokapi/neokapi/core/formats/html"
-	icmlfmt "github.com/neokapi/neokapi/core/formats/icml"
-	idmlfmt "github.com/neokapi/neokapi/core/formats/idml"
 	jsonfmt "github.com/neokapi/neokapi/core/formats/json"
 	markdownfmt "github.com/neokapi/neokapi/core/formats/markdown"
-	miffmt "github.com/neokapi/neokapi/core/formats/mif"
-	mosestextfmt "github.com/neokapi/neokapi/core/formats/mosestext"
 	odffmt "github.com/neokapi/neokapi/core/formats/odf"
 	openxmlfmt "github.com/neokapi/neokapi/core/formats/openxml"
-	paraplaintextfmt "github.com/neokapi/neokapi/core/formats/paraplaintext"
-	phpcontentfmt "github.com/neokapi/neokapi/core/formats/phpcontent"
 	plaintextfmt "github.com/neokapi/neokapi/core/formats/plaintext"
 	pofmt "github.com/neokapi/neokapi/core/formats/po"
 	propertiesfmt "github.com/neokapi/neokapi/core/formats/properties"
-	regexfmt "github.com/neokapi/neokapi/core/formats/regex"
-	rtffmt "github.com/neokapi/neokapi/core/formats/rtf"
-	splicedlinesfmt "github.com/neokapi/neokapi/core/formats/splicedlines"
 	srtfmt "github.com/neokapi/neokapi/core/formats/srt"
-	texfmt "github.com/neokapi/neokapi/core/formats/tex"
 	tmxfmt "github.com/neokapi/neokapi/core/formats/tmx"
-	transtablefmt "github.com/neokapi/neokapi/core/formats/transtable"
 	tsfmt "github.com/neokapi/neokapi/core/formats/ts"
-	ttmlfmt "github.com/neokapi/neokapi/core/formats/ttml"
-	ttxfmt "github.com/neokapi/neokapi/core/formats/ttx"
-	txmlfmt "github.com/neokapi/neokapi/core/formats/txml"
-	vignettefmt "github.com/neokapi/neokapi/core/formats/vignette"
 	vttfmt "github.com/neokapi/neokapi/core/formats/vtt"
-	wikifmt "github.com/neokapi/neokapi/core/formats/wiki"
 	xlifffmt "github.com/neokapi/neokapi/core/formats/xliff"
 	xliff2fmt "github.com/neokapi/neokapi/core/formats/xliff2"
 	xmlfmt "github.com/neokapi/neokapi/core/formats/xml"
@@ -434,17 +415,6 @@ var formatSpecs = []FormatSpec{
 		},
 	},
 	{
-		ID:        "okf_dtd",
-		MimeType:  "application/xml+dtd",
-		NewReader: func() format.DataFormatReader { return dtdfmt.NewReader() },
-		Inputs: mergeInputs(
-			[]FormatInput{
-				{Name: "minimal", Content: ttext(`<!ENTITY greeting "Hello world.">`)},
-			},
-			GeneratedDTDFilterTestInputs,
-		),
-	},
-	{
 		ID:        "okf_properties",
 		MimeType:  "text/x-properties",
 		NewReader: func() format.DataFormatReader { return propertiesfmt.NewReader() },
@@ -487,12 +457,6 @@ msgstr ""
 		),
 	},
 	{
-		ID:        "okf_phpcontent",
-		MimeType:  "application/x-php",
-		NewReader: func() format.DataFormatReader { return phpcontentfmt.NewReader() },
-		// parity skip sourced from phpcontent/spec.yaml (resolveParity).
-	},
-	{
 		ID:        "okf_plaintext",
 		MimeType:  "text/plain",
 		NewReader: func() format.DataFormatReader { return plaintextfmt.NewReader() },
@@ -513,45 +477,6 @@ msgstr ""
 		},
 	},
 	{
-		ID:        "okf_paraplaintext",
-		MimeType:  "text/plain",
-		NewReader: func() format.DataFormatReader { return paraplaintextfmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "two-paragraphs", Content: ttext("First paragraph.\n\nSecond paragraph.\n")},
-		},
-	},
-	{
-		ID:        "okf_splicedlines",
-		MimeType:  "text/plain",
-		NewReader: func() format.DataFormatReader { return splicedlinesfmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "two-lines", Content: ttext("Line one.\nLine two.\n")},
-		},
-	},
-	{
-		ID:        "okf_regex",
-		MimeType:  "text/x-regex",
-		NewReader: func() format.DataFormatReader { return regexfmt.NewReader() },
-		Inputs: mergeInputs(
-			[]FormatInput{
-				{Name: "key-value", Content: ttext("greeting = Hello world.\nfarewell = Goodbye.\n")},
-			},
-			GeneratedRegexFilterTestInputs,
-		),
-	},
-	{
-		ID:        "okf_regexplaintext",
-		MimeType:  "text/plain",
-		NewReader: func() format.DataFormatReader { return regexfmt.NewReader() },
-		Skip:      SkipDivergence453,
-	},
-	{
-		ID:        "okf_doxygen",
-		MimeType:  "text/x-doxygen-txt",
-		NewReader: func() format.DataFormatReader { return doxygenfmt.NewReader() },
-		// parity skip sourced from doxygen/spec.yaml (resolveParity).
-	},
-	{
 		ID:        "okf_markdown",
 		MimeType:  "text/markdown",
 		NewReader: func() format.DataFormatReader { return markdownfmt.NewReader() },
@@ -562,38 +487,6 @@ msgstr ""
 			GeneratedMarkdownFilterTestInputs,
 			GeneratedMarkdownWriterTestInputs,
 		),
-	},
-	{
-		ID:        "okf_wiki",
-		MimeType:  "text/x-wiki-txt",
-		NewReader: func() format.DataFormatReader { return wikifmt.NewReader() },
-		Inputs: mergeInputs(
-			[]FormatInput{
-				{Name: "minimal", Content: ttext("== Hello ==\n\nThis is a paragraph.\n")},
-			},
-			GeneratedWikiFilterTestInputs,
-			GeneratedWikiWriterTestInputs,
-		),
-	},
-	{
-		ID:        "okf_tex",
-		MimeType:  "text/x-tex-text",
-		NewReader: func() format.DataFormatReader { return texfmt.NewReader() },
-		// parity skip sourced from tex/spec.yaml (resolveParity).
-	},
-	{
-		ID:        "okf_mosestext",
-		MimeType:  "text/x-mosestext",
-		NewReader: func() format.DataFormatReader { return mosestextfmt.NewReader() },
-		Inputs: []FormatInput{
-			{Name: "two-lines", Content: ttext("Hello world.\nGoodbye.\n")},
-		},
-	},
-	{
-		ID:        "okf_transtable",
-		MimeType:  "text/x-transtable",
-		NewReader: func() format.DataFormatReader { return transtablefmt.NewReader() },
-		// parity skip sourced from transtable/spec.yaml (resolveParity).
 	},
 	{
 		ID:        "okf_commaseparatedvalues",
@@ -614,12 +507,6 @@ msgstr ""
 		// csv covers it for parity.
 		NewReader: func() format.DataFormatReader { return csvfmt.NewReader() },
 		Skip:      SkipDivergence453,
-	},
-	{
-		ID:        "okf_fixedwidthcolumns",
-		MimeType:  "text/csv",
-		NewReader: func() format.DataFormatReader { return fixedwidthfmt.NewReader() },
-		// parity skip sourced from fixedwidth/spec.yaml (resolveParity).
 	},
 	{
 		ID:        "okf_table",
@@ -681,24 +568,6 @@ msgstr ""
 		),
 	},
 	{
-		ID:        "okf_ttx",
-		MimeType:  "application/x-ttx+xml",
-		NewReader: func() format.DataFormatReader { return ttxfmt.NewReader() },
-		// parity skip sourced from ttx/spec.yaml (resolveParity).
-	},
-	{
-		ID:        "okf_txml",
-		MimeType:  "text/xml",
-		NewReader: func() format.DataFormatReader { return txmlfmt.NewReader() },
-		// parity skip sourced from txml/spec.yaml (resolveParity).
-	},
-	{
-		ID:        "okf_ttml",
-		MimeType:  "application/ttml+xml",
-		NewReader: func() format.DataFormatReader { return ttmlfmt.NewReader() },
-		// parity skip sourced from ttml/spec.yaml (resolveParity).
-	},
-	{
 		ID:        "okf_ts",
 		MimeType:  "application/x-ts",
 		NewReader: func() format.DataFormatReader { return tsfmt.NewReader() },
@@ -723,12 +592,6 @@ msgstr ""
 		Inputs: []FormatInput{
 			{Name: "minimal", Content: ttext("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHello world.\n")},
 		},
-	},
-	{
-		ID:        "okf_vignette",
-		MimeType:  "text/xml",
-		NewReader: func() format.DataFormatReader { return vignettefmt.NewReader() },
-		// parity skip sourced from vignette/spec.yaml (resolveParity).
 	},
 
 	// ── Office / archive (binary, snapshotted as bridge-only) ────────
@@ -831,9 +694,5 @@ msgstr ""
 var _ = []func() format.DataFormatReader{
 	func() format.DataFormatReader { return srtfmt.NewReader() },
 	func() format.DataFormatReader { return openxmlfmt.NewReader() },
-	func() format.DataFormatReader { return idmlfmt.NewReader() },
-	func() format.DataFormatReader { return icmlfmt.NewReader() },
-	func() format.DataFormatReader { return miffmt.NewReader() },
-	func() format.DataFormatReader { return rtffmt.NewReader() },
 	func() format.DataFormatReader { return odffmt.NewReader() },
 }

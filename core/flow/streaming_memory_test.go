@@ -13,15 +13,15 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
-	"github.com/neokapi/neokapi/core/formats/splicedlines"
+	"github.com/neokapi/neokapi/core/formats/srt"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
-// writeSplicedFile writes a splicedlines document of n non-continuation lines to
+// writePlainFile writes an SRT document of n cues to
 // path and returns its byte size. The content never lives as one big string the
 // caller retains, so it does not inflate the heap baseline of a later run.
-func writeSplicedFile(t *testing.T, path string, n int) int {
+func writePlainFile(t *testing.T, path string, n int) int {
 	t.Helper()
 	f, err := os.Create(path)
 	if err != nil {
@@ -30,7 +30,8 @@ func writeSplicedFile(t *testing.T, path string, n int) int {
 	bw := bufio.NewWriter(f)
 	size := 0
 	for i := range n {
-		c, _ := fmt.Fprintf(bw, "This is translatable line number %d with several words of content\n", i)
+		c, _ := fmt.Fprintf(bw, "%d\n00:%02d:%02d,000 --> 00:%02d:%02d,500\nThis is translatable cue number %d with several words of content\n\n",
+			i+1, (i/60)%60, i%60, (i/60)%60, i%60, i)
 		size += c
 	}
 	if err := bw.Flush(); err != nil {
@@ -42,11 +43,11 @@ func writeSplicedFile(t *testing.T, path string, n int) int {
 	return size
 }
 
-// runSplicedRoundTripPeak runs a splicedlines → splicedlines round-trip through
+// runPlainRoundTripPeak runs an SRT → SRT round-trip through
 // the streaming FileRunner path and returns the peak heap-in-use delta observed
 // during the run (sampled by a background goroutine). GC is tightened so the
 // sampled peak tracks the live working set rather than GC sawtooth slack.
-func runSplicedRoundTripPeak(t *testing.T, inPath, outPath string) uint64 {
+func runPlainRoundTripPeak(t *testing.T, inPath, outPath string) uint64 {
 	t.Helper()
 	ctx := context.Background()
 
@@ -78,8 +79,8 @@ func runSplicedRoundTripPeak(t *testing.T, inPath, outPath string) uint64 {
 		}
 	}()
 
-	reader := splicedlines.NewReader()
-	writer := splicedlines.NewWriter()
+	reader := srt.NewReader()
+	writer := srt.NewWriter()
 	passthrough := &tool.BaseTool{ToolName: "passthrough"}
 	if err := runner.RunFileWithReaderWriter(ctx, "roundtrip", []tool.Tool{passthrough}, inPath, outPath, "", reader, writer); err != nil {
 		close(stop)
@@ -96,7 +97,7 @@ func runSplicedRoundTripPeak(t *testing.T, inPath, outPath string) uint64 {
 	return p - base.HeapAlloc
 }
 
-// TestStreamingRoundTripBoundedMemory asserts the streaming splicedlines
+// TestStreamingRoundTripBoundedMemory asserts the streaming plaintext
 // round-trip holds peak memory to a bounded window — sublinear in input size,
 // not ~ file size. The old buffered path collected the whole Part slice plus the
 // whole file in memory, so its peak was ≥ file size; the streaming path keeps a
@@ -109,13 +110,13 @@ func TestStreamingRoundTripBoundedMemory(t *testing.T) {
 
 	// Guard: the format must actually be on the streaming path, else the test
 	// would assert nothing meaningful.
-	var r any = splicedlines.NewReader()
-	var w any = splicedlines.NewWriter()
+	var r any = srt.NewReader()
+	var w any = srt.NewWriter()
 	if _, ok := r.(interface{ StreamingReader() bool }); !ok {
-		t.Fatal("splicedlines reader is not a StreamingReader")
+		t.Fatal("plaintext reader is not a StreamingReader")
 	}
 	if _, ok := w.(interface{ StreamingWriter() bool }); !ok {
-		t.Fatal("splicedlines writer is not a StreamingWriter")
+		t.Fatal("plaintext writer is not a StreamingWriter")
 	}
 
 	const smallN = 20_000
@@ -124,11 +125,11 @@ func TestStreamingRoundTripBoundedMemory(t *testing.T) {
 	dir := t.TempDir()
 	smallIn := filepath.Join(dir, "small.txt")
 	largeIn := filepath.Join(dir, "large.txt")
-	smallSize := writeSplicedFile(t, smallIn, smallN)
-	largeSize := writeSplicedFile(t, largeIn, largeN)
+	smallSize := writePlainFile(t, smallIn, smallN)
+	largeSize := writePlainFile(t, largeIn, largeN)
 
-	smallPeak := runSplicedRoundTripPeak(t, smallIn, filepath.Join(dir, "small.out"))
-	largePeak := runSplicedRoundTripPeak(t, largeIn, filepath.Join(dir, "large.out"))
+	smallPeak := runPlainRoundTripPeak(t, smallIn, filepath.Join(dir, "small.out"))
+	largePeak := runPlainRoundTripPeak(t, largeIn, filepath.Join(dir, "large.out"))
 
 	t.Logf("small: peakΔ=%d KiB (input %d KiB)", smallPeak/1024, smallSize/1024)
 	t.Logf("large: peakΔ=%d KiB (input %d KiB)", largePeak/1024, largeSize/1024)
