@@ -2,8 +2,8 @@
 sidebar_position: 2
 title: A guided tour
 sidebar_label: A guided tour
-description: A walk through Kapi Desktop's main surfaces — creating and managing a project, its content and flows, settings and providers, the terminology and translation-memory explorer, and the Okapi plugin.
-keywords: [Kapi, desktop app, tour, project, content, flows, plugins, terminology, translation memory, Okapi]
+description: A walk through Kapi Desktop's main surfaces — creating and managing a project, its content and flows, settings and providers, the terminology and translation-memory explorer, and the plugin manager.
+keywords: [Kapi, desktop app, tour, project, content, flows, plugins, terminology, translation memory]
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -19,7 +19,7 @@ surface in motion; for what the app is and how to install it, see the
 
 :::note Videos — slimmed + retargeting needed
 The tour now keeps **three orientation clips** (projects, flows, settings); the
-former "content", "explorer", and "Okapi plugin" clips were moved to the task
+former "content", "explorer", and "plugins" clips were moved to the task
 recipes ([build a flow](/kapi/desktop/recipes/build-a-flow-visually),
 [manage plugins](/kapi/desktop/recipes/manage-plugins),
 [store credentials](/kapi/desktop/recipes/store-ai-credentials)). **TODO:** the
@@ -78,9 +78,9 @@ Settings gather everything in one place: light or dark appearance, the AI provid
 
 Kapi keeps a glossary of multi-locale terms and a memory of past translations. Both are searchable, with inline formatting and entity placeholders preserved.
 
-## Using the Okapi plugin
+## Extend with plugins
 
-Plugins extend Kapi with new formats and tools. The Okapi bridge adds the [Okapi Framework](https://okapiframework.org/)'s filters — dozens of document formats beyond the built-in set. Install it from the registry in one click, and projects built on those filters, like the OkapiMart sample, open and process their files through them.
+Plugins extend Kapi with new formats and engines — the **kapi-sat** segmenter for ML sentence segmentation, the **kapi-pdfium** PDF reader, the **kapi-vision** OCR engine, and the **kapi-asr** transcriber. Install one from the registry in one click, and the formats and tools it adds appear in the project immediately; the [manage plugins](/kapi/desktop/recipes/manage-plugins) recipe walks the flow step by step.
 
 ## Next
 

@@ -57,9 +57,8 @@ bytes, then inline meaning, then structure.
 
 - **Engine (L0–L4)** — fidelity of the serialization itself. Does the reader
   parse the format, round-trip it (the skeleton back byte-for-byte), and — where
-  an Okapi counterpart exists — match it head-to-head under
-  [parity](/parity)? The ladder climbs *reads → round-trips → specified →
-  parity-verified → rock-solid*.
+  a reference implementation exists — match it head-to-head? The ladder climbs
+  *reads → round-trips → specified → parity-verified → rock-solid*.
 - **Vocabulary (V0–V3)** — whether inline meaning (bold, a link, a placeholder)
   survives into the canonical [content model](/framework/content-model) as a
   typed [run](/framework/inline-formatting), rather than as opaque bytes. The

@@ -95,11 +95,10 @@ interface Report {
 
 /* ── Constants ── */
 
+// The dashboard reports the engine's own performance; experiments recorded for
+// engines not listed here are dropped at load time.
 const ENGINE_STYLES: Record<string, { color: string; label: string }> = {
-  "kapi-native": { color: "#2563eb", label: "kapi (native)" },
-  "kapi-bridge": { color: "#7c3aed", label: "kapi (bridge, subprocess)" },
-  "kapi-bridge-daemon": { color: "#059669", label: "kapi (bridge, daemon)" },
-  okapi: { color: "#dc2626", label: "Okapi" },
+  "kapi-native": { color: "#2563eb", label: "kapi" },
 };
 
 const FORMAT_COLORS: Record<string, string> = {
@@ -142,16 +141,8 @@ function engineColor(engine: string): string {
   return ENGINE_STYLES[engine]?.color ?? "#888";
 }
 
-// Bridge filters use `okf_<name>` (okf_xliff, okf_html, …); native engines
-// emit the bare name (xliff, html, …). Normalise so both share one palette.
-function normalizeFormat(format: string): string {
-  return format.startsWith("okf_") ? format.slice(4) : format;
-}
 function formatColor(format: string): string {
-  return FORMAT_COLORS[normalizeFormat(format)] ?? "#888";
-}
-function formatLabel(format: string): string {
-  return normalizeFormat(format);
+  return FORMAT_COLORS[format] ?? "#888";
 }
 
 function fmt(n: number): string {
@@ -232,54 +223,21 @@ function VerificationBanner({ experiments }: { experiments: Experiment[] }) {
   );
 }
 
-/** engineMetric returns the ms number to use for headline ratios in the
- * given view. Batch view: the wall-time median across iterations.
- * Multi-Invocation: the summed per-file wall-time (each file = a fresh
- * kapi invocation), where the JVM cold-start cost dominates and the
- * subprocess engine ends up *slower* than okapi. Resources/files/
- * concurrency stay on batch.
- */
-function engineMetric(exp: Experiment, mode: ViewMode): number {
-  if (mode === "multi" && exp.fileTimings && exp.fileTimings.length > 0) {
-    return exp.fileTimings.reduce((s, f) => s + (f.success ? f.wallMs : 0), 0);
-  }
-  return exp.wallTimeMs.median;
-}
-
-function metricLabel(mode: ViewMode): string {
-  if (mode === "multi") return "vs okapi (multi-invocation)";
-  return "vs okapi (batch)";
-}
-
-/** Summary cards showing headline numbers that mirror the active view —
- * so switching to Multi-Invocation rewrites the ratios from batch
- * medians to per-call totals (where bridge subprocess is slower than
- * okapi instead of faster). */
-function SummaryCards({ experiments, mode }: { experiments: Experiment[]; mode: ViewMode }) {
-  const okapi = experiments.find((e) => e.engine === "okapi");
-
+/** Summary cards showing the headline batch numbers per engine. */
+function SummaryCards({ experiments }: { experiments: Experiment[] }) {
   const cards: { value: string; label: string; color: string }[] = [];
 
   for (const exp of experiments) {
-    if (exp.engine === "okapi" || !okapi) continue;
-    const okapiMs = engineMetric(okapi, mode);
-    const expMs = engineMetric(exp, mode);
-    if (okapiMs <= 0 || expMs <= 0) continue;
-    const ratio = okapiMs / expMs;
-    if (ratio >= 1) {
-      cards.push({
-        value: `${ratio.toFixed(1)}x faster`,
-        label: `${engineLabel(exp.engine)} ${metricLabel(mode)}`,
-        color: engineColor(exp.engine),
-      });
-    } else {
-      const inverse = 1 / ratio;
-      cards.push({
-        value: `${inverse.toFixed(2)}x slower`,
-        label: `${engineLabel(exp.engine)} ${metricLabel(mode)}`,
-        color: "#d97706",
-      });
-    }
+    cards.push({
+      value: `${fmt(exp.wallTimeMs.median)} ms`,
+      label: `${engineLabel(exp.engine)} batch wall time (median)`,
+      color: engineColor(exp.engine),
+    });
+    cards.push({
+      value: `${fmt(exp.peakRssKB.median / 1024)} MB`,
+      label: `${engineLabel(exp.engine)} peak RSS (median)`,
+      color: engineColor(exp.engine),
+    });
   }
 
   const fileCount = experiments[0]?.fileResults?.length ?? 0;
@@ -472,7 +430,6 @@ function MultiInvocationComparison({ experiments }: { experiments: Experiment[] 
   }));
 
   const maxTotal = Math.max(...engineTotals.map((e) => e.totalMs));
-  const okapi = engineTotals.find((e) => e.engine === "okapi");
 
   return (
     <div className={styles.compCard}>
@@ -483,18 +440,16 @@ function MultiInvocationComparison({ experiments }: { experiments: Experiment[] 
         </span>
       </div>
       <p className={styles.multiDesc}>
-        Simulates running each file as a separate <code>kapi</code> invocation. The bridge plugin
-        runs a JVM either way; the difference is lifetime. In <strong>subprocess</strong> mode
-        (kapi-bridge) <code>kapi</code> spawns a fresh JVM per call and pays the cold-start tax
-        every time. In <strong>daemon</strong> mode (kapi-bridge-daemon) the JVM is already running
-        as a long-lived process and <code>kapi</code> only pays the gRPC round-trip.
+        Simulates running each file as a separate <code>kapi</code> invocation — the sum of
+        sequential per-file runs, so per-invocation startup cost is included. Compare with the
+        batch wall time above, where one process handles the whole corpus.
       </p>
       <div className={styles.compGrid} style={{ "--engine-count": engineTotals.length } as any}>
         <div className={styles.compCorner} />
         <div className={styles.compColHeader}>
           Total Time<span className={styles.compUnit}>ms</span>
         </div>
-        <div className={styles.compColHeader}>vs okapi</div>
+        <div className={styles.compColHeader} />
         <div className={styles.compColHeader} />
         <div className={styles.compColHeader} />
 
@@ -502,19 +457,6 @@ function MultiInvocationComparison({ experiments }: { experiments: Experiment[] 
           const color = engineColor(e.engine);
           const pct = maxTotal > 0 ? (e.totalMs / maxTotal) * 100 : 0;
           const isWin = e.totalMs === Math.min(...engineTotals.map((x) => x.totalMs));
-
-          let vsLabel = "";
-          let vsColor = "";
-          if (okapi && e.engine !== "okapi") {
-            const ratio = okapi.totalMs / e.totalMs;
-            if (ratio > 1) {
-              vsLabel = `${ratio.toFixed(1)}x faster`;
-              vsColor = engineColor(e.engine);
-            } else {
-              vsLabel = `${(1 / ratio).toFixed(2)}x slower`;
-              vsColor = "#d97706";
-            }
-          }
 
           return (
             <Fragment key={e.engine}>
@@ -536,13 +478,7 @@ function MultiInvocationComparison({ experiments }: { experiments: Experiment[] 
                 <span className={styles.compVal}>{fmt(e.totalMs)}</span>
                 {isWin && <span className={styles.compWinBadge} />}
               </div>
-              <div className={styles.compCell}>
-                {vsLabel && (
-                  <span style={{ color: vsColor, fontWeight: 600, fontSize: "0.78rem" }}>
-                    {vsLabel}
-                  </span>
-                )}
-              </div>
+              <div className={styles.compCell} />
               <div className={styles.compCell} />
               <div className={styles.compCell} />
             </Fragment>
@@ -714,7 +650,7 @@ function BatchConcurrencyChart({ experiments }: { experiments: Experiment[] }) {
                     className={styles.timelineLegendDot}
                     style={{ backgroundColor: formatColor(f) }}
                   />
-                  {formatLabel(f)}
+                  {f}
                 </span>
               ))}
             </div>
@@ -772,7 +708,7 @@ function BatchConcurrencyChart({ experiments }: { experiments: Experiment[] }) {
               >
                 <strong>{hoveredFile.file.file}</strong>
                 <br />
-                {formatLabel(hoveredFile.file.format)} · Lane {hoveredFile.file.lane}
+                {hoveredFile.file.format} · Lane {hoveredFile.file.lane}
                 <br />
                 {fmt(hoveredFile.file.durationUs / 1000)} ms
               </div>
@@ -814,7 +750,7 @@ function ResourcesChart({ experiments }: { experiments: Experiment[] }) {
     const formatMap = new Map<string, Agg>();
     for (const ft of exp.fileTimings!) {
       if (!ft.success) continue;
-      const fmtKey = normalizeFormat(ft.format);
+      const fmtKey = ft.format;
       formatsSet.add(fmtKey);
       const cur = formatMap.get(fmtKey) ?? { wallMs: 0, cpuMs: 0, peakRssKB: 0, n: 0 };
       cur.wallMs += ft.wallMs;
@@ -933,9 +869,7 @@ function ResourcesChart({ experiments }: { experiments: Experiment[] }) {
             </thead>
             <tbody>
               {formats.map((f) => {
-                const sample = withTimings[0].fileTimings!.filter(
-                  (ft) => normalizeFormat(ft.format) === f,
-                );
+                const sample = withTimings[0].fileTimings!.filter((ft) => ft.format === f);
                 const fileCount = sample.length;
                 return (
                   <tr key={f}>
@@ -1165,9 +1099,12 @@ export default function PseudoBench() {
         return r.json();
       })
       .then((data: any) => {
+        // Only keep experiments for engines this dashboard reports on.
+        const keep = (experiments: Experiment[]) =>
+          experiments.filter((e) => e.engine in ENGINE_STYLES);
         // Handle both old format (benchmarks array) and new format (experiments array).
         if (data.experiments) {
-          setReport(data as Report);
+          setReport({ ...data, experiments: keep(data.experiments) } as Report);
         } else if (data.benchmarks) {
           // Convert old format: group benchmarks by engine into experiments.
           const byEngine = new Map<string, any[]>();
@@ -1187,7 +1124,7 @@ export default function PseudoBench() {
               success: true,
             })),
           }));
-          setReport({ metadata: data.metadata, experiments });
+          setReport({ metadata: data.metadata, experiments: keep(experiments) });
         } else {
           throw new Error("Unknown data format");
         }
@@ -1218,7 +1155,7 @@ export default function PseudoBench() {
             <MetadataBar metadata={report.metadata} />
             <Legend engines={engines} />
             <VerificationBanner experiments={experiments} />
-            <SummaryCards experiments={experiments} mode={viewMode} />
+            <SummaryCards experiments={experiments} />
 
             <div className={styles.filters}>
               <div className={styles.filterGroup}>

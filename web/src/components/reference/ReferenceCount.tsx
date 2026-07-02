@@ -6,10 +6,10 @@ interface ReferenceCountProps {
   /** Which dataset to count. */
   kind: Kind;
   /**
-   * When set, count only entries from this engine ("built-in" or "okapi").
-   * Omit to count the whole dataset (built-in + okapi-bridge).
+   * When set, count only entries from this source ("built-in" or "plugin").
+   * Omit to count the whole dataset.
    */
-  source?: "built-in" | "okapi";
+  source?: "built-in" | "plugin";
   /**
    * When true, render the count rounded down to the nearest ten with a "+"
    * suffix (e.g. 106 → "100+"), matching the restrained "NN+" phrasing used in

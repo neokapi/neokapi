@@ -17,11 +17,6 @@ const AVAILABLE_TRACES = [
     path: "/data/traces/multi-tool-pipeline.json",
   },
   {
-    name: "Bridge HTML",
-    description: "Java/Okapi bridge with gRPC boundary",
-    path: "/data/traces/bridge-html-pseudo.json",
-  },
-  {
     name: "AI Translate (Parallel)",
     description: "Parallel block processing with 3 concurrent workers",
     path: "/data/traces/translate-parallel.json",
@@ -37,8 +32,7 @@ const AVAILABLE_TRACES = [
 // (built-in traces + upload-your-own `kapi run --trace` output) feeding the
 // step-driven <FlowTracePlayer> from @neokapi/kapi-lab. Unlike the Lab's live
 // explorers, it replays recorded traces so it can show what live single-flow
-// runs don't: parallel workers, channel buffering, and the Java bridge's gRPC
-// boundary.
+// runs don't: parallel workers and channel buffering.
 export function ConcurrencyExplorer(): React.ReactElement {
   const [trace, setTrace] = useState<FlowTrace | null>(null);
   const [tracePath, setTracePath] = useState(AVAILABLE_TRACES[0].path);

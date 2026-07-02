@@ -1,8 +1,8 @@
 ---
 sidebar_position: 6
 title: Formats
-description: neokapi formats are paired readers and writers that convert documents to and from the Part stream. Built-in formats span localization, document, data, subtitle, and office families; more are available through the Okapi bridge plugin.
-keywords: [formats, format reader, format writer, XLIFF, JSON, DOCX, Markdown, localization formats, okapi bridge]
+description: neokapi formats are paired readers and writers that convert documents to and from the Part stream. Built-in formats span localization, document, data, subtitle, and office families; more are available through plugins.
+keywords: [formats, format reader, format writer, XLIFF, JSON, DOCX, Markdown, localization formats, format plugins]
 ---
 
 import { BlockPreview } from "@site/src/components/curated";
@@ -16,8 +16,7 @@ content [blocks](/framework/content-model) and the surrounding structure — and
 writer turns that stream back into a file. This read/process/write symmetry is
 what lets the same [tools](/framework/tools) and [flows](/framework/flows) operate
 on any format: by the time a tool sees a Block, it no longer matters whether it
-came from JSON, HTML, or DOCX. A format is the neokapi analogue of an Okapi
-_filter_.
+came from JSON, HTML, or DOCX.
 
 :::tip See the skeleton preserved
 Reading a file splits it into content [blocks](/framework/content-model) and
@@ -133,19 +132,19 @@ Comments and similar metadata surface as data or notes alongside the content.
 Each reader that supports this exposes an `extractNonTranslatableContent` option
 (on by default) in the [Format Reference](/formats); set it false to restore the
 older skeleton-only behavior. The design — and why it leaves translation output
-and Okapi parity unchanged — is described in
+and the round-trip guarantee unchanged — is described in
 [AD-031](/contribute/architecture/031-content-fidelity-surfacing). Equations are
 a notable case: Word/OMML formulas are converted to LaTeX/MathML and rendered on
 cross-format export, and the natural-language prose inside an equation is
 translatable — see [kconv](/toolbox/kconv) and
 [AD-032](/contribute/architecture/032-math-and-equations).
 
-## Okapi bridge formats
+## Plugin formats
 
-With the Okapi bridge [plugin](/contribute/plugins) installed, kapi can also
-dispatch to the Java-based filters of the Okapi Framework — covering additional
-formats such as DITA that the native readers do not — without rewriting them in
-Go.
+[Plugins](/contribute/plugins) can register additional readers and writers
+alongside the built-in set — the `kapi-pdfium` plugin adds the PDF reader, for
+example. Once installed, a plugin's formats participate in detection, `kapi
+formats list`, and flows exactly like the built-in ones.
 
 ## Format Detection
 

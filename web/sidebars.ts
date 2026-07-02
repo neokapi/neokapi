@@ -219,7 +219,6 @@ const sidebars: SidebarsConfig = {
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
-        { type: "link", label: "Parity", href: "/parity" },
         { type: "link", label: "Format maturity", href: "/format-maturity" },
         { type: "link", label: "Benchmarks", href: "/pseudobench" },
         { type: "link", label: "ML benchmark", href: "/ml-benchmark" },

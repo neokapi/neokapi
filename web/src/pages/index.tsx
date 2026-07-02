@@ -137,9 +137,9 @@ const NeokapiFeatures: ProductItem[] = [
     linkText: "See the dashboards",
   },
   {
-    title: "Open by lineage",
+    title: "Open source, headless",
     description:
-      "Open source, Apache-2.0 — the engine rebuilt in Go from the Okapi Framework lineage. Format-agnostic, agent-drivable, headless: a content layer you or your AI can drive.",
+      "Open source, Apache-2.0, written in Go. Format-agnostic, agent-drivable, headless: a content layer you or your AI can drive.",
     link: "/framework/architecture",
     linkText: "Architecture",
   },

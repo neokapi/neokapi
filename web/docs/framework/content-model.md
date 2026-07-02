@@ -17,8 +17,7 @@ turns it into the same handful of types, so [tools](/framework/tools),
 [flows](/framework/flows), [translation memory](/framework/translation-memory),
 and editors all work against one representation rather than against each format's
 quirks. It is a deliberate, format-independent abstraction over the content inside
-a document — the unit you read, check, edit, and write back — modeled on the Okapi
-Framework's resource hierarchy.
+a document — the unit you read, check, edit, and write back.
 
 **By analogy:** read it as a *streaming DOM* (Parts flow past instead of sitting
 in one tree), where each translatable node is a *record with variants* (one source,
@@ -122,7 +121,7 @@ classDiagram
   content. Layers nest. Embedded content — HTML inside a JSON value, CDATA inside
   XML — becomes a **child layer** with its own format, so the right reader handles
   it and inline markup is preserved at every level rather than being flattened.
-- **Block** — the primary modifiable content unit (Okapi's _TextUnit_). Its
+- **Block** — the primary modifiable content unit. Its
   `Source` is a single flat `[]Run` — the content you read, check, and edit. When
   a workflow localizes, its translations are first-class `Target` records keyed by
   a **VariantKey** (locale plus optional tone and channel); a monolingual pass

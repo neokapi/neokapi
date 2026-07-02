@@ -66,7 +66,7 @@ what they cost to run.
 
 | Engine | Boundary source | Needs | Use it when |
 | --- | --- | --- | --- |
-| `srx` (default) | SRX 2.0 rules — Okapi's full ruleset over a UAX-29 base where ICU is linked, a reduced pure-Go ruleset otherwise | nothing (pure Go); uses ICU when present | You want deterministic, language-tunable, Okapi-compatible sentence boundaries — the localization-industry standard. |
+| `srx` (default) | SRX 2.0 rules — the full ruleset over a UAX-29 base where ICU is linked, a reduced pure-Go ruleset otherwise | nothing (pure Go); uses ICU when present | You want deterministic, language-tunable sentence boundaries — the localization-industry standard. |
 | `uax29` | Unicode UAX-29 sentence rules (ICU) | cgo + ICU | You want the bare Unicode baseline with no exception rules and ICU is available. |
 | `llm` | An LLM asked to chunk semantically | an [LLM provider](/framework/translation) | You want meaning-aware chunks (long-form prose, mixed content) rather than sentence boundaries. |
 | `sat` | The wtpsplit *Segment any Text* ONNX model | the `kapi-sat` plugin | You need robust multilingual or unpunctuated-text segmentation that rules handle poorly. |
@@ -82,28 +82,25 @@ segmentation: an ordered list of break and no-break rules, scoped by language.
 neokapi ships a faithful pure-Go SRX 2.0 rule engine, so it runs everywhere with
 no native dependencies — including in the browser.
 
-#### Okapi-compatible by default, pure-Go everywhere
+#### Hybrid by default, pure-Go everywhere
 
-The way Okapi actually segments is a **hybrid**: ICU's UAX-29 breaker proposes
-the sentence boundaries and the SRX ruleset is applied on top as *exceptions*
-(its `defaultSegmentation.srx` is ~2,800 no-break rules across 14 languages and
-only a handful of break rules — `useIcu4jBreakRules="yes"`). neokapi reproduces
-this exactly:
+SRX segmentation in practice is a **hybrid**: ICU's UAX-29 breaker proposes the
+sentence boundaries and the SRX ruleset is applied on top as *exceptions* — the
+default ruleset is ~2,800 no-break rules across 14 languages and only a handful
+of break rules. neokapi implements this hybrid directly:
 
 - **Where ICU is linked** (every shipped native binary — CLI, desktop, server),
-  the `srx` default loads Okapi's full ruleset and runs the same ICU-base +
-  SRX-exception hybrid. It is verified against the real Okapi `SRXSegmenter`
-  across a 14-language corpus (`make regen-srx-parity-golden` +
-  `TestSRXParityWithOkapi`).
+  the `srx` default loads the full default ruleset and runs the ICU-base +
+  SRX-exception hybrid, verified against a 14-language golden corpus.
 - **Where ICU is not linked** (the browser/WASM build, pure-Go source builds),
   the same `srx` engine falls back to a reduced, self-contained ruleset with
-  explicit break rules — no ICU needed. It is lighter than the Okapi set but
+  explicit break rules — no ICU needed. It is lighter than the full set but
   still handles the common abbreviations, decimals, and initials, and it is the
   only segmenter that runs in the browser.
 
 You don't choose between these — the `srx` engine picks the right path for the
-build. The result is Okapi-grade segmentation where it can run it, and a
-pure-Go approximation everywhere else.
+build. The result is full-fidelity SRX segmentation where ICU is available, and
+a pure-Go approximation everywhere else.
 
 To tune boundaries — protect a domain abbreviation, split on a custom marker —
 point the engine at your own SRX file (an explicit `--source-srx-path` overrides
@@ -155,8 +152,8 @@ Useful flags: `--segment-source` (default true) / `--segment-target` to choose
 which side to segment, and `--overwrite-segmentation` to re-segment blocks that
 already carry an overlay. Each segment is **trimmed of leading/trailing
 whitespace by default** — so a segment is the clean sentence and the
-inter-sentence whitespace is left uncovered (matching Okapi and keeping TM keys
-stable, regardless of which engine ran); pass `--trim-leading-whitespace=false` /
+inter-sentence whitespace is left uncovered (keeping TM keys stable, regardless
+of which engine ran); pass `--trim-leading-whitespace=false` /
 `--trim-trailing-whitespace=false` to keep the raw surrounding whitespace.
 `kapi segment-count` reports the segment count per block without changing the
 content. For every flag, see the [command reference](/commands).

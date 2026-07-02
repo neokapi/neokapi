@@ -24,13 +24,13 @@ export default function Formats() {
   return (
     <Layout
       title="Format Reference"
-      description="Interactive reference for every neokapi data format — built-in and Okapi bridge — with live, configurable parameters."
+      description="Interactive reference for every neokapi data format — built-in and plugin — with live, configurable parameters."
     >
       <main className="container margin-vert--lg">
         <h1>Format Reference</h1>
         <p>
-          Every data format neokapi can read and write, from the built-in engine and the Okapi
-          bridge plugin. Select a format to read its documentation and configure its parameters live
+          Every data format neokapi can read and write, from the built-in engine and installed
+          plugins. Select a format to read its documentation and configure its parameters live
           — the form mirrors the editor used in Kapi Desktop, and the YAML output is ready to drop
           into a project recipe. Each format has a shareable link.
         </p>
@@ -47,10 +47,9 @@ export default function Formats() {
               <code>xliff</code>.
             </li>
             <li>
-              <strong>Okapi bridge</strong> (<ReferenceCount kind="format" source="okapi" />) —
-              filters provided by the optional Okapi bridge plugin, for compatibility with the Java{" "}
-              <a href="https://okapiframework.org/">Okapi Framework</a>. Their ids carry the{" "}
-              <code>okf_</code> prefix (e.g. <code>okf_html5</code>, <code>okf_openxml</code>).
+              <strong>Plugin</strong> (<ReferenceCount kind="format" source="plugin" />) — formats
+              added by optional engine plugins, such as the PDF reader provided by{" "}
+              <code>kapi-pdfium</code>.
             </li>
           </ul>
         </div>

@@ -35,8 +35,8 @@ export interface FlowBuilderRunnerProps {
 }
 
 // Recorded `kapi run --trace` outputs from native runs — the workspace replays
-// them to show what live wasm runs can't: parallel workers and the Java
-// bridge's gRPC boundary.
+// them to show what live wasm runs can't: parallel workers and channel
+// buffering.
 const RECORDED_TRACES = [
   {
     name: "Pseudo-translate JSON",
@@ -47,11 +47,6 @@ const RECORDED_TRACES = [
     name: "Multi-tool pipeline",
     description: "Multiple tools, concurrency, buffering",
     path: "/data/traces/multi-tool-pipeline.json",
-  },
-  {
-    name: "Bridge HTML (gRPC boundary)",
-    description: "Java/Okapi bridge with gRPC boundary",
-    path: "/data/traces/bridge-html-pseudo.json",
   },
   {
     name: "AI Translate (parallel workers)",

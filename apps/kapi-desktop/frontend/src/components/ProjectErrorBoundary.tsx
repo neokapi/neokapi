@@ -20,10 +20,11 @@ interface ProjectErrorBoundaryState {
 
 /**
  * Catches render errors within a project view so a single bad project (for
- * example the OkapiMart sample opened without the okapi-bridge plugin, whose
- * okf_* formats are then missing — issue #4) shows a recoverable prompt instead
- * of crashing the whole webview. When the failure lines up with missing plugins
- * it offers a one-click install; otherwise it offers a generic recovery path.
+ * example a project whose files need a format plugin that isn't installed,
+ * leaving those formats unregistered — issue #4) shows a recoverable prompt
+ * instead of crashing the whole webview. When the failure lines up with missing
+ * plugins it offers a one-click install; otherwise it offers a generic recovery
+ * path.
  *
  * The boundary is remounted (via a `key` derived from the plugin-resolved state)
  * once plugins install, so a successful install re-renders the real view.

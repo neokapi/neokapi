@@ -98,7 +98,7 @@
   margin-bottom: 0.75rem;
 }
 
-/* Format source sections ("Built-in", "Okapi bridge") are exact labels, not
+/* Format source sections ("Built-in", "Plugin") are exact labels, not
  * machine category ids, so don't title-case them. */
 .sourceHeading {
   text-transform: none;
@@ -214,7 +214,7 @@
   color: var(--ifm-color-primary-darker);
 }
 
-.sourceOkapi {
+.sourcePlugin {
   background: color-mix(in srgb, #8b5cf6 16%, transparent);
   color: #6d28d9;
 }
@@ -223,7 +223,7 @@
   color: var(--ifm-color-primary-lighter);
 }
 
-[data-theme="dark"] .sourceOkapi {
+[data-theme="dark"] .sourcePlugin {
   background: color-mix(in srgb, #a78bfa 22%, transparent);
   color: #c4b5fd;
 }

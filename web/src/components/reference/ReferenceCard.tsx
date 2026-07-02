@@ -13,13 +13,13 @@ interface Props {
 }
 
 function SourceBadge({ source }: { source: ReferenceSource }) {
-  const isOkapi = source === "okapi";
+  const isPlugin = source === "plugin";
   return (
     <span
-      className={`${styles.sourceBadge} ${isOkapi ? styles.sourceOkapi : styles.sourceBuiltin}`}
-      title={isOkapi ? "Provided by the Okapi bridge plugin" : "Built into neokapi"}
+      className={`${styles.sourceBadge} ${isPlugin ? styles.sourcePlugin : styles.sourceBuiltin}`}
+      title={isPlugin ? "Provided by an engine plugin" : "Built into neokapi"}
     >
-      {isOkapi ? "Okapi bridge" : "Built-in"}
+      {isPlugin ? "Plugin" : "Built-in"}
     </span>
   );
 }
