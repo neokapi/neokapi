@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-02T18:26:22Z",
+  "generatedAt": "2026-07-02T18:47:30Z",
   "commands": [
     {
       "id": "brand",
@@ -6344,7 +6344,7 @@
       ],
       "use": "up",
       "short": "Reconcile the project toward its ship gates (run the default flow until converged)",
-      "long": "Reconcile the project toward its ship gates: treat the recipe as the desired\nstate and run the project's default flow (defaults.flow) over all content\nacross every target language, looping until every gated scope is shippable or\nparked for a human.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
+      "long": "Reconcile the project toward its ship gates: treat the recipe as the desired\nstate and run the project's default flow (defaults.flow) over all content\nacross every target language, looping until every gated scope is shippable or\nparked for a human.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a unit with failing findings (dropped placeholders, glossary\nviolations) counts as drafted, not translated, so it cannot lift its locale\nover the gate until fixed. --no-checks opts out.\n\nWhen the loop ends, the materialize policy decides whether localized files\nare written from the project store: 'defaults.materialize: on-converge' (or\nthe --materialize flag) writes them for every locale whose gated scopes are\nall shippable; the default ('manual') leaves that to 'kapi merge'.\n\n--plan is a dry run: instead of running anything, up reports the pending work\nper (collection, locale) — units missing a target, exact TM leverage, the\nremaining AI work, and a rough token estimate — with no provider calls and no\nwrites. Combine with --json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
       "groupID": "work",
       "flags": [
         {
@@ -6391,9 +6391,33 @@
           "type": "stringSlice"
         },
         {
+          "name": "json",
+          "usage": "output the structured result as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "materialize",
+          "usage": "after the loop, write localized files from the project store for every shippable locale (forces defaults.materialize: on-converge)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "model",
           "usage": "AI model name",
           "type": "string"
+        },
+        {
+          "name": "no-checks",
+          "usage": "skip the bound checks in the loop (produced units count as translated even when failing guardrails)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "no-extract",
+          "usage": "skip the pre-pass source-drift check and block-store re-extraction",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "output",
@@ -6418,6 +6442,12 @@
           "usage": "maximum reconciliation passes (0 = loop until converged or parked, capped at 5; 1 = single pass)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "plan",
+          "usage": "dry run: report pending work, TM leverage, and a token estimate per (collection, locale) — no provider calls, no writes",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "project",
@@ -6466,7 +6496,9 @@
       ],
       "examples": [
         "kapi up                # loop the default flow until every gated scope ships or parks",
+        "kapi up --plan         # dry run: pending work, TM leverage, and a token estimate per locale",
         "kapi up --passes 1     # a single pass over every locale that needs work",
+        "kapi up --materialize  # also write localized files for the shippable locales",
         "kapi up -p app.kapi    # reconcile an explicit project recipe"
       ],
       "offlineCapable": false,
