@@ -31,6 +31,11 @@ type UnitState struct {
 	TargetHash string `json:"targetHash,omitempty"`
 	// Decision is the human/agent workflow decision recorded for the unit.
 	Decision Decision `json:"decision,omitzero"`
+	// AIReview is the last AI pre-review annotation for the unit — advisory
+	// only, never a decision. It informs the review queue (score + findings);
+	// an auto-approval it justified is recorded separately in Decision, with
+	// By carrying the "ai/<model>" identity.
+	AIReview *AIReview `json:"aiReview,omitempty"`
 	// Updated is when this record last changed (RFC 3339).
 	Updated string `json:"updated,omitempty"`
 }
@@ -38,11 +43,58 @@ type UnitState struct {
 // Decision is the authored workflow decision recorded for a unit.
 type Decision struct {
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected | …
-	By          string `json:"by,omitempty"`
-	At          string `json:"at,omitempty"` // RFC 3339
-	Note        string `json:"note,omitempty"`
-	Parked      bool   `json:"parked,omitempty"`
-	Assignee    string `json:"assignee,omitempty"`
+	// By is the decider's identity. Empty for a plain human decision (the
+	// single-player default), "ai/<model>" for an autonomous AI approval
+	// (e.g. pre-review auto-approve), "agent/<client>" for an MCP agent
+	// acting on a person's behalf.
+	By       string `json:"by,omitempty"`
+	At       string `json:"at,omitempty"` // RFC 3339
+	Note     string `json:"note,omitempty"`
+	Parked   bool   `json:"parked,omitempty"`
+	Assignee string `json:"assignee,omitempty"`
+}
+
+// AIIdentityPrefix marks a decision made autonomously by an AI reviewer.
+// Decisions with this prefix count toward reviewed/signed-off gate thresholds
+// only when the gate's approver class is "any" (core/gate).
+const AIIdentityPrefix = "ai/"
+
+// IsAIDecision reports whether an identity string names an autonomous AI
+// decider (prefixed "ai/"). Agent identities ("agent/…") are NOT AI decisions:
+// they act on a person's behalf.
+func IsAIDecision(by string) bool {
+	return len(by) >= len(AIIdentityPrefix) && by[:len(AIIdentityPrefix)] == AIIdentityPrefix
+}
+
+// AIReview is an advisory AI pre-review annotation: the structured output of
+// the ai review tool ({score 0-100, findings}), bound to the translation it
+// judged so an edit invalidates it. It never moves the unit on the ladder.
+type AIReview struct {
+	Score int `json:"score"`
+	// Model identifies the reviewer model (the "<model-id>" the "ai/<model-id>"
+	// decision identity would carry).
+	Model    string            `json:"model,omitempty"`
+	Findings []AIReviewFinding `json:"findings,omitempty"`
+	// TargetHash is the content hash of the translation this review judged.
+	TargetHash string `json:"targetHash,omitempty"`
+	At         string `json:"at,omitempty"` // RFC 3339
+}
+
+// AIReviewFinding is one issue an AI review reported (mirrors the review tool's
+// output contract).
+type AIReviewFinding struct {
+	Severity   string `json:"severity,omitempty"` // critical | major | minor | info
+	Message    string `json:"message"`
+	Suggestion string `json:"suggestion,omitempty"`
+}
+
+// Fresh reports whether the review still judges the given translation content.
+// An unset hash on either side is treated as fresh (no content to compare).
+func (r *AIReview) Fresh(targetHash string) bool {
+	if r == nil {
+		return false
+	}
+	return r.TargetHash == "" || targetHash == "" || r.TargetHash == targetHash
 }
 
 // Key uniquely identifies a UnitState within a project.
