@@ -237,20 +237,24 @@ function StripBar({ label, pct, color }: { label: string; pct: number; color?: s
   );
 }
 
-/** TimelineItem: one language's overall standing for the completeness timeline. */
+/** TimelineItem: one language's overall standing for the completeness timeline,
+ *  plus its per-collection breakdown (revealed as dots on hover). */
 interface TimelineItem {
   lang: string;
   pct: number; // overall translated coverage, 0–100
   stage: keyof typeof STAGE_COLOR;
+  byCollection: { name: string; pct: number; stage: keyof typeof STAGE_COLOR }[];
 }
 
 /** LanguageTimeline plots each language on a 0→100% completeness axis as a dot
- *  on the line, with a vertical stem/arrow up to its tag. Colours encode the
- *  ship-gate stage; tags stack into lanes (taller stems) where languages cluster
- *  — the project-wide overview above the per-collection rows. */
+ *  on the line, with a vertical stem + arrow to its tag. Tags alternate above and
+ *  below the line and stack into lanes where languages cluster, so stems stay
+ *  short. Colours encode the ship-gate stage. Hovering a tag expands the language
+ *  into a dot per collection (others dim) with a breakdown popover. */
 function LanguageTimeline({ items }: { items: TimelineItem[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
+  const [hovered, setHovered] = useState<string | null>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -265,21 +269,32 @@ function LanguageTimeline({ items }: { items: TimelineItem[] }) {
   const BASE = 16; // shortest stem (lane 0)
   const TAG_H = 16; // tag height
   const color = (s: string) => STAGE_COLOR[s] ?? STAGE_COLOR.none;
+  const xOf = (pct: number) => PAD + (pct / 100) * usable;
 
-  // Greedy lane assignment on an ascending copy so clustered tags stack upward.
+  // Greedy lane assignment on an ascending copy, then alternate lanes above/below
+  // the line (even → above, odd → below) so each side needs half the stem height.
   const usable = Math.max(0, width - 2 * PAD);
   const sorted = [...items].sort((a, b) => a.pct - b.pct);
   const laneLast: number[] = [];
   const placed = sorted.map((it) => {
-    const x = PAD + (it.pct / 100) * usable;
+    const x = xOf(it.pct);
     let lane = 0;
     while (lane < laneLast.length && x - laneLast[lane] < CHIP) lane++;
     laneLast[lane] = x;
-    return { it, x, lane };
+    const above = lane % 2 === 0;
+    const sideLane = Math.floor(lane / 2);
+    return { it, x, above, sideLane };
   });
-  const lanes = width > 0 ? Math.max(1, laneLast.length) : 1;
-  const axisY = TAG_H + BASE + (lanes - 1) * ROW + 6; // baseline (the line)
-  const height = axisY + 16; // room for the % scale under the line
+  const sideExtent = (above: boolean) => {
+    const ls = placed.filter((p) => p.above === above).map((p) => p.sideLane);
+    return ls.length ? TAG_H + BASE + Math.max(...ls) * ROW : 0;
+  };
+  const aboveExtent = width > 0 ? sideExtent(true) : TAG_H + BASE;
+  const belowExtent = width > 0 ? sideExtent(false) : 0;
+  const axisY = aboveExtent + 8;
+  const scaleY = axisY + belowExtent + 8;
+  const height = scaleY + 12;
+  const hoveredItem = placed.find((p) => p.it.lang === hovered)?.it;
 
   return (
     <div>
@@ -287,45 +302,52 @@ function LanguageTimeline({ items }: { items: TimelineItem[] }) {
         {t("Completeness by language")}
       </div>
       <div ref={ref} className="relative" style={{ height }}>
-        {/* faint gridlines up to the axis */}
+        {/* faint gridlines */}
         {width > 0 &&
           [25, 50, 75].map((g) => (
             <div
               key={g}
               className="absolute w-px bg-border/40"
-              style={{ left: PAD + (g / 100) * usable, top: 0, height: axisY }}
+              style={{ left: xOf(g), top: 0, height: scaleY }}
             />
           ))}
         {/* the timeline itself */}
         <div className="absolute h-px bg-border" style={{ left: PAD, right: PAD, top: axisY }} />
-        {/* each language: tag → vertical stem → arrow → dot on the line */}
+        {/* each language: tag → stem → arrow → dot on the line */}
         {width > 0 &&
-          placed.map(({ it, x, lane }) => {
+          placed.map(({ it, x, above, sideLane }) => {
             const c = color(it.stage);
-            const stemTop = axisY - (BASE + lane * ROW);
+            const stem = BASE + sideLane * ROW;
+            const dim = hovered && hovered !== it.lang ? 0.25 : 1;
+            const tagTop = above ? axisY - stem - TAG_H : axisY + stem;
             return (
-              <Fragment key={it.lang}>
+              // Static wrapper: opacity dims the whole group; children still
+              // anchor to the (positioned) timeline container.
+              <span key={it.lang} style={{ opacity: dim, transition: "opacity 120ms" }}>
+                {/* stem */}
                 <span
                   className="absolute -translate-x-1/2"
                   style={{
                     left: x,
-                    top: stemTop,
+                    top: above ? axisY - stem : axisY,
                     width: 1,
-                    height: axisY - stemTop - 4,
+                    height: stem - 4,
                     background: `color-mix(in oklch, ${c} 55%, var(--border))`,
                   }}
                 />
-                {/* arrowhead pointing down onto the dot */}
+                {/* arrowhead pointing at the dot */}
                 <span
                   className="absolute -translate-x-1/2"
                   style={{
                     left: x,
-                    top: axisY - 8,
+                    top: above ? axisY - 8 : axisY + 4,
                     width: 0,
                     height: 0,
                     borderLeft: "3px solid transparent",
                     borderRight: "3px solid transparent",
-                    borderTop: `4px solid ${c}`,
+                    ...(above
+                      ? { borderTop: `4px solid ${c}` }
+                      : { borderBottom: `4px solid ${c}` }),
                   }}
                 />
                 {/* dot on the line */}
@@ -343,8 +365,10 @@ function LanguageTimeline({ items }: { items: TimelineItem[] }) {
                 />
                 {/* tag */}
                 <span
-                  className="absolute -translate-x-1/2"
-                  style={{ left: x, top: stemTop - TAG_H }}
+                  className="absolute -translate-x-1/2 cursor-default"
+                  style={{ left: x, top: tagTop }}
+                  onMouseEnter={() => setHovered(it.lang)}
+                  onMouseLeave={() => setHovered(null)}
                 >
                   <span
                     className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium shadow-sm"
@@ -358,16 +382,60 @@ function LanguageTimeline({ items }: { items: TimelineItem[] }) {
                     <span className="tabular-nums text-muted-foreground">{it.pct}</span>
                   </span>
                 </span>
-              </Fragment>
+              </span>
             );
           })}
+        {/* hover expansion: a dot per collection on the line + breakdown popover */}
+        {width > 0 && hoveredItem && hoveredItem.byCollection.length > 0 && (
+          <>
+            {hoveredItem.byCollection.map((cc, i) => (
+              <span
+                key={`${cc.name}-${i}`}
+                className="absolute rounded-full"
+                style={{
+                  left: xOf(cc.pct),
+                  top: axisY,
+                  width: 7,
+                  height: 7,
+                  transform: "translate(-50%, -50%)",
+                  background: color(cc.stage),
+                  border: "1.5px solid var(--card)",
+                  boxShadow: "0 0 0 1px var(--border)",
+                }}
+                title={`${cc.name}: ${cc.pct}%`}
+              />
+            ))}
+            <div
+              className="absolute z-10 -translate-x-1/2 rounded-md border border-border bg-popover p-1.5 text-[10px] shadow-md"
+              style={{
+                left: Math.min(Math.max(xOf(hoveredItem.pct), 70), Math.max(70, width - 70)),
+                top: scaleY + 2,
+                minWidth: 120,
+              }}
+            >
+              <div className="mb-0.5 font-medium" translate="no">
+                {hoveredItem.lang}
+              </div>
+              {hoveredItem.byCollection.map((cc, i) => (
+                <div key={`${cc.name}-${i}`} className="flex items-center gap-1.5">
+                  <span
+                    className="size-1.5 shrink-0 rounded-full"
+                    style={{ background: color(cc.stage) }}
+                  />
+                  <span className="flex-1 truncate text-muted-foreground">{cc.name}</span>
+                  <span className="tabular-nums">{cc.pct}%</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
         {/* % scale under the line */}
         {width > 0 &&
           [0, 50, 100].map((tk) => (
             <span
               key={tk}
               className="absolute -translate-x-1/2 text-[9px] text-muted-foreground"
-              style={{ left: PAD + (tk / 100) * usable, top: axisY + 4 }}
+              style={{ left: xOf(tk), top: scaleY }}
             >
               {tk}%
             </span>
@@ -1346,19 +1414,32 @@ export function CollectionsPanel({
   // Per-language standing for the completeness timeline: overall translated
   // coverage (position) + the ship-gate stage (colour), aggregated across every
   // (collection, locale) scope for that language, weighted by unit count.
+  const scopeStage = (lc: LocaleCoverage): TimelineItem["stage"] => {
+    const tr = lc.pct?.translated ?? 0;
+    if (tr === 0) return "none";
+    if (lc.shippable) return "shippable";
+    return (lc.pct?.reviewed ?? 0) > 0 ? "review" : "translated";
+  };
   const timelineItems: TimelineItem[] | null = hasGates
     ? columnLangs.map((lang) => {
         let total = 0;
         let tSum = 0;
         let rSum = 0;
         let shippableUnits = 0;
+        const byCollection: TimelineItem["byCollection"] = [];
         for (const lc of convergence?.locales ?? []) {
           if (lc.locale !== lang) continue;
           total += lc.total;
           tSum += (lc.total * (lc.pct?.translated ?? 0)) / 100;
           rSum += (lc.total * (lc.pct?.reviewed ?? 0)) / 100;
           if (lc.shippable) shippableUnits += lc.total;
+          byCollection.push({
+            name: lc.collection || t("(unnamed)"),
+            pct: Math.round(lc.pct?.translated ?? 0),
+            stage: scopeStage(lc),
+          });
         }
+        byCollection.sort((a, b) => b.pct - a.pct);
         const pct = total > 0 ? Math.round((tSum / total) * 100) : 0;
         const reviewed = total > 0 ? Math.round((rSum / total) * 100) : 0;
         const stage: TimelineItem["stage"] =
@@ -1371,7 +1452,7 @@ export function CollectionsPanel({
                 : pct > 0
                   ? "translated"
                   : "none";
-        return { lang, pct, stage };
+        return { lang, pct, stage, byCollection };
       })
     : null;
   // Per-(collection, language) translated coverage %, or null when the
