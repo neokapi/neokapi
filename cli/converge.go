@@ -30,6 +30,9 @@ type convergeOptions struct {
 	// (`up --no-checks`): produced units then count as translated even when
 	// they would fail the guardrails.
 	noChecks bool
+	// materialize forces the post-loop materialize step (`up --materialize`)
+	// regardless of the recipe's defaults.materialize policy.
+	materialize bool
 }
 
 // ConvergeLocaleResult is the per-locale outcome of a convergence run.
@@ -42,6 +45,11 @@ type ConvergeLocaleResult struct {
 	// bound checks (#1078 G4) — they read at `draft`, not `translated`, for
 	// gating, so they hold the locale below its gate until fixed.
 	FailingChecks int `json:"failingChecks,omitempty"`
+	// Materialized counts the localized files written for this locale by the
+	// post-loop materialize step (defaults.materialize: on-converge, or
+	// --materialize). Only shippable locales materialize; a parked locale
+	// stays at 0.
+	Materialized int `json:"materialized,omitempty"`
 }
 
 // ConvergeOutput is the structured result of `kapi run` driving the default
@@ -52,6 +60,10 @@ type ConvergeOutput struct {
 	Passes    int                    `json:"passes"`
 	Converged bool                   `json:"converged"` // every gated scope is shippable
 	Locales   []ConvergeLocaleResult `json:"locales"`
+	// MaterializedFiles is the total count of localized files written by the
+	// post-loop materialize step across every shippable locale (0 when the
+	// policy is manual and --materialize was not passed).
+	MaterializedFiles int `json:"materializedFiles,omitempty"`
 }
 
 // FormatText renders the convergence summary.
@@ -82,6 +94,9 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "Converged: every gated scope is shippable.")
 	} else {
 		fmt.Fprintln(w, "Not fully converged — parked locales await human review (never a build failure).")
+	}
+	if o.MaterializedFiles > 0 {
+		fmt.Fprintf(w, "Materialized %d localized file(s) from the project store.\n", o.MaterializedFiles)
 	}
 	return nil
 }
@@ -189,7 +204,7 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 			pending := localesNeedingPass(cov, locales)
 			if len(pending) == 0 {
 				// Already converged before this pass (or after the previous one).
-				return a.printConverge(cmd, flowName, passes, cov, locales, excl)
+				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov, locales, excl, opts)
 			}
 
 			before := producedUnits(cov)
@@ -210,15 +225,15 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 				return err
 			}
 			if !untilGate {
-				return a.printConverge(cmd, flowName, passes, cov2, locales, excl2)
+				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov2, locales, excl2, opts)
 			}
 			if len(localesNeedingPass(cov2, locales)) == 0 {
-				return a.printConverge(cmd, flowName, passes, cov2, locales, excl2)
+				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov2, locales, excl2, opts)
 			}
 			// Stop looping when capped or when a full pass produced nothing new —
 			// the remaining locales park (the flow can't advance them unaided).
 			if passes >= maxPasses || producedUnits(cov2) <= before {
-				return a.printConverge(cmd, flowName, passes, cov2, locales, excl2)
+				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov2, locales, excl2, opts)
 			}
 		}
 	})
@@ -339,9 +354,46 @@ func producedUnits(cov []LocaleCoverage) int {
 	return total
 }
 
-// printConverge derives the final per-locale standing and emits the structured
-// convergence result. It always returns nil (parked work is not a build error).
-func (a *App) printConverge(cmd *cobra.Command, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *checkExclusions) error {
+// finishConverge derives the final per-locale standing, applies the
+// materialize policy (#1078 G2), and emits the structured convergence result.
+// It always returns nil for parked work (not a build error); only an
+// operational materialize failure is an error.
+//
+// Materialize policy: when the recipe sets `defaults.materialize: on-converge`
+// (or the run forces it with --materialize), every locale whose gated scopes
+// are ALL shippable has its localized files written from the project block
+// store via the shared merge/materialize path; parked locales are skipped —
+// their content isn't at the bar yet.
+func (a *App) finishConverge(cmd *cobra.Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *checkExclusions, opts convergeOptions) error {
+	out := buildConvergeOutput(flowName, passes, cov, locales, excl)
+
+	if opts.materialize || proj.Defaults.ResolvedMaterialize() == project.MaterializeOnConverge {
+		ctx := cmd.Context()
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		for i := range out.Locales {
+			lc := &out.Locales[i]
+			if !lc.Shippable {
+				continue // parked / pending locales do not materialize
+			}
+			// Per-file progress lines go nowhere: the structured result carries
+			// the counts, and stray lines would corrupt --json output.
+			n, merr := a.materializeFromProjectStore(ctx, io.Discard, proj, projectPath, []model.LocaleID{model.LocaleID(lc.Locale)}, false)
+			if merr != nil {
+				return fmt.Errorf("materialize %s: %w", lc.Locale, merr)
+			}
+			lc.Materialized = n
+			out.MaterializedFiles += n
+		}
+	}
+
+	return output.Print(cmd, out)
+}
+
+// buildConvergeOutput rolls the per-scope coverage up into the per-locale
+// convergence result.
+func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *checkExclusions) ConvergeOutput {
 	out := ConvergeOutput{Flow: flowName, Passes: passes, Converged: true}
 	pendingSet := map[string]bool{}
 	for _, loc := range localesNeedingPass(cov, locales) {
@@ -373,7 +425,7 @@ func (a *App) printConverge(cmd *cobra.Command, flowName string, passes int, cov
 		}
 		out.Locales = append(out.Locales, res)
 	}
-	return output.Print(cmd, out)
+	return out
 }
 
 // convergeMaxPassesDefault caps the --until-gate loop. A handful of passes is

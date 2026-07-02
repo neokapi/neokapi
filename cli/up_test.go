@@ -182,6 +182,62 @@ func TestUp_NoExtractOptsOut(t *testing.T) {
 	assert.True(t, os.IsNotExist(statErr), "--no-extract must not stamp the store")
 }
 
+// TestUp_MaterializePolicyManualByDefault: with the default policy (manual),
+// a converged up does not run the post-loop materialize step.
+func TestUp_MaterializePolicyManualByDefault(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+
+	out, err := runUp(t, a, recipe)
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "Converged", out)
+	assert.NotContains(t, out, "Materialized", "defaults.materialize is manual — no post-loop write")
+}
+
+// TestUp_MaterializeOnConverge: with defaults.materialize: on-converge, a
+// gated-green locale has its localized files written from the project store
+// after the loop, and the counts are reported.
+func TestUp_MaterializeOnConverge(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Materialize = project.MaterializeOnConverge
+	require.NoError(t, project.Save(recipe, proj))
+
+	out, err := runUp(t, a, recipe)
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "Converged", out)
+	assert.Contains(t, out, "Materialized 2 localized file(s) from the project store.", out)
+	for _, f := range []string{"a.json", "b.json"} {
+		_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", f))
+		require.NoError(t, statErr)
+	}
+}
+
+// TestUp_MaterializeFlagForces: --materialize forces the post-loop write even
+// when the recipe policy is manual.
+func TestUp_MaterializeFlagForces(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+
+	out, err := runUp(t, a, recipe, "--materialize")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "Materialized 2 localized file(s) from the project store.", out)
+}
+
+// TestUp_MaterializeSkipsParkedLocale: a locale short of its gate (parked)
+// does not materialize — its content isn't at the bar yet.
+func TestUp_MaterializeSkipsParkedLocale(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": 100})
+
+	out, err := runUp(t, a, recipe, "--materialize")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "parked (needs human)", out)
+	assert.NotContains(t, out, "Materialized", "a parked locale must not materialize")
+}
+
 // TestRun_BareRunPointsAtUp: the no-argument `kapi run` keeps working but
 // prints the one-release pointer to `kapi up` on stderr.
 func TestRun_BareRunPointsAtUp(t *testing.T) {

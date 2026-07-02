@@ -197,3 +197,19 @@ func TestCollectionLabel(t *testing.T) {
 	assert.Equal(t, "(unnamed)", project.CollectionLabel(""))
 	assert.Equal(t, "docs", project.CollectionLabel("docs"))
 }
+
+func TestMaterializePolicy(t *testing.T) {
+	var d project.Defaults
+	assert.Equal(t, project.MaterializeManual, d.ResolvedMaterialize(), "manual is the default")
+	d.Materialize = project.MaterializeOnConverge
+	assert.Equal(t, project.MaterializeOnConverge, d.ResolvedMaterialize())
+
+	// Validation rejects unknown values.
+	p := &project.KapiProject{Version: "v1", Defaults: project.Defaults{Materialize: "sometimes"}}
+	err := p.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaults.materialize")
+
+	p.Defaults.Materialize = project.MaterializeOnConverge
+	assert.NoError(t, p.Validate())
+}

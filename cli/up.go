@@ -65,10 +65,11 @@ gates (e.g. before a release tag).
 				maxPasses = convergeMaxPassesDefault
 			}
 			return a.runDefaultFlowConverge(cmd, proj, projectPath, convergeOptions{
-				untilGate: untilGate,
-				maxPasses: maxPasses,
-				noExtract: boolFlag(cmd, "no-extract"),
-				noChecks:  boolFlag(cmd, "no-checks"),
+				untilGate:   untilGate,
+				maxPasses:   maxPasses,
+				noExtract:   boolFlag(cmd, "no-extract"),
+				noChecks:    boolFlag(cmd, "no-checks"),
+				materialize: boolFlag(cmd, "materialize"),
 			})
 		},
 	}
@@ -78,5 +79,6 @@ gates (e.g. before a release tag).
 	cmd.Flags().Int("passes", 0, "maximum reconciliation passes (0 = loop until converged or parked, capped at 5; 1 = single pass)")
 	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
 	cmd.Flags().Bool("no-checks", false, "skip the bound checks in the loop (produced units count as translated even when failing guardrails)")
+	cmd.Flags().Bool("materialize", false, "after the loop, write localized files from the project store for every shippable locale (forces defaults.materialize: on-converge)")
 	return cmd
 }
