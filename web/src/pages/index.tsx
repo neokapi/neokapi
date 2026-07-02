@@ -132,7 +132,7 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Measured, not asserted",
     description:
-      "We don't claim format support — we measure it. The parity, test-comparison, and format-maturity dashboards show whether it holds, under load and per format.",
+      "We don't claim format support — we measure it. The format-maturity and benchmark dashboards show whether it holds, under load and per format.",
     link: "/format-maturity",
     linkText: "See the dashboards",
   },

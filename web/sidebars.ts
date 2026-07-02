@@ -224,7 +224,6 @@ const sidebars: SidebarsConfig = {
         { type: "link", label: "Benchmarks", href: "/pseudobench" },
         { type: "link", label: "ML benchmark", href: "/ml-benchmark" },
         { type: "link", label: "Check eval", href: "/check-eval" },
-        { type: "link", label: "Test results", href: "/test-comparison" },
       ],
     },
   ],

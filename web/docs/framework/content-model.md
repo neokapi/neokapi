@@ -326,13 +326,6 @@ untouched block is replayed from its skeleton byte-for-byte, only the one senten
 that changed differs in the output — the same round-trip guarantee a translation
 run relies on, with zero targets in sight.
 
-## Mapping from Okapi
-
-The content-model types correspond directly to the Okapi Framework's resource
-hierarchy — `TextUnit` → `Block`, `Code` → `Run`, `StartSubDocument` → child
-`Layer`, and so on. See [Okapi comparison](/framework/okapi-comparison) for the
-full term-by-term map.
-
 ## Related reading
 
 - [Formats](/framework/formats) — the readers and writers that produce and consume the model.
