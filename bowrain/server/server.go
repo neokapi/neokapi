@@ -89,6 +89,10 @@ type Server struct {
 	// collabHub manages collaborative editing WebSocket rooms.
 	collabHub *collabHub
 
+	// posthogDemand caches PostHog locale-demand snapshots per (project,
+	// range) — the PostHog query API is rate-limited.
+	posthogDemand *posthogDemandCache
+
 	// notificationHub manages per-user WebSocket connections for real-time notifications.
 	notificationHub *notificationHub
 
@@ -298,6 +302,7 @@ func NewServer(cfg Config) *Server {
 		collabHub:       newCollabHub(),
 		notificationHub: newNotificationHub(),
 		pulseCache:      newPulseCache(),
+		posthogDemand:   newPostHogDemandCache(),
 	}
 
 	// Initialize session state store (Redis or in-memory).
@@ -1296,6 +1301,14 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/:id/sync/:ref/push/commit", s.HandleSyncPushCommit, syncRateLimit)
 	g.PUT("/:id/sync/:ref/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
 	g.POST("/:id/sync/:ref/translate", s.HandleCreateProjectTranslationJob)
+
+	// PostHog locale-demand connector — /:ws/:id/connectors/posthog
+	// Per-project analytics connector config (secret stored sealed, masked on
+	// read) plus the cached demand snapshot endpoint.
+	g.GET("/:id/connectors/posthog", s.HandleGetPostHogConfig)
+	g.PUT("/:id/connectors/posthog", s.HandleSavePostHogConfig)
+	g.DELETE("/:id/connectors/posthog", s.HandleDeletePostHogConfig)
+	g.GET("/:id/connectors/posthog/demand", s.HandlePostHogDemand)
 
 	// Collections — Bowrain AD-011: /:ws/:id/collections/:ref
 	g.GET("/:id/collections/:ref", s.HandleListCollections)
