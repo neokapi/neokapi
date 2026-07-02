@@ -37,7 +37,7 @@ type Options struct {
 	// Provider, when set, is written into each target overlay's
 	// `provider` field so downstream readers can distinguish
 	// imports from different upstream sources (e.g. "tmx:legacy",
-	// "webhook:deepl").
+	// "webhook:acme").
 	Provider string
 }
 

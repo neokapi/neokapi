@@ -15,8 +15,8 @@ import (
 
 // The browser MT provider bridges the in-WASM MT tools to the platform's built-in
 // Translator API (Chrome 138+, desktop), an on-device translator the browser
-// manages itself. It is the browser counterpart of the keyed MT providers
-// (deepl/google/…): the page cannot reach a credentialed API, so instead it calls
+// manages itself. It is the browser counterpart of keyed (plugin-hosted) MT
+// providers: the page cannot reach a credentialed API, so instead it calls
 // out — via syscall/js — to a host function, exactly as the "gemma" AI provider
 // and the "intl" segmentation engine do.
 //

@@ -1,13 +1,12 @@
 # Native reference doc for the built-in `translate` tool.
-# Schema source: core/ai/tools/unified.go (TranslateSchema, over AITranslateConfig
-# + the MT-only fields of core/mt/tools MTTranslateConfig).
-description: Translate block content with an LLM or machine-translation provider.
+# Schema source: core/ai/tools/unified.go (TranslateSchema, over AITranslateConfig).
+description: Translate block content with an LLM provider.
 overview: |
   The **Translate** tool translates untranslated block content. A single
   `--provider` selects the backend: a large-language-model provider (Anthropic,
-  OpenAI, Gemini, Azure OpenAI, Ollama) or a machine-translation engine (DeepL,
-  Google, Microsoft, ModernMT, MyMemory). LLM and MT engines are not separate
-  commands — they are values of `--provider`. The result is written as the target
+  OpenAI, Gemini, Azure OpenAI, Ollama) or the keyless offline demo provider.
+  Classic machine-translation engines are not built in; a plugin can register
+  one, and it is then selected the same way. The result is written as the target
   text, with an alternate-translation annotation recording the originating
   provider. A target language is required, and credentials are required for
   hosted providers (local Ollama and the offline demo need none).
@@ -23,42 +22,22 @@ parameters:
     description: The translation provider to use.
     help: |
       Selects the backend. LLM providers (`anthropic`, `openai`, `gemini`,
-      `azureopenai`, `ollama`) and MT engines (`deepl`, `google`, `microsoft`,
-      `modernmt`, `mymemory`) are all chosen here. Hosted providers require an
-      API key; Ollama runs locally. The available options are populated from the
-      provider registry.
-    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `deepl` / `google` / `microsoft` / `modernmt` / `mymemory` (default `anthropic`)"
+      `azureopenai`, `ollama`, `demo`) are chosen here, as is any
+      plugin-registered MT engine. Hosted providers require an API key; Ollama
+      and the demo provider run locally. The available options are populated
+      from the provider registry.
+    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `demo` (default `anthropic`)"
   apiKey:
     description: API key for the provider.
     help: |
-      Credential for the chosen hosted LLM provider or MT engine. Required for
-      hosted providers; not needed for a local Ollama backend.
+      Credential for the chosen hosted provider. Required for hosted providers;
+      not needed for a local Ollama or demo backend.
     values: "string"
   model:
     description: The model name to request (LLM providers).
     help: |
       The provider-specific model identifier for an LLM provider. When omitted,
-      the provider's default model is used. Ignored by MT engines.
-    values: "string"
-  subscriptionKey:
-    description: Azure subscription key (Microsoft Translator).
-    help: |
-      The Azure subscription key used by the `microsoft` engine.
-    values: "string"
-  region:
-    description: Azure region (Microsoft Translator).
-    help: |
-      The Azure region for the `microsoft` engine.
-    values: "string"
-  email:
-    description: Account email for higher rate limits (MyMemory).
-    help: |
-      An optional MyMemory account email that raises the engine's rate limit.
-    values: "string"
-  projectId:
-    description: Google Cloud project ID (Google Translate).
-    help: |
-      The Google Cloud project id used by the `google` engine.
+      the provider's default model is used.
     values: "string"
   skipMatched:
     description: Skip blocks that already have a target translation.
@@ -93,10 +72,10 @@ examples:
     config: |
       provider: anthropic
       model: claude-sonnet-4-5
-  - title: Translate with DeepL
-    description: Use the DeepL machine-translation engine instead of an LLM.
+  - title: Translate offline with the demo provider
+    description: Produce keyless, clearly-marked illustrative output for smoke tests.
     config: |
-      provider: deepl
+      provider: demo
   - title: Translate only new content
     description: Skip blocks that already have a translation.
     config: |

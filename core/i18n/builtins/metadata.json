@@ -972,10 +972,6 @@
           "title": "Batch Size",
           "description": "Number of blocks per LLM call"
         },
-        "email": {
-          "title": "Email",
-          "description": "Account email for higher rate limits (mymemory)"
-        },
         "engine": {
           "title": "Engine",
           "description": "Translation engine: an AI model or a machine-translation provider",
@@ -989,16 +985,12 @@
           },
           "enumDescriptions": {
             "llm": "Translate with a large language model.",
-            "mt": "Translate with a dedicated machine-translation provider."
+            "mt": "Translate with a plugin-provided machine-translation engine."
           }
         },
         "model": {
           "title": "Model",
           "description": "AI model name"
-        },
-        "projectId": {
-          "title": "Project ID",
-          "description": "Google Cloud project ID (google)"
         },
         "provider": {
           "title": "AI Provider",
@@ -1010,26 +1002,11 @@
             "azureopenai": {
               "label": "Azure OpenAI"
             },
-            "deepl": {
-              "label": "DeepL"
-            },
             "demo": {
               "label": "Demo (illustrative)"
             },
             "gemini": {
               "label": "Gemini"
-            },
-            "google": {
-              "label": "Google Translate"
-            },
-            "microsoft": {
-              "label": "Microsoft Translator"
-            },
-            "modernmt": {
-              "label": "ModernMT"
-            },
-            "mymemory": {
-              "label": "MyMemory"
             },
             "ollama": {
               "label": "Ollama"
@@ -1039,23 +1016,12 @@
             }
           }
         },
-        "region": {
-          "title": "Region",
-          "description": "Azure region (microsoft)"
-        },
         "skipMatched": {
           "title": "Skip Matched",
           "description": "Skip blocks that already have a target translation"
-        },
-        "subscriptionKey": {
-          "title": "Subscription Key",
-          "description": "Azure subscription key (microsoft)"
         }
       },
       "groups": {
-        "mt": {
-          "label": "Machine translation"
-        },
         "provider": {
           "label": "Provider"
         }

@@ -2,7 +2,6 @@ package tools
 
 import (
 	"slices"
-	"sort"
 
 	"github.com/neokapi/neokapi/core/model"
 	mttools "github.com/neokapi/neokapi/core/mt/tools"
@@ -16,10 +15,12 @@ import (
 // This file defines the consolidated top-level `translate` and `qa` tools.
 //
 // `translate` is a single command whose `--provider` selects the backend: any
-// LLM provider (anthropic, openai, …) routes to the AI translate tool, any MT
-// engine (deepl, google, …) routes to the machine-translation tool. There is no
-// longer a `<provider>-translate` command per engine, nor a separate
-// `ai-translate` — provider is the only dimension.
+// LLM provider (anthropic, openai, …) routes to the AI translate tool, any
+// plugin-registered MT engine routes to the machine-translation tool. The
+// framework ships no classic MT engines — the translation core is LLM-only,
+// and mttools.Providers is populated by plugins. There is no
+// `<provider>-translate` command per engine, nor a separate `ai-translate` —
+// provider is the only dimension.
 //
 // `qa` mirrors that shape: with no `--provider` it runs the deterministic,
 // rule-based quality checks (no credentials needed); with `--provider` set it
@@ -44,16 +45,6 @@ const (
 	translateEngineLLM   = "llm"
 	translateEngineMT    = "mt"
 )
-
-// mtProviderExtraFields lists the credential fields each MT provider needs
-// beyond the shared apiKey. Providers absent here (deepl, modernmt) contribute
-// only a selector option — their config is the common apiKey/model already on
-// the base schema.
-var mtProviderExtraFields = map[string][]string{
-	"microsoft": {"subscriptionKey", "region"},
-	"google":    {"projectId"},
-	"mymemory":  {"email"},
-}
 
 // translateCommonSchema is the translate group's shared config: the engine
 // selector, the provider selector (its options cascade off the engine), and the
@@ -112,46 +103,24 @@ func translateCommonSchema() *schema.ComponentSchema {
 	return s
 }
 
-// translateMembers are the two engines. The LLM engine adds no fields beyond the
-// common apiKey/model; the MT engine carries every MT provider's extra
-// credentials, each gated on its provider so only the selected provider's fields
-// show.
+// translateMembers are the two engines. The LLM engine adds no fields beyond
+// the common apiKey/model; the MT engine offers only plugin-registered
+// providers (the framework ships none), whose config is the common apiKey
+// already on the base schema.
 func translateMembers() []registry.ToolGroupMember {
-	mt := schema.FromStruct(&mttools.MTTranslateConfig{}, schema.ToolMeta{ID: "translate-mt"})
-	provs := make([]string, 0, len(mtProviderExtraFields))
-	for prov := range mtProviderExtraFields {
-		provs = append(provs, prov)
-	}
-	sort.Strings(provs)
-
-	props := make(map[string]schema.PropertySchema)
-	order := 0
-	for _, prov := range provs {
-		gate := &schema.ConditionExpr{Field: "provider", Eq: prov}
-		for _, f := range mtProviderExtraFields[prov] {
-			p := mt.Properties[f]
-			order += 10
-			ord := order
-			p.Order = &ord
-			p.Visible = gate
-			props[f] = p
-		}
-	}
-
 	return []registry.ToolGroupMember{
 		{Name: translateEngineLLM, Label: "AI (LLM)", Description: "Translate with a large language model."},
 		{
 			Name:        translateEngineMT,
 			Label:       "Machine translation",
-			Description: "Translate with a dedicated machine-translation provider.",
-			Schema:      &schema.ComponentSchema{Type: "object", Properties: props},
+			Description: "Translate with a plugin-provided machine-translation engine.",
 		},
 	}
 }
 
 // translateGroup is the translate tool group: an engine discriminator (LLM / MT,
-// LLM default) whose provider list cascades off the engine, with each MT
-// provider's extra credentials shown only when that provider is selected.
+// LLM default) whose provider list cascades off the engine. The MT engine lists
+// only plugin-registered providers.
 func translateGroup() registry.ToolGroupDef {
 	return registry.ToolGroupDef{
 		Name:          "translate",

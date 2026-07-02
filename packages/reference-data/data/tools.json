@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-02T15:59:18Z",
+  "generatedAt": "2026-07-02T17:04:32Z",
   "kind": "tool",
   "entries": [
     {
@@ -5373,7 +5373,7 @@
       "source": "built-in",
       "kind": "tool",
       "displayName": "Translate",
-      "description": "Translate block content with an LLM or machine-translation provider.",
+      "description": "Translate block content with an LLM provider.",
       "category": "translation",
       "tags": [
         "translation",
@@ -5433,20 +5433,6 @@
               "apiKey",
               "model"
             ]
-          },
-          {
-            "id": "mt",
-            "label": "Machine translation",
-            "fields": [
-              "projectId",
-              "subscriptionKey",
-              "region",
-              "email"
-            ],
-            "ui:visible": {
-              "field": "engine",
-              "eq": "mt"
-            }
           }
         ],
         "properties": {
@@ -5469,16 +5455,6 @@
             "default": 100,
             "minimum": 1
           },
-          "email": {
-            "type": "string",
-            "title": "Email",
-            "description": "Account email for higher rate limits (mymemory)",
-            "ui:visible": {
-              "field": "provider",
-              "eq": "mymemory"
-            },
-            "ui:order": 40
-          },
           "engine": {
             "type": "string",
             "title": "Engine",
@@ -5497,7 +5473,7 @@
             "ui:widget": "select",
             "ui:enum-descriptions": {
               "llm": "Translate with a large language model.",
-              "mt": "Translate with a dedicated machine-translation provider."
+              "mt": "Translate with a plugin-provided machine-translation engine."
             },
             "ui:order": 0
           },
@@ -5505,16 +5481,6 @@
             "type": "string",
             "title": "Model",
             "description": "AI model name"
-          },
-          "projectId": {
-            "type": "string",
-            "title": "Project ID",
-            "description": "Google Cloud project ID (google)",
-            "ui:visible": {
-              "field": "provider",
-              "eq": "google"
-            },
-            "ui:order": 10
           },
           "provider": {
             "type": "string",
@@ -5545,26 +5511,6 @@
               {
                 "value": "demo",
                 "label": "Demo (illustrative)"
-              },
-              {
-                "value": "deepl",
-                "label": "DeepL"
-              },
-              {
-                "value": "google",
-                "label": "Google Translate"
-              },
-              {
-                "value": "microsoft",
-                "label": "Microsoft Translator"
-              },
-              {
-                "value": "modernmt",
-                "label": "ModernMT"
-              },
-              {
-                "value": "mymemory",
-                "label": "MyMemory"
               }
             ],
             "ui:option-sets": [
@@ -5605,67 +5551,25 @@
                   "field": "engine",
                   "eq": "mt"
                 },
-                "options": [
-                  {
-                    "value": "deepl",
-                    "label": "DeepL"
-                  },
-                  {
-                    "value": "google",
-                    "label": "Google Translate"
-                  },
-                  {
-                    "value": "microsoft",
-                    "label": "Microsoft Translator"
-                  },
-                  {
-                    "value": "modernmt",
-                    "label": "ModernMT"
-                  },
-                  {
-                    "value": "mymemory",
-                    "label": "MyMemory"
-                  }
-                ]
+                "options": []
               }
             ],
             "ui:widget": "select"
-          },
-          "region": {
-            "type": "string",
-            "title": "Region",
-            "description": "Azure region (microsoft)",
-            "ui:visible": {
-              "field": "provider",
-              "eq": "microsoft"
-            },
-            "ui:order": 30
           },
           "skipMatched": {
             "type": "boolean",
             "title": "Skip Matched",
             "description": "Skip blocks that already have a target translation",
             "default": false
-          },
-          "subscriptionKey": {
-            "type": "string",
-            "title": "Subscription Key",
-            "description": "Azure subscription key (microsoft)",
-            "ui:widget": "password",
-            "ui:visible": {
-              "field": "provider",
-              "eq": "microsoft"
-            },
-            "ui:order": 20
           }
         }
       },
       "doc": {
-        "overview": "The **Translate** tool translates untranslated block content. A single\n`--provider` selects the backend: a large-language-model provider (Anthropic,\nOpenAI, Gemini, Azure OpenAI, Ollama) or a machine-translation engine (DeepL,\nGoogle, Microsoft, ModernMT, MyMemory). LLM and MT engines are not separate\ncommands — they are values of `--provider`. The result is written as the target\ntext, with an alternate-translation annotation recording the originating\nprovider. A target language is required, and credentials are required for\nhosted providers (local Ollama and the offline demo need none).\n\nBlocks that contain inline codes are sent through a placeholder-preserving\nprompt so tags survive translation, then reconstructed from the response.\nBlocks can be translated one at a time or grouped into batches sent in a\nsingle structured call; batches can run concurrently. When run with a session\ncache, already-translated targets are reused and fresh translations are\nwritten back, so repeat runs skip work already done.\n",
+        "overview": "The **Translate** tool translates untranslated block content. A single\n`--provider` selects the backend: a large-language-model provider (Anthropic,\nOpenAI, Gemini, Azure OpenAI, Ollama) or the keyless offline demo provider.\nClassic machine-translation engines are not built in; a plugin can register\none, and it is then selected the same way. The result is written as the target\ntext, with an alternate-translation annotation recording the originating\nprovider. A target language is required, and credentials are required for\nhosted providers (local Ollama and the offline demo need none).\n\nBlocks that contain inline codes are sent through a placeholder-preserving\nprompt so tags survive translation, then reconstructed from the response.\nBlocks can be translated one at a time or grouped into batches sent in a\nsingle structured call; batches can run concurrently. When run with a session\ncache, already-translated targets are reused and fresh translations are\nwritten back, so repeat runs skip work already done.\n",
         "parameters": {
           "apiKey": {
             "description": "API key for the provider.",
-            "help": "Credential for the chosen hosted LLM provider or MT engine. Required for\nhosted providers; not needed for a local Ollama backend.\n",
+            "help": "Credential for the chosen hosted provider. Required for hosted providers;\nnot needed for a local Ollama or demo backend.\n",
             "values": "string"
           },
           "batchConcurrency": {
@@ -5678,40 +5582,20 @@
             "help": "Blocks are grouped into batches of this size and translated in a single\nstructured call per batch (LLM providers). A value of 1 translates block by\nblock.\n",
             "values": "integer ≥ 1 (default `100`)"
           },
-          "email": {
-            "description": "Account email for higher rate limits (MyMemory).",
-            "help": "An optional MyMemory account email that raises the engine's rate limit.\n",
-            "values": "string"
-          },
           "model": {
             "description": "The model name to request (LLM providers).",
-            "help": "The provider-specific model identifier for an LLM provider. When omitted,\nthe provider's default model is used. Ignored by MT engines.\n",
-            "values": "string"
-          },
-          "projectId": {
-            "description": "Google Cloud project ID (Google Translate).",
-            "help": "The Google Cloud project id used by the `google` engine.\n",
+            "help": "The provider-specific model identifier for an LLM provider. When omitted,\nthe provider's default model is used.\n",
             "values": "string"
           },
           "provider": {
             "description": "The translation provider to use.",
-            "help": "Selects the backend. LLM providers (`anthropic`, `openai`, `gemini`,\n`azureopenai`, `ollama`) and MT engines (`deepl`, `google`, `microsoft`,\n`modernmt`, `mymemory`) are all chosen here. Hosted providers require an\nAPI key; Ollama runs locally. The available options are populated from the\nprovider registry.\n",
-            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `deepl` / `google` / `microsoft` / `modernmt` / `mymemory` (default `anthropic`)"
-          },
-          "region": {
-            "description": "Azure region (Microsoft Translator).",
-            "help": "The Azure region for the `microsoft` engine.\n",
-            "values": "string"
+            "help": "Selects the backend. LLM providers (`anthropic`, `openai`, `gemini`,\n`azureopenai`, `ollama`, `demo`) are chosen here, as is any\nplugin-registered MT engine. Hosted providers require an API key; Ollama\nand the demo provider run locally. The available options are populated\nfrom the provider registry.\n",
+            "values": "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `demo` (default `anthropic`)"
           },
           "skipMatched": {
             "description": "Skip blocks that already have a target translation.",
             "help": "When enabled, a block that already has a target for the locale is left\nuntouched, so only untranslated content is sent to the provider.\n",
             "values": "`true` / `false` (default `false`)"
-          },
-          "subscriptionKey": {
-            "description": "Azure subscription key (Microsoft Translator).",
-            "help": "The Azure subscription key used by the `microsoft` engine.\n",
-            "values": "string"
           }
         },
         "limitations": [
@@ -5731,9 +5615,9 @@
             "config": "provider: anthropic\nmodel: claude-sonnet-4-5\n"
           },
           {
-            "title": "Translate with DeepL",
-            "description": "Use the DeepL machine-translation engine instead of an LLM.",
-            "config": "provider: deepl\n"
+            "title": "Translate offline with the demo provider",
+            "description": "Produce keyless, clearly-marked illustrative output for smoke tests.",
+            "config": "provider: demo\n"
           },
           {
             "title": "Translate only new content",
@@ -5755,8 +5639,8 @@
           {
             "name": "mt",
             "label": "Machine translation",
-            "description": "Translate with a dedicated machine-translation provider.",
-            "hasSchema": true
+            "description": "Translate with a plugin-provided machine-translation engine.",
+            "hasSchema": false
           }
         ]
       }

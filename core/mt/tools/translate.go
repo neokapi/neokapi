@@ -32,26 +32,17 @@ type MTTranslateTool struct {
 // MTTranslateConfig holds configuration for the MT translate tool.
 //
 // Locale fields are supplied programmatically by the runner. The credential
-// fields carry schema/json tags so they surface as CLI flags and flow config;
-// they are populated by the shared credential resolver (see
+// field carries schema/json tags so it surfaces as a CLI flag and flow config;
+// it is populated by the shared credential resolver (see
 // cli/credentials/resolve.go) or inline in a recipe step. The provider itself
-// is fixed by the registered tool name (e.g. routed to deepl via --provider), so
-// there is no Provider field.
+// is fixed by the id routed via --provider, so there is no Provider field.
 type MTTranslateConfig struct {
 	SourceLocale model.LocaleID `json:"sourceLocale,omitempty"     schema:"-"`
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty"     schema:"-"`
 
-	// APIKey is the primary credential (deepl, google, modernmt). Resolved from
+	// APIKey is the primary credential for keyed MT providers. Resolved from
 	// the keychain by the CLI credential preprocessor, or set inline.
 	APIKey string `json:"apiKey,omitempty"          schema:"title=API Key,description=API key for the MT provider,group=provider,widget=password"`
-	// SubscriptionKey is the Azure credential for the microsoft provider.
-	SubscriptionKey string `json:"subscriptionKey,omitempty" schema:"title=Subscription Key,description=Azure subscription key (microsoft),group=provider,widget=password"`
-	// Region is the Azure region for the microsoft provider.
-	Region string `json:"region,omitempty"          schema:"title=Region,description=Azure region (microsoft),group=provider"`
-	// Email is the optional MyMemory account email for higher rate limits.
-	Email string `json:"email,omitempty"           schema:"title=Email,description=Account email for higher rate limits (mymemory),group=provider"`
-	// ProjectID is the optional Google Cloud project id.
-	ProjectID string `json:"projectId,omitempty"       schema:"title=Project ID,description=Google Cloud project ID (google),group=provider"`
 	// BaseURL overrides the provider API endpoint (primarily for tests).
 	BaseURL string `json:"baseURL,omitempty"         schema:"-"`
 

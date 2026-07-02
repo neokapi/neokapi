@@ -21,13 +21,13 @@ type Provider struct {
 // Providers is the canonical list of MT engines reachable through
 // `kapi translate --provider <id>`. The unified translate tool (core/ai/tools)
 // reads this to populate its provider enum and to dispatch by id.
-var Providers = []Provider{
-	{mtprovider.DeepL, "DeepL"},
-	{mtprovider.Google, "Google Translate"},
-	{mtprovider.MSFT, "Microsoft Translator"},
-	{mtprovider.ModernMT, "ModernMT"},
-	{mtprovider.MyMemory, "MyMemory"},
-}
+//
+// The framework ships no classic MT engines — the translation core is
+// LLM-first, and the built-in offline demo provider routes through the LLM
+// path (providers/ai's demo). Plugins that host MT engines append here (and
+// register a config factory via mtprovider.RegisterConfigFactory) to surface
+// them in the translate tool.
+var Providers = []Provider{}
 
 // NewMTTranslateFromConfig returns a ToolConfigFactory bound to a specific MT
 // engine. The provider is fixed by id; the config map carries credentials
@@ -45,12 +45,8 @@ func NewMTTranslateFromConfig(id mtprovider.ProviderID) registry.ToolConfigFacto
 		}
 
 		p, err := mtprovider.NewProviderWithConfig(id, mtprovider.MTConfig{
-			APIKey:          cfg.APIKey,
-			SubscriptionKey: cfg.SubscriptionKey,
-			Region:          cfg.Region,
-			Email:           cfg.Email,
-			ProjectID:       cfg.ProjectID,
-			BaseURL:         cfg.BaseURL,
+			APIKey:  cfg.APIKey,
+			BaseURL: cfg.BaseURL,
 		})
 		if err != nil {
 			return nil, err

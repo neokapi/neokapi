@@ -11,29 +11,18 @@ import (
 	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/cli/output"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
-	mtprovider "github.com/neokapi/neokapi/providers/mt"
 	"github.com/spf13/cobra"
 )
 
 // knownProviderTypes returns the canonical set of credential provider types
 // accepted by `credentials add`, derived from the registered AI providers
-// (aiprovider.Providers) and the known MT provider kinds (mtprovider). Plugins
-// that register additional AI providers are reflected automatically. The result
-// is a deduplicated, sorted slice suitable for both membership checks and the
-// help text shown on rejection.
+// (aiprovider.Providers). Plugins that register additional AI providers are
+// reflected automatically. The result is a deduplicated, sorted slice suitable
+// for both membership checks and the help text shown on rejection.
 func knownProviderTypes() []string {
 	set := map[string]struct{}{}
 	for _, p := range aiprovider.Providers() {
 		set[strings.ToLower(p.Name.String())] = struct{}{}
-	}
-	for _, id := range []mtprovider.ProviderID{
-		mtprovider.DeepL,
-		mtprovider.Google,
-		mtprovider.MSFT,
-		mtprovider.ModernMT,
-		mtprovider.MyMemory,
-	} {
-		set[strings.ToLower(id.String())] = struct{}{}
 	}
 	out := make([]string, 0, len(set))
 	for name := range set {

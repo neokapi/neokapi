@@ -27,7 +27,7 @@ func TestApplyAIDefaults(t *testing.T) {
 	})
 
 	t.Run("MT tools are untouched (provider encoded in name)", func(t *testing.T) {
-		got := applyAIDefaults(cfg, "deepl-translate", []string{"credentials"}, map[string]any{})
+		got := applyAIDefaults(cfg, "acme-translate", []string{"credentials"}, map[string]any{})
 		_, ok := got["provider"]
 		assert.False(t, ok)
 	})
