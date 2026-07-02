@@ -31,20 +31,26 @@ runs the real `kapi` reader and writer in your browser via WebAssembly.
 
 neokapi ships built-in readers and writers spanning several families:
 
-- **Localization** — XLIFF 1.2 and 2.x, PO/POT, TMX, Qt TS, ICU MessageFormat,
-  Trados TTX/TXML, and translation tables.
-- **Document & markup** — HTML, XML (with configurable translatable elements),
-  Markdown, wiki markup, TeX/LaTeX, DTD, RTF.
-- **Data & configuration** — JSON and YAML (with regex- and key-path-based
-  extraction rules), Java properties, CSV/TSV, fixed-width, PHP, and generic
-  regex extraction.
-- **Office & desktop publishing** — Office Open XML, OpenDocument, Adobe
-  ICML/IDML, FrameMaker MIF, EPUB, PDF.
+- **Software i18n catalogs** — JSON (including i18next, ARB, and design
+  tokens), YAML, Java properties, Android `strings.xml`, Apple
+  `.strings`/`.xcstrings`, RESX, Qt TS, gettext PO/MO, ICU MessageFormat.
+- **Documents & markup** — Markdown and MDX, HTML, AsciiDoc, XML (with
+  configurable translatable elements), plain text.
+- **Office & publishing** — Office Open XML (`.docx`, `.xlsx`, `.pptx`),
+  OpenDocument, EPUB, PDF.
+- **Data** — CSV/TSV, with column-role configuration.
+- **Subtitles & media** — SubRip (SRT), WebVTT; images, audio, and video as
+  localizable assets.
+- **Bilingual interchange** — XLIFF 1.2 and 2.x, PO, TMX, and the native
+  [KLF family](/reference/klf/overview) — the translator-handoff layer.
 - **Containers & archives** — ZIP, TAR, and gzip-compressed TAR, treated as a
   folder of sub-documents (see below).
-- **Subtitles** — SubRip (SRT), WebVTT, TTML/DFXP.
-- **Images** — PNG and JPEG, as localizable assets.
-- **Plain text variants** — paragraph, Moses, versified, and spliced-line text.
+
+Formats from the project's early porting days that fell outside this focus
+(desktop-publishing interchange, legacy CAT formats, niche text variants) are
+no longer built in; the migration path for an exotic format is XLIFF
+interchange — convert to XLIFF with any CAT tool, and kapi takes it from there.
+The Okapi bridge plugin (below) also remains available for Okapi's filters.
 
 An **image** is read as a localizable asset: the picture itself is the unit a
 workflow can replace with a per-locale variant. With the `kapi-vision` plugin
