@@ -1390,11 +1390,13 @@ export function CollectionsPanel({
                       ) : (
                         <ChevronRight size={13} className="shrink-0 text-muted-foreground" />
                       )}
-                      <span
-                        className="size-2.5 shrink-0 rounded-[3px]"
-                        style={{ background: collectionColor(idx) }}
+                      {/* The collection's cake colour lives on the icon itself
+                          (matches its slice) instead of a separate dot. */}
+                      <Layers
+                        size={13}
+                        className="shrink-0"
+                        style={{ color: collectionColor(idx) }}
                       />
-                      <Layers size={13} className="shrink-0 text-primary" />
                       <span className="truncate text-sm font-medium" title={title}>
                         {title}
                       </span>
