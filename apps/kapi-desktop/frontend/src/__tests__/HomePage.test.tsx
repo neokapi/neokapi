@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { HomePage } from "../components/HomePage";
 import { ErrorProvider } from "../components/ErrorBanner";
@@ -74,7 +75,7 @@ describe("HomePage merged collection surface", () => {
     expect(screen.getByText("Run extract")).toBeInTheDocument();
   });
 
-  it("offers a Re-extract affordance once data exists", () => {
+  it("keeps the Re-extract affordance behind the Advanced disclosure", async () => {
     const status: ProjectStatus = {
       projectPath: "/p/demo.kapi",
       projectName: "Demo",
@@ -97,10 +98,14 @@ describe("HomePage merged collection surface", () => {
         status={status}
       />,
     );
+    // Auto-extract made the header button obsolete — the manual override lives
+    // only inside the Advanced disclosure.
+    expect(screen.queryByRole("button", { name: "Re-extract content" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Advanced actions" }));
     expect(screen.getByRole("button", { name: "Re-extract content" })).toBeInTheDocument();
   });
 
-  it("flags a stale block store written by an older kapi", () => {
+  it("no stale-store banner — Bring up to date auto-heals version drift", () => {
     const status: ProjectStatus = {
       projectPath: "/p/demo.kapi",
       projectName: "Demo",
@@ -124,7 +129,7 @@ describe("HomePage merged collection surface", () => {
         status={status}
       />,
     );
-    expect(screen.getByText(/produced by an earlier version of kapi/)).toBeInTheDocument();
+    expect(screen.queryByText(/produced by an earlier version of kapi/)).not.toBeInTheDocument();
   });
 
   it("shows ship-gate ladder states from convergence instead of raw %", () => {

@@ -32,6 +32,7 @@ import { useActiveFilter } from "../context/ActiveFilterContext";
 import { filterFiles, filterLanguages } from "../lib/filter";
 import { PipelineProgress } from "./PipelineProgress";
 import { AIModelPromptDialog } from "./AIModelPromptDialog";
+import { ConvergeRunView } from "./ConvergeRunView";
 
 type RunState = "idle" | "running" | "complete" | "error" | "canceled";
 
@@ -61,6 +62,15 @@ export interface RunnerPageProps {
   scopePaths?: string[];
   /** Human label for the scope (e.g. the collection name), shown in the header. */
   scopeLabel?: string;
+  /**
+   * Convergence mode (Bring up to date): the run goes through the shared
+   * `kapi up` engine and the page renders passes (extracted / produced /
+   * failing checks / parked) instead of raw flow logs. Custom-flow runs keep
+   * the classic runner view.
+   */
+  converge?: boolean;
+  /** Open the Review page filtered to a parked (collection, locale) scope. */
+  onOpenReview?: (scope: { collection?: string; locale?: string }) => void;
 }
 
 export function RunnerPage({
@@ -73,6 +83,8 @@ export function RunnerPage({
   onLaunched,
   scopePaths,
   scopeLabel,
+  converge,
+  onOpenReview,
 }: RunnerPageProps) {
   const { activeJob, selectedJob, jobs, startJob, hasActive } = useJobFeed();
   const { active: activeFilter } = useActiveFilter();
@@ -100,9 +112,11 @@ export function RunnerPage({
 
   const [launchError, setLaunchError] = useState<string | null>(null);
   // Stashed launch args while the "pick an AI model" prompt is open.
-  const [modelPrompt, setModelPrompt] = useState<{ paths: string[]; targets: string[] } | null>(
-    null,
-  );
+  const [modelPrompt, setModelPrompt] = useState<{
+    paths: string[];
+    targets: string[];
+    converge?: boolean;
+  } | null>(null);
 
   // runNow cancels any in-flight run, then starts this flow.
   const runNow = useCallback(
@@ -138,9 +152,43 @@ export function RunnerPage({
     [tabID, flowName, runNow],
   );
 
+  // convergeNow launches Bring up to date — the shared `kapi up` engine on the
+  // backend (loop-to-gate, auto-extract, checks in the loop). The engine
+  // resolves content and locales itself; no paths/targets travel from here.
+  const convergeNow = useCallback(async () => {
+    const runState = await api.getRunState();
+    if (runState === "running") {
+      await api.cancelRun();
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    startJob(flowName, projectName);
+    try {
+      await api.bringUpToDate(tabID);
+    } catch (err) {
+      setLaunchError(String(err));
+    }
+  }, [tabID, flowName, projectName, startJob]);
+
+  const launchConverge = useCallback(async () => {
+    setLaunchError(null);
+    if (await api.aiNeedsModelChoice(tabID, flowName)) {
+      setModelPrompt({ paths: [], targets: [], converge: true });
+      return;
+    }
+    await convergeNow();
+  }, [tabID, flowName, convergeNow]);
+
+  // Auto-run (convergence): launch Bring up to date once per request.
+  useEffect(() => {
+    if (!converge || !autoRun || autoRunStarted.current) return;
+    autoRunStarted.current = true;
+    onLaunched?.();
+    void launchConverge();
+  }, [converge, autoRun, launchConverge, onLaunched]);
+
   // Auto-run: resolve content and execute for all target languages.
   useEffect(() => {
-    if (!autoRun || !project || autoRunStarted.current) return;
+    if (converge || !autoRun || !project || autoRunStarted.current) return;
     autoRunStarted.current = true;
     // Mark the run request consumed so a remount (navigating back to the runner
     // while this flow runs) doesn't relaunch and duplicate it.
@@ -166,14 +214,14 @@ export function RunnerPage({
       setInputFiles(paths);
       await launchFlow(paths, targets);
     })();
-  }, [autoRun, project, tabID, launchFlow, onLaunched, activeFilter, scopePaths]);
+  }, [converge, autoRun, project, tabID, launchFlow, onLaunched, activeFilter, scopePaths]);
 
   // Manual path: when a project is in scope, pre-populate target language(s)
   // from the project defaults and input files from the matched content — so the
   // manual runner is consistent with the autoRun path instead of starting blank.
   // The Active Filter narrows both, and re-runs when the filter changes.
   useEffect(() => {
-    if (autoRun || !project) return;
+    if (converge || autoRun || !project) return;
 
     const targets = filterLanguages(project.defaults?.target_languages ?? [], activeFilter);
     setProjectTargets(targets);
@@ -184,7 +232,7 @@ export function RunnerPage({
       const paths = filterFiles(matches ?? [], activeFilter).map((m) => m.path);
       setInputFiles(paths);
     })();
-  }, [autoRun, project, tabID, activeFilter]);
+  }, [converge, autoRun, project, tabID, activeFilter]);
 
   // Manual run (single language).
   const handleRun = useCallback(async () => {
@@ -212,9 +260,11 @@ export function RunnerPage({
     <div className="p-6">
       <PageHeader
         title={
-          scopeLabel
-            ? t("Run: {name} · {scope}", { name: flowName, scope: scopeLabel })
-            : t("Run: {name}", { name: flowName })
+          converge
+            ? t("Bring up to date · {name}", { name: flowName })
+            : scopeLabel
+              ? t("Run: {name} · {scope}", { name: flowName, scope: scopeLabel })
+              : t("Run: {name}", { name: flowName })
         }
         className="mb-4"
         actions={
@@ -227,8 +277,8 @@ export function RunnerPage({
         }
       />
 
-      {/* Pipeline preview */}
-      {flow && (
+      {/* Pipeline preview — the convergence view speaks passes, not steps. */}
+      {flow && !converge && (
         <Card className="mb-4">
           <CardHeader className="px-4">
             <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -242,7 +292,7 @@ export function RunnerPage({
       )}
 
       {/* Manual configuration (only in idle state, non-autoRun) */}
-      {state === "idle" && !autoRun && (
+      {state === "idle" && !autoRun && !converge && (
         <div className="mb-4 space-y-3">
           <div>
             <Label htmlFor="runner-files" className="mb-1 block">
@@ -300,7 +350,7 @@ export function RunnerPage({
 
       {/* Controls */}
       <div className="mb-6 flex gap-2">
-        {state === "idle" && !autoRun && (
+        {state === "idle" && !autoRun && !converge && (
           <Button
             onClick={handleRun}
             disabled={!targetLang || inputFiles.length === 0 || hasActive}
@@ -374,8 +424,17 @@ export function RunnerPage({
         </div>
       )}
 
+      {/* Convergence view — passes instead of raw flow logs (Bring up to date). */}
+      {converge && (
+        <ConvergeRunView
+          events={events}
+          running={state === "running"}
+          onOpenReview={onOpenReview}
+        />
+      )}
+
       {/* Event log */}
-      {events.length > 0 && (
+      {!converge && events.length > 0 && (
         <Card>
           <CardHeader className="px-4">
             <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -410,7 +469,9 @@ export function RunnerPage({
         onResolved={() => {
           const pending = modelPrompt;
           setModelPrompt(null);
-          if (pending) void runNow(pending.paths, pending.targets);
+          if (!pending) return;
+          if (pending.converge) void convergeNow();
+          else void runNow(pending.paths, pending.targets);
         }}
         onCancel={() => setModelPrompt(null)}
       />

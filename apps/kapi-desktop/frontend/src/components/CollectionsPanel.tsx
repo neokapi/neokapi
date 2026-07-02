@@ -16,7 +16,6 @@ import {
   Check,
   Files,
   PackageOpen,
-  AlertTriangle,
   Filter,
   Play,
 } from "lucide-react";
@@ -538,6 +537,10 @@ export function CollectionsPanel({
   const [editing, setEditing] = useState<Set<number>>(new Set());
   // Collections ticked for a batch run (keyed by index into project.content).
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  // The "Advanced" disclosure (collapsed by default): manual run pickers and
+  // the Re-extract override live behind it — Bring up to date is the primary
+  // verb of the home, so per-flow runs are demoted, not removed (#1078 C4).
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [otherCollapsed, setOtherCollapsed] = useState(false);
   // Generated output files keyed by their source file's relative path (issue #5),
   // plus the set of source rows whose outputs are expanded.
@@ -1360,9 +1363,10 @@ export function CollectionsPanel({
   );
 
   // ── Batch selection → run a flow across the ticked collections ─────────────
-  // Selecting is only meaningful when there are flows to run; the union of the
-  // selected collections' matched files is the run scope.
-  const selectable = !!onRunFlow && flowNames.length > 0;
+  // Selecting is only meaningful when there are flows to run AND the Advanced
+  // disclosure is open (the manual run surface); the union of the selected
+  // collections' matched files is the run scope.
+  const selectable = advancedOpen && !!onRunFlow && flowNames.length > 0;
   const visibleIndices = visibleContent.map((v) => v.ci);
   const allVisibleSelected =
     visibleIndices.length > 0 && visibleIndices.every((i) => selected.has(i));
@@ -1600,9 +1604,54 @@ export function CollectionsPanel({
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
-          {/* Scope-aware flow runner — folds the old "Run Flows" list in here.
-              Runs across the ticked collections, or the whole project (narrowed
-              by the active filter) when nothing is selected. */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAddCollection}
+            aria-label="Add content collection"
+          >
+            <Plus size={12} />
+            {t("Add Collection")}
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleAddFiles} aria-label="Add files">
+            <Plus size={12} />
+            {t("Add Files")}
+          </Button>
+          {/* Advanced — collapsed by default: the manual run pickers and the
+              Re-extract override live behind it. Bring up to date (the hero)
+              covers the routine path, including extraction on drift. */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              setAdvancedOpen((v) => {
+                if (v) clearSelection(); // ticked rows are a run scope — drop it on collapse
+                return !v;
+              })
+            }
+            aria-expanded={advancedOpen}
+            aria-label={t("Advanced actions")}
+            data-slot="advanced-toggle"
+          >
+            {advancedOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            {t("Advanced")}
+          </Button>
+        </div>
+      </div>
+
+      {/* Advanced disclosure — manual flow runs (header picker + batch scope)
+          and the manual Re-extract override (auto-extract makes it routine-free). */}
+      {advancedOpen && (
+        <div
+          className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2"
+          data-slot="advanced-bar"
+        >
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {t("Manual run")}
+          </span>
+          {/* Scope-aware flow runner — runs across the ticked collections, or
+              the whole project (narrowed by the active filter) when nothing is
+              selected. */}
           {selectable &&
             (flowNames.length === 1 ? (
               <Button
@@ -1651,28 +1700,21 @@ export function CollectionsPanel({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleAddCollection}
-            aria-label="Add content collection"
-          >
-            <Plus size={12} />
-            {t("Add Collection")}
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleAddFiles} aria-label="Add files">
-            <Plus size={12} />
-            {t("Add Files")}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             onClick={() => void handleExtract()}
             disabled={extracting || scanning}
             aria-label={hasData ? "Re-extract content" : "Run extract"}
+            title={t(
+              "Manual override — Bring up to date re-extracts changed sources automatically.",
+            )}
           >
             {extracting ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
             {hasData ? t("Re-extract") : t("Extract")}
           </Button>
+          <span className="text-xs text-muted-foreground">
+            {t("Tick collections below to scope a run.")}
+          </span>
         </div>
-      </div>
+      )}
 
       {/* Active-filter escape hatch (bug #1) — collections never vanish silently. */}
       {filterActive && (
@@ -1697,25 +1739,8 @@ export function CollectionsPanel({
         </div>
       )}
 
-      {/* Stale store banner (bug #2) — counts produced by an older kapi. */}
-      {status?.stale && (
-        <div className="mb-3 flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs">
-          <AlertTriangle size={13} className="shrink-0 text-amber-500" />
-          <span className="text-muted-foreground">
-            {t("These counts were produced by an earlier version of kapi and may be out of date.")}
-          </span>
-          <Button
-            variant="outline"
-            size="xs"
-            className="ml-auto"
-            onClick={() => void handleExtract()}
-            disabled={extracting}
-          >
-            {extracting ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
-            {t("Re-extract")}
-          </Button>
-        </div>
-      )}
+      {/* The stale-store banner is gone: Bring up to date auto-heals version
+          drift through the shared storesync path before every pass (#1078). */}
 
       {/* Colour-coded "cake": block distribution per collection (slices match
           the row dots below) + project-wide coverage per language. */}
@@ -1934,9 +1959,11 @@ export function CollectionsPanel({
                     ) : (
                       <span />
                     )}
-                    {/* Actions — per-collection Run, Edit, delete (icon-only). */}
+                    {/* Actions — per-collection Run (Advanced only), Edit,
+                        delete (icon-only). */}
                     <span className="flex items-center justify-end gap-1">
-                      {onRunFlow &&
+                      {advancedOpen &&
+                        onRunFlow &&
                         files.length > 0 &&
                         flowNames.length > 0 &&
                         (flowNames.length === 1 ? (

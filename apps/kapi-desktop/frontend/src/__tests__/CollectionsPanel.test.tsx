@@ -48,7 +48,13 @@ const status: ProjectStatus = {
   ],
 };
 
-describe("CollectionsPanel per-collection Run", () => {
+/** Open the Advanced disclosure — manual run pickers live behind it (#1078 C4). */
+async function openAdvanced() {
+  const toggle = await screen.findByRole("button", { name: "Advanced actions" });
+  await userEvent.click(toggle);
+}
+
+describe("CollectionsPanel per-collection Run (Advanced disclosure)", () => {
   beforeEach(() => {
     matchContentMock.mockReset();
     matchContentMock.mockResolvedValue([
@@ -60,6 +66,40 @@ describe("CollectionsPanel per-collection Run", () => {
         collection: "Website",
       },
     ]);
+  });
+
+  it("keeps the run pickers demoted until Advanced is opened", async () => {
+    render(
+      <ErrorProvider>
+        <CollectionsPanel
+          project={project}
+          onUpdate={vi.fn()}
+          tabID="t1"
+          flows={project.flows}
+          onRunFlow={vi.fn()}
+          status={status}
+        />
+      </ErrorProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("12 blocks")).toBeInTheDocument());
+    // Collapsed by default: no header run picker, no per-collection Run, no
+    // batch checkboxes, no Re-extract button.
+    expect(
+      screen.queryByRole("button", { name: "Run translate on all collections" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Run translate on Website" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Select Website" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Re-extract content" })).not.toBeInTheDocument();
+
+    // Opening the disclosure surfaces all of them (components kept, demoted).
+    await openAdvanced();
+    expect(
+      await screen.findByRole("button", { name: "Run translate on all collections" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Re-extract content" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Select Website" })).toBeInTheDocument();
   });
 
   it("runs a flow scoped to the collection's files", async () => {
@@ -76,6 +116,7 @@ describe("CollectionsPanel per-collection Run", () => {
         />
       </ErrorProvider>,
     );
+    await openAdvanced();
 
     // The Run affordance appears once the collection's files are resolved.
     const runBtn = await screen.findByRole("button", { name: "Run translate on Website" });
@@ -101,6 +142,7 @@ describe("CollectionsPanel per-collection Run", () => {
         />
       </ErrorProvider>,
     );
+    await openAdvanced();
     // With nothing selected, the header runs the flow across the whole project
     // (no explicit scope — the runner narrows by the active filter).
     const runAll = await screen.findByRole("button", { name: "Run translate on all collections" });
@@ -122,6 +164,7 @@ describe("CollectionsPanel per-collection Run", () => {
         />
       </ErrorProvider>,
     );
+    await openAdvanced();
     // The card renders (block badge), but its per-collection Run is absent.
     await waitFor(() => expect(screen.getByText("12 blocks")).toBeInTheDocument());
     expect(
@@ -145,6 +188,7 @@ describe("CollectionsPanel per-collection Run", () => {
         />
       </ErrorProvider>,
     );
+    await openAdvanced();
 
     // Tick the collection → the batch-run bar appears.
     const checkbox = await screen.findByRole("checkbox", { name: "Select Website" });
@@ -159,5 +203,22 @@ describe("CollectionsPanel per-collection Run", () => {
       scopePaths: ["/p/docs/a.md"],
       scopeLabel: "1 collections",
     });
+  });
+
+  it("no stale-store banner — storesync auto-heals version drift", async () => {
+    render(
+      <ErrorProvider>
+        <CollectionsPanel
+          project={project}
+          onUpdate={vi.fn()}
+          tabID="t1"
+          flows={project.flows}
+          onRunFlow={vi.fn()}
+          status={{ ...status, stale: true }}
+        />
+      </ErrorProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("12 blocks")).toBeInTheDocument());
+    expect(screen.queryByText(/produced by an earlier version of kapi/)).not.toBeInTheDocument();
   });
 });

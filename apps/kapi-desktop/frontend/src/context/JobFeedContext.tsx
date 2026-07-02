@@ -15,7 +15,14 @@ export interface StepSnapshot {
 }
 
 export interface RunEvent {
-  type: "state" | "progress" | "trace" | "error" | "complete" | "pipeline_metrics";
+  type:
+    | "state"
+    | "progress"
+    | "trace"
+    | "error"
+    | "complete"
+    | "pipeline_metrics"
+    | "converge_pass";
   flow_id: string;
   message?: string;
   file_index?: number;
@@ -24,6 +31,10 @@ export interface RunEvent {
   duration_ms?: number;
   files_processed?: number;
   steps?: StepSnapshot[];
+  /** One pass snapshot of a convergence run (type == "converge_pass"). */
+  converge?: import("../types/api").ConvergePassEvent;
+  /** Final structured convergence result (on a convergence run's "complete"). */
+  converge_result?: import("../types/api").ConvergeOutput;
 }
 
 export interface Job {
