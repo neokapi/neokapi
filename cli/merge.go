@@ -307,8 +307,11 @@ func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
 					return pctx.ConfigureReader(reader, string(detectedFmt))
 				},
 			})
+			// Address the stored overlays by the same source-file-namespaced key
+			// the run wrote them under (blockstore.StoreKey).
+			fileCtx := blockstore.WithSourceRel(ctx, f.Relative)
 			tools := []tool.Tool{newHydrateTargetsTool(locale)}
-			if rerr := runner.RunFile(ctx, "merge", tools, f.Path, targetPath, string(locale)); rerr != nil {
+			if rerr := runner.RunFile(fileCtx, "merge", tools, f.Path, targetPath, string(locale)); rerr != nil {
 				return fmt.Errorf("merge: materialize %s → %s: %w", f.Relative, locale, rerr)
 			}
 			written++
@@ -316,7 +319,7 @@ func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
 			// Absorb the materialized targets into the project TM with merge
 			// provenance, mirroring the XLIFF/PO/.klz merge paths.
 			if tm != nil {
-				if added, updated, aerr := absorbStoreTargets(ctx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, tm, f.Relative); aerr == nil {
+				if added, updated, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, tm, f.Relative); aerr == nil {
 					_ = added
 					_ = updated
 				}
@@ -349,7 +352,7 @@ func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFo
 		if !b.Translatable || b.ID == "" {
 			continue
 		}
-		o, oerr := sess.GetOverlay(kind, b.ID)
+		o, oerr := sess.GetOverlay(kind, blockstore.OverlayKey(ctx, b.ID, b.SourceText()))
 		if oerr != nil || len(o.Payload) == 0 {
 			continue
 		}

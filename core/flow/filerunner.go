@@ -77,6 +77,14 @@ type FileRunnerConfig struct {
 	// SourceLocale is the BCP-47 source locale.
 	SourceLocale model.LocaleID
 
+	// ProjectRoot, when set, is the project directory. A process-only run
+	// (RunFileToStore) tags each file's session context with the input's
+	// path relative to this root so the target overlays it commits are keyed
+	// globally-unique per source file (blockstore.StoreKey) rather than by the
+	// collision-prone file-local block id. Empty ⇒ ad-hoc run: overlays keep
+	// the raw id (a single document can't collide with itself).
+	ProjectRoot string
+
 	// Encoding is the file encoding (default: "UTF-8").
 	Encoding string
 
@@ -541,6 +549,15 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 	if !r.cfg.Store.Capabilities().Persistent {
 		reader.Close()
 		return errors.New("process-only run requires a persistent block store; the configured store is ephemeral")
+	}
+
+	// Tag the session with this file's project-relative path so the target
+	// overlays committed below are keyed globally-unique per source file
+	// (matching the block store's own keys), not by the file-local block id.
+	if r.cfg.ProjectRoot != "" {
+		if rel, err := filepath.Rel(r.cfg.ProjectRoot, inputPath); err == nil {
+			ctx = blockstore.WithSourceRel(ctx, rel)
+		}
 	}
 
 	// Project mode: stream the source through the document cache (parse → record
