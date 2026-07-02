@@ -41,13 +41,17 @@ export function useTabManager() {
 
   const navigate = useCallback(
     (v: string) => {
-      if (v === "home" || v === "app-settings") {
-        setGlobalView(v);
+      // `content` folds into the merged project home (issue #1068) — normalize
+      // the alias so the Project sidebar item highlights and the tab's stored
+      // view stays canonical.
+      const view = v === "content" ? "project-home" : v;
+      if (view === "home" || view === "app-settings") {
+        setGlobalView(view);
       } else if (mode === "projects" && activeTabID) {
         setGlobalView(""); // clear global overlay
-        setTabs((prev) => prev.map((t) => (t.info.id === activeTabID ? { ...t, view: v } : t)));
+        setTabs((prev) => prev.map((t) => (t.info.id === activeTabID ? { ...t, view } : t)));
       } else {
-        setGlobalView(v);
+        setGlobalView(view);
       }
     },
     [mode, activeTabID],

@@ -14,7 +14,6 @@ import { ChecksPanel } from "./ChecksPanel";
 import { FormatsPage } from "./FormatsPage";
 import { SettingsPage } from "./SettingsPage";
 import { HomePage } from "./HomePage";
-import { ContentPage } from "./ContentPage";
 import { ProjectSetupPage } from "./ProjectSetupPage";
 import { ProjectSettingsPage } from "./ProjectSettingsPage";
 import { ProjectPresetPage } from "./ProjectPresetPage";
@@ -101,15 +100,25 @@ export function ViewSwitch({
     flowName: string;
     flow: FlowSpec;
     runId: number;
+    scopePaths?: string[];
+    scopeLabel?: string;
   } | null>(null);
   const runCounter = useRef(0);
   const launchedRunIdRef = useRef<number | null>(null);
 
-  // Run a project flow from the home page: navigate to the runner view.
+  // Run a project flow from the home page: navigate to the runner view. An
+  // optional scope (the per-collection "Run") restricts the run to a single
+  // collection's files.
   const handleRunFlow = useCallback(
-    (_flowName: string, spec: FlowSpec) => {
+    (_flowName: string, spec: FlowSpec, opts?: { scopePaths?: string[]; scopeLabel?: string }) => {
       runCounter.current += 1;
-      setRunnerState({ flowName: _flowName, flow: spec, runId: runCounter.current });
+      setRunnerState({
+        flowName: _flowName,
+        flow: spec,
+        runId: runCounter.current,
+        scopePaths: opts?.scopePaths,
+        scopeLabel: opts?.scopeLabel,
+      });
       navigate("runner");
     },
     [navigate],
@@ -176,6 +185,10 @@ export function ViewSwitch({
   // key includes pluginsResolved so a successful install remounts the view.
   const projectView = ((): ReactNode => {
     switch (effectiveView) {
+      // `content` folds into the merged project home (issue #1068). Kept as an
+      // alias so existing onNavigate("content") calls and saved deep links still
+      // resolve to the collection-centric surface.
+      case "content":
       case "project-home":
         if (activeTab.isEmpty) {
           return (
@@ -203,21 +216,12 @@ export function ViewSwitch({
             project={history.project}
             displayName={activeTab.info.name}
             tabID={tabID}
+            onUpdate={updateProject}
             onRunFlow={handleRunFlow}
             onNavigate={navigate}
             pluginsResolved={activeTab.pluginsResolved}
             pluginIssues={activeTab.pluginIssues}
             onResetSample={() => onResetSample(tabID)}
-          />
-        );
-
-      case "content":
-        return (
-          <ContentPage
-            project={history.project}
-            projectPath={activeTab.info.path}
-            onUpdate={updateProject}
-            tabID={tabID}
           />
         );
 
@@ -259,6 +263,8 @@ export function ViewSwitch({
               flow={runnerState.flow}
               project={history.project}
               autoRun={runnerState.runId !== launchedRunIdRef.current}
+              scopePaths={runnerState.scopePaths}
+              scopeLabel={runnerState.scopeLabel}
               onLaunched={() => {
                 launchedRunIdRef.current = runnerState.runId;
               }}

@@ -52,6 +52,15 @@ export interface RunnerPageProps {
    * this component) does not relaunch — and duplicate — the same flow.
    */
   onLaunched?: () => void;
+  /**
+   * Explicit input paths to run, scoping the flow to a single collection's
+   * files (the per-collection "Run" on the project home). When set, these win
+   * over the matched-content ∩ active-filter resolution; target languages still
+   * follow the active filter. Empty/undefined ⇒ resolve the whole project.
+   */
+  scopePaths?: string[];
+  /** Human label for the scope (e.g. the collection name), shown in the header. */
+  scopeLabel?: string;
 }
 
 export function RunnerPage({
@@ -62,6 +71,8 @@ export function RunnerPage({
   project,
   autoRun,
   onLaunched,
+  scopePaths,
+  scopeLabel,
 }: RunnerPageProps) {
   const { activeJob, selectedJob, jobs, startJob, hasActive } = useJobFeed();
   const { active: activeFilter } = useActiveFilter();
@@ -141,14 +152,21 @@ export function RunnerPage({
     if (targets.length === 0) return;
 
     void (async () => {
-      const matches = await api.matchContent(tabID);
-      const paths = filterFiles(matches ?? [], activeFilter).map((m) => m.path);
+      // An explicit per-collection scope wins over the matched-content ∩ filter
+      // resolution; otherwise resolve the whole project narrowed by the filter.
+      let paths: string[];
+      if (scopePaths && scopePaths.length > 0) {
+        paths = scopePaths;
+      } else {
+        const matches = await api.matchContent(tabID);
+        paths = filterFiles(matches ?? [], activeFilter).map((m) => m.path);
+      }
       if (paths.length === 0) return;
 
       setInputFiles(paths);
       await launchFlow(paths, targets);
     })();
-  }, [autoRun, project, tabID, launchFlow, onLaunched, activeFilter]);
+  }, [autoRun, project, tabID, launchFlow, onLaunched, activeFilter, scopePaths]);
 
   // Manual path: when a project is in scope, pre-populate target language(s)
   // from the project defaults and input files from the matched content — so the
@@ -193,7 +211,11 @@ export function RunnerPage({
   return (
     <div className="p-6">
       <PageHeader
-        title={t("Run: {name}", { name: flowName })}
+        title={
+          scopeLabel
+            ? t("Run: {name} · {scope}", { name: flowName, scope: scopeLabel })
+            : t("Run: {name}", { name: flowName })
+        }
         className="mb-4"
         actions={
           <div className="flex items-center gap-2">
