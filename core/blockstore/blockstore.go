@@ -167,6 +167,15 @@ type OverlayEnumerator interface {
 	AllOverlays() iter.Seq2[Overlay, error]
 }
 
+// BlockPurger is an optional Session capability: drop every block in one call,
+// leaving overlays intact. A full re-extraction rebuilds the block set from
+// source, so it clears the previous set first rather than relying on per-key
+// upserts (whose keys can change between kapi versions). Stores that can't
+// bulk-delete need not implement it — callers treat its absence as a no-op.
+type BlockPurger interface {
+	DeleteBlocks() error
+}
+
 // Sentinel errors returned by Store/Session implementations.
 var (
 	// ErrNotFound indicates a block hash or overlay (kind,hash) not
