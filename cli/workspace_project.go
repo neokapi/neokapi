@@ -29,7 +29,7 @@ func (a *App) NewPackCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "pack -o <snapshot.klz>",
 		Short:   "Snapshot a .kapi project's working state into a .klz",
-		GroupID: "content",
+		GroupID: "advanced",
 		Long: `Snapshot a .kapi project's working state — the block-store overlays, the
 authoritative translation memory, and the termbase — into a portable .klz.
 Regenerable caches and secrets are excluded. Move the snapshot to another
@@ -61,7 +61,7 @@ func (a *App) NewInfoCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "info <work.klz>",
 		Short:   "Show a .klz workspace's state (dirty?)",
-		GroupID: "content",
+		GroupID: "advanced",
 		Example: `  kapi info work.klz`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -81,7 +81,7 @@ func (a *App) NewUnpackCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "unpack <snapshot.klz>",
 		Short:   "Rehydrate a project's working state from a .klz snapshot",
-		GroupID: "content",
+		GroupID: "advanced",
 		Example: `  kapi unpack snapshot.klz`,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

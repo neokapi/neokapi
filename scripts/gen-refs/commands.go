@@ -153,9 +153,12 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	// panic; not called during metadata extraction.
 	app.Config = cliconfig.NewAppConfig()
 
+	// Porcelain (#1078 C1): `kapi up` reconciles the project toward its gates.
+	root.AddCommand(app.NewUpCmd())
+
 	// Primary commands.
 	runCmd := app.NewRunCmd(cli.RunCmdOptions{})
-	runCmd.GroupID = "processing"
+	runCmd.GroupID = "advanced"
 	root.AddCommand(runCmd)
 	root.AddCommand(app.NewExtractCmd(cli.ExtractCmdOptions{}))
 	root.AddCommand(app.NewMergeCmd(cli.MergeCmdOptions{}))
@@ -186,7 +189,7 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	}
 
 	mcpCmd := app.NewMCPCmd("kapi")
-	mcpCmd.GroupID = "processing"
+	mcpCmd.GroupID = "advanced"
 	root.AddCommand(mcpCmd)
 
 	return root, toolNames

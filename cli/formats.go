@@ -21,7 +21,7 @@ func (a *App) NewFormatsCmd() *cobra.Command {
 	formatsCmd := &cobra.Command{
 		Use:     "formats",
 		Short:   "List supported file formats",
-		GroupID: "management",
+		GroupID: "advanced",
 		Long: `List all file formats that can be read and written.
 
 Use --mime or --ext to filter by MIME type or file extension.`,

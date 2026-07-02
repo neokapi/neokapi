@@ -39,7 +39,7 @@ func (a *App) NewBrandCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "brand",
 		Short:   "Keep AI-generated content on brand (voice, tone, terminology)",
-		GroupID: "management",
+		GroupID: "assets",
 		Long: `Check, rewrite, and govern content against a brand voice profile.
 
 Profile source (mutually exclusive):

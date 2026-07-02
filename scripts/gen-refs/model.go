@@ -159,7 +159,7 @@ type CommandEntry struct {
 	Long string `json:"long,omitempty"`
 	// Aliases is the list of alternative command names.
 	Aliases []string `json:"aliases,omitempty"`
-	// GroupID is the cobra command group, e.g. "processing", "management".
+	// GroupID is the cobra command group, e.g. "work", "assets", "advanced".
 	GroupID string `json:"groupID,omitempty"`
 	// Flags are the command-local flags (not inherited persistent flags).
 	Flags []CommandFlag `json:"flags,omitempty"`

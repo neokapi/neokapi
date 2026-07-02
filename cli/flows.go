@@ -10,7 +10,7 @@ func (a *App) NewFlowsCmd(opts FlowCmdOptions) *cobra.Command {
 	flowsCmd := &cobra.Command{
 		Use:     "flows",
 		Short:   "List available flows",
-		GroupID: "management",
+		GroupID: "advanced",
 		Example: "  kapi flows",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.listFlows(cmd, opts)

@@ -30,7 +30,7 @@ func (a *App) NewAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "add <pattern> [pattern...]",
 		Short:   "Add file patterns to the project's content",
-		GroupID: "content",
+		GroupID: "work",
 		Long: `Add file patterns to this project's content so kapi knows which files to
 process. Patterns support ** for recursive matching. Format is auto-detected
 from the extension unless --format is given.
@@ -92,7 +92,7 @@ func (a *App) NewLsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "ls [path...]",
 		Short:   "List the files the project's content tracks",
-		GroupID: "content",
+		GroupID: "work",
 		Long: `List the files matched by the project's content collections (honoring the
 exclude list). With --stats, also show per-file block and word counts.
 
@@ -207,7 +207,7 @@ func (a *App) NewRmCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "rm <pattern> [pattern...]",
 		Short:   "Remove file patterns from the project's content",
-		GroupID: "content",
+		GroupID: "work",
 		Long: `Stop tracking files matching the given patterns.
 
 If a pattern matches one added with 'kapi add', the mapping is removed.

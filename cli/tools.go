@@ -16,7 +16,7 @@ func (a *App) NewToolsCmd() *cobra.Command {
 	toolsCmd := &cobra.Command{
 		Use:     "tools",
 		Short:   "List available processing tools",
-		GroupID: "management",
+		GroupID: "advanced",
 		Example: "  kapi tools\n  kapi tools list",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.listTools(cmd)

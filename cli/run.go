@@ -60,6 +60,9 @@ shippable (or a pass stalls), parking whatever still needs a human. Convergence
 never fails the build: parked, drifted target content is normal toil, reported
 rather than thrown.
 
+The no-argument run's porcelain home is 'kapi up', which loops to the gates by
+default; 'kapi run' keeps custom-flow semantics.
+
 Built-in flows:
   translate-qa    Translate + quality check using AI/LLM
 
@@ -85,6 +88,9 @@ Use -p to run a flow from a .kapi project file:
 				if projectPath == "" {
 					return errors.New("kapi run needs a flow name, or a project with a default flow (defaults.flow); none found")
 				}
+				// One-release pointer (#1078): the no-argument run has a porcelain
+				// home in `kapi up`; run keeps custom-flow semantics.
+				fmt.Fprintln(cmd.ErrOrStderr(), "note: `kapi up` is the new home of the no-argument run; `kapi run` keeps custom-flow semantics.")
 				proj, perr := a.LoadProjectInteractive(cmd.Context(), projectPath, LoadProjectInteractiveOptions{AssumeYes: a.AssumeYes})
 				if perr != nil {
 					return fmt.Errorf("load project: %w", perr)

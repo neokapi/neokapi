@@ -122,7 +122,7 @@ func (a *App) NewToolboxProxies() []*cobra.Command {
 		return &cobra.Command{
 			Use:                verb,
 			Short:              short,
-			GroupID:            "content",
+			GroupID:            "",
 			Hidden:             true,
 			DisableFlagParsing: true, // do not inherit/parse kapi's persistent flags
 			RunE: func(cmd *cobra.Command, args []string) error {

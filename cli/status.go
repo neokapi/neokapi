@@ -115,7 +115,7 @@ func shipCell(lc LocaleCoverage) string {
 func (a *App) NewStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "status",
-		GroupID: "content",
+		GroupID: "work",
 		Short:   "Show per-locale translation coverage and ship-gate standing",
 		Long: `Show, per target locale, how much of the project's tracked content is
 translated and whether it clears its ship gate — a derived dashboard, like

@@ -141,7 +141,7 @@ func buildRoot() *cobra.Command {
 	app.AddCommandGroups(root)
 
 	runCmd := app.NewRunCmd(cli.RunCmdOptions{})
-	runCmd.GroupID = "processing"
+	runCmd.GroupID = "advanced"
 	root.AddCommand(runCmd)
 	root.AddCommand(app.NewExtractCmd(cli.ExtractCmdOptions{}))
 	root.AddCommand(app.NewMergeCmd(cli.MergeCmdOptions{}))

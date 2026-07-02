@@ -32,6 +32,13 @@ var rootCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	Long:          cli.KapiRootLong,
+	// Bare `kapi` inside a project shows the status summary plus a `kapi up`
+	// hint; outside a project it falls back to the standard help. Unknown
+	// subcommands still error (cobra's legacy args validation runs first),
+	// and --help output is untouched.
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return app.RootRunE(cmd, args)
+	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		app.Config = config.NewAppConfig()
 		if err := app.Init(); err != nil {

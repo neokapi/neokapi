@@ -46,7 +46,7 @@ func (a *App) newConvCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "convert [flags] [FILE...]",
 		Short:   "Convert files between formats (Markdown, HTML, DocLang, …)",
-		GroupID: "content",
+		GroupID: "advanced",
 		Long: `Convert the content of each file into another format, driven by the structural
 role layer rather than the source bytes. Headings, lists, tables and inline
 formatting are carried across, so a Word .docx, a DocLang document and a Docling

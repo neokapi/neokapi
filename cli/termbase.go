@@ -19,7 +19,7 @@ func (a *App) NewTermbaseCmd() *cobra.Command {
 	tbCmd := &cobra.Command{
 		Use:     "termbase",
 		Short:   "Manage terminology",
-		GroupID: "management",
+		GroupID: "assets",
 		Long: `Manage project terminology.
 
 A termbase is a glossary of approved terms stored as a SQLite database.

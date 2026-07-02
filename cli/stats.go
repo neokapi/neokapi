@@ -112,7 +112,7 @@ func (a *App) NewStatsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "stats [files...]",
 		Short:   "Summarize content metrics for files — blocks, words, characters, segments, by role",
-		GroupID: "analysis",
+		GroupID: "advanced",
 		Args:    cobra.ArbitraryArgs,
 		Long: `Summarize the content of one or more files: total and translatable blocks,
 word and character counts (with and without spaces), segments, and a breakdown

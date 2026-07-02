@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/output"
@@ -73,7 +74,7 @@ func (a *App) NewCheckCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "check [files...]",
 		Short:   "Verify content against a checkset and gate on severity, like tests over code",
-		GroupID: "quality",
+		GroupID: "work",
 		Args:    cobra.ArbitraryArgs,
 		Long: `Run content checks over one or more files and return structured findings
 plus a pass/fail, gating on severity — the content-first counterpart to a test
@@ -91,6 +92,14 @@ against its source.
 Each finding carries a stable rule id (<check>.<category>) and a block location,
 so an assistant can fix the exact block and track rules across iterations. Output
 is a human table by default; --json emits the kapi.check/v1 Report.
+
+Project gate mode (--ship) absorbs the former 'kapi verify': it runs the
+project's bound quality gates (brand, terminology, QA) plus its ship/source
+coverage gates over the project's content, and exits non-zero when any gate is
+unmet — the pre-release bar. Target drift never blocks an ordinary build (see
+'kapi status'); --ship is the explicit, opt-in enforcement point. With no file
+arguments it inspects the project's content x target languages; pass files to
+gate just those.
 
 Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 0 (report mode) for a fix-loop.`,
@@ -112,7 +121,7 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 	f.Int("max-critical", 0, "fail if critical findings exceed this count")
 	f.Int("max-major", -1, "fail if major findings exceed this count (-1 = no limit)")
 	f.Int("max-minor", -1, "fail if minor findings exceed this count (-1 = no limit)")
-	f.Int("min-score", 0, "fail if the roll-up score is below this (0 = no score gate)")
+	f.Int("min-score", 0, "fail if the roll-up score is below this (0 = no score gate); with --ship: the brand-gate compliance threshold (default "+strconv.Itoa(DefaultBrandMinScore)+")")
 	f.Bool("strict", false, "strict gate: fail on any critical or major finding")
 	f.Bool("lenient", false, "report only: never fail the gate (still prints findings)")
 	f.Bool("no-fail", false, "exit 0 even when the gate fails (fix-loop mode)")
@@ -120,11 +129,22 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 	f.Float64("voice-min", DefaultVoiceSimilarity, "voice-similarity cutoff (cosine, 0-1) below which a block is flagged off-voice")
 	f.String("validate", "off", "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the Report; strict also fails the gate on a Major+ structure/encoding problem)")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
+
+	// Project gate mode (--ship): the absorbed `kapi verify` surface.
+	AddProjectFlag(cmd)
+	f.Bool("ship", false, "project gate mode: run the project's bound gates (brand, terminology, QA) plus its ship/source coverage gates; exit non-zero when unmet (absorbs `kapi verify` — the pre-release bar)")
+	f.String("locale", "", "with --ship: scope the target-side gates to a single target locale (e.g. fr)")
+	f.String("termbase", "", "with --ship: named termbase or glossary path for the terminology gate (defaults to the project termbase)")
+
 	cmd.MarkFlagsMutuallyExclusive("strict", "lenient")
+	cmd.MarkFlagsMutuallyExclusive("ship", "target")
 	return cmd
 }
 
 func (a *App) runCheck(cmd *cobra.Command, args []string) error {
+	if ship, _ := cmd.Flags().GetBool("ship"); ship {
+		return a.runShipCheck(cmd, args)
+	}
 	report, err := a.computeCheck(cmd, args)
 	if err != nil {
 		return err
@@ -139,6 +159,25 @@ func (a *App) runCheck(cmd *cobra.Command, args []string) error {
 		return ErrQualityGate
 	}
 	return nil
+}
+
+// runShipCheck is `kapi check --ship`: the project gate mode that absorbed
+// `kapi verify` (#1078 C1). It routes through the shared verify engine
+// (runVerify/computeVerify), so a release gate and the hidden verify alias
+// evaluate a project identically. Flag defaults that differ between the file
+// checkset and the project gates are mapped here: an untouched --min-score
+// means the brand-gate threshold (DefaultBrandMinScore), and an untouched
+// --source-lang defers to the project's source_language.
+func (a *App) runShipCheck(cmd *cobra.Command, args []string) error {
+	if !cmd.Flags().Changed("min-score") {
+		_ = cmd.Flags().Set("min-score", strconv.Itoa(DefaultBrandMinScore))
+	}
+	if !cmd.Flags().Changed("source-lang") {
+		// computeVerify treats "" as "use the project's source_language"; the
+		// check flag's static default ("en") would otherwise override it.
+		_ = cmd.Flags().Set("source-lang", "")
+	}
+	return a.runVerify(cmd, args)
 }
 
 // computeCheck runs the configured checkset over the input file(s) and assembles
