@@ -14,6 +14,7 @@ import {
 import { CoverageBadge } from "./CoverageBadge";
 import {
   countryByCode,
+  demandProvenanceLabel,
   formatSessions,
   formatShare,
   formatTokens,
@@ -37,6 +38,16 @@ export interface DemandDrillDownPanelProps {
 const DEMAND_COLOR = "var(--chart-1, oklch(0.646 0.222 41.116))";
 
 function TrendAreaChart({ trend }: { trend: number[] }) {
+  if (trend.length === 0) {
+    return (
+      <div
+        className="flex h-36 w-full items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground/60"
+        data-testid="trend-chart-no-data"
+      >
+        No trend data from this source
+      </div>
+    );
+  }
   const data = trend.map((sessions, i) => ({ week: `W${i + 1}`, sessions }));
   return (
     <div className="h-36 w-full">
@@ -96,7 +107,7 @@ function BreakdownBar({ share }: { share: number }) {
   );
 }
 
-function ServedOutcome({ servedRate }: { servedRate: number }) {
+function ServedOutcome({ servedRate }: { servedRate: number | null }) {
   return (
     <section>
       <h3 className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -105,14 +116,35 @@ function ServedOutcome({ servedRate }: { servedRate: number }) {
       <div className="rounded-lg border bg-card px-3 py-2">
         <div className="flex items-baseline justify-between">
           <span className="text-sm">Got their language today</span>
-          <span className="text-lg font-semibold tabular-nums">{formatShare(servedRate)}</span>
+          {servedRate === null ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="text-lg font-semibold text-muted-foreground/60"
+                    data-testid="served-rate-unavailable"
+                  >
+                    —
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Not derivable from this source — the served locale can't be read from your URL
+                  paths yet.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <span className="text-lg font-semibold tabular-nums">{formatShare(servedRate)}</span>
+          )}
         </div>
-        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full"
-            style={{ width: `${servedRate * 100}%`, background: DEMAND_COLOR }}
-          />
-        </div>
+        {servedRate !== null && (
+          <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${servedRate * 100}%`, background: DEMAND_COLOR }}
+            />
+          </div>
+        )}
       </div>
     </section>
   );
@@ -291,8 +323,11 @@ export function DemandDrillDownPanel({
         )}
       </div>
 
-      <footer className="border-t px-4 py-2.5 text-[11px] text-muted-foreground">
-        Demand data: sample dataset (web beacon + app telemetry ingest)
+      <footer
+        className="border-t px-4 py-2.5 text-[11px] text-muted-foreground"
+        data-testid="demand-provenance"
+      >
+        {demandProvenanceLabel(snapshot.provenance)}
       </footer>
     </aside>
   );

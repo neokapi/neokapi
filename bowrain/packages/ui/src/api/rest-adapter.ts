@@ -53,6 +53,9 @@ import type {
   CreateStreamTagRequest,
   CollectionInfo,
   CreateCollectionRequest,
+  PostHogConnectorConfig,
+  PostHogConnectorConfigRequest,
+  PostHogDemandResponse,
   AuditEntry,
   AuditQuery,
   AuditChainVerification,
@@ -942,6 +945,48 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/collections/${collectionId}`,
       { method: "DELETE" },
+    );
+  }
+
+  // ── PostHog locale-demand connector ─────────────────────────────────────
+  // /:ws/:id/connectors/posthog — the personal API key is write-only; the
+  // server stores it sealed and config reads return only a masked tail.
+
+  async getPostHogConnector(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<PostHogConnectorConfig> {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/connectors/posthog`);
+  }
+
+  async savePostHogConnector(
+    workspaceSlug: string,
+    projectId: string,
+    req: PostHogConnectorConfigRequest,
+  ): Promise<PostHogConnectorConfig> {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/connectors/posthog`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
+  }
+
+  async deletePostHogConnector(workspaceSlug: string, projectId: string): Promise<void> {
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/connectors/posthog`, {
+      method: "DELETE",
+    });
+  }
+
+  async getPostHogDemand(
+    workspaceSlug: string,
+    projectId: string,
+    range: string,
+    refresh?: boolean,
+  ): Promise<PostHogDemandResponse> {
+    const params = new URLSearchParams({ range });
+    if (refresh) params.set("refresh", "true");
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/connectors/posthog/demand?${params}`,
     );
   }
 
