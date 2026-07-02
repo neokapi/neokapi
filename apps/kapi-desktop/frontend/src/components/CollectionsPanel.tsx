@@ -243,7 +243,7 @@ interface TimelineItem {
   lang: string;
   pct: number; // overall translated coverage, 0–100
   stage: keyof typeof STAGE_COLOR;
-  byCollection: { name: string; pct: number; stage: keyof typeof STAGE_COLOR }[];
+  byCollection: { name: string; pct: number; stage: keyof typeof STAGE_COLOR; color: string }[];
 }
 
 /** LanguageTimeline plots each language on a 0→100% completeness axis as a dot
@@ -263,12 +263,19 @@ function LanguageTimeline({ items }: { items: TimelineItem[] }) {
     return () => ro.disconnect();
   }, []);
 
-  const PAD = 38; // horizontal inset so the 0% / 100% tags don't clip
-  const CHIP = 62; // min horizontal gap before a tag stacks into the next lane
-  const ROW = 22; // extra stem length per lane
-  const BASE = 16; // shortest stem (lane 0)
-  const TAG_H = 16; // tag height
+  const PAD = 40; // horizontal inset so the 0% / 100% tags don't clip
+  const CHIP = 80; // min horizontal gap before a tag stacks into the next lane
+  const ROW = 24; // extra stem length per lane
+  const BASE = 18; // shortest stem (lane 0)
+  const TAG_H = 20; // tag height (a LocalePill + %)
   const color = (s: string) => STAGE_COLOR[s] ?? STAGE_COLOR.none;
+  const stageLabel = (s: string) =>
+    ({
+      shippable: "Shippable",
+      review: "In review",
+      translated: "Translated",
+      none: "Not started",
+    })[s] ?? s;
   const xOf = (pct: number) => PAD + (pct / 100) * usable;
 
   // Greedy lane assignment on an ascending copy, then alternate lanes above/below
@@ -318,7 +325,7 @@ function LanguageTimeline({ items }: { items: TimelineItem[] }) {
           placed.map(({ it, x, above, sideLane }) => {
             const c = color(it.stage);
             const stem = BASE + sideLane * ROW;
-            const dim = hovered && hovered !== it.lang ? 0.25 : 1;
+            const dim = hovered && hovered !== it.lang ? 0.12 : 1;
             const tagTop = above ? axisY - stem - TAG_H : axisY + stem;
             return (
               // Static wrapper: opacity dims the whole group; children still
@@ -363,72 +370,69 @@ function LanguageTimeline({ items }: { items: TimelineItem[] }) {
                     border: "2px solid var(--card)",
                   }}
                 />
-                {/* tag */}
+                {/* tag: locale pill (colours consistent with the rest of the UI)
+                    + overall %; the on-line dot carries the ship-gate stage. */}
                 <span
-                  className="absolute -translate-x-1/2 cursor-default"
+                  className="absolute flex -translate-x-1/2 items-center gap-1 whitespace-nowrap cursor-default"
                   style={{ left: x, top: tagTop }}
                   onMouseEnter={() => setHovered(it.lang)}
                   onMouseLeave={() => setHovered(null)}
+                  title={`${it.lang}: ${it.pct}% translated`}
                 >
-                  <span
-                    className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium shadow-sm"
-                    style={{
-                      borderColor: c,
-                      background: `color-mix(in oklch, ${c} 12%, var(--card))`,
-                    }}
-                    title={`${it.lang}: ${it.pct}% translated`}
-                  >
-                    <span translate="no">{it.lang}</span>
-                    <span className="tabular-nums text-muted-foreground">{it.pct}</span>
+                  <LocalePill locale={it.lang} />
+                  <span className="text-[10px] font-medium tabular-nums text-muted-foreground">
+                    {it.pct}%
                   </span>
                 </span>
               </span>
             );
           })}
-        {/* hover expansion: a dot per collection on the line + breakdown popover */}
-        {width > 0 && hoveredItem && hoveredItem.byCollection.length > 0 && (
-          <>
-            {hoveredItem.byCollection.map((cc, i) => (
-              <span
-                key={`${cc.name}-${i}`}
-                className="absolute rounded-full"
-                style={{
-                  left: xOf(cc.pct),
-                  top: axisY,
-                  width: 7,
-                  height: 7,
-                  transform: "translate(-50%, -50%)",
-                  background: color(cc.stage),
-                  border: "1.5px solid var(--card)",
-                  boxShadow: "0 0 0 1px var(--border)",
-                }}
-                title={`${cc.name}: ${cc.pct}%`}
-              />
-            ))}
-            <div
-              className="absolute z-10 -translate-x-1/2 rounded-md border border-border bg-popover p-1.5 text-[10px] shadow-md"
-              style={{
-                left: Math.min(Math.max(xOf(hoveredItem.pct), 70), Math.max(70, width - 70)),
-                top: scaleY + 2,
-                minWidth: 120,
-              }}
-            >
-              <div className="mb-0.5 font-medium" translate="no">
-                {hoveredItem.lang}
-              </div>
-              {hoveredItem.byCollection.map((cc, i) => (
-                <div key={`${cc.name}-${i}`} className="flex items-center gap-1.5">
-                  <span
-                    className="size-1.5 shrink-0 rounded-full"
-                    style={{ background: color(cc.stage) }}
-                  />
-                  <span className="flex-1 truncate text-muted-foreground">{cc.name}</span>
-                  <span className="tabular-nums">{cc.pct}%</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        {/* hover expansion: plot each collection directly on the line — a dot at
+            its completeness level (fill = collection colour, ring = ship-gate
+            stage), labelled with the collection + % above a short stem. */}
+        {width > 0 &&
+          hoveredItem &&
+          hoveredItem.byCollection.map((cc, i) => {
+            const cx = xOf(cc.pct);
+            return (
+              <span key={`${cc.name}-${i}`} className="z-10">
+                {/* mini stem from label to the dot */}
+                <span
+                  className="absolute -translate-x-1/2"
+                  style={{
+                    left: cx,
+                    top: axisY - 20,
+                    width: 1,
+                    height: 16,
+                    background: `color-mix(in oklch, ${cc.color} 60%, var(--border))`,
+                  }}
+                />
+                {/* dot on the line: collection fill + stage-coloured ring */}
+                <span
+                  className="absolute rounded-full"
+                  style={{
+                    left: cx,
+                    top: axisY,
+                    width: 11,
+                    height: 11,
+                    transform: "translate(-50%, -50%)",
+                    background: cc.color,
+                    border: `2px solid ${color(cc.stage)}`,
+                    boxShadow: "0 0 0 1px var(--card)",
+                  }}
+                  title={`${cc.name}: ${cc.pct}% · ${stageLabel(cc.stage)}`}
+                />
+                {/* label above the stem */}
+                <span
+                  className="absolute -translate-x-1/2 whitespace-nowrap rounded-full border bg-card px-1.5 py-0.5 text-[9px] font-medium shadow-sm"
+                  style={{ left: cx, top: axisY - 38, borderColor: cc.color }}
+                >
+                  <span translate="no">{cc.name}</span>{" "}
+                  <span className="tabular-nums text-muted-foreground">{cc.pct}%</span>
+                </span>
+              </span>
+            );
+          })}
         {/* % scale under the line */}
         {width > 0 &&
           [0, 50, 100].map((tk) => (
@@ -1420,6 +1424,12 @@ export function CollectionsPanel({
     if (lc.shippable) return "shippable";
     return (lc.pct?.reviewed ?? 0) > 0 ? "review" : "translated";
   };
+  // Collection → its cake/Layers colour, keyed the way convergence reports it
+  // (collection "" for bare entries), so the hover breakdown matches the donut.
+  const collColorByName = new Map<string, string>();
+  visibleContent.forEach(({ coll }, idx) =>
+    collColorByName.set(coll.name ?? "", collectionColor(idx)),
+  );
   const timelineItems: TimelineItem[] | null = hasGates
     ? columnLangs.map((lang) => {
         let total = 0;
@@ -1437,6 +1447,7 @@ export function CollectionsPanel({
             name: lc.collection || t("(unnamed)"),
             pct: Math.round(lc.pct?.translated ?? 0),
             stage: scopeStage(lc),
+            color: collColorByName.get(lc.collection || "") ?? "var(--muted-foreground)",
           });
         }
         byCollection.sort((a, b) => b.pct - a.pct);
