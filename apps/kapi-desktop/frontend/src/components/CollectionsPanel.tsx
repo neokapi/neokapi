@@ -244,10 +244,10 @@ interface TimelineItem {
   stage: keyof typeof STAGE_COLOR;
 }
 
-/** LanguageTimeline plots each language on a 0→100% completeness axis, coloured
- *  by its ship-gate stage, auto-stacking into lanes where languages cluster. It
- *  answers "how close is each language, and where does the pack sit?" at a
- *  glance — the project-wide overview above the per-collection rows. */
+/** LanguageTimeline plots each language on a 0→100% completeness axis as a dot
+ *  on the line, with a vertical stem/arrow up to its tag. Colours encode the
+ *  ship-gate stage; tags stack into lanes (taller stems) where languages cluster
+ *  — the project-wide overview above the per-collection rows. */
 function LanguageTimeline({ items }: { items: TimelineItem[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -259,62 +259,117 @@ function LanguageTimeline({ items }: { items: TimelineItem[] }) {
     return () => ro.disconnect();
   }, []);
 
-  const CHIP = 64; // approx chip width incl. gap, for overlap detection
-  const ROW = 26;
+  const PAD = 38; // horizontal inset so the 0% / 100% tags don't clip
+  const CHIP = 62; // min horizontal gap before a tag stacks into the next lane
+  const ROW = 22; // extra stem length per lane
+  const BASE = 16; // shortest stem (lane 0)
+  const TAG_H = 16; // tag height
   const color = (s: string) => STAGE_COLOR[s] ?? STAGE_COLOR.none;
 
-  // Greedy lane assignment on an ascending copy so dense regions stack upward.
+  // Greedy lane assignment on an ascending copy so clustered tags stack upward.
+  const usable = Math.max(0, width - 2 * PAD);
   const sorted = [...items].sort((a, b) => a.pct - b.pct);
   const laneLast: number[] = [];
-  const usable = Math.max(0, width - CHIP);
   const placed = sorted.map((it) => {
-    const x = (it.pct / 100) * usable;
+    const x = PAD + (it.pct / 100) * usable;
     let lane = 0;
     while (lane < laneLast.length && x - laneLast[lane] < CHIP) lane++;
     laneLast[lane] = x;
     return { it, x, lane };
   });
   const lanes = width > 0 ? Math.max(1, laneLast.length) : 1;
+  const axisY = TAG_H + BASE + (lanes - 1) * ROW + 6; // baseline (the line)
+  const height = axisY + 16; // room for the % scale under the line
 
   return (
     <div>
       <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {t("Completeness by language")}
       </div>
-      <div ref={ref} className="relative" style={{ height: lanes * ROW + 20 }}>
-        {/* axis + gridlines */}
-        <div className="absolute inset-x-0 top-3 h-px bg-border" />
-        {[25, 50, 75].map((g) => (
-          <div
-            key={g}
-            className="absolute top-3 bottom-0 w-px bg-border/40"
-            style={{ left: `${g}%` }}
-          />
-        ))}
-        <span className="absolute top-0 left-0 text-[9px] text-muted-foreground">0%</span>
-        <span className="absolute top-0 left-1/2 -translate-x-1/2 text-[9px] text-muted-foreground">
-          50%
-        </span>
-        <span className="absolute top-0 right-0 text-[9px] text-muted-foreground">100%</span>
-        {/* language chips */}
+      <div ref={ref} className="relative" style={{ height }}>
+        {/* faint gridlines up to the axis */}
         {width > 0 &&
-          placed.map(({ it, x, lane }) => (
-            <span key={it.lang} className="absolute" style={{ left: x, top: 16 + lane * ROW }}>
-              <span
-                className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium shadow-sm"
-                style={{
-                  borderColor: color(it.stage),
-                  background: `color-mix(in oklch, ${color(it.stage)} 12%, var(--card))`,
-                }}
-                title={`${it.lang}: ${it.pct}% translated`}
-              >
+          [25, 50, 75].map((g) => (
+            <div
+              key={g}
+              className="absolute w-px bg-border/40"
+              style={{ left: PAD + (g / 100) * usable, top: 0, height: axisY }}
+            />
+          ))}
+        {/* the timeline itself */}
+        <div className="absolute h-px bg-border" style={{ left: PAD, right: PAD, top: axisY }} />
+        {/* each language: tag → vertical stem → arrow → dot on the line */}
+        {width > 0 &&
+          placed.map(({ it, x, lane }) => {
+            const c = color(it.stage);
+            const stemTop = axisY - (BASE + lane * ROW);
+            return (
+              <Fragment key={it.lang}>
                 <span
-                  className="size-1.5 shrink-0 rounded-full"
-                  style={{ background: color(it.stage) }}
+                  className="absolute -translate-x-1/2"
+                  style={{
+                    left: x,
+                    top: stemTop,
+                    width: 1,
+                    height: axisY - stemTop - 4,
+                    background: `color-mix(in oklch, ${c} 55%, var(--border))`,
+                  }}
                 />
-                <span translate="no">{it.lang}</span>
-                <span className="tabular-nums text-muted-foreground">{it.pct}</span>
-              </span>
+                {/* arrowhead pointing down onto the dot */}
+                <span
+                  className="absolute -translate-x-1/2"
+                  style={{
+                    left: x,
+                    top: axisY - 8,
+                    width: 0,
+                    height: 0,
+                    borderLeft: "3px solid transparent",
+                    borderRight: "3px solid transparent",
+                    borderTop: `4px solid ${c}`,
+                  }}
+                />
+                {/* dot on the line */}
+                <span
+                  className="absolute rounded-full"
+                  style={{
+                    left: x,
+                    top: axisY,
+                    width: 8,
+                    height: 8,
+                    transform: "translate(-50%, -50%)",
+                    background: c,
+                    border: "2px solid var(--card)",
+                  }}
+                />
+                {/* tag */}
+                <span
+                  className="absolute -translate-x-1/2"
+                  style={{ left: x, top: stemTop - TAG_H }}
+                >
+                  <span
+                    className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium shadow-sm"
+                    style={{
+                      borderColor: c,
+                      background: `color-mix(in oklch, ${c} 12%, var(--card))`,
+                    }}
+                    title={`${it.lang}: ${it.pct}% translated`}
+                  >
+                    <span translate="no">{it.lang}</span>
+                    <span className="tabular-nums text-muted-foreground">{it.pct}</span>
+                  </span>
+                </span>
+              </Fragment>
+            );
+          })}
+        {/* % scale under the line */}
+        {width > 0 &&
+          [0, 50, 100].map((tk) => (
+            <span
+              key={tk}
+              className="absolute -translate-x-1/2 text-[9px] text-muted-foreground"
+              style={{ left: PAD + (tk / 100) * usable, top: axisY + 4 }}
+            >
+              {tk}%
             </span>
           ))}
       </div>
