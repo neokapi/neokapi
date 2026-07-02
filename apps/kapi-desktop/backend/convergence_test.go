@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
@@ -90,24 +91,114 @@ type LocalePct struct {
 	shippable  bool
 }
 
-func TestBringUpToDate_LaunchesDefaultFlow(t *testing.T) {
+func TestBringUpToDate_RunsSharedUpEngine(t *testing.T) {
 	app := NewApp()
-	tab, _ := newConvergenceProject(t, app)
+	tab, root := newConvergenceProject(t, app)
 
-	// BringUpToDate resolves the project's content + locales and launches the
-	// default flow; the run reaches a terminal state. (The pseudo preview flow
-	// writes its own qps locale, so we assert wiring, not target coverage — a
-	// real translate/recycle default flow honors the project's target locales.)
+	// BringUpToDate drives the CLI's up engine (loop-to-gate, auto-extract on
+	// drift, checks in the loop) and reaches a terminal state.
 	require.NoError(t, app.BringUpToDate(tab.ID))
 	require.Eventually(t, func() bool {
 		s := app.GetRunState()
 		return s == string(RunStateComplete) || s == string(RunStateError)
-	}, 20*time.Second, 50*time.Millisecond, "the default-flow run should reach a terminal state")
-	assert.Equal(t, string(RunStateComplete), app.GetRunState(), "the pseudo default flow completes")
+	}, 30*time.Second, 50*time.Millisecond, "the convergence run should reach a terminal state")
+	require.Equal(t, string(RunStateComplete), app.GetRunState(), "the pseudo default flow converges")
 
-	// The report is still derivable after a run.
-	_, err := app.GetConvergence(tab.ID)
+	// The engine honors the project's target locales (unlike a raw flow run):
+	// both target files materialize, so file-derived coverage clears the gate.
+	for _, loc := range []string{"fr-FR", "de-DE"} {
+		_, serr := os.Stat(filepath.Join(root, "locales", loc+".json"))
+		require.NoError(t, serr, "convergence must materialize %s", loc)
+	}
+	rep, err := app.GetConvergence(tab.ID)
 	require.NoError(t, err)
+	for _, lc := range rep.Locales {
+		assert.Equal(t, 100, lc.Pct["translated"], "%s fully translated", lc.Locale)
+		assert.True(t, lc.Shippable, "%s clears translated:100", lc.Locale)
+	}
+
+	// The event stream carries the convergence shape: per-pass snapshots and a
+	// final structured result (what the runner's passes view renders).
+	events := app.GetRunEvents()
+	var passes int
+	var result *cli.ConvergeOutput
+	for _, ev := range events {
+		if ev.Type == "converge_pass" {
+			passes++
+			require.NotNil(t, ev.Converge)
+			assert.Positive(t, ev.Converge.Produced)
+		}
+		if ev.Type == "complete" {
+			result = ev.ConvergeResult
+		}
+	}
+	assert.Positive(t, passes, "at least one converge_pass event")
+	require.NotNil(t, result, "the complete event carries the structured result")
+	assert.True(t, result.Converged)
+	assert.Empty(t, result.ParkedScopes)
+}
+
+func TestBringUpToDate_RefusesConcurrentRun(t *testing.T) {
+	app := NewApp()
+	tab, _ := newConvergenceProject(t, app)
+
+	require.NoError(t, app.BringUpToDate(tab.ID))
+	// While the first run is live, a second launch is refused.
+	err := app.BringUpToDate(tab.ID)
+	if err == nil {
+		// The first run may already have finished on a fast machine — only a
+		// still-running state must refuse.
+		t.Skip("first run finished before the second launch; nothing to assert")
+	}
+	assert.Contains(t, err.Error(), "already running")
+	require.Eventually(t, func() bool {
+		s := app.GetRunState()
+		return s == string(RunStateComplete) || s == string(RunStateError)
+	}, 30*time.Second, 50*time.Millisecond)
+}
+
+func TestGetConvergePlan_ReportsPendingWorkAndDrift(t *testing.T) {
+	app := NewApp()
+	tab, _ := newConvergenceProject(t, app)
+
+	// Never extracted, nothing translated: every unit × locale is pending and
+	// the store is missing (the drift Bring up to date would heal).
+	plan, err := app.GetConvergePlan(tab.ID)
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+	assert.True(t, plan.StoreMissing, "no block store yet")
+	assert.Equal(t, 4, plan.Plan.Totals.MissingTarget, "2 units × 2 locales")
+	assert.Equal(t, 4, plan.Plan.Totals.AIRemaining, "no TM → all AI work")
+	assert.Positive(t, plan.Plan.Totals.TokenEstimate)
+	assert.NotEmpty(t, plan.Plan.Note, "the token heuristic is disclosed")
+	require.Len(t, plan.Plan.Scopes, 2)
+	for _, s := range plan.Plan.Scopes {
+		assert.Equal(t, 2, s.MissingTarget)
+	}
+}
+
+func TestGetConvergePlan_ConvergedProjectHasNoWork(t *testing.T) {
+	app := NewApp()
+	tab, _ := newConvergenceProject(t, app)
+
+	// Bring the project up to date, then re-plan: nothing left to do.
+	require.NoError(t, app.BringUpToDate(tab.ID))
+	require.Eventually(t, func() bool {
+		return app.GetRunState() == string(RunStateComplete)
+	}, 30*time.Second, 50*time.Millisecond)
+
+	plan, err := app.GetConvergePlan(tab.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, plan.Plan.Totals.MissingTarget)
+	assert.Empty(t, plan.Plan.Scopes)
+	assert.False(t, plan.StoreMissing, "the run's auto-extract populated the store")
+	assert.Zero(t, plan.ChangedFiles, "sources unchanged since the run's extract")
+}
+
+func TestGetConvergePlan_UnknownTab(t *testing.T) {
+	app := NewApp()
+	_, err := app.GetConvergePlan("nope")
+	require.Error(t, err)
 }
 
 func TestBringUpToDate_NoDefaultFlow(t *testing.T) {

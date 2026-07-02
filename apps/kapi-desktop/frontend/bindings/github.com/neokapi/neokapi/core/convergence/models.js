@@ -75,6 +75,17 @@ export class LocaleCoverage {
              */
             this["pending"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * AIReviewed counts units whose reviewed/signed-off rung was reached by an
+             * autonomous AI decision ("ai/…" identity). They read as reviewed in Pct —
+             * with an "(ai)" qualifier in displays — but do not satisfy a gate's
+             * reviewed/signed-off threshold unless it says `by: any` (core/gate).
+             * @member
+             * @type {number | undefined}
+             */
+            this["aiReviewed"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -227,6 +238,24 @@ export class ReviewItem {
              * @type {boolean | null | undefined}
              */
             this["hasFindings"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * AIScore is the unit's AI pre-review score (0–100) when a fresh annotation
+             * exists for the current translation; nil when none was recorded (queue
+             * listing never calls a provider — the score is read from the state store).
+             * @member
+             * @type {number | null | undefined}
+             */
+            this["aiScore"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * AIModel names the model that produced AIScore.
+             * @member
+             * @type {string | undefined}
+             */
+            this["aiModel"] = undefined;
         }
 
         Object.assign(this, $$source);
