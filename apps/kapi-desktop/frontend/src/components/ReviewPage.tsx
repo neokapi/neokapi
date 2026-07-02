@@ -1,0 +1,791 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Check,
+  CheckCheck,
+  CheckCircle2,
+  Circle,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Undo2,
+  X,
+} from "lucide-react";
+import { Badge, Button, Card, CardContent, LocalePill, ScrollArea } from "@neokapi/ui-primitives";
+import { t } from "@neokapi/kapi-react/runtime";
+import { api } from "../hooks/useApi";
+import { useError } from "./ErrorBanner";
+import type { DesktopFinding, ReviewItem, ReviewUnitDetail } from "../types/api";
+
+/** Initial queue narrowing handed in by an entry point (a ship-gate cell or a
+ *  timeline tag on the Collections surface). */
+export interface ReviewScope {
+  collection?: string;
+  locale?: string;
+}
+
+export type ReviewDecision = "approved" | "rejected" | "signed-off";
+
+export interface ReviewPageProps {
+  tabID: string;
+  /** Narrow the queue to a (collection, locale) on entry. */
+  scope?: ReviewScope;
+  /** Pre-loaded queue for Storybook/tests — skips api.getReviewQueue(). */
+  items?: ReviewItem[];
+  /** Override the unit loader (Storybook/tests); defaults to api.getReviewUnit. */
+  loadUnit?: (item: ReviewItem) => Promise<ReviewUnitDetail | null>;
+  /** Override the decision recorder (Storybook/tests); defaults to the Wails calls. */
+  onDecide?: (item: ReviewItem, decision: ReviewDecision, note?: string) => Promise<void>;
+  /** Override the target-save handler (Storybook/tests); defaults to api.updateReviewTarget. */
+  onSaveTarget?: (item: ReviewItem, text: string) => Promise<void>;
+}
+
+type Chip = "all" | "findings" | "clean";
+
+const itemId = (it: ReviewItem) => `${it.locale}:${it.file}:${it.key}`;
+
+function shortFile(p: string): string {
+  const parts = p.split(/[\\/]/);
+  return parts.slice(-2).join("/") || p;
+}
+
+/** Queue ordering: findings first, then file, then key (Phase 2). */
+function orderItems(items: ReviewItem[]): ReviewItem[] {
+  return [...items].sort((a, b) => {
+    const fa = a.hasFindings ? 0 : 1;
+    const fb = b.hasFindings ? 0 : 1;
+    if (fa !== fb) return fa - fb;
+    if (a.file !== b.file) return a.file.localeCompare(b.file);
+    if (a.key !== b.key) return a.key.localeCompare(b.key);
+    return a.locale.localeCompare(b.locale);
+  });
+}
+
+function severityBadgeClass(severity: string): string {
+  switch (severity) {
+    case "critical":
+      return "border-destructive/40 bg-destructive/10 text-destructive";
+    case "major":
+      return "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400";
+    case "minor":
+      return "border-amber-500/30 bg-amber-500/5 text-amber-600/90 dark:text-amber-400/90";
+    default:
+      return "text-muted-foreground";
+  }
+}
+
+/**
+ * The translation review surface (issue #1077, phases 1–2): a keyboard-first
+ * three-pane page — the queue on the left (findings-first, filterable by
+ * findings/locale/collection), the unit in the center (read-only SOURCE,
+ * editable TARGET), and the unit's CHECKS findings + CONTEXT (state, note,
+ * provenance, TM match) below. Every decision (a approve / r reject / s sign
+ * off) records through cli.ApplyReviewDecision, hash-bound to the translation
+ * it judged; editing the target re-runs the unit's checks and re-bases the
+ * next approval on the new text.
+ */
+export function ReviewPage({
+  tabID,
+  scope,
+  items: propItems,
+  loadUnit,
+  onDecide,
+  onSaveTarget,
+}: ReviewPageProps) {
+  const { showError } = useError();
+  const [queue, setQueue] = useState<ReviewItem[] | null>(propItems ?? null);
+  const [loadingQueue, setLoadingQueue] = useState(!propItems);
+  const [chip, setChip] = useState<Chip>("all");
+  const [localeFilter, setLocaleFilter] = useState(scope?.locale ?? "");
+  const [collectionFilter, setCollectionFilter] = useState(scope?.collection ?? "");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [unit, setUnit] = useState<ReviewUnitDetail | null>(null);
+  const [unitLoading, setUnitLoading] = useState(false);
+  const [editText, setEditText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deciding, setDeciding] = useState(false);
+  const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
+  const editRef = useRef<HTMLTextAreaElement>(null);
+
+  const refreshQueue = useCallback(async () => {
+    if (propItems) {
+      setQueue(propItems);
+      setLoadingQueue(false);
+      return;
+    }
+    setLoadingQueue(true);
+    try {
+      const items = await api.getReviewQueue(tabID);
+      setQueue(items ?? []);
+    } catch (err) {
+      showError("Failed to load the review queue", err);
+      setQueue([]);
+    } finally {
+      setLoadingQueue(false);
+    }
+  }, [tabID, propItems, showError]);
+
+  useEffect(() => {
+    void refreshQueue();
+  }, [refreshQueue]);
+
+  // Filter options derived from the full queue.
+  const locales = useMemo(
+    () => Array.from(new Set((queue ?? []).map((it) => it.locale))).sort(),
+    [queue],
+  );
+  const collections = useMemo(
+    () =>
+      Array.from(new Set((queue ?? []).map((it) => it.collection ?? "").filter(Boolean))).sort(),
+    [queue],
+  );
+
+  // The visible queue: scope filters + findings chip, findings-first order.
+  const visible = useMemo(() => {
+    let items = queue ?? [];
+    if (localeFilter) items = items.filter((it) => it.locale === localeFilter);
+    if (collectionFilter) items = items.filter((it) => (it.collection ?? "") === collectionFilter);
+    if (chip === "findings") items = items.filter((it) => it.hasFindings === true);
+    if (chip === "clean") items = items.filter((it) => it.hasFindings === false);
+    return orderItems(items);
+  }, [queue, localeFilter, collectionFilter, chip]);
+
+  const selectedIndex = visible.findIndex((it) => itemId(it) === selectedId);
+  const selected = selectedIndex >= 0 ? visible[selectedIndex] : null;
+
+  // Keep a valid selection as the visible queue changes.
+  useEffect(() => {
+    if (visible.length === 0) {
+      if (selectedId !== null) setSelectedId(null);
+      return;
+    }
+    if (!visible.some((it) => itemId(it) === selectedId)) {
+      setSelectedId(itemId(visible[0]));
+    }
+  }, [visible, selectedId]);
+
+  // Load the unit detail when the selection changes.
+  useEffect(() => {
+    if (!selected) {
+      setUnit(null);
+      setEditText("");
+      return;
+    }
+    let cancelled = false;
+    setUnitLoading(true);
+    const load =
+      loadUnit ?? ((it: ReviewItem) => api.getReviewUnit(tabID, it.locale, it.file, it.key));
+    load(selected)
+      .then((d) => {
+        if (cancelled) return;
+        setUnit(d ?? null);
+        setEditText(d?.target ?? "");
+      })
+      .catch((err) => {
+        if (!cancelled) showError("Failed to load the review unit", err);
+      })
+      .finally(() => {
+        if (!cancelled) setUnitLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, tabID, loadUnit]);
+
+  const move = useCallback(
+    (delta: number) => {
+      if (visible.length === 0) return;
+      const next = Math.min(
+        visible.length - 1,
+        Math.max(0, (selectedIndex < 0 ? 0 : selectedIndex) + delta),
+      );
+      setSelectedId(itemId(visible[next]));
+    },
+    [visible, selectedIndex],
+  );
+
+  const decide = useCallback(
+    async (item: ReviewItem, decision: ReviewDecision, note?: string) => {
+      setDeciding(true);
+      try {
+        if (onDecide) {
+          await onDecide(item, decision, note);
+        } else if (decision === "approved") {
+          await api.approveReviewItem(tabID, item.locale, item.file, item.key);
+        } else if (decision === "rejected") {
+          await api.rejectReviewItem(tabID, item.locale, item.file, item.key, note ?? "");
+        } else {
+          await api.signOffReviewItem(tabID, item.locale, item.file, item.key);
+        }
+        // The decided unit leaves the queue; the selection effect advances.
+        setQueue((q) => (q ?? []).filter((it) => itemId(it) !== itemId(item)));
+      } catch (err) {
+        showError("Failed to record the review decision", err);
+      } finally {
+        setDeciding(false);
+      }
+    },
+    [tabID, onDecide, showError],
+  );
+
+  const approve = useCallback(() => {
+    if (selected && !deciding) void decide(selected, "approved");
+  }, [selected, deciding, decide]);
+
+  const signOff = useCallback(() => {
+    if (selected && !deciding) void decide(selected, "signed-off");
+  }, [selected, deciding, decide]);
+
+  const reject = useCallback(() => {
+    if (!selected || deciding) return;
+    const note = window.prompt(t("Send back to draft — why? (the note travels with the unit)"), "");
+    if (note === null) return; // cancelled
+    void decide(selected, "rejected", note);
+  }, [selected, deciding, decide]);
+
+  const saveTarget = useCallback(async () => {
+    if (!selected || !unit) return;
+    setSaving(true);
+    try {
+      if (onSaveTarget) {
+        await onSaveTarget(selected, editText);
+      } else {
+        await api.updateReviewTarget(tabID, selected.locale, selected.file, selected.key, editText);
+      }
+      // Re-load the unit: findings re-run against the edited text, and the
+      // next approval binds to the new content hash.
+      const load =
+        loadUnit ?? ((it: ReviewItem) => api.getReviewUnit(tabID, it.locale, it.file, it.key));
+      const d = await load(selected);
+      setUnit(d ?? null);
+      setEditText(d?.target ?? editText);
+      if (d) {
+        const has = d.findings.length > 0;
+        setQueue((q) =>
+          (q ?? []).map((it) =>
+            itemId(it) === itemId(selected) ? { ...it, target: d.target, hasFindings: has } : it,
+          ),
+        );
+      }
+    } catch (err) {
+      showError("Failed to save the translation", err);
+    } finally {
+      setSaving(false);
+    }
+  }, [selected, unit, editText, tabID, onSaveTarget, loadUnit, showError]);
+
+  // Keyboard-first: j/k navigate, a approve, r reject, s sign off, space skip,
+  // e focuses the target editor. Typing in the editor is left alone (Escape
+  // returns to the queue).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName ?? "";
+      if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") {
+        if (e.key === "Escape") el?.blur();
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      switch (e.key) {
+        case "j":
+        case "ArrowDown":
+          e.preventDefault();
+          move(1);
+          break;
+        case "k":
+        case "ArrowUp":
+          e.preventDefault();
+          move(-1);
+          break;
+        case "a":
+          e.preventDefault();
+          approve();
+          break;
+        case "r":
+          e.preventDefault();
+          reject();
+          break;
+        case "s":
+          e.preventDefault();
+          signOff();
+          break;
+        case " ":
+          if (tag === "BUTTON") return; // native activation
+          e.preventDefault();
+          move(1);
+          break;
+        case "e":
+          e.preventDefault();
+          editRef.current?.focus();
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [move, approve, reject, signOff]);
+
+  // Phase 2 batch: approve every clean unit in the current filter.
+  const cleanVisible = useMemo(() => visible.filter((it) => it.hasFindings === false), [visible]);
+  const approveClean = useCallback(async () => {
+    const targets = cleanVisible;
+    if (targets.length === 0) return;
+    setBatch({ done: 0, total: targets.length });
+    try {
+      for (let i = 0; i < targets.length; i++) {
+        const item = targets[i];
+        if (onDecide) {
+          await onDecide(item, "approved");
+        } else {
+          await api.approveReviewItem(tabID, item.locale, item.file, item.key);
+        }
+        setQueue((q) => (q ?? []).filter((it) => itemId(it) !== itemId(item)));
+        setBatch({ done: i + 1, total: targets.length });
+      }
+    } catch (err) {
+      showError("Batch approval stopped", err);
+    } finally {
+      setBatch(null);
+    }
+  }, [cleanVisible, tabID, onDecide, showError]);
+
+  // Group the visible queue by file for the left pane.
+  const groups = useMemo(() => {
+    const m = new Map<string, ReviewItem[]>();
+    for (const it of visible) {
+      const g = m.get(it.file);
+      if (g) g.push(it);
+      else m.set(it.file, [it]);
+    }
+    return Array.from(m.entries());
+  }, [visible]);
+
+  const chips: Array<{ id: Chip; label: string }> = [
+    { id: "all", label: t("All") },
+    { id: "findings", label: t("With findings") },
+    { id: "clean", label: t("Clean") },
+  ];
+
+  return (
+    <div className="flex h-full flex-col p-6" data-slot="review-page">
+      {/* Header: title + queue filters */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div>
+          <h1 className="text-lg font-semibold">{t("Review")}</h1>
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "Approve, edit, or send translations back — decisions bind to the exact text they judged.",
+            )}
+          </p>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1" data-slot="review-chips">
+            {chips.map((c) => (
+              <Button
+                key={c.id}
+                variant={chip === c.id ? "default" : "outline"}
+                size="xs"
+                onClick={() => setChip(c.id)}
+                aria-pressed={chip === c.id}
+              >
+                {c.label}
+              </Button>
+            ))}
+          </div>
+          {locales.length > 1 && (
+            <select
+              className="h-7 rounded-md border border-input bg-transparent px-2 text-xs"
+              value={localeFilter}
+              onChange={(e) => setLocaleFilter(e.target.value)}
+              aria-label={t("Filter by language")}
+              data-slot="review-locale-filter"
+            >
+              <option value="">{t("All languages")}</option>
+              {locales.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          )}
+          {collections.length > 1 && (
+            <select
+              className="h-7 rounded-md border border-input bg-transparent px-2 text-xs"
+              value={collectionFilter}
+              onChange={(e) => setCollectionFilter(e.target.value)}
+              aria-label={t("Filter by collection")}
+              data-slot="review-collection-filter"
+            >
+              <option value="">{t("All collections")}</option>
+              {collections.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => void refreshQueue()}
+            disabled={loadingQueue}
+            aria-label={t("Refresh the review queue")}
+          >
+            {loadingQueue ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <RefreshCw size={12} />
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Batch bar (Phase 2): approve all clean units in the current filter. */}
+      {cleanVisible.length > 0 && (
+        <div
+          className="mb-3 flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs"
+          data-slot="review-batch"
+        >
+          <CheckCheck size={13} className="shrink-0 text-muted-foreground" />
+          <span className="text-muted-foreground">
+            {t("{count} clean units (no findings) in this view", { count: cleanVisible.length })}
+          </span>
+          <Button
+            size="xs"
+            className="ml-auto"
+            disabled={batch !== null || deciding}
+            onClick={() => void approveClean()}
+            data-slot="review-batch-approve"
+          >
+            {batch ? (
+              <>
+                <Loader2 size={12} className="animate-spin" />
+                {t("Approving {done} of {total}…", { done: batch.done, total: batch.total })}
+              </>
+            ) : (
+              <>
+                <Check size={12} />
+                {t("Approve {count} clean units", { count: cleanVisible.length })}
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {loadingQueue && !queue ? (
+        <div className="p-4 text-sm text-muted-foreground">{t("Loading review queue…")}</div>
+      ) : visible.length === 0 ? (
+        <Card className="border-dashed" data-slot="review-empty">
+          <CardContent className="p-10 text-center">
+            <CheckCircle2 size={24} className="mx-auto mb-2 text-primary" />
+            <p className="text-sm text-muted-foreground">
+              {(queue ?? []).length === 0
+                ? t("Review queue empty — every translated unit is reviewed.")
+                : t("Nothing matches this filter.")}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)] gap-4">
+          {/* Left: the queue, grouped by file. */}
+          <ScrollArea className="min-h-0 rounded-md border" data-slot="review-queue">
+            <div className="p-2">
+              {groups.map(([file, items]) => (
+                <div key={file} className="mb-2">
+                  <div className="mb-1 flex items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground">
+                    <FileText size={11} />
+                    <span className="truncate" translate="no" title={file}>
+                      {shortFile(file)}
+                    </span>
+                    <span className="text-muted-foreground/60">· {items.length}</span>
+                  </div>
+                  <ul>
+                    {items.map((it) => {
+                      const id = itemId(it);
+                      const active = id === selectedId;
+                      return (
+                        <li key={id}>
+                          <button
+                            className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                              active ? "bg-primary/10" : "hover:bg-accent"
+                            }`}
+                            onClick={() => setSelectedId(id)}
+                            data-slot="review-queue-item"
+                            data-active={active || undefined}
+                            data-key={it.key}
+                          >
+                            {it.hasFindings ? (
+                              <Circle
+                                size={8}
+                                className="mt-1 shrink-0 fill-amber-500 text-amber-500"
+                                aria-label={t("Has findings")}
+                              />
+                            ) : (
+                              <Circle
+                                size={8}
+                                className={`mt-1 shrink-0 ${it.hasFindings === false ? "text-primary" : "text-muted-foreground/40"}`}
+                                aria-label={
+                                  it.hasFindings === false ? t("Clean") : t("Not checked")
+                                }
+                              />
+                            )}
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-1.5">
+                                <span className="truncate font-medium" translate="no">
+                                  {it.key}
+                                </span>
+                                <LocalePill locale={it.locale} />
+                              </span>
+                              <span
+                                className="block truncate text-muted-foreground"
+                                title={it.source}
+                              >
+                                {it.source}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          {/* Center: the unit — SOURCE / TARGET, findings, context, actions. */}
+          <div className="flex min-h-0 flex-col" data-slot="review-unit">
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="space-y-3 pr-3">
+                {selected && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span
+                      className="truncate"
+                      translate="no"
+                      title={`${selected.file}:${selected.key}`}
+                    >
+                      {selected.file}:{selected.key}
+                    </span>
+                    <LocalePill locale={selected.locale} />
+                    {unit?.status && (
+                      <Badge
+                        variant="outline"
+                        className="text-muted-foreground"
+                        data-slot="review-status"
+                      >
+                        {unit.status}
+                      </Badge>
+                    )}
+                    {unitLoading && <Loader2 size={12} className="animate-spin" />}
+                  </div>
+                )}
+
+                <Card>
+                  <CardContent className="p-3">
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t("Source")}
+                    </div>
+                    <div
+                      className="whitespace-pre-wrap text-sm"
+                      data-slot="review-source"
+                      translate="no"
+                    >
+                      {unit?.source ?? selected?.source ?? ""}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-3">
+                    <div className="mb-1 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t("Target")}
+                      {unit && !unit.editable && (
+                        <span className="normal-case font-normal">
+                          {t("(formatted content — read-only)")}
+                        </span>
+                      )}
+                    </div>
+                    <textarea
+                      ref={editRef}
+                      className="min-h-20 w-full resize-y rounded-md border border-input bg-transparent p-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      disabled={!unit || !unit.editable || saving}
+                      aria-label={t("Edit the translation")}
+                      data-slot="review-target"
+                      translate="no"
+                    />
+                    {unit && unit.editable && editText !== unit.target && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Button
+                          size="xs"
+                          onClick={() => void saveTarget()}
+                          disabled={saving}
+                          data-slot="review-save"
+                        >
+                          {saving ? (
+                            <Loader2 size={12} className="animate-spin" />
+                          ) : (
+                            <Check size={12} />
+                          )}
+                          {t("Save & re-check")}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => setEditText(unit.target)}
+                          disabled={saving}
+                        >
+                          <Undo2 size={12} />
+                          {t("Revert")}
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* CHECKS: the unit's findings. */}
+                <Card data-slot="review-findings">
+                  <CardContent className="p-3">
+                    <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t("Checks")}
+                    </div>
+                    {!unit || unit.findings.length === 0 ? (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <CheckCircle2 size={12} className="text-primary" />
+                        {t("No findings for this unit.")}
+                      </div>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {unit.findings.map((f: DesktopFinding, i: number) => (
+                          <li
+                            key={i}
+                            className="flex items-start gap-2 text-xs"
+                            data-slot="review-finding"
+                          >
+                            <Badge variant="outline" className={severityBadgeClass(f.severity)}>
+                              {f.severity}
+                            </Badge>
+                            <span className="min-w-0">
+                              <span>{f.message}</span>
+                              {f.suggestion && (
+                                <span className="block text-muted-foreground">
+                                  ↳ {f.suggestion}
+                                </span>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* CONTEXT: provenance, prior decision, TM match. */}
+                <Card data-slot="review-context">
+                  <CardContent className="space-y-1 p-3 text-xs">
+                    <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t("Context")}
+                    </div>
+                    {unit?.origin?.kind && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">{t("Origin")}</span>
+                        <span translate="no">
+                          {unit.origin.kind}
+                          {unit.origin.engine ? ` · ${unit.origin.engine}` : ""}
+                        </span>
+                      </div>
+                    )}
+                    {(unit?.tm_score ?? 0) > 0 && (
+                      <div className="flex items-center gap-1.5" data-slot="review-tm-score">
+                        <span className="text-muted-foreground">{t("TM best match")}</span>
+                        <span className="tabular-nums">{unit?.tm_score}%</span>
+                      </div>
+                    )}
+                    {unit?.review_state && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground">{t("Last decision")}</span>
+                        <span>{unit.review_state}</span>
+                      </div>
+                    )}
+                    {unit?.note && (
+                      <div className="flex items-start gap-1.5" data-slot="review-note">
+                        <span className="text-muted-foreground">{t("Note")}</span>
+                        <span>{unit.note}</span>
+                      </div>
+                    )}
+                    {!unit?.origin?.kind &&
+                      !(unit?.tm_score ?? 0) &&
+                      !unit?.review_state &&
+                      !unit?.note && (
+                        <div className="text-muted-foreground">
+                          {t("No provenance recorded for this translation.")}
+                        </div>
+                      )}
+                  </CardContent>
+                </Card>
+              </div>
+            </ScrollArea>
+
+            {/* Action bar — the keyboard verbs, spelled out. */}
+            <div
+              className="mt-3 flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2"
+              data-slot="review-actions"
+            >
+              <Button
+                size="sm"
+                onClick={approve}
+                disabled={!selected || deciding}
+                data-slot="review-approve"
+              >
+                <Check size={13} />
+                {t("Approve")}
+                <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                  a
+                </kbd>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={reject}
+                disabled={!selected || deciding}
+                data-slot="review-reject"
+              >
+                <X size={13} />
+                {t("Reject")}
+                <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                  r
+                </kbd>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={signOff}
+                disabled={!selected || deciding}
+                data-slot="review-signoff"
+              >
+                <CheckCheck size={13} />
+                {t("Sign off")}
+                <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                  s
+                </kbd>
+              </Button>
+              <div className="ml-auto flex items-center gap-3 text-[11px] text-muted-foreground">
+                <span>
+                  <kbd className="rounded bg-muted px-1">j</kbd>/
+                  <kbd className="rounded bg-muted px-1">k</kbd> {t("navigate")}
+                </span>
+                <span>
+                  <kbd className="rounded bg-muted px-1">e</kbd> {t("edit")}
+                </span>
+                <span>
+                  <kbd className="rounded bg-muted px-1">space</kbd> {t("skip")}
+                </span>
+                {deciding && <Loader2 size={12} className="animate-spin" />}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -28,6 +28,8 @@ import type {
   ProjectStatus,
   ExtractResult,
   ConvergenceReport,
+  ReviewItem,
+  ReviewUnitDetail,
   AdoptFlowResult,
   ProjectHandles,
 } from "../types/api";
@@ -108,6 +110,18 @@ export const api = {
   bringUpToDate: (tabID: string) => call<void>("BringUpToDate", tabID),
   approveReviewItem: (tabID: string, locale: string, file: string, key: string) =>
     call<void>("ApproveReviewItem", tabID, locale, file, key),
+
+  // Review surface — queue with findings enrichment, per-unit detail, and the
+  // decision verbs (all recorded through cli.ApplyReviewDecision).
+  getReviewQueue: (tabID: string) => call<ReviewItem[]>("GetReviewQueue", tabID),
+  getReviewUnit: (tabID: string, locale: string, file: string, key: string) =>
+    call<ReviewUnitDetail>("GetReviewUnit", tabID, locale, file, key),
+  rejectReviewItem: (tabID: string, locale: string, file: string, key: string, note: string) =>
+    call<void>("RejectReviewItem", tabID, locale, file, key, note),
+  signOffReviewItem: (tabID: string, locale: string, file: string, key: string) =>
+    call<void>("SignOffReviewItem", tabID, locale, file, key),
+  updateReviewTarget: (tabID: string, locale: string, file: string, key: string, text: string) =>
+    call<void>("UpdateReviewTarget", tabID, locale, file, key, text),
 
   // App mode + session (project-first restore)
   getAppMode: () => call<string>("GetAppMode"),

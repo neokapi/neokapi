@@ -25,6 +25,8 @@ export interface HomePageProps {
   onUpdate?: (project: KapiProject) => void;
   onRunFlow?: RunFlowHandler;
   onNavigate: (view: string) => void;
+  /** Open the Review surface narrowed to a (collection, locale) scope. */
+  onOpenReview?: (scope?: { collection?: string; locale?: string }) => void;
   /** When false, plugin requirements are unmet — show warning banner. */
   pluginsResolved?: boolean;
   /** Details of unsatisfied plugin requirements. */
@@ -50,6 +52,7 @@ export function HomePage({
   onUpdate,
   onRunFlow,
   onNavigate,
+  onOpenReview,
   pluginsResolved,
   pluginIssues,
   status,
@@ -269,6 +272,7 @@ export function HomePage({
           tabID={tabID}
           flows={project.flows}
           onRunFlow={onRunFlow}
+          onOpenReview={onOpenReview}
           formatList={formatList}
           basePath={basePath}
           status={status}
