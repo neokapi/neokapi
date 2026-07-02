@@ -154,6 +154,21 @@ function statusLabelOf(coll: ContentCollection): string {
   return coll.name && coll.name.length > 0 ? coll.name : "(unnamed)";
 }
 
+/**
+ * Collapse a source file's per-locale outputs into one templated path, replacing
+ * the locale path segment with {lang} — e.g. output/de-DE/docs/api-reference.md
+ * → output/{lang}/docs/api-reference.md. All locales share the same shape, so
+ * one templated line stands in for the lot; expand it for the per-locale detail.
+ */
+function templatedOutputPath(outs: OutputFileInfo[]): string {
+  const o = outs[0];
+  if (!o) return "";
+  return o.relative
+    .split("/")
+    .map((seg) => (seg === o.lang ? "{lang}" : seg))
+    .join("/");
+}
+
 /** A compact inline coverage cell for the project-wide strip: "loc ▮▮▯ 78%". */
 function StripBar({ label, pct }: { label: string; pct: number }) {
   return (
@@ -225,6 +240,9 @@ export function CollectionsPanel({
   // plus the set of source rows whose outputs are expanded.
   const [outputs, setOutputs] = useState<Record<string, OutputFileInfo[]>>({});
   const [expandedOutputs, setExpandedOutputs] = useState<Set<string>>(new Set());
+  // Second level under a source row: the templated output/{lang}/… line expands
+  // to its per-locale output files.
+  const [expandedTemplate, setExpandedTemplate] = useState<Set<string>>(new Set());
   // Preview target: the file whose content is shown in the PreviewKit sheet.
   const [preview, setPreview] = useState<{ path: string; relative: string } | null>(null);
   // Archive rows that are expanded to show their inner entries, keyed by path.
@@ -813,6 +831,8 @@ export function CollectionsPanel({
           const outs = outputs[m.relative] ?? [];
           const isOpen = expandedOutputs.has(m.relative);
           const present = outs.filter((o) => o.exists).length;
+          const templated = templatedOutputPath(outs);
+          const tOpen = expandedTemplate.has(m.relative);
           return (
             <Fragment key={i}>
               <tr
@@ -859,7 +879,44 @@ export function CollectionsPanel({
                   </span>
                 </td>
               </tr>
+              {/* One templated output line stands in for every locale; expand
+                  it for the per-locale files. */}
+              {isOpen && outs.length > 0 && (
+                <tr
+                  onClick={() =>
+                    setExpandedTemplate((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(m.relative)) next.delete(m.relative);
+                      else next.add(m.relative);
+                      return next;
+                    })
+                  }
+                  className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
+                  title={tOpen ? t("Hide per-language outputs") : t("Show per-language outputs")}
+                >
+                  <td className="py-1 pl-9 pr-3">
+                    <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
+                      {tOpen ? (
+                        <ChevronDown size={11} className="shrink-0" />
+                      ) : (
+                        <ChevronRight size={11} className="shrink-0" />
+                      )}
+                      <ArrowRight size={10} className="shrink-0 opacity-50" />
+                      <span translate="no">{templated}</span>
+                    </span>
+                  </td>
+                  <td className="px-3 py-1">
+                    <Badge variant="secondary">{m.format || "—"}</Badge>
+                  </td>
+                  <td className="px-3 py-1 text-right">
+                    <Badge variant="outline" className="text-[10px] font-normal">
+                      {t("{present}/{total} generated", { present, total: outs.length })}
+                    </Badge>
+                  </td>
+                </tr>
+              )}
               {isOpen &&
+                tOpen &&
                 outs.map((o) => (
                   <tr
                     key={`${i}-${o.relative}`}
@@ -877,9 +934,8 @@ export function CollectionsPanel({
                         : t("Not generated yet — run a flow to create it")
                     }
                   >
-                    <td className="py-1 pl-9 pr-3">
+                    <td className="py-1 pl-16 pr-3">
                       <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
-                        <ArrowRight size={10} className="shrink-0 opacity-50" />
                         <LocalePill locale={o.lang} />
                         <span>{o.relative}</span>
                       </span>
