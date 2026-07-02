@@ -83,13 +83,22 @@ type TranslateRequest struct {
 	// model should apply while translating, so output is on-brand at generation
 	// time rather than only checked afterwards. Empty when no profile is bound.
 	VoiceGuide string `json:"voice_guide,omitempty"`
+	// Instruction is a caller-supplied directive the model should apply while
+	// translating — a reviewer's "keep it informal", or the findings a fix pass
+	// must resolve. Rendered into the prompt by Directives.
+	Instruction string `json:"instruction,omitempty"`
 }
 
-// Directives returns the deterministic brand-voice + glossary block appended to
-// translation prompts. Glossary terms are sorted so the same request always
-// yields byte-identical prompt text. Returns "" when neither is set.
+// Directives returns the deterministic instruction + brand-voice + glossary
+// block appended to translation prompts. Glossary terms are sorted so the same
+// request always yields byte-identical prompt text. Returns "" when none is set.
 func (req TranslateRequest) Directives() string {
 	var b strings.Builder
+	if ins := strings.TrimSpace(req.Instruction); ins != "" {
+		b.WriteString("\n\nInstruction (apply when translating):\n")
+		b.WriteString(ins)
+		b.WriteString("\n")
+	}
 	if g := strings.TrimSpace(req.VoiceGuide); g != "" {
 		b.WriteString("\n\nBrand voice (apply when translating):\n")
 		b.WriteString(g)

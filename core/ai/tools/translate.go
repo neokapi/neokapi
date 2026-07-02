@@ -30,6 +30,7 @@ type AITranslateTool struct {
 	targetLocale model.LocaleID
 	glossary     map[string]string
 	voiceGuide   string // compact brand voice guidance injected into every prompt
+	instruction  string // caller-supplied directive injected into every prompt
 	skipMatched  bool
 	batchSize    int
 	concurrency  int
@@ -60,6 +61,11 @@ type AITranslateConfig struct {
 	APIKey       string            `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	Model        string            `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
 	Glossary     map[string]string `json:"glossary,omitempty"     schema:"-"`
+	// Instruction is an optional caller-supplied directive applied while
+	// translating (rendered into the prompt via TranslateRequest.Directives) —
+	// e.g. a reviewer's re-translation guidance or the findings a fix pass must
+	// resolve. Programmatic (review AI actions); not a CLI flag.
+	Instruction string `json:"instruction,omitempty" schema:"-"`
 	// Profile is an optional brand voice profile. When set, its guidance is
 	// injected into the translation prompt so output is on-brand at generation
 	// time. Not serializable via the schema/CLI; supplied programmatically or
@@ -149,6 +155,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		targetLocale: cfg.TargetLocale,
 		glossary:     cfg.Glossary,
 		voiceGuide:   brand.RenderVoiceGuideCompact(cfg.Profile),
+		instruction:  cfg.Instruction,
 		skipMatched:  cfg.SkipMatched,
 		batchSize:    cfg.BatchSize,
 		concurrency:  cfg.BatchConcurrency,
@@ -196,6 +203,7 @@ func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
 		string(cfg.SourceLocale),
 		string(cfg.TargetLocale),
 		voiceGuide,
+		cfg.Instruction,
 	}
 	keys := make([]string, 0, len(cfg.Glossary))
 	for k := range cfg.Glossary {
@@ -483,6 +491,7 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 		TargetLocale:   t.targetLocale,
 		Glossary:       t.glossary,
 		VoiceGuide:     t.voiceGuide,
+		Instruction:    t.instruction,
 	})
 	if err != nil {
 		return fmt.Errorf("translate: %w", err)
@@ -549,6 +558,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 		TargetLocale:   t.targetLocale,
 		Glossary:       t.glossary,
 		VoiceGuide:     t.voiceGuide,
+		Instruction:    t.instruction,
 	})
 	if err != nil {
 		return fmt.Errorf("translate: %w", err)
@@ -773,8 +783,9 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	)
 	// Inject deterministic brand-voice + glossary directives.
 	prompt.WriteString(aiprovider.TranslateRequest{
-		Glossary:   t.glossary,
-		VoiceGuide: t.voiceGuide,
+		Glossary:    t.glossary,
+		VoiceGuide:  t.voiceGuide,
+		Instruction: t.instruction,
 	}.Directives())
 	prompt.WriteString("\n\n")
 
