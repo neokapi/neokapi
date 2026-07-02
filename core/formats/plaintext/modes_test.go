@@ -116,7 +116,7 @@ func TestParagraphs_Roundtrip_WithTranslation(t *testing.T) {
 func TestParagraphs_MutuallyExclusiveWithSpliceLines(t *testing.T) {
 	cfg := plaintext.NewReader().Config().(*plaintext.Config)
 	require.NoError(t, cfg.ApplyMap(map[string]any{"paragraphs": true, "spliceLines": true}))
-	assert.Error(t, cfg.Validate())
+	require.Error(t, cfg.Validate())
 }
 
 // --- Splice mode (absorbed splicedlines behavior) ---

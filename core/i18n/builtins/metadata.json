@@ -1161,6 +1161,10 @@
           "title": "Column Names Row",
           "description": "1-based row number containing column names. 0 means auto-detect."
         },
+        "columns": {
+          "title": "Column Roles",
+          "description": "Column-role mapping for bilingual translation tables: an object with 0-based column indices for key, source and target (e.g. {key: 0, source: 1, target: 2}). On merge only the target column is rewritten."
+        },
         "commentColumns": {
           "title": "Comment Columns",
           "description": "Column indices (0-based) that contain comments or notes"
@@ -1752,8 +1756,20 @@
         "text/plain"
       ],
       "properties": {
+        "paragraphs": {
+          "title": "Paragraphs",
+          "description": "If true, blank-line-separated paragraphs become blocks instead of individual lines."
+        },
         "segmentByLine": {
           "description": "If true, each line becomes a separate block. If false, paragraphs (separated by blank lines) are blocks."
+        },
+        "spliceLines": {
+          "title": "Splice Lines",
+          "description": "If true, lines ending with the splice marker are joined with the next line into a single block."
+        },
+        "spliceMarker": {
+          "title": "Splice Marker",
+          "description": "Continuation marker recognized at the end of a line in splice mode."
         }
       }
     },

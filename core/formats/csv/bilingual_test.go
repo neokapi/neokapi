@@ -182,13 +182,13 @@ func TestBilingual_CSV_QuotedCells_Roundtrip(t *testing.T) {
 func TestBilingual_Config_Validation(t *testing.T) {
 	cfg := csvfmt.NewTSVReader().Config().(*csvfmt.Config)
 	require.NoError(t, cfg.ApplyMap(map[string]any{"columns": map[string]any{"source": 1}}))
-	assert.Error(t, cfg.Validate(), "source without target should fail validation")
+	require.Error(t, cfg.Validate(), "source without target should fail validation")
 
 	cfg = csvfmt.NewTSVReader().Config().(*csvfmt.Config)
 	require.NoError(t, cfg.ApplyMap(map[string]any{"columns": map[string]any{"source": 1, "target": 1}}))
-	assert.Error(t, cfg.Validate(), "identical source and target columns should fail validation")
+	require.Error(t, cfg.Validate(), "identical source and target columns should fail validation")
 
 	cfg = csvfmt.NewTSVReader().Config().(*csvfmt.Config)
 	err := cfg.ApplyMap(map[string]any{"columns": map[string]any{"origin": 1}})
-	assert.Error(t, err, "unknown column role should be rejected")
+	require.Error(t, err, "unknown column role should be rejected")
 }
