@@ -1,0 +1,73 @@
+---
+title: Use with Claude
+description: Connect kapi to your AI assistant — the Agent Skill for chat-first work, the MCP server for structured tool calls in IDEs, and the plain CLI for CI — so the assistant writes and translates inside kapi's guardrails.
+keywords: [kapi, claude, claude code, agent skills, mcp, model context protocol, brand voice, terminology, CI]
+---
+
+# Use with Claude
+
+You describe the outcome; the assistant runs kapi. kapi supplies the guardrails — the faithful round-trip, brand voice, terminology, and the check gates — and the assistant does the writing and translating inside them. Three integration paths cover the places an assistant works:
+
+| You work in… | Use | How it drives kapi |
+|---|---|---|
+| **Chat** — Claude Code, plain-language prompts | the **Agent Skill** (`SKILL.md`) | Claude runs `kapi` commands itself and loops until the gates pass |
+| **IDE** — Claude Desktop, Cursor, Windsurf, VS Code | the **MCP server** (`kapi mcp`) | structured tools: `extract_content`, `apply_edits`, `check_file`, `brand_check` |
+| **CI** — no assistant in the loop | the **CLI** directly | `kapi check` / `kapi check --ship` exit non-zero, failing the build |
+
+The paths combine: the skill for guidance, MCP for structured calls, the CLI as the CI backstop. All need `kapi` on your `PATH` ([installation](/kapi/get-started/installation)). No provider credential is required for attended work — Claude writes, kapi applies and checks, no second model. A credential is only for unattended runs (`kapi up` in CI, `kapi translate` without you).
+
+<details>
+<summary>Install the Agent Skill (Claude Code and any SKILL.md-aware tool)</summary>
+
+**Claude Code** — the plugin bundles the skill plus two hooks:
+
+```text
+/plugin marketplace add neokapi/claude-plugins
+/plugin install kapi@neokapi-plugins
+```
+
+The **Stop hook** runs the project gate (`kapi check --ship`) when Claude tries to finish and keeps it working while a gate fails; the **PreToolUse hook** denies hand-edits to generated translation targets, steering changes through the source. Both are fail-open outside a project.
+
+**Copilot, Cursor, Windsurf, VS Code, Codex** — `SKILL.md` is an open standard:
+
+```bash
+npx skills add neokapi/agent-skills --skill kapi     # add -a <tool> for a specific tool
+npx skills update kapi                               # refresh later
+```
+
+</details>
+
+<details>
+<summary>Install the MCP server (Claude Desktop, Claude Code, Cursor, and the rest)</summary>
+
+Your client launches `kapi mcp` as a stdio subprocess. For Claude Code, add `.mcp.json` at the repository root (Claude Desktop uses `claude_desktop_config.json`, Copilot `.vscode/mcp.json` — same shape):
+
+```json
+{
+  "mcpServers": {
+    "kapi": { "command": "kapi", "args": ["mcp"] }
+  }
+}
+```
+
+See [MCP server](/reference/mcp) for every client's configuration and the full tool list.
+
+</details>
+
+## The loop, whichever door
+
+1. **Context in.** Before writing, the assistant pulls your brand guide (`kapi brand guide`) and approved terms (`kapi termbase lookup`), so drafts start on-voice and on-term.
+2. **Write through kapi.** It reads blocks (`kapi inspect` / `extract_content`), rewrites them, and lands edits through the one write verb (`kapi apply` / `apply_edits`) — structure and inline codes preserved, drift-guarded by content hash.
+3. **Gate out.** It runs `kapi check` (or `check --ship` in a project) and fixes what's flagged until the gate is green — then tells you.
+
+Bind the brand profile and glossary in a [`.kapi` project](/kapi/get-started/first-project) and both directions happen automatically; your prompts stay short ("translate the docs", "fix anything off-brand").
+
+## What to ask for
+
+> Set kapi up for this project. · Check `README.md` against our brand voice and fix what fails. · Translate the docs into French and German, then bring them to the ship gate. · What's awaiting review in French? Walk me through it.
+
+## Next
+
+- [Content governance for AI](/kapi/recipes/content-governance-for-ai) — the guardrails that make agent output pass.
+- [Bulk rewrite with an agent](/kapi/recipes/bulk-rewrite-with-an-agent) — a repo-wide sweep, gated.
+- [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — the same gates with no assistant in the loop.

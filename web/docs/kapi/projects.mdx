@@ -1,0 +1,131 @@
+---
+title: Projects
+slug: /kapi/projects
+description: The one working model behind every Kapi surface — run ad-hoc on loose files when nothing needs remembering, or set up a .kapi project whose store accumulates your work. The mechanics underneath are a single source → flow → sink binding model.
+keywords: [kapi, project, ad-hoc, store, binding, source, sink, .kapi, .klz, pack, translation memory]
+---
+
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
+# Projects
+
+There are two ways to drive Kapi — and it's the **same commands** either way. What changes is whether Kapi **remembers** anything between runs.
+
+## Ad-hoc — one-off, nothing saved
+
+Run a tool or flow directly on the files you name. Nothing is kept; when it's done, it's done.
+
+> _Translate this one file to French._ · _Check this folder for off-brand terms._
+
+This is the quick path for a one-time job, a script, or a CI step. In the CLI you name the files with flags; in Kapi Desktop you pick them as **quick tools**.
+
+## Project — a recipe plus a memory
+
+A **project** is a small `.kapi` recipe file (your languages, which files count as content, your flows, your defaults) plus a store that **remembers your work** — translations, terminology, and review decisions, ready to reuse on the next run. Kapi finds the project automatically by walking up the folder tree, the way git finds its repo.
+
+> _Localize this whole repo every release, reusing everything translated last time._
+
+| | **Ad-hoc** | **Project** |
+| --- | --- | --- |
+| Setup | none | a `.kapi` recipe (commit it) |
+| Memory | nothing saved | a store accumulates work (TM, terms, approvals) |
+| Finds your files | you name them | discovered automatically |
+| The main verb | `kapi <tool> <file>` | `kapi up` — reconcile toward the ship gates |
+| Best for | one-offs, scripts, CI | a repo you work on repeatedly |
+
+Set one up: [your first project](/kapi/get-started/first-project). In a project, `kapi up` runs the default flow until every gated scope is shippable or parked for a human, `kapi status` shows standing, and `kapi check --ship` enforces the gates — the model behind those verbs is [Convergence](/kapi/convergence).
+
+## The mechanics: source → flow → sink
+
+Kapi doesn't have separate "ad-hoc commands" and "project commands" — it has one set of commands, and what changes is the **binding**: where content enters (the *source*) and where results go (the *sink*), resolved when you run.
+
+<PipelineDiagram
+  stages={[
+    { label: "source", sub: "binding", role: "io" },
+    { label: "recycle", role: "translate" },
+    { label: "translate", role: "translate" },
+    { label: "qa", role: "qa" },
+    { label: "sink", sub: "binding", role: "io" },
+  ]}
+/>
+
+| Binding | As source | As sink |
+| --- | --- | --- |
+| `file` (default) | read + parse a file | write the file back (round-trip via skeleton) |
+| `store` | the project store (blocks + overlays) | commit overlays — **no file** |
+| interchange | import XLIFF / PO / a bilingual `.klz` | emit one for a translator |
+| `none` | — | discard (checks/analysis only) |
+
+- **Ad-hoc** = the `file` binding — you name `-i`/`-o`.
+- **In a project**, the default *sink* is the **store** (a *process-only* run); an explicit `-o` forces a file instead.
+
+A process-only run persists only *working* output — target overlays in the block store, pre-merge. It never touches the committed **state store** (review decisions in `.kapi-state.json`): those are authored by `kapi apply`, not by a flow's sink. Caches are rebuildable; the state store is the one committed, authored artifact. See [the project store](/kapi/project-store).
+
+`--explain` prints the resolved binding without running:
+
+```bash
+kapi run translate-qa -i app.json -o app.fr.json --explain
+#   → flow translate-qa: file(app.json) → file(app.fr.json)
+kapi run translate-qa -i app.json --explain          # inside a project
+#   → flow translate-qa: file(app.json) → store
+```
+
+## Two project loops, both ending at `merge`
+
+**1 — Reconcile loop** (the everyday one): `kapi up` runs the default flow over every locale short of its gate and materializes the localized files; what a machine can't finish parks for [review](/kapi/recipes/review-and-approve).
+
+**2 — Interchange loop** (hand bilingual files to a translator or CAT tool):
+
+<PipelineDiagram
+  channelLabel=""
+  stages={[
+    { label: "kapi extract", sub: "TM pre-fill", role: "io" },
+    { label: "bilingual file", sub: "XLIFF / PO / .klz", role: "io" },
+    { label: "translate elsewhere", role: "translate" },
+    { label: "kapi merge", sub: "+ TM absorb", role: "io" },
+    { label: "localized files", role: "io" },
+  ]}
+/>
+
+```bash
+kapi extract --target-lang fr,de     # → out/*.xliff (or --format klz)
+#   …translate the bilingual files…
+kapi merge -i out/                   # apply back onto sources, absorb into TM
+```
+
+See the [bilingual workflow](/kapi/bilingual-workflow) for the interchange loop in depth.
+
+## The `.klz` parcel: move work without a server
+
+A `.klz` is a portable, single-file carrier — how you hand work between machines or people without a server. Two profiles:
+
+```bash
+# Whole-project snapshot — a runnable "project in a file"
+kapi pack -o snapshot.klz        # recipe + content + TM/termbase
+kapi unpack snapshot.klz         # rehydrate elsewhere
+
+# Bilingual interchange — for a kapi-equipped reviewer
+kapi extract --format klz --target-lang fr
+kapi merge bundle.fr.klz
+```
+
+Source travels as identity + a round-trip skeleton by default; `--with-source` embeds the raw originals. [Pause & resume a big run](/kapi/recipes/resumable-workspace) walks the `.klz` workspace lifecycle.
+
+## Do the modes mix?
+
+Yes — same commands, different bindings:
+
+| You want… | Use |
+| --- | --- |
+| A throwaway job on one file | **ad-hoc** (`kapi <tool>` or `run -i -o`) |
+| A repo you work on repeatedly (accumulating TM) | **project** (`add` / `up` / `merge`) |
+| To move work between machines/people | **`.klz` parcel** (`pack` or `extract --format klz`) |
+
+A tool run *inside* a project (`kapi translate src/app.json`) still picks up the project's defaults and TM while working on one file. The one thing to avoid: two stateful stores over the same content — an ad-hoc `.klz` workspace *and* a `.kapi` project for the same files. And inside a project, an explicit `-o` writes a file and skips the store — intentional; `--explain` shows which you got.
+
+## See also
+
+- [Convergence](/kapi/convergence) — the derived-state model behind `up`, `status`, gates, and review.
+- [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — enforce the gates with `kapi check --ship`.
+- [Flows](/framework/flows) — authoring composed flows and the source/sink ends.
+- [`.kapi` project file](/reference/project-file) — the recipe format.

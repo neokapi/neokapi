@@ -99,11 +99,10 @@ List every format kapi understands — no input file required:
 
 <RunnableSnippet cmd="kapi formats" />
 
-List the available processing tools, composable flows, and presets:
+List the available processing tools and composable flows:
 
 <RunnableSnippet cmd="kapi tools" />
 <RunnableSnippet cmd="kapi flows" />
-<RunnableSnippet cmd="kapi presets list" />
 
 ## Edit before you run
 
@@ -145,15 +144,16 @@ from a built-in starter pack:
 kapi brand guide --pack friendly-dtc
 ```
 
-Score a draft against a profile. `--min-score` makes it a CI gate — kapi exits
+Score a file against a profile. `--min-score` makes it a CI gate — kapi exits
 non-zero when the score is below the threshold:
 
 ```bash
-kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
+kapi check release-notes.md --profile-file brand.yaml --min-score 80
 ```
 
-Input can be a file argument, `--input-text "…"`, or piped via stdin. Rewrite
-off-voice content — forbidden terms, competitor mentions, jargon:
+For a text snippet, `kapi brand check --input-text "…"` (or stdin) scores it
+without a file. Rewrite off-voice content — forbidden terms, competitor
+mentions, jargon:
 
 ```bash
 kapi brand rewrite --profile-file brand.yaml --input-text "Leverage our solution to drive synergy."
@@ -182,25 +182,24 @@ while it writes:
 kapi mcp
 ```
 
-See [Use the Kapi Agent Skills](/kapi/get-started/use-with-skills) for the
-skill-based workflow, or [Use Kapi with MCP](/kapi/get-started/use-with-mcp) for
-MCP setup with Claude Code, Cursor, and Windsurf.
+See [Use with Claude](/kapi/get-started/use-with-claude) for the skill and MCP
+setup with Claude Code, Cursor, and Windsurf.
 
 ## Next: set up a project
 
-The runs above are ad-hoc — perfect for a quick check or a CI step. Once you're
-localizing the same repository or content set more than once, capture the
+The runs above are ad-hoc — perfect for a quick check or a CI step. Once you
+work on the same repository or content set more than once, capture the
 languages, content patterns, and flows in a `.kapi` project so you stop repeating
-flags and start accumulating translation memory.
+flags and start accumulating work.
 
-- [Create your first project](/kapi/get-started/first-project) — `kapi init`,
-  read the recipe, run a flow, merge the files out.
-- [Modes & bindings](/kapi/modes) — how ad-hoc and project runs differ, and when
+- [Create your first project](/kapi/get-started/first-project) — desktop,
+  agent, or CLI; then `kapi up` reconciles it toward its ship gates.
+- [Projects](/kapi/projects) — how ad-hoc and project runs differ, and when
   to mix them.
 
 ## Next steps
 
-- [Use the Kapi Agent Skills](/kapi/get-started/use-with-skills) — drive the kapi CLI from Claude Code
+- [Use with Claude](/kapi/get-started/use-with-claude) — drive the kapi CLI from Claude Code
 - [Brand Voice](/framework/checks/brand-voice) — profiles, scoring, and enforcement
 - [Kapi CLI Overview](/kapi/cli) — full command reference
 - [Format Reference](/formats) — supported file formats

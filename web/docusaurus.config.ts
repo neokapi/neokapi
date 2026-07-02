@@ -120,10 +120,21 @@ const config: Config = {
 
   themes: ["@docusaurus/theme-mermaid"],
 
-  // The framework-first IA restructure (issue #670) moved pages freely. The
-  // site is not yet live, so no client-side redirects are kept — old URLs are
-  // simply gone.
   plugins: [
+    // Redirects for pages merged or moved by the desktop-first docs revamp:
+    // the Projects concept page absorbs "Projects vs ad-hoc" + "Modes &
+    // bindings", and "Use with Claude" absorbs the skills + MCP pages.
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        redirects: [
+          { from: "/kapi/get-started/project-vs-adhoc", to: "/kapi/projects" },
+          { from: "/kapi/modes", to: "/kapi/projects" },
+          { from: "/kapi/get-started/use-with-skills", to: "/kapi/get-started/use-with-claude" },
+          { from: "/kapi/get-started/use-with-mcp", to: "/kapi/get-started/use-with-claude" },
+        ],
+      },
+    ],
     // Cloudflare Web Analytics: inject the beacon script just before </body> on
     // every page (postBodyTags renders at the end of <body>). Gated to production
     // builds so it ships on the deployed site + PR previews but not in local
