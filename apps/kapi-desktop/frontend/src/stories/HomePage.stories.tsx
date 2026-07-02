@@ -104,10 +104,28 @@ export const WithCoverage: Story = {
         target_languages: ["de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"],
       },
       content: [
-        { name: "Website", items: [{ path: "input/docs/**/*.md", format: { name: "markdown" } }] },
-        { name: "Online Store", items: [{ path: "input/store/**/*.json" }] },
-        { name: "Contracts", items: [{ path: "input/contracts/**/*.docx" }] },
-        { name: "Templates", items: [{ path: "input/templates/**/*.html" }] },
+        {
+          name: "Website",
+          base: "web/en-US",
+          items: [
+            { path: "web/en-US/**/*.md", target: "web/{lang}", format: { name: "markdown" } },
+          ],
+        },
+        {
+          name: "Online Store",
+          base: "src/en-US",
+          items: [{ path: "src/en-US/*.{json,yaml,properties,html}", target: "src/{lang}" }],
+        },
+        {
+          name: "Contracts",
+          base: "legal/en-US",
+          items: [{ path: "legal/en-US/*.{docx,xlsx}", target: "legal/{lang}" }],
+        },
+        {
+          name: "Templates",
+          base: "marketing/en-US",
+          items: [{ path: "marketing/en-US/*.{pptx,docx}", target: "marketing/{lang}" }],
+        },
       ],
       flows: {
         "pseudo-translate": { steps: [{ tool: "pseudo-translate" }] },

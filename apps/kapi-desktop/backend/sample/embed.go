@@ -43,12 +43,17 @@ func Scaffold(name, targetDir string) error {
 		return fmt.Errorf("unknown sample project %q", name)
 	}
 
-	// Copy input files — kapimart v2 has its own content, okapimart uses shared.
-	inputSrc := "shared/input"
+	// Copy source files. KapiMart uses a natural per-area layout (source under
+	// <area>/en-US/, localized files beside it under sibling locale dirs — no
+	// separate output/ tree). OkapiMart keeps a single input/ tree materialized
+	// to output/{lang} to demonstrate the single-wildcard Okapi flow.
 	if name == "kapimart" {
-		inputSrc = "kapimart/input"
-	}
-	if err := copyEmbeddedDir(inputSrc, filepath.Join(targetDir, "input")); err != nil {
+		for _, area := range []string{"web", "src", "legal", "marketing"} {
+			if err := copyEmbeddedDir("kapimart/"+area, filepath.Join(targetDir, area)); err != nil {
+				return fmt.Errorf("copy %s files: %w", area, err)
+			}
+		}
+	} else if err := copyEmbeddedDir("shared/input", filepath.Join(targetDir, "input")); err != nil {
 		return fmt.Errorf("copy input files: %w", err)
 	}
 
@@ -64,9 +69,12 @@ func Scaffold(name, targetDir string) error {
 		return fmt.Errorf("write project.kapi: %w", err)
 	}
 
-	// Create output directory.
-	if err := os.MkdirAll(filepath.Join(targetDir, "output"), 0o755); err != nil {
-		return fmt.Errorf("create output dir: %w", err)
+	// OkapiMart materializes into a dedicated output/ tree; KapiMart embeds
+	// localized files beside source under per-area locale dirs, so it has none.
+	if name != "kapimart" {
+		if err := os.MkdirAll(filepath.Join(targetDir, "output"), 0o755); err != nil {
+			return fmt.Errorf("create output dir: %w", err)
+		}
 	}
 
 	kapiDir := filepath.Join(targetDir, ".kapi")
