@@ -225,7 +225,7 @@ func TestAITranslate_BatchSessionWritesAndReusesOverlays(t *testing.T) {
 	require.NoError(t, err)
 	for id, src := range map[string]string{"tu1": "Hello", "tu2": "World"} {
 		_, err := check.GetOverlay("targets/fr", blockstore.StoreKey("docs/a.md", id, src))
-		assert.NoErrorf(t, err, "batch path must write the overlay for %s", id)
+		require.NoErrorf(t, err, "batch path must write the overlay for %s", id)
 	}
 	require.NoError(t, check.Close())
 
@@ -265,7 +265,7 @@ func TestAITranslate_ErrorPropagation(t *testing.T) {
 		close(in)
 		err := tl.Process(t.Context(), in, out)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, provErr)
+		require.ErrorIs(t, err, provErr)
 		assert.Contains(t, err.Error(), "translate:")
 	})
 
