@@ -121,20 +121,6 @@
         }
       }
     },
-    "chars-listing": {
-      "displayName": "Characters Listing",
-      "category": "analysis",
-      "properties": {
-        "includeSource": {
-          "title": "Include Source",
-          "description": "Include source text in character listing"
-        },
-        "includeTarget": {
-          "title": "Include Target",
-          "description": "Include target text in character listing"
-        }
-      }
-    },
     "content-lint": {
       "displayName": "Content Lint",
       "category": "text-processing"
@@ -1024,36 +1010,6 @@
       "groups": {
         "provider": {
           "label": "Provider"
-        }
-      }
-    },
-    "translation-comparison": {
-      "displayName": "Translation Comparison",
-      "category": "analysis",
-      "properties": {
-        "caseSensitive": {
-          "title": "Case Sensitive",
-          "description": "Take case differences into account when comparing"
-        },
-        "document1Label": {
-          "title": "Document 1 Label",
-          "description": "Label for the first translation in reports"
-        },
-        "document2Label": {
-          "title": "Document 2 Label",
-          "description": "Label for the second translation in reports"
-        },
-        "genericCodes": {
-          "title": "Use Generic Codes",
-          "description": "Use generic numbered tags (e.g. \u003c1\u003e...\u003c/1\u003e) instead of original inline codes in reports"
-        },
-        "punctuationSensitive": {
-          "title": "Punctuation Sensitive",
-          "description": "Take punctuation differences into account when comparing"
-        },
-        "whitespaceSensitive": {
-          "title": "Whitespace Sensitive",
-          "description": "Take whitespace differences into account when comparing"
         }
       }
     },

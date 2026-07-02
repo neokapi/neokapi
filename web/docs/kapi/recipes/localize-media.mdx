@@ -54,13 +54,11 @@ kapi run audio-to-subtitles -i talk.m4a -o talk.fr.vtt --target-lang fr
 ## Video → subtitles
 
 A video has both spoken dialogue and text shown on screen. `video-to-subtitles`
-subtitles **only the dialogue**, so on-screen titles and captions don't end up in
-your subtitle file:
+transcribes and translates the spoken cues into a subtitle track:
 
 <PipelineDiagram
   stages={[
     { label: "Read video", sub: "demux → ASR + frame OCR", role: "io" },
-    { label: "subtitle-filter", role: "tool" },
     { label: "Translate", role: "translate" },
     { label: "Subtitle file", role: "io" },
   ]}

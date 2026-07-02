@@ -28,8 +28,14 @@ type StatsRecord struct {
 	Words             int            `json:"words"`
 	Characters        int            `json:"characters"`
 	CharactersNoSpace int            `json:"characters_no_space"`
+	UniqueCharacters  int            `json:"unique_characters"`
 	Segments          int            `json:"segments"`
 	ByRole            map[string]int `json:"by_role,omitempty"`
+
+	// charSet is the distinct-rune inventory of the translatable source text
+	// (the aggregate that used to be the chars-listing tool — useful for font
+	// subsetting). It backs UniqueCharacters and is unioned by add().
+	charSet map[rune]struct{}
 }
 
 // StatsOutput is the structured result of a `kapi stats` run: a per-file record
@@ -74,6 +80,7 @@ func (o StatsOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "Words:                 %7d\n", r.Words)
 		fmt.Fprintf(w, "Characters:            %7d\n", r.Characters)
 		fmt.Fprintf(w, "  (no spaces):         %7d\n", r.CharactersNoSpace)
+		fmt.Fprintf(w, "  unique:              %7d\n", r.UniqueCharacters)
 		fmt.Fprintf(w, "Segments:              %7d\n", r.Segments)
 	}
 
@@ -200,6 +207,12 @@ func (a *App) fileStats(ctx context.Context, file string) ([]StatsRecord, error)
 		rec.Words += b.WordCount()
 		rec.Characters += utf8.RuneCountInString(text)
 		rec.CharactersNoSpace += countNonSpace(text)
+		if rec.charSet == nil {
+			rec.charSet = map[rune]struct{}{}
+		}
+		for _, r := range text {
+			rec.charSet[r] = struct{}{}
+		}
 		rec.Segments += b.SourceSegmentCount()
 		return nil
 	})
@@ -208,6 +221,7 @@ func (a *App) fileStats(ctx context.Context, file string) ([]StatsRecord, error)
 	}
 	recs := make([]StatsRecord, 0, len(order))
 	for _, l := range order {
+		byLabel[l].UniqueCharacters = len(byLabel[l].charSet)
 		recs = append(recs, *byLabel[l])
 	}
 	return recs, nil
@@ -222,6 +236,13 @@ func (r *StatsRecord) add(o StatsRecord) {
 	r.Characters += o.Characters
 	r.CharactersNoSpace += o.CharactersNoSpace
 	r.Segments += o.Segments
+	if r.charSet == nil {
+		r.charSet = map[rune]struct{}{}
+	}
+	for c := range o.charSet {
+		r.charSet[c] = struct{}{}
+	}
+	r.UniqueCharacters = len(r.charSet)
 	for role, n := range o.ByRole {
 		r.ByRole[role] += n
 	}

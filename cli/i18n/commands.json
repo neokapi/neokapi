@@ -64,9 +64,6 @@
           "example": "  kapi chars-check app.xliff --target-lang fr\n  kapi chars-check app.xliff --target-lang zh",
           "short": "Characters Check"
         },
-        "chars-listing": {
-          "short": "Characters Listing"
-        },
         "check": {
           "long": "Run content checks over one or more files and return structured findings\nplus a pass/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual localization checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --json emits the kapi.check/v1 Report.\n\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n0 (report mode) for a fix-loop.",
           "short": "Verify content against a checkset and gate on severity, like tests over code"
@@ -483,9 +480,6 @@
         "translate": {
           "example": "  kapi translate messages.json --target-lang fr\n  kapi translate app.xliff --target-lang de --provider openai\n  kapi translate app.xliff --target-lang de -o app.de.xliff",
           "short": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)"
-        },
-        "translation-comparison": {
-          "short": "Translation Comparison"
         },
         "unpack": {
           "example": "  kapi unpack snapshot.klz",

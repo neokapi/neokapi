@@ -30,6 +30,17 @@ type BaseFormatWriter struct {
 	// offered as `convert` targets (a converted interchange file carries no
 	// skeleton and cannot be merged back). See AD-005 "Writer output modes".
 	Interchange bool
+
+	// OutputOpts are the shared byte-level output options (BOM policy,
+	// newline style, output charset). When non-passthrough, Output is
+	// wrapped with the post-encode chain so every writer that embeds the
+	// base inherits the behavior. Set via SetOutputOptions.
+	OutputOpts OutputOptions
+
+	// rawOutput is the unwrapped destination (file or caller writer);
+	// outputWrap is the post-encode chain pending a flush on Close.
+	rawOutput  io.Writer
+	outputWrap io.Closer
 }
 
 // Name returns the format identifier.
@@ -52,13 +63,40 @@ func (b *BaseFormatWriter) SetOutput(path string) error {
 		return err
 	}
 	b.OutputFile = f
-	b.Output = f
-	return nil
+	b.rawOutput = f
+	return b.applyOutputWrap()
 }
 
 // SetOutputWriter configures an io.Writer as output.
 func (b *BaseFormatWriter) SetOutputWriter(w io.Writer) error {
-	b.Output = w
+	b.rawOutput = w
+	return b.applyOutputWrap()
+}
+
+// SetOutputOptions configures the shared byte-level output options (BOM,
+// newline style, charset). Implements OutputConfigurable. May be called
+// before or after SetOutput/SetOutputWriter, as long as it happens before
+// the first write.
+func (b *BaseFormatWriter) SetOutputOptions(opts OutputOptions) error {
+	b.OutputOpts = opts
+	return b.applyOutputWrap()
+}
+
+// applyOutputWrap (re)derives Output from the raw destination and the
+// configured output options. Passthrough options leave Output as the raw
+// destination, preserving historical behavior exactly.
+func (b *BaseFormatWriter) applyOutputWrap() error {
+	b.outputWrap = nil
+	b.Output = b.rawOutput
+	if b.rawOutput == nil || b.OutputOpts.IsZero() {
+		return nil
+	}
+	wc, err := b.OutputOpts.Wrap(b.rawOutput)
+	if err != nil {
+		return err
+	}
+	b.Output = wc
+	b.outputWrap = wc
 	return nil
 }
 
@@ -72,10 +110,18 @@ func (b *BaseFormatWriter) SetEncoding(encoding string) {
 	b.Encoding = encoding
 }
 
-// Close flushes and closes the output file if one was opened.
+// Close flushes the output-option chain (if any) and closes the output file
+// if one was opened.
 func (b *BaseFormatWriter) Close() error {
-	if b.OutputFile != nil {
-		return b.OutputFile.Close()
+	var firstErr error
+	if b.outputWrap != nil {
+		firstErr = b.outputWrap.Close()
+		b.outputWrap = nil
 	}
-	return nil
+	if b.OutputFile != nil {
+		if err := b.OutputFile.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }

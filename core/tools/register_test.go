@@ -83,7 +83,7 @@ func TestIsSourceTransformProbe(t *testing.T) {
 	}
 
 	// Source-transform-capable (Transform handler).
-	for _, name := range []string{"redact", "case-transform", "search-replace", "encoding-convert", "fullwidth-convert"} {
+	for _, name := range []string{"redact", "case-transform", "search-replace"} {
 		info, ok := byName[name]
 		if !ok {
 			continue // tool not registered in this build; skip

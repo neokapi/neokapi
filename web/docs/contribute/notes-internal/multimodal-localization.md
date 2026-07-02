@@ -40,16 +40,14 @@ The `srt` reader now populates the canonical `TimingAnnotation` (not just
 `Properties["timecode"]`). The `video` reader degrades to opaque Media when no
 ffmpeg/av engine is resolvable instead of erroring.
 
-## Flows + the subtitle filter
+## Flows
 
 Built-in flows (`core/flow.BuiltInFlows`) compose the existing tools; the
 reader/writer are run-time bindings (AD-026), so a flow is just the tool chain:
 
 - `audio-to-subtitles` — `translate` (the audio reader yields timed cues).
-- `video-to-subtitles` — `subtitle-filter → translate`. The new
-  `subtitle-filter` tool (`core/tools`) keeps only timing-anchored, non-geometry
-  cues, dropping the frame-OCR (geometry-anchored) blocks so on-screen text never
-  pollutes the subtitle track.
+- `video-to-subtitles` — `translate` over the demuxed cues (both the speech
+  track and the frame-OCR blocks carry timing anchors).
 - `image-ocr-translate` — `translate` (round-trips translated alt-text).
 
 ```bash

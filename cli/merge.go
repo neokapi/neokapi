@@ -306,6 +306,9 @@ func (a *App) mergeFromProjectStore(cmd *cobra.Command) error {
 				ConfigureReader: func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
 					return pctx.ConfigureReader(reader, string(detectedFmt))
 				},
+				ConfigureWriter: func(writer format.DataFormatWriter, fmtName registry.FormatID) error {
+					return pctx.ConfigureWriter(writer, string(fmtName))
+				},
 			})
 			// Address the stored overlays by the same source-file-namespaced key
 			// the run wrote them under (blockstore.StoreKey).
@@ -532,7 +535,7 @@ func (a *App) mergeOneKlz(cmd *cobra.Command, klzInput string) error {
 		}
 		entry := &project.ExtractionFile{Source: srcRel}
 		targetPath := resolveMergeOutputPath(entry, pctx.Project, layout.Root, targetLocale)
-		if werr := writeMergedSourceWithSkeleton(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, targetLocale, currentBlocks, "", skelBytes); werr != nil {
+		if werr := writeMergedSourceWithSkeleton(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, targetLocale, currentBlocks, "", skelBytes, formatConfigForSource(pctx.Project, srcFormat, srcRel)); werr != nil {
 			return fmt.Errorf("write merged target %s: %w", targetPath, werr)
 		}
 	}
@@ -739,7 +742,7 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 
 	// 6. Write the merged target file via the project's writer + skeleton.
 	targetPath := resolveMergeOutputPath(entry, task.ctx.Project, task.layout.Root, targetLocale)
-	if err := writeMergedSource(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, task.layout, batchID, entry, targetLocale, currentSourceBlocks); err != nil {
+	if err := writeMergedSource(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, task.layout, batchID, entry, targetLocale, currentSourceBlocks, task.ctx.Project); err != nil {
 		return stats, fmt.Errorf("write merged target %s: %w", targetPath, err)
 	}
 
@@ -852,7 +855,7 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 
 	// Write merged target via source format writer + captured skeleton.
 	targetPath := resolveMergeOutputPath(entry, task.ctx.Project, task.layout.Root, targetLocale)
-	if err := writeMergedSource(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, task.layout, po.BatchID, entry, targetLocale, currentSourceBlocks); err != nil {
+	if err := writeMergedSource(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, task.layout, po.BatchID, entry, targetLocale, currentSourceBlocks, task.ctx.Project); err != nil {
 		return stats, fmt.Errorf("write merged target %s: %w", targetPath, err)
 	}
 	return stats, nil
@@ -959,13 +962,21 @@ func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiPro
 }
 
 // writeMergedSource writes the merged blocks to the target file using the
-// source format's writer, plus the captured skeleton when available.
-func writeMergedSource(ctx context.Context, reg *registry.FormatRegistry, formatName, sourceAbs, targetPath string, layout project.Layout, batchID string, entry *project.ExtractionFile, locale model.LocaleID, blocks []*model.Block) error {
+// source format's writer, plus the captured skeleton when available. proj
+// (optional) supplies the project's per-format config so the shared writer
+// output options (output.bom / output.newline / output.encoding) apply on
+// merge too.
+func writeMergedSource(ctx context.Context, reg *registry.FormatRegistry, formatName, sourceAbs, targetPath string, layout project.Layout, batchID string, entry *project.ExtractionFile, locale model.LocaleID, blocks []*model.Block, proj *project.KapiProject) error {
 	skelPath := ""
-	if entry != nil && entry.Skeleton != "" {
-		skelPath = filepath.Join(project.ExtractionDir(layout, batchID), entry.Skeleton)
+	relSource := ""
+	if entry != nil {
+		relSource = entry.Source
+		if entry.Skeleton != "" {
+			skelPath = filepath.Join(project.ExtractionDir(layout, batchID), entry.Skeleton)
+		}
 	}
-	return writeMergedSourceWithSkeleton(ctx, reg, formatName, sourceAbs, targetPath, locale, blocks, skelPath, nil)
+	outputCfg := formatConfigForSource(proj, formatName, relSource)
+	return writeMergedSourceWithSkeleton(ctx, reg, formatName, sourceAbs, targetPath, locale, blocks, skelPath, nil, outputCfg)
 }
 
 // writeMergedSourceWithSkeleton is the underlying writer that takes the
@@ -973,12 +984,15 @@ func writeMergedSource(ctx context.Context, reg *registry.FormatRegistry, format
 // or raw bytes (skelBytes, for a bilingual interchange .klz that carries the
 // skeleton inline). When both are empty the writer re-serializes from its parse
 // tree (lower fidelity). skelBytes takes precedence.
-func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegistry, formatName, sourceAbs, targetPath string, locale model.LocaleID, blocks []*model.Block, skelPath string, skelBytes []byte) error {
+func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegistry, formatName, sourceAbs, targetPath string, locale model.LocaleID, blocks []*model.Block, skelPath string, skelBytes []byte, outputCfg map[string]any) error {
 	writer, err := reg.NewWriter(registry.FormatID(formatName))
 	if err != nil {
 		return err
 	}
 	writer.SetLocale(locale)
+	if err := applyWriterOutputConfig(writer, outputCfg); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 		return err
 	}

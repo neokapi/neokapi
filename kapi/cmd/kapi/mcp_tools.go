@@ -604,10 +604,11 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 			}
 			return nil
 		},
-		ConfigureWriter: func(writer format.DataFormatWriter) {
+		ConfigureWriter: func(writer format.DataFormatWriter, fmtName registry.FormatID) error {
 			if pctx != nil {
-				pctx.ConfigureWriter(writer)
+				return pctx.ConfigureWriter(writer, string(fmtName))
 			}
+			return nil
 		},
 	})
 

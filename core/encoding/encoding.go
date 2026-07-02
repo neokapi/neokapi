@@ -26,6 +26,15 @@ type EncoderManager struct {
 	encodings map[string]encoding.Encoding
 }
 
+// init wires this package's charset registry into core/format so the shared
+// writer output options (output.encoding) can convert charsets without
+// core/format importing core/encoding (which would be an import cycle —
+// core/encoding depends on core/format for diagnostics).
+func init() {
+	em := NewEncoderManager()
+	format.EncodingResolver = em.Get
+}
+
 // NewEncoderManager creates a new EncoderManager with all supported encodings registered.
 func NewEncoderManager() *EncoderManager {
 	em := &EncoderManager{

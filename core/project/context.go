@@ -230,22 +230,53 @@ func (ctx *ProjectContext) ConfigureReader(reader Configurable, formatName strin
 	if cfg == nil {
 		return nil
 	}
-	// Apply config overrides.
+	// Apply config overrides. The reserved "output" key carries the shared
+	// writer output options (BOM/newline/charset) — split it off so the
+	// reader's typed config never sees it as an unknown key.
 	if len(fd.Config) > 0 {
-		if err := cfg.ApplyMap(fd.Config); err != nil {
+		_, rest, err := format.SplitOutputConfig(fd.Config)
+		if err != nil {
 			return err
+		}
+		if len(rest) > 0 {
+			if err := cfg.ApplyMap(rest); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-// ConfigureWriter applies project defaults to a format writer.
-// Sets encoding from project defaults. Format-specific writer configuration
-// is not currently supported since writers don't expose a Config() interface.
-func (ctx *ProjectContext) ConfigureWriter(writer format.DataFormatWriter) {
+// ConfigureWriter applies project defaults to a format writer: the project
+// encoding, plus the shared byte-level output options (output.bom,
+// output.newline, output.encoding) declared under
+// defaults.formats[formatName].config. Format-specific writer keys are not
+// applied here (writers don't expose a Config() interface); only the reserved
+// "output" options, which every writer embedding format.BaseFormatWriter
+// understands.
+func (ctx *ProjectContext) ConfigureWriter(writer format.DataFormatWriter, formatName string) error {
 	if ctx.Encoding != "" {
 		writer.SetEncoding(ctx.Encoding)
 	}
+	if ctx.FormatDefaults == nil {
+		return nil
+	}
+	fd, ok := ctx.FormatDefaults[formatName]
+	if !ok || len(fd.Config) == 0 {
+		return nil
+	}
+	opts, _, err := format.SplitOutputConfig(fd.Config)
+	if err != nil {
+		return err
+	}
+	if opts.IsZero() {
+		return nil
+	}
+	oc, ok := writer.(format.OutputConfigurable)
+	if !ok {
+		return nil
+	}
+	return oc.SetOutputOptions(opts)
 }
 
 // --- Plugin scoping ---

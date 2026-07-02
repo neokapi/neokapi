@@ -99,8 +99,10 @@ type FileRunnerConfig struct {
 	ConfigureReader func(reader format.DataFormatReader, formatName registry.FormatID) error
 
 	// ConfigureWriter is an optional callback applied to each writer after
-	// creation. Use this to apply project encoding or other defaults.
-	ConfigureWriter func(writer format.DataFormatWriter)
+	// creation. Use this to apply project encoding, shared output options
+	// (format.OutputOptions), or other defaults. The formatName parameter is
+	// the writer's format id.
+	ConfigureWriter func(writer format.DataFormatWriter, formatName registry.FormatID) error
 
 	// Recorder, when non-nil, captures a flow trace: an initial snapshot of
 	// each Part as it leaves the reader plus reader-exit events, and
@@ -229,9 +231,12 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 		return fmt.Errorf("no writer for %q: %w", fmtName, err)
 	}
 
-	// Apply writer configuration (encoding, project defaults).
+	// Apply writer configuration (encoding, output options, project defaults).
 	if r.cfg.ConfigureWriter != nil {
-		r.cfg.ConfigureWriter(writer)
+		if err := r.cfg.ConfigureWriter(writer, fmtName); err != nil {
+			reader.Close()
+			return fmt.Errorf("configure writer for %q: %w", fmtName, err)
+		}
 	}
 
 	return r.RunFileWithReaderWriter(ctx, flowName, tools, inputPath, outputPath, targetLang, reader, writer)
@@ -822,7 +827,9 @@ func (r *FileRunner) RunSkeletonReconstruct(ctx context.Context, flowName string
 		return fmt.Errorf("format %q cannot reconstruct from a skeleton (no skeleton consumer)", formatID)
 	}
 	if r.cfg.ConfigureWriter != nil {
-		r.cfg.ConfigureWriter(writer)
+		if err := r.cfg.ConfigureWriter(writer, formatID); err != nil {
+			return fmt.Errorf("configure writer for %q: %w", formatID, err)
+		}
 	}
 
 	parts, err := partsFromSkeleton(skelBytes)
@@ -1083,7 +1090,10 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 		return fmt.Errorf("no writer for %q: %w", fmtID, err)
 	}
 	if r.cfg.ConfigureWriter != nil {
-		r.cfg.ConfigureWriter(writer)
+		if err := r.cfg.ConfigureWriter(writer, fmtID); err != nil {
+			reader.Close()
+			return fmt.Errorf("configure writer for %q: %w", fmtID, err)
+		}
 	}
 
 	// Same format in and out (a container round-trips each entry), so wire a

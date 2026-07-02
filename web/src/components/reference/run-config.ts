@@ -91,7 +91,6 @@ const TOOL_COMMANDS = new Set([
   "case-transform",
   "char-count",
   "chars-check",
-  "chars-listing",
   "diff-leverage",
   "encoding-detect",
   "inconsistency-check",
@@ -108,7 +107,6 @@ const TOOL_COMMANDS = new Set([
   "segmentation",
   "term-check",
   "recycle",
-  "translation-comparison",
   "unredact",
   "word-count",
 ]);

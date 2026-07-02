@@ -221,7 +221,7 @@ const (
     Bilingual LocaleCardinality = "bilingual"
 
     // Multilingual — operates on N locales simultaneously.
-    // Examples: translation-comparison, cross-locale QA.
+    // Examples: cross-locale comparison, cross-locale QA.
     Multilingual LocaleCardinality = "multilingual"
 )
 ```
@@ -577,7 +577,6 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | `whitespace-correct`  | Normalize and fix whitespace issues in translations                       |
 | `span-classify`       | Reclassify `code:markup` spans into semantic vocabulary types             |
 | `tag-protect`         | Identify and mark tags and placeholders for protection                    |
-| `xslt-transform`      | Apply regex-based tag/text transformations to block text                  |
 | `redact`              | Replace sensitive spans with placeholders pre-translation (recoverable transformer) |
 | `unredact`            | Restore redacted spans from the vault post-translation                    |
 
@@ -606,21 +605,19 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | `length-check`           | Verify translation length constraints                                                   |
 | `chars-check`            | Check for invalid or unexpected characters in translations                              |
 | `pattern-check`          | Validate regex patterns in translations (placeholders, variables)                       |
-| `translation-comparison` | Compare translations across two target locales and report differences                   |
 | `xml-validation`         | Validate XML well-formedness of block text                                              |
-| `chars-listing`          | List all unique characters used in content (for font subsetting)                        |
 | `scoping-report`         | Classify blocks into scoping categories based on repetition and match status            |
 
-**Convert tools** — transform representations:
+**Analyze tools** — inspect byte-level characteristics:
 
-| Tool                | Description                                             |
-| ------------------- | ------------------------------------------------------- |
-| `encoding-convert`  | Convert character encoding of text content              |
-| `encoding-detect`   | Detect encoding characteristics of block text           |
-| `linebreak-convert` | Normalize line endings in source and/or target text     |
-| `bom-convert`       | Add or remove the Unicode BOM marker on document layers |
-| `fullwidth-convert` | Convert between half-width and full-width characters    |
-| `uri-convert`       | Encode or decode URI escape sequences in text           |
+| Tool              | Description                                   |
+| ----------------- | --------------------------------------------- |
+| `encoding-detect` | Detect encoding characteristics of block text |
+
+Byte-level *output* style (BOM, newlines, charset) is writer configuration,
+not a pipeline stage: set `output.bom` / `output.newline` / `output.encoding`
+under any format's config (`defaults.formats[<id>].config`) and every writer
+applies them as a shared post-encode step (see AD-005).
 
 **Pipeline tools** — operate on the part stream:
 

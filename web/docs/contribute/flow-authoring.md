@@ -99,8 +99,8 @@ steps:
         label: Quality checks
         config:
           targetLocale: fr
-      - tool: chars-listing
-        label: Character inventory
+      - tool: char-count
+        label: Count characters
         config:
           targetLocale: fr
 ```
