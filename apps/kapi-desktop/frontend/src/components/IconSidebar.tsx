@@ -2,6 +2,7 @@ import {
   Home,
   FolderKanban,
   BookOpen,
+  ClipboardCheck,
   Database,
   Wrench,
   FileText,
@@ -93,6 +94,13 @@ const projectItems: SidebarItem[] = [
     view: "checks",
     icon: <ShieldCheck size={20} strokeWidth={SW} />,
     label: "Checks",
+  },
+  {
+    type: "item",
+    view: "review",
+    icon: <ClipboardCheck size={20} strokeWidth={SW} />,
+    label: "Review",
+    localeGated: true,
   },
   {
     type: "item",

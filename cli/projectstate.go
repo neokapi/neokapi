@@ -43,3 +43,11 @@ func openProjectState(proj *project.KapiProject, root string) (*state.FileStore,
 func targetHash(text string) string {
 	return project.HashBytes([]byte(strings.TrimSpace(text)))
 }
+
+// StateFilePath resolves the committed project-state artifact for an embedder
+// (the desktop) that needs read access to the same store the review decisions
+// land in: defaults.state when bound, else the conventional default, relative
+// to the project root.
+func StateFilePath(proj *project.KapiProject, root string) string {
+	return stateFilePath(proj, root)
+}

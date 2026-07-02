@@ -160,6 +160,9 @@ export interface CollectionsPanelProps {
   flows?: Record<string, FlowSpec>;
   /** Run a flow scoped to a single collection's files. */
   onRunFlow?: RunFlowHandler;
+  /** Open the Review surface narrowed to a (collection, locale) scope — wired
+   *  to the ship-gate cells and the timeline tags. */
+  onOpenReview?: (scope: { collection?: string; locale?: string }) => void;
   /** Pre-loaded formats for Storybook — skips api.listFormats(). */
   formatList?: FormatInfo[];
   /** Pre-loaded base path for Storybook — skips api.getBasePath(). */
@@ -251,7 +254,14 @@ interface TimelineItem {
  *  below the line and stack into lanes where languages cluster, so stems stay
  *  short. Colours encode the ship-gate stage. Hovering a tag expands the language
  *  into a dot per collection (others dim) with a breakdown popover. */
-function LanguageTimeline({ items }: { items: TimelineItem[] }) {
+function LanguageTimeline({
+  items,
+  onSelect,
+}: {
+  items: TimelineItem[];
+  /** Open the Review surface for a language (the timeline's review affordance). */
+  onSelect?: (lang: string) => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -371,13 +381,26 @@ function LanguageTimeline({ items }: { items: TimelineItem[] }) {
                   }}
                 />
                 {/* tag: locale pill (colours consistent with the rest of the UI)
-                    + overall %; the on-line dot carries the ship-gate stage. */}
+                    + overall %; the on-line dot carries the ship-gate stage.
+                    With onSelect wired, clicking opens Review for the language. */}
                 <span
-                  className="absolute flex -translate-x-1/2 items-center gap-1 whitespace-nowrap cursor-default"
+                  className={`absolute flex -translate-x-1/2 items-center gap-1 whitespace-nowrap ${
+                    onSelect ? "cursor-pointer" : "cursor-default"
+                  }`}
                   style={{ left: x, top: tagTop }}
                   onMouseEnter={() => setHovered(it.lang)}
                   onMouseLeave={() => setHovered(null)}
-                  title={`${it.lang}: ${it.pct}% translated`}
+                  onClick={onSelect ? () => onSelect(it.lang) : undefined}
+                  role={onSelect ? "button" : undefined}
+                  aria-label={
+                    onSelect ? t("Review {lang} translations", { lang: it.lang }) : undefined
+                  }
+                  title={
+                    onSelect
+                      ? `${it.lang}: ${it.pct}% translated — ${t("click to review")}`
+                      : `${it.lang}: ${it.pct}% translated`
+                  }
+                  data-slot="timeline-lang-tag"
                 >
                   <LocalePill locale={it.lang} />
                   <span className="text-[10px] font-medium tabular-nums text-muted-foreground">
@@ -478,6 +501,7 @@ export function CollectionsPanel({
   tabID,
   flows,
   onRunFlow,
+  onOpenReview,
   formatList: propFormats,
   basePath: propBasePath,
   status: propStatus,
@@ -1483,24 +1507,43 @@ export function CollectionsPanel({
       if (r.key === "none") {
         return <span className="text-center text-[10px] text-muted-foreground/40">&mdash;</span>;
       }
-      return heatmap ? (
-        <span
-          className="flex items-center justify-center gap-1 text-[10px]"
-          title={`${lang}: ${r.label} · ${r.pct}% translated`}
-        >
+      const cellTitle = onOpenReview
+        ? `${lang}: ${r.label} · ${r.pct}% translated — ${t("click to review")}`
+        : `${lang}: ${r.label} · ${r.pct}% translated`;
+      const openReview = onOpenReview
+        ? () =>
+            onOpenReview({
+              collection: isBareEntry(coll) ? "" : (coll.name ?? ""),
+              locale: lang,
+            })
+        : undefined;
+      const cell = heatmap ? (
+        <span className="flex items-center justify-center gap-1 text-[10px]" title={cellTitle}>
           <span className="size-2 shrink-0 rounded-full" style={{ background: r.color }} />
           <span className="tabular-nums text-muted-foreground">{r.pct}</span>
         </span>
       ) : (
-        <span
-          className="flex flex-col items-center gap-0.5"
-          title={`${lang}: ${r.label} · ${r.pct}% translated`}
-        >
+        <span className="flex flex-col items-center gap-0.5" title={cellTitle}>
           <span className="text-[10px] font-medium leading-none" style={{ color: r.color }}>
             {r.label}
           </span>
           <span className="text-[10px] tabular-nums text-muted-foreground">{r.pct}%</span>
         </span>
+      );
+      // A ship-gate cell is an entry point into Review, scoped to its
+      // (collection, locale).
+      return openReview ? (
+        <button
+          type="button"
+          className="rounded-sm hover:bg-accent"
+          onClick={openReview}
+          aria-label={t("Review {lang} in this collection", { lang })}
+          data-slot="ship-gate-cell"
+        >
+          {cell}
+        </button>
+      ) : (
+        cell
       );
     }
     const p = covPct(coll, lang);
@@ -1723,7 +1766,10 @@ export function CollectionsPanel({
                 </ul>
               </div>
               {timelineItems && timelineItems.length > 0 ? (
-                <LanguageTimeline items={timelineItems} />
+                <LanguageTimeline
+                  items={timelineItems}
+                  onSelect={onOpenReview ? (lang) => onOpenReview({ locale: lang }) : undefined}
+                />
               ) : (
                 stripCoverage.length > 0 && (
                   <div className="space-y-1.5">

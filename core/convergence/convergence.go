@@ -59,8 +59,15 @@ type ReviewItem struct {
 	Locale string `json:"locale"`
 	File   string `json:"file"`
 	Key    string `json:"key"`
-	Source string `json:"source"`           // short source preview
-	Target string `json:"target,omitempty"` // short target preview
+	// Collection is the parent content-collection name (empty for a bare
+	// entry), so a review surface can filter the queue to one collection.
+	Collection string `json:"collection,omitempty"`
+	Source     string `json:"source"`           // short source preview
+	Target     string `json:"target,omitempty"` // short target preview
+	// HasFindings reports whether the unit currently has check findings —
+	// enrichment a surface may add when it can compute findings cheaply. Nil
+	// means "not computed" (the base derivation never runs checkers).
+	HasFindings *bool `json:"hasFindings,omitempty"`
 }
 
 // Unit is a resolved content unit to measure: a source file paired with one

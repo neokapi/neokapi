@@ -438,8 +438,44 @@ export interface ReviewItem {
   locale: string;
   file: string;
   key: string;
+  /** Parent content-collection name (empty/absent for a bare entry). */
+  collection?: string;
   source: string;
   target?: string;
+  /** Whether the unit currently trips a check — set by GetReviewQueue's
+   * enrichment; absent when not computed. */
+  hasFindings?: boolean;
+}
+
+/** Provenance of a translation (matches Go model.Origin). */
+export interface TargetOrigin {
+  kind?: string; // human | tm | mt | ai | ocr | asr
+  engine?: string;
+  tool?: string;
+  reference?: string;
+  timestamp?: string;
+  confidence?: number;
+}
+
+/** Full review picture for one queue unit (matches Go ReviewUnitDetail). */
+export interface ReviewUnitDetail {
+  locale: string;
+  file: string;
+  key: string;
+  collection?: string;
+  source: string;
+  target: string;
+  /** Effective ladder state (draft|translated|reviewed|signed-off). */
+  status: string;
+  /** Last recorded decision when it still judges the current translation. */
+  review_state?: string;
+  note?: string;
+  origin?: TargetOrigin;
+  /** Best TM match percent (absent/0 = none found or no project TM open). */
+  tm_score?: number;
+  findings: DesktopFinding[];
+  /** Whether the target is a single plain-text run (safe to edit in place). */
+  editable: boolean;
 }
 
 /** The full derived convergence picture for a project. */
@@ -495,6 +531,7 @@ export type ProjectView =
   | "flows"
   | "tools"
   | "checks"
+  | "review"
   | "termbases"
   | "memories"
   | "settings";

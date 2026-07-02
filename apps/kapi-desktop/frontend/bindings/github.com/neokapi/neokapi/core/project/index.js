@@ -12,6 +12,7 @@ export {
     FormatSpec,
     GateRef,
     KapiProject,
+    LocaleDefaults,
     MergeDefaults,
     PluginIssue,
     PluginSpec,

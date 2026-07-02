@@ -11,6 +11,7 @@ import { ToolboxPage } from "./ToolboxPage";
 import { TermbasesPage } from "./TermbasesPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { ChecksPanel } from "./ChecksPanel";
+import { ReviewPage, type ReviewScope } from "./ReviewPage";
 import { FormatsPage } from "./FormatsPage";
 import { SettingsPage } from "./SettingsPage";
 import { HomePage } from "./HomePage";
@@ -105,6 +106,20 @@ export function ViewSwitch({
   } | null>(null);
   const runCounter = useRef(0);
   const launchedRunIdRef = useRef<number | null>(null);
+
+  // Review-surface entry scope: a ship-gate cell / timeline tag on the
+  // Collections surface opens Review narrowed to its (collection, locale). A
+  // counter keys the page so re-entering with a new scope resets its filters.
+  const [reviewScope, setReviewScope] = useState<ReviewScope | null>(null);
+  const reviewEntry = useRef(0);
+  const handleOpenReview = useCallback(
+    (scope?: ReviewScope) => {
+      reviewEntry.current += 1;
+      setReviewScope(scope ?? null);
+      navigate("review");
+    },
+    [navigate],
+  );
 
   // Run a project flow from the home page: navigate to the runner view. An
   // optional scope (the per-collection "Run") restricts the run to a single
@@ -219,6 +234,7 @@ export function ViewSwitch({
             onUpdate={updateProject}
             onRunFlow={handleRunFlow}
             onNavigate={navigate}
+            onOpenReview={handleOpenReview}
             pluginsResolved={activeTab.pluginsResolved}
             pluginIssues={activeTab.pluginIssues}
             onResetSample={() => onResetSample(tabID)}
@@ -280,6 +296,11 @@ export function ViewSwitch({
 
       case "checks":
         return <ChecksPanel tabID={tabID} />;
+
+      case "review":
+        return (
+          <ReviewPage key={reviewEntry.current} tabID={tabID} scope={reviewScope ?? undefined} />
+        );
 
       case "termbases":
         return <TermbasesPage tabID={tabID} />;
