@@ -22,10 +22,7 @@ func wrapAndWrite(t *testing.T, opts format.OutputOptions, input []byte, chunk i
 		chunk = len(input)
 	}
 	for i := 0; i < len(input); i += chunk {
-		end := i + chunk
-		if end > len(input) {
-			end = len(input)
-		}
+		end := min(i+chunk, len(input))
 		n, werr := w.Write(input[i:end])
 		require.NoError(t, werr)
 		require.Equal(t, end-i, n)
