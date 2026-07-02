@@ -7,22 +7,20 @@ import "github.com/neokapi/neokapi/core/registry"
 // provides compile-time safety.
 const (
 	// Validate
-	WordCount             registry.ToolID = "word-count"
-	CharCount             registry.ToolID = "char-count"
-	SegmentCount          registry.ToolID = "segment-count"
-	QACheck               registry.ToolID = "qa"
-	InconsistencyCheck    registry.ToolID = "inconsistency-check"
-	LengthCheck           registry.ToolID = "length-check"
-	CharsCheck            registry.ToolID = "chars-check"
-	PatternCheck          registry.ToolID = "pattern-check"
-	TermCheck             registry.ToolID = "term-check"
-	XMLValidation         registry.ToolID = "xml-validation"
-	ContentLint           registry.ToolID = "content-lint"
-	TranslationComparison registry.ToolID = "translation-comparison"
-	CharsListing          registry.ToolID = "chars-listing"
-	ScopingReport         registry.ToolID = "scoping-report"
-	RepetitionAnalysis    registry.ToolID = "repetition-analysis"
-	BrandVocabCheck       registry.ToolID = "brand-vocab-check"
+	WordCount          registry.ToolID = "word-count"
+	CharCount          registry.ToolID = "char-count"
+	SegmentCount       registry.ToolID = "segment-count"
+	QACheck            registry.ToolID = "qa"
+	InconsistencyCheck registry.ToolID = "inconsistency-check"
+	LengthCheck        registry.ToolID = "length-check"
+	CharsCheck         registry.ToolID = "chars-check"
+	PatternCheck       registry.ToolID = "pattern-check"
+	TermCheck          registry.ToolID = "term-check"
+	XMLValidation      registry.ToolID = "xml-validation"
+	ContentLint        registry.ToolID = "content-lint"
+	ScopingReport      registry.ToolID = "scoping-report"
+	RepetitionAnalysis registry.ToolID = "repetition-analysis"
+	BrandVocabCheck    registry.ToolID = "brand-vocab-check"
 
 	// Transform
 	PseudoTranslate   registry.ToolID = "pseudo-translate"
@@ -35,7 +33,6 @@ const (
 	PropertiesSet     registry.ToolID = "properties-set"
 	WhitespaceCorrect registry.ToolID = "whitespace-correct"
 	TagProtect        registry.ToolID = "tag-protect"
-	XSLTTransform     registry.ToolID = "xslt-transform"
 
 	// Enrich
 	// TMLeverage's id is "recycle" (the canonical command); "tm-leverage"
@@ -43,13 +40,8 @@ const (
 	TMLeverage   registry.ToolID = "recycle"
 	DiffLeverage registry.ToolID = "diff-leverage"
 
-	// Convert
-	EncodingConvert  registry.ToolID = "encoding-convert"
-	EncodingDetect   registry.ToolID = "encoding-detect"
-	LineBreakConvert registry.ToolID = "linebreak-convert"
-	BOMConvert       registry.ToolID = "bom-convert"
-	FullWidthConvert registry.ToolID = "fullwidth-convert"
-	URIConvert       registry.ToolID = "uri-convert"
+	// Analyze
+	EncodingDetect registry.ToolID = "encoding-detect"
 
 	// Pipeline
 	SpanClassify       registry.ToolID = "span-classify"

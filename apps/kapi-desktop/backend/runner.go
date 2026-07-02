@@ -13,6 +13,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -259,6 +260,12 @@ func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *fl
 				Encoding:     pctx.Encoding,
 				DetectFormat: func(path string) registry.FormatID {
 					return registry.FormatID(pctx.DetectFormat(a.formatReg, path))
+				},
+				ConfigureReader: func(reader format.DataFormatReader, fmtName registry.FormatID) error {
+					return pctx.ConfigureReader(reader, string(fmtName))
+				},
+				ConfigureWriter: func(writer format.DataFormatWriter, fmtName registry.FormatID) error {
+					return pctx.ConfigureWriter(writer, string(fmtName))
 				},
 			})
 

@@ -184,9 +184,8 @@ they came from. The path depends on how the text lives in the asset:
   the cues and the **`timing` anchor** is the hand-off into the timed-text writer.
   Registered built-in flows compose this end to end — `audio-to-subtitles`,
   `video-to-subtitles`, and `image-ocr-translate`. Video extraction emits *both*
-  speech cues and geometry-anchored frame OCR, so `video-to-subtitles` runs a
-  **`subtitle-filter`** step first: it keeps only timing-anchored, non-geometry
-  Blocks, so on-screen text never leaks into the spoken-subtitle track.
+  speech cues and geometry-anchored frame OCR; both carry timing anchors, so
+  the timed-text writers can serialize either layer.
 - **Embedded text layer with a skeleton.** PDF text layers and tagged formats
   re-apply targets through the format's writer (the skeleton mechanism, AD-029).
 - **Baked into pixels or waveform.** OCR text burned into an image, or speech in

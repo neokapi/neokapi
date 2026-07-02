@@ -15,7 +15,7 @@ const (
 	Bilingual LocaleCardinality = "bilingual"
 
 	// Multilingual — tool operates on N locales simultaneously.
-	// Examples: translation-comparison, cross-locale QA, consistency-check.
+	// Examples: cross-locale QA, consistency-check.
 	Multilingual LocaleCardinality = "multilingual"
 )
 

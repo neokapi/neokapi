@@ -274,14 +274,10 @@ func BuiltInFlows() []FlowDefinition {
 		{
 			ID:          "video-to-subtitles",
 			Name:        "Video to Subtitles",
-			Description: "Demux a video, keep only the spoken (timing-anchored) cues, then AI-translate them — drops on-screen frame text so the subtitle track stays clean",
+			Description: "Demux a video and AI-translate the spoken (timing-anchored) cues — pair with a subtitle output (.vtt/.srt) to produce a translated subtitle track",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []FlowNode{
-				{ID: "subtitle-filter", Type: NodeTool, Name: "subtitle-filter", Label: "Subtitle Filter", Position: NodePosition{X: 0, Y: 100}},
-				{ID: "translate", Type: NodeTool, Name: "translate", Label: "Translate", Position: NodePosition{X: 250, Y: 100}},
-			},
-			Edges: []FlowEdge{
-				{ID: "e-filter-translate", Source: "subtitle-filter", Target: "translate"},
+				{ID: "translate", Type: NodeTool, Name: "translate", Label: "Translate", Position: NodePosition{X: 0, Y: 100}},
 			},
 		},
 		{

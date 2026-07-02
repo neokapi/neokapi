@@ -142,15 +142,6 @@
     "cardinality": "monolingual"
   },
   {
-    "name": "encoding-convert",
-    "description": "Convert character encoding",
-    "category": "text-processing",
-    "has_schema": true,
-    "inputs": ["block", "data"],
-    "isSourceTransform": true,
-    "cardinality": "monolingual"
-  },
-  {
     "name": "case-transform",
     "description": "Transform text case",
     "category": "text-processing",

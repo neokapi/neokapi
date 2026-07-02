@@ -161,21 +161,6 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(&ContentLintConfig{}, toolMeta("content-lint", "Content Lint", schema.CategoryTextProcessing,
 		withTags("quality"), withCardinality(schema.Monolingual), withProduces(srcF(model.OverlayQA)))))
 
-	reg.RegisterWithSchema("translation-comparison", func() tool.Tool {
-		cfg := &TranslationComparisonConfig{}
-		cfg.Reset()
-		return NewTranslationComparisonTool(cfg)
-	}, toolSchema(&TranslationComparisonConfig{CaseSensitive: true, WhitespaceSensitive: true, PunctuationSensitive: true, Document1Label: "Trans1", Document2Label: "Trans2", GenericCodes: true},
-		toolMeta("translation-comparison", "Translation Comparison", schema.CategoryAnalysis,
-			withTags("quality", schema.TagL10n), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.AnnoComparison)))))
-
-	reg.RegisterWithSchema("chars-listing", func() tool.Tool {
-		return NewCharsListingTool(&CharsListingConfig{
-			IncludeSource: true, IncludeTarget: true, TargetLocale: model.LocaleEnglish,
-		}).Tool()
-	}, toolSchema(&CharsListingConfig{IncludeSource: true, IncludeTarget: true}, toolMeta("chars-listing", "Characters Listing", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoCharCount)))))
-
 	reg.RegisterWithSchema("scoping-report", func() tool.Tool {
 		return NewScopingReportTool(&ScopingReportConfig{})
 	}, toolSchema(&ScopingReportConfig{}, toolMeta("scoping-report", "Scoping Report", schema.CategoryAnalysis,
@@ -202,11 +187,6 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		return NewCaseTransformTool(&CaseTransformConfig{Mode: CaseLower, ApplySource: true})
 	}, toolSchema(&CaseTransformConfig{Mode: CaseLower, ApplySource: true}, toolMeta("case-transform", "Case Transform", schema.CategoryTextProcessing,
 		withTags("text-processing"), withWritesOutput(), withCardinality(schema.Monolingual))))
-
-	reg.RegisterWithSchema("subtitle-filter", func() tool.Tool {
-		return NewSubtitleFilterTool(&SubtitleFilterConfig{})
-	}, toolSchema(&SubtitleFilterConfig{}, toolMeta("subtitle-filter", "Subtitle Filter", schema.CategoryTextProcessing,
-		withTags("media", "subtitle"), withCardinality(schema.Monolingual))))
 
 	RegisterSegmentation(reg)
 
@@ -254,13 +234,6 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		return t
 	}, UnredactSchema())
 
-	reg.RegisterWithSchema("xslt-transform", func() tool.Tool {
-		cfg := &XSLTTransformConfig{}
-		cfg.Reset()
-		return NewXSLTTransformTool(cfg)
-	}, toolSchema(&XSLTTransformConfig{ApplySource: true, PassOnOutput: true}, toolMeta("xslt-transform", "XSLT Transform", schema.CategoryTextProcessing,
-		withTags("configurable"), withCardinality(schema.Monolingual))))
-
 	// ── Enrich ──────────────────────────────────────────────────────
 
 	// "recycle" is the canonical id for TM leverage (pre-fill from translation
@@ -277,40 +250,10 @@ func RegisterAll(reg *registry.ToolRegistry) {
 
 	// ── Convert ─────────────────────────────────────────────────────
 
-	reg.RegisterWithSchema("encoding-convert", func() tool.Tool {
-		cfg := &EncodingConvertConfig{}
-		cfg.Reset()
-		return NewEncodingConvertTool(cfg)
-	}, toolSchema(&EncodingConvertConfig{ApplyTarget: true, UnescapeNCR: true, UnescapeCER: true, UnescapeJava: true, ReportUnsupported: true},
-		toolMeta("encoding-convert", "Encoding Convert", schema.CategoryTextProcessing,
-			withCardinality(schema.Monolingual))))
-
 	reg.RegisterWithSchema("encoding-detect", func() tool.Tool {
 		return NewEncodingDetectTool(&EncodingDetectConfig{})
 	}, toolSchema(&EncodingDetectConfig{}, toolMeta("encoding-detect", "Encoding Detect", schema.CategoryAnalysis,
 		withCardinality(schema.Monolingual))))
-
-	reg.RegisterWithSchema("linebreak-convert", func() tool.Tool {
-		return NewLineBreakConvertTool(&LineBreakConvertConfig{Mode: LineBreakLF, ApplySource: true, ApplyTarget: true})
-	}, toolSchema(&LineBreakConvertConfig{Mode: LineBreakLF, ApplySource: true, ApplyTarget: true},
-		toolMeta("linebreak-convert", "Line Break Convert", schema.CategoryTextProcessing,
-			withCardinality(schema.Monolingual))))
-
-	reg.RegisterWithSchema("bom-convert", func() tool.Tool {
-		return NewBOMConvertTool(&BOMConvertConfig{})
-	}, toolSchema(&BOMConvertConfig{}, toolMeta("bom-convert", "BOM Convert", schema.CategoryTextProcessing,
-		withCardinality(schema.Monolingual))))
-
-	reg.RegisterWithSchema("fullwidth-convert", func() tool.Tool {
-		return NewFullWidthConvertTool(&FullWidthConvertConfig{Mode: FullWidthToHalf, ApplyTarget: true})
-	}, toolSchema(&FullWidthConvertConfig{Mode: FullWidthToHalf, ApplyTarget: true},
-		toolMeta("fullwidth-convert", "Full Width Convert", schema.CategoryTextProcessing,
-			withTags("text-processing"), withCardinality(schema.Monolingual))))
-
-	reg.RegisterWithSchema("uri-convert", func() tool.Tool {
-		return NewURIConvertTool(&URIConvertConfig{Mode: URIDecode, ApplyTarget: true})
-	}, toolSchema(&URIConvertConfig{Mode: URIDecode, ApplyTarget: true}, toolMeta("uri-convert", "URI Convert", schema.CategoryTextProcessing,
-		withTags("text-processing"), withCardinality(schema.Monolingual))))
 
 	// ── Pipeline ────────────────────────────────────────────────────
 
@@ -373,8 +316,6 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("content-lint", NewContentLintFromConfig)
 	reg.SetConfigFactory("scoping-report", NewScopingReportFromConfig)
 	reg.SetConfigFactory("repetition-analysis", NewRepetitionAnalysisFromConfig)
-	reg.SetConfigFactory("chars-listing", NewCharsListingFromConfig)
-	reg.SetConfigFactory("translation-comparison", NewTranslationComparisonFromConfig)
 	reg.SetConfigFactory("encoding-detect", NewEncodingDetectFromConfig)
 	reg.SetConfigFactory("pseudo-translate", NewPseudoTranslateFromConfig)
 	reg.SetConfigFactory("redact", NewRedactFromConfig)

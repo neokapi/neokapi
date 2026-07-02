@@ -286,16 +286,27 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 
 	// Build reader configuration callback: applies preset config + project defaults.
 	configureReader := func(reader format.DataFormatReader, detectedFmt registry.FormatID) error {
-		if len(mergedConfig) > 0 {
-			if cfg := reader.Config(); cfg != nil {
-				if err := cfg.ApplyMap(mergedConfig); err != nil {
-					return fmt.Errorf("apply format config: %w", err)
-				}
-			}
+		if err := applyFormatConfig(reader, mergedConfig); err != nil {
+			return fmt.Errorf("apply format config: %w", err)
 		}
 		if a.projectContext != nil {
 			if err := a.projectContext.ConfigureReader(reader, string(detectedFmt)); err != nil {
 				return fmt.Errorf("apply project format config: %w", err)
+			}
+		}
+		return nil
+	}
+
+	// Build writer configuration callback: applies the shared output options
+	// (output.bom / output.newline / output.encoding) from preset config +
+	// project defaults.
+	configureWriter := func(writer format.DataFormatWriter, fmtName registry.FormatID) error {
+		if err := applyWriterOutputConfig(writer, mergedConfig); err != nil {
+			return fmt.Errorf("apply writer output config: %w", err)
+		}
+		if a.projectContext != nil {
+			if err := a.projectContext.ConfigureWriter(writer, string(fmtName)); err != nil {
+				return fmt.Errorf("apply project writer config: %w", err)
 			}
 		}
 		return nil
@@ -316,6 +327,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		Store:           projStore,
 		ProjectRoot:     projRoot,
 		ConfigureReader: configureReader,
+		ConfigureWriter: configureWriter,
 		PartCache:       runnerCache,
 		PartCacheKey:    runnerCacheKey,
 	})
@@ -615,12 +627,8 @@ func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName,
 		return "", nil, fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 
-	if len(mergedConfig) > 0 {
-		if cfg := reader.Config(); cfg != nil {
-			if err := cfg.ApplyMap(mergedConfig); err != nil {
-				return "", nil, fmt.Errorf("apply format config: %w", err)
-			}
-		}
+	if err := applyFormatConfig(reader, mergedConfig); err != nil {
+		return "", nil, fmt.Errorf("apply format config: %w", err)
 	}
 
 	// Apply project format defaults.
@@ -691,6 +699,16 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 	writer, err := a.FormatReg.NewWriter(registry.FormatID(writerFormatName))
 	if err != nil {
 		return traceNodes, fmt.Errorf("no writer for %q: %w", writerFormatName, err)
+	}
+
+	// Apply the shared output options (preset config + project defaults).
+	if err := applyWriterOutputConfig(writer, mergedConfig); err != nil {
+		return traceNodes, fmt.Errorf("apply writer output config: %w", err)
+	}
+	if a.projectContext != nil {
+		if err := a.projectContext.ConfigureWriter(writer, writerFormatName); err != nil {
+			return traceNodes, fmt.Errorf("apply project writer config: %w", err)
+		}
 	}
 
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{

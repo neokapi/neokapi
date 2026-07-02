@@ -112,10 +112,6 @@ steps:
       match_source_whitespace: true
       remove_zero_width_chars: true
 
-  - tool: linebreak-convert
-    config:
-      mode: lf
-
   - tool: case-transform
     config:
       mode: title

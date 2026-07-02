@@ -42,6 +42,9 @@ func TestStats_Counts(t *testing.T) {
 	assert.Equal(t, 4, got.Total.Words, "'Hello there world' (3) + 'Goodbye' (1)")
 	// "Hello there world" = 17 runes, "Goodbye" = 7 → 24 characters.
 	assert.Equal(t, 24, got.Total.Characters)
+	// Distinct runes across "Hello there world" + "Goodbye":
+	// H e l o space t h r w d G b y → 13 unique characters.
+	assert.Equal(t, 13, got.Total.UniqueCharacters)
 	assert.Positive(t, got.Total.Segments, "every block counts as at least one segment")
 }
 

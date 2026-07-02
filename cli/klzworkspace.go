@@ -526,10 +526,8 @@ func (a *App) klzConfigureReader() func(format.DataFormatReader, registry.Format
 		if err != nil {
 			return fmt.Errorf("resolve format config: %w", err)
 		}
-		if cfg := reader.Config(); cfg != nil && len(mergedConfig) > 0 {
-			if err := cfg.ApplyMap(mergedConfig); err != nil {
-				return fmt.Errorf("apply format config: %w", err)
-			}
+		if err := applyFormatConfig(reader, mergedConfig); err != nil {
+			return fmt.Errorf("apply format config: %w", err)
 		}
 		return nil
 	}

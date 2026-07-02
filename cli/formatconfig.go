@@ -52,14 +52,45 @@ func formatConfigForSource(proj *project.KapiProject, formatName, relSource stri
 }
 
 // applyFormatConfig applies a merged config map onto a reader's typed
-// config. A nil/empty map is a no-op; readers without a Config are skipped.
+// config, stripping the reserved output.* writer options first (readers
+// normalize BOM/charset/newlines at parse time; the output options only
+// concern writers). A nil/empty map is a no-op; readers without a Config are
+// skipped.
 func applyFormatConfig(reader format.DataFormatReader, cfg map[string]any) error {
 	if len(cfg) == 0 {
+		return nil
+	}
+	_, rest, err := format.SplitOutputConfig(cfg)
+	if err != nil {
+		return err
+	}
+	if len(rest) == 0 {
 		return nil
 	}
 	c := reader.Config()
 	if c == nil {
 		return nil
 	}
-	return c.ApplyMap(cfg)
+	return c.ApplyMap(rest)
+}
+
+// applyWriterOutputConfig applies the reserved output.* options (output.bom,
+// output.newline, output.encoding) from a merged config map onto a writer.
+// Writers that don't embed format.BaseFormatWriter are skipped.
+func applyWriterOutputConfig(writer format.DataFormatWriter, cfg map[string]any) error {
+	if len(cfg) == 0 {
+		return nil
+	}
+	opts, _, err := format.SplitOutputConfig(cfg)
+	if err != nil {
+		return err
+	}
+	if opts.IsZero() {
+		return nil
+	}
+	oc, ok := writer.(format.OutputConfigurable)
+	if !ok {
+		return nil
+	}
+	return oc.SetOutputOptions(opts)
 }

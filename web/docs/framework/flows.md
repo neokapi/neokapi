@@ -94,7 +94,7 @@ steps:
   - parallel:
       - tool: word-count
       - tool: qa
-      - tool: chars-listing
+      - tool: char-count
 ```
 
 ### Transformers

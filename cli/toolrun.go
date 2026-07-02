@@ -360,21 +360,18 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 
+	var mergedConfig map[string]any
 	if ref.IsPreset() {
 		presetReg := preset.NewPresetRegistry()
 		preset.RegisterBuiltins(presetReg)
 		resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
 
-		mergedConfig, err := resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
+		mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
 		if err != nil {
 			return fmt.Errorf("resolve format config: %w", err)
 		}
-		if len(mergedConfig) > 0 {
-			if cfg := reader.Config(); cfg != nil {
-				if err := cfg.ApplyMap(mergedConfig); err != nil {
-					return fmt.Errorf("apply format config: %w", err)
-				}
-			}
+		if err := applyFormatConfig(reader, mergedConfig); err != nil {
+			return fmt.Errorf("apply format config: %w", err)
 		}
 	}
 
@@ -417,6 +414,10 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 				return nil
 			}
 			return fmt.Errorf("no writer for format %q: %w", writerFormatName, err)
+		}
+		// Apply the shared output options from the preset config, if any.
+		if err := applyWriterOutputConfig(writer, mergedConfig); err != nil {
+			return fmt.Errorf("apply writer output config: %w", err)
 		}
 	}
 
