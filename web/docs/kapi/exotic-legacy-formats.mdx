@@ -1,0 +1,88 @@
+---
+sidebar_position: 3
+sidebar_label: Exotic & legacy formats
+title: Exotic and legacy formats
+description: Which niche and legacy file formats kapi no longer reads natively, which plaintext and CSV options absorb the useful ones, and how to localize the rest through an XLIFF round-trip with Okapi Rainbow or any CAT tool.
+keywords: [legacy formats, MIF, ICML, IDML, RTF, TTX, TXML, transtable, XLIFF, Okapi Rainbow, Tikal, migration]
+---
+
+# Exotic and legacy formats
+
+kapi's native format surface concentrates on the content people author today:
+software i18n catalogs, documents and structured content, and AI-boundary
+formats. A group of niche and legacy formats from the project's early porting
+days is no longer built in. This page lists them, shows which behaviors were
+absorbed into surviving formats as configuration options, and gives the
+migration path for the rest.
+
+## What was removed
+
+The following formats have no native reader or writer anymore:
+
+`mif`, `icml`, `idml`, `rtf`, `ttx`, `txml`, `mosestext`, `vignette`, `wiki`,
+`tex`, `doxygen`, `dtd`, `regex`, `fixedwidth`, `transtable`, `paraplaintext`,
+`splicedlines`, `versifiedtext`, `ttml`, `phpcontent`.
+
+Three of them survive as configuration on formats that stay native:
+
+| Removed format | Where it went |
+| --- | --- |
+| `paraplaintext` | [`plaintext`](/reference/formats/plaintext) with `paragraphs: true` — blank-line-separated paragraphs become blocks instead of individual lines |
+| `splicedlines` | [`plaintext`](/reference/formats/plaintext) with `spliceLines: true` — lines ending with a continuation marker (default backslash, configurable via `spliceMarker`) join into one block |
+| `transtable` | [`csv`](/reference/formats/csv) / [`tsv`](/reference/formats/tsv) with `columns: {key: 0, source: 1, target: 2}` — a bilingual translation table; on merge only the target column is rewritten |
+
+For example, a recipe entry reading a translation table as TSV:
+
+```yaml
+content:
+  - path: "glossary.tsv"
+    format:
+      name: tsv
+      config:
+        columns: { key: 0, source: 1, target: 2 }
+```
+
+Subtitles need no migration: [`srt`](/reference/formats/srt) and
+[`vtt`](/reference/formats/vtt) remain native, and cover what `ttml` was used
+for in practice.
+
+## Migrating the rest: the XLIFF round-trip
+
+XLIFF is the interchange seam every localization tool shares, and kapi reads
+and writes it natively. For a format kapi no longer parses, let a tool that
+still does — [Okapi Rainbow](https://okapiframework.org/wiki/index.php/Rainbow)
+or its command-line sibling
+[Tikal](https://okapiframework.org/wiki/index.php/Tikal), or any CAT tool —
+produce the XLIFF, localize it with kapi, and convert back:
+
+```bash
+# 1. Extract with Okapi Tikal: manual.mif → manual.mif.xlf
+tikal.sh -x manual.mif -sl en -tl de
+
+# 2. Localize the XLIFF with kapi
+kapi translate -i manual.mif.xlf --target-lang de
+
+# 3. Merge with Tikal: manual.mif.xlf → manual.out.mif
+tikal.sh -m manual.mif.xlf
+```
+
+In Rainbow the same pair of steps is *Utilities → Translation Kit Creation*
+(pick the XLIFF kit) and *Translation Kit Post-Processing*. Any CAT tool or
+TMS that emits XLIFF 1.2 or 2.x works the same way — kapi treats the XLIFF as
+the document and never needs to understand the original format.
+
+The round-trip keeps kapi's project machinery in the loop: the XLIFF flows
+through the same [extract/merge interchange](/kapi/bilingual-workflow) as any
+other handoff, so translation memory pre-fill, terminology QA, and provenance
+tracking all apply.
+
+## Why they were removed
+
+These filters were ports from the Okapi Framework's Java surface. Their usage
+today is close to zero, several depend on proprietary authoring tools for
+verification, and each carried its own parser, writer, tests, and parity
+fixtures. Keeping the native surface small keeps the round-trip guarantees —
+byte-exact skeleton output, format-aware inline codes — testable and honest.
+The Okapi tools remain the reference implementation for these formats, and the
+XLIFF seam means removing a native parser never removes the ability to
+localize the content.

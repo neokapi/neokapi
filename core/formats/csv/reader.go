@@ -36,7 +36,7 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new CSV reader.
 func NewReader() *Reader {
-	cfg := &Config{Separator: ',', HasHeader: true}
+	cfg := &Config{Separator: ',', HasHeader: true, SourceColumn: -1, TargetColumn: -1}
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "csv",
@@ -51,7 +51,7 @@ func NewReader() *Reader {
 
 // NewTSVReader creates a new TSV reader (tab-separated values).
 func NewTSVReader() *Reader {
-	cfg := &Config{Separator: '\t', HasHeader: true}
+	cfg := &Config{Separator: '\t', HasHeader: true, SourceColumn: -1, TargetColumn: -1}
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "tsv",
@@ -259,6 +259,24 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	for rowIdx := startRow; rowIdx < len(records); rowIdx++ {
 		row := records[rowIdx]
 		rowNum := rowIdx - startRow + 1
+
+		// Bilingual (column-role) mode: one Block per row, source column as
+		// source text, target column as existing target.
+		if r.cfg.BilingualMode() {
+			rowGroupID := fmt.Sprintf("tr%d", rowNum)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: rowGroupID, Name: "table-row", Type: "table-row"}}) {
+				return
+			}
+			if block := r.newBilingualBlock(row, rowNum, &blockCounter); block != nil {
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
+				}
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: rowGroupID}}) {
+				return
+			}
+			continue
+		}
 
 		// Build key from key columns if configured
 		var rowKey string
@@ -531,6 +549,16 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 
 		rowNum := rowIdx - startRow + 1
 
+		// Bilingual (column-role) mode: the whole row is skeleton except the
+		// target cell, which becomes the ref the writer fills on merge.
+		if r.cfg.BilingualMode() {
+			if !r.emitBilingualRowSkeleton(ctx, ch, row, rawLine, rowNum, &blockCounter) {
+				return
+			}
+			r.skelText(rawLine.lineEnding)
+			continue
+		}
+
 		// Build key from key columns if configured.
 		var rowKey string
 		if len(r.cfg.KeyColumns) > 0 {
@@ -658,6 +686,108 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 
 	r.skelFlush()
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// newBilingualBlock builds the Block for one data row in bilingual
+// (column-role) mode: source text from the source column, existing target
+// (if any) from the target column, block ID from the key columns when
+// configured. Returns nil when the source cell is empty.
+func (r *Reader) newBilingualBlock(row []string, rowNum int, blockCounter *int) *model.Block {
+	src := ""
+	if r.cfg.SourceColumn < len(row) {
+		src = row[r.cfg.SourceColumn]
+	}
+	if r.cfg.TrimValues {
+		src = strings.TrimSpace(src)
+	}
+	if src == "" {
+		return nil
+	}
+
+	*blockCounter++
+	blockID := fmt.Sprintf("tu%d", *blockCounter)
+	if len(r.cfg.KeyColumns) > 0 {
+		var keyParts []string
+		for _, kc := range r.cfg.KeyColumns {
+			if kc < len(row) {
+				keyParts = append(keyParts, row[kc])
+			}
+		}
+		if key := strings.Join(keyParts, "."); key != "" {
+			blockID = key
+		}
+	}
+
+	tgt := ""
+	if r.cfg.TargetColumn < len(row) {
+		tgt = row[r.cfg.TargetColumn]
+	}
+	if r.cfg.TrimValues {
+		tgt = strings.TrimSpace(tgt)
+	}
+
+	block := model.NewBlock(blockID, src)
+	block.Name = fmt.Sprintf("row%d", rowNum)
+	block.Properties["row"] = strconv.Itoa(rowNum)
+	block.Properties["column"] = strconv.Itoa(r.cfg.SourceColumn)
+	// Mark that this block's skeleton ref sits in the target column: the
+	// writer must never render source text there, falling back to the
+	// original target cell content instead.
+	block.Properties["target-cell"] = "true"
+	block.Properties["existing-target"] = tgt
+	if tgt != "" && !r.Doc.TargetLocale.IsEmpty() {
+		block.SetTargetText(r.Doc.TargetLocale, tgt)
+	}
+
+	if len(r.cfg.CommentColumns) > 0 {
+		var commentParts []string
+		for _, cc := range r.cfg.CommentColumns {
+			if cc < len(row) && strings.TrimSpace(row[cc]) != "" {
+				commentParts = append(commentParts, row[cc])
+			}
+		}
+		if comment := strings.Join(commentParts, "; "); comment != "" {
+			block.Properties["comment"] = comment
+		}
+	}
+	return block
+}
+
+// emitBilingualRowSkeleton handles one data row in bilingual (column-role)
+// mode with the skeleton store active. Every cell but the target cell rides
+// the skeleton verbatim (the source column is never overwritten on merge);
+// the target cell becomes the skeleton ref the writer fills with the
+// block's target text.
+func (r *Reader) emitBilingualRowSkeleton(ctx context.Context, ch chan<- model.PartResult, row []string, line rawLine, rowNum int, blockCounter *int) bool {
+	rawCells := splitRawCells(line.text, r.cfg.Separator)
+	block := r.newBilingualBlock(row, rowNum, blockCounter)
+	if block == nil || r.cfg.TargetColumn >= len(rawCells) {
+		// No source text, or no target cell present to anchor the ref:
+		// keep the whole row as skeleton text.
+		if block != nil {
+			*blockCounter-- // row not extracted after all
+		}
+		r.skelText(line.text)
+		return true
+	}
+
+	for colIdx, rc := range rawCells {
+		if colIdx > 0 {
+			r.skelText(string(r.cfg.Separator))
+		}
+		if colIdx == r.cfg.TargetColumn {
+			r.skelText(rc.prefix)
+			r.skelRef(block.ID)
+			r.skelText(rc.suffix)
+			if rc.prefix == "\"" {
+				block.Properties["quoted"] = "true"
+			}
+			continue
+		}
+		r.skelText(rc.raw)
+	}
+
+	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
 // rawLine holds a line's content and its original line ending.

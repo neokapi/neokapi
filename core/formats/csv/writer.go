@@ -130,6 +130,9 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 		case format.SkeletonRef:
 			if block, ok := blocks[string(entry.Data)]; ok {
 				text := w.blockText(block)
+				if block.Properties["target-cell"] == "true" {
+					text = w.targetCellText(block)
+				}
 				// Re-escape double quotes for cells that were originally quoted.
 				if block.Properties["quoted"] == "true" {
 					text = strings.ReplaceAll(text, "\"", "\"\"")
@@ -141,6 +144,17 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 		}
 	}
 	return nil
+}
+
+// targetCellText returns the text for a bilingual-mode target cell: the
+// block's target for the writer locale when present, otherwise the target
+// cell's original content (recorded by the reader). Source text is never
+// written into a target column.
+func (w *Writer) targetCellText(block *model.Block) string {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		return block.TargetText(w.Locale)
+	}
+	return block.Properties["existing-target"]
 }
 
 // blockText returns the appropriate text for a block (target if available, else source).

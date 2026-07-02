@@ -31,7 +31,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Label: "Extraction",
 				Fields: []string{
 					"translatableColumns", "keyColumns", "commentColumns",
-					"trimValues", "extractNonTranslatableContent",
+					"columns", "trimValues", "extractNonTranslatableContent",
 				},
 			},
 			{
@@ -75,6 +75,11 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Type:        "array",
 				Title:       "Comment Columns",
 				Description: "Column indices (0-based) that contain comments or notes",
+			}),
+			"columns": schema.Prop(coreschema.PropertySchema{
+				Type:        "object",
+				Title:       "Column Roles",
+				Description: "Column-role mapping for bilingual translation tables: an object with 0-based column indices for key, source and target (e.g. {key: 0, source: 1, target: 2}). On merge only the target column is rewritten.",
 			}),
 			"trimValues": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",

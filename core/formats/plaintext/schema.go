@@ -21,7 +21,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				ID:    "segmentation",
 				Label: "Segmentation",
 				Fields: []string{
-					"segmentByLine",
+					"segmentByLine", "paragraphs", "spliceLines", "spliceMarker",
 				},
 			},
 		},
@@ -30,6 +30,25 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Type:        "boolean",
 				Default:     true,
 				Description: "If true, each line becomes a separate block. If false, paragraphs (separated by blank lines) are blocks.",
+			}),
+			"paragraphs": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     false,
+				Title:       "Paragraphs",
+				Description: "If true, blank-line-separated paragraphs become blocks instead of individual lines.",
+			}),
+			"spliceLines": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     false,
+				Title:       "Splice Lines",
+				Description: "If true, lines ending with the splice marker are joined with the next line into a single block.",
+			}),
+			"spliceMarker": schema.Prop(coreschema.PropertySchema{
+				Type:        "string",
+				Default:     `\`,
+				Title:       "Splice Marker",
+				Description: "Continuation marker recognized at the end of a line in splice mode.",
+				Visible:     &coreschema.ConditionExpr{Field: "spliceLines", Eq: true},
 			}),
 		},
 	}
