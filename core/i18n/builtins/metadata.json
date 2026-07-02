@@ -1312,47 +1312,6 @@
         "application/json"
       ]
     },
-    "doxygen": {
-      "displayName": "Doxygen Comments",
-      "extensions": [
-        ".c",
-        ".cpp",
-        ".h",
-        ".java",
-        ".m",
-        ".py"
-      ],
-      "mimeTypes": [
-        "text/x-doxygen-txt"
-      ],
-      "properties": {
-        "codeFinderRules": {
-          "title": "Code finder rules",
-          "description": "Regex patterns that match inline codes within translatable text"
-        },
-        "extractNonTranslatableContent": {
-          "title": "Extract non-translatable content",
-          "description": "If true (default), non-translatable contextual content such as \\code…\\endcode and \\verbatim…\\endverbatim region bodies is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
-        },
-        "preserveWhitespace": {
-          "title": "Preserve whitespace",
-          "description": "Preserve original whitespace in extracted comment text instead of normalizing it"
-        },
-        "useCodeFinder": {
-          "title": "Enable inline code detection",
-          "description": "Enable regex-based detection of inline codes within translatable text"
-        }
-      }
-    },
-    "dtd": {
-      "displayName": "DTD",
-      "extensions": [
-        ".dtd"
-      ],
-      "mimeTypes": [
-        "application/xml-dtd"
-      ]
-    },
     "epub": {
       "displayName": "EPUB E-Book",
       "extensions": [
@@ -1364,13 +1323,6 @@
     },
     "exec": {
       "displayName": "Exec (subprocess extractor)"
-    },
-    "fixedwidth": {
-      "displayName": "Fixed-Width",
-      "extensions": [
-        ".dat",
-        ".fixed"
-      ]
     },
     "html": {
       "displayName": "HTML",
@@ -1426,25 +1378,6 @@
           "description": "Hand values whose key ends in \"_html\" (the i18next convention for markup) to the HTML subfilter so tags are protected and text remains translatable. Off by default: the HTML subfilter is not byte-faithful for bare markup fragments."
         }
       }
-    },
-    "icml": {
-      "displayName": "ICML (Adobe InCopy)",
-      "extensions": [
-        ".icml",
-        ".wcml"
-      ],
-      "mimeTypes": [
-        "application/x-icml+xml"
-      ]
-    },
-    "idml": {
-      "displayName": "Adobe InDesign Markup Language",
-      "extensions": [
-        ".idml"
-      ],
-      "mimeTypes": [
-        "application/vnd.adobe.indesign-idml-package"
-      ]
     },
     "image": {
       "displayName": "Image",
@@ -1703,16 +1636,6 @@
         "text/x-messageformat"
       ]
     },
-    "mif": {
-      "displayName": "Adobe FrameMaker MIF",
-      "extensions": [
-        ".mif"
-      ],
-      "mimeTypes": [
-        "application/x-mif",
-        "application/vnd.mif"
-      ]
-    },
     "mo": {
       "displayName": "MO (Gettext, binary)",
       "extensions": [
@@ -1720,12 +1643,6 @@
       ],
       "mimeTypes": [
         "application/x-gettext-translation"
-      ]
-    },
-    "mosestext": {
-      "displayName": "Moses Text",
-      "mimeTypes": [
-        "text/x-mosestext"
       ]
     },
     "odf": {
@@ -1903,33 +1820,6 @@
         }
       }
     },
-    "paraplaintext": {
-      "displayName": "Paragraph Plain Text"
-    },
-    "phpcontent": {
-      "displayName": "PHP Content",
-      "extensions": [
-        ".php",
-        ".phpcnt"
-      ],
-      "mimeTypes": [
-        "application/x-php"
-      ],
-      "properties": {
-        "extractNonTranslatableContent": {
-          "title": "Extract non-translatable content",
-          "description": "If true (default), skipped PHP string literals are surfaced as non-translatable content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep them in skeleton."
-        },
-        "extractOutsideDirectives": {
-          "title": "Extract outside the scope of the directives",
-          "description": "Extract translatable strings found outside directive-controlled regions."
-        },
-        "useDirectives": {
-          "title": "Use localization directives",
-          "description": "Honor //okapi: skip/text directives in PHP source to control extraction scope."
-        }
-      }
-    },
     "plaintext": {
       "displayName": "Plain Text",
       "extensions": [
@@ -2036,17 +1926,6 @@
         }
       }
     },
-    "regex": {
-      "displayName": "Regex Extraction",
-      "extensions": [
-        ".ini",
-        ".info",
-        ".rls"
-      ],
-      "mimeTypes": [
-        "text/x-regex"
-      ]
-    },
     "resx": {
       "displayName": ".NET RESX",
       "extensions": [
@@ -2067,45 +1946,6 @@
         }
       }
     },
-    "rtf": {
-      "displayName": "Rich Text Format",
-      "extensions": [
-        ".rtf"
-      ],
-      "mimeTypes": [
-        "application/rtf",
-        "text/rtf"
-      ],
-      "properties": {
-        "codeFinderRules": {
-          "title": "Code Finder Rules",
-          "description": "Regex patterns that match inline codes within extracted text."
-        },
-        "extractAnnotations": {
-          "title": "Translate Annotations",
-          "description": "If true, text in \\annotation (review comment) destinations is extracted as translatable content. If false (default), the comment text rides as block note metadata when extractNonTranslatableContent is on."
-        },
-        "extractBookmarks": {
-          "title": "Translate Bookmarks",
-          "description": "If true, \\bkmkstart / \\bkmkend bookmark labels are extracted as translatable text. Off by default — bookmarks are structural anchors, not user-visible copy."
-        },
-        "extractHeadersFooters": {
-          "title": "Translate Headers and Footers",
-          "description": "If true, text in \\header* and \\footer* destinations is extracted as translatable content. If false (default), it is surfaced as non-translatable content when extractNonTranslatableContent is on, otherwise kept in skeleton."
-        },
-        "extractNonTranslatableContent": {
-          "title": "Extract non-translatable content",
-          "description": "If true (default), non-translatable contextual content — headers/footers, \\info title/doccomm metadata, and \\xe/\\tc index/TOC entries — is surfaced as role-tagged content blocks (visible to ingestion/LLM consumers, skipped by machine translation) and \\annotation review comments ride as note metadata. Disable to keep all of it in skeleton."
-        },
-        "useCodeFinder": {
-          "title": "Enable Inline Code Detection",
-          "description": "Enable regex-based inline code detection within extracted text."
-        }
-      }
-    },
-    "splicedlines": {
-      "displayName": "Spliced Lines"
-    },
     "srt": {
       "displayName": "SRT Subtitles",
       "extensions": [
@@ -2114,17 +1954,6 @@
       "mimeTypes": [
         "application/x-subrip",
         "text/srt"
-      ]
-    },
-    "tex": {
-      "displayName": "TeX/LaTeX",
-      "extensions": [
-        ".tex",
-        ".latex"
-      ],
-      "mimeTypes": [
-        "application/x-tex",
-        "text/x-tex"
       ]
     },
     "tmx": {
@@ -2158,16 +1987,6 @@
         }
       }
     },
-    "transtable": {
-      "displayName": "Translation Table",
-      "extensions": [
-        ".tab",
-        ".tsv"
-      ],
-      "mimeTypes": [
-        "text/tab-separated-values"
-      ]
-    },
     "ts": {
       "displayName": "Qt TS",
       "mimeTypes": [
@@ -2182,70 +2001,6 @@
       ],
       "mimeTypes": [
         "text/tab-separated-values"
-      ]
-    },
-    "ttml": {
-      "displayName": "TTML Subtitles",
-      "extensions": [
-        ".ttml",
-        ".dfxp"
-      ],
-      "mimeTypes": [
-        "application/ttml+xml"
-      ],
-      "properties": {
-        "cjkCharsPerLine": {
-          "title": "Max characters per line for CJK",
-          "description": "Maximum number of characters per line for CJK languages. Set to 0 to disable."
-        },
-        "escapeBR": {
-          "title": "Escape line breaks",
-          "description": "When true, \u003cbr/\u003e elements are removed and text is joined with spaces; when false, \u003cbr/\u003e is preserved as literal text."
-        },
-        "extractNonTranslatableContent": {
-          "title": "Extract non-translatable content",
-          "description": "If true (default), non-translatable head metadata such as ttm:title, ttm:desc, ttm:copyright and ttm:agent is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
-        },
-        "maxCharsPerLine": {
-          "title": "Max characters per line",
-          "description": "Maximum number of characters per line in output. Set to 0 to disable."
-        },
-        "maxLinesPerCaption": {
-          "title": "Max lines per caption",
-          "description": "Maximum number of lines per caption in output. Set to 0 to disable."
-        },
-        "mergeAdjacentCaptions": {
-          "title": "Merge adjacent captions",
-          "description": "Merge adjacent \u003cp\u003e elements ending with trailing punctuation into one block."
-        },
-        "splitWords": {
-          "title": "Split words at character limit",
-          "description": "Split words so that they don't go over the character limit per line."
-        }
-      }
-    },
-    "ttx": {
-      "displayName": "Trados TagEditor TTX",
-      "extensions": [
-        ".ttx"
-      ],
-      "mimeTypes": [
-        "application/x-ttx+xml"
-      ]
-    },
-    "txml": {
-      "displayName": "Trados XML",
-      "extensions": [
-        ".txml"
-      ],
-      "mimeTypes": [
-        "application/x-txml+xml"
-      ]
-    },
-    "versifiedtext": {
-      "displayName": "Versified Text",
-      "extensions": [
-        ".ver"
       ]
     },
     "video": {
@@ -2264,9 +2019,6 @@
         "video/x-matroska",
         "video/webm"
       ]
-    },
-    "vignette": {
-      "displayName": "Vignette CMS Export"
     },
     "vtt": {
       "displayName": "WebVTT",
@@ -2296,38 +2048,6 @@
         "splitWords": {
           "title": "Split words at character limit",
           "description": "Split words so that they don't go over the character limit per line."
-        }
-      }
-    },
-    "wiki": {
-      "displayName": "Wiki",
-      "extensions": [
-        ".wiki",
-        ".mediawiki"
-      ],
-      "mimeTypes": [
-        "text/x-wiki"
-      ],
-      "properties": {
-        "extractNonTranslatableContent": {
-          "title": "Extract non-translatable content",
-          "description": "If true (default), non-translatable contextual content such as DokuWiki \u003ccode\u003e/\u003cfile\u003e/\u003chtml\u003e/\u003cphp\u003e block bodies and indented code blocks is surfaced as content blocks (visible to ingestion/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
-        },
-        "preserveWhitespace": {
-          "title": "Preserve Whitespace",
-          "description": "Preserve original whitespace in wiki markup instead of normalizing it."
-        },
-        "variant": {
-          "title": "Wiki variant",
-          "description": "Wiki markup variant: mediawiki or dokuwiki. Default is dokuwiki to match the okf_wiki bridge contract.",
-          "options": {
-            "dokuwiki": {
-              "label": "DokuWiki"
-            },
-            "mediawiki": {
-              "label": "MediaWiki"
-            }
-          }
         }
       }
     },
