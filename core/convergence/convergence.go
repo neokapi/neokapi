@@ -38,6 +38,11 @@ type LocaleCoverage struct {
 	Gated      bool             `json:"gated"`             // a ship gate applies to this scope
 	Shippable  bool             `json:"shippable"`         // gate satisfied (or no gate)
 	Pending    []gate.Shortfall `json:"pending,omitempty"` // unmet gate thresholds
+	// AIReviewed counts units whose reviewed/signed-off rung was reached by an
+	// autonomous AI decision ("ai/…" identity). They read as reviewed in Pct —
+	// with an "(ai)" qualifier in displays — but do not satisfy a gate's
+	// reviewed/signed-off threshold unless it says `by: any` (core/gate).
+	AIReviewed int `json:"aiReviewed,omitempty"`
 }
 
 // SourceCoverage is the source-readiness view for the project: how far its source
@@ -68,6 +73,12 @@ type ReviewItem struct {
 	// enrichment a surface may add when it can compute findings cheaply. Nil
 	// means "not computed" (the base derivation never runs checkers).
 	HasFindings *bool `json:"hasFindings,omitempty"`
+	// AIScore is the unit's AI pre-review score (0–100) when a fresh annotation
+	// exists for the current translation; nil when none was recorded (queue
+	// listing never calls a provider — the score is read from the state store).
+	AIScore *int `json:"aiScore,omitempty"`
+	// AIModel names the model that produced AIScore.
+	AIModel string `json:"aiModel,omitempty"`
 }
 
 // Unit is a resolved content unit to measure: a source file paired with one

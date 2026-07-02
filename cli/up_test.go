@@ -36,7 +36,7 @@ func runUp(t *testing.T, a *App, recipe string, flags ...string) (string, error)
 // targets, and reports converged when the gate is met.
 func TestUp_ConvergesByDefault(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO", "de-DE"}, gate.Gate{"translated": 100})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO", "de-DE"}, gate.Gate{"translated": {Pct: 100}})
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
@@ -54,7 +54,7 @@ func TestUp_ConvergesByDefault(t *testing.T) {
 // `kapi run` behavior) with no until-gate loop.
 func TestUp_SinglePass(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--passes", "1")
 	require.NoError(t, err, out)
@@ -67,7 +67,7 @@ func TestUp_SinglePass(t *testing.T) {
 // build failure. This is the default `up` behavior (no flag needed).
 func TestUp_ParksUnreachableGate(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": {Pct: 100}})
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, "parked work is reported, never a build failure")
@@ -78,7 +78,7 @@ func TestUp_ParksUnreachableGate(t *testing.T) {
 // TestUp_PassesCapsLoop: --passes N caps the until-gate loop at N passes.
 func TestUp_PassesCapsLoop(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": {Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--passes", "2")
 	require.NoError(t, err, out)
@@ -90,7 +90,7 @@ func TestUp_PassesCapsLoop(t *testing.T) {
 // TestUp_RejectsNegativePasses: a negative --passes is a usage error.
 func TestUp_RejectsNegativePasses(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
 	_, err := runUp(t, a, recipe, "--passes", "-1")
 	require.Error(t, err)
@@ -243,7 +243,7 @@ func TestUp_MaterializeSkipsParkedLocale(t *testing.T) {
 // prints the one-release pointer to `kapi up` on stderr.
 func TestRun_BareRunPointsAtUp(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": 100})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
 	out, err := runConverge(t, a, recipe)
 	require.NoError(t, err, out)

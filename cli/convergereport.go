@@ -141,6 +141,17 @@ func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, lo
 // for this exact translation, so an embedder can treat a redundant click as a
 // no-op.
 func (a *App) ApplyReviewDecision(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note string) (bool, error) {
+	return a.ApplyReviewDecisionAs(ctx, projectPath, sourceLang, ref, decision, note, "")
+}
+
+// ApplyReviewDecisionAs is ApplyReviewDecision with an explicit decider
+// identity. by is recorded as the decision's Decision.By: empty for a plain
+// human decision (the single-player default — unchanged behavior),
+// "ai/<model>" for an autonomous AI approval (pre-review auto-approve), or
+// "agent/<client>" for an MCP agent acting on a person's behalf. Gate
+// evaluation treats only "ai/…" decisions specially (core/gate approver
+// classes).
+func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note, by string) (bool, error) {
 	a.InitRegistries()
 	if ctx == nil {
 		ctx = context.Background()
@@ -190,7 +201,7 @@ func (a *App) ApplyReviewDecision(ctx context.Context, projectPath, sourceLang s
 			if status != model.TargetStatusDraft && strings.TrimSpace(target) == "" {
 				return false, fmt.Errorf("unit %s has no %s translation to approve", ref.Key, ref.Locale)
 			}
-			return a.recordDecisionState(proj, root, blockKey(b), loc, target, status, decision, note)
+			return a.recordDecisionState(proj, root, blockKey(b), loc, target, status, decision, note, by)
 		}
 	}
 	return false, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
@@ -201,28 +212,233 @@ func (a *App) ApplyReviewDecision(ctx context.Context, projectPath, sourceLang s
 // bound to the content hash of the translation it judges so a later edit drops
 // the decision (stale). The decision is transient until Export persists it to the
 // committed state artifact (the export sink). The TM (.klftm) is no longer
-// touched here: it is the recycle corpus, not the state carrier.
-func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, locale model.LocaleID, target string, status model.TargetStatus, decision, note string) (bool, error) {
+// touched here: it is the recycle corpus, not the state carrier. Advisory fields
+// already on the unit's record (origin, source status, a fresh AI pre-review
+// annotation) survive the decision write.
+func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, locale model.LocaleID, target string, status model.TargetStatus, decision, note, by string) (bool, error) {
 	st, err := openProjectState(proj, root)
 	if err != nil {
 		return false, err
 	}
 	k := state.Key{Unit: unit, Variant: model.Variant(locale)}
 	th := targetHash(target)
-	if prev, ok := st.Get(k); ok && prev.Status == status && prev.TargetHash == th && prev.Decision.Note == note {
+	prev, hadPrev := st.Get(k)
+	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.Decision.Note == note && prev.Decision.By == by {
 		return false, nil // already at this decision for this exact translation
 	}
 	now := nowRFC3339()
-	st.Put(state.UnitState{
+	next := state.UnitState{
 		Unit:       unit,
 		Variant:    model.Variant(locale),
 		Status:     status,
 		TargetHash: th,
-		Decision:   state.Decision{ReviewState: decision, At: now, Note: note},
+		Decision:   state.Decision{ReviewState: decision, By: by, At: now, Note: note},
 		Updated:    now,
-	})
+	}
+	if hadPrev {
+		// Advisory state rides along; only the decision itself is replaced.
+		next.Origin = prev.Origin
+		next.SourceStatus = prev.SourceStatus
+		if prev.AIReview.Fresh(th) {
+			next.AIReview = prev.AIReview
+		}
+	}
+	st.Put(next)
 	if err := st.Export(); err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+// RecordAIReviews stores advisory AI pre-review annotations for units of one
+// (file, locale) review scope in the project state store: for each unit key in
+// reviews, the annotation is bound to the content hash of the unit's CURRENT
+// translation (re-read from the target file), so a later edit invalidates it.
+// Annotations never move a unit on the ladder — any existing decision, origin,
+// and status ride along untouched. It returns the number of units annotated;
+// unit keys that no longer resolve are skipped (content moved on), not errors.
+func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, locale, file string, reviews map[string]state.AIReview) (int, error) {
+	a.InitRegistries()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if len(reviews) == 0 {
+		return 0, nil
+	}
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return 0, fmt.Errorf("load project: %w", err)
+	}
+	root := filepath.Dir(projectPath)
+	if sourceLang == "" {
+		sourceLang = string(proj.Defaults.SourceLanguage)
+	}
+	if sourceLang == "" {
+		sourceLang = "en"
+	}
+	a.SourceLang = sourceLang
+
+	units, err := a.unitsFromProject(proj, root, locale)
+	if err != nil {
+		return 0, fmt.Errorf("resolve content: %w", err)
+	}
+
+	st, err := openProjectState(proj, root)
+	if err != nil {
+		return 0, err
+	}
+
+	recorded := 0
+	loc := model.LocaleID(locale)
+	for _, u := range units {
+		if u.locale != locale || u.displayPath != file {
+			continue
+		}
+		blocks, missing, berr := a.bilingualBlocks(ctx, u)
+		if berr != nil {
+			if errors.Is(berr, errTargetUnreadable) {
+				continue
+			}
+			return recorded, berr
+		}
+		if missing {
+			continue
+		}
+		for _, b := range blocks {
+			if !b.Translatable {
+				continue
+			}
+			rev, ok := reviews[blockKey(b)]
+			if !ok {
+				continue
+			}
+			rev.TargetHash = targetHash(b.TargetText(loc))
+			if rev.At == "" {
+				rev.At = nowRFC3339()
+			}
+			k := state.Key{Unit: blockKey(b), Variant: model.Variant(loc)}
+			us, _ := st.Get(k)
+			us.Unit = blockKey(b)
+			us.Variant = model.Variant(loc)
+			r := rev
+			us.AIReview = &r
+			us.Updated = rev.At
+			st.Put(us)
+			recorded++
+		}
+	}
+	if recorded > 0 {
+		if err := st.Export(); err != nil {
+			return recorded, err
+		}
+	}
+	return recorded, nil
+}
+
+// ReviewUnitInfo is the CLI-layer picture of one review-queue unit — the
+// agent-facing counterpart of the desktop's richer detail view: full source and
+// target text, the effective ladder state, the recorded decision (with its
+// identity), and any fresh AI pre-review annotation. Derived on demand from the
+// content files and the project state store; nothing is cached.
+type ReviewUnitInfo struct {
+	Locale     string `json:"locale"`
+	File       string `json:"file"`
+	Key        string `json:"key"`
+	Collection string `json:"collection,omitempty"`
+	Source     string `json:"source"`
+	Target     string `json:"target"`
+	// Status is the unit's effective ladder state (draft|translated|reviewed|
+	// signed-off), with a fresh state-store decision applied over the presence
+	// baseline.
+	Status string `json:"status"`
+	// ReviewState/Note/By carry the last recorded decision when it still judges
+	// the current translation.
+	ReviewState string `json:"review_state,omitempty"`
+	Note        string `json:"note,omitempty"`
+	By          string `json:"by,omitempty"`
+	// AIScore/AIModel/AIFindings surface a fresh AI pre-review annotation.
+	AIScore    *int                    `json:"ai_score,omitempty"`
+	AIModel    string                  `json:"ai_model,omitempty"`
+	AIFindings []state.AIReviewFinding `json:"ai_findings,omitempty"`
+}
+
+// ReviewUnit resolves one review-queue unit by (file, key, locale) — exactly as
+// `kapi status --review` lists it — and returns its full text and recorded
+// state. It is the read leg agents pair with ApplyReviewDecisionAs.
+func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef) (*ReviewUnitInfo, error) {
+	a.InitRegistries()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return nil, fmt.Errorf("load project: %w", err)
+	}
+	root := filepath.Dir(projectPath)
+	if sourceLang == "" {
+		sourceLang = string(proj.Defaults.SourceLanguage)
+	}
+	if sourceLang == "" {
+		sourceLang = "en"
+	}
+	a.SourceLang = sourceLang
+
+	units, err := a.unitsFromProject(proj, root, ref.Locale)
+	if err != nil {
+		return nil, fmt.Errorf("resolve content: %w", err)
+	}
+
+	loc := model.LocaleID(ref.Locale)
+	for _, u := range units {
+		if u.locale != ref.Locale || u.displayPath != ref.File {
+			continue
+		}
+		blocks, missing, berr := a.bilingualBlocks(ctx, u)
+		if berr != nil {
+			if errors.Is(berr, errTargetUnreadable) {
+				continue
+			}
+			return nil, berr
+		}
+		if missing {
+			continue
+		}
+		for _, b := range blocks {
+			if !b.Translatable || blockKey(b) != ref.Key {
+				continue
+			}
+			info := &ReviewUnitInfo{
+				Locale:     ref.Locale,
+				File:       ref.File,
+				Key:        ref.Key,
+				Collection: u.collection,
+				Source:     b.SourceText(),
+				Target:     b.TargetText(loc),
+				Status:     unitState(b, ref.Locale),
+			}
+			st, serr := openProjectState(proj, root)
+			if serr != nil {
+				return nil, serr
+			}
+			if us, found := st.Get(state.Key{Unit: ref.Key, Variant: model.Variant(loc)}); found {
+				th := targetHash(info.Target)
+				if !us.Stale(th) {
+					if us.Status != "" {
+						info.Status = string(us.Status)
+					}
+					info.ReviewState = us.Decision.ReviewState
+					info.Note = us.Decision.Note
+					info.By = us.Decision.By
+				}
+				if us.AIReview.Fresh(th) {
+					score := us.AIReview.Score
+					info.AIScore = &score
+					info.AIModel = us.AIReview.Model
+					info.AIFindings = us.AIReview.Findings
+				}
+			}
+			return info, nil
+		}
+	}
+	return nil, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
 }

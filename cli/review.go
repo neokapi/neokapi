@@ -27,7 +27,14 @@ func (o ReviewQueueOutput) FormatText(w io.Writer) error {
 	}
 	fmt.Fprintf(w, "%d unit(s) awaiting review:\n\n", len(o.Pending))
 	for _, it := range o.Pending {
-		fmt.Fprintf(w, "  %-8s %s:%s\n", it.Locale, it.File, it.Key)
+		aiNote := ""
+		if it.AIScore != nil {
+			aiNote = fmt.Sprintf("  · ai %d", *it.AIScore)
+			if it.AIModel != "" {
+				aiNote += " (" + it.AIModel + ")"
+			}
+		}
+		fmt.Fprintf(w, "  %-8s %s:%s%s\n", it.Locale, it.File, it.Key, aiNote)
 		fmt.Fprintf(w, "           %s\n", it.Source)
 	}
 	fmt.Fprintln(w)
@@ -70,14 +77,23 @@ func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject,
 			if reviewed.decided(b, u.locale) {
 				continue
 			}
-			items = append(items, ReviewItem{
+			item := ReviewItem{
 				Locale:     u.locale,
 				File:       u.displayPath,
 				Key:        blockKey(b),
 				Collection: u.collection,
 				Source:     preview(b.SourceText()),
 				Target:     preview(b.TargetText(loc)),
-			})
+			}
+			// Surface a fresh AI pre-review annotation (score + model) so the
+			// queue can show it — read from the state store, never a provider
+			// call.
+			if rev, ok := reviewed.aiReviewFor(b, u.locale); ok {
+				score := rev.score
+				item.AIScore = &score
+				item.AIModel = rev.model
+			}
+			items = append(items, item)
 		}
 	}
 	sort.Slice(items, func(i, j int) bool {

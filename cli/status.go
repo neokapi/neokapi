@@ -47,7 +47,14 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 		for _, s := range statusLadder {
 			fmt.Fprintf(w, " %10d%%", lc.Pct[s])
 		}
-		fmt.Fprintf(w, "  %s\n", shipCell(lc))
+		fmt.Fprintf(w, "  %s", shipCell(lc))
+		// AI-approved units read as reviewed above, but honest provenance
+		// matters: qualify how many of them an autonomous AI approved. Gates
+		// only count these under `by: any` (core/gate approver classes).
+		if lc.AIReviewed > 0 {
+			fmt.Fprintf(w, "  (%d reviewed by ai)", lc.AIReviewed)
+		}
+		fmt.Fprintln(w)
 	}
 	return nil
 }
