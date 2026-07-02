@@ -3,121 +3,53 @@ id: pre-translate-with-tm
 title: "Reuse what you've translated"
 sidebar_label: "Pre-translate with TM"
 sidebar_position: 6
-description: "A deterministic pre-translation pass: leverage existing TM, fill the misses, and pre-flag terminology — all before any vendor sees the content. No API key."
+description: "A deterministic pre-translation pass: leverage existing TM, fill the misses, and pre-flag terminology — before any model or vendor sees the content. No API key."
 hide_table_of_contents: true
 ---
 
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
-import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # Reuse what you've translated
 
-:::note Better in a project
-This pipeline runs ad-hoc against a loose `./tm.db` or a named TM, with the
-source and target languages passed as flags. In a `.kapi` project it's better:
-the recipe carries the languages and the project TM is resolved automatically, so
-each release recycles the last one's leverage without repeating flags. Both forms
-are shown below; see
-[Where TM and termbases live](/kapi/recipes/tm-termbase-storage) for which store
-each command uses.
-:::
+**Goal:** never re-translate a sentence you've already translated. When you ship an update, most text is unchanged — kapi brings back what it recognizes from earlier releases and sends only the new and changed parts forward, marking anything still untranslated so nothing slips out blank. Deterministic, seconds, no API key. Concepts: [Translation memory](/framework/translation-memory) and [Terminology](/framework/terminology); where each store lives: [TM & termbase storage](/kapi/recipes/tm-termbase-storage).
 
-**Goal:** never re-translate a sentence you've already translated. When you ship
-an update, most of the text is unchanged — kapi brings back what it recognizes
-from earlier releases and sends only the new and changed parts forward, marking
-anything still untranslated so nothing slips out blank. It runs in seconds, on
-your machine, with no API key.
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
 
-For the concepts, see [Translation Memory](/framework/translation-memory) and
-[Terminology](/framework/terminology); this recipe walks the task.
+The **Translation Memories** view is the project TM's home:
 
-## The scenario
+1. **Import past work.** Import a TMX (or previous release's bilingual files) into the project TM; entries and language pairs are listed as they land.
+2. **Run the flow.** A project flow whose first step is `recycle` fills every exact and fuzzy match from the TM before any translate step runs — **Bring up to date** applies it across locales, and only the misses go forward.
+3. **Watch leverage accumulate.** Every finished run absorbs its results, so the next release starts warmer.
 
-Your project has:
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
 
-- `messages_en.json` — the English source strings.
-- `project.tmx` — a translation memory from previous releases.
-- `glossary.csv` — an approved bilingual glossary maintained by your terminology
-  team.
+Ask for the leverage pass:
 
-The pipeline is three deterministic steps:
+> Import `project.tmx` into the project TM, pre-translate the French catalog from it, and tell me what's left.
 
-<PipelineDiagram
-  stages={[
-    { label: "recycle", role: "translate" },
-    { label: "pseudo-translate", role: "translate" },
-    { label: "term-check", role: "qa" },
-  ]}
-/>
+The assistant runs `kapi tm import`, then `recycle`, and reports the residue — the blocks with no match — so you decide what goes to a model or a vendor. Approved sentence pairs it encounters along the way can be banked for the future with a `kind:"tm"` change-set entry through `kapi apply`.
 
-TM leverage fills exact and fuzzy matches from previous releases;
-pseudo-translation covers everything the TM didn't, so no segment is silently
-left blank; `term-check` pre-flags any terminology problems before content goes
-out.
+</TabItem>
+<TabItem value="cli" label="CLI">
 
-## Step 1 — load your TM
-
-Import the translation memory so leverage can read it. With no flag the import
-lands in a local `tm.db` file (or the project's TM when run inside a project);
-[Where TM and termbases live](/kapi/recipes/tm-termbase-storage) covers selecting
-a named TM with `--name` or an explicit file with `--file`.
+Three deterministic steps — leverage, make the gaps visible, pre-flag terms:
 
 ```bash
-kapi tm import project.tmx -s en -t fr
+kapi tm import project.tmx -s en -t fr        # 1. load past work (see tm stats)
+kapi recycle messages_en.json -o step1.json \
+  --source-lang en --target-lang fr           # 2. fill exact + fuzzy matches
+kapi pseudo-translate step1.json -o step2.json  # 3. mark what the TM missed
+kapi term-check step2.json --source-lang en --target-lang fr \
+  --termbase product-terms                    # 4. pre-flag terminology drift
 ```
 
-Verify it loaded:
+Tune matching with `--fuzzy-threshold` / `--fill-target-threshold` ([how matching works](/framework/translation-memory)). To machine-translate the misses instead of pseudo-filling them, swap step 3 for [`kapi translate`](/reference/commands/translate) and keep `term-check` as the guardrail.
 
-```bash
-kapi tm stats
-```
-
-## Step 2 — leverage the TM
-
-Fill segments that have an exact or fuzzy match in the TM. With no flag,
-`recycle` reads the same TM you just imported into; pass `--tm <name|path>`
-to leverage a different one. (See
-[Translation Memory](/framework/translation-memory) for how exact and fuzzy
-matching, default thresholds, and match scoring work.)
-
-```bash
-kapi recycle messages_en.json \
-  -o step1_tm.json \
-  --source-lang en \
-  --target-lang fr
-```
-
-Tune the thresholds with `--fuzzy-threshold` and `--fill-target-threshold`.
-
-## Step 3 — pseudo-translate the misses
-
-Everything the TM didn't cover gets a locale-shaped placeholder, so untranslated
-strings are visible rather than silently empty:
-
-```bash
-kapi pseudo-translate step1_tm.json -o step2_translated.json
-```
-
-## Step 4 — pre-flag terminology
-
-Run `term-check` over the result so terminology problems surface now, not after
-a vendor returns the file:
-
-```bash
-kapi term-check step2_translated.json \
-  --source-lang en \
-  --target-lang fr \
-  --termbase product-terms
-```
-
-(Import the glossary into `product-terms` first — see
-[Enforce terminology](/kapi/recipes/terminology-qa).)
-
-## In a project
-
-The ad-hoc steps above pass `--source-lang`, `--target-lang`, and a TM on every
-command. In a `.kapi` project you declare those once and run the pipeline as a
-named flow:
+**In a project**, declare it once as a flow and drop every flag:
 
 ```yaml title="my-app.kapi"
 defaults:
@@ -131,50 +63,19 @@ flows:
       - tool: term-check
 ```
 
-```bash
-kapi run pretranslate
-```
+`kapi run pretranslate` resolves the project TM, termbase, and languages automatically — and a `recycle` step at the head of the default flow gives [`kapi up`](/kapi/recipes/translate-content) the same leverage on every pass.
 
-`kapi run` discovers the nearest recipe, resolves the project TM and termbase
-automatically, and applies the declared languages — no per-command flags. See
-[Create your first project](/kapi/get-started/first-project).
+</TabItem>
+</Tabs>
 
 ## Try it
 
-The in-browser build pre-seeds a TM and a termbase. The rail tops up the TM from
-`project.tmx`, then runs the three-step pipeline. Open the intermediate
-`step1_tm.json` / `step2_translated.json` files in the pane to watch each step's
-output feed the next.
+The in-browser build pre-seeds a TM and a termbase. The rail tops up the TM from `project.tmx`, then runs the pipeline — open the intermediate files to watch each step feed the next:
 
 <KapiGuidedEmbed id="kapi-terminology-pretranslation" />
 
-> The interactive embed and the recorded video both come from
-> [`walkthroughs/kapi-terminology-pretranslation.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/walkthroughs/kapi-terminology-pretranslation.scene.yaml).
-> Change the scene spec and regenerate; don't edit the generated output by hand.
-
-## Going further: AI for the gaps
-
-Pseudo-translation makes the untranslated segments _visible_; it isn't a real
-translation. To machine-translate the TM misses instead, swap step 3 for
-[`kapi translate`](/reference/commands/translate) (which needs a provider
-and credentials), then keep the `term-check` step as your guardrail. See
-[Translation](/framework/translation) for provider setup.
-
-## When this approach fits
-
-- **An established glossary** — even 50–100 key terms noticeably improves
-  consistency.
-- **Recurring content** — UI strings, docs, and copy that get re-translated each
-  release, where TM leverage recycles the most.
-- **Multiple target languages** — a single concept-oriented termbase keeps every
-  language aligned, so the same pipeline runs per locale.
-
 ## Next
 
-- [`kapi tm`](/reference/commands/tm) and
-  [`kapi recycle`](/reference/commands/recycle) — command references.
-- [Where TM and termbases live](/kapi/recipes/tm-termbase-storage) — loose file,
-  named store, or project store, and the flags that select each.
-- [Translation Memory](/framework/translation-memory) — how TM matching works.
-- [Enforce terminology](/kapi/recipes/terminology-qa) — the validation side of the
-  same termbase.
+- [TM & termbase storage](/kapi/recipes/tm-termbase-storage) — loose file, named store, or project store.
+- [Keep terms consistent](/kapi/recipes/terminology-qa) — the validation side of the same termbase.
+- [`kapi tm`](/reference/commands/tm) and [`kapi recycle`](/reference/commands/recycle) — command references.

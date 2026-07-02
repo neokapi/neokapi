@@ -1,358 +1,80 @@
 ---
 title: "Keep your source content on brand"
-description: "Survey, check, and rewrite source content against a brand voice profile — monolingual source governance before translation or publishing."
+description: "Check source content against a brand voice profile and rewrite what fails — so what goes to translation or production is already on-brand."
 hide_table_of_contents: true
 ---
 
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
 import { PendingMedia } from "@neokapi/docs-shared";
 
 # Keep your source content on brand
 
-:::note Runs anywhere
-No project needed. The commands on this page operate on files you name directly.
-:::
-
-**Goal:** flag forbidden, competitor, and off-preferred terms in your _source_
-content and rewrite the ones that fail — so what goes to translation (or to
-production) is already on-brand. This is a source-governance workflow, not a
-post-translation check.
-
-For the concepts, see [Checks](/framework/checks) and
-[Brand voice](/framework/checks/brand-voice); this recipe walks the task.
+**Goal:** flag forbidden, competitor, and off-preferred terms in your _source_ content and rewrite what fails — so what goes to translation (or production) is already on-brand. This is source governance, before any translation. The profile format lives in [Brand voice](/framework/checks/brand-voice); setting one up takes [ten minutes](/kapi/recipes/brand-guide-in-10-minutes).
 
 <PendingMedia kind="video" scene="web/walkthroughs/kapi-keep-source-on-brand.scene.yaml">
-  A short walkthrough authoring a brand-voice profile, running the check on a
-  source page, reading the score and located findings, and rewriting the
-  off-brand blocks until the gate passes.
+  Authoring a brand-voice profile, running the check on a source page, reading
+  the score and located findings, and rewriting the off-brand blocks until the
+  gate passes.
 </PendingMedia>
 
-The four commands involved are:
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
 
-| Command | What it does |
-|---|---|
-| `kapi stats` | Content overview: block counts, words, characters |
-| `kapi inspect` | Per-block detail as JSON — for RAG or AI pipelines |
-| `kapi check` | Check against a brand profile; exit 3 when the gate fails |
-| `kapi apply` | Write your reviewed edits back through the faithful round-trip (no model) |
-| `kapi brand rewrite` | Offline substitution of forbidden/competitor terms for their approved wording |
+With a brand profile bound in the project (Project Settings), the **Checks** view enforces it over everything the project tracks:
 
-## Survey the content
+1. **Run the checks.** Brand vocabulary findings appear alongside hygiene and length — each named by rule, located to a block, with the suggested wording.
+2. **Fix at the block.** Open the flagged file, correct the wording, re-run; the score climbs as findings clear.
+3. **Fix the rule, not just the draft.** A recurring off-brand term belongs in the profile — add it as a vocabulary rule so every later check enforces it.
 
-Before checking anything, run `kapi stats` to understand the scope:
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
 
-```bash
-kapi stats blog-post.md
-```
+Ask for the sweep:
 
-```
-Blocks:                     24
-  translatable:             19
-  non-translatable:          5
-Words:                    1847
-Characters:              11203
-  (no spaces):             9562
-Segments:                   19
-```
+> Check `blog/` against our brand voice and fix anything off-brand.
 
-With `--json`, the same data arrives as a structured record:
+The assistant loads the voice first (`kapi brand guide`, injected into its context so it rewrites on-voice, not just rule-compliant), runs `check_file`, rewrites each flagged block, and lands the edits with `apply_edits` — structure intact, no second model. When a term recurs, it proposes a `brand` change-set entry that adds the vocabulary rule to your committed profile; `git diff` is the review surface. It re-checks until the gate is green.
 
-```bash
-kapi stats blog-post.md --json | jq '.total.words'
-```
+</TabItem>
+<TabItem value="cli" label="CLI">
 
-The `total` object in the JSON output carries `blocks`, `translatable`,
-`non_translatable`, `words`, `characters`, `characters_no_space`, `segments`,
-and `by_role`. Multiple files produce one record per file plus a grand total.
-
-## Inspect content blocks
-
-`kapi inspect` parses a file and emits one record per content block — the same
-data an AI assistant or RAG pipeline reads to retrieve and edit specific blocks:
-
-```bash
-kapi inspect blog-post.md
-```
-
-```json
-[
-  {
-    "file": "blog-post.md",
-    "number": 1,
-    "id": "heading-0",
-    "content_hash": "a3f82c...",
-    "role": "heading",
-    "level": 1,
-    "text": "Introducing our new data platform"
-  },
-  {
-    "file": "blog-post.md",
-    "number": 2,
-    "id": "paragraph-0",
-    "content_hash": "b74d19...",
-    "role": "paragraph",
-    "level": 0,
-    "text": "Today we leverage our best-in-class infrastructure..."
-  }
-]
-```
-
-Use `--jsonl` to stream one object per line — a convenient format for piping
-into an ingestion or embedding pipeline:
-
-```bash
-kapi inspect --jsonl docs/*.md | jq -r '.content_hash + "\t" + .text'
-```
-
-Add `-f <format>` to override format auto-detection when the file extension is
-ambiguous.
-
-The `content_hash` field is a stable retrieval anchor: if you retrieve on this
-hash later and it still matches, the block's text has not changed. (See
-[the content model](/framework/content-model) for how the hash is defined.)
-
-## Check for off-brand content
-
-`kapi check` reads a file's content blocks, runs a configurable checkset, and
-returns one `kapi.check/v1` Report whose findings are located to the exact block.
-(See [Checks](/framework/checks) for the Report shape, findings, rules, and
-severities.)
-
-### Forbidden and required patterns
-
-Flag any term or regex that must not appear in the content:
-
-```bash
-kapi check blog-post.md --forbid "leverage" --forbid "best-in-class"
-```
-
-Require a particular phrase to be present in every document:
-
-```bash
-kapi check release-notes.md --require "Breaking change:"
-```
-
-Both flags are repeatable. Combine them with `--max-words` to also gate on
-length:
-
-```bash
-kapi check product-brief.md \
-  --forbid "synergy" --forbid "disrupt" \
-  --max-words 500
-```
-
-### Brand vocabulary from a starter pack
-
-`kapi` ships built-in starter packs for common content types. Pass `--pack` to
-load one:
-
-```bash
-kapi check blog-post.md --pack marketing-blog
-```
-
-Or use `--pack technical-docs` for reference content.
-
-### Brand vocabulary from your own profile
-
-For a team-specific voice profile, point at a YAML file with `--profile-file`,
-or at a profile stored in the local brand store with `--profile`:
+Check against a profile — yours, or a built-in starter pack — plus any inline constraints:
 
 ```bash
 kapi check blog-post.md --profile-file brand/voice.yaml
-kapi check blog-post.md --profile acme-brand
+kapi check blog-post.md --pack marketing-blog
+kapi check product-brief.md --forbid "synergy" --forbid "disrupt" --max-words 500
 ```
 
-See [Brand voice](/framework/checks/brand-voice) for the profile format and how
-the vocabulary rules work.
-
-### Reading the report
-
-By default `kapi check` prints a human table of findings and a pass/fail line.
-With `--json`, it emits the `kapi.check/v1` Report directly:
-
-```bash
-kapi check blog-post.md --pack marketing-blog --json
-```
-
-```json
-{
-  "schema": "kapi.check/v1",
-  "pass": false,
-  "target": { "kind": "file", "file": "blog-post.md", "blocks": 24 },
-  "summary": {
-    "findings": 3,
-    "critical": 0,
-    "major": 2,
-    "minor": 1,
-    "neutral": 0,
-    "score": 61
-  },
-  "gate": {
-    "max_critical": 0,
-    "max_major": -1,
-    "max_minor": -1,
-    "min_score": 0,
-    "failed": []
-  },
-  "findings": [
-    {
-      "rule": "brand.vocabulary",
-      "check": "brand",
-      "severity": "major",
-      "message": "Forbidden term \"leverage\" found",
-      "suggestion": "Consider: \"use\"",
-      "location": { "file": "blog-post.md", "block": "paragraph-0" }
-    }
-  ]
-}
-```
-
-Each finding carries a stable `rule` id; an AI assistant uses it to track which
-findings have been fixed across loop iterations. (See [Checks](/framework/checks)
-for the rule-id form, how the score is rolled up, and what the gate records.)
-
-### Exit codes and CI gates
-
-`kapi check` exits 0 when the report passes and 3 when the gate fails. Use this
-to gate a CI pipeline:
-
-```bash
-kapi check content/*.md --pack marketing-blog
-# exit 0 → pass; exit 3 → gate failure (at least one critical finding)
-```
-
-By default the gate fails on any critical finding and lets minor/major findings
-through. Tighten it:
-
-```bash
-# Fail on any critical or major finding
-kapi check content/*.md --pack marketing-blog --strict
-
-# Set a minimum score (0-100) below which the gate fails
-kapi check content/*.md --pack marketing-blog --min-score 80
-```
-
-To collect the findings without failing the pipeline — useful during a
-remediation sweep — pass `--no-fail`:
-
-```bash
-kapi check content/*.md --pack marketing-blog --json --no-fail > findings.json
-```
-
-### Reader validation (optional)
-
-Pass `--validate report` to fold format-level structure or encoding problems into
-the same Report. With `--validate strict`, a Major or Critical structure problem
-also fails the gate:
-
-```bash
-kapi check index.html --validate report
-```
-
-## Rewrite to fix findings
-
-The primary path is the one translation uses: **you fix the off-brand text and
-kapi applies it — no second model.** Load the voice guide, rewrite each flagged
-block on-brand, and write it back through the one write verb.
-
-`kapi inspect --jsonl` gives each block an `id`, a `content_hash`, and its `text`
-(inline codes as `<x id="…"/>` placeholders). Keep the placeholders, and send
-back a JSONL change-set of `content` entries:
-
-```json
-{"kind":"content","file":"blog-post.md","id":"paragraph-0","content_hash":"b74d19…","text":"Today we use our infrastructure..."}
-```
-
-`kapi apply` writes each named file in place; `--diff` previews and writes
-nothing:
+Exit `0` is a pass, `3` a gate failure; `--json` emits the `kapi.check/v1` Report with one finding per block ([Checks](/framework/checks) documents the schema). Then fix and re-check:
 
 ```bash
 kapi inspect blog-post.md --jsonl > blocks.jsonl
-# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
-# content entries to edits.jsonl — you (or your assistant) do this, no command
-kapi apply edits.jsonl --diff           # review first
-kapi apply edits.jsonl --in-place=.bak    # apply, keeping a .bak
+# rewrite each flagged block's "text" (keep the <x id="…"/> tags) into edits.jsonl
+kapi apply edits.jsonl --diff        # preview
+kapi apply edits.jsonl               # write through the faithful round-trip
+kapi check blog-post.md --profile-file brand/voice.yaml
 ```
 
-An edit whose `content_hash` no longer matches, or that drops an inline code, is
-left unchanged and the command exits on the gate code (3) so you re-inspect and
-retry. (See [Edit content](/kapi/recipes/rewrite-content) for the faithful
-round-trip guarantee that keeps styles, keys, inline codes, and markup intact.)
-
-### Fix the rule, not just the draft
-
-A recurring off-brand term is better fixed at the source. The same `kapi apply`
-change-set can carry a `brand` entry that adds a vocabulary rule, landing it
-alongside the content fix:
+An edit whose content hash drifted, or that would corrupt an inline code, is left unchanged and reported — see [Edit content](/kapi/recipes/rewrite-content). For deterministic term substitution with no assistant (vocabulary only, not tone), `kapi brand rewrite --profile-file brand/voice.yaml` reads stdin or `--input-text` and reports each change. To also add the missing rule while fixing the draft, ship both in one change-set:
 
 ```jsonl
 {"kind":"content","file":"blog-post.md","id":"paragraph-0","content_hash":"b74d19…","text":"Today we use our infrastructure..."}
 {"kind":"brand","op":"add-rule","list":"forbidden","term":"leverage","replacement":"use","severity":"minor"}
 ```
 
-The `brand` entry is written into the project's committed brand voice profile
-YAML (the `defaults.brand_voice.profile_file` the recipe binds) and compiled into
-the local brand store, so the next check enforces it. `git diff` is the review
-surface. This requires a `.kapi` project.
+The `brand` entry lands in the committed profile YAML the recipe binds and compiles into the local store, so the next check enforces it (requires a `.kapi` project).
 
-### Offline term substitution
-
-To swap forbidden and competitor terms for their approved wording without an
-assistant in the loop, `kapi brand rewrite` does it deterministically — no model.
-It reads text from `--input-text` or stdin and reports each change; it fixes
-vocabulary only, not tone or phrasing:
-
-```bash
-echo "$DRAFT" | kapi brand rewrite --profile-file brand/voice.yaml --input-text - --json
-```
-
-After fixing, run `kapi check` again to confirm the findings are cleared. The
-stable rule ids in the Report let you track which violations remain.
-
-## In an AI agent loop (MCP)
-
-`kapi mcp` exposes the read, write, and check surface as MCP tools so an AI
-assistant (Claude Code, Cursor, or any MCP-compatible client) can drive the full
-author → check → fix cycle from a conversation:
-
-| MCP tool | What it does |
-|---|---|
-| `extract_content` | Read a file's blocks: `id`, `content_hash`, `source_text` with inline-code placeholders, and `word_count` — the read leg |
-| `apply_edits` | Apply a typed change-set (content + asset edits) through the faithful round-trip — the one write verb, no provider |
-| `check_text` | Check a text snippet (no file needed) |
-| `check_file` | Check a file's content; returns `kapi.check/v1` Report |
-| `brand_check` | Score text against a brand profile; returns findings |
-
-A typical agent loop:
-
-1. Call `check_file` on the source file with a `profile_pack` or `profile_file`.
-2. Read the `findings` — each has a stable `rule` id and a `location.block`
-   pointing to the exact content block.
-3. Rewrite the flagged blocks and call `apply_edits` with a change-set of
-   `content` entries (and, to fix the rule too, a `brand` entry). No second model
-   is called.
-4. Re-run `check_file` to confirm the findings are cleared.
-
-The MCP server starts with `kapi mcp`. See [MCP server](/reference/mcp) for
-setup and the full tool list.
+</TabItem>
+</Tabs>
 
 ## In a project
 
-In a `.kapi` project, `kapi check` runs against the recipe's declared content
-with no file argument — the brand profile, packs, and gate thresholds come from
-the recipe instead of being passed on each invocation, and `kapi apply` lands
-your edits against the named files. Wire the check into a flow and run it with
-`kapi run` to gate the whole project's source in one pass. See
-[Create your first project](/kapi/get-started/first-project).
+Bind the profile once (`defaults.brand_voice.profile_file`) and every surface picks it up — the Checks view, the assistant's loop, bare `kapi check`, and the [ship gate](/kapi/recipes/gate-localization-in-ci)'s brand gate. For localization, a bound voice is also injected into the translation prompt, so target-language output starts on-brand.
 
 ## Next
 
-- [Brand voice](/framework/checks/brand-voice) — the profile format, vocabulary
-  rules, and how the score is calculated.
-- [`kapi check` reference](/reference/commands/brand-check) — all flags and the
-  full `kapi.check/v1` schema.
-- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply`
-  loop, inline-code preservation, and the faithful round-trip guarantee.
-- [MCP server](/reference/mcp) — how to configure kapi as an MCP server for
-  Claude Code, Cursor, and other AI tools.
-- [Terminology QA](/kapi/recipes/terminology-qa) — enforce approved term choices
-  in translated files after the source is locked.
+- [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes) — from starter pack to bound profile.
+- [Content governance for AI](/kapi/recipes/content-governance-for-ai) — brand + terms + checks as one guardrail set.
+- [Check content like tests](/kapi/recipes/verify-content) — the gate mechanics and exit codes.

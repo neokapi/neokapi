@@ -3,71 +3,51 @@ id: estimate-cost
 title: "Estimate a run's cost"
 sidebar_label: "Estimate a job"
 sidebar_position: 2
-description: "Count blocks, words, and characters in any supported format to size up a translation job before you commission it."
+description: "Count blocks, words, and characters in any supported format to size a translation job before you commission it."
 hide_table_of_contents: true
 ---
 
-import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
 import { StatsWidget } from "@site/src/components/Lab";
 
 # Estimate a run's cost
 
-:::note Runs anywhere
-No project needed — `kapi word-count` runs ad-hoc on any file, directory, or glob.
-:::
-
-**Goal:** know what a translation run will cost before you start it. `kapi
-word-count` reads any supported format and reports how much there actually is to
-translate — the block and word totals you multiply by a model's or vendor's
-per-word rate to size the run.
-
-For the concept, see [Content model](/framework/content-model); this recipe walks the task.
-
-## Steps
-
-1. Point `kapi word-count` at a file (or a directory, or a glob).
-2. Read off the block and source-word totals.
-3. Multiply by your vendor's per-word rate to size the job.
-
-Word count operates on the **extracted content**, not the raw bytes, so
-boilerplate, keys, and markup are excluded from the total.
-
-## Try it
-
-Drop a file (or pick the JSON or Word sample) and kapi counts it in your browser
-— blocks, source words, and an estimated character total, straight off the
-extracted content.
+**Goal:** know what a translation run will cost before you start it. kapi counts what there actually is to translate — blocks, words, characters, off the **extracted content**, so boilerplate, keys, and markup are excluded — and you multiply by a model's or vendor's per-word rate. Try it in your browser:
 
 <StatsWidget />
 
-### From the CLI
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
 
-For scripting and CI, the same count is one command — point it at a file, a
-directory, or a glob; `--json` makes it machine-readable:
+Open the project — each content collection lists its matched files with per-file and collection totals, so the volume of a job is visible before you run anything. For a loose file, the word-count and stats tools run as **quick tools** from the Toolbox.
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+Ask the sizing question directly:
+
+> How big is translating `docs/` into French and Japanese — words, and a rough cost at $0.08/word?
+
+The assistant runs `kapi stats --json` over the content, multiplies out the rate you gave, and can subtract what the TM already covers ([leverage first](/kapi/recipes/pre-translate-with-tm)) so the estimate reflects only the work that remains.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+Point at a file, a directory, or a glob; totals roll up into one figure:
 
 ```bash
 kapi word-count messages.json
 kapi word-count ./locales --json
+kapi stats --json docs/*.md          # richer: blocks, segments, by-role breakdown
 ```
 
-<KapiGuidedEmbed id="kapi-word-count" />
+In a project, run with no arguments to count the recipe's declared content. Flags: [`word-count`](/reference/commands/word-count); the field-by-field output is in the reference, not restated here.
 
-For multi-file projects, point at a directory or a glob; the totals roll up into
-one figure, with `-j` to process files in parallel.
-
-> The interactive embed and the recorded video both come from
-> [`walkthroughs/kapi-word-count.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/walkthroughs/kapi-word-count.scene.yaml).
-> Change the scene spec and regenerate; don't edit the generated output by hand.
-
-## In a project
-
-In a `.kapi` project, run `kapi word-count` with no arguments to count the
-recipe's declared content in one figure — kapi resolves the content globs for
-you, so there's no path or glob to type. See
-[Create your first project](/kapi/get-started/first-project).
+</TabItem>
+</Tabs>
 
 ## Next
 
-- [`kapi word-count`](/reference/commands/word-count) — full command reference.
-- Once you've sized the job, [run a bilingual round-trip](/kapi/bilingual-workflow)
-  to extract, translate, and merge it back.
+- [Reuse what you've translated](/kapi/recipes/pre-translate-with-tm) — shrink the job before pricing it.
+- [Hand off to translators](/kapi/bilingual-workflow) — extract, translate, merge back.

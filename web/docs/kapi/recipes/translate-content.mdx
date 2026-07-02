@@ -1,84 +1,72 @@
 ---
 id: translate-content
-title: "Translate your content"
-sidebar_label: "Translate your content"
-description: "Translate any file — app locale strings, a Word doc, a Markdown guide — into other languages with kapi, ad-hoc or as a project flow, while the format round-trips back intact."
+title: "Translate with your AI"
+sidebar_label: "Translate with your AI"
+description: "Get your content into other languages with the AI you already have — kapi up reconciles a project toward its ship gates; kapi translate handles a single file — while every format round-trips back intact."
 hide_table_of_contents: true
 ---
 
-# Translate your content
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import { PendingMedia } from "@neokapi/docs-shared";
 
-:::note Runs anywhere
-`kapi translate` runs ad-hoc on any file. In a project, `kapi run translate` does
-the same across your declared content and locales.
-:::
+# Translate with your AI
 
-**For the concept** — how translation works and the MT-vs-LLM trade-offs — see
-[Translation](/framework/translation). This recipe is the verb: **get your content
-into another language.**
+**Goal:** the same content in other languages — only the text changes; keys, tags, and structure round-trip back intact. In a project the verb is **`kapi up`**: it reconciles every target language toward its ship gate and parks what needs a person. For a loose file, `kapi translate` does one file, one language. The trade-offs behind the model choice live in [Choose a translation model](/kapi/recipes/choose-a-translation-provider); how translation works as a tool in [Translation](/framework/translation).
 
-**Goal:** take a file and produce a translated copy — only the text changes; keys,
-tags, and structure round-trip back byte-for-byte.
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
 
-## Translate one file
+Open your project — the coverage panel shows one row per locale against its ship gate.
 
-Point `kapi translate` at a file and name a target language. For an app's locale
-strings:
+1. **Bring up to date.** Click **Bring up to date**: kapi runs the project's default flow over every locale short of its gate, looping until each scope ships or parks. Progress is per-file and live.
+2. **Watch coverage climb.** Rows move toward their gate as translations land; anything a machine can't decide parks for review.
+3. **Review the parked units.** Open the **Review** queue from a ship-gate cell — see [Review & approve](/kapi/recipes/review-and-approve).
+
+For a one-off file with no project, use a **quick tool**: pick the translate tool, a file, and a target language.
+
+<PendingMedia kind="video" scene="harness/demos/kapi-desktop-flows/demo.yaml">
+  Pressing Bring up to date on a project, watching per-locale coverage climb
+  toward the ship gate, and opening the review queue for what parked.
+</PendingMedia>
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+With [kapi connected](/kapi/get-started/use-with-claude), ask:
+
+> Translate `src/locales/en.json` into French and German, keep the placeholders intact, and fix anything QA flags.
+
+The assistant routes the work **through kapi** so the guardrails apply — approved terms from the termbase, brand voice in the prompt, placeholder integrity checked after. In a project it simply runs `kapi up` and reads `kapi status` for what parked; for a single document it translates block by block and lands the result through the faithful round-trip. Either way it finishes by checking, and fixes what the gate flags before telling you it's done.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+**In a project** — the recipe declares the languages and content, so the whole job is one verb:
+
+```bash
+kapi up                # reconcile every locale toward its ship gate; park the rest
+kapi up --passes 1     # a single pass (the behavior of the bare 'kapi run')
+kapi status            # coverage per locale — informational, never fails
+```
+
+`up` re-derives coverage from the working tree each pass and runs the flow only for the locales still short of their gate. The project store reuses what you've already translated, so a run only touches what changed — see [Reuse what you've translated](/kapi/recipes/pre-translate-with-tm).
+
+**Ad-hoc** — one file, one language, flags for everything:
 
 ```bash
 kapi translate -i src/locales/en.json --target-lang fr -o src/locales/fr.json
+kapi translate -i guide.md --target-lang de        # documents work the same way
 ```
 
-It also works on documents — a Word file, a Markdown guide, an HTML page — the same
-way:
+The default engine is an LLM (`--provider anthropic`); wire a key once via [credentials](/kapi/recipes/choose-a-translation-provider), or translate on-device with Ollama — no key at all.
 
-```bash
-kapi translate -i guide.md --target-lang de
-```
-
-The default provider is an LLM (Anthropic); add a key once, or pick a different
-backend, in [Choose a translation provider](/kapi/recipes/choose-a-translation-provider).
-No key at all? Translate on-device with Ollama (also in that recipe).
-
-## Translate several languages at once
-
-Pass more than one target, or loop in a script:
-
-```bash
-for lang in fr de ja; do
-  kapi translate -i src/locales/en.json --target-lang "$lang" -o "src/locales/$lang.json"
-done
-```
-
-## In a project — translate everything, reuse everything
-
-Once you have a [`.kapi` project](/kapi/get-started/first-project), you don't name
-files or languages each time — the recipe declares them. Run the project's
-`translate` flow and materialize the results:
-
-```bash
-kapi run translate          # translate the project's content into its locales
-kapi merge                  # write the localized files
-```
-
-The project store **reuses what you've already translated**, so the next run only
-touches what changed — see
-[Reuse what you've translated](/kapi/recipes/pre-translate-with-tm).
-
-## Drive it from your AI assistant
-
-With the [MCP server](/kapi/get-started/use-with-claude) or the
-[Agent Skills](/kapi/get-started/use-with-claude) connected, just ask:
-
-> "Translate `src/locales/en.json` into French, German, and Japanese — keep the
-> placeholders intact — then run QA and fix anything that fails."
-
-Claude calls `kapi` to translate, checks the result, and loops until it passes.
+</TabItem>
+</Tabs>
 
 ## Next
 
+- [Add languages](/kapi/get-started/add-languages) — the full on-ramp: locales → `up` → review → gates.
 - [Estimate a run's cost](/kapi/recipes/estimate-cost) — size the job first.
-- [Reuse what you've translated](/kapi/recipes/pre-translate-with-tm) — don't pay
-  to translate the same string twice.
 - [Keep terms consistent](/kapi/recipes/terminology-qa) — enforce your glossary.
-- [Check translations in CI](/kapi/recipes/gate-localization-in-ci) — gate quality.
+- [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — `kapi check --ship` before a release.
