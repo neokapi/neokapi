@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-02T15:59:18Z",
+  "generatedAt": "2026-07-02T17:04:32Z",
   "commands": [
     {
       "id": "brand",
@@ -6216,11 +6216,6 @@
           "type": "string"
         },
         {
-          "name": "email",
-          "usage": "Account email for higher rate limits (mymemory)",
-          "type": "string"
-        },
-        {
           "name": "encoding",
           "shorthand": "e",
           "usage": "input file encoding",
@@ -6300,19 +6295,9 @@
           "type": "bool"
         },
         {
-          "name": "project-id",
-          "usage": "Google Cloud project ID (google)",
-          "type": "string"
-        },
-        {
           "name": "provider",
-          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative), DeepL, Google Translate, Microsoft Translator, ModernMT, MyMemory)",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Ollama, Demo (illustrative))",
           "default": "anthropic",
-          "type": "string"
-        },
-        {
-          "name": "region",
-          "usage": "Azure region (microsoft)",
           "type": "string"
         },
         {
@@ -6334,11 +6319,6 @@
           "type": "bool"
         },
         {
-          "name": "subscription-key",
-          "usage": "Azure subscription key (microsoft)",
-          "type": "string"
-        },
-        {
           "name": "target-lang",
           "usage": "target language (e.g. fr, de-DE)",
           "type": "string"
@@ -6351,7 +6331,7 @@
       ],
       "examples": [
         "kapi translate messages.json --target-lang fr",
-        "kapi translate app.xliff --target-lang de --provider deepl",
+        "kapi translate app.xliff --target-lang de --provider openai",
         "kapi translate app.xliff --target-lang de -o app.de.xliff"
       ],
       "offlineCapable": false,
