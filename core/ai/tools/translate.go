@@ -281,10 +281,12 @@ func (t *AITranslateTool) sessionHandleBlock(
 	if !block.Translatable {
 		return nil
 	}
-	hash := block.ID
-	if hash == "" {
+	if block.ID == "" {
 		return t.translate(tool.NewVariantViewWithContext(ctx, block))
 	}
+	// Key overlays globally-unique per source file (falls back to the raw id for
+	// ad-hoc single-document runs) so multi-file projects don't collide.
+	hash := blockstore.OverlayKey(ctx, block.ID, block.SourceText())
 
 	// Skip if already cached under the same config (a changed model/prompt/voice
 	// invalidates the cached target — re-translate rather than serve it stale).
@@ -367,7 +369,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 					continue
 				}
 				if caps.RandomAccess {
-					if sc, err := sess.GetOverlay(overlayKind, block.ID); err == nil && len(sc.Payload) > 0 {
+					if sc, err := sess.GetOverlay(overlayKind, blockstore.OverlayKey(ctx, block.ID, block.SourceText())); err == nil && len(sc.Payload) > 0 {
 						var cached aiTargetCache
 						if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" && cached.Config == t.configFP {
 							block.SetTargetText(t.targetLocale, cached.Text)
@@ -408,7 +410,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 				if err == nil {
 					if werr := sess.PutOverlay(blockstore.Overlay{
 						Kind:      overlayKind,
-						BlockHash: block.ID,
+						BlockHash: blockstore.OverlayKey(ctx, block.ID, block.SourceText()),
 						Payload:   payload,
 					}); werr != nil && !errors.Is(werr, blockstore.ErrReadOnly) {
 						return fmt.Errorf("translate: write overlay: %w", werr)

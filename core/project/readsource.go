@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 )
@@ -73,21 +74,10 @@ func ReadSourceBlocks(
 }
 
 // BlockStoreHash returns a stable, globally-unique key for a block in a
-// project-wide block store (`.kapi/cache/blocks.db`).
-//
-// Format readers assign *file-local* IDs (e.g. "tu1", "tu2", …) that restart in
-// every source file, and most don't populate a content hash — so keying the
-// store on the raw ID (or on source text alone) lets blocks from different
-// files/collections collide on the same key. Because the store upserts by key
-// (last writer wins), an earlier collection's blocks get silently reassigned to
-// a later one — the "Website shows 0 blocks" symptom. Namespacing the key by
-// the source file's project-relative path keeps every block distinct while
-// staying stable across re-extractions (so target overlays keyed off the same
-// block survive a re-extract).
+// project-wide block store — the source file's block id namespaced by its
+// project-relative path so blocks (and their target overlays) from different
+// files can't collide. It delegates to blockstore.StoreKey, the single
+// definition shared by the extract, run, and merge paths.
 func BlockStoreHash(sourceRel, blockID, sourceText string) string {
-	seed := sourceRel + "\x00" + blockID
-	if blockID == "" {
-		seed = sourceRel + "\x00" + sourceText
-	}
-	return model.ComputeContentHash(seed)
+	return blockstore.StoreKey(sourceRel, blockID, sourceText)
 }

@@ -54,7 +54,7 @@ func (t *commitTargetsTool) SessionProcess(ctx context.Context, sess blockstore.
 			if !ok {
 				return nil
 			}
-			if err := t.commitOne(sess, kind, part); err != nil {
+			if err := t.commitOne(ctx, sess, kind, part); err != nil {
 				return err
 			}
 			select {
@@ -66,7 +66,7 @@ func (t *commitTargetsTool) SessionProcess(ctx context.Context, sess blockstore.
 	}
 }
 
-func (t *commitTargetsTool) commitOne(sess blockstore.Session, kind string, part *model.Part) error {
+func (t *commitTargetsTool) commitOne(ctx context.Context, sess blockstore.Session, kind string, part *model.Part) error {
 	if part == nil || part.Resource == nil {
 		return nil
 	}
@@ -82,7 +82,8 @@ func (t *commitTargetsTool) commitOne(sess blockstore.Session, kind string, part
 	if err != nil {
 		return fmt.Errorf("commit-targets: encode overlay: %w", err)
 	}
-	if err := sess.PutOverlay(blockstore.Overlay{Kind: kind, BlockHash: b.ID, Payload: payload}); err != nil {
+	key := blockstore.OverlayKey(ctx, b.ID, b.SourceText())
+	if err := sess.PutOverlay(blockstore.Overlay{Kind: kind, BlockHash: key, Payload: payload}); err != nil {
 		// A read-only store carries the target on the in-flight block already;
 		// the overlay write is best-effort caching for a later merge.
 		if !errors.Is(err, blockstore.ErrReadOnly) {

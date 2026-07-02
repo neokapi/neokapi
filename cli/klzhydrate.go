@@ -36,7 +36,10 @@ func (t *hydrateTargetsTool) SessionProcess(ctx context.Context, sess blockstore
 				return nil
 			}
 			if b, isBlock := part.Resource.(*model.Block); isBlock && b != nil && b.Translatable && b.ID != "" {
-				if o, err := sess.GetOverlay(kind, b.ID); err == nil && len(o.Payload) > 0 {
+				// Address overlays by the same globally-unique key the run wrote
+				// (source-file-namespaced when the caller set it on ctx).
+				key := blockstore.OverlayKey(ctx, b.ID, b.SourceText())
+				if o, err := sess.GetOverlay(kind, key); err == nil && len(o.Payload) > 0 {
 					applyTargetOverlay(b, t.locale, o.Payload)
 				}
 			}

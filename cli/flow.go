@@ -301,12 +301,20 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		return nil
 	}
 
+	// Project root so a process-only run keys its target overlays uniquely per
+	// source file (blockstore.StoreKey) rather than by the collision-prone
+	// file-local block id. Empty for ad-hoc (non-project) runs.
+	projRoot := ""
+	if a.projectContext != nil {
+		projRoot = a.projectContext.ProjectDir
+	}
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:       a.FormatReg,
 		SourceLocale:    model.LocaleID(a.SourceLang),
 		Encoding:        a.Encoding,
 		Recorder:        recorder,
 		Store:           projStore,
+		ProjectRoot:     projRoot,
 		ConfigureReader: configureReader,
 		PartCache:       runnerCache,
 		PartCacheKey:    runnerCacheKey,
