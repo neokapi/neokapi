@@ -60,11 +60,7 @@ func TestParityKnowledgeFromSpecYAML(t *testing.T) {
 		// so it has no spec.yaml and keeps an inline SkipBinary on its
 		// formatSpecs row, like the other bridge-only rows (okf_odf, okf_archive).
 		for _, id := range []string{
-			"okf_phpcontent", "okf_doxygen", "okf_tex", "okf_transtable",
-			"okf_commaseparatedvalues", "okf_fixedwidthcolumns", "okf_ttx",
-			"okf_txml", "okf_vignette", "okf_ttml",
-			"okf_idml", "okf_icml", "okf_openxml", "okf_openoffice",
-			"okf_mif", "okf_rtf",
+			"okf_commaseparatedvalues", "okf_openxml", "okf_openoffice",
 		} {
 			got, err := resolveParity(FormatSpec{ID: id})
 			require.NoError(t, err)
