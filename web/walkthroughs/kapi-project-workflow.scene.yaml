@@ -91,3 +91,4 @@ steps:
     narration: merge replays the stored fr translations onto the source and writes the localized file (out/fr/messages.json).
     # smoke:false — consumes the overlays committed by the prior run step.
     smoke: false
+  - comment: Day to day, `kapi up` is the porcelain over this loop — it runs the default flow across every locale and pass until each ship gate is met, parking what needs a person.

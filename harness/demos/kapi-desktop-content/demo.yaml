@@ -46,10 +46,10 @@ narration:
   - id: content
     kind: desktop
     beat: content
-    caption: The Content view — patterns on the left, files on the right.
+    caption: Content is one card per collection.
     text: >-
-      The Content view has two halves: the patterns that define what belongs to
-      the project on the left, and the files they match on the right.
+      Content is organised as one card per collection: each card carries the
+      patterns that define what belongs to it, and the files they match.
 
   - id: patterns
     kind: desktop
@@ -65,8 +65,8 @@ narration:
     beat: files
     caption: Each matched file carries its detected format.
     text: >-
-      On the right, every matched file is listed with the format Kapi detected
-      for it — Markdown, JSON, properties, Office documents and more.
+      Inside a collection, every matched file is listed with the format Kapi
+      detected for it — Markdown, JSON, properties, Office documents and more.
 
   - id: outro
     kind: outro
@@ -97,9 +97,9 @@ locales:
         caption: Kildespråk og målspråk ligger øverst.
       - id: content
         text: >-
-          Innholdsvisningen har to halvdeler: mønstrene som definerer hva som
-          hører til prosjektet til venstre, og filene de treffer til høyre.
-        caption: Innholdsvisningen — mønstre til venstre, filer til høyre.
+          Innholdet er organisert som ett kort per samling: hvert kort bærer
+          mønstrene som definerer hva som hører til, og filene de treffer.
+        caption: Innholdet er ett kort per samling.
       - id: patterns
         text: >-
           Mønstrene er gruppert i samlinger — nettstedet, nettbutikken,
@@ -108,8 +108,9 @@ locales:
         caption: Mønstrene er gruppert i navngitte samlinger.
       - id: files
         text: >-
-          Til høyre står hver fil som treffes, med formatet Kapi har gjenkjent
-          for den — Markdown, JSON, properties, Office-dokumenter og mer.
+          I en samling står hver fil som treffes, med formatet Kapi har
+          gjenkjent for den — Markdown, JSON, properties, Office-dokumenter og
+          mer.
         caption: Hver treff-fil viser formatet Kapi har gjenkjent.
       - id: outro
         text: >-

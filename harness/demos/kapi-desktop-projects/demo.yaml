@@ -38,18 +38,19 @@ narration:
   - id: templates
     kind: desktop
     beat: templates
-    caption: Start from a structure, or a blank project.
+    caption: Or start from the KapiMart sample.
     text: >-
-      It offers a structure to start from: source files in, translations out —
-      or a blank project you shape yourself.
+      Or start from KapiMart — a ready-made sample project with content
+      collections, target languages, and a stocked translation memory.
 
   - id: project-home
     kind: desktop
     beat: project-home
-    caption: The project opens to an overview.
+    caption: The project opens to its collections and ship standing.
     text: >-
-      The project opens to an overview — its content, flows, tools and settings,
-      with the source and target languages across the top.
+      The project opens to one surface: its content collections, and each
+      locale's standing against the ship gate — how much is translated,
+      reviewed, and ready.
 
   - id: project-settings
     kind: desktop
@@ -62,10 +63,11 @@ narration:
   - id: content
     kind: desktop
     beat: content
-    caption: Content defines which files belong to the project.
+    caption: Each collection defines which files belong to the project.
     text: >-
-      And Content defines which files belong to the project — glob patterns the
-      engine reads from and writes back to.
+      Each collection defines which files belong to the project — glob patterns
+      the engine reads from and writes back to. Bring up to date runs the
+      default flow until every gated scope ships, or parks for review.
 
   - id: outro
     kind: outro
@@ -90,14 +92,15 @@ locales:
         caption: Nytt prosjekt spør bare om et navn.
       - id: templates
         text: >-
-          Den tilbyr en struktur å starte fra: kildefiler inn, oversettelser ut
-          — eller et blankt prosjekt du former selv.
-        caption: Start fra en struktur, eller et blankt prosjekt.
+          Eller start fra KapiMart — et ferdig eksempelprosjekt med
+          innholdssamlinger, målspråk og et fylt oversettelsesminne.
+        caption: Eller start fra KapiMart-eksemplet.
       - id: project-home
         text: >-
-          Prosjektet åpner til en oversikt — innholdet, flytene, verktøyene og
-          innstillingene, med kilde- og målspråkene øverst.
-        caption: Prosjektet åpner til en oversikt.
+          Prosjektet åpner til én flate: innholdssamlingene, og hvert språks
+          status mot leveringsporten — hvor mye som er oversatt, gjennomgått og
+          klart.
+        caption: Prosjektet åpner til samlingene og leveringsstatusen.
       - id: project-settings
         text: >-
           Prosjektinnstillinger er der du velger kildespråket og språkene du
@@ -105,9 +108,11 @@ locales:
         caption: "Prosjektinnstillinger: språk, tillegg, prosessering."
       - id: content
         text: >-
-          Og Innhold definerer hvilke filer som hører til prosjektet —
-          glob-mønstre motoren leser fra og skriver tilbake til.
-        caption: Innhold definerer hvilke filer som hører til prosjektet.
+          Hver samling definerer hvilke filer som hører til prosjektet —
+          glob-mønstre motoren leser fra og skriver tilbake til. Oppdater
+          kjører standardflyten til hver port er klar, eller parkerer for
+          gjennomgang.
+        caption: Hver samling definerer hvilke filer som hører til prosjektet.
       - id: outro
         text: >-
           Det er et prosjekt — opprettet, strukturert og klart til
