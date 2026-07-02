@@ -52,6 +52,9 @@ import type {
   CreateStreamTagRequest,
   CollectionInfo,
   CreateCollectionRequest,
+  PostHogConnectorConfig,
+  PostHogConnectorConfigRequest,
+  PostHogDemandResponse,
   AuditEntry,
   AuditQuery,
   AuditChainVerification,
@@ -356,6 +359,22 @@ export interface ApiAdapter {
     files: File[],
     stream?: string,
   ): Promise<ProjectInfo>;
+
+  // PostHog locale-demand connector (project-scoped, phase 0, read-only).
+  // The personal API key is write-only: config reads return a masked tail.
+  getPostHogConnector(workspaceSlug: string, projectId: string): Promise<PostHogConnectorConfig>;
+  savePostHogConnector(
+    workspaceSlug: string,
+    projectId: string,
+    req: PostHogConnectorConfigRequest,
+  ): Promise<PostHogConnectorConfig>;
+  deletePostHogConnector(workspaceSlug: string, projectId: string): Promise<void>;
+  getPostHogDemand(
+    workspaceSlug: string,
+    projectId: string,
+    range: string,
+    refresh?: boolean,
+  ): Promise<PostHogDemandResponse>;
 
   // Editor
   getFileBlocks(

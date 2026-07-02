@@ -6,11 +6,12 @@
 // telemetry ingest (device locales), and store territories — joined against the
 // project's current locale coverage and priced with the plan estimator.
 //
-// Everything is served through the `DemandDataSource` interface so the real
-// ingest-backed implementation can replace `sampleDemandDataSource` without
-// touching any component: swap the object handed to the route/panels and the
-// UI keeps working. Keep the interface transport-agnostic (sync today, but a
-// real source would return promises / query options).
+// Everything is served through the `DemandDataSource` interface so a real
+// implementation can replace `sampleDemandDataSource` without touching any
+// component: swap the object handed to the route/panels and the UI keeps
+// working. The first live implementation is `PostHogDemandSource`
+// (./posthog-demand-source.ts), which is async — the interface accepts sync
+// or promised snapshots.
 // ---------------------------------------------------------------------------
 
 export type TimeRange = "7d" | "30d" | "90d";
@@ -54,11 +55,14 @@ export interface CountryDemand {
   sessions: number;
   /** Share of all sessions in the snapshot (0..1). */
   share: number;
-  /** Share of sessions that received a locale they asked for (0..1). */
-  servedRate: number;
+  /**
+   * Share of sessions that received a locale they asked for (0..1), or null
+   * when the source cannot derive it — rendered as "—", never as 0.
+   */
+  servedRate: number | null;
   /** Language mix within the country, sorted by share desc. */
   languages: CountryLanguageSplit[];
-  /** 12 weekly session counts, oldest first. */
+  /** Weekly session counts, oldest first. Empty = no trend data (not zero demand). */
   trend: number[];
 }
 
@@ -75,16 +79,24 @@ export interface LanguageDemand {
   sessions: number;
   /** Share of all sessions in the snapshot (0..1). */
   share: number;
-  /** 12 weekly session counts, oldest first. */
+  /** Weekly session counts, oldest first. Empty = no trend data (not zero demand). */
   trend: number[];
   coverage: Coverage;
-  /** Share of sessions in this language that were served the language (0..1). */
-  servedRate: number;
+  /**
+   * Share of sessions in this language that were served the language (0..1),
+   * or null when the source cannot derive it — rendered as "—", never as 0.
+   */
+  servedRate: number | null;
   /** Countries the demand comes from, sorted by share desc. */
   countries: LanguageCountrySplit[];
   /** Present when the language is not fully covered. */
   planEstimate?: PlanEstimate;
 }
+
+/** Where a snapshot's demand data came from — drives the provenance footer. */
+export type DemandProvenance =
+  | { kind: "sample" }
+  | { kind: "posthog"; hostLabel: string; posthogProjectId: string; cachedAt: string };
 
 export interface DemandSnapshot {
   range: TimeRange;
@@ -94,6 +106,9 @@ export interface DemandSnapshot {
   projectLocales: string[];
   countries: CountryDemand[];
   languages: LanguageDemand[];
+  provenance: DemandProvenance;
+  /** Non-fatal source warnings (e.g. one of the upstream queries failed). */
+  warnings?: string[];
 }
 
 /**
@@ -103,7 +118,7 @@ export interface DemandSnapshot {
  * estimator, most likely as React Query options keyed by workspace/project.
  */
 export interface DemandDataSource {
-  getSnapshot(range: TimeRange): DemandSnapshot;
+  getSnapshot(range: TimeRange): DemandSnapshot | Promise<DemandSnapshot>;
 }
 
 // ---------------------------------------------------------------------------
@@ -626,6 +641,7 @@ function buildSnapshot(range: TimeRange): DemandSnapshot {
     projectLocales: PROJECT_LOCALES,
     countries: [...countries].sort((a, b) => b.sessions - a.sessions),
     languages,
+    provenance: { kind: "sample" },
   };
 }
 
@@ -666,6 +682,25 @@ export function formatTokens(tokens: number): string {
 /** One-line gap estimate, e.g. "~4,120 units · ~2.1M tokens". */
 export function formatGapEstimate(estimate: PlanEstimate): string {
   return `~${estimate.units.toLocaleString("en-US")} units · ${formatTokens(estimate.tokens)}`;
+}
+
+/**
+ * One-line provenance for the footer(s): where the demand data came from.
+ * Live PostHog data cites host, project, and cache time so a stale snapshot
+ * is visible at a glance.
+ */
+export function demandProvenanceLabel(provenance: DemandProvenance): string {
+  if (provenance.kind === "posthog") {
+    const time = formatCachedTime(provenance.cachedAt);
+    return `Demand data: PostHog (${provenance.hostLabel} · project ${provenance.posthogProjectId} · cached ${time})`;
+  }
+  return "Demand data: sample dataset (web beacon + app telemetry ingest)";
+}
+
+/** "2026-07-03T09:12:00Z" → "09:12 UTC"; falls back to the raw string. */
+export function formatCachedTime(iso: string): string {
+  const match = /^\d{4}-\d{2}-\d{2}T(\d{2}:\d{2})/.exec(iso);
+  return match ? `${match[1]} UTC` : iso;
 }
 
 export function countryByCode(snapshot: DemandSnapshot, code: string): CountryDemand | undefined {

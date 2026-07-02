@@ -157,8 +157,14 @@ export function WorldDemandMap({
                   </div>
                 ))}
               </div>
-              <div className="mt-1 border-t border-border/50 pt-1 text-muted-foreground">
-                Served their language: {formatShare(hoveredCountry.servedRate)}
+              <div
+                className="mt-1 border-t border-border/50 pt-1 text-muted-foreground"
+                title={
+                  hoveredCountry.servedRate === null ? "Not derivable from this source" : undefined
+                }
+              >
+                Served their language:{" "}
+                {hoveredCountry.servedRate === null ? "—" : formatShare(hoveredCountry.servedRate)}
               </div>
             </>
           ) : (

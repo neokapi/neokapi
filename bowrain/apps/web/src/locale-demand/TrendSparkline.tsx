@@ -3,18 +3,30 @@ import { Line, LineChart, YAxis } from "recharts";
 /**
  * Tiny 12-week trend sparkline for table rows. Fixed-size (no
  * ResponsiveContainer) so it renders identically in tables, Storybook and
- * jsdom.
+ * jsdom. An empty series means the source has no trend data — rendered as a
+ * muted "no data", never as a zero line.
  */
 export function TrendSparkline({
   data,
   width = 96,
   height = 28,
 }: {
-  /** Weekly values, oldest first. */
+  /** Weekly values, oldest first. Empty = no trend data. */
   data: number[];
   width?: number;
   height?: number;
 }) {
+  if (data.length === 0) {
+    return (
+      <span
+        className="inline-flex items-center text-xs text-muted-foreground/60"
+        style={{ width, height }}
+        data-testid="trend-no-data"
+      >
+        no data
+      </span>
+    );
+  }
   const points = data.map((value, week) => ({ week, value }));
   return (
     <LineChart
