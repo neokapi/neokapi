@@ -50,6 +50,8 @@ import type {
   FormatDefaults,
   ProjectStatus,
   CollectionStatus,
+  ConvergenceReport,
+  LocaleCoverage,
 } from "../types/api";
 import { isBareEntry } from "../types/api";
 import { api, type OutputFileInfo } from "../hooks/useApi";
@@ -86,6 +88,42 @@ const collectionColor = (idx: number) => CHART_COLORS[idx % CHART_COLORS.length]
 // A coverage tint from 0% (muted) to 100% (primary), for the heatmap tiles.
 const coverageTint = (p: number) => `color-mix(in oklch, var(--primary) ${p}%, var(--muted))`;
 
+// The ship-gate ladder rung for a (collection, locale) scope, derived from the
+// convergence report. `pct` is the translated coverage shown as a secondary
+// figure; the label/colour convey how far along the gate ladder it is.
+interface Rung {
+  key: "shippable" | "review" | "draft" | "none";
+  label: string;
+  short: string;
+  color: string;
+  pct: number;
+}
+function rungFor(lc?: LocaleCoverage): Rung {
+  const translated = lc?.pct?.translated ?? 0;
+  if (!lc || translated === 0) {
+    return { key: "none", label: "—", short: "—", color: "var(--muted-foreground)", pct: 0 };
+  }
+  if (lc.shippable) {
+    return {
+      key: "shippable",
+      label: "Shippable",
+      short: "Ship",
+      color: "oklch(0.62 0.17 150)",
+      pct: translated,
+    };
+  }
+  if ((lc.pct?.reviewed ?? 0) > 0) {
+    return {
+      key: "review",
+      label: "In review",
+      short: "Review",
+      color: "oklch(0.72 0.15 80)",
+      pct: translated,
+    };
+  }
+  return { key: "draft", label: "Draft", short: "Draft", color: "var(--primary)", pct: translated };
+}
+
 // Above this many target languages the per-language bar columns get cramped, so
 // the coverage layout switches to the compact heatmap (issue #1068 review).
 const HEATMAP_LANG_THRESHOLD = 5;
@@ -120,6 +158,8 @@ export interface CollectionsPanelProps {
   basePath?: string;
   /** Pre-loaded status for Storybook/tests — skips api.getProjectStatus(). */
   status?: ProjectStatus;
+  /** Pre-loaded convergence for Storybook/tests — skips api.getConvergence(). */
+  convergence?: ConvergenceReport;
 }
 
 function formatSize(bytes: number): string {
@@ -170,7 +210,7 @@ function templatedOutputPath(outs: OutputFileInfo[]): string {
 }
 
 /** A compact inline coverage cell for the project-wide strip: "loc ▮▮▯ 78%". */
-function StripBar({ label, pct }: { label: string; pct: number }) {
+function StripBar({ label, pct, color }: { label: string; pct: number; color?: string }) {
   return (
     <span className="flex min-w-40 flex-1 items-center gap-2">
       <span className="w-14 shrink-0 text-xs text-muted-foreground" translate="no">
@@ -179,7 +219,7 @@ function StripBar({ label, pct }: { label: string; pct: number }) {
       <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent">
         <span
           className="block h-full rounded-full bg-primary transition-all"
-          style={{ width: `${pct}%` }}
+          style={{ width: `${pct}%`, ...(color ? { background: color } : {}) }}
         />
       </span>
       <span className="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
@@ -206,6 +246,7 @@ export function CollectionsPanel({
   formatList: propFormats,
   basePath: propBasePath,
   status: propStatus,
+  convergence: propConvergence,
 }: CollectionsPanelProps) {
   const { showError } = useError();
   const { locales } = useLocales();
@@ -223,6 +264,9 @@ export function CollectionsPanel({
   const [extracting, setExtracting] = useState(false);
   const [formats, setFormats] = useState<FormatInfo[]>(propFormats ?? []);
   const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
+  // Ship-gate ladder standing per (collection, locale) — drives the coverage
+  // cells (Shippable / In review / Draft / —) and the project-wide strip.
+  const [convergence, setConvergence] = useState<ConvergenceReport | null>(propConvergence ?? null);
   // Flow validity (unknown tools, undeclared plugins) so we never offer to run a
   // broken flow — the run menus disable invalid flows with the reason.
   const [flowValidation, setFlowValidation] = useState<Record<string, FlowInfo>>({});
@@ -333,6 +377,18 @@ export function CollectionsPanel({
       });
   }, [tabID, propStatus]);
 
+  const refreshConvergence = useCallback(() => {
+    if (propConvergence) return;
+    void api
+      .getConvergence(tabID)
+      .then((c) => {
+        if (c) setConvergence(c);
+      })
+      .catch(() => {
+        /* convergence is best-effort */
+      });
+  }, [tabID, propConvergence]);
+
   const rescanFiles = useCallback(async () => {
     if (hasPreloadedData) return;
     setScanning(true);
@@ -372,7 +428,8 @@ export function CollectionsPanel({
 
   useEffect(() => {
     refreshStatus();
-  }, [refreshStatus, project.content]);
+    refreshConvergence();
+  }, [refreshStatus, refreshConvergence, project.content]);
 
   // Validate the project's flows so the run menus can disable broken ones.
   useEffect(() => {
@@ -394,7 +451,10 @@ export function CollectionsPanel({
   useWailsEvent("outputs-changed", () => refreshOutputs());
 
   // An extraction completed (e.g. from another surface) — refresh coverage.
-  useWailsEvent("project:extracted", () => refreshStatus());
+  useWailsEvent("project:extracted", () => {
+    refreshStatus();
+    refreshConvergence();
+  });
 
   // Re-extract reads every source file into the block store (refreshing block
   // counts + coverage) and re-scans the file tables in one go.
@@ -404,13 +464,14 @@ export function CollectionsPanel({
     try {
       await api.runExtract(tabID);
       refreshStatus();
+      refreshConvergence();
       await rescanFiles();
     } catch (err) {
       showError("Extraction failed", err);
     } finally {
       setExtracting(false);
     }
-  }, [tabID, hasPreloadedData, refreshStatus, rescanFiles, showError]);
+  }, [tabID, hasPreloadedData, refreshStatus, refreshConvergence, rescanFiles, showError]);
 
   // --- Project update helpers ---
   const updateContent = (newContent: ContentCollection[]) => {
@@ -1103,13 +1164,96 @@ export function CollectionsPanel({
     activeFilter,
   );
   const heatmap = columnLangs.length >= HEATMAP_LANG_THRESHOLD;
-  const showCoverageCols = hasData && columnLangs.length > 0;
-  // Per-(collection, language) coverage %, or null when the collection doesn't
-  // target that language / nothing is extracted (rendered as a blank cell).
+  // Ship-gate ladder standing per (collection, locale), keyed the same way the
+  // convergence report reports it (collection "" for bare/unnamed entries).
+  const covScope = useMemo(() => {
+    const m = new Map<string, LocaleCoverage>();
+    for (const lc of convergence?.locales ?? []) {
+      m.set(`${lc.collection ?? ""} ${lc.locale}`, lc);
+    }
+    return m;
+  }, [convergence]);
+  const hasGates = covScope.size > 0;
+  const scopeCov = (coll: ContentCollection, lang: string): LocaleCoverage | undefined => {
+    const name = isBareEntry(coll) ? "" : (coll.name ?? "");
+    return covScope.get(`${name} ${lang}`) ?? covScope.get(` ${lang}`);
+  };
+  // Coverage columns render once there's either extracted data or gate standing.
+  const showCoverageCols = (hasData || hasGates) && columnLangs.length > 0;
+  // Project-wide ship-gate summary per language: the share of units in shippable
+  // (collection, locale) scopes. Replaces the translated-% strip when gates exist.
+  const stripGates = hasGates
+    ? columnLangs.map((lang) => {
+        let shippable = 0;
+        let total = 0;
+        for (const lc of convergence?.locales ?? []) {
+          if (lc.locale !== lang) continue;
+          total += lc.total;
+          if (lc.shippable) shippable += lc.total;
+        }
+        return { lang, pct: total > 0 ? Math.round((shippable / total) * 100) : 0 };
+      })
+    : null;
+  // Per-(collection, language) translated coverage %, or null when the
+  // collection doesn't target that language / nothing extracted. Used as the
+  // fallback view before any convergence (ship-gate) data is available.
   const covPct = (coll: ContentCollection, lang: string): number | null => {
     const cs = statusByLabel.get(statusLabelOf(coll));
     if (!cs || cs.blockCount === 0 || !cs.targetLanguages.includes(lang)) return null;
     return Math.round(((cs.coverage?.[lang] ?? 0) / cs.blockCount) * 100);
+  };
+  // One coverage cell: a ship-gate rung (Shippable / In review / Draft / —) with
+  // the translated % as a secondary figure once convergence is available; the
+  // translated-only bar/tile before then.
+  const langCell = (coll: ContentCollection, lang: string) => {
+    if (hasGates) {
+      const r = rungFor(scopeCov(coll, lang));
+      if (r.key === "none") {
+        return <span className="text-center text-[10px] text-muted-foreground/40">&mdash;</span>;
+      }
+      return heatmap ? (
+        <span
+          className="flex items-center justify-center gap-1 text-[10px]"
+          title={`${lang}: ${r.label} · ${r.pct}% translated`}
+        >
+          <span className="size-2 shrink-0 rounded-full" style={{ background: r.color }} />
+          <span className="tabular-nums text-muted-foreground">{r.pct}</span>
+        </span>
+      ) : (
+        <span
+          className="flex flex-col items-center gap-0.5"
+          title={`${lang}: ${r.label} · ${r.pct}% translated`}
+        >
+          <span className="text-[10px] font-medium leading-none" style={{ color: r.color }}>
+            {r.label}
+          </span>
+          <span className="text-[10px] tabular-nums text-muted-foreground">{r.pct}%</span>
+        </span>
+      );
+    }
+    const p = covPct(coll, lang);
+    if (p === null) {
+      return <span className="text-center text-[10px] text-muted-foreground/40">&mdash;</span>;
+    }
+    return heatmap ? (
+      <span
+        className="flex h-6 items-center justify-center rounded text-[10px] font-medium tabular-nums"
+        style={{
+          background: coverageTint(p),
+          color: p > 55 ? "var(--primary-foreground)" : "var(--muted-foreground)",
+        }}
+        title={`${lang}: ${p}%`}
+      >
+        {p}
+      </span>
+    ) : (
+      <span className="flex flex-col items-center gap-1" title={`${lang}: ${p}%`}>
+        <span className="h-1.5 w-full overflow-hidden rounded-full bg-accent">
+          <span className="block h-full rounded-full bg-primary" style={{ width: `${p}%` }} />
+        </span>
+        <span className="text-[10px] tabular-nums text-muted-foreground">{p}%</span>
+      </span>
+    );
   };
   // Cake slices: one per displayed collection with blocks, coloured by position.
   const cake = visibleContent.map(({ coll }, idx) => ({
@@ -1306,17 +1450,35 @@ export function CollectionsPanel({
                   ))}
                 </ul>
               </div>
-              {stripCoverage.length > 0 && (
+              {stripGates && stripGates.length > 0 ? (
                 <div className="space-y-1.5">
                   <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t("Coverage across collections")}
+                    {t("Shippable across collections")}
                   </div>
                   <div className="flex flex-wrap gap-x-6 gap-y-1.5">
-                    {stripCoverage.map((p) => (
-                      <StripBar key={p.lang} label={p.lang} pct={p.pct} />
+                    {stripGates.map((p) => (
+                      <StripBar
+                        key={p.lang}
+                        label={p.lang}
+                        pct={p.pct}
+                        color="oklch(0.62 0.17 150)"
+                      />
                     ))}
                   </div>
                 </div>
+              ) : (
+                stripCoverage.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t("Coverage across collections")}
+                    </div>
+                    <div className="flex flex-wrap gap-x-6 gap-y-1.5">
+                      {stripCoverage.map((p) => (
+                        <StripBar key={p.lang} label={p.lang} pct={p.pct} />
+                      ))}
+                    </div>
+                  </div>
+                )
               )}
             </div>
           </Card>
@@ -1464,49 +1626,7 @@ export function CollectionsPanel({
                       {hasData && cs ? cs.blockCount : "—"}
                     </span>
                     {showCoverageCols ? (
-                      columnLangs.map((l) => {
-                        const p = covPct(coll, l);
-                        if (p === null) {
-                          return (
-                            <span
-                              key={l}
-                              className="text-center text-[10px] text-muted-foreground/40"
-                            >
-                              &mdash;
-                            </span>
-                          );
-                        }
-                        return heatmap ? (
-                          <span
-                            key={l}
-                            className="flex h-6 items-center justify-center rounded text-[10px] font-medium tabular-nums"
-                            style={{
-                              background: coverageTint(p),
-                              color:
-                                p > 55 ? "var(--primary-foreground)" : "var(--muted-foreground)",
-                            }}
-                            title={`${l}: ${p}%`}
-                          >
-                            {p}
-                          </span>
-                        ) : (
-                          <span
-                            key={l}
-                            className="flex flex-col items-center gap-1"
-                            title={`${l}: ${p}%`}
-                          >
-                            <span className="h-1.5 w-full overflow-hidden rounded-full bg-accent">
-                              <span
-                                className="block h-full rounded-full bg-primary"
-                                style={{ width: `${p}%` }}
-                              />
-                            </span>
-                            <span className="text-[10px] tabular-nums text-muted-foreground">
-                              {p}%
-                            </span>
-                          </span>
-                        );
-                      })
+                      columnLangs.map((l) => <Fragment key={l}>{langCell(coll, l)}</Fragment>)
                     ) : (
                       <span />
                     )}

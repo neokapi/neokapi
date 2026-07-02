@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { HomePage } from "../components/HomePage";
 import { ErrorProvider } from "../components/ErrorBanner";
-import type { KapiProject, ProjectStatus } from "../types/api";
+import type { KapiProject, ProjectStatus, ConvergenceReport } from "../types/api";
 
 function renderWithProviders(ui: React.ReactElement) {
   return render(<ErrorProvider>{ui}</ErrorProvider>);
@@ -125,6 +125,58 @@ describe("HomePage merged collection surface", () => {
       />,
     );
     expect(screen.getByText(/produced by an earlier version of kapi/)).toBeInTheDocument();
+  });
+
+  it("shows ship-gate ladder states from convergence instead of raw %", () => {
+    const status: ProjectStatus = {
+      projectPath: "/p/demo.kapi",
+      projectName: "Demo",
+      hasData: true,
+      collections: [
+        {
+          name: "ui-strings",
+          blockCount: 100,
+          coverage: { "fr-FR": 100, "de-DE": 50 },
+          targetLanguages: ["fr-FR", "de-DE"],
+        },
+      ],
+    };
+    const convergence: ConvergenceReport = {
+      locales: [
+        {
+          collection: "ui-strings",
+          locale: "fr-FR",
+          total: 100,
+          pct: { translated: 100, reviewed: 100 },
+          gated: true,
+          shippable: true,
+        },
+        {
+          collection: "ui-strings",
+          locale: "de-DE",
+          total: 100,
+          pct: { translated: 60, reviewed: 20 },
+          gated: true,
+          shippable: false,
+        },
+      ],
+      review: [],
+    };
+    renderWithProviders(
+      <HomePage
+        project={project}
+        displayName="Demo"
+        tabID="t1"
+        onNavigate={vi.fn()}
+        status={status}
+        convergence={convergence}
+      />,
+    );
+    // fr-FR clears its gate → Shippable; de-DE has reviews but isn't shippable → In review.
+    expect(screen.getByText("Shippable")).toBeInTheDocument();
+    expect(screen.getByText("In review")).toBeInTheDocument();
+    // The project-wide strip reframes as ship-readiness.
+    expect(screen.getByText("Shippable across collections")).toBeInTheDocument();
   });
 
   it("drops the standalone Content quick-action card (the page is content now)", () => {

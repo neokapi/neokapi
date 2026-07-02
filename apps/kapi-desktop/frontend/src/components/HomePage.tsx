@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button, Badge, EmptyState, ActionCard, LocalePill } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
-import type { KapiProject, PluginIssue, ProjectStatus } from "../types/api";
+import type { KapiProject, PluginIssue, ProjectStatus, ConvergenceReport } from "../types/api";
 import { api, type SampleInfo } from "../hooks/useApi";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { CollectionsPanel, type RunFlowHandler } from "./CollectionsPanel";
@@ -31,6 +31,8 @@ export interface HomePageProps {
   pluginIssues?: PluginIssue[];
   /** Pre-loaded status for Storybook/tests — skips api.getProjectStatus(). */
   status?: ProjectStatus;
+  /** Pre-loaded convergence for Storybook/tests — skips api.getConvergence(). */
+  convergence?: ConvergenceReport;
   /** Refresh this sample to the version bundled with the current kapi. */
   onResetSample?: () => void;
   /** Pre-loaded sample info for Storybook — skips api.getSampleInfo(). */
@@ -51,6 +53,7 @@ export function HomePage({
   pluginsResolved,
   pluginIssues,
   status,
+  convergence,
   onResetSample,
   sampleInfo: propSampleInfo,
   formatList,
@@ -269,6 +272,7 @@ export function HomePage({
           formatList={formatList}
           basePath={basePath}
           status={status}
+          convergence={convergence}
         />
       )}
 

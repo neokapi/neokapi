@@ -192,6 +192,93 @@ export const ThreeLanguages: Story = {
   },
 };
 
+// Coverage cells reframed as ship-gate ladder states (Shippable / In review /
+// Draft / —) from the convergence report, with the project strip summarizing
+// shippable-ness per language. Three languages ⇒ the labelled (Option A) layout.
+export const WithShipGates: Story = {
+  args: {
+    ...ThreeLanguages.args,
+    convergence: {
+      project: "Acme App Localization",
+      review: [],
+      locales: [
+        {
+          collection: "Website",
+          locale: "fr-FR",
+          total: 245,
+          pct: { translated: 100, reviewed: 100, "signed-off": 100 },
+          gated: true,
+          shippable: true,
+        },
+        {
+          collection: "Website",
+          locale: "de-DE",
+          total: 245,
+          pct: { translated: 78, reviewed: 40 },
+          gated: true,
+          shippable: false,
+        },
+        {
+          collection: "Website",
+          locale: "ja-JP",
+          total: 245,
+          pct: { translated: 45 },
+          gated: true,
+          shippable: false,
+        },
+        {
+          collection: "UI Strings",
+          locale: "fr-FR",
+          total: 88,
+          pct: { translated: 100, reviewed: 100 },
+          gated: true,
+          shippable: true,
+        },
+        {
+          collection: "UI Strings",
+          locale: "de-DE",
+          total: 88,
+          pct: { translated: 45 },
+          gated: true,
+          shippable: false,
+        },
+        {
+          collection: "UI Strings",
+          locale: "ja-JP",
+          total: 88,
+          pct: {},
+          gated: true,
+          shippable: false,
+        },
+        {
+          collection: "Emails",
+          locale: "fr-FR",
+          total: 32,
+          pct: { translated: 50 },
+          gated: true,
+          shippable: false,
+        },
+        {
+          collection: "Emails",
+          locale: "de-DE",
+          total: 32,
+          pct: {},
+          gated: true,
+          shippable: false,
+        },
+        {
+          collection: "Emails",
+          locale: "ja-JP",
+          total: 32,
+          pct: {},
+          gated: true,
+          shippable: false,
+        },
+      ],
+    },
+  },
+};
+
 /** Project configured but never extracted — the strip prompts a run. */
 export const NeverExtracted: Story = {
   args: {

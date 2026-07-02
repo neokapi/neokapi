@@ -16,6 +16,7 @@ vi.mock("../hooks/useApi", () => ({
     listProjectFiles: vi.fn().mockResolvedValue([]),
     listOutputs: vi.fn().mockResolvedValue({}),
     getProjectStatus: vi.fn().mockResolvedValue(null),
+    getConvergence: vi.fn().mockResolvedValue(null),
     runExtract: vi.fn().mockResolvedValue({}),
     listFlows: vi.fn().mockResolvedValue([{ name: "translate", valid: true }]),
   },
