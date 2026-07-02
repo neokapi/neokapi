@@ -132,14 +132,14 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Measured, not asserted",
     description:
-      "We don't claim format support — we measure it. The parity, test-comparison, and format-maturity dashboards show whether it holds, under load and per format.",
-    link: "/parity",
+      "We don't claim format support — we measure it. The format-maturity and benchmark dashboards show whether it holds, under load and per format.",
+    link: "/format-maturity",
     linkText: "See the dashboards",
   },
   {
-    title: "Open by lineage",
+    title: "Open source, headless",
     description:
-      "Open source, Apache-2.0 — the engine rebuilt in Go from the Okapi Framework lineage. Format-agnostic, agent-drivable, headless: a content layer you or your AI can drive.",
+      "Open source, Apache-2.0, written in Go. Format-agnostic, agent-drivable, headless: a content layer you or your AI can drive.",
     link: "/framework/architecture",
     linkText: "Architecture",
   },

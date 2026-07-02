@@ -4,7 +4,7 @@ import ReferenceCard from "./ReferenceCard";
 import { builtinToolIds, formatHref, toolHref } from "./slugs";
 import styles from "./styles.module.css";
 
-type Filter = "all" | ReferenceSource;
+type Filter = "all" | "built-in" | "plugin";
 
 interface Props {
   entries: ReferenceEntry[];
@@ -32,12 +32,11 @@ export default function ReferenceGrid({ entries, kind }: Props) {
       all: entries.length,
       "built-in": by("built-in"),
       plugin: by("plugin"),
-      okapi: by("okapi"),
     };
   }, [entries]);
 
   // Tool slugs need the built-in id set to disambiguate cross-source collisions
-  // (a built-in and an Okapi tool can share an id). Formats have unique ids.
+  // (a built-in and a plugin tool can share an id). Formats have unique ids.
   const builtins = useMemo(() => builtinToolIds(entries), [entries]);
   const hrefFor = useCallback(
     (entry: ReferenceEntry) => (kind === "format" ? formatHref(entry) : toolHref(entry, builtins)),
@@ -53,8 +52,8 @@ export default function ReferenceGrid({ entries, kind }: Props) {
     });
   }, [entries, search, filter]);
 
-  // Tools group by category. Formats split by source (native engine vs Okapi
-  // bridge) so the two surfaces read as distinct sections — but only while the
+  // Tools group by category. Formats split by source (native engine vs
+  // plugin) so the two surfaces read as distinct sections — but only while the
   // "All" filter is active; once a single source is selected the split is moot,
   // so the grid goes flat. Within each format section, the alphabetical sort
   // from the caller is preserved.
@@ -73,11 +72,9 @@ export default function ReferenceGrid({ entries, kind }: Props) {
     if (filter === "all") {
       const builtin = filtered.filter((e) => e.source === "built-in");
       const plugin = filtered.filter((e) => e.source === "plugin");
-      const okapi = filtered.filter((e) => e.source === "okapi");
       const sections: [string, ReferenceEntry[]][] = [];
       if (builtin.length) sections.push(["Built-in", builtin]);
       if (plugin.length) sections.push(["Plugin", plugin]);
-      if (okapi.length) sections.push(["Okapi bridge", okapi]);
       return sections;
     }
     return null;
@@ -109,12 +106,13 @@ export default function ReferenceGrid({ entries, kind }: Props) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className={styles.filterGroup} role="group" aria-label="Filter by source">
-          {filterButton("all", "All")}
-          {filterButton("built-in", "Built-in")}
-          {counts.plugin > 0 && filterButton("plugin", "Plugin")}
-          {filterButton("okapi", "Okapi bridge")}
-        </div>
+        {counts.plugin > 0 && (
+          <div className={styles.filterGroup} role="group" aria-label="Filter by source">
+            {filterButton("all", "All")}
+            {filterButton("built-in", "Built-in")}
+            {filterButton("plugin", "Plugin")}
+          </div>
+        )}
       </div>
 
       <p className={styles.resultCount}>

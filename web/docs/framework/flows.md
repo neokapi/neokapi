@@ -1,7 +1,7 @@
 ---
 sidebar_position: 8
 title: Flows
-description: A flow is a named, ordered composition of tools — the neokapi equivalent of an Okapi pipeline. Flows are defined in YAML, can be embedded in a project file or stored separately, and run with a single kapi command.
+description: A flow is a named, ordered composition of tools. Flows are defined in YAML, can be embedded in a project file or stored separately, and run with a single kapi command.
 keywords: [flows, pipeline, YAML, tool composition, kapi run, localization workflow]
 ---
 
@@ -10,9 +10,9 @@ import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
 
 # Flows
 
-A **flow** is a named, ordered composition of [tools](/framework/tools). It is
-the neokapi analogue of an Okapi _pipeline_: a recipe that says "read the
-document, run these steps in this order, write the result." Where a single tool
+A **flow** is a named, ordered composition of [tools](/framework/tools): a
+recipe that says "read the document, run these steps in this order, write the
+result." Where a single tool
 does one thing, a flow assembles several into an end-to-end workflow — leverage
 from memory, look up terminology, translate the remainder, check quality — and
 gives it a name so it can be run, shared, and reused.

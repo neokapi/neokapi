@@ -14,7 +14,7 @@ A **tool** is the unit of processing in neokapi. Where a [format](/framework/for
 reader turns a document into a stream of [Parts](/framework/content-model) and a
 writer turns the stream back into a document, a tool sits in between: it reads
 Parts from an input channel, transforms them, and writes them to an output
-channel. Tools are the neokapi analogue of an Okapi pipeline _Step_.
+channel.
 
 Because every tool speaks the same channel contract, tools compose freely. A
 localization run is one chain — leverage from memory, look up terminology,

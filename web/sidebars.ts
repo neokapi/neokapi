@@ -88,7 +88,6 @@ const sidebars: SidebarsConfig = {
         { type: "doc", id: "kapi/recipes/gate-localization-in-ci", label: "Check translations in CI" },
         { type: "doc", id: "kapi/recipes/tm-termbase-storage", label: "Where translations & terms live" },
         { type: "doc", id: "kapi/bilingual-workflow", label: "Hand off to translators" },
-        { type: "doc", id: "kapi/exotic-legacy-formats", label: "Exotic & legacy formats" },
       ],
     },
     {
@@ -220,12 +219,10 @@ const sidebars: SidebarsConfig = {
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
-        { type: "link", label: "Parity", href: "/parity" },
         { type: "link", label: "Format maturity", href: "/format-maturity" },
         { type: "link", label: "Benchmarks", href: "/pseudobench" },
         { type: "link", label: "ML benchmark", href: "/ml-benchmark" },
         { type: "link", label: "Check eval", href: "/check-eval" },
-        { type: "link", label: "Test results", href: "/test-comparison" },
       ],
     },
   ],

@@ -18,7 +18,6 @@ describe("AppHome", () => {
   it("shows sample project cards when not dismissed", () => {
     render(<AppHome {...defaultProps} />);
     expect(screen.getByText("KapiMart")).toBeInTheDocument();
-    expect(screen.getByText("OkapiMart")).toBeInTheDocument();
     expect(screen.getByText(/New to Kapi/)).toBeInTheDocument();
   });
 
@@ -28,7 +27,6 @@ describe("AppHome", () => {
     ];
     render(<AppHome {...defaultProps} recentFiles={recentFiles} />);
     expect(screen.getByText("KapiMart")).toBeInTheDocument();
-    expect(screen.getByText("OkapiMart")).toBeInTheDocument();
   });
 
   it("hides sample project cards when dismissed", () => {
@@ -42,13 +40,6 @@ describe("AppHome", () => {
     render(<AppHome {...defaultProps} onCreateSampleProject={onCreateSampleProject} />);
     await userEvent.click(screen.getByText("KapiMart"));
     expect(onCreateSampleProject).toHaveBeenCalledWith("kapimart");
-  });
-
-  it("calls onCreateSampleProject with 'okapimart' when clicking OkapiMart", async () => {
-    const onCreateSampleProject = vi.fn();
-    render(<AppHome {...defaultProps} onCreateSampleProject={onCreateSampleProject} />);
-    await userEvent.click(screen.getByText("OkapiMart"));
-    expect(onCreateSampleProject).toHaveBeenCalledWith("okapimart");
   });
 
   it("calls onDismissSamples when clicking dismiss button", async () => {

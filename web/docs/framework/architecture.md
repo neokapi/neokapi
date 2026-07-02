@@ -46,9 +46,9 @@ by channels with automatic backpressure; a block-handling stage such as
 translation can **fan out** across N goroutines with an ordered fan-in; and the
 executor runs many documents in parallel, bounded by `MaxConcurrency`. Context
 cancellation propagates to every stage. Readers, writers, and tools can be
-supplied by [plugins](/contribute/notes-internal/plugin-model) — the Java
-[Okapi Bridge](/contribute/architecture/007-plugin-system), the `kapi-sat`
-segmenter, the [`kapi-pdfium`](/contribute/architecture/028-pdf-reader-plugin) PDF
+supplied by [plugins](/contribute/notes-internal/plugin-model) — the
+[`kapi-sat`](/contribute/architecture/021-sat-segmenter-plugin) segmenter, the
+[`kapi-pdfium`](/contribute/architecture/028-pdf-reader-plugin) PDF
 reader, or any remote plugin — dispatched as subprocesses over gRPC. See
 [AD-001](/contribute/architecture/001-vision-and-modules) and
 [AD-004](/contribute/architecture/004-processing-engine).
@@ -114,14 +114,12 @@ a few concepts, each with its own page:
   fragments, spans, data, and media. Embedded content (HTML inside JSON, CDATA in
   XML) is modeled as nested layers, each with its own format.
 - **[Formats](/framework/formats)** — paired readers and writers that produce and
-  consume the content model. The neokapi analogue of an Okapi _filter_.
+  consume the content model.
 - **[Tools](/framework/tools)** — the processing units. Each reads Parts from a
-  channel, transforms them, and writes them out. The analogue of an Okapi _step_.
-- **[Flows](/framework/flows)** — named, ordered compositions of tools. The
-  analogue of an Okapi _pipeline_.
+  channel, transforms them, and writes them out.
+- **[Flows](/framework/flows)** — named, ordered compositions of tools.
 - **[Pipeline](/framework/pipeline)** — the concurrent executor that runs a flow:
-  goroutines, buffered channels, and context-driven cancellation. The analogue of
-  the Okapi _PipelineDriver_.
+  goroutines, buffered channels, and context-driven cancellation.
 
 For the concrete Go interfaces and method signatures behind these concepts, see
 the [Interface Reference](/contribute/interfaces). For the design rationale, see

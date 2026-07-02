@@ -28,7 +28,7 @@ make up the [content model](/framework/content-model).
 
 - **Block** — a unit of translatable content: a flat sequence of Runs (the
   source), its Targets, and any stand-off Overlays. *Analogy:* a paragraph or a
-  message — Okapi's "text unit." There is no separate "segment" type;
+  message. There is no separate "segment" type;
   segmentation is an **Overlay** (defined below), not a structural split.
 
 - **Run** — the inline unit inside a Block: a discriminated union of Text and
@@ -72,14 +72,14 @@ make up the [content model](/framework/content-model).
 ## Processing
 
 - **Format** (reader / writer) — the paired components that parse a byte stream
-  into Parts and write Parts back out byte-for-byte. *Analogy:* Okapi's filter.
-  See [Formats](/framework/formats).
+  into Parts and write Parts back out byte-for-byte. *Analogy:* a codec — decode
+  in, encode back out. See [Formats](/framework/formats).
 
 - **Tool** — a single processing step that reads Parts and writes Parts. Tools
-  compose. *Analogy:* Okapi's step. See [Tools](/framework/tools).
+  compose. *Analogy:* a stage in a shell pipeline. See [Tools](/framework/tools).
 
-- **Flow** — a named composition of tools. *Analogy:* Okapi's pipeline. See
-  [Flows](/framework/flows).
+- **Flow** — a named composition of tools. *Analogy:* a saved, shareable
+  pipeline definition. See [Flows](/framework/flows).
 
 - **Pipeline / Executor** — the concurrent engine that runs a flow's tools as
   goroutines connected by channels. See [Pipeline](/framework/pipeline).

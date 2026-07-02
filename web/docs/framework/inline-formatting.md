@@ -90,9 +90,7 @@ survive. The rule, applied per code, is:
 
 Because the deletability of each code is resolved from the same vocabulary the QA
 checks consult, an edit and a translation are held to one definition of which
-codes are required. The framework primitive is `model.ApplyTextEdits`; it mirrors
-the Okapi Framework, where each `Code` carries a `deleteable` flag and only the
-deleteable ones may be dropped.
+codes are required. The framework primitive is `model.ApplyTextEdits`.
 
 ## Format-Independent Processing
 

@@ -5,7 +5,7 @@ title: Reference
 sidebar_label: Overview
 sidebar_position: 0
 description: Generated, authoritative reference for the neokapi framework — commands, format readers and writers, processing tools, the project file, the exchange format, the MCP server, and the project-status dashboards, derived directly from the live codebase.
-keywords: [neokapi reference, commands, formats, tools, project file, KLF, MCP, parity, benchmarks, generated reference]
+keywords: [neokapi reference, commands, formats, tools, project file, KLF, MCP, benchmarks, generated reference]
 ---
 
 # Reference
@@ -23,7 +23,7 @@ Generated from the live registries and schemas:
 - [Kapi CLI commands](/commands) — every `kapi` command, with runnable examples.
 - [Format reference](/formats) — every format reader/writer and its configurable
   parameters. Each card is tagged **built-in** (the native engine) or
-  **Okapi bridge** (a filter provided by the Okapi bridge plugin).
+  **plugin** (added by an installed engine plugin).
 - [Tool reference](/tools) — every processing tool and its inputs and outputs,
   grouped by category and tagged by source the same way.
 
@@ -42,13 +42,11 @@ Each entry also has its own static, indexable page (see the note below).
 
 These dashboards are generated from the test and benchmark suites:
 
-- [Parity](/parity) — coverage against the Okapi Framework.
 - [Format maturity](/format-maturity) — each format's position on the L0–L4
   maturity rubric.
 - [Benchmarks](/pseudobench) — performance measurements.
 - [ML benchmark](/ml-benchmark) — measurements for the in-process ML models.
 - [Check eval](/check-eval) — evaluation of the verification checks.
-- [Test results](/test-comparison) — the Okapi vs neokapi filter test comparison.
 
 :::note
 

@@ -15,12 +15,11 @@ import (
 
 func TestList(t *testing.T) {
 	names := List()
-	assert.Equal(t, []string{"kapimart", "okapimart"}, names)
+	assert.Equal(t, []string{"kapimart"}, names)
 }
 
 func TestDisplayName(t *testing.T) {
 	assert.Equal(t, "KapiMart", DisplayName["kapimart"])
-	assert.Equal(t, "OkapiMart", DisplayName["okapimart"])
 }
 
 func TestScaffoldKapiMart(t *testing.T) {
@@ -73,67 +72,10 @@ func TestScaffoldKapiMart(t *testing.T) {
 	assert.GreaterOrEqual(t, tbCount, 100, "termbase should have at least 100 concepts")
 }
 
-func TestScaffoldOkapiMart(t *testing.T) {
-	dir := t.TempDir()
-	require.NoError(t, Scaffold("okapimart", dir))
-
-	assertOkapiMartProject(t, dir)
-
-	// OkapiMart should require the okapi-bridge plugin.
-	proj, err := project.Load(filepath.Join(dir, "project.kapi"))
-	require.NoError(t, err)
-	assert.Contains(t, proj.Plugins, "okapi-bridge")
-}
-
 func TestScaffoldUnknown(t *testing.T) {
 	err := Scaffold("unknown", t.TempDir())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown sample project")
-}
-
-// assertOkapiMartProject validates the OkapiMart v1 project structure.
-func assertOkapiMartProject(t *testing.T, dir string) {
-	t.Helper()
-
-	proj, err := project.Load(filepath.Join(dir, "project.kapi"))
-	require.NoError(t, err)
-	assert.Equal(t, "OkapiMart", proj.Name)
-	assert.Equal(t, model.LocaleID("en-US"), proj.Defaults.SourceLanguage)
-	assert.Equal(t, []model.LocaleID{"fr-FR", "de-DE", "ja-JP"}, proj.Defaults.TargetLanguages)
-	assert.NotEmpty(t, proj.Flows)
-
-	// v1 shared input files.
-	expectedFiles := []string{
-		"store-ui.json",
-		"product-catalog.yaml",
-		"about-us.html",
-		"error-messages.properties",
-		"onboarding-video.srt",
-		"release-notes.xml",
-		"admin-guide.txt",
-		"changelog.md",
-	}
-	for _, f := range expectedFiles {
-		_, err := os.Stat(filepath.Join(dir, "input", f))
-		require.NoError(t, err, "missing input file: %s", f)
-	}
-
-	_, err = os.Stat(filepath.Join(dir, "output"))
-	require.NoError(t, err)
-
-	tm, err := sievepen.NewSQLiteTM(filepath.Join(dir, ".kapi", "tm.db"))
-	require.NoError(t, err)
-	defer tm.Close()
-	tmCount, err := tm.Count(t.Context())
-	require.NoError(t, err)
-	assert.Greater(t, tmCount, 0, "TM should have entries")
-
-	tb, err := termbase.NewSQLiteTermBase(filepath.Join(dir, ".kapi", "termbase.db"))
-	require.NoError(t, err)
-	defer tb.Close()
-	tbCount, err := tb.Count(t.Context())
-	require.NoError(t, err)
-	assert.Greater(t, tbCount, 0, "termbase should have concepts")
 }
 
 func assertDirCount(t *testing.T, dir string, expectedCount int) {

@@ -148,8 +148,7 @@ Each parity test reports one row via `parity.Report` with `Kind`
 `parity.FlushReport` from each package's `TestMain` writes the
 accumulated rows to `$REPO/.parity/test-comparison.json`. The
 `parity.yml` CI workflow uploads that JSON as an artifact; the
-[parity dashboard](/parity) on the docs site renders it as a
-per-filter / per-step status table.
+parity report renders it as a per-filter / per-step status table.
 
 ## Consequences
 
@@ -203,9 +202,7 @@ per-filter / per-step status table.
 `scripts/testcompare/main.go` reads `.parity/test-comparison.json` (the
 raw report written by the `cli/parity/` test packages) and emits a
 narrower per-row published shape at
-`web/static/data/parity-report.json`. The
-[`/parity`](/parity) page (`web/src/pages/parity/index.tsx`)
-imports that JSON at build time and renders one row per filter / step
+`web/static/data/parity-report.json`, one row per filter / step
 with its current status, mode, and skip detail. Run
 `make parity-publish` to refresh both files locally.
 

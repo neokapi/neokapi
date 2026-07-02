@@ -29,9 +29,8 @@ goroutine and connected by buffered channels of [Parts](/framework/content-model
   ]}
 />
 
-This is the neokapi analogue of Okapi's _PipelineDriver_. It is built on Go's
-native concurrency: goroutines for the stages, channels for the connections, and
-`errgroup` for coordination.
+The executor is built on Go's native concurrency: goroutines for the stages,
+channels for the connections, and `errgroup` for coordination.
 
 The reader and writer shown here are the **file binding** — the default way
 content enters and leaves the pipeline. The same tool stream can instead be bound
