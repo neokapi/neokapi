@@ -14,7 +14,6 @@ func (a *App) NewPresetsCmd() *cobra.Command {
 	presetsCmd := &cobra.Command{
 		Use:     "presets",
 		Short:   "Manage format and framework presets",
-		GroupID: "management",
 		Example: "  kapi presets list\n  kapi presets show AndroidStrings",
 	}
 

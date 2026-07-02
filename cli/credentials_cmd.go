@@ -52,7 +52,7 @@ func (a *App) NewCredentialsCmd() *cobra.Command {
 		Use:     "credentials",
 		Aliases: []string{"creds"},
 		Short:   "Manage saved AI provider credentials",
-		GroupID: "management",
+		GroupID: "assets",
 	}
 
 	cmd.AddCommand(a.newCredentialsAddCmd())

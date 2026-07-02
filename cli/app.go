@@ -346,22 +346,30 @@ func isGlobPattern(s string) bool {
 }
 
 // AddCommandGroups registers Cobra command groups on the root command for
-// sectioned --help output. Group IDs match the Category field on ToolCommandDef
-// and plugin metadata.
+// sectioned --help output (convergence-first layout, #1078 C1).
+//
+// Porcelain comes first: "Work:" holds the everyday project verbs
+// (init, add, up, status, apply, check) and "Assets:" the standing resources
+// (tm, termbase, brand, models, credentials). The tool-category groups
+// (localization/quality/analysis/text-processing) remain for the top-level
+// tool commands, whose GroupID derives from each tool's schema Category (see
+// the routing in NewToolCommands). "Advanced:" collects the plumbing (run,
+// flows, tools, extract, merge, pack/unpack/info, inspect, stats, formats,
+// plugin, config, hook, mcp, registry). Standard commands (version, update,
+// completion) stay ungrouped under cobra's "Additional Commands:".
 func (a *App) AddCommandGroups(cmd *cobra.Command) {
 	cmd.AddGroup(
-		&cobra.Group{ID: "processing", Title: "Processing:"},
+		&cobra.Group{ID: "work", Title: "Work:"},
+		&cobra.Group{ID: "assets", Title: "Assets:"},
 		// The localization toolchain (translate, recycle, the bilingual
-		// checks, pseudo-translate, extract/merge, tm) groups here regardless
-		// of each tool's schema Category — see schema.TagL10n and the routing
-		// in NewToolCommands. This replaces the former per-category
-		// "Translation:" group.
+		// checks, pseudo-translate) groups here regardless of each tool's
+		// schema Category — see schema.TagL10n and the routing in
+		// NewToolCommands.
 		&cobra.Group{ID: "localization", Title: "Localization:"},
 		&cobra.Group{ID: "quality", Title: "Quality:"},
 		&cobra.Group{ID: "analysis", Title: "Analysis:"},
 		&cobra.Group{ID: "text-processing", Title: "Text Processing:"},
-		&cobra.Group{ID: "content", Title: "Project & Content:"},
-		&cobra.Group{ID: "management", Title: "Info & Management:"},
+		&cobra.Group{ID: "advanced", Title: "Advanced:"},
 	)
 }
 

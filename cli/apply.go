@@ -123,7 +123,7 @@ func (a *App) NewApplyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "apply [flags] [CHANGESET]",
 		Short:   "Apply a typed change-set (content + asset edits) — the one write verb",
-		GroupID: "processing",
+		GroupID: "work",
 		Long: `Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is
 one reviewed change — a content edit, an asset edit (glossary term, TM pair,
 brand rule, recipe field), or a review decision (kind:"review"). Content edits

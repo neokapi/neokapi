@@ -122,12 +122,18 @@ func (o VerifyOutput) FormatText(w io.Writer) error {
 // single shot. It returns a single structured pass/fail plus actionable
 // findings and exits non-zero on failure, so both CI and an AI assistant can
 // loop on it: produce content, run verify, read findings, fix, re-run.
+//
+// Since #1078 (C1) verify is a hidden one-release alias: its porcelain home is
+// `kapi check --ship`, which routes through the same engine (computeVerify).
+// The alias keeps its full flag surface and prints a one-line pointer.
 func (a *App) NewVerifyCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "verify [files...]",
-		Short:   "Run a project's bound quality gates (brand, terminology, QA) in one shot",
-		GroupID: "quality",
-		Long: `Run a project's bound quality gates in a single shot and
+		Use:    "verify [files...]",
+		Short:  "Run a project's bound quality gates (brand, terminology, QA) in one shot",
+		Hidden: true,
+		Long: `Deprecated: use 'kapi check --ship', which absorbs this command.
+
+Run a project's bound quality gates in a single shot and
 return a single structured pass/fail plus actionable findings.
 
 Gates (each runs only when the project binds the resource it needs):
@@ -159,6 +165,9 @@ gate), 1 for operational errors. Exit 3 means "not on-spec yet", not a crash —
 an assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 0
 (report mode) when looping; omit it for CI gating.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// One-release deprecation pointer (#1078): verify forwards to the
+			// same engine `kapi check --ship` uses.
+			fmt.Fprintln(cmd.ErrOrStderr(), "note: `kapi verify` is deprecated — use `kapi check --ship`; this alias will be removed in a future release.")
 			return a.runVerify(cmd, args)
 		},
 	}

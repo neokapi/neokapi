@@ -32,7 +32,7 @@ func (a *App) NewPluginCmd() *cobra.Command {
 		// install") and matches how the command is referenced across the docs.
 		Aliases: []string{"plugins"},
 		Short:   "Install and manage manifest-driven plugins (#438)",
-		GroupID: "management",
+		GroupID: "advanced",
 	}
 
 	cmd.AddCommand(a.newPluginListCmd())

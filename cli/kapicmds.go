@@ -31,9 +31,13 @@ of file types.`
 func (a *App) KapiCommandSet() []*cobra.Command {
 	var cmds []*cobra.Command
 
+	// Porcelain (#1078 C1): `kapi up` reconciles the project toward its ship
+	// gates; the bare `kapi run` remains as the custom-flow surface.
+	cmds = append(cmds, a.NewUpCmd())
+
 	// Primary commands.
 	runCmd := a.NewRunCmd(RunCmdOptions{})
-	runCmd.GroupID = "processing"
+	runCmd.GroupID = "advanced"
 	cmds = append(cmds, runCmd)
 	cmds = append(cmds, a.NewExtractCmd(ExtractCmdOptions{}))
 	cmds = append(cmds, a.NewMergeCmd(MergeCmdOptions{}))
@@ -69,7 +73,6 @@ func (a *App) KapiCommandSet() []*cobra.Command {
 		a.NewPluginCmd(),
 		a.NewModelsCmd(),
 		a.NewRegistryCmd(),
-		a.NewPresetsCmd(),
 		a.NewTermbaseCmd(),
 		a.NewTMCmd(),
 		a.NewBrandCmd(),
@@ -80,11 +83,18 @@ func (a *App) KapiCommandSet() []*cobra.Command {
 		a.NewCompletionCmd(),
 	)
 
+	// Hidden one-release aliases (#1078 C1 verb folds). `verify` hides itself
+	// (NewVerifyCmd); `ollama` and `presets` forward with a pointer note.
+	cmds = append(cmds,
+		deprecatedAlias(a.NewOllamaCmd(), "note: `kapi ollama` moved to `kapi models ollama`; this top-level alias will be removed in a future release."),
+		deprecatedAlias(a.NewPresetsCmd(), "note: `kapi presets` is deprecated — use `kapi init --list-presets` / `kapi init --preset <name>`; this alias will be removed in a future release."),
+	)
+
 	// Top-level tool commands (declarative opt-in via the tool registry).
 	cmds = append(cmds, a.NewToolCommands()...)
 
 	mcpCmd := a.NewMCPCmd("kapi")
-	mcpCmd.GroupID = "processing"
+	mcpCmd.GroupID = "advanced"
 	cmds = append(cmds, mcpCmd)
 
 	return cmds

@@ -22,9 +22,8 @@ func (a *App) NewUpdateCmd() *cobra.Command {
 	var checkOnly bool
 
 	cmd := &cobra.Command{
-		Use:     "update",
-		Short:   "Update kapi to the latest release",
-		GroupID: "management",
+		Use:   "update",
+		Short: "Update kapi to the latest release",
 		Long: `Update the kapi binary itself.
 
 If kapi was installed via a package manager (Homebrew, winget, apt, …), this

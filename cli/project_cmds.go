@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/version"
@@ -30,11 +31,13 @@ func (a *App) NewInitCmd() *cobra.Command {
 		sourceLocale string
 		targetLocale []string
 		framework    string
+		presetName   string
+		listPresets  bool
 	)
 	cmd := &cobra.Command{
 		Use:     "init",
 		Short:   "Scaffold a new kapi project in the current directory",
-		GroupID: "content",
+		GroupID: "work",
 		Long: `Create a new kapi project with a {name}.kapi recipe and an
 adjacent .kapi/ state directory.
 
@@ -47,10 +50,20 @@ The project id defaults to the current directory's basename and the source
 locale to en. Override with --name, --source-locale, --target-locale
 (repeatable).
 
---framework <name> pre-fills the content mapping for a known stack's i18n
-catalogs (see 'kapi presets list --framework'): react-i18next, react-intl,
-nextjs, vue-i18n, flutter, angular — and scaffolds the translation project.`,
+--preset <name> (alias: --framework) pre-fills the content mapping for a known
+stack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,
+angular — and scaffolds the translation project. List every preset (framework
+scaffolds plus per-format parsing presets) with --list-presets.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// --list-presets: print the preset catalog and exit (absorbs the
+			// former `kapi presets list`, #1078 C1).
+			if listPresets {
+				return printPresetList(cmd)
+			}
+			// --preset is the porcelain spelling of --framework.
+			if presetName != "" {
+				framework = presetName
+			}
 			root, err := resolveDir(dir)
 			if err != nil {
 				return err
@@ -133,8 +146,22 @@ nextjs, vue-i18n, flutter, angular — and scaffolds the translation project.`,
 	cmd.Flags().StringVar(&name, "name", "", "Project id/name (default: directory basename)")
 	cmd.Flags().StringVar(&sourceLocale, "source-locale", "en", "Source locale (BCP-47)")
 	cmd.Flags().StringSliceVar(&targetLocale, "target-locale", nil, "Target locale (repeatable)")
-	cmd.Flags().StringVar(&framework, "framework", "", "Pre-fill content mapping for a known stack (see 'kapi presets list --framework'); scaffolds a translation project")
+	cmd.Flags().StringVar(&framework, "framework", "", "Pre-fill content mapping for a known stack (see 'kapi init --list-presets'); scaffolds a translation project")
+	cmd.Flags().StringVar(&presetName, "preset", "", "Scaffold from a named framework preset (see 'kapi init --list-presets'); alias of --framework")
+	cmd.Flags().BoolVar(&listPresets, "list-presets", false, "List available presets (framework scaffolds and per-format parsing presets) and exit")
+	cmd.MarkFlagsMutuallyExclusive("preset", "framework")
 	return cmd
+}
+
+// printPresetList emits the full preset catalog (framework scaffolds plus
+// per-format parsing presets) — the `kapi init --list-presets` surface that
+// absorbed `kapi presets list`. Preset details remain available through the
+// hidden `kapi presets show` alias for one release.
+func printPresetList(cmd *cobra.Command) error {
+	reg := preset.NewPresetRegistry()
+	preset.RegisterBuiltins(reg)
+	entries := collectAllPresets(reg)
+	return output.Print(cmd, output.PresetsListOutput{Presets: entries, Total: len(entries)})
 }
 
 // frameworkContent resolves a framework preset's catalog mappings into scaffold

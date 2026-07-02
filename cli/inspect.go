@@ -27,7 +27,7 @@ func (a *App) NewInspectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "inspect [flags] [FILE...]",
 		Short:   "Parse any format into anchored, structured content blocks",
-		GroupID: "processing",
+		GroupID: "advanced",
 		Long: `Parse each file into one record per content block: the text, a stable
 content-hash anchor, and the block's structural role (heading, list-item,
 table-cell, …) and nesting level. Any format — a Word document, a JSON catalog,

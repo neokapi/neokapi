@@ -28,7 +28,7 @@ func (a *App) newSedCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "sed [flags] SCRIPT [FILE...]",
 		Short:   "Stream-edit the text/content inside files (s/regexp/replacement/)",
-		GroupID: "content",
+		GroupID: "advanced",
 		Long: `Apply sed-style substitutions to the human-readable text inside any supported
 format, then write the document back in the same format. Only the editable text
 changes — a .docx keeps its styles, a JSON catalog keeps its keys and shape.

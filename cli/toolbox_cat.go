@@ -31,7 +31,7 @@ func (a *App) newCatCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "cat [flags] [FILE...]",
 		Short:   "Print the text/content inside files, block by block",
-		GroupID: "content",
+		GroupID: "advanced",
 		Long: `Print the human-readable text extracted from each file, one block per line,
 regardless of the underlying format. A Word .docx, a JSON catalog and an XLIFF
 file all print as their plain prose, with the markup and structure stripped.

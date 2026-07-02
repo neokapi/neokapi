@@ -22,8 +22,9 @@ import (
 // verifies, and caches in a shared location. See cli/modelassets.go.
 func (a *App) NewModelsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "models",
-		Short: "Manage attached LLMs and ML models",
+		Use:     "models",
+		Short:   "Manage attached LLMs and ML models",
+		GroupID: "assets",
 		Long: "A single view of every model kapi can use, across three sources:\n\n" +
 			"  • Local · Ollama  — on-device models served by a local Ollama runtime\n" +
 			"                      (`kapi models pull <model>` installs one)\n" +

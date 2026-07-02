@@ -21,7 +21,7 @@ func (a *App) NewConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "config",
 		Short:   "Get or set kapi configuration",
-		GroupID: "management",
+		GroupID: "advanced",
 		Long: "Read and write kapi's app configuration (the global config file, " +
 			"typically ~/.config/kapi/kapi.yaml).\n\n" +
 			"Common keys:\n" +

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-02T17:18:05Z",
+  "generatedAt": "2026-07-02T17:52:04Z",
   "commands": [
     {
       "id": "brand",
@@ -9,7 +9,7 @@
       "use": "brand",
       "short": "Keep AI-generated content on brand (voice, tone, terminology)",
       "long": "Check, rewrite, and govern content against a brand voice profile.\n\nProfile source (mutually exclusive):\n  --profile \u003cname\u003e       Profile in the local brand store (see 'kapi brand profiles')\n  --profile-file \u003cpath\u003e  Standalone profile YAML (git-shareable, no store needed)\n  --pack \u003cname\u003e          Built-in starter pack (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nText input for check/rewrite is read from --text, or from stdin when --text is\nomitted or set to \"-\".",
-      "groupID": "management",
+      "groupID": "assets",
       "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
@@ -1246,7 +1246,7 @@
       "aliases": [
         "creds"
       ],
-      "groupID": "management",
+      "groupID": "assets",
       "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
@@ -1703,7 +1703,7 @@
       "use": "extract",
       "short": "Emit a bilingual file for a translator — native .klz or XLIFF/PO",
       "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a .kapi project, pre-filled from the project's translation\nmemory.\n\nEach invocation writes one batch of outputs under .kapi/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
-      "groupID": "localization",
+      "groupID": "advanced",
       "flags": [
         {
           "name": "force",
@@ -1801,7 +1801,7 @@
       ],
       "use": "flows",
       "short": "List available flows",
-      "groupID": "management",
+      "groupID": "advanced",
       "examples": [
         "kapi flows"
       ],
@@ -1832,7 +1832,7 @@
       "use": "formats",
       "short": "List supported file formats",
       "long": "List all file formats that can be read and written.\n\nUse --mime or --ext to filter by MIME type or file extension.",
-      "groupID": "management",
+      "groupID": "advanced",
       "flags": [
         {
           "name": "ext",
@@ -2027,8 +2027,8 @@
       ],
       "use": "init",
       "short": "Scaffold a new kapi project in the current directory",
-      "long": "Create a new kapi project with a {name}.kapi recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source on\nbrand — a brand-voice profile, the project termbase, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--framework \u003cname\u003e pre-fills the content mapping for a known stack's i18n\ncatalogs (see 'kapi presets list --framework'): react-i18next, react-intl,\nnextjs, vue-i18n, flutter, angular — and scaffolds the translation project.",
-      "groupID": "content",
+      "long": "Create a new kapi project with a {name}.kapi recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source on\nbrand — a brand-voice profile, the project termbase, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.",
+      "groupID": "work",
       "flags": [
         {
           "name": "dir",
@@ -2037,12 +2037,23 @@
         },
         {
           "name": "framework",
-          "usage": "Pre-fill content mapping for a known stack (see 'kapi presets list --framework'); scaffolds a translation project",
+          "usage": "Pre-fill content mapping for a known stack (see 'kapi init --list-presets'); scaffolds a translation project",
           "type": "string"
+        },
+        {
+          "name": "list-presets",
+          "usage": "List available presets (framework scaffolds and per-format parsing presets) and exit",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "name",
           "usage": "Project id/name (default: directory basename)",
+          "type": "string"
+        },
+        {
+          "name": "preset",
+          "usage": "Scaffold from a named framework preset (see 'kapi init --list-presets'); alias of --framework",
           "type": "string"
         },
         {
@@ -2245,7 +2256,7 @@
       ],
       "use": "mcp",
       "short": "Start MCP server (stdio) exposing kapi's content tools (read, edit, check, brand, localize)",
-      "groupID": "processing",
+      "groupID": "advanced",
       "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
@@ -2385,7 +2396,7 @@
       "use": "merge",
       "short": "Apply a returned bilingual file (.klz/XLIFF/PO) back onto the project source",
       "long": "Materialize localized files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the localized files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\nlocalized file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently.",
-      "groupID": "localization",
+      "groupID": "advanced",
       "flags": [
         {
           "name": "input",
@@ -2438,6 +2449,7 @@
       "use": "models",
       "short": "Manage attached LLMs and ML models",
       "long": "A single view of every model kapi can use, across three sources:\n\n  • Local · Ollama  — on-device models served by a local Ollama runtime\n                      (`kapi models pull \u003cmodel\u003e` installs one)\n  • Plugin models   — integrity-pinned assets a plugin downloads and caches\n                      under $XDG_CACHE_HOME/kapi/models/\u003cplugin\u003e/\u003cid\u003e/\u003cversion\u003e/\n  • Cloud providers — remote models that require an API key\n\n`kapi models pull`/`prune` install and remove Ollama and plugin models; cloud\nmodels are listed for reference. Filter with `--provider \u003collama|plugin|cloud-id\u003e`.\n`kapi models ollama` manages the local Ollama runtime itself.",
+      "groupID": "assets",
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false
@@ -2702,7 +2714,7 @@
       "aliases": [
         "plugins"
       ],
-      "groupID": "management",
+      "groupID": "advanced",
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false
@@ -2920,7 +2932,6 @@
       ],
       "use": "presets",
       "short": "Manage format and framework presets",
-      "groupID": "management",
       "examples": [
         "kapi presets list",
         "kapi presets show AndroidStrings"
@@ -3715,7 +3726,7 @@
       ],
       "use": "registry",
       "short": "Manage plugin registries",
-      "groupID": "management",
+      "groupID": "advanced",
       "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
@@ -4016,8 +4027,8 @@
       ],
       "use": "run [flow-name] [flags]",
       "short": "Run a composed flow, or converge the project's default flow",
-      "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\n\nWith no flow name, kapi runs the project's default flow (defaults.flow) over\nall content across every target language — bringing the project up to date in\none pass. Add --until-gate to loop that pass until every gated scope is\nshippable (or a pass stalls), parking whatever still needs a human. Convergence\nnever fails the build: parked, drifted target content is normal toil, reported\nrather than thrown.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi",
-      "groupID": "processing",
+      "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\n\nWith no flow name, kapi runs the project's default flow (defaults.flow) over\nall content across every target language — bringing the project up to date in\none pass. Add --until-gate to loop that pass until every gated scope is\nshippable (or a pass stalls), parking whatever still needs a human. Convergence\nnever fails the build: parked, drifted target content is normal toil, reported\nrather than thrown.\n\nThe no-argument run's porcelain home is 'kapi up', which loops to the gates by\ndefault; 'kapi run' keeps custom-flow semantics.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi",
+      "groupID": "advanced",
       "flags": [
         {
           "name": "api-key",
@@ -5210,7 +5221,7 @@
       "use": "termbase",
       "short": "Manage terminology",
       "long": "Manage project terminology.\n\nA termbase is a glossary of approved terms stored as a SQLite database.\nUse these commands to import, export, look up, and manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named termbase in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Termbase in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
-      "groupID": "management",
+      "groupID": "assets",
       "examples": [
         "kapi termbase stats",
         "kapi termbase lookup \"dashboard\" -s en -t fr",
@@ -5521,7 +5532,7 @@
       "use": "tm",
       "short": "Manage translation memory",
       "long": "Manage translation memory.\n\nA translation memory (TM) stores previously translated segments as a SQLite\ndatabase. Use these commands to import/export TMX, look up matches, and manage\nTM entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named TM in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         TM in current directory (./tm.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db).",
-      "groupID": "localization",
+      "groupID": "assets",
       "examples": [
         "kapi tm stats",
         "kapi tm lookup \"welcome back\" -s en -t fr",
@@ -6025,7 +6036,7 @@
       ],
       "use": "tools",
       "short": "List available processing tools",
-      "groupID": "management",
+      "groupID": "advanced",
       "examples": [
         "kapi tools",
         "kapi tools list"
@@ -6327,14 +6338,149 @@
       "demoMode": false
     },
     {
+      "id": "up",
+      "path": [
+        "up"
+      ],
+      "use": "up",
+      "short": "Reconcile the project toward its ship gates (run the default flow until converged)",
+      "long": "Reconcile the project toward its ship gates: treat the recipe as the desired\nstate and run the project's default flow (defaults.flow) over all content\nacross every target language, looping until every gated scope is shippable or\nparked for a human.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
+      "groupID": "work",
+      "flags": [
+        {
+          "name": "api-key",
+          "usage": "API key for the AI provider",
+          "type": "string"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "number of files to process at once (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "credential",
+          "usage": "saved credential name to use (see 'kapi credentials list')",
+          "type": "string"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "explain",
+          "usage": "print the resolved source → sink bindings and exit without running",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "input",
+          "shorthand": "i",
+          "usage": "input file path(s); repeat for multiple files",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "model",
+          "usage": "AI model name",
+          "type": "string"
+        },
+        {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output path or template (e.g. ./out/{name}_{lang}.{ext})",
+          "type": "string"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "passes",
+          "usage": "maximum reconciliation passes (0 = loop until converged or parked, capped at 5; 1 = single pass)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a .kapi project recipe (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "provider",
+          "usage": "AI provider (anthropic, openai, ollama)",
+          "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "stats",
+          "usage": "include part/block counts in output",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "termbase",
+          "usage": "named termbase for term-lookup/enforce (resolves from KAPI_HOME)",
+          "type": "string"
+        },
+        {
+          "name": "tm",
+          "usage": "named TM for recycle flow (resolves from KAPI_HOME)",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi up                # loop the default flow until every gated scope ships or parks",
+        "kapi up --passes 1     # a single pass over every locale that needs work",
+        "kapi up -p app.kapi    # reconcile an explicit project recipe"
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
       "id": "verify",
       "path": [
         "verify"
       ],
       "use": "verify [files...]",
       "short": "Run a project's bound quality gates (brand, terminology, QA) in one shot",
-      "long": "Run a project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nSelecting gates (--brand/--terms/--qa) and missing bindings: with no gate flag,\nevery gate runs and a gate whose binding is missing (no defaults.brand_voice, no\ndefaults.termbase) is skipped silently — there is nothing to check. But when you\nexplicitly request a gate whose binding is missing, verify does not skip it: it\nfails the gate with a clear \"misconfigured\" finding, so a CI run that asked for\n--brand or --terms cannot pass by silently doing nothing. Bind the resource in\nthe .kapi project, drop the flag, or pass --no-fail to keep it report-only.\n\nExit codes: 0 pass, 3 when any gate fails (including a requested-but-unbound\ngate), 1 for operational errors. Exit 3 means \"not on-spec yet\", not a crash — in\nan assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 0\n(report mode) when looping; omit it for CI gating.",
-      "groupID": "quality",
+      "long": "Deprecated: use 'kapi check --ship', which absorbs this command.\n\nRun a project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nSelecting gates (--brand/--terms/--qa) and missing bindings: with no gate flag,\nevery gate runs and a gate whose binding is missing (no defaults.brand_voice, no\ndefaults.termbase) is skipped silently — there is nothing to check. But when you\nexplicitly request a gate whose binding is missing, verify does not skip it: it\nfails the gate with a clear \"misconfigured\" finding, so a CI run that asked for\n--brand or --terms cannot pass by silently doing nothing. Bind the resource in\nthe .kapi project, drop the flag, or pass --no-fail to keep it report-only.\n\nExit codes: 0 pass, 3 when any gate fails (including a requested-but-unbound\ngate), 1 for operational errors. Exit 3 means \"not on-spec yet\", not a crash — in\nan assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 0\n(report mode) when looping; omit it for CI gating.",
       "flags": [
         {
           "name": "brand",
@@ -6411,7 +6557,6 @@
       ],
       "use": "version",
       "short": "Show version information",
-      "groupID": "management",
       "examples": [
         "kapi version"
       ],

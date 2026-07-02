@@ -57,7 +57,7 @@ func (a *App) newGrepCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "grep [flags] PATTERN [FILE...]",
 		Short:   "Search the text/content inside files for a pattern",
-		GroupID: "content",
+		GroupID: "advanced",
 		Long: `Search the human-readable text inside any supported format for a regular
 expression — the prose of a Word .docx, the values of a JSON catalog, the
 segments of an XLIFF file — skipping markup and structure. Output mirrors grep:

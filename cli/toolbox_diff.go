@@ -102,7 +102,7 @@ func (a *App) newDiffCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "diff [flags] FILE_A [FILE_B]",
 		Short:   "Compare the text/content of files block by block",
-		GroupID: "content",
+		GroupID: "advanced",
 		Long: `Compare the human-readable text inside any supported format, block by block,
 rather than byte by byte. A reflowed Word .docx, a re-zipped container or a
 reordered JSON catalog do not register as a diff — only the prose that actually

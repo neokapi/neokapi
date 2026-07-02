@@ -14,7 +14,7 @@ func (a *App) NewRegistryCmd() *cobra.Command {
 	registryCmd := &cobra.Command{
 		Use:     "registry",
 		Short:   "Manage plugin registries",
-		GroupID: "management",
+		GroupID: "advanced",
 	}
 
 	registryListCmd := &cobra.Command{

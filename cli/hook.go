@@ -42,7 +42,7 @@ func (a *App) NewHookCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "hook",
 		Short:   "Integration hooks for AI coding assistants (Claude Code)",
-		GroupID: "management",
+		GroupID: "advanced",
 		Hidden:  true,
 		Long: `Glue commands for AI coding assistants. Each subcommand reads the
 assistant's hook payload on stdin and writes the assistant's expected response
