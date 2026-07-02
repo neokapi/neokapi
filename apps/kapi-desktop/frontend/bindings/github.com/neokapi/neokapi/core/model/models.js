@@ -31,6 +31,83 @@ export const LocaleID = {
 };
 
 /**
+ * Origin records how content was produced. On a Target it records how the
+ * committed translation was made; on a Block's source it records how a
+ * *recognized* source was extracted (ocr, asr) — source and target provenance
+ * are the same record on two sides of the Block.
+ */
+export class Origin {
+    /**
+     * Creates a new Origin instance.
+     * @param {Partial<Origin>} [$$source = {}] - The source object to create the Origin.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * human | tm | mt | ai | ocr | asr
+             * @member
+             * @type {string | undefined}
+             */
+            this["kind"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * MT/AI/OCR/ASR engine name
+             * @member
+             * @type {string | undefined}
+             */
+            this["engine"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * tool id that produced it
+             * @member
+             * @type {string | undefined}
+             */
+            this["tool"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * batch id, TM entry, etc.
+             * @member
+             * @type {string | undefined}
+             */
+            this["reference"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * RFC 3339
+             * @member
+             * @type {string | undefined}
+             */
+            this["timestamp"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Confidence is the recognizer's confidence in [0,1] for content produced by
+             * extraction (ocr, asr); 0 = unset/not applicable. A confidence-gated
+             * refinement step reads this to decide which units to re-examine.
+             * @member
+             * @type {number | undefined}
+             */
+            this["confidence"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Origin instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Origin}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Origin(/** @type {Partial<Origin>} */($$parsedSource));
+    }
+}
+
+/**
  * Run is the discriminated union of inline content primitives.
  * Exactly one of the pointer fields is non-nil per Run. JSON
  * encoding matches RFC 0001: a Run is an object with exactly one

@@ -3182,6 +3182,18 @@ export class ProjectStatus {
              */
             this["hasData"] = false;
         }
+        if (!("stale" in $$source)) {
+            /**
+             * Stale reports that the block store exists but was written by a different
+             * kapi version than the running binary, so its counts may be wrong (e.g. a
+             * store extracted before the `**`-glob fix shows too few blocks). The UI
+             * should offer a Re-extract rather than trusting the numbers. It is always
+             * false for the "no data yet" shells (no store ⇒ nothing to be stale about).
+             * @member
+             * @type {boolean}
+             */
+            this["stale"] = false;
+        }
         if (!("collections" in $$source)) {
             /**
              * @member
@@ -3199,10 +3211,10 @@ export class ProjectStatus {
      * @returns {ProjectStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType40;
+        const $$createField4_0 = $$createType40;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("collections" in $$parsedSource) {
-            $$parsedSource["collections"] = $$createField3_0($$parsedSource["collections"]);
+            $$parsedSource["collections"] = $$createField4_0($$parsedSource["collections"]);
         }
         return new ProjectStatus(/** @type {Partial<ProjectStatus>} */($$parsedSource));
     }
@@ -3559,6 +3571,147 @@ export class ResourceInfo {
 }
 
 /**
+ * ReviewUnitDetail is the full picture of one review-queue unit for the Review
+ * page: the rendered source and target text, the unit's check findings (the
+ * registered checkers run on demand for just this block), the recorded review
+ * state and provenance from the project state store, and the best TM match when
+ * the project TM is open. It is read-derived — nothing here is cached.
+ */
+export class ReviewUnitDetail {
+    /**
+     * Creates a new ReviewUnitDetail instance.
+     * @param {Partial<ReviewUnitDetail>} [$$source = {}] - The source object to create the ReviewUnitDetail.
+     */
+    constructor($$source = {}) {
+        if (!("locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["locale"] = "";
+        }
+        if (!("file" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["file"] = "";
+        }
+        if (!("key" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["key"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["collection"] = undefined;
+        }
+        if (!("source" in $$source)) {
+            /**
+             * Source and Target are the unit's rendered text (v1: plain text, not runs).
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("target" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target"] = "";
+        }
+        if (!("status" in $$source)) {
+            /**
+             * Status is the unit's effective ladder state (draft|translated|reviewed|
+             * signed-off), with a fresh state-store decision applied over the presence
+             * baseline.
+             * @member
+             * @type {string}
+             */
+            this["status"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ReviewState/Note carry the last recorded decision when it still judges
+             * the current translation (approved | rejected | signed-off).
+             * @member
+             * @type {string | undefined}
+             */
+            this["review_state"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Origin is the target's provenance when known (from the state store).
+             * @member
+             * @type {model$0.Origin | null | undefined}
+             */
+            this["origin"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * TMScore is the best TM match percent for the source (0 = none found or
+             * no project TM open).
+             * @member
+             * @type {number | undefined}
+             */
+            this["tm_score"] = undefined;
+        }
+        if (!("findings" in $$source)) {
+            /**
+             * Findings are the unit's current check findings (placeholder integrity,
+             * do-not-translate, brand vocabulary — the same checkers the Checks panel
+             * runs, scoped to this one block).
+             * @member
+             * @type {DesktopFinding[]}
+             */
+            this["findings"] = [];
+        }
+        if (!("editable" in $$source)) {
+            /**
+             * Editable reports whether the target is a single plain-text run, the only
+             * shape UpdateReviewTarget can rewrite safely.
+             * @member
+             * @type {boolean}
+             */
+            this["editable"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReviewUnitDetail instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ReviewUnitDetail}
+     */
+    static createFrom($$source = {}) {
+        const $$createField9_0 = $$createType44;
+        const $$createField11_0 = $$createType15;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("origin" in $$parsedSource) {
+            $$parsedSource["origin"] = $$createField9_0($$parsedSource["origin"]);
+        }
+        if ("findings" in $$parsedSource) {
+            $$parsedSource["findings"] = $$createField11_0($$parsedSource["findings"]);
+        }
+        return new ReviewUnitDetail(/** @type {Partial<ReviewUnitDetail>} */($$parsedSource));
+    }
+}
+
+/**
  * RunEvent is emitted to the frontend during flow execution.
  */
 export class RunEvent {
@@ -3652,8 +3805,8 @@ export class RunEvent {
      * @returns {RunEvent}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType43;
-        const $$createField7_0 = $$createType45;
+        const $$createField6_0 = $$createType45;
+        const $$createField7_0 = $$createType47;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("trace_event" in $$parsedSource) {
             $$parsedSource["trace_event"] = $$createField6_0($$parsedSource["trace_event"]);
@@ -3779,7 +3932,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType47;
+        const $$createField3_0 = $$createType49;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -4007,8 +4160,8 @@ export class TMEntryDTO {
      * @returns {TMEntryDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType49;
-        const $$createField4_0 = $$createType51;
+        const $$createField2_0 = $$createType51;
+        const $$createField4_0 = $$createType53;
         const $$createField5_0 = $$createType2;
         const $$createField7_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -4089,10 +4242,10 @@ export class TMFacets {
      * @returns {TMFacets}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType53;
-        const $$createField1_0 = $$createType55;
-        const $$createField2_0 = $$createType57;
-        const $$createField3_0 = $$createType59;
+        const $$createField0_0 = $$createType55;
+        const $$createField1_0 = $$createType57;
+        const $$createField2_0 = $$createType59;
+        const $$createField3_0 = $$createType61;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField0_0($$parsedSource["locales"]);
@@ -4157,8 +4310,8 @@ export class TMMatchDTO {
      * @returns {TMMatchDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType60;
-        const $$createField3_0 = $$createType62;
+        const $$createField0_0 = $$createType62;
+        const $$createField3_0 = $$createType64;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entry" in $$parsedSource) {
             $$parsedSource["entry"] = $$createField0_0($$parsedSource["entry"]);
@@ -4234,7 +4387,7 @@ export class TMSearchFilter {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType7;
         const $$createField3_0 = $$createType7;
-        const $$createField4_0 = $$createType64;
+        const $$createField4_0 = $$createType66;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("session_ids" in $$parsedSource) {
             $$parsedSource["session_ids"] = $$createField2_0($$parsedSource["session_ids"]);
@@ -4282,7 +4435,7 @@ export class TMSearchResult {
      * @returns {TMSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType65;
+        const $$createField0_0 = $$createType67;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -4501,7 +4654,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType67;
+        const $$createField0_0 = $$createType69;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -4685,8 +4838,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType7;
         const $$createField7_0 = $$createType7;
-        const $$createField10_0 = $$createType69;
-        const $$createField11_0 = $$createType69;
+        const $$createField10_0 = $$createType71;
+        const $$createField11_0 = $$createType71;
         const $$createField12_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
@@ -4900,7 +5053,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType47;
+        const $$createField4_0 = $$createType49;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -5068,7 +5221,7 @@ export class VariantDTO {
      * @returns {VariantDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType70;
+        const $$createField2_0 = $$createType72;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField2_0($$parsedSource["runs"]);
@@ -5112,7 +5265,7 @@ export class VariantInputDTO {
      * @returns {VariantInputDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType70;
+        const $$createField1_0 = $$createType72;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField1_0($$parsedSource["runs"]);
@@ -5211,31 +5364,33 @@ const $$createType39 = CollectionStatus.createFrom;
 const $$createType40 = $Create.Array($$createType39);
 const $$createType41 = ValidityDTO.createFrom;
 const $$createType42 = $Create.Nullable($$createType41);
-const $$createType43 = $Create.Nullable($$createType32);
-const $$createType44 = flow$0.StepSnapshot.createFrom;
-const $$createType45 = $Create.Array($$createType44);
-const $$createType46 = flow$0.FlowStep.createFrom;
+const $$createType43 = model$0.Origin.createFrom;
+const $$createType44 = $Create.Nullable($$createType43);
+const $$createType45 = $Create.Nullable($$createType32);
+const $$createType46 = flow$0.StepSnapshot.createFrom;
 const $$createType47 = $Create.Array($$createType46);
-const $$createType48 = VariantDTO.createFrom;
-const $$createType49 = $Create.Map($Create.Any, $$createType48);
-const $$createType50 = EntityMappingDTO.createFrom;
-const $$createType51 = $Create.Array($$createType50);
-const $$createType52 = LocaleFacetDTO.createFrom;
+const $$createType48 = flow$0.FlowStep.createFrom;
+const $$createType49 = $Create.Array($$createType48);
+const $$createType50 = VariantDTO.createFrom;
+const $$createType51 = $Create.Map($Create.Any, $$createType50);
+const $$createType52 = EntityMappingDTO.createFrom;
 const $$createType53 = $Create.Array($$createType52);
-const $$createType54 = ProjectFacetDTO.createFrom;
+const $$createType54 = LocaleFacetDTO.createFrom;
 const $$createType55 = $Create.Array($$createType54);
-const $$createType56 = EntityTypeFacetDTO.createFrom;
+const $$createType56 = ProjectFacetDTO.createFrom;
 const $$createType57 = $Create.Array($$createType56);
-const $$createType58 = ImportSessionFacetDTO.createFrom;
+const $$createType58 = EntityTypeFacetDTO.createFrom;
 const $$createType59 = $Create.Array($$createType58);
-const $$createType60 = TMEntryDTO.createFrom;
-const $$createType61 = EntityAdaptationDTO.createFrom;
-const $$createType62 = $Create.Array($$createType61);
-const $$createType63 = EntityValueFilter.createFrom;
+const $$createType60 = ImportSessionFacetDTO.createFrom;
+const $$createType61 = $Create.Array($$createType60);
+const $$createType62 = TMEntryDTO.createFrom;
+const $$createType63 = EntityAdaptationDTO.createFrom;
 const $$createType64 = $Create.Array($$createType63);
-const $$createType65 = $Create.Array($$createType60);
-const $$createType66 = ConceptDTO.createFrom;
-const $$createType67 = $Create.Array($$createType66);
-const $$createType68 = IOPort.createFrom;
+const $$createType65 = EntityValueFilter.createFrom;
+const $$createType66 = $Create.Array($$createType65);
+const $$createType67 = $Create.Array($$createType62);
+const $$createType68 = ConceptDTO.createFrom;
 const $$createType69 = $Create.Array($$createType68);
-const $$createType70 = $Create.Array($Create.Any);
+const $$createType70 = IOPort.createFrom;
+const $$createType71 = $Create.Array($$createType70);
+const $$createType72 = $Create.Array($Create.Any);

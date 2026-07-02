@@ -67,6 +67,7 @@ export {
     RecentFile,
     RelationDTO,
     ResourceInfo,
+    ReviewUnitDetail,
     RunEvent,
     SampleInfo,
     SaveUserFlowRequest,

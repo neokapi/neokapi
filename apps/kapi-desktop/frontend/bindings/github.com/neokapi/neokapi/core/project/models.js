@@ -435,6 +435,19 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
+             * State binds the committed, git-tracked project state artifact (a
+             * kapi-project-state JSON document, core/state) — the authoritative carrier of
+             * per-unit workflow decisions (review ladder, approvals, parking) that a plain
+             * target file cannot hold. It is the export *sink* for state in git mode (a
+             * bowrain project pushes state to the server instead). The path resolves
+             * relative to the project root; empty defaults to `.kapi-state.json`.
+             * @member
+             * @type {string | undefined}
+             */
+            this["state"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Tools holds project-level tool presets: per-tool config defaults applied
              * wherever the tool runs in a project flow. A flow step's own config
              * overrides the preset per key (step wins), so a project can pin, say,
@@ -447,6 +460,19 @@ export class Defaults {
              * @type {{ [_ in string]?: { [_ in string]?: any } } | undefined}
              */
             this["tools"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Locales holds per-target-language overrides, keyed by locale. Each entry's
+             * tool presets merge on top of the project-wide Tools presets (and under a
+             * flow step's own config) whenever a flow runs for that target locale — so a
+             * project can declare an advanced feature once per locale ("de needs
+             * redaction, others don't") without forking the flow. Convergence and any
+             * targeted run honor it; locales with no entry use the project defaults.
+             * @member
+             * @type {{ [_ in string]?: LocaleDefaults } | undefined}
+             */
+            this["locales"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -466,7 +492,8 @@ export class Defaults {
         const $$createField11_0 = $$createType12;
         const $$createField12_0 = $$createType6;
         const $$createField13_0 = $$createType14;
-        const $$createField17_0 = $$createType16;
+        const $$createField18_0 = $$createType16;
+        const $$createField19_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -493,7 +520,10 @@ export class Defaults {
             $$parsedSource["brand_voice"] = $$createField13_0($$parsedSource["brand_voice"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField17_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField18_0($$parsedSource["tools"]);
+        }
+        if ("locales" in $$parsedSource) {
+            $$parsedSource["locales"] = $$createField19_0($$parsedSource["locales"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -704,7 +734,7 @@ export class GateRef {
      * @returns {GateRef}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType17;
+        const $$createField1_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Inline" in $$parsedSource) {
             $$parsedSource["Inline"] = $$createField1_0($$parsedSource["Inline"]);
@@ -837,15 +867,15 @@ export class KapiProject {
      * @returns {KapiProject}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType20;
-        const $$createField3_0 = $$createType21;
-        const $$createField4_0 = $$createType23;
-        const $$createField6_0 = $$createType26;
-        const $$createField7_0 = $$createType17;
-        const $$createField8_0 = $$createType28;
-        const $$createField9_0 = $$createType29;
-        const $$createField10_0 = $$createType17;
-        const $$createField11_0 = $$createType30;
+        const $$createField2_0 = $$createType22;
+        const $$createField3_0 = $$createType23;
+        const $$createField4_0 = $$createType25;
+        const $$createField6_0 = $$createType28;
+        const $$createField7_0 = $$createType19;
+        const $$createField8_0 = $$createType30;
+        const $$createField9_0 = $$createType31;
+        const $$createField10_0 = $$createType19;
+        const $$createField11_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField2_0($$parsedSource["plugins"]);
@@ -875,6 +905,44 @@ export class KapiProject {
             $$parsedSource["requires"] = $$createField11_0($$parsedSource["requires"]);
         }
         return new KapiProject(/** @type {Partial<KapiProject>} */($$parsedSource));
+    }
+}
+
+/**
+ * LocaleDefaults holds per-target-language overrides applied when a flow runs
+ * for that locale. Tool presets are the lever: they merge on top of the
+ * project-wide defaults.tools (per-locale wins) and under a flow step's own
+ * config (the step still wins), the same precedence as the project presets.
+ */
+export class LocaleDefaults {
+    /**
+     * Creates a new LocaleDefaults instance.
+     * @param {Partial<LocaleDefaults>} [$$source = {}] - The source object to create the LocaleDefaults.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_ in string]?: { [_ in string]?: any } } | undefined}
+             */
+            this["tools"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LocaleDefaults instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {LocaleDefaults}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType16;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tools" in $$parsedSource) {
+            $$parsedSource["tools"] = $$createField0_0($$parsedSource["tools"]);
+        }
+        return new LocaleDefaults(/** @type {Partial<LocaleDefaults>} */($$parsedSource));
     }
 }
 
@@ -1053,7 +1121,7 @@ export class PluginStatus {
      * @returns {PluginStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType33;
+        const $$createField1_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
@@ -1210,8 +1278,8 @@ export class ShipGateRule {
      * @returns {ShipGateRule}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType35;
-        const $$createField1_0 = $$createType36;
+        const $$createField0_0 = $$createType37;
+        const $$createField1_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("when" in $$parsedSource) {
             $$parsedSource["when"] = $$createField0_0($$parsedSource["when"]);
@@ -1287,33 +1355,35 @@ const $$createType13 = BrandVoiceBinding.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);
 const $$createType15 = $Create.Map($Create.Any, $Create.Any);
 const $$createType16 = $Create.Map($Create.Any, $$createType15);
-var $$createType17 = /** @type {(...args: any[]) => any} */(function $$initCreateType17(...args) {
-    if ($$createType17 === $$initCreateType17) {
-        $$createType17 = $$createType18;
+const $$createType17 = LocaleDefaults.createFrom;
+const $$createType18 = $Create.Map($Create.Any, $$createType17);
+var $$createType19 = /** @type {(...args: any[]) => any} */(function $$initCreateType19(...args) {
+    if ($$createType19 === $$initCreateType19) {
+        $$createType19 = $$createType20;
     }
-    return $$createType17(...args);
+    return $$createType19(...args);
 });
-const $$createType18 = $Create.Map($Create.Any, $Create.Any);
-const $$createType19 = PluginSpec.createFrom;
-const $$createType20 = $Create.Map($Create.Any, $$createType19);
-const $$createType21 = Defaults.createFrom;
-const $$createType22 = ContentCollection.createFrom;
-const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = flow$0.StepsSpec.createFrom;
-const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = $Create.Map($Create.Any, $$createType25);
-const $$createType27 = ShipGateRule.createFrom;
-const $$createType28 = $Create.Array($$createType27);
-const $$createType29 = $Create.Map($Create.Any, $$createType17);
-var $$createType30 = /** @type {(...args: any[]) => any} */(function $$initCreateType30(...args) {
-    if ($$createType30 === $$initCreateType30) {
-        $$createType30 = $$createType31;
+const $$createType20 = $Create.Map($Create.Any, $Create.Any);
+const $$createType21 = PluginSpec.createFrom;
+const $$createType22 = $Create.Map($Create.Any, $$createType21);
+const $$createType23 = Defaults.createFrom;
+const $$createType24 = ContentCollection.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = flow$0.StepsSpec.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = $Create.Map($Create.Any, $$createType27);
+const $$createType29 = ShipGateRule.createFrom;
+const $$createType30 = $Create.Array($$createType29);
+const $$createType31 = $Create.Map($Create.Any, $$createType19);
+var $$createType32 = /** @type {(...args: any[]) => any} */(function $$initCreateType32(...args) {
+    if ($$createType32 === $$initCreateType32) {
+        $$createType32 = $$createType33;
     }
-    return $$createType30(...args);
+    return $$createType32(...args);
 });
-const $$createType31 = $Create.Map($Create.Any, $Create.Any);
-const $$createType32 = PluginIssue.createFrom;
-const $$createType33 = $Create.Array($$createType32);
-const $$createType34 = gate$0.Selector.createFrom;
-const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = GateRef.createFrom;
+const $$createType33 = $Create.Map($Create.Any, $Create.Any);
+const $$createType34 = PluginIssue.createFrom;
+const $$createType35 = $Create.Array($$createType34);
+const $$createType36 = gate$0.Selector.createFrom;
+const $$createType37 = $Create.Nullable($$createType36);
+const $$createType38 = GateRef.createFrom;
