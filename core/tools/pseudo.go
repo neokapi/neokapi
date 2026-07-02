@@ -247,7 +247,7 @@ func (t *PseudoTranslateTool) SessionProcess(
 			if !ok {
 				return nil
 			}
-			if err := t.processOne(sess, caps.RandomAccess, overlayKind, part); err != nil {
+			if err := t.processOne(ctx, sess, caps.RandomAccess, overlayKind, part); err != nil {
 				return err
 			}
 			select {
@@ -260,6 +260,7 @@ func (t *PseudoTranslateTool) SessionProcess(
 }
 
 func (t *PseudoTranslateTool) processOne(
+	ctx context.Context,
 	sess blockstore.Session,
 	randomAccess bool,
 	overlayKind string,
@@ -271,11 +272,13 @@ func (t *PseudoTranslateTool) processOne(
 		_, err := applyPseudo(part, t.cfg)
 		return err
 	}
-	hash := block.ID
-	if hash == "" {
+	if block.ID == "" {
 		_, err := applyPseudo(part, t.cfg)
 		return err
 	}
+	// Key overlays globally-unique per source file (falls back to the raw id for
+	// ad-hoc single-document runs) so multi-file projects don't collide.
+	hash := blockstore.OverlayKey(ctx, block.ID, block.SourceText())
 
 	// Consult existing overlay when the provider supports random
 	// access. If one exists, hydrate the block from it and skip the

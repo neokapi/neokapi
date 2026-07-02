@@ -200,10 +200,12 @@ func (t *MTTranslateTool) sessionHandleBlock(
 	if !ok || block == nil || !block.Translatable {
 		return nil
 	}
-	hash := block.ID
-	if hash == "" {
+	if block.ID == "" {
 		return t.translate(tool.NewVariantViewWithContext(ctx, block))
 	}
+	// Key overlays globally-unique per source file (falls back to the raw id for
+	// ad-hoc single-document runs) so multi-file projects don't collide.
+	hash := blockstore.OverlayKey(ctx, block.ID, block.SourceText())
 
 	if randomAccess {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
