@@ -19,7 +19,7 @@ func TestParityKnowledgeFromSpecYAML(t *testing.T) {
 	// Load-all probe: every core/formats/*/spec.yaml must load + validate.
 	idx, err := loadSpecIndex()
 	require.NoError(t, err, "every core/formats/*/spec.yaml must load and validate")
-	require.GreaterOrEqual(t, len(idx), 40, "spec index should cover the format corpus")
+	require.GreaterOrEqual(t, len(idx), 30, "spec index should cover the format corpus (33 native formats since the 2026-07 legacy purge)")
 
 	// Every formatSpecs row resolves cleanly and yields a non-empty bridge
 	// filter class (the dispatch key sent to BridgeService.Process).
