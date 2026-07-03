@@ -21,6 +21,10 @@ export {
   FormHelpText,
 } from "./components/ui/form";
 
+// Error contract — friendly-first errors with details-on-demand
+export { parseAppError, type ParsedAppError } from "./lib/parse-app-error";
+export { ErrorNotice, type ErrorNoticeProps } from "./components/ui/error-notice";
+
 // shadcn/ui primitives
 export { Alert, AlertTitle, AlertDescription } from "./components/ui/alert";
 export {

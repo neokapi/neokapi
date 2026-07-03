@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card, CardContent } from "@neokapi/ui-primitives";
+import { Button, Card, CardContent, ErrorNotice } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import { Check, CheckCircle2, ClipboardCheck, Loader2, PlayCircle, RefreshCw } from "lucide-react";
 import { api } from "../hooks/useApi";
@@ -45,7 +45,7 @@ export function ConvergencePanel({
   showTitle = true,
 }: ConvergencePanelProps) {
   const [report, setReport] = useState<ConvergenceReport | null>(propReport ?? null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [running, setRunning] = useState(false);
   const [approving, setApproving] = useState<Set<string>>(new Set());
 
@@ -58,7 +58,7 @@ export function ConvergencePanel({
         if (!cancelled) setReport(r);
       })
       .catch((e) => {
-        if (!cancelled) setError(String(e));
+        if (!cancelled) setError(e);
       });
     return () => {
       cancelled = true;
@@ -85,7 +85,7 @@ export function ConvergencePanel({
       }
       refresh();
     } catch (e) {
-      setError(String(e));
+      setError(e);
     } finally {
       setRunning(false);
     }
@@ -104,7 +104,7 @@ export function ConvergencePanel({
         }
         refresh();
       } catch (e) {
-        setError(String(e));
+        setError(e);
       } finally {
         setApproving((s) => {
           const next = new Set(s);

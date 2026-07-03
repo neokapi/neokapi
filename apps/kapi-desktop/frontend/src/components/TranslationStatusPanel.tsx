@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card, CardContent } from "@neokapi/ui-primitives";
+import { Button, Card, CardContent, ErrorNotice } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import { Loader2, RefreshCw } from "lucide-react";
 import { api } from "../hooks/useApi";
@@ -33,7 +33,7 @@ export interface TranslationStatusPanelProps {
  */
 export function TranslationStatusPanel({ tabID, status: propStatus }: TranslationStatusPanelProps) {
   const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [extracting, setExtracting] = useState(false);
   const [extractLog, setExtractLog] = useState<string | null>(null);
 
@@ -46,7 +46,7 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
         if (!cancelled) setStatus(s);
       })
       .catch((e) => {
-        if (!cancelled) setError(String(e));
+        if (!cancelled) setError(e);
       });
     return () => {
       cancelled = true;
@@ -65,7 +65,7 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
       if (result) setExtractLog(result.log);
       refreshStatus();
     } catch (e) {
-      setError(String(e));
+      setError(e);
     } finally {
       setExtracting(false);
     }

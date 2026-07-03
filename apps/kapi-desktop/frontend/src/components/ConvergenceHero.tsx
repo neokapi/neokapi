@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  AlertTriangle,
   CheckCircle2,
   ClipboardList,
   FolderX,
@@ -16,7 +15,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  ErrorNotice,
   LocalePill,
+  parseAppError,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import type { ConvergePlan, ConvergenceReport, UpPlanScope } from "../types/api";
@@ -64,7 +65,7 @@ export function ConvergenceHero({
   const [loaded, setLoaded] = useState(!!(propConvergence && propPlan));
   // A synchronous launch failure renders inline on the hero — the user stays
   // home instead of landing in a runner view with nothing running behind it.
-  const [launchError, setLaunchError] = useState<string | null>(null);
+  const [launchError, setLaunchError] = useState<unknown>(null);
   // The tab's files vanished from disk (moved/deleted directory): a quiet
   // terminal state, not an error banner per poll.
   const [filesMissing, setFilesMissing] = useState(false);
@@ -106,9 +107,10 @@ export function ConvergenceHero({
     try {
       await api.bringUpToDate(tabID);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      failActiveJob(msg);
-      setLaunchError(msg);
+      // Keep the friendly line in the job feed; keep the full error here for
+      // the inline notice (the user stays on home — no navigation on failure).
+      failActiveJob(parseAppError(err).title);
+      setLaunchError(err);
       return;
     }
     onBringUpToDate?.();
@@ -232,15 +234,10 @@ export function ConvergenceHero({
         </div>
       </div>
 
-      {launchError && (
-        <p
-          className="mt-3 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive"
-          role="alert"
-          data-slot="hero-launch-error"
-        >
-          <AlertTriangle size={13} className="shrink-0" />
-          {launchError}
-        </p>
+      {launchError != null && (
+        <div data-slot="hero-launch-error" className="mt-3">
+          <ErrorNotice error={launchError} variant="panel" detailsLabel={t("Details")} />
+        </div>
       )}
 
       <ConvergePlanDialog
