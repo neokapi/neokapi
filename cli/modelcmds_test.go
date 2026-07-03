@@ -148,12 +148,12 @@ func TestBuildModelRows(t *testing.T) {
 	}
 	providers := aiprovider.Providers()
 
-	rows := buildModelRows(plugins, installed, providers, "")
+	rows := buildModelRows(plugins, installed, providers, true, "")
 
 	// Ollama: recommended picks present; the installed one is marked installed,
 	// the default is flagged, and the extra installed model is included.
-	var llama, extra *output.ModelRow
-	var sawCloud, sawPlugin bool
+	var llama, extra, detected *output.ModelRow
+	var sawCloud, sawPlugin, sawClaudeCloud bool
 	for i := range rows {
 		r := &rows[i]
 		switch {
@@ -163,9 +163,24 @@ func TestBuildModelRows(t *testing.T) {
 			extra = r
 		case r.Source == output.ModelSourceCloud && r.Provider == "anthropic":
 			sawCloud = true
+		case r.Source == output.ModelSourceCloud && r.Provider == "claude-code":
+			sawClaudeCloud = true
+		case r.Source == output.ModelSourceDetected && r.Provider == "claude-code":
+			detected = r
 		case r.Source == output.ModelSourcePlugin && r.Model == "sat-3l-sm":
 			sawPlugin = true
 		}
+	}
+	require.NotNil(t, detected, "detected claude-code should be listed")
+	assert.Equal(t, output.ModelSourceDetected, rows[0].Source, "detected section leads the view")
+	assert.Equal(t, "detected", detected.Status)
+	assert.Contains(t, detected.Note, "Claude subscription")
+	assert.False(t, sawClaudeCloud, "keyless claude-code must not appear under cloud · needs key")
+
+	// Not detected → no detected rows at all.
+	noDetect := buildModelRows(plugins, installed, providers, false, "")
+	for _, r := range noDetect {
+		assert.NotEqual(t, output.ModelSourceDetected, r.Source)
 	}
 	require.NotNil(t, llama, "default ollama model should be listed")
 	assert.Equal(t, "installed", llama.Status)
@@ -176,7 +191,7 @@ func TestBuildModelRows(t *testing.T) {
 	assert.True(t, sawPlugin, "plugin assets should appear")
 
 	// Filter to one source.
-	only := buildModelRows(plugins, installed, providers, output.ModelSourceCloud)
+	only := buildModelRows(plugins, installed, providers, true, output.ModelSourceCloud)
 	require.NotEmpty(t, only)
 	for _, r := range only {
 		assert.Equal(t, output.ModelSourceCloud, r.Source)

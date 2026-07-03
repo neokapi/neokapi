@@ -77,6 +77,14 @@ gates (e.g. before a release tag).
 				return a.runUpPlan(cmd, proj, projectPath)
 			}
 
+			// First-run onboarding: a converge run needs an AI provider; when
+			// none is configured anywhere and this is a terminal, walk through
+			// the compact provider wizard inline, then continue. Non-TTY runs
+			// keep the existing keys-only error path.
+			if err := a.EnsureAIProviderInteractive(cmd); err != nil {
+				return err
+			}
+
 			passes, _ := cmd.Flags().GetInt("passes")
 			if passes < 0 {
 				return fmt.Errorf("--passes must be >= 0 (0 = loop until converged), got %d", passes)

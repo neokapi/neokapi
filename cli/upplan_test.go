@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
@@ -123,4 +124,47 @@ func TestEstimateTokens(t *testing.T) {
 	assert.Equal(t, 1, estimateTokens("abc"))
 	assert.Equal(t, 1, estimateTokens("abcd"))
 	assert.Equal(t, 2, estimateTokens("abcde"))
+}
+
+// TestUpPlan_SubscriptionProviderNote: with the claude-code default provider,
+// the plan swaps the metered framing for subscription wording — in the text
+// table and in the JSON (provider + subscription fields).
+func TestUpPlan_SubscriptionProviderNote(t *testing.T) {
+	a := processOnlyApp(t)
+	a.Config = config.NewAppConfig()
+	a.Config.Set(config.KeyAIProvider, "claude-code")
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+
+	out, err := runUp(t, a, recipe, "--plan")
+	require.NoError(t, err, out)
+	assert.Contains(t, out, "runs on your Claude subscription")
+	assert.Contains(t, out, "no per-token API cost")
+
+	a2 := processOnlyApp(t)
+	a2.Config = config.NewAppConfig()
+	a2.Config.Set(config.KeyAIProvider, "claude-code")
+	outJSON, err := runUp(t, a2, recipe, "--plan", "--json")
+	require.NoError(t, err, outJSON)
+	var plan UpPlanOutput
+	require.NoError(t, json.Unmarshal([]byte(outJSON), &plan))
+	assert.Equal(t, "claude-code", plan.Provider)
+	assert.True(t, plan.Subscription)
+	assert.Contains(t, plan.Note, "Claude subscription")
+}
+
+// TestUpPlan_MeteredProviderKeepsNote: a metered provider keeps the standard
+// estimation note with no subscription framing.
+func TestUpPlan_MeteredProviderKeepsNote(t *testing.T) {
+	a := processOnlyApp(t)
+	a.Config = config.NewAppConfig()
+	a.Config.Set(config.KeyAIProvider, "anthropic")
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+
+	outJSON, err := runUp(t, a, recipe, "--plan", "--json")
+	require.NoError(t, err, outJSON)
+	var plan UpPlanOutput
+	require.NoError(t, json.Unmarshal([]byte(outJSON), &plan))
+	assert.Equal(t, "anthropic", plan.Provider)
+	assert.False(t, plan.Subscription)
+	assert.NotContains(t, plan.Note, "subscription")
 }

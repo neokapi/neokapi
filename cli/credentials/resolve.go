@@ -31,16 +31,39 @@ var providerEnvVars = map[string][]string{
 	// ollama and demo never require a key; they have no entry on purpose.
 }
 
-// keylessProviders are the local, on-device providers that never require an API
-// key. Mirrors aiprovider.IsLocalProvider (kept here to avoid an import cycle).
+// keylessProviders are the providers that never require an API key: the local,
+// on-device ones (ollama, demo — mirrors aiprovider.IsLocalProvider) plus
+// claude-code, which authenticates through the local Claude Code CLI login and
+// bills the user's Claude subscription. Kept here (not imported) to avoid an
+// import cycle with the provider packages.
 var keylessProviders = map[string]bool{
-	"ollama": true,
-	"demo":   true,
+	"ollama":      true,
+	"demo":        true,
+	"claude-code": true,
 }
 
-// isKeylessProvider reports whether a provider id runs locally with no key.
+// isKeylessProvider reports whether a provider id needs no API key.
 func isKeylessProvider(providerType string) bool {
 	return keylessProviders[strings.ToLower(providerType)]
+}
+
+// Keyless reports whether a provider id needs no API key (local providers and
+// the subscription-backed claude-code). Exported for the CLI command layer and
+// the desktop bindings, so every surface shares one keyless list.
+func Keyless(providerType string) bool { return isKeylessProvider(providerType) }
+
+// ProvidersWithEnvKey returns the provider ids whose conventional API-key
+// environment variable is currently set (e.g. ANTHROPIC_API_KEY → anthropic).
+// Used by first-run provider detection.
+func ProvidersWithEnvKey() []string {
+	var out []string
+	for provider := range providerEnvVars {
+		if _, ok := apiKeyFromEnv(provider); ok {
+			out = append(out, provider)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // apiKeyFromEnv returns the API key for the given provider id from the
