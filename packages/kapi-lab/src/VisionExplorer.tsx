@@ -10,6 +10,8 @@ import {
 } from "@neokapi/kapi-playground/visionBridge";
 import { runGemmaImageOCR, type GemmaProgress } from "@neokapi/kapi-playground/gemmaBridge";
 import { ensurePlugin } from "@neokapi/kapi-playground/plugins";
+import GateOverlay from "./GateOverlay";
+import type { RunGate as RunGateState } from "./useRunGate";
 
 export interface VisionSampleSpec {
   url: string;
@@ -217,9 +219,26 @@ export default function VisionExplorer({
     [processDocxBytes, processImageUrl],
   );
 
+  // Nothing loads on mount: the OCR models (and the first sample's processing)
+  // are gated behind the shared RunGate — `armed` flips on the reader's press.
+  const [armed, setArmed] = useState(false);
+  const visionGate: RunGateState = {
+    armed,
+    ready: armed,
+    status: armed ? "ready" : "idle",
+    bootProgress: null,
+    error: null,
+    requires: ["vision"],
+    run: () => setArmed(true),
+  };
+
   useEffect(() => {
-    if (src) void loadSource(src);
-  }, [src, loadSource]);
+    if (armed && src) void loadSource(src);
+  }, [armed, src, loadSource]);
+
+  // Static, model-free preview shown while the gate is up: the selected sample
+  // itself when it is a plain image (docx samples need the engine to unpack).
+  const previewSrc = !armed && src && !src.toLowerCase().endsWith(".docx") ? src : null;
 
   const onUpload = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
@@ -294,7 +313,16 @@ export default function VisionExplorer({
   }, [selectedId]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+    <div
+      className="kapi-reference relative"
+      style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+    >
+      <GateOverlay
+        gate={visionGate}
+        title="Vision Lab"
+        description="Reads the text in the sample — and where every line sits on the page — with the PP-OCRv5 model, right here in your browser."
+        engine={false}
+      />
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
         {samples.map((s) => (
           <button
@@ -554,12 +582,14 @@ export default function VisionExplorer({
           gap: "1rem",
         }}
       >
-        {/* Image with overlays — boxes are clickable and sync with the block list. */}
+        {/* Image with overlays — boxes are clickable and sync with the block list.
+            Before activation, the raw sample renders as the gate's static
+            preview (an <img> is cheap — no model fetch). */}
         <div style={{ position: "relative", lineHeight: 0 }}>
-          {imgSrc && (
+          {(imgSrc ?? previewSrc) && (
             <img
               ref={imgRef}
-              src={imgSrc}
+              src={imgSrc ?? previewSrc ?? undefined}
               alt="vision input"
               onLoad={(e) => setShownW(e.currentTarget.clientWidth)}
               style={{

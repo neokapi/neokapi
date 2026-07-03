@@ -78,7 +78,7 @@ export default function AudioExplorer({ samples = [] }: AudioExplorerProps): Rea
   }, [src]);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="kapi-reference flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         {samples.map((s) => (
           <button
@@ -118,7 +118,7 @@ export default function AudioExplorer({ samples = [] }: AudioExplorerProps): Rea
       </div>
 
       {src && !tree && (
-        <audio src={src} controls className="w-full max-w-xl">
+        <audio src={src} controls preload="none" className="w-full max-w-xl">
           <track kind="captions" />
         </audio>
       )}

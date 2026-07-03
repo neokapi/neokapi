@@ -78,12 +78,11 @@ describe("parseWordCountStat", () => {
 
 describe("ToolDropWidget (idle)", () => {
   // The lab gates work behind the shared zero-shift GateOverlay: the body is
-  // laid out from the start and the play button (aria-label "Run") covers it
-  // until the engine is ready. assets=null keeps the engine un-booted, so we
-  // exercise the rendered body without WASM. getByLabelText("Run") targets the
-  // gate's play button unambiguously (body controls have their own names).
+  // laid out from the start and the labeled primary action ("Run in your
+  // browser") covers it until the engine is ready. assets=null keeps the
+  // engine un-booted, so we exercise the rendered body without WASM.
 
-  it("gates the widget behind an explicit Run play button", () => {
+  it("gates the widget behind an explicit Run action", () => {
     render(
       <ToolDropWidget
         assets={null}
@@ -92,7 +91,7 @@ describe("ToolDropWidget (idle)", () => {
         autoRun={false}
       />,
     );
-    expect(screen.getByLabelText("Run")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /run in your browser/i })).toBeTruthy();
   });
 
   it("renders the drop-zone and sample chips, without booting WASM", () => {

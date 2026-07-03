@@ -6,10 +6,12 @@ import type { RunGate as RunGateState } from "./useRunGate";
 //
 // Every lab renders its body at full height ALWAYS, and drops a <GateOverlay>
 // as the last child of a `position: relative` container. Until the engine is
-// ready the overlay covers the body with an opaque RunGate (play → booting →
-// error); once ready it renders nothing. Because the body is laid out behind
-// the overlay the whole time — idle, booting, and ready — revealing it is a
-// pure dissolve with NO layout shift (the page below never jumps).
+// ready the overlay veils the body with the shared RunGate (idle → booting →
+// error) over a translucent, blurred backdrop, so the idle body reads as a
+// dimmed static preview; once ready it renders nothing. Because the body is
+// laid out behind the overlay the whole time — idle, booting, and ready —
+// revealing it is a pure dissolve with NO layout shift (the page below never
+// jumps).
 //
 // This replaces the old `if (!gate.armed) return <RunGate>` early-return that
 // every explorer hand-rolled, which swapped a short gate card for a taller body
@@ -26,8 +28,10 @@ export interface GateOverlayProps {
   title?: string;
   /** One-line description of what activating will do. */
   description?: string;
-  /** Play-button aria-label / tooltip (default "Run"). */
+  /** Primary action label (default "Run in your browser"). */
   label?: string;
+  /** Whether Run boots the shared wasm engine (default true) — see RunGate. */
+  engine?: boolean;
 }
 
 export default function GateOverlay({
@@ -35,16 +39,21 @@ export default function GateOverlay({
   title,
   description,
   label,
+  engine,
 }: GateOverlayProps): React.ReactElement | null {
   if (gate.ready) return null;
   return (
-    <div className="absolute inset-0 z-40 bg-background">
+    // A translucent veil rather than an opaque sheet: the lab's idle body shows
+    // through, dimmed — a static preview of what Run will bring to life. The
+    // overlay intercepts all pointer events, so the preview stays inert.
+    <div className="absolute inset-0 z-40 bg-background/85 backdrop-blur-[2px]">
       <RunGate
         gate={gate}
         title={title}
         description={description}
         label={label}
-        className="h-full"
+        engine={engine}
+        className="h-full rounded-none border-none bg-transparent"
       />
     </div>
   );

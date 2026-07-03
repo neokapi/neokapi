@@ -222,7 +222,10 @@ export default function MultimodalShowcase({
   );
 
   return (
-    <div className={"flex flex-col gap-4 " + (className ?? "")} data-testid="multimodal-showcase">
+    <div
+      className={"kapi-reference flex flex-col gap-4 " + (className ?? "")}
+      data-testid="multimodal-showcase"
+    >
       <div className="flex flex-wrap gap-2">{tabs}</div>
 
       <div className="rounded-lg border bg-card p-4">

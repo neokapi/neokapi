@@ -8,9 +8,9 @@ afterEach(cleanup);
 // assets=null keeps the runtime un-booted, so we exercise the rendered body
 // (gated behind the zero-shift GateOverlay) without booting WASM.
 describe("ModelsExplorer", () => {
-  it("gates the lab behind an explicit Run play button", () => {
+  it("gates the lab behind an explicit Run action", () => {
     render(<ModelsExplorer assets={null} />);
-    expect(screen.getByLabelText("Run")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /run in your browser/i })).toBeTruthy();
   });
 
   it("models the three sources and the per-platform local engine", () => {

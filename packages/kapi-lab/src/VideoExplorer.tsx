@@ -147,7 +147,7 @@ export default function VideoExplorer({
           : "";
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="kapi-reference flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         {samples.map((s) => (
           <button
@@ -193,7 +193,7 @@ export default function VideoExplorer({
       </div>
 
       {src && !tree && (
-        <video src={src} controls className="w-full max-w-xl rounded-md">
+        <video src={src} controls preload="none" className="w-full max-w-xl rounded-md">
           <track kind="captions" />
         </video>
       )}
