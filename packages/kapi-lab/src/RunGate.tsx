@@ -18,6 +18,11 @@ import type { RunGate as RunGateState } from "./useRunGate";
 // When the engine singleton is already running (another lab on the page was
 // activated), the gate stays up — running is always explicit — but the hint
 // notes the engine is warm and the start is instant.
+//
+// `compact` renders the SAME states as a slim inline row (small button + the
+// identical size-hint/runs-locally line) for widgets embedded in prose or a
+// command strip, where the full card would dwarf the content it gates. Same
+// copy pattern, same tokens — a density variant, not a third design.
 
 export interface RunGateProps {
   gate: RunGateState;
@@ -39,6 +44,12 @@ export interface RunGateProps {
    * swaps content in place without a layout shift. Defaults to `min-h-[180px]`.
    */
   className?: string;
+  /**
+   * Slim inline row instead of the centered card — for small widgets (curated
+   * result views, command strips) where a card is out of scale. Identical
+   * states and copy; `title`/`description` are not rendered in compact.
+   */
+  compact?: boolean;
 }
 
 /** The wasm engine module is ~13 MB (gzipped) on first fetch. */
@@ -62,6 +73,7 @@ export default function RunGate({
   label,
   engine = true,
   className,
+  compact = false,
 }: RunGateProps): React.ReactElement {
   const mgr = usePluginManager();
   const booting = gate.armed && gate.status === "booting";
@@ -92,6 +104,61 @@ export default function RunGate({
     : parts.length > 0
       ? parts.join(" + ")
       : "first download on demand";
+
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          "kapi-reference flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border bg-card/60 px-3 py-2 text-foreground",
+          className,
+        )}
+      >
+        {!gate.armed && (
+          <>
+            <Button type="button" size="sm" onClick={gate.run} className="gap-1.5 rounded-full">
+              <Play className="size-3.5 fill-current" strokeWidth={0} aria-hidden="true" />
+              {label ?? "Run in your browser"}
+            </Button>
+            <p className="m-0 text-xs text-muted-foreground">
+              {downloadNote} · runs locally — nothing leaves your machine
+            </p>
+          </>
+        )}
+
+        {booting && (
+          <div
+            className="flex items-center gap-2 text-xs text-muted-foreground"
+            role="status"
+            aria-live="polite"
+          >
+            <span
+              aria-hidden="true"
+              className="size-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground motion-reduce:animate-none"
+            />
+            {engineFrac !== null ? "Downloading the engine…" : "Starting the engine…"}
+            <span className="h-1 w-24 overflow-hidden rounded-full bg-secondary">
+              <span
+                className={cn(
+                  "block h-full rounded-full bg-primary transition-[width] duration-200 motion-reduce:transition-none",
+                  engineFrac === null && "animate-pulse motion-reduce:animate-none",
+                )}
+                style={{ width: engineFrac !== null ? `${Math.round(engineFrac * 100)}%` : "40%" }}
+              />
+            </span>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center gap-2">
+            <p className="m-0 text-xs text-destructive">Failed to start: {gate.error}</p>
+            <Button type="button" variant="outline" size="sm" onClick={gate.run}>
+              Retry
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div

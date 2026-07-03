@@ -48,6 +48,7 @@ export interface BeforeAfterProps {
 const LazyBeforeAfter = React.lazy(async () => {
   const { useCuratedRuntime } = await import("./useCuratedRuntime");
   const { writeSample, readText, parseCommand } = await import("./seed");
+  const { default: RunGate } = await import("@neokapi/kapi-lab/RunGate");
 
   /** Derive a sensible default output name: the source file's own name. */
   function defaultOutput(sample: string | InlineSample): string {
@@ -63,7 +64,7 @@ const LazyBeforeAfter = React.lazy(async () => {
     caption,
     autoRun = true,
   }: BeforeAfterProps): React.ReactElement {
-    const { runtime, error, cold, armed, arm } = useCuratedRuntime();
+    const { runtime, armed, gate } = useCuratedRuntime();
     const [before, setBefore] = React.useState<string>("");
     const [after, setAfter] = React.useState<string>("");
     const [running, setRunning] = React.useState<boolean>(false);
@@ -114,30 +115,25 @@ const LazyBeforeAfter = React.lazy(async () => {
             $
           </span>
           <span className="kapi-cur-cmd-text">{promptLine}</span>
-          <button
-            type="button"
-            className="kapi-cur-btn kapi-cur-btn--primary"
-            onClick={() => (armed ? void run() : arm())}
-            disabled={running || (armed && !runtime)}
-          >
-            {running ? "Running…" : armed && !runtime ? "Starting…" : "Run"}
-          </button>
+          {armed && (
+            <button
+              type="button"
+              className="kapi-cur-btn kapi-cur-btn--primary"
+              onClick={() => void run()}
+              disabled={running || !runtime}
+            >
+              {running ? "Running…" : !runtime ? "Starting…" : "Run"}
+            </button>
+          )}
         </div>
 
         {caption && <p className="kapi-cur-meta">{caption}</p>}
 
-        {(error || runError) && <p className="kapi-cur-error">{error || runError}</p>}
+        {runError && <p className="kapi-cur-error">{runError}</p>}
 
-        {!error && !armed && (
-          <p className="kapi-cur-meta">Press Run to execute this in the real engine.</p>
-        )}
-
-        {!error && armed && !runtime && (
-          <div className="kapi-cur-loading">
-            <span className="kapi-cur-spinner" aria-hidden="true" />
-            <span>{cold ? "Starting kapi for the first time…" : "Getting kapi ready…"}</span>
-          </div>
-        )}
+        {/* The shared activation gate (compact): the press boots the engine and
+            (autoRun) executes the command. Nothing is fetched until pressed. */}
+        {!runtime && <RunGate compact gate={gate} label="Run in your browser" />}
 
         {runtime && (
           <div className="kapi-cur-split">

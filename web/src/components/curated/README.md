@@ -14,10 +14,14 @@ design tokens (defined on `:root` by the kit's `styles.css`).
 
 ## How they reuse the kit
 
-- **Boot** — `useCuratedRuntime()` dynamically imports the kit and calls
-  `bootKapiRuntime(wasmExecUrl, wasmUrl)` (URLs resolved through the existing
-  Docusaurus adapter `useKapiPlaygroundConfig`). Boot is idempotent kit-side, so
-  several curated views on one page share the single warm runtime instance.
+- **Boot** — `useCuratedRuntime()` dynamically imports the kit and routes boot
+  through the shared plugin manager's `bootEngine()` (URLs resolved through the
+  existing Docusaurus adapter `useKapiPlaygroundConfig`). Boot is idempotent
+  kit-side, so several curated views on one page share the single warm runtime
+  instance. **Nothing is fetched on page load**: every view renders the shared
+  `<RunGate compact>` (from `@neokapi/kapi-lab`) until the reader presses Run —
+  the same activation gate the labs use, with the honest size hint
+  ("~13 MB engine · runs locally — nothing leaves your machine").
 - **`BlockPreview`** uses `KapiRuntime.preview(path)` →
   `{ ok, format, blocks:[{id,text}], total, bytes }`.
 - **`BeforeAfter`** / **`DualExample`** use `KapiRuntime.run(argv)` and read the
@@ -64,7 +68,7 @@ search-replace, case-transform, redaction, …) and guides.
 | `beforeLabel` | `string?`                | Defaults to `"Source"`.                                                    |
 | `afterLabel`  | `string?`                | Defaults to `"Result"`.                                                    |
 | `caption`     | `string?`                | Caption under the command strip.                                           |
-| `autoRun`     | `boolean?`               | Auto-run on mount (default `true`).                                        |
+| `autoRun`     | `boolean?`               | Run the command as soon as the reader arms the gate (default `true`).      |
 
 ```tsx
 <BeforeAfter
