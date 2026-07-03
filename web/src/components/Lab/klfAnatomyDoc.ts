@@ -47,7 +47,15 @@ const bannerHeading: Block = {
         disp: "orderId",
       },
     },
-    { pcClose: { id: "1", type: "jsx:element", subType: "strong", data: "</strong>", equiv: "emph" } },
+    {
+      pcClose: {
+        id: "1",
+        type: "jsx:element",
+        subType: "strong",
+        data: "</strong>",
+        equiv: "emph",
+      },
+    },
     { text: " has shipped." },
   ],
   targets: {
@@ -74,13 +82,31 @@ const bannerHeading: Block = {
           disp: "orderId",
         },
       },
-      { pcClose: { id: "1", type: "jsx:element", subType: "strong", data: "</strong>", equiv: "emph" } },
+      {
+        pcClose: {
+          id: "1",
+          type: "jsx:element",
+          subType: "strong",
+          data: "</strong>",
+          equiv: "emph",
+        },
+      },
       { text: " er sendt." },
     ],
   },
   placeholders: [
-    { name: "emph", kind: "element", jsType: "ReactNode", sourceExpr: "<strong>...</strong>" },
-    { name: "orderId", kind: "variable", jsType: "string", sourceExpr: "order.id" },
+    {
+      name: "emph",
+      kind: "element",
+      jsType: "ReactNode",
+      sourceExpr: "<strong>...</strong>",
+    },
+    {
+      name: "orderId",
+      kind: "variable",
+      jsType: "string",
+      sourceExpr: "order.id",
+    },
   ],
   properties: {
     file: "src/CheckoutBanner.tsx",
@@ -121,7 +147,12 @@ const bannerItems: Block = {
     },
   ],
   placeholders: [
-    { name: "count", kind: "icu-pivot", jsType: "number", sourceExpr: "order.items.length" },
+    {
+      name: "count",
+      kind: "icu-pivot",
+      jsType: "number",
+      sourceExpr: "order.items.length",
+    },
   ],
   properties: {
     file: "src/CheckoutBanner.tsx",

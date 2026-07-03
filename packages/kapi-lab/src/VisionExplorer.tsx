@@ -124,7 +124,11 @@ export default function VisionExplorer({
       if (!ctx) throw new Error("no 2D canvas context");
       ctx.drawImage(image, 0, 0);
       const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const r: Raster = { data: id.data, width: canvas.width, height: canvas.height };
+      const r: Raster = {
+        data: id.data,
+        width: canvas.width,
+        height: canvas.height,
+      };
       setRaster(r);
       await runOCR(r);
     },
@@ -273,7 +277,14 @@ export default function VisionExplorer({
         description="Reads the text in the sample — and where every line sits on the page — with the PP-OCRv5 model (~21 MB, downloaded on first run), right here in your browser."
         engine={false}
       />
-      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "0.5rem",
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
         {samples.map((s) => (
           <button
             key={s.url}
@@ -366,7 +377,12 @@ export default function VisionExplorer({
         </p>
       )}
       {extractedNote && (
-        <p style={{ fontStyle: "italic", color: "var(--ifm-color-emphasis-600)" }}>
+        <p
+          style={{
+            fontStyle: "italic",
+            color: "var(--ifm-color-emphasis-600)",
+          }}
+        >
           {extractedNote}
         </p>
       )}
@@ -484,13 +500,22 @@ export default function VisionExplorer({
                         outline: sel ? "1px solid var(--ifm-color-primary)" : "none",
                       }}
                     >
-                      <code style={{ fontSize: "0.72rem", color: "var(--ifm-color-emphasis-600)" }}>
+                      <code
+                        style={{
+                          fontSize: "0.72rem",
+                          color: "var(--ifm-color-emphasis-600)",
+                        }}
+                      >
                         {b.id}
                       </code>{" "}
                       {b.role && (
                         <span
                           className={roleStyle(b.role).className}
-                          style={{ fontSize: "0.68rem", padding: "0 5px", borderRadius: 4 }}
+                          style={{
+                            fontSize: "0.68rem",
+                            padding: "0 5px",
+                            borderRadius: 4,
+                          }}
                         >
                           {roleStyle(b.role).label}
                         </span>
@@ -531,7 +556,11 @@ export default function VisionExplorer({
                     >
                       <span
                         className={roleStyle(r.role).className}
-                        style={{ fontSize: "0.68rem", padding: "0 5px", borderRadius: 4 }}
+                        style={{
+                          fontSize: "0.68rem",
+                          padding: "0 5px",
+                          borderRadius: 4,
+                        }}
                       >
                         {roleStyle(r.role).label}
                       </span>{" "}

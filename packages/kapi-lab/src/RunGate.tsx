@@ -142,7 +142,9 @@ export default function RunGate({
                   "block h-full rounded-full bg-primary transition-[width] duration-200 motion-reduce:transition-none",
                   engineFrac === null && "animate-pulse motion-reduce:animate-none",
                 )}
-                style={{ width: engineFrac !== null ? `${Math.round(engineFrac * 100)}%` : "40%" }}
+                style={{
+                  width: engineFrac !== null ? `${Math.round(engineFrac * 100)}%` : "40%",
+                }}
               />
             </span>
           </div>
@@ -206,7 +208,9 @@ export default function RunGate({
                 "h-full rounded-full bg-primary transition-[width] duration-200 motion-reduce:transition-none",
                 engineFrac === null && "animate-pulse motion-reduce:animate-none",
               )}
-              style={{ width: engineFrac !== null ? `${Math.round(engineFrac * 100)}%` : "40%" }}
+              style={{
+                width: engineFrac !== null ? `${Math.round(engineFrac * 100)}%` : "40%",
+              }}
             />
           </div>
           {downloading.map((p) => {

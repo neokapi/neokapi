@@ -132,7 +132,8 @@ export default function BatchExplorer({
           onClick={() => void run()}
           disabled={!runtime.ready || busy || selected.length === 0}
         >
-          <Play /> Run on {selected.length} file{selected.length === 1 ? "" : "s"}
+          <Play /> Run on {selected.length} file
+          {selected.length === 1 ? "" : "s"}
         </Button>
       </div>
 

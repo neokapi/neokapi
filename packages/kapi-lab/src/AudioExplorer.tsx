@@ -31,7 +31,14 @@ function treeFromSegments(segs: ASRSegment[]): ContentTree {
   return {
     format: "audio",
     root: [{ kind: "layer", id: "doc", name: "audio", children: blocks }],
-    stats: { layers: 1, groups: 0, blocks: blocks.length, data: 0, media: 0, runs: blocks.length },
+    stats: {
+      layers: 1,
+      groups: 0,
+      blocks: blocks.length,
+      data: 0,
+      media: 0,
+      runs: blocks.length,
+    },
   };
 }
 

@@ -278,7 +278,10 @@ export default function ConversionExplorer({
       } catch (e) {
         setOutputs((o) => ({
           ...o,
-          [id]: { status: "error", error: e instanceof Error ? e.message : String(e) },
+          [id]: {
+            status: "error",
+            error: e instanceof Error ? e.message : String(e),
+          },
         }));
       }
     },

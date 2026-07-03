@@ -27,13 +27,13 @@ export default function KlfLabPage(): React.ReactElement {
         maxWidthClassName="max-w-[1160px]"
         lede={
           <>
-            The <Link to="/reference/klf/spec">Kapi Localization Format</Link> (
-            <code>.klf</code>) is the interchange format of the kapi toolchain: one
-            deterministic JSON document that carries a source file&rsquo;s translatable content as
-            blocks of runs, its per-locale targets, and the provenance of every string. It exists so
-            that extraction, translation, validation, and write-back can be separate steps — run by
-            different tools, at different times — without losing structure or identity. This page
-            reads one realistic document part by part, then round-trips it through the engine.
+            The <Link to="/reference/klf/spec">Kapi Localization Format</Link> (<code>.klf</code>)
+            is the interchange format of the kapi toolchain: one deterministic JSON document that
+            carries a source file&rsquo;s translatable content as blocks of runs, its per-locale
+            targets, and the provenance of every string. It exists so that extraction, translation,
+            validation, and write-back can be separate steps — run by different tools, at different
+            times — without losing structure or identity. This page reads one realistic document
+            part by part, then round-trips it through the engine.
           </>
         }
       >

@@ -81,7 +81,10 @@ export default function KlfExplorer({
   );
 
   // Canonical bytes + per-block render/validation from the Go engine.
-  const [canonical, setCanonical] = useState<{ output: string; sha256: string } | null>(null);
+  const [canonical, setCanonical] = useState<{
+    output: string;
+    sha256: string;
+  } | null>(null);
   const [analysis, setAnalysis] = useState<Record<string, BlockAnalysis>>({});
   const [engineError, setEngineError] = useState<string | null>(null);
 
@@ -101,7 +104,10 @@ export default function KlfExplorer({
       return;
     }
     setEngineError(null);
-    setCanonical({ output: round.output as string, sha256: round.sha256 as string });
+    setCanonical({
+      output: round.output as string,
+      sha256: round.sha256 as string,
+    });
 
     const next: Record<string, BlockAnalysis> = {};
     for (const b of blocks) {
@@ -139,7 +145,11 @@ export default function KlfExplorer({
         });
         continue;
       }
-      const res = runtime.klf({ op: "resolveAnchor", block, anchor: rec.anchor });
+      const res = runtime.klf({
+        op: "resolveAnchor",
+        block,
+        anchor: rec.anchor,
+      });
       const r = (res.resolution as Record<string, unknown>) ?? {};
       out.push({
         id: rec.id ?? "?",
@@ -322,7 +332,9 @@ function BlockCard({
             // InlinePreview.
             <div
               className={styles.preview}
-              dangerouslySetInnerHTML={{ __html: stripBlockWrapper(analysis.html) }}
+              dangerouslySetInnerHTML={{
+                __html: stripBlockWrapper(analysis.html),
+              }}
             />
           ) : (
             <div className={styles.preview}>—</div>

@@ -365,7 +365,11 @@ export default function FlowBuilderRunner({
     }
     if (step.select === undefined) return;
     focusNonce.current += 1;
-    setFocusRequest({ nonce: focusNonce.current, select: step.select, mode: step.mode });
+    setFocusRequest({
+      nonce: focusNonce.current,
+      select: step.select,
+      mode: step.mode,
+    });
   }, []);
 
   const goToStep = useCallback(

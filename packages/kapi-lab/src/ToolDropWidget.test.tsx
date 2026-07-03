@@ -48,7 +48,9 @@ describe("parseWordCountStat", () => {
   const json = JSON.stringify({
     total_source_words: 12,
     document_count: 1,
-    documents: { "/project/messages.json": { source_words: 12, block_count: 4 } },
+    documents: {
+      "/project/messages.json": { source_words: 12, block_count: 4 },
+    },
   });
 
   it("parses plain word-count --json into blocks/words/chars cards", () => {

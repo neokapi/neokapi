@@ -1,7 +1,23 @@
 import React, { Suspense } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
+import CodeBlock from "@theme/CodeBlock";
+import { detectLang } from "@neokapi/ui-primitives/preview";
 import type { InlineSample } from "./seed";
 import "./curated.css";
+
+// Map the shared detector's language onto a Prism language the site's theme
+// ships; anything else renders unhighlighted (a plain CodeBlock).
+const PRISM_LANG: Partial<Record<ReturnType<typeof detectLang>, string>> = {
+  json: "json",
+  xml: "xml",
+  yaml: "yaml",
+  markdown: "markdown",
+};
+
+/** Prism language for a payload, from its filename. */
+function prismLangOf(filename: string): string | undefined {
+  return PRISM_LANG[detectLang(filename)];
+}
 
 // BeforeAfter — source → transformed result curated view.
 //
@@ -142,21 +158,28 @@ const LazyBeforeAfter = React.lazy(async () => {
                 <span>{beforeLabel}</span>
                 <span className="kapi-cur-pane-name">{sourceName}</span>
               </div>
-              <pre className="kapi-cur-code">{before}</pre>
+              <CodeBlock className="kapi-cur-codeblock" language={prismLangOf(sourceName)}>
+                {before}
+              </CodeBlock>
             </div>
             <div className="kapi-cur-pane">
               <div className="kapi-cur-pane-head">
                 <span>{afterLabel}</span>
                 <span className="kapi-cur-pane-name">{outName}</span>
               </div>
-              <pre className="kapi-cur-code">
-                {running
-                  ? "…"
-                  : after ||
-                    (exitCode !== null && exitCode !== 0
+              {!running && after ? (
+                <CodeBlock className="kapi-cur-codeblock" language={prismLangOf(outName)}>
+                  {after}
+                </CodeBlock>
+              ) : (
+                <pre className="kapi-cur-code">
+                  {running
+                    ? "…"
+                    : exitCode !== null && exitCode !== 0
                       ? `(command exited with code ${exitCode})`
-                      : "(no output yet — click Run)")}
-              </pre>
+                      : "(no output yet — click Run)"}
+                </pre>
+              )}
             </div>
           </div>
         )}

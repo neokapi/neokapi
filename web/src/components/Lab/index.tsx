@@ -10,7 +10,13 @@ import { lazyWithRetry } from "../../lib/chunkReload";
 // resolved against the site base URL via the shared playground config.
 
 const Loading = (): React.ReactElement => (
-  <div style={{ padding: "1rem", color: "var(--ifm-color-emphasis-500)", fontStyle: "italic" }}>
+  <div
+    style={{
+      padding: "1rem",
+      color: "var(--ifm-color-emphasis-500)",
+      fontStyle: "italic",
+    }}
+  >
     Loading the interactive lab…
   </div>
 );

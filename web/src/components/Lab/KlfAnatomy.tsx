@@ -37,7 +37,9 @@ export default function KlfAnatomy(): React.ReactElement {
                   key={i}
                   onClick={() => lineTerm && setSelected(lineTerm)}
                   className={`flex cursor-pointer items-start pr-3 ${
-                    active ? "bg-primary/10 shadow-[inset_3px_0_0] shadow-primary" : "hover:bg-muted/60"
+                    active
+                      ? "bg-primary/10 shadow-[inset_3px_0_0] shadow-primary"
+                      : "hover:bg-muted/60"
                   }`}
                 >
                   <span className="mr-3 w-9 shrink-0 border-r border-border pr-2 text-right text-muted-foreground/70 tabular-nums select-none">

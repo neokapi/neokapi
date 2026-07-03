@@ -77,7 +77,14 @@ function buildTree(speech: ASRSegment[], frames: FrameOCR[]): ContentTree {
   return {
     format: "video",
     root: [{ kind: "layer", id: "doc", name: "video", children: blocks }],
-    stats: { layers: 1, groups: 0, blocks: blocks.length, data: 0, media: 0, runs: blocks.length },
+    stats: {
+      layers: 1,
+      groups: 0,
+      blocks: blocks.length,
+      data: 0,
+      media: 0,
+      runs: blocks.length,
+    },
   };
 }
 
@@ -110,7 +117,10 @@ export default function VideoExplorer({
       // status widget reflects av/asr/vision loading; the bridges reuse them.
       await ensurePlugin("av");
       const bytes = new Uint8Array(await (await fetch(src)).arrayBuffer());
-      const { audio, frames } = await demux(bytes, { fps: 1, onProgress: setProgress });
+      const { audio, frames } = await demux(bytes, {
+        fps: 1,
+        onProgress: setProgress,
+      });
       revokeFrames(framesRef.current);
       framesRef.current = frames;
 
