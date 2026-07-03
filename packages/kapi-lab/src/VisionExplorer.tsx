@@ -3,12 +3,10 @@ import { roleStyle } from "@neokapi/ui-primitives/preview";
 import {
   ocr,
   layout,
-  rgbaToDataURL,
   type OCRResult,
   type OCROptions,
   type LayoutResult,
 } from "@neokapi/kapi-playground/visionBridge";
-import { runGemmaImageOCR, type GemmaProgress } from "@neokapi/kapi-playground/gemmaBridge";
 import { ensurePlugin } from "@neokapi/kapi-playground/plugins";
 import GateOverlay from "./GateOverlay";
 import type { RunGate as RunGateState } from "./useRunGate";
@@ -71,84 +69,41 @@ export default function VisionExplorer({
   // that image.
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [extractedNote, setExtractedNote] = useState<string | null>(null);
-  // Handwriting cascade: PP-OCR reads every line fast; lines below this
-  // confidence are re-read by TrOCR (loaded on first escalation).
+  // Optional handwriting cascade: PP-OCR reads every line fast; low-confidence
+  // lines are re-read by TrOCR (loaded on first escalation). This is the one
+  // engine option — a recognition fallback inside the same pipeline, not a
+  // model comparison (the ML benchmark page owns comparisons).
   const [handwriting, setHandwriting] = useState(false);
-  const [hwThreshold, setHwThreshold] = useState(0.85);
-  // Tier 3: re-read still-uncertain lines with a local Ollama vision model
-  // (keyless-local per AD-030). Off by default — requires a running Ollama.
-  const [llm, setLlm] = useState(false);
-  const [llmThreshold, setLlmThreshold] = useState(0.85);
   // Shared selection: clicking a box on the image or a block in the list
   // highlights the other.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const rowRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
-  // OCR-engine comparison: run Gemma 4 (generative VLM, in-browser via WebGPU)
-  // on the same image and show its transcription + latency next to PP-OCRv5's.
-  const [ocrMs, setOcrMs] = useState<number | null>(null);
-  const [gemma, setGemma] = useState<{ text: string; ms: number } | null>(null);
-  const [gemmaBusy, setGemmaBusy] = useState(false);
-  const [gemmaProgress, setGemmaProgress] = useState<GemmaProgress | null>(null);
-  const [gemmaErr, setGemmaErr] = useState<string | null>(null);
-
   const runOCR = useCallback(
     async (r: Raster) => {
       setBusy("ocr");
       setErr(null);
-      setGemma(null); // a new image invalidates the previous comparison
-      setGemmaErr(null);
       try {
         // Download the OCR models via the manager so the navbar widget reflects
         // the `vision` plugin; ocr() reuses the warmed models.
         await ensurePlugin("vision");
-        const t0 = performance.now();
-        const res = await ocr(r, modelBase, { handwriting, hwThreshold, llm, llmThreshold });
-        setOcrMs(performance.now() - t0);
-        setOcrRes(res);
+        setOcrRes(await ocr(r, modelBase, { handwriting }));
       } catch (e) {
         setErr(`OCR failed: ${(e as Error).message}`);
       } finally {
         setBusy("");
       }
     },
-    [modelBase, handwriting, hwThreshold, llm, llmThreshold],
+    [modelBase, handwriting],
   );
 
-  // OCR prompt for the generative comparison: faithful transcription only.
-  const GEMMA_OCR_PROMPT =
-    "Transcribe all text in this image exactly as it appears, preserving line breaks and reading order. Output only the transcribed text, with no commentary.";
-
-  const runGemmaCompare = useCallback(async () => {
-    if (!raster) return;
-    setGemmaBusy(true);
-    setGemmaErr(null);
-    setGemma(null);
-    setGemmaProgress(null);
-    try {
-      const url = rgbaToDataURL(raster);
-      // The generative comparison loads the in-browser Gemma 4 model directly via
-      // gemmaBridge (no plugin manager): runGemmaImageOCR fetches the multimodal
-      // model on first use and streams download progress through onProgress.
-      const t0 = performance.now();
-      const res = await runGemmaImageOCR(url, GEMMA_OCR_PROMPT, {
-        onProgress: (p) => setGemmaProgress(p),
-      });
-      setGemma({ text: res.text, ms: performance.now() - t0 });
-    } catch (e) {
-      setGemmaErr((e as Error).message);
-    } finally {
-      setGemmaBusy(false);
-    }
-  }, [raster]);
-
-  // Re-run OCR with explicit cascade settings (avoids stale-closure on toggle):
+  // Re-run OCR with explicit engine settings (avoids stale-closure on toggle):
   // overrides win over the current render-time state.
   const rerunOCR = (overrides: Partial<OCROptions> = {}): void => {
     if (!raster) return;
     setBusy("ocr");
     setErr(null);
-    ocr(raster, modelBase, { handwriting, hwThreshold, llm, llmThreshold, ...overrides })
+    ocr(raster, modelBase, { handwriting, ...overrides })
       .then(setOcrRes)
       .catch((e: unknown) => setErr(`OCR failed: ${(e as Error).message}`))
       .finally(() => setBusy(""));
@@ -255,16 +210,11 @@ export default function VisionExplorer({
     }
   };
 
-  // Toggle the handwriting cascade and re-run OCR with the new setting.
-  const onToggleHandwriting = (v: boolean): void => {
-    setHandwriting(v);
-    rerunOCR({ handwriting: v });
-  };
-
-  // Toggle the local-LLM Tier-3 and re-run OCR with the new setting.
-  const onToggleLLM = (v: boolean): void => {
-    setLlm(v);
-    rerunOCR({ llm: v });
+  // Switch the recognition engine and re-run OCR with the new setting.
+  const onEngineChange = (v: string): void => {
+    const hw = v === "trocr";
+    setHandwriting(hw);
+    rerunOCR({ handwriting: hw });
   };
 
   const runLayout = useCallback(async () => {
@@ -320,7 +270,7 @@ export default function VisionExplorer({
       <GateOverlay
         gate={visionGate}
         title="Vision Lab"
-        description="Reads the text in the sample — and where every line sits on the page — with the PP-OCRv5 model, right here in your browser."
+        description="Reads the text in the sample — and where every line sits on the page — with the PP-OCRv5 model (~21 MB, downloaded on first run), right here in your browser."
         engine={false}
       />
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
@@ -358,94 +308,32 @@ export default function VisionExplorer({
           />
         </label>
         <label
-          title="Re-read low-confidence lines with the TrOCR handwriting model (loads on first use). PP-OCR handles clean text fast; TrOCR rescues the hard lines."
+          title="PP-OCRv5 recognizes every line (~21 MB, loaded on first run). The handwriting variant re-reads low-confidence lines with TrOCR (~40 MB, loaded on first escalation)."
           style={{
             display: "inline-flex",
             alignItems: "center",
             gap: "0.35rem",
             marginLeft: "auto",
-            cursor: raster ? "pointer" : "not-allowed",
             fontSize: "0.85rem",
           }}
         >
-          <input
-            type="checkbox"
-            checked={handwriting}
+          Engine
+          <select
+            value={handwriting ? "trocr" : "ppocr"}
             disabled={!raster || busy !== ""}
-            onChange={(e) => onToggleHandwriting(e.target.checked)}
-          />
-          ✍ Handwriting fallback
-        </label>
-        {handwriting && (
-          <label
-            title="Lines whose PP-OCR confidence is below this are re-read by TrOCR. Higher = escalate more lines."
+            onChange={(e) => onEngineChange(e.target.value)}
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.35rem",
-              fontSize: "0.8rem",
+              padding: "0.25rem 0.4rem",
+              borderRadius: 6,
+              border: "1px solid var(--ifm-color-emphasis-300)",
+              background: "transparent",
+              color: "inherit",
             }}
           >
-            below
-            <input
-              type="range"
-              min={0.5}
-              max={0.99}
-              step={0.01}
-              value={hwThreshold}
-              disabled={busy !== ""}
-              onChange={(e) => setHwThreshold(Number(e.target.value))}
-              onPointerUp={(e) =>
-                rerunOCR({ hwThreshold: Number((e.target as HTMLInputElement).value) })
-              }
-            />
-            {Math.round(hwThreshold * 100)}%
-          </label>
-        )}
-        <label
-          title="Tier 3: re-read still-uncertain lines with a local Ollama vision model (keyless, on-device). Requires Ollama running locally with this page's origin allowed (OLLAMA_ORIGINS)."
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.35rem",
-            cursor: raster ? "pointer" : "not-allowed",
-            fontSize: "0.85rem",
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={llm}
-            disabled={!raster || busy !== ""}
-            onChange={(e) => onToggleLLM(e.target.checked)}
-          />
-          🧠 Local LLM (Ollama)
+            <option value="ppocr">PP-OCRv5 (~21 MB)</option>
+            <option value="trocr">PP-OCRv5 + TrOCR handwriting fallback (~40 MB)</option>
+          </select>
         </label>
-        {llm && (
-          <label
-            title="Lines whose confidence is below this are re-read by the local LLM. Higher = escalate more lines."
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.35rem",
-              fontSize: "0.8rem",
-            }}
-          >
-            below
-            <input
-              type="range"
-              min={0.5}
-              max={0.99}
-              step={0.01}
-              value={llmThreshold}
-              disabled={busy !== ""}
-              onChange={(e) => setLlmThreshold(Number(e.target.value))}
-              onPointerUp={(e) =>
-                rerunOCR({ llmThreshold: Number((e.target as HTMLInputElement).value) })
-              }
-            />
-            {Math.round(llmThreshold * 100)}%
-          </label>
-        )}
         <button
           onClick={() => void runLayout()}
           disabled={!raster || busy !== ""}
@@ -460,21 +348,6 @@ export default function VisionExplorer({
           }}
         >
           Detect layout (~132 MB)
-        </button>
-        <button
-          onClick={() => void runGemmaCompare()}
-          disabled={!raster || gemmaBusy}
-          title="Run Google Gemma 4 (a generative vision-language model) on the same image and compare its transcription with the PP-OCRv5 pipeline. Downloads the model (multi-GB) on first use; requires WebGPU."
-          style={{
-            padding: "0.35rem 0.7rem",
-            borderRadius: 6,
-            border: "1px solid var(--ifm-color-emphasis-300)",
-            background: gemma ? "var(--ifm-color-primary)" : "transparent",
-            color: gemma ? "#fff" : "inherit",
-            cursor: raster && !gemmaBusy ? "pointer" : "not-allowed",
-          }}
-        >
-          {gemmaBusy ? "Running Gemma…" : "Compare with Gemma 4"}
         </button>
       </div>
 
@@ -498,82 +371,6 @@ export default function VisionExplorer({
         </p>
       )}
       {err && <p style={{ color: "var(--ifm-color-danger)" }}>{err}</p>}
-
-      {(gemmaBusy || gemma || gemmaErr) && (
-        <div
-          style={{
-            border: "1px solid var(--ifm-color-emphasis-300)",
-            borderRadius: 8,
-            padding: "0.75rem 1rem",
-            margin: "0.5rem 0",
-          }}
-        >
-          <strong>OCR engine comparison</strong>
-          {gemmaBusy && (
-            <p style={{ fontStyle: "italic", margin: "0.4rem 0 0" }}>
-              {gemmaProgress?.status === "downloading"
-                ? `Downloading Gemma 4 model… ${
-                    gemmaProgress.progress != null ? Math.round(gemmaProgress.progress) + "%" : ""
-                  }`
-                : "Running Gemma 4 on the image…"}
-            </p>
-          )}
-          {gemmaErr && (
-            <p style={{ color: "var(--ifm-color-danger)", margin: "0.4rem 0 0" }}>
-              Gemma: {gemmaErr}
-            </p>
-          )}
-          {(gemma || ocrRes) && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-                marginTop: "0.6rem",
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>
-                  PP-OCRv5 (ML pipeline)
-                  {ocrMs != null && (
-                    <span style={{ fontWeight: 400, color: "var(--ifm-color-emphasis-600)" }}>
-                      {" "}
-                      · {Math.round(ocrMs)} ms · {ocrRes?.lines.length ?? 0} lines
-                    </span>
-                  )}
-                </div>
-                <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.8rem", marginTop: "0.4rem" }}>
-                  {(ocrRes?.lines ?? []).map((l) => l.text).join("\n") || "—"}
-                </pre>
-              </div>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: "0.85rem" }}>
-                  Gemma 4 (generative VLM)
-                  {gemma && (
-                    <span style={{ fontWeight: 400, color: "var(--ifm-color-emphasis-600)" }}>
-                      {" "}
-                      · {Math.round(gemma.ms)} ms
-                    </span>
-                  )}
-                </div>
-                <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.8rem", marginTop: "0.4rem" }}>
-                  {gemma ? gemma.text || "(empty)" : "—"}
-                </pre>
-              </div>
-            </div>
-          )}
-          <p
-            style={{
-              fontSize: "0.75rem",
-              color: "var(--ifm-color-emphasis-600)",
-              margin: "0.5rem 0 0",
-            }}
-          >
-            PP-OCRv5 detects + recognizes text regions (with boxes and per-line confidence); Gemma 4
-            reads the whole image and transcribes generatively. Both run locally in your browser.
-          </p>
-        </div>
-      )}
 
       <div
         style={{
@@ -703,10 +500,7 @@ export default function VisionExplorer({
                         ({Math.round(b.confidence * 100)}%)
                       </span>
                       {b.engine === "trocr" && (
-                        <span style={{ color: "#7c3aed", fontWeight: 600 }}> ✍ TrOCR</span>
-                      )}
-                      {b.engine === "llm" && (
-                        <span style={{ color: "#0891b2", fontWeight: 600 }}> 🧠 LLM</span>
+                        <span style={{ color: "#7c3aed", fontWeight: 600 }}> TrOCR</span>
                       )}
                     </li>
                   );
