@@ -453,7 +453,7 @@ const config: Config = {
             { label: "Vision", to: "/lab/vision" },
             { label: "Audio & Video", to: "/lab/media" },
             { label: "CLI Playground", to: "/playground-cli" },
-            { label: "KLF Format", to: "/klf-lab" },
+            { label: "KLF Anatomy", to: "/klf-lab" },
           ],
         },
         {

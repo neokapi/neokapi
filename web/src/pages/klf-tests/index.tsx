@@ -46,9 +46,9 @@ export default function KlfTestsPage(): React.ReactElement {
         </section>
 
         <LabFootnote>
-          Curious how a document flows through these operations? Open the{" "}
-          <Link to="/klf-lab">KLF Lab</Link> and edit one live, or read the{" "}
-          <Link to="/reference/klf/spec">specification</Link>.
+          Curious how a document flows through these operations? Read the{" "}
+          <Link to="/klf-lab">anatomy of a KLF document</Link> and round-trip one live, or consult
+          the <Link to="/reference/klf/spec">specification</Link>.
         </LabFootnote>
       </LabPageShell>
     </Layout>

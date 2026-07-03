@@ -249,7 +249,7 @@ const sidebars: SidebarsConfig = {
         "reference/klf/examples",
         "reference/klf/vs-xliff",
         "reference/klf/package",
-        { type: "link", label: "KLF Lab", href: "/klf-lab" },
+        { type: "link", label: "KLF anatomy", href: "/klf-lab" },
         { type: "link", label: "KLF Tests", href: "/klf-tests" },
       ],
     },

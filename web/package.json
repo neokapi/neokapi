@@ -26,6 +26,7 @@
     "@mdx-js/react": "^3.1.1",
     "@neokapi/docs-shared": "workspace:*",
     "@neokapi/flow-editor": "*",
+    "@neokapi/kapi-format": "*",
     "@neokapi/kapi-lab": "*",
     "@neokapi/kapi-playground": "*",
     "@neokapi/kapi-react": "*",

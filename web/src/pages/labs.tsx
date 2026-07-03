@@ -55,8 +55,9 @@ const LABS: LabEntry[] = [
   },
   {
     to: "/klf-lab",
-    name: "KLF Format",
-    teaches: "Edit a KLF document live and watch the engine canonicalize, render, and validate it.",
+    name: "KLF Anatomy",
+    teaches:
+      "A worked reading of the Kapi Localization Format — envelope, blocks, runs, targets, provenance — with a live round-trip through the engine.",
   },
 ];
 
