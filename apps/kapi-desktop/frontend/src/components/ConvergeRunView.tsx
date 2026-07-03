@@ -1,4 +1,4 @@
-import { CheckCircle2, Loader2, PauseCircle } from "lucide-react";
+import { CheckCircle2, Loader2, PauseCircle, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, LocalePill } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import type { RunEvent } from "../context/JobFeedContext";
@@ -9,6 +9,8 @@ export interface ConvergeRunViewProps {
   events: RunEvent[];
   /** Whether the run is still in flight (renders the working row). */
   running?: boolean;
+  /** Whether the run was cancelled (renders the terminal cancelled row). */
+  canceled?: boolean;
   /** Open the Review page filtered to a parked (collection, locale) scope. */
   onOpenReview?: (scope: { collection?: string; locale?: string }) => void;
 }
@@ -19,7 +21,7 @@ export interface ConvergeRunViewProps {
  * logs, and — once the run settles — the structured outcome with each parked
  * (collection, locale) scope rendered as a deep link into the Review page.
  */
-export function ConvergeRunView({ events, running, onOpenReview }: ConvergeRunViewProps) {
+export function ConvergeRunView({ events, running, canceled, onOpenReview }: ConvergeRunViewProps) {
   const passes = events.filter((e) => e.type === "converge_pass" && e.converge);
   const result: ConvergeOutput | undefined = events.find(
     (e) => e.type === "complete" && e.converge_result,
@@ -86,6 +88,18 @@ export function ConvergeRunView({ events, running, onOpenReview }: ConvergeRunVi
             </li>
           )}
         </ol>
+
+        {canceled && (
+          <p
+            className="flex items-center gap-1.5 border-t border-border pt-2 text-xs text-muted-foreground"
+            data-slot="converge-canceled"
+          >
+            <XCircle size={13} />
+            {t(
+              "Cancelled — the run stopped before reaching the gates. Nothing is lost: run Bring up to date again to continue.",
+            )}
+          </p>
+        )}
 
         {result && (
           <div className="border-t border-border pt-2" data-slot="converge-result">

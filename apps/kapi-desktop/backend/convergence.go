@@ -5,11 +5,37 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/neokapi/neokapi/cli"
+	appconfig "github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/core/project"
 )
+
+// errProjectFilesMissing is the typed, user-facing error GetConvergence /
+// GetConvergePlan return when the open tab's recipe no longer exists on disk
+// (the directory was moved or deleted — e.g. mid sample reset). The frontend
+// renders it as a quiet state instead of raw open-errors; the underlying
+// ENOENT is logged once per disappearance, not per poll.
+var errProjectFilesMissing = errors.New("project files are missing or moved — reopen the project")
+
+// checkProjectOnDisk verifies the tab's recipe still exists before a derive.
+// Missing → errProjectFilesMissing (logged once until the file reappears).
+func (a *App) checkProjectOnDisk(op *openProject) error {
+	if op.Path == "" {
+		return nil
+	}
+	if _, err := os.Stat(op.Path); err != nil {
+		if op.missingWarned.CompareAndSwap(false, true) {
+			a.logger.Printf("project tab %s: recipe unreadable at %s (%v) — reporting missing/moved to the UI", op.ID, op.Path, err)
+		}
+		return errProjectFilesMissing
+	}
+	op.missingWarned.Store(false)
+	return nil
+}
 
 // convergenceCLI lazily builds the shared cli.App used to derive convergence
 // reports, so the format/tool registries register once rather than per request.
@@ -39,6 +65,9 @@ func (a *App) GetConvergence(tabID string) (*cli.ConvergenceReport, error) {
 	}
 	if op.Project == nil || op.Path == "" {
 		return &cli.ConvergenceReport{}, nil
+	}
+	if err := a.checkProjectOnDisk(op); err != nil {
+		return nil, err
 	}
 	src := string(op.Project.Defaults.SourceLanguage)
 	return a.convergenceCLI().ProjectConvergence(context.Background(), op.Path, src)
@@ -72,6 +101,9 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 	}
 	if op.Project == nil || op.Path == "" {
 		return &ConvergePlan{}, nil
+	}
+	if err := a.checkProjectOnDisk(op); err != nil {
+		return nil, err
 	}
 	src := string(op.Project.Defaults.SourceLanguage)
 	plan, err := a.convergenceCLI().UpPlan(context.Background(), op.Path, src)
@@ -114,9 +146,12 @@ func (a *App) BringUpToDate(tabID string) error {
 	if op.Path == "" {
 		return errors.New("project has no file path; save it before bringing it up to date")
 	}
+	// No defaults.flow is fine: the shared up engine synthesizes the built-in
+	// default flow (#1078 G6 — TM reuse then AI translate). The label only
+	// tags the run's events for the UI.
 	flowName := op.Project.Defaults.Flow
 	if flowName == "" {
-		return errors.New("no default flow configured — set defaults.flow in the project, or run a flow from the Flows page")
+		flowName = "up"
 	}
 	if len(op.Project.Defaults.TargetLanguages) == 0 {
 		return errors.New("no target languages configured (defaults.target_languages)")
@@ -155,8 +190,16 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 	start := time.Now()
 	a.emitRunEvent(RunEvent{Type: "state", FlowID: flowName, Message: "running"})
 
-	capp := &cli.App{}
+	// Share the desktop's AI defaulting + credential resolution with the run's
+	// registries, exactly like the CLI's Init does — so the built-in default
+	// flow's translate step resolves the configured ai.provider/ai.model and
+	// its saved key with no per-flow pinning.
+	capp := &cli.App{Credentials: a.credentials, Config: a.aiConfig}
 	capp.InitRegistries()
+	capp.ToolReg.SetConfigPreprocessor(func(toolName string, requires []string, cfg map[string]any) (map[string]any, error) {
+		cfg = appconfig.ApplyAIToolDefaults(a.aiConfig, toolName, requires, cfg)
+		return credentials.ResolveCredentials(a.credentials, toolName, requires, cfg)
+	})
 	out, err := capp.RunUp(ctx, projectPath, sourceLang, cli.UpOptions{
 		UntilGate: true,
 		OnPass: func(ev cli.ConvergePassEvent) {
@@ -172,6 +215,18 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 		LogWriter: &runEventWriter{app: a, flowID: flowName},
 	})
 	if err != nil {
+		// A cancelled run is a terminal "canceled", not an error: the message
+		// keeps the "context canceled" marker the frontend's job feed maps to
+		// its cancelled state (mirroring a plain flow-run cancel).
+		if errors.Is(err, context.Canceled) {
+			a.emitRunEvent(RunEvent{Type: "error", FlowID: flowName, Message: "run canceled (context canceled)"})
+			a.runState.mu.Lock()
+			if a.runState.state == RunStateRunning {
+				a.runState.state = RunStateCanceled
+			}
+			a.runState.mu.Unlock()
+			return
+		}
 		a.emitRunEvent(RunEvent{Type: "error", FlowID: flowName, Message: err.Error()})
 		a.runState.mu.Lock()
 		if a.runState.state == RunStateRunning {

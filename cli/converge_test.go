@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
@@ -15,6 +16,22 @@ import (
 
 	_ "github.com/neokapi/neokapi/core/formats" // register JSON
 )
+
+// demoProviderApp builds a fresh App whose AI tools resolve to the offline
+// demo provider (no keys, no network): the shared ai.provider default plus the
+// same AI-defaults preprocessor Init wires, minus the credential store. Tests
+// that exercise the built-in default flow (recycle → translate) use it so the
+// translate step runs hermetically.
+func demoProviderApp(t *testing.T) *App {
+	t.Helper()
+	a := processOnlyApp(t)
+	a.Config = config.NewAppConfig()
+	a.Config.Set(config.KeyAIProvider, "demo")
+	a.ToolReg.SetConfigPreprocessor(func(toolName string, requires []string, cfg map[string]any) (map[string]any, error) {
+		return applyAIDefaults(a.Config, toolName, requires, cfg), nil
+	})
+	return a
+}
 
 // convergeFixture writes a project whose default flow is an inline pseudo-translate
 // flow, with the given target locales and ship gate. Two source files exercise
@@ -109,20 +126,39 @@ func TestConverge_AllTargetLocales(t *testing.T) {
 	assert.Contains(t, out, "Converged")
 }
 
-// TestConverge_NoDefaultFlow: with no defaults.flow, the no-arg run is an
-// actionable error (not a silent no-op).
-func TestConverge_NoDefaultFlow(t *testing.T) {
-	a := processOnlyApp(t)
+// TestConverge_NoDefaultFlowUsesBuiltin: with no defaults.flow, the no-arg run
+// synthesizes the built-in default flow (#1078 G6) — TM reuse then AI translate
+// — instead of erroring, and reports it as "default (built-in)".
+func TestConverge_NoDefaultFlowUsesBuiltin(t *testing.T) {
+	a := demoProviderApp(t)
 	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
-	// Strip the default flow.
+	// Strip the default flow AND the flows map: the recipe carries zero flow YAML.
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	proj.Defaults.Flow = ""
+	proj.Flows = nil
+	require.NoError(t, project.Save(recipe, proj))
+
+	out, runErr := runConverge(t, a, recipe)
+	require.NoError(t, runErr, out)
+	assert.Contains(t, out, `Ran flow "default (built-in)"`)
+	assert.Contains(t, out, "Converged: every gated scope is shippable")
+}
+
+// TestConverge_MissingExplicitDefaultFlow: an explicitly configured
+// defaults.flow that names no flow in the recipe still errors (the built-in
+// default only fills the empty case).
+func TestConverge_MissingExplicitDefaultFlow(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = "nope"
 	require.NoError(t, project.Save(recipe, proj))
 
 	_, runErr := runConverge(t, a, recipe)
 	require.Error(t, runErr)
-	assert.Contains(t, runErr.Error(), "default flow")
+	assert.Contains(t, runErr.Error(), `default flow "nope" not found`)
 }
 
 // TestConverge_UntilGateParksUnreachableGate: a gate the deterministic flow

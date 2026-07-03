@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/cli"
+	appconfig "github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
@@ -201,12 +202,63 @@ func TestGetConvergePlan_UnknownTab(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestBringUpToDate_NoDefaultFlow(t *testing.T) {
+// TestBringUpToDate_NoDefaultFlowUsesBuiltinDefault: a recipe with no
+// defaults.flow launches fine — the shared up engine synthesizes the built-in
+// default flow (#1078 G6: recycle → translate). With the offline demo provider
+// the run converges and materializes every target.
+func TestBringUpToDate_NoDefaultFlowUsesBuiltinDefault(t *testing.T) {
 	app := NewApp()
-	tab, _ := newCoverageProject(t, app) // no defaults.flow
-	err := app.BringUpToDate(tab.ID)
+	app.aiConfig = appconfig.NewAppConfig()
+	app.aiConfig.Set(appconfig.KeyAIProvider, "demo")
+	tab, root := newCoverageProject(t, app) // no defaults.flow
+
+	require.NoError(t, app.BringUpToDate(tab.ID), "a flowless recipe must launch, not error")
+	require.Eventually(t, func() bool {
+		s := app.GetRunState()
+		return s == string(RunStateComplete) || s == string(RunStateError)
+	}, 30*time.Second, 50*time.Millisecond, "the convergence run should reach a terminal state")
+	require.Equal(t, string(RunStateComplete), app.GetRunState(), "the built-in default (demo provider) converges")
+
+	for _, loc := range []string{"fr-FR", "de-DE"} {
+		_, serr := os.Stat(filepath.Join(root, "locales", loc+".json"))
+		require.NoError(t, serr, "the built-in default must materialize %s", loc)
+	}
+
+	// The final structured result reports the built-in default flow.
+	var result *cli.ConvergeOutput
+	for _, ev := range app.GetRunEvents() {
+		if ev.Type == "complete" {
+			result = ev.ConvergeResult
+		}
+	}
+	require.NotNil(t, result)
+	assert.Equal(t, cli.BuiltinDefaultFlowLabel, result.Flow)
+}
+
+// TestGetConvergence_MissingProjectFiles: a tab whose recipe vanished from
+// disk (moved/deleted directory) gets the typed friendly error, not a raw
+// open-error — and both derivation bindings agree.
+func TestGetConvergence_MissingProjectFiles(t *testing.T) {
+	app := NewApp()
+	tab, root := newConvergenceProject(t, app)
+	require.NoError(t, os.Rename(
+		filepath.Join(root, "project.kapi"),
+		filepath.Join(root, "project.kapi.moved")))
+
+	_, err := app.GetConvergence(tab.ID)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "default flow")
+	assert.Contains(t, err.Error(), "project files are missing or moved")
+
+	_, err = app.GetConvergePlan(tab.ID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "project files are missing or moved")
+
+	// The file returns → derivations recover without reopening the tab.
+	require.NoError(t, os.Rename(
+		filepath.Join(root, "project.kapi.moved"),
+		filepath.Join(root, "project.kapi")))
+	_, err = app.GetConvergence(tab.ID)
+	require.NoError(t, err)
 }
 
 func TestGetConvergence_UnknownTab(t *testing.T) {

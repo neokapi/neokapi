@@ -151,15 +151,23 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProject, projectPath string, opts convergeOptions) error {
 	untilGate, maxPasses := opts.untilGate, opts.maxPasses
 	flowName := proj.Defaults.Flow
+	flowLabel := flowName
+	var spec *flow.StepsSpec
 	if flowName == "" {
-		return errors.New("no default flow configured: set `defaults.flow` in the project, or name one explicitly (kapi run <flow>)")
-	}
-	spec := proj.Flow(flowName)
-	if spec == nil {
-		if builtinComposedFlowNames()[flowName] {
-			return fmt.Errorf("defaults.flow %q is a built-in flow; define it under the project's `flows:` map to use it as the convergence default", flowName)
+		// No defaults.flow: run the built-in default (#1078 G6) — TM reuse then
+		// AI translate — so `kapi up` works with zero flow YAML. An explicitly
+		// configured defaults.flow always wins over this synthesis.
+		flowName = builtinDefaultFlowName
+		flowLabel = BuiltinDefaultFlowLabel
+		spec = DefaultConvergeFlowSpec()
+	} else {
+		spec = proj.Flow(flowName)
+		if spec == nil {
+			if builtinComposedFlowNames()[flowName] {
+				return fmt.Errorf("defaults.flow %q is a built-in flow; define it under the project's `flows:` map to use it as the convergence default", flowName)
+			}
+			return fmt.Errorf("default flow %q not found in the project's `flows:`", flowName)
 		}
-		return fmt.Errorf("default flow %q not found in the project's `flows:`", flowName)
 	}
 
 	ctx := cmd.Context()
@@ -226,6 +234,12 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 	return a.withParseCache(root, func() error {
 		passes := 0
 		for {
+			// A cancelled run (Ctrl-C, the desktop's Cancel) stops between
+			// passes; mid-pass cancellation propagates through the executor's
+			// errgroup context.
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			// Auto-extract on drift (#1078 C2): before each pass, bring the
 			// project block store back in sync with the working tree — a
 			// missing store, a version-stamp mismatch, or edited source files
@@ -247,7 +261,7 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 			pending := localesNeedingPass(cov, locales)
 			if len(pending) == 0 {
 				// Already converged before this pass (or after the previous one).
-				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov, locales, excl, opts)
+				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov, locales, excl, opts)
 			}
 
 			before := producedUnits(cov)
@@ -271,15 +285,15 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 				opts.onPass(newConvergePassEvent(passes, extracted, before, cov2, excl2, locales))
 			}
 			if !untilGate {
-				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov2, locales, excl2, opts)
+				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts)
 			}
 			if len(localesNeedingPass(cov2, locales)) == 0 {
-				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov2, locales, excl2, opts)
+				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts)
 			}
 			// Stop looping when capped or when a full pass produced nothing new —
 			// the remaining locales park (the flow can't advance them unaided).
 			if passes >= maxPasses || producedUnits(cov2) <= before {
-				return a.finishConverge(cmd, proj, projectPath, flowName, passes, cov2, locales, excl2, opts)
+				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts)
 			}
 		}
 	})
@@ -503,3 +517,24 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 // plenty: a deterministic flow converges in one, and a stalled unit parks rather
 // than spinning.
 const convergeMaxPassesDefault = 5
+
+// builtinDefaultFlowName is the name the built-in default convergence flow
+// runs under when a recipe sets no defaults.flow (#1078 G6).
+const builtinDefaultFlowName = "default"
+
+// BuiltinDefaultFlowLabel is how the built-in default flow is reported in
+// structured output (ConvergeOutput.Flow / UpPlanOutput.Flow), so a reader can
+// tell it apart from a recipe-defined flow that happens to be named "default".
+const BuiltinDefaultFlowLabel = "default (built-in)"
+
+// DefaultConvergeFlowSpec returns the built-in default convergence flow used
+// when a recipe configures no defaults.flow: TM reuse (recycle) followed by AI
+// translate. It needs no qa step — the convergence loop already runs the
+// project's bound checks after each pass (#1078 G4). A fresh spec is returned
+// per call so callers can never mutate a shared instance.
+func DefaultConvergeFlowSpec() *flow.StepsSpec {
+	return &flow.StepsSpec{Steps: []flow.FlowStep{
+		{Tool: "recycle"},
+		{Tool: "translate"},
+	}}
+}

@@ -24,6 +24,10 @@ state and run the project's default flow (defaults.flow) over all content
 across every target language, looping until every gated scope is shippable or
 parked for a human.
 
+Without defaults.flow, up runs the built-in default flow — TM reuse (recycle)
+followed by AI translate — so a recipe needs no flow YAML at all to converge.
+Setting defaults.flow replaces the built-in default.
+
 Before each pass, up re-syncs the project block store with the working tree:
 edited source files, a store written by another kapi version, or a missing
 store trigger a re-extraction (the same shared path behind the desktop's

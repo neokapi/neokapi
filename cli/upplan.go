@@ -247,7 +247,13 @@ func (a *App) computeUpPlan(ctx context.Context, tm sievepen.TranslationMemory, 
 		}
 	}
 
-	out := UpPlanOutput{Flow: proj.Defaults.Flow, Note: upPlanNote}
+	// A recipe with no defaults.flow converges through the built-in default
+	// (#1078 G6) — label the plan the same way the run reports it.
+	flowLabel := proj.Defaults.Flow
+	if flowLabel == "" {
+		flowLabel = BuiltinDefaultFlowLabel
+	}
+	out := UpPlanOutput{Flow: flowLabel, Note: upPlanNote}
 	for _, s := range scopes {
 		if s.MissingTarget == 0 {
 			continue

@@ -4,11 +4,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Stub the Wails-bridge API so the converge launch path is observable.
 const bringUpToDateMock = vi.fn().mockResolvedValue(null);
 const runFlowMock = vi.fn().mockResolvedValue(null);
+const cancelRunMock = vi.fn().mockResolvedValue(null);
+const getRunStateMock = vi.fn().mockResolvedValue("idle");
+const getRunEventsMock = vi.fn().mockResolvedValue([]);
 vi.mock("../hooks/useApi", () => ({
   api: {
-    getRunState: vi.fn().mockResolvedValue("idle"),
-    getRunEvents: vi.fn().mockResolvedValue([]),
-    cancelRun: vi.fn().mockResolvedValue(null),
+    getRunState: (...args: unknown[]) => getRunStateMock(...args),
+    getRunEvents: (...args: unknown[]) => getRunEventsMock(...args),
+    cancelRun: (...args: unknown[]) => cancelRunMock(...args),
     aiNeedsModelChoice: vi.fn().mockResolvedValue(false),
     matchContent: vi.fn().mockResolvedValue([]),
     bringUpToDate: (...args: unknown[]) => bringUpToDateMock(...args),
@@ -34,6 +37,11 @@ describe("RunnerPage converge mode (Bring up to date)", () => {
   beforeEach(() => {
     bringUpToDateMock.mockClear();
     runFlowMock.mockClear();
+    cancelRunMock.mockClear();
+    getRunStateMock.mockReset();
+    getRunStateMock.mockResolvedValue("idle");
+    getRunEventsMock.mockReset();
+    getRunEventsMock.mockResolvedValue([]);
   });
 
   it("launches through BringUpToDate — not RunFlow — and renders the passes view", async () => {
@@ -61,6 +69,59 @@ describe("RunnerPage converge mode (Bring up to date)", () => {
     await waitFor(() => expect(bringUpToDateMock).toHaveBeenCalledWith("t1"));
     expect(runFlowMock).not.toHaveBeenCalled();
     expect(onLaunched).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a Cancel control while running and wires it to CancelRun", async () => {
+    // Keep the backend "running" so the reconcile poll never settles the job.
+    getRunStateMock.mockResolvedValue("running");
+    renderWithProviders(
+      <RunnerPage
+        tabID="t1"
+        flowName="translate"
+        flow={project.flows.translate}
+        project={project}
+        autoRun
+        converge
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(bringUpToDateMock).toHaveBeenCalledWith("t1"));
+    const cancel = await screen.findByRole("button", { name: "Cancel flow execution" });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    await userEvent.click(cancel);
+    await waitFor(() => expect(cancelRunMock).toHaveBeenCalled());
+  });
+
+  it("settles into the cancelled state when the backend reports the run canceled", async () => {
+    // The launch succeeds; the backend then reports a cancelled run whose
+    // terminal event carries the "context canceled" marker (what CancelRun
+    // produces through the shared up engine).
+    getRunStateMock.mockResolvedValue("canceled");
+    getRunEventsMock.mockResolvedValue([
+      { type: "error", flow_id: "translate", message: "run canceled (context canceled)" },
+    ]);
+    renderWithProviders(
+      <RunnerPage
+        tabID="t1"
+        flowName="translate"
+        flow={project.flows.translate}
+        project={project}
+        autoRun
+        converge
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(bringUpToDateMock).toHaveBeenCalledWith("t1"));
+    // The converge view shows the terminal cancelled row…
+    expect(await screen.findByText(/Cancelled — the run stopped/)).toBeInTheDocument();
+    // …and the Cancel control has returned to idle (gone).
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "Cancel flow execution" }),
+      ).not.toBeInTheDocument(),
+    );
   });
 
   it("keeps the classic runner view for custom-flow runs", async () => {
