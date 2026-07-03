@@ -4,110 +4,77 @@ title: "Choose a translation model"
 sidebar_label: "Choose a provider"
 sidebar_position: 1
 description: "Select and configure the LLM behind kapi translate — Anthropic, OpenAI, Gemini, Azure OpenAI, or on-device Ollama — with credentials, defaults, and the offline demo provider."
-keywords: [kapi, translation provider, LLM, model, Anthropic, OpenAI, Ollama, credentials, api key]
+keywords:
+  [
+    kapi,
+    translation provider,
+    LLM,
+    model,
+    Anthropic,
+    OpenAI,
+    Ollama,
+    credentials,
+    api key,
+  ]
 hide_table_of_contents: true
 ---
 
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
 # Choose a translation model
 
-:::note Runs anywhere
-The `--provider` flag works ad-hoc and in a project. In a project, set it once in
-the recipe `defaults` and every flow inherits it.
-:::
+**Goal:** point kapi at the model you want — for `kapi up`, `kapi translate`, and every AI-backed step — supply any credential safely, and make the choice a default so you stop repeating flags. **For the concept** — how translation works as a single tool — see [Translation](/framework/translation). The saved default is shared between the CLI and Kapi Desktop; in a project, set it once in the recipe `defaults` and every flow inherits it.
 
-**For the concept** — how translation works as a single tool — see
-[Translation](/framework/translation). This recipe walks **picking a model and
-wiring its credentials.**
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
 
-**Goal:** point `kapi translate` at the model you want, supply its key safely,
-and make that choice the default so you stop repeating flags.
+1. **Connect your AI.** On first open, a card offers what the app detects — a Claude Code sign-in ([uses your Claude subscription](/kapi/get-started/use-with-claude#let-kapi-run-claude)) or a local Ollama model — one click, nothing stored.
+2. **Add an API key only when you need one.** **Settings → Providers** is the credential vault: pick the provider (Anthropic, OpenAI, Gemini, …) and paste the key once; it lands in the OS keychain, never in the committed recipe. See [Store AI credentials](/kapi/desktop/recipes/store-ai-credentials).
+3. **Every run resolves it.** Flows, quick tools, and **Bring up to date** pick up the configured provider automatically — and the same saved default backs CLI runs of the project.
 
-## Start with `kapi models setup`
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
 
-Setup detects the AI you already have and confirms it — usually one confirm,
-not a key paste:
+Working **in** Claude ([skill or MCP](/kapi/get-started/use-with-claude)) needs no provider at all: Claude is the writer, kapi applies and checks — no second model, no key. A provider only enters when kapi itself must translate — an unattended `kapi up`, a flow with a `translate` step. Then ask:
+
+> Set up kapi's AI provider on this machine.
+
+The assistant runs `kapi models setup`, which detects its own sign-in first — your Claude subscription becomes kapi's provider with one confirm, no key. Subscription auth is usage-window-limited and bound to your sign-in, so for CI it will point you to an API key instead.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+**Start with detection** — usually one confirm, not a key paste:
 
 ```bash
 kapi models setup     # detect, pick, verify with a test call, save the default
 ```
 
-It looks for, in order: a **Claude Code sign-in** (uses your Claude
-subscription, no API key — usage-window-limited, so
-[not for CI](/kapi/get-started/use-with-claude#let-kapi-run-claude)); **API
-keys** already in the environment (Anthropic, OpenAI, Gemini — the right choice
-for CI); and a running **Ollama** server (local, on-device models). The saved
-default is shared with Kapi Desktop.
+It looks for, in order: a **Claude Code sign-in** (uses your Claude subscription — [not for CI](/kapi/get-started/use-with-claude#let-kapi-run-claude)); **API keys** already in the environment (Anthropic, OpenAI, Gemini — the right choice for CI); and a running **Ollama** server (local, on-device models).
 
-## Pick a provider and model explicitly
-
-`kapi translate` is LLM-first: `--provider` selects a large-language-model
-backend, and `--model` a specific model within it. `kapi models` shows every
-model kapi can use — detected keyless providers, local Ollama models, plugin
-models, and cloud providers:
+**Pick explicitly.** `--provider` selects the backend, `--model` a model within it; `kapi models list` shows everything kapi can use — detected keyless providers, local Ollama models, plugin models, and cloud providers:
 
 ```bash
-kapi models                       # list available models across providers
-kapi translate -i input.html --source-lang en --target-lang fr \
-  --provider anthropic --model claude-sonnet-4-20250514
+kapi models list
+kapi translate input.html --target-lang fr --provider anthropic --model claude-sonnet-4-20250514
 ```
 
-The default provider is `anthropic`; `openai`, `gemini`, `azureopenai`, and
-on-device `ollama` are built in. The generated
-[Tool reference](/reference/tools/translate) lists the current parameters and
-default model for each.
+The default provider is `anthropic`; `openai`, `gemini`, `azureopenai`, and on-device `ollama` are built in — the generated [tool reference](/reference/tools/translate) lists the current parameters and default model for each. The keyless `demo` provider produces deterministic, clearly-marked illustrative output for trying flows and CI smoke tests, never for real translation; classic MT engines (DeepL, Google Translate, and the like) are plugin-hosted, surfaced through the same flag.
 
-Two special cases:
+**Supply a key safely.** A key is never read from the `.kapi` recipe — the recipe stays safe to commit. Resolution order: inline `--api-key`, then a saved `--credential`, then the provider's environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` then `GOOGLE_API_KEY`, `AZURE_OPENAI_API_KEY`):
 
-- **`demo`** — a keyless, offline provider that produces deterministic,
-  clearly-marked illustrative output. Useful for trying flows and CI smoke
-  tests without a key; never for real translation.
-- **Classic MT engines** (DeepL, Google Translate, Microsoft Translator, and
-  the like) are no longer built into kapi. A plugin can host an MT engine and
-  surface it through the same `--provider` flag.
+```bash
+kapi credentials add my-anthropic --provider anthropic --api-key …   # once, into the OS keychain
+kapi translate input.html --target-lang fr --credential my-anthropic
+```
 
-## Supply credentials safely
-
-When a cloud provider needs a key, it is **never** read from the `.kapi`
-recipe — the recipe is meant to be safe to commit. Provide the key one of three
-ways (priority order: inline `--api-key`, then a saved `--credential`, then the
-environment variable):
-
-1. **Saved credential** (recommended) — store the key once in the OS keychain and
-   reference it by name:
-
-   ```bash
-   kapi credentials add my-anthropic --provider anthropic --api-key …
-   kapi translate -i input.html --target-lang fr --credential my-anthropic
-   ```
-
-2. **Inline flag** — for a one-off run:
-
-   ```bash
-   kapi translate -i input.html --target-lang fr --provider openai --api-key sk-…
-   ```
-
-3. **Per-provider environment variable** — used when neither of the above is
-   given:
-
-   | Variable | Provider |
-   | --- | --- |
-   | `ANTHROPIC_API_KEY` | Anthropic |
-   | `OPENAI_API_KEY` | OpenAI |
-   | `GEMINI_API_KEY` (then `GOOGLE_API_KEY`) | Google Gemini |
-   | `AZURE_OPENAI_API_KEY` | Azure OpenAI |
-
-`ollama` and `demo` need no key.
-
-## Make it the default
-
-Stop repeating `--provider`. Set a global default:
+**Make it the default** — globally, or per project in the recipe (safe to commit — it carries no key). An explicit `--provider` flag, inline step config, or recipe default overrides the stored value:
 
 ```bash
 kapi config set ai.provider ollama
 kapi config set ai.model llama3.2:3b
 ```
-
-…or a project-scoped default in the recipe (safe to commit — it carries no key):
 
 ```yaml
 defaults:
@@ -117,29 +84,21 @@ defaults:
       model: llama3.2:3b
 ```
 
-An explicit `--provider` flag, inline step config, or recipe default always
-overrides the stored `ai.provider` value.
-
-## Translate on-device with Ollama
-
-The `ollama` provider runs models entirely on your machine — no API key, nothing
-sent to a server, GPU-accelerated. [Ollama](https://ollama.com) is a one-time
-install; kapi drives everything downstream:
+**Translate on-device with Ollama** — no key, nothing sent to a server; kapi checks the runtime is up and pulls a missing model itself:
 
 ```bash
 kapi models ollama install                # platform-specific install guidance
 kapi models ollama pull llama3.2:3b       # download a translation model
-kapi translate -i input.html --target-lang fr --provider ollama --model llama3.2:3b
+kapi translate input.html --target-lang fr --provider ollama --model llama3.2:3b
 ```
 
-When a translation selects `ollama`, kapi checks the runtime is up and pulls the
-requested model if missing — a fresh machine needs only Ollama itself.
-`llama3.2:3b` is a strong, lightweight default; `qwen3:1.7b` is faster and
-smaller; `gemma4:e2b` is the quality pick for tougher multilingual grammar.
+`llama3.2:3b` is a strong, lightweight default; `qwen3:1.7b` is faster and smaller; `gemma4:e2b` is the quality pick for tougher multilingual grammar.
+
+</TabItem>
+</Tabs>
 
 ## Next
 
-- [Pre-translate with TM](/kapi/recipes/pre-translate-with-tm) — leverage past
-  work before any provider sees content.
-- [Check translations in CI](/kapi/recipes/gate-localization-in-ci) — gate quality
-  once a provider is wired.
+- [Use with Claude](/kapi/get-started/use-with-claude) — both directions: Claude drives kapi, or kapi runs Claude.
+- [Reuse what you've translated](/kapi/recipes/pre-translate-with-tm) — leverage past work before any provider sees content.
+- [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — gate quality once a provider is wired.
