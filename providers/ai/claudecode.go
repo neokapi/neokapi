@@ -224,6 +224,11 @@ func (p *ClaudeCodeProvider) runOnce(ctx context.Context, bin string, args []str
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	// On timeout CommandContext kills the binary, but Wait would still block on
+	// the stdout/stderr pipes if a child it spawned inherited them (shell
+	// fork-vs-exec differs across platforms). WaitDelay forces Run to return
+	// shortly after the context ends regardless.
+	cmd.WaitDelay = 2 * time.Second
 
 	runErr := cmd.Run()
 
@@ -339,14 +344,14 @@ func (e *ClaudeCodeError) Error() string {
 		}
 		return "Claude subscription limit reached. Configure an API key (kapi models setup) for uninterrupted runs."
 	case ClaudeCodeErrTimeout:
-		return fmt.Sprintf("claude-code: call timed out after %s — set KAPI_CLAUDE_CODE_TIMEOUT to allow more time", e.Message)
+		return "claude-code: call timed out after " + e.Message + " — set KAPI_CLAUDE_CODE_TIMEOUT to allow more time"
 	case ClaudeCodeErrCrashed:
-		return fmt.Sprintf("claude-code: the `claude` binary failed: %s", e.Message)
+		return "claude-code: the `claude` binary failed: " + e.Message
 	default:
 		if e.Status != 0 {
 			return fmt.Sprintf("claude-code: API error %d: %s", e.Status, e.Message)
 		}
-		return fmt.Sprintf("claude-code: %s", e.Message)
+		return "claude-code: " + e.Message
 	}
 }
 
