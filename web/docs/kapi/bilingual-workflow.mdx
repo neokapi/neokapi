@@ -13,52 +13,31 @@ import { ContentLab } from "@site/src/components/Lab";
 # Hand off to translators
 
 :::info Needs a .kapi project
-Interchange is **project-based**. `kapi extract` and `kapi merge` read the
-recipe's content globs and target locales and use the project's translation
-memory plus the extraction bookkeeping kapi records for you, so start with
-`kapi init` (see [Day 0](#day-0-initialize-and-seed-the-tm)) and run the commands
-from inside the project directory. See [Project file](/reference/project-file)
-for the recipe and its git-style discovery. (Ad-hoc, one-way format _conversion_
-with no round-trip needs no project — that is plain `kapi run -i <file>`.)
+`kapi extract` and `kapi merge` read the recipe's content globs and target
+locales and use the project TM plus the extraction bookkeeping kapi records, so
+start with `kapi init` and run them inside the project. (Ad-hoc, one-way format
+_conversion_ needs no project — that is plain `kapi run -i <file>`.)
 :::
 
 kapi can translate your content on its own. But when a person should do the
 translation — a professional translator, a native-speaking colleague, an outside
-agency — you can hand the work out and take it back: kapi produces a file the
-translator opens in whatever tool they already use, accepts the returned version,
-and rebuilds your original files byte-for-byte from it. It is an escape hatch,
-there when you need it, not a step in the normal path — and the corrections that
-come back are captured so they carry into the next run.
+agency — you hand the work out and take it back: kapi produces a file the
+translator opens in whatever tool they already use, accepts the returned
+version, and rebuilds your original files byte-for-byte. An escape hatch, not a
+step in the normal path — and the corrections that come back are captured so
+they carry into the next run. For the TM model behind it (matching, fuzzy
+thresholds, pre-fill/absorb), see
+[Translation Memory](/framework/translation-memory).
 
-For the translation-memory model — matching, fuzzy thresholds, and the
-pre-fill/absorb cycle — see [Translation Memory](/framework/translation-memory);
-this recipe walks the extract/merge task.
-
-## The interchange landscape
-
-"Interchange" spans three distinct boundaries. They share one seam — the
-same format readers and writers over kapi's content model — but differ in
-who they talk to and where the durable state lives:
-
-| Boundary | What crosses | Driven by | Counterpart |
-| --- | --- | --- | --- |
-| **Format conversion** (ad-hoc, one-way) | one file, no round-trip state | `kapi run -i` + a format writer | none — just the pipeline |
-| **Bilingual round-trip** _(this page)_ | a document as a bilingual `.klz` (native) or XLIFF 2.x / PO (interop), worked elsewhere, merged back | `kapi extract` / `kapi merge` | a translator/reviewer, or an external TMS / CAT tool |
-| **Asset interchange** | accumulated TM and terminology | `kapi tm import`/`export` (TMX), `kapi termbase import`/`export` (TBX) | corporate TM / term archives |
-
-The bright line: **bilingual round-trip and asset interchange both hand a
-file to a counterpart and bring the result back, with project state holding the
-way back; format conversion is one-way.** This page is the bilingual round-trip —
-the handoff to a translator or TMS.
-
-**Two carriers, chosen by recipient.** neokapi's native interchange format is the
-lossless **bilingual `.klz`** (`kapi extract --format klz`) — for a translator or
-reviewer working in kapi or the neokapi review tool; it carries inline codes, TM
-matches, and term context in one file and gives integrity-verified, diffable
-review. For a recipient on a third-party CAT tool, `kapi extract` emits **XLIFF
-2.x / PO** (the default), the industry-interop tier this page focuses on. Both go
-out and come back through the same `extract` / `merge` verbs. See
-[KLF vs XLIFF](/reference/klf/vs-xliff).
+**Two carriers, chosen by recipient.** The native interchange format is the
+lossless **bilingual `.klz`** (`kapi extract --format klz`) — for a recipient
+working in kapi or the neokapi review tool; it carries inline codes, TM matches,
+and term context in one integrity-verified, diffable parcel. For a third-party
+CAT tool, `kapi extract` emits **XLIFF 2.x / PO** (the default), the interop
+tier this page focuses on. Both go out and come back through the same
+`extract` / `merge` verbs — see [KLF vs XLIFF](/reference/klf/vs-xliff). (TM and
+terminology have their own interchange: `kapi tm import/export` for TMX,
+`kapi termbase import/export` for TBX.)
 
 <ThemedVideo
   sources={{
@@ -70,8 +49,7 @@ out and come back through the same `extract` / `merge` verbs. See
 
 ## TM in the loop
 
-The two commands that define this workflow are `kapi extract` and
-`kapi merge`. The translation memory participates on both sides:
+The translation memory participates on both sides of the round-trip:
 
 <RoundTripDiagram
   forward={[
@@ -90,44 +68,26 @@ The two commands that define this workflow are `kapi extract` and
   backLabel="absorb"
 />
 
-- **TM pre-fill on extract** — every segment is looked up against the
-  project TM before it lands in the XLIFF. Exact matches are pre-filled
-  with `state="translated"`; fuzzy matches above the recipe's
-  `tm.fuzzy_threshold` are pre-filled as fuzzy. The translator's CAT
-  tool shows leverage as a normal TM match.
+- **TM pre-fill on extract** — every segment is looked up against the project TM
+  first. Exact matches land pre-filled as `state="translated"`; fuzzy matches
+  above the recipe's `tm.fuzzy_threshold` land as fuzzy.
+- **TM absorb on merge** — every accepted target becomes a TU in the project TM,
+  with provenance (batch id, source path, content hash, filename) that
+  `kapi tm audit --batch <id>` can trace back later.
 
-- **TM absorb on merge** — every accepted target segment becomes a new
-  or updated translation unit (TU) in the project TM, carrying
-  provenance (merge batch id, source file path, block content hash,
-  originating XLIFF filename) so a later `kapi tm audit --batch <id>`
-  can trace every TU back to the merge that introduced it.
+Both are on by default; `--no-tm` and `--no-tm-update` disable them. Absorb is
+**recycle leverage**, not a review decision: whether a reviewer *approved* a
+target is a separate, content-hash-bound fact recorded in the project
+[state store](/kapi/project-store) by `kapi apply` (`kind:"review"`), not in
+the TM.
 
-TM absorb is **recycle leverage** — it makes the pair available to pre-fill
-future translation. It is *not* a review decision. Whether a reviewer
-**approved** a particular target is a separate, committed fact recorded in the
-project [state store](/kapi/project-store) (`.kapi-state.json`) by `kapi apply`
-(a `kind:"review"` change), not in the TM. Merge keeps the TM as the recycle
-corpus; approval is the deliberate, content-hash-bound decision that lives
-elsewhere.
-
-### See the round-trip on a bilingual file
-
-The diagram above is the workflow; the explorer below is the engine that
-makes it safe. Pick the bilingual XLIFF sample, run it through, and compare
-the source with the round-tripped output — kapi reads the file into the
-content model, the leaf text is replaced, and everything else (structure,
-identifiers, the skeleton `kapi merge` later rewrites from) comes back
-unchanged. The same reader and writer back `kapi extract` and `kapi merge`,
-running here in your browser via WebAssembly.
+Run the engine behind the round-trip yourself — pick the bilingual XLIFF sample,
+run it through, and compare source with output; the same reader and writer back
+`kapi extract` and `kapi merge`:
 
 <ContentLab lessonIds={["roundtrip"]} defaultSampleId="app-xliff" />
 
-Both are on by default. `--no-tm` and `--no-tm-update` disable them
-(e.g. cold-translation workflows or dry-run review).
-
 ## The .kapi recipe
-
-A minimal recipe wiring extract/merge into a React app:
 
 ```yaml
 # app.kapi
@@ -140,56 +100,26 @@ defaults:
     conflict_policy: translator-wins # | existing-wins | newest-wins
   tm:
     fuzzy_threshold: 75 # percent; 0..100
-  segmentation:
-    source: false # opt-in SRX segmentation
 content:
   - path: src/locales/en/*.json
-    target: src/locales/{lang} # mirror each file under the per-language dir
+    target: src/locales/{lang}
 ```
 
-The `merge`, `tm`, and `segmentation` sections are described in detail
-on the [Kapi project file reference](/reference/project-file). All three are
-optional — defaults apply when a section is omitted.
+The `merge`, `tm`, and (opt-in) `segmentation` sections are optional; details on
+the [project file reference](/reference/project-file). Seed the TM from existing
+memory if you have any: `kapi tm import ./corporate-en-fr.tmx`.
 
-## Day 0: initialize and seed the TM
+## Extract
 
-```bash
-kapi init                          # scaffold app.kapi + .kapi/
-```
-
-Edit the generated `app.kapi` to declare content globs, target
-locales, and any optional recipe sections. Then seed the project TM
-from existing memory, if you have any:
-
-```bash
-kapi tm import ./corporate-en-fr.tmx
-```
-
-## Day 1: first extraction
-
-From inside the project directory (no `-p` needed — the command
-auto-discovers the `.kapi` recipe from cwd, git-style):
+From inside the project (auto-discovered from cwd, git-style), `kapi extract`
+writes one XLIFF 2.2 per source → target pair under `out/`, records the
+captured skeletons and a manifest in the project's gitignored cache so merge
+can rebuild the source byte-for-byte, and stamps each file with a
+`<note category="kapi">` carrying the batch id, source file, and source hash:
 
 ```bash
 kapi extract
 ```
-
-Which writes:
-
-- One XLIFF 2.2 per source → target pair under `out/`:
-  - `out/src-locales-en-app.en-US-to-fr-FR.xliff`
-  - `out/src-locales-en-app.en-US-to-de-DE.xliff`
-  - `out/src-locales-en-app.en-US-to-es-ES.xliff`
-- Extraction bookkeeping (the captured skeletons and a manifest) recorded
-  in the project's gitignored cache so `kapi merge` can reattach the
-  returned translations and rebuild the source byte-for-byte — for document
-  and markup formats and for keyed catalog formats alike (JSON, YAML,
-  `.properties`, Android XML, `.resx`, Apple
-  `.strings`/`.stringsdict`/`.xcstrings`, `.arb`, i18next, design tokens)
-- A file-level `<note category="kapi">` on each XLIFF stamping the
-  batch id, source file, and source hash
-
-Stdout summarizes:
 
 ```
 Extracting batch 6f2e8a1c... (format=xliff2, targets=[fr-FR de-DE es-ES], sources=1)
@@ -201,133 +131,58 @@ Batch 6f2e8a1c... complete. 3 files written to out/
 Aggregate TM leverage: exact=108 fuzzy=67 new=1061 (total=1236)
 ```
 
-### Common extract options
+Multi-target in one pass is the default. Common options: `--target-lang fr,de`
+(subset), `--only <collection>`, `--pattern <glob>`, `--xliff-version 2.0`,
+`--no-tm`, `--out-dir <dir>`, and `--redact-rules` — redacted extraction ships
+placeholders only and `kapi merge` restores the originals from the local vault
+(see [Redaction](/framework/redaction)).
 
-```bash
-kapi extract --target-lang fr                  # single target
-kapi extract --target-lang fr,de               # subset (comma-separated)
-kapi extract --only marketing                  # one collection by name
-kapi extract --pattern 'src/**/*.json'         # extra glob
-kapi extract --xliff-version 2.0               # pin older namespace
-kapi extract --no-tm                           # skip pre-fill
-kapi extract --out-dir dist/bilingual          # alternate output dir
-kapi extract --redact-rules .kapi/redaction.yaml  # hide sensitive content
-```
+The translator phase is out of scope for kapi — any bilingual tool that speaks
+XLIFF 2.x works, and kapi is entirely out of the loop until the file returns.
 
-Multi-target in one pass is the default. Omit `--target-lang` to use
-every locale in `defaults.target_languages`; pass a comma-separated
-subset to restrict.
-
-When extraction is redacted (`--redact`, `--redact-rules`, or
-`defaults.redaction` in the recipe), the emitted file carries only
-placeholders and the originals stay in a local vault; `kapi merge`
-restores them automatically. See [Redaction](/framework/redaction).
-
-## Day 2: translator work
-
-Out-of-scope for kapi. The translator opens the XLIFF/PO in their CAT
-tool of choice, translates it, and returns it. Kapi is entirely out of
-the loop during this phase — which is exactly the point. Any bilingual
-tool that speaks XLIFF 2.x works.
-
-## Day N: merge the return
+## Merge the return
 
 ```bash
 kapi merge -i vendor-return/app.en-US-to-fr-FR.xliff
+kapi merge -i vendor-return/            # every .xliff in the directory; -i repeats
 ```
 
-Merge resolves the extraction manifest by reading the batch id from the
-file's `<note category="kapi" id="batch-id">` — the filename can
-change during the vendor round-trip and merge still finds the right
-batch.
+Merge finds the right batch by the embedded batch-id note, so renamed files
+still merge. Each input is applied independently — a failure on one (parse
+error, missing manifest, stale source) doesn't abort the others; per-file
+outcomes are reported and the exit code reflects any failure.
 
-Multi-file in one pass:
+- **Stale segments.** A block whose `<source>` drifted since extract (someone
+  edited the file while it was out) is reported **stale** and skipped — neither
+  applied nor TM-absorbed. Re-extract and re-translate the drifted portion.
+- **Conflicts.** When a target already exists, `merge.conflict_policy` decides:
+  `translator-wins` (default), `existing-wins`, or `newest-wins` (by
+  timestamp) — the same policy governs TM write-back. Never interactive.
+- **Audit.** `kapi tm audit --batch <merge-batch-id>` lists every TU the merge
+  wrote, with provenance.
 
-```bash
-kapi merge -i vendor-return/                   # every .xliff in the directory
-kapi merge -i 'vendor-return/*.xliff'          # glob
-kapi merge -i fr-FR.xliff -i de-DE.xliff       # multiple -i
-```
-
-Each returning XLIFF is applied independently. A failure on one
-input (parse error, missing manifest, stale source) doesn't abort the
-others — per-file outcomes are reported and the exit code reflects any
-failure.
-
-### Stale segments
-
-Merge compares every incoming block's `<source>` against the current
-source file. If the source text drifted since extract (someone edited
-the JSON while the XLIFF was out with the translator), that block is
-reported as **stale** and **skipped** — neither applied nor TM-absorbed.
-You can re-extract and re-translate the drifted portion.
-
-### Conflict policy
-
-When an on-disk target (or TM TU) already carries a translation for a
-block, `merge.conflict_policy` picks what happens:
-
-| Policy            | Behavior                                                          |
-| ----------------- | ----------------------------------------------------------------- |
-| `translator-wins` | Default. The translator's target always replaces the existing.    |
-| `existing-wins`   | Preserve the existing target; skip the translator's.              |
-| `newest-wins`     | Compare timestamps (file mtime / TU `UpdatedAt`); pick the newer. |
-
-The same policy applies to TM write-back when a TU for this source already
-has a translation — never ambiguous, never interactive.
-
-## Audit: what did this merge contribute?
-
-```bash
-kapi tm audit --batch <merge-batch-id>
-```
-
-Lists every TM entry written or updated by a specific merge with
-timestamp, source file path, block content hash, and originating
-XLIFF filename — the answer to "what did this merge do?" without
-leaving the CLI.
+After a merge, the gates say where you stand: `kapi status` re-derives coverage
+from the merged targets, and `kapi check --ship` enforces the ship gate before a
+release — see [Convergence](/kapi/convergence).
 
 ## PO (gettext) alternative
 
-Same flow, different exchange format:
-
-```bash
-kapi extract --format po                       # emits .po files
-kapi merge -i vendor-return/app.en-US-to-fr-FR.po
-```
-
-PO output carries kapi's bookkeeping as extracted comments:
-
-- File-level (on the header entry): `#. kapi-batch:`,
-  `#. kapi-source-file:`, `#. kapi-source-hash:`
-- Per-entry: `#. kapi-block: <block-id>` for merge correlation
-- `#, fuzzy` on entries pre-filled from fuzzy TM matches
-
-A single `kapi merge -i` invocation can mix XLIFF and PO inputs from
-the same batch — useful when different vendors ship in different
-formats.
-
-:::note
-PO output is one entry per block (matches the segmentation-off case).
-Enabling `defaults.segmentation.source: true` together with
-`--format po` errors early; emit XLIFF for projects that rely on
-sentence-level segmentation.
-:::
+Same flow, different exchange format: `kapi extract --format po`, then
+`kapi merge -i …/*.po` — one entry per block, kapi's bookkeeping as extracted
+comments (`#. kapi-batch:`, `#. kapi-block:`), `#, fuzzy` on fuzzy TM pre-fills.
+A single merge invocation can mix XLIFF and PO from the same batch. PO cannot
+carry sentence-level segmentation; projects with `segmentation.source: true`
+must emit XLIFF (the combination errors early).
 
 ## What stays in the project
 
-XLIFF and PO carry exactly one chosen target per locale, the source runs
-and inline codes, and — with the captured skeleton — enough to rebuild the
-original file byte-for-byte. Everything else in kapi's content model is
-**deliberately not** projected into the bilingual file; it stays in project
-state — the translation memory, the termbase, and the stand-off overlays,
-tone/channel variants, and per-target provenance and status that the
-[content model](/framework/content-model) records.
-
-This is by design: the bilingual file is the lean, tool-neutral handoff,
-and the project is the system of record. It is also why merge needs the
-same project the extract ran in — the skeleton and manifest that make the
-round-trip byte-exact live there, not in the file the translator returns.
+The bilingual file carries one chosen target per locale, the source runs and
+inline codes, and — with the captured skeleton — enough to rebuild the original
+byte-for-byte. Everything else stays in project state: the TM, the termbase,
+and the stand-off overlays, variants, and per-target status the
+[content model](/framework/content-model) records. The bilingual file is the
+lean, tool-neutral handoff; the project is the system of record — which is why
+merge needs the same project the extract ran in.
 
 ## Related
 

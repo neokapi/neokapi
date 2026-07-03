@@ -10,11 +10,10 @@ import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed
 
 # Convergence
 
-Localization is continuous toil: source content changes, and its translations
-fall behind. Kapi treats catching up as the normal state of a project, not an
-error. **Convergence** is the model that drives a project's content toward
-*shippable* and reports what still needs a person — without ever blocking the
-author.
+Source content changes and its translations fall behind; kapi treats catching
+up as a project's normal state, not an error. **Convergence** is the model that
+drives content toward *shippable* and reports what still needs a person —
+without ever blocking the author.
 
 Three verbs, kept separate:
 
@@ -84,21 +83,13 @@ ship_gate: { translated: 100, reviewed: 80 }
 This reads *"every unit translated, and the important 80% reviewed — ship the long
 tail machine-translated."* A bare `100% reviewed` is the degenerate case.
 
-Gates can be selected by rule, so different collections or locales answer to
-different bars (the most specific matching rule wins):
-
-```yaml
-ship_gates:
-  - when: { locales: [de] }      # German is contractually reviewed
-    gate: { translated: 100, reviewed: 100 }
-  - gate: { translated: 100, reviewed: 80 }   # the default
-```
-
-The source ladder has its own optional bar, `source_gate` (e.g.
-`{ checked: 100 }`) — the source-side counterpart of `ship_gate`.
-
-A gate never fails an ordinary build. Target-language drift is expected work, not
-a break; a gate is a **release** check you opt into (see below).
+Gates can be selected by rule (`ship_gates:` with `when:` clauses), so a
+contractual locale can answer to a stricter bar than the default — the most
+specific matching rule wins; see the
+[project file reference](/reference/project-file). The source ladder has its own
+optional bar, `source_gate` (e.g. `{ checked: 100 }`). A gate never fails an
+ordinary build — target drift is expected work; a gate is a **release** check
+you opt into (below).
 
 ## Seeing it: `status` and `check --ship`
 
@@ -157,19 +148,11 @@ every gated scope is shippable, a pass makes no progress, or the pass cap
 **parks**: it is reported as awaiting a human and the command still exits zero.
 Convergence never blocks the author.
 
-One default flow can still vary by locale. `defaults.locales.<lang>.tools`
-overrides a tool's config for that target language only — merged on top of the
-project-wide `defaults.tools` and under a flow step's own config — so a single
-flow turns an advanced step on where a locale needs it:
-
-```yaml
-defaults:
-  flow: translate-and-check
-  locales:
-    de:
-      tools:
-        redact: { enabled: true }   # German redacts PII; other locales don't
-```
+`kapi up --plan` is the dry run — pending work, TM leverage, and a token
+estimate per (collection, locale), with no provider calls. One default flow can
+still vary by locale: `defaults.locales.<lang>.tools` overrides a tool's config
+for one target language (see the
+[project file reference](/reference/project-file)).
 
 ## Review: a decision in the project state store
 
@@ -200,31 +183,17 @@ This is distinct from the translation memory: `kapi apply` with `kind:"tm"` adds
 source→target pair to the **recycle** corpus (`defaults.tm_source`) for future
 leverage — it does **not** promote a unit to *reviewed*.
 
-`kapi status --review` shows the worklist — every translated unit not yet approved:
-
-```bash
-kapi status --review
-# 3 unit(s) awaiting review:
-#   nb       src/locales/en.json:greeting
-#            Welcome back
-#   …
-```
-
-Run the loop yourself — this is the real kapi compiled to WebAssembly, working on
-an in-memory project. `status` shows the translated-but-unreviewed state,
-`status --review` lists the worklist, `apply` records the decision in the state
-store, and the closing `status` shows *reviewed* climb:
+Run the loop yourself — the real kapi compiled to WebAssembly, on an in-memory
+project — and watch *reviewed* climb as `apply` records each decision:
 
 <KapiGuidedEmbed id="kapi-review-and-approve" />
 
 A second, optional human gate sits above review: *signed-off* — a final approval
-for content that needs it (a contractual locale, a regulated string). It is the
-same correction with a `signed-off` review state, the top rung a
-`{ signed-off: … }` gate measures:
-
-```bash
-kapi apply <<<'{"kind":"tm","source":"Save","target":"Lagre","source_locale":"en","target_locale":"nb","status":"signed-off"}'
-```
+for content that needs it (a contractual locale, a regulated string), recorded
+the same way with a `signed-off` status; it is the top rung a
+`{ signed-off: … }` gate measures. In Kapi Desktop the whole ladder is the
+[Review surface](/kapi/recipes/review-and-approve) — queue, editor,
+approve/reject, sign-off.
 
 See also [Where translations & terms live](/kapi/recipes/tm-termbase-storage) for
 the memory and termbase model, and [Keep source on brand](/kapi/recipes/keep-source-on-brand)
