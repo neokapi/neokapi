@@ -15,7 +15,7 @@ A project is a committed recipe (`<name>.kapi`) plus a store that remembers your
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-Install [Kapi Desktop](/kapi/get-started/installation#install-kapi-desktop) and open it.
+Install [Kapi Desktop](/kapi/get-started/installation#install-kapi-desktop) and open it. On first open, the **Connect your AI** card offers whatever it detects — a Claude Code sign-in ([uses your Claude subscription](/kapi/get-started/use-with-claude#let-kapi-run-claude), no key), a local Ollama model, or a stored API key — one click; or skip and use the demo engine.
 
 1. **Create the project.** On the home screen, click **New Project**, name it, and pick a source language. Or click **KapiMart** under *sample projects* to explore a realistic, pre-seeded project first — content collections, five target languages, and a stocked translation memory.
 2. **Add content.** In the **Project** view, add a pattern that matches your source files (for example `docs/**/*.md`). Kapi lists the matched files and the detected format, grouped into a collection.
@@ -59,7 +59,7 @@ content:
   - path: "docs/**/*.md"
 ```
 
-Commit the recipe; `.kapi/` is regenerable and belongs in `.gitignore`. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema.
+Commit the recipe; `.kapi/` is regenerable and belongs in `.gitignore`. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema. When you're ready for AI-backed steps, `kapi models setup` detects what you already have — a Claude Code sign-in, Ollama, or an API key — and confirms it as the default ([Use with Claude](/kapi/get-started/use-with-claude)).
 
 </TabItem>
 </Tabs>

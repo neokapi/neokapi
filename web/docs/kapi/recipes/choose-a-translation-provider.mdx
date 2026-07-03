@@ -22,11 +22,28 @@ wiring its credentials.**
 **Goal:** point `kapi translate` at the model you want, supply its key safely,
 and make that choice the default so you stop repeating flags.
 
-## Pick a provider and model
+## Start with `kapi models setup`
+
+Setup detects the AI you already have and confirms it — usually one confirm,
+not a key paste:
+
+```bash
+kapi models setup     # detect, pick, verify with a test call, save the default
+```
+
+It looks for, in order: a **Claude Code sign-in** (uses your Claude
+subscription, no API key — usage-window-limited, so
+[not for CI](/kapi/get-started/use-with-claude#let-kapi-run-claude)); **API
+keys** already in the environment (Anthropic, OpenAI, Gemini — the right choice
+for CI); and a running **Ollama** server (local, on-device models). The saved
+default is shared with Kapi Desktop.
+
+## Pick a provider and model explicitly
 
 `kapi translate` is LLM-first: `--provider` selects a large-language-model
 backend, and `--model` a specific model within it. `kapi models` shows every
-model kapi can use — local Ollama models, plugin models, and cloud providers:
+model kapi can use — detected keyless providers, local Ollama models, plugin
+models, and cloud providers:
 
 ```bash
 kapi models                       # list available models across providers
@@ -50,9 +67,10 @@ Two special cases:
 
 ## Supply credentials safely
 
-The API key is **never** read from the `.kapi` recipe — the recipe is meant to be
-safe to commit. Provide the key one of three ways (priority order: inline
-`--api-key`, then a saved `--credential`, then the environment variable):
+When a cloud provider needs a key, it is **never** read from the `.kapi`
+recipe — the recipe is meant to be safe to commit. Provide the key one of three
+ways (priority order: inline `--api-key`, then a saved `--credential`, then the
+environment variable):
 
 1. **Saved credential** (recommended) — store the key once in the OS keychain and
    reference it by name:

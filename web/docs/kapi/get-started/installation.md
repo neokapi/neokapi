@@ -86,18 +86,24 @@ Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/r
 kapi version
 ```
 
-### Add a provider credential (optional)
+### Connect an AI (optional)
 
 The rule-based commands — pseudo-translate, word-count, brand checks against a
-profile file — need no credential. For LLM-backed translation, QA, and review,
-save a provider key once under a name you'll reference in flows:
+profile file — need no AI at all. For LLM-backed translation, QA, and review,
+one command finds what you already have and confirms it:
 
 ```bash
-kapi credentials add my-openai --provider openai --api-key sk-…
-kapi credentials list       # see what's saved
+kapi models setup
 ```
 
-Credentials live in your OS keychain. See the
+Setup detects the AI options on your machine — the Claude Code CLI (uses your
+Claude subscription, no API key), a running Ollama server, and API keys already
+in your environment — then verifies your pick with a small test call and saves
+it as the default, shared with Kapi Desktop. Usually that's one confirm, not a
+key paste. To store a key explicitly (or in CI, where a key is the right
+choice), use `kapi credentials add <name> --provider <p> --api-key …` — keys
+live in your OS keychain. See [Use with Claude](/kapi/get-started/use-with-claude)
+for the subscription option and the
 [Quick Start](/kapi/get-started/quickstart) for what to run next.
 
 ## Install Kapi Desktop

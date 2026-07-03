@@ -59,7 +59,7 @@ kapi translate -i src/locales/en.json --target-lang fr -o src/locales/fr.json
 kapi translate -i guide.md --target-lang de        # documents work the same way
 ```
 
-The default engine is an LLM (`--provider anthropic`); wire a key once via [credentials](/kapi/recipes/choose-a-translation-provider), or translate on-device with Ollama — no key at all.
+The default engine is an LLM; `kapi models setup` detects what you already have — a Claude Code sign-in, an API key in the environment, or a local Ollama model — and saves it as the default ([Choose a translation model](/kapi/recipes/choose-a-translation-provider)).
 
 </TabItem>
 </Tabs>
