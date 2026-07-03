@@ -35,7 +35,7 @@ Developer-authored message descriptors with ICU formatting baked in.
 | Extraction        | `@formatjs/cli`                                        | Plugin during normal build                   |
 | Runtime cost      | Ships `intl-messageformat` (ICU parser/formatter); can precompile to AST to drop the parser | Inline mode: zero runtime; runtime mode: one dict lookup |
 
-FormatJS's ICU-in-source approach is powerful for complex message composition, but forces translators (and developers) to work in ICU directly. kapi-react keeps the source looking like React, then emits the canonical ICU template for translators' CAT tools downstream.
+FormatJS's ICU-in-source approach handles complex message composition well, but forces translators (and developers) to work in ICU directly. kapi-react keeps the source looking like React, then emits the canonical ICU template for translators' CAT tools downstream.
 
 ## Lingui
 

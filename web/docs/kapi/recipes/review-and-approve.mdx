@@ -23,6 +23,7 @@ The **Review** surface is a queue you work through, keyboard-first:
 2. **Inspect.** Each unit shows source and target side by side, with its check findings, provenance, and TM match below.
 3. **Decide.** `a` approves, `r` rejects (with a note — the unit drops back to draft for the next `up` pass to redo), `s` signs off, `space` skips, `j`/`k` move. Edit the target text first when it needs a touch-up — save, then approve; the decision binds to the edited text.
 4. **Batch the clean ones.** **Approve clean** approves every unit in the current filter that has no findings — you read the exceptions, not the bulk.
+5. **Let the AI read first.** **AI pre-review…** scores the pending units with your model before you look; each unit then carries an AI review score, so you spend your attention where it disagrees. **Fix with AI** drafts a correction through the same save path as a manual edit.
 
 Approvals raise `reviewed` coverage immediately; the gate cell you entered from goes green when its threshold clears.
 
