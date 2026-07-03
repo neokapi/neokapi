@@ -9,9 +9,10 @@ import (
 // Model sources, used as ModelRow.Source so the unified `kapi models` view can
 // group rows by where the model comes from.
 const (
-	ModelSourceOllama = "ollama" // local models served by an Ollama runtime
-	ModelSourcePlugin = "plugin" // host-owned assets a plugin declares
-	ModelSourceCloud  = "cloud"  // a remote provider's model (needs an API key)
+	ModelSourceDetected = "detected" // a keyless provider found on this machine (e.g. Claude Code)
+	ModelSourceOllama   = "ollama"   // local models served by an Ollama runtime
+	ModelSourcePlugin   = "plugin"   // host-owned assets a plugin declares
+	ModelSourceCloud    = "cloud"    // a remote provider's model (needs an API key)
 )
 
 // ModelRow is one row in the unified model view — a model kapi can use, from any
@@ -64,6 +65,15 @@ func (o ModelsListOutput) FormatText(w io.Writer) error {
 		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 		render(tw)
 		_ = tw.Flush()
+	}
+
+	if rows := o.rows(ModelSourceDetected); len(rows) > 0 {
+		section("Detected · no API key needed", func(tw *tabwriter.Writer) {
+			fmt.Fprintln(tw, "  PROVIDER\tDEFAULT MODEL\tNOTE")
+			for _, m := range rows {
+				fmt.Fprintf(tw, "  %s\t%s\t%s\n", m.Provider, m.Model, m.Note)
+			}
+		})
 	}
 
 	if rows := o.rows(ModelSourceOllama); len(rows) > 0 {

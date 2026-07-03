@@ -227,6 +227,11 @@ const (
 	Gemini      ProviderID = "gemini"
 	AzureOpenAI ProviderID = "azureopenai"
 	Ollama      ProviderID = "ollama"
+	// ClaudeCode runs prompts through the locally installed Claude Code CLI
+	// (`claude`), billing the user's Claude subscription instead of an API
+	// key. Keyless but not local — content still travels to Anthropic. See
+	// claudecode.go.
+	ClaudeCode ProviderID = "claude-code"
 	// Demo is a deterministic, offline provider that returns illustrative
 	// (not real-model) output. Used by the browser playground so AI commands
 	// run with no API keys. See demo.go.
@@ -263,6 +268,15 @@ type ProviderInfo struct {
 	// needs no API key (Ollama, Demo, and plugin providers like Gemma). Drives
 	// IsLocalProvider and the keyless credential/UX paths.
 	Local bool
+	// Keyless reports that the provider needs no API key even though it may
+	// egress content (claude-code authenticates via the local Claude Code
+	// login). Local providers are implicitly keyless; use ProviderInfo.NeedsKey
+	// to combine the two.
+	Keyless bool
+	// Subscription reports that usage is billed to a personal subscription the
+	// user already pays for (no per-token cost) — drives the "runs on your
+	// subscription" wording in plans instead of a $ estimate.
+	Subscription bool
 	// DefaultModel is the model a fresh provider uses when the caller names none.
 	// It is the same value each provider applies as its Config.Model fallback,
 	// surfaced here so `kapi models` can list a provider's default without
@@ -274,6 +288,21 @@ type ProviderInfo struct {
 	// get a provider" convention. Local backends like Ollama leave this empty and
 	// are matched as the catch-all (see ProviderForModel).
 	ModelPrefixes []string
+}
+
+// NeedsKey reports whether the provider requires an API key: cloud providers
+// do; local (Ollama, Demo) and keyless-subscription (claude-code) ones do not.
+func (i ProviderInfo) NeedsKey() bool { return !i.Local && !i.Keyless }
+
+// ProviderInfoFor returns the registered metadata for a provider id (aliases
+// included). ok is false for unregistered providers.
+func ProviderInfoFor(id ProviderID) (ProviderInfo, bool) {
+	for _, reg := range globalProviders {
+		if reg.Info.Name == id || slices.Contains(reg.Aliases, id) {
+			return reg.Info, true
+		}
+	}
+	return ProviderInfo{}, false
 }
 
 // providerRegistration bundles a factory with metadata.
@@ -298,6 +327,11 @@ func init() {
 	RegisterProviderWithAliases(ProviderInfo{Name: AzureOpenAI, Label: "Azure OpenAI", DefaultModel: "gpt-4o"},
 		func(cfg Config) LLMProvider { return NewAzureOpenAIProvider(cfg) },
 		"azure_openai")
+	// claude-code declares no ModelPrefixes: "claude-*" ids belong to the
+	// anthropic API provider, and the bare aliases (sonnet, opus, haiku) are
+	// too generic to infer from. Choose it explicitly (or via kapi models setup).
+	RegisterProvider(ProviderInfo{Name: ClaudeCode, Label: "Claude Code", Keyless: true, Subscription: true, DefaultModel: DefaultClaudeCodeModel},
+		func(cfg Config) LLMProvider { return NewClaudeCodeProvider(cfg) })
 	RegisterProvider(ProviderInfo{Name: Ollama, Label: "Ollama", Local: true, DefaultModel: DefaultOllamaModel},
 		func(cfg Config) LLMProvider { return NewOllamaProvider(cfg) })
 	RegisterProvider(ProviderInfo{Name: Demo, Label: "Demo (illustrative)", Local: true},

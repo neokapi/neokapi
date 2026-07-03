@@ -87,7 +87,7 @@ If only one credential is saved, tools will auto-detect it without --credential.
 			if err := validateProviderType(providerType); err != nil {
 				return err
 			}
-			if apiKey == "" && !strings.EqualFold(providerType, "ollama") {
+			if apiKey == "" && !credentials.Keyless(providerType) {
 				return fmt.Errorf("--api-key is required for %s provider", providerType)
 			}
 

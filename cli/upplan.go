@@ -11,9 +11,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
 )
@@ -47,12 +49,22 @@ type UpPlanOutput struct {
 	Flow   string        `json:"flow,omitempty"`
 	Scopes []UpPlanScope `json:"scopes"`
 	Totals UpPlanScope   `json:"totals"`
+	// Provider is the AI provider a converge run would use (the shared
+	// ai.provider default), when one is configured.
+	Provider string `json:"provider,omitempty"`
+	// Subscription is true when that provider bills a personal subscription
+	// (claude-code): the token estimate is scale, not a metered API cost.
+	Subscription bool `json:"subscription,omitempty"`
 	// Note documents the estimation method for agents reading the JSON.
 	Note string `json:"note"`
 }
 
 // upPlanNote is the estimation-method disclosure carried in the output.
 const upPlanNote = "TM leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls)."
+
+// upPlanSubscriptionNote replaces the metered-cost framing when the resolved
+// provider bills a personal subscription instead of per-token API usage.
+const upPlanSubscriptionNote = "AI work runs on your Claude subscription — the token estimate is scale, not a metered cost. TM leverage counts exact-hash hits only; token estimate is source chars / 4 (no tokenizer, no provider calls)."
 
 // FormatText renders the plan as a table.
 func (o UpPlanOutput) FormatText(w io.Writer) error {
@@ -70,6 +82,9 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "  %-24s %8d %9d %8d %9d\n", scope, s.MissingTarget, s.TMExact, s.AIRemaining, s.TokenEstimate)
 	}
 	fmt.Fprintf(w, "  %-24s %8d %9d %8d %9d\n", "total", o.Totals.MissingTarget, o.Totals.TMExact, o.Totals.AIRemaining, o.Totals.TokenEstimate)
+	if o.Subscription {
+		fmt.Fprintf(w, "\n  AI provider: %s — runs on your Claude subscription (no per-token API cost).\n", o.Provider)
+	}
 	fmt.Fprintf(w, "\n%s\n", o.Note)
 	return nil
 }
@@ -125,7 +140,31 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 		}
 	}
 
-	return a.computeUpPlan(ctx, tm, proj, units)
+	plan, err := a.computeUpPlan(ctx, tm, proj, units)
+	if err != nil {
+		return plan, err
+	}
+	a.applyPlanProvider(&plan)
+	return plan, nil
+}
+
+// applyPlanProvider annotates a plan with the AI provider a converge run would
+// resolve (the shared ai.provider app default). When that provider bills a
+// personal subscription (claude-code), the plan swaps the metered-cost framing
+// for "runs on your Claude subscription" in both text and JSON.
+func (a *App) applyPlanProvider(plan *UpPlanOutput) {
+	if a.Config == nil {
+		return
+	}
+	prov := a.Config.GetString(config.KeyAIProvider)
+	if prov == "" {
+		return
+	}
+	plan.Provider = prov
+	if info, ok := aiprovider.ProviderInfoFor(aiprovider.ProviderID(prov)); ok && info.Subscription {
+		plan.Subscription = true
+		plan.Note = upPlanSubscriptionNote
+	}
 }
 
 // UpPlan computes the dry-run convergence plan `kapi up --plan` reports — per

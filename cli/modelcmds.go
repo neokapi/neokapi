@@ -25,17 +25,21 @@ func (a *App) NewModelsCmd() *cobra.Command {
 		Use:     "models",
 		Short:   "Manage attached LLMs and ML models",
 		GroupID: "assets",
-		Long: "A single view of every model kapi can use, across three sources:\n\n" +
+		Long: "A single view of every model kapi can use, across four sources:\n\n" +
+			"  • Detected        — keyless providers found on this machine, like the\n" +
+			"                      Claude Code CLI (uses your Claude subscription)\n" +
 			"  • Local · Ollama  — on-device models served by a local Ollama runtime\n" +
 			"                      (`kapi models pull <model>` installs one)\n" +
 			"  • Plugin models   — integrity-pinned assets a plugin downloads and caches\n" +
 			"                      under $XDG_CACHE_HOME/kapi/models/<plugin>/<id>/<version>/\n" +
 			"  • Cloud providers — remote models that require an API key\n\n" +
+			"`kapi models setup` interactively picks and verifies the default provider.\n" +
 			"`kapi models pull`/`prune` install and remove Ollama and plugin models; cloud\n" +
 			"models are listed for reference. Filter with `--provider <ollama|plugin|cloud-id>`.\n" +
 			"`kapi models ollama` manages the local Ollama runtime itself.",
 	}
 	cmd.AddCommand(a.newModelsListCmd())
+	cmd.AddCommand(a.newModelsSetupCmd())
 	cmd.AddCommand(a.newModelsDefaultCmd())
 	cmd.AddCommand(a.newModelsPullCmd())
 	cmd.AddCommand(a.newModelsPruneCmd())
@@ -244,7 +248,8 @@ func (a *App) newModelsListCmd() *cobra.Command {
 				}
 			}
 
-			rows := buildModelRows(a.allPluginModels(), installed, aiprovider.Providers(), filter)
+			rows := buildModelRows(a.allPluginModels(), installed, aiprovider.Providers(),
+				aiprovider.ClaudeCodeDetected(), filter)
 
 			if wantOllama && !ollamaReachable {
 				fmt.Fprintln(cmd.ErrOrStderr(),
@@ -261,11 +266,24 @@ func (a *App) newModelsListCmd() *cobra.Command {
 // pure (no network/registry access) so the composition is unit-testable; the
 // command supplies live Ollama + plugin + provider data. filter, when non-empty,
 // keeps only rows whose source or provider equals it.
-func buildModelRows(pluginModels []pluginModel, installed []aiprovider.OllamaModelInfo, providers []aiprovider.ProviderInfo, filter string) []output.ModelRow {
+func buildModelRows(pluginModels []pluginModel, installed []aiprovider.OllamaModelInfo, providers []aiprovider.ProviderInfo, claudeCodeDetected bool, filter string) []output.ModelRow {
 	keep := func(source, provider string) bool {
 		return filter == "" || filter == source || filter == provider
 	}
 	var rows []output.ModelRow
+
+	// 0) Detected — keyless providers present on this machine. Claude Code is
+	//    listed on binary presence alone (auth is verified lazily at first call,
+	//    with actionable errors), so the listing stays instant and offline.
+	if claudeCodeDetected && keep(output.ModelSourceDetected, string(aiprovider.ClaudeCode)) {
+		rows = append(rows, output.ModelRow{
+			Source:   output.ModelSourceDetected,
+			Provider: string(aiprovider.ClaudeCode),
+			Model:    aiprovider.DefaultClaudeCodeModel,
+			Status:   "detected",
+			Note:     "uses your Claude subscription",
+		})
+	}
 
 	// 1) Local · Ollama — recommended picks first (marking which are installed),
 	//    then any other installed models.
@@ -342,7 +360,7 @@ func buildModelRows(pluginModels []pluginModel, installed []aiprovider.OllamaMod
 	// 3) Cloud providers — remote, need an API key. Listed for reference (their
 	//    built-in default model); local/keyless providers are covered above.
 	for _, p := range providers {
-		if p.Local || p.DefaultModel == "" {
+		if !p.NeedsKey() || p.DefaultModel == "" {
 			continue
 		}
 		if !keep(output.ModelSourceCloud, string(p.Name)) {

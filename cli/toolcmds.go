@@ -280,6 +280,16 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					tmProvider = p
 				}
 
+				// First-run onboarding: when this tool needs provider credentials
+				// and no AI provider is configured anywhere, walk through the
+				// compact setup wizard inline on a TTY (kapi translate "just
+				// works" on first use). Non-TTY runs keep the keys-only error.
+				if toolRequires(toolSchema, "credentials") {
+					if err := a.EnsureAIProviderInteractive(cmd); err != nil {
+						return err
+					}
+				}
+
 				// When this run targets the local Ollama provider, make sure the
 				// runtime is up and the model is pulled before processing any
 				// files — one clear up-front step instead of a per-block failure.

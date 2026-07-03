@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -249,4 +250,48 @@ func TestRun_BareRunPointsAtUp(t *testing.T) {
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "note: `kapi up` is the new home of the no-argument run; `kapi run` keeps custom-flow semantics.")
 	assert.Contains(t, out, "Converged", "the bare run still converges")
+}
+
+// TestUp_FirstRunInlineWizard: a provider-less `kapi up` on a TTY runs the
+// compact provider wizard inline, persists the choice, and then continues the
+// original command to convergence.
+func TestUp_FirstRunInlineWizard(t *testing.T) {
+	a := processOnlyApp(t)
+	saved := map[string]string{}
+	wiz := aiSetupIO{
+		in:        strings.NewReader("\nn\n"), // accept default (Claude Code), skip live check
+		out:       io.Discard,
+		isTTY:     func() bool { return true },
+		detect:    func(context.Context) AIDetection { return AIDetection{ClaudeCode: true} },
+		liveCheck: func(context.Context, string, string, string) error { return nil },
+		setConfig: func(key, value string) error { saved[key] = value; return nil },
+	}
+	a.aiSetupIOOverride = &wiz
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+
+	out, err := runUp(t, a, recipe)
+	require.NoError(t, err, out)
+
+	// The wizard persisted the pick…
+	assert.Equal(t, "claude-code", saved["ai.provider"])
+	// …and the original command continued to convergence.
+	_, rerr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
+	require.NoError(t, rerr, "up must continue after the inline wizard")
+	assert.Contains(t, out, "Converged")
+}
+
+// TestUp_ConfiguredSkipsWizard: with a provider already configured the wizard
+// never engages (no prompts in output).
+func TestUp_ConfiguredSkipsWizard(t *testing.T) {
+	a := processOnlyApp(t)
+	wiz := aiSetupIO{
+		isTTY:  func() bool { return true },
+		detect: func(context.Context) AIDetection { return AIDetection{DefaultProvider: "ollama"} },
+	}
+	a.aiSetupIOOverride = &wiz
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+
+	out, err := runUp(t, a, recipe)
+	require.NoError(t, err, out)
+	assert.NotContains(t, out, "No AI provider is configured")
 }

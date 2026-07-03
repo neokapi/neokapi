@@ -64,6 +64,11 @@ type App struct {
 	// Credentials is the shared credential store for AI provider keys.
 	Credentials *credentials.Store
 
+	// aiSetupIOOverride, when non-nil, replaces the default wizard IO used by
+	// EnsureAIProviderInteractive and `kapi models setup` — tests inject
+	// scripted stdin, fake detection, and stub live checks through it.
+	aiSetupIOOverride *aiSetupIO
+
 	// RegistryResolver is an optional hook for resolving plugin registries.
 	// When set, it is called before falling back to the config-based registries.
 	RegistryResolver func() []config.RegistryEntry

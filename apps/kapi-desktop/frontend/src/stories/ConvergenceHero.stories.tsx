@@ -143,3 +143,36 @@ export const PlanDialog: StoryObj<typeof ConvergePlanDialog> = {
     <ConvergePlanDialog open onOpenChange={() => {}} plan={DRIFTED_PLAN} onConfirm={() => {}} />
   ),
 };
+
+const SUBSCRIPTION_PLAN: ConvergePlan = {
+  ...DRIFTED_PLAN,
+  plan: {
+    ...DRIFTED_PLAN.plan,
+    provider: "claude-code",
+    subscription: true,
+    note: "AI work runs on your Claude subscription — the token estimate is scale, not a metered cost. TM leverage counts exact-hash hits only; token estimate is source chars / 4 (no tokenizer, no provider calls).",
+  },
+};
+
+/** The plan dialog when the resolved provider is claude-code: the metered-cost
+ *  framing is replaced with "runs on your Claude subscription". */
+export const PlanDialogSubscription: StoryObj<typeof ConvergePlanDialog> = {
+  render: () => (
+    <ConvergePlanDialog
+      open
+      onOpenChange={() => {}}
+      plan={SUBSCRIPTION_PLAN}
+      onConfirm={() => {}}
+    />
+  ),
+};
+
+/** The hero when AI work bills the user's Claude subscription. */
+export const DriftedSubscription: Story = {
+  args: {
+    tabID: "storybook",
+    convergence: DRIFTED_REPORT,
+    plan: SUBSCRIPTION_PLAN,
+    onBringUpToDate: () => {},
+  },
+};

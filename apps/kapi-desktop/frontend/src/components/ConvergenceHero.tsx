@@ -121,6 +121,12 @@ export function ConvergenceHero({
                 : t(
                     "Bring up to date extracts changed sources, runs the default flow to the ship gates, and parks what needs a human.",
                   )}
+              {!upToDate && plan?.plan?.subscription && (
+                <span data-slot="hero-subscription">
+                  {" "}
+                  {t("AI runs on your Claude subscription.")}
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -199,6 +205,7 @@ export function ConvergePlanDialog({
   const scopes = plan?.plan?.scopes ?? [];
   const totals = plan?.plan?.totals;
   const changed = (plan?.changedFiles ?? 0) + (plan?.removedFiles ?? 0);
+  const subscription = !!plan?.plan?.subscription;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg" data-slot="converge-plan-dialog">
@@ -261,6 +268,12 @@ export function ConvergePlanDialog({
               )}
             </tbody>
           </table>
+        )}
+
+        {subscription && (
+          <p className="text-xs font-medium" data-slot="plan-subscription">
+            {t("AI work runs on your Claude subscription — no per-token API cost.")}
+          </p>
         )}
 
         {plan?.plan?.note && (

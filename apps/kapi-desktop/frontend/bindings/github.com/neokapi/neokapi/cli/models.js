@@ -381,6 +381,24 @@ export class UpPlanOutput {
              */
             this["totals"] = (new UpPlanScope());
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Provider is the AI provider a converge run would use (the shared
+             * ai.provider default), when one is configured.
+             * @member
+             * @type {string | undefined}
+             */
+            this["provider"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Subscription is true when that provider bills a personal subscription
+             * (claude-code): the token estimate is scale, not a metered API cost.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["subscription"] = undefined;
+        }
         if (!("note" in $$source)) {
             /**
              * Note documents the estimation method for agents reading the JSON.

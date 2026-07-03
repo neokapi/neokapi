@@ -210,7 +210,7 @@
           "list": {
             "short": "List every model kapi can use (Ollama, plugin assets, cloud providers)"
           },
-          "long": "A single view of every model kapi can use, across three sources:\n\n  • Local · Ollama  — on-device models served by a local Ollama runtime\n                      (`kapi models pull \u003cmodel\u003e` installs one)\n  • Plugin models   — integrity-pinned assets a plugin downloads and caches\n                      under $XDG_CACHE_HOME/kapi/models/\u003cplugin\u003e/\u003cid\u003e/\u003cversion\u003e/\n  • Cloud providers — remote models that require an API key\n\n`kapi models pull`/`prune` install and remove Ollama and plugin models; cloud\nmodels are listed for reference. Filter with `--provider \u003collama|plugin|cloud-id\u003e`.\n`kapi models ollama` manages the local Ollama runtime itself.",
+          "long": "A single view of every model kapi can use, across four sources:\n\n  • Detected        — keyless providers found on this machine, like the\n                      Claude Code CLI (uses your Claude subscription)\n  • Local · Ollama  — on-device models served by a local Ollama runtime\n                      (`kapi models pull \u003cmodel\u003e` installs one)\n  • Plugin models   — integrity-pinned assets a plugin downloads and caches\n                      under $XDG_CACHE_HOME/kapi/models/\u003cplugin\u003e/\u003cid\u003e/\u003cversion\u003e/\n  • Cloud providers — remote models that require an API key\n\n`kapi models setup` interactively picks and verifies the default provider.\n`kapi models pull`/`prune` install and remove Ollama and plugin models; cloud\nmodels are listed for reference. Filter with `--provider \u003collama|plugin|cloud-id\u003e`.\n`kapi models ollama` manages the local Ollama runtime itself.",
           "ollama": {
             "install": {
               "long": "Show the platform-appropriate command to install the Ollama runtime. With --run on\nmacOS (and Homebrew present), kapi runs `brew install ollama` for you.",
@@ -236,6 +236,11 @@
           "pull": {
             "long": "Install a model so kapi can translate with it. A bare reference defaults to an\nOllama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled into the local Ollama\nruntime. A plugin model id (e.g. sat-3l-sm), a plugin name, or plugin/model fetches\nthat plugin's host-owned asset instead.",
             "short": "Download a model (Ollama model, or a plugin asset)"
+          },
+          "setup": {
+            "example": "  kapi models setup",
+            "long": "Detects the AI options on this machine — the Claude Code CLI (uses your\nClaude subscription, no API key), a running Ollama server (local models),\nand API keys already present in the environment — then walks through picking\nthe default provider, storing an API key when one is needed, and verifying\nthe choice with a tiny test call. Writes ai.provider / ai.model to the global\nconfig (shared with Kapi Desktop).\n\nRequires a terminal; in CI set an API key env var or use `kapi config set`.",
+            "short": "Interactively pick and verify the default AI provider"
           },
           "short": "Manage attached LLMs and ML models"
         },

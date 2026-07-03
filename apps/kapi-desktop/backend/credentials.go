@@ -116,6 +116,12 @@ type ProviderTypeInfo struct {
 	// Local is true for on-device providers (Ollama, Gemma, Demo) that need no
 	// API key; the frontend uses it to hide the API-key field and show a badge.
 	Local bool `json:"local"`
+	// Keyless is true when the provider needs no API key at all — local ones
+	// plus subscription-backed claude-code. Drives hiding the key field.
+	Keyless bool `json:"keyless"`
+	// Subscription is true when usage bills a personal subscription
+	// (claude-code) rather than metered API usage.
+	Subscription bool `json:"subscription,omitempty"`
 }
 
 // ListProviderTypes returns the canonical list of available AI provider types.
@@ -124,9 +130,11 @@ func (a *App) ListProviderTypes() []ProviderTypeInfo {
 	out := make([]ProviderTypeInfo, len(providers))
 	for i, p := range providers {
 		out[i] = ProviderTypeInfo{
-			Name:  string(p.Name),
-			Label: p.Label,
-			Local: aiprovider.IsLocalProvider(p.Name),
+			Name:         string(p.Name),
+			Label:        p.Label,
+			Local:        aiprovider.IsLocalProvider(p.Name),
+			Keyless:      !p.NeedsKey(),
+			Subscription: p.Subscription,
 		}
 	}
 	return out

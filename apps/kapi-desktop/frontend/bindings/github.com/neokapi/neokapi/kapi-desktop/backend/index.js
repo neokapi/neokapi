@@ -8,6 +8,7 @@ export {
 };
 
 export {
+    AIDetectionResult,
     AIModelOption,
     AddConceptRequest,
     AddRelationRequest,
@@ -28,6 +29,7 @@ export {
     CustomLocale,
     DefaultModelInfo,
     DesktopFinding,
+    DetectedAIProvider,
     EntityAdaptationDTO,
     EntityAnnotationDTO,
     EntityMappingDTO,
