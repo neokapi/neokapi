@@ -130,12 +130,13 @@ export function ArchitectureDiagram({
             <title id="kdx-arch-title">neokapi processing architecture</title>
             <desc id="kdx-arch-desc">
               A streaming pipeline: a format reader at the left edge and a writer at the right that
-              sinks to a file (round-trip) or a content store (overlays); a serial chain of annotate,
-              translate and QA tools in the middle, with the translate stage fanning out across
-              parallel goroutines; translation-memory, termbase and a translation provider (LLM or MT)
-              feeding it from above; and a gRPC plugin band (Okapi bridge, tier-3 segmenter/media/OCR
-              plugins, remote plugins) feeding it from below. Each stage is a goroutine joined by Part
-              channels, and the whole pipeline runs over many documents in parallel.
+              sinks to a file (round-trip) or a content store (overlays); a serial chain of
+              annotate, translate and QA tools in the middle, with the translate stage fanning out
+              across parallel goroutines; translation-memory, termbase and a translation provider
+              (LLM or MT) feeding it from above; and a gRPC plugin band (Okapi bridge, tier-3
+              segmenter/media/OCR plugins, remote plugins) feeding it from below. Each stage is a
+              goroutine joined by Part channels, and the whole pipeline runs over many documents in
+              parallel.
             </desc>
 
             {/* ── document-parallelism: ghost lanes behind the live one ── */}
