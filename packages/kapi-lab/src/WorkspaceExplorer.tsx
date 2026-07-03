@@ -123,7 +123,16 @@ export default function WorkspaceExplorer({
         }
         let argv: string[];
         if (step === "extract") {
-          argv = ["extract", srcPath, "-o", workKlz, "--target-lang", TARGET, "--out", "out/{name}.{ext}"];
+          argv = [
+            "extract",
+            srcPath,
+            "-o",
+            workKlz,
+            "--target-lang",
+            TARGET,
+            "--out",
+            "out/{name}.{ext}",
+          ];
         } else if (step === "transform") {
           argv = ["pseudo-translate", workKlz];
         } else if (step === "pack") {
@@ -213,8 +222,8 @@ export default function WorkspaceExplorer({
           {resumed && (
             <div className={s.binaryNote}>
               ↻ reopened on a fresh path — the working cache started empty here, so kapi rebuilt the
-              whole workspace from the packed <code>.klz</code> alone. The work below is the work you
-              left, picked up unchanged.
+              whole workspace from the packed <code>.klz</code> alone. The work below is the work
+              you left, picked up unchanged.
             </div>
           )}
           {info && <InfoView info={info} />}
