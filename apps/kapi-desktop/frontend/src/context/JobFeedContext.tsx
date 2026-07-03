@@ -65,6 +65,12 @@ interface JobFeedContextValue {
     targetLangs?: string[],
     fileCount?: number,
   ) => void;
+  /**
+   * Settle the active (pre-created) job as failed when its launch call throws
+   * synchronously — the backend never started, so no terminal event will ever
+   * arrive and the feed must not wedge in "running".
+   */
+  failActiveJob: (message: string) => void;
   selectJob: (id: string | null) => void;
   clearJob: (id: string) => void;
   clearAll: () => void;
@@ -77,6 +83,7 @@ const JobFeedContext = createContext<JobFeedContextValue>({
   selectedJob: null,
   hasActive: false,
   startJob: () => {},
+  failActiveJob: () => {},
   selectJob: () => {},
   clearJob: () => {},
   clearAll: () => {},
@@ -117,6 +124,23 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
     },
     [],
   );
+
+  // failActiveJob settles the pre-created job when the launch binding itself
+  // rejected (e.g. BringUpToDate returned a synchronous error): the run never
+  // started on the backend, so mark it failed here instead of leaving a
+  // permanently "running" job the UI can't cancel out of.
+  const failActiveJob = useCallback((message: string) => {
+    const id = activeIdRef.current;
+    if (!id) return;
+    activeIdRef.current = null;
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.id === id && j.status === "running"
+          ? { ...j, status: "error" as const, error: message }
+          : j,
+      ),
+    );
+  }, []);
 
   // Global event listener — always mounted, persists across navigation.
   // All events update the active job (the one created by startJob).
@@ -307,6 +331,7 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
         selectedJob,
         hasActive,
         startJob,
+        failActiveJob,
         selectJob,
         clearJob,
         clearAll,

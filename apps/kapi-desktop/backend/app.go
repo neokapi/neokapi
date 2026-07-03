@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	// Blank-import the cli package so its init() registrations run in the desktop
@@ -214,6 +215,11 @@ type openProject struct {
 	// internally. Guarded by blockStoreMu; closed in CloseProject.
 	blockStoreMu sync.Mutex
 	blockStore   blockstore.Store
+
+	// missingWarned latches the one-time "recipe missing on disk" log so a
+	// polling surface (the home hero) doesn't spam ERR lines while the tab's
+	// directory is moved (e.g. mid sample reset). Reset when the file is back.
+	missingWarned atomic.Bool
 }
 
 // GetProjectTMHandle returns the auto-opened TM handle for a project tab,
@@ -489,14 +495,26 @@ func (a *App) CloseProject(tabID string) {
 	if op == nil {
 		return
 	}
+	a.releaseProjectResources(op)
+}
+
+// releaseProjectResources quiesces everything a tab holds on its directory —
+// the file watcher, the auto-opened TM/termbase handles, and the shared block
+// store — WITHOUT removing the tab entry. CloseProject uses it on the way out;
+// ResetSampleProject uses it to free the directory before the backup rename,
+// then reloads the same tab in place.
+func (a *App) releaseProjectResources(op *openProject) {
 	if op.watcher != nil {
 		op.watcher.Stop()
+		op.watcher = nil
 	}
 	if op.tmHandle != "" {
 		a.tmHandles.Close(op.tmHandle)
+		op.tmHandle = ""
 	}
 	if op.tbHandle != "" {
 		a.tbHandles.Close(op.tbHandle)
+		op.tbHandle = ""
 	}
 	op.blockStoreMu.Lock()
 	if op.blockStore != nil {

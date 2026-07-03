@@ -142,13 +142,16 @@ export function ViewSwitch({
     [navigate],
   );
 
-  // Bring up to date (the home hero / plan dialog): open the runner in its
-  // convergence view. The backend drives the shared `kapi up` engine over the
-  // project's default flow; nothing else travels from here.
+  // Bring up to date (the home hero / plan dialog): the HERO launches the run
+  // (so a synchronous launch error stays inline on the hero); this handler
+  // fires only after a successful launch and merely opens the runner's
+  // convergence view on the already-running job. Marking the runId consumed
+  // keeps RunnerPage from relaunching (and duplicating) the run on mount.
   const handleBringUpToDate = useCallback(() => {
     const project = history.project;
     const flowName = project?.defaults?.flow ?? "";
     runCounter.current += 1;
+    launchedRunIdRef.current = runCounter.current;
     setRunnerState({
       flowName,
       flow: flowName ? project?.flows?.[flowName] : undefined,

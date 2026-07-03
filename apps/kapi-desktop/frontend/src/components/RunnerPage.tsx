@@ -86,7 +86,7 @@ export function RunnerPage({
   converge,
   onOpenReview,
 }: RunnerPageProps) {
-  const { activeJob, selectedJob, jobs, startJob, hasActive } = useJobFeed();
+  const { activeJob, selectedJob, jobs, startJob, failActiveJob, hasActive } = useJobFeed();
   const { active: activeFilter } = useActiveFilter();
 
   // Show selected job, or active job for this flow, or most recent matching.
@@ -132,10 +132,13 @@ export function RunnerPage({
       try {
         await api.runFlow(tabID, flowName, paths, targets);
       } catch (err) {
+        // The launch itself failed — the backend never started, so settle the
+        // pre-created job (no terminal event will arrive to do it).
+        failActiveJob(String(err));
         setLaunchError(String(err));
       }
     },
-    [tabID, flowName, projectName, startJob],
+    [tabID, flowName, projectName, startJob, failActiveJob],
   );
 
   // launchFlow prompts for a default AI model first when the flow needs one and
@@ -165,9 +168,10 @@ export function RunnerPage({
     try {
       await api.bringUpToDate(tabID);
     } catch (err) {
+      failActiveJob(String(err));
       setLaunchError(String(err));
     }
-  }, [tabID, flowName, projectName, startJob]);
+  }, [tabID, flowName, projectName, startJob, failActiveJob]);
 
   const launchConverge = useCallback(async () => {
     setLaunchError(null);
@@ -261,7 +265,9 @@ export function RunnerPage({
       <PageHeader
         title={
           converge
-            ? t("Bring up to date · {name}", { name: flowName })
+            ? flowName && flowName !== "up"
+              ? t("Bring up to date · {name}", { name: flowName })
+              : t("Bring up to date")
             : scopeLabel
               ? t("Run: {name} · {scope}", { name: flowName, scope: scopeLabel })
               : t("Run: {name}", { name: flowName })
@@ -429,6 +435,7 @@ export function RunnerPage({
         <ConvergeRunView
           events={events}
           running={state === "running"}
+          canceled={state === "canceled"}
           onOpenReview={onOpenReview}
         />
       )}

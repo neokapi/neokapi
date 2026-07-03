@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, ClipboardList, Loader2, PlayCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardList,
+  FolderX,
+  Loader2,
+  PlayCircle,
+} from "lucide-react";
 import {
   Button,
   Card,
@@ -16,10 +23,18 @@ import type { ConvergePlan, ConvergenceReport, UpPlanScope } from "../types/api"
 import { api } from "../hooks/useApi";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useJobFeed } from "../context/JobFeedContext";
+import { AIModelPromptDialog } from "./AIModelPromptDialog";
+
+/** The backend's typed marker for a tab whose recipe vanished from disk. */
+const MISSING_FILES_MARKER = "missing or moved";
 
 export interface ConvergenceHeroProps {
   tabID: string;
-  /** Launch the convergence run (the runner opens in its passes view). */
+  /**
+   * Navigate to the runner's passes view. Called only AFTER the run launched
+   * successfully — a synchronous launch error stays on the hero (inline)
+   * instead of opening a dead runner.
+   */
   onBringUpToDate?: () => void;
   /** Pre-loaded report for Storybook/tests — skips api.getConvergence(). */
   convergence?: ConvergenceReport;
@@ -42,11 +57,18 @@ export function ConvergenceHero({
   convergence: propConvergence,
   plan: propPlan,
 }: ConvergenceHeroProps) {
-  const { hasActive } = useJobFeed();
+  const { hasActive, startJob, failActiveJob } = useJobFeed();
   const [convergence, setConvergence] = useState<ConvergenceReport | null>(propConvergence ?? null);
   const [plan, setPlan] = useState<ConvergePlan | null>(propPlan ?? null);
   const [planOpen, setPlanOpen] = useState(false);
   const [loaded, setLoaded] = useState(!!(propConvergence && propPlan));
+  // A synchronous launch failure renders inline on the hero — the user stays
+  // home instead of landing in a runner view with nothing running behind it.
+  const [launchError, setLaunchError] = useState<string | null>(null);
+  // The tab's files vanished from disk (moved/deleted directory): a quiet
+  // terminal state, not an error banner per poll.
+  const [filesMissing, setFilesMissing] = useState(false);
+  const [modelPromptOpen, setModelPromptOpen] = useState(false);
 
   const refresh = useCallback(() => {
     if (propConvergence && propPlan) return;
@@ -58,6 +80,13 @@ export function ConvergenceHero({
         setConvergence(c.value as ConvergenceReport);
       }
       if (!propPlan && p.status === "fulfilled" && p.value) setPlan(p.value as ConvergePlan);
+      // The backend answers both derivations with a single typed error when
+      // the recipe is gone from disk — render the quiet reopen state.
+      setFilesMissing(
+        [c, p].some(
+          (r) => r.status === "rejected" && String(r.reason).includes(MISSING_FILES_MARKER),
+        ),
+      );
       setLoaded(true);
     });
   }, [tabID, propConvergence, propPlan]);
@@ -68,6 +97,22 @@ export function ConvergenceHero({
 
   // A convergence run or extraction elsewhere changed the derived state.
   useWailsEvent("project:extracted", () => refresh());
+
+  // doLaunch starts the run through the shared `kapi up` engine and navigates
+  // to the runner only once the launch call succeeded. A rejected launch
+  // settles the pre-created job and surfaces the message inline right here.
+  const doLaunch = useCallback(async () => {
+    startJob("up");
+    try {
+      await api.bringUpToDate(tabID);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      failActiveJob(msg);
+      setLaunchError(msg);
+      return;
+    }
+    onBringUpToDate?.();
+  }, [tabID, startJob, failActiveJob, onBringUpToDate]);
 
   // ── Derived standing ──────────────────────────────────────────────────────
   const changed = (plan?.changedFiles ?? 0) + (plan?.removedFiles ?? 0);
@@ -91,10 +136,42 @@ export function ConvergenceHero({
     pieces.push(t("ship gates not met yet"));
   }
 
+  // launch: model pre-flight first (the built-in default flow's translate step
+  // is provider-backed), then the actual run.
   const launch = () => {
     setPlanOpen(false);
-    onBringUpToDate?.();
+    setLaunchError(null);
+    if (!onBringUpToDate) return;
+    void (async () => {
+      try {
+        if (await api.aiNeedsModelChoice(tabID, "")) {
+          setModelPromptOpen(true);
+          return;
+        }
+      } catch {
+        // Pre-flight unavailable — let the launch surface any real error.
+      }
+      await doLaunch();
+    })();
   };
+
+  if (filesMissing) {
+    return (
+      <Card className="mb-6 p-4" data-slot="convergence-hero">
+        <div className="flex items-center gap-2.5" data-slot="hero-files-missing">
+          <FolderX size={18} className="shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{t("Project files are missing or moved")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "The project directory is no longer where it was. Reopen the project to continue.",
+              )}
+            </p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="mb-6 p-4" data-slot="convergence-hero">
@@ -155,12 +232,32 @@ export function ConvergenceHero({
         </div>
       </div>
 
+      {launchError && (
+        <p
+          className="mt-3 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive"
+          role="alert"
+          data-slot="hero-launch-error"
+        >
+          <AlertTriangle size={13} className="shrink-0" />
+          {launchError}
+        </p>
+      )}
+
       <ConvergePlanDialog
         open={planOpen}
         onOpenChange={setPlanOpen}
         plan={plan}
         onConfirm={onBringUpToDate ? launch : undefined}
         confirmDisabled={hasActive || upToDate}
+      />
+
+      <AIModelPromptDialog
+        open={modelPromptOpen}
+        onResolved={() => {
+          setModelPromptOpen(false);
+          void doLaunch();
+        }}
+        onCancel={() => setModelPromptOpen(false)}
       />
     </Card>
   );

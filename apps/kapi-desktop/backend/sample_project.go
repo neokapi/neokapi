@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
 )
 
@@ -89,10 +90,14 @@ func (a *App) GetSampleInfo(tabID string) SampleInfo {
 	}
 }
 
-// ResetSampleProject refreshes an out-of-date sample to the version embedded in
-// this kapi: it closes the project, backs up the existing directory (so nothing
-// is lost), re-scaffolds a fresh copy in place, and reopens it — returning the
-// new tab. Only valid for projects scaffolded from a sample.
+// ResetSampleProject refreshes an out-of-date sample to the version embedded
+// in this kapi: it quiesces the tab's handles, backs up the existing directory
+// (so nothing is lost), re-scaffolds a fresh copy in place, and reloads the
+// SAME tab — same tab ID, recipe re-read, TM/termbase/block-store handles and
+// the file watcher reopened. Keeping the tab alive throughout means every
+// surface polling it (the home hero's GetConvergence / GetConvergePlan) never
+// dangles on a closed tab or a renamed path. Only valid for projects
+// scaffolded from a sample.
 func (a *App) ResetSampleProject(tabID string) (*TabInfo, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil || op.Path == "" {
@@ -105,12 +110,16 @@ func (a *App) ResetSampleProject(tabID string) (*TabInfo, error) {
 		return nil, errors.New("not a sample project")
 	}
 
-	// Close first so file watchers, the block store, and TM/termbase handles
-	// release the directory before we move it.
-	a.CloseProject(tabID)
+	// Quiesce first so the file watcher, the block store, and TM/termbase
+	// handles release the directory before we move it — but keep the tab
+	// entry, so it can be reloaded in place after the re-scaffold.
+	a.releaseProjectResources(op)
 
 	backup := backupSampleDir(dir, m.Revision)
 	if err := os.Rename(dir, backup); err != nil {
+		// Nothing moved — rewire the tab onto the untouched directory.
+		a.autoOpenProjectResources(op)
+		a.startWatcher(op)
 		return nil, fmt.Errorf("back up sample: %w", err)
 	}
 	a.logger.Printf("sample %q reset: backed up to %s", m.Sample, backup)
@@ -118,7 +127,21 @@ func (a *App) ResetSampleProject(tabID string) (*TabInfo, error) {
 	if err := sample.Scaffold(m.Sample, dir); err != nil {
 		return nil, fmt.Errorf("re-scaffold sample: %w", err)
 	}
-	return a.OpenProject(kapiPath)
+
+	// Reload the open tab in place: re-read the recipe and reopen the
+	// project-scoped resources against the fresh scaffold.
+	proj, err := project.Load(kapiPath)
+	if err != nil {
+		return nil, fmt.Errorf("reload reset sample: %w", err)
+	}
+	a.mu.Lock()
+	op.Project = proj
+	a.mu.Unlock()
+	op.missingWarned.Store(false)
+	a.autoOpenProjectResources(op)
+	a.startWatcher(op)
+	a.emitEvent("project:extracted", map[string]any{"tabID": tabID})
+	return &TabInfo{ID: op.ID, Name: projectDisplayName(proj, kapiPath), Path: kapiPath}, nil
 }
 
 // AcknowledgeSampleRevision marks the on-disk sample as up to date with the

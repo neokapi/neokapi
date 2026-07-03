@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { ConvergenceHero, ConvergePlanDialog } from "../components/ConvergenceHero";
+import { api } from "../hooks/useApi";
 import type { ConvergePlan, ConvergenceReport } from "../types/api";
 
 const driftedPlan: ConvergePlan = {
@@ -79,6 +80,10 @@ const convergedReport: ConvergenceReport = {
 };
 
 describe("ConvergenceHero", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("renders the drift summary and an enabled Bring up to date", () => {
     const onBringUpToDate = vi.fn();
     render(
@@ -98,8 +103,9 @@ describe("ConvergenceHero", () => {
     expect(btn).toBeEnabled();
   });
 
-  it("launches the run from the primary button", async () => {
+  it("launches the run from the primary button, then navigates to the runner", async () => {
     const onBringUpToDate = vi.fn();
+    const bringUpToDate = vi.spyOn(api, "bringUpToDate").mockResolvedValue(null);
     render(
       <ConvergenceHero
         tabID="t1"
@@ -109,7 +115,48 @@ describe("ConvergenceHero", () => {
       />,
     );
     await userEvent.click(screen.getByRole("button", { name: "Bring the project up to date" }));
-    expect(onBringUpToDate).toHaveBeenCalledTimes(1);
+    // The hero itself owns the launch; navigation happens only after success.
+    await waitFor(() => expect(onBringUpToDate).toHaveBeenCalledTimes(1));
+    expect(bringUpToDate).toHaveBeenCalledWith("t1");
+  });
+
+  it("surfaces a synchronous launch error inline and stays home", async () => {
+    const onBringUpToDate = vi.fn();
+    vi.spyOn(api, "bringUpToDate").mockRejectedValue(
+      new Error("no target languages configured (defaults.target_languages)"),
+    );
+    render(
+      <ConvergenceHero
+        tabID="t1"
+        onBringUpToDate={onBringUpToDate}
+        convergence={driftedReport}
+        plan={driftedPlan}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Bring the project up to date" }));
+
+    // The error renders inline on the hero…
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("no target languages configured");
+    // …and the user never navigates to a dead runner view.
+    expect(onBringUpToDate).not.toHaveBeenCalled();
+  });
+
+  it("renders the quiet reopen state when the project files are missing", async () => {
+    vi.spyOn(api, "getConvergence").mockRejectedValue(
+      new Error("project files are missing or moved — reopen the project"),
+    );
+    vi.spyOn(api, "getConvergePlan").mockRejectedValue(
+      new Error("project files are missing or moved — reopen the project"),
+    );
+    render(<ConvergenceHero tabID="t1" onBringUpToDate={vi.fn()} />);
+
+    expect(await screen.findByText("Project files are missing or moved")).toBeInTheDocument();
+    // Quiet terminal state: no run controls, no error banner.
+    expect(
+      screen.queryByRole("button", { name: "Bring the project up to date" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("renders the calm state with the button disabled when converged", () => {
@@ -150,7 +197,7 @@ describe("ConvergenceHero", () => {
     // Confirm launches the run and closes the dialog.
     const confirm = screen.getAllByRole("button", { name: "Bring up to date" });
     await userEvent.click(confirm[confirm.length - 1]);
-    expect(onBringUpToDate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onBringUpToDate).toHaveBeenCalledTimes(1));
   });
 });
 

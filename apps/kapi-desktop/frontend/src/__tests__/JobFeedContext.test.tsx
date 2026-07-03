@@ -120,6 +120,31 @@ describe("JobFeedContext", () => {
     expect(typeof feed?.startJob).toBe("function");
   });
 
+  it("failActiveJob settles a job whose launch call rejected synchronously", () => {
+    let feed: ReturnType<typeof useJobFeed> | undefined;
+    render(
+      <JobFeedProvider>
+        <JobFeedReader
+          onRead={(f) => {
+            feed = f;
+          }}
+        />
+      </JobFeedProvider>,
+    );
+
+    act(() => {
+      feed?.startJob("up", "project");
+    });
+    expect(feed?.hasActive).toBe(true);
+
+    act(() => {
+      feed?.failActiveJob("no target languages configured");
+    });
+    expect(feed?.jobs[0].status).toBe("error");
+    expect(feed?.jobs[0].error).toBe("no target languages configured");
+    expect(feed?.hasActive).toBe(false);
+  });
+
   it("settles a job stuck at running when the live complete event never arrives", async () => {
     // No "flow:event" is delivered (the live stream went quiet). The backend
     // reports the run finished, so the poll must reconcile the job to complete.

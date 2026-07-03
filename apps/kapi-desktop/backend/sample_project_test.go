@@ -229,3 +229,37 @@ func TestSampleUpgradeFlow(t *testing.T) {
 	require.NoError(t, app.AcknowledgeSampleRevision(newTab.ID))
 	assert.False(t, app.GetSampleInfo(newTab.ID).UpgradeAvailable)
 }
+
+// Reset reloads the OPEN tab in place — same tab ID, fresh recipe, reopened
+// project-scoped handles — so surfaces polling the tab (the home hero's
+// convergence plan/report) keep working immediately after the reset instead of
+// ENOENT-ing against the backed-up directory path.
+func TestResetSampleProject_TabStaysUsable(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("KAPI_HOME_DIR", home)
+
+	app := NewApp()
+	tab, err := app.CreateSampleProject("kapimart")
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	newTab, err := app.ResetSampleProject(tab.ID)
+	require.NoError(t, err)
+	assert.Equal(t, tab.ID, newTab.ID, "the tab reloads in place — no close/reopen churn")
+
+	// The tab entry is rewired to the fresh scaffold: recipe reloaded, TM and
+	// termbase handles live again, and the derivation bindings answer without
+	// a friendly-error detour.
+	app.mu.RLock()
+	op := app.projects[tab.ID]
+	app.mu.RUnlock()
+	require.NotNil(t, op)
+	assert.NotNil(t, op.Project)
+	assert.NotEmpty(t, op.tmHandle, "project TM reopened after reset")
+	assert.NotEmpty(t, op.tbHandle, "project termbase reopened after reset")
+
+	_, err = app.GetConvergePlan(tab.ID)
+	require.NoError(t, err, "plan must be derivable immediately after a reset")
+	_, err = app.GetConvergence(tab.ID)
+	require.NoError(t, err, "convergence must be derivable immediately after a reset")
+}

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/cli"
 	appconfig "github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
@@ -168,9 +169,18 @@ func (a *App) AINeedsModelChoice(tabID, flowName string) bool {
 	if op == nil {
 		return false
 	}
+	// An empty flow name is the convergence launch (Bring up to date): it runs
+	// defaults.flow, or — when the recipe configures none — the built-in
+	// default flow (#1078 G6), whose translate step is provider-backed.
+	if flowName == "" {
+		flowName = op.Project.Defaults.Flow
+	}
 	spec := op.Project.Flow(flowName)
 	if spec == nil {
-		return false
+		if flowName != "" {
+			return false
+		}
+		spec = cli.DefaultConvergeFlowSpec()
 	}
 	info := flow.BuildToolInfoMap(a.toolReg)
 	usesAI := false
