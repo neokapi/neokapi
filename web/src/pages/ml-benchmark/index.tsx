@@ -205,8 +205,8 @@ export default function MLBenchmark(): ReactElement {
           but hangs the first run and fails in airgapped or CI environments. Developer tools make it
           explicit and pinnable — <code>vale sync</code>, <code>spacy download</code>,
           <code>ollama pull</code> — and kapi already follows that model for its native deps (
-          <code>kapi plugin install sat</code>). The model-backed checker is the same: an
-          opt-in plugin you install (its model bundled in the release tarball, the way the segmenter
+          <code>kapi plugin install sat</code>). The model-backed checker is the same: an opt-in
+          plugin you install (its model bundled in the release tarball, the way the segmenter
           bundles the ONNX runtime, or pulled by an explicit step), so the download is a deliberate,
           cacheable, offline-after-install action with a known version.
         </p>

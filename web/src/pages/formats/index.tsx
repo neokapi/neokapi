@@ -30,9 +30,9 @@ export default function Formats() {
         <h1>Format Reference</h1>
         <p>
           Every data format neokapi can read and write, from the built-in engine and installed
-          plugins. Select a format to read its documentation and configure its parameters live
-          — the form mirrors the editor used in Kapi Desktop, and the YAML output is ready to drop
-          into a project recipe. Each format has a shareable link.
+          plugins. Select a format to read its documentation and configure its parameters live — the
+          form mirrors the editor used in Kapi Desktop, and the YAML output is ready to drop into a
+          project recipe. Each format has a shareable link.
         </p>
         <div className="alert alert--secondary" role="note">
           <p style={{ marginBottom: "0.5rem" }}>

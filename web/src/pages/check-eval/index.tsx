@@ -84,11 +84,11 @@ export default function CheckEval(): ReactElement {
         <h1>Check eval</h1>
         <p style={{ fontSize: "1.05rem", color: "var(--ifm-color-emphasis-700)" }}>
           A check is only useful if it stays accurate as it gets real usage. This measures the
-          content checks the way the format-maturity harness measures format
-          faithfulness: a labeled corpus of inputs with the findings a correct check should produce,
-          scored as precision and recall, and gated so a change that introduces a false positive or
-          a missed finding fails the build. The corpus is seeded from the checkers' unit and
-          adversarial cases and grows from real corrections (issue #759).
+          content checks the way the format-maturity harness measures format faithfulness: a labeled
+          corpus of inputs with the findings a correct check should produce, scored as precision and
+          recall, and gated so a change that introduces a false positive or a missed finding fails
+          the build. The corpus is seeded from the checkers' unit and adversarial cases and grows
+          from real corrections (issue #759).
         </p>
 
         <div

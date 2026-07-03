@@ -441,8 +441,8 @@ function MultiInvocationComparison({ experiments }: { experiments: Experiment[] 
       </div>
       <p className={styles.multiDesc}>
         Simulates running each file as a separate <code>kapi</code> invocation — the sum of
-        sequential per-file runs, so per-invocation startup cost is included. Compare with the
-        batch wall time above, where one process handles the whole corpus.
+        sequential per-file runs, so per-invocation startup cost is included. Compare with the batch
+        wall time above, where one process handles the whole corpus.
       </p>
       <div className={styles.compGrid} style={{ "--engine-count": engineTotals.length } as any}>
         <div className={styles.compCorner} />

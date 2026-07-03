@@ -25,8 +25,7 @@ const config: WalkthroughEmbedConfig = {
       narration: "Load existing translation memory.",
     },
     {
-      command:
-        "kapi recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr",
+      command: "kapi recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr",
       narration: "Fill exact/fuzzy matches from the TM; the rest stay untranslated.",
     },
     {
