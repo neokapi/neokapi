@@ -6,6 +6,7 @@
 // ops and the refreshed blast radius. Concept/term/profile pickers read the
 // real hooks; only a draft change-set id is required.
 import { useMemo, useState } from "react";
+import { ErrorNotice } from "../../errors";
 import {
   Button,
   Input,
@@ -168,11 +169,7 @@ interface FormProps {
 
 function FormError({ error }: { error: unknown }) {
   if (!error) return null;
-  return (
-    <p className="text-sm text-destructive">
-      {error instanceof Error ? error.message : "Could not add the operation."}
-    </p>
-  );
+  return <ErrorNotice error={error} title="Couldn't add the operation" variant="inline" />;
 }
 
 function AddButton({ busy, disabled }: { busy: boolean; disabled: boolean }) {

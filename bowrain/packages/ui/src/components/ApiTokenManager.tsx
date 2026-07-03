@@ -19,6 +19,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import type { ApiToken, CreateApiTokenResponse, Workspace } from "../types/api";
 import { useApi } from "../context/ApiContext";
+import { ErrorNotice } from "../errors";
 import { KeyRound, Trash2, Copy, Clock, Shield } from "./icons";
 
 interface ApiTokenManagerProps {
@@ -109,7 +110,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const [expiryPreset, setExpiryPreset] = useState<ExpiryPreset>("30");
   const [customDate, setCustomDate] = useState(addDays(30));
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
   const [createdToken, setCreatedToken] = useState<CreateApiTokenResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const [deleteTokenId, setDeleteTokenId] = useState<string | null>(null);
@@ -173,7 +174,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const handleCreate = async () => {
     if (!name.trim()) return;
     setCreating(true);
-    setError("");
+    setError(null);
     try {
       const days = getExpireDays();
       const scopes = getScopes();
@@ -194,7 +195,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
         ...prev,
       ]);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create token");
+      setError({ title: "Couldn't create the token", cause: e });
     } finally {
       setCreating(false);
     }
@@ -206,7 +207,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
       await api.deleteApiToken(workspace.slug, deleteTokenId);
       setTokens((prev) => prev.filter((t) => t.id !== deleteTokenId));
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to delete token");
+      setError({ title: "Couldn't delete the token", cause: e });
     } finally {
       setDeleteTokenId(null);
     }
@@ -226,7 +227,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
       setScopeMode("full");
       setSelectedAction("translate");
       setScopeLanguages("");
-      setError("");
+      setError(null);
       setCreatedToken(null);
       setCopied(false);
     }
@@ -276,9 +277,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
         </div>
 
         {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <ErrorNotice title={error.title} error={error.cause} variant="panel" className="mb-4" />
         )}
 
         {/* Token list */}
@@ -539,11 +538,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                 </div>
               )}
 
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+              {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
             </div>
           )}
 

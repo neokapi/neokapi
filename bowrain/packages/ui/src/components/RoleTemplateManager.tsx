@@ -1,6 +1,4 @@
 import {
-  Alert,
-  AlertDescription,
   Badge,
   Button,
   Card,
@@ -17,6 +15,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { RoleTemplate, Workspace, PermissionName } from "../types/api";
 import { ALL_PERMISSIONS, PERMISSION_LABELS } from "../types/api";
 import { useApi } from "../context/ApiContext";
+import { ErrorNotice } from "../errors";
 import { Shield, Pencil, Trash2, Plus } from "./icons";
 
 interface RoleTemplateManagerProps {
@@ -45,7 +44,7 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
   const [editingRole, setEditingRole] = useState<RoleTemplate | null>(null);
   const [form, setForm] = useState<RoleFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
 
   const loadRoles = useCallback(async () => {
     try {
@@ -65,7 +64,7 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
   const handleCreate = () => {
     setEditingRole(null);
     setForm(emptyForm);
-    setError("");
+    setError(null);
     setShowDialog(true);
   };
 
@@ -77,7 +76,7 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
       description: role.description,
       permissions: [...role.permission_names],
     });
-    setError("");
+    setError(null);
     setShowDialog(true);
   };
 
@@ -86,14 +85,14 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
       await api.deleteRoleTemplate(workspace.slug, roleId);
       setRoles((prev) => prev.filter((r) => r.id !== roleId));
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to delete role");
+      setError({ title: "Couldn't delete the role", cause: e });
     }
   };
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.display_name.trim()) return;
     setSaving(true);
-    setError("");
+    setError(null);
     try {
       if (editingRole) {
         const updated = await api.updateRoleTemplate(workspace.slug, editingRole.id, {
@@ -114,7 +113,7 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
       }
       setShowDialog(false);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save role");
+      setError({ title: "Couldn't save the role", cause: e });
     } finally {
       setSaving(false);
     }
@@ -124,7 +123,7 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
     if (!open) {
       setEditingRole(null);
       setForm(emptyForm);
-      setError("");
+      setError(null);
     }
     setShowDialog(open);
   };
@@ -163,9 +162,7 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
         </div>
 
         {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <ErrorNotice title={error.title} error={error.cause} variant="panel" className="mb-4" />
         )}
 
         {/* Role list */}
@@ -319,11 +316,7 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
                 ))}
               </div>
             </div>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
           </div>
 
           <DialogFooter>

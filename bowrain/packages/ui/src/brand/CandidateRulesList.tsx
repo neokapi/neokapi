@@ -1,5 +1,9 @@
 import { Badge, Button, cn } from "@neokapi/ui-primitives";
 import type { CandidateRule, RuleDecisionStatus } from "./types";
+import { ListCapRow } from "../components/ListCapRow";
+
+/** Hard render cap — active teams can accumulate many candidates. */
+const MAX_CANDIDATES = 200;
 
 interface CandidateRulesListProps {
   candidates: CandidateRule[];
@@ -58,8 +62,9 @@ export function CandidateRulesList({
   }
 
   return (
-    <ul className={cn("space-y-2", className)}>
-      {candidates.map((candidate) => {
+    // Scroll containment: long candidate queues scroll here, not the page.
+    <ul className={cn("max-h-[28rem] space-y-2 overflow-y-auto", className)}>
+      {candidates.slice(0, MAX_CANDIDATES).map((candidate) => {
         const actionable = candidate.status === "pending" || candidate.status === "approved";
         const busy = busyTerm === candidate.term;
         return (
@@ -118,6 +123,17 @@ export function CandidateRulesList({
           </li>
         );
       })}
+      {candidates.length > MAX_CANDIDATES && (
+        <li>
+          <ListCapRow
+            shown={MAX_CANDIDATES}
+            total={candidates.length}
+            noun="candidate rules"
+            hint="Resolve the candidates above to surface the rest."
+            className="border border-border rounded-md"
+          />
+        </li>
+      )}
     </ul>
   );
 }

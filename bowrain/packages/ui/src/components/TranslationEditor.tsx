@@ -12,6 +12,7 @@ import {
   TabsTrigger,
 } from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { ErrorNotice } from "../errors";
 import type {
   ProjectInfo,
   BlockInfo,
@@ -85,7 +86,7 @@ export function TranslationEditor({
   const [targetLocale, setTargetLocale] = useState(project.target_languages[0] || "");
   const [wordCount, setWordCount] = useState<WordCountResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [view, setView] = useState<TranslateView>(defaultView);
@@ -139,7 +140,7 @@ export function TranslationEditor({
       const b = await getFileBlocks(project.id, fileName);
       setBlocks(b || []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load blocks");
+      setError({ title: "Couldn't load the blocks", cause: e });
     }
   }, [getFileBlocks, project.id, fileName]);
 
@@ -312,7 +313,7 @@ export function TranslationEditor({
           ),
         );
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to create entity");
+        setError({ title: "Couldn't create the entity", cause: err });
       }
       setEntityMarkState(null);
     },
@@ -383,7 +384,7 @@ export function TranslationEditor({
         setEditingIndex(null);
         if (nextIndex < filteredBlocks.length) setSelectedIndex(nextIndex);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to save target");
+        setError({ title: "Couldn't save the translation", cause: e });
       }
     },
     [filteredBlocks, api, project.id, fileName, targetLocale],
@@ -408,7 +409,7 @@ export function TranslationEditor({
       }
       setMessage(`Exported to ${fileName}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Export failed");
+      setError({ title: "Couldn't export the file", cause: e });
     } finally {
       setLoading(false);
     }
@@ -512,7 +513,7 @@ export function TranslationEditor({
             ),
           );
         })
-        .catch((e) => setError(e instanceof Error ? e.message : "Failed to insert term"));
+        .catch((e) => setError({ title: "Couldn't insert the term", cause: e }));
     },
     [filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale],
   );
@@ -546,7 +547,7 @@ export function TranslationEditor({
             ),
           );
         })
-        .catch((e) => setError(e instanceof Error ? e.message : "Failed to revert"));
+        .catch((e) => setError({ title: "Couldn't revert the change", cause: e }));
     },
     [filteredBlocks, selectedIndex, api, project.id, targetLocale],
   );
@@ -558,7 +559,7 @@ export function TranslationEditor({
       api
         .addBlockNote(project.id, block.id, text)
         .then((note) => setBlockNotes((prev) => [...prev, note]))
-        .catch((e) => setError(e instanceof Error ? e.message : "Failed to add note"));
+        .catch((e) => setError({ title: "Couldn't add the note", cause: e }));
     },
     [filteredBlocks, selectedIndex, api, project.id],
   );
@@ -568,7 +569,7 @@ export function TranslationEditor({
       api
         .deleteBlockNote(project.id, noteId)
         .then(() => setBlockNotes((prev) => prev.filter((n) => n.id !== noteId)))
-        .catch((e) => setError(e instanceof Error ? e.message : "Failed to delete note"));
+        .catch((e) => setError({ title: "Couldn't delete the note", cause: e }));
     },
     [api, project.id],
   );
@@ -578,7 +579,7 @@ export function TranslationEditor({
       try {
         await fullApi.addConcept(wsSlug, req);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to create term");
+        setError({ title: "Couldn't create the term", cause: e });
       }
     },
     [fullApi, wsSlug],
@@ -696,9 +697,7 @@ export function TranslationEditor({
 
       {/* Messages */}
       {error && (
-        <Alert variant="destructive" className="mb-2">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <ErrorNotice title={error.title} error={error.cause} variant="inline" className="mb-2" />
       )}
       {message && (
         <Alert className="mb-2 border-success/25 text-success dark:border-success/40 dark:text-success">

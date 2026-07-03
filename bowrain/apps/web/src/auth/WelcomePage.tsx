@@ -8,8 +8,7 @@ import {
   Button,
   Input,
   Label,
-  Alert,
-  AlertDescription,
+  ErrorNotice,
   Loader2,
   CircleCheck,
   useApi,
@@ -57,7 +56,7 @@ export function WelcomePage({ onComplete }: WelcomePageProps) {
   const [slug, setSlug] = useState("");
   const [slugState, setSlugState] = useState<SlugState>({ kind: "idle" });
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
   const checkSeq = useRef(0);
 
   // Load suggested slug from /auth/me/onboarding.
@@ -74,7 +73,7 @@ export function WelcomePage({ onComplete }: WelcomePageProps) {
         }
       } catch (e: unknown) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Could not load onboarding state.");
+          setError({ title: "Couldn't load your onboarding state", cause: e });
         }
       }
     })();
@@ -125,13 +124,13 @@ export function WelcomePage({ onComplete }: WelcomePageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError(null);
     setSubmitting(true);
     try {
       await api.completeOnboarding(slug, displayName);
       onComplete(slug);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to complete onboarding.");
+      setError({ title: "Couldn't complete onboarding", cause: err });
     } finally {
       setSubmitting(false);
     }
@@ -206,11 +205,7 @@ export function WelcomePage({ onComplete }: WelcomePageProps) {
               </p>
             </div>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
 
             <Button type="submit" disabled={submitDisabled} className="w-full">
               {submitting ? (

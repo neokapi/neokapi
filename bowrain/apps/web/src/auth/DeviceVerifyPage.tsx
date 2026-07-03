@@ -1,4 +1,13 @@
-import { Card, CardContent, CardHeader, Button, Input, Label, Terminal } from "@neokapi/ui";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  Button,
+  ErrorNotice,
+  Input,
+  Label,
+  Terminal,
+} from "@neokapi/ui";
 
 export function DeviceVerifyPage() {
   const params = new URLSearchParams(window.location.search);
@@ -18,11 +27,7 @@ export function DeviceVerifyPage() {
             <p className="text-sm text-muted-foreground">Enter the code shown in your terminal</p>
           </CardHeader>
           <CardContent>
-            {errorMsg && (
-              <div className="mb-4 rounded-md bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive text-center">
-                {errorMsg}
-              </div>
-            )}
+            {errorMsg && <ErrorNotice error={errorMsg} variant="panel" className="mb-4" />}
             <form method="POST" action="/api/v1/auth/device/verify" className="flex flex-col gap-4">
               <div className="space-y-2">
                 <Label htmlFor="user_code">Device Code</Label>

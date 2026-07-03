@@ -13,6 +13,7 @@ import {
   cn,
 } from "@neokapi/ui-primitives";
 import { GitMerge, AlertTriangle } from "../../components/icons";
+import { ErrorNotice } from "../../errors";
 import type { OpConflict } from "../../types/brand-graph";
 import { useChangesetBlastRadius, useMergeChangeset } from "../../hooks/useChangesetsApi";
 import { BlastRadiusPanel } from "./BlastRadiusPanel";
@@ -79,12 +80,7 @@ export function MergeConfirmDialog({
 
         {blocked && <ConflictView conflicts={conflicts} />}
 
-        {errorMsg && (
-          <p className="flex items-start gap-1.5 text-sm text-destructive">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            {errorMsg}
-          </p>
-        )}
+        {errorMsg && <ErrorNotice error={errorMsg} variant="inline" />}
 
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

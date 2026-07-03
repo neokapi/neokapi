@@ -6,8 +6,7 @@ import {
   CardTitle,
   CardDescription,
   Button,
-  Alert,
-  AlertDescription,
+  ErrorNotice,
   useApi,
   useAuth,
   useWorkspace,
@@ -33,12 +32,12 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
   const { setWorkspaces, setActiveWorkspace } = useWorkspace();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [accepting, setAccepting] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
   const [result, setResult] = useState<AcceptInviteResponse | null>(null);
 
   const handleAccept = async () => {
     setAccepting(true);
-    setError("");
+    setError(null);
     try {
       const resp = await api.acceptInvite(code);
       setResult(resp);
@@ -51,7 +50,7 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
         setActiveWorkspace(joined);
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to accept invitation");
+      setError({ title: "Couldn't accept the invitation", cause: e });
     } finally {
       setAccepting(false);
     }
@@ -169,11 +168,7 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             )}
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
             {!accepting && error && (
               <Button onClick={handleAccept} className="w-full" size="lg">
                 Try again

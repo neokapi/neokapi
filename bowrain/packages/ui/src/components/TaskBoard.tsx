@@ -1,11 +1,16 @@
 import { Badge, cn } from "@neokapi/ui-primitives";
 import { useState } from "react";
 import type { TaskInfo, CreateTaskRequest, TaskStatus, TaskPriority } from "../types/api";
+import { TaskBoardSkeleton } from "./skeletons";
 
 export interface TaskBoardProps {
   tasks: TaskInfo[];
   loading?: boolean;
   currentUserId?: string;
+  /** More tasks are available on the server (cursor pagination). */
+  hasMore?: boolean;
+  /** Fetch and append the next page of tasks. */
+  onLoadMore?: () => void;
   onCreateTask?: (task: CreateTaskRequest) => void;
   onCompleteTask?: (taskId: string) => void;
   onCancelTask?: (taskId: string) => void;
@@ -139,6 +144,8 @@ export function TaskBoard({
   tasks,
   loading,
   currentUserId: _currentUserId,
+  hasMore,
+  onLoadMore,
   onCreateTask: _onCreateTask,
   onCompleteTask,
   onCancelTask,
@@ -148,11 +155,9 @@ export function TaskBoard({
   const [view, setView] = useState<"list" | "board">("list");
 
   if (loading && tasks.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-        Loading tasks...
-      </div>
-    );
+    // Skeleton cards match the rendered layout so the board doesn't jump
+    // when real data mounts.
+    return <TaskBoardSkeleton />;
   }
 
   if (tasks.length === 0) {
@@ -162,6 +167,18 @@ export function TaskBoard({
       </div>
     );
   }
+
+  const loadMore = hasMore && onLoadMore && (
+    <button
+      type="button"
+      className="w-full text-center py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      onClick={onLoadMore}
+      disabled={loading}
+      data-testid="tasks-load-more"
+    >
+      {loading ? "Loading..." : "Load more"}
+    </button>
+  );
 
   const viewToggle = (
     <div className="flex items-center justify-end mb-3">
@@ -217,6 +234,7 @@ export function TaskBoard({
             </div>
           ))}
         </div>
+        {loadMore}
       </div>
     );
   }
@@ -235,6 +253,7 @@ export function TaskBoard({
           />
         ))}
       </div>
+      {loadMore}
     </div>
   );
 }

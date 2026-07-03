@@ -30,9 +30,9 @@ describe("TaskBoard", () => {
     expect(screen.getByText("No tasks yet")).toBeInTheDocument();
   });
 
-  it("renders loading state when loading with no tasks", () => {
-    render(<TaskBoard tasks={[]} loading />);
-    expect(screen.getByText("Loading tasks...")).toBeInTheDocument();
+  it("renders a skeleton when loading with no tasks", () => {
+    const { container } = render(<TaskBoard tasks={[]} loading />);
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
   });
 
   it("renders task cards in list view", () => {
@@ -138,5 +138,18 @@ describe("TaskBoard", () => {
     // Board view shows column headers with counts
     expect(screen.getByText(/^Open \(/)).toBeInTheDocument();
     expect(screen.getByText(/^Completed \(/)).toBeInTheDocument();
+  });
+
+  it("shows Load more when hasMore and fires onLoadMore", () => {
+    const onLoadMore = vi.fn();
+    render(<TaskBoard tasks={[makeTask()]} hasMore onLoadMore={onLoadMore} />);
+    const btn = screen.getByTestId("tasks-load-more");
+    act(() => btn.click());
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides Load more when hasMore is false", () => {
+    render(<TaskBoard tasks={[makeTask()]} onLoadMore={() => {}} />);
+    expect(screen.queryByTestId("tasks-load-more")).not.toBeInTheDocument();
   });
 });

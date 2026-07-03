@@ -8,6 +8,7 @@ import {
   type ToolCallMessagePartStatus,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
+import { ErrorNotice } from "../../errors";
 
 const ANIMATION_DURATION = 200;
 
@@ -224,12 +225,9 @@ function ToolFallbackError({
   if (status?.type !== "incomplete") return null;
 
   const error = status.error;
-  const errorText = error ? (typeof error === "string" ? error : JSON.stringify(error)) : null;
-
-  if (!errorText) return null;
+  if (error == null) return null;
 
   const isCancelled = status.reason === "cancelled";
-  const headerText = isCancelled ? "Cancelled reason:" : "Error:";
 
   return (
     <div
@@ -237,10 +235,11 @@ function ToolFallbackError({
       className={cn("aui-tool-fallback-error px-4", className)}
       {...props}
     >
-      <p className="aui-tool-fallback-error-header font-semibold text-muted-foreground">
-        {headerText}
-      </p>
-      <p className="aui-tool-fallback-error-reason text-muted-foreground">{errorText}</p>
+      <ErrorNotice
+        error={error}
+        title={isCancelled ? "Tool call cancelled" : "Tool call failed"}
+        variant="inline"
+      />
     </div>
   );
 }

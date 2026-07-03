@@ -11,6 +11,7 @@ import {
   Label,
   Alert,
   AlertDescription,
+  ErrorNotice,
   Loader2,
   CircleCheck,
   useApi,
@@ -32,7 +33,7 @@ export function ProfileEmailCard() {
   const [editing, setEditing] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
   const [pending, setPending] = useState<{ newEmail: string; expiresAt: string } | null>(null);
 
   if (!user) {
@@ -41,7 +42,7 @@ export function ProfileEmailCard() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError(null);
     setSubmitting(true);
     try {
       const resp = await api.requestEmailChange(newEmail.trim().toLowerCase());
@@ -50,7 +51,7 @@ export function ProfileEmailCard() {
       setNewEmail("");
       void queryClient.invalidateQueries({ queryKey: ["currentUser"] });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to send verification email.");
+      setError({ title: "Couldn't send the verification email", cause: err });
     } finally {
       setSubmitting(false);
     }
@@ -102,11 +103,7 @@ export function ProfileEmailCard() {
                 required
               />
             </div>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
             <div className="flex gap-2">
               <Button type="submit" disabled={submitting || !newEmail}>
                 {submitting ? (
@@ -123,7 +120,7 @@ export function ProfileEmailCard() {
                 onClick={() => {
                   setEditing(false);
                   setNewEmail("");
-                  setError("");
+                  setError(null);
                 }}
                 disabled={submitting}
               >

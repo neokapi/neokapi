@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import type { ProjectInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
+import { ListCapRow } from "./ListCapRow";
 import { ProjectFormDialog } from "./ProjectFormDialog";
 import type { ProjectFormData } from "./ProjectFormDialog";
 import {
@@ -54,6 +55,9 @@ function relativeTime(iso: string): string {
 function sumItems(project: ProjectInfo, field: "word_count" | "block_count"): number {
   return project.items?.reduce((acc, item) => acc + (item[field] ?? 0), 0) ?? 0;
 }
+
+/** Hard render cap for the project grid — the page scrolls, the DOM stays bounded. */
+const MAX_PROJECT_CARDS = 200;
 
 /** Format a number with compact notation (e.g. 1.2k). */
 function compactNumber(n: number): string {
@@ -380,9 +384,9 @@ export function ProjectDashboard({
           {/* Stats */}
           <DashboardStats projects={projects} />
 
-          {/* Project grid */}
+          {/* Project grid (hard-capped so huge workspaces never flood the DOM) */}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-4">
-            {projects.map((p) => (
+            {projects.slice(0, MAX_PROJECT_CARDS).map((p) => (
               <ProjectCard
                 key={p.id}
                 project={p}
@@ -393,6 +397,13 @@ export function ProjectDashboard({
               />
             ))}
           </div>
+          <ListCapRow
+            shown={Math.min(projects.length, MAX_PROJECT_CARDS)}
+            total={projects.length}
+            noun="projects"
+            hint="Archive finished projects to shorten this list."
+            className="mt-4 border border-border rounded-md"
+          />
         </div>
       )}
 

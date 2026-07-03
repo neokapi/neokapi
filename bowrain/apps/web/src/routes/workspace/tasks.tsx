@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TaskBoard, useWorkspace, useApi, useAuth, Card } from "@neokapi/ui";
@@ -13,6 +13,11 @@ export function TasksRoute() {
   const queryClient = useQueryClient();
   const ws = activeWorkspace?.slug ?? "";
 
+  const [allTasks, setAllTasks] = useState<TaskInfo[]>([]);
+  const [cursor, setCursor] = useState<string>("");
+  const [hasMore, setHasMore] = useState(false);
+  const LIMIT = 50;
+
   useEffect(() => {
     if (activeWorkspace) {
       document.title = `Tasks — ${activeWorkspace.name} — Bowrain`;
@@ -20,15 +25,39 @@ export function TasksRoute() {
   }, [activeWorkspace]);
 
   const { data, isFetching } = useQuery({
-    queryKey: ["tasks", ws],
-    queryFn: () => api.listTasks(ws, { limit: 50 }),
+    queryKey: ["tasks", ws, cursor],
+    queryFn: () => api.listTasks(ws, { limit: LIMIT, cursor: cursor || undefined }),
     enabled: !!ws,
     staleTime: 30_000,
   });
 
+  useEffect(() => {
+    if (data) {
+      if (!cursor) {
+        setAllTasks(data.tasks);
+      } else {
+        // Dedupe by id: invalidation/focus refetches re-deliver the same page.
+        setAllTasks((prev) => {
+          const seen = new Set(prev.map((t) => t.id));
+          return [...prev, ...data.tasks.filter((t) => !seen.has(t.id))];
+        });
+      }
+      setHasMore(!!data.next_cursor);
+    }
+  }, [data, cursor]);
+
+  const handleLoadMore = useCallback(() => {
+    if (data?.next_cursor) {
+      setCursor(data.next_cursor);
+    }
+  }, [data]);
+
   const completeMutation = useMutation({
     mutationFn: (taskId: string) => api.completeTask(ws, taskId),
     onSuccess: () => {
+      // Restart pagination from the first page so the accumulated list
+      // reflects the change instead of appending stale pages.
+      setCursor("");
       void queryClient.invalidateQueries({ queryKey: ["tasks", ws] });
       void queryClient.invalidateQueries({ queryKey: ["myTasks", ws] });
     },
@@ -37,6 +66,7 @@ export function TasksRoute() {
   const cancelMutation = useMutation({
     mutationFn: (taskId: string) => api.cancelTask(ws, taskId),
     onSuccess: () => {
+      setCursor("");
       void queryClient.invalidateQueries({ queryKey: ["tasks", ws] });
       void queryClient.invalidateQueries({ queryKey: ["myTasks", ws] });
     },
@@ -54,8 +84,10 @@ export function TasksRoute() {
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
       <h1 className="text-lg font-semibold mb-4">Tasks</h1>
       <TaskBoard
-        tasks={data?.tasks ?? []}
+        tasks={allTasks}
         loading={isFetching}
+        hasMore={hasMore}
+        onLoadMore={handleLoadMore}
         currentUserId={user?.id}
         onCompleteTask={(id) => completeMutation.mutate(id)}
         onCancelTask={(id) => cancelMutation.mutate(id)}

@@ -17,6 +17,7 @@ import { useStream } from "../context/StreamContext";
 import { OpenInDesktop } from "./OpenInDesktop";
 import { CollectionTabs } from "./CollectionTabs";
 import { FormattedFileName } from "./FormattedFileName";
+import { ListCapRow } from "./ListCapRow";
 import {
   ArrowLeft,
   ArrowRight,
@@ -30,6 +31,9 @@ import {
   Trash2,
   Users,
 } from "./icons";
+
+/** Hard cap on rendered file/item rows; larger collections show a ListCapRow. */
+const MAX_ITEM_ROWS = 500;
 
 export interface ProjectViewProps {
   project: ProjectInfo;
@@ -123,6 +127,10 @@ export function ProjectView({
     hasCollections && effectiveCollectionId
       ? allItems.filter((item) => item.collection_id === effectiveCollectionId)
       : allItems;
+
+  // Hard render cap: very large collections (thousands of files) should not
+  // mount thousands of table rows. The cap is surfaced honestly via ListCapRow.
+  const visibleItems = useMemo(() => items.slice(0, MAX_ITEM_ROWS), [items]);
 
   const totalBlocks = items.reduce((sum, f) => sum + f.block_count, 0);
   const totalWords = items.reduce((sum, f) => sum + f.word_count, 0);
@@ -410,7 +418,7 @@ export function ProjectView({
                 </tr>
               </thead>
               <tbody>
-                {items.map((f) => (
+                {visibleItems.map((f) => (
                   <tr
                     key={f.name}
                     className="border-b border-border/50 transition-colors hover:bg-accent/50"
@@ -458,6 +466,12 @@ export function ProjectView({
                 ))}
               </tbody>
             </table>
+            <ListCapRow
+              shown={visibleItems.length}
+              total={items.length}
+              noun={itemLabelPlural}
+              hint="Open the project in the desktop app or CLI for the full listing."
+            />
           </div>
         )}
 

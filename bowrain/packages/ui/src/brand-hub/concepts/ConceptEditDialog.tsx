@@ -25,6 +25,7 @@ import {
 } from "@neokapi/ui-primitives";
 import type { Concept, ConceptDataSource, Term, TermStatus } from "@neokapi/concept-ui";
 import { TERM_STATUSES, TERM_STATUS_LABEL, primaryName } from "@neokapi/concept-ui";
+import { ErrorNotice } from "../../errors";
 import { isGovernedEditError } from "./restConceptSource";
 
 export interface ConceptEditDialogProps {
@@ -47,7 +48,7 @@ export function ConceptEditDialog({
 }: ConceptEditDialogProps) {
   const [terms, setTerms] = useState<Term[]>(concept.terms);
   const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
 
   // Re-seed from the concept whenever the dialog (re)opens for a concept.
   useEffect(() => {
@@ -75,7 +76,7 @@ export function ConceptEditDialog({
         onOpenChange(false);
         return;
       }
-      setError(caught instanceof Error ? caught.message : "Could not change the term status.");
+      setError({ title: "Couldn't change the term status", cause: caught });
     } finally {
       setBusyKey(null);
     }
@@ -137,7 +138,7 @@ export function ConceptEditDialog({
           </ul>
         )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
 
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>

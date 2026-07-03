@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
+import { ErrorNotice } from "../errors";
 import type { DenyRule, Group, SoDMode } from "../types/api";
 
 const SOD_DESCRIPTIONS: Record<SoDMode, string> = {
@@ -53,7 +54,7 @@ export function GovernanceSettings() {
   const [overrides, setOverrides] = useState<Record<string, string[]>>({});
   const [overrideEdit, setOverrideEdit] = useState<Record<string, string>>({});
 
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
 
   const reload = useCallback(async () => {
     if (!ws) return;
@@ -69,7 +70,7 @@ export function GovernanceSettings() {
       setDenyRules(d);
       setOverrides(o);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError({ title: "Couldn't load the governance settings", cause: e });
     }
   }, [api, ws]);
 
@@ -87,7 +88,7 @@ export function GovernanceSettings() {
     try {
       await api.setSoDMode(ws, mode);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError({ title: "Couldn't change the separation-of-duties mode", cause: e });
     } finally {
       setSavingSod(false);
     }
@@ -100,7 +101,7 @@ export function GovernanceSettings() {
       setNewGroup("");
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError({ title: "Couldn't create the team", cause: e });
     }
   };
 
@@ -118,7 +119,7 @@ export function GovernanceSettings() {
       setDenyForm({ subject_type: "user", subject_id: "", permissions: "" });
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError({ title: "Couldn't add the deny rule", cause: e });
     }
   };
 
@@ -131,7 +132,7 @@ export function GovernanceSettings() {
       await api.setRoleOverride(ws, role, perms);
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError({ title: "Couldn't save the role override", cause: e });
     }
   };
 
@@ -147,11 +148,7 @@ export function GovernanceSettings() {
         </p>
       </div>
 
-      {error && (
-        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+      {error && <ErrorNotice title={error.title} error={error.cause} variant="panel" />}
 
       {/* Separation of duties */}
       <Card className="p-5">

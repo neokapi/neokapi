@@ -10,8 +10,7 @@ import {
   Button,
   Input,
   Label,
-  Alert,
-  AlertDescription,
+  ErrorNotice,
   Loader2,
   CircleCheck,
   useApi,
@@ -67,7 +66,7 @@ export function ProfileHandleCard() {
   const [slug, setSlug] = useState("");
   const [slugState, setSlugState] = useState<SlugState>({ kind: "idle" });
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
   const checkSeq = useRef(0);
 
   // Reset draft when the active personal workspace changes.
@@ -122,7 +121,7 @@ export function ProfileHandleCard() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError(null);
     setSubmitting(true);
     try {
       const updated = await api.updateWorkspace(personal.slug, { slug });
@@ -130,7 +129,7 @@ export function ProfileHandleCard() {
       setEditing(false);
       void navigate({ to: "/$workspace", params: { workspace: updated.slug }, replace: true });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to rename workspace.");
+      setError({ title: "Couldn't rename the workspace", cause: err });
     } finally {
       setSubmitting(false);
     }
@@ -200,11 +199,7 @@ export function ProfileHandleCard() {
               />
               <p className="text-xs">{slugHint}</p>
             </div>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
             <div className="flex gap-2">
               <Button type="submit" disabled={submitDisabled}>
                 {submitting ? (
@@ -221,7 +216,7 @@ export function ProfileHandleCard() {
                 onClick={() => {
                   setEditing(false);
                   setSlug(personal.slug);
-                  setError("");
+                  setError(null);
                 }}
                 disabled={submitting}
               >

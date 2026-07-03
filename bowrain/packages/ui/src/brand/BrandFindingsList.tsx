@@ -1,10 +1,14 @@
 import { Badge, cn } from "@neokapi/ui-primitives";
 import type { BrandVoiceFinding, BrandSeverity } from "./types";
+import { ListCapRow } from "../components/ListCapRow";
 
 interface BrandFindingsListProps {
   findings: BrandVoiceFinding[];
   className?: string;
 }
+
+/** Hard render cap — a large scan can produce hundreds of findings. */
+const MAX_FINDINGS = 200;
 
 const severityStyles: Record<BrandSeverity, string> = {
   neutral: "bg-muted text-muted-foreground",
@@ -24,7 +28,7 @@ export function BrandFindingsList({ findings, className }: BrandFindingsListProp
 
   return (
     <ul className={cn("space-y-2", className)}>
-      {findings.map((finding, i) => (
+      {findings.slice(0, MAX_FINDINGS).map((finding, i) => (
         <li key={i} className="flex items-start gap-3 rounded-md border p-3 text-sm bg-card/50">
           <Badge className={cn("shrink-0 text-[10px]", severityStyles[finding.severity])}>
             {finding.severity}
@@ -45,6 +49,17 @@ export function BrandFindingsList({ findings, className }: BrandFindingsListProp
           </div>
         </li>
       ))}
+      {findings.length > MAX_FINDINGS && (
+        <li>
+          <ListCapRow
+            shown={MAX_FINDINGS}
+            total={findings.length}
+            noun="findings"
+            hint="Fix the findings above to surface the rest."
+            className="border border-border rounded-md"
+          />
+        </li>
+      )}
     </ul>
   );
 }
