@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-02T19:41:48Z",
+  "generatedAt": "2026-07-03T03:27:24Z",
   "kind": "tool",
   "entries": [
     {
@@ -102,6 +102,10 @@
               {
                 "value": "azureopenai",
                 "label": "Azure OpenAI"
+              },
+              {
+                "value": "claude-code",
+                "label": "Claude Code"
               },
               {
                 "value": "ollama",
@@ -345,6 +349,10 @@
                 "label": "Azure OpenAI"
               },
               {
+                "value": "claude-code",
+                "label": "Claude Code"
+              },
+              {
                 "value": "ollama",
                 "label": "Ollama"
               },
@@ -543,6 +551,10 @@
               {
                 "value": "azureopenai",
                 "label": "Azure OpenAI"
+              },
+              {
+                "value": "claude-code",
+                "label": "Claude Code"
               },
               {
                 "value": "ollama",
@@ -2189,6 +2201,10 @@
                 "label": "Azure OpenAI"
               },
               {
+                "value": "claude-code",
+                "label": "Claude Code"
+              },
+              {
                 "value": "ollama",
                 "label": "Ollama"
               },
@@ -2935,6 +2951,10 @@
               {
                 "value": "azureopenai",
                 "label": "Azure OpenAI"
+              },
+              {
+                "value": "claude-code",
+                "label": "Claude Code"
               },
               {
                 "value": "ollama",
@@ -3797,6 +3817,10 @@
               {
                 "value": "azureopenai",
                 "label": "Azure OpenAI"
+              },
+              {
+                "value": "claude-code",
+                "label": "Claude Code"
               },
               {
                 "value": "ollama",
@@ -4926,6 +4950,10 @@
                 "label": "Azure OpenAI"
               },
               {
+                "value": "claude-code",
+                "label": "Claude Code"
+              },
+              {
                 "value": "ollama",
                 "label": "Ollama"
               },
@@ -4956,6 +4984,10 @@
                   {
                     "value": "azureopenai",
                     "label": "Azure OpenAI"
+                  },
+                  {
+                    "value": "claude-code",
+                    "label": "Claude Code"
                   },
                   {
                     "value": "ollama",

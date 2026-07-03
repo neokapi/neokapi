@@ -27,6 +27,9 @@
             "azureopenai": {
               "label": "Azure OpenAI"
             },
+            "claude-code": {
+              "label": "Claude Code"
+            },
             "demo": {
               "label": "Demo (illustrative)"
             },
@@ -198,6 +201,9 @@
             "azureopenai": {
               "label": "Azure OpenAI"
             },
+            "claude-code": {
+              "label": "Claude Code"
+            },
             "demo": {
               "label": "Demo (illustrative)"
             },
@@ -338,6 +344,9 @@
             },
             "azureopenai": {
               "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
             },
             "demo": {
               "label": "Demo (illustrative)"
@@ -521,6 +530,9 @@
             "azureopenai": {
               "label": "Azure OpenAI"
             },
+            "claude-code": {
+              "label": "Claude Code"
+            },
             "demo": {
               "label": "Demo (illustrative)"
             },
@@ -671,6 +683,9 @@
             },
             "azureopenai": {
               "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
             },
             "demo": {
               "label": "Demo (illustrative)"
@@ -920,6 +935,9 @@
             "azureopenai": {
               "label": "Azure OpenAI"
             },
+            "claude-code": {
+              "label": "Claude Code"
+            },
             "demo": {
               "label": "Demo (illustrative)"
             },
@@ -987,6 +1005,9 @@
             },
             "azureopenai": {
               "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
             },
             "demo": {
               "label": "Demo (illustrative)"
