@@ -3,6 +3,7 @@ import { useState, useMemo } from "react";
 import type { ItemTranslationStats } from "../types/api";
 import { LanguageLabel } from "./LanguageLabel";
 import { FormattedFileName } from "./FormattedFileName";
+import { ListCapRow } from "./ListCapRow";
 
 interface FileProgressTableProps {
   itemStats: ItemTranslationStats[];
@@ -12,6 +13,9 @@ interface FileProgressTableProps {
 
 type SortField = "name" | "words" | "completion";
 type SortDir = "asc" | "desc";
+
+/** Hard render cap — large projects can hold thousands of files. */
+const MAX_ROWS = 500;
 
 function completionBarColor(pct: number): string {
   if (pct >= 90) return "bg-success";
@@ -71,15 +75,20 @@ export function FileProgressTable({
     return sortDir === "asc" ? " \u2191" : " \u2193";
   };
 
+  // Hard cap so a project with thousands of files never floods the DOM; the
+  // ListCapRow below makes the cut honest.
+  const visibleRows = sorted.length > MAX_ROWS ? sorted.slice(0, MAX_ROWS) : sorted;
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm">File Progress</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
+        {/* Scroll containment: the table scrolls inside the card, never the page. */}
+        <div className="max-h-[70vh] overflow-auto">
           <table className="w-full text-xs">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b">
                 <th
                   className="cursor-pointer py-2 pr-3 text-left font-medium text-muted-foreground hover:text-foreground"
@@ -116,7 +125,7 @@ export function FileProgressTable({
               </tr>
             </thead>
             <tbody>
-              {sorted.map((item) => {
+              {visibleRows.map((item) => {
                 const localeMap = new Map(item.locales.map((l) => [l.locale, l]));
                 const avgPct =
                   item.locales.length > 0
@@ -169,6 +178,12 @@ export function FileProgressTable({
               })}
             </tbody>
           </table>
+          <ListCapRow
+            shown={visibleRows.length}
+            total={sorted.length}
+            noun="files"
+            hint="Sort or narrow the project to see the rest."
+          />
         </div>
       </CardContent>
     </Card>

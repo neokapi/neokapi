@@ -137,6 +137,12 @@ export type { ChartConfig } from "@neokapi/ui-primitives";
 // Icons (Lucide)
 export * from "./components/icons";
 
+// Shared error display: parseAppError + ErrorNotice + JSON highlighting.
+export * from "./errors";
+
+// Honest render-cap footer for capped lists.
+export { ListCapRow, type ListCapRowProps } from "./components/ListCapRow";
+
 // Components
 export { WorkspaceRail } from "./components/WorkspaceRail";
 export { WorkspaceIcon } from "./components/WorkspaceIcon";

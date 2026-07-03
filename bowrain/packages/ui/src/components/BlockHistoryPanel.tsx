@@ -1,6 +1,10 @@
 import { Badge, Button, Card } from "@neokapi/ui-primitives";
 import type { BlockHistoryEntry } from "../types/api";
+import { ListCapRow } from "./ListCapRow";
 import { Clock, ArrowRight } from "./icons";
+
+/** Hard render cap — long-lived blocks can accumulate hundreds of versions. */
+const MAX_ENTRIES = 200;
 
 export interface BlockHistoryPanelProps {
   /** History entries, most-recent first (as returned by the API). */
@@ -64,8 +68,9 @@ export function BlockHistoryPanel({
           Who changed this translation, and what it was before
         </p>
       </div>
-      <ol className="divide-y divide-border/30">
-        {entries.map((e, i) => {
+      {/* Scroll containment: history scrolls inside the card, never the page. */}
+      <ol className="max-h-96 divide-y divide-border/30 overflow-y-auto">
+        {entries.slice(0, MAX_ENTRIES).map((e, i) => {
           const isCurrent = i === 0;
           return (
             <li key={e.seq} className="flex items-start gap-3 px-4 py-3 hover:bg-accent/20">
@@ -127,6 +132,12 @@ export function BlockHistoryPanel({
           );
         })}
       </ol>
+      <ListCapRow
+        shown={Math.min(entries.length, MAX_ENTRIES)}
+        total={entries.length}
+        noun="history entries"
+        hint="Older history is available via the API."
+      />
     </Card>
   );
 }

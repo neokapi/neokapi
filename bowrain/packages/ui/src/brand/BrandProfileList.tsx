@@ -10,8 +10,12 @@ import {
 import { useState, useCallback, useMemo } from "react";
 import type { VoiceProfile } from "./types";
 import { BrandProfileCard } from "./BrandProfileCard";
+import { ListCapRow } from "../components/ListCapRow";
 import { Plus, Search } from "../components/icons";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
+
+/** Hard render cap for the profile grid. */
+const MAX_PROFILE_CARDS = 100;
 
 interface BrandProfileListProps {
   profiles: VoiceProfile[];
@@ -90,16 +94,25 @@ export function BrandProfileList({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProfiles.map((profile) => (
-            <BrandProfileCard
-              key={profile.id}
-              profile={profile}
-              onClick={onSelect}
-              onDelete={setDeleteTarget}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredProfiles.slice(0, MAX_PROFILE_CARDS).map((profile) => (
+              <BrandProfileCard
+                key={profile.id}
+                profile={profile}
+                onClick={onSelect}
+                onDelete={setDeleteTarget}
+              />
+            ))}
+          </div>
+          <ListCapRow
+            shown={Math.min(filteredProfiles.length, MAX_PROFILE_CARDS)}
+            total={filteredProfiles.length}
+            noun="profiles"
+            hint="Refine the search to narrow the list."
+            className="border border-border rounded-md"
+          />
+        </>
       )}
 
       <Dialog

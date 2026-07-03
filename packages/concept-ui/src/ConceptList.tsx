@@ -185,11 +185,19 @@ export function ConceptList({
         </ul>
       )}
 
-      {result.data && (
-        <p className="text-xs text-muted-foreground">
-          {result.data.total} concept{result.data.total === 1 ? "" : "s"}
-        </p>
-      )}
+      {result.data &&
+        (concepts.length < result.data.total ? (
+          // Honest cut: the server pages this list, so say so instead of
+          // letting the count silently disagree with the rows shown.
+          <p className="text-xs text-muted-foreground">
+            Showing first {concepts.length} of {result.data.total} concepts — refine the search or
+            filters to narrow the list.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            {result.data.total} concept{result.data.total === 1 ? "" : "s"}
+          </p>
+        ))}
     </div>
   );
 }

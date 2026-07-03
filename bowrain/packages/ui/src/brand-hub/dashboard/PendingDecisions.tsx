@@ -4,7 +4,8 @@
 // and an inline approve action. This is the half of the dashboard a steward
 // works, so it leads the page.
 import { Button, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives";
-import { Shield, Check, ArrowRight, AlertTriangle, Loader2 } from "../../components/icons";
+import { ErrorNotice } from "../../errors";
+import { Shield, Check, ArrowRight, Loader2 } from "../../components/icons";
 import type { ChangeSet } from "../../types/brand-graph";
 import { useChangesetBlastRadius, useApproveChangeset } from "../../hooks/useChangesetsApi";
 import { useUserDisplayNames } from "../../hooks/useMembersApi";
@@ -117,12 +118,13 @@ function PendingDecisionRow({ changeset, onOpen }: { changeset: ChangeSet; onOpe
         </div>
       </div>
       {approve.isError && (
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
-          <AlertTriangle className="size-3.5" />
-          {approve.error instanceof Error
-            ? approve.error.message
-            : "Couldn't approve — a different reviewer may be required."}
-        </p>
+        <ErrorNotice
+          error={approve.error}
+          title="Couldn't approve"
+          hint="A different reviewer may be required."
+          variant="inline"
+          className="mt-2"
+        />
       )}
     </li>
   );

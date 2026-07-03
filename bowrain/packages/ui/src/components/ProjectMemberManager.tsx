@@ -1,6 +1,4 @@
 import {
-  Alert,
-  AlertDescription,
   Badge,
   Button,
   Card,
@@ -20,6 +18,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import type { ProjectMembership, RoleTemplate, Workspace } from "../types/api";
 import { useApi } from "../context/ApiContext";
+import { ErrorNotice } from "../errors";
 import { Users, UserPlus, Trash2, Pencil } from "./icons";
 
 interface ProjectMemberManagerProps {
@@ -43,7 +42,7 @@ export function ProjectMemberManager({
   const [roleId, setRoleId] = useState("");
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
 
   const loadMembers = useCallback(async () => {
     try {
@@ -74,7 +73,7 @@ export function ProjectMemberManager({
     if (!editingMember && !userId.trim()) return;
     if (!roleId) return;
     setSaving(true);
-    setError("");
+    setError(null);
     try {
       if (editingMember) {
         const updated = await api.updateProjectMember(
@@ -97,7 +96,7 @@ export function ProjectMemberManager({
       }
       resetDialog();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to save member");
+      setError({ title: "Couldn't save the member", cause: e });
     } finally {
       setSaving(false);
     }
@@ -108,7 +107,7 @@ export function ProjectMemberManager({
       await api.removeProjectMember(workspace.slug, projectId, memberId);
       setMembers((prev) => prev.filter((m) => m.user_id !== memberId));
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to remove member");
+      setError({ title: "Couldn't remove the member", cause: e });
     }
   };
 
@@ -117,7 +116,7 @@ export function ProjectMemberManager({
     setUserId(member.user_id);
     setRoleId(member.role_id);
     setSelectedLanguages(member.languages ?? []);
-    setError("");
+    setError(null);
     setShowDialog(true);
   };
 
@@ -131,7 +130,7 @@ export function ProjectMemberManager({
     setUserId("");
     setRoleId("");
     setSelectedLanguages([]);
-    setError("");
+    setError(null);
     setShowDialog(false);
   };
 
@@ -178,9 +177,7 @@ export function ProjectMemberManager({
         </div>
 
         {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <ErrorNotice title={error.title} error={error.cause} variant="panel" className="mb-4" />
         )}
 
         {/* Member list */}
@@ -326,11 +323,7 @@ export function ProjectMemberManager({
                 })}
               </div>
             </div>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
           </div>
 
           <DialogFooter>

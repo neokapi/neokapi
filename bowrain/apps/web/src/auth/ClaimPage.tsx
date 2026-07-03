@@ -6,8 +6,7 @@ import {
   CardTitle,
   CardDescription,
   Button,
-  Alert,
-  AlertDescription,
+  ErrorNotice,
   useApi,
   useAuth,
   useWorkspace,
@@ -34,12 +33,12 @@ export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
   const { setWorkspaces, setActiveWorkspace } = useWorkspace();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [claiming, setClaiming] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
   const [result, setResult] = useState<ClaimProjectResponse | null>(null);
 
   const handleClaim = async () => {
     setClaiming(true);
-    setError("");
+    setError(null);
     try {
       const resp = await api.claimProject(token);
       setResult(resp);
@@ -52,7 +51,7 @@ export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
         setActiveWorkspace(claimedWs);
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to claim project");
+      setError({ title: "Couldn't claim the project", cause: e });
     } finally {
       setClaiming(false);
     }
@@ -171,11 +170,7 @@ export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             )}
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
             {!claiming && error && (
               <Button onClick={handleClaim} className="w-full" size="lg">
                 Try again

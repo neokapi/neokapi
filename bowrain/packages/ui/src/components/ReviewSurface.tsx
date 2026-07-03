@@ -9,7 +9,9 @@ import {
   SelectValue,
   cn,
 } from "@neokapi/ui-primitives";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { ErrorNotice } from "../errors";
 import type { ProjectInfo, BlockInfo, FileQAResult } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useLocales } from "../hooks/useLocales";
@@ -58,7 +60,7 @@ export function ReviewSurface({
   const [targetLocale, setTargetLocale] = useState(project.target_languages[0] || "");
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [fileQAResults, setFileQAResults] = useState<FileQAResult[]>([]);
   const [qaLoading, setQaLoading] = useState(false);
@@ -87,7 +89,7 @@ export function ReviewSurface({
       const b = await getFileBlocks(project.id, fileName);
       setBlocks(b || []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load blocks");
+      setError(e);
     }
   }, [getFileBlocks, project.id, fileName]);
 
@@ -206,6 +208,19 @@ export function ReviewSurface({
     return m;
   }, [fileQAResults]);
 
+  // Virtualize the block list: large files can hold thousands of blocks, so
+  // only the rows near the viewport are mounted. Rows measure themselves
+  // (source/target text and QA findings vary in height).
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: visible.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 96,
+    overscan: 12,
+    getItemKey: (index) => visible[index].id,
+    initialRect: { width: 800, height: 600 },
+  });
+
   return (
     <div className="flex flex-col flex-1 min-h-0" data-testid="review-surface">
       {/* Header */}
@@ -297,10 +312,17 @@ export function ReviewSurface({
       </div>
 
       {/* Messages */}
-      {error && (
-        <Alert variant="destructive" className="mb-2">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+      {error != null && (
+        <ErrorNotice
+          error={error}
+          title="Couldn't load the blocks"
+          variant="inline"
+          className="mb-2"
+          onRetry={() => {
+            setError(null);
+            void loadBlocks();
+          }}
+        />
       )}
       {message && (
         <Alert className="mb-2 border-success/25 text-success dark:border-success/40 dark:text-success">
@@ -308,114 +330,124 @@ export function ReviewSurface({
         </Alert>
       )}
 
-      {/* Block list */}
+      {/* Block list (virtualized — only rows near the viewport are mounted) */}
       <div
+        ref={listRef}
         className="flex-1 overflow-auto border border-border rounded-lg bg-card"
         data-testid="review-list"
       >
-        {visible.map((block) => {
-          const status = getBlockStatus(block, targetLocale);
-          const qa = qaByBlock.get(block.id);
-          return (
-            <div
-              key={block.id}
-              data-testid={`review-row-${block.id}`}
-              className="flex items-start gap-3 px-3 py-2.5 border-b border-border"
-            >
-              <input
-                type="checkbox"
-                checked={selected.has(block.id)}
-                onChange={() => toggleSelect(block.id)}
-                className="mt-1.5"
-                data-testid={`review-select-${block.id}`}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={cn(
-                      "px-1.5 py-0.5 rounded text-[10px] font-semibold",
-                      statusBadgeClass[status],
-                    )}
-                    data-testid={`review-status-${block.id}`}
-                  >
-                    {statusLabel[status]}
-                  </span>
-                  {qa && qa.issues.length > 0 && (
-                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
-                      <AlertTriangle className="w-2.5 h-2.5" />
-                      {qa.issues.length}
+        <div
+          style={{ height: `${rowVirtualizer.getTotalSize()}px`, width: "100%" }}
+          className="relative"
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const block = visible[virtualRow.index];
+            const status = getBlockStatus(block, targetLocale);
+            const qa = qaByBlock.get(block.id);
+            return (
+              <div
+                key={block.id}
+                ref={rowVirtualizer.measureElement}
+                data-index={virtualRow.index}
+                data-testid={`review-row-${block.id}`}
+                className="absolute top-0 left-0 w-full flex items-start gap-3 px-3 py-2.5 border-b border-border"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(block.id)}
+                  onChange={() => toggleSelect(block.id)}
+                  className="mt-1.5"
+                  data-testid={`review-select-${block.id}`}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className={cn(
+                        "px-1.5 py-0.5 rounded text-[10px] font-semibold",
+                        statusBadgeClass[status],
+                      )}
+                      data-testid={`review-status-${block.id}`}
+                    >
+                      {statusLabel[status]}
                     </span>
+                    {qa && qa.issues.length > 0 && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
+                        <AlertTriangle className="w-2.5 h-2.5" />
+                        {qa.issues.length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="text-sm leading-relaxed break-words text-muted-foreground">
+                      {block.has_spans && block.source_coded && block.source_spans ? (
+                        <FormattedSourceDisplay
+                          codedText={block.source_coded}
+                          spans={block.source_spans}
+                        />
+                      ) : (
+                        block.source
+                      )}
+                    </div>
+                    <div className="text-sm leading-relaxed break-words">
+                      <CollapsedTargetCell
+                        block={block}
+                        locale={targetLocale}
+                        testId={`review-target-${block.id}`}
+                      />
+                    </div>
+                  </div>
+                  {/* QA findings detail */}
+                  {qa && qa.issues.length > 0 && (
+                    <div className="mt-1.5 rounded-md border border-border bg-muted/30 p-2 space-y-1">
+                      {qa.issues.map((issue, i) => (
+                        <div key={i} className="flex items-start gap-1.5 text-xs">
+                          <AlertTriangle
+                            className={cn(
+                              "w-3 h-3 shrink-0 mt-0.5",
+                              issue.severity === "error" ? "text-destructive" : "text-warning",
+                            )}
+                          />
+                          <span
+                            className={
+                              issue.severity === "error"
+                                ? "text-destructive"
+                                : "text-warning dark:text-warning"
+                            }
+                          >
+                            <span className="font-medium">{issue.type}:</span> {issue.message}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-sm leading-relaxed break-words text-muted-foreground">
-                    {block.has_spans && block.source_coded && block.source_spans ? (
-                      <FormattedSourceDisplay
-                        codedText={block.source_coded}
-                        spans={block.source_spans}
-                      />
-                    ) : (
-                      block.source
-                    )}
-                  </div>
-                  <div className="text-sm leading-relaxed break-words">
-                    <CollapsedTargetCell
-                      block={block}
-                      locale={targetLocale}
-                      testId={`review-target-${block.id}`}
-                    />
-                  </div>
+                {/* Approve / reject */}
+                <div className="flex flex-col gap-1 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px] px-2"
+                    onClick={() => setStatus(block, "reviewed")}
+                    disabled={status === "reviewed"}
+                    data-testid={`approve-${block.id}`}
+                  >
+                    <Check className="w-3.5 h-3.5 mr-1" /> Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[11px] px-2 text-destructive hover:text-destructive"
+                    onClick={() => setStatus(block, "draft")}
+                    data-testid={`reject-${block.id}`}
+                  >
+                    <X className="w-3.5 h-3.5 mr-1" /> Reject
+                  </Button>
                 </div>
-                {/* QA findings detail */}
-                {qa && qa.issues.length > 0 && (
-                  <div className="mt-1.5 rounded-md border border-border bg-muted/30 p-2 space-y-1">
-                    {qa.issues.map((issue, i) => (
-                      <div key={i} className="flex items-start gap-1.5 text-xs">
-                        <AlertTriangle
-                          className={cn(
-                            "w-3 h-3 shrink-0 mt-0.5",
-                            issue.severity === "error" ? "text-destructive" : "text-warning",
-                          )}
-                        />
-                        <span
-                          className={
-                            issue.severity === "error"
-                              ? "text-destructive"
-                              : "text-warning dark:text-warning"
-                          }
-                        >
-                          <span className="font-medium">{issue.type}:</span> {issue.message}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-              {/* Approve / reject */}
-              <div className="flex flex-col gap-1 shrink-0">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-[11px] px-2"
-                  onClick={() => setStatus(block, "reviewed")}
-                  disabled={status === "reviewed"}
-                  data-testid={`approve-${block.id}`}
-                >
-                  <Check className="w-3.5 h-3.5 mr-1" /> Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-[11px] px-2 text-destructive hover:text-destructive"
-                  onClick={() => setStatus(block, "draft")}
-                  data-testid={`reject-${block.id}`}
-                >
-                  <X className="w-3.5 h-3.5 mr-1" /> Reject
-                </Button>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
         {visible.length === 0 && (
           <div className="p-6 text-center text-muted-foreground">No blocks for this filter</div>
         )}
@@ -427,8 +459,10 @@ export function ReviewSurface({
           issues={fileQAResults}
           loading={qaLoading}
           onNavigateToBlock={(blockId) => {
-            const el = document.querySelector(`[data-testid="review-row-${blockId}"]`);
-            el?.scrollIntoView({ block: "center", behavior: "smooth" });
+            // Rows are virtualized, so scroll via the virtualizer (the target
+            // row may not be mounted yet).
+            const index = visible.findIndex((b) => b.id === blockId);
+            if (index >= 0) rowVirtualizer.scrollToIndex(index, { align: "center" });
           }}
           onClose={() => setShowProblems(false)}
         />

@@ -266,6 +266,22 @@ describe("FileProgressTable", () => {
     const rowsAfter = screen.getAllByRole("row");
     expect(within(rowsAfter[1]).getByText("beta")).toBeInTheDocument();
   });
+
+  it("caps rendering at 500 rows and shows an honest cap row", () => {
+    const items = Array.from({ length: 520 }, (_, i) =>
+      makeItemStat({ item_name: `file-${i}.json`, item_id: `i${i}`, locales: [] }),
+    );
+    render(<FileProgressTable itemStats={items} locales={[]} />);
+    // 1 header row + 500 data rows
+    expect(screen.getAllByRole("row")).toHaveLength(501);
+    const capRow = screen.getByTestId("list-cap-row");
+    expect(capRow).toHaveTextContent("Showing first 500 of 520 files");
+  });
+
+  it("shows no cap row when under the limit", () => {
+    render(<FileProgressTable itemStats={[makeItemStat()]} locales={[]} />);
+    expect(screen.queryByTestId("list-cap-row")).not.toBeInTheDocument();
+  });
 });
 
 // ---------------------------------------------------------------------------

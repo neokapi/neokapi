@@ -3,6 +3,7 @@
 // the op builder, and watch the blast radius refresh live as each op lands —
 // turning a what-if into a measured experiment before you submit it for review.
 import { useEffect, useState } from "react";
+import { ErrorNotice } from "../../errors";
 import {
   Badge,
   Button,
@@ -109,9 +110,7 @@ function NameStep({ onCreated }: { onCreated: (id: string) => void }) {
         />
       </div>
       {create.isError && (
-        <p className="text-sm text-destructive">
-          {create.error instanceof Error ? create.error.message : "Could not start the experiment."}
-        </p>
+        <ErrorNotice error={create.error} title="Couldn't start the experiment" variant="inline" />
       )}
       <div className="flex justify-end">
         <Button type="submit" disabled={!canSubmit}>

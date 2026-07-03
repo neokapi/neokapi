@@ -31,7 +31,11 @@ export function ActivitiesRoute() {
       if (!cursor) {
         setAllActivities(data.activities);
       } else {
-        setAllActivities((prev) => [...prev, ...data.activities]);
+        // Dedupe by id: focus/staleness refetches re-deliver the same page.
+        setAllActivities((prev) => {
+          const seen = new Set(prev.map((a) => a.id));
+          return [...prev, ...data.activities.filter((a) => !seen.has(a.id))];
+        });
       }
       setHasMore(!!data.next_cursor);
     }

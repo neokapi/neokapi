@@ -1,6 +1,4 @@
 import {
-  Alert,
-  AlertDescription,
   Button,
   Card,
   CardContent,
@@ -14,6 +12,7 @@ import {
   SelectValue,
 } from "@neokapi/ui-primitives";
 import { useState, useCallback, useEffect, useMemo } from "react";
+import { ErrorNotice } from "../errors";
 import type { ProjectInfo, BlockInfo, TranslationStats } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useApi } from "../context/ApiContext";
@@ -47,7 +46,7 @@ export function PreProcessSurface({
 }: PreProcessSurfaceProps) {
   const [targetLocale, setTargetLocale] = useState(project.target_languages[0] || "");
   const [running, setRunning] = useState<OpKey | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
   const [results, setResults] = useState<Partial<Record<OpKey, TranslationStats>>>({});
   const [blockTotal, setBlockTotal] = useState<number | null>(null);
 
@@ -95,7 +94,7 @@ export function PreProcessSurface({
       const stats = await fullApi.pseudoTranslateFile(wsSlug, project.id, fileName, targetLocale);
       setResults((prev) => ({ ...prev, pseudo: stats }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Pseudo-translate failed");
+      setError({ title: "Couldn't pseudo-translate the file", cause: e });
     } finally {
       setRunning(null);
     }
@@ -108,7 +107,7 @@ export function PreProcessSurface({
       const stats = await api.tmTranslateFile(project.id, fileName, targetLocale);
       setResults((prev) => ({ ...prev, tm: stats }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "TM leverage failed");
+      setError({ title: "Couldn't apply the TM leverage", cause: e });
     } finally {
       setRunning(null);
     }
@@ -184,9 +183,12 @@ export function PreProcessSurface({
       </p>
 
       {error && (
-        <Alert variant="destructive" className="mb-3 max-w-2xl">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <ErrorNotice
+          title={error.title}
+          error={error.cause}
+          variant="inline"
+          className="mb-3 max-w-2xl"
+        />
       )}
 
       <div className="grid gap-3 max-w-2xl">

@@ -17,6 +17,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  ErrorNotice,
   Input,
   Label,
   Select,
@@ -60,7 +61,11 @@ const EMPTY_FORM: FormState = {
   apiKey: "",
 };
 
-type TestState = { status: "idle" | "testing" | "ok" | "error"; message?: string };
+type TestState = {
+  status: "idle" | "testing" | "ok" | "error";
+  message?: string;
+  cause?: unknown;
+};
 
 export function SettingsProvidersRoute() {
   const { activeWorkspace } = useWorkspace();
@@ -71,7 +76,7 @@ export function SettingsProvidersRoute() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<{ title: string; cause?: unknown } | null>(null);
   const [test, setTest] = useState<TestState>({ status: "idle" });
 
   const [deleteTarget, setDeleteTarget] = useState<ProviderConfig | null>(null);
@@ -132,7 +137,7 @@ export function SettingsProvidersRoute() {
       setDialogOpen(false);
       refresh();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Failed to save provider");
+      setSaveError({ title: "Couldn't save the provider", cause: e });
     } finally {
       setSaving(false);
     }
@@ -144,10 +149,7 @@ export function SettingsProvidersRoute() {
       await testProviderConfig(toPayload());
       setTest({ status: "ok", message: "Connection succeeded." });
     } catch (e) {
-      setTest({
-        status: "error",
-        message: e instanceof Error ? e.message : "Connection test failed.",
-      });
+      setTest({ status: "error", cause: e });
     }
   };
 
@@ -180,7 +182,7 @@ export function SettingsProvidersRoute() {
           {loading && configs.length === 0 ? (
             <SettingsSkeleton />
           ) : error ? (
-            <div className="py-8 text-center text-sm text-destructive">{error}</div>
+            <ErrorNotice error={error} title="Couldn't load providers" className="my-4" />
           ) : configs.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
               No providers configured yet.
@@ -305,9 +307,13 @@ export function SettingsProvidersRoute() {
               />
             </div>
 
-            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+            {saveError && (
+              <ErrorNotice title={saveError.title} error={saveError.cause} variant="inline" />
+            )}
             {test.status === "ok" && <p className="text-sm text-foreground">{test.message}</p>}
-            {test.status === "error" && <p className="text-sm text-destructive">{test.message}</p>}
+            {test.status === "error" && (
+              <ErrorNotice title="Connection test failed" error={test.cause} variant="inline" />
+            )}
           </div>
 
           <DialogFooter className="sm:justify-between">

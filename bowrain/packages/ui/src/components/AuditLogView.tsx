@@ -1,4 +1,4 @@
-import { Badge, Button, Card } from "@neokapi/ui-primitives";
+import { Badge, Button, Card, Skeleton } from "@neokapi/ui-primitives";
 import { useState, useMemo, useCallback } from "react";
 import type { AuditEntry, AuditChainVerification, ProjectInfo } from "../types/api";
 import type { FilterToken, FilterField, FilterPreset } from "./FilterBar";
@@ -338,6 +338,22 @@ export function AuditLogView({
 
       {/* Event list */}
       <Card className="p-0 overflow-hidden">
+        {/* Initial-load skeleton mirrors the entry row layout so the list
+            doesn't jump when real data mounts. */}
+        {entries.length === 0 && loading && (
+          <div className="divide-y divide-border/30">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-3 px-5 py-3">
+                <Skeleton className="mt-0.5 w-8 h-8 rounded-full shrink-0" />
+                <div className="flex-1 space-y-1.5 pt-0.5">
+                  <Skeleton className="h-3.5 w-64" />
+                  <Skeleton className="h-3 w-40" />
+                </div>
+                <Skeleton className="h-3 w-16 shrink-0" />
+              </div>
+            ))}
+          </div>
+        )}
         {entries.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Clock className="w-10 h-10 text-muted-foreground/30 mb-3" />

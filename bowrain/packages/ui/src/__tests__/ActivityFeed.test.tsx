@@ -27,9 +27,9 @@ describe("ActivityFeed", () => {
     expect(screen.getByText("No activities yet")).toBeInTheDocument();
   });
 
-  it("renders loading state when loading with no activities", () => {
-    render(<ActivityFeed activities={[]} loading />);
-    expect(screen.getByText("Loading activities...")).toBeInTheDocument();
+  it("renders a skeleton when loading with no activities", () => {
+    const { container } = render(<ActivityFeed activities={[]} loading />);
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
   });
 
   it("renders activity items", () => {

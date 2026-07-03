@@ -19,6 +19,7 @@ import {
 
 // UI components from the ui directory
 import { ChevronDown, ChevronRight } from "../icons";
+import { ErrorNotice } from "../../errors";
 
 interface FilterConfigEditorProps {
   /** The filter or tool schema */
@@ -317,7 +318,7 @@ interface JsonFieldProps {
 
 function JsonField({ name, description, value, onChange }: JsonFieldProps) {
   const [text, setText] = useState(() => JSON.stringify(value ?? {}, null, 2));
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
 
   const handleBlur = useCallback(() => {
     try {
@@ -325,7 +326,7 @@ function JsonField({ name, description, value, onChange }: JsonFieldProps) {
       setError(null);
       onChange(parsed);
     } catch {
-      setError("Invalid JSON");
+      setError({ title: "The JSON is not valid" });
     }
   }, [text, onChange]);
 
@@ -345,7 +346,7 @@ function JsonField({ name, description, value, onChange }: JsonFieldProps) {
         onChange={(e) => setText(e.target.value)}
         onBlur={handleBlur}
       />
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
     </div>
   );
 }

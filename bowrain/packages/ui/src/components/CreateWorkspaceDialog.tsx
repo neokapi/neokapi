@@ -1,6 +1,4 @@
 import {
-  Alert,
-  AlertDescription,
   Button,
   Dialog,
   DialogContent,
@@ -13,6 +11,7 @@ import {
 import { useState } from "react";
 import type { Workspace } from "../types/api";
 import { useApi } from "../context/ApiContext";
+import { ErrorNotice } from "../errors";
 
 export interface CreateWorkspaceDialogProps {
   open: boolean;
@@ -28,7 +27,7 @@ export function CreateWorkspaceDialog({
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
   const adapter = useApi();
 
   const handleNameChange = (value: string) => {
@@ -44,14 +43,14 @@ export function CreateWorkspaceDialog({
   const handleCreate = async () => {
     if (!name.trim() || !slug.trim()) return;
     setCreating(true);
-    setError("");
+    setError(null);
     try {
       const ws = await adapter.createWorkspace(name.trim(), slug.trim());
       setName("");
       setSlug("");
       onCreate(ws);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create workspace");
+      setError({ title: "Couldn't create the workspace", cause: e });
     } finally {
       setCreating(false);
     }
@@ -61,7 +60,7 @@ export function CreateWorkspaceDialog({
     if (!v) {
       setName("");
       setSlug("");
-      setError("");
+      setError(null);
     }
     onOpenChange(v);
   };
@@ -98,11 +97,7 @@ export function CreateWorkspaceDialog({
               className="mt-1"
             />
           </div>
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
         </div>
 
         <DialogFooter>

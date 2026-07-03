@@ -1,6 +1,4 @@
 import {
-  Alert,
-  AlertDescription,
   Badge,
   Button,
   Card,
@@ -20,6 +18,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import type { Invite, Workspace } from "../types/api";
 import { useApi } from "../context/ApiContext";
+import { ErrorNotice } from "../errors";
 import { UserPlus, Trash2, Copy, Clock } from "./icons";
 
 interface InviteManagerProps {
@@ -34,7 +33,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
   const loadInvites = useCallback(async () => {
@@ -55,7 +54,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
   const handleCreate = async () => {
     if (!email.trim()) return;
     setCreating(true);
-    setError("");
+    setError(null);
     try {
       const invite = await api.createInvite(workspace.slug, email.trim(), role, 1);
       setInvites((prev) => [invite, ...prev]);
@@ -63,7 +62,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
       setRole("member");
       setShowInviteDialog(false);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create invite");
+      setError({ title: "Couldn't create the invite", cause: e });
     } finally {
       setCreating(false);
     }
@@ -74,7 +73,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
       await api.deleteInvite(workspace.slug, inviteId);
       setInvites((prev) => prev.filter((i) => i.id !== inviteId));
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to revoke invite");
+      setError({ title: "Couldn't revoke the invite", cause: e });
     }
   };
 
@@ -89,7 +88,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
     if (!open) {
       setEmail("");
       setRole("member");
-      setError("");
+      setError(null);
     }
     setShowInviteDialog(open);
   };
@@ -125,9 +124,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
         </div>
 
         {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <ErrorNotice title={error.title} error={error.cause} variant="panel" className="mb-4" />
         )}
 
         {/* Invite list */}
@@ -261,11 +258,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
                 </SelectContent>
               </Select>
             </div>
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            {error && <ErrorNotice title={error.title} error={error.cause} variant="inline" />}
           </div>
 
           <DialogFooter>

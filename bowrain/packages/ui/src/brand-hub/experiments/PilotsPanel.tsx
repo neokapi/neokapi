@@ -3,6 +3,7 @@
 // what-if exercised on a slice of live content. Lists active pilots and stops
 // them; new pilots pick a project + stream.
 import { useState } from "react";
+import { ErrorNotice } from "../../errors";
 import {
   Badge,
   Button,
@@ -181,9 +182,7 @@ function AddPilotDialog({
             />
           </div>
           {add.isError && (
-            <p className="text-sm text-destructive">
-              {add.error instanceof Error ? add.error.message : "Could not start pilot."}
-            </p>
+            <ErrorNotice error={add.error} title="Couldn't start the pilot" variant="inline" />
           )}
         </div>
         <DialogFooter>

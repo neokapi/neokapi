@@ -1,5 +1,6 @@
 import type { ActivityInfo } from "../types/api";
 import { cn } from "@neokapi/ui-primitives";
+import { ActivityFeedSkeleton } from "./skeletons";
 
 export interface ActivityFeedProps {
   activities: ActivityInfo[];
@@ -97,11 +98,9 @@ export function ActivityFeed({
   onActivityClick,
 }: ActivityFeedProps) {
   if (loading && activities.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-        Loading activities...
-      </div>
-    );
+    // Skeleton rows match the rendered row layout so the list doesn't jump
+    // when real data mounts.
+    return <ActivityFeedSkeleton />;
   }
 
   if (activities.length === 0) {
