@@ -112,3 +112,72 @@ describe("CredentialsPage (AI Models)", () => {
     ).toHaveAttribute("aria-pressed", "false");
   });
 });
+
+describe("CredentialsPage detected providers", () => {
+  const detection = {
+    detected: [
+      {
+        provider: "claude-code",
+        label: "Claude Code",
+        model: "sonnet",
+        detail: "signed in on this Mac · uses your Claude subscription",
+        subscription: true,
+      },
+    ],
+    configured: false,
+  };
+
+  const claudeCodeModels: AIModelOption[] = [
+    {
+      model: "sonnet",
+      provider: "claude-code",
+      label: "Claude Code",
+      local: false,
+      installed: true,
+      needs_key: false,
+      subscription: true,
+      note: "uses your Claude subscription",
+      is_default: false,
+    },
+    ...sampleModels,
+  ];
+
+  const typesWithClaude = [
+    { name: "claude-code", label: "Claude Code", keyless: true, subscription: true },
+    ...sampleProviderTypes,
+  ];
+
+  function renderDetected() {
+    return renderWithProviders(
+      <CredentialsPage
+        providers={[]}
+        providerTypes={typesWithClaude}
+        models={claudeCodeModels}
+        detection={detection}
+      />,
+    );
+  }
+
+  it("renders the Detected section with a Select button and no key field", () => {
+    renderDetected();
+    expect(screen.getByTestId("detected-providers")).toBeInTheDocument();
+    const card = screen.getByTestId("detected-claude-code");
+    expect(card).toHaveTextContent("Claude Code");
+    expect(card).toHaveTextContent(/uses your Claude subscription/);
+    expect(
+      screen.getByRole("button", { name: /Use Claude Code as the default AI provider/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("keyless claude-code group shows no Add Credentials button", () => {
+    renderDetected();
+    // The OpenAI group (key-based) still offers key management…
+    expect(screen.getAllByRole("button", { name: /Add credentials for OpenAI/ })).toHaveLength(1);
+    // …but the keyless Claude Code group must not.
+    expect(
+      screen.queryByRole("button", { name: /Add credentials for Claude Code/ }),
+    ).not.toBeInTheDocument();
+    // And the subscription badge shows on the group header.
+    expect(screen.getAllByText("uses your Claude subscription").length).toBeGreaterThan(0);
+  });
+});

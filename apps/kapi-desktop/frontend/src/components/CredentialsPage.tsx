@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Cpu,
   Cloud,
+  Sparkles,
   Star,
 } from "lucide-react";
 import {
@@ -25,7 +26,12 @@ import {
   cn,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
-import type { ProviderConfig, AIModelOption, DefaultModelInfo } from "../types/api";
+import type {
+  ProviderConfig,
+  AIModelOption,
+  DefaultModelInfo,
+  AIDetectionResult,
+} from "../types/api";
 import { api } from "../hooks/useApi";
 import { AIModelList } from "./AIModelList";
 import { useError } from "./ErrorBanner";
@@ -35,6 +41,10 @@ interface ProviderTypeOption {
   label: string;
   /** On-device providers (Ollama, Gemma, Demo) need no API key. */
   local?: boolean;
+  /** Needs no API key at all — local, or subscription-backed (claude-code). */
+  keyless?: boolean;
+  /** Bills a personal subscription (claude-code) instead of metered usage. */
+  subscription?: boolean;
 }
 
 /** Models + saved keys for one provider, the unit the page is grouped by. */
@@ -42,6 +52,8 @@ interface ProviderGroup {
   provider: string;
   label: string;
   local: boolean;
+  keyless: boolean;
+  subscription: boolean;
   models: AIModelOption[];
   creds: ProviderConfig[];
 }
@@ -53,16 +65,20 @@ export interface CredentialsPageProps {
   providerTypes?: ProviderTypeOption[];
   /** Pre-loaded model catalog for Storybook — skips api.listAIModels(). */
   models?: AIModelOption[];
+  /** Pre-loaded machine detection for Storybook — skips api.detectAIProviders(). */
+  detection?: AIDetectionResult;
 }
 
 export function CredentialsPage({
   providers: propProviders,
   providerTypes: propProviderTypes,
   models: propModels,
+  detection: propDetection,
 }: CredentialsPageProps = {}) {
   const [providers, setProviders] = useState<ProviderConfig[]>(propProviders ?? []);
   const [providerTypes, setProviderTypes] = useState<ProviderTypeOption[]>(propProviderTypes ?? []);
   const [models, setModels] = useState<AIModelOption[]>(propModels ?? []);
+  const [detection, setDetection] = useState<AIDetectionResult | null>(propDetection ?? null);
   const [defaultModel, setDefaultModel] = useState<DefaultModelInfo>({ provider: "", model: "" });
   const [loading, setLoading] = useState(!propProviders);
   const [editing, setEditing] = useState<ProviderConfig | null>(null);
@@ -76,22 +92,24 @@ export function CredentialsPage({
   const load = useCallback(async () => {
     if (propProviders) return;
     try {
-      const [result, types, modelList, def] = await Promise.all([
+      const [result, types, modelList, def, det] = await Promise.all([
         api.listProviders(),
         api.listProviderTypes(),
         api.listAIModels(),
         api.getDefaultModel(),
+        propDetection ? Promise.resolve(null) : api.detectAIProviders(),
       ]);
       if (result) setProviders(result);
       if (types) setProviderTypes(types);
       if (modelList) setModels(modelList);
       if (def) setDefaultModel(def);
+      if (det) setDetection(det);
     } catch (err) {
       showError("Failed to load AI models", err);
     } finally {
       setLoading(false);
     }
-  }, [showError, propProviders]);
+  }, [showError, propProviders, propDetection]);
 
   useEffect(() => {
     void load();
@@ -101,11 +119,21 @@ export function CredentialsPage({
   // carrying that provider's models and its saved keys — so a credential is
   // shown with the provider it belongs to rather than in a separate list.
   const groups = useMemo<ProviderGroup[]>(() => {
+    const typeByName = new Map(providerTypes.map((pt) => [pt.name, pt]));
     const byProvider = new Map<string, ProviderGroup>();
     for (const m of models) {
       let g = byProvider.get(m.provider);
       if (!g) {
-        g = { provider: m.provider, label: m.label, local: m.local, models: [], creds: [] };
+        const pt = typeByName.get(m.provider);
+        g = {
+          provider: m.provider,
+          label: m.label,
+          local: m.local,
+          keyless: !!(pt?.keyless ?? (m.local || m.subscription)),
+          subscription: !!(pt?.subscription ?? m.subscription),
+          models: [],
+          creds: [],
+        };
         byProvider.set(m.provider, g);
       }
       g.models.push(m);
@@ -115,7 +143,19 @@ export function CredentialsPage({
       if (g) g.creds.push(c);
     }
     return [...byProvider.values()];
-  }, [models, providers]);
+  }, [models, providers, providerTypes]);
+
+  // One-click select of a detected keyless provider (Claude Code, Ollama).
+  const handleSelectDetected = async (provider: string, model: string) => {
+    setError(null);
+    try {
+      await api.selectAIProvider(provider, model);
+      setDefaultModel({ provider, model });
+      await load();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
 
   // Choosing a model persists the shared default (ai.provider/ai.model); the
   // provider follows from the model.
@@ -187,7 +227,7 @@ export function CredentialsPage({
     ? providerTypes.find((pt) => pt.name === editing.provider_type)
     : undefined;
   const editingLabel = editingType?.label ?? editing?.provider_type ?? "";
-  const editingIsLocal = !!editingType?.local;
+  const editingIsLocal = !!(editingType?.keyless ?? editingType?.local);
 
   return (
     <div className="p-6">
@@ -206,6 +246,49 @@ export function CredentialsPage({
         <LoadingSpinner text="Loading AI models..." className="py-8" />
       ) : (
         <div className="space-y-6">
+          {/* Detected — keyless providers found on this machine, one click to select. */}
+          {(detection?.detected?.length ?? 0) > 0 && (
+            <section data-testid="detected-providers">
+              <div className="mb-2 flex items-center gap-2 border-b border-border pb-2">
+                <Sparkles size={16} className="text-primary" />
+                <h2 className="text-sm font-semibold">{t("Detected on this machine")}</h2>
+                <Badge variant="secondary">{t("no API key needed")}</Badge>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {(detection?.detected ?? []).map((d) => {
+                  const isCurrent = defaultModel.provider === d.provider;
+                  return (
+                    <div
+                      key={d.provider}
+                      data-testid={`detected-${d.provider}`}
+                      className={cn(
+                        "flex items-center justify-between gap-3 rounded-lg border p-3",
+                        isCurrent ? "border-primary bg-primary/10" : "border-border",
+                      )}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <span translate="no">{d.label}</span>
+                          {isCurrent && <CheckCircle2 size={13} className="text-primary" />}
+                        </div>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{d.detail}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={isCurrent ? "secondary" : "default"}
+                        disabled={isCurrent}
+                        onClick={() => void handleSelectDetected(d.provider, d.model)}
+                        aria-label={t("Use {name} as the default AI provider", { name: d.label })}
+                      >
+                        {isCurrent ? t("Selected") : t("Select")}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {groups.map((g) => (
             <section key={g.provider}>
               {/* Provider header — label + key status/management for this provider */}
@@ -220,9 +303,12 @@ export function CredentialsPage({
                     {g.label}
                   </h2>
                   {g.local && <Badge variant="secondary">{t("on-device")}</Badge>}
+                  {g.subscription && (
+                    <Badge variant="secondary">{t("uses your Claude subscription")}</Badge>
+                  )}
                 </div>
 
-                {!g.local && (
+                {!g.keyless && (
                   <div className="flex flex-wrap items-center gap-2">
                     {g.creds.map((c) => {
                       // With several keys the chip is a default-selector (star);

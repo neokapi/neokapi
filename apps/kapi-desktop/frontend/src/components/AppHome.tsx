@@ -1,6 +1,8 @@
 import { FolderKanban, FolderOpen, Sparkles, Workflow, Wrench, X } from "lucide-react";
 import { Button } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
+import { ConnectAICard } from "./ConnectAICard";
+import type { AIDetectionResult } from "../types/api";
 
 interface AppHomeProps {
   recentFiles: Array<{ path: string; name: string; opened_at: string }>;
@@ -11,6 +13,8 @@ interface AppHomeProps {
   onNavigate: (view: string) => void;
   onCreateSampleProject: (name: string) => void;
   onDismissSamples: () => void;
+  /** Pre-loaded AI detection for Storybook/tests — forwarded to ConnectAICard. */
+  aiDetection?: AIDetectionResult;
 }
 
 export function AppHome({
@@ -22,6 +26,7 @@ export function AppHome({
   onNavigate,
   onCreateSampleProject,
   onDismissSamples,
+  aiDetection,
 }: AppHomeProps) {
   const shortenHome = useShortenHome();
   return (
@@ -95,6 +100,10 @@ export function AppHome({
           </div>
         </section>
       )}
+
+      {/* First-run: connect an AI provider. The card renders only when no
+          provider is configured anywhere, and disappears once one is. */}
+      <ConnectAICard detection={aiDetection} />
 
       {/* Sample projects — shown until explicitly dismissed */}
       {!samplesDismissed && (

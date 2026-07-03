@@ -180,3 +180,48 @@ describe("ConvergePlanDialog", () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 });
+
+describe("ConvergePlanDialog subscription wording", () => {
+  const subscriptionPlan: ConvergePlan = {
+    ...driftedPlan,
+    plan: {
+      ...driftedPlan.plan,
+      provider: "claude-code",
+      subscription: true,
+      note: "AI work runs on your Claude subscription — the token estimate is scale, not a metered cost. TM leverage counts exact-hash hits only; token estimate is source chars / 4 (no tokenizer, no provider calls).",
+    },
+  };
+
+  it("shows the subscription line when the provider is claude-code", () => {
+    render(
+      <ConvergePlanDialog
+        open
+        onOpenChange={() => {}}
+        plan={subscriptionPlan}
+        onConfirm={() => {}}
+      />,
+    );
+    expect(
+      screen.getByText("AI work runs on your Claude subscription — no per-token API cost."),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the metered framing for API-key providers", () => {
+    render(
+      <ConvergePlanDialog open onOpenChange={() => {}} plan={driftedPlan} onConfirm={() => {}} />,
+    );
+    expect(screen.queryByText(/runs on your Claude subscription/)).not.toBeInTheDocument();
+  });
+
+  it("the hero notes the subscription while drifted", () => {
+    render(
+      <ConvergenceHero
+        tabID="t1"
+        convergence={driftedReport}
+        plan={subscriptionPlan}
+        onBringUpToDate={() => {}}
+      />,
+    );
+    expect(screen.getByText(/AI runs on your Claude subscription\./)).toBeInTheDocument();
+  });
+});

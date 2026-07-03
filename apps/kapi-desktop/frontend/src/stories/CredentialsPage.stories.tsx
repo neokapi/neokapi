@@ -249,3 +249,72 @@ export const WithProviders: StoryObj<typeof CredentialsPage> = {
 export const Empty: StoryObj<typeof CredentialsPage> = {
   render: () => <CredentialsPage providers={[]} providerTypes={[...PROVIDER_TYPES]} />,
 };
+
+/**
+ * Settings → AI Models with the "Detected" section: Claude Code (uses your
+ * Claude subscription) and a running Ollama, one Select click each — plus the
+ * keyless Claude Code provider group with no key management.
+ */
+export const DetectedProviders: StoryObj<typeof CredentialsPage> = {
+  render: () => (
+    <CredentialsPage
+      providers={[]}
+      providerTypes={[
+        { name: "claude-code", label: "Claude Code", keyless: true, subscription: true },
+        { name: "anthropic", label: "Anthropic" },
+        { name: "openai", label: "OpenAI" },
+        { name: "ollama", label: "Ollama", local: true, keyless: true },
+      ]}
+      models={[
+        {
+          model: "sonnet",
+          provider: "claude-code",
+          label: "Claude Code",
+          local: false,
+          installed: true,
+          needs_key: false,
+          subscription: true,
+          note: "uses your Claude subscription",
+          is_default: false,
+        },
+        {
+          model: "llama3.2:3b",
+          provider: "ollama",
+          label: "Ollama",
+          local: true,
+          installed: true,
+          needs_key: false,
+          is_default: false,
+        },
+        {
+          model: "claude-sonnet-4-20250514",
+          provider: "anthropic",
+          label: "Anthropic",
+          local: false,
+          installed: false,
+          needs_key: true,
+          is_default: false,
+        },
+      ]}
+      detection={{
+        detected: [
+          {
+            provider: "claude-code",
+            label: "Claude Code",
+            model: "sonnet",
+            detail: "signed in on this Mac · uses your Claude subscription",
+            subscription: true,
+          },
+          {
+            provider: "ollama",
+            label: "Ollama",
+            model: "llama3.2:3b",
+            detail: "running locally · content stays on this machine",
+            subscription: false,
+          },
+        ],
+        configured: false,
+      }}
+    />
+  ),
+};

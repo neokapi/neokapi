@@ -33,6 +33,9 @@ type AIModelOption struct {
 	Installed bool `json:"installed"`
 	// NeedsKey is true for a cloud model with no saved credential yet.
 	NeedsKey bool `json:"needs_key"`
+	// Subscription is true when the model runs on a personal subscription via
+	// a detected keyless provider (claude-code) — no API key, no metered cost.
+	Subscription bool `json:"subscription,omitempty"`
 	// Note is an optional one-line rationale (recommended local models).
 	Note string `json:"note,omitempty"`
 	// IsDefault marks the currently configured default.
@@ -103,6 +106,17 @@ func (a *App) ListAIModels() []AIModelOption {
 
 	var out []AIModelOption
 
+	// Detected · Claude Code — keyless, runs on the user's Claude subscription.
+	// Listed first when the binary is present on this machine.
+	if aiprovider.ClaudeCodeDetected() {
+		cc := string(aiprovider.ClaudeCode)
+		out = append(out, AIModelOption{
+			Model: aiprovider.DefaultClaudeCodeModel, Provider: cc, Label: "Claude Code",
+			Installed: true, Subscription: true, Note: "uses your Claude subscription",
+			IsDefault: isDefault(cc, aiprovider.DefaultClaudeCodeModel),
+		})
+	}
+
 	// Local · Ollama — installed models (best-effort; server may be down).
 	installed := map[string]bool{}
 	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
@@ -129,8 +143,10 @@ func (a *App) ListAIModels() []AIModelOption {
 	}
 
 	// Cloud providers — one default model each, flagged when no key is saved.
+	// Keyless providers (local Ollama above, detected claude-code) are covered
+	// by their own sections.
 	for _, p := range aiprovider.Providers() {
-		if p.Local || p.DefaultModel == "" {
+		if !p.NeedsKey() || p.DefaultModel == "" {
 			continue
 		}
 		needsKey := a.credentials == nil || len(a.credentials.FindByType(string(p.Name))) == 0

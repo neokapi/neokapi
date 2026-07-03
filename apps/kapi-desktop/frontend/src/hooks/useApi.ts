@@ -17,6 +17,7 @@ import type {
   ProviderConfig,
   DefaultModelInfo,
   AIModelOption,
+  AIDetectionResult,
   ProjectFilter,
   ProjectFilters,
   PluginDocsSummary,
@@ -292,7 +293,15 @@ export const api = {
   // Credentials
   listProviders: () => call<ProviderConfig[]>("ListProviders"),
   listProviderTypes: () =>
-    call<Array<{ name: string; label: string; local: boolean }>>("ListProviderTypes"),
+    call<
+      Array<{
+        name: string;
+        label: string;
+        local: boolean;
+        keyless: boolean;
+        subscription?: boolean;
+      }>
+    >("ListProviderTypes"),
   saveProvider: (req: unknown) => call<ProviderConfig>("SaveProvider", req),
   deleteProvider: (id: string) => call<void>("DeleteProvider", id),
   testProvider: (id: string) => call<boolean>("TestProvider", id),
@@ -315,6 +324,13 @@ export const api = {
   listAIModels: () => call<AIModelOption[]>("ListAIModels"),
   aiNeedsModelChoice: (tabID: string, flowName: string) =>
     call<boolean>("AINeedsModelChoice", tabID, flowName),
+  /** Detect the machine's AI options (Claude Code binary, Ollama server,
+   * env keys, saved credentials) — instant and offline. */
+  detectAIProviders: () => call<AIDetectionResult>("DetectAIProviders"),
+  /** Persist a provider (with optional model — provider default when "") as
+   * the app-level AI default the runner and review AI read. */
+  selectAIProvider: (providerID: string, model: string) =>
+    call<void>("SelectAIProvider", providerID, model),
 
   // Files
   matchContent: (tabID: string) =>

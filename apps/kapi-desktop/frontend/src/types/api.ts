@@ -235,10 +235,36 @@ export interface AIModelOption {
   installed: boolean;
   /** Cloud model with no saved credential yet. */
   needs_key: boolean;
+  /** Runs on a personal subscription via a detected keyless provider
+   * (claude-code) — no API key, no metered cost. */
+  subscription?: boolean;
   /** Optional one-line rationale (recommended local models). */
   note?: string;
   /** The currently configured default. */
   is_default: boolean;
+}
+
+/** One keyless AI provider found on this machine (backend DetectedAIProvider). */
+export interface DetectedAIProvider {
+  provider: string;
+  label: string;
+  model: string;
+  /** One-line card subtitle (e.g. "signed in on this Mac · uses your Claude subscription"). */
+  detail: string;
+  /** Bills a personal subscription (claude-code) rather than metered API usage. */
+  subscription: boolean;
+}
+
+/** The machine's AI options (backend AIDetectionResult) — powers the
+ * first-open "Connect your AI" card and the Settings "Detected" section. */
+export interface AIDetectionResult {
+  detected: DetectedAIProvider[] | null;
+  env_key_providers?: string[];
+  saved_credential_providers?: string[];
+  default_provider?: string;
+  default_model?: string;
+  /** True when any provider is already usable without setup. */
+  configured: boolean;
 }
 
 export interface TabInfo {
@@ -553,6 +579,11 @@ export interface UpPlanOutput {
   flow?: string;
   scopes: UpPlanScope[] | null;
   totals: UpPlanScope;
+  /** The AI provider a converge run would use (shared ai.provider default). */
+  provider?: string;
+  /** True when that provider bills a personal subscription (claude-code) —
+   * the token estimate is scale, not a metered API cost. */
+  subscription?: boolean;
   /** Discloses the estimation heuristic (TM exact-hash only, chars/4 tokens). */
   note: string;
 }
