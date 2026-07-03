@@ -51,6 +51,44 @@ func TestUp_ConvergesByDefault(t *testing.T) {
 	assert.Contains(t, out, "Converged: every gated scope is shippable")
 }
 
+// TestUp_BuiltinDefaultFlow: a recipe with NO defaults.flow and NO flows map
+// converges through the built-in default flow (#1078 G6: recycle → translate),
+// reported as "default (built-in)".
+func TestUp_BuiltinDefaultFlow(t *testing.T) {
+	a := demoProviderApp(t)
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = ""
+	proj.Flows = nil
+	require.NoError(t, project.Save(recipe, proj))
+
+	out, upErr := runUp(t, a, recipe)
+	require.NoError(t, upErr, out)
+	assert.Contains(t, out, `Ran flow "default (built-in)"`)
+	assert.Contains(t, out, "Converged: every gated scope is shippable")
+	for _, f := range []string{"a.json", "b.json"} {
+		_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", f))
+		require.NoError(t, statErr, "the built-in default must materialize %s", f)
+	}
+}
+
+// TestUp_PlanLabelsBuiltinDefaultFlow: `up --plan` on a flowless recipe labels
+// the plan with the built-in default, mirroring what the run reports.
+func TestUp_PlanLabelsBuiltinDefaultFlow(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.Flow = ""
+	proj.Flows = nil
+	require.NoError(t, project.Save(recipe, proj))
+
+	out, planErr := runUp(t, a, recipe, "--plan")
+	require.NoError(t, planErr, out)
+	assert.Contains(t, out, `Plan for flow "default (built-in)"`)
+}
+
 // TestUp_SinglePass: --passes 1 runs exactly one pass (the old bare
 // `kapi run` behavior) with no until-gate loop.
 func TestUp_SinglePass(t *testing.T) {
