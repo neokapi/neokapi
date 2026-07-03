@@ -141,13 +141,12 @@ func aiSetupLiveCheck(ctx context.Context, provider, model, apiKey string) error
 // errAISetupNotInteractive is returned when setup is required but stdin is not
 // a terminal; the message is the complete non-TTY guidance.
 var errAISetupNotInteractive = errors.New(
-	"no AI provider is configured and stdin is not a terminal.\n" +
-		"Configure one non-interactively:\n" +
+	"no AI provider is configured and stdin is not a terminal — configure one non-interactively:\n" +
 		"  • set an API key env var (ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY), or\n" +
 		"  • kapi config set ai.provider claude-code   # use the local Claude Code login\n" +
 		"  • kapi config set ai.provider ollama        # local models via Ollama\n" +
 		"  • kapi credentials add <name> --provider <id> --api-key <key>\n" +
-		"Then re-run. On a terminal, `kapi models setup` walks through this interactively.")
+		"then re-run; on a terminal, `kapi models setup` walks through this interactively")
 
 // buildAISetupChoices orders the selectable providers best-detected first:
 // Claude Code when present, providers with an env key, Ollama when running,
