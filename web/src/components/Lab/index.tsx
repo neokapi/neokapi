@@ -30,11 +30,6 @@ const LazyVision = lazyWithRetry(async () => {
   return { default: mod.VisionExplorer };
 });
 
-const LazyModels = lazyWithRetry(async () => {
-  const mod = await import("@neokapi/kapi-lab");
-  return { default: mod.ModelsExplorer };
-});
-
 const LazyMultimodalShowcase = lazyWithRetry(async () => {
   const mod = await import("@neokapi/kapi-lab");
   return { default: mod.MultimodalShowcase };
@@ -133,29 +128,6 @@ export function PdfExplorer(props: PdfExplorerProps): React.ReactElement {
           return (
             <ChunkSafeSuspense fallback={<Loading />}>
               <LazyPdf assets={assets} {...props} />
-            </ChunkSafeSuspense>
-          );
-        }
-        return <Inner />;
-      }}
-    </BrowserOnly>
-  );
-}
-
-export interface ModelsExplorerProps {
-  defaultText?: string;
-  defaultTargetLang?: string;
-}
-
-export function ModelsExplorer(props: ModelsExplorerProps): React.ReactElement {
-  return (
-    <BrowserOnly fallback={<Loading />}>
-      {() => {
-        function Inner(): React.ReactElement {
-          const assets = useKapiPlaygroundConfig();
-          return (
-            <ChunkSafeSuspense fallback={<Loading />}>
-              <LazyModels assets={assets} {...props} />
             </ChunkSafeSuspense>
           );
         }

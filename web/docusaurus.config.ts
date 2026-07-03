@@ -132,6 +132,10 @@ const config: Config = {
           { from: "/kapi/modes", to: "/kapi/projects" },
           { from: "/kapi/get-started/use-with-skills", to: "/kapi/get-started/use-with-claude" },
           { from: "/kapi/get-started/use-with-mcp", to: "/kapi/get-started/use-with-claude" },
+          // The Models & Providers lab was removed (it demonstrated provider
+          // APIs, not neokapi functionality); provider setup lives in the
+          // Use-with-Claude/models docs, and /labs maps the remaining labs.
+          { from: "/lab/models", to: "/labs" },
         ],
       },
     ],
@@ -443,7 +447,6 @@ const config: Config = {
             // widget. Old per-topic routes redirect to their new home.
             { label: "Labs overview", to: "/labs" },
             { label: "Content Model Workspace", to: "/lab" },
-            { label: "Models & Providers", to: "/lab/models" },
             { label: "Segmentation", to: "/lab/segmentation" },
             { label: "File Conversion", to: "/lab/convert" },
             { label: "Structure & Layout", to: "/lab/structure" },
