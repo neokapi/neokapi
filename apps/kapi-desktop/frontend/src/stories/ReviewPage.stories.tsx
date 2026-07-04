@@ -150,3 +150,39 @@ export const Empty: Story = {
     onSaveTarget: noopSave,
   },
 };
+
+// A realistically large queue: hundreds of units across many files and locales.
+// The left pane virtualizes (only the rows near the viewport mount) inside a
+// bounded, scroll-contained container with a per-file header, so the page never
+// becomes a thousands-row scroll. Used for the mid-scroll sticky-header shot.
+const LARGE_QUEUE: ReviewItem[] = (() => {
+  const locales = ["nb", "de-DE", "fr-FR", "ja-JP", "es-ES", "pt-BR"];
+  const out: ReviewItem[] = [];
+  for (let f = 0; f < 40; f++) {
+    const file = `locales/section-${String(f).padStart(2, "0")}.json`;
+    for (let k = 0; k < 12; k++) {
+      const locale = locales[(f + k) % locales.length];
+      out.push({
+        locale,
+        file,
+        key: `section${f}.item.${k}`,
+        collection: f % 2 === 0 ? "Marketing" : "Docs",
+        source: `Source string ${f}.${k} — ship localized content without the toil`,
+        target: `Target ${f}.${k}`,
+        hasFindings: (f + k) % 5 === 0,
+      });
+    }
+  }
+  return out;
+})();
+
+export const LargeQueue: Story = {
+  name: "Large queue (virtualized, contained)",
+  args: {
+    tabID: "storybook",
+    items: LARGE_QUEUE,
+    loadUnit,
+    onDecide: noopDecide,
+    onSaveTarget: noopSave,
+  },
+};
