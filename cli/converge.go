@@ -36,6 +36,11 @@ type convergeOptions struct {
 	// onPass, when set, receives a structured snapshot after each pass — the
 	// hook an embedding UI (the desktop runner) renders its passes view from.
 	onPass func(ConvergePassEvent)
+	// onPhase, when set, receives a coarse progress signal before each
+	// long-running stage of a pass (content resolution, auto-extract, coverage
+	// derivation, per-locale translation) — what an embedding UI shows during
+	// the otherwise opaque window before the first onPass fires.
+	onPhase func(ConvergePhaseEvent)
 	// capture, when non-nil, receives the final ConvergeOutput instead of it
 	// being printed through the command's output formatter (embedders).
 	capture *ConvergeOutput
@@ -62,6 +67,39 @@ type ConvergePassEvent struct {
 	// PendingLocales are the locales still short of their gate after the pass
 	// (the candidates to park if the loop stalls).
 	PendingLocales []string `json:"pendingLocales,omitempty"`
+}
+
+// ConvergePhaseName identifies a coarse stage within a convergence pass. It is
+// emitted through convergeOptions.onPhase / UpOptions.OnPhase *before* each
+// long-running stage so an embedding UI can replace an indeterminate spinner
+// with the work actually in flight rather than a bare "deriving…" label.
+type ConvergePhaseName string
+
+const (
+	// ConvergePhaseResolving — resolving the project's content sources (once,
+	// before the loop).
+	ConvergePhaseResolving ConvergePhaseName = "resolving-content"
+	// ConvergePhaseExtracting — pre-pass auto-extract on block-store drift.
+	ConvergePhaseExtracting ConvergePhaseName = "extracting"
+	// ConvergePhaseDeriving — deriving coverage (the pass's pending locales).
+	ConvergePhaseDeriving ConvergePhaseName = "deriving-coverage"
+	// ConvergePhaseTranslating — running the flow over one pending locale; the
+	// longest stage, so its Locale/LocaleIndex/LocaleCount drive a real bar.
+	ConvergePhaseTranslating ConvergePhaseName = "translating"
+)
+
+// ConvergePhaseEvent is a coarse progress signal within a convergence run,
+// emitted before each long-running stage. Locale/LocaleIndex/LocaleCount are
+// set only for the per-locale translating phase (LocaleIndex is 1-based).
+type ConvergePhaseEvent struct {
+	Phase ConvergePhaseName `json:"phase"`
+	// Pass is the 1-based pass this stage belongs to.
+	Pass int `json:"pass,omitempty"`
+	// Locale, LocaleIndex, LocaleCount describe the per-locale translating
+	// stage: which locale, its position, and how many locales this pass covers.
+	Locale      string `json:"locale,omitempty"`
+	LocaleIndex int    `json:"localeIndex,omitempty"`
+	LocaleCount int    `json:"localeCount,omitempty"`
 }
 
 // ConvergeLocaleResult is the per-locale outcome of a convergence run.
@@ -189,6 +227,13 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 		return errors.New("no target languages configured (defaults.target_languages)")
 	}
 
+	emitPhase := func(ev ConvergePhaseEvent) {
+		if opts.onPhase != nil {
+			opts.onPhase(ev)
+		}
+	}
+
+	emitPhase(ConvergePhaseEvent{Phase: ConvergePhaseResolving})
 	resolved, err := pctx.ResolveContent(a.FormatReg)
 	if err != nil {
 		return fmt.Errorf("resolve content: %w", err)
@@ -247,6 +292,7 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 			// desktop's Re-extract uses. `up --no-extract` opts out.
 			var extracted *project.ExtractStats
 			if !opts.noExtract {
+				emitPhase(ConvergePhaseEvent{Phase: ConvergePhaseExtracting, Pass: passes + 1})
 				var serr error
 				extracted, serr = a.syncProjectBlockStore(ctx, cmd, pctx, projectPath, resolved)
 				if serr != nil {
@@ -254,6 +300,7 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 				}
 			}
 
+			emitPhase(ConvergePhaseEvent{Phase: ConvergePhaseDeriving, Pass: passes + 1})
 			cov, excl, err := a.deriveCoverage(ctx, cmd, proj, root, !opts.noChecks)
 			if err != nil {
 				return err
@@ -266,7 +313,14 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 
 			before := producedUnits(cov)
 			passes++
-			for _, loc := range pending {
+			for i, loc := range pending {
+				emitPhase(ConvergePhaseEvent{
+					Phase:       ConvergePhaseTranslating,
+					Pass:        passes,
+					Locale:      string(loc),
+					LocaleIndex: i + 1,
+					LocaleCount: len(pending),
+				})
 				a.TargetLang = string(loc)
 				rCtx := flow.ResourceContext{ProjectDir: projectDir, SourceLocale: a.SourceLang, TargetLocale: string(loc)}
 				if err := a.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, sources); err != nil {

@@ -123,17 +123,35 @@ func TestBringUpToDate_RunsSharedUpEngine(t *testing.T) {
 	events := app.GetRunEvents()
 	var passes int
 	var result *cli.ConvergeOutput
+	phaseSeen := map[cli.ConvergePhaseName]bool{}
+	var translatingLocale bool
 	for _, ev := range events {
 		if ev.Type == "converge_pass" {
 			passes++
 			require.NotNil(t, ev.Converge)
 			assert.Positive(t, ev.Converge.Produced)
 		}
+		if ev.Type == "converge_phase" {
+			require.NotNil(t, ev.ConvergePhase)
+			phaseSeen[ev.ConvergePhase.Phase] = true
+			if ev.ConvergePhase.Phase == cli.ConvergePhaseTranslating {
+				// The long stage carries the locale + its position so the UI
+				// renders "Translating fr-FR (1 of 2)…" with a real bar.
+				assert.NotEmpty(t, ev.ConvergePhase.Locale)
+				assert.Positive(t, ev.ConvergePhase.LocaleCount)
+				translatingLocale = true
+			}
+		}
 		if ev.Type == "complete" {
 			result = ev.ConvergeResult
 		}
 	}
 	assert.Positive(t, passes, "at least one converge_pass event")
+	// Phase events give the pre-first-pass window real progress instead of a
+	// bare spinner: content resolution, coverage derivation, per-locale work.
+	assert.True(t, phaseSeen[cli.ConvergePhaseResolving], "a resolving-content phase event")
+	assert.True(t, phaseSeen[cli.ConvergePhaseDeriving], "a deriving-coverage phase event")
+	assert.True(t, translatingLocale, "a translating phase event with locale + count")
 	require.NotNil(t, result, "the complete event carries the structured result")
 	assert.True(t, result.Converged)
 	assert.Empty(t, result.ParkedScopes)

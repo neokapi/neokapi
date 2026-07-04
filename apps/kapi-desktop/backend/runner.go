@@ -55,10 +55,13 @@ type RunEvent struct {
 	FilesProcessed int   `json:"files_processed,omitempty"`
 
 	// Convergence-run fields (BringUpToDate — the shared `kapi up` engine):
-	// Converge carries one pass snapshot (when type == "converge_pass") and
-	// ConvergeResult the final structured outcome (on the run's "complete").
-	Converge       *cli.ConvergePassEvent `json:"converge,omitempty"`
-	ConvergeResult *cli.ConvergeOutput    `json:"converge_result,omitempty"`
+	// Converge carries one pass snapshot (when type == "converge_pass"),
+	// ConvergePhase a coarse stage signal before the first pass settles (when
+	// type == "converge_phase"), and ConvergeResult the final structured
+	// outcome (on the run's "complete").
+	Converge       *cli.ConvergePassEvent  `json:"converge,omitempty"`
+	ConvergePhase  *cli.ConvergePhaseEvent `json:"converge_phase,omitempty"`
+	ConvergeResult *cli.ConvergeOutput     `json:"converge_result,omitempty"`
 }
 
 // runner manages flow execution state with proper synchronization.

@@ -2,7 +2,27 @@ import { CheckCircle2, Loader2, PauseCircle, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, LocalePill } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import type { RunEvent } from "../context/JobFeedContext";
-import type { ConvergeOutput } from "../types/api";
+import type { ConvergeOutput, ConvergePhaseEvent } from "../types/api";
+
+/** Human, localized label for the convergence stage currently in flight. */
+function phaseLabel(ph: ConvergePhaseEvent): string {
+  switch (ph.phase) {
+    case "resolving-content":
+      return t("Resolving content…");
+    case "extracting":
+      return t("Extracting content…");
+    case "deriving-coverage":
+      return t("Deriving coverage…");
+    case "translating":
+      return ph.locale
+        ? t("Translating {locale} ({i} of {n})…", {
+            locale: ph.locale,
+            i: ph.localeIndex ?? 1,
+            n: ph.localeCount ?? 1,
+          })
+        : t("Translating…");
+  }
+}
 
 export interface ConvergeRunViewProps {
   /** The run's event stream (from the job feed). */
@@ -27,6 +47,19 @@ export function ConvergeRunView({ events, running, canceled, onOpenReview }: Con
     (e) => e.type === "complete" && e.converge_result,
   )?.converge_result;
 
+  // The stage currently in flight (last-wins), so the run shows real work —
+  // "Translating fr-FR (2 of 4)…" — instead of an indeterminate spinner.
+  let phase: ConvergePhaseEvent | undefined;
+  for (const e of events) {
+    if (e.type === "converge_phase" && e.converge_phase) phase = e.converge_phase;
+  }
+  // During the per-locale translating stage we know the locale position within
+  // the pass, so render a determinate bar over the pass's pending locales.
+  const localeFrac =
+    phase?.phase === "translating" && phase.localeCount
+      ? Math.min(1, (phase.localeIndex ?? 1) / phase.localeCount)
+      : null;
+
   return (
     <Card data-slot="converge-run-view">
       <CardHeader className="px-4">
@@ -36,10 +69,20 @@ export function ConvergeRunView({ events, running, canceled, onOpenReview }: Con
       </CardHeader>
       <CardContent className="space-y-2 px-4">
         {passes.length === 0 && running && (
-          <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 size={12} className="animate-spin" />
-            {t("Deriving state and running the first pass…")}
-          </p>
+          <div className="space-y-1.5" data-slot="converge-deriving">
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 size={12} className="animate-spin" />
+              {phase ? phaseLabel(phase) : t("Deriving state and running the first pass…")}
+            </p>
+            {localeFrac !== null && (
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width] duration-200"
+                  style={{ width: `${Math.round(localeFrac * 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
         )}
 
         <ol className="space-y-1.5">
@@ -84,7 +127,7 @@ export function ConvergeRunView({ events, running, canceled, onOpenReview }: Con
           {running && passes.length > 0 && (
             <li className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 size={12} className="animate-spin" />
-              {t("Running…")}
+              {phase ? phaseLabel(phase) : t("Running…")}
             </li>
           )}
         </ol>

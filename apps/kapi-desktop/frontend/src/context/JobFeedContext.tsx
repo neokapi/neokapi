@@ -22,7 +22,8 @@ export interface RunEvent {
     | "error"
     | "complete"
     | "pipeline_metrics"
-    | "converge_pass";
+    | "converge_pass"
+    | "converge_phase";
   flow_id: string;
   message?: string;
   file_index?: number;
@@ -33,6 +34,8 @@ export interface RunEvent {
   steps?: StepSnapshot[];
   /** One pass snapshot of a convergence run (type == "converge_pass"). */
   converge?: import("../types/api").ConvergePassEvent;
+  /** Coarse stage of a convergence run (type == "converge_phase"). */
+  converge_phase?: import("../types/api").ConvergePhaseEvent;
   /** Final structured convergence result (on a convergence run's "complete"). */
   converge_result?: import("../types/api").ConvergeOutput;
 }

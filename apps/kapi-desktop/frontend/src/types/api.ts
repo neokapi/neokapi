@@ -609,6 +609,16 @@ export interface ConvergePassEvent {
   pendingLocales?: string[];
 }
 
+/** A coarse progress stage within a convergence pass (cli.ConvergePhaseEvent). */
+export interface ConvergePhaseEvent {
+  phase: "resolving-content" | "extracting" | "deriving-coverage" | "translating";
+  pass?: number;
+  /** Set only for the per-locale "translating" phase (localeIndex is 1-based). */
+  locale?: string;
+  localeIndex?: number;
+  localeCount?: number;
+}
+
 /** A gated (collection, locale) scope still short of its gate after a run. */
 export interface ParkedScope {
   locale: string;

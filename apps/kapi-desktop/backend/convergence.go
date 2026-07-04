@@ -212,6 +212,15 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 					pass.Pass, pass.ExtractedBlocks, pass.Produced, pass.ProducedDelta, pass.FailingChecks),
 			})
 		},
+		OnPhase: func(ev cli.ConvergePhaseEvent) {
+			phase := ev
+			a.emitRunEvent(RunEvent{
+				Type:          "converge_phase",
+				FlowID:        flowName,
+				ConvergePhase: &phase,
+				Message:       string(phase.Phase),
+			})
+		},
 		LogWriter: &runEventWriter{app: a, flowID: flowName},
 	})
 	if err != nil {

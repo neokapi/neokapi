@@ -27,6 +27,11 @@ type UpOptions struct {
 	Materialize bool
 	// OnPass receives a structured snapshot after each pass.
 	OnPass func(ConvergePassEvent)
+	// OnPhase receives a coarse progress signal before each long-running stage
+	// of a pass (content resolution, auto-extract, coverage derivation,
+	// per-locale translation) — what an embedding UI shows while the first pass
+	// is still deriving, instead of an indeterminate spinner.
+	OnPhase func(ConvergePhaseEvent)
 	// LogWriter receives the run's human-readable log lines (auto-extract
 	// notes, per-step output). Discarded when nil.
 	LogWriter io.Writer
@@ -85,6 +90,7 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 		noChecks:    opts.NoChecks,
 		materialize: opts.Materialize,
 		onPass:      opts.OnPass,
+		onPhase:     opts.OnPhase,
 		capture:     &result,
 	})
 	if err != nil {
