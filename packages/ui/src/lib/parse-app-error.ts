@@ -27,9 +27,7 @@ const UNKNOWN = "Something went wrong";
 
 function looksLikeJson(s: string): boolean {
   const t = s.trim();
-  return (
-    (t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"))
-  );
+  return (t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"));
 }
 
 function tryParseJson(s: string): unknown | undefined {

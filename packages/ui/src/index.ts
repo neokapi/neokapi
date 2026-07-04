@@ -25,6 +25,9 @@ export {
 export { parseAppError, type ParsedAppError } from "./lib/parse-app-error";
 export { ErrorNotice, type ErrorNoticeProps } from "./components/ui/error-notice";
 
+// List containment — honest render-cap footer for truncated listings
+export { ListCapRow, type ListCapRowProps } from "./components/ui/list-cap-row";
+
 // shadcn/ui primitives
 export { Alert, AlertTitle, AlertDescription } from "./components/ui/alert";
 export {

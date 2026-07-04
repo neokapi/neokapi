@@ -72,12 +72,18 @@ export function ErrorNotice({
       <div className="flex items-start gap-2">
         <AlertCircle
           aria-hidden
-          className={cn("mt-0.5 shrink-0 text-destructive", variant === "panel" ? "size-4" : "size-3.5")}
+          className={cn(
+            "mt-0.5 shrink-0 text-destructive",
+            variant === "panel" ? "size-4" : "size-3.5",
+          )}
         />
         <div className="min-w-0 flex-1">
           <p
             data-slot="error-notice-title"
-            className={cn("font-medium text-destructive break-words", variant === "inline" && "text-sm")}
+            className={cn(
+              "font-medium text-destructive break-words",
+              variant === "inline" && "text-sm",
+            )}
           >
             {primary}
           </p>

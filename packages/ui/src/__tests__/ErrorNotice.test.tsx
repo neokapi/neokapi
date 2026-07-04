@@ -20,9 +20,7 @@ describe("ErrorNotice", () => {
   it("renders the friendly line from a Wails envelope, not the raw JSON", () => {
     const c = render(createElement(ErrorNotice, { error: envelope }));
     const title = c.querySelector('[data-slot="error-notice-title"]');
-    expect(title?.textContent).toBe(
-      "no default flow configured — add a flow or pick one to run",
-    );
+    expect(title?.textContent).toBe("no default flow configured — add a flow or pick one to run");
     // The raw JSON must not be visible before disclosure.
     expect(c.textContent).not.toContain('"kind"');
   });
@@ -74,11 +72,9 @@ describe("ErrorNotice", () => {
     const c = render(
       createElement(ErrorNotice, { error: "x", hint: "Try again later", variant: "panel" }),
     );
-    expect(c.querySelector('[data-slot="error-notice-hint"]')?.textContent).toBe(
-      "Try again later",
+    expect(c.querySelector('[data-slot="error-notice-hint"]')?.textContent).toBe("Try again later");
+    expect(c.querySelector('[data-slot="error-notice"]')?.getAttribute("data-variant")).toBe(
+      "panel",
     );
-    expect(
-      c.querySelector('[data-slot="error-notice"]')?.getAttribute("data-variant"),
-    ).toBe("panel");
   });
 });
