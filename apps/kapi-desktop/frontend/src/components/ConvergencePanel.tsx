@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card, CardContent, ErrorNotice } from "@neokapi/ui-primitives";
+import { Button, Card, CardContent, ErrorNotice, ListCapRow } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import { Check, CheckCircle2, ClipboardCheck, Loader2, PlayCircle, RefreshCw } from "lucide-react";
 import { api } from "../hooks/useApi";
@@ -118,8 +118,8 @@ export function ConvergencePanel({
 
   if (error && !report) {
     return (
-      <div className="p-4 text-sm text-destructive" data-slot="convergence-error">
-        {error}
+      <div className="p-4" data-slot="convergence-error">
+        <ErrorNotice error={error} title={t("Failed to load convergence status")} variant="panel" />
       </div>
     );
   }
@@ -161,11 +161,9 @@ export function ConvergencePanel({
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
-          {error}
-        </div>
-      )}
+      {error ? (
+        <ErrorNotice error={error} title={t("Bring up to date failed")} variant="inline" />
+      ) : null}
 
       {report.source && <SourceReadinessRow source={report.source} />}
 
@@ -318,7 +316,7 @@ function ReviewQueue({
           <ClipboardCheck size={14} />
           {t("{count} awaiting review", { count: items.length })}
         </header>
-        <ul className="space-y-1.5">
+        <ul className="max-h-80 space-y-1.5 overflow-y-auto" data-slot="convergence-review-list">
           {items.slice(0, 50).map((it, i) => {
             const id = `${it.locale}:${it.file}:${it.key}`;
             const busy = approving.has(id);
@@ -360,11 +358,13 @@ function ReviewQueue({
             );
           })}
         </ul>
-        {items.length > 50 && (
-          <p className="text-xs text-muted-foreground">
-            {t("…and {count} more", { count: items.length - 50 })}
-          </p>
-        )}
+        <ListCapRow
+          shown={Math.min(items.length, 50)}
+          total={items.length}
+          noun={t("awaiting review")}
+          hint={t("Open Review to work through the full queue.")}
+          className="border-t-0"
+        />
       </CardContent>
     </Card>
   );

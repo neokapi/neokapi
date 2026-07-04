@@ -133,9 +133,7 @@ export function ConnectAICard({ detection: propDetection, onConfigured }: Connec
         )}
       </p>
 
-      {error != null && (
-        <ErrorNotice error={error} detailsLabel={t("Details")} className="mb-3" />
-      )}
+      {error != null && <ErrorNotice error={error} detailsLabel={t("Details")} className="mb-3" />}
 
       {detected.length > 0 && (
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">

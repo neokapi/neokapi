@@ -73,8 +73,8 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
 
   if (error && !status) {
     return (
-      <div className="p-4 text-sm text-destructive" data-slot="translation-status-error">
-        {error}
+      <div className="p-4" data-slot="translation-status-error">
+        <ErrorNotice error={error} title={t("Failed to load translation status")} variant="panel" />
       </div>
     );
   }
@@ -108,11 +108,7 @@ export function TranslationStatusPanel({ tabID, status: propStatus }: Translatio
           </Button>
         )}
       </div>
-      {error && (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
-          {error}
-        </div>
-      )}
+      {error ? <ErrorNotice error={error} title={t("Extraction failed")} variant="inline" /> : null}
       {status.collections.length === 0 && (
         <div className="p-4 text-sm text-muted-foreground">
           No content collections defined in this project.
