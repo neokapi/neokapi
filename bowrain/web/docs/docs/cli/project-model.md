@@ -82,10 +82,12 @@ flows:
 requires:
   bowrain: "*"
 
-# Optional bowrain-server connection — presence enables push/pull/sync.
+# Optional bowrain-server connection — presence enables push/pull and makes the
+# server the default venue for `kapi up`.
 server:
   url: https://bowrain.cloud/my-team/abc123
   stream: $auto              # auto-detect from git branch / CI
+  converge: on-push          # on-push (default) | manual | schedule
 
 # Top-level lifecycle policy:
 hooks:
@@ -93,12 +95,11 @@ hooks:
   post-pull: [update-stats]
 
 automations:
-  - name: auto-translate-on-push
-    trigger: post-push
+  - name: notify-on-parked
+    trigger: run-parked
     actions:
-      - type: wait_translate
-        config: { timeout: 5m }
-      - type: pull
+      - type: slack
+        config: { channel: "#localization" }
 
 # Top-level governance / asset policy:
 assets:

@@ -9,7 +9,7 @@ title: "AD-010: Bowrain CLI and Project Model"
 ## Summary
 
 Bowrain ships as a **manifest-driven kapi plugin**, not as part of the
-`kapi` binary. The bowrain commands (`push`, `pull`, `sync`, `status`,
+`kapi` binary. The bowrain commands (`push`, `pull`, `up`, `status`,
 `init`, `auth`, …), the source connector that implements push/pull against
 bowrain-server, the bowrain MCP tools, and the recipe-schema decoders that
 validate `server:`/`hooks:`/`automations:` all live in `bowrain/plugin/`
@@ -136,10 +136,23 @@ With the plugin installed, `kapi` exposes:
   list the `.kapi` recipe's content, which is local configuration, not a
   server concern (a server-connected project just declares `requires: bowrain`).
 - Bowrain commands (contributed by the `kapi-bowrain` manifest): `init`,
-  `push`, `pull`, `sync`, `status`, `diff`, `config`,
+  `push`, `pull`, `up`, `status`, `diff`, `config`,
   `auth`, `stream`, `serve`, `ui`, `workspace`. Sync state — including which
   tracked files changed vs the server — is `kapi status` (the home of the
   former `ls --dirty`).
+
+These commands separate three concerns. **Transport** is `push` and `pull`:
+pure data movement that makes the local checkout and the server replica
+consistent (Merkle diff, conflicts, terminology hand-off), never producing
+translations. **Convergence** is `up` (the built-in verb, contributed with a
+`converge_venue` manifest flag): in a server-connected project `kapi up` runs
+the convergence loop *on the server* by default — it pushes drift, the server
+converges on the org's keys and shared assets, progress streams back live, and
+results pull down; `kapi up --local` runs the loop on this machine and pushes
+the results. **Venue** — where `up`'s compute executes — is therefore a property
+of the project (`server:` presence plus the `server.converge` policy below), not
+a separate verb. There is no `sync` verb: pushing and then waiting for the server
+to translate is exactly what `kapi up` expresses in a connected project.
 
 Each bowrain capability is dispatched according to its manifest entry:
 
@@ -232,10 +245,12 @@ flows:
       - tool: pseudo-translate
         config: { method: extended }
 
-# Optional bowrain-server connection — presence enables push/pull/sync.
+# Optional bowrain-server connection — presence enables push/pull and makes
+# the server the default venue for `kapi up`.
 server:
   url: https://bowrain.example.com/my-team/abc123
   stream: $auto             # auto-detect from git branch / CI
+  converge: on-push         # on-push (default) | manual | schedule
 
 # Top-level lifecycle policy:
 hooks:
@@ -243,12 +258,11 @@ hooks:
   post-pull: [update-stats]
 
 automations:
-  - name: auto-translate-on-push
-    trigger: post-push
+  - name: notify-on-parked
+    trigger: run-parked
     actions:
-      - type: wait_translate
-        config: { timeout: 5m }
-      - type: pull
+      - type: slack
+        config: { channel: "#localization" }
 
 # Top-level governance / asset policy:
 assets:
@@ -278,6 +292,13 @@ Only the connection coordinates sit under `server:`:
   `master` normalizes to `main`. The chain `--stream` flag →
   `BOWRAIN_STREAM` env var → recipe field → auto-detect → `main` decides
   the active stream per command.
+- **`converge`** — the server-side convergence policy: when the server runs
+  `up` on the project's behalf. `on-push` (the default for connected projects)
+  converges after every push; `manual` converges only when `kapi up` is invoked;
+  `schedule` converges on a cadence. This makes server-side translation an
+  explicit, visible policy rather than a hidden side effect of `push` — the way
+  a repository configures push to trigger CI. See
+  [AD-022: Convergence as a Service](022-convergence-as-a-service).
 
 Lifecycle (`hooks`, `automations`) and content/governance (`assets`,
 `brand_voice`) are top-level on the recipe — they describe project-owned
@@ -319,10 +340,11 @@ rather than user-scoped.
 ```bash
 kapi init                # create my-app.kapi + .kapi/, populate server: block
 kapi auth login          # OAuth login → tokens to keychain, metadata to ~/.config/bowrain/auth.json
-kapi status              # show what's pending push / pull
-kapi push [--dry-run]    # scan local files, diff against cache, upload changed blocks
-kapi pull [--locale fr]  # fetch translations from server, write to local files
-kapi sync                # push → wait_translate → pull (orchestrated)
+kapi status              # show standing: coverage, gates, and what's pending push / pull
+kapi push [--dry-run]    # transport: scan local files, diff against cache, upload changed blocks
+kapi pull [--locale fr]  # transport: fetch translations from server, write to local files
+kapi up                  # convergence: run the loop on the server (push → converge → stream → pull)
+kapi up --local          # converge on this machine, then push the results
 kapi ls                  # list tracked files (--stats adds block/word counts)
 kapi add <path>          # append a content entry to the recipe
 kapi rm <path>           # remove or exclude a content entry

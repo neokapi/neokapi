@@ -190,6 +190,15 @@ type Server struct {
 	// AutomationRunStore persists automation runs, steps, and logs (Bowrain AD-013). Nil when not configured.
 	AutomationRunStore *bstore.AutomationRunStore
 
+	// ConvergenceRunStore persists server-side convergence runs and their event
+	// streams (strategy 2026-07-kapi-up doc 03). Nil when not configured.
+	ConvergenceRunStore *bstore.ConvergenceRunStore
+
+	// convergence drives server-side convergence runs (the venue-neutral loop
+	// wired with block-store + job-queue IO) and fans their events to SSE
+	// subscribers. Nil when the run store is not configured.
+	convergence *convergenceOrchestrator
+
 	// stepCompletionTracker monitors async automation steps. Nil when not configured.
 	stepCompletionTracker *event.StepCompletionTracker
 
@@ -393,6 +402,7 @@ func NewServer(cfg Config) *Server {
 			s.ActivityStore = bstore.NewActivityStore(pgSQL)
 			s.TaskStore = bstore.NewTaskStore(pgSQL)
 			s.AutomationRunStore = bstore.NewAutomationRunStore(pgSQL)
+			s.ConvergenceRunStore = bstore.NewConvergenceRunStore(pgSQL)
 			s.PreferenceStore = bstore.NewPreferenceStore(pgSQL)
 			s.DigestStore = bstore.NewDigestStore(pgSQL)
 			s.BrandStore = pg.Brand
@@ -461,6 +471,15 @@ func NewServer(cfg Config) *Server {
 	runManager := event.NewAutomationRunManager(s.AutomationRunStore, s.executeAutomationAction)
 	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, runManager.Execute)
 	s.registerDefaultAutomations()
+
+	// Server-side convergence (strategy 2026-07-kapi-up doc 03): the run engine
+	// plus the on-push policy that replaces the retired auto-translate-on-push
+	// automation. A completed push starts a convergence run for on-push
+	// projects; manual projects converge only on demand (kapi up / REST).
+	if s.ConvergenceRunStore != nil {
+		s.convergence = newConvergenceOrchestrator(s)
+		s.subscribeConvergeOnPush()
+	}
 
 	// Wire up activity recorder (Bowrain AD-014).
 	if s.ActivityStore != nil {
@@ -854,6 +873,13 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			flatSyncGroup.POST("/push/diff", s.HandleSyncPushDiff)
 			flatSyncGroup.POST("/push/commit", s.HandleSyncPushCommit, syncRateLimit)
 			flatSyncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
+
+			// Flat project-scoped convergence + settings for unclaimed projects:
+			// /api/v1/projects/:id/convergence/... and /projects/:id/settings.
+			flatProjectGroup := v1.Group("/projects")
+			flatProjectGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
+			flatProjectGroup.Use(s.ProjectAccessMiddleware())
+			s.registerConvergenceRoutes(flatProjectGroup)
 		}
 
 		// Workspace collection routes: list and create (require auth).
@@ -1334,6 +1360,24 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 
 	// Collab — Bowrain AD-011: /:ws/:id/collab/:ref
 	g.GET("/:id/collab/:ref", s.HandleCollabWebSocket)
+
+	// Convergence runs (strategy 2026-07-kapi-up doc 03) — project-scoped, not
+	// ref-scoped: /:ws/:id/convergence/runs
+	s.registerConvergenceRoutes(g)
+}
+
+// registerConvergenceRoutes wires the project-scoped convergence-run endpoints
+// (start/list/get/cancel/events SSE) and the project-settings PATCH onto a
+// group whose path already carries the project :id param. Shared between the
+// workspace group (/:ws/:id/...) and the flat unclaimed group
+// (/projects/:id/...) so both client route styles reach the same handlers.
+func (s *Server) registerConvergenceRoutes(g *echo.Group) {
+	g.POST("/:id/convergence/runs", s.HandleStartConvergenceRun)
+	g.GET("/:id/convergence/runs", s.HandleListConvergenceRuns)
+	g.GET("/:id/convergence/runs/:runID", s.HandleGetConvergenceRun)
+	g.POST("/:id/convergence/runs/:runID/cancel", s.HandleCancelConvergenceRun)
+	g.GET("/:id/convergence/runs/:runID/events", s.HandleConvergenceRunSSE)
+	g.PATCH("/:id/settings", s.HandleUpdateProjectSettings)
 }
 
 // Start initializes the Echo server and starts listening.

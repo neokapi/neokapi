@@ -130,7 +130,7 @@ mkdir myapp && cd myapp
 kapi init --server http://localhost:8080 --anonymous --source-locale en --target-locale fr,de
 echo '{"greeting":"Hello"}' > en.json
 kapi add en.json
-kapi sync --locale fr,de        # push → wait for translations → pull
+kapi up                         # converge fr,de on the server: push → converge → pull
 cat fr.json                     # translated catalog
 ```
 

@@ -22,6 +22,7 @@ var storeMigrations = []storage.Migration{
 				dashboard_visibility    TEXT NOT NULL DEFAULT 'private',
 				properties              TEXT NOT NULL DEFAULT '{}',
 				workspace_id            TEXT NOT NULL DEFAULT '',
+				converge_policy         TEXT NOT NULL DEFAULT 'on-push',
 				archived                BOOLEAN NOT NULL DEFAULT FALSE,
 				archived_at             TIMESTAMPTZ,
 				created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -344,6 +345,35 @@ var storeMigrations = []storage.Migration{
 			);
 			CREATE INDEX idx_automation_logs_step ON automation_logs(step_id, timestamp);
 			CREATE INDEX idx_automation_logs_run ON automation_logs(run_id, timestamp);
+
+			-- Convergence runs: one goal-seeking reconciliation of a project
+			-- toward its ship gates (strategy 2026-07-kapi-up doc 03). A run
+			-- drives the venue-neutral core/convergence.Loop server-side and
+			-- streams its convergence.Event feed; standing holds the per-locale
+			-- rollup, and every emitted event is persisted for SSE replay.
+			-- Timestamps are stored as RFC3339 TEXT (not TIMESTAMPTZ) so a single
+			-- ConvergenceRunStore(*sql.DB) scans identically on PostgreSQL and
+			-- SQLite; UTC RFC3339Nano sorts chronologically under ORDER BY.
+			CREATE TABLE convergence_runs (
+				id             TEXT PRIMARY KEY,
+				project_id     TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				trigger        TEXT NOT NULL DEFAULT 'manual',      -- cli | push | manual
+				state          TEXT NOT NULL DEFAULT 'running',     -- running | converged | parked | canceled | failed
+				passes         INT NOT NULL DEFAULT 0,
+				standing       TEXT NOT NULL DEFAULT '{}',          -- per-locale standing rollup (JSON)
+				failing_checks INT NOT NULL DEFAULT 0,
+				created_at     TEXT NOT NULL DEFAULT '',
+				finished_at    TEXT NOT NULL DEFAULT ''
+			);
+			CREATE INDEX idx_convergence_runs_project ON convergence_runs(project_id, created_at DESC);
+			CREATE INDEX idx_convergence_runs_active ON convergence_runs(project_id, state);
+
+			CREATE TABLE convergence_run_events (
+				run_id  TEXT NOT NULL REFERENCES convergence_runs(id) ON DELETE CASCADE,
+				seq     INT NOT NULL,
+				payload TEXT NOT NULL DEFAULT '{}',
+				PRIMARY KEY (run_id, seq)
+			);
 
 			-- Review queue
 			CREATE TABLE review_items (

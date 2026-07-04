@@ -11,12 +11,11 @@
   "group": "bowrain",
   "capabilities": {
     "commands": [
+      {"name": "up",     "short": "Reconcile the project toward its ship gates (runs on the server when connected)"},
       {"name": "push",   "short": "Upload local changes to the server",
         "args": [{"name": "paths", "variadic": true, "optional": true}]},
       {"name": "pull",   "short": "Download translations from the server"},
-      {"name": "sync",   "short": "Push local changes, wait for translations, pull",
-        "args": [{"name": "paths", "variadic": true, "optional": true}]},
-      {"name": "status", "short": "Show project sync status"},
+      {"name": "server-status", "short": "Emit the server sync + convergence-run standing as JSON (plumbing for kapi status)"},
       {"name": "ls",     "short": "List tracked files",
         "args": [{"name": "paths", "variadic": true, "optional": true}]},
       {"name": "add",    "short": "Add files to the project",

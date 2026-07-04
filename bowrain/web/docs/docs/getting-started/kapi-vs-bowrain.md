@@ -21,13 +21,14 @@ multi-user, governed layer a team needs.
   terminology, and translation memory once for everyone; adds real-time
   collaboration, connectors, automation, and versioned history; and turns a
   team's corrections into enforced checks. You keep using kapi — the bowrain
-  plugin lets a kapi project [sync](/cli/commands/sync) with a server.
+  plugin connects a kapi project to a server and runs [`kapi up`](/cli/commands/up)
+  on it.
 
 The boundary is sharp: **kapi owns the local files and the project
 configuration** — the `.kapi` recipe (content, flows, plugins, languages,
 brand, and the `server:` block) is authored and versioned locally with kapi,
 including the configuration of projects you push to Bowrain via `kapi push` /
-`kapi sync`. **Bowrain's local footprint is cache and speed only, never a
+`kapi up`. **Bowrain's local footprint is cache and speed only, never a
 source of truth.** The Bowrain desktop app is a working copy of the server: a
 content cache, an offline edit queue, and TM/termbase mirrors. It does not
 author local files or source projects from your filesystem — that is kapi's

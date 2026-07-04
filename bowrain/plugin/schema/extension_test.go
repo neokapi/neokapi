@@ -49,6 +49,32 @@ url: "not a url"
 	assert.Contains(t, err.Error(), "url")
 }
 
+func TestServerDecoder_ConvergePolicy(t *testing.T) {
+	for _, policy := range []string{"on-push", "manual"} {
+		n := decode(t, `
+url: https://bowrain.example.com/team/proj
+converge: `+policy+`
+`)
+		assert.NoError(t, serverDecoder.Decode(n), "policy %q must be accepted", policy)
+	}
+}
+
+func TestServerDecoder_RejectsBadConverge(t *testing.T) {
+	n := decode(t, `
+url: https://bowrain.example.com/team/proj
+converge: sometimes
+`)
+	err := serverDecoder.Decode(n)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "converge")
+}
+
+func TestServerSpec_ResolvedConverge(t *testing.T) {
+	assert.Equal(t, ConvergeOnPush, (&ServerSpec{}).ResolvedConverge(), "empty defaults to on-push")
+	assert.Equal(t, ConvergeManual, (&ServerSpec{Converge: ConvergeManual}).ResolvedConverge())
+	assert.Equal(t, ConvergeOnPush, (*ServerSpec)(nil).ResolvedConverge(), "nil is safe")
+}
+
 func TestHooksDecoder_Valid(t *testing.T) {
 	n := decode(t, `
 pre-push: [qa]

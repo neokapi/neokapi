@@ -175,5 +175,5 @@ rules ([AD-013](/architecture-decisions/013-automation-engine)):
 - `auto-translate-new-locale`: on `project.updated` when new target
   locales are added, creates jobs for all items.
 
-The `kapi sync` CLI command (and the GitHub Action) coordinates the
-full round-trip: push → wait for translation jobs → pull results.
+The `kapi up` CLI command (and the GitHub Action) coordinates the
+full round-trip on a connected project: push → server convergence → pull results.

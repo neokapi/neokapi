@@ -42,15 +42,15 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 | `version`   | Installed version (e.g. `0.5.0`) |
 | `cache-hit` | Whether the plugin cache was hit |
 
-## Recommended: Full Sync with `kapi-action`
+## Recommended: Converge with `kapi-action`
 
 The simplest CI pattern uses two actions together:
 
 - [`neokapi/setup-kapi`](https://github.com/neokapi/setup-kapi) — installs kapi and the bowrain plugin (`kapi-bowrain`)
-- [`neokapi/kapi-action`](https://github.com/neokapi/kapi-action) — runs a `kapi` command (here, `kapi sync`) and commits translations
+- [`neokapi/kapi-action`](https://github.com/neokapi/kapi-action) — runs a `kapi` command (here, `kapi up`) and commits translations
 
 ```yaml
-name: Sync Translations
+name: Converge Translations
 
 on:
   workflow_dispatch:
@@ -63,7 +63,7 @@ permissions:
   contents: write
 
 jobs:
-  sync:
+  up:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,16 +75,16 @@ jobs:
           server: https://dev.bowrain.cloud
 
       - uses: neokapi/kapi-action@v1
-        id: sync
+        id: up
         with:
-          command: sync
+          command: up
 
       - name: Summary
-        if: steps.sync.outputs.committed == 'true'
-        run: echo "Translations committed at ${{ steps.sync.outputs.commit-sha }}"
+        if: steps.up.outputs.committed == 'true'
+        run: echo "Translations committed at ${{ steps.up.outputs.commit-sha }}"
 ```
 
-With `command: sync`, the action runs `kapi sync` (push → wait → pull), checks for changes, commits, and pushes. It sets outputs you can use in subsequent steps:
+With `command: up`, the action runs `kapi up` — the convergence loop on the server (push → converge → pull) — then checks for changes, commits, and pushes. It sets outputs you can use in subsequent steps:
 
 | Output       | Description                          |
 | ------------ | ------------------------------------ |
@@ -142,9 +142,12 @@ jobs:
         run: kapi qa
 ```
 
-## Example: Server Sync on Push to Main
+## Example: Push source on Push to Main
 
-Automatically push translations to Bowrain Cloud when changes land on `main`:
+Send source changes to Bowrain Cloud when they land on `main`. Push is pure
+transport; with `server.converge: on-push` the server converges on its own clock.
+Use `kapi up` instead of `kapi push` if you want CI to watch the run and commit
+the results back:
 
 ```yaml
 name: Sync Translations
@@ -312,7 +315,7 @@ Use `latest` (the default) for workflows where you always want the newest releas
 
 - [CLI Overview](/cli/overview)
 - [Flow Hooks](/cli/flows/hooks)
-- [kapi sync](/cli/commands/sync) — push + wait + pull in one command
+- [kapi up](/cli/commands/up) — run the convergence loop on the server (push → converge → pull)
 - [kapi push](/cli/commands/push) and [kapi pull](/cli/commands/pull)
 - [kapi auth](/cli/commands/auth)
 - [Source Language Preparation](/cli/use-cases/source-prep) — QA on source content in CI

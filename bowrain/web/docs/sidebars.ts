@@ -5,7 +5,7 @@ import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 //   gettingStartedSidebar  — install, quickstart; anchored to the site root
 //   usingBowrainSidebar    — the product, organized by what you do; shared
 //                            across the browser and desktop clients
-//   cliSidebar             — project sync via kapi + the bowrain plugin
+//   cliSidebar             — connect a project and keep it up to date via kapi + the bowrain plugin
 //   forDevelopersSidebar   — self-hosting + the engineering docs (developer/,
 //                            architecture-decisions/, notes/)
 //
@@ -134,7 +134,7 @@ const sidebars: SidebarsConfig = {
         "cli/commands/diff",
         "cli/commands/pull",
         "cli/commands/push",
-        "cli/commands/sync",
+        "cli/commands/up",
         "cli/commands/run",
         "cli/commands/auth",
         "cli/commands/config",

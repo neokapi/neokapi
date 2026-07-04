@@ -294,9 +294,8 @@ DELETE /:ws/changesets/:id/pilots/:project/:stream
 ## CLI / MCP (bowrain plugin)
 
 There are no dedicated `kapi concepts` / `kapi experiments` / `kapi terms pull`
-commands. Governed terminology rides ordinary project sync instead
-(`bowrain/plugin/commands/conceptsync.go`, folded into `kapi pull` / `kapi push`
-/ `kapi sync`):
+commands. Governed terminology rides ordinary project transport instead
+(`bowrain/plugin/commands/conceptsync.go`, folded into `kapi pull` / `kapi push`):
 
 - **`kapi pull`** paginates `GET /:ws/concepts`, fetches each concept's relations
   (`GET /:ws/concepts/:cid/relations`, bounded fan-out), writes both into the
