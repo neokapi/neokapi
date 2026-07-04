@@ -141,10 +141,10 @@ func TestNormalizePostHogLangTag(t *testing.T) {
 }
 
 func TestValidatePostHogPathPattern(t *testing.T) {
-	assert.NoError(t, ValidatePostHogPathPattern(DefaultPostHogPathLocalePattern))
-	assert.Error(t, ValidatePostHogPathPattern("^/(fr|de"), "unbalanced regex")
-	assert.Error(t, ValidatePostHogPathPattern("^/fr/"), "no capture group")
-	assert.Error(t, ValidatePostHogPathPattern(`^/([a-z]{2})' OR '1'='1`), "quote injection")
+	require.NoError(t, ValidatePostHogPathPattern(DefaultPostHogPathLocalePattern))
+	require.Error(t, ValidatePostHogPathPattern("^/(fr|de"), "unbalanced regex")
+	require.Error(t, ValidatePostHogPathPattern("^/fr/"), "no capture group")
+	require.Error(t, ValidatePostHogPathPattern(`^/([a-z]{2})' OR '1'='1`), "quote injection")
 }
 
 func TestPostHogTestConnection(t *testing.T) {

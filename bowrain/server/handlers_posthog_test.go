@@ -218,19 +218,19 @@ func TestPostHogDemandEndpointAndCache(t *testing.T) {
 	assert.Equal(t, "nb-NO", demand.Languages[0].Tag)
 	require.NotNil(t, demand.ServedLocaleHitRate)
 	assert.InDelta(t, 0.7, *demand.ServedLocaleHitRate, 0.0001)
-	assert.EqualValues(t, callsAfterSave+3, ph.queryCalls.Load())
+	assert.Equal(t, callsAfterSave+3, ph.queryCalls.Load())
 
 	// Second fetch is served from the 1h cache — no PostHog traffic.
 	rec = posthogJSON(t, srv, token, http.MethodGet, demandPath+"?range=7d", "")
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &demand))
 	assert.True(t, demand.Cached)
-	assert.EqualValues(t, callsAfterSave+3, ph.queryCalls.Load(), "cache hit must not query PostHog")
+	assert.Equal(t, callsAfterSave+3, ph.queryCalls.Load(), "cache hit must not query PostHog")
 
 	// A different range is a different cache entry.
 	rec = posthogJSON(t, srv, token, http.MethodGet, demandPath+"?range=90d", "")
 	require.Equal(t, http.StatusOK, rec.Code)
-	assert.EqualValues(t, callsAfterSave+6, ph.queryCalls.Load())
+	assert.Equal(t, callsAfterSave+6, ph.queryCalls.Load())
 
 	// refresh=true bypasses the cache.
 	rec = posthogJSON(t, srv, token, http.MethodGet, demandPath+"?range=7d&refresh=true", "")
