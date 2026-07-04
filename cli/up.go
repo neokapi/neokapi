@@ -100,12 +100,17 @@ gates (e.g. before a release tag).
 			if maxPasses == 0 {
 				maxPasses = convergeMaxPassesDefault
 			}
+			jobs, _ := cmd.Flags().GetInt("jobs")
+			if jobs <= 0 {
+				jobs = proj.Defaults.Jobs
+			}
 			return a.runDefaultFlowConverge(cmd, proj, projectPath, convergeOptions{
 				untilGate:   untilGate,
 				maxPasses:   maxPasses,
 				noExtract:   boolFlag(cmd, "no-extract"),
 				noChecks:    boolFlag(cmd, "no-checks"),
 				materialize: boolFlag(cmd, "materialize"),
+				jobs:        jobs,
 			})
 		},
 	}
@@ -113,6 +118,7 @@ gates (e.g. before a release tag).
 	AddProjectFlag(cmd)
 	a.addFlowRunFlags(cmd)
 	cmd.Flags().Int("passes", 0, "maximum reconciliation passes (0 = loop until converged or parked, capped at 5; 1 = single pass)")
+	cmd.Flags().Int("jobs", 0, "how many languages to converge concurrently per pass (0 = the recipe's defaults.jobs, else 4)")
 	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
 	cmd.Flags().Bool("no-checks", false, "skip the bound checks in the loop (produced units count as translated even when failing guardrails)")
 	cmd.Flags().Bool("materialize", false, "after the loop, write localized files from the project store for every shippable locale (forces defaults.materialize: on-converge)")

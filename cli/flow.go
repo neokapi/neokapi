@@ -1576,6 +1576,13 @@ func (a *App) runProjectStepsOver(ctx context.Context, cmd *cobra.Command, flowN
 		projectTools = append(projectTools, t)
 	}
 
+	// A convergence worker appends its progress tap as a trailing read-only
+	// step: it observes blocks leaving the pipeline and feeds the run's live
+	// unit_progress events. Never set outside converge workers.
+	if a.convergeProgressTap != nil {
+		projectTools = append(projectTools, a.convergeProgressTap)
+	}
+
 	// Store original buildFlowTools and temporarily replace it.
 	origBuild := a.projectFlowTools
 	a.projectFlowTools = projectTools

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/spf13/cobra"
 )
@@ -25,6 +26,12 @@ type UpOptions struct {
 	// Materialize forces the post-loop materialize step regardless of the
 	// recipe's defaults.materialize policy.
 	Materialize bool
+	// Jobs is how many locales one pass runs concurrently; <= 0 uses the
+	// `kapi up` default (4).
+	Jobs int
+	// OnEvent receives the run's convergence.Event stream — the one protocol
+	// every surface renders a run from. Events arrive one at a time.
+	OnEvent func(convergence.Event)
 	// OnPass receives a structured snapshot after each pass.
 	OnPass func(ConvergePassEvent)
 	// LogWriter receives the run's human-readable log lines (auto-extract
@@ -84,6 +91,8 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 		noExtract:   opts.NoExtract,
 		noChecks:    opts.NoChecks,
 		materialize: opts.Materialize,
+		jobs:        opts.Jobs,
+		onEvent:     opts.OnEvent,
 		onPass:      opts.OnPass,
 		capture:     &result,
 	})

@@ -107,7 +107,13 @@ type Defaults struct {
 	// "manual" (the default) leaves materialization to an explicit
 	// `kapi merge` (or `up --materialize`); "on-converge" writes the files
 	// after the loop for every locale whose gated scopes are all shippable.
-	Materialize    string                    `yaml:"materialize,omitempty" json:"materialize,omitempty"`
+	Materialize string `yaml:"materialize,omitempty" json:"materialize,omitempty"`
+
+	// Jobs is how many target languages one convergence pass (`kapi up`)
+	// runs concurrently. 0 (the default) leaves it to the runner's default;
+	// `up --jobs` overrides per run.
+	Jobs int `yaml:"jobs,omitempty" json:"jobs,omitempty"`
+
 	LocaleFormat   string                    `yaml:"locale_format,omitempty" json:"locale_format,omitempty"` // "bcp-47" (default) or "posix"
 	Concurrency    int                       `yaml:"concurrency,omitempty" json:"concurrency,omitempty"`
 	ParallelBlocks int                       `yaml:"parallel_blocks,omitempty" json:"parallel_blocks,omitempty"`

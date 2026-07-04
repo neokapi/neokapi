@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sync"
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 // convergeOptions carries the knobs of one convergence run (`kapi up` /
@@ -33,6 +36,13 @@ type convergeOptions struct {
 	// materialize forces the post-loop materialize step (`up --materialize`)
 	// regardless of the recipe's defaults.materialize policy.
 	materialize bool
+	// jobs is how many locales one pass runs concurrently (`up --jobs`);
+	// <= 0 uses convergeJobsDefault. Locales are independent within a pass.
+	jobs int
+	// onEvent, when set, receives the run's convergence.Event stream — the
+	// one protocol every surface renders a run from (CLI live view, NDJSON,
+	// desktop run view, server SSE). Called from one goroutine at a time.
+	onEvent func(convergence.Event)
 	// onPass, when set, receives a structured snapshot after each pass — the
 	// hook an embedding UI (the desktop runner) renders its passes view from.
 	onPass func(ConvergePassEvent)
@@ -228,6 +238,23 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 	if maxPasses < 1 {
 		maxPasses = 1
 	}
+	jobs := opts.jobs
+	if jobs <= 0 {
+		jobs = convergeJobsDefault
+	}
+
+	// emit serializes the run's event stream: workers report concurrently, but
+	// consumers (renderers, NDJSON encoders, event bridges) see one event at a
+	// time, in order.
+	var emitMu sync.Mutex
+	emit := func(ev convergence.Event) {
+		if opts.onEvent == nil {
+			return
+		}
+		emitMu.Lock()
+		defer emitMu.Unlock()
+		opts.onEvent(ev)
+	}
 
 	// Share one parse cache across every pass: unchanged source files parse once,
 	// not once per pass; only the targets a pass rewrites re-parse.
@@ -261,17 +288,64 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 			pending := localesNeedingPass(cov, locales)
 			if len(pending) == 0 {
 				// Already converged before this pass (or after the previous one).
-				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov, locales, excl, opts)
+				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov, locales, excl, opts, emit)
 			}
 
 			before := producedUnits(cov)
 			passes++
+			passStart := convergence.Event{
+				Type:      convergence.EventPassStart,
+				Pass:      passes,
+				MaxPasses: maxPasses,
+				Pending:   localeStrings(pending),
+			}
+			if extracted != nil {
+				passStart.ExtractedFiles = extracted.Files
+				passStart.ExtractedBlocks = extracted.Blocks
+			}
+			emit(passStart)
+
+			// Fan the pass out per locale: locales are independent within a
+			// pass (disjoint target rows and files; shared read-only source,
+			// TM, and parse cache), so each pending locale runs the flow on
+			// its own worker App, at most `jobs` at a time. The pass barrier
+			// stays — coverage, checks, and parking reason about the whole
+			// pass (g.Wait below) before the next one starts.
+			totals := localeUnitTotals(cov)
+			g, gctx := errgroup.WithContext(ctx)
+			g.SetLimit(jobs)
 			for _, loc := range pending {
-				a.TargetLang = string(loc)
-				rCtx := flow.ResourceContext{ProjectDir: projectDir, SourceLocale: a.SourceLang, TargetLocale: string(loc)}
-				if err := a.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, sources); err != nil {
-					return fmt.Errorf("converge %s: %w", loc, err)
-				}
+				g.Go(func() error {
+					tap := newConvergeTap(string(loc))
+					worker := a.convergeWorker(string(loc), tap)
+					emit(convergence.Event{
+						Type:   convergence.EventLocaleStart,
+						Pass:   passes,
+						Locale: string(loc),
+						Units:  totals[string(loc)],
+					})
+					stopWatch := watchTapProgress(tap, passes, emit)
+					rCtx := flow.ResourceContext{ProjectDir: projectDir, SourceLocale: worker.SourceLang, TargetLocale: string(loc)}
+					err := worker.runProjectStepsOver(gctx, cmd, flowName, spec, &rCtx, sources)
+					stopWatch()
+					if err != nil {
+						return fmt.Errorf("converge %s: %w", loc, err)
+					}
+					done, viaTM, viaAI := tap.snapshot()
+					emit(convergence.Event{
+						Type:   convergence.EventLocaleDone,
+						Pass:   passes,
+						Locale: string(loc),
+						Units:  totals[string(loc)],
+						Done:   done,
+						ViaTM:  viaTM,
+						ViaAI:  viaAI,
+					})
+					return nil
+				})
+			}
+			if err := g.Wait(); err != nil {
+				return err
 			}
 
 			// Post-pass derivation re-runs the bound checks over what the pass
@@ -281,22 +355,54 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 			if err != nil {
 				return err
 			}
+			produced := producedUnits(cov2)
+			emit(convergence.Event{
+				Type:          convergence.EventPassDone,
+				Pass:          passes,
+				MaxPasses:     maxPasses,
+				Produced:      produced,
+				ProducedDelta: produced - before,
+				FailingChecks: excl2.totalFailing(),
+				Pending:       localeStrings(localesNeedingPass(cov2, locales)),
+			})
 			if opts.onPass != nil {
 				opts.onPass(newConvergePassEvent(passes, extracted, before, cov2, excl2, locales))
 			}
 			if !untilGate {
-				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts)
+				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts, emit)
 			}
 			if len(localesNeedingPass(cov2, locales)) == 0 {
-				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts)
+				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts, emit)
 			}
 			// Stop looping when capped or when a full pass produced nothing new —
 			// the remaining locales park (the flow can't advance them unaided).
-			if passes >= maxPasses || producedUnits(cov2) <= before {
-				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts)
+			if passes >= maxPasses || produced <= before {
+				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts, emit)
 			}
 		}
 	})
+}
+
+// localeStrings converts locale IDs for the event stream.
+func localeStrings(locales []model.LocaleID) []string {
+	if len(locales) == 0 {
+		return nil
+	}
+	out := make([]string, len(locales))
+	for i, loc := range locales {
+		out[i] = string(loc)
+	}
+	return out
+}
+
+// localeUnitTotals sums each locale's unit count across its coverage scopes —
+// the denominator its live progress renders against.
+func localeUnitTotals(cov []LocaleCoverage) map[string]int {
+	totals := make(map[string]int)
+	for _, c := range cov {
+		totals[c.Locale] += c.Total
+	}
+	return totals
 }
 
 // syncProjectBlockStore detects block-store drift against the working tree and
@@ -438,7 +544,7 @@ func producedUnits(cov []LocaleCoverage) int {
 // are ALL shippable has its localized files written from the project block
 // store via the shared merge/materialize path; parked locales are skipped —
 // their content isn't at the bar yet.
-func (a *App) finishConverge(cmd *cobra.Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *checkExclusions, opts convergeOptions) error {
+func (a *App) finishConverge(cmd *cobra.Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *checkExclusions, opts convergeOptions, emit func(convergence.Event)) error {
 	out := buildConvergeOutput(flowName, passes, cov, locales, excl)
 
 	if opts.materialize || proj.Defaults.ResolvedMaterialize() == project.MaterializeOnConverge {
@@ -460,7 +566,16 @@ func (a *App) finishConverge(cmd *cobra.Command, proj *project.KapiProject, proj
 			lc.Materialized = n
 			out.MaterializedFiles += n
 		}
+		if out.MaterializedFiles > 0 {
+			emit(convergence.Event{Type: convergence.EventMaterialized, Files: out.MaterializedFiles})
+		}
 	}
+
+	state := convergence.RunConverged
+	if !out.Converged {
+		state = convergence.RunParked
+	}
+	emit(convergence.Event{Type: convergence.EventDone, State: state})
 
 	if opts.capture != nil {
 		*opts.capture = out
