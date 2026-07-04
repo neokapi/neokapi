@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -65,7 +66,7 @@ func (c *BowrainClient) convergencePrefix() string {
 // (HTTP 200) rather than starting a second; a fresh run returns 201.
 func (c *BowrainClient) StartConvergenceRun(ctx context.Context, req StartConvergenceRunRequest) (*ConvergenceRun, error) {
 	if c == nil {
-		return nil, fmt.Errorf("bowrain: project is not connected to a server")
+		return nil, errors.New("bowrain: project is not connected to a server")
 	}
 	body, err := json.Marshal(req)
 	if err != nil {

@@ -14,21 +14,19 @@ import (
 // an immediate "database is locked" (bypassing busy_timeout), and concurrent
 // appliers double-recording the same migration version.
 func TestNewSQLiteTM_ConcurrentFirstOpen(t *testing.T) {
-	for round := 0; round < 5; round++ {
+	for round := range 5 {
 		path := filepath.Join(t.TempDir(), "tm.db")
 		var wg sync.WaitGroup
 		errs := make(chan error, 4)
-		for i := 0; i < 4; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+		for range 4 {
+			wg.Go(func() {
 				tm, err := sqltm.NewSQLiteTM(path)
 				if err != nil {
 					errs <- err
 					return
 				}
 				tm.Close()
-			}()
+			})
 		}
 		wg.Wait()
 		close(errs)

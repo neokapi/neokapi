@@ -759,6 +759,29 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     }),
     markActivitiesSeen: async () => {},
 
+    // --- Convergence runs (Bowrain AD-022) ------------------------------------------
+    listConvergenceRuns: async () => [],
+    getConvergenceRun: async (_ws, projectId, runId) => ({
+      id: runId,
+      project_id: projectId,
+      trigger: "manual",
+      state: "converged" as const,
+      passes: 1,
+      locales: [],
+      failing_checks: 0,
+    }),
+    startConvergenceRun: async (_ws, projectId) => ({
+      id: `run-${Date.now()}`,
+      project_id: projectId,
+      trigger: "manual",
+      state: "running" as const,
+      passes: 0,
+      locales: [],
+      failing_checks: 0,
+      created_at: new Date().toISOString(),
+    }),
+    cancelConvergenceRun: async () => {},
+
     // --- Tasks (Bowrain AD-014) -----------------------------------------------------
     listTasks: async () => ({ tasks: [], next_cursor: "" }),
     createTask: async (_ws, task) => ({
