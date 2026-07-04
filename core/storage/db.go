@@ -30,6 +30,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -39,10 +40,23 @@ type DB struct {
 	path string
 }
 
+// openMu serializes Open's create-and-apply-pragmas sequence within the
+// process. Two connections racing to switch a fresh database's journal mode
+// to WAL can hit SQLite's deadlock-avoidance path, which returns
+// "database is locked" IMMEDIATELY — bypassing busy_timeout entirely — so a
+// concurrent first open of the same file (converge workers each opening the
+// project TM) failed spuriously. Opens are millisecond-scale; one process-wide
+// mutex is cheaper than a per-path map and removes the race for every caller.
+// (Cross-process first-open races remain covered by the DSN busy_timeout,
+// which handles the plain-contention case.)
+var openMu sync.Mutex
+
 // Open opens a SQLite database at the given path with shared pragmas.
 // Use ":memory:" for in-memory databases (useful for testing).
 // Parent directories must already exist; the file is created on demand.
 func Open(dbPath string) (*DB, error) {
+	openMu.Lock()
+	defer openMu.Unlock()
 	// Set the busy timeout in the DSN so every pooled connection waits for locks
 	// from the moment it is established — before any pragma runs. Without this,
 	// the very first `PRAGMA journal_mode=WAL` can hit "database is locked" when a
@@ -64,12 +78,47 @@ func Open(dbPath string) (*DB, error) {
 		db.SetConnMaxLifetime(30 * time.Minute)
 	}
 
-	if err := applyPragmas(db); err != nil {
+	if err := applyPragmasRetry(db); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("apply pragmas: %w", err)
 	}
 
 	return &DB{DB: db, path: dbPath}, nil
+}
+
+// applyPragmasRetry retries applyPragmas while the database reports itself
+// busy/locked. A fresh database being migrated by a sibling opener (another
+// converge worker in this process, or another kapi process) holds an exclusive
+// lock that can surface here as an IMMEDIATE "database is locked" — SQLite's
+// deadlock-avoidance path returns without consulting busy_timeout — so a
+// bounded retry, not the busy handler, is what absorbs it. First-creation
+// migrations complete in at most seconds; anything still locked after the
+// window is a real fault and surfaces as the error.
+func applyPragmasRetry(db *sql.DB) error {
+	const window = 15 * time.Second
+	delay := 10 * time.Millisecond
+	deadline := time.Now().Add(window)
+	for {
+		err := applyPragmas(db)
+		if err == nil || !isBusyErr(err) || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(delay)
+		if delay < 500*time.Millisecond {
+			delay *= 2
+		}
+	}
+}
+
+// isBusyErr reports whether err is SQLite lock contention (mattn and modernc
+// phrase it differently; neither exposes a portable sentinel through
+// database/sql).
+func isBusyErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "database is locked") || strings.Contains(s, "SQLITE_BUSY") || strings.Contains(s, "database table is locked")
 }
 
 // Path returns the database file path.
