@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, KeyRound, Loader2, Sparkles } from "lucide-react";
-import { Button, Input, Label, cn } from "@neokapi/ui-primitives";
+import { Button, ErrorNotice, Input, Label, cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import type { AIDetectionResult, DetectedAIProvider } from "../types/api";
 import { api } from "../hooks/useApi";
@@ -32,7 +32,7 @@ export function ConnectAICard({ detection: propDetection, onConfigured }: Connec
   const [keyProvider, setKeyProvider] = useState(KEY_PROVIDERS[0].name);
   const [apiKey, setApiKey] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const [done, setDone] = useState<string | null>(null);
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export function ConnectAICard({ detection: propDetection, onConfigured }: Connec
       await api.selectAIProvider(d.provider, d.model);
       finish(d.label);
     } catch (e) {
-      setError(String(e));
+      setError(e);
     } finally {
       setBusy(null);
     }
@@ -79,7 +79,7 @@ export function ConnectAICard({ detection: propDetection, onConfigured }: Connec
       setApiKey("");
       finish(provider.label);
     } catch (e) {
-      setError(String(e));
+      setError(e);
     } finally {
       setBusy(null);
     }
@@ -92,7 +92,7 @@ export function ConnectAICard({ detection: propDetection, onConfigured }: Connec
       await api.selectAIProvider("demo", "");
       finish(t("the demo engine"));
     } catch (e) {
-      setError(String(e));
+      setError(e);
     } finally {
       setBusy(null);
     }
@@ -133,11 +133,7 @@ export function ConnectAICard({ detection: propDetection, onConfigured }: Connec
         )}
       </p>
 
-      {error && (
-        <p className="mb-3 text-xs text-destructive" role="alert">
-          {error}
-        </p>
-      )}
+      {error != null && <ErrorNotice error={error} detailsLabel={t("Details")} className="mb-3" />}
 
       {detected.length > 0 && (
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">

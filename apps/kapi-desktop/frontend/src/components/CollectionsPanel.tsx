@@ -37,6 +37,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  ListCapRow,
 } from "@neokapi/ui-primitives";
 import type {
   KapiProject,
@@ -134,6 +135,16 @@ function rungFor(lc?: LocaleCoverage): Rung {
 // Above this many target languages the per-language bar columns get cramped, so
 // the coverage layout switches to the compact heatmap (issue #1068 review).
 const HEATMAP_LANG_THRESHOLD = 5;
+
+// A collection can match thousands of files. The matched/unmatched file tables
+// are scroll-contained (bounded height + sticky header) so the page never turns
+// into a 10k-row scroll, and the rows themselves are capped — with an honest
+// ListCapRow footer — so a giant collection never mounts a giant DOM. The cap
+// is generous (the container scrolls within it); refine the glob to see the rest.
+const FILE_TABLE_CAP = 500;
+// Bounded viewport for a card's file table; the header stays pinned while the
+// rows scroll under it.
+const FILE_TABLE_MAX_H = "max-h-[28rem]";
 
 interface FileMatch {
   path: string;
@@ -1140,227 +1151,266 @@ export function CollectionsPanel({
   };
 
   // The matched-files table for a collection card (rows + output expansion).
-  const matchedTable = (files: FileMatch[]) => (
-    <table className="w-full text-xs">
-      <thead>
-        <tr className="border-b border-border text-left text-muted-foreground">
-          <th className="px-3 py-2 font-medium">File</th>
-          <th className="px-3 py-2 font-medium">Format</th>
-          <th className="px-3 py-2 font-medium">Pattern</th>
-        </tr>
-      </thead>
-      <tbody>
-        {files.map((m, i) => {
-          const outs = outputs[m.relative] ?? [];
-          const isOpen = expandedOutputs.has(m.relative);
-          const present = outs.filter((o) => o.exists).length;
-          const templated = templatedOutputPath(outs);
-          const tOpen = expandedTemplate.has(m.relative);
-          return (
-            <Fragment key={i}>
-              <tr
-                onClick={() => setPreview({ path: m.path, relative: m.relative })}
-                className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
-                title={t("Preview {file}", { file: m.relative })}
-              >
-                <td className="px-3 py-1.5">
-                  <span className="flex items-center gap-1.5 font-mono">
-                    {outs.length > 0 ? (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpandedOutputs((prev) => {
+  // Scroll-contained with a pinned header and an honest render cap, so a
+  // collection matching thousands of files never becomes a giant page-length
+  // scroll or a giant DOM.
+  const matchedTable = (allFiles: FileMatch[]) => {
+    const files = allFiles.slice(0, FILE_TABLE_CAP);
+    return (
+      <div>
+        <div className={`${FILE_TABLE_MAX_H} overflow-y-auto`} data-slot="matched-files-scroll">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
+              <tr className="border-b border-border text-left text-muted-foreground">
+                <th className="px-3 py-2 font-medium">File</th>
+                <th className="px-3 py-2 font-medium">Format</th>
+                <th className="px-3 py-2 font-medium">Pattern</th>
+              </tr>
+            </thead>
+            <tbody>
+              {files.map((m, i) => {
+                const outs = outputs[m.relative] ?? [];
+                const isOpen = expandedOutputs.has(m.relative);
+                const present = outs.filter((o) => o.exists).length;
+                const templated = templatedOutputPath(outs);
+                const tOpen = expandedTemplate.has(m.relative);
+                return (
+                  <Fragment key={i}>
+                    <tr
+                      onClick={() => setPreview({ path: m.path, relative: m.relative })}
+                      className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
+                      title={t("Preview {file}", { file: m.relative })}
+                    >
+                      <td className="px-3 py-1.5">
+                        <span className="flex items-center gap-1.5 font-mono">
+                          {outs.length > 0 ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedOutputs((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(m.relative)) next.delete(m.relative);
+                                  else next.add(m.relative);
+                                  return next;
+                                });
+                              }}
+                              className="shrink-0 text-muted-foreground hover:text-foreground"
+                              title={isOpen ? t("Hide outputs") : t("Show outputs")}
+                              aria-label={isOpen ? t("Hide outputs") : t("Show outputs")}
+                            >
+                              {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                            </button>
+                          ) : (
+                            <FileText size={12} className="shrink-0 text-muted-foreground" />
+                          )}
+                          {m.relative}
+                        </span>
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <Badge variant="secondary">{m.format || "unknown"}</Badge>
+                      </td>
+                      <td className="px-3 py-1.5 text-muted-foreground">
+                        <span className="flex items-center justify-between gap-2">
+                          <span>{m.pattern}</span>
+                          {outs.length > 0 && (
+                            <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
+                              {t("{present}/{total} outputs", { present, total: outs.length })}
+                            </Badge>
+                          )}
+                        </span>
+                      </td>
+                    </tr>
+                    {/* One templated output line stands in for every locale; expand
+                  it for the per-locale files. */}
+                    {isOpen && outs.length > 0 && (
+                      <tr
+                        onClick={() =>
+                          setExpandedTemplate((prev) => {
                             const next = new Set(prev);
                             if (next.has(m.relative)) next.delete(m.relative);
                             else next.add(m.relative);
                             return next;
-                          });
-                        }}
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
-                        title={isOpen ? t("Hide outputs") : t("Show outputs")}
-                        aria-label={isOpen ? t("Hide outputs") : t("Show outputs")}
+                          })
+                        }
+                        className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
+                        title={
+                          tOpen ? t("Hide per-language outputs") : t("Show per-language outputs")
+                        }
                       >
-                        {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                      </button>
-                    ) : (
-                      <FileText size={12} className="shrink-0 text-muted-foreground" />
+                        <td className="py-1 pl-9 pr-3">
+                          <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
+                            {tOpen ? (
+                              <ChevronDown size={11} className="shrink-0" />
+                            ) : (
+                              <ChevronRight size={11} className="shrink-0" />
+                            )}
+                            <ArrowRight size={10} className="shrink-0 opacity-50" />
+                            <span translate="no">{templated}</span>
+                          </span>
+                        </td>
+                        <td className="px-3 py-1">
+                          <Badge variant="secondary">{m.format || "—"}</Badge>
+                        </td>
+                        <td className="px-3 py-1 text-right">
+                          <Badge variant="outline" className="text-[10px] font-normal">
+                            {t("{present}/{total} generated", { present, total: outs.length })}
+                          </Badge>
+                        </td>
+                      </tr>
                     )}
-                    {m.relative}
-                  </span>
-                </td>
-                <td className="px-3 py-1.5">
-                  <Badge variant="secondary">{m.format || "unknown"}</Badge>
-                </td>
-                <td className="px-3 py-1.5 text-muted-foreground">
-                  <span className="flex items-center justify-between gap-2">
-                    <span>{m.pattern}</span>
-                    {outs.length > 0 && (
-                      <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
-                        {t("{present}/{total} outputs", { present, total: outs.length })}
-                      </Badge>
-                    )}
-                  </span>
-                </td>
-              </tr>
-              {/* One templated output line stands in for every locale; expand
-                  it for the per-locale files. */}
-              {isOpen && outs.length > 0 && (
-                <tr
-                  onClick={() =>
-                    setExpandedTemplate((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(m.relative)) next.delete(m.relative);
-                      else next.add(m.relative);
-                      return next;
-                    })
-                  }
-                  className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
-                  title={tOpen ? t("Hide per-language outputs") : t("Show per-language outputs")}
-                >
-                  <td className="py-1 pl-9 pr-3">
-                    <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
-                      {tOpen ? (
-                        <ChevronDown size={11} className="shrink-0" />
-                      ) : (
-                        <ChevronRight size={11} className="shrink-0" />
-                      )}
-                      <ArrowRight size={10} className="shrink-0 opacity-50" />
-                      <span translate="no">{templated}</span>
-                    </span>
-                  </td>
-                  <td className="px-3 py-1">
-                    <Badge variant="secondary">{m.format || "—"}</Badge>
-                  </td>
-                  <td className="px-3 py-1 text-right">
-                    <Badge variant="outline" className="text-[10px] font-normal">
-                      {t("{present}/{total} generated", { present, total: outs.length })}
-                    </Badge>
-                  </td>
-                </tr>
-              )}
-              {isOpen &&
-                tOpen &&
-                outs.map((o) => (
-                  <tr
-                    key={`${i}-${o.relative}`}
-                    onClick={
-                      o.exists
-                        ? () => setPreview({ path: o.path, relative: o.relative })
-                        : undefined
-                    }
-                    className={`border-b border-border last:border-0 ${
-                      o.exists ? "cursor-pointer hover:bg-accent/30" : "opacity-60"
-                    }`}
-                    title={
-                      o.exists
-                        ? t("Inspect {file}", { file: o.relative })
-                        : t("Not generated yet — run a flow to create it")
-                    }
-                  >
-                    <td className="py-1 pl-16 pr-3">
-                      <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
-                        <LocalePill locale={o.lang} />
-                        <span>{o.relative}</span>
-                      </span>
-                    </td>
-                    <td className="px-3 py-1">
-                      {o.exists ? (
-                        <Badge variant="secondary">{o.format || "—"}</Badge>
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground">{t("pending")}</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-1 text-right text-muted-foreground">
-                      {o.exists ? formatSize(o.size) : ""}
-                    </td>
-                  </tr>
-                ))}
-            </Fragment>
-          );
-        })}
-      </tbody>
-    </table>
-  );
+                    {isOpen &&
+                      tOpen &&
+                      outs.map((o) => (
+                        <tr
+                          key={`${i}-${o.relative}`}
+                          onClick={
+                            o.exists
+                              ? () => setPreview({ path: o.path, relative: o.relative })
+                              : undefined
+                          }
+                          className={`border-b border-border last:border-0 ${
+                            o.exists ? "cursor-pointer hover:bg-accent/30" : "opacity-60"
+                          }`}
+                          title={
+                            o.exists
+                              ? t("Inspect {file}", { file: o.relative })
+                              : t("Not generated yet — run a flow to create it")
+                          }
+                        >
+                          <td className="py-1 pl-16 pr-3">
+                            <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
+                              <LocalePill locale={o.lang} />
+                              <span>{o.relative}</span>
+                            </span>
+                          </td>
+                          <td className="px-3 py-1">
+                            {o.exists ? (
+                              <Badge variant="secondary">{o.format || "—"}</Badge>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">
+                                {t("pending")}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-1 text-right text-muted-foreground">
+                            {o.exists ? formatSize(o.size) : ""}
+                          </td>
+                        </tr>
+                      ))}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <ListCapRow
+          shown={files.length}
+          total={allFiles.length}
+          noun={t("matched files")}
+          hint={t("Refine the collection's glob to narrow the list.")}
+        />
+      </div>
+    );
+  };
 
-  // The unmatched-files table for the "Other files" card.
-  const unmatchedTable = (files: ProjectFile[]) => (
-    <table className="w-full text-xs">
-      <thead>
-        <tr className="border-b border-border text-left text-muted-foreground">
-          <th className="px-3 py-2 font-medium">File</th>
-          <th className="px-3 py-2 font-medium">Format</th>
-          <th className="px-3 py-2 text-right font-medium">Size</th>
-        </tr>
-      </thead>
-      <tbody>
-        {files.map((f) => {
-          // An archive is a namespace of files: clicking it expands an inner-entry
-          // list rather than previewing the container as one document.
-          const archive = isArchivePath(f.relative);
-          const fileExpanded = expandedArchives.has(f.path);
-          const onRow = archive
-            ? () =>
-                setExpandedArchives((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(f.path)) next.delete(f.path);
-                  else next.add(f.path);
-                  return next;
-                })
-            : f.format
-              ? () => setPreview({ path: f.path, relative: f.relative })
-              : undefined;
-          return (
-            <Fragment key={f.relative}>
-              <tr
-                onClick={onRow}
-                className={`border-b border-border last:border-0 text-muted-foreground hover:bg-accent/30 ${
-                  onRow ? "cursor-pointer" : ""
-                }`}
-                title={
-                  archive
-                    ? t("Browse entries in {file}", { file: f.relative })
-                    : f.format
-                      ? t("Preview {file}", { file: f.relative })
-                      : undefined
-                }
-              >
-                <td className="px-3 py-1.5">
-                  <span className="flex items-center gap-1.5 font-mono">
-                    {archive ? (
-                      fileExpanded ? (
-                        <ChevronDown size={12} className="shrink-0" />
-                      ) : (
-                        <ChevronRight size={12} className="shrink-0" />
-                      )
-                    ) : (
-                      <FileText size={12} className="shrink-0" />
-                    )}
-                    {f.relative}
-                  </span>
-                </td>
-                <td className="px-3 py-1.5">
-                  {f.format ? <Badge variant="secondary">{f.format}</Badge> : <span>&mdash;</span>}
-                </td>
-                <td className="px-3 py-1.5 text-right">{formatSize(f.size)}</td>
+  // The unmatched-files table for the "Other files" card. Scroll-contained with
+  // a pinned header and an honest render cap (a project can carry thousands of
+  // unmatched files).
+  const unmatchedTable = (allFiles: ProjectFile[]) => {
+    const files = allFiles.slice(0, FILE_TABLE_CAP);
+    return (
+      <div>
+        <div className={`${FILE_TABLE_MAX_H} overflow-y-auto`} data-slot="unmatched-files-scroll">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
+              <tr className="border-b border-border text-left text-muted-foreground">
+                <th className="px-3 py-2 font-medium">File</th>
+                <th className="px-3 py-2 font-medium">Format</th>
+                <th className="px-3 py-2 text-right font-medium">Size</th>
               </tr>
-              {archive && fileExpanded && (
-                <tr className="border-b border-border last:border-0">
-                  <td colSpan={3} className="px-3 py-1.5">
-                    <ArchiveEntries
-                      archivePath={f.path}
-                      onSelect={(entry) =>
-                        setArchivePreview({ path: f.path, relative: f.relative, entry })
+            </thead>
+            <tbody>
+              {files.map((f) => {
+                // An archive is a namespace of files: clicking it expands an inner-entry
+                // list rather than previewing the container as one document.
+                const archive = isArchivePath(f.relative);
+                const fileExpanded = expandedArchives.has(f.path);
+                const onRow = archive
+                  ? () =>
+                      setExpandedArchives((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(f.path)) next.delete(f.path);
+                        else next.add(f.path);
+                        return next;
+                      })
+                  : f.format
+                    ? () => setPreview({ path: f.path, relative: f.relative })
+                    : undefined;
+                return (
+                  <Fragment key={f.relative}>
+                    <tr
+                      onClick={onRow}
+                      className={`border-b border-border last:border-0 text-muted-foreground hover:bg-accent/30 ${
+                        onRow ? "cursor-pointer" : ""
+                      }`}
+                      title={
+                        archive
+                          ? t("Browse entries in {file}", { file: f.relative })
+                          : f.format
+                            ? t("Preview {file}", { file: f.relative })
+                            : undefined
                       }
-                    />
-                  </td>
-                </tr>
-              )}
-            </Fragment>
-          );
-        })}
-      </tbody>
-    </table>
-  );
+                    >
+                      <td className="px-3 py-1.5">
+                        <span className="flex items-center gap-1.5 font-mono">
+                          {archive ? (
+                            fileExpanded ? (
+                              <ChevronDown size={12} className="shrink-0" />
+                            ) : (
+                              <ChevronRight size={12} className="shrink-0" />
+                            )
+                          ) : (
+                            <FileText size={12} className="shrink-0" />
+                          )}
+                          {f.relative}
+                        </span>
+                      </td>
+                      <td className="px-3 py-1.5">
+                        {f.format ? (
+                          <Badge variant="secondary">{f.format}</Badge>
+                        ) : (
+                          <span>&mdash;</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-1.5 text-right">{formatSize(f.size)}</td>
+                    </tr>
+                    {archive && fileExpanded && (
+                      <tr className="border-b border-border last:border-0">
+                        <td colSpan={3} className="px-3 py-1.5">
+                          <ArchiveEntries
+                            archivePath={f.path}
+                            onSelect={(entry) =>
+                              setArchivePreview({ path: f.path, relative: f.relative, entry })
+                            }
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <ListCapRow
+          shown={files.length}
+          total={allFiles.length}
+          noun={t("files")}
+          hint={t("Narrow with a collection, or refine your project's globs.")}
+        />
+      </div>
+    );
+  };
 
   // ── Batch selection → run a flow across the ticked collections ─────────────
   // Selecting is only meaningful when there are flows to run AND the Advanced

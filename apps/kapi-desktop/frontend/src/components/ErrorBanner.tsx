@@ -7,8 +7,8 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { AlertCircle, X, Copy, ChevronDown } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { X, Copy } from "lucide-react";
+import { Button, ErrorNotice, parseAppError } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 
 /* ------------------------------------------------------------------ */
@@ -18,7 +18,7 @@ import { t } from "@neokapi/kapi-react/runtime";
 interface ErrorEntry {
   id: number;
   message: string;
-  details: string;
+  details: unknown;
   timestamp: number;
 }
 
@@ -44,19 +44,6 @@ export function useError(): ErrorContextValue {
 
 let nextId = 0;
 
-function formatDetails(details: unknown): string {
-  if (details === undefined || details === null) return "";
-  if (details instanceof Error) {
-    return details.stack ?? details.message;
-  }
-  if (typeof details === "string") return details;
-  try {
-    return JSON.stringify(details, null, 2);
-  } catch {
-    return String(details as string);
-  }
-}
-
 export function ErrorProvider({ children }: { children: ReactNode }) {
   const [errors, setErrors] = useState<ErrorEntry[]>([]);
 
@@ -64,7 +51,7 @@ export function ErrorProvider({ children }: { children: ReactNode }) {
     const entry: ErrorEntry = {
       id: ++nextId,
       message,
-      details: formatDetails(details),
+      details,
       timestamp: Date.now(),
     };
     setErrors((prev) => [entry, ...prev].slice(0, 3));
@@ -116,7 +103,6 @@ function ErrorBannerItem({
   entry: ErrorEntry;
   onDismiss: (id: number) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const hovering = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -143,10 +129,20 @@ function ErrorBannerItem({
     startTimer();
   };
 
+  // When details are provided, the caller's message is the contextual title
+  // and the details carry the underlying error; otherwise parse the message
+  // itself (it may be a raw Wails envelope string).
+  const hasDetails = entry.details !== undefined && entry.details !== null;
+  const errorValue = hasDetails ? entry.details : entry.message;
+  const parsed = parseAppError(errorValue);
+
   const handleCopy = async () => {
-    const text = `${entry.message}\n\n${entry.details}`;
+    const parts = [entry.message];
+    if (hasDetails && parsed.title !== entry.message) parts.push(parsed.title);
+    if (parsed.detail) parts.push(parsed.detail);
+    if (parsed.raw) parts.push(parsed.raw);
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(parts.join("\n\n"));
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -158,38 +154,13 @@ function ErrorBannerItem({
     <div
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="animate-in slide-in-from-right rounded-lg border border-destructive/30 bg-destructive/10 p-3 shadow-lg backdrop-blur-sm"
+      className="animate-in slide-in-from-right relative rounded-lg border border-destructive/30 bg-destructive/10 p-3 pr-9 shadow-lg backdrop-blur-sm"
     >
-      {/* Header row */}
-      <div className="flex items-start gap-2">
-        <AlertCircle size={16} className="mt-0.5 shrink-0 text-destructive" />
-        <p className="flex-1 text-sm font-medium text-foreground">{entry.message}</p>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => onDismiss(entry.id)}
-          className="shrink-0"
-          aria-label="Dismiss error"
-        >
-          <X size={14} />
-        </Button>
-      </div>
-
-      {/* Actions row */}
-      {entry.details && (
-        <div className="mt-2 flex items-center gap-2 pl-6">
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() => setExpanded((v) => !v)}
-            className="px-0 h-auto text-[11px] text-muted-foreground hover:text-foreground"
-          >
-            <ChevronDown
-              size={12}
-              className={`transition-transform ${expanded ? "rotate-180" : ""}`}
-            />
-            Details
-          </Button>
+      <ErrorNotice
+        error={errorValue}
+        title={hasDetails ? entry.message : undefined}
+        detailsLabel={t("Details")}
+        actions={
           <Button
             variant="ghost"
             size="xs"
@@ -199,15 +170,17 @@ function ErrorBannerItem({
             <Copy size={10} />
             {copied ? t("Copied") : t("Copy Details")}
           </Button>
-        </div>
-      )}
-
-      {/* Expanded details */}
-      {expanded && entry.details && (
-        <pre className="mt-2 ml-6 max-h-32 overflow-auto rounded border border-border bg-background/80 p-2 text-[10px] text-muted-foreground whitespace-pre-wrap break-words">
-          {entry.details}
-        </pre>
-      )}
+        }
+      />
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={() => onDismiss(entry.id)}
+        className="absolute right-2 top-2 shrink-0"
+        aria-label="Dismiss error"
+      >
+        <X size={14} />
+      </Button>
     </div>
   );
 }

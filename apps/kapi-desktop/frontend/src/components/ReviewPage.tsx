@@ -14,6 +14,7 @@ import {
 import { Badge, Button, Card, CardContent, LocalePill, ScrollArea } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import { api } from "../hooks/useApi";
+import { VirtualRows } from "../lib/VirtualRows";
 import { useError } from "./ErrorBanner";
 import type {
   DesktopFinding,
@@ -522,15 +523,28 @@ export function ReviewPage({
     }
   }, [cleanVisible, tabID, onDecide, showError]);
 
-  // Group the visible queue by file for the left pane.
-  const groups = useMemo(() => {
+  // Group the visible queue by file, then flatten to a single row stream
+  // (a file header, then its units) so the left pane can be virtualized: a
+  // review queue can reach thousands of units, and mounting every one is what
+  // turns the pane into a multi-thousand-node scroll. The flat stream keeps the
+  // grouped-by-file presentation while letting the virtualizer mount only the
+  // rows near the viewport (it falls back to a full render for small queues and
+  // in jsdom, where a viewport can't be measured).
+  const rows = useMemo(() => {
     const m = new Map<string, ReviewItem[]>();
     for (const it of visible) {
       const g = m.get(it.file);
       if (g) g.push(it);
       else m.set(it.file, [it]);
     }
-    return Array.from(m.entries());
+    const out: Array<
+      { kind: "header"; file: string; count: number } | { kind: "item"; item: ReviewItem }
+    > = [];
+    for (const [file, items] of m.entries()) {
+      out.push({ kind: "header", file, count: items.length });
+      for (const item of items) out.push({ kind: "item", item });
+    }
+    return out;
   }, [visible]);
 
   const chips: Array<{ id: Chip; label: string }> = [
@@ -796,84 +810,83 @@ export function ReviewPage({
         </Card>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)] gap-4">
-          {/* Left: the queue, grouped by file. */}
-          <ScrollArea className="min-h-0 rounded-md border" data-slot="review-queue">
-            <div className="p-2">
-              {groups.map(([file, items]) => (
-                <div key={file} className="mb-2">
-                  <div className="mb-1 flex items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground">
+          {/* Left: the queue, grouped by file. Virtualized once it grows past a
+              handful of units (see VirtualRows) so a thousands-strong queue
+              never mounts a thousands-strong DOM; the viewport is bounded so the
+              page never becomes the scroll surface. */}
+          <VirtualRows
+            items={rows}
+            estimateSize={44}
+            overscan={16}
+            className="min-h-0 flex-1 rounded-md border p-2"
+            dataSlot="review-queue"
+          >
+            {(row) => {
+              if (row.kind === "header") {
+                return (
+                  <div className="mb-1 mt-2 flex items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground first:mt-0">
                     <FileText size={11} />
-                    <span className="truncate" translate="no" title={file}>
-                      {shortFile(file)}
+                    <span className="truncate" translate="no" title={row.file}>
+                      {shortFile(row.file)}
                     </span>
-                    <span className="text-muted-foreground/60">· {items.length}</span>
+                    <span className="text-muted-foreground/60">· {row.count}</span>
                   </div>
-                  <ul>
-                    {items.map((it) => {
-                      const id = itemId(it);
-                      const active = id === selectedId;
-                      return (
-                        <li key={id}>
-                          <button
-                            className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-                              active ? "bg-primary/10" : "hover:bg-accent"
-                            }`}
-                            onClick={() => setSelectedId(id)}
-                            data-slot="review-queue-item"
-                            data-active={active || undefined}
-                            data-key={it.key}
-                          >
-                            {it.hasFindings ? (
-                              <Circle
-                                size={8}
-                                className="mt-1 shrink-0 fill-amber-500 text-amber-500"
-                                aria-label={t("Has findings")}
-                              />
-                            ) : (
-                              <Circle
-                                size={8}
-                                className={`mt-1 shrink-0 ${it.hasFindings === false ? "text-primary" : "text-muted-foreground/40"}`}
-                                aria-label={
-                                  it.hasFindings === false ? t("Clean") : t("Not checked")
-                                }
-                              />
-                            )}
-                            <span className="min-w-0 flex-1">
-                              <span className="flex items-center gap-1.5">
-                                <span className="truncate font-medium" translate="no">
-                                  {it.key}
-                                </span>
-                                <LocalePill locale={it.locale} />
-                                {it.aiScore !== undefined && (
-                                  <span
-                                    className="rounded bg-muted px-1 text-[10px] tabular-nums text-muted-foreground"
-                                    title={
-                                      it.aiModel
-                                        ? t("AI review score ({model})", { model: it.aiModel })
-                                        : t("AI review score")
-                                    }
-                                    data-slot="review-queue-ai-score"
-                                  >
-                                    {t("ai {score}", { score: it.aiScore })}
-                                  </span>
-                                )}
-                              </span>
-                              <span
-                                className="block truncate text-muted-foreground"
-                                title={it.source}
-                              >
-                                {it.source}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+                );
+              }
+              const it = row.item;
+              const id = itemId(it);
+              const active = id === selectedId;
+              return (
+                <button
+                  className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                    active ? "bg-primary/10" : "hover:bg-accent"
+                  }`}
+                  onClick={() => setSelectedId(id)}
+                  data-slot="review-queue-item"
+                  data-active={active || undefined}
+                  data-key={it.key}
+                >
+                  {it.hasFindings ? (
+                    <Circle
+                      size={8}
+                      className="mt-1 shrink-0 fill-amber-500 text-amber-500"
+                      aria-label={t("Has findings")}
+                    />
+                  ) : (
+                    <Circle
+                      size={8}
+                      className={`mt-1 shrink-0 ${it.hasFindings === false ? "text-primary" : "text-muted-foreground/40"}`}
+                      aria-label={it.hasFindings === false ? t("Clean") : t("Not checked")}
+                    />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate font-medium" translate="no">
+                        {it.key}
+                      </span>
+                      <LocalePill locale={it.locale} />
+                      {it.aiScore !== undefined && (
+                        <span
+                          className="rounded bg-muted px-1 text-[10px] tabular-nums text-muted-foreground"
+                          title={
+                            it.aiModel
+                              ? t("AI review score ({model})", { model: it.aiModel })
+                              : t("AI review score")
+                          }
+                          data-slot="review-queue-ai-score"
+                        >
+                          {t("ai {score}", { score: it.aiScore })}
+                        </span>
+                      )}
+                    </span>
+                    <span className="block truncate text-muted-foreground" title={it.source}>
+                      {it.source}
+                    </span>
+                  </span>
+                </button>
+              );
+            }}
+          </VirtualRows>
 
           {/* Center: the unit — SOURCE / TARGET, findings, context, actions. */}
           <div className="flex min-h-0 flex-col" data-slot="review-unit">
