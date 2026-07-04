@@ -881,12 +881,7 @@ export interface AutomationLogEntry {
 // ---------------------------------------------------------------------------
 
 /** Lifecycle state of a server-side convergence run. */
-export type ConvergenceRunState =
-  | "running"
-  | "converged"
-  | "parked"
-  | "canceled"
-  | "failed";
+export type ConvergenceRunState = "running" | "converged" | "parked" | "canceled" | "failed";
 
 /** One locale's rollup within a run, mirroring the run's event stream. */
 export interface ConvergenceLocaleStanding {

@@ -78,10 +78,7 @@ function ensureRow(pass: ConvergencePassView, locale: string): ConvergenceLocale
  * model is the accumulator; callers that need immutability should clone first
  * (see reduceRun, which rebuilds from scratch).
  */
-export function applyEvent(
-  model: ConvergenceRunModel,
-  ev: ConvergenceEvent,
-): ConvergenceRunModel {
+export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): ConvergenceRunModel {
   // The pass a locale-scoped event belongs to: prefer the event's own pass
   // stamp, else the most recent pass.
   const currentPass = (): ConvergencePassView | null => {

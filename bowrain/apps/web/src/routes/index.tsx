@@ -340,6 +340,18 @@ const automationsRoute = createRoute({
   },
 });
 
+const runsRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/runs",
+  component: lazyRouteComponent(() => import("./workspace/runs"), "RunsRoute"),
+  pendingComponent: TablePageSkeleton,
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
+    await queryClient.ensureQueryData(
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+    );
+  },
+});
+
 const translationDashboardRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/dashboard",
@@ -647,6 +659,7 @@ const routeTree = rootRoute.addChildren([
     reviewRoute,
     preProcessRoute,
     automationsRoute,
+    runsRoute,
     translationDashboardRoute,
     brandRoute.addChildren([
       brandIndexRoute,

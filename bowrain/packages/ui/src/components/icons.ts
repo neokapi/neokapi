@@ -83,4 +83,5 @@ export {
   ScrollText,
   Quote,
   GitFork,
+  Rocket,
 } from "lucide-react";

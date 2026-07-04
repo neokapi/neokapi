@@ -773,11 +773,7 @@ export interface ApiAdapter {
     projectId: string,
     opts?: { trigger?: string; locales?: string[] },
   ): Promise<ConvergenceRun>;
-  cancelConvergenceRun(
-    workspaceSlug: string,
-    projectId: string,
-    runId: string,
-  ): Promise<void>;
+  cancelConvergenceRun(workspaceSlug: string, projectId: string, runId: string): Promise<void>;
 
   // Tasks (Bowrain AD-014)
   listTasks(
