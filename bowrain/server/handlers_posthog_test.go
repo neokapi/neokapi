@@ -237,7 +237,7 @@ func TestPostHogDemandEndpointAndCache(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &demand))
 	assert.False(t, demand.Cached)
-	assert.EqualValues(t, callsAfterSave+9, ph.queryCalls.Load())
+	assert.Equal(t, callsAfterSave+9, ph.queryCalls.Load())
 
 	// Invalid range → 400.
 	rec = posthogJSON(t, srv, token, http.MethodGet, demandPath+"?range=365d", "")

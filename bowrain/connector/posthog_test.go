@@ -115,7 +115,7 @@ func TestResolvePostHogHost(t *testing.T) {
 			require.NoError(t, err, tc.in)
 			assert.Equal(t, tc.want, got, tc.in)
 		} else {
-			assert.Error(t, err, tc.in)
+			require.Error(t, err, tc.in)
 		}
 	}
 	assert.Equal(t, "us.posthog.com", PostHogHostLabel("us"))
@@ -266,6 +266,6 @@ func TestPostHogFetchDemandInvalidRange(t *testing.T) {
 	c, err := NewPostHogClient(f.srv.URL, "12345", "phx_test_key_1234")
 	require.NoError(t, err)
 	_, err = c.FetchDemand(t.Context(), "365d", "")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Zero(t, f.queryCalls.Load(), "invalid range must not hit the API")
 }
