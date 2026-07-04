@@ -165,15 +165,15 @@ large jobs.
 If neither Service Bus nor NATS is configured, the server uses an
 in-memory channel queue (suitable only for single-instance development).
 
-## Automation Integration
+## Convergence Integration
 
-Translation jobs are triggered automatically via built-in automation
-rules ([AD-013](/architecture-decisions/013-automation-engine)):
-
-- `auto-translate-on-push`: on `push.completed`, creates one job per
-  (item, locale) pair pushed. Links via `push_id`.
-- `auto-translate-new-locale`: on `project.updated` when new target
-  locales are added, creates jobs for all items.
+Translation jobs are the produce step of the server's convergence engine
+([AD-022](/architecture-decisions/022-convergence-as-a-service)): a
+convergence run — started by a push to an `on-push` project, by `kapi up`
+from a connected checkout, or manually — enqueues one job per pending
+(item, locale) pair for the locales its pass fans out, waits for their
+completion, and re-derives coverage before the next pass. Jobs link back
+to the triggering push via `push_id`.
 
 The `kapi up` CLI command (and the GitHub Action) coordinates the
 full round-trip on a connected project: push → server convergence → pull results.

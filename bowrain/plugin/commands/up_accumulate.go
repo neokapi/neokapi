@@ -11,12 +11,12 @@ import (
 // identical whichever venue executed. The run's authoritative final standing
 // (fetched after the stream closes) fills any gaps the stream left.
 type runAccumulator struct {
-	passes        int
-	converged     bool
-	sawDone       bool
-	materialized  int
-	order         []string
-	locales       map[string]*accLocale
+	passes       int
+	converged    bool
+	sawDone      bool
+	materialized int
+	order        []string
+	locales      map[string]*accLocale
 }
 
 type accLocale struct {

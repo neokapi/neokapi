@@ -65,6 +65,7 @@ import type {
   ArchivedProject,
   TranslationDashboardStats,
   ActivityInfo,
+  ConvergenceRun,
   TaskInfo,
   CreateTaskRequest,
   NotificationPreference,
@@ -755,6 +756,28 @@ export interface ApiAdapter {
   }>;
 
   markActivitiesSeen(workspaceSlug: string): Promise<void>;
+
+  // Convergence runs (server-side `kapi up`) — Bowrain AD-022
+  listConvergenceRuns(
+    workspaceSlug: string,
+    projectId: string,
+    limit?: number,
+  ): Promise<ConvergenceRun[]>;
+  getConvergenceRun(
+    workspaceSlug: string,
+    projectId: string,
+    runId: string,
+  ): Promise<ConvergenceRun>;
+  startConvergenceRun(
+    workspaceSlug: string,
+    projectId: string,
+    opts?: { trigger?: string; locales?: string[] },
+  ): Promise<ConvergenceRun>;
+  cancelConvergenceRun(
+    workspaceSlug: string,
+    projectId: string,
+    runId: string,
+  ): Promise<void>;
 
   // Tasks (Bowrain AD-014)
   listTasks(

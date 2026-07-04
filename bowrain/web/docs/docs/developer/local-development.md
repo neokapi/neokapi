@@ -6,9 +6,10 @@ sidebar_position: 10
 # Local Development
 
 A full bowrain instance is a few cooperating processes: the **server** (REST +
-gRPC API), an **async worker** (runs the auto-translate-on-push automation and
-upstream machine translation), and backing services — PostgreSQL, NATS (job
-queue + event bus), Redis, Keycloak (OIDC), and Mailpit (SMTP). The server and
+gRPC API; also drives convergence runs), an **async worker** (processes the
+translation jobs those runs enqueue, and push ingestion), and backing
+services — PostgreSQL, NATS (job queue + event bus), Redis, Keycloak (OIDC),
+and Mailpit (SMTP). The server and
 worker share the job queue and a blob volume; push processing is asynchronous
 ([AD-009](../architecture-decisions/009-sync-protocol.md)).
 
@@ -100,8 +101,9 @@ Keycloak is on `http://localhost:8180` (admin/admin) and Mailpit on
 
 ## The translation worker
 
-The `bowrain-worker` runs the built-in auto-translate-on-push automation. Its
-upstream provider for these platform jobs is configured by environment:
+The `bowrain-worker` processes the translation jobs that convergence runs
+enqueue (a push to an `on-push` project starts one — AD-022). Its upstream
+provider for these platform jobs is configured by environment:
 
 - `BOWRAIN_PLATFORM_PROVIDER` — `demo` (default), `gemini`, `openai`,
   `anthropic`, or `ollama`.

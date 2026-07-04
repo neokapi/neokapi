@@ -205,7 +205,7 @@ func (s *ConvergenceRunStore) DeleteRunsOlderThan(ctx context.Context, age time.
 	return n, nil
 }
 
-// finishedText renders an optional finish time for storage ('' when unset).
+// finishedText renders an optional finish time for storage (” when unset).
 func finishedText(t *time.Time) string {
 	if t == nil || t.IsZero() {
 		return ""

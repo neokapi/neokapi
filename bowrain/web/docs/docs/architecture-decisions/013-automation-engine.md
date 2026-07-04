@@ -70,14 +70,15 @@ Every project is created with a set of built-in rules:
 
 | Rule                          | Trigger                       | Action                                           |
 | ----------------------------- | ----------------------------- | ------------------------------------------------ |
-| `auto-translate-on-push`                      | `push.completed`              | Create translation jobs per (item, locale) pair  |
-| `auto-extract-on-push`                        | `push.completed`              | Run entity/term extraction on changed blocks     |
-| `auto-translate-new-locale`                   | `project.updated`             | Translate all items when a locale is added       |
-| `create-review-tasks-on-automation-complete`  | `push.automations.completed`  | Per-locale review tasks (see AD-014)             |
-| `fan-out-after-source-review`                 | `source.review.completed`     | Fan out per-locale review tasks after source review (see AD-014) |
+| `auto-extract-on-push`        | `push.completed`              | Run entity/term extraction on changed blocks     |
+| `fan-out-after-source-review` | `source.review.completed`     | Fan out per-locale review tasks after source review (see AD-014) |
 
-Projects opt out by disabling individual rules or setting
-`auto_translate: false` in project properties.
+Translation on push is not an automation rule: it is the convergence
+engine (AD-022). A push to a project whose converge policy is `on-push`
+starts a convergence run — the same loop `kapi up` drives — which
+translates, checks, parks, and creates the per-locale review tasks its
+parked units need. Projects opt out per push by setting the policy to
+`manual` (`server.converge` in the recipe, mirrored to the server).
 
 ### Actions
 

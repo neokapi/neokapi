@@ -877,6 +877,97 @@ export interface AutomationLogEntry {
 }
 
 // ---------------------------------------------------------------------------
+// Convergence runs (server-side `kapi up`) — Bowrain AD-022
+// ---------------------------------------------------------------------------
+
+/** Lifecycle state of a server-side convergence run. */
+export type ConvergenceRunState =
+  | "running"
+  | "converged"
+  | "parked"
+  | "canceled"
+  | "failed";
+
+/** One locale's rollup within a run, mirroring the run's event stream. */
+export interface ConvergenceLocaleStanding {
+  locale: string;
+  /** shippable | parked | pending */
+  state: string;
+  units?: number;
+  produced?: number;
+  viaTM?: number;
+  viaAI?: number;
+}
+
+/**
+ * A server-side convergence run — one goal-seeking reconciliation of a project
+ * toward its ship gates. Matches the REST `convergenceRunView` shape from
+ * bowrain/server/handlers_convergence.go.
+ */
+export interface ConvergenceRun {
+  id: string;
+  project_id: string;
+  /** cli | push | manual */
+  trigger: string;
+  state: ConvergenceRunState;
+  passes: number;
+  locales?: ConvergenceLocaleStanding[];
+  failing_checks?: number;
+  created_at?: string;
+  finished_at?: string;
+}
+
+/** Discriminator for a convergence run's progress events. */
+export type ConvergenceEventType =
+  | "pass_start"
+  | "locale_start"
+  | "unit_progress"
+  | "locale_done"
+  | "pass_done"
+  | "materialized"
+  | "log"
+  | "done";
+
+/**
+ * One progress event of a convergence run — the flat, Type-discriminated
+ * protocol streamed over the run's SSE endpoint. Mirrors
+ * core/convergence.Event; fields are populated per Type and omitted when zero.
+ */
+export interface ConvergenceEvent {
+  type: ConvergenceEventType;
+
+  // Pass-scoped (pass_start, pass_done; Pass also stamps locale-scoped events).
+  pass?: number;
+  maxPasses?: number;
+  pending?: string[];
+
+  // Pre-pass auto-extract on drift (pass_start).
+  extractedFiles?: number;
+  extractedBlocks?: number;
+
+  // Locale-scoped (locale_start, unit_progress, locale_done).
+  locale?: string;
+  units?: number;
+  done?: number;
+  viaTM?: number;
+  viaAI?: number;
+
+  // Post-derivation (pass_done).
+  produced?: number;
+  producedDelta?: number;
+  failingChecks?: number;
+
+  // locale_done → shippable|parked|pending; done → converged|parked.
+  state?: string;
+
+  // Materialized file count (materialized).
+  files?: number;
+
+  // Log line (log).
+  message?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Activity & Task types (Bowrain AD-014)
 // ---------------------------------------------------------------------------
 

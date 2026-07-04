@@ -31,11 +31,11 @@ type Project struct {
 	// ConvergePolicy is the server-side continuous-convergence policy
 	// (on-push | manual): whether a completed push starts a convergence run on
 	// the server's own clock. Empty is treated as on-push (the connected default).
-	ConvergePolicy string `json:"converge_policy,omitempty"`
-	Archived       bool   `json:"archived"`
-	ArchivedAt            *time.Time        `json:"archived_at,omitempty"`
-	CreatedAt             time.Time         `json:"created_at"`
-	UpdatedAt             time.Time         `json:"updated_at"`
+	ConvergePolicy string     `json:"converge_policy,omitempty"`
+	Archived       bool       `json:"archived"`
+	ArchivedAt     *time.Time `json:"archived_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 // Convergence-policy values for a server-side project (Project.ConvergePolicy).

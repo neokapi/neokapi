@@ -66,6 +66,7 @@ import type {
   ArchivedProject,
   TranslationDashboardStats,
   ActivityInfo,
+  ConvergenceRun,
   TaskInfo,
   CreateTaskRequest,
   NotificationPreference,

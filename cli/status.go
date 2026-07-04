@@ -31,12 +31,12 @@ type StatusOutput struct {
 // `kapi status`: ahead/behind transport counts plus any in-flight convergence
 // runs. It mirrors the JSON the kapi-bowrain `server-status` command emits.
 type StatusServerSection struct {
-	ServerURL   string             `json:"server_url,omitempty"`
-	Project     string             `json:"project,omitempty"`
-	PendingPush int                `json:"pending_push"`
-	PendingPull int                `json:"pending_pull"`
-	LastSync    string             `json:"last_sync,omitempty"`
-	ActiveRuns  []StatusActiveRun  `json:"active_runs,omitempty"`
+	ServerURL   string            `json:"server_url,omitempty"`
+	Project     string            `json:"project,omitempty"`
+	PendingPush int               `json:"pending_push"`
+	PendingPull int               `json:"pending_pull"`
+	LastSync    string            `json:"last_sync,omitempty"`
+	ActiveRuns  []StatusActiveRun `json:"active_runs,omitempty"`
 }
 
 // StatusActiveRun is one in-flight server convergence run in the status report.
