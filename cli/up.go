@@ -106,91 +106,20 @@ gates (e.g. before a release tag).
 			if projectPath == "" {
 				return errors.New("kapi up needs a project — pass -p <recipe> or run from inside a kapi project directory")
 			}
-			proj, perr := a.LoadProjectInteractive(cmd.Context(), projectPath, LoadProjectInteractiveOptions{AssumeYes: a.AssumeYes})
-			if perr != nil {
-				return fmt.Errorf("load project: %w", perr)
-			}
-			a.InitRegistries()
-
-			if boolFlag(cmd, "plan") {
-				return a.runUpPlan(cmd, proj, projectPath)
-			}
-
-			// First-run onboarding: a converge run needs an AI provider; when
-			// none is configured anywhere and this is a terminal, walk through
-			// the compact provider wizard inline, then continue. Non-TTY runs
-			// keep the existing keys-only error path.
-			if err := a.EnsureAIProviderInteractive(cmd); err != nil {
-				return err
-			}
-
-			passes, _ := cmd.Flags().GetInt("passes")
-			if passes < 0 {
-				return fmt.Errorf("--passes must be >= 0 (0 = loop until converged), got %d", passes)
-			}
-			// --passes 1 is a single pass (no loop); 0 loops to the default cap;
-			// N > 1 loops with N as the cap.
-			untilGate := passes != 1
-			maxPasses := passes
-			if maxPasses == 0 {
-				maxPasses = convergeMaxPassesDefault
-			}
-			jobs, _ := cmd.Flags().GetInt("jobs")
-			if jobs <= 0 {
-				jobs = proj.Defaults.Jobs
-			}
-
-			// The run is live by default: --json streams the convergence
-			// events as NDJSON (one event per line, a final result record) for
-			// agents and CI; otherwise a renderer paints per-locale progress
-			// on stderr — in place on a TTY, line-per-event on plain streams.
-			// --quiet keeps today's summary-only behavior.
-			jsonOut := boolFlag(cmd, "json")
-			var onEvent func(convergence.Event)
-			if jsonOut {
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				onEvent = func(ev convergence.Event) { _ = enc.Encode(ev) }
-			} else if !a.Quiet {
-				// Plan-first: one line of scope before any tokens burn (the
-				// full dry-run table stays under --plan).
-				if !cmd.Flags().Changed("source-lang") && proj.Defaults.SourceLanguage != "" {
-					a.SourceLang = string(proj.Defaults.SourceLanguage)
-				}
-				if plan, perr := a.computeProjectPlan(cmd.Context(), proj, projectPath); perr == nil {
-					fmt.Fprintln(cmd.ErrOrStderr(), formatPlanLine(plan))
-				}
-				renderer := newConvergeRenderer(cmd.ErrOrStderr(), isatty.IsTerminal(os.Stderr.Fd()))
-				onEvent = renderer.OnEvent
-			}
-
-			var result ConvergeOutput
-			if err := a.runDefaultFlowConverge(cmd, proj, projectPath, convergeOptions{
-				untilGate:   untilGate,
-				maxPasses:   maxPasses,
-				noExtract:   boolFlag(cmd, "no-extract"),
-				noChecks:    boolFlag(cmd, "no-checks"),
-				materialize: boolFlag(cmd, "materialize"),
-				jobs:        jobs,
-				onEvent:     onEvent,
-				capture:     &result,
-			}); err != nil {
-				return err
-			}
-			if jsonOut {
-				// The stream's closing record: the structured result, flat,
-				// discriminated like every other line.
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				return enc.Encode(struct {
-					Type string `json:"type"`
-					ConvergeOutput
-				}{Type: "result", ConvergeOutput: result})
-			}
-			return result.FormatText(cmd.OutOrStdout())
+			return a.ExecuteUp(cmd, projectPath)
 		},
 	}
 
 	AddProjectFlag(cmd)
 	a.addFlowRunFlags(cmd)
+	AddUpFlags(cmd)
+	return cmd
+}
+
+// AddUpFlags registers the `kapi up` flag set. Exported so a plugin that owns
+// the up verb in a server-connected install (kapi-bowrain) presents the exact
+// same local surface and delegates to ExecuteUp for the local venue.
+func AddUpFlags(cmd *cobra.Command) {
 	cmd.Flags().Int("passes", 0, "maximum reconciliation passes (0 = loop until converged or parked, capped at 5; 1 = single pass)")
 	cmd.Flags().Int("jobs", 0, "how many languages to converge concurrently per pass (0 = the recipe's defaults.jobs, else 4)")
 	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
@@ -198,5 +127,99 @@ gates (e.g. before a release tag).
 	cmd.Flags().Bool("materialize", false, "after the loop, write localized files from the project store for every shippable locale (forces defaults.materialize: on-converge)")
 	cmd.Flags().Bool("plan", false, "dry run: report pending work, TM leverage, and a token estimate per (collection, locale) — no provider calls, no writes")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
-	return cmd
+}
+
+// ExecuteUp is the local-venue `kapi up` execution behind the command: load
+// the project, honor --plan, ensure an AI provider, then run the convergence
+// loop with the live UX (plan-first header, per-locale TTY progress, NDJSON
+// under --json). Exported so the kapi-bowrain plugin's `up` — which owns the
+// verb in a connected install and adds the server venue — can delegate the
+// local venue here and stay byte-identical with the built-in behavior.
+func (a *App) ExecuteUp(cmd *cobra.Command, projectPath string) error {
+	proj, perr := a.LoadProjectInteractive(cmd.Context(), projectPath, LoadProjectInteractiveOptions{AssumeYes: a.AssumeYes})
+	if perr != nil {
+		return fmt.Errorf("load project: %w", perr)
+	}
+	a.InitRegistries()
+
+	if boolFlag(cmd, "plan") {
+		return a.runUpPlan(cmd, proj, projectPath)
+	}
+
+	// First-run onboarding: a converge run needs an AI provider; when
+	// none is configured anywhere and this is a terminal, walk through
+	// the compact provider wizard inline, then continue. Non-TTY runs
+	// keep the existing keys-only error path.
+	if err := a.EnsureAIProviderInteractive(cmd); err != nil {
+		return err
+	}
+
+	passes, _ := cmd.Flags().GetInt("passes")
+	if passes < 0 {
+		return fmt.Errorf("--passes must be >= 0 (0 = loop until converged), got %d", passes)
+	}
+	// --passes 1 is a single pass (no loop); 0 loops to the default cap;
+	// N > 1 loops with N as the cap.
+	untilGate := passes != 1
+	maxPasses := passes
+	if maxPasses == 0 {
+		maxPasses = convergeMaxPassesDefault
+	}
+	jobs, _ := cmd.Flags().GetInt("jobs")
+	if jobs <= 0 {
+		jobs = proj.Defaults.Jobs
+	}
+
+	// The run is live by default: --json streams the convergence
+	// events as NDJSON (one event per line, a final result record) for
+	// agents and CI; otherwise a renderer paints per-locale progress
+	// on stderr — in place on a TTY, line-per-event on plain streams.
+	// --quiet keeps today's summary-only behavior.
+	jsonOut := boolFlag(cmd, "json")
+	var onEvent func(convergence.Event)
+	if jsonOut {
+		enc := json.NewEncoder(cmd.OutOrStdout())
+		onEvent = func(ev convergence.Event) { _ = enc.Encode(ev) }
+	} else if !a.Quiet {
+		// Plan-first: one line of scope before any tokens burn (the
+		// full dry-run table stays under --plan).
+		if !cmd.Flags().Changed("source-lang") && proj.Defaults.SourceLanguage != "" {
+			a.SourceLang = string(proj.Defaults.SourceLanguage)
+		}
+		if plan, perr := a.computeProjectPlan(cmd.Context(), proj, projectPath); perr == nil {
+			fmt.Fprintln(cmd.ErrOrStderr(), formatPlanLine(plan))
+		}
+		renderer := newConvergeRenderer(cmd.ErrOrStderr(), isatty.IsTerminal(os.Stderr.Fd()))
+		onEvent = renderer.OnEvent
+	}
+
+	var result ConvergeOutput
+	if err := a.runDefaultFlowConverge(cmd, proj, projectPath, convergeOptions{
+		untilGate:   untilGate,
+		maxPasses:   maxPasses,
+		noExtract:   boolFlag(cmd, "no-extract"),
+		noChecks:    boolFlag(cmd, "no-checks"),
+		materialize: boolFlag(cmd, "materialize"),
+		jobs:        jobs,
+		onEvent:     onEvent,
+		capture:     &result,
+	}); err != nil {
+		return err
+	}
+	return PrintUpResult(cmd, result)
+}
+
+// PrintUpResult renders a convergence result the way `kapi up` does: the
+// text summary, or — under --json — the NDJSON stream's closing record (the
+// structured result, flat, discriminated like every other line). Exported for
+// the plugin's up verb, whose remote venue produces the same ConvergeOutput.
+func PrintUpResult(cmd *cobra.Command, result ConvergeOutput) error {
+	if boolFlag(cmd, "json") {
+		enc := json.NewEncoder(cmd.OutOrStdout())
+		return enc.Encode(struct {
+			Type string `json:"type"`
+			ConvergeOutput
+		}{Type: "result", ConvergeOutput: result})
+	}
+	return result.FormatText(cmd.OutOrStdout())
 }

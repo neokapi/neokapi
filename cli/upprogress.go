@@ -40,6 +40,14 @@ func newConvergeRenderer(w io.Writer, tty bool) *convergeRenderer {
 	return &convergeRenderer{w: w, tty: tty, rows: map[string]*convergeRow{}}
 }
 
+// NewConvergeEventRenderer exposes the `kapi up` progress renderer as an event
+// sink for embedders whose events arrive from elsewhere — the kapi-bowrain
+// plugin's remote venue feeds the server run's SSE stream through it, so a
+// remote run and a local run are indistinguishable in the terminal.
+func NewConvergeEventRenderer(w io.Writer, tty bool) func(convergence.Event) {
+	return newConvergeRenderer(w, tty).OnEvent
+}
+
 // OnEvent is the convergence event sink; the engine delivers events one at a
 // time (serialized), so no internal ordering is needed beyond the lock guarding
 // against a concurrent finish.
