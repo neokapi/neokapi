@@ -45,6 +45,8 @@ import type {
   StreamDiffResult,
   StreamMergeResult,
   CollectionInfo,
+  PostHogConnectorConfig,
+  PostHogDemandResponse,
   AuditEntry,
   AuditChainVerification,
   SoDMode,
@@ -454,6 +456,20 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async uploadToCollection(): Promise<ProjectInfo> {
     throw new Error("Not implemented");
+  }
+
+  // --- PostHog locale-demand connector (web-only surface) ---
+  async getPostHogConnector(): Promise<PostHogConnectorConfig> {
+    return { configured: false };
+  }
+  async savePostHogConnector(): Promise<PostHogConnectorConfig> {
+    throw new Error("PostHog connector is not available in the desktop app");
+  }
+  async deletePostHogConnector(): Promise<void> {
+    throw new Error("PostHog connector is not available in the desktop app");
+  }
+  async getPostHogDemand(): Promise<PostHogDemandResponse> {
+    throw new Error("PostHog connector is not available in the desktop app");
   }
 
   // --- Editor ---

@@ -474,6 +474,14 @@ export type {
   EmailChangeRequestResponse,
   EmailChangeConfirmResponse,
   SlugReservation,
+  PostHogConnectorConfig,
+  PostHogConnectorConfigRequest,
+  PostHogLanguageSessions,
+  PostHogCountryDemand,
+  PostHogTrendPoint,
+  PostHogLanguageDemandInfo,
+  PostHogDemandSourceInfo,
+  PostHogDemandResponse,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

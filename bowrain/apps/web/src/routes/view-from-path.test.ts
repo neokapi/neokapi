@@ -19,6 +19,10 @@ describe("viewFromPath", () => {
     expect(viewFromPath("/acme/memory", "acme")).toBe("memory");
   });
 
+  it("returns 'locale-demand' for locale demand route", () => {
+    expect(viewFromPath("/acme/locale-demand", "acme")).toBe("locale-demand");
+  });
+
   it("returns 'settings' for settings routes", () => {
     expect(viewFromPath("/acme/settings", "acme")).toBe("settings");
     expect(viewFromPath("/acme/settings/members", "acme")).toBe("settings");

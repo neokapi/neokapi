@@ -1329,3 +1329,82 @@ export interface ProjectMembership {
   user?: User;
   role_template?: RoleTemplate;
 }
+
+// ── PostHog locale-demand connector (phase 0, read-only) ────────────────────
+
+/**
+ * PostHog connector config as returned by the server. The personal API key is
+ * never returned — `api_key_masked` carries "••••" + its last four characters.
+ */
+export interface PostHogConnectorConfig {
+  configured: boolean;
+  /** "us", "eu", or a self-hosted https URL. */
+  host?: string;
+  /** Short display label for the host, e.g. "us.posthog.com". */
+  host_label?: string;
+  posthog_project_id?: string;
+  api_key_masked?: string;
+  path_locale_pattern?: string;
+  updated_at?: string;
+}
+
+/**
+ * Connect/update payload. An empty `api_key` on update keeps the stored key
+ * (the client never sees it, so it cannot resend it); a value rotates it.
+ */
+export interface PostHogConnectorConfigRequest {
+  host: string;
+  posthog_project_id: string;
+  api_key?: string;
+  path_locale_pattern?: string;
+}
+
+/** (language tag, sessions) pair inside a country breakdown. */
+export interface PostHogLanguageSessions {
+  tag: string;
+  sessions: number;
+}
+
+/** Demand observed from one country ($geoip_country_code, alpha-2). */
+export interface PostHogCountryDemand {
+  country_code: string;
+  sessions: number;
+  languages: PostHogLanguageSessions[] | null;
+}
+
+/** One week of a language's demand trend. */
+export interface PostHogTrendPoint {
+  week_start: string;
+  sessions: number;
+}
+
+/** One language aggregated across countries. */
+export interface PostHogLanguageDemandInfo {
+  tag: string;
+  sessions: number;
+  trend?: PostHogTrendPoint[] | null;
+}
+
+/** Where a demand snapshot came from — for the page's provenance footer. */
+export interface PostHogDemandSourceInfo {
+  kind: string; // "posthog"
+  host_label: string;
+  posthog_project_id: string;
+}
+
+/**
+ * Demand snapshot from /connectors/posthog/demand. Warnings carry per-query
+ * failures: the snapshot is best-effort partial data, never all-or-nothing.
+ */
+export interface PostHogDemandResponse {
+  range: string;
+  generated_at: string;
+  total_sessions: number;
+  countries: PostHogCountryDemand[] | null;
+  languages: PostHogLanguageDemandInfo[] | null;
+  served_locale_hit_rate?: number;
+  warnings?: string[] | null;
+  source: PostHogDemandSourceInfo;
+  cached_at: string;
+  cached: boolean;
+}
