@@ -30,6 +30,7 @@ import type {
   ExtractResult,
   ConvergenceReport,
   ConvergePlan,
+  ProjectServer,
   ReviewItem,
   ReviewUnitDetail,
   ReviewAIActionResult,
@@ -115,6 +116,7 @@ export const api = {
   runExtract: (tabID: string) => call<ExtractResult>("RunExtract", tabID),
   getConvergence: (tabID: string) => call<ConvergenceReport>("GetConvergence", tabID),
   getConvergePlan: (tabID: string) => call<ConvergePlan>("GetConvergePlan", tabID),
+  getProjectServer: (tabID: string) => call<ProjectServer>("GetProjectServer", tabID),
   bringUpToDate: (tabID: string) => call<void>("BringUpToDate", tabID),
   approveReviewItem: (tabID: string, locale: string, file: string, key: string) =>
     call<void>("ApproveReviewItem", tabID, locale, file, key),

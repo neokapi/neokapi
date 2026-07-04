@@ -316,6 +316,16 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Jobs is how many target languages one convergence pass (`kapi up`)
+             * runs concurrently. 0 (the default) leaves it to the runner's default;
+             * `up --jobs` overrides per run.
+             * @member
+             * @type {number | undefined}
+             */
+            this["jobs"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * "bcp-47" (default) or "posix"
              * @member
              * @type {string | undefined}
@@ -497,45 +507,45 @@ export class Defaults {
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType0;
-        const $$createField8_0 = $$createType8;
-        const $$createField9_0 = $$createType9;
-        const $$createField10_0 = $$createType10;
-        const $$createField11_0 = $$createType11;
-        const $$createField12_0 = $$createType12;
-        const $$createField13_0 = $$createType6;
-        const $$createField14_0 = $$createType14;
-        const $$createField19_0 = $$createType16;
-        const $$createField20_0 = $$createType18;
+        const $$createField9_0 = $$createType8;
+        const $$createField10_0 = $$createType9;
+        const $$createField11_0 = $$createType10;
+        const $$createField12_0 = $$createType11;
+        const $$createField13_0 = $$createType12;
+        const $$createField14_0 = $$createType6;
+        const $$createField15_0 = $$createType14;
+        const $$createField20_0 = $$createType16;
+        const $$createField21_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
         }
         if ("formats" in $$parsedSource) {
-            $$parsedSource["formats"] = $$createField8_0($$parsedSource["formats"]);
+            $$parsedSource["formats"] = $$createField9_0($$parsedSource["formats"]);
         }
         if ("exclude" in $$parsedSource) {
-            $$parsedSource["exclude"] = $$createField9_0($$parsedSource["exclude"]);
+            $$parsedSource["exclude"] = $$createField10_0($$parsedSource["exclude"]);
         }
         if ("merge" in $$parsedSource) {
-            $$parsedSource["merge"] = $$createField10_0($$parsedSource["merge"]);
+            $$parsedSource["merge"] = $$createField11_0($$parsedSource["merge"]);
         }
         if ("tm" in $$parsedSource) {
-            $$parsedSource["tm"] = $$createField11_0($$parsedSource["tm"]);
+            $$parsedSource["tm"] = $$createField12_0($$parsedSource["tm"]);
         }
         if ("segmentation" in $$parsedSource) {
-            $$parsedSource["segmentation"] = $$createField12_0($$parsedSource["segmentation"]);
+            $$parsedSource["segmentation"] = $$createField13_0($$parsedSource["segmentation"]);
         }
         if ("redaction" in $$parsedSource) {
-            $$parsedSource["redaction"] = $$createField13_0($$parsedSource["redaction"]);
+            $$parsedSource["redaction"] = $$createField14_0($$parsedSource["redaction"]);
         }
         if ("brand_voice" in $$parsedSource) {
-            $$parsedSource["brand_voice"] = $$createField14_0($$parsedSource["brand_voice"]);
+            $$parsedSource["brand_voice"] = $$createField15_0($$parsedSource["brand_voice"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField19_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField20_0($$parsedSource["tools"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField20_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField21_0($$parsedSource["locales"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }

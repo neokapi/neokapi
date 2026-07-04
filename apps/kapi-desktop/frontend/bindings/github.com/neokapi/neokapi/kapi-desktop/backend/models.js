@@ -11,6 +11,9 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as cli$0 from "../../cli/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as convergence$0 from "../../core/convergence/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as flow$0 from "../../core/flow/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -3523,6 +3526,70 @@ export class ProjectHandles {
 }
 
 /**
+ * ProjectServer describes where a project's `kapi up` runs. A project whose
+ * recipe declares a `server:` block is Bowrain-connected: the canonical run
+ * executes on the server. The desktop still runs the local engine for "Bring
+ * up to date", so the UI discloses the venue honestly rather than implying a
+ * remote run happened.
+ * 
+ * The field is decoded from the recipe's `server` extras key (the bowrain
+ * schema extension) without taking on any AGPL bowrain dependency — schema is
+ * the Apache-2.0 recipe vocabulary the desktop already blank-imports.
+ */
+export class ProjectServer {
+    /**
+     * Creates a new ProjectServer instance.
+     * @param {Partial<ProjectServer>} [$$source = {}] - The source object to create the ProjectServer.
+     */
+    constructor($$source = {}) {
+        if (!("connected" in $$source)) {
+            /**
+             * Connected reports whether the recipe carries a `server:` block with a URL.
+             * @member
+             * @type {boolean}
+             */
+            this["connected"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * URL is the compound project URL exactly as written in the recipe.
+             * @member
+             * @type {string | undefined}
+             */
+            this["url"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Host is the server host (no scheme) — the short label the badge renders.
+             * @member
+             * @type {string | undefined}
+             */
+            this["host"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ServerURL is the base server URL (scheme + host) extracted from the URL.
+             * @member
+             * @type {string | undefined}
+             */
+            this["serverURL"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectServer instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProjectServer}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProjectServer(/** @type {Partial<ProjectServer>} */($$parsedSource));
+    }
+}
+
+/**
  * ProjectStatus bundles the per-collection summaries.
  * 
  * HasData reports whether the project's block store exists and has been
@@ -4248,8 +4315,21 @@ export class RunEvent {
         if (/** @type {any} */(false)) {
             /**
              * Convergence-run fields (BringUpToDate — the shared `kapi up` engine):
-             * Converge carries one pass snapshot (when type == "converge_pass") and
-             * ConvergeResult the final structured outcome (on the run's "complete").
+             * ConvergeEvent carries one typed progress event of the run (when type ==
+             * "converge_event") — the per-pass/per-locale stream (pass_start,
+             * locale_start, unit_progress, locale_done, pass_done, materialized, done)
+             * the live run view renders locale rows from, the same protocol the CLI's
+             * live renderer and the server's SSE stream speak. Converge carries the
+             * synthesized per-pass summary (when type == "converge_pass"), kept for
+             * backwards compatibility with the passes view. ConvergeResult carries the
+             * final structured outcome (on the run's "complete").
+             * @member
+             * @type {convergence$0.Event | null | undefined}
+             */
+            this["converge_event"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * @member
              * @type {cli$0.ConvergePassEvent | null | undefined}
              */
@@ -4276,6 +4356,7 @@ export class RunEvent {
         const $$createField7_0 = $$createType50;
         const $$createField10_0 = $$createType52;
         const $$createField11_0 = $$createType54;
+        const $$createField12_0 = $$createType56;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("trace_event" in $$parsedSource) {
             $$parsedSource["trace_event"] = $$createField6_0($$parsedSource["trace_event"]);
@@ -4283,11 +4364,14 @@ export class RunEvent {
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField7_0($$parsedSource["steps"]);
         }
+        if ("converge_event" in $$parsedSource) {
+            $$parsedSource["converge_event"] = $$createField10_0($$parsedSource["converge_event"]);
+        }
         if ("converge" in $$parsedSource) {
-            $$parsedSource["converge"] = $$createField10_0($$parsedSource["converge"]);
+            $$parsedSource["converge"] = $$createField11_0($$parsedSource["converge"]);
         }
         if ("converge_result" in $$parsedSource) {
-            $$parsedSource["converge_result"] = $$createField11_0($$parsedSource["converge_result"]);
+            $$parsedSource["converge_result"] = $$createField12_0($$parsedSource["converge_result"]);
         }
         return new RunEvent(/** @type {Partial<RunEvent>} */($$parsedSource));
     }
@@ -4407,7 +4491,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType56;
+        const $$createField3_0 = $$createType58;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -4635,8 +4719,8 @@ export class TMEntryDTO {
      * @returns {TMEntryDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType58;
-        const $$createField4_0 = $$createType60;
+        const $$createField2_0 = $$createType60;
+        const $$createField4_0 = $$createType62;
         const $$createField5_0 = $$createType5;
         const $$createField7_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -4717,10 +4801,10 @@ export class TMFacets {
      * @returns {TMFacets}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType62;
-        const $$createField1_0 = $$createType64;
-        const $$createField2_0 = $$createType66;
-        const $$createField3_0 = $$createType68;
+        const $$createField0_0 = $$createType64;
+        const $$createField1_0 = $$createType66;
+        const $$createField2_0 = $$createType68;
+        const $$createField3_0 = $$createType70;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField0_0($$parsedSource["locales"]);
@@ -4785,8 +4869,8 @@ export class TMMatchDTO {
      * @returns {TMMatchDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType69;
-        const $$createField3_0 = $$createType71;
+        const $$createField0_0 = $$createType71;
+        const $$createField3_0 = $$createType73;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entry" in $$parsedSource) {
             $$parsedSource["entry"] = $$createField0_0($$parsedSource["entry"]);
@@ -4862,7 +4946,7 @@ export class TMSearchFilter {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType2;
         const $$createField3_0 = $$createType2;
-        const $$createField4_0 = $$createType73;
+        const $$createField4_0 = $$createType75;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("session_ids" in $$parsedSource) {
             $$parsedSource["session_ids"] = $$createField2_0($$parsedSource["session_ids"]);
@@ -4910,7 +4994,7 @@ export class TMSearchResult {
      * @returns {TMSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType74;
+        const $$createField0_0 = $$createType76;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -5129,7 +5213,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType76;
+        const $$createField0_0 = $$createType78;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -5313,8 +5397,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType2;
         const $$createField7_0 = $$createType2;
-        const $$createField10_0 = $$createType78;
-        const $$createField11_0 = $$createType78;
+        const $$createField10_0 = $$createType80;
+        const $$createField11_0 = $$createType80;
         const $$createField12_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
@@ -5528,7 +5612,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType56;
+        const $$createField4_0 = $$createType58;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -5696,7 +5780,7 @@ export class VariantDTO {
      * @returns {VariantDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType79;
+        const $$createField2_0 = $$createType81;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField2_0($$parsedSource["runs"]);
@@ -5740,7 +5824,7 @@ export class VariantInputDTO {
      * @returns {VariantInputDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType79;
+        const $$createField1_0 = $$createType81;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField1_0($$parsedSource["runs"]);
@@ -5847,32 +5931,34 @@ const $$createType47 = $Create.Nullable($$createType46);
 const $$createType48 = $Create.Nullable($$createType35);
 const $$createType49 = flow$0.StepSnapshot.createFrom;
 const $$createType50 = $Create.Array($$createType49);
-const $$createType51 = cli$0.ConvergePassEvent.createFrom;
+const $$createType51 = convergence$0.Event.createFrom;
 const $$createType52 = $Create.Nullable($$createType51);
-const $$createType53 = cli$0.ConvergeOutput.createFrom;
+const $$createType53 = cli$0.ConvergePassEvent.createFrom;
 const $$createType54 = $Create.Nullable($$createType53);
-const $$createType55 = flow$0.FlowStep.createFrom;
-const $$createType56 = $Create.Array($$createType55);
-const $$createType57 = VariantDTO.createFrom;
-const $$createType58 = $Create.Map($Create.Any, $$createType57);
-const $$createType59 = EntityMappingDTO.createFrom;
-const $$createType60 = $Create.Array($$createType59);
-const $$createType61 = LocaleFacetDTO.createFrom;
+const $$createType55 = cli$0.ConvergeOutput.createFrom;
+const $$createType56 = $Create.Nullable($$createType55);
+const $$createType57 = flow$0.FlowStep.createFrom;
+const $$createType58 = $Create.Array($$createType57);
+const $$createType59 = VariantDTO.createFrom;
+const $$createType60 = $Create.Map($Create.Any, $$createType59);
+const $$createType61 = EntityMappingDTO.createFrom;
 const $$createType62 = $Create.Array($$createType61);
-const $$createType63 = ProjectFacetDTO.createFrom;
+const $$createType63 = LocaleFacetDTO.createFrom;
 const $$createType64 = $Create.Array($$createType63);
-const $$createType65 = EntityTypeFacetDTO.createFrom;
+const $$createType65 = ProjectFacetDTO.createFrom;
 const $$createType66 = $Create.Array($$createType65);
-const $$createType67 = ImportSessionFacetDTO.createFrom;
+const $$createType67 = EntityTypeFacetDTO.createFrom;
 const $$createType68 = $Create.Array($$createType67);
-const $$createType69 = TMEntryDTO.createFrom;
-const $$createType70 = EntityAdaptationDTO.createFrom;
-const $$createType71 = $Create.Array($$createType70);
-const $$createType72 = EntityValueFilter.createFrom;
+const $$createType69 = ImportSessionFacetDTO.createFrom;
+const $$createType70 = $Create.Array($$createType69);
+const $$createType71 = TMEntryDTO.createFrom;
+const $$createType72 = EntityAdaptationDTO.createFrom;
 const $$createType73 = $Create.Array($$createType72);
-const $$createType74 = $Create.Array($$createType69);
-const $$createType75 = ConceptDTO.createFrom;
-const $$createType76 = $Create.Array($$createType75);
-const $$createType77 = IOPort.createFrom;
+const $$createType74 = EntityValueFilter.createFrom;
+const $$createType75 = $Create.Array($$createType74);
+const $$createType76 = $Create.Array($$createType71);
+const $$createType77 = ConceptDTO.createFrom;
 const $$createType78 = $Create.Array($$createType77);
-const $$createType79 = $Create.Array($Create.Any);
+const $$createType79 = IOPort.createFrom;
+const $$createType80 = $Create.Array($$createType79);
+const $$createType81 = $Create.Array($Create.Any);

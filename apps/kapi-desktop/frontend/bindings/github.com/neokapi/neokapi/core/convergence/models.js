@@ -11,6 +11,238 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as gate$0 from "../gate/models.js";
 
 /**
+ * Event is one progress event of a convergence run — the single protocol every
+ * venue and surface speaks: the CLI's live renderer, `kapi up --json` (NDJSON,
+ * one event per line), the desktop's run view, and a Bowrain server run's SSE
+ * stream all carry exactly this shape, so nothing about rendering a run knows
+ * where it executes.
+ * 
+ * The struct is deliberately flat with a Type discriminator (not an interface)
+ * so it serializes identically over JSON lines, SSE, and the desktop's event
+ * bridge. Fields are populated per Type as documented on the EventType
+ * constants; unused fields stay zero and are omitted from JSON.
+ */
+export class Event {
+    /**
+     * Creates a new Event instance.
+     * @param {Partial<Event>} [$$source = {}] - The source object to create the Event.
+     */
+    constructor($$source = {}) {
+        if (!("type" in $$source)) {
+            /**
+             * @member
+             * @type {EventType}
+             */
+            this["type"] = EventType.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Pass-scoped fields (pass_start, pass_done; Pass also stamps every
+             * locale-scoped event so consumers need no ambient state).
+             * @member
+             * @type {number | undefined}
+             */
+            this["pass"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["maxPasses"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["pending"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Pre-pass auto-extract on drift (pass_start).
+             * @member
+             * @type {number | undefined}
+             */
+            this["extractedFiles"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["extractedBlocks"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Locale-scoped fields (locale_start, unit_progress, locale_done).
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["units"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["done"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["viaTM"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["viaAI"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Post-derivation fields (pass_done).
+             * @member
+             * @type {number | undefined}
+             */
+            this["produced"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["producedDelta"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["failingChecks"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * State: locale_done → shippable|parked|pending; done → converged|parked.
+             * @member
+             * @type {string | undefined}
+             */
+            this["state"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Materialized file count (materialized).
+             * @member
+             * @type {number | undefined}
+             */
+            this["files"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Log line (log).
+             * @member
+             * @type {string | undefined}
+             */
+            this["message"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Event instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Event}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("pending" in $$parsedSource) {
+            $$parsedSource["pending"] = $$createField3_0($$parsedSource["pending"]);
+        }
+        return new Event(/** @type {Partial<Event>} */($$parsedSource));
+    }
+}
+
+/**
+ * EventType discriminates the progress events of a convergence run.
+ * @readonly
+ * @enum {string}
+ */
+export const EventType = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * Event types, in the order a run emits them. One run is a sequence of
+     * passes; within a pass every pending locale runs the default flow (possibly
+     * concurrently), and after the pass coverage is re-derived with the project's
+     * bound checks. The stream ends with exactly one EventDone.
+     *
+     * EventPassStart opens pass Pass (1-based, capped at MaxPasses) over the
+     * Pending locales. ExtractedFiles/ExtractedBlocks report the pre-pass
+     * auto-extract on block-store drift (both zero when in sync).
+     */
+    EventPassStart: "pass_start",
+
+    /**
+     * EventLocaleStart reports one locale's flow run beginning inside the
+     * current pass; Units is the locale's total unit count (the denominator a
+     * progress bar renders against).
+     */
+    EventLocaleStart: "locale_start",
+
+    /**
+     * EventUnitProgress is the throttled live counter for one locale: Done
+     * units carry a committed target so far, of which ViaTM came from TM
+     * recycling and ViaAI from an AI/MT engine.
+     */
+    EventUnitProgress: "unit_progress",
+
+    /**
+     * EventLocaleDone reports one locale's flow run finishing inside the
+     * current pass, with the final Done/ViaTM/ViaAI counts for the pass.
+     */
+    EventLocaleDone: "locale_done",
+
+    /**
+     * EventPassDone closes a pass after post-derivation: Produced units at
+     * ≥ draft, the pass's ProducedDelta, FailingChecks demoted by the bound
+     * checks, and the locales still Pending (short of their gate).
+     */
+    EventPassDone: "pass_done",
+
+    /**
+     * EventMaterialized reports the post-loop materialize step: Files written
+     * across every shippable locale.
+     */
+    EventMaterialized: "materialized",
+
+    /**
+     * EventLog carries a human-readable run log line (auto-extract notes,
+     * venue transport notes) that has no structured shape of its own.
+     */
+    EventLog: "log",
+
+    /**
+     * EventDone closes the stream: State is "converged" or "parked".
+     */
+    EventDone: "done",
+};
+
+/**
  * LocaleCoverage is the ship-gate view for one (collection, locale) scope: the
  * state distribution of its translatable units, whether it clears its gate, and
  * which thresholds are still pending. Collection is empty for content not in a
@@ -96,8 +328,8 @@ export class LocaleCoverage {
      * @returns {LocaleCoverage}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType0;
-        const $$createField6_0 = $$createType2;
+        const $$createField3_0 = $$createType1;
+        const $$createField6_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
@@ -156,9 +388,9 @@ export class Report {
      * @returns {Report}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType4;
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType8;
+        const $$createField1_0 = $$createType5;
+        const $$createField2_0 = $$createType7;
+        const $$createField3_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("source" in $$parsedSource) {
             $$parsedSource["source"] = $$createField1_0($$parsedSource["source"]);
@@ -330,8 +562,8 @@ export class SourceCoverage {
      * @returns {SourceCoverage}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType0;
-        const $$createField4_0 = $$createType2;
+        const $$createField1_0 = $$createType1;
+        const $$createField4_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField1_0($$parsedSource["pct"]);
@@ -344,12 +576,13 @@ export class SourceCoverage {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Map($Create.Any, $Create.Any);
-const $$createType1 = gate$0.Shortfall.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = SourceCoverage.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = LocaleCoverage.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = ReviewItem.createFrom;
-const $$createType8 = $Create.Array($$createType7);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $Create.Map($Create.Any, $Create.Any);
+const $$createType2 = gate$0.Shortfall.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = SourceCoverage.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = LocaleCoverage.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = ReviewItem.createFrom;
+const $$createType9 = $Create.Array($$createType8);
