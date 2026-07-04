@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { FileText, Loader2, FileWarning } from "lucide-react";
+import { ListCapRow } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
+
+// An archive can hold thousands of inner files. The entry list is scroll-contained
+// (bounded height) and its rows are capped with an honest ListCapRow, so browsing
+// a large archive never mounts a giant nested DOM under a table row.
+const ARCHIVE_ENTRY_CAP = 400;
 
 export interface ArchiveEntry {
   name: string;
@@ -89,25 +95,39 @@ export function ArchiveEntries({ archivePath, onSelect, entries: preset }: Archi
     return <div className="py-2 pl-8 text-xs text-muted-foreground">No entries.</div>;
   }
 
+  const shown = entries.slice(0, ARCHIVE_ENTRY_CAP);
   return (
-    <ul className="border-l border-border/60 pl-3" aria-label="Archive entries">
-      {entries.map((e) => (
-        <li key={e.name}>
-          <button
-            type="button"
-            disabled={!e.format}
-            onClick={e.format ? () => onSelect(e.name) : undefined}
-            className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-accent disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
-            title={e.format ? `Preview ${e.name}` : "No reader for this file type"}
-          >
-            <FileText className="size-3 shrink-0 text-muted-foreground" />
-            <span className="truncate font-mono" translate="no">
-              {e.name}
-            </span>
-            <span className="ml-auto shrink-0 text-muted-foreground">{humanSize(e.size)}</span>
-          </button>
-        </li>
-      ))}
-    </ul>
+    <div className="border-l border-border/60 pl-3">
+      <ul
+        className="max-h-72 overflow-y-auto"
+        aria-label="Archive entries"
+        data-slot="archive-entries"
+      >
+        {shown.map((e) => (
+          <li key={e.name}>
+            <button
+              type="button"
+              disabled={!e.format}
+              onClick={e.format ? () => onSelect(e.name) : undefined}
+              className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-accent disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
+              title={e.format ? `Preview ${e.name}` : "No reader for this file type"}
+            >
+              <FileText className="size-3 shrink-0 text-muted-foreground" />
+              <span className="truncate font-mono" translate="no">
+                {e.name}
+              </span>
+              <span className="ml-auto shrink-0 text-muted-foreground">{humanSize(e.size)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <ListCapRow
+        shown={shown.length}
+        total={entries.length}
+        noun="entries"
+        hint="Extract the archive to browse all of its entries."
+        className="border-t-0"
+      />
+    </div>
   );
 }
