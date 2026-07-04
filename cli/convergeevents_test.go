@@ -30,8 +30,15 @@ func TestUp_EventStream(t *testing.T) {
 	require.True(t, out.Converged)
 	require.NotEmpty(t, events)
 
-	// The stream opens with pass 1 over both pending locales and closes with
-	// exactly one done event.
+	// The stream opens with pass 1 over both pending locales (after any
+	// auto-extract log lines) and closes with exactly one done event.
+	structural := make([]convergence.Event, 0, len(events))
+	for _, ev := range events {
+		if ev.Type != convergence.EventLog {
+			structural = append(structural, ev)
+		}
+	}
+	events = structural
 	first, last := events[0], events[len(events)-1]
 	assert.Equal(t, convergence.EventPassStart, first.Type)
 	assert.Equal(t, 1, first.Pass)

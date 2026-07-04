@@ -274,10 +274,19 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 			// desktop's Re-extract uses. `up --no-extract` opts out.
 			var extracted *project.ExtractStats
 			if !opts.noExtract {
-				var serr error
-				extracted, serr = a.syncProjectBlockStore(ctx, cmd, pctx, projectPath, resolved)
+				stats, reason, serr := a.syncProjectBlockStore(ctx, pctx, projectPath, resolved)
 				if serr != nil {
 					return fmt.Errorf("sync project block store: %w", serr)
+				}
+				extracted = stats
+				if extracted != nil {
+					msg := fmt.Sprintf("Extracted %d block(s) from %d file(s) into the project store (%s).",
+						extracted.Blocks, extracted.Files, reason)
+					if opts.onEvent != nil {
+						emit(convergence.Event{Type: convergence.EventLog, Message: msg})
+					} else if !a.Quiet {
+						fmt.Fprintln(cmd.OutOrStdout(), msg)
+					}
 				}
 			}
 
@@ -412,34 +421,31 @@ func localeUnitTotals(cov []LocaleCoverage) map[string]int {
 // core path (project.ExtractToBlockStore) — the same implementation behind the
 // desktop's Re-extract — and is a full rebuild of the block set (blocks are a
 // pure cache; target overlays are preserved). No drift → no work beyond cheap
-// stat checks.
-func (a *App) syncProjectBlockStore(ctx context.Context, cmd *cobra.Command, pctx *project.ProjectContext, projectPath string, resolved []project.ResolvedFile) (*project.ExtractStats, error) {
+// stat checks. The returned reason describes the drift for run logs; reporting
+// is the caller's job (event stream or plain print).
+func (a *App) syncProjectBlockStore(ctx context.Context, pctx *project.ProjectContext, projectPath string, resolved []project.ResolvedFile) (*project.ExtractStats, string, error) {
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	storePath := layout.BlockStorePath()
 	drift := project.DetectStoreDrift(storePath, resolved)
 	if !drift.Any() {
-		return nil, nil
+		return nil, "", nil
 	}
 	if err := project.EnsureLayout(layout); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	store, err := sqlitestore.New(storePath)
 	if err != nil {
-		return nil, fmt.Errorf("open project block store: %w", err)
+		return nil, "", fmt.Errorf("open project block store: %w", err)
 	}
 	defer store.Close()
 	stats, err := project.ExtractToBlockStore(ctx, a.FormatReg, pctx, store, storePath, resolved)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	if !a.Quiet {
-		fmt.Fprintf(cmd.OutOrStdout(), "Extracted %d block(s) from %d file(s) into the project store (%s).\n",
-			stats.Blocks, stats.Files, describeDrift(drift))
-	}
-	return &stats, nil
+	return &stats, describeDrift(drift), nil
 }
 
 // newConvergePassEvent snapshots one pass for convergeOptions.onPass.

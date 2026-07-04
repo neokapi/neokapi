@@ -1,11 +1,46 @@
 package cli
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 
+	"github.com/mattn/go-isatty"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/spf13/cobra"
 )
+
+// formatPlanLine compresses the up-plan into the one-line header a run prints
+// before executing — cost visibility before any tokens burn.
+func formatPlanLine(plan UpPlanOutput) string {
+	t := plan.Totals
+	if t.MissingTarget == 0 {
+		return "plan: every unit has a committed target — verifying gates"
+	}
+	line := fmt.Sprintf("plan: %d unit(s) missing · %d exact-TM · %d AI · ≈%s tokens",
+		t.MissingTarget, t.TMExact, t.AIRemaining, compactTokens(t.TokenEstimate))
+	if plan.Provider != "" {
+		if plan.Subscription {
+			line += fmt.Sprintf(" · %s (your subscription)", plan.Provider)
+		} else {
+			line += " · " + plan.Provider
+		}
+	}
+	return line
+}
+
+// compactTokens renders a token estimate at header scale (61k, 1.2M).
+func compactTokens(n int) string {
+	switch {
+	case n >= 1_000_000:
+		return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
+	case n >= 1_000:
+		return fmt.Sprintf("%dk", n/1_000)
+	default:
+		return fmt.Sprintf("%d", n)
+	}
+}
 
 // NewUpCmd creates `kapi up`: reconcile the project toward its ship gates.
 // It is the porcelain home of convergence (issue #1078 C1): the recipe is the
@@ -104,14 +139,53 @@ gates (e.g. before a release tag).
 			if jobs <= 0 {
 				jobs = proj.Defaults.Jobs
 			}
-			return a.runDefaultFlowConverge(cmd, proj, projectPath, convergeOptions{
+
+			// The run is live by default: --json streams the convergence
+			// events as NDJSON (one event per line, a final result record) for
+			// agents and CI; otherwise a renderer paints per-locale progress
+			// on stderr — in place on a TTY, line-per-event on plain streams.
+			// --quiet keeps today's summary-only behavior.
+			jsonOut := boolFlag(cmd, "json")
+			var onEvent func(convergence.Event)
+			if jsonOut {
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				onEvent = func(ev convergence.Event) { _ = enc.Encode(ev) }
+			} else if !a.Quiet {
+				// Plan-first: one line of scope before any tokens burn (the
+				// full dry-run table stays under --plan).
+				if !cmd.Flags().Changed("source-lang") && proj.Defaults.SourceLanguage != "" {
+					a.SourceLang = string(proj.Defaults.SourceLanguage)
+				}
+				if plan, perr := a.computeProjectPlan(cmd.Context(), proj, projectPath); perr == nil {
+					fmt.Fprintln(cmd.ErrOrStderr(), formatPlanLine(plan))
+				}
+				renderer := newConvergeRenderer(cmd.ErrOrStderr(), isatty.IsTerminal(os.Stderr.Fd()))
+				onEvent = renderer.OnEvent
+			}
+
+			var result ConvergeOutput
+			if err := a.runDefaultFlowConverge(cmd, proj, projectPath, convergeOptions{
 				untilGate:   untilGate,
 				maxPasses:   maxPasses,
 				noExtract:   boolFlag(cmd, "no-extract"),
 				noChecks:    boolFlag(cmd, "no-checks"),
 				materialize: boolFlag(cmd, "materialize"),
 				jobs:        jobs,
-			})
+				onEvent:     onEvent,
+				capture:     &result,
+			}); err != nil {
+				return err
+			}
+			if jsonOut {
+				// The stream's closing record: the structured result, flat,
+				// discriminated like every other line.
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				return enc.Encode(struct {
+					Type string `json:"type"`
+					ConvergeOutput
+				}{Type: "result", ConvergeOutput: result})
+			}
+			return result.FormatText(cmd.OutOrStdout())
 		},
 	}
 
