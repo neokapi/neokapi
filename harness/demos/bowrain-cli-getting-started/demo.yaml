@@ -1,6 +1,6 @@
 id: bowrain-cli-getting-started
-title: Connect a project and sync translations
-subtitle: kapi init connects your local files to a Bowrain server; push and pull move translations like git.
+title: Connect a project and bring it up to date
+subtitle: kapi init connects your local files to a Bowrain server; push and pull move content like git, and kapi up runs the convergence loop on the server.
 tagline: your files stay yours — the server adds the team, the memory, and the governance.
 kind: use-case
 publishAs: bowrain-cli-getting-started
@@ -13,10 +13,10 @@ cwd: ~/bowmart/help-center
 needsAi: false
 captureTimeoutSec: 180
 aspects:
-  - kapi init · push · pull
+  - kapi init · push · up
   - your files, the team's server
-  - sync like git
-  - every locale
+  - push/pull like git
+  - convergence on the server
 
 script:
   - comment: BowMart's help-center copy — English, sitting in your repo.
@@ -25,12 +25,12 @@ script:
   - command: kapi init --name help-center --workspace bowmart --source-locale en --target-locale fr --target-locale de --server $BOWRAIN_SERVER_URL -y
   - comment: Track the files you want translated.
   - command: kapi add "src/locales/*.json"
-  - comment: Push the source up — the team and the AI tools work on it there.
+  - comment: Push the source up — pure transport, like git push.
   - command: kapi push
-  - comment: Check sync state — like git status.
+  - comment: Check standing — coverage and what's pending, like git status.
   - command: kapi status
-  - comment: Pull the translations back into your repo, same files and format.
-  - command: kapi pull
+  - comment: Reconcile the project — kapi up runs the convergence loop on the server and pulls the results back.
+  - command: kapi up
 
 narration:
   - id: title
@@ -49,16 +49,19 @@ narration:
   - id: push
     kind: terminal
     text: >
-      Track the files you want translated, then push. The source travels to the
-      server, where the team and the AI tools can work on it together.
+      Track the files you want translated, then push. Push is pure transport — it
+      moves the source up to the server, like git push; it does not translate on
+      its own. kapi status then shows the standing, exactly like git status.
     caption: "kapi push — source up to the server"
-  - id: pull
+  - id: up
     kind: terminal
     text: >
-      Pull brings translations back into your repository, in the same files and
-      the same format you started with — none yet on a brand-new project, but
-      this is the command your CI runs to fetch completed work. kapi status
-      shows what is in sync, exactly like git.
-    caption: "kapi pull — translations back into your files"
+      kapi up is the convergence verb. On a connected project it runs the loop on
+      the Bowrain server — the team's keys, shared memory, and gates — streams the
+      progress back into your terminal, and pulls the results into the same files
+      and format you started with. Anything a machine can't finish is parked in
+      your team's review queue. This is the command your CI runs to keep every
+      locale up to date.
+    caption: "kapi up — reconcile the project on the server"
   - id: outro
     kind: outro

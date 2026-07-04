@@ -87,35 +87,49 @@ kapi translate ./deck.pptx --target-lang ja -o ./out/deck.ja.pptx
 profile and termbase still apply. Format is detected from the extension and
 written back unchanged (round-trip), preserving structure, tags, and placeholders.
 
-## Bring a project up to date (status → run → review)
+## Bring a project up to date (status → up → review)
 
 In a project, don't translate file by file — converge. State is derived from the
 files on every command (like `git status`), so always start by reading it:
 
 ```bash
 kapi status                  # per-locale coverage + each scope's ship standing
-kapi run                     # converge: run the project's default flow over ALL
-                             #   content × every target language, in one pass
-kapi run --until-gate        # loop the pass until each scope ships or "parks"
+kapi up                      # converge: loop the project's default flow over ALL
+                             #   content × every target language until each scope
+                             #   ships or "parks"; runs locales concurrently
+kapi up --plan               # dry run: pending work, TM leverage, token estimate
+kapi up --json               # NDJSON event stream (one event per line, final
+                             #   record = the result) — use this to drive the loop
 ```
 
-`kapi run` with no flow name needs `defaults.flow` in the recipe; it materializes
-the localized files. Drift is never an error — a behind locale is *pending*, and
-work a machine can't finish *parks* (reported, exit 0), so neither blocks you.
+`kapi up` is the one convergence verb. With no `defaults.flow` in the recipe it
+runs the built-in default flow (TM recycle → AI translate) and materializes the
+localized files. Drift is never an error — a behind locale is *pending*, and work
+a machine can't finish *parks* (reported, exit 0), so neither blocks you. Use
+`--json` for the machine-readable event stream; the `up` and `up_plan` MCP tools
+expose the same loop and dry run to an assistant. `kapi run <flow>` is only for a
+*custom* one-off pipeline (one named flow, one pass) — not the daily loop.
+
+In a server-connected project (recipe has a `server:` block), `kapi up` runs on
+the Bowrain server by default and streams progress back; `kapi up --local`
+converges on this machine and pushes the results. `kapi push` / `kapi pull` are
+**transport only** — they move project state and never translate. There is no
+`kapi sync`.
 
 Review promotes a translation past `translated` to `reviewed`. The queue and the
 approval are two commands:
 
 ```bash
 kapi status --review         # translated units awaiting a human
-# approve one — record its source→target as a correction (the review record):
-kapi apply <<<'{"kind":"tm","source":"Save","target":"Lagre","source_locale":"en","target_locale":"nb"}'
+# approve one — a `review` change-set addressed by the unit's file/id/locale:
+kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
 ```
 
-An approved correction lands in the project TM, counts the unit as `reviewed`,
-and the next `kapi run` recycles it for free. `kapi verify --ship` is the opt-in
-release bar (the `ship_gate` / `source_gate`); plain `kapi verify` stays
-non-blocking about coverage.
+The decision lands in the project state store and counts the unit as `reviewed`,
+so the next `kapi up` sees it shipped. `kapi check --ship` is the opt-in release
+bar — it runs the project's brand/terminology/QA gates plus the `ship_gate` /
+`source_gate` coverage gates and exits non-zero only when you ask for it; ordinary
+target drift never blocks.
 
 ## Keep terminology consistent
 
