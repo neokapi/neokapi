@@ -123,10 +123,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		MimeType:   "application/yaml",
 		Properties: make(map[string]string),
 	}
-	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
-		return
-	}
-
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
 	// across CLI/server/WASM — see core/safeio).
@@ -142,8 +138,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// BOMNewlineEncodingDetector's newline type on open and replays it via
 	// getEncoderManager().getLineBreak() in YamlSkeletonWriter — every
 	// emitted line break follows the source's convention, never a mix.
+	// Set the property before the layer part is emitted: once a part is on
+	// the channel the consumer may read it concurrently, so mutating the
+	// layer afterwards is a data race.
 	r.eol = detectDominantEOL(content)
 	layer.Properties["yaml.eol"] = r.eol
+
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
+		return
+	}
 
 	blockCounter := 0
 
