@@ -398,10 +398,7 @@ func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []st
 			}
 			failing := countFailingBlocks(bl, loc)
 			failingTotal += failing
-			effective := ls.TranslatedBlocks - failing
-			if effective < 0 {
-				effective = 0
-			}
+			effective := max(ls.TranslatedBlocks-failing, 0)
 			produced += effective
 			if effective < total {
 				pending = append(pending, l)
