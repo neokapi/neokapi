@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -111,6 +112,52 @@ func settledGoroutineCount() int {
 		prev = n
 	}
 	return prev
+}
+
+// passThrough is a minimal tool that forwards every part unchanged.
+type passThrough struct {
+	*tool.BaseTool
+}
+
+func (p *passThrough) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
+	for part := range in {
+		select {
+		case out <- part:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return nil
+}
+
+// TestRunToolOnFilesTinyAdmissionCompletes fans out over temp files with an
+// in-flight byte budget far smaller than any single file. Each file must
+// clamp to the whole budget and run alone — the batch completes rather than
+// deadlocking or rejecting oversized inputs.
+func TestRunToolOnFilesTinyAdmissionCompletes(t *testing.T) {
+	t.Setenv(safeio.MaxInflightBytesEnv, "16") // 16 bytes: every file is "oversized"
+
+	dir := t.TempDir()
+	var files []string
+	for i := range 6 {
+		path := filepath.Join(dir, fmt.Sprintf("f%d.json", i))
+		content := fmt.Sprintf(`{"greeting":"hello number %d","farewell":"goodbye number %d"}`, i, i)
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+		files = append(files, path)
+	}
+
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+
+	cfg := ToolRunConfig{
+		ToolName:    "pass-through",
+		Files:       files,
+		Concurrency: 4,
+		NewTool: func() (tool.Tool, error) {
+			return &passThrough{BaseTool: &tool.BaseTool{ToolName: "pass-through"}}, nil
+		},
+	}
+	require.NoError(t, a.RunToolOnFiles(context.Background(), cfg))
 }
 
 func TestParseFormatMappings(t *testing.T) {

@@ -51,6 +51,11 @@
 //     root, using filepath.IsLocal and os.Root confinement.
 //   - [Budget] — bundles the byte, depth, and zip limits with sane defaults
 //     and composes via the With* methods.
+//   - [Admission] — a weighted byte semaphore capping the *total* bytes a
+//     file-level fan-out holds in flight at once (the per-document Budget
+//     bounds one read; Admission bounds concurrency × per-file peak). Sized
+//     by [DefaultMaxInflightBytes], overridable via [MaxInflightBytesEnv];
+//     [FileWeight] estimates each file's weight from its on-disk size.
 //
 // # Adoption status
 //

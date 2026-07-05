@@ -27,6 +27,7 @@ import (
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -499,11 +500,25 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(concurrency)
 
+	// Global byte admission: SetLimit caps the number of concurrent files,
+	// but the memory envelope is concurrency × per-file peak. The shared
+	// Admission additionally caps total in-flight bytes, so a batch of huge
+	// files serializes while small files still run wide. A file larger than
+	// the whole budget acquires the full budget and runs alone (its
+	// per-document safeio budget still bounds the read).
+	admission := newFanoutAdmission()
+
 	var mu sync.Mutex
 	var processed int
 
 	for _, inputPath := range inputPaths {
 		g.Go(func() error {
+			releaseAdmission, admErr := admission.Acquire(ctx, safeio.FileWeight(inputPath))
+			if admErr != nil {
+				return admErr
+			}
+			defer releaseAdmission()
+
 			var recorder *flow.TraceRecorder
 			var info *fileTraceInfo
 			var lane int
