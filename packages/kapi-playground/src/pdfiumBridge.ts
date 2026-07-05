@@ -67,35 +67,12 @@ interface PdfiumModule {
   FPDFText_GetUnicode(textPage: number, index: number): number;
 }
 
-export interface PdfRect {
-  text: string;
-  l: number;
-  t: number;
-  r: number;
-  b: number;
-  /** Per-character boxes inside this rect (bottom-left coords, like the rect). */
-  glyphs?: PdfGlyph[];
-}
-export interface PdfGlyph {
-  text: string;
-  l: number;
-  t: number;
-  r: number;
-  b: number;
-}
-export interface PdfPage {
-  number: number;
-  height: number;
-  rects: PdfRect[];
-}
-export interface PdfExtract {
-  pages: PdfPage[];
-}
+// The bridge contract types are owned by @neokapi/engine (the typed
+// reverse-bridge capability interface, capabilities.ts); re-exported here for
+// the playground's historical surface.
+import type { KapiPdfium, PdfExtract, PdfGlyph, PdfPage, PdfRect } from "@neokapi/engine";
 
-export interface KapiPdfium {
-  ready: Promise<void>;
-  extract(bytes: Uint8Array): Promise<PdfExtract>;
-}
+export type { KapiPdfium, PdfExtract, PdfGlyph, PdfPage, PdfRect };
 
 async function loadModule(wasmUrl: string): Promise<PdfiumModule> {
   // Dynamic import so @embedpdf/pdfium (and its wasm glue) is only pulled into

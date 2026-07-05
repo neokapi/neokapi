@@ -1,16 +1,21 @@
-// In-memory filesystem implementing the Node `fs` API subset that Go's
-// js/wasm runtime calls. Adapted from packages/engine/src/memfs.ts
-// for use in the Node harness (no browser APIs required).
+// An in-memory filesystem implementing the subset of the Node `fs` API that
+// Go's js/wasm runtime calls (see syscall/fs_js.go). The browser has no
+// filesystem, so we install this as `globalThis.fs` before booting the wasm
+// kapi CLI; its os.* calls (open/read/write/stat/mkdir/rename/readdir/...)
+// then operate on this tree. The same tree backs the "files" panel — uploads
+// write into it, downloads read from it.
 //
-// Kept to erasable TypeScript syntax so it runs under
-// `node --experimental-strip-types`.
+// Kept to erasable TypeScript syntax so it runs under both the browser bundler
+// and `node --experimental-strip-types` (used by the test harness).
 
 type NodeKind = "file" | "dir";
 
 interface FSNode {
   kind: NodeKind;
   mtimeMs: number;
+  // file
   content?: Uint8Array;
+  // dir
   children?: Map<string, FSNode>;
 }
 
@@ -26,6 +31,8 @@ interface MemFSOptions {
   onStderr?: (chunk: Uint8Array) => void;
 }
 
+// Linux-style open flags. The exact values are arbitrary as long as we both
+// publish them (fs.constants, read by Go at init) and interpret them here.
 const O = {
   O_RDONLY: 0,
   O_WRONLY: 1,
@@ -40,7 +47,7 @@ const O = {
 const S_IFDIR = 0o040000;
 const S_IFREG = 0o100000;
 
-function fsErr(code: string, message?: string): Error & { code: string } {
+function err(code: string, message?: string): Error & { code: string } {
   const e = new Error(message || code) as Error & { code: string };
   e.code = code;
   return e;
@@ -53,6 +60,7 @@ function fileNode(content?: Uint8Array): FSNode {
   return { kind: "file", content: content || new Uint8Array(0), mtimeMs: Date.now() };
 }
 
+// Normalize an absolute path into components, resolving "." and "..".
 function splitPath(abs: string): string[] {
   const parts: string[] = [];
   for (const seg of abs.split("/")) {
@@ -64,6 +72,7 @@ function splitPath(abs: string): string[] {
 }
 
 export interface MemVolume {
+  // UI helpers (operate with absolute paths)
   writeFile(path: string, data: Uint8Array): void;
   readFile(path: string): Uint8Array;
   readdir(path: string): string[];
@@ -84,7 +93,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
   const root = dirNode();
   let cwd = "/";
   const fds = new Map<number, FD>();
-  let nextFd = 3;
+  let nextFd = 3; // 0,1,2 reserved for stdio
 
   function resolve(p: string): string[] {
     const abs = p.startsWith("/") ? p : cwd + "/" + p;
@@ -105,10 +114,10 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
     return cur;
   }
   function lookupParent(parts: string[]): { parent: FSNode; name: string } {
-    if (parts.length === 0) throw fsErr("EINVAL", "root has no parent");
+    if (parts.length === 0) throw err("EINVAL", "root has no parent");
     const parent = lookup(parts.slice(0, -1));
-    if (!parent) throw fsErr("ENOENT");
-    if (parent.kind !== "dir") throw fsErr("ENOTDIR");
+    if (!parent) throw err("ENOENT");
+    if (parent.kind !== "dir") throw err("ENOTDIR");
     return { parent, name: parts[parts.length - 1] };
   }
 
@@ -118,9 +127,20 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
     const size = isDir ? 0 : node.content!.length;
     const t = node.mtimeMs;
     return {
-      dev: 1, ino: 1, mode, nlink: 1, uid: 0, gid: 0, rdev: 0,
-      size, blksize: 4096, blocks: Math.ceil(size / 512),
-      atimeMs: t, mtimeMs: t, ctimeMs: t, birthtimeMs: t,
+      dev: 1,
+      ino: 1,
+      mode,
+      nlink: 1,
+      uid: 0,
+      gid: 0,
+      rdev: 0,
+      size,
+      blksize: 4096,
+      blocks: Math.ceil(size / 512),
+      atimeMs: t,
+      mtimeMs: t,
+      ctimeMs: t,
+      birthtimeMs: t,
       isDirectory: () => isDir,
       isFile: () => !isDir,
       isSymbolicLink: () => false,
@@ -131,6 +151,8 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
     };
   }
 
+  // ---------------- Node-style async fs API (what Go calls) ----------------
+
   const fs: any = {
     constants: O,
 
@@ -140,32 +162,49 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
         let node = lookup(parts);
         const wantWrite = (flags & O.O_WRONLY) !== 0 || (flags & O.O_RDWR) !== 0;
         if (!node) {
-          if ((flags & O.O_CREAT) === 0) return cb(fsErr("ENOENT"));
+          if ((flags & O.O_CREAT) === 0) return cb(err("ENOENT"));
           const { parent, name } = lookupParent(parts);
           node = fileNode();
           parent.children!.set(name, node);
           parent.mtimeMs = Date.now();
         } else if ((flags & O.O_CREAT) !== 0 && (flags & O.O_EXCL) !== 0) {
-          return cb(fsErr("EEXIST"));
+          return cb(err("EEXIST"));
         } else if (node.kind === "dir" && wantWrite) {
-          return cb(fsErr("EISDIR"));
+          return cb(err("EISDIR"));
         }
         if (node.kind === "file" && (flags & O.O_TRUNC) !== 0) {
           node.content = new Uint8Array(0);
         }
         const append = (flags & O.O_APPEND) !== 0;
         const fd = nextFd++;
-        fds.set(fd, { node, path: joinAbs(parts), pos: append && node.content ? node.content.length : 0, append });
+        fds.set(fd, {
+          node,
+          path: joinAbs(parts),
+          pos: append && node.content ? node.content.length : 0,
+          append,
+        });
         cb(null, fd);
-      } catch (e) { cb(e); }
+      } catch (e) {
+        cb(e);
+      }
     },
 
-    close(fd: number, cb: Function) { fds.delete(fd); cb(null); },
+    close(fd: number, cb: Function) {
+      fds.delete(fd);
+      cb(null);
+    },
 
-    read(fd: number, buffer: Uint8Array, offset: number, length: number, position: number | null, cb: Function) {
+    read(
+      fd: number,
+      buffer: Uint8Array,
+      offset: number,
+      length: number,
+      position: number | null,
+      cb: Function,
+    ) {
       const e = fds.get(fd);
-      if (!e) return cb(fsErr("EBADF"));
-      if (e.node.kind === "dir") return cb(fsErr("EISDIR"));
+      if (!e) return cb(err("EBADF"));
+      if (e.node.kind === "dir") return cb(err("EISDIR"));
       const content = e.node.content!;
       const pos = position === null || position === undefined ? e.pos : position;
       const slice = content.subarray(pos, Math.min(pos + length, content.length));
@@ -174,18 +213,28 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
       cb(null, slice.length, buffer);
     },
 
-    write(fd: number, buffer: Uint8Array, offset: number, length: number, position: number | null, cb: Function) {
+    write(
+      fd: number,
+      buffer: Uint8Array,
+      offset: number,
+      length: number,
+      position: number | null,
+      cb: Function,
+    ) {
       if (fd === 1 || fd === 2) {
         const chunk = buffer.subarray(offset, offset + length);
         (fd === 1 ? opts.onStdout : opts.onStderr)?.(chunk);
         return cb(null, length, buffer);
       }
       const e = fds.get(fd);
-      if (!e) return cb(fsErr("EBADF"));
+      if (!e) return cb(err("EBADF"));
       const data = buffer.subarray(offset, offset + length);
-      const pos = position === null || position === undefined
-        ? (e.append ? e.node.content!.length : e.pos)
-        : position;
+      const pos =
+        position === null || position === undefined
+          ? e.append
+            ? e.node.content!.length
+            : e.pos
+          : position;
       const cur = e.node.content!;
       const end = pos + data.length;
       if (end > cur.length) {
@@ -201,56 +250,73 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
       cb(null, length, buffer);
     },
 
-    fsync(_fd: number, cb: Function) { cb(null); },
+    fsync(_fd: number, cb: Function) {
+      cb(null);
+    },
+
     fstat(fd: number, cb: Function) {
       const e = fds.get(fd);
-      if (!e) return cb(fsErr("EBADF"));
+      if (!e) return cb(err("EBADF"));
       cb(null, statsFor(e.node));
     },
+
     stat(p: string, cb: Function) {
       const node = lookup(resolve(p));
-      if (!node) return cb(fsErr("ENOENT"));
+      if (!node) return cb(err("ENOENT"));
       cb(null, statsFor(node));
     },
-    lstat(p: string, cb: Function) { fs.stat(p, cb); },
+
+    lstat(p: string, cb: Function) {
+      fs.stat(p, cb);
+    },
+
     mkdir(p: string, _perm: number, cb: Function) {
       try {
         const parts = resolve(p);
-        if (lookup(parts)) return cb(fsErr("EEXIST"));
+        if (lookup(parts)) return cb(err("EEXIST"));
         const { parent, name } = lookupParent(parts);
         parent.children!.set(name, dirNode());
         parent.mtimeMs = Date.now();
         cb(null);
-      } catch (e) { cb(e); }
+      } catch (e) {
+        cb(e);
+      }
     },
+
     rmdir(p: string, cb: Function) {
       try {
         const parts = resolve(p);
         const node = lookup(parts);
-        if (!node) return cb(fsErr("ENOENT"));
-        if (node.kind !== "dir") return cb(fsErr("ENOTDIR"));
-        if (node.children!.size > 0) return cb(fsErr("ENOTEMPTY"));
+        if (!node) return cb(err("ENOENT"));
+        if (node.kind !== "dir") return cb(err("ENOTDIR"));
+        if (node.children!.size > 0) return cb(err("ENOTEMPTY"));
         const { parent, name } = lookupParent(parts);
         parent.children!.delete(name);
         cb(null);
-      } catch (e) { cb(e); }
+      } catch (e) {
+        cb(e);
+      }
     },
+
     unlink(p: string, cb: Function) {
       try {
         const parts = resolve(p);
         const node = lookup(parts);
-        if (!node) return cb(fsErr("ENOENT"));
-        if (node.kind === "dir") return cb(fsErr("EISDIR"));
+        if (!node) return cb(err("ENOENT"));
+        if (node.kind === "dir") return cb(err("EISDIR"));
         const { parent, name } = lookupParent(parts);
         parent.children!.delete(name);
         cb(null);
-      } catch (e) { cb(e); }
+      } catch (e) {
+        cb(e);
+      }
     },
+
     rename(from: string, to: string, cb: Function) {
       try {
         const fromParts = resolve(from);
         const node = lookup(fromParts);
-        if (!node) return cb(fsErr("ENOENT"));
+        if (!node) return cb(err("ENOENT"));
         const src = lookupParent(fromParts);
         const dstParts = resolve(to);
         const dst = lookupParent(dstParts);
@@ -258,32 +324,39 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
         dst.parent.children!.set(dst.name, node);
         dst.parent.mtimeMs = Date.now();
         cb(null);
-      } catch (e) { cb(e); }
+      } catch (e) {
+        cb(e);
+      }
     },
+
     readdir(p: string, cb: Function) {
       const node = lookup(resolve(p));
-      if (!node) return cb(fsErr("ENOENT"));
-      if (node.kind !== "dir") return cb(fsErr("ENOTDIR"));
+      if (!node) return cb(err("ENOENT"));
+      if (node.kind !== "dir") return cb(err("ENOTDIR"));
       cb(null, Array.from(node.children!.keys()));
     },
+
     ftruncate(fd: number, length: number, cb: Function) {
       const e = fds.get(fd);
-      if (!e) return cb(fsErr("EBADF"));
+      if (!e) return cb(err("EBADF"));
       const cur = e.node.content!;
       const grown = new Uint8Array(length);
       grown.set(cur.subarray(0, Math.min(length, cur.length)), 0);
       e.node.content = grown;
       cb(null);
     },
+
     truncate(p: string, length: number, cb: Function) {
       const node = lookup(resolve(p));
-      if (!node) return cb(fsErr("ENOENT"));
-      if (node.kind !== "file") return cb(fsErr("EISDIR"));
+      if (!node) return cb(err("ENOENT"));
+      if (node.kind !== "file") return cb(err("EISDIR"));
       const grown = new Uint8Array(length);
       grown.set(node.content!.subarray(0, Math.min(length, node.content!.length)), 0);
       node.content = grown;
       cb(null);
     },
+
+    // Permission/ownership/time calls — accepted as no-ops.
     chmod: (_p: string, _m: number, cb: Function) => cb(null),
     fchmod: (_fd: number, _m: number, cb: Function) => cb(null),
     chown: (_p: string, _u: number, _g: number, cb: Function) => cb(null),
@@ -291,15 +364,21 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
     lchown: (_p: string, _u: number, _g: number, cb: Function) => cb(null),
     utimes: (_p: string, _a: number, _m: number, cb: Function) => cb(null),
     futimes: (_fd: number, _a: number, _m: number, cb: Function) => cb(null),
-    symlink: (_t: string, _p: string, cb: Function) => cb(fsErr("ENOSYS")),
-    link: (_a: string, _b: string, cb: Function) => cb(fsErr("ENOSYS")),
-    readlink: (_p: string, cb: Function) => cb(fsErr("EINVAL")),
+
+    // Unsupported — report ENOSYS so Go surfaces a clean error.
+    symlink: (_t: string, _p: string, cb: Function) => cb(err("ENOSYS")),
+    link: (_a: string, _b: string, cb: Function) => cb(err("ENOSYS")),
+    readlink: (_p: string, cb: Function) => cb(err("EINVAL")),
+
+    // Synchronous write — Go's runtime uses this for stdout/stderr.
     writeSync(fd: number, buffer: Uint8Array): number {
       if (fd === 1) opts.onStdout?.(buffer);
       else if (fd === 2) opts.onStderr?.(buffer);
       return buffer.length;
     },
   };
+
+  // ---------------- process shim (cwd/chdir + ids Go reads) ----------------
 
   const process: any = {
     getuid: () => 0,
@@ -314,11 +393,13 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
     chdir: (dir: string) => {
       const parts = resolve(dir);
       const node = lookup(parts);
-      if (!node) throw fsErr("ENOENT");
-      if (node.kind !== "dir") throw fsErr("ENOTDIR");
+      if (!node) throw err("ENOENT");
+      if (node.kind !== "dir") throw err("ENOTDIR");
       cwd = joinAbs(parts);
     },
   };
+
+  // ---------------- UI-facing volume helpers ----------------
 
   const vol: MemVolume = {
     mkdirp(p: string) {
@@ -330,7 +411,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
           next = dirNode();
           cur.children!.set(name, next);
         } else if (next.kind !== "dir") {
-          throw fsErr("ENOTDIR");
+          throw err("ENOTDIR");
         }
         cur = next;
       }
@@ -349,14 +430,14 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
     },
     readFile(p: string): Uint8Array {
       const node = lookup(resolve(p));
-      if (!node) throw fsErr("ENOENT");
-      if (node.kind !== "file") throw fsErr("EISDIR");
+      if (!node) throw err("ENOENT");
+      if (node.kind !== "file") throw err("EISDIR");
       return node.content!;
     },
     readdir(p: string): string[] {
       const node = lookup(resolve(p));
-      if (!node) throw fsErr("ENOENT");
-      if (node.kind !== "dir") throw fsErr("ENOTDIR");
+      if (!node) throw err("ENOENT");
+      if (node.kind !== "dir") throw err("ENOTDIR");
       return Array.from(node.children!.keys()).sort();
     },
     remove(p: string) {
@@ -374,6 +455,7 @@ export function createMemFS(opts: MemFSOptions = {}): MemFS {
     cwd: () => cwd,
   };
 
+  // Seed a working directory and chdir into it.
   vol.mkdirp("/project");
   cwd = "/project";
 
