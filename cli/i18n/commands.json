@@ -120,6 +120,14 @@
         "encoding-detect": {
           "short": "Encoding Detect"
         },
+        "engine": {
+          "serve": {
+            "example": "  kapi engine serve\n  kapi engine serve --socket /tmp/my-engine.sock",
+            "long": "Serve the neokapi content engine as a gRPC service (EngineService,\ncore/proto/engine/v1) on a local Unix socket, so any gRPC-capable language\ncan extract documents into the canonical content model, process the part\nstream through tools or flows, and merge it back to document bytes.\n\nOn startup the command prints a one-line JSON handshake on stdout —\n{\"socket\": \"\u003cpath\u003e\", \"version\": \"\u003ckapi version\u003e\", \"pid\": \u003cpid\u003e} — mirroring\nthe plugin daemon convention, then serves until interrupted.\n\nTrust model: the service is for TRUSTED LOCAL PEERS ONLY. There is no\nauthentication in v1; the socket (created inside a 0700 directory) is the\nsecurity boundary, exactly like kapi's plugin daemon sockets. Do not expose\nthe socket over the network or place it in a shared directory.",
+            "short": "Serve the EngineService gRPC API on a local Unix socket"
+          },
+          "short": "Serve the content engine as a local gRPC API"
+        },
         "entity-extract": {
           "short": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both"
         },

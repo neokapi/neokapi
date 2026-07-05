@@ -236,7 +236,12 @@ const sidebars: SidebarsConfig = {
       label: "Configuration & integration",
       collapsible: false,
       className: "sidebar-section-heading",
-      items: ["reference/project-file", "reference/mcp"],
+      items: [
+        "reference/project-file",
+        "reference/mcp",
+        "reference/cli-contract",
+        "reference/engine-service",
+      ],
     },
     {
       type: "category",

@@ -1,0 +1,5 @@
+{
+  "flow_name": "pseudo-translate",
+  "input_path": "src/messages.json",
+  "output_path": "src/messages_qps.json"
+}

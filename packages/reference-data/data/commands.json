@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-04T16:44:52Z",
+  "generatedAt": "2026-07-05T15:46:54Z",
   "commands": [
     {
       "id": "brand",
@@ -1546,6 +1546,42 @@
       "demoMode": false
     },
     {
+      "id": "engine",
+      "path": [
+        "engine"
+      ],
+      "use": "engine",
+      "short": "Serve the content engine as a local gRPC API",
+      "groupID": "advanced",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "engine.serve",
+      "path": [
+        "engine",
+        "serve"
+      ],
+      "use": "serve",
+      "short": "Serve the EngineService gRPC API on a local Unix socket",
+      "long": "Serve the neokapi content engine as a gRPC service (EngineService,\ncore/proto/engine/v1) on a local Unix socket, so any gRPC-capable language\ncan extract documents into the canonical content model, process the part\nstream through tools or flows, and merge it back to document bytes.\n\nOn startup the command prints a one-line JSON handshake on stdout —\n{\"socket\": \"\u003cpath\u003e\", \"version\": \"\u003ckapi version\u003e\", \"pid\": \u003cpid\u003e} — mirroring\nthe plugin daemon convention, then serves until interrupted.\n\nTrust model: the service is for TRUSTED LOCAL PEERS ONLY. There is no\nauthentication in v1; the socket (created inside a 0700 directory) is the\nsecurity boundary, exactly like kapi's plugin daemon sockets. Do not expose\nthe socket over the network or place it in a shared directory.",
+      "flags": [
+        {
+          "name": "socket",
+          "usage": "Unix socket path to listen on (default: $XDG_RUNTIME_DIR/kapi/engine-\u003cpid\u003e.sock, falling back to the user cache dir)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi engine serve",
+        "kapi engine serve --socket /tmp/my-engine.sock"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
       "id": "entity-extract",
       "path": [
         "entity-extract"
@@ -1748,6 +1784,11 @@
         {
           "name": "pattern",
           "usage": "extra glob pattern restricting which source files to include",
+          "type": "string"
+        },
+        {
+          "name": "progress",
+          "usage": "stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary",
           "type": "string"
         },
         {
@@ -2421,6 +2462,11 @@
           "name": "output",
           "shorthand": "o",
           "usage": "output directory or template when merging a .klz workspace",
+          "type": "string"
+        },
+        {
+          "name": "progress",
+          "usage": "stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary",
           "type": "string"
         },
         {
@@ -4117,6 +4163,11 @@
           "usage": "fan out block processing across N goroutines (0 = off)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "progress",
+          "usage": "stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary",
+          "type": "string"
         },
         {
           "name": "project",
