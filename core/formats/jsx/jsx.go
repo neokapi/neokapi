@@ -28,6 +28,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/klf"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // AnnotationType is the discriminator key the KLFAnnotation
@@ -204,7 +205,10 @@ func (r *Reader) Close() error { return nil }
 func (r *Reader) Config() format.DataFormatConfig { return r.Cfg }
 
 func (r *Reader) stream(ctx context.Context, ch chan<- model.PartResult) {
-	body, err := io.ReadAll(r.Doc.Reader)
+	// Bound the whole-input read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio).
+	body, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("klf: read body: %w", err)}
 		return

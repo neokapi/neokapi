@@ -12,6 +12,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // Reader implements DataFormatReader for ICU MessageFormat files.
@@ -80,7 +81,11 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	}
 
 	// Pre-parse all lines to detect errors early (like CHOICE format).
-	scanner := bufio.NewScanner(doc.Reader)
+	// Bound the streamed read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio); the parsed lines accumulate
+	// in memory, so this is a whole-document read.
+	scanner := bufio.NewScanner(safeio.DefaultBudget().Reader(doc.Reader))
 	lineNum := 0
 	for scanner.Scan() {
 		lineNum++
@@ -132,7 +137,10 @@ func splitRawLines(data []byte) []rawLine {
 }
 
 func (r *Reader) openWithSkeleton(_ context.Context, doc *model.RawDocument) error {
-	data, err := io.ReadAll(doc.Reader)
+	// Bound the whole-input read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio).
+	data, err := io.ReadAll(safeio.DefaultBudget().Reader(doc.Reader))
 	if err != nil {
 		return fmt.Errorf("messageformat: read error: %w", err)
 	}

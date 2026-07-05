@@ -12,6 +12,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // Reader implements DataFormatReader for WebVTT subtitle files.
@@ -217,8 +218,10 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 
 // readContentSkeleton reads the VTT with skeleton tracking, preserving exact bytes.
 func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult, locale model.LocaleID) {
-	// Read the full content to preserve exact bytes
-	data, err := io.ReadAll(r.Doc.Reader)
+	// Read the full content to preserve exact bytes, bounded by the shared
+	// safeio byte budget so an unbounded/oversized stream fails with a typed
+	// error (identical limit across CLI/server/WASM — see core/safeio).
+	data, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("vtt: reading: %w", err)}
 		return
@@ -595,7 +598,11 @@ func splitRawLines(data []byte) []rawLine {
 }
 
 func (r *Reader) parseCues() ([]*vttCue, string) {
-	scanner := bufio.NewScanner(r.Doc.Reader)
+	// Bound the streamed read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio); the cues accumulate in
+	// memory, so this is a whole-document read.
+	scanner := bufio.NewScanner(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	var cues []*vttCue
 	header := ""
 

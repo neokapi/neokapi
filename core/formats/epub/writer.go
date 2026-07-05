@@ -12,6 +12,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // Writer implements DataFormatWriter for EPUB e-book files.
@@ -368,13 +369,11 @@ func (w *Writer) writeEPUB(parts []*model.Part, childLayerValues map[string]stri
 				return err
 			}
 		} else if blocks, ok := entryBlocks[file.Name]; ok && len(blocks) > 0 {
-			// Read original content
-			rc, err := file.Open()
-			if err != nil {
-				return err
-			}
-			origContent, err := io.ReadAll(rc)
-			rc.Close()
+			// Read original content, bounded by the shared safeio zip limits
+			// (per-entry uncompressed size + inflate-ratio zip-bomb guard on
+			// the actual stream) — the writer may re-open the archive from
+			// disk, so it cannot rely on the reader's earlier validation.
+			origContent, err := safeio.DefaultZipLimits.ReadEntry(file)
 			if err != nil {
 				return err
 			}

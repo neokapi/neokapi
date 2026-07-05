@@ -35,6 +35,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/structure"
 )
 
@@ -141,7 +142,10 @@ func (r *WasmReader) Read(_ context.Context) <-chan model.PartResult {
 			}
 		}
 
-		data, err := io.ReadAll(r.Doc.Reader)
+		// Bound the whole-input read with the shared safeio byte budget so an
+		// unbounded/oversized stream fails with a typed error (identical limit
+		// across CLI/server/WASM — see core/safeio).
+		data, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("pdf: read document: %w", err)}
 			return

@@ -106,8 +106,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		locale = model.LocaleEnglish
 	}
 
-	// Read all content into memory (ZIP requires random access)
-	data, err := io.ReadAll(r.Doc.Reader)
+	// Read all content into memory (ZIP requires random access), bounded by
+	// the shared safeio byte budget so an unbounded/oversized container fails
+	// with a typed error before any zip parsing (the zip limits below only
+	// guard the entries, not this container read).
+	data, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("openxml: reading: %w", err)}
 		return

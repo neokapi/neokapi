@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // fileKind discriminates the two Apple localization file types this format
@@ -138,7 +139,10 @@ func (r *Reader) Close() error {
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
-	raw, err := io.ReadAll(r.Doc.Reader)
+	// Bound the whole-input read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio).
+	raw, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("applestrings: reading: %w", err)}
 		return
