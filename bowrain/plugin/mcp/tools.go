@@ -17,7 +17,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/bowrain/plugin/internal/projflow"
 	"github.com/neokapi/neokapi/cli"
-	clioutput "github.com/neokapi/neokapi/cli/output"
+	clioutput "github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"

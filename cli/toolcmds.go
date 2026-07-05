@@ -9,12 +9,12 @@ import (
 	coretools "github.com/neokapi/neokapi/core/tools"
 
 	"github.com/mattn/go-isatty"
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
 

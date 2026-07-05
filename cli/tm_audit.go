@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
 

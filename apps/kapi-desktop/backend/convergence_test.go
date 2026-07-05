@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neokapi/neokapi/cli"
-	appconfig "github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host"
+	appconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -122,7 +122,7 @@ func TestBringUpToDate_RunsSharedUpEngine(t *testing.T) {
 	// final structured result (what the runner's passes view renders).
 	events := app.GetRunEvents()
 	var passes int
-	var result *cli.ConvergeOutput
+	var result *host.ConvergeOutput
 	for _, ev := range events {
 		if ev.Type == "converge_pass" {
 			passes++
@@ -225,14 +225,14 @@ func TestBringUpToDate_NoDefaultFlowUsesBuiltinDefault(t *testing.T) {
 	}
 
 	// The final structured result reports the built-in default flow.
-	var result *cli.ConvergeOutput
+	var result *host.ConvergeOutput
 	for _, ev := range app.GetRunEvents() {
 		if ev.Type == "complete" {
 			result = ev.ConvergeResult
 		}
 	}
 	require.NotNil(t, result)
-	assert.Equal(t, cli.BuiltinDefaultFlowLabel, result.Flow)
+	assert.Equal(t, host.BuiltinDefaultFlowLabel, result.Flow)
 }
 
 // TestGetConvergence_MissingProjectFiles: a tab whose recipe vanished from

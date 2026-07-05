@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/cli"
-	cliconfig "github.com/neokapi/neokapi/cli/config"
+	cliconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -192,7 +192,7 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	mcpCmd.GroupID = "advanced"
 	root.AddCommand(mcpCmd)
 
-	engineCmd := app.NewEngineCmd()
+	engineCmd := cli.NewEngineCmd(app)
 	engineCmd.GroupID = "advanced"
 	root.AddCommand(engineCmd)
 

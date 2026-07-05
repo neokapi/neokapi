@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/format"
@@ -20,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	coretools "github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/host"
 )
 
 // DesktopFinding is one content-check finding, flattened for the React Checks
@@ -68,8 +68,8 @@ type CheckRunResult struct {
 // only source-side checks run.
 //
 // The pipeline itself is the CLI's exported check service
-// (cli.App.ReadBlocksForCheck / cli.OverlayTargets / cli.RunCheckTool /
-// cli.FindingsFromBlock), run inside the project document cache
+// (host.App.ReadBlocksForCheck / host.OverlayTargets / host.RunCheckTool /
+// host.FindingsFromBlock), run inside the project document cache
 // (WithDocumentCache) so unchanged files replay instead of re-parsing —
 // exactly the `kapi check` semantics: the gate fails on any critical finding.
 func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, error) {
@@ -93,7 +93,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// The shared check pipeline holds single-occupancy state on the cli.App
+	// The shared check pipeline holds single-occupancy state on the host.App
 	// (the open document cache), so a checks run is serialized.
 	a.checksMu.Lock()
 	defer a.checksMu.Unlock()
@@ -106,7 +106,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	// CLI's flag-free behavior.
 	var profile *brand.VoiceProfile
 	if op.Project != nil && root != "" {
-		if p, _, ok, perr := capp.ResolveBrandProfile(ctx, op.Project, root, cli.BrandResolveOptions{}); perr == nil && ok {
+		if p, _, ok, perr := capp.ResolveBrandProfile(ctx, op.Project, root, host.BrandResolveOptions{}); perr == nil && ok {
 			profile = p
 		}
 	}
@@ -143,7 +143,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			if profile != nil {
 				vocab := coretools.NewBrandVocabCheckTool(profile, nil)
 				for _, b := range sourceBlocks {
-					cli.RunCheckTool(ctx, vocab, b)
+					host.RunCheckTool(ctx, vocab, b)
 					if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 						for _, f := range ann.Findings {
 							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source"))
@@ -176,13 +176,13 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 				if terr != nil {
 					continue
 				}
-				cli.OverlayTargets(passBlocks, targetBlocks, targetLoc)
+				host.OverlayTargets(passBlocks, targetBlocks, targetLoc)
 
 				// Placeholder integrity.
 				placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(targetLoc))
 				for _, b := range passBlocks {
-					cli.RunCheckTool(ctx, placeholder, b)
-					for _, f := range cli.FindingsFromBlock(b, true) {
+					host.RunCheckTool(ctx, placeholder, b)
+					for _, f := range host.FindingsFromBlock(b, true) {
 						fileFindings = append(fileFindings, toDesktopFinding(f, b, "target"))
 						allFindings = append(allFindings, f)
 					}
@@ -194,8 +194,8 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 					dntCfg.Terms = dntTerms
 					dnt := coretools.NewDNTCheckTool(dntCfg)
 					for _, b := range passBlocks {
-						cli.RunCheckTool(ctx, dnt, b)
-						for _, f := range cli.FindingsFromBlock(b, true) {
+						host.RunCheckTool(ctx, dnt, b)
+						for _, f := range host.FindingsFromBlock(b, true) {
 							fileFindings = append(fileFindings, toDesktopFinding(f, b, "target"))
 							allFindings = append(allFindings, f)
 						}
@@ -227,18 +227,18 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	}, nil
 }
 
-// checksCLI lazily builds the cli.App behind RunChecks, sharing the desktop's
+// checksCLI lazily builds the host.App behind RunChecks, sharing the desktop's
 // plugin-wired format and tool registries so plugin-provided formats read
 // exactly as they do everywhere else in the app. Callers must hold checksMu.
-func (a *App) checksCLI() *cli.App {
+func (a *App) checksCLI() *host.App {
 	if a.checks == nil {
-		a.checks = &cli.App{FormatReg: a.formatReg, ToolReg: a.toolReg}
+		a.checks = &host.App{FormatReg: a.formatReg, ToolReg: a.toolReg}
 	}
 	return a.checks
 }
 
 // readBlocksForChecks reads a file's translatable blocks through the shared
-// CLI check pipeline (cli.App.ReadBlocksForCheck) — the adapter the review and
+// CLI check pipeline (host.App.ReadBlocksForCheck) — the adapter the review and
 // inspect paths use for one-shot reads outside a checks run. fmtName may be
 // empty to auto-detect by extension.
 func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName, sourceLang string) ([]*model.Block, error) {
@@ -249,7 +249,7 @@ func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName, sourceLang
 
 // resolveProjectBrandProfile resolves the brand voice profile bound to the
 // open project through the CLI's full resolution ladder
-// (cli.App.ResolveBrandProfile): defaults.brand_voice (profile_file / pack /
+// (host.App.ResolveBrandProfile): defaults.brand_voice (profile_file / pack /
 // local brand store) then the convention brand.yaml files at the project
 // root. Best-effort: nil when nothing is bound or resolution fails — the
 // brand vocabulary check is then skipped, matching the CLI's flag-free
@@ -261,7 +261,7 @@ func (a *App) resolveProjectBrandProfile(op *openProject) *brand.VoiceProfile {
 	root := filepath.Dir(op.Path)
 	a.checksMu.Lock()
 	defer a.checksMu.Unlock()
-	p, _, ok, err := a.checksCLI().ResolveBrandProfile(context.Background(), op.Project, root, cli.BrandResolveOptions{})
+	p, _, ok, err := a.checksCLI().ResolveBrandProfile(context.Background(), op.Project, root, host.BrandResolveOptions{})
 	if err != nil || !ok {
 		return nil
 	}

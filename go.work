@@ -9,6 +9,7 @@ use (
 	./bowrain/plugin
 	./bowrain/plugin/schema
 	./cli
+	./host
 	./kapi
 	./scripts/contract-audit
 	./scripts/gen-contract-types

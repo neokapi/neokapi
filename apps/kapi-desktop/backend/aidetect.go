@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/host"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -48,7 +48,7 @@ type DetectedAIProvider struct {
 // instant and offline: Claude Code by binary presence (auth is verified at
 // first call), Ollama by a bounded local port probe.
 func (a *App) DetectAIProviders() AIDetectionResult {
-	shared := cli.App{Credentials: a.credentials, Config: a.aiConfig}
+	shared := host.App{Credentials: a.credentials, Config: a.aiConfig}
 	det := shared.DetectAIOptions(context.Background(), "")
 
 	res := AIDetectionResult{

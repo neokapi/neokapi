@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/i18n"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
 

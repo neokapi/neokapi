@@ -22,11 +22,6 @@ import (
 	// Blank-import the cli package so its init() registrations run in the desktop
 	// too — command factories, MCP tools, and any cli-registered AI providers —
 	// keeping the desktop's tool and provider lists in sync with the CLI.
-	"github.com/neokapi/neokapi/cli"
-	appconfig "github.com/neokapi/neokapi/cli/config"
-	"github.com/neokapi/neokapi/cli/credentials"
-	cliI18n "github.com/neokapi/neokapi/cli/i18n"
-	"github.com/neokapi/neokapi/cli/pluginhost"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/flow"
@@ -43,6 +38,11 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/host"
+	appconfig "github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/credentials"
+	cliI18n "github.com/neokapi/neokapi/host/i18n"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -88,21 +88,21 @@ type App struct {
 	// network is touched.
 	aiToolFactory func(name string, cfg map[string]any, targetLang string) (tool.Tool, error)
 
-	// convergence is the shared cli.App used to derive convergence reports
+	// convergence is the shared host.App used to derive convergence reports
 	// (per-locale coverage, ship gates, source readiness, the review queue) — the
 	// same file-based derivation `kapi status` / `kapi verify` use, so the desktop
 	// project view shows the same numbers as the CLI. Built lazily so its format
 	// and tool registries register once, not per request.
-	convergence   *cli.App
+	convergence   *host.App
 	convergenceMu sync.Mutex
 
-	// checks is the shared cli.App behind RunChecks — the exported bilingual
+	// checks is the shared host.App behind RunChecks — the exported bilingual
 	// check pipeline (ReadBlocksForCheck / OverlayTargets / RunCheckTool /
 	// FindingsFromBlock), sharing the desktop's plugin-wired format registry.
 	// checksMu is held for the duration of a checks run: the run opens the
 	// project document cache on the app (WithDocumentCache), which is
 	// single-occupancy state.
-	checks   *cli.App
+	checks   *host.App
 	checksMu sync.Mutex
 
 	// TM and Termbase handles

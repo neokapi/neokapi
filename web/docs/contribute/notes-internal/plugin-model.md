@@ -8,7 +8,7 @@ keywords: [plugin model, in-process registry, cli.App, init registration, blank 
 
 # Plugin model — the in-process registry contract
 
-This implementation note covers the **in-process registry mechanism** a plugin binary uses to wire its features into the shared `cli.App`. Plugin packages are blank-imported by a plugin binary's `main`; their `init()` functions register features against process-global registries via direct function calls — no gRPC, no dynamic loading inside the binary.
+This implementation note covers the **in-process registry mechanism** a plugin binary uses to wire its features into the shared `cli.App` (an alias of the host module's `host.App` — the cobra-free application runtime the `cli` shell wraps). Plugin packages are blank-imported by a plugin binary's `main`; their `init()` functions register features against process-global registries via direct function calls — no gRPC, no dynamic loading inside the binary.
 
 This is one half of the plugin story: how the Go code _inside_ a plugin binary is composed. How `kapi` then **discovers** that binary on disk and **dispatches** to it at runtime (the `manifest.json` model and the A/B/C transport modes) lives in [AD-007: Plugin System](../architecture/007-plugin-system). The `kapi` binary itself links no vendor plugins; the registries below populate inside the plugin binary — in the worked example below, that's `kapi-gitlab` (built from `gitlab-plugin/cmd/kapi-gitlab/`).
 
@@ -16,7 +16,7 @@ This note is the reference for: how the registries work, how to write the Go sid
 
 ## When to use which registry
 
-The framework and shared CLI module expose four registries. A plugin can use any subset.
+The framework, the host module, and the shared CLI module expose four registries. A plugin can use any subset. (`cli.RegisterMCPToolFactory` is a re-export of `host.RegisterMCPToolFactory` — MCP tools are cobra-free and live in the host module; the two command-facing registries are cli-native.)
 
 | Registry                         | Lives in          | Plugin extends with                                              |
 | -------------------------------- | ----------------- | ---------------------------------------------------------------- |

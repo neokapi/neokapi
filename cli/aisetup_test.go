@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/host/config"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 

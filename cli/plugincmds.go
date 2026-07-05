@@ -8,11 +8,11 @@ import (
 	"sort"
 	"strings"
 
-	pluginreg "github.com/neokapi/neokapi/cli/pluginhost/registry"
+	pluginreg "github.com/neokapi/neokapi/host/pluginhost/registry"
 
-	"github.com/neokapi/neokapi/cli/output"
-	"github.com/neokapi/neokapi/cli/pluginhost"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/spf13/cobra"
 )
 

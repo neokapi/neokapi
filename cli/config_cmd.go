@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/host/config"
 )
 
 // NewConfigCmd creates the `kapi config` command for reading and writing kapi's

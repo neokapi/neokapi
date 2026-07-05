@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/cli"
-	appconfig "github.com/neokapi/neokapi/cli/config"
-	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host"
+	appconfig "github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/credentials"
 )
 
 // errProjectFilesMissing is the typed, user-facing error GetConvergence /
@@ -39,13 +39,13 @@ func (a *App) checkProjectOnDisk(op *openProject) error {
 	return nil
 }
 
-// convergenceCLI lazily builds the shared cli.App used to derive convergence
+// convergenceCLI lazily builds the shared host.App used to derive convergence
 // reports, so the format/tool registries register once rather than per request.
-func (a *App) convergenceCLI() *cli.App {
+func (a *App) convergenceCLI() *host.App {
 	a.convergenceMu.Lock()
 	defer a.convergenceMu.Unlock()
 	if a.convergence == nil {
-		c := &cli.App{}
+		c := &host.App{}
 		c.InitRegistries()
 		a.convergence = c
 	}
@@ -60,13 +60,13 @@ func (a *App) convergenceCLI() *cli.App {
 //
 // A project with no recipe path yet (unsaved) returns an empty report rather
 // than an error, so the panel renders a "nothing tracked yet" state.
-func (a *App) GetConvergence(tabID string) (*cli.ConvergenceReport, error) {
+func (a *App) GetConvergence(tabID string) (*host.ConvergenceReport, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, fmt.Errorf("project tab %q not found", tabID)
 	}
 	if op.Project == nil || op.Path == "" {
-		return &cli.ConvergenceReport{}, nil
+		return &host.ConvergenceReport{}, nil
 	}
 	if err := a.checkProjectOnDisk(op); err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (a *App) GetConvergence(tabID string) (*cli.ConvergenceReport, error) {
 // the block-store drift the run's auto-extract would heal. Both derivations
 // are cheap and read-only — stat checks, file reads, no provider calls.
 type ConvergePlan struct {
-	Plan cli.UpPlanOutput `json:"plan"`
+	Plan host.UpPlanOutput `json:"plan"`
 	// ChangedFiles / RemovedFiles count the source files whose bytes drifted
 	// from (or vanished since) the last extraction's stamps.
 	ChangedFiles int `json:"changedFiles"`
@@ -93,7 +93,7 @@ type ConvergePlan struct {
 }
 
 // GetConvergePlan returns the pre-flight convergence plan for a project tab:
-// the same dry-run derivation as `kapi up --plan` (through the shared cli.App
+// the same dry-run derivation as `kapi up --plan` (through the shared host.App
 // path), plus the store drift summary the home hero renders. Read-only; safe
 // to call on every home load/refresh.
 func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
@@ -129,7 +129,7 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 }
 
 // BringUpToDate reconciles the project toward its ship gates with the same
-// engine as the CLI's `kapi up` (cli.App.RunUp → runDefaultFlowConverge):
+// engine as the CLI's `kapi up` (host.App.RunUp → runDefaultFlowConverge):
 // loop-to-gate over the project's default flow, auto-extract on block-store
 // drift before each pass, bound checks in the loop, and the recipe's
 // materialize policy. It returns once the run is launched; per-pass progress
@@ -179,7 +179,7 @@ func (a *App) BringUpToDate(tabID string) error {
 	return nil
 }
 
-// executeConvergeRun drives the shared up engine on a fresh cli.App (its own
+// executeConvergeRun drives the shared up engine on a fresh host.App (its own
 // registries + per-run state, so a concurrent GetConvergence on the shared
 // convergence app cannot race) and translates its progress into run events.
 func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowName, sourceLang string) {
@@ -196,13 +196,13 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 	// registries, exactly like the CLI's Init does — so the built-in default
 	// flow's translate step resolves the configured ai.provider/ai.model and
 	// its saved key with no per-flow pinning.
-	capp := &cli.App{Credentials: a.credentials, Config: a.aiConfig}
+	capp := &host.App{Credentials: a.credentials, Config: a.aiConfig}
 	capp.InitRegistries()
 	capp.ToolReg.SetConfigPreprocessor(func(toolName string, requires []string, cfg map[string]any) (map[string]any, error) {
 		cfg = appconfig.ApplyAIToolDefaults(a.aiConfig, toolName, requires, cfg)
 		return credentials.ResolveCredentials(a.credentials, toolName, requires, cfg)
 	})
-	out, err := capp.RunUp(ctx, projectPath, sourceLang, cli.UpOptions{
+	out, err := capp.RunUp(ctx, projectPath, sourceLang, host.UpOptions{
 		UntilGate: true,
 		// OnEvent is the primary stream the live run view renders from: one
 		// typed event per pass/locale transition. Log events degrade to the
@@ -222,7 +222,7 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 		// OnPass keeps emitting the per-pass summary "converge_pass" event for
 		// backwards compatibility during the transition — the engine synthesizes
 		// it from the same event stream, so the two views never disagree.
-		OnPass: func(ev cli.ConvergePassEvent) {
+		OnPass: func(ev host.ConvergePassEvent) {
 			pass := ev
 			a.emitRunEvent(RunEvent{
 				Type:     "converge_pass",
@@ -307,10 +307,10 @@ func (w *runEventWriter) Write(p []byte) (int, error) {
 
 // ApproveReviewItem promotes one review-queue unit to `reviewed`: it records an
 // `approved` decision in the project state store, bound to the content hash of
-// the translation it blesses, through the shared cli.ApplyReviewDecision path.
+// the translation it blesses, through the shared host.ApplyReviewDecision path.
 // After it returns, GetConvergence shows the unit reviewed and it leaves the
 // queue. The unit is addressed by (locale, file, key) as listed in the review
 // queue.
 func (a *App) ApproveReviewItem(tabID, locale, file, key string) error {
-	return a.applyReviewDecision(tabID, locale, file, key, cli.ReviewDecisionApproved, "")
+	return a.applyReviewDecision(tabID, locale, file, key, host.ReviewDecisionApproved, "")
 }

@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neokapi/neokapi/cli/pluginhost"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v1"
 	"github.com/stretchr/testify/assert"

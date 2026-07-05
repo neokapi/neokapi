@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/sievepen/klftm"
 	"github.com/spf13/cobra"

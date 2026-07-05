@@ -7,8 +7,8 @@ import (
 
 	coreproj "github.com/neokapi/neokapi/core/project"
 
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
 

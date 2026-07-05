@@ -8,14 +8,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/credentials"
 )
 
 // RunState represents the current state of a flow execution.
@@ -59,9 +59,9 @@ type RunEvent struct {
 	// synthesized per-pass summary (when type == "converge_pass"), kept for
 	// backwards compatibility with the passes view. ConvergeResult carries the
 	// final structured outcome (on the run's "complete").
-	ConvergeEvent  *convergence.Event     `json:"converge_event,omitempty"`
-	Converge       *cli.ConvergePassEvent `json:"converge,omitempty"`
-	ConvergeResult *cli.ConvergeOutput    `json:"converge_result,omitempty"`
+	ConvergeEvent  *convergence.Event      `json:"converge_event,omitempty"`
+	Converge       *host.ConvergePassEvent `json:"converge,omitempty"`
+	ConvergeResult *host.ConvergeOutput    `json:"converge_result,omitempty"`
 }
 
 // runner manages flow execution state with proper synchronization.
@@ -82,7 +82,7 @@ func newRunner() *runner {
 // RunFlow executes a flow by name from the current project. Target locales
 // are inferred from the flow's tool chain metadata (Framework AD-006) — the
 // frontend passes project target languages as a fallback, and the shared
-// orchestrator (cli.App.RunFlowAllLocales → flow.ResolveFlowLocales)
+// orchestrator (host.App.RunFlowAllLocales → flow.ResolveFlowLocales)
 // determines the actual locale passes based on tool cardinality, exactly as
 // the CLI's project flow-run does.
 func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs []string) error {
@@ -122,12 +122,12 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 }
 
 // executeFlowRun drives the shared multi-locale flow orchestrator
-// (cli.App.RunFlowAllLocales) and adapts its event stream to Wails run
+// (host.App.RunFlowAllLocales) and adapts its event stream to Wails run
 // events. Locale-pass selection, per-pass tool assembly (with the cleanup
 // contract the former hand-rolled loop leaked), per-file execution, and
 // event emission all live in the cli module now — shared with the CLI's
 // project flow-run, so the two surfaces agree about which locales a flow
-// runs for. The run uses a fresh cli.App carrying the desktop's own
+// runs for. The run uses a fresh host.App carrying the desktop's own
 // registries (plugin-provided formats and segmenters stay available) and its
 // AI-default + credential-resolving config preprocessor already wired on
 // toolReg.
@@ -138,7 +138,7 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 		a.runState.mu.Unlock()
 	}()
 
-	capp := &cli.App{
+	capp := &host.App{
 		FormatReg:   a.formatReg,
 		ToolReg:     a.toolReg,
 		SchemaReg:   a.schemaReg,
@@ -146,29 +146,29 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 		Config:      a.aiConfig,
 		Quiet:       true,
 	}
-	_, err := capp.RunFlowAllLocales(ctx, cli.FlowRunOptions{
+	_, err := capp.RunFlowAllLocales(ctx, host.FlowRunOptions{
 		FlowName:      flowName,
 		Spec:          spec,
 		Project:       op.Project,
 		ProjectPath:   op.Path,
 		InputPaths:    inputPaths,
 		TargetLocales: targetLangs,
-	}, func(ev cli.FlowRunEvent) {
+	}, func(ev host.FlowRunEvent) {
 		switch ev.Type {
-		case cli.FlowEventState:
+		case host.FlowEventState:
 			a.emitRunEvent(RunEvent{Type: "state", FlowID: flowName, Message: ev.Message})
-		case cli.FlowEventProgress:
+		case host.FlowEventProgress:
 			a.emitRunEvent(RunEvent{
 				Type: "progress", FlowID: flowName, Message: ev.Message,
 				FileIndex: ev.FileIndex, FileCount: ev.FileCount, FilePath: ev.FilePath,
 			})
-		case cli.FlowEventPipelineMetrics:
+		case host.FlowEventPipelineMetrics:
 			a.emitRunEvent(RunEvent{Type: "pipeline_metrics", FlowID: flowName, Steps: ev.Steps})
-		case cli.FlowEventFileDone:
+		case host.FlowEventFileDone:
 			// Notify the Content view that a new output file landed so it can
 			// refresh the outputs shown beneath each source (issue #5).
 			a.emitEvent("outputs-changed", map[string]any{"path": ev.OutputPath})
-		case cli.FlowEventComplete:
+		case host.FlowEventComplete:
 			// State transition before the closing event, preserving the order
 			// the frontend has always observed.
 			a.runState.mu.Lock()
@@ -196,7 +196,7 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 // credential guidance); file failures already carry the historical
 // "<file> [<lang>]: <cause>" text on the typed error.
 func runErrorMessage(err error) string {
-	var tb *cli.FlowToolBuildError
+	var tb *host.FlowToolBuildError
 	if errors.As(err, &tb) {
 		return toolBuildErrorMessage(tb.Tool, tb.Locale, tb.Err)
 	}

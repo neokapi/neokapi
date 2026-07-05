@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/neokapi/neokapi/cli/credentials"
+	"github.com/neokapi/neokapi/host/credentials"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 

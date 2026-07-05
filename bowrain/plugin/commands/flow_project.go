@@ -8,7 +8,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/internal/projflow"
 	"github.com/neokapi/neokapi/cli"
-	clioutput "github.com/neokapi/neokapi/cli/output"
+	clioutput "github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"

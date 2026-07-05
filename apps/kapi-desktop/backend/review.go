@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	coretools "github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/sievepen"
 )
 
@@ -59,7 +59,7 @@ type ReviewUnitDetail struct {
 	Editable bool `json:"editable"`
 }
 
-// expandReviewTargetPath mirrors cli.expandTargetTemplate: {lang} → locale and
+// expandReviewTargetPath mirrors host.expandTargetTemplate: {lang} → locale and
 // "*" → the source basename without extension, rooted at the project directory.
 // The review queue's File field is produced by that exact expansion (relative
 // to the root), so the desktop must expand identically to find the unit again.
@@ -115,7 +115,7 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 	if err != nil {
 		return nil, err
 	}
-	cli.OverlayTargets(passBlocks, targetBlocks, model.LocaleID(locale))
+	host.OverlayTargets(passBlocks, targetBlocks, model.LocaleID(locale))
 	byKey := make(map[string]*model.Block, len(passBlocks))
 	for _, b := range passBlocks {
 		if b.Translatable {
@@ -134,7 +134,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 
 	if profile != nil {
 		vocab := coretools.NewBrandVocabCheckTool(profile, nil)
-		cli.RunCheckTool(ctx, vocab, b)
+		host.RunCheckTool(ctx, vocab, b)
 		if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 			for _, f := range ann.Findings {
 				findings = append(findings, toDesktopFinding(f, b, "source"))
@@ -144,8 +144,8 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 	}
 
 	placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(locale))
-	cli.RunCheckTool(ctx, placeholder, b)
-	for _, f := range cli.FindingsFromBlock(b, true) {
+	host.RunCheckTool(ctx, placeholder, b)
+	for _, f := range host.FindingsFromBlock(b, true) {
 		findings = append(findings, toDesktopFinding(f, b, "target"))
 	}
 
@@ -153,8 +153,8 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 		dntCfg := coretools.NewDNTCheckConfig(locale)
 		dntCfg.Terms = dntTerms
 		dnt := coretools.NewDNTCheckTool(dntCfg)
-		cli.RunCheckTool(ctx, dnt, b)
-		for _, f := range cli.FindingsFromBlock(b, true) {
+		host.RunCheckTool(ctx, dnt, b)
+		for _, f := range host.FindingsFromBlock(b, true) {
 			findings = append(findings, toDesktopFinding(f, b, "target"))
 		}
 	}
@@ -219,7 +219,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	// Recorded decision + provenance from the project state store, when the
 	// decision still judges the current translation.
 	root := filepath.Dir(op.Path)
-	if st, serr := state.Open(cli.StateFilePath(op.Project, root)); serr == nil {
+	if st, serr := state.Open(host.StateFilePath(op.Project, root)); serr == nil {
 		if us, found := st.Get(state.Key{Unit: key, Variant: model.Variant(loc)}); found {
 			th := project.HashBytes([]byte(strings.TrimSpace(targetText)))
 			if !us.Stale(th) {
@@ -278,14 +278,14 @@ func targetEditable(b *model.Block, loc model.LocaleID) bool {
 // the unit currently trips any registered checker — so the Review page can
 // order findings-first and offer a "clean only" batch. Enrichment is
 // best-effort: a file that cannot be measured leaves its items unmarked.
-func (a *App) GetReviewQueue(tabID string) ([]cli.ReviewItem, error) {
+func (a *App) GetReviewQueue(tabID string) ([]host.ReviewItem, error) {
 	rep, err := a.GetConvergence(tabID)
 	if err != nil {
 		return nil, err
 	}
 	items := rep.Review
 	if len(items) == 0 {
-		return []cli.ReviewItem{}, nil
+		return []host.ReviewItem{}, nil
 	}
 	op := a.getOpenProject(tabID)
 	if op == nil || op.Project == nil || op.Path == "" {
@@ -329,21 +329,21 @@ func (a *App) GetReviewQueue(tabID string) ([]cli.ReviewItem, error) {
 
 // RejectReviewItem sends one review-queue unit back to the work queue: it
 // records a `rejected` decision (status draft) in the project state store, with
-// the reviewer's note, through the same cli.ApplyReviewDecision path the CLI
+// the reviewer's note, through the same host.ApplyReviewDecision path the CLI
 // uses. The unit leaves the review queue; retranslating it makes the rejection
 // stale and it re-enters review.
 func (a *App) RejectReviewItem(tabID, locale, file, key, note string) error {
-	return a.applyReviewDecision(tabID, locale, file, key, cli.ReviewDecisionRejected, note)
+	return a.applyReviewDecision(tabID, locale, file, key, host.ReviewDecisionRejected, note)
 }
 
 // SignOffReviewItem promotes one review-queue unit to `signed-off` — the top
-// rung of the target ladder — through cli.ApplyReviewDecision.
+// rung of the target ladder — through host.ApplyReviewDecision.
 func (a *App) SignOffReviewItem(tabID, locale, file, key string) error {
-	return a.applyReviewDecision(tabID, locale, file, key, cli.ReviewDecisionSignedOff, "")
+	return a.applyReviewDecision(tabID, locale, file, key, host.ReviewDecisionSignedOff, "")
 }
 
 // applyReviewDecision routes every desktop review decision through the shared
-// cli.ApplyReviewDecision path, so the CLI and the desktop record identical
+// host.ApplyReviewDecision path, so the CLI and the desktop record identical
 // state (no desktop-only state writes).
 func (a *App) applyReviewDecision(tabID, locale, file, key, decision, note string) error {
 	op := a.getOpenProject(tabID)
@@ -355,7 +355,7 @@ func (a *App) applyReviewDecision(tabID, locale, file, key, decision, note strin
 	}
 	src := string(op.Project.Defaults.SourceLanguage)
 	_, err := a.convergenceCLI().ApplyReviewDecision(context.Background(), op.Path, src,
-		cli.ReviewUnitRef{File: file, Key: key, Locale: locale}, decision, note)
+		host.ReviewUnitRef{File: file, Key: key, Locale: locale}, decision, note)
 	return err
 }
 

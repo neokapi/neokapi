@@ -18,7 +18,7 @@ import (
 	"os"
 
 	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/host/config"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	mtprovider "github.com/neokapi/neokapi/providers/mt"
 	"github.com/spf13/cobra"

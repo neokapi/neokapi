@@ -13,7 +13,7 @@ import (
 	// pulls in extension decoders only — no heavy CLI / connector code.
 	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
 
-	"github.com/neokapi/neokapi/cli/desktopmenu"
+	"github.com/neokapi/neokapi/host/desktopmenu"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/kapi-desktop/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"

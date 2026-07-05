@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	appconfig "github.com/neokapi/neokapi/cli/config"
+	appconfig "github.com/neokapi/neokapi/host/config"
 )
 
 // stubClaudeBinary points KAPI_CLAUDE_CODE_BIN at a real executable so

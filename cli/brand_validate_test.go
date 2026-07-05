@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/brand/packs"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

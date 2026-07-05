@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neokapi/neokapi/cli/output"
-	"github.com/neokapi/neokapi/cli/pluginhost"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
+	"github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 

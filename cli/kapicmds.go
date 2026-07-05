@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/neokapi/neokapi/cli/config"
-	clii18n "github.com/neokapi/neokapi/cli/i18n"
 	"github.com/neokapi/neokapi/core/i18n"
+	"github.com/neokapi/neokapi/host/config"
+	clii18n "github.com/neokapi/neokapi/host/i18n"
 )
 
 // KapiRootShort / KapiRootLong are the canonical root help strings for the

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/host/config"
 	"github.com/spf13/cobra"
 )
 

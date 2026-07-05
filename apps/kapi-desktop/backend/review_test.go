@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -97,7 +97,7 @@ func TestGetReviewQueue_MarksFindings(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, items, 4, "two units × two locales await review")
 
-	byID := map[string]cli.ReviewItem{}
+	byID := map[string]host.ReviewItem{}
 	for _, it := range items {
 		byID[it.Locale+":"+it.Key] = it
 	}

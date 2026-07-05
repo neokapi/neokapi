@@ -14,7 +14,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/neokapi/neokapi/cli/pluginhost/registry"
+	"github.com/neokapi/neokapi/host/pluginhost/registry"
 )
 
 // Trust anchors for verifying a self-update. The release index ships a cosign

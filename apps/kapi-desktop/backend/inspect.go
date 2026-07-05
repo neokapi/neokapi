@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/termbase"
 )
 
@@ -144,7 +144,7 @@ func (a *App) readPartsForInspect(ctx context.Context, pctx *project.ProjectCont
 
 // overlayProjectTargets looks for sibling target files for each of the project's
 // target locales and, when present, overlays their text onto the matching source
-// blocks (paired by Name/ID via the shared cli.OverlayTargets). After this the source
+// blocks (paired by Name/ID via the shared host.OverlayTargets). After this the source
 // blocks carry committed targets, which BuildContentTree serializes.
 //
 // It resolves the file's content item from the project's resolved content so it
@@ -177,7 +177,7 @@ func (a *App) overlayProjectTargets(ctx context.Context, op *openProject, pctx *
 		if err != nil {
 			continue
 		}
-		cli.OverlayTargets(sourceBlocks, targetBlocks, loc)
+		host.OverlayTargets(sourceBlocks, targetBlocks, loc)
 	}
 }
 

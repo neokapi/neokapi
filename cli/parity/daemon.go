@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli/pluginhost"
+	"github.com/neokapi/neokapi/host/pluginhost"
 )
 
 // daemonState owns the singleton DaemonPool + okapi-bridge plugin

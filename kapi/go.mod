@@ -6,6 +6,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/cli v0.0.0
+	github.com/neokapi/neokapi/host v0.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/grpc v1.81.1
@@ -133,4 +134,5 @@ require (
 replace (
 	github.com/neokapi/neokapi => ../
 	github.com/neokapi/neokapi/cli => ../cli
+	github.com/neokapi/neokapi/host => ../host
 )

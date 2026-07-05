@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

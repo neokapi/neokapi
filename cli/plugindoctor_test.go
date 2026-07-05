@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli/pluginhost"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -10,8 +10,8 @@ import (
 
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 
-	"github.com/neokapi/neokapi/cli/config"
-	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
 

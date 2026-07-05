@@ -12,8 +12,8 @@ import (
 
 	"github.com/mattn/go-isatty"
 
-	"github.com/neokapi/neokapi/cli/pluginhost/registry"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/host/pluginhost/registry"
 )
 
 // indexName is the entry key for the kapi CLI within the CLI release index.

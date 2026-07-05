@@ -8,7 +8,7 @@
 package cli
 
 import (
-	host "github.com/neokapi/neokapi/cli/host"
+	host "github.com/neokapi/neokapi/host"
 )
 
 type (

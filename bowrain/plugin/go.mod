@@ -11,6 +11,7 @@ require (
 	github.com/neokapi/neokapi/bowrain/core v0.0.0
 	github.com/neokapi/neokapi/bowrain/plugin/schema v0.0.0
 	github.com/neokapi/neokapi/cli v0.0.0-00010101000000-000000000000
+	github.com/neokapi/neokapi/host v0.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/sync v0.21.0
@@ -150,10 +151,10 @@ require (
 	google.golang.org/grpc v1.81.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
-	modernc.org/libc v1.72.3 // indirect
+	modernc.org/libc v1.73.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.50.1 // indirect
+	modernc.org/sqlite v1.53.0 // indirect
 )
 
 replace (
@@ -162,4 +163,5 @@ replace (
 	github.com/neokapi/neokapi/bowrain/core => ../core
 	github.com/neokapi/neokapi/bowrain/plugin/schema => ./schema
 	github.com/neokapi/neokapi/cli => ../../cli
+	github.com/neokapi/neokapi/host => ../../host
 )

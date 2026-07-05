@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/termbase"
 	"github.com/spf13/cobra"
 )

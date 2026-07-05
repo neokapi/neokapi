@@ -62,7 +62,7 @@ jobs:
           }
 
           check_paths framework '^core/' '^go\.(mod|sum)$' '^go\.work' '^\.github/workflows/ci\.yml$'
-          check_paths cli       '^cli/'
+          check_paths cli       '^(cli|host)/'
           check_paths platform  '^bowrain/core/'
           # kapi: anything under kapi/
           if echo "$CHANGED" | grep -E '^kapi/' | grep -q .; then
@@ -328,7 +328,9 @@ jobs:
         if: always() && github.event_name == 'push'
         with:
           name: coverage-cli
-          path: coverage/cli.out
+          path: |
+            coverage/cli.out
+            coverage/host.out
           retention-days: 1
 
   test-kapi:
@@ -609,7 +611,7 @@ jobs:
             echo "mode: atomic" > coverage.out
           fi
           # Append remaining files (skip header line)
-          for f in cli.out platform.out kapi.out bowrain-cli.out bowrain-plugin.out bowrain-plugin-schema.out bowrain.out; do
+          for f in cli.out host.out platform.out kapi.out bowrain-cli.out bowrain-plugin.out bowrain-plugin-schema.out bowrain.out; do
             if [ -f "$f" ]; then
               tail -n +2 "$f" >> coverage.out
             fi
@@ -644,13 +646,19 @@ jobs:
       - name: Download modules
         run: |
           go mod download
-          cd cli && go mod download
+          cd host && go mod download
+          cd ../cli && go mod download
           cd ../kapi && go mod download
 
       - name: Lint framework
         uses: ./.github/actions/golangci
         with:
           working-directory: .
+
+      - name: Lint host
+        uses: ./.github/actions/golangci
+        with:
+          working-directory: host
 
       - name: Lint cli
         uses: ./.github/actions/golangci

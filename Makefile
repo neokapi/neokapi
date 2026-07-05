@@ -254,11 +254,13 @@ else
 	$(GOTEST_BASE) ./... -count=1
 endif
 
-test-cli: ## Run cli module tests only
+test-cli: ## Run host + cli module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	cd cli && $(GOTEST_BASE) $(call cov,../$(COVER_DIR)/cli.out) -json ./... > ../test-results-cli.json
+	cd host && $(GOTEST_BASE) $(call cov,../$(COVER_DIR)/host.out) -json ./... > ../test-results-cli.json
+	cd cli && $(GOTEST_BASE) $(call cov,../$(COVER_DIR)/cli.out) -json ./... >> ../test-results-cli.json
 else
+	cd host && $(GOTEST_BASE) ./... -count=1
 	cd cli && $(GOTEST_BASE) ./... -count=1
 endif
 
@@ -386,6 +388,7 @@ ci-build: ## Mirror the CI `build` job: build all three binaries (no fts5) + ass
 	cd bowrain/cli && go build -o ../../bin/kapi-bowrain ./cmd/kapi-bowrain
 	cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 	GOWORK=off bash -c "go build ./..."
+	GOWORK=off bash -c "cd host && go build ./..."
 	GOWORK=off bash -c "cd cli && go build ./..."
 	GOWORK=off bash -c "cd bowrain/core && go build ./..."
 	GOWORK=off bash -c "cd kapi && go build ./..."
@@ -396,7 +399,7 @@ ci-build: ## Mirror the CI `build` job: build all three binaries (no fts5) + ass
 	@if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|labstack/echo|keycloak'; then exit 1; fi
 
 ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fail on drift
-	@for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain/plugin bowrain/plugin/schema bowrain; do \
+	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain/plugin bowrain/plugin/schema bowrain; do \
 	  echo "Checking $$dir..."; \
 	  (cd "$$dir" && go mod tidy); \
 	done
@@ -409,6 +412,7 @@ ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fai
 
 verify-isolation: ## Verify all Go module isolation boundaries
 	GOWORK=off bash -c "go build ./..."
+	GOWORK=off bash -c "cd host && go build ./..."
 	GOWORK=off bash -c "cd cli && go build ./..."
 	GOWORK=off bash -c "cd bowrain/core && go build ./..."
 	GOWORK=off bash -c "cd kapi && go build ./..."
@@ -421,6 +425,8 @@ verify-isolation: ## Verify all Go module isolation boundaries
 	@if cd bowrain && GOWORK=off go list -m all 2>/dev/null | grep -iE 'neokapi/cli'; then echo "ERROR: bowrain depends on cli"; exit 1; fi
 	@# kapi must not have heavy deps
 	@if cd kapi && GOWORK=off go list -m all 2>/dev/null | grep -iE 'wails|echo|oidc|keyring'; then echo "ERROR: kapi has heavy deps"; exit 1; fi
+	@# kapi-desktop must not link cobra or the cli module (host only)
+	@if cd apps/kapi-desktop && GOWORK=off go list -deps ./backend/... 2>/dev/null | grep -E '^(github.com/spf13/cobra|github.com/neokapi/neokapi/cli)(/|$$)'; then echo "ERROR: kapi-desktop links cobra / the cli module"; exit 1; fi
 
 # audit-modules asserts the module isolation contract and fails on drift. For
 # each isolated module it runs a GOWORK=off build (so the module resolves
@@ -442,12 +448,13 @@ verify-isolation: ## Verify all Go module isolation boundaries
 # core to redis/echo/the gRPC service surface).
 #
 # Modules audited (path → expected boundary):
-#   .                  framework — no cli/bowrain deps
-#   cli                framework only — no bowrain dep
+#   .                  framework — no host/cli/bowrain deps
+#   host               framework only — the cobra-free app runtime (NO cobra)
+#   cli                framework + host — the thin cobra shell; no bowrain dep
 #   bowrain/core       framework (+ plugin/schema) only — no cli AND no main bowrain dep
-#   kapi               framework + cli only — no bowrain dep
-#   apps/kapi-desktop  framework + cli (+ plugin/schema) only — no bowrain dep
-#   bowrain/cli        framework + cli + bowrain/core (the kapi-bowrain plugin)
+#   kapi               framework + host + cli only — no bowrain dep
+#   apps/kapi-desktop  framework + host (+ plugin/schema) only — NO cli, NO cobra
+#   bowrain/cli        framework + host + cli + bowrain/core (the kapi-bowrain plugin)
 #   bowrain            framework + bowrain/core (the platform)
 #
 # bowrain and bowrain/cli are not isolation boundaries (they legitimately depend
@@ -460,7 +467,7 @@ verify-isolation: ## Verify all Go module isolation boundaries
 # after a frontend build, so — like `make kapi-desktop-test` — we build only
 # ./backend/... for it. `go mod tidy` still resolves the whole module graph
 # (embeds don't affect dependency resolution), so the boundary contract holds.
-AUDIT_MODULES := . cli bowrain/core kapi apps/kapi-desktop bowrain/cli bowrain
+AUDIT_MODULES := . host cli bowrain/core kapi apps/kapi-desktop bowrain/cli bowrain
 
 audit-modules: ## Assert module isolation + go.mod/go.sum tidiness (fails on drift)
 	@set -e; rc=0; for dir in $(AUDIT_MODULES); do \
@@ -475,6 +482,16 @@ audit-modules: ## Assert module isolation + go.mod/go.sum tidiness (fails on dri
 	      echo "ERROR: bowrain/core must be framework-only — it imports the main bowrain module:"; \
 	      echo "$$bad" | sed 's/^/    /'; \
 	      echo "  (move the shared code into a low package under bowrain/core, e.g. bowrain/core/sync or bowrain/core/proto/sync/v1)"; \
+	      rc=1; \
+	    fi; \
+	  fi; \
+	  if [ "$$dir" = "apps/kapi-desktop" ]; then \
+	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \
+	              | grep -E '^(github\.com/spf13/cobra|github\.com/neokapi/neokapi/cli)(/|$$)' || true ); \
+	    if [ -n "$$bad" ]; then \
+	      echo "ERROR: kapi-desktop must stay cobra-free — it links the cli module or cobra:"; \
+	      echo "$$bad" | sed 's/^/    /'; \
+	      echo "  (the desktop depends on the host module only; move the needed symbol into host/)"; \
 	      rc=1; \
 	    fi; \
 	  fi; \
@@ -1022,13 +1039,13 @@ l10n-desktop: l10n-seed kapi-desktop-extract ## Kapi Desktop UI strings → publ
 		(cd $(KAPI_DESKTOP_DIR)/frontend && vp run compile:$$lang) || exit 1; \
 	done
 
-kapi-cli-i18n-generate: ## Regenerate cli/i18n/commands.json from the cobra command tree
-	cd cli && go generate ./i18n/...
+kapi-cli-i18n-generate: ## Regenerate host/i18n/commands.json from the cobra command tree
+	cd cli && go generate ./i18ngen/...
 
-l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → cli/i18n/catalogs/<lang>.mo (TM-driven)
+l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → host/i18n/catalogs/<lang>.mo (TM-driven)
 	@for lang in $(L10N_LANGS); do \
-		./bin/kapi recycle cli/i18n/commands.json -f json \
-			--target-lang $$lang -o cli/i18n/catalogs/$$lang.mo || exit 1; \
+		./bin/kapi recycle host/i18n/commands.json -f json \
+			--target-lang $$lang -o host/i18n/catalogs/$$lang.mo || exit 1; \
 	done
 	@echo "Note: rebuild the binary (make build) to embed the refreshed cli catalogs —"
 	@echo "bin/kapi only shows the new translations after a rebuild."
@@ -1040,7 +1057,7 @@ l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → cli/i
 l10n: l10n-builtins l10n-desktop l10n-cli ## Rebuild all dogfood localization outputs from the l10n/ seeds
 
 l10n-verify: l10n-builtins l10n-cli ## CI gate: Go-side l10n artifacts regenerate byte-identically from the seeds
-	git diff --exit-code core/i18n/builtins core/i18n/catalogs cli/i18n/commands.json cli/i18n/catalogs
+	git diff --exit-code core/i18n/builtins core/i18n/catalogs host/i18n/commands.json host/i18n/catalogs
 
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install
@@ -1071,10 +1088,12 @@ install: ## Install kapi CLI to GOPATH/bin
 cover: ## Run tests with coverage (merged report)
 	@mkdir -p $(COVER_DIR)
 	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/framework.out $(_COVMODE) ./... -count=1
+	cd host && $(GOTEST_BASE) -coverprofile=../$(COVER_DIR)/host.out $(_COVMODE) ./... -count=1
 	cd cli && $(GOTEST_BASE) -coverprofile=../$(COVER_DIR)/cli.out $(_COVMODE) ./... -count=1
 	cd kapi && $(GOTEST_BASE) -coverprofile=../$(COVER_DIR)/kapi.out $(_COVMODE) ./... -count=1
 	@$(MAKE) -C bowrain cover
 	cat $(COVER_DIR)/framework.out > $(COVER_DIR)/coverage.out
+	tail -n +2 $(COVER_DIR)/host.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/cli.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/kapi.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/platform.out >> $(COVER_DIR)/coverage.out

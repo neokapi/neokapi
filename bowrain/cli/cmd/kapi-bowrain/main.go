@@ -20,7 +20,7 @@ import (
 	"os/exec"
 
 	"github.com/neokapi/neokapi/cli"
-	cliconfig "github.com/neokapi/neokapi/cli/config"
+	cliconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/spf13/cobra"
 
 	// The bowrain plugin's commands package init() registers the
