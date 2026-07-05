@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	pluginhostreg "github.com/neokapi/neokapi/cli/pluginhost/registry"
@@ -259,8 +258,8 @@ func (a *App) CheckPluginUpdates() ([]PluginUpdate, error) {
 		if !ok {
 			continue
 		}
-		latest := highestVersion(entry)
-		if latest == "" || latest == p.Manifest.Version {
+		latest := pluginhostreg.HighestVersion(entry)
+		if latest == "" || pluginhostreg.CompareSemver(latest, p.Manifest.Version) <= 0 {
 			continue
 		}
 		result = append(result, PluginUpdate{
@@ -285,10 +284,10 @@ func (a *App) matchPlugins(idx *pluginhostreg.IndexV2, query string) []Available
 	platform := pluginhostreg.PlatformKey()
 	var out []AvailablePlugin
 	for name, entry := range idx.Plugins {
-		if query != "" && !matchPluginQuery(name, entry.Description, query) {
+		if !pluginhostreg.MatchQuery(name, entry.Description, query) {
 			continue
 		}
-		latest := highestVersion(entry)
+		latest := pluginhostreg.HighestVersion(entry)
 		// Mirror the install path's resolution (constraint "", channel
 		// "stable", this kapi version): if it can't resolve a build for the
 		// running platform, the plugin isn't installable here.
@@ -304,27 +303,6 @@ func (a *App) matchPlugins(idx *pluginhostreg.IndexV2, query string) []Available
 		})
 	}
 	return out
-}
-
-// matchPluginQuery returns true when query is a substring of either the
-// plugin name or its description.
-func matchPluginQuery(name, description, query string) bool {
-	return strings.Contains(name, query) || strings.Contains(description, query)
-}
-
-// highestVersion returns the lexicographically-highest version key in
-// entry.Versions. Registry entries are short enough that lexicographic
-// ordering matches semver in practice; callers needing strict semver
-// ordering can lean on pluginhost/registry.Resolve which the install
-// path already does.
-func highestVersion(entry pluginhostreg.PluginEntry) string {
-	var best string
-	for v := range entry.Versions {
-		if v > best {
-			best = v
-		}
-	}
-	return best
 }
 
 func (a *App) installedNames() map[string]bool {

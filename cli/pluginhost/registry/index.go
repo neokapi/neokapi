@@ -117,6 +117,37 @@ func FetchIndex(ctx context.Context, indexURL string) (*IndexV2, error) {
 	return &idx, nil
 }
 
+// HighestVersion returns the highest version key in entry.Versions per
+// CompareSemver ordering (numeric, so 1.10.0 > 1.9.0; pre-release/build
+// metadata is ignored, per CompareSemver). Semver ties — e.g. "1.4.0" vs
+// "1.4.0-rc1" — break lexicographically so the result is deterministic.
+// Returns "" when the entry has no versions.
+func HighestVersion(entry PluginEntry) string {
+	var best string
+	for v := range entry.Versions {
+		if best == "" {
+			best = v
+			continue
+		}
+		switch cmp := CompareSemver(v, best); {
+		case cmp > 0, cmp == 0 && v > best:
+			best = v
+		}
+	}
+	return best
+}
+
+// MatchQuery reports whether query is a case-insensitive substring of the
+// plugin name or its description. An empty query matches everything.
+func MatchQuery(name, description, query string) bool {
+	if query == "" {
+		return true
+	}
+	q := strings.ToLower(query)
+	return strings.Contains(strings.ToLower(name), q) ||
+		strings.Contains(strings.ToLower(description), q)
+}
+
 // Resolve returns the (version, platform) entry that satisfies the
 // given resolution criteria, or an error describing what failed.
 //
