@@ -135,36 +135,36 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	var (
-		tsVersion               string
-		tsLanguage              string
-		tsSrcLanguage           string
-		blockCount              int
-		contextName             string
-		contextCount            int
-		inContext               bool
-		inMessage               bool
-		inSource                bool
-		inTranslation           bool
-		inComment               bool
-		inExtraComment          bool
-		inTransComment          bool
-		inOldSource             bool
-		inOldComment            bool
-		inContextComment        bool
-		inNumerusForm           bool
-		inContextName           bool
-		messageID               string
-		messageNumerus          bool
-		transType               string
-		sourceBuilder           strings.Builder
-		transBuilder            strings.Builder
-		commentBuilder          strings.Builder
-		extraCommentBuilder     strings.Builder
-		transCommentBuilder     strings.Builder
-		oldSourceBuilder        strings.Builder
-		oldCommentBuilder       strings.Builder
-		contextCommentBuilder   strings.Builder
-		contextNameBuilder      strings.Builder
+		tsVersion             string
+		tsLanguage            string
+		tsSrcLanguage         string
+		blockCount            int
+		contextName           string
+		contextCount          int
+		inContext             bool
+		inMessage             bool
+		inSource              bool
+		inTranslation         bool
+		inComment             bool
+		inExtraComment        bool
+		inTransComment        bool
+		inOldSource           bool
+		inOldComment          bool
+		inContextComment      bool
+		inNumerusForm         bool
+		inContextName         bool
+		messageID             string
+		messageNumerus        bool
+		transType             string
+		sourceBuilder         strings.Builder
+		transBuilder          strings.Builder
+		commentBuilder        strings.Builder
+		extraCommentBuilder   strings.Builder
+		transCommentBuilder   strings.Builder
+		oldSourceBuilder      strings.Builder
+		oldCommentBuilder     strings.Builder
+		contextCommentBuilder strings.Builder
+		contextNameBuilder    strings.Builder
 		// pendingContextGroup holds the context GroupStart between the
 		// `</name>` that names it and the point where it must be emitted
 		// (the first `<message>` or `</context>`). Emission is deferred so
@@ -172,7 +172,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		// `<name>` and before the messages — can be attached as a Property
 		// before the part is sent. The part stream order is unchanged: the
 		// GroupStart still precedes every child Block and the GroupEnd.
-		pendingContextGroup *model.GroupStart
+		pendingContextGroup     *model.GroupStart
 		numerusForms            []string
 		numerusFormAttrs        []string      // per-form attribute strings (e.g. ` variants="no"`)
 		numerusFormAttrsCurrent string        // attribute string of the currently-open <numerusform>

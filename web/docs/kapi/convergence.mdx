@@ -1,11 +1,11 @@
 ---
 sidebar_position: 3
 title: Convergence
-description: How kapi keeps a project up to date — the derived state model behind status, gates, run, and review. Convergence produces, review promotes, the gate releases.
-keywords: [kapi, convergence, ship gate, source gate, status, verify, review, lifecycle, coverage, kapi run, kapi apply]
+description: How kapi keeps a project up to date — the derived state model behind status, gates, up, and review. Convergence produces, review promotes, the gate releases; the same kapi up runs on your machine or on a connected server.
+keywords: [kapi, convergence, kapi up, ship gate, source gate, status, check, review, lifecycle, coverage, venue, transport]
 ---
 
-import { AxisLadderDiagram, PhaseFlow } from "@neokapi/docs-shared";
+import { AxisLadderDiagram, PhaseFlow, LanesDiagram } from "@neokapi/docs-shared";
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 
 # Convergence
@@ -16,10 +16,16 @@ error. **Convergence** is the model that drives a project's content toward
 *shippable* and reports what still needs a person — without ever blocking the
 author.
 
-Three verbs, kept separate:
+The recipe is the **desired state** — the languages a project targets, the flow
+that produces them, the gates that decide *shippable*. The working tree is the
+**actual state**. Convergence is the loop that reconciles the two, the way
+`terraform apply` or `pulumi up` reconciles infrastructure to a program. One
+verb runs it: **`kapi up`**.
 
-- **Convergence produces** — it drives each unit as far up its lifecycle as a
-  flow can take it unaided (typically to *translated*).
+Three roles, kept separate:
+
+- **Convergence produces** — `kapi up` drives each unit as far up its lifecycle
+  as a flow can take it unaided (typically to *translated*).
 - **Review promotes** — a person advances a unit past what a machine can decide
   (*translated → reviewed*).
 - **The gate releases** — it drives nothing; it answers one question, *is this
@@ -100,7 +106,7 @@ The source ladder has its own optional bar, `source_gate` (e.g.
 A gate never fails an ordinary build. Target-language drift is expected work, not
 a break; a gate is a **release** check you opt into (see below).
 
-## Seeing it: `status` and `verify`
+## Seeing it: `status` and `check`
 
 `kapi status` is the derived dashboard — coverage per locale and each scope's
 standing against its gate, recomputed on every run:
@@ -114,48 +120,158 @@ kapi status
 # nb          42    100%         60%        0%         0%  pending (translated 60%<100%)
 ```
 
-`kapi verify` is the enforcing counterpart — it runs the project's quality gates
-(brand, terminology, QA). It stays non-blocking about coverage by default; pass
-`--ship` to also evaluate the ship and source gates as a pre-release bar (a
-failing gate then exits non-zero, for a release tag or a `main` check). See
+`kapi check --ship` is the enforcing counterpart — the pre-release bar. It runs
+the project's bound quality gates (brand, terminology, QA) together with the ship
+and source coverage gates over the project's content, and exits non-zero when any
+gate is unmet (for a release tag or a `main` check). Target drift never blocks an
+ordinary build; `--ship` is the explicit, opt-in enforcement point. (A bare
+`kapi check <files>` runs a checkset over the files you name — the content-first
+counterpart to a test runner.) See
 [Check translations in CI](/kapi/recipes/gate-localization-in-ci).
 
-## Convergence: `kapi run`
+## Reconciling: `kapi up`
 
-A flow is one linear pass. *Convergence* is that pass looped to the gate — so
-there is no new verb. With no flow name, `kapi run` runs the project's default
-flow (`defaults.flow`) over all content across every target language, in one
-pass, materializing the localized files:
+`kapi up` is the convergence verb. It treats the recipe as the desired state and
+runs the project's default flow (`defaults.flow`) over all content across every
+target language, **looping** until every gated scope is shippable or parks for a
+human:
 
 ```yaml
 defaults:
   flow: translate-and-check   # a flow defined under flows:
 ```
 
+Without `defaults.flow`, `up` runs the built-in default flow — TM reuse (recycle)
+followed by AI translate — so a recipe needs no flow YAML at all to converge.
+
 ```bash
-kapi run               # one pass: bring every locale up to date
-kapi run --until-gate  # loop the pass until each scope ships, or parks
+kapi up                # loop the default flow until every gated scope ships or parks
+kapi up --plan         # dry run: pending work, TM leverage, and a token estimate per locale
+kapi up --passes 1     # a single pass over every locale that needs work
+kapi up --materialize  # also write localized files for the shippable locales
 ```
 
 <PhaseFlow
   nodes={[
     {
       label: "produce",
-      sub: "kapi run — default flow over pending units",
+      sub: "kapi up — default flow over pending units",
       role: "translate",
-      loop: ["--until-gate re-derives", "coverage and repeats"],
+      loop: ["each pass re-derives", "coverage and repeats"],
     },
     { label: "promote", sub: "kapi apply — review approves a unit", role: "annotate", edge: "a person / agent" },
-    { label: "release", sub: "kapi verify --ship — the gate", role: "qa", edge: "gate met" },
+    { label: "release", sub: "kapi check --ship — the gate", role: "qa", edge: "gate met" },
   ]}
   caption="Produce loops to the gate; review promotes what a machine can't decide; the gate releases."
 />
 
-Under `--until-gate`, each pass re-derives coverage and runs again on what is
-still short — until every gated scope is shippable, a pass makes no progress, or
-the pass cap (`--max-passes`, default 5) is reached. Whatever cannot be advanced
-unaided **parks**: it is reported as awaiting a human and the command still exits
-zero. Convergence never blocks the author.
+Each pass re-derives coverage from the working tree, runs the flow only for the
+locales still short of their gate, then runs the project's bound checks over what
+was produced — a unit with failing findings (dropped placeholders, glossary
+violations) counts as *drafted*, not *translated*, so it cannot lift its locale
+over the gate until fixed. The loop stops when every gated scope is shippable, a
+pass makes no progress, or the pass cap (default 5, `--passes N`) is reached.
+Whatever cannot be advanced unaided **parks**: it is reported as awaiting a human
+and the command still exits zero. `up` never blocks the author, and it never
+fails the build on target drift — parked work is the review queue, not an error.
+
+Before each pass, `up` re-syncs the project block store with the working tree:
+edited source files, a store written by another kapi version, or a missing store
+trigger a re-extraction. `--no-extract` opts out; `--no-checks` skips the bound
+checks in the loop.
+
+### The run is live
+
+`up` starts by printing a one-line **plan** — units missing a target, exact-TM
+leverage, remaining AI work, a token estimate, and the provider it will use — so
+cost is visible before any tokens burn (the pulumi preview-then-apply rhythm;
+`--plan` alone is the full dry-run table). It then renders progress as the loop
+runs: one line per locale, repainted in place on a terminal, a line per event on
+a plain stream.
+
+```text
+kapi up · KapiMart · flow "default (built-in)" · anthropic/claude-sonnet-4-6 (your subscription)
+plan: 288 units missing · 54 exact-TM · 234 AI · ≈61k tokens
+
+pass 1/5
+  fr-FR   ████████████░░░░░░  62/96   TM 18 · AI 44        2 checks ✗
+  de-DE   █████░░░░░░░░░░░░░  27/96   TM 18 · AI 9
+  ja-JP   queued
+  nb-NO   ✓ shippable         96/96
+
+Converged in 2 passes · 3 locales shippable · de-DE parked: 2 units need review
+  → kapi status --review
+```
+
+Locales are independent within a pass, so `up` converges them **concurrently** —
+`--jobs N` sets how many run at once (default 4; recipe override `defaults.jobs`;
+`--jobs 1` restores serial execution). The pass barrier stays: coverage is
+re-derived, checks run, and parking is decided once per pass, over all locales
+together.
+
+<LanesDiagram
+  lanes={[
+    { title: "fr-FR", sub: "worker", role: "translate", steps: ["recycle from TM", "AI translate", "bound checks"] },
+    { title: "de-DE", sub: "worker", role: "translate", steps: ["recycle from TM", "AI translate", "bound checks"] },
+    { title: "ja-JP", sub: "worker", role: "translate", steps: ["recycle from TM", "AI translate", "bound checks"] },
+  ]}
+  caption="Within one pass, kapi up fans out per locale (--jobs); the pass barrier re-derives coverage and decides parking once all workers finish."
+/>
+
+For agents and CI, `--json` streams the run as NDJSON — one convergence event
+per line (plan, pass, per-locale progress, checks, parked/converged), with the
+structured result as the final record. The same events feed the Kapi Desktop
+passes view.
+
+`kapi run <flow>` remains the escape hatch for a **custom** pipeline — one named
+flow, one pass, no gate loop. Reach for it when you want a specific composition;
+reach for `kapi up` for the daily reconcile.
+
+## One verb, two venues
+
+Convergence compute has to run *somewhere*. That **venue** is a property of the
+project, not a different verb. Three concerns stay orthogonal, each owned by one
+surface:
+
+<LanesDiagram
+  lanes={[
+    { title: "Transport", sub: "kapi push / pull", role: "io", steps: ["move project state", "Merkle diff", "no translation"] },
+    { title: "Convergence", sub: "kapi up", role: "translate", steps: ["drift → plan", "produce → check", "loop or park"] },
+    { title: "Venue", sub: "local | server", role: "qa", steps: ["your machine + keys", "or a connected server", "same events either way"] },
+  ]}
+  caption="Transport moves state, convergence produces work, venue is where the loop runs — three orthogonal concerns."
+/>
+
+- **Transport** — `kapi push` and `kapi pull` make a local checkout and a server
+  replica consistent. Pure data movement (Merkle diff, conflicts, terminology
+  hand-off); they never produce translations. The analogy is `git push` /
+  `git fetch`.
+- **Convergence** — `kapi up`, the one loop that produces work toward the gates.
+- **Venue** — *where* `up`'s compute executes: your machine (your AI
+  subscription or keys) or a connected server (the org's keys, shared TM and
+  terminology, always-on).
+
+In a **file-only** project `kapi up` converges locally — this is the whole story
+for the open-source `kapi` binary, which carries no server code. In a
+**server-connected** project — a recipe with a `server:` block — the same
+`kapi up` runs on the server by default: it pushes the drift, the server
+converges on the org's keys and shared assets, progress streams back live into
+the same terminal view, results pull down, and parked units land in the *team's*
+review queue. Nothing about the run's output tells you which venue produced it —
+that is what makes one verb over two venues feel like one thing. `kapi up --local`
+overrides the venue for one run, converging on your machine and then pushing the
+results so the server is never left stale.
+
+Because transport is pure, **`kapi push` no longer translates behind your back**:
+server-side continuous convergence is an explicit, per-project policy the way
+`git push` triggering CI is a repository policy, not a property of `git`.
+
+:::note
+The server venue — the `server:` block, `kapi push`/`pull`/`up --local`, the
+continuous-convergence policy, and the server-side Runs surface — is provided by
+the connected platform, not the open-source `kapi` binary. See the platform
+documentation for setting up a connected project and *convergence as a service*.
+:::
 
 One default flow can still vary by locale. `defaults.locales.<lang>.tools`
 overrides a tool's config for that target language only — merged on top of the
@@ -179,10 +295,10 @@ so it lands in the project's [state store](/kapi/project-store), the committed
 carrier of decisions (`defaults.state`, default `.kapi-state.json`), not the
 translation memory.
 
-`kapi status --review` is the worklist — every translated unit not yet approved —
-and you approve a unit with the one write verb, `kapi apply`, as a `review`
-change-set addressed by the unit's `file` / `id` / `locale` exactly as the worklist
-lists them:
+`kapi status --review` is the worklist — every translated unit not yet approved,
+the derived counterpart of the loop's *parked* outcome — and you approve a unit
+with the one write verb, `kapi apply`, as a `review` change-set addressed by the
+unit's `file` / `id` / `locale` exactly as the worklist lists them:
 
 ```bash
 kapi status --review        # the worklist: file, id, locale per pending unit
@@ -194,21 +310,12 @@ editing that translation afterwards drops the unit back below *reviewed* — an
 approval can't silently outlive the text it approved. Once recorded, coverage reads
 the unit as *reviewed*, `reviewed%` climbs, and a `{ reviewed: … }` gate flips to
 shippable. The state file is committed with your sources, so the decision travels
-with the project (a server-backed project pushes it to a remote instead).
+with the project (a server-connected project pushes it to the remote instead,
+where parked units enter the team's assignment and review queue).
 
 This is distinct from the translation memory: `kapi apply` with `kind:"tm"` adds a
 source→target pair to the **recycle** corpus (`defaults.tm_source`) for future
 leverage — it does **not** promote a unit to *reviewed*.
-
-`kapi status --review` shows the worklist — every translated unit not yet approved:
-
-```bash
-kapi status --review
-# 3 unit(s) awaiting review:
-#   nb       src/locales/en.json:greeting
-#            Welcome back
-#   …
-```
 
 Run the loop yourself — this is the real kapi compiled to WebAssembly, working on
 an in-memory project. `status` shows the translated-but-unreviewed state,

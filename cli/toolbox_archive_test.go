@@ -96,8 +96,8 @@ func TestEditArchiveAllInPlace(t *testing.T) {
 	dir := t.TempDir()
 	bin := []byte("\x00\x01world-bytes")
 	path := writeTestZip(t, dir, map[string][]byte{
-		"m.json": []byte(`{"a":"Hello world"}`),
-		"r.md":   []byte("# Title world\n"),
+		"m.json":   []byte(`{"a":"Hello world"}`),
+		"r.md":     []byte("# Title world\n"),
 		"data.bin": bin,
 	})
 

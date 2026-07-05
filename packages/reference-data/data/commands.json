@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-03T15:38:34Z",
+  "generatedAt": "2026-07-04T16:44:52Z",
   "commands": [
     {
       "id": "brand",
@@ -6405,6 +6405,12 @@
           "usage": "input file path(s); repeat for multiple files",
           "default": "[]",
           "type": "stringSlice"
+        },
+        {
+          "name": "jobs",
+          "usage": "how many languages to converge concurrently per pass (0 = the recipe's defaults.jobs, else 4)",
+          "default": "0",
+          "type": "int"
         },
         {
           "name": "json",

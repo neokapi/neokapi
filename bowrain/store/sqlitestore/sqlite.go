@@ -71,10 +71,10 @@ func (s *SQLiteStore) CreateProject(ctx context.Context, p *platstore.Project) e
 		p.DashboardVisibility = "private"
 	}
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO projects (id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO projects (id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, converge_policy, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.ID, p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, p.DashboardVisibility, string(propsJSON),
-		p.WorkspaceID, now.Format(time.RFC3339), now.Format(time.RFC3339))
+		p.WorkspaceID, platstore.NormalizeConvergePolicy(p.ConvergePolicy), now.Format(time.RFC3339), now.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("insert project: %w", err)
 	}
@@ -83,14 +83,14 @@ func (s *SQLiteStore) CreateProject(ctx context.Context, p *platstore.Project) e
 
 func (s *SQLiteStore) GetProject(ctx context.Context, id string) (*platstore.Project, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, archived, archived_at, created_at, updated_at
+		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, converge_policy, archived, archived_at, created_at, updated_at
 		 FROM projects WHERE id = ?`, id)
 	return scanProject(row)
 }
 
 func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*platstore.Project, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, archived, archived_at, created_at, updated_at
+		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, converge_policy, archived, archived_at, created_at, updated_at
 		 FROM projects WHERE archived=0 ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
@@ -113,10 +113,10 @@ func (s *SQLiteStore) UpdateProject(ctx context.Context, p *platstore.Project) e
 		p.DashboardVisibility = "private"
 	}
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE projects SET name=?, default_source_language=?, target_languages=?, target_language_mode=?, default_stream=?, dashboard_visibility=?, properties=?, workspace_id=?, updated_at=?
+		`UPDATE projects SET name=?, default_source_language=?, target_languages=?, target_language_mode=?, default_stream=?, dashboard_visibility=?, properties=?, workspace_id=?, converge_policy=?, updated_at=?
 		 WHERE id=?`,
 		p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, p.DashboardVisibility, string(propsJSON),
-		p.WorkspaceID, p.UpdatedAt.Format(time.RFC3339), p.ID)
+		p.WorkspaceID, platstore.NormalizeConvergePolicy(p.ConvergePolicy), p.UpdatedAt.Format(time.RFC3339), p.ID)
 	if err != nil {
 		return fmt.Errorf("update project: %w", err)
 	}
@@ -169,7 +169,7 @@ func (s *SQLiteStore) RestoreProject(ctx context.Context, id string) error {
 
 func (s *SQLiteStore) ListArchivedProjects(ctx context.Context, workspaceID string) ([]*platstore.Project, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, archived, archived_at, created_at, updated_at
+		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, converge_policy, archived, archived_at, created_at, updated_at
 		 FROM projects WHERE workspace_id=? AND archived=1 ORDER BY archived_at DESC`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list archived projects: %w", err)
@@ -983,7 +983,7 @@ func scanProject(row scanner) (*platstore.Project, error) {
 	var archived int
 	var archivedAtStr sql.NullString
 	err := row.Scan(&p.ID, &p.Name, &srcLocale, &targetLocales, &p.TargetLanguageMode, &p.DefaultStream, &p.DashboardVisibility, &propsJSON, &p.WorkspaceID,
-		&archived, &archivedAtStr, &createdStr, &updatedStr)
+		&p.ConvergePolicy, &archived, &archivedAtStr, &createdStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan project: %w", err)
 	}

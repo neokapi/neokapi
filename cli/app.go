@@ -110,6 +110,12 @@ type App struct {
 	// buildFlowTools for project-defined flows.
 	projectFlowTools []tool.Tool
 
+	// convergeProgressTap, when non-nil, is appended by runProjectStepsOver as
+	// a trailing read-only step so a convergence run can count units live.
+	// Set only on per-locale converge worker Apps (convergeWorker); nil
+	// everywhere else.
+	convergeProgressTap tool.Tool
+
 	// projectBindings carries the standing brand-voice + termbase context
 	// resolved from a .kapi project (defaults.brand_voice / defaults.termbase).
 	// Set temporarily by runFromProject so project-flow steps can be made
@@ -134,6 +140,11 @@ type App struct {
 // the host. Safe to call from InitPluginHost or DaemonPool.
 func (a *App) ensurePluginRuntime() *pluginhost.Runtime {
 	a.pluginRuntimeOnce.Do(func() {
+		if a.pluginRuntime != nil {
+			// Pre-seeded from a parent App (converge worker clones share the
+			// parent's runtime so no second daemon pool is ever built).
+			return
+		}
 		warn := func(s string) {
 			if !a.Quiet {
 				fmt.Fprintln(os.Stderr, "Warning: "+s)

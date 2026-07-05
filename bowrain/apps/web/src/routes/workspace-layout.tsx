@@ -75,8 +75,9 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
   }
 
   const isAutomations = parts.length >= 4 && parts[3] === "automations";
+  const isRuns = parts.length >= 4 && parts[3] === "runs";
 
-  return { projectId, stream, itemId, isAutomations };
+  return { projectId, stream, itemId, isAutomations, isRuns };
 }
 
 // ---------------------------------------------------------------------------
@@ -455,7 +456,9 @@ export function WorkspaceLayout() {
     // Determine which project sub-page is active.
     const activeProjectView = projectParams.isAutomations
       ? ("automations" as const)
-      : ("dashboard" as const);
+      : projectParams.isRuns
+        ? ("runs" as const)
+        : ("dashboard" as const);
 
     return {
       level: "project",
@@ -463,9 +466,9 @@ export function WorkspaceLayout() {
       activeStream: projectParams.stream,
       activeProjectView,
       onBack:
-        projectParams.itemId || projectParams.isAutomations
+        projectParams.itemId || projectParams.isAutomations || projectParams.isRuns
           ? () => {
-              // Editor/automations → project detail (up one level)
+              // Editor/automations/runs → project detail (up one level)
               void navigate({
                 to: "/$workspace/p/$projectId/s/$stream",
                 params: {
@@ -507,6 +510,16 @@ export function WorkspaceLayout() {
       onOpenAutomations: () => {
         void navigate({
           to: "/$workspace/p/$projectId/s/$stream/automations",
+          params: {
+            workspace: workspaceSlug ?? ws,
+            projectId: project.id,
+            stream: projectParams.stream,
+          },
+        });
+      },
+      onOpenRuns: () => {
+        void navigate({
+          to: "/$workspace/p/$projectId/s/$stream/runs",
           params: {
             workspace: workspaceSlug ?? ws,
             projectId: project.id,

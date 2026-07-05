@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
+	"sync"
+	"time"
 )
 
 // Migration represents a single schema migration step.
@@ -17,12 +20,43 @@ type Migration struct {
 // validTableName ensures the namespace only contains safe characters for a table name.
 var validTableName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
+// migrateLocks serializes migrations per database file within the process:
+// concurrent openers of the same fresh database (converge workers all opening
+// the project TM) would otherwise race to apply the same versions. Keyed by
+// path, so unrelated databases never wait on each other; in-memory databases
+// are excluded (each is private to its pool).
+var (
+	migrateLocksMu sync.Mutex
+	migrateLocks   = map[string]*sync.Mutex{}
+)
+
+func migrateLock(path string) *sync.Mutex {
+	migrateLocksMu.Lock()
+	defer migrateLocksMu.Unlock()
+	l, ok := migrateLocks[path]
+	if !ok {
+		l = &sync.Mutex{}
+		migrateLocks[path] = l
+	}
+	return l
+}
+
 // Migrate applies schema migrations to the database using a namespaced migration
 // tracking table. Each subsystem (sievepen, termbase) should use a distinct
 // namespace to avoid version collisions when sharing a database file.
+//
+// Concurrent-safe: within the process, migrations of one database file
+// serialize on a per-path lock; across processes, each migration re-checks the
+// applied version inside its transaction and treats a lost race (another
+// process applied it first) as already-done rather than an error.
 func Migrate(db *DB, tableName string, migrations []Migration) error {
 	if !validTableName.MatchString(tableName) {
 		return fmt.Errorf("invalid migration table name: %q", tableName)
+	}
+	if db.Path() != "" && !isMemoryDSN(db.Path()) {
+		l := migrateLock(db.Path())
+		l.Lock()
+		defer l.Unlock()
 	}
 
 	//nolint:noctx // startup migration
@@ -57,29 +91,90 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 		if m.Version <= currentVersion {
 			continue
 		}
-
-		tx, err := db.Begin() //nolint:noctx // startup migration
-		if err != nil {
-			return fmt.Errorf("begin migration %d: %w", m.Version, err)
-		}
-
-		if _, err := tx.Exec(m.SQL); err != nil { //nolint:noctx // startup migration
-			_ = tx.Rollback()
-			return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
-		}
-
-		if _, err := tx.Exec( //nolint:noctx // startup migration
-			fmt.Sprintf("INSERT INTO %s (version, description) VALUES (?, ?)", tableName),
-			m.Version, m.Description,
-		); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("record migration %d: %w", m.Version, err)
-		}
-
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("commit migration %d: %w", m.Version, err)
+		if err := applyMigration(db, tableName, m); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// applyMigration applies one migration, tolerating a concurrent applier in
+// another process: the version is re-checked inside the transaction, a lost
+// race (unique-constraint on the version row, or the migration's DDL already
+// present) retries and then reads as already-applied, and transient lock
+// contention retries within a bounded window.
+func applyMigration(db *DB, tableName string, m Migration) error {
+	const window = 15 * time.Second
+	delay := 10 * time.Millisecond
+	deadline := time.Now().Add(window)
+	for {
+		applied, err := tryApplyMigration(db, tableName, m)
+		if err == nil {
+			_ = applied
+			return nil
+		}
+		retryable := isBusyErr(err) || isUniqueErr(err)
+		if !retryable || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(delay)
+		if delay < 500*time.Millisecond {
+			delay *= 2
+		}
+	}
+}
+
+// tryApplyMigration runs one attempt: begin, re-check the version inside the
+// transaction (another applier may have won since the caller's read), apply,
+// record, commit. Returns (false, nil) when the migration turned out to be
+// already applied.
+func tryApplyMigration(db *DB, tableName string, m Migration) (bool, error) {
+	tx, err := db.Begin() //nolint:noctx // startup migration
+	if err != nil {
+		return false, fmt.Errorf("begin migration %d: %w", m.Version, err)
+	}
+
+	var cur int
+	if err := tx.QueryRow("SELECT COALESCE(MAX(version), 0) FROM " + tableName).Scan(&cur); err != nil { //nolint:noctx // startup migration
+		_ = tx.Rollback()
+		return false, fmt.Errorf("re-check version for migration %d: %w", m.Version, err)
+	}
+	if m.Version <= cur {
+		_ = tx.Rollback()
+		return false, nil
+	}
+
+	if _, err := tx.Exec(m.SQL); err != nil { //nolint:noctx // startup migration
+		_ = tx.Rollback()
+		if isBusyErr(err) {
+			return false, err // retryable
+		}
+		return false, fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
+	}
+
+	if _, err := tx.Exec( //nolint:noctx // startup migration
+		fmt.Sprintf("INSERT INTO %s (version, description) VALUES (?, ?)", tableName),
+		m.Version, m.Description,
+	); err != nil {
+		_ = tx.Rollback()
+		if isBusyErr(err) || isUniqueErr(err) {
+			return false, err // retryable; a unique hit means another applier won
+		}
+		return false, fmt.Errorf("record migration %d: %w", m.Version, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		if isBusyErr(err) {
+			return false, err
+		}
+		return false, fmt.Errorf("commit migration %d: %w", m.Version, err)
+	}
+	return true, nil
+}
+
+// isUniqueErr reports a UNIQUE-constraint violation (both drivers include the
+// standard SQLite message text).
+func isUniqueErr(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
 }

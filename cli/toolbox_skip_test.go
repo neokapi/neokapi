@@ -59,7 +59,7 @@ func TestRunCatContinuesPastBadFile(t *testing.T) {
 	app := newToolboxApp(t)
 	dir := t.TempDir()
 
-	lock := writeToolboxFile(t, dir, "~$5. ANS.pptx", "not a zip")          // junk → skipped
+	lock := writeToolboxFile(t, dir, "~$5. ANS.pptx", "not a zip")           // junk → skipped
 	bad := writeToolboxFile(t, dir, "broken.docx", "this is not a zip file") // openxml parse error
 	good1 := writeToolboxFile(t, dir, "a.json", `{"k":"Alpha"}`)
 	good2 := writeToolboxFile(t, dir, "b.json", `{"k":"Beta"}`)

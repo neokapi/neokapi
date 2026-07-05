@@ -49,17 +49,17 @@ Server-side rules run flows when content arrives, a quality gate passes, or a co
 
 A persistent, versioned content store keeps the history of every block, branch, and translation, so the work compounds: terminology decisions, brand-voice corrections, and remembered translations stay with the project as people and tools come and go.
 
-## One command to sync
+## One command to bring content up to date
 
-With the plugin installed, a kapi project whose recipe declares a `server:` block can push and pull in a single step:
+With the plugin installed, a kapi project whose recipe declares a `server:` block runs the whole convergence loop in a single step:
 
 ```bash
-kapi sync
+kapi up
 ```
 
-[`kapi sync`](/cli/commands/sync) pushes changed content to the server, waits for the triggered flows (translation, QA, terminology) to finish, and pulls the results back — one invocation from code change to translated files. In CI it replaces a multi-job pipeline.
+[`kapi up`](/cli/commands/up) is the convergence verb: on a connected project it pushes changed content, the server runs the loop (translation, QA, terminology) on the organization's keys and shared memory, progress streams back live, and the results pull down — one invocation from code change to translated files. In CI it replaces a multi-job pipeline. (`kapi push` and `kapi pull` stay available as pure transport when you want to move content without converging.)
 
-Content does not have to start locally, though: a [connector](/server/connectors) to a CMS, a design tool, or a git repository pulls source into the workspace server-side, with no checkout at all. `kapi sync` is the path for a developer working from a local codebase — one of several ways content reaches the platform.
+Content does not have to start locally, though: a [connector](/server/connectors) to a CMS, a design tool, or a git repository pulls source into the workspace server-side, with no checkout at all. `kapi up` is the path for a developer working from a local codebase — one of several ways content reaches the platform.
 
 ## How it fits together
 
@@ -70,7 +70,7 @@ Content does not have to start locally, though: a [connector](/server/connectors
     { label: "Translators & AI", sub: "web / desktop / MCP", role: "qa" },
   ]}
   messages={[
-    { from: 0, to: 1, label: "sync source", detail: "a connector, or kapi sync" },
+    { from: 0, to: 1, label: "bring source in", detail: "a connector, or kapi up" },
     { from: 1, to: 1, label: "translate / QA / brand checks", detail: "server automation" },
     { from: 1, to: 2, label: "deliver for review", detail: "live-sync to web / desktop" },
     { from: 2, to: 2, label: "review & approve", detail: "in the editor" },
@@ -80,7 +80,7 @@ Content does not have to start locally, though: a [connector](/server/connectors
   caption="Content flows in from any connector — a CMS, a design tool, git, or a developer's local files via kapi. The server governs and automates, people and AI tools review, and results publish back."
 />
 
-Content enters the workspace from a connector — a CMS, a design tool, a git repository, or a developer's local files via `kapi sync`. Server automation orchestrates translation and checks; translators (and AI tools, over MCP) work in the web or desktop editor with translation memory and terminology support; and the content store keeps the history.
+Content enters the workspace from a connector — a CMS, a design tool, a git repository, or a developer's local files via `kapi up`. Server automation orchestrates translation and checks; translators (and AI tools, over MCP) work in the web or desktop editor with translation memory and terminology support; and the content store keeps the history.
 
 ## Parts of the platform
 

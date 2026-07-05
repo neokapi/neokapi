@@ -102,22 +102,23 @@ automations:
 
 If `qa` finds issues and `fail_on_error` is `true`, the push is aborted.
 
-### Example: Full sync after push
+### Converging on every push
 
-Automatically wait for translations and pull them back after every push:
+Server-side convergence on push is not an automation — it is the project's
+`server.converge` policy. With the default `on-push`, the server runs the full
+convergence loop (translation, QA, terminology, gates, parking) after every push,
+recorded as a run anyone can watch:
 
 ```yaml
-automations:
-  - name: auto-sync
-    trigger: post-push
-    actions:
-      - type: wait_translate
-        config:
-          timeout: 10m
-      - type: pull
+# my-app.kapi
+server:
+  url: https://bowrain.example.com/my-team/abc123
+  converge: on-push        # on-push (default) | manual | schedule
 ```
 
-This makes `kapi push` behave like `kapi sync`.
+`kapi push` from CI just pushes; the server converges on its own clock; `kapi up`
+is push + *watch the run* + pull. See
+[AD-022: Convergence as a Service](/architecture-decisions/022-convergence-as-a-service).
 
 ## Quality gates
 

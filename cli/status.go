@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -19,6 +20,30 @@ type StatusOutput struct {
 	Project string           `json:"project,omitempty"`
 	Source  *SourceCoverage  `json:"source,omitempty"`
 	Locales []LocaleCoverage `json:"locales"`
+	// Server is the connected-server delta, contributed by the bowrain plugin's
+	// server-status plumbing when the recipe has a server: block. Absent for a
+	// pure local project. The cli module stays platform-neutral: it is populated
+	// by shelling the plugin, never by importing bowrain.
+	Server *StatusServerSection `json:"server,omitempty"`
+}
+
+// StatusServerSection is the connected-server standing merged into
+// `kapi status`: ahead/behind transport counts plus any in-flight convergence
+// runs. It mirrors the JSON the kapi-bowrain `server-status` command emits.
+type StatusServerSection struct {
+	ServerURL   string            `json:"server_url,omitempty"`
+	Project     string            `json:"project,omitempty"`
+	PendingPush int               `json:"pending_push"`
+	PendingPull int               `json:"pending_pull"`
+	LastSync    string            `json:"last_sync,omitempty"`
+	ActiveRuns  []StatusActiveRun `json:"active_runs,omitempty"`
+}
+
+// StatusActiveRun is one in-flight server convergence run in the status report.
+type StatusActiveRun struct {
+	ID     string `json:"id"`
+	State  string `json:"state"`
+	Passes int    `json:"passes"`
 }
 
 // statusLadder is the column order for the human grid.
@@ -56,7 +81,29 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintln(w)
 	}
+	if o.Server != nil {
+		writeServerLine(w, *o.Server)
+	}
 	return nil
+}
+
+// writeServerLine renders the one-line connected-server standing beneath the
+// coverage grid: the server, ahead/behind transport counts, and any in-flight
+// convergence run.
+func writeServerLine(w io.Writer, s StatusServerSection) {
+	url := s.ServerURL
+	if url == "" {
+		url = "(connected)"
+	}
+	fmt.Fprintf(w, "\nserver  %s · %d to push · %d to pull", url, s.PendingPush, s.PendingPull)
+	for _, r := range s.ActiveRuns {
+		passes := ""
+		if r.Passes > 0 {
+			passes = fmt.Sprintf(" (pass %d)", r.Passes)
+		}
+		fmt.Fprintf(w, " · run %s %s%s", r.ID, r.State, passes)
+	}
+	fmt.Fprintln(w)
 }
 
 // sourceLadder is the column order for the source-readiness line.
@@ -200,6 +247,41 @@ func (a *App) runStatus(cmd *cobra.Command, _ []string) error {
 		if src.Total > 0 {
 			out.Source = &src
 		}
+		a.appendServerStatus(cmd, proj, &out)
 		return output.Print(cmd, out)
 	})
+}
+
+// appendServerStatus merges the connected-server delta into the status output
+// when the recipe has a server: block and the bowrain plugin is installed. It
+// shells the plugin's `server-status --json` (subprocess dispatch — the cli
+// module never imports bowrain) and folds the result under out.Server. Any
+// failure degrades to a one-line stderr warning and leaves the local report
+// intact: a status command must never fail on a server hiccup.
+func (a *App) appendServerStatus(cmd *cobra.Command, proj *project.KapiProject, out *StatusOutput) {
+	if _, ok := proj.Extras["server"]; !ok {
+		return
+	}
+	if a.PluginHost == nil {
+		return
+	}
+	route := a.PluginHost.CommandRoute("server-status")
+	if route == nil {
+		return
+	}
+	raw, err := route.CaptureStdout(cmd.Context(), "--json")
+	if err != nil {
+		if !a.Quiet {
+			fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not read server status: %v\n", err)
+		}
+		return
+	}
+	var section StatusServerSection
+	if err := json.Unmarshal(raw, &section); err != nil {
+		if !a.Quiet {
+			fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not parse server status: %v\n", err)
+		}
+		return
+	}
+	out.Server = &section
 }

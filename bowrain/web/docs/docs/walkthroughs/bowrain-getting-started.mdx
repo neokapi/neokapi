@@ -25,14 +25,14 @@ content lives in a CMS, a design tool, or a git host,
 `kapi init --server https://bowrain.cloud` writes a `<dir-name>.kapi` recipe and a sibling
 `.kapi/` state directory and connects the project to your Bowrain server (pass
 `--workspace <slug>` if you belong to several). `kapi add` tracks the files you
-want translated; `kapi push` sends the source up for the team and the AI tools
-to work on; `kapi status` shows sync state, exactly like git; and `kapi pull`
-brings translations back into the same files and formats. `kapi sync` does
-push-wait-pull in one command for CI.
+want translated; `kapi push` sends the source up (pure transport); `kapi status`
+shows standing, exactly like git; and `kapi pull` brings translations back into
+the same files and formats. `kapi up` runs the whole convergence loop on the
+server — push, converge, and pull in one command, for the daily reconcile and CI.
 
 ## Next
 
 - [Auth and workspaces](/walkthroughs/bowrain-auth) — sign in and choose where to push.
 - [Automation](/walkthroughs/bowrain-automation) — local rules + GitHub Actions.
 - Command reference: [init](/cli/commands/init), [push](/cli/commands/push),
-  [pull](/cli/commands/pull), [sync](/cli/commands/sync), [status](/cli/commands/status).
+  [pull](/cli/commands/pull), [up](/cli/commands/up), [status](/cli/commands/status).

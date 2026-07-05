@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/cli"
 	appconfig "github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/credentials"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/project"
 )
 
@@ -202,6 +204,24 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 	})
 	out, err := capp.RunUp(ctx, projectPath, sourceLang, cli.UpOptions{
 		UntilGate: true,
+		// OnEvent is the primary stream the live run view renders from: one
+		// typed event per pass/locale transition. Log events degrade to the
+		// existing progress lines (auto-extract notes) so the generic job feed
+		// and reconnect path keep working; every other event rides as a typed
+		// "converge_event" the frontend reduces into per-locale rows.
+		OnEvent: func(ev convergence.Event) {
+			if ev.Type == convergence.EventLog {
+				if msg := strings.TrimSpace(ev.Message); msg != "" {
+					a.emitRunEvent(RunEvent{Type: "progress", FlowID: flowName, Message: msg})
+				}
+				return
+			}
+			e := ev
+			a.emitRunEvent(RunEvent{Type: "converge_event", FlowID: flowName, ConvergeEvent: &e})
+		},
+		// OnPass keeps emitting the per-pass summary "converge_pass" event for
+		// backwards compatibility during the transition — the engine synthesizes
+		// it from the same event stream, so the two views never disagree.
 		OnPass: func(ev cli.ConvergePassEvent) {
 			pass := ev
 			a.emitRunEvent(RunEvent{

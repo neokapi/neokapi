@@ -69,6 +69,7 @@ import type {
   ArchivedProject,
   TranslationDashboardStats,
   ActivityInfo,
+  ConvergenceRun,
   TaskInfo,
   CreateTaskRequest,
   NotificationPreference,
@@ -2052,6 +2053,53 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(`/api/v1/${workspaceSlug}/activities/seen`, {
       method: "POST",
     });
+  }
+
+  // ── Convergence runs (server-side `kapi up`) — Bowrain AD-022 ────────────
+
+  private convergenceRunsEp(ws: string, projectId: string) {
+    return `${this.projectEp(ws, projectId)}/convergence/runs`;
+  }
+
+  async listConvergenceRuns(
+    workspaceSlug: string,
+    projectId: string,
+    limit?: number,
+  ): Promise<ConvergenceRun[]> {
+    const qs = limit ? `?limit=${limit}` : "";
+    return this.fetchJSON(`${this.convergenceRunsEp(workspaceSlug, projectId)}${qs}`);
+  }
+
+  async getConvergenceRun(
+    workspaceSlug: string,
+    projectId: string,
+    runId: string,
+  ): Promise<ConvergenceRun> {
+    return this.fetchJSON(
+      `${this.convergenceRunsEp(workspaceSlug, projectId)}/${encodeURIComponent(runId)}`,
+    );
+  }
+
+  async startConvergenceRun(
+    workspaceSlug: string,
+    projectId: string,
+    opts?: { trigger?: string; locales?: string[] },
+  ): Promise<ConvergenceRun> {
+    return this.fetchJSON(this.convergenceRunsEp(workspaceSlug, projectId), {
+      method: "POST",
+      body: JSON.stringify({ trigger: opts?.trigger ?? "manual", locales: opts?.locales }),
+    });
+  }
+
+  async cancelConvergenceRun(
+    workspaceSlug: string,
+    projectId: string,
+    runId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.convergenceRunsEp(workspaceSlug, projectId)}/${encodeURIComponent(runId)}/cancel`,
+      { method: "POST" },
+    );
   }
 
   // ── Tasks (Bowrain AD-014) ────────────────────────────────────────────────────

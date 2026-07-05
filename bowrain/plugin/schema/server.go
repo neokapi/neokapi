@@ -39,6 +39,42 @@ type ServerSpec struct {
 	// Set to a specific name (e.g. "v2.0") to always use that stream.
 	// Empty is treated as "$auto".
 	Stream string `yaml:"stream,omitempty" json:"stream,omitempty"`
+
+	// Converge is the server-side continuous-convergence policy: whether the
+	// server starts a convergence run of its own when a push completes.
+	//   on-push (default when empty) — every push that lands content triggers a
+	//                                   server convergence run (the loop, with
+	//                                   checks, gates, and parking).
+	//   manual                        — a push never converges on its own; a run
+	//                                   starts only from `kapi up` or the REST
+	//                                   convergence-run endpoint.
+	// Transport (`kapi push`) is pure regardless of this value — it moves state
+	// and never produces translations; this policy governs the *server's* own
+	// clock, the way "push triggers CI" is a repo policy, not a property of push.
+	Converge ConvergePolicy `yaml:"converge,omitempty" json:"converge,omitempty"`
+}
+
+// ConvergePolicy is the server-side continuous-convergence policy of a
+// connected project (server.converge).
+type ConvergePolicy string
+
+const (
+	// ConvergeOnPush starts a server convergence run whenever a push completes.
+	// It is the default for a connected project (an empty converge resolves to
+	// it).
+	ConvergeOnPush ConvergePolicy = "on-push"
+	// ConvergeManual never converges on push; a run starts only on demand
+	// (`kapi up`, or the REST convergence-run endpoint).
+	ConvergeManual ConvergePolicy = "manual"
+)
+
+// ResolvedConverge returns the effective convergence policy, defaulting an
+// empty value to on-push (the connected-project default).
+func (s *ServerSpec) ResolvedConverge() ConvergePolicy {
+	if s == nil || s.Converge == "" {
+		return ConvergeOnPush
+	}
+	return s.Converge
 }
 
 // ServerURL returns the base server URL extracted from the compound URL.
@@ -82,6 +118,11 @@ func (s *ServerSpec) Validate() error {
 	}
 	if info := ParseProjectURL(s.URL); info.ProjectID == "" {
 		return fmt.Errorf("url: %q does not contain a project ID (expected <server>/<workspace>/<project> or <server>/projects/<project>)", s.URL)
+	}
+	switch s.Converge {
+	case "", ConvergeOnPush, ConvergeManual:
+	default:
+		return fmt.Errorf("converge: %q is not valid (expected %q or %q)", s.Converge, ConvergeOnPush, ConvergeManual)
 	}
 	return nil
 }

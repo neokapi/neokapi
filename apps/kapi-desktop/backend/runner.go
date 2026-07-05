@@ -13,6 +13,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/cli/credentials"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -55,8 +56,15 @@ type RunEvent struct {
 	FilesProcessed int   `json:"files_processed,omitempty"`
 
 	// Convergence-run fields (BringUpToDate — the shared `kapi up` engine):
-	// Converge carries one pass snapshot (when type == "converge_pass") and
-	// ConvergeResult the final structured outcome (on the run's "complete").
+	// ConvergeEvent carries one typed progress event of the run (when type ==
+	// "converge_event") — the per-pass/per-locale stream (pass_start,
+	// locale_start, unit_progress, locale_done, pass_done, materialized, done)
+	// the live run view renders locale rows from, the same protocol the CLI's
+	// live renderer and the server's SSE stream speak. Converge carries the
+	// synthesized per-pass summary (when type == "converge_pass"), kept for
+	// backwards compatibility with the passes view. ConvergeResult carries the
+	// final structured outcome (on the run's "complete").
+	ConvergeEvent  *convergence.Event     `json:"converge_event,omitempty"`
 	Converge       *cli.ConvergePassEvent `json:"converge,omitempty"`
 	ConvergeResult *cli.ConvergeOutput    `json:"converge_result,omitempty"`
 }

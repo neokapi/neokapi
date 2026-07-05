@@ -49,6 +49,18 @@ export const activitiesQueryOptions = (api: ApiAdapter, workspaceSlug: string) =
     refetchInterval: 60_000,
   });
 
+export const convergenceRunsQueryOptions = (
+  api: ApiAdapter,
+  workspaceSlug: string,
+  projectId: string,
+) =>
+  queryOptions({
+    queryKey: ["convergenceRuns", workspaceSlug, projectId],
+    queryFn: () => api.listConvergenceRuns(workspaceSlug, projectId, 20),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
 export const myTasksQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
   queryOptions({
     queryKey: ["myTasks", workspaceSlug],

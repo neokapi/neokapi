@@ -33,6 +33,7 @@ import {
   Network,
   FlaskConical,
   Activity,
+  Rocket,
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
@@ -57,7 +58,7 @@ export interface SubNavItem {
 
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
-export type ProjectView = "dashboard" | "automations";
+export type ProjectView = "dashboard" | "automations" | "runs";
 
 export type SidebarContext =
   | { level: "workspace"; activeView: View }
@@ -76,6 +77,7 @@ export type SidebarContext =
       onDiffStream?: (streamName: string) => void;
       onDeleteStream?: (streamName: string) => void;
       onOpenAutomations?: () => void;
+      onOpenRuns?: () => void;
     };
 
 export interface AppSidebarProps<V extends string = string> {
@@ -192,6 +194,18 @@ function IconNav<V extends string>({
                     data-testid="sidebar-automations"
                   >
                     <Sparkles />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {ctx.onOpenRuns && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip="Runs"
+                    isActive={ctx.activeProjectView === "runs"}
+                    onClick={ctx.onOpenRuns}
+                    data-testid="sidebar-runs"
+                  >
+                    <Rocket />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
@@ -330,6 +344,21 @@ function MobileNav<V extends string>({
                   >
                     <Sparkles />
                     <span>Automations</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {ctx.onOpenRuns && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={ctx.activeProjectView === "runs"}
+                    onClick={() => {
+                      ctx.onOpenRuns!();
+                      setOpenMobile(false);
+                    }}
+                    data-testid="sidebar-runs"
+                  >
+                    <Rocket />
+                    <span>Runs</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}

@@ -435,10 +435,20 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 	// context they each receive.
 	rawSession, err := e.config.Store.Begin(ctx)
 	if err != nil {
-		ch := make(chan *model.Part, e.config.ChannelSize)
-		close(ch)
 		cancel()
-		return ch, ch, func() error { return fmt.Errorf("open blockstore session: %w", err) }
+		// The caller's feeder goroutine SENDS on `in` and closes it when done —
+		// a failed Begin (e.g. a sibling pipeline's error canceling a shared
+		// parent context mid-converge-pass) must not hand it a closed channel,
+		// or its send panics. Give it a drained channel instead; `out` closes
+		// immediately so the writer sees EOF, and wait() reports the failure.
+		in := make(chan *model.Part, e.config.ChannelSize)
+		go func() {
+			for range in { //nolint:revive // drain feeder sends until the feeder closes in
+			}
+		}()
+		out := make(chan *model.Part)
+		close(out)
+		return in, out, func() error { return fmt.Errorf("open blockstore session: %w", err) }
 	}
 
 	g, ctx := errgroup.WithContext(ctx)

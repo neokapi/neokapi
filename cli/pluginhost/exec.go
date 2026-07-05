@@ -1,9 +1,11 @@
 package pluginhost
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -198,6 +200,44 @@ func runSubprocess(ctx context.Context, p *Plugin, args []string) error {
 		return fmt.Errorf("plugin %q: %w", p.Name(), err)
 	}
 	return nil
+}
+
+// CaptureStdout runs the route's top-level Mode-A command capturing its
+// stdout, instead of inheriting the parent's stdio. It is the plumbing behind
+// data-returning command contributions (e.g. the built-in `kapi status`
+// shelling `server-status --json` to merge a server section). The plugin's
+// stderr is discarded — a plumbing caller degrades gracefully rather than
+// leaking plugin diagnostics into a structured host output.
+func (r *CommandRoute) CaptureStdout(ctx context.Context, args ...string) ([]byte, error) {
+	cmdArgs := append([]string{"command", r.Command.Name}, args...)
+	return runSubprocessCaptured(ctx, r.Plugin, cmdArgs)
+}
+
+// runSubprocessCaptured mirrors runSubprocess but buffers stdout (returned to
+// the caller) and discards stderr. Cancellation semantics match runSubprocess.
+func runSubprocessCaptured(ctx context.Context, p *Plugin, args []string) ([]byte, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd := exec.CommandContext(ctx, p.BinaryPath, args...)
+	var out bytes.Buffer
+	cmd.Stdin = nil
+	cmd.Stdout = &out
+	cmd.Stderr = io.Discard
+
+	env := os.Environ()
+	env = append(env, "KAPI_PLUGIN_DIR="+p.Dir)
+	env = append(env, "KAPI_PLUGIN_NAME="+p.Name())
+	env = append(env, "KAPI_PLUGIN_VERSION="+p.Version())
+	cmd.Env = env
+
+	if err := cmd.Run(); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("plugin %q: %w", p.Name(), ctxErr)
+		}
+		return nil, fmt.Errorf("plugin %q: %w", p.Name(), err)
+	}
+	return out.Bytes(), nil
 }
 
 // pluginExitError carries the exit code from a plugin subprocess so that

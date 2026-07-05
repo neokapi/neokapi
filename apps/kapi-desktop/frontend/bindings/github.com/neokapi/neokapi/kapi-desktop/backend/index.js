@@ -66,6 +66,7 @@ export {
     ProjectFilter,
     ProjectFilters,
     ProjectHandles,
+    ProjectServer,
     ProjectStatus,
     ProviderInfo,
     ProviderSaveRequest,

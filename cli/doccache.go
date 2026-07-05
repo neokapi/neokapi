@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -41,6 +42,14 @@ func hashKey(s string) string {
 type docCache struct {
 	db  *storage.DB
 	dir string // directory holding the per-document logs + skeleton files
+
+	// inflight guards against two concurrent recordings of the same document
+	// (same content + config): converge passes fan locales out concurrently,
+	// and every worker that misses on the same source would otherwise record
+	// it at once. Only the first recorder wins; the rest get nil and fall
+	// back to the live (uncached) read path.
+	mu       sync.Mutex
+	inflight map[string]bool
 }
 
 var docCacheMigrations = []storage.Migration{
@@ -161,14 +170,33 @@ func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder 
 		return nil
 	}
 	// Content-addressed names keyed by the source hash + config, so identical
-	// re-parses reuse the same files and concurrent writers don't collide on a
-	// shared name (each writes its own temp, then renames into place).
+	// re-parses reuse the same final files. Only one recording per document
+	// may be in flight in this process (converge workers share the cache and
+	// race on shared sources); losers fall back to the live read path.
 	base := hashKey(configKey + "\x00" + hash)
+	c.mu.Lock()
+	if c.inflight == nil {
+		c.inflight = make(map[string]bool)
+	}
+	if c.inflight[base] {
+		c.mu.Unlock()
+		return nil
+	}
+	c.inflight[base] = true
+	c.mu.Unlock()
+	release := func() {
+		c.mu.Lock()
+		delete(c.inflight, base)
+		c.mu.Unlock()
+	}
 	partsRef := "parts-" + base + ".log"
 	skelRef := "skel-" + base + ".bin"
-	partsTmp := filepath.Join(c.dir, partsRef+".tmp")
-	pf, err := os.Create(partsTmp)
+	// Unique temp names (CreateTemp), not derived ones: another PROCESS (the
+	// desktop app beside a CLI run) may be recording the same document at the
+	// same time, and a shared ".tmp" name would truncate its in-progress file.
+	pf, err := os.CreateTemp(c.dir, partsRef+".*.tmp")
 	if err != nil {
+		release()
 		return nil
 	}
 	// The skeleton store is created lazily, on the first SkeletonStore() call, so a
@@ -176,8 +204,9 @@ func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder 
 	return &docRecorder{
 		c: c, path: path, configKey: configKey, contentHash: hash, format: formatName,
 		st: st, partsRef: partsRef, skelRef: skelRef,
-		partsTmp: partsTmp, skelTmp: filepath.Join(c.dir, skelRef+".tmp"),
+		partsTmp: pf.Name(), skelTmp: pf.Name() + ".skel",
 		pf: pf, pw: bufio.NewWriter(pf),
+		release: release,
 	}
 }
 
@@ -246,6 +275,17 @@ type docRecorder struct {
 	pw                                   *bufio.Writer
 	skel                                 *format.SkeletonStore
 	parts                                int
+	// release frees the cache's in-flight slot for this document; called
+	// exactly once, from Commit or Abort.
+	release func()
+}
+
+// done releases the in-flight slot (idempotent).
+func (r *docRecorder) done() {
+	if r.release != nil {
+		r.release()
+		r.release = nil
+	}
 }
 
 // SkeletonStore returns the recorder's skeleton store, creating its file lazily on
@@ -287,6 +327,7 @@ func (r *docRecorder) Add(p *model.Part) error {
 // with no entries is dropped (the format emitted none) so OpenSkeleton returns
 // nil and the writer reconstructs from the content model.
 func (r *docRecorder) Commit() error {
+	defer r.done()
 	if err := r.pw.Flush(); err != nil {
 		r.Abort()
 		return err
@@ -328,6 +369,7 @@ func (r *docRecorder) Commit() error {
 
 // Abort discards the in-progress files without recording an index entry.
 func (r *docRecorder) Abort() {
+	defer r.done()
 	_ = r.pw.Flush()
 	_ = r.pf.Close()
 	if r.skel != nil {

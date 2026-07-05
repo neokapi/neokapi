@@ -24,6 +24,7 @@ var storeMigrations = []storage.Migration{
 				dashboard_visibility    TEXT NOT NULL DEFAULT 'private',
 				properties              TEXT NOT NULL DEFAULT '{}',
 				workspace_id            TEXT NOT NULL DEFAULT '',
+				converge_policy         TEXT NOT NULL DEFAULT 'on-push',
 				archived                BOOLEAN NOT NULL DEFAULT FALSE,
 				archived_at             TEXT,
 				created_at              TEXT NOT NULL DEFAULT (datetime('now')),
@@ -318,6 +319,34 @@ var storeMigrations = []storage.Migration{
 			);
 			CREATE INDEX idx_automation_logs_step ON automation_logs(step_id, timestamp);
 			CREATE INDEX idx_automation_logs_run ON automation_logs(run_id, timestamp);
+
+			-- Convergence runs (strategy 2026-07-kapi-up doc 03): one
+			-- goal-seeking reconciliation of a project toward its ship gates,
+			-- driving the venue-neutral core/convergence.Loop server-side and
+			-- persisting every emitted convergence.Event for SSE replay.
+			CREATE TABLE convergence_runs (
+				id             TEXT PRIMARY KEY,
+				project_id     TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				trigger        TEXT NOT NULL DEFAULT 'manual',
+				state          TEXT NOT NULL DEFAULT 'running',
+				passes         INTEGER NOT NULL DEFAULT 0,
+				standing       TEXT NOT NULL DEFAULT '{}',
+				failing_checks INTEGER NOT NULL DEFAULT 0,
+				error          TEXT NOT NULL DEFAULT '',
+				created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+				finished_at    TEXT
+			);
+			CREATE INDEX idx_convergence_runs_project ON convergence_runs(project_id, created_at DESC);
+			-- At most one running run per project — a DB-level guard so the
+			-- one-run-per-project constraint is atomic (F8), not a racy SELECT.
+			CREATE UNIQUE INDEX idx_convergence_runs_one_active ON convergence_runs(project_id) WHERE state = 'running';
+
+			CREATE TABLE convergence_run_events (
+				run_id  TEXT NOT NULL REFERENCES convergence_runs(id) ON DELETE CASCADE,
+				seq     INTEGER NOT NULL,
+				payload TEXT NOT NULL DEFAULT '{}',
+				PRIMARY KEY (run_id, seq)
+			);
 
 			-- Review queue
 			CREATE TABLE review_items (

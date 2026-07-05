@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, ClipboardList, FolderX, Loader2, PlayCircle } from "lucide-react";
+import { CheckCircle2, ClipboardList, Cloud, FolderX, Loader2, PlayCircle } from "lucide-react";
 import {
+  Badge,
   Button,
   Card,
   Dialog,
@@ -11,10 +12,14 @@ import {
   DialogTitle,
   ErrorNotice,
   LocalePill,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
   parseAppError,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
-import type { ConvergePlan, ConvergenceReport, UpPlanScope } from "../types/api";
+import type { ConvergePlan, ConvergenceReport, ProjectServer, UpPlanScope } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useJobFeed } from "../context/JobFeedContext";
@@ -35,6 +40,8 @@ export interface ConvergenceHeroProps {
   convergence?: ConvergenceReport;
   /** Pre-loaded plan for Storybook/tests — skips api.getConvergePlan(). */
   plan?: ConvergePlan;
+  /** Pre-loaded run venue for Storybook/tests — skips api.getProjectServer(). */
+  server?: ProjectServer;
 }
 
 /**
@@ -51,10 +58,12 @@ export function ConvergenceHero({
   onBringUpToDate,
   convergence: propConvergence,
   plan: propPlan,
+  server: propServer,
 }: ConvergenceHeroProps) {
   const { hasActive, startJob, failActiveJob } = useJobFeed();
   const [convergence, setConvergence] = useState<ConvergenceReport | null>(propConvergence ?? null);
   const [plan, setPlan] = useState<ConvergePlan | null>(propPlan ?? null);
+  const [server, setServer] = useState<ProjectServer | null>(propServer ?? null);
   const [planOpen, setPlanOpen] = useState(false);
   const [loaded, setLoaded] = useState(!!(propConvergence && propPlan));
   // A synchronous launch failure renders inline on the hero — the user stays
@@ -66,15 +75,17 @@ export function ConvergenceHero({
   const [modelPromptOpen, setModelPromptOpen] = useState(false);
 
   const refresh = useCallback(() => {
-    if (propConvergence && propPlan) return;
+    if (propConvergence && propPlan && propServer) return;
     void Promise.allSettled([
       propConvergence ? Promise.resolve(null) : api.getConvergence(tabID),
       propPlan ? Promise.resolve(null) : api.getConvergePlan(tabID),
-    ]).then(([c, p]) => {
+      propServer ? Promise.resolve(null) : api.getProjectServer(tabID),
+    ]).then(([c, p, s]) => {
       if (!propConvergence && c.status === "fulfilled" && c.value) {
         setConvergence(c.value as ConvergenceReport);
       }
       if (!propPlan && p.status === "fulfilled" && p.value) setPlan(p.value as ConvergePlan);
+      if (!propServer && s.status === "fulfilled" && s.value) setServer(s.value as ProjectServer);
       // The backend answers both derivations with a single typed error when
       // the recipe is gone from disk — render the quiet reopen state.
       setFilesMissing(
@@ -84,7 +95,7 @@ export function ConvergenceHero({
       );
       setLoaded(true);
     });
-  }, [tabID, propConvergence, propPlan]);
+  }, [tabID, propConvergence, propPlan, propServer]);
 
   useEffect(() => {
     refresh();
@@ -201,6 +212,11 @@ export function ConvergenceHero({
                 </span>
               )}
             </p>
+            {server?.connected && (
+              <div className="mt-1.5">
+                <VenueBadge server={server} />
+              </div>
+            )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -238,6 +254,7 @@ export function ConvergenceHero({
         open={planOpen}
         onOpenChange={setPlanOpen}
         plan={plan}
+        server={server}
         onConfirm={onBringUpToDate ? launch : undefined}
         confirmDisabled={hasActive || upToDate}
       />
@@ -254,10 +271,41 @@ export function ConvergenceHero({
   );
 }
 
+/**
+ * VenueBadge discloses where `kapi up` canonically runs. A project connected to
+ * a Bowrain server runs its convergence on the server; the desktop currently
+ * drives the local engine, so the badge is honest about that split rather than
+ * implying a remote run happened.
+ */
+export function VenueBadge({ server }: { server: ProjectServer }) {
+  if (!server.connected) return null;
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="secondary" className="gap-1 font-normal" data-slot="venue-badge">
+            <Cloud size={11} />
+            {server.host
+              ? t("Connected to Bowrain · {host}", { host: server.host })
+              : t("Connected to Bowrain")}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs">
+          {t(
+            "This project is connected to Bowrain — kapi up runs on the server. Bringing it up to date here runs the same engine locally.",
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export interface ConvergePlanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   plan: ConvergePlan | null;
+  /** The run venue — shows a "Connected to Bowrain" note when server-backed. */
+  server?: ProjectServer | null;
   /** Confirm the pre-flight and launch the run. Hidden when absent. */
   onConfirm?: () => void;
   confirmDisabled?: boolean;
@@ -287,6 +335,7 @@ export function ConvergePlanDialog({
   open,
   onOpenChange,
   plan,
+  server,
   onConfirm,
   confirmDisabled,
 }: ConvergePlanDialogProps) {
@@ -303,6 +352,23 @@ export function ConvergePlanDialog({
             {t("A dry run of the pending work — nothing is written and no provider is called.")}
           </DialogDescription>
         </DialogHeader>
+
+        {server?.connected && (
+          <p
+            className="flex items-center gap-1.5 text-xs text-muted-foreground"
+            data-slot="plan-venue"
+          >
+            <Cloud size={12} className="shrink-0" />
+            {server.host
+              ? t(
+                  "Connected to Bowrain ({host}) — kapi up runs on the server; bringing up to date here runs the same engine locally.",
+                  { host: server.host },
+                )
+              : t(
+                  "Connected to Bowrain — kapi up runs on the server; bringing up to date here runs the same engine locally.",
+                )}
+          </p>
+        )}
 
         {plan?.storeMissing && (
           <p className="text-xs text-muted-foreground">

@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -33,6 +34,13 @@ type convergeOptions struct {
 	// materialize forces the post-loop materialize step (`up --materialize`)
 	// regardless of the recipe's defaults.materialize policy.
 	materialize bool
+	// jobs is how many locales one pass runs concurrently (`up --jobs`);
+	// <= 0 uses convergeJobsDefault. Locales are independent within a pass.
+	jobs int
+	// onEvent, when set, receives the run's convergence.Event stream — the
+	// one protocol every surface renders a run from (CLI live view, NDJSON,
+	// desktop run view, server SSE). Called from one goroutine at a time.
+	onEvent func(convergence.Event)
 	// onPass, when set, receives a structured snapshot after each pass — the
 	// hook an embedding UI (the desktop runner) renders its passes view from.
 	onPass func(ConvergePassEvent)
@@ -228,75 +236,143 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 	if maxPasses < 1 {
 		maxPasses = 1
 	}
+	jobs := opts.jobs
+	if jobs <= 0 {
+		jobs = convergeJobsDefault
+	}
+
+	// The desktop's passes view listens on onPass (ConvergePassEvent); it is
+	// synthesized from the event stream's pass_start/pass_done pairs so the
+	// engine speaks exactly one protocol.
+	onEvent := opts.onEvent
+	if opts.onPass != nil {
+		inner := onEvent
+		var lastStart convergence.Event
+		onEvent = func(ev convergence.Event) {
+			switch ev.Type {
+			case convergence.EventPassStart:
+				lastStart = ev
+			case convergence.EventPassDone:
+				opts.onPass(ConvergePassEvent{
+					Pass:            ev.Pass,
+					ExtractedFiles:  lastStart.ExtractedFiles,
+					ExtractedBlocks: lastStart.ExtractedBlocks,
+					Produced:        ev.Produced,
+					ProducedDelta:   ev.ProducedDelta,
+					FailingChecks:   ev.FailingChecks,
+					PendingLocales:  ev.Pending,
+				})
+			}
+			if inner != nil {
+				inner(ev)
+			}
+		}
+	}
+	emitter := convergence.NewEmitter(onEvent)
+
+	// The venue-neutral loop (core/convergence.Loop) owns the semantics —
+	// pass barrier, per-locale fan-out, stall-parks-the-rest; these closures
+	// are the CLI venue's IO: working-tree drift re-extract, file-derived
+	// coverage with bound checks, and the default flow on per-locale worker
+	// Apps.
+	derive := func(cov []LocaleCoverage, excl *checkExclusions) convergence.PassState {
+		return convergence.PassState{
+			Pending:       localeStrings(localesNeedingPass(cov, locales)),
+			Produced:      producedUnits(cov),
+			FailingChecks: excl.totalFailing(),
+			UnitTotals:    localeUnitTotals(cov),
+			Detail:        derivedState{cov: cov, excl: excl},
+		}
+	}
+	funcs := convergence.LoopFuncs{
+		Derive: func(ctx context.Context) (convergence.PassState, error) {
+			cov, excl, err := a.deriveCoverage(ctx, cmd, proj, root, !opts.noChecks)
+			if err != nil {
+				return convergence.PassState{}, err
+			}
+			return derive(cov, excl), nil
+		},
+		Produce: func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (int, int, int, error) {
+			tap := newConvergeTap(locale)
+			worker := a.convergeWorker(locale, tap)
+			stopWatch := watchTapProgress(tap, pass, emit.Emit)
+			rCtx := flow.ResourceContext{ProjectDir: projectDir, SourceLocale: worker.SourceLang, TargetLocale: locale}
+			err := worker.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, sources)
+			stopWatch()
+			if err != nil {
+				return 0, 0, 0, err
+			}
+			done, viaTM, viaAI := tap.snapshot()
+			return done, viaTM, viaAI, nil
+		},
+	}
+	if !opts.noExtract {
+		// Auto-extract on drift (#1078 C2): before each pass, bring the
+		// project block store back in sync with the working tree — a missing
+		// store, a version-stamp mismatch, or edited source files all trigger
+		// a re-extract through the same shared path the desktop's Re-extract
+		// uses. `up --no-extract` opts out.
+		funcs.Sync = func(ctx context.Context) (*convergence.SyncResult, error) {
+			stats, reason, serr := a.syncProjectBlockStore(ctx, pctx, projectPath, resolved)
+			if serr != nil {
+				return nil, fmt.Errorf("sync project block store: %w", serr)
+			}
+			if stats == nil {
+				return nil, nil
+			}
+			if opts.onEvent == nil && !a.Quiet {
+				// No event consumer: keep the plain run-log line (bare
+				// `kapi run`, embedders listening on LogWriter only).
+				fmt.Fprintf(cmd.OutOrStdout(), "Extracted %d block(s) from %d file(s) into the project store (%s).\n",
+					stats.Blocks, stats.Files, reason)
+			}
+			return &convergence.SyncResult{Files: stats.Files, Blocks: stats.Blocks, Reason: reason}, nil
+		}
+	}
 
 	// Share one parse cache across every pass: unchanged source files parse once,
 	// not once per pass; only the targets a pass rewrites re-parse.
 	return a.withParseCache(root, func() error {
-		passes := 0
-		for {
-			// A cancelled run (Ctrl-C, the desktop's Cancel) stops between
-			// passes; mid-pass cancellation propagates through the executor's
-			// errgroup context.
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			// Auto-extract on drift (#1078 C2): before each pass, bring the
-			// project block store back in sync with the working tree — a
-			// missing store, a version-stamp mismatch, or edited source files
-			// all trigger a re-extract through the same shared path the
-			// desktop's Re-extract uses. `up --no-extract` opts out.
-			var extracted *project.ExtractStats
-			if !opts.noExtract {
-				var serr error
-				extracted, serr = a.syncProjectBlockStore(ctx, cmd, pctx, projectPath, resolved)
-				if serr != nil {
-					return fmt.Errorf("sync project block store: %w", serr)
-				}
-			}
-
-			cov, excl, err := a.deriveCoverage(ctx, cmd, proj, root, !opts.noChecks)
-			if err != nil {
-				return err
-			}
-			pending := localesNeedingPass(cov, locales)
-			if len(pending) == 0 {
-				// Already converged before this pass (or after the previous one).
-				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov, locales, excl, opts)
-			}
-
-			before := producedUnits(cov)
-			passes++
-			for _, loc := range pending {
-				a.TargetLang = string(loc)
-				rCtx := flow.ResourceContext{ProjectDir: projectDir, SourceLocale: a.SourceLang, TargetLocale: string(loc)}
-				if err := a.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, sources); err != nil {
-					return fmt.Errorf("converge %s: %w", loc, err)
-				}
-			}
-
-			// Post-pass derivation re-runs the bound checks over what the pass
-			// produced (#1078 G4): a unit with critical/major findings reads at
-			// `draft`, so it cannot lift its locale over the gate.
-			cov2, excl2, err := a.deriveCoverage(ctx, cmd, proj, root, !opts.noChecks)
-			if err != nil {
-				return err
-			}
-			if opts.onPass != nil {
-				opts.onPass(newConvergePassEvent(passes, extracted, before, cov2, excl2, locales))
-			}
-			if !untilGate {
-				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts)
-			}
-			if len(localesNeedingPass(cov2, locales)) == 0 {
-				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts)
-			}
-			// Stop looping when capped or when a full pass produced nothing new —
-			// the remaining locales park (the flow can't advance them unaided).
-			if passes >= maxPasses || producedUnits(cov2) <= before {
-				return a.finishConverge(cmd, proj, projectPath, flowLabel, passes, cov2, locales, excl2, opts)
-			}
+		res, err := convergence.Loop(ctx, convergence.LoopOptions{
+			UntilGate: untilGate,
+			MaxPasses: maxPasses,
+			Jobs:      jobs,
+		}, funcs, emitter)
+		if err != nil {
+			return err
 		}
+		d := res.Final.Detail.(derivedState)
+		return a.finishConverge(cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales, d.excl, opts, emitter.Emit)
 	})
+}
+
+// derivedState is the CLI venue's rich derivation, threaded through the loop's
+// PassState.Detail to finishConverge.
+type derivedState struct {
+	cov  []LocaleCoverage
+	excl *checkExclusions
+}
+
+// localeStrings converts locale IDs for the event stream.
+func localeStrings(locales []model.LocaleID) []string {
+	if len(locales) == 0 {
+		return nil
+	}
+	out := make([]string, len(locales))
+	for i, loc := range locales {
+		out[i] = string(loc)
+	}
+	return out
+}
+
+// localeUnitTotals sums each locale's unit count across its coverage scopes —
+// the denominator its live progress renders against.
+func localeUnitTotals(cov []LocaleCoverage) map[string]int {
+	totals := make(map[string]int)
+	for _, c := range cov {
+		totals[c.Locale] += c.Total
+	}
+	return totals
 }
 
 // syncProjectBlockStore detects block-store drift against the working tree and
@@ -306,48 +382,31 @@ func (a *App) runDefaultFlowConverge(cmd *cobra.Command, proj *project.KapiProje
 // core path (project.ExtractToBlockStore) — the same implementation behind the
 // desktop's Re-extract — and is a full rebuild of the block set (blocks are a
 // pure cache; target overlays are preserved). No drift → no work beyond cheap
-// stat checks.
-func (a *App) syncProjectBlockStore(ctx context.Context, cmd *cobra.Command, pctx *project.ProjectContext, projectPath string, resolved []project.ResolvedFile) (*project.ExtractStats, error) {
+// stat checks. The returned reason describes the drift for run logs; reporting
+// is the caller's job (event stream or plain print).
+func (a *App) syncProjectBlockStore(ctx context.Context, pctx *project.ProjectContext, projectPath string, resolved []project.ResolvedFile) (*project.ExtractStats, string, error) {
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	storePath := layout.BlockStorePath()
 	drift := project.DetectStoreDrift(storePath, resolved)
 	if !drift.Any() {
-		return nil, nil
+		return nil, "", nil
 	}
 	if err := project.EnsureLayout(layout); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	store, err := sqlitestore.New(storePath)
 	if err != nil {
-		return nil, fmt.Errorf("open project block store: %w", err)
+		return nil, "", fmt.Errorf("open project block store: %w", err)
 	}
 	defer store.Close()
 	stats, err := project.ExtractToBlockStore(ctx, a.FormatReg, pctx, store, storePath, resolved)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	if !a.Quiet {
-		fmt.Fprintf(cmd.OutOrStdout(), "Extracted %d block(s) from %d file(s) into the project store (%s).\n",
-			stats.Blocks, stats.Files, describeDrift(drift))
-	}
-	return &stats, nil
-}
-
-// newConvergePassEvent snapshots one pass for convergeOptions.onPass.
-func newConvergePassEvent(pass int, extracted *project.ExtractStats, before int, cov []LocaleCoverage, excl *checkExclusions, locales []model.LocaleID) ConvergePassEvent {
-	ev := ConvergePassEvent{Pass: pass, Produced: producedUnits(cov), FailingChecks: excl.totalFailing()}
-	ev.ProducedDelta = ev.Produced - before
-	if extracted != nil {
-		ev.ExtractedFiles = extracted.Files
-		ev.ExtractedBlocks = extracted.Blocks
-	}
-	for _, loc := range localesNeedingPass(cov, locales) {
-		ev.PendingLocales = append(ev.PendingLocales, string(loc))
-	}
-	return ev
+	return &stats, describeDrift(drift), nil
 }
 
 // describeDrift renders a short reason for an auto-extract, for the run log.
@@ -438,7 +497,7 @@ func producedUnits(cov []LocaleCoverage) int {
 // are ALL shippable has its localized files written from the project block
 // store via the shared merge/materialize path; parked locales are skipped —
 // their content isn't at the bar yet.
-func (a *App) finishConverge(cmd *cobra.Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *checkExclusions, opts convergeOptions) error {
+func (a *App) finishConverge(cmd *cobra.Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *checkExclusions, opts convergeOptions, emit func(convergence.Event)) error {
 	out := buildConvergeOutput(flowName, passes, cov, locales, excl)
 
 	if opts.materialize || proj.Defaults.ResolvedMaterialize() == project.MaterializeOnConverge {
@@ -460,7 +519,16 @@ func (a *App) finishConverge(cmd *cobra.Command, proj *project.KapiProject, proj
 			lc.Materialized = n
 			out.MaterializedFiles += n
 		}
+		if out.MaterializedFiles > 0 {
+			emit(convergence.Event{Type: convergence.EventMaterialized, Files: out.MaterializedFiles})
+		}
 	}
+
+	state := convergence.RunConverged
+	if !out.Converged {
+		state = convergence.RunParked
+	}
+	emit(convergence.Event{Type: convergence.EventDone, State: state})
 
 	if opts.capture != nil {
 		*opts.capture = out

@@ -187,6 +187,17 @@ export { WorkspaceLanguageSettings } from "./components/WorkspaceLanguageSetting
 export { AutomationsPage } from "./components/AutomationsPage";
 export { AutomationRuleEditor } from "./components/AutomationRuleEditor";
 export { AutomationRunsPage } from "./components/AutomationRunsPage";
+export { ConvergenceRunView } from "./components/ConvergenceRunView";
+export type { ConvergenceRunViewProps } from "./components/ConvergenceRunView";
+export { ConvergenceRunsList } from "./components/ConvergenceRunsList";
+export type { ConvergenceRunsListProps } from "./components/ConvergenceRunsList";
+export { reduceRun, applyEvent, emptyRunModel } from "./convergence/runReducer";
+export type {
+  ConvergenceRunModel,
+  ConvergencePassView,
+  ConvergenceLocaleRow,
+  LocaleRowState,
+} from "./convergence/runReducer";
 export { AutomationHistory } from "./components/AutomationHistory";
 export { NotificationCenter } from "./components/NotificationCenter";
 export { ActivityIndicator, TaskIndicator } from "./components/ActivityTaskIndicators";
@@ -434,6 +445,11 @@ export type {
   ItemTranslationStats,
   CollectionTranslationStats,
   ActivityInfo,
+  ConvergenceRun,
+  ConvergenceRunState,
+  ConvergenceLocaleStanding,
+  ConvergenceEvent,
+  ConvergenceEventType,
   TaskInfo,
   TaskType,
   TaskStatus,

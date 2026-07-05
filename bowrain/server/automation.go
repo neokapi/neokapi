@@ -10,6 +10,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -23,16 +24,12 @@ func (s *Server) registerDefaultAutomations() {
 		return
 	}
 
-	// Rule 1: Auto-translate on push.
-	s.AutomationEngine.AddRule(event.AutomationRule{
-		Name:      "auto-translate-on-push",
-		EventType: platev.EventPushCompleted,
-		Actions: []event.AutomationAction{
-			{Type: "auto_translate"},
-		},
-	})
-
-	// Rule 2: Auto-extract entities and terms on push.
+	// Auto-extract entities and terms on push. This stays an automation: entity
+	// and term extraction is not convergence. Translation-on-push moved to the
+	// server convergence engine (an on-push project starts a convergence run;
+	// see subscribeConvergeOnPush), so the former auto-translate-on-push,
+	// auto-translate-new-locale, and create-review-tasks-on-automation-complete
+	// rules are retired — the run's produce/park steps replace them.
 	s.AutomationEngine.AddRule(event.AutomationRule{
 		Name:      "auto-extract-on-push",
 		EventType: platev.EventPushCompleted,
@@ -41,30 +38,8 @@ func (s *Server) registerDefaultAutomations() {
 		},
 	})
 
-	// Rule 3: Auto-translate when new locales are added.
-	s.AutomationEngine.AddRule(event.AutomationRule{
-		Name:      "auto-translate-new-locale",
-		EventType: platev.EventProjectUpdated,
-		Conditions: []event.AutomationCondition{
-			{Field: "new_locales", Operator: "exists"},
-		},
-		Actions: []event.AutomationAction{
-			{Type: "auto_translate_new_locale"},
-		},
-	})
-
-	// Rule 4: Create review tasks when automations complete (Bowrain AD-014).
-	// This rule is registered but only fires for projects that have it enabled
-	// via stored rules. The built-in version serves as a template.
-	s.AutomationEngine.AddRule(event.AutomationRule{
-		Name:      "create-review-tasks-on-automation-complete",
-		EventType: platev.EventPushAutomationsCompleted,
-		Actions: []event.AutomationAction{
-			{Type: "create_review_tasks", Config: map[string]string{"mode": "review"}},
-		},
-	})
-
-	// Rule 5: Fan out review tasks after source review (Bowrain AD-014).
+	// Fan out review tasks after source review (Bowrain AD-014). Source review
+	// is an independent workflow (not push convergence), so it survives.
 	s.AutomationEngine.AddRule(event.AutomationRule{
 		Name:      "fan-out-after-source-review",
 		EventType: platev.EventSourceReviewCompleted,
@@ -337,41 +312,7 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 		wsSlug = "_anon"
 	}
 
-	// Determine model from project properties or default.
-	model := "gpt-4o-mini"
-	if proj.Properties != nil && proj.Properties["ai_model"] != "" {
-		model = proj.Properties["ai_model"]
-	}
-
-	var jobIDs []string
-	for _, itemName := range itemNames {
-		for _, locale := range locales {
-			job := &jobs.TranslationJob{
-				ID:               id.New(),
-				WorkspaceSlug:    wsSlug,
-				ProjectID:        projectID,
-				ItemName:         itemName,
-				TargetLocale:     locale,
-				ProviderConfigID: "platform",
-				Model:            model,
-				PushID:           pushID,
-				StepID:           stepID,
-				Status:           jobs.StatusQueued,
-			}
-
-			if err := s.JobStore.CreateJob(ctx, job); err != nil {
-				slog.Info("auto-translate: failed to create job for", "name", itemName, "locale", locale, "error", err)
-				continue
-			}
-
-			if err := s.JobQueue.Enqueue(ctx, job.ID); err != nil {
-				slog.Info("auto-translate: failed to enqueue job", "id", job.ID, "error", err)
-				_ = s.JobStore.DeleteJob(ctx, job.ID)
-			} else {
-				jobIDs = append(jobIDs, job.ID)
-			}
-		}
-	}
+	jobIDs := s.createTranslationJobs(ctx, proj, itemNames, locales, pushID, wsSlug, stepID)
 
 	// Register spawned jobs on the automation step for visibility tracking.
 	if stepID != "" && s.AutomationRunStore != nil && len(jobIDs) > 0 {
@@ -380,6 +321,52 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 			s.stepCompletionTracker.TrackStep(stepID, "", false)
 		}
 	}
+}
+
+// createTranslationJobs creates and enqueues one platform translation job per
+// (item, locale), returning the enqueued job IDs. It is the shared production
+// primitive behind both the auto-extract/translate automation path and the
+// convergence orchestrator's Produce step; the model resolution and provider
+// binding ("platform" + BOWRAIN_PLATFORM_PROVIDER) are identical for both.
+func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project, itemNames, locales []string, pushID, wsSlug, stepID string) []string {
+	if s.JobStore == nil || s.JobQueue == nil {
+		return nil
+	}
+	model := "gpt-4o-mini"
+	if proj.Properties != nil && proj.Properties["ai_model"] != "" {
+		model = proj.Properties["ai_model"]
+	}
+	if wsSlug == "" {
+		wsSlug = "_anon"
+	}
+	var jobIDs []string
+	for _, itemName := range itemNames {
+		for _, locale := range locales {
+			job := &jobs.TranslationJob{
+				ID:               id.New(),
+				WorkspaceSlug:    wsSlug,
+				ProjectID:        proj.ID,
+				ItemName:         itemName,
+				TargetLocale:     locale,
+				ProviderConfigID: "platform",
+				Model:            model,
+				PushID:           pushID,
+				StepID:           stepID,
+				Status:           jobs.StatusQueued,
+			}
+			if err := s.JobStore.CreateJob(ctx, job); err != nil {
+				slog.Info("translation jobs: failed to create job", "name", itemName, "locale", locale, "error", err)
+				continue
+			}
+			if err := s.JobQueue.Enqueue(ctx, job.ID); err != nil {
+				slog.Info("translation jobs: failed to enqueue job", "id", job.ID, "error", err)
+				_ = s.JobStore.DeleteJob(ctx, job.ID)
+				continue
+			}
+			jobIDs = append(jobIDs, job.ID)
+		}
+	}
+	return jobIDs
 }
 
 // executeNotifyAction sends a notification to specified users.
@@ -541,6 +528,17 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 
 	pushID := ev.Data["push_id"]
 	items := ev.Data["items"]
+	runID := ev.Data["run_id"] // set when a convergence run fans out review tasks
+
+	// taskData builds the per-locale linkage carried on each task, preserving
+	// run_id when present so a convergence-run task points back at its run.
+	taskData := func(localeStr string) map[string]string {
+		d := map[string]string{"push_id": pushID, "locale": localeStr, "items": items, "mode": mode}
+		if runID != "" {
+			d["run_id"] = runID
+		}
+		return d
+	}
 
 	// Load existing open tasks for deduplication.
 	existingLocales := s.existingOpenTaskLocales(ctx, proj.WorkspaceID, proj.ID, string(taskType))
@@ -567,12 +565,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 				Title:       fmt.Sprintf("Review %s translations", localeStr),
 				AssigneeID:  m.UserID,
 				CreatedBy:   "system",
-				Data: map[string]string{
-					"push_id": pushID,
-					"locale":  localeStr,
-					"items":   items,
-					"mode":    mode,
-				},
+				Data:        taskData(localeStr),
 			}
 			if err := s.TaskStore.Create(ctx, task); err != nil {
 				slog.Info("create-review-tasks: failed to create task for", "name", localeStr, "locale", m.UserID, "error", err)
@@ -599,12 +592,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 				Priority:    priority,
 				Title:       fmt.Sprintf("Review %s translations (unassigned)", localeStr),
 				CreatedBy:   "system",
-				Data: map[string]string{
-					"push_id": pushID,
-					"locale":  localeStr,
-					"items":   items,
-					"mode":    mode,
-				},
+				Data:        taskData(localeStr),
 			}
 			if err := s.TaskStore.Create(ctx, task); err == nil {
 				taskIDs = append(taskIDs, task.ID)

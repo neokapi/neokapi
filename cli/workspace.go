@@ -126,7 +126,12 @@ func (a *App) openProjectBlockStore() blockstore.Store {
 	if err := project.EnsureLayout(layout); err != nil {
 		return nil
 	}
-	store, err := sqlitestore.New(layout.BlockStorePath())
+	// Autocommit sessions: flow runs open one session per file-run, and a
+	// convergence pass runs locales concurrently — run-long transactions on
+	// one SQLite file would deadlock (see sqlitestore.NewAutocommit).
+	// Overlays are idempotent per key, so per-write durability is the
+	// intended semantics here.
+	store, err := sqlitestore.NewAutocommit(layout.BlockStorePath())
 	if err != nil {
 		return nil
 	}
