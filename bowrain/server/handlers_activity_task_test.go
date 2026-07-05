@@ -16,7 +16,7 @@ func setupTestServerWithStores(t *testing.T) *Server {
 	t.Helper()
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	// Wire up activity and task stores using the same PostgreSQL DB as ContentStore.

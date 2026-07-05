@@ -24,7 +24,7 @@ import (
 func setupBrandLoopServer(t *testing.T) *Server {
 	t.Helper()
 	cfg := DefaultConfig()
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv) // ContentStore + shared test DB (skips if no container)
 	db := pgtest.NewTestDB(t)
 	bs, err := brandpg.NewPostgresBrandStore(db)

@@ -21,7 +21,7 @@ func newProjectMembersTestServer(t *testing.T) (*Server, string, string, string,
 	t.Helper()
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-pm-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	ctx := t.Context()

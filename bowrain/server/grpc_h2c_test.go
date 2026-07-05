@@ -33,7 +33,7 @@ func freeAddr(t *testing.T) string {
 // same port via the standard library's protocol negotiation. This is the
 // integration coverage the previous golang.org/x/net/http2/h2c handler lacked.
 func TestStartMultiplexesGRPCAndHTTP(t *testing.T) {
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	initTestStores(t, srv)
 
 	grpcSrv := grpc.NewServer()

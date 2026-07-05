@@ -19,7 +19,7 @@ func newTokenTestServer(t *testing.T) (*Server, string, string) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-token-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	require.NotNil(t, srv.Services)

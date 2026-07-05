@@ -20,7 +20,7 @@ import (
 // covered by TestFirstWorkspaceSourceLocale).
 func linkTestServer(t *testing.T) *Server {
 	t.Helper()
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	srv.wsStores.tbFactory = func() termbase.TBStore {
 		return &testTermStore{termbase.NewInMemoryTermBase()}
 	}
@@ -229,3 +229,7 @@ type fakeProjectContentStore struct {
 func (f *fakeProjectContentStore) ListProjects(context.Context) ([]*platstore.Project, error) {
 	return f.projects, nil
 }
+
+// Close overrides the nil embedded interface so Server.Shutdown (registered
+// by shutdownOnCleanup) does not panic when this fake is installed.
+func (f *fakeProjectContentStore) Close() error { return nil }

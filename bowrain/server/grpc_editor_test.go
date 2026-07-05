@@ -19,7 +19,7 @@ func setupEditorGRPC(t *testing.T) pb.EditorServiceClient {
 
 	cfg := DefaultConfig()
 
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	lis := bufconn.Listen(bufSize)
@@ -53,7 +53,7 @@ func setupBothClients(t *testing.T) (pb.EditorServiceClient, pb.NeokapiServiceCl
 
 	cfg := DefaultConfig()
 
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	lis := bufconn.Listen(bufSize)

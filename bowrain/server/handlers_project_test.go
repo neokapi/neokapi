@@ -19,7 +19,7 @@ func newTestServer(t *testing.T) (*Server, string) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	s := NewServer(cfg)
+	s := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, s)
 
 	require.NotNil(t, s.Services, "services should be initialized")

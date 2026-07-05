@@ -20,7 +20,7 @@ func setupAgentTestServer(t *testing.T) *Server {
 	t.Helper()
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	pgdb := pgtest.NewTestDB(t)
@@ -347,7 +347,7 @@ func TestHandleSendBravoMessage_SSEStream(t *testing.T) {
 
 func TestHandleAgentNotConfigured(t *testing.T) {
 	cfg := DefaultConfig()
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	e := srv.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

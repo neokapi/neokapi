@@ -19,7 +19,7 @@ func newRolesTestServer(t *testing.T) (*Server, string, string) {
 	t.Helper()
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-roles-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	ctx := t.Context()

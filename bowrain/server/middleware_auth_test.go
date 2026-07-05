@@ -466,6 +466,7 @@ func TestScopeRestrictionMiddleware(t *testing.T) {
 
 func TestSessionGrantMiddleware(t *testing.T) {
 	store := NewMemorySessionStore()
+	defer store.Close()
 
 	t.Run("no session ID skips", func(t *testing.T) {
 		mw := SessionGrantMiddleware(store)

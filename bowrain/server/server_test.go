@@ -12,7 +12,7 @@ import (
 )
 
 func TestHealthEndpoint(t *testing.T) {
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	e := srv.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
@@ -29,7 +29,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestInfoEndpoint(t *testing.T) {
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	e := srv.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
@@ -53,7 +53,7 @@ func TestInfoEndpoint(t *testing.T) {
 func TestInfoEndpointServerMode(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	e := srv.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
@@ -69,7 +69,7 @@ func TestInfoEndpointServerMode(t *testing.T) {
 }
 
 func TestInfoEndpointContainsFormatsAndLocales(t *testing.T) {
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	e := srv.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
@@ -160,7 +160,7 @@ func TestRequestBaseURL(t *testing.T) {
 }
 
 func TestNewServerCreatesRegistries(t *testing.T) {
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	assert.NotNil(t, srv.FormatRegistry)
 	assert.NotNil(t, srv.ToolRegistry)
 	// Verify formats were registered.
