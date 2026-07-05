@@ -141,6 +141,17 @@ function progressFrac(st: PluginState): number {
   return 0;
 }
 
+// engineFrac reuses the same download-progress plumbing the plugin rows render
+// (EngineState.progress), so the navbar shows a real bar while the ~13 MB wasm
+// engine downloads instead of an indeterminate "Booting engine…" label.
+function engineFrac(engine: EngineState): number {
+  const p = engine.progress;
+  if (!p) return 0;
+  if (typeof p.frac === "number") return p.frac;
+  if (p.total) return (p.loaded ?? 0) / p.total;
+  return 0;
+}
+
 // ModelRow renders one on-device LLM model as a child of the "Local LLM" provider
 // group — same controls/markup as a plugin row, plus an engine tag and a default
 // marker. Wired to ensureModel (download via WebLLM/transformers).
@@ -346,7 +357,28 @@ export default function StatusWidget(): React.ReactElement {
 
           <div className={styles.engineLine}>
             {engine.phase === "ready" && <span>Engine ready</span>}
-            {engine.phase === "booting" && <span>Booting engine…</span>}
+            {engine.phase === "booting" &&
+              (engine.progress ? (
+                <div className={styles.progressWrap} aria-label="downloading engine">
+                  <span>Downloading engine…</span>
+                  <div className={styles.progressBar}>
+                    <div
+                      className={styles.progressFill}
+                      style={{ width: `${Math.round(engineFrac(engine) * 100)}%` }}
+                    />
+                    <span className={styles.progressPct}>
+                      {Math.round(engineFrac(engine) * 100)}%
+                    </span>
+                  </div>
+                  {engine.progress.total ? (
+                    <div className={styles.progressBytes}>
+                      {formatSize(engine.progress.loaded)} of {formatSize(engine.progress.total)}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <span>Starting engine…</span>
+              ))}
             {engine.phase === "error" && (
               <span className={styles.engineErr}>Engine error: {engine.error}</span>
             )}

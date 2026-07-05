@@ -3,8 +3,8 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import KapiTerminal from "./KapiTerminal";
 import type { KapiTerminalHandle } from "./KapiTerminal";
 import FilesPanel from "./FilesPanel";
-import { isBooted } from "./runtime";
-import type { KapiRuntime } from "./runtime";
+import { isBooted, onBootProgress } from "./runtime";
+import type { BootProgress, KapiRuntime } from "./runtime";
 // Boot is routed through the shared plugin manager so the navbar status widget
 // reflects the embed's engine boot (one engine, many surfaces).
 import { configurePlugins, bootEngine } from "./plugins";
@@ -85,6 +85,11 @@ function ensureSeed(runtime: KapiRuntime, names: string[] | undefined): void {
       runtime.vol.writeFile(path, enc.encode(fx.content));
     }
   }
+}
+
+/** Format a byte count as a compact MB string for the boot progress readout. */
+function fmtMB(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 // Max files / bytes we will pack into a shareable ?s= token. A demo session is
@@ -208,6 +213,9 @@ export default function KapiEmbed({
   // Was the runtime already warm when this embed mounted? If so, skip the
   // "Loading (~13 MB)" copy — there is no fetch on a re-open.
   const wasWarm = useRef(isBooted());
+  // Live engine-boot download progress (bytes), so we render a real bar instead
+  // of an indeterminate spinner while the ~13 MB wasm downloads.
+  const [bootProgress, setBootProgress] = useState<BootProgress | null>(null);
 
   // Drive a run request against a ready terminal: seed fixtures, then type/run
   // the command(s). For autoRun, submit them with a small stagger so each
@@ -275,6 +283,11 @@ export default function KapiEmbed({
   useEffect(() => {
     if (!started) return;
     let cancelled = false;
+    // Mirror the shared engine-boot download progress into local state so the
+    // loading view can render a determinate bar (bytes received / total).
+    const unsubscribe = onBootProgress((p) => {
+      if (!cancelled) setBootProgress(p);
+    });
     configurePlugins({ wasmExecUrl, wasmUrl });
     bootEngine()
       .then((rt) => {
@@ -290,6 +303,7 @@ export default function KapiEmbed({
       });
     return () => {
       cancelled = true;
+      unsubscribe();
     };
     // Boot once started; the initial seed is applied above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -344,13 +358,42 @@ export default function KapiEmbed({
   }
 
   if (!runtime) {
+    // Boot has three visible phases: downloading the wasm (determinate bar with
+    // bytes), compiling/starting it (download complete but engine not yet up —
+    // indeterminate), and a warm re-open (no fetch at all). A warm re-open pays
+    // no download, so keep the light spinner for it.
+    const bp = bootProgress;
+    const downloading =
+      !wasWarm.current && bp && !bp.done && bp.total !== null && bp.loaded < bp.total;
+    const frac = downloading ? Math.min(1, bp!.loaded / bp!.total!) : null;
     return (
       <div className="kapi-pg-loading" role="status" aria-live="polite">
-        <span className="kapi-pg-spinner" aria-hidden="true" />
-        <span className="kapi-pg-loading-title">Getting things ready…</span>
-        <span className="kapi-pg-loading-sub">
-          {wasWarm.current ? "Just a moment…" : "Starting kapi for the first time — just a moment."}
-        </span>
+        {frac !== null ? (
+          <>
+            <div className="kapi-pg-progress" aria-hidden="true">
+              <div
+                className="kapi-pg-progress-fill"
+                style={{ width: `${Math.round(frac * 100)}%` }}
+              />
+            </div>
+            <span className="kapi-pg-loading-title">Downloading the kapi engine…</span>
+            <span className="kapi-pg-loading-sub">
+              {fmtMB(bp!.loaded)} of {fmtMB(bp!.total!)} · {Math.round(frac * 100)}%
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="kapi-pg-spinner" aria-hidden="true" />
+            <span className="kapi-pg-loading-title">
+              {wasWarm.current ? "Getting things ready…" : "Starting the kapi engine…"}
+            </span>
+            <span className="kapi-pg-loading-sub">
+              {wasWarm.current
+                ? "Just a moment…"
+                : "Compiling kapi for the first time — just a moment."}
+            </span>
+          </>
+        )}
       </div>
     );
   }
