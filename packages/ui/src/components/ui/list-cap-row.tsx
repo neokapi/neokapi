@@ -17,8 +17,8 @@ export interface ListCapRowProps {
  * filters". Render it whenever a list truncates instead of cutting silently.
  * Returns null when nothing was cut.
  *
- * Mirrors the shared ListCapRow contract established in the bowrain kit
- * (@neokapi/ui) so both product surfaces cap listings the same, honest way.
+ * Canonical implementation shared by both product surfaces; the bowrain kit
+ * (@neokapi/ui) re-exports it so listings cap the same, honest way everywhere.
  */
 export function ListCapRow({
   shown,
