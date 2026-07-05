@@ -92,8 +92,8 @@ When the server converges is an explicit per-project policy, `server.converge`
   parking) and recorded as a run anyone can watch. `kapi push` from CI just
   pushes; the server converges on its own clock; `kapi up` is push + *watch the
   run* + pull. The analogy is `git push` → CI → `gh pr checks --watch`.
-- `manual` — the server converges only when `kapi up` is invoked.
-- `schedule` — the server converges on a cadence.
+- `manual` — the server converges only when `kapi up` is invoked (or a run is
+  started from the Runs surface).
 
 The reactive translation automations collapse into the engine. Drift detection in
 the loop subsumes `auto-translate-on-push`, `auto-extract-on-push`, and
@@ -120,10 +120,11 @@ User-defined automations that start a run, or react to run outcomes (a
 ### 5. Licensing boundary
 
 The open-source `kapi` binary carries zero server code. The server venue arrives
-only through the installed `kapi-bowrain` plugin: built-in `up` detects a
-`server:` block and, guided by a `converge_venue` manifest flag, hands the run to
-the plugin, which starts (or attaches to) the server run, subscribes to its SSE
-stream, and re-emits the convergence event protocol onto the shared renderer. No
+only through the installed `kapi-bowrain` plugin, which declares the `up` verb in
+its manifest — so kapi dispatches `kapi up` to the plugin (a manifest command
+overrides the built-in of the same name). The plugin's `up` detects the `server:`
+block, starts (or attaches to) the server run, subscribes to its SSE stream, and
+re-emits the convergence event protocol onto the shared renderer. No
 new plugin transport is needed beyond the established subprocess dispatch
 ([AD-010](010-bowrain-cli-and-project-model.md)).
 

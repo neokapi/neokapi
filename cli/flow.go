@@ -101,6 +101,13 @@ func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, 
 	return errors.New("--input (-i) is required")
 }
 
+// AddFlowRunFlags registers the common flow-execution flags (provider/model/
+// tm/termbase/source-lang/target-lang/parallel-blocks/trace/…) on cmd. The
+// built-in `kapi up` gets these via NewUpCmd; the kapi-bowrain plugin, which
+// owns the `up` verb when installed, calls this so its up presents the exact
+// same flag surface and ExecuteUp stays byte-identical.
+func (a *App) AddFlowRunFlags(cmd *cobra.Command) { a.addFlowRunFlags(cmd) }
+
 // addFlowRunFlags registers the common flags for flow execution commands.
 func (a *App) addFlowRunFlags(cmd *cobra.Command) {
 	a.AddProcessingFlags(cmd)

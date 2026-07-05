@@ -35,6 +35,7 @@ type ConvergenceRun struct {
 	Passes        int                         `json:"passes"`
 	Locales       []ConvergenceLocaleStanding `json:"locales,omitempty"`
 	FailingChecks int                         `json:"failing_checks,omitempty"`
+	Error         string                      `json:"error,omitempty"` // set when State is failed/canceled
 	CreatedAt     time.Time                   `json:"created_at,omitzero"`
 	FinishedAt    *time.Time                  `json:"finished_at,omitempty"`
 }
@@ -163,27 +164,82 @@ func (c *BowrainClient) CancelConvergenceRun(ctx context.Context, runID string) 
 }
 
 // StreamConvergenceRunEvents subscribes to a run's SSE event stream and calls
-// onEvent for each convergence.Event, replaying the run's persisted events from
-// the start then following live until the terminal EventDone (or ctx is done).
-// The connection is long-lived, so it uses a dedicated no-timeout HTTP client
-// keyed off ctx for cancellation rather than the client's per-request timeout.
+// onEvent for each convergence.Event until the terminal EventDone. A run is
+// long-lived, so the underlying connection can drop mid-run (proxy idle
+// timeout, LB reset, brief network blip) with a CLEAN EOF and no terminal
+// frame — treating that as success would make `kapi up` pull partial results
+// and report a still-running run as finished. So this reconnects on a
+// premature close, resuming from the last seen SSE id (Last-Event-ID) so the
+// server replays only events after it and no event is delivered twice; it
+// returns only on the terminal frame, a hard error, an HTTP error, or ctx
+// cancellation.
 func (c *BowrainClient) StreamConvergenceRunEvents(ctx context.Context, runID string, onEvent func(convergence.Event)) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.convergencePrefix()+"/"+runID+"/events", nil)
+	var lastID string
+	backoff := 500 * time.Millisecond
+	const maxBackoff = 5 * time.Second
+	for {
+		done, id, err := c.streamOnce(ctx, runID, lastID, onEvent)
+		if done {
+			return nil // saw the terminal EventDone
+		}
+		if id != "" {
+			lastID = id
+		}
+		if err != nil {
+			// ctx cancellation / deadline is the caller's signal, not a retry.
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			// A hard error (HTTP status, request build) is terminal; a mere
+			// connection drop returns err==nil with done==false and is retried.
+			return err
+		}
+		// Clean EOF before the terminal frame: the run is still going. Wait,
+		// then resume from lastID.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(backoff):
+		}
+		if backoff < maxBackoff {
+			backoff *= 2
+		}
+	}
+}
+
+// streamOnce reads one SSE connection to exhaustion. It returns done=true when
+// the terminal EventDone arrived, the last SSE id it saw (for resume), and a
+// non-nil err only for a hard/terminal failure — a clean EOF with no terminal
+// frame returns (false, lastID, nil) so the caller reconnects and resumes.
+func (c *BowrainClient) streamOnce(ctx context.Context, runID, lastID string, onEvent func(convergence.Event)) (bool, string, error) {
+	url := c.convergencePrefix() + "/" + runID + "/events"
+	if lastID != "" {
+		url += "?after=" + lastID
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return fmt.Errorf("create request: %w", err)
+		return false, lastID, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Accept", "text/event-stream")
+	if lastID != "" {
+		req.Header.Set("Last-Event-ID", lastID)
+	}
 	c.applyAuth(req)
 
 	streamClient := &http.Client{} // no timeout: SSE is long-lived, ctx cancels it
 	resp, err := streamClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("subscribe convergence run events: %w", err)
+		// A transport error mid-run is a droppable connection, not a hard
+		// failure — reconnect and resume (unless ctx was cancelled).
+		if ctx.Err() != nil {
+			return false, lastID, ctx.Err()
+		}
+		return false, lastID, nil
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("subscribe convergence run events (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return false, lastID, fmt.Errorf("subscribe convergence run events (HTTP %d): %s", resp.StatusCode, string(respBody))
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
@@ -192,9 +248,13 @@ func (c *BowrainClient) StreamConvergenceRunEvents(ctx context.Context, runID st
 	scanner.Buffer(make([]byte, 0, 64*1024), 1<<20)
 	for scanner.Scan() {
 		line := scanner.Text()
+		if id, ok := strings.CutPrefix(line, "id:"); ok {
+			lastID = strings.TrimSpace(id)
+			continue
+		}
 		data, ok := strings.CutPrefix(line, "data:")
 		if !ok {
-			continue // SSE comments, event:/id: lines, and blank separators
+			continue // SSE comments, event: lines, and blank separators
 		}
 		data = strings.TrimSpace(data)
 		if data == "" {
@@ -208,13 +268,16 @@ func (c *BowrainClient) StreamConvergenceRunEvents(ctx context.Context, runID st
 			onEvent(ev)
 		}
 		if ev.Type == convergence.EventDone {
-			return nil
+			return true, lastID, nil
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("read convergence event stream: %w", err)
+		if ctx.Err() != nil {
+			return false, lastID, ctx.Err()
+		}
+		return false, lastID, nil // read error mid-stream → reconnect and resume
 	}
-	return nil
+	return false, lastID, nil // clean EOF before terminal → reconnect and resume
 }
 
 // SetConvergePolicy updates the project's server-side convergence policy

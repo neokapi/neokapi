@@ -263,13 +263,13 @@ verb over two venues feel like one thing.
 # my-app.kapi — a connected project runs up on the server
 server:
   url: https://bowrain.acme.dev/acme/my-app
-  converge: on-push        # on-push (default) | manual | schedule
+  converge: on-push        # on-push (default) | manual
 ```
 
 `kapi up --local` overrides the venue for one run — it converges on your machine
-and then pushes the results, so the server is never left stale. Set
-`defaults.venue: local` for a team that connects only for review and assignment
-but produces locally.
+and then pushes the results, so the server is never left stale. A team that
+connects only for review and assignment but produces locally sets the recipe's
+policy to `converge: manual` and always runs `kapi up --local`.
 
 Because transport is pure, **`kapi push` no longer translates behind your back**.
 Server-side continuous convergence is the explicit `server.converge` policy above

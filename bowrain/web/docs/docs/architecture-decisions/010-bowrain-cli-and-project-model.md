@@ -144,9 +144,9 @@ With the plugin installed, `kapi` exposes:
 These commands separate three concerns. **Transport** is `push` and `pull`:
 pure data movement that makes the local checkout and the server replica
 consistent (Merkle diff, conflicts, terminology hand-off), never producing
-translations. **Convergence** is `up` (the built-in verb, contributed with a
-`converge_venue` manifest flag): in a server-connected project `kapi up` runs
-the convergence loop *on the server* by default — it pushes drift, the server
+translations. **Convergence** is `up` (the plugin declares the verb in its
+manifest, overriding the built-in when installed): in a server-connected project
+`kapi up` runs the convergence loop *on the server* by default — it pushes drift, the server
 converges on the org's keys and shared assets, progress streams back live, and
 results pull down; `kapi up --local` runs the loop on this machine and pushes
 the results. **Venue** — where `up`'s compute executes — is therefore a property
@@ -250,7 +250,7 @@ flows:
 server:
   url: https://bowrain.example.com/my-team/abc123
   stream: $auto             # auto-detect from git branch / CI
-  converge: on-push         # on-push (default) | manual | schedule
+  converge: on-push         # on-push (default) | manual
 
 # Top-level lifecycle policy:
 hooks:
@@ -294,8 +294,8 @@ Only the connection coordinates sit under `server:`:
   the active stream per command.
 - **`converge`** — the server-side convergence policy: when the server runs
   `up` on the project's behalf. `on-push` (the default for connected projects)
-  converges after every push; `manual` converges only when `kapi up` is invoked;
-  `schedule` converges on a cadence. This makes server-side translation an
+  converges after every push; `manual` converges only when `kapi up` is invoked.
+  This makes server-side translation an
   explicit, visible policy rather than a hidden side effect of `push` — the way
   a repository configures push to trigger CI. See
   [AD-022: Convergence as a Service](022-convergence-as-a-service).

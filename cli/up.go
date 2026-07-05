@@ -9,6 +9,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/core/convergence"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/spf13/cobra"
 )
 
@@ -107,6 +108,16 @@ gates (e.g. before a release tag).
 			if projectPath == "" {
 				return errors.New("kapi up needs a project — pass -p <recipe> or run from inside a kapi project directory")
 			}
+			// This RunE only runs when no plugin owns `up` (kapi/cmd/kapi
+			// skips the built-in when a plugin declares the verb). So if the
+			// recipe declares a server: block, the bowrain plugin that would
+			// run it on the server is absent: warn that this converges LOCALLY
+			// on the user's own AI keys and does NOT push, rather than silently
+			// diverging from the connected behavior. --plan is a read-only dry
+			// run, so it needs no warning.
+			if !boolFlag(cmd, "plan") {
+				a.warnIfServerRecipeConvergingLocally(cmd, projectPath)
+			}
 			return a.ExecuteUp(cmd, projectPath)
 		},
 	}
@@ -128,6 +139,28 @@ func AddUpFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("materialize", false, "after the loop, write localized files from the project store for every shippable locale (forces defaults.materialize: on-converge)")
 	cmd.Flags().Bool("plan", false, "dry run: report pending work, TM leverage, and a token estimate per (collection, locale) — no provider calls, no writes")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
+}
+
+// warnIfServerRecipeConvergingLocally prints a one-line stderr warning when a
+// recipe declares a server: block but the built-in up (no bowrain plugin) is
+// about to converge it locally: the run spends the user's own AI provider and
+// never pushes, so the server copy would silently go stale. Best-effort: any
+// load error just skips the warning (ExecuteUp reports real load failures).
+func (a *App) warnIfServerRecipeConvergingLocally(cmd *cobra.Command, projectPath string) {
+	if a.Quiet {
+		return
+	}
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return
+	}
+	if _, hasServer := proj.Extras["server"]; !hasServer {
+		return
+	}
+	fmt.Fprintln(cmd.ErrOrStderr(),
+		"warning: this project declares a server: block, but the bowrain plugin is not installed — "+
+			"converging locally on your own AI provider; results are NOT pushed to the server. "+
+			"Install kapi-bowrain to run `kapi up` on the server (org keys, shared TM, team review).")
 }
 
 // ExecuteUp is the local-venue `kapi up` execution behind the command: load

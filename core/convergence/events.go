@@ -44,10 +44,16 @@ const (
 	LocalePending   = "pending"
 )
 
-// Run states reported by EventDone.
+// Run states reported by EventDone. A run ends converged (every gated scope
+// shippable) or parked (work remains for a human) on the happy path; failed
+// (the loop errored — e.g. a provider outage) and canceled (stopped by a user
+// or a server restart) are terminal error states that must be distinguishable
+// so a caller does not mistake a broken run for parked work and exit 0.
 const (
 	RunConverged = "converged"
 	RunParked    = "parked"
+	RunFailed    = "failed"
+	RunCanceled  = "canceled"
 )
 
 // Event is one progress event of a convergence run — the single protocol every
@@ -85,7 +91,12 @@ type Event struct {
 	ProducedDelta int `json:"producedDelta,omitempty"`
 	FailingChecks int `json:"failingChecks,omitempty"`
 
-	// State: locale_done → shippable|parked|pending; done → converged|parked.
+	// State on done is the run outcome (converged|parked|failed|canceled) and
+	// is always set. On locale_done State is OPTIONAL: a per-locale
+	// shippable|parked|pending verdict is a whole-pass property (it depends on
+	// the gate rollup after every locale finishes), so the live stream may
+	// leave it empty and a consumer should take authoritative per-locale state
+	// from the run's final standing, not from a streamed locale_done.
 	State string `json:"state,omitempty"`
 
 	// Materialized file count (materialized).

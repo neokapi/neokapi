@@ -131,6 +131,15 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	jsonOut := flagBool(cmd, "json")
 	stderr := cmd.ErrOrStderr()
 
+	// Recipe pre-push automations run before the push, exactly as they did for
+	// the retired `kapi sync` (up subsumed sync — the hooks must not silently
+	// stop firing for projects that migrated CI from sync to up).
+	if proj := findProjectForAutomations(); proj != nil {
+		if err := runLocalAutomations(cmd, proj, "pre-push"); err != nil {
+			return fmt.Errorf("pre-push automation: %w", err)
+		}
+	}
+
 	// Phase 1: transport — push local changes (pure, no implicit translate).
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintln(stderr, "Pushing local changes...")
@@ -216,13 +225,27 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		}
 	}
 
+	// Recipe post-pull automations run after the pull (sync parity: e.g.
+	// reformat/regenerate the pulled locale files).
+	if proj := findProjectForAutomations(); proj != nil {
+		if err := runLocalAutomations(cmd, proj, "post-pull"); err != nil {
+			return fmt.Errorf("post-pull automation: %w", err)
+		}
+	}
+
 	// Phase 5: final result — prefer the run's authoritative final standing,
 	// falling back to what the event stream accumulated.
 	final, gerr := client.GetConvergenceRun(ctx, run.ID)
 	if gerr != nil {
 		final = run
 	}
-	return cli.PrintUpResult(cmd, acc.output(final))
+	if err := cli.PrintUpResult(cmd, acc.output(final)); err != nil {
+		return err
+	}
+	// A run that ended failed/canceled is not ordinary parked work: surface it
+	// as a non-zero exit so CI on `kapi up` does not read a broken run as
+	// success. The summary above still prints for context.
+	return acc.terminalError(final)
 }
 
 // syncConvergePolicy pushes the recipe's server.converge value to the server so
@@ -238,17 +261,24 @@ func syncConvergePolicy(ctx context.Context, client *apiclient.BowrainClient, se
 }
 
 func init() {
-	AddUpFlagsToPluginCmd(upCmd)
-	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(upCmd) })
-}
-
-// AddUpFlagsToPluginCmd wires the plugin up command's flag surface: the shared
-// local `kapi up` flags plus the venue controls this command adds.
-func AddUpFlagsToPluginCmd(cmd *cobra.Command) {
-	cli.AddProjectFlag(cmd)
-	cli.AddUpFlags(cmd)
-	cmd.Flags().BoolVar(&upLocal, "local", false, "converge on this machine instead of the server, then push the results")
-	cmd.Flags().DurationVar(&upTimeout, "timeout", 15*time.Minute, "maximum time to wait for a server run to finish before pulling available results")
+	// The flow-run flags need the live *cli.App (AddFlowRunFlags is a method),
+	// which isn't captured until the app initializer fires — after init(). So
+	// wire the app-independent flags now and add the flow-run flags in the
+	// command factory, which receives the App.
+	cli.AddProjectFlag(upCmd)
+	cli.AddUpFlags(upCmd)
+	upCmd.Flags().BoolVar(&upLocal, "local", false, "converge on this machine instead of the server, then push the results")
+	upCmd.Flags().DurationVar(&upTimeout, "timeout", 15*time.Minute, "maximum time to wait for a server run to finish before pulling available results")
+	cli.RegisterCommandFactory(func(parent *cobra.Command, a *cli.App) {
+		// Match the built-in `kapi up` flag surface exactly (NewUpCmd adds the
+		// flow-run flags): without --provider/--model/--tm/--target-lang/… a
+		// documented invocation would break the moment the plugin is installed,
+		// since kapi dispatches raw argv to this cobra tree.
+		if a != nil {
+			a.AddFlowRunFlags(upCmd)
+		}
+		parent.AddCommand(upCmd)
+	})
 }
 
 // flagBool reads a bool flag, defaulting to false when the flag is absent.
