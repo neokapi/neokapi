@@ -64,21 +64,51 @@ type WriterConfigurable interface {
 // [AD-005](../../web/docs/contribute/architecture/005-format-system.md)
 // "Streaming readers and bounded-memory I/O".
 type StreamingWriter interface {
-	// StreamingWriter reports that this writer can consume a streaming skeleton.
-	// As with StreamingReader, presence is the signal; it always returns true.
-	StreamingWriter() bool
+	// StreamingWriter marks the capability. As with StreamingReader, the method
+	// is a bare marker: its presence is the signal, probed via
+	// IsStreamingWriter; it is never called.
+	StreamingWriter()
 }
 
-// DataFormatWriter reconstructs a document from Parts.
-type DataFormatWriter interface {
-	// Name returns the format name matching the reader.
-	Name() string
+// IsStreamingWriter reports whether w declares the StreamingWriter capability
+// (can consume a streaming skeleton interleaved with the Part stream). It
+// centralizes the capability assertion for the file-run path.
+func IsStreamingWriter(w DataFormatWriter) bool {
+	_, ok := w.(StreamingWriter)
+	return ok
+}
 
+// OutputSink is the destination facet of a format writer: where the
+// serialized bytes go.
+type OutputSink interface {
 	// SetOutput configures the output destination by path.
 	SetOutput(path string) error
 
 	// SetOutputWriter configures an io.Writer as output.
 	SetOutputWriter(w io.Writer) error
+}
+
+// PartWriter is the lifecycle facet of a format writer: consume the Part
+// stream, then flush and close the output.
+type PartWriter interface {
+	// Write consumes Parts from a channel and writes the reconstructed document.
+	// Returns when the channel is closed or context is canceled.
+	Write(ctx context.Context, parts <-chan *model.Part) error
+
+	// Close flushes and closes the output.
+	Close() error
+}
+
+// DataFormatWriter reconstructs a document from Parts. It is the composition
+// of the format's identity, its output destination (OutputSink), the
+// locale/encoding the document is written for, and its write lifecycle
+// (PartWriter). Implementers embed BaseFormatWriter, which covers everything
+// but Write.
+type DataFormatWriter interface {
+	// Name returns the format name matching the reader.
+	Name() string
+
+	OutputSink
 
 	// SetLocale sets the target locale for writing.
 	SetLocale(locale model.LocaleID)
@@ -86,10 +116,5 @@ type DataFormatWriter interface {
 	// SetEncoding sets the output encoding.
 	SetEncoding(encoding string)
 
-	// Write consumes Parts from a channel and writes the reconstructed document.
-	// Returns when the channel is closed or context is canceled.
-	Write(ctx context.Context, parts <-chan *model.Part) error
-
-	// Close flushes and closes the output.
-	Close() error
+	PartWriter
 }

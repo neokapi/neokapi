@@ -870,7 +870,7 @@ func ExtractEntityAnnotations(block *model.Block) []*model.EntityAnnotation {
 		return nil
 	}
 	var entities []*model.EntityAnnotation
-	for _, ann := range block.AnnoMap() {
+	for _, ann := range block.Annos() {
 		if ea, ok := ann.(*model.EntityAnnotation); ok {
 			entities = append(entities, ea)
 		}

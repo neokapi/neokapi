@@ -33,7 +33,7 @@ var _ format.StreamingWriter = (*Writer)(nil)
 // streaming JSON reader (also a StreamingReader) makes the file runner wire a
 // synchronized streaming skeleton store, instead of an unsynchronized buffered
 // one the streaming reader and writer would race on.
-func (w *Writer) StreamingWriter() bool { return true }
+func (w *Writer) StreamingWriter() {}
 
 // NewWriter creates a new JSON writer.
 func NewWriter() *Writer {

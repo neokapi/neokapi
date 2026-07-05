@@ -6,8 +6,11 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// DataFormatReader reads a document and produces a stream of Parts.
-type DataFormatReader interface {
+// FormatDescriptor is the identification/detection facet of a format reader:
+// its unique name, human-readable name, and detection metadata. Consumers that
+// only need to identify a format (listings, detection plumbing) can depend on
+// this instead of the full DataFormatReader.
+type FormatDescriptor interface {
 	// Name returns the unique identifier for this format (e.g., "html", "xliff").
 	Name() string
 
@@ -16,7 +19,23 @@ type DataFormatReader interface {
 
 	// Signature returns detection metadata: MIME types, extensions, and content signatures.
 	Signature() FormatSignature
+}
 
+// Configurable is the typed-config facet of a format reader: access to and
+// replacement of its DataFormatConfig. Consumers that only apply configuration
+// (project overrides, recipe config maps) can depend on this instead of the
+// full DataFormatReader.
+type Configurable interface {
+	// Config returns the current configuration.
+	Config() DataFormatConfig
+
+	// SetConfig applies a new configuration.
+	SetConfig(cfg DataFormatConfig) error
+}
+
+// PartReader is the lifecycle facet of a format reader: open a document,
+// stream its Parts, release resources.
+type PartReader interface {
 	// Open opens a RawDocument for reading. Call Read() to stream Parts.
 	Open(ctx context.Context, doc *model.RawDocument) error
 
@@ -27,12 +46,18 @@ type DataFormatReader interface {
 
 	// Close releases resources.
 	Close() error
+}
 
-	// Config returns the current configuration.
-	Config() DataFormatConfig
-
-	// SetConfig applies a new configuration.
-	SetConfig(cfg DataFormatConfig) error
+// DataFormatReader reads a document and produces a stream of Parts. It is the
+// composition of the format's identity/detection metadata (FormatDescriptor),
+// its typed configuration surface (Configurable), and its read lifecycle
+// (PartReader). Implementers typically embed BaseFormatReader (which covers
+// Name/DisplayName/Config/SetConfig) and provide Signature plus the lifecycle
+// themselves.
+type DataFormatReader interface {
+	FormatDescriptor
+	Configurable
+	PartReader
 }
 
 // StreamingReader is a capability marker a reader implements to declare that it
@@ -49,10 +74,17 @@ type DataFormatReader interface {
 // [AD-005](../../web/docs/contribute/architecture/005-format-system.md)
 // "Streaming readers and bounded-memory I/O".
 type StreamingReader interface {
-	// StreamingReader reports that this reader streams its input. The method
-	// exists only to mark the capability; its presence (not its return value,
-	// which is always true) is what the file-run path probes.
-	StreamingReader() bool
+	// StreamingReader marks the capability. The method is a bare marker: its
+	// presence is the signal, probed via IsStreamingReader; it is never called.
+	StreamingReader()
+}
+
+// IsStreamingReader reports whether r declares the StreamingReader capability
+// (streams its input incrementally with bounded memory). It centralizes the
+// capability assertion for the file-run path.
+func IsStreamingReader(r DataFormatReader) bool {
+	_, ok := r.(StreamingReader)
+	return ok
 }
 
 // FormatSignature describes how to detect a data format.

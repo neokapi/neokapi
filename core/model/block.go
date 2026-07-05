@@ -8,6 +8,19 @@ import "strings"
 // locale, optionally with tone or channel). Segmentation, terminology,
 // entities, and other interpretations ride as stand-off Overlays (see
 // overlay.go); there is no structural segment type.
+//
+// Ownership invariant: a Block (like every Part payload) is SINGLE-OWNER as it
+// moves through pipeline channels — exactly one stage holds it at a time, so
+// accessors and tools hand back live slices and maps with NO defensive copies
+// by design (the zero-copy trade-off that keeps the streaming pipeline cheap).
+// A stage that wants to retain a Block past sending it downstream must copy it
+// explicitly; the executor's EnforceImmutability backstop catches accidental
+// in-place edits from read-only tool tiers in dev/test.
+//
+// Role boundary: the raw Block is the wire/storage DTO — exported fields,
+// direct serialization, no encapsulation. Tool-facing code goes through
+// tool.BlockView / tool.VariantView, the capability-scoped boundary; do not
+// hand raw *Block to new tool-facing APIs.
 type Block struct {
 	ID       string
 	Name     string

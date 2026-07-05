@@ -31,7 +31,7 @@ var (
 // StreamingReader marks this reader as bounded-memory streaming: it reads lines
 // via bufio and emits each subtitle entry incrementally, holding only the
 // in-progress entry. See [AD-005].
-func (r *Reader) StreamingReader() bool { return true }
+func (r *Reader) StreamingReader() {}
 
 // NewReader creates a new SRT reader.
 func NewReader() *Reader {
