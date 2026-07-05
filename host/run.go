@@ -18,7 +18,7 @@ type RunCmdOptions struct {
 }
 
 // BuiltinComposedFlowNames returns the set of composed (multi-tool) flow names.
-// Derived from flow.BuiltInFlows() rather than hardcoded.
+// Derived from flowdef.BuiltInFlows() rather than hardcoded.
 func BuiltinComposedFlowNames() map[string]bool {
 	names := make(map[string]bool)
 	for _, fi := range builtinComposedFlows() {

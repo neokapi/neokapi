@@ -11,6 +11,7 @@ import (
 	"net/url"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/host/flowdef"
 )
 
 // Flow definitions on the desktop (Bowrain AD-013, #766).
@@ -22,7 +23,7 @@ import (
 // authenticated HTTP base URL, so a flow created on the desktop is the same
 // row the web superset editor and the automation engine see.
 //
-// Built-in flows (flow.BuiltInFlows) are always available, even when offline;
+// Built-in flows (flowdef.BuiltInFlows) are always available, even when offline;
 // they are merged in by the server's list endpoint, and surfaced locally as a
 // fallback when no connection is available.
 
@@ -154,7 +155,7 @@ func flowDo(method, urlStr, token string, body any, out any) error {
 // builtInFlowInfos returns the built-in flows as frontend infos. Used as the
 // offline fallback for ListFlowDefinitions.
 func builtInFlowInfos() []FlowDefinitionInfo {
-	defs := flow.BuiltInFlows()
+	defs := flowdef.BuiltInFlows()
 	infos := make([]FlowDefinitionInfo, len(defs))
 	for i, def := range defs {
 		infos[i] = flowDefToInfo(def)

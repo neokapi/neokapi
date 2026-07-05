@@ -30,6 +30,7 @@ import (
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/host/flowdef"
 	"github.com/neokapi/neokapi/host/output"
 	sqltm "github.com/neokapi/neokapi/sievepen"
 	sqltb "github.com/neokapi/neokapi/termbase"
@@ -181,7 +182,7 @@ func (a *App) ListFlows(cmd Command, opts FlowCmdOptions) error {
 // exposed as top-level tool commands instead.
 func builtinComposedFlows() []output.FlowInfo {
 	var composed []output.FlowInfo
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		toolCount := 0
 		for _, n := range def.Nodes {
 			if n.Type == flow.NodeTool {
@@ -946,7 +947,7 @@ func (a *App) buildFlowTools(flowName string, cmd ...Command) ([]tool.Tool, func
 
 	// Look up the flow definition from the built-in registry.
 	var flowDef *flow.FlowDefinition
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		if def.ID == flowName {
 			d := def
 			flowDef = &d
@@ -1189,7 +1190,7 @@ func (a *App) defaultParallelBlocks(flowName string) int {
 	if a.ToolReg == nil {
 		return 0
 	}
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		if def.ID == flowName {
 			maxPB := 0
 			for _, n := range def.Nodes {

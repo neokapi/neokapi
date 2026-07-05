@@ -16,7 +16,7 @@ var ErrFlowDefNotFound = errors.New("flow definition not found")
 // FlowDefStore persists project-scoped flow definitions (Bowrain AD-013).
 // PostgreSQL-only — the server and worker always use PostgreSQL.
 //
-// Built-in flows (flow.BuiltInFlows) are not stored here; they are merged in
+// Built-in flows (flowdef.BuiltInFlows) are not stored here; they are merged in
 // at the API layer so automation run_flow actions can reference either a
 // built-in flow id or a project-stored flow id by the same name field.
 type FlowDefStore struct {

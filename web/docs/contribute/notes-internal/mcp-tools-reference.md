@@ -176,7 +176,7 @@ List all available processing flows.
 
 **Input:** none
 
-**Output** (illustrative selection; `total` is `len(flow.BuiltInFlows())`):
+**Output** (illustrative selection; `total` is `len(flowdef.BuiltInFlows())`):
 
 ```jsonc
 {
@@ -186,7 +186,7 @@ List all available processing flows.
     { "name": "translate", "description": "Translate content using AI/LLM" }
     // …one entry per built-in flow
   ],
-  "total": 0 // = len(flow.BuiltInFlows()), runtime-dependent
+  "total": 0 // = len(flowdef.BuiltInFlows()), runtime-dependent
 }
 ```
 

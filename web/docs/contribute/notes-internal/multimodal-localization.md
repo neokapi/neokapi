@@ -42,7 +42,7 @@ ffmpeg/av engine is resolvable instead of erroring.
 
 ## Flows
 
-Built-in flows (`core/flow.BuiltInFlows`) compose the existing tools; the
+Built-in flows (`host/flowdef.BuiltInFlows`) compose the existing tools; the
 reader/writer are run-time bindings (AD-026), so a flow is just the tool chain:
 
 - `audio-to-subtitles` — `translate` (the audio reader yields timed cues).

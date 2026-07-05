@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host/flowdef"
 )
 
 func init() {
@@ -401,7 +402,7 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 
 func handleListFlows() (*mcp.CallToolResult, ListFlowsOutput, error) {
 	var flows []FlowEntry
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		flows = append(flows, FlowEntry{
 			Name:        def.ID,
 			Description: def.Description,
@@ -623,7 +624,7 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 func buildFlowTools(a *cli.App, flowName, sourceLang, targetLang string) ([]tool.Tool, error) {
 	// Look up the flow definition.
 	var flowDef *flow.FlowDefinition
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		if def.ID == flowName {
 			d := def
 			flowDef = &d

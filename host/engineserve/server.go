@@ -29,6 +29,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host/flowdef"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -336,7 +337,7 @@ func (s *Server) buildTools(header *enginev1.ProcessHeader) ([]tool.Tool, error)
 }
 
 func builtinFlow(id string) *flow.FlowDefinition {
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		if def.ID == id {
 			return &def
 		}
@@ -542,7 +543,7 @@ func (s *Server) ListTools(context.Context, *enginev1.ListToolsRequest) (*engine
 
 // ListFlows returns the built-in composed flows.
 func (s *Server) ListFlows(context.Context, *enginev1.ListFlowsRequest) (*enginev1.ListFlowsResponse, error) {
-	defs := flow.BuiltInFlows()
+	defs := flowdef.BuiltInFlows()
 	resp := &enginev1.ListFlowsResponse{Flows: make([]*enginev1.FlowInfo, 0, len(defs))}
 	for _, def := range defs {
 		tools, err := def.ToolNodeNames()

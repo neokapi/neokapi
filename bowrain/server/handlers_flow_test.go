@@ -11,6 +11,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/host/flowdef"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -96,7 +97,7 @@ func TestHandleListFlowDefinitions_BuiltInOnly(t *testing.T) {
 	var defs []flow.FlowDefinition
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &defs))
 	// All built-in flows are present even with no stored flows.
-	assert.GreaterOrEqual(t, len(defs), len(flow.BuiltInFlows()))
+	assert.GreaterOrEqual(t, len(defs), len(flowdef.BuiltInFlows()))
 	var hasBuiltIn bool
 	for _, d := range defs {
 		if d.ID == "translate" && d.Source == "built-in" {

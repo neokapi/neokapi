@@ -204,7 +204,7 @@ kapi run translate -p translation.kapi
 
 Built-in flows are `translate`, `translate-qa`, `pseudo-translate`,
 `qa`, `recycle`, and `secure-translate` (see
-`core/flow.BuiltInFlows`). A recipe's `flows:` map can add new flows and
+`host/flowdef.BuiltInFlows`). A recipe's `flows:` map can add new flows and
 override the single-tool built-ins (`translate`, `pseudo-translate`,
 `qa`, `recycle`). It cannot override the composed built-ins
 (`translate-qa`, `secure-translate`) when invoked via `-p`: `runWithProject`
