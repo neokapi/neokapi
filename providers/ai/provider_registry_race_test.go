@@ -24,23 +24,19 @@ func TestProviderRegistry_ConcurrentRegisterAndRead(t *testing.T) {
 	// Writers: register unique plugin-style providers (no ModelPrefixes, so
 	// model inference for other tests is unaffected).
 	for w := range writers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			id := ProviderID(fmt.Sprintf("race-test-%d", w))
 			RegisterProviderWithAliases(
 				ProviderInfo{Name: id, Label: "Race Test", Local: true},
 				func(_ Config) LLMProvider { return &MockProvider{ProviderName: string(id)} },
 				ProviderID(fmt.Sprintf("race-test-alias-%d", w)),
 			)
-		}()
+		})
 	}
 
 	// Readers: exercise every registry read path while writers append.
 	for range writers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range readsPerReader {
 				for _, info := range Providers() {
 					_ = info.Name
@@ -61,7 +57,7 @@ func TestProviderRegistry_ConcurrentRegisterAndRead(t *testing.T) {
 				_, err = NewProvider("race-test-unknown", Config{})
 				assert.Error(t, err)
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
