@@ -11,7 +11,7 @@ import (
 // renderer as `kapi status`) followed by a hint pointing at `kapi up`;
 // outside a project it falls back to the standard cobra help. --help output
 // is untouched (cobra handles the help flag before RunE runs).
-func (a *App) RootRunE(cmd *cobra.Command, _ []string) error {
+func RootRunE(a *App, cmd *cobra.Command, _ []string) error {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
 		return cmd.Help()
@@ -20,11 +20,11 @@ func (a *App) RootRunE(cmd *cobra.Command, _ []string) error {
 	// Reuse the status command's renderer against the discovered project.
 	// The fresh command carries status's own flags at their defaults; output
 	// goes to the root's configured streams.
-	scmd := a.NewStatusCmd()
-	scmd.SetContext(cmdContext(cmd))
+	scmd := NewStatusCmd(a)
+	scmd.SetContext(CmdContext(cmd))
 	scmd.SetOut(cmd.OutOrStdout())
 	scmd.SetErr(cmd.ErrOrStderr())
-	if serr := a.runStatus(scmd, nil); serr != nil {
+	if serr := a.RunStatus(scmd, nil); serr != nil {
 		// A project that cannot be summarized (broken recipe, unreadable
 		// content) should not make the bare root fail: surface the problem
 		// and fall back to help.

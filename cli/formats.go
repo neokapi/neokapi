@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/format"
@@ -15,7 +14,7 @@ import (
 )
 
 // NewFormatsCmd creates the formats command group (list, info, schema).
-func (a *App) NewFormatsCmd() *cobra.Command {
+func NewFormatsCmd(a *App) *cobra.Command {
 	var fmtMime, fmtExt string
 
 	formatsCmd := &cobra.Command{
@@ -32,7 +31,7 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 			infos := a.FormatReg.FormatInfos()
 
 			if fmtMime != "" || fmtExt != "" {
-				infos = filterFormats(infos, fmtMime, fmtExt)
+				infos = FilterFormats(infos, fmtMime, fmtExt)
 				if len(infos) == 0 {
 					if output.ResolveFormat(cmd) == output.FormatJSON {
 						return output.Print(cmd, output.FormatsListOutput{})
@@ -45,7 +44,7 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 			// Hide versioned entries (e.g., "okf_html@2.8.0") when a
 			// bare-name alias exists (e.g., "okf_html"). This keeps the
 			// list clean — users see "okf_html" rather than duplicates.
-			infos = deduplicateVersionedFormats(infos)
+			infos = DeduplicateVersionedFormats(infos)
 
 			t := a.T()
 			out := output.FormatsListOutput{
@@ -56,7 +55,7 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 				name := string(info.Name)
 				out.Formats = append(out.Formats, output.FormatInfo{
 					Name:        name,
-					DisplayName: t.T(i18n.Scope("formats."+name+".displayName"), info.DisplayName),
+					DisplayName: t.T(i18n.Scope("formats."+name+".DisplayName"), info.DisplayName),
 					HasReader:   info.HasReader,
 					HasWriter:   info.HasWriter,
 					Generative:  info.Generative,
@@ -75,13 +74,13 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 	formatsCmd.Flags().StringVar(&fmtMime, "mime", "", "filter by MIME type (e.g., text/html)")
 	formatsCmd.Flags().StringVar(&fmtExt, "ext", "", "filter by file extension (e.g., .docx)")
 
-	formatsCmd.AddCommand(a.newFormatsInfoCmd())
-	formatsCmd.AddCommand(a.newFormatsSchemaCmd())
+	formatsCmd.AddCommand(newFormatsInfoCmd(a))
+	formatsCmd.AddCommand(newFormatsSchemaCmd(a))
 
 	return formatsCmd
 }
 
-func (a *App) newFormatsInfoCmd() *cobra.Command {
+func newFormatsInfoCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:     "info <format>",
 		Short:   "Show detailed information about a format",
@@ -124,7 +123,7 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 							if !ok {
 								continue
 							}
-							g.Parameters = append(g.Parameters, toFormatInfoParam(fieldName, prop))
+							g.Parameters = append(g.Parameters, ToFormatInfoParam(fieldName, prop))
 						}
 						out.Groups = append(out.Groups, g)
 					}
@@ -132,7 +131,7 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 					var ungroupedParams []output.FormatInfoParam
 					for name, prop := range filterSchema.Properties {
 						if !groupedFields[name] {
-							ungroupedParams = append(ungroupedParams, toFormatInfoParam(name, prop))
+							ungroupedParams = append(ungroupedParams, ToFormatInfoParam(name, prop))
 						}
 					}
 					if len(ungroupedParams) > 0 {
@@ -144,7 +143,7 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 				} else {
 					var params []output.FormatInfoParam
 					for name, prop := range filterSchema.Properties {
-						params = append(params, toFormatInfoParam(name, prop))
+						params = append(params, ToFormatInfoParam(name, prop))
 					}
 					if len(params) > 0 {
 						out.Groups = append(out.Groups, output.FormatInfoGroup{
@@ -186,7 +185,7 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 	}
 }
 
-func (a *App) newFormatsSchemaCmd() *cobra.Command {
+func newFormatsSchemaCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:     "schema <format>",
 		Short:   "Output JSON Schema for a format",
@@ -218,71 +217,5 @@ func (a *App) newFormatsSchemaCmd() *cobra.Command {
 			fmt.Println(string(prettyOut))
 			return nil
 		},
-	}
-}
-
-// deduplicateVersionedFormats removes versioned entries (e.g., "okf_html@2.8.0")
-// when a bare-name entry (e.g., "okf_html") exists in the list. This avoids
-// showing duplicate entries in `formats list` output.
-func deduplicateVersionedFormats(infos []registry.FormatInfo) []registry.FormatInfo {
-	// Build a set of bare names present in the list.
-	bareNames := make(map[string]bool, len(infos))
-	for _, info := range infos {
-		name := string(info.Name)
-		if !strings.Contains(name, "@") {
-			bareNames[name] = true
-		}
-	}
-
-	// Filter out versioned entries whose bare name is also present.
-	result := make([]registry.FormatInfo, 0, len(infos))
-	for _, info := range infos {
-		name := string(info.Name)
-		if idx := strings.LastIndex(name, "@"); idx > 0 {
-			baseName := name[:idx]
-			if bareNames[baseName] {
-				continue // skip — bare-name alias covers this
-			}
-		}
-		result = append(result, info)
-	}
-	return result
-}
-
-func filterFormats(infos []registry.FormatInfo, mime, ext string) []registry.FormatInfo {
-	mime = strings.ToLower(mime)
-	ext = strings.ToLower(ext)
-	var result []registry.FormatInfo
-	for _, info := range infos {
-		if mime != "" && !containsLower(info.MimeTypes, mime) {
-			continue
-		}
-		if ext != "" && !containsLower(info.Extensions, ext) {
-			continue
-		}
-		result = append(result, info)
-	}
-	return result
-}
-
-func containsLower(slice []string, val string) bool {
-	for _, s := range slice {
-		if strings.ToLower(s) == val {
-			return true
-		}
-	}
-	return false
-}
-
-func toFormatInfoParam(name string, prop schema.PropertySchema) output.FormatInfoParam {
-	typeStr := prop.Type
-	if prop.OkapiFormat != "" {
-		typeStr = prop.OkapiFormat
-	}
-	return output.FormatInfoParam{
-		Name:        name,
-		Type:        typeStr,
-		Default:     prop.Default,
-		Description: prop.Description,
 	}
 }

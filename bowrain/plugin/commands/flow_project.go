@@ -7,13 +7,13 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/internal/projflow"
+	"github.com/neokapi/neokapi/cli"
 	clioutput "github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
-	"github.com/spf13/cobra"
 )
 
 // findProject wraps project.FindProject to return a simple error.
@@ -23,7 +23,7 @@ func findProject() (*project.Project, error) {
 
 // projectFlowFallback is called when a flow name doesn't match a built-in
 // flow definition. It checks for a project flow in .kapi/flows/.
-func projectFlowFallback(cmd *cobra.Command, flowName string, args []string) error {
+func projectFlowFallback(cmd cli.Command, flowName string, args []string) error {
 	proj, err := findProject()
 	if err != nil {
 		return err
@@ -37,7 +37,7 @@ func listProjectFlows() []clioutput.FlowInfo {
 }
 
 // runProjectFlow executes a flow defined in .kapi/flows/.
-func runProjectFlow(cmd *cobra.Command, proj *project.Project, flowName string, args []string) error {
+func runProjectFlow(cmd cli.Command, proj *project.Project, flowName string, args []string) error {
 	// Load flow definition
 	flowPath := filepath.Join(proj.FlowsDirPath(), flowName+".yaml")
 

@@ -35,7 +35,7 @@ func runSingleTMXImport(t *testing.T) string {
 	dbPath := filepath.Join(dir, "tm.db")
 
 	a := &App{Quiet: true}
-	cmd := a.newTMImportCmd()
+	cmd := newTMImportCmd(a)
 	AddResourceFlags(cmd)
 	require.NoError(t, cmd.Flags().Set("file", dbPath))
 	require.NoError(t, cmd.Flags().Set("source-locale", "en"))

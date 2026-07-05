@@ -13,7 +13,7 @@ import (
 // The implementation name is supplied by the caller so binaries can
 // brand the server (e.g. "kapi" vs "bowrain"); both share the same
 // underlying tool registry.
-func (a *App) NewMCPCmd(implName string) *cobra.Command {
+func NewMCPCmd(a *App, implName string) *cobra.Command {
 	if implName == "" {
 		implName = "kapi"
 	}
@@ -25,7 +25,7 @@ func (a *App) NewMCPCmd(implName string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Resolve project vs ad-hoc mode once for the server's lifetime so
 			// the tool factories can scope the exposed surface accordingly.
-			a.resolveMCPProject(cmd)
+			a.ResolveMCPProject(cmd)
 			server := mcp.NewServer(
 				&mcp.Implementation{Name: implName, Version: version.Version},
 				nil,

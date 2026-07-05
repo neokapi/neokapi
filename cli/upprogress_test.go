@@ -17,7 +17,7 @@ import (
 // one line per meaningful event and never rewrites — the CI-log posture.
 func TestConvergeRenderer_PlainStream(t *testing.T) {
 	var out strings.Builder
-	r := newConvergeRenderer(&out, false)
+	r := NewConvergeRenderer(&out, false)
 
 	r.OnEvent(convergence.Event{Type: convergence.EventLog, Message: "Extracted 4 block(s)."})
 	r.OnEvent(convergence.Event{Type: convergence.EventPassStart, Pass: 1, MaxPasses: 5, Pending: []string{"nb-NO", "de-DE"}})

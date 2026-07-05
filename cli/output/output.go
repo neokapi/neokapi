@@ -12,7 +12,7 @@ import (
 
 	"github.com/itchyny/gojq"
 	"github.com/mattn/go-isatty"
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // Format represents the output format for CLI commands.
@@ -38,35 +38,45 @@ type TableFormattable interface {
 	FormatTable(w io.Writer)
 }
 
-// AddFlags registers output format flags on the given command.
-// This adds --json, --text, and --output-format flags.
-func AddFlags(cmd *cobra.Command) {
-	cmd.Flags().Bool("json", false, "Output in JSON format")
-	cmd.Flags().Bool("text", false, "Output in text format (default)")
-	cmd.Flags().String("output-format", "", "Output format: json, text")
-	cmd.Flags().String("jq", "", "filter JSON output through a jq expression (implies --json)")
-	cmd.Flags().String("color", "auto", "colorize JSON output: auto, always, never")
+// Command is the minimal execution environment the output helpers read:
+// resolved flag values plus the run's IO streams. Both *cobra.Command and
+// the host module's Command satisfy it natively.
+type Command interface {
+	Flags() *pflag.FlagSet
+	OutOrStdout() io.Writer
+	ErrOrStderr() io.Writer
 }
 
-// AddPersistentFlags registers output format flags as persistent flags.
-// Use this on the root command to make flags available to all subcommands.
-func AddPersistentFlags(cmd *cobra.Command) {
-	cmd.PersistentFlags().Bool("json", false, "Output in JSON format")
-	cmd.PersistentFlags().Bool("text", false, "Output in text format (default)")
-	cmd.PersistentFlags().String("output-format", "", "Output format: json, text")
-	cmd.PersistentFlags().String("jq", "", "filter JSON output through a jq expression (implies --json)")
-	cmd.PersistentFlags().String("color", "auto", "colorize JSON output: auto, always, never")
+// AddFlags registers output format flags on the given flag set (pass
+// cmd.Flags()). This adds --json, --text, and --output-format flags.
+func AddFlags(fs *pflag.FlagSet) {
+	fs.Bool("json", false, "Output in JSON format")
+	fs.Bool("text", false, "Output in text format (default)")
+	fs.String("output-format", "", "Output format: json, text")
+	fs.String("jq", "", "filter JSON output through a jq expression (implies --json)")
+	fs.String("color", "auto", "colorize JSON output: auto, always, never")
+}
+
+// AddPersistentFlags registers output format flags on the given flag set
+// (pass cmd.PersistentFlags() on the root command to make the flags
+// available to all subcommands).
+func AddPersistentFlags(fs *pflag.FlagSet) {
+	fs.Bool("json", false, "Output in JSON format")
+	fs.Bool("text", false, "Output in text format (default)")
+	fs.String("output-format", "", "Output format: json, text")
+	fs.String("jq", "", "filter JSON output through a jq expression (implies --json)")
+	fs.String("color", "auto", "colorize JSON output: auto, always, never")
 }
 
 // Format resolves the output format from command flags.
 // Precedence: --json > --text > --output-format > default (text)
 //
 // Deprecated: GetFormat is an alias for Format kept for backward compatibility.
-func GetFormat(cmd *cobra.Command) Format { return ResolveFormat(cmd) }
+func GetFormat(cmd Command) Format { return ResolveFormat(cmd) }
 
 // ResolveFormat resolves the output format from command flags.
 // Precedence: --json > --text > --output-format > default (text)
-func ResolveFormat(cmd *cobra.Command) Format {
+func ResolveFormat(cmd Command) Format {
 	// --jq filters JSON, so it implies JSON output.
 	if jq, _ := cmd.Flags().GetString("jq"); jq != "" {
 		return FormatJSON
@@ -92,7 +102,7 @@ func ResolveFormat(cmd *cobra.Command) Format {
 // cmd.OutOrStdout() / cmd.ErrOrStderr() so tests that call cmd.SetOut/SetErr
 // can capture structured output. In JSON mode it honors --jq (filter) and
 // --color.
-func Print(cmd *cobra.Command, data any) error {
+func Print(cmd Command, data any) error {
 	w := cmd.OutOrStdout()
 	if ResolveFormat(cmd) == FormatJSON {
 		filter, _ := cmd.Flags().GetString("jq")
@@ -107,7 +117,7 @@ func Print(cmd *cobra.Command, data any) error {
 //
 // Pass cmd.OutOrStdout() as w so the check reflects the actual destination,
 // not the process stdout (they differ when a test calls cmd.SetOut).
-func Colorize(cmd *cobra.Command, w io.Writer) bool {
+func Colorize(cmd Command, w io.Writer) bool {
 	switch c, _ := cmd.Flags().GetString("color"); c {
 	case "always", "force":
 		return true
@@ -175,7 +185,7 @@ type Error struct {
 
 // PrintError outputs an error in the appropriate format to cmd.ErrOrStderr()
 // so tests using cmd.SetErr can capture error output.
-func PrintError(cmd *cobra.Command, err error, code string) {
+func PrintError(cmd Command, err error, code string) {
 	w := cmd.ErrOrStderr()
 	format := ResolveFormat(cmd)
 	if format == FormatJSON {

@@ -17,7 +17,7 @@ func TestInit_ListPresets(t *testing.T) {
 	t.Chdir(dir)
 
 	a := &App{}
-	cmd := a.NewInitCmd()
+	cmd := NewInitCmd(a)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -38,7 +38,7 @@ func TestInit_PresetScaffolds(t *testing.T) {
 	dir := t.TempDir()
 
 	a := &App{}
-	cmd := a.NewInitCmd()
+	cmd := NewInitCmd(a)
 	cmd.SetOut(new(bytes.Buffer))
 	cmd.SetErr(new(bytes.Buffer))
 	cmd.SetArgs([]string{"--dir", dir, "--preset", "react-i18next", "--target-locale", "nb"})
@@ -54,7 +54,7 @@ func TestInit_PresetScaffolds(t *testing.T) {
 // --framework; passing both is a usage error.
 func TestInit_PresetAndFrameworkAreExclusive(t *testing.T) {
 	a := &App{}
-	cmd := a.NewInitCmd()
+	cmd := NewInitCmd(a)
 	cmd.SetOut(new(bytes.Buffer))
 	cmd.SetErr(new(bytes.Buffer))
 	cmd.SetArgs([]string{"--preset", "react-i18next", "--framework", "vue-i18n"})
@@ -68,7 +68,7 @@ func TestInit_PresetAndFrameworkAreExclusive(t *testing.T) {
 func TestInit_UnknownPresetErrs(t *testing.T) {
 	dir := t.TempDir()
 	a := &App{}
-	cmd := a.NewInitCmd()
+	cmd := NewInitCmd(a)
 	cmd.SetOut(new(bytes.Buffer))
 	cmd.SetErr(new(bytes.Buffer))
 	cmd.SetArgs([]string{"--dir", dir, "--preset", "no-such-stack"})

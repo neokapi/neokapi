@@ -10,7 +10,7 @@ import (
 )
 
 // NewPresetsCmd creates the presets command group (presets list, presets show).
-func (a *App) NewPresetsCmd() *cobra.Command {
+func NewPresetsCmd(a *App) *cobra.Command {
 	presetsCmd := &cobra.Command{
 		Use:     "presets",
 		Short:   "Manage format and framework presets",
@@ -33,11 +33,11 @@ func (a *App) NewPresetsCmd() *cobra.Command {
 			var entries []output.PresetEntry
 
 			if frameworkOnly {
-				entries = collectFrameworkPresets(reg)
+				entries = CollectFrameworkPresets(reg)
 			} else if formatFilter != "" {
-				entries = collectFormatPresets(reg, formatFilter)
+				entries = CollectFormatPresets(reg, formatFilter)
 			} else {
-				entries = collectAllPresets(reg)
+				entries = CollectAllPresets(reg)
 			}
 
 			out := output.PresetsListOutput{
@@ -76,7 +76,7 @@ qualified format:preset syntax (e.g. okf_xml:AndroidStrings).`,
 			if formatFilter == "" {
 				fp := reg.GetFrameworkPreset(name)
 				if fp != nil {
-					entry := frameworkPresetEntry(fp)
+					entry := FrameworkPresetEntry(fp)
 					show := output.PresetShowOutput{
 						Name:        entry.Name,
 						Type:        entry.Type,
@@ -120,68 +120,4 @@ qualified format:preset syntax (e.g. okf_xml:AndroidStrings).`,
 	presetsCmd.AddCommand(listCmd)
 	presetsCmd.AddCommand(showCmd)
 	return presetsCmd
-}
-
-func collectAllPresets(reg *preset.PresetRegistry) []output.PresetEntry {
-	var entries []output.PresetEntry
-
-	for _, p := range reg.ListFrameworkPresets() {
-		entries = append(entries, frameworkPresetEntry(p))
-	}
-
-	for _, format := range reg.FormatNames() {
-		for _, p := range reg.ListFormatPresets(format) {
-			entries = append(entries, formatPresetEntry(format, p))
-		}
-	}
-
-	return entries
-}
-
-func collectFrameworkPresets(reg *preset.PresetRegistry) []output.PresetEntry {
-	var entries []output.PresetEntry
-	for _, p := range reg.ListFrameworkPresets() {
-		entries = append(entries, frameworkPresetEntry(p))
-	}
-	return entries
-}
-
-func collectFormatPresets(reg *preset.PresetRegistry, format string) []output.PresetEntry {
-	var entries []output.PresetEntry
-	for _, p := range reg.ListFormatPresets(format) {
-		entries = append(entries, formatPresetEntry(format, p))
-	}
-	return entries
-}
-
-func frameworkPresetEntry(p *preset.FrameworkPreset) output.PresetEntry {
-	entry := output.PresetEntry{
-		Name:        p.Name,
-		Type:        "framework",
-		Description: p.Description,
-		Source:      p.Source,
-	}
-	for _, m := range p.Mappings {
-		entry.Mappings = append(entry.Mappings, output.MappingEntry{
-			Local:      m.Local,
-			Format:     m.Format,
-			TargetPath: m.TargetPath,
-		})
-	}
-	if len(p.Exclude) > 0 {
-		entry.Exclude = p.Exclude
-	}
-	return entry
-}
-
-func formatPresetEntry(format string, p *preset.FormatPreset) output.PresetEntry {
-	return output.PresetEntry{
-		Name:        format + ":" + p.Name,
-		Type:        "format",
-		Description: p.Description,
-		Format:      p.Format,
-		Source:      p.Source,
-		IsDefault:   p.IsDefault,
-		Config:      p.Config,
-	}
 }

@@ -51,8 +51,8 @@ func BuildDocument() map[string]any {
 		Short: cli.KapiRootShort,
 		Long:  cli.KapiRootLong,
 	}
-	app.AddCommandGroups(root)
-	for _, c := range app.KapiCommandSet() {
+	cli.AddCommandGroups(app, root)
+	for _, c := range cli.KapiCommandSet(app) {
 		root.AddCommand(c)
 	}
 

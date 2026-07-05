@@ -14,7 +14,7 @@ import (
 func TestRunCmd_ProjectFlag(t *testing.T) {
 	app := &App{}
 
-	cmd := app.NewRunCmd(RunCmdOptions{})
+	cmd := NewRunCmd(app, RunCmdOptions{})
 
 	// Verify the -p/--project flag exists.
 	f := cmd.Flags().Lookup("project")
@@ -48,7 +48,7 @@ func TestRunFromProject_LoadsDefaults(t *testing.T) {
 	loaded, err := project.Load(projPath)
 	require.NoError(t, err)
 
-	// Simulate what runFromProject does for language defaults.
+	// Simulate what RunFromProject does for language defaults.
 	if app.SourceLang == "en" && loaded.Defaults.SourceLanguage != "" {
 		app.SourceLang = string(loaded.Defaults.SourceLanguage)
 	}
@@ -84,7 +84,7 @@ func TestRunFromProject_CLIFlagsOverride(t *testing.T) {
 	loaded, err := project.Load(projPath)
 	require.NoError(t, err)
 
-	// Same logic as runFromProject — only override when CLI default.
+	// Same logic as RunFromProject — only override when CLI default.
 	if app.SourceLang == "en" && loaded.Defaults.SourceLanguage != "" {
 		app.SourceLang = string(loaded.Defaults.SourceLanguage)
 	}

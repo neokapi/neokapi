@@ -44,7 +44,7 @@ func (s *recordingSink) byType(t string) []FlowRunEvent {
 // TestRunFlowAllLocales_LocaleSelectionParity is the locale-selection parity
 // test for the unified orchestrator: the exported API (the path the desktop
 // runner adapts to Wails events) and the CLI's plain project flow-run
-// (runFromProject) must resolve the identical locale set for the same
+// (RunFromProject) must resolve the identical locale set for the same
 // recipe + flow — both route through flow.ResolveFlowLocales now.
 func TestRunFlowAllLocales_LocaleSelectionParity(t *testing.T) {
 	a := processOnlyApp(t)

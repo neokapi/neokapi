@@ -1,21 +1,18 @@
 package cli
 
 import (
-	"context"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/klftb"
 	"github.com/spf13/cobra"
 )
 
 // NewTermbaseCmd creates the termbase command group.
-func (a *App) NewTermbaseCmd() *cobra.Command {
+func NewTermbaseCmd(a *App) *cobra.Command {
 	tbCmd := &cobra.Command{
 		Use:     "termbase",
 		Short:   "Manage terminology",
@@ -36,12 +33,12 @@ Default (no flag): same as --local (uses ./termbase.db).`,
   kapi termbase import glossary.csv -s en -t fr`,
 	}
 
-	importCmd := a.newTermbaseImportCmd()
-	exportCmd := a.newTermbaseExportCmd()
-	lookupCmd := a.newTermbaseLookupCmd()
-	searchCmd := a.newTermbaseSearchCmd()
-	statsCmd := a.newTermbaseStatsCmd()
-	listCmd := a.newTermbaseListCmd()
+	importCmd := newTermbaseImportCmd(a)
+	exportCmd := newTermbaseExportCmd(a)
+	lookupCmd := newTermbaseLookupCmd(a)
+	searchCmd := newTermbaseSearchCmd(a)
+	statsCmd := newTermbaseStatsCmd(a)
+	listCmd := newTermbaseListCmd(a)
 
 	// Shared resource flags for all subcommands (except list).
 	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, statsCmd} {
@@ -52,42 +49,7 @@ Default (no flag): same as --local (uses ./termbase.db).`,
 	return tbCmd
 }
 
-func (a *App) openTermbaseSQLite(cmd *cobra.Command) (termbase.TermBase, string, error) {
-	if a.TBBackend != nil {
-		return a.TBBackend, "(in-memory)", nil
-	}
-	dbPath, err := a.resolveTermbaseCmdPath(cmd)
-	if err != nil {
-		return nil, "", err
-	}
-	tb, err := termbase.NewSQLiteTermBase(dbPath)
-	if err != nil {
-		return nil, dbPath, fmt.Errorf("open termbase: %w", err)
-	}
-	return tb, dbPath, nil
-}
-
-// resolveTermbaseCmdPath picks the SQLite termbase file a `kapi termbase`
-// subcommand operates on. An explicit --name/--file/--local flag always wins.
-// Otherwise, when run inside a .kapi project, it defaults to the project's bound
-// termbase (defaults.termbase, else <root>/.kapi/termbase.db) so that
-// `kapi termbase lookup`/`import` see the same glossary that `kapi verify` and
-// `kapi term-check` enforce — without it, a lookup inside a project silently
-// hit an empty ./termbase.db. Falls back to ./termbase.db outside a project.
-func (a *App) resolveTermbaseCmdPath(cmd *cobra.Command) (string, error) {
-	name, _ := cmd.Flags().GetString("name")
-	local, _ := cmd.Flags().GetBool("local")
-	file, _ := cmd.Flags().GetString("file")
-	if name != "" || file != "" || local {
-		return ResolveResourcePath(cmd, "termbases", "termbase.db")
-	}
-	if p, err := a.resolveProjectTermbasePath(cmd); err == nil && p != "" {
-		return p, nil
-	}
-	return ResolveResourcePath(cmd, "termbases", "termbase.db")
-}
-
-func (a *App) newTermbaseImportCmd() *cobra.Command {
+func newTermbaseImportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "import [file]",
 		Short:   "Import terms from CSV, JSON, TBX, or native .klftb into a termbase",
@@ -107,7 +69,7 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 				format = "klftb"
 			}
 
-			tb, dbPath, err := a.openTermbaseSQLite(cmd)
+			tb, dbPath, err := a.OpenTermbaseSQLite(cmd)
 			if err != nil {
 				return err
 			}
@@ -142,7 +104,7 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 					Domain: domain,
 				})
 			case "klftb":
-				count, err = importKLFTBFile(cmd.Context(), tb, f)
+				count, err = ImportKLFTBFile(cmd.Context(), tb, f)
 			default:
 				return fmt.Errorf("unsupported format: %s (use csv, tsv, json, tbx, or klftb)", format)
 			}
@@ -177,7 +139,7 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 	return cmd
 }
 
-func (a *App) newTermbaseExportCmd() *cobra.Command {
+func newTermbaseExportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export termbase to CSV, JSON, TBX, or native .klftb",
@@ -188,7 +150,7 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			tbName, _ := cmd.Flags().GetString("export-name")
 
-			tb, dbPath, err := a.openTermbaseSQLite(cmd)
+			tb, dbPath, err := a.OpenTermbaseSQLite(cmd)
 			if err != nil {
 				return err
 			}
@@ -219,7 +181,7 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 					SourceLocale: model.LocaleID(srcLocale),
 				})
 			case "klftb":
-				err = exportKLFTB(cmd.Context(), tb, w)
+				err = ExportKLFTB(cmd.Context(), tb, w)
 			default:
 				return fmt.Errorf("unsupported format: %s (use csv, json, tbx, or klftb)", format)
 			}
@@ -251,7 +213,7 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 	return cmd
 }
 
-func (a *App) newTermbaseLookupCmd() *cobra.Command {
+func newTermbaseLookupCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "lookup [term]",
 		Short:   "Look up a term in the termbase",
@@ -263,7 +225,7 @@ func (a *App) newTermbaseLookupCmd() *cobra.Command {
 			domain, _ := cmd.Flags().GetString("domain")
 			fuzzy, _ := cmd.Flags().GetBool("fuzzy")
 
-			tb, _, err := a.openTermbaseSQLite(cmd)
+			tb, _, err := a.OpenTermbaseSQLite(cmd)
 			if err != nil {
 				return err
 			}
@@ -333,7 +295,7 @@ func (a *App) newTermbaseLookupCmd() *cobra.Command {
 	return cmd
 }
 
-func (a *App) newTermbaseSearchCmd() *cobra.Command {
+func newTermbaseSearchCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "search [query]",
 		Short:   "Search concepts in the termbase",
@@ -344,7 +306,7 @@ func (a *App) newTermbaseSearchCmd() *cobra.Command {
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			limit, _ := cmd.Flags().GetInt("limit")
 
-			tb, _, err := a.openTermbaseSQLite(cmd)
+			tb, _, err := a.OpenTermbaseSQLite(cmd)
 			if err != nil {
 				return err
 			}
@@ -387,13 +349,13 @@ func (a *App) newTermbaseSearchCmd() *cobra.Command {
 	return cmd
 }
 
-func (a *App) newTermbaseStatsCmd() *cobra.Command {
+func newTermbaseStatsCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:     "stats",
 		Short:   "Show termbase statistics",
 		Example: "  kapi termbase stats\n  kapi termbase stats --name product-terms",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tb, dbPath, err := a.openTermbaseSQLite(cmd)
+			tb, dbPath, err := a.OpenTermbaseSQLite(cmd)
 			if err != nil {
 				return err
 			}
@@ -436,7 +398,7 @@ func (a *App) newTermbaseStatsCmd() *cobra.Command {
 	}
 }
 
-func (a *App) newTermbaseListCmd() *cobra.Command {
+func newTermbaseListCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List named termbases in KAPI_HOME",
@@ -463,37 +425,4 @@ func (a *App) newTermbaseListCmd() *cobra.Command {
 			})
 		},
 	}
-}
-
-// importKLFTBFile imports a native .klftb document. Concepts keep their
-// serialized identity (AddConcept upserts by concept ID), so a
-// wipe-and-reseed from a committed .klftb reproduces the termbase exactly.
-func importKLFTBFile(ctx context.Context, tb termbase.TermBase, r io.Reader) (int, error) {
-	file, err := klftb.Decode(r)
-	if err != nil {
-		return 0, fmt.Errorf("parse klftb: %w", err)
-	}
-	for _, c := range file.Concepts {
-		if err := tb.AddConcept(ctx, c); err != nil {
-			return 0, fmt.Errorf("add concept %s: %w", c.ID, err)
-		}
-	}
-	return len(file.Concepts), nil
-}
-
-// exportKLFTB writes the whole termbase as a deterministic, lossless .klftb
-// document — the native form for committing a termbase to git.
-func exportKLFTB(ctx context.Context, tb termbase.TermBase, w io.Writer) error {
-	concepts, err := tb.Concepts(ctx)
-	if err != nil {
-		return fmt.Errorf("list concepts: %w", err)
-	}
-	data, err := klftb.Marshal(klftb.FromConcepts(concepts))
-	if err != nil {
-		return fmt.Errorf("marshal klftb: %w", err)
-	}
-	if _, err := w.Write(data); err != nil {
-		return fmt.Errorf("write klftb: %w", err)
-	}
-	return nil
 }

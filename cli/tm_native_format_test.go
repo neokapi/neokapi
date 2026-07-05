@@ -15,19 +15,19 @@ import (
 )
 
 func TestResolveTMFileFormat(t *testing.T) {
-	assert.Equal(t, "klftm", resolveTMFileFormat("auto", "seeds/builtins-nb.klftm"))
-	assert.Equal(t, "tmx", resolveTMFileFormat("auto", "corpus.tmx"))
-	assert.Equal(t, "tmx", resolveTMFileFormat("auto", "corpus.tmx.gz"))
-	assert.Equal(t, "tmx", resolveTMFileFormat("", ""))
-	assert.Equal(t, "klftm", resolveTMFileFormat("klftm", "anything.xml"))
-	assert.Equal(t, "tmx", resolveTMFileFormat("TMX", "x.klftm"))
+	assert.Equal(t, "klftm", ResolveTMFileFormat("auto", "seeds/builtins-nb.klftm"))
+	assert.Equal(t, "tmx", ResolveTMFileFormat("auto", "corpus.tmx"))
+	assert.Equal(t, "tmx", ResolveTMFileFormat("auto", "corpus.tmx.gz"))
+	assert.Equal(t, "tmx", ResolveTMFileFormat("", ""))
+	assert.Equal(t, "klftm", ResolveTMFileFormat("klftm", "anything.xml"))
+	assert.Equal(t, "tmx", ResolveTMFileFormat("TMX", "x.klftm"))
 }
 
 // runTMExport drives the real `kapi tm export` RunE against the given db.
 func runTMExport(t *testing.T, dbPath, outPath, format string) {
 	t.Helper()
 	a := &App{Quiet: true}
-	cmd := a.newTMExportCmd()
+	cmd := newTMExportCmd(a)
 	AddResourceFlags(cmd)
 	require.NoError(t, cmd.Flags().Set("file", dbPath))
 	require.NoError(t, cmd.Flags().Set("output", outPath))
@@ -42,7 +42,7 @@ func runTMExport(t *testing.T, dbPath, outPath, format string) {
 func runTMImport(t *testing.T, dbPath, inPath string) {
 	t.Helper()
 	a := &App{Quiet: true}
-	cmd := a.newTMImportCmd()
+	cmd := newTMImportCmd(a)
 	AddResourceFlags(cmd)
 	require.NoError(t, cmd.Flags().Set("file", dbPath))
 	cmd.SetContext(t.Context())
@@ -98,7 +98,7 @@ func TestTermbaseKLFTBRoundTrip(t *testing.T) {
 
 	dbPath := filepath.Join(dir, "tb.db")
 	a := &App{Quiet: true}
-	imp := a.newTermbaseImportCmd()
+	imp := newTermbaseImportCmd(a)
 	AddResourceFlags(imp)
 	require.NoError(t, imp.Flags().Set("file", dbPath))
 	require.NoError(t, imp.Flags().Set("source-locale", "en"))
@@ -108,7 +108,7 @@ func TestTermbaseKLFTBRoundTrip(t *testing.T) {
 	require.NoError(t, imp.RunE(imp, []string{csvPath}))
 
 	// Export native (.klftb auto-detected from the -o extension).
-	exp := a.newTermbaseExportCmd()
+	exp := newTermbaseExportCmd(a)
 	AddResourceFlags(exp)
 	require.NoError(t, exp.Flags().Set("file", dbPath))
 	seed := filepath.Join(dir, "terms.klftb")
@@ -125,7 +125,7 @@ func TestTermbaseKLFTBRoundTrip(t *testing.T) {
 
 	// Fresh termbase seeded from the klftb (auto-detected on import).
 	db2 := filepath.Join(dir, "tb2.db")
-	imp2 := a.newTermbaseImportCmd()
+	imp2 := newTermbaseImportCmd(a)
 	AddResourceFlags(imp2)
 	require.NoError(t, imp2.Flags().Set("file", db2))
 	imp2.SetContext(ctx)

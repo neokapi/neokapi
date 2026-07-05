@@ -31,7 +31,7 @@ func TestRunCatOutput(t *testing.T) {
 
 	t.Run("plain", func(t *testing.T) {
 		out, err := captureStdout(t, func() error {
-			return app.runCat(context.Background(), &cobra.Command{}, []string{path}, catOptions{})
+			return app.RunCat(context.Background(), NewEnvCommand(context.Background(), "test"), []string{path}, CatOptions{})
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "Hello\nWorld\n", out)
@@ -39,7 +39,7 @@ func TestRunCatOutput(t *testing.T) {
 
 	t.Run("numbered", func(t *testing.T) {
 		out, err := captureStdout(t, func() error {
-			return app.runCat(context.Background(), &cobra.Command{}, []string{path}, catOptions{number: true})
+			return app.RunCat(context.Background(), NewEnvCommand(context.Background(), "test"), []string{path}, CatOptions{Number: true})
 		})
 		require.NoError(t, err)
 		assert.Contains(t, out, "     1\tHello")
@@ -48,7 +48,7 @@ func TestRunCatOutput(t *testing.T) {
 
 	t.Run("target locale with no translation prints nothing", func(t *testing.T) {
 		out, err := captureStdout(t, func() error {
-			return app.runCat(context.Background(), &cobra.Command{}, []string{path}, catOptions{targetLoc: "fr"})
+			return app.RunCat(context.Background(), NewEnvCommand(context.Background(), "test"), []string{path}, CatOptions{TargetLocale: "fr"})
 		})
 		require.NoError(t, err)
 		assert.Empty(t, out)
@@ -60,15 +60,15 @@ func TestRunGrepOutput(t *testing.T) {
 	dir := t.TempDir()
 	path := writeToolboxFile(t, dir, "en.json", `{"a":"Hello world","b":"keep world","c":"nope"}`)
 
-	mustMatcher := func(t *testing.T, pat string, o matcherOpts) *matcher {
-		m, err := newMatcher([]string{pat}, o)
+	mustMatcher := func(t *testing.T, pat string, o MatcherOpts) *Matcher {
+		m, err := NewMatcher([]string{pat}, o)
 		require.NoError(t, err)
 		return m
 	}
 
 	t.Run("match with block numbers, single file has no name prefix", func(t *testing.T) {
 		out, err := captureStdout(t, func() error {
-			return app.runGrep(context.Background(), []string{path}, mustMatcher(t, "world", matcherOpts{}), grepOptions{number: true})
+			return app.RunGrep(context.Background(), []string{path}, mustMatcher(t, "world", MatcherOpts{}), GrepOptions{Number: true})
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "1:Hello world\n2:keep world\n", out)
@@ -76,7 +76,7 @@ func TestRunGrepOutput(t *testing.T) {
 
 	t.Run("count", func(t *testing.T) {
 		out, err := captureStdout(t, func() error {
-			return app.runGrep(context.Background(), []string{path}, mustMatcher(t, "world", matcherOpts{}), grepOptions{count: true})
+			return app.RunGrep(context.Background(), []string{path}, mustMatcher(t, "world", MatcherOpts{}), GrepOptions{Count: true})
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "2\n", out)
@@ -84,7 +84,7 @@ func TestRunGrepOutput(t *testing.T) {
 
 	t.Run("files-with-matches", func(t *testing.T) {
 		out, err := captureStdout(t, func() error {
-			return app.runGrep(context.Background(), []string{path}, mustMatcher(t, "world", matcherOpts{}), grepOptions{filesWith: true})
+			return app.RunGrep(context.Background(), []string{path}, mustMatcher(t, "world", MatcherOpts{}), GrepOptions{FilesWith: true})
 		})
 		require.NoError(t, err)
 		assert.Equal(t, path+"\n", out)
@@ -92,7 +92,7 @@ func TestRunGrepOutput(t *testing.T) {
 
 	t.Run("invert", func(t *testing.T) {
 		out, err := captureStdout(t, func() error {
-			return app.runGrep(context.Background(), []string{path}, mustMatcher(t, "world", matcherOpts{invert: true}), grepOptions{})
+			return app.RunGrep(context.Background(), []string{path}, mustMatcher(t, "world", MatcherOpts{Invert: true}), GrepOptions{})
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "nope\n", out)
@@ -100,7 +100,7 @@ func TestRunGrepOutput(t *testing.T) {
 
 	t.Run("no match returns ErrSilentExit and prints nothing", func(t *testing.T) {
 		out, err := captureStdout(t, func() error {
-			return app.runGrep(context.Background(), []string{path}, mustMatcher(t, "zzz", matcherOpts{}), grepOptions{})
+			return app.RunGrep(context.Background(), []string{path}, mustMatcher(t, "zzz", MatcherOpts{}), GrepOptions{})
 		})
 		assert.Empty(t, out)
 		assert.ErrorIs(t, err, ErrSilentExit, "no-match must signal exit 1 via ErrSilentExit")
@@ -108,7 +108,7 @@ func TestRunGrepOutput(t *testing.T) {
 
 	t.Run("missing file returns exit 2 (trouble) and stays silent", func(t *testing.T) {
 		out, err := captureStdout(t, func() error {
-			return app.runGrep(context.Background(), []string{dir + "/missing.json"}, mustMatcher(t, "world", matcherOpts{}), grepOptions{})
+			return app.RunGrep(context.Background(), []string{dir + "/missing.json"}, mustMatcher(t, "world", MatcherOpts{}), GrepOptions{})
 		})
 		assert.Empty(t, out)
 		require.Error(t, err)
@@ -119,7 +119,7 @@ func TestRunGrepOutput(t *testing.T) {
 	t.Run("two files get name prefixes", func(t *testing.T) {
 		path2 := writeToolboxFile(t, dir, "more.json", `{"x":"world tour"}`)
 		out, err := captureStdout(t, func() error {
-			return app.runGrep(context.Background(), []string{path, path2}, mustMatcher(t, "world", matcherOpts{}), grepOptions{})
+			return app.RunGrep(context.Background(), []string{path, path2}, mustMatcher(t, "world", MatcherOpts{}), GrepOptions{})
 		})
 		require.NoError(t, err)
 		assert.Contains(t, out, path+":Hello world")
@@ -132,12 +132,12 @@ func TestRunSedStdout(t *testing.T) {
 	dir := t.TempDir()
 	path := writeToolboxFile(t, dir, "en.json", `{"a":"Hello world"}`)
 
-	prog, err := parseSedProgram([]string{"s/world/EARTH/g"})
+	prog, err := ParseSedProgram([]string{"s/world/EARTH/g"})
 	require.NoError(t, err)
-	sedTool := newSedTool(prog, "", true)
+	sedTool := NewSedTool(prog, "", true)
 
 	out, cerr := captureStdout(t, func() error {
-		return app.runSed(context.Background(), []string{path}, sedTool, "", false, "")
+		return app.RunSed(context.Background(), []string{path}, sedTool, "", false, "")
 	})
 	require.NoError(t, cerr)
 	assert.Contains(t, out, "Hello EARTH")
@@ -161,7 +161,7 @@ func TestEditDocumentDocxRoundtrip(t *testing.T) {
 	var src, word string
 	for _, fx := range fixtures {
 		var firstWord string
-		_, err := app.streamBlocks(context.Background(), fx, func(_ int, b *model.Block) error {
+		_, err := app.StreamBlocks(context.Background(), fx, func(_ int, b *model.Block) error {
 			if firstWord != "" {
 				return nil
 			}
@@ -188,17 +188,17 @@ func TestEditDocumentDocxRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(dst, in, 0o644))
 
-	prog, err := parseSedProgram([]string{"s/" + word + "/ZZWORDZZ/g"})
+	prog, err := ParseSedProgram([]string{"s/" + word + "/ZZWORDZZ/g"})
 	require.NoError(t, err)
-	sedTool := newSedTool(prog, "", true)
+	sedTool := NewSedTool(prog, "", true)
 
 	// Edit in place.
-	require.NoError(t, app.editDocument(context.Background(), dst, sedTool, "", true, "", nil))
+	require.NoError(t, app.EditDocument(context.Background(), dst, sedTool, "", true, "", nil))
 
 	// Re-read the rewritten .docx: it must still parse, and the replacement must
 	// be visible in the extracted text.
 	var found bool
-	_, err = app.streamBlocks(context.Background(), dst, func(_ int, b *model.Block) error {
+	_, err = app.StreamBlocks(context.Background(), dst, func(_ int, b *model.Block) error {
 		if strings.Contains(b.SourceText(), "ZZWORDZZ") {
 			found = true
 		}
@@ -216,22 +216,22 @@ func TestResolveFormatNameStdin(t *testing.T) {
 	app := newToolboxApp(t)
 
 	t.Run("piped JSON is detected by content", func(t *testing.T) {
-		assert.Equal(t, "json", app.resolveFormatName(stdinName, []byte(`{"a":"hello","b":"world"}`)))
+		assert.Equal(t, "json", app.ResolveFormatName(StdinName, []byte(`{"a":"hello","b":"world"}`)))
 	})
 
 	t.Run("piped plain text falls back to plaintext", func(t *testing.T) {
-		assert.Equal(t, fallbackFormat, app.resolveFormatName(stdinName, []byte("just some words\n")))
+		assert.Equal(t, FallbackFormat, app.ResolveFormatName(StdinName, []byte("just some words\n")))
 	})
 
 	t.Run("explicit --format wins over content", func(t *testing.T) {
 		app.FormatFlag = "plaintext"
 		defer func() { app.FormatFlag = "" }()
-		assert.Equal(t, "plaintext", app.resolveFormatName(stdinName, []byte(`{"a":"b"}`)))
+		assert.Equal(t, "plaintext", app.ResolveFormatName(StdinName, []byte(`{"a":"b"}`)))
 	})
 
 	t.Run("file extension still wins for paths", func(t *testing.T) {
 		// .md extension chosen even though the bytes look like JSON.
-		assert.Equal(t, "markdown", app.resolveFormatName("notes.md", []byte(`{"a":"b"}`)))
+		assert.Equal(t, "markdown", app.ResolveFormatName("notes.md", []byte(`{"a":"b"}`)))
 	})
 
 	t.Run("piped .docx is detected as openxml, not epub", func(t *testing.T) {
@@ -241,7 +241,7 @@ func TestResolveFormatNameStdin(t *testing.T) {
 		}
 		content, err := os.ReadFile(fixtures[0])
 		require.NoError(t, err)
-		assert.Equal(t, "openxml", app.resolveFormatName(stdinName, content))
+		assert.Equal(t, "openxml", app.ResolveFormatName(StdinName, content))
 	})
 }
 
@@ -263,7 +263,7 @@ func TestToolboxProxiesDetached(t *testing.T) {
 
 	t.Run("all three are hidden and flag-detached", func(t *testing.T) {
 		for _, name := range []string{"grep", "sed", "cat"} {
-			c := findCmd(app.NewToolboxProxies(), name)
+			c := findCmd(NewToolboxProxies(app), name)
 			require.NotNil(t, c, "proxy %q must exist", name)
 			assert.True(t, c.Hidden, "%q must be hidden from kapi --help", name)
 			assert.True(t, c.DisableFlagParsing, "%q must not inherit kapi's persistent flags", name)
@@ -274,7 +274,7 @@ func TestToolboxProxiesDetached(t *testing.T) {
 	path := writeToolboxFile(t, dir, "en.json", `{"a":"hello world","b":"nope"}`)
 
 	t.Run("kapi grep -v inverts (not verbose)", func(t *testing.T) {
-		grep := findCmd(app.NewToolboxProxies(), "grep")
+		grep := findCmd(NewToolboxProxies(app), "grep")
 		out, err := captureStdout(t, func() error {
 			grep.SetArgs([]string{"-v", "world", path})
 			return grep.Execute()
@@ -284,7 +284,7 @@ func TestToolboxProxiesDetached(t *testing.T) {
 	})
 
 	t.Run("kapi grep -c counts (not config)", func(t *testing.T) {
-		grep := findCmd(app.NewToolboxProxies(), "grep")
+		grep := findCmd(NewToolboxProxies(app), "grep")
 		out, err := captureStdout(t, func() error {
 			grep.SetArgs([]string{"-c", "world", path})
 			return grep.Execute()
@@ -295,7 +295,7 @@ func TestToolboxProxiesDetached(t *testing.T) {
 
 	t.Run("kapi sed -i.bak edits in place via proxy", func(t *testing.T) {
 		p := writeToolboxFile(t, dir, "s.json", `{"x":"foo"}`)
-		sed := findCmd(app.NewToolboxProxies(), "sed")
+		sed := findCmd(NewToolboxProxies(app), "sed")
 		sed.SetArgs([]string{"-i.bak", "s/foo/bar/", p})
 		require.NoError(t, sed.Execute())
 		edited, _ := os.ReadFile(p)
@@ -316,4 +316,14 @@ func isAlphaWord(s string) bool {
 		}
 	}
 	return true
+}
+
+// newToolboxApp mirrors the host package's fixture for the cobra-side
+// toolbox tests.
+func newToolboxApp(t *testing.T) *App {
+	t.Helper()
+	app := &App{SourceLang: "en", Encoding: "UTF-8"}
+	app.InitRegistries()
+	require.NotNil(t, app.FormatReg)
+	return app
 }

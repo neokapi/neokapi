@@ -1,31 +1,19 @@
 package cli
 
 import (
-	"bytes"
-	"context"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
-	"slices"
 	"sort"
-	"strings"
+
+	coreproj "github.com/neokapi/neokapi/core/project"
 
 	"github.com/neokapi/neokapi/cli/output"
-	"github.com/neokapi/neokapi/core/model"
-	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/spf13/cobra"
 )
 
-// Local project content management — add/rm edit the .kapi recipe's content
-// collections and exclude list. These are local project configuration only (no
-// server involvement), so they live in core kapi alongside `init`, available
-// with or without the bowrain plugin. The product boundary: kapi owns local
-// files + project configuration; bowrain owns server sync (push/pull/status).
-
 // NewAddCmd returns `kapi add` — add file patterns to the project's content.
-func (a *App) NewAddCmd() *cobra.Command {
+func NewAddCmd(a *App) *cobra.Command {
 	var format string
 	cmd := &cobra.Command{
 		Use:     "add <pattern> [pattern...]",
@@ -52,7 +40,7 @@ from the extension unless --format is given.
 
 			var result output.AddOutput
 			for _, pattern := range args {
-				if contentTracks(proj, pattern) {
+				if ContentTracks(proj, pattern) {
 					result.Added = append(result.Added, output.AddEntry{Pattern: pattern, Skipped: true})
 					continue
 				}
@@ -79,7 +67,7 @@ from the extension unless --format is given.
 		},
 	}
 	AddProjectFlag(cmd)
-	output.AddFlags(cmd)
+	output.AddFlags(cmd.Flags())
 	cmd.Flags().StringVarP(&format, "format", "f", "", "file format (e.g. html, json); auto-detected if omitted")
 	return cmd
 }
@@ -87,7 +75,7 @@ from the extension unless --format is given.
 // NewLsCmd returns `kapi ls` — list the files the project's content tracks.
 // With --stats it adds per-file block and word counts. Sync state
 // (changed-vs-server) is reported by the platform's `status` command, not here.
-func (a *App) NewLsCmd() *cobra.Command {
+func NewLsCmd(a *App) *cobra.Command {
 	var stats bool
 	cmd := &cobra.Command{
 		Use:     "ls [path...]",
@@ -121,7 +109,7 @@ exclude list). With --stats, also show per-file block and word counts.
 					continue
 				}
 				for _, rp := range rels {
-					if seen[rp] || !matchesPathPrefix(rp, args) {
+					if seen[rp] || !MatchesPathPrefix(rp, args) {
 						continue
 					}
 					fmtName := ""
@@ -141,7 +129,7 @@ exclude list). With --stats, also show per-file block and word counts.
 					seen[rp] = true
 					entry := output.LsEntry{Path: rp, Format: fmtName}
 					if stats {
-						blocks, words, _ := a.countFileBlocks(ctx, filepath.Join(root, rp), registry.FormatID(fmtName), proj.Defaults.SourceLanguage)
+						blocks, words, _ := a.CountFileBlocks(ctx, filepath.Join(root, rp), registry.FormatID(fmtName), proj.Defaults.SourceLanguage)
 						entry.Blocks, entry.Words = blocks, words
 						out.Blocks += blocks
 						out.Words += words
@@ -155,55 +143,13 @@ exclude list). With --stats, also show per-file block and word counts.
 		},
 	}
 	AddProjectFlag(cmd)
-	output.AddFlags(cmd)
+	output.AddFlags(cmd.Flags())
 	cmd.Flags().BoolVarP(&stats, "stats", "s", false, "show per-file block and word counts")
 	return cmd
 }
 
-// countFileBlocks reads a source file through its format reader and returns its
-// translatable block count and total source word count (for `kapi ls --stats`).
-func (a *App) countFileBlocks(ctx context.Context, absPath string, fmtID registry.FormatID, srcLocale model.LocaleID) (blocks, words int, err error) {
-	reader, err := a.FormatReg.NewReader(fmtID)
-	if err != nil {
-		return 0, 0, err
-	}
-	defer reader.Close()
-	data, err := os.ReadFile(absPath)
-	if err != nil {
-		return 0, 0, err
-	}
-	doc := &model.RawDocument{URI: absPath, SourceLocale: srcLocale, Reader: io.NopCloser(bytes.NewReader(data))}
-	if err := reader.Open(ctx, doc); err != nil {
-		return 0, 0, err
-	}
-	for res := range reader.Read(ctx) {
-		if res.Error != nil {
-			return 0, 0, res.Error
-		}
-		if b, ok := res.Part.Resource.(*model.Block); ok && b != nil && b.Translatable {
-			blocks++
-			words += b.WordCount()
-		}
-	}
-	return blocks, words, nil
-}
-
-// matchesPathPrefix reports whether rel matches any of the given path prefixes
-// (trailing slash ignored), or true when no prefixes are given.
-func matchesPathPrefix(rel string, prefixes []string) bool {
-	if len(prefixes) == 0 {
-		return true
-	}
-	for _, p := range prefixes {
-		if strings.HasPrefix(rel, strings.TrimRight(p, "/")) {
-			return true
-		}
-	}
-	return false
-}
-
 // NewRmCmd returns `kapi rm` — stop tracking files matching the given patterns.
-func (a *App) NewRmCmd() *cobra.Command {
+func NewRmCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "rm <pattern> [pattern...]",
 		Short:   "Remove file patterns from the project's content",
@@ -229,7 +175,7 @@ Otherwise the pattern is added to the exclude list so those files are skipped.
 
 			var result output.RmOutput
 			for _, pattern := range args {
-				result.Entries = append(result.Entries, rmPattern(proj, root, pattern))
+				result.Entries = append(result.Entries, RmPattern(proj, root, pattern))
 			}
 			if err := coreproj.Save(recipePath, proj); err != nil {
 				return fmt.Errorf("save recipe: %w", err)
@@ -238,38 +184,6 @@ Otherwise the pattern is added to the exclude list so those files are skipped.
 		},
 	}
 	AddProjectFlag(cmd)
-	output.AddFlags(cmd)
+	output.AddFlags(cmd.Flags())
 	return cmd
-}
-
-// contentTracks reports whether the recipe already tracks the exact pattern.
-func contentTracks(proj *coreproj.KapiProject, pattern string) bool {
-	for _, it := range proj.IterateContent() {
-		if it.Item.Path == pattern {
-			return true
-		}
-	}
-	return false
-}
-
-// rmPattern removes a top-level bare content entry matching the pattern, or
-// (if none matches) adds the pattern to the exclude list. Items nested inside
-// named collections are not touched (they survive as part of the collection).
-func rmPattern(proj *coreproj.KapiProject, root, pattern string) output.RmEntry {
-	for i, c := range proj.Content {
-		if c.IsBareEntry() && c.Path == pattern {
-			format := ""
-			if c.Format != nil {
-				format = c.Format.Name
-			}
-			proj.Content = append(proj.Content[:i], proj.Content[i+1:]...)
-			return output.RmEntry{Pattern: pattern, Action: "removed", Format: format}
-		}
-	}
-	if slices.Contains(proj.Defaults.Exclude, pattern) {
-		return output.RmEntry{Pattern: pattern, Action: "already_excluded"}
-	}
-	proj.Defaults.Exclude = append(proj.Defaults.Exclude, pattern)
-	matches, _ := coreproj.ExpandGlob(root, pattern)
-	return output.RmEntry{Pattern: pattern, Action: "excluded", Files: len(matches)}
 }

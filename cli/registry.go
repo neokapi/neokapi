@@ -10,7 +10,7 @@ import (
 )
 
 // NewRegistryCmd creates the registry command group (list, add, remove).
-func (a *App) NewRegistryCmd() *cobra.Command {
+func NewRegistryCmd(a *App) *cobra.Command {
 	registryCmd := &cobra.Command{
 		Use:     "registry",
 		Short:   "Manage plugin registries",

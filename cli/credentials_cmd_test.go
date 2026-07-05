@@ -62,7 +62,7 @@ func TestValidateProviderType(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateProviderType(tc.provider)
+			err := ValidateProviderType(tc.provider)
 			if !tc.wantErr {
 				require.NoError(t, err)
 				return
@@ -76,7 +76,7 @@ func TestValidateProviderType(t *testing.T) {
 }
 
 func TestKnownProviderTypes(t *testing.T) {
-	known := knownProviderTypes()
+	known := KnownProviderTypes()
 
 	// The list is sorted and deduplicated.
 	require.NotEmpty(t, known, "expected at least one known provider")
@@ -96,7 +96,7 @@ func TestKnownProviderTypes(t *testing.T) {
 
 func TestCredentialsAddCmd_RejectsUnknownProvider(t *testing.T) {
 	app := newCredTestApp(t)
-	cmd := app.newCredentialsAddCmd()
+	cmd := newCredentialsAddCmd(app)
 	cmd.SetArgs([]string{"my-cred", "--provider", "anthorpic", "--api-key", "sk-test"})
 	cmd.SetOut(&strings.Builder{})
 	cmd.SetErr(&strings.Builder{})
@@ -113,7 +113,7 @@ func TestCredentialsAddCmd_RejectsUnknownProvider(t *testing.T) {
 
 func TestCredentialsAddCmd_AcceptsKnownProvider(t *testing.T) {
 	app := newCredTestApp(t)
-	cmd := app.newCredentialsAddCmd()
+	cmd := newCredentialsAddCmd(app)
 	cmd.SetArgs([]string{"my-openai", "--provider", "openai", "--api-key", "sk-test"})
 	cmd.SetOut(&strings.Builder{})
 	cmd.SetErr(&strings.Builder{})
@@ -127,7 +127,7 @@ func TestCredentialsAddCmd_AcceptsKnownProvider(t *testing.T) {
 
 func TestCredentialsAddCmd_AcceptsKnownProviderCaseInsensitive(t *testing.T) {
 	app := newCredTestApp(t)
-	cmd := app.newCredentialsAddCmd()
+	cmd := newCredentialsAddCmd(app)
 	// ollama needs no API key.
 	cmd.SetArgs([]string{"my-ollama", "--provider", "Ollama"})
 	cmd.SetOut(&strings.Builder{})

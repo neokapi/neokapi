@@ -6,7 +6,7 @@ import (
 
 // NewCompletionCmd creates the "completion" command for generating shell
 // completion scripts. Supports bash, zsh, fish, and powershell.
-func (a *App) NewCompletionCmd() *cobra.Command {
+func NewCompletionCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "completion [bash|zsh|fish|powershell]",
 		Short: "Generate shell completion script",

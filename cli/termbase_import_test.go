@@ -23,7 +23,7 @@ func TestTermbaseImport_Monolingual(t *testing.T) {
 	require.NoError(t, os.WriteFile(csvPath, []byte("term,definition\nBowrain,The localization platform\non-brand,Consistent with the brand voice\n"), 0o644))
 
 	a := &App{TBBackend: termbase.NewInMemoryTermBase()}
-	cmd := a.newTermbaseImportCmd()
+	cmd := newTermbaseImportCmd(a)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -60,7 +60,7 @@ func TestTermbaseImport_BilingualUnchanged(t *testing.T) {
 	require.NoError(t, os.WriteFile(csvPath, []byte("dashboard,tableau de bord\nsettings,paramètres\n"), 0o644))
 
 	a := &App{TBBackend: termbase.NewInMemoryTermBase()}
-	cmd := a.newTermbaseImportCmd()
+	cmd := newTermbaseImportCmd(a)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)

@@ -7,7 +7,7 @@ import (
 )
 
 // NewVersionCmd creates a version command for the named program.
-func (a *App) NewVersionCmd(program string) *cobra.Command {
+func NewVersionCmd(a *App, program string) *cobra.Command {
 	return &cobra.Command{
 		Use:     "version",
 		Short:   "Show version information",

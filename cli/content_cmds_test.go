@@ -50,12 +50,12 @@ content:
 	}
 
 	// add: a new pattern, format auto-detected from the .html extension.
-	out, err := run(a.NewAddCmd(), "src/**/*.html")
+	out, err := run(NewAddCmd(a), "src/**/*.html")
 	require.NoError(t, err)
 	assert.Contains(t, out, "src/**/*.html")
 
 	// add: an already-tracked pattern is skipped.
-	out, err = run(a.NewAddCmd(), "existing/*.json")
+	out, err = run(NewAddCmd(a), "existing/*.json")
 	require.NoError(t, err)
 	assert.Contains(t, out, "Already tracked")
 
@@ -70,7 +70,7 @@ content:
 	assert.Contains(t, s, "https://example.test")
 
 	// rm: a tracked bare entry removes the mapping; server: still preserved.
-	out, err = run(a.NewRmCmd(), "src/**/*.html")
+	out, err = run(NewRmCmd(a), "src/**/*.html")
 	require.NoError(t, err)
 	assert.Contains(t, out, "Removed")
 	raw, err = os.ReadFile(recipe)
@@ -79,7 +79,7 @@ content:
 	assert.Contains(t, string(raw), "server:")
 
 	// rm: a non-tracked pattern is added to the exclude list.
-	out, err = run(a.NewRmCmd(), "legacy/*.md")
+	out, err = run(NewRmCmd(a), "legacy/*.md")
 	require.NoError(t, err)
 	assert.Contains(t, out, "Excluded")
 	raw, err = os.ReadFile(recipe)
@@ -87,7 +87,7 @@ content:
 	assert.Contains(t, string(raw), "legacy/*.md")
 
 	// No project found is an actionable error.
-	noProj := a.NewAddCmd()
+	noProj := NewAddCmd(a)
 	noProj.SetArgs([]string{"x/*.json", "--project", filepath.Join(real, "missing.kapi")})
 	noProj.SetOut(&bytes.Buffer{})
 	noProj.SetErr(&bytes.Buffer{})
@@ -114,7 +114,7 @@ server:
 `
 	require.NoError(t, os.WriteFile(recipe, []byte(yaml), 0o644))
 
-	cmd := a.NewAddCmd()
+	cmd := NewAddCmd(a)
 	cmd.SetArgs([]string{"src/*.json", "--project", recipe})
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
@@ -147,7 +147,7 @@ content:
 	require.NoError(t, os.WriteFile(filepath.Join(real, "src", "b.json"), []byte(`{"bye":"Goodbye"}`), 0o644))
 
 	run := func(args ...string) (string, error) {
-		cmd := a.NewLsCmd()
+		cmd := NewLsCmd(a)
 		cmd.SetArgs(append(args, "--project", recipe))
 		var out bytes.Buffer
 		cmd.SetOut(&out)

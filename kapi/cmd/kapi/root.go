@@ -37,7 +37,7 @@ var rootCmd = &cobra.Command{
 	// subcommands still error (cobra's legacy args validation runs first),
 	// and --help output is untouched.
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return app.RootRunE(cmd, args)
+		return cli.RootRunE(app, cmd, args)
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		app.Config = config.NewAppConfig()
@@ -78,14 +78,14 @@ func init() {
 	// into the cobra tree before Execute parses argv.
 	app.InitPluginHost()
 
-	app.AddPersistentFlags(rootCmd)
-	app.AddCommandGroups(rootCmd)
+	cli.AddPersistentFlags(app, rootCmd)
+	cli.AddCommandGroups(app, rootCmd)
 
 	// Built-in command set, shared with the cli/i18n help-string generator
 	// (cli.KapiCommandSet is the single source of truth for what `kapi`
 	// exposes, so the localization inventory can never drift from the
 	// binary).
-	for _, cmd := range app.KapiCommandSet() {
+	for _, cmd := range cli.KapiCommandSet(app) {
 		// A plugin may provide its own version of a built-in command (e.g.
 		// kapi-bowrain's `status` shows server sync state). A built-in shadows a
 		// plugin command of the same name, so to let the plugin win we skip

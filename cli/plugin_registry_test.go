@@ -104,10 +104,10 @@ func TestApply_NoFactoriesIsSafe(t *testing.T) {
 
 func TestNewMCPCmd_DefaultName(t *testing.T) {
 	app := &App{}
-	cmd := app.NewMCPCmd("")
+	cmd := NewMCPCmd(app, "")
 	assert.Equal(t, "mcp", cmd.Use)
 	assert.NotEmpty(t, cmd.Short)
 
-	cmdNamed := app.NewMCPCmd("bowrain")
+	cmdNamed := NewMCPCmd(app, "bowrain")
 	assert.Equal(t, "mcp", cmdNamed.Use)
 }

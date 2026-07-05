@@ -73,9 +73,9 @@ defaults:
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := a.newBrandCheckCmd()
+	cmd := newBrandCheckCmd(a)
 
-	profile, src, err := a.resolveBrandProfile(cmd)
+	profile, src, err := a.ResolveBrandProfileCmd(cmd)
 	require.NoError(t, err, "no flag + project binding must resolve, not error")
 	require.NotNil(t, profile)
 	assert.Equal(t, "Project Brand", profile.Name)
@@ -96,9 +96,9 @@ defaults:
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := a.newBrandCheckCmd()
+	cmd := newBrandCheckCmd(a)
 
-	profile, src, err := a.resolveBrandProfile(cmd)
+	profile, src, err := a.ResolveBrandProfileCmd(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, "Project Brand", profile.Name)
@@ -113,9 +113,9 @@ func TestResolveBrandProfile_NoProjectNoFlag(t *testing.T) {
 	t.Chdir(t.TempDir())
 
 	a := &App{}
-	cmd := a.newBrandCheckCmd()
+	cmd := newBrandCheckCmd(a)
 
-	_, _, err := a.resolveBrandProfile(cmd)
+	_, _, err := a.ResolveBrandProfileCmd(cmd)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "specify a profile")
 }
@@ -136,10 +136,10 @@ defaults:
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := a.newBrandCheckCmd()
+	cmd := newBrandCheckCmd(a)
 	require.NoError(t, cmd.Flags().Set("profile-file", explicit))
 
-	profile, _, err := a.resolveBrandProfile(cmd)
+	profile, _, err := a.ResolveBrandProfileCmd(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, "Explicit", profile.Name, "explicit flag must override the project binding")
@@ -176,9 +176,9 @@ defaults:
 
 	a := &App{SourceLang: "en"}
 	// A command without a --termbase flag still resolves the project termbase.
-	cmd := a.newBrandCheckCmd()
+	cmd := newBrandCheckCmd(a)
 
-	glossary, err := a.resolveProjectGlossary(cmd, "fr")
+	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
 	require.NoError(t, err)
 	require.Len(t, glossary, 1)
 	assert.Equal(t, "Save", glossary[0].Source)
@@ -210,9 +210,9 @@ defaults:
 	t.Chdir(root)
 
 	a := &App{SourceLang: "en"}
-	cmd := a.newBrandCheckCmd()
+	cmd := newBrandCheckCmd(a)
 
-	glossary, err := a.resolveProjectGlossary(cmd, "fr")
+	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
 	require.NoError(t, err)
 	require.Len(t, glossary, 1)
 	assert.Equal(t, "Cancel", glossary[0].Source)
@@ -224,8 +224,8 @@ defaults:
 func TestResolveProjectGlossary_NoProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	a := &App{SourceLang: "en"}
-	cmd := a.newBrandCheckCmd()
-	glossary, err := a.resolveProjectGlossary(cmd, "fr")
+	cmd := newBrandCheckCmd(a)
+	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
 	require.NoError(t, err)
 	assert.Nil(t, glossary)
 }
@@ -246,9 +246,9 @@ defaults:
 
 	a := &App{SourceLang: "en"}
 	a.InitRegistries()
-	cmd := a.newBrandCheckCmd()
+	cmd := newBrandCheckCmd(a)
 
-	glossary, err := a.resolveProjectGlossary(cmd, "fr")
+	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
 	require.NoError(t, err)
 	require.Len(t, glossary, 1)
 

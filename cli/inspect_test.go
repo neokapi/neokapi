@@ -23,7 +23,7 @@ func runInspectFixture(t *testing.T, name, content string, args ...string) strin
 	path := filepath.Join(t.TempDir(), name)
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 
-	cmd := app.NewInspectCmd()
+	cmd := NewInspectCmd(app)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -100,7 +100,7 @@ func TestInspect_NumberAndFileAcrossFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(a, []byte(`{"x":"one"}`), 0o644))
 	require.NoError(t, os.WriteFile(b, []byte(`{"y":"two","z":"three"}`), 0o644))
 
-	cmd := app.NewInspectCmd()
+	cmd := NewInspectCmd(app)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -115,9 +115,9 @@ func TestInspect_NumberAndFileAcrossFiles(t *testing.T) {
 		assert.Equal(t, i+1, blk.Number, "Number is a global 1-based counter across files")
 		assert.NotEmpty(t, blk.File, "every record carries its source file")
 	}
-	assert.Equal(t, displayName(a), blocks[0].File)
-	assert.Equal(t, displayName(b), blocks[1].File)
-	assert.Equal(t, displayName(b), blocks[2].File)
+	assert.Equal(t, DisplayName(a), blocks[0].File)
+	assert.Equal(t, DisplayName(b), blocks[1].File)
+	assert.Equal(t, DisplayName(b), blocks[2].File)
 }
 
 func TestInspect_ProjectRendersBlocksPerFormat(t *testing.T) {
@@ -145,7 +145,7 @@ func TestInspect_ProjectRendersBlocksPerFormat(t *testing.T) {
 
 func TestInspect_ProjectRejectsUnknownFormat(t *testing.T) {
 	app := newAppForTest(t)
-	cmd := app.NewInspectCmd()
+	cmd := NewInspectCmd(app)
 	cmd.SetArgs([]string{"--project", "pdf", "-"})
 	cmd.SetIn(strings.NewReader("x"))
 	cmd.SetOut(&bytes.Buffer{})

@@ -19,7 +19,7 @@ func runStatsJSON(t *testing.T, name, content string, extra ...string) StatsOutp
 	path := filepath.Join(t.TempDir(), name)
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 
-	cmd := app.NewStatsCmd()
+	cmd := NewStatsCmd(app)
 	// --json is a persistent root flag in production; add it for the test.
 	cmd.Flags().Bool("json", true, "")
 	require.NoError(t, cmd.Flags().Set("json", "true"))
@@ -63,7 +63,7 @@ func TestStats_MultiFileTotal(t *testing.T) {
 	require.NoError(t, os.WriteFile(a, []byte(`{"x":"one two"}`), 0o644))
 	require.NoError(t, os.WriteFile(b, []byte(`{"y":"three","z":"four five"}`), 0o644))
 
-	cmd := app.NewStatsCmd()
+	cmd := NewStatsCmd(app)
 	cmd.Flags().Bool("json", true, "")
 	require.NoError(t, cmd.Flags().Set("json", "true"))
 	var out bytes.Buffer

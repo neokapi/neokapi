@@ -120,10 +120,10 @@ func TestUpPlan_ConvergedProjectHasNoWork(t *testing.T) {
 
 // TestEstimateTokens: the chars/4 heuristic rounds up and zeroes on empty.
 func TestEstimateTokens(t *testing.T) {
-	assert.Equal(t, 0, estimateTokens(""))
-	assert.Equal(t, 1, estimateTokens("abc"))
-	assert.Equal(t, 1, estimateTokens("abcd"))
-	assert.Equal(t, 2, estimateTokens("abcde"))
+	assert.Equal(t, 0, EstimateTokens(""))
+	assert.Equal(t, 1, EstimateTokens("abc"))
+	assert.Equal(t, 1, EstimateTokens("abcd"))
+	assert.Equal(t, 2, EstimateTokens("abcde"))
 }
 
 // TestUpPlan_SubscriptionProviderNote: with the claude-code default provider,

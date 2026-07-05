@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +13,7 @@ import (
 func TestExitCode(t *testing.T) {
 	t.Parallel()
 
-	cmd := &cobra.Command{Use: "test"}
+	cmd := NewEnvCommand(context.Background(), "test")
 
 	tests := []struct {
 		name string
@@ -46,23 +45,23 @@ func TestExitCode(t *testing.T) {
 // interrupt, and 2 on operational trouble — with the trouble message preserved.
 func TestMapToolboxErr(t *testing.T) {
 	t.Parallel()
-	cmd := &cobra.Command{Use: "kgrep"}
+	cmd := NewEnvCommand(context.Background(), "kgrep")
 
 	// Match → nil → ExitOK.
-	require.NoError(t, mapToolboxErr(nil))
+	require.NoError(t, MapToolboxErr(nil))
 
 	// No-match → ErrSilentExit passes through → ExitError (1), message suppressed.
-	noMatch := mapToolboxErr(ErrSilentExit)
+	noMatch := MapToolboxErr(ErrSilentExit)
 	require.ErrorIs(t, noMatch, ErrSilentExit)
 	assert.Equal(t, ExitError, ExitCode(cmd, noMatch))
 
 	// Interrupt → context.Canceled passes through → ExitSignal (130).
-	cancelled := mapToolboxErr(context.Canceled)
+	cancelled := MapToolboxErr(context.Canceled)
 	require.ErrorIs(t, cancelled, context.Canceled)
 	assert.Equal(t, ExitSignal, ExitCode(cmd, cancelled))
 
 	// Operational trouble → ExitUsage (2), underlying message preserved.
-	trouble := mapToolboxErr(errors.New("invalid regexp"))
+	trouble := MapToolboxErr(errors.New("invalid regexp"))
 	assert.Equal(t, ExitUsage, ExitCode(cmd, trouble))
 	assert.Equal(t, "invalid regexp", trouble.Error())
 }

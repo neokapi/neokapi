@@ -37,11 +37,11 @@ ship_gate: { translated: 100 }
 
 func countCacheRows(t *testing.T, root string) int {
 	t.Helper()
-	c, err := openDocCache(filepath.Join(root, ".kapi", "cache"))
+	c, err := OpenDocCache(filepath.Join(root, ".kapi", "cache"))
 	require.NoError(t, err)
-	defer c.close()
+	defer c.Close()
 	var n int
-	require.NoError(t, c.db.QueryRow(`SELECT COUNT(*) FROM documents`).Scan(&n))
+	require.NoError(t, c.DB.QueryRow(`SELECT COUNT(*) FROM documents`).Scan(&n))
 	return n
 }
 

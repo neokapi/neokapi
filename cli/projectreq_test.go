@@ -224,7 +224,7 @@ func TestConfirm_AcceptsYesAndEmpty(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := confirm(strings.NewReader(tc.in), discardWriter{}, "ok? ")
+			got, err := Confirm(strings.NewReader(tc.in), discardWriter{}, "ok? ")
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})

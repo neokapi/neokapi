@@ -15,7 +15,7 @@ import (
 // note on stderr before running the original RunE.
 func TestDeprecatedAlias_PrintsNoteAndForwards(t *testing.T) {
 	a := &App{}
-	cmd := deprecatedAlias(a.NewPresetsCmd(), "note: presets moved")
+	cmd := deprecatedAlias(NewPresetsCmd(a), "note: presets moved")
 
 	assert.True(t, cmd.Hidden)
 	assert.Empty(t, cmd.GroupID)
@@ -34,7 +34,7 @@ func TestDeprecatedAlias_PrintsNoteAndForwards(t *testing.T) {
 // Ollama runtime management commands.
 func TestModelsAbsorbsOllama(t *testing.T) {
 	a := &App{}
-	models := a.NewModelsCmd()
+	models := NewModelsCmd(a)
 	var ollama *cobra.Command
 	for _, sub := range models.Commands() {
 		if sub.Name() == "ollama" {
@@ -59,7 +59,7 @@ func TestModelsAbsorbsOllama(t *testing.T) {
 func TestKapiCommandSet_PorcelainLayout(t *testing.T) {
 	a := processOnlyApp(t)
 	byName := map[string]*cobra.Command{}
-	for _, c := range a.KapiCommandSet() {
+	for _, c := range KapiCommandSet(a) {
 		byName[c.Name()] = c
 	}
 
@@ -93,8 +93,8 @@ func TestKapiCommandSet_PorcelainLayout(t *testing.T) {
 func TestHelpGroups_RenderInPorcelainOrder(t *testing.T) {
 	a := processOnlyApp(t)
 	root := &cobra.Command{Use: "kapi", Short: "test"}
-	a.AddCommandGroups(root)
-	for _, c := range a.KapiCommandSet() {
+	AddCommandGroups(a, root)
+	for _, c := range KapiCommandSet(a) {
 		root.AddCommand(c)
 	}
 

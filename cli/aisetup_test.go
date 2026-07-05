@@ -18,22 +18,22 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// fakeSetupIO builds a scripted aiSetupIO: stdin lines, captured output, a
+// fakeSetupIO builds a scripted AISetupIO: stdin lines, captured output, a
 // canned detection, a recording live check, and an in-memory config sink.
-func fakeSetupIO(stdin string, det AIDetection) (aiSetupIO, *bytes.Buffer, map[string]string, *[]string) {
+func fakeSetupIO(stdin string, det AIDetection) (AISetupIO, *bytes.Buffer, map[string]string, *[]string) {
 	out := &bytes.Buffer{}
 	saved := map[string]string{}
 	var checks []string
-	io := aiSetupIO{
-		in:     strings.NewReader(stdin),
-		out:    out,
-		isTTY:  func() bool { return true },
-		detect: func(context.Context) AIDetection { return det },
-		liveCheck: func(_ context.Context, provider, model, _ string) error {
+	io := AISetupIO{
+		In:     strings.NewReader(stdin),
+		Out:    out,
+		IsTTY:  func() bool { return true },
+		Detect: func(context.Context) AIDetection { return det },
+		LiveCheck: func(_ context.Context, provider, model, _ string) error {
 			checks = append(checks, provider+"/"+model)
 			return nil
 		},
-		setConfig: func(key, value string) error { saved[key] = value; return nil },
+		SetConfig: func(key, value string) error { saved[key] = value; return nil },
 	}
 	return io, out, saved, &checks
 }
@@ -43,7 +43,7 @@ func TestAISetupWizardSelectsDetectedClaudeCode(t *testing.T) {
 	io, out, saved, checks := fakeSetupIO("\ny\n", AIDetection{ClaudeCode: true})
 	a := &App{Config: config.NewAppConfig()}
 
-	provider, err := a.runAISetupWizard(context.Background(), io, false)
+	provider, err := a.RunAISetupWizard(context.Background(), io, false)
 	require.NoError(t, err)
 	assert.Equal(t, "claude-code", provider)
 	assert.Equal(t, "claude-code", saved[config.KeyAIProvider])
@@ -62,7 +62,7 @@ func TestAISetupWizardSkipsLiveCheck(t *testing.T) {
 	io, _, saved, checks := fakeSetupIO("1\nn\n", AIDetection{ClaudeCode: true})
 	a := &App{Config: config.NewAppConfig()}
 
-	_, err := a.runAISetupWizard(context.Background(), io, false)
+	_, err := a.RunAISetupWizard(context.Background(), io, false)
 	require.NoError(t, err)
 	assert.Empty(t, *checks, "answering n must skip the live check")
 	assert.Equal(t, "claude-code", saved[config.KeyAIProvider])
@@ -75,16 +75,16 @@ func TestAISetupWizardDemoNeedsNoCheck(t *testing.T) {
 
 	// With nothing detected the order is anthropic, openai, gemini, ollama
 	// (not running), demo → demo is 5.
-	choices := buildAISetupChoices(det)
+	choices := BuildAISetupChoices(det)
 	demoIdx := 0
 	for i, c := range choices {
-		if c.provider == "demo" {
+		if c.Provider == "demo" {
 			demoIdx = i + 1
 		}
 	}
-	io.in = strings.NewReader(strings.Repeat(" ", 0) + fmtInt(demoIdx) + "\n")
+	io.In = strings.NewReader(strings.Repeat(" ", 0) + fmtInt(demoIdx) + "\n")
 
-	provider, err := a.runAISetupWizard(context.Background(), io, false)
+	provider, err := a.RunAISetupWizard(context.Background(), io, false)
 	require.NoError(t, err)
 	assert.Equal(t, "demo", provider)
 	assert.Equal(t, "demo", saved[config.KeyAIProvider])
@@ -110,10 +110,10 @@ func writeExecutable(path string) error {
 
 func TestAISetupWizardNonTTY(t *testing.T) {
 	io, _, _, _ := fakeSetupIO("", AIDetection{})
-	io.isTTY = func() bool { return false }
+	io.IsTTY = func() bool { return false }
 	a := &App{}
 
-	_, err := a.runAISetupWizard(context.Background(), io, false)
+	_, err := a.RunAISetupWizard(context.Background(), io, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not a terminal")
 	assert.Contains(t, err.Error(), "ANTHROPIC_API_KEY")
@@ -121,12 +121,12 @@ func TestAISetupWizardNonTTY(t *testing.T) {
 
 func TestAISetupWizardLiveCheckFailureSurfaces(t *testing.T) {
 	io, _, saved, _ := fakeSetupIO("1\ny\n", AIDetection{ClaudeCode: true})
-	io.liveCheck = func(context.Context, string, string, string) error {
+	io.LiveCheck = func(context.Context, string, string, string) error {
 		return &aiprovider.ClaudeCodeError{Kind: aiprovider.ClaudeCodeErrAuth}
 	}
 	a := &App{Config: config.NewAppConfig()}
 
-	_, err := a.runAISetupWizard(context.Background(), io, false)
+	_, err := a.RunAISetupWizard(context.Background(), io, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Claude Code isn't signed in")
 	assert.Empty(t, saved, "a failed live check must not persist the choice")
@@ -134,17 +134,17 @@ func TestAISetupWizardLiveCheckFailureSurfaces(t *testing.T) {
 
 func TestBuildAISetupChoicesOrdering(t *testing.T) {
 	det := AIDetection{ClaudeCode: true, Ollama: true, EnvKeyProviders: []string{"openai"}}
-	choices := buildAISetupChoices(det)
+	choices := BuildAISetupChoices(det)
 	require.NotEmpty(t, choices)
-	assert.Equal(t, "claude-code", choices[0].provider, "detected Claude Code ranks first")
-	assert.Equal(t, "openai", choices[1].provider, "env-key provider next")
-	assert.Equal(t, "ollama", choices[2].provider)
-	assert.Equal(t, "demo", choices[len(choices)-1].provider, "demo is always last")
+	assert.Equal(t, "claude-code", choices[0].Provider, "detected Claude Code ranks first")
+	assert.Equal(t, "openai", choices[1].Provider, "env-key provider next")
+	assert.Equal(t, "ollama", choices[2].Provider)
+	assert.Equal(t, "demo", choices[len(choices)-1].Provider, "demo is always last")
 
 	// No duplicates when a provider is both env-keyed and key-entry.
 	seen := map[string]int{}
 	for _, c := range choices {
-		seen[c.provider]++
+		seen[c.Provider]++
 	}
 	for p, n := range seen {
 		assert.Equal(t, 1, n, "provider %s listed once", p)
@@ -206,7 +206,7 @@ func TestDetectAIOptionsNothing(t *testing.T) {
 func TestEnsureAIProviderInteractive(t *testing.T) {
 	t.Run("already configured skips wizard", func(t *testing.T) {
 		io, out, _, _ := fakeSetupIO("", AIDetection{DefaultProvider: "ollama"})
-		a := &App{aiSetupIOOverride: &io, Config: config.NewAppConfig()}
+		a := &App{AISetupIOOverride: &io, Config: config.NewAppConfig()}
 		cmd := newTestUpLikeCmd()
 		require.NoError(t, a.EnsureAIProviderInteractive(cmd))
 		assert.Empty(t, out.String(), "no prompts when configured")
@@ -214,15 +214,15 @@ func TestEnsureAIProviderInteractive(t *testing.T) {
 
 	t.Run("env key counts as configured", func(t *testing.T) {
 		io, out, _, _ := fakeSetupIO("", AIDetection{EnvKeyProviders: []string{"anthropic"}})
-		a := &App{aiSetupIOOverride: &io, Config: config.NewAppConfig()}
+		a := &App{AISetupIOOverride: &io, Config: config.NewAppConfig()}
 		require.NoError(t, a.EnsureAIProviderInteractive(newTestUpLikeCmd()))
 		assert.Empty(t, out.String())
 	})
 
 	t.Run("non-TTY unchanged", func(t *testing.T) {
 		io, out, _, _ := fakeSetupIO("", AIDetection{})
-		io.isTTY = func() bool { return false }
-		a := &App{aiSetupIOOverride: &io, Config: config.NewAppConfig()}
+		io.IsTTY = func() bool { return false }
+		a := &App{AISetupIOOverride: &io, Config: config.NewAppConfig()}
 		require.NoError(t, a.EnsureAIProviderInteractive(newTestUpLikeCmd()),
 			"non-TTY must not error here — downstream keys-only error stays")
 		assert.Empty(t, out.String())
@@ -230,7 +230,7 @@ func TestEnsureAIProviderInteractive(t *testing.T) {
 
 	t.Run("unconfigured TTY runs compact wizard", func(t *testing.T) {
 		io, out, saved, _ := fakeSetupIO("\nn\n", AIDetection{ClaudeCode: true})
-		a := &App{aiSetupIOOverride: &io, Config: config.NewAppConfig()}
+		a := &App{AISetupIOOverride: &io, Config: config.NewAppConfig()}
 		require.NoError(t, a.EnsureAIProviderInteractive(newTestUpLikeCmd()))
 		assert.Contains(t, out.String(), "No AI provider is configured yet")
 		assert.Equal(t, "claude-code", saved[config.KeyAIProvider])
@@ -238,7 +238,7 @@ func TestEnsureAIProviderInteractive(t *testing.T) {
 
 	t.Run("explicit provider flag skips wizard", func(t *testing.T) {
 		io, out, _, _ := fakeSetupIO("", AIDetection{})
-		a := &App{aiSetupIOOverride: &io, Config: config.NewAppConfig()}
+		a := &App{AISetupIOOverride: &io, Config: config.NewAppConfig()}
 		cmd := newTestUpLikeCmd()
 		cmd.Flags().String("provider", "", "")
 		require.NoError(t, cmd.Flags().Set("provider", "demo"))
