@@ -31,6 +31,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
 
 // SchemaName is the discriminator every DoclingDocument JSON carries.
@@ -122,7 +123,10 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
-	data, err := io.ReadAll(r.Doc.Reader)
+	// Bound the whole-input read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio).
+	data, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	if err != nil {
 		r.emitError(ch, fmt.Errorf("docling: reading document: %w", err))
 		return

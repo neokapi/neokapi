@@ -12,7 +12,13 @@ import (
 	coreenc "github.com/neokapi/neokapi/core/encoding"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/safeio"
 )
+
+// docBudget is the safeio budget applied to the whole-document read. It is a
+// package variable (not inlined at the call site) only so tests can shrink the
+// byte cap and exercise the budget-exceeded path without streaming 1 GiB.
+var docBudget = safeio.DefaultBudget()
 
 // Reader implements DataFormatReader for TMX (Translation Memory eXchange) files.
 type Reader struct {
@@ -94,7 +100,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	content, err := io.ReadAll(r.Doc.Reader)
+	// Bound the whole-input read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio).
+	content, err := io.ReadAll(docBudget.Reader(r.Doc.Reader))
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("tmx: reading: %w", err)}
 		return
