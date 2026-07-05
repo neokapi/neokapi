@@ -825,7 +825,7 @@ func (a *App) verifyTerminology(cmd *cobra.Command, units []verifyUnit) (VerifyG
 		}
 		tc := coretools.NewTermCheckTool(cfg)
 		for _, b := range blocks {
-			runCheckTool(ctx, tc, b)
+			RunCheckTool(ctx, tc, b)
 			if b.Properties[coretools.PropTermCheckPassed] == "false" {
 				gate.Pass = false
 				msg := b.Properties[coretools.PropTermCheckErrors]
@@ -886,7 +886,7 @@ func (a *App) verifyQA(ctx context.Context, units []verifyUnit) (VerifyGateResul
 		cfg.Patterns = append(cfg.Patterns, defaultPlaceholderPatterns()...)
 		qa := coretools.NewQACheckTool(cfg)
 		for _, b := range blocks {
-			runCheckTool(ctx, qa, b)
+			RunCheckTool(ctx, qa, b)
 			for _, f := range check.Findings(tool.NewBlockView(b)) {
 				failing := qaFindingFails(f)
 				sev := verifySeverity(f.Severity)
@@ -1030,62 +1030,32 @@ func (a *App) bilingualBlocks(ctx context.Context, u verifyUnit) ([]*model.Block
 		}
 	}
 
-	targetByKey := make(map[string]*model.Block, len(targetBlocks))
-	for _, tb := range targetBlocks {
-		targetByKey[blockKey(tb)] = tb
-	}
-
-	locale := model.LocaleID(u.locale)
 	for _, sb := range sourceBlocks {
 		sb.SourceLocale = model.LocaleID(a.SourceLang)
-		tb, ok := targetByKey[blockKey(sb)]
-		if !ok {
-			continue // no target → empty; QA flags as untranslated.
-		}
-		// Carry the target text and runs onto the source block as the target
-		// locale so QA can compare inline codes structurally.
-		if runs := tb.SourceRuns(); len(runs) > 0 {
-			sb.SetTargetRuns(locale, runs)
-		} else {
-			sb.SetTargetText(locale, tb.SourceText())
-		}
 	}
+	OverlayTargets(sourceBlocks, targetBlocks, model.LocaleID(u.locale))
 	return sourceBlocks, false, nil
-}
-
-// blockKey returns the stable pairing key for a block: its Name when set
-// (the format's content key), else its ID.
-// runCheckTool runs an annotate-only block tool (qa / term-check) over a
-// single block in place. The tool records its findings on block.Properties.
-func runCheckTool(ctx context.Context, t interface {
-	Process(context.Context, <-chan *model.Part, chan<- *model.Part) error
-}, b *model.Block) {
-	in := make(chan *model.Part, 1)
-	out := make(chan *model.Part, 1)
-	in <- &model.Part{Type: model.PartBlock, Resource: b}
-	close(in)
-	errc := make(chan error, 1)
-	go func() {
-		defer close(out)
-		errc <- t.Process(ctx, in, out)
-	}()
-	for range out { //nolint:revive // drain
-	}
-	<-errc
 }
 
 // readBlocks reads a file through its detected format reader and returns the
 // translatable blocks, with sourceLang as the source locale. It does not write
-// any output — verify only inspects content. It is the validation-off wrapper
-// around readBlocksValidated, so every caller that does not opt into Reader
-// Validation-Mode keeps the byte-identical lenient behavior.
+// any output — verify only inspects content. The app-wide --format override
+// (a.FormatFlag) applies; ReadBlocksForCheck is the per-file-format variant.
 func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model.Block, error) {
+	return a.readBlocksAs(ctx, path, a.FormatFlag, sourceLang)
+}
+
+// readBlocksAs is readBlocks with an explicit format override (empty =
+// detect by extension). It is the validation-off wrapper around
+// readBlocksValidated, so every caller that does not opt into Reader
+// Validation-Mode keeps the byte-identical lenient behavior.
+func (a *App) readBlocksAs(ctx context.Context, path, fmtName, sourceLang string) ([]*model.Block, error) {
 	// When the project document cache is open, serve unchanged files from it,
 	// streaming the parts one at a time and projecting out the translatable blocks
 	// — the read/coverage path never reconstructs output, so it never opens the
 	// skeleton. The key is namespaced ("rb|") and disjoint from the runner's key.
 	if a.docCache != nil {
-		configKey := readBlocksConfigKey(a.FormatFlag, sourceLang)
+		configKey := readBlocksConfigKey(fmtName, sourceLang)
 		if doc := a.docCache.OpenDocument(path, configKey); doc != nil {
 			blocks, err := streamTranslatableBlocks(ctx, doc)
 			_ = doc.Close()
@@ -1094,9 +1064,9 @@ func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model
 			}
 			// A corrupt log → fall through and re-parse (re-records the entry).
 		}
-		return a.recordAndCollectBlocks(ctx, path, configKey, sourceLang)
+		return a.recordAndCollectBlocks(ctx, path, fmtName, configKey, sourceLang)
 	}
-	blocks, _, err := a.readBlocksValidated(ctx, path, sourceLang, format.ValidationOff)
+	blocks, _, err := a.readBlocksValidated(ctx, path, fmtName, sourceLang, format.ValidationOff)
 	return blocks, err
 }
 
@@ -1129,8 +1099,7 @@ func streamTranslatableBlocks(ctx context.Context, doc flow.CachedDocument) ([]*
 // not the whole document. The recorded entry has no skeleton (the reader's
 // emitter is not wired): the read path never reconstructs output, and its "rb|"
 // key is disjoint from the runner's, so no writer ever reads a skeleton-less entry.
-func (a *App) recordAndCollectBlocks(ctx context.Context, path, configKey, sourceLang string) ([]*model.Block, error) {
-	fmtName := a.FormatFlag
+func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName, configKey, sourceLang string) ([]*model.Block, error) {
 	if fmtName == "" {
 		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {
@@ -1190,9 +1159,9 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, configKey, sourc
 // it also recorded as a diagnostic, the structured diagnostic supersedes the
 // opaque error (the read is reported as the located finding, not as an
 // operational failure). With mode ValidationOff this is byte-identical to the
-// pre-RVM readBlocks: no diagnostics, errors propagate unchanged.
-func (a *App) readBlocksValidated(ctx context.Context, path, sourceLang string, mode format.ValidationMode) ([]*model.Block, []format.Diagnostic, error) {
-	fmtName := a.FormatFlag
+// pre-RVM readBlocks: no diagnostics, errors propagate unchanged. fmtName
+// overrides format detection (empty = detect by extension).
+func (a *App) readBlocksValidated(ctx context.Context, path, fmtName, sourceLang string, mode format.ValidationMode) ([]*model.Block, []format.Diagnostic, error) {
 	if fmtName == "" {
 		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {

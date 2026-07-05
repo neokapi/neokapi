@@ -566,15 +566,26 @@ func (a *App) openBrandStore(cmd *cobra.Command) (*brandstore.SQLiteBrandStore, 
 	if err != nil {
 		return nil, "", err
 	}
-	db, err := storage.Open(dbPath)
-	if err != nil {
-		return nil, dbPath, fmt.Errorf("open brand store: %w", err)
-	}
-	store, err := brandstore.NewSQLiteBrandStore(db)
+	store, err := openBrandStoreAt(dbPath)
 	if err != nil {
 		return nil, dbPath, err
 	}
 	return store, dbPath, nil
+}
+
+// openBrandStoreAt opens (creating if needed) the local SQLite brand store at
+// dbPath — the cobra-free leg of openBrandStore.
+func openBrandStoreAt(dbPath string) (*brandstore.SQLiteBrandStore, error) {
+	db, err := storage.Open(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("open brand store: %w", err)
+	}
+	store, err := brandstore.NewSQLiteBrandStore(db)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	return store, nil
 }
 
 // saveProfileToStore creates or updates a profile in the local store, returning
@@ -674,13 +685,10 @@ func (a *App) resolveBrandProfile(cmd *cobra.Command) (*brand.VoiceProfile, stri
 }
 
 // resolveProjectBrandProfile resolves a brand voice profile from the .kapi
-// project in scope, with no profile flag. Resolution order:
-//
-//  1. defaults.brand_voice in the recipe (profile_file → YAML, profile →
-//     local store, pack → built-in starter pack). profile_file is resolved
-//     relative to the project root.
-//  2. A convention file at <projectRoot>/brand.yaml, then
-//     <projectRoot>/.kapi/brand.yaml.
+// project in scope, with no profile flag — the cobra adapter over
+// ResolveBrandProfile: it discovers and loads the project, resolves the local
+// brand store from the standard resource flags (when the command carries
+// them), and delegates the resolution ladder.
 //
 // Returns (profile, source, found, error). found is false (with nil error)
 // when no project is in scope or the project carries no brand binding and no
@@ -704,7 +712,53 @@ func (a *App) resolveProjectBrandProfile(cmd *cobra.Command, locale, channel str
 		return nil, "", false, fmt.Errorf("load project for brand voice: %w", lerr)
 	}
 
-	profile, src, found, err := a.loadBoundBrandProfile(cmd, proj, root)
+	// The local brand store from the standard --name/--local/--file resource
+	// flags; commands without those flags fall through to the ./brand.db
+	// default, exactly as before.
+	storePath, err := ResolveResourcePath(cmd, "brands", "brand.db")
+	if err != nil {
+		return nil, "", false, err
+	}
+
+	return a.ResolveBrandProfile(cmdContext(cmd), proj, root, BrandResolveOptions{
+		Locale: locale, Channel: channel, StorePath: storePath,
+	})
+}
+
+// BrandResolveOptions configures ResolveBrandProfile.
+type BrandResolveOptions struct {
+	// Locale and Channel apply per-audience overrides to the resolved profile
+	// (brand.ResolveProfile). Empty means the base profile.
+	Locale  string
+	Channel string
+	// StorePath is the local SQLite brand store consulted when the recipe
+	// binds defaults.brand_voice.profile. Empty means "brand.db" relative to
+	// the project root (the CLI's flag-free default resolves against the
+	// working directory instead, via its resource flags).
+	StorePath string
+}
+
+// ResolveBrandProfile resolves the brand voice profile bound to a loaded
+// project — the cobra-free resolution ladder shared by the CLI's flag-free
+// brand/check/verify paths and the Kapi Desktop. Resolution order:
+//
+//  1. defaults.brand_voice in the recipe (profile_file → YAML, pack →
+//     built-in starter pack, profile → local brand store). profile_file is
+//     resolved relative to the project root.
+//  2. A convention file at <root>/brand.yaml, then <root>/.kapi/brand.yaml.
+//
+// Returns (profile, source, found, error). found is false (with nil error)
+// when the project carries no brand binding and no convention file.
+func (a *App) ResolveBrandProfile(ctx context.Context, proj *project.KapiProject, root string, opts BrandResolveOptions) (*brand.VoiceProfile, string, bool, error) {
+	if proj == nil {
+		return nil, "", false, nil
+	}
+	storePath := opts.StorePath
+	if storePath == "" {
+		storePath = filepath.Join(root, "brand.db")
+	}
+
+	profile, src, found, err := a.loadBoundBrandProfile(ctx, proj, root, storePath)
 	if err != nil {
 		return nil, "", false, err
 	}
@@ -728,16 +782,17 @@ func (a *App) resolveProjectBrandProfile(cmd *cobra.Command, locale, channel str
 		return nil, "", false, nil
 	}
 
-	if locale != "" || channel != "" {
-		profile = brand.ResolveProfile(profile, model.LocaleID(locale), channel)
+	if opts.Locale != "" || opts.Channel != "" {
+		profile = brand.ResolveProfile(profile, model.LocaleID(opts.Locale), opts.Channel)
 	}
 	return profile, src, true, nil
 }
 
 // loadBoundBrandProfile resolves the recipe's defaults.brand_voice binding
 // into a VoiceProfile. Returns found=false when the recipe has no binding.
-// profile_file paths are resolved relative to the project root.
-func (a *App) loadBoundBrandProfile(cmd *cobra.Command, proj *project.KapiProject, root string) (*brand.VoiceProfile, string, bool, error) {
+// profile_file paths are resolved relative to the project root; a profile
+// name is looked up in the local brand store at storePath.
+func (a *App) loadBoundBrandProfile(ctx context.Context, proj *project.KapiProject, root, storePath string) (*brand.VoiceProfile, string, bool, error) {
 	bv := proj.Defaults.BrandVoice
 	if bv == nil {
 		return nil, "", false, nil
@@ -763,7 +818,7 @@ func (a *App) loadBoundBrandProfile(cmd *cobra.Command, proj *project.KapiProjec
 		}
 		return p, "pack:" + bv.Pack, true, nil
 	case bv.Profile != "":
-		p, err := a.lookupStoreProfile(cmd, bv.Profile)
+		p, err := lookupStoreProfileAt(ctx, storePath, bv.Profile)
 		if err != nil {
 			return nil, "", false, err
 		}
@@ -790,21 +845,38 @@ func loadProfileFile(path string) (*brand.VoiceProfile, error) {
 	return p, nil
 }
 
-// lookupStoreProfile finds a profile in the local store by ID or by name.
+// lookupStoreProfile finds a profile in the local store by ID or by name,
+// resolving the store from the standard resource flags.
 func (a *App) lookupStoreProfile(cmd *cobra.Command, name string) (*brand.VoiceProfile, error) {
-	store, _, err := a.openBrandStore(cmd)
+	dbPath, err := ResolveResourcePath(cmd, "brands", "brand.db")
+	if err != nil {
+		return nil, err
+	}
+	return lookupStoreProfileAt(cmdContext(cmd), dbPath, name)
+}
+
+// lookupStoreProfileAt finds a profile in the local brand store at dbPath by
+// ID, slugged name, then case-insensitive name — the cobra-free leg of
+// lookupStoreProfile. A store file that does not exist yet reads as
+// profile-not-found (without creating an empty database as a side effect).
+func lookupStoreProfileAt(ctx context.Context, dbPath, name string) (*brand.VoiceProfile, error) {
+	notFound := fmt.Errorf("brand voice profile %q not found in local store (try 'kapi brand pack %s' or 'kapi brand profiles')", name, name)
+	if _, err := os.Stat(dbPath); err != nil {
+		return nil, notFound
+	}
+	store, err := openBrandStoreAt(dbPath)
 	if err != nil {
 		return nil, err
 	}
 	defer store.Close()
 
-	if p, gerr := store.GetProfile(cmd.Context(), name); gerr == nil {
+	if p, gerr := store.GetProfile(ctx, name); gerr == nil {
 		return p, nil
 	}
-	if p, gerr := store.GetProfile(cmd.Context(), slugify(name)); gerr == nil {
+	if p, gerr := store.GetProfile(ctx, slugify(name)); gerr == nil {
 		return p, nil
 	}
-	profiles, lerr := store.ListProfiles(cmd.Context(), localWorkspace)
+	profiles, lerr := store.ListProfiles(ctx, localWorkspace)
 	if lerr != nil {
 		return nil, lerr
 	}
@@ -813,7 +885,7 @@ func (a *App) lookupStoreProfile(cmd *cobra.Command, name string) (*brand.VoiceP
 			return p, nil
 		}
 	}
-	return nil, fmt.Errorf("brand voice profile %q not found in local store (try 'kapi brand pack %s' or 'kapi brand profiles')", name, name)
+	return nil, notFound
 }
 
 // buildBrandProvider resolves an LLM provider from --provider/--api-key/

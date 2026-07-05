@@ -1361,25 +1361,13 @@ type projectBindings struct {
 func (a *App) resolveProjectBindings(cmd *cobra.Command, proj *project.KapiProject, projectPath string) (*projectBindings, error) {
 	root := filepath.Dir(projectPath)
 
-	profile, _, _, err := a.loadBoundBrandProfile(cmd, proj, root)
+	storePath, err := ResolveResourcePath(cmd, "brands", "brand.db")
 	if err != nil {
 		return nil, err
 	}
-	if profile == nil {
-		// Convention file fallback at the project root.
-		for _, conv := range []string{
-			filepath.Join(root, "brand.yaml"),
-			filepath.Join(root, project.StateDirName, "brand.yaml"),
-		} {
-			p, lerr := loadProfileFile(conv)
-			if lerr != nil {
-				return nil, lerr
-			}
-			if p != nil {
-				profile = p
-				break
-			}
-		}
+	profile, _, _, err := a.ResolveBrandProfile(cmdContext(cmd), proj, root, BrandResolveOptions{StorePath: storePath})
+	if err != nil {
+		return nil, err
 	}
 
 	glossary, err := a.resolveProjectGlossary(cmd, a.TargetLang)

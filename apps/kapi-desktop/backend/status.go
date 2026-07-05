@@ -9,6 +9,9 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
+	"github.com/neokapi/neokapi/core/convergence"
+	"github.com/neokapi/neokapi/core/gate"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 )
 
@@ -35,8 +38,9 @@ type ProjectStatus struct {
 	ProjectPath string `json:"projectPath"`
 	ProjectName string `json:"projectName"`
 	HasData     bool   `json:"hasData"`
-	// Stale reports that the block store exists but was written by a different
-	// kapi version than the running binary, so its counts may be wrong (e.g. a
+	// Stale reports that the block store exists but was written under
+	// different extraction semantics (core/project's block-store schema
+	// version) than the running binary, so its counts may be wrong (e.g. a
 	// store extracted before the `**`-glob fix shows too few blocks). The UI
 	// should offer a Re-extract rather than trusting the numbers. It is always
 	// false for the "no data yet" shells (no store ⇒ nothing to be stale about).
@@ -46,11 +50,12 @@ type ProjectStatus struct {
 
 // GetProjectStatus returns the current per-collection coverage for a project
 // tab, computed from the project's persistent block store
-// (`.kapi/cache/blocks.db`). It reuses the same store keys the CLI uses —
-// blocks are addressed by their ID and translated targets live under
-// `targets/<locale>` overlays (the keys `kapi run` / `kapi merge` write and
-// read) — so the metric here is the same translated-vs-total measure, not a
-// parallel one.
+// (`.kapi/cache/blocks.db`) through the shared coverage engine
+// (convergence.TallyBlockStore + CoverageTally) — the same tally the CLI's
+// `kapi status` feeds from working-tree file reads, so the desktop and the
+// CLI count with one rung semantics. Blocks are addressed by their ID and
+// translated targets live under `targets/<locale>` overlays (the keys
+// `kapi run` / `kapi merge` write and read).
 //
 // If the block store does not exist yet (the project has never been
 // extracted), the returned status has HasData=false and zeroed coverage; this
@@ -68,11 +73,11 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	out.ProjectName = op.Project.Name
 
 	// Declared collections + target languages — the shell the frontend draws
-	// even before any extraction has happened.
+	// even before any extraction has happened. Keyed by the recipe collection
+	// name; bare entries share the "" bucket (displayed as "(unnamed)").
 	collTargets := make(map[string][]string)
 	collOrder := make([]string, 0, len(op.Project.Content))
 	for _, coll := range op.Project.Content {
-		label := collectionLabel(coll.Name)
 		targets := make([]string, 0, len(coll.TargetLanguages))
 		for _, loc := range coll.TargetLanguages {
 			targets = append(targets, string(loc))
@@ -83,10 +88,10 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 				targets = append(targets, string(loc))
 			}
 		}
-		if _, seen := collTargets[label]; !seen {
-			collOrder = append(collOrder, label)
+		if _, seen := collTargets[coll.Name]; !seen {
+			collOrder = append(collOrder, coll.Name)
 		}
-		collTargets[label] = targets
+		collTargets[coll.Name] = targets
 	}
 
 	// No block store → "no data yet" shell with zeroed coverage.
@@ -113,43 +118,39 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	defer sess.Close()
 
 	out.HasData = true
-	// A store whose version stamp is missing or doesn't match the running kapi
-	// was produced by another (likely older) build — its counts can be silently
-	// wrong, so flag it for re-extraction.
+	// A store whose schema stamp is missing or doesn't match the running kapi
+	// was produced under different extraction semantics — its counts can be
+	// silently wrong, so flag it for re-extraction.
 	out.Stale = blockStoreStale(storePath)
+
+	scopes := make([]convergence.BlockStoreScope, 0, len(collOrder))
+	for _, name := range collOrder {
+		scopes = append(scopes, convergence.BlockStoreScope{
+			Collection: name,
+			Label:      collectionLabel(name),
+			Locales:    collTargets[name],
+		})
+	}
+	tally, totals, err := convergence.TallyBlockStore(sess, scopes)
+	if err != nil {
+		return nil, fmt.Errorf("read block store coverage: %w", err)
+	}
+
+	ladder := gate.TargetLadder()
 	out.Collections = make([]CollectionStatus, 0, len(collOrder))
-	for _, label := range collOrder {
-		targets := collTargets[label]
-
-		// Total translatable blocks for this collection.
-		blockIDs := make([]string, 0)
-		t := true
-		for b, err := range sess.Blocks(blockstore.BlockFilter{Collection: label, Translatable: &t}) {
-			if err != nil {
-				return nil, fmt.Errorf("read blocks for %q: %w", label, err)
-			}
-			id := b.ID
-			if id == "" {
-				id = b.Hash
-			}
-			blockIDs = append(blockIDs, id)
-		}
-
+	for _, name := range collOrder {
+		targets := collTargets[name]
 		coverage := make(map[string]int, len(targets))
 		for _, loc := range targets {
-			kind := "targets/" + loc
 			n := 0
-			for _, id := range blockIDs {
-				if _, err := sess.GetOverlay(kind, id); err == nil {
-					n++
-				}
+			if cov, ok := tally.Coverage(convergence.Scope{Collection: name, Locale: loc}); ok {
+				n = cov.AtLeastCount(ladder, string(model.TargetStatusTranslated))
 			}
 			coverage[loc] = n
 		}
-
 		out.Collections = append(out.Collections, CollectionStatus{
-			Name:            label,
-			BlockCount:      len(blockIDs),
+			Name:            collectionLabel(name),
+			BlockCount:      totals[name],
 			Coverage:        coverage,
 			TargetLanguages: targets,
 		})
@@ -159,17 +160,19 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 }
 
 // buildEmptyCollections returns the declared collections with zeroed coverage,
-// used for the "no data yet" state before any extraction has run.
+// used for the "no data yet" state before any extraction has run. order and
+// targets are keyed by recipe collection name; the DTO carries the display
+// label.
 func buildEmptyCollections(order []string, targets map[string][]string) []CollectionStatus {
 	out := make([]CollectionStatus, 0, len(order))
-	for _, label := range order {
-		locs := targets[label]
+	for _, name := range order {
+		locs := targets[name]
 		coverage := make(map[string]int, len(locs))
 		for _, loc := range locs {
 			coverage[loc] = 0
 		}
 		out = append(out, CollectionStatus{
-			Name:            label,
+			Name:            collectionLabel(name),
 			BlockCount:      0,
 			Coverage:        coverage,
 			TargetLanguages: locs,
@@ -191,17 +194,19 @@ func (a *App) projectBlockStorePath(op *openProject) (string, bool) {
 	return layout.BlockStorePath(), true
 }
 
-// blockStoreVersionStampPath is the sidecar file recording the kapi version
-// that last wrote the block store, e.g. `.kapi/cache/blocks.db.kapiversion`.
-// Thin alias over the shared core implementation (core/project owns the
-// stamp mechanism so the CLI's `kapi up` drift check and the desktop agree).
+// blockStoreVersionStampPath is the sidecar file recording the extraction
+// schema version that last wrote the block store, e.g.
+// `.kapi/cache/blocks.db.kapiversion`. Thin alias over the shared core
+// implementation (core/project owns the stamp mechanism so the CLI's
+// `kapi up` drift check and the desktop agree).
 func blockStoreVersionStampPath(storePath string) string {
 	return project.BlockStoreVersionStampPath(storePath)
 }
 
-// blockStoreStale reports whether the block store at storePath was written by a
-// different kapi version than the running binary. Callers invoke this only once
-// the store is known to exist. Delegates to the shared core implementation.
+// blockStoreStale reports whether the block store at storePath was written
+// under different extraction semantics than the running binary. Callers
+// invoke this only once the store is known to exist. Delegates to the shared
+// core implementation.
 func blockStoreStale(storePath string) bool {
 	return project.BlockStoreStale(storePath)
 }

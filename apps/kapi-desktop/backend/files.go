@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/ignore"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 )
@@ -98,28 +97,19 @@ type ProjectFileInfo struct {
 }
 
 // IsEmptyProject returns true if the project directory contains only
-// ignored files (project.kapi, hidden files, .kapiignore entries).
+// ignored files (project.kapi, hidden files, .kapiignore entries), using the
+// shared project walk so "empty" agrees with what ListProjectFiles shows.
 func (a *App) IsEmptyProject(tabID string) bool {
 	basePath := a.GetBasePath(tabID)
 	if basePath == "" {
 		return true
 	}
-	ig := ignore.ForProjectDir(basePath)
-	entries, err := os.ReadDir(basePath)
-	if err != nil {
-		return true
-	}
-	for _, e := range entries {
-		name := e.Name()
-		if strings.HasPrefix(name, ".") {
-			continue
-		}
-		if ig.Match(name, e.IsDir()) {
-			continue
-		}
-		return false
-	}
-	return true
+	empty := true
+	_ = project.WalkProjectDir(basePath, func(string, os.FileInfo) error {
+		empty = false
+		return filepath.SkipAll
+	})
+	return empty
 }
 
 // ListProjectFiles returns all files in the project directory recursively.
@@ -138,28 +128,9 @@ func (a *App) ListProjectFiles(tabID string) ([]ProjectFileInfo, error) {
 		ctx = project.NewProjectContext(op.Project, op.Path)
 	}
 
-	ig := ignore.ForProjectDir(basePath)
 	var files []ProjectFileInfo
-	err := filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if strings.HasPrefix(info.Name(), ".") {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		rel, _ := filepath.Rel(basePath, path)
-		if rel == "." {
-			return nil
-		}
-		if ig.Match(filepath.ToSlash(rel), info.IsDir()) {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
+	err := project.WalkProjectDir(basePath, func(rel string, info os.FileInfo) error {
+		path := filepath.Join(basePath, rel)
 		pf := ProjectFileInfo{
 			Path:     path,
 			Relative: rel,
