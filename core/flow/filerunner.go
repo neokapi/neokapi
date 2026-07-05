@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -620,6 +621,14 @@ func (r *FileRunner) runProcessOnly(ctx context.Context, flowName string, tools 
 	var feedErr error
 	go func() {
 		defer close(feedDone)
+		// The feeder runs reader/cache code on its own goroutine, where an
+		// unrecovered panic would crash the process. Every feed defers its
+		// close(inCh), so the pipeline still sees EOF after a recovery.
+		defer func() {
+			if rec := recover(); rec != nil {
+				feedErr = fmt.Errorf("panicked: %v\n%s", rec, debug.Stack())
+			}
+		}()
 		feedErr = feed(feedCtx, inCh) // feed closes inCh
 	}()
 
@@ -932,8 +941,17 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 	feedDone := make(chan struct{})
 	go func() {
 		defer close(feedDone)
-		// feed closes inCh itself (and, for a streaming feeder, the skeleton
-		// store's write side and the reader) so the writer/skeleton see EOF.
+		// The feeder runs reader/cache code on its own goroutine, where an
+		// unrecovered panic would crash the process. Every feed defers its
+		// close(inCh) (and, for a streaming feeder, the skeleton store's
+		// write side and the reader), so the writer/skeleton still see EOF
+		// after a recovery.
+		defer func() {
+			if rec := recover(); rec != nil {
+				feedErr = fmt.Errorf("panicked: %v\n%s", rec, debug.Stack())
+			}
+		}()
+		// feed closes inCh itself so the writer/skeleton see EOF.
 		feed(feedCtx, inCh, &feedErr)
 	}()
 

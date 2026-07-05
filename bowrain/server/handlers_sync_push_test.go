@@ -8,7 +8,8 @@ import (
 	"testing"
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
+	syncengine "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +28,7 @@ func TestSyncPush_Init_Unchanged(t *testing.T) {
 	})
 
 	// Compute the root hash matching server state.
-	diffEngine := bowsync.NewDiffEngine(srv.ContentStore, nil)
+	diffEngine := syncengine.NewDiffEngine(srv.ContentStore, nil)
 	ctx := t.Context()
 	itemHashes, err := diffEngine.ExportItemHashes(ctx, pid, "main")
 	require.NoError(t, err)

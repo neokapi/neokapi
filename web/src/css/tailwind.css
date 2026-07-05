@@ -43,6 +43,11 @@
  * "Sandstone" palette here, scoped to the reference page wrappers so they do
  * not leak into Infima-styled docs content. Light values on the wrapper, dark
  * values when Docusaurus sets data-theme="dark".
+ *
+ * The canonical, unscoped copy of this palette lives in
+ * @neokapi/ui-primitives/styles/theme-colors.css (:root/.dark). It cannot be
+ * @imported here because these blocks must stay scoped to `.kapi-reference`;
+ * keep the values in sync with that file when the palette changes.
  */
 .kapi-reference {
   --background: oklch(0.9789 0.0013 106.4235);

@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 )
 
 // syncPushManifest matches the JSON manifest written by HandleSyncPushCommit.

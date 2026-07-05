@@ -363,7 +363,7 @@ func (a *App) newPluginSearchCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			query := ""
 			if len(args) > 0 {
-				query = strings.ToLower(args[0])
+				query = args[0]
 			}
 			url := indexURL
 			if url == "" {
@@ -385,15 +385,10 @@ func (a *App) newPluginSearchCmd() *cobra.Command {
 			results := make([]output.PluginSearchEntry, 0, len(names))
 			for _, name := range names {
 				entry := idx.Plugins[name]
-				if query != "" && !strings.Contains(strings.ToLower(name), query) && !strings.Contains(strings.ToLower(entry.Description), query) {
+				if !pluginreg.MatchQuery(name, entry.Description, query) {
 					continue
 				}
-				latest := ""
-				for v := range entry.Versions {
-					if latest == "" || pluginreg.CompareSemver(v, latest) > 0 {
-						latest = v
-					}
-				}
+				latest := pluginreg.HighestVersion(entry)
 				// Flag plugins with no installable build for this OS/arch, mirroring
 				// the install path's resolution — so `install` won't fail with a raw
 				// "no version ... for platform" error after a misleading listing.

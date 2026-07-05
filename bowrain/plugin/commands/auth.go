@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/auth"
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
@@ -81,8 +82,8 @@ func performLogin(cmd *cobra.Command, serverURL string) (*config.StoredAuth, err
 	}
 
 	// Fetch user info from /auth/me using the new token.
-	if user, err := fetchUserInfo(serverURL, token.AccessToken); err == nil {
-		stored.User = *user
+	if user, err := apiclient.FetchUser(ctx, serverURL, token.AccessToken); err == nil {
+		stored.User = config.StoredUser{ID: user.ID, Email: user.Email, Name: user.Name}
 	}
 
 	if err := saveAuth(stored); err != nil {
@@ -129,8 +130,8 @@ var authStatusCmd = &cobra.Command{
 		// status shows who you are instead of a blank user; degrade gracefully
 		// (keep it blank) if the lookup fails.
 		if stored.User.Email == "" && stored.AccessToken != "" && stored.ServerURL != "" {
-			if u, ferr := fetchUserInfo(stored.ServerURL, stored.AccessToken); ferr == nil && u != nil {
-				stored.User = *u
+			if u, ferr := apiclient.FetchUser(cmd.Context(), stored.ServerURL, stored.AccessToken); ferr == nil && u != nil {
+				stored.User = config.StoredUser{ID: u.ID, Email: u.Email, Name: u.Name}
 			}
 		}
 
@@ -267,29 +268,3 @@ func resolveServerURLFrom(explicit string) string {
 func saveAuth(a config.StoredAuth) error { return config.SaveAuth(a) }
 
 func loadAuth() (*config.StoredAuth, error) { return config.LoadAuth() }
-
-// fetchUserInfo calls /api/v1/auth/me to get user details from the server.
-func fetchUserInfo(serverURL, token string) (*config.StoredUser, error) {
-	req, err := http.NewRequest(http.MethodGet, serverURL+"/api/v1/auth/me", nil) //nolint:noctx // CLI auth helper
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("auth/me returned %d: %s", resp.StatusCode, body)
-	}
-
-	var user config.StoredUser
-	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
