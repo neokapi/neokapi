@@ -1,3 +1,11 @@
+// Package sync hosts the server-side sync engine: the Merkle-tree diff engine
+// (diff.go) and the Redis-backed hash cache (cache_redis.go), which depend on
+// bowrain/core/store and redis and therefore belong in the platform module.
+//
+// The pure model<->protobuf converters and the content-hash helpers
+// (ComputeItemHash, ComputeRootHash) live in the framework-only package
+// github.com/neokapi/neokapi/bowrain/core/sync so the bowrain/core push client
+// can use them without importing the platform module.
 package sync
 
 import (
@@ -5,6 +13,7 @@ import (
 	"fmt"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 )
 
 // DiffEngine computes the difference between client and server state
@@ -149,7 +158,7 @@ func (d *DiffEngine) CheckRootHash(ctx context.Context, projectID, stream, clien
 	if err != nil {
 		return false, err
 	}
-	serverRoot := ComputeRootHash(serverHashes)
+	serverRoot := coresync.ComputeRootHash(serverHashes)
 	return clientRootHash == serverRoot, nil
 }
 
@@ -175,7 +184,7 @@ func (d *DiffEngine) loadItemHashes(ctx context.Context, projectID, stream strin
 		if err != nil {
 			return nil, err
 		}
-		itemHashes[item.Name] = ComputeItemHash(blockHashes)
+		itemHashes[item.Name] = coresync.ComputeItemHash(blockHashes)
 	}
 
 	// Cache the result.
