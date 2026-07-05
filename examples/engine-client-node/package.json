@@ -1,0 +1,14 @@
+{
+  "name": "kapi-engine-client-node",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "EngineService smoke-test client (Node) for `kapi engine serve`",
+  "scripts": {
+    "start": "node client.mjs"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.0",
+    "@grpc/proto-loader": "^0.7.13"
+  }
+}

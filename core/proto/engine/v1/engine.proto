@@ -1,0 +1,270 @@
+// engine.proto — the EngineService: kapi's content engine served as a local
+// gRPC API for foreign-language callers (`kapi engine serve`).
+//
+// This is the plugin/bridge protocol flipped outbound: where BridgeService
+// (core/plugin/proto/v2) lets kapi drive a plugin daemon, EngineService lets
+// any gRPC-capable process drive kapi. Both speak the canonical content-model
+// schema in core/proto/content/v1 (PartMessage and friends), and both reuse
+// the same envelope patterns — a header-first client stream, chunked document
+// bytes, and PartBatch framing to amortize per-message overhead.
+//
+// Transport and trust model: the service is served on a local Unix socket for
+// trusted same-user peers only. There is no authentication in v1 — the socket
+// mode (0700 directory) is the boundary, exactly like the plugin daemon
+// sockets. Do not expose it on a network address.
+//
+// Compatibility policy (same as content.proto): field numbers are frozen,
+// fields are never renamed, new fields append with fresh numbers, and removed
+// fields are reserved. The example clients under examples/engine-client-*
+// lock this contract in CI with a byte-exact extract → process → merge round
+// trip against the CLI.
+//
+// Errors are reported as gRPC status errors (InvalidArgument for bad
+// headers/unknown names, Internal for engine failures) — not in-band strings.
+
+syntax = "proto3";
+
+package neokapi.engine.v1;
+
+import "core/proto/content/v1/content.proto";
+
+option go_package = "github.com/neokapi/neokapi/core/proto/engine/v1;enginev1";
+
+// EngineService exposes the neokapi content engine: format-aware extraction
+// to the canonical Part stream, tool/flow processing over Part streams, and
+// merge back to document bytes via the skeleton round-trip.
+service EngineService {
+  // Extract parses one document into a stream of content-model Parts.
+  // The client sends an ExtractHeader first, then (unless the header's
+  // input reference already locates the bytes) the document as chunks,
+  // then closes its send side. The server streams PartBatch messages
+  // followed by a final ExtractComplete.
+  rpc Extract(stream ExtractRequest) returns (stream ExtractResponse);
+
+  // Process runs a tool chain (or a named flow) over a stream of Parts.
+  // The client sends a ProcessHeader first, then PartBatch messages, then
+  // closes its send side. The server streams processed PartBatch messages
+  // followed by a final ProcessComplete. Wraps flow.Executor: each tool
+  // runs in its own pipeline stage, exactly as in the CLI.
+  rpc Process(stream ProcessRequest) returns (stream ProcessResponse);
+
+  // Merge writes a stream of Parts back to document bytes using the
+  // format's skeleton round-trip. The client sends a MergeHeader first
+  // (carrying the original document as the skeleton reference), then
+  // PartBatch messages, then closes its send side. The server streams the
+  // output document as chunks followed by a final MergeComplete.
+  rpc Merge(stream MergeRequest) returns (stream MergeResponse);
+
+  // Detect identifies the format of a document from its name and/or a
+  // content sample.
+  rpc Detect(DetectRequest) returns (DetectResponse);
+
+  // ListFormats returns the registered formats (built-in + plugin-backed).
+  rpc ListFormats(ListFormatsRequest) returns (ListFormatsResponse);
+
+  // ListTools returns the registered processing tools.
+  rpc ListTools(ListToolsRequest) returns (ListToolsResponse);
+
+  // ListFlows returns the built-in composed flows.
+  rpc ListFlows(ListFlowsRequest) returns (ListFlowsResponse);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Shared envelopes
+// ────────────────────────────────────────────────────────────────────────────
+
+// PartBatch holds multiple parts in a single gRPC message (same framing as
+// the bridge protocol's PartBatch).
+message PartBatch {
+  repeated neokapi.content.v1.PartMessage parts = 1;
+}
+
+// DocumentChunk is one chunk of raw document bytes. Documents stream in
+// chunks so arbitrarily large files never require a single oversized
+// gRPC message.
+message DocumentChunk {
+  bytes data = 1;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Extract
+// ────────────────────────────────────────────────────────────────────────────
+
+// ExtractHeader configures an Extract call. It is always the first client
+// message.
+message ExtractHeader {
+  // format is the registered format id (e.g. "json", "xliff2"). Empty =
+  // detect from `name` (extension) and the document bytes.
+  string format = 1;
+  // name is the document's file name or path — used for format detection
+  // and as the document URI in the part stream.
+  string name = 2;
+  string source_locale = 3;
+  string target_locale = 4;
+  string encoding = 5;
+  // config carries format reader options, applied onto the reader's
+  // config map (the same values a `.kapi` recipe or CLI flags would set).
+  map<string, string> config = 6;
+  // input optionally locates the document (path/uri/inline) instead of
+  // streaming DocumentChunk messages. When set, chunks are ignored.
+  neokapi.content.v1.ContentRef input = 7;
+}
+
+message ExtractRequest {
+  oneof request {
+    ExtractHeader header = 1;
+    DocumentChunk chunk = 2;
+  }
+}
+
+// ExtractComplete closes the part stream with summary metadata.
+message ExtractComplete {
+  string format = 1;  // the format that was used (after detection)
+  int32 parts = 2;    // number of parts streamed
+}
+
+message ExtractResponse {
+  oneof response {
+    PartBatch parts = 1;
+    ExtractComplete complete = 2;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Process
+// ────────────────────────────────────────────────────────────────────────────
+
+// ToolSpec names one tool of a processing chain.
+message ToolSpec {
+  string tool = 1;    // registered tool id (e.g. "pseudo-translate")
+  bytes config = 2;   // JSON-encoded tool config (may be empty)
+}
+
+// ProcessHeader configures a Process call. Exactly one of `flow` or `tools`
+// must be set: a named built-in flow, or an explicit ordered tool chain.
+message ProcessHeader {
+  string flow = 1;              // built-in flow id (e.g. "pseudo-translate")
+  repeated ToolSpec tools = 2;  // or an explicit tool chain, in order
+  string source_locale = 3;
+  string target_locale = 4;
+}
+
+message ProcessRequest {
+  oneof request {
+    ProcessHeader header = 1;
+    PartBatch parts = 2;
+  }
+}
+
+// ProcessComplete closes the processed part stream with summary counts.
+message ProcessComplete {
+  int32 parts_in = 1;
+  int32 parts_out = 2;
+}
+
+message ProcessResponse {
+  oneof response {
+    PartBatch parts = 1;
+    ProcessComplete complete = 2;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Merge
+// ────────────────────────────────────────────────────────────────────────────
+
+// MergeHeader configures a Merge call. It is always the first client message.
+message MergeHeader {
+  // format is the registered format id of the output document. Empty =
+  // detect from `name` and the original document bytes.
+  string format = 1;
+  // name is the output document's file name — used for format detection.
+  string name = 2;
+  // original is the skeleton reference: the source document the parts were
+  // extracted from. Writers that rebuild from the original bytes (skeleton
+  // reparse, catalog formats) require it; parts-only merges may omit it
+  // when every part carries its own skeleton.
+  neokapi.content.v1.ContentRef original = 3;
+  // target_locale selects which target variant the writer materializes.
+  string target_locale = 4;
+  string encoding = 5;
+  // config carries format writer options.
+  map<string, string> config = 6;
+}
+
+message MergeRequest {
+  oneof request {
+    MergeHeader header = 1;
+    PartBatch parts = 2;
+  }
+}
+
+// MergeComplete closes the document stream with summary metadata.
+message MergeComplete {
+  int64 bytes = 1;  // total output size
+}
+
+message MergeResponse {
+  oneof response {
+    DocumentChunk chunk = 1;
+    MergeComplete complete = 2;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Detect & listings
+// ────────────────────────────────────────────────────────────────────────────
+
+message DetectRequest {
+  string name = 1;   // file name or path (extension feeds detection)
+  bytes sample = 2;  // optional leading bytes for content-based detection
+}
+
+message DetectResponse {
+  string format = 1;  // registered format id ("" when undetected)
+}
+
+message ListFormatsRequest {}
+
+// FormatInfo mirrors the format registry's public metadata.
+message FormatInfo {
+  string name = 1;
+  string display_name = 2;
+  repeated string extensions = 3;
+  repeated string mime_types = 4;
+  string source = 5;  // "builtin" or the providing plugin
+  bool has_reader = 6;
+  bool has_writer = 7;
+}
+
+message ListFormatsResponse {
+  repeated FormatInfo formats = 1;
+}
+
+message ListToolsRequest {}
+
+// ToolInfo mirrors the tool registry's public metadata.
+message ToolInfo {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  string category = 4;
+}
+
+message ListToolsResponse {
+  repeated ToolInfo tools = 1;
+}
+
+message ListFlowsRequest {}
+
+// FlowInfo describes one built-in composed flow.
+message FlowInfo {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string tools = 4;  // tool ids in execution order
+}
+
+message ListFlowsResponse {
+  repeated FlowInfo flows = 1;
+}

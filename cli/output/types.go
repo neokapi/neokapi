@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"slices"
 	"strings"
 	"text/tabwriter"
@@ -237,9 +238,19 @@ type FlowRunOutput struct {
 	OutputPath     string     `json:"output_path,omitempty"`
 	FilesProcessed int        `json:"files_processed,omitempty"`
 	Stats          *FlowStats `json:"stats,omitempty"`
+	// ProcessOnly reports the in-project store-committing run (AD-026 §3):
+	// the run landed `targets/<locale>` overlays in the project block store
+	// instead of writing an output file.
+	ProcessOnly bool `json:"process_only,omitempty"`
 }
 
 func (o FlowRunOutput) FormatText(w io.Writer) error {
+	if o.ProcessOnly {
+		fmt.Fprintf(w,
+			"Committed overlays for %s to the project store — run `kapi merge` to write localized files.\n",
+			filepath.Base(o.InputPath))
+		return nil
+	}
 	if o.FilesProcessed > 0 {
 		fmt.Fprintf(w, "Flow %s completed: processed %d files\n", o.FlowName, o.FilesProcessed)
 	} else {
@@ -248,6 +259,118 @@ func (o FlowRunOutput) FormatText(w io.Writer) error {
 	if o.Stats != nil {
 		fmt.Fprintf(w, "  Parts: %d, Blocks: %d\n", o.Stats.PartCount, o.Stats.BlockCount)
 	}
+	return nil
+}
+
+// LeverageOutput is a TM leverage tally (extract pre-fill).
+type LeverageOutput struct {
+	Exact int `json:"exact"`
+	Fuzzy int `json:"fuzzy"`
+	New   int `json:"new"`
+}
+
+// Total is the sum of all leverage buckets.
+func (l LeverageOutput) Total() int { return l.Exact + l.Fuzzy + l.New }
+
+// ExtractPairOutput is one target-locale pass of an extract batch.
+type ExtractPairOutput struct {
+	TargetLocale string         `json:"target_locale"`
+	Files        int            `json:"files"`
+	Blocks       int            `json:"blocks"`
+	Leverage     LeverageOutput `json:"leverage"`
+}
+
+// ExtractOutput represents the result of `kapi extract` (project batch
+// extraction). FormatText reproduces the command's historical human report
+// byte-for-byte.
+type ExtractOutput struct {
+	BatchID  string              `json:"batch_id"`
+	Format   string              `json:"format"`
+	Targets  []string            `json:"targets"`
+	Sources  int                 `json:"sources"`
+	Manifest string              `json:"manifest"`
+	Pairs    []ExtractPairOutput `json:"pairs"`
+	Reused   int                 `json:"reused,omitempty"`
+	Leverage LeverageOutput      `json:"leverage"`
+	Failures int                 `json:"failures,omitempty"`
+	// Redaction reporting (set when the batch ran redacted).
+	RedactionRules string `json:"redaction_rules,omitempty"`
+	RedactionVault string `json:"redaction_vault,omitempty"`
+}
+
+func (o ExtractOutput) FormatText(w io.Writer) error {
+	if o.RedactionVault != "" {
+		fmt.Fprintf(w, "Redaction enabled (rules=%s) — originals stay in %s\n",
+			o.RedactionRules, o.RedactionVault)
+	}
+	fmt.Fprintf(w, "Extracting batch %s (format=%s, targets=%v, sources=%d)\n",
+		o.BatchID, o.Format, o.Targets, o.Sources)
+	for _, p := range o.Pairs {
+		fmt.Fprintf(w, "  %s: %d files, %d blocks, TM exact=%d fuzzy=%d new=%d\n",
+			p.TargetLocale, p.Files, p.Blocks,
+			p.Leverage.Exact, p.Leverage.Fuzzy, p.Leverage.New)
+	}
+	fmt.Fprintf(w, "\nBatch %s complete. Manifest: %s\n", o.BatchID, o.Manifest)
+	if o.Reused > 0 {
+		fmt.Fprintf(w, "Reused %d unchanged file(s) from a prior batch (no re-parse).\n", o.Reused)
+	}
+	fmt.Fprintf(w, "Aggregate TM leverage: exact=%d fuzzy=%d new=%d (total=%d)\n",
+		o.Leverage.Exact, o.Leverage.Fuzzy, o.Leverage.New, o.Leverage.Total())
+	return nil
+}
+
+// MergeFileOutput is one merged input file of a `kapi merge -i` run. A file
+// that failed carries its error (details also go to stderr as they happen)
+// and zero counts.
+type MergeFileOutput struct {
+	Input     string `json:"input"`
+	Applied   int    `json:"applied"`
+	Stale     int    `json:"stale"`
+	Skipped   int    `json:"skipped"`
+	TMNew     int    `json:"tm_new"`
+	TMUpdated int    `json:"tm_updated"`
+	Error     string `json:"error,omitempty"`
+}
+
+// MergeOutput represents the result of `kapi merge -i` (applying returned
+// bilingual files). FormatText reproduces the command's historical human
+// report byte-for-byte.
+type MergeOutput struct {
+	Files          []MergeFileOutput `json:"files"`
+	Applied        int               `json:"applied"`
+	Stale          int               `json:"stale"`
+	Skipped        int               `json:"skipped"`
+	TMNew          int               `json:"tm_new"`
+	TMUpdated      int               `json:"tm_updated"`
+	ConflictPolicy string            `json:"conflict_policy"`
+	Failures       int               `json:"failures,omitempty"`
+}
+
+func (o MergeOutput) FormatText(w io.Writer) error {
+	for _, f := range o.Files {
+		fmt.Fprintf(w, "Merging %s\n", f.Input)
+		if f.Error != "" {
+			// The error itself already streamed to stderr when it happened.
+			continue
+		}
+		fmt.Fprintf(w, "  applied=%d stale=%d skipped=%d tm_new=%d tm_updated=%d\n",
+			f.Applied, f.Stale, f.Skipped, f.TMNew, f.TMUpdated)
+	}
+	fmt.Fprintf(w,
+		"\nMerge complete. applied=%d stale=%d skipped=%d tm_new=%d tm_updated=%d (conflict_policy=%s)\n",
+		o.Applied, o.Stale, o.Skipped, o.TMNew, o.TMUpdated, o.ConflictPolicy)
+	return nil
+}
+
+// MergeStoreOutput represents the result of `kapi merge` with no -i in a
+// project: localized files materialized from the project block store.
+type MergeStoreOutput struct {
+	Written          int  `json:"written"`
+	FromProjectStore bool `json:"from_project_store"`
+}
+
+func (o MergeStoreOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "\nMerge complete. wrote=%d file(s) from the project store.\n", o.Written)
 	return nil
 }
 

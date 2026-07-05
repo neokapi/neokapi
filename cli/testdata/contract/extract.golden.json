@@ -1,0 +1,38 @@
+{
+  "batch_id": "0b6be731-3a5c-4a02-9e04-2f79e4c2d1aa",
+  "format": "xliff2",
+  "targets": [
+    "fr",
+    "de"
+  ],
+  "sources": 2,
+  "manifest": ".kapi/cache/extractions/0b6be731/manifest.yaml",
+  "pairs": [
+    {
+      "target_locale": "fr",
+      "files": 2,
+      "blocks": 10,
+      "leverage": {
+        "exact": 4,
+        "fuzzy": 1,
+        "new": 5
+      }
+    },
+    {
+      "target_locale": "de",
+      "files": 2,
+      "blocks": 10,
+      "leverage": {
+        "exact": 0,
+        "fuzzy": 0,
+        "new": 10
+      }
+    }
+  ],
+  "reused": 1,
+  "leverage": {
+    "exact": 4,
+    "fuzzy": 1,
+    "new": 15
+  }
+}

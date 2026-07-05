@@ -1,0 +1,5 @@
+{
+  "flow_name": "translate",
+  "input_path": "src/messages.json",
+  "process_only": true
+}
