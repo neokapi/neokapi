@@ -1,0 +1,8 @@
+{
+  "type": "progress",
+  "flow": "extract",
+  "locale": "fr",
+  "file_index": 1,
+  "file_count": 4,
+  "file_path": "src/messages.json"
+}

@@ -60,5 +60,6 @@ batch are fine — merge handles each input independently.`,
 	cmd.Flags().StringP("output", "o", "", "output directory or template when merging a .klz workspace")
 	cmd.Flags().Bool("no-tm-update", false, "skip TM write-back")
 	cmd.Flags().Bool("no-restore", false, "skip restoring redacted originals from the batch vault")
+	AddProgressFlag(cmd)
 	return cmd
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/bmatcuk/doublestar/v4"
 
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
@@ -124,11 +125,25 @@ func (a *App) RunMerge(cmd Command) error {
 
 	policy := proj.Defaults.Merge.ResolvedConflictPolicy()
 
+	// The structured result (output.MergeOutput): its FormatText renders the
+	// historical human report byte-for-byte, so text mode is unchanged while
+	// --json gets a documented document on stdout.
+	res := output.MergeOutput{ConflictPolicy: policy}
+	sink := ProgressSink(cmd)
+	emit := func(ev FlowRunEvent) {
+		if sink != nil {
+			ev.Flow = "merge"
+			sink(ev)
+		}
+	}
+	start := time.Now()
+
 	var totals mergeStats
 	failures := 0
 
-	for _, in := range expanded {
-		fmt.Fprintf(cmd.OutOrStdout(), "Merging %s\n", relOrAbs(layout.Root, in))
+	for i, in := range expanded {
+		rel := relOrAbs(layout.Root, in)
+		emit(FlowRunEvent{Type: FlowEventProgress, FileIndex: i, FileCount: len(expanded), FilePath: in})
 		stats, err := a.mergeOne(cmd.Context(), mergeTask{
 			layout:    layout,
 			ctx:       ctx,
@@ -139,19 +154,33 @@ func (a *App) RunMerge(cmd Command) error {
 			noRestore: noRestore,
 		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "merge: %s: %v\n", relOrAbs(layout.Root, in), err)
+			fmt.Fprintf(os.Stderr, "merge: %s: %v\n", rel, err)
 			failures++
+			res.Files = append(res.Files, output.MergeFileOutput{Input: rel, Error: err.Error()})
 			continue
 		}
 		totals.accumulate(stats)
-		fmt.Fprintf(cmd.OutOrStdout(),
-			"  applied=%d stale=%d skipped=%d tm_new=%d tm_updated=%d\n",
-			stats.Applied, stats.Stale, stats.Skipped, stats.TMNew, stats.TMUpdated)
+		res.Files = append(res.Files, output.MergeFileOutput{
+			Input:   rel,
+			Applied: stats.Applied, Stale: stats.Stale, Skipped: stats.Skipped,
+			TMNew: stats.TMNew, TMUpdated: stats.TMUpdated,
+		})
+		emit(FlowRunEvent{Type: FlowEventFileDone, FilePath: in})
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(),
-		"\nMerge complete. applied=%d stale=%d skipped=%d tm_new=%d tm_updated=%d (conflict_policy=%s)\n",
-		totals.Applied, totals.Stale, totals.Skipped, totals.TMNew, totals.TMUpdated, policy)
+	res.Applied, res.Stale, res.Skipped = totals.Applied, totals.Stale, totals.Skipped
+	res.TMNew, res.TMUpdated = totals.TMNew, totals.TMUpdated
+	res.Failures = failures
+
+	emit(FlowRunEvent{
+		Type:       FlowEventComplete,
+		DurationMs: time.Since(start).Milliseconds(), FilesProcessed: len(expanded) - failures,
+		Message: fmt.Sprintf("Merged %d file(s)", len(expanded)-failures),
+	})
+
+	if err := output.Print(cmd, res); err != nil {
+		return err
+	}
 
 	if failures > 0 {
 		return fmt.Errorf("merge: %d input file(s) failed — see errors above", failures)
@@ -182,12 +211,17 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 	}
 	noTMUpdate, _ := cmd.Flags().GetBool("no-tm-update")
 
-	written, err := a.materializeFromProjectStore(ctx, cmd.OutOrStdout(), proj, projectPath, locales, noTMUpdate)
+	// In JSON mode the per-file "Merged X → Y" lines are suppressed (stdout
+	// carries only the result document); text mode streams them live as before.
+	lineOut := cmd.OutOrStdout()
+	if output.ResolveFormat(cmd) == output.FormatJSON {
+		lineOut = io.Discard
+	}
+	written, err := a.materializeFromProjectStore(ctx, lineOut, proj, projectPath, locales, noTMUpdate)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "\nMerge complete. wrote=%d file(s) from the project store.\n", written)
-	return nil
+	return output.Print(cmd, output.MergeStoreOutput{Written: written, FromProjectStore: true})
 }
 
 // materializeFromProjectStore is the shared materialize path (#1078 C2/C3):

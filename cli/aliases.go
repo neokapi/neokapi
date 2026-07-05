@@ -13,6 +13,7 @@ import (
 
 type (
 	AIDetection                   = host.AIDetection
+	AISetupChoice                 = host.AISetupChoice
 	AISetupIO                     = host.AISetupIO
 	App                           = host.App
 	ApplyEditsInput               = host.ApplyEditsInput
@@ -91,6 +92,7 @@ type (
 	VerifyGateResult              = host.VerifyGateResult
 	VerifyOutput                  = host.VerifyOutput
 	VerifySummary                 = host.VerifySummary
+	VerifyUnit                    = host.VerifyUnit
 	WorkspaceInfo                 = host.WorkspaceInfo
 )
 
@@ -130,6 +132,7 @@ const (
 var (
 	AddBrandAIFlags              = host.AddBrandAIFlags
 	AddProfileFlags              = host.AddProfileFlags
+	AddProgressFlag              = host.AddProgressFlag
 	AddProjectFlag               = host.AddProjectFlag
 	AddResourceFlags             = host.AddResourceFlags
 	AddStatusFlags               = host.AddStatusFlags
@@ -206,6 +209,7 @@ var (
 	ParseSedProgram              = host.ParseSedProgram
 	PrintPresetList              = host.PrintPresetList
 	PrintUpResult                = host.PrintUpResult
+	ProgressSink                 = host.ProgressSink
 	ReadPOForMerge               = host.ReadPOForMerge
 	ReadProfileInput             = host.ReadProfileInput
 	ReadSubjectText              = host.ReadSubjectText

@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
@@ -173,8 +174,6 @@ func (a *App) RunExtract(cmd Command) error {
 	redactionVault := ""
 	if redactionSpec != nil {
 		redactionVault = layout.RedactionSidecarPath(batchID)
-		fmt.Fprintf(cmd.OutOrStdout(), "Redaction enabled (rules=%s) — originals stay in %s\n",
-			redactionSpec.Rules, redactionVault)
 	}
 
 	var tm sievepen.TranslationMemory
@@ -221,8 +220,30 @@ func (a *App) RunExtract(cmd Command) error {
 	force, _ := cmd.Flags().GetBool("force")
 	prior := loadReusablePrior(layout, manifest.InputsHash, force)
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Extracting batch %s (format=%s, targets=%v, sources=%d)\n",
-		batchID, format, targets, len(files))
+	// The structured result (output.ExtractOutput): its FormatText renders the
+	// historical human report byte-for-byte, so text mode is unchanged while
+	// --json gets a documented document on stdout.
+	res := output.ExtractOutput{
+		BatchID: batchID,
+		Format:  format,
+		Targets: localeStrings(targets),
+		Sources: len(files),
+	}
+	if redactionSpec != nil {
+		res.RedactionRules = redactionSpec.Rules
+		res.RedactionVault = redactionVault
+	}
+
+	sink := ProgressSink(cmd)
+	emit := func(ev FlowRunEvent) {
+		if sink != nil {
+			ev.Flow = "extract"
+			sink(ev)
+		}
+	}
+	start := time.Now()
+	totalPairs := len(targets) * len(files)
+	pairIndex := 0
 
 	failures := 0
 	reused := 0
@@ -234,6 +255,12 @@ func (a *App) RunExtract(cmd Command) error {
 		for _, src := range files {
 			outName := bilingualOutputName(src, pctx.SourceLocale, tgt, format)
 			outPath := filepath.Join(pairOutDir, outName)
+
+			emit(FlowRunEvent{
+				Type: FlowEventProgress, Locale: string(tgt),
+				FileIndex: pairIndex, FileCount: totalPairs, FilePath: src.Path,
+			})
+			pairIndex++
 
 			sourceHash, err := project.HashFile(src.Path)
 			if err != nil {
@@ -254,6 +281,10 @@ func (a *App) RunExtract(cmd Command) error {
 					pair.Files = append(pair.Files, pe.ef)
 					manifest.Totals.Add(pe.ef.Leverage)
 					reused++
+					emit(FlowRunEvent{
+						Type: FlowEventFileDone, Locale: string(tgt),
+						FilePath: src.Path, OutputPath: outPath,
+					})
 					continue
 				}
 				// Skeleton copy failed — fall through to a fresh extract.
@@ -288,17 +319,21 @@ func (a *App) RunExtract(cmd Command) error {
 			pair.Files = append(pair.Files, ef)
 
 			manifest.Totals.Add(ef.Leverage)
+			emit(FlowRunEvent{
+				Type: FlowEventFileDone, Locale: string(tgt),
+				FilePath: src.Path, OutputPath: outPath,
+			})
 		}
 
 		manifest.Pairs = append(manifest.Pairs, pair)
 
-		fmt.Fprintf(cmd.OutOrStdout(), "  %s: %d files, %d blocks, TM exact=%d fuzzy=%d new=%d\n",
-			tgt,
-			len(pair.Files),
-			sumBlocks(pair.Files),
-			sumLeverage(pair.Files).Exact,
-			sumLeverage(pair.Files).Fuzzy,
-			sumLeverage(pair.Files).New)
+		lev := sumLeverage(pair.Files)
+		res.Pairs = append(res.Pairs, output.ExtractPairOutput{
+			TargetLocale: string(tgt),
+			Files:        len(pair.Files),
+			Blocks:       sumBlocks(pair.Files),
+			Leverage:     output.LeverageOutput{Exact: lev.Exact, Fuzzy: lev.Fuzzy, New: lev.New},
+		})
 	}
 
 	if err := project.SaveExtractionManifest(layout, manifest); err != nil {
@@ -306,13 +341,22 @@ func (a *App) RunExtract(cmd Command) error {
 	}
 
 	total := manifest.Totals
-	fmt.Fprintf(cmd.OutOrStdout(), "\nBatch %s complete. Manifest: %s\n",
-		batchID, filepath.Join(batchDir, project.ExtractionManifestFilename))
-	if reused > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "Reused %d unchanged file(s) from a prior batch (no re-parse).\n", reused)
+	res.Manifest = filepath.Join(batchDir, project.ExtractionManifestFilename)
+	res.Reused = reused
+	res.Leverage = output.LeverageOutput{Exact: total.Exact, Fuzzy: total.Fuzzy, New: total.New}
+	res.Failures = failures
+
+	emit(FlowRunEvent{
+		Type:       FlowEventComplete,
+		DurationMs: time.Since(start).Milliseconds(), FilesProcessed: totalPairs - failures,
+		Message: fmt.Sprintf("Extracted %d pair(s) in batch %s", totalPairs-failures, batchID),
+	})
+
+	// Final report: FormatText renders the historical human lines; --json
+	// renders the ExtractOutput document.
+	if err := output.Print(cmd, res); err != nil {
+		return err
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Aggregate TM leverage: exact=%d fuzzy=%d new=%d (total=%d)\n",
-		total.Exact, total.Fuzzy, total.New, total.Total())
 
 	if failures > 0 {
 		return fmt.Errorf("extract: %d source/target pair(s) failed — see errors above", failures)

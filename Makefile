@@ -228,7 +228,7 @@ ifndef PROTOC_GEN_GO
 endif
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-		core/proto/content/v1/*.proto \
+		core/proto/content/v1/*.proto core/proto/engine/v1/*.proto \
 		core/plugin/proto/v1/*.proto core/plugin/proto/v2/*.proto
 
 _fw-deps:
@@ -272,6 +272,21 @@ endif
 
 test-platform test-bowrain-cli test-bowrain-plugin test-bowrain: ## Run individual bowrain module tests
 	$(MAKE) -C bowrain $@
+
+# ── EngineService example clients (contract lock) ───────────────────────────
+# Each client starts `kapi engine serve`, extracts a JSON fixture, pseudo-
+# translates it via Process, merges it back, and asserts the result is
+# byte-identical to the CLI doing the same — locking the gRPC contract from
+# two foreign languages. Run in CI (engine-examples job) and locally.
+engine-examples: engine-examples-node engine-examples-python ## Run the EngineService Python + Node example clients against bin/kapi
+
+engine-examples-node: build ## Run the Node EngineService example client
+	cd examples/engine-client-node && npm install --no-audit --no-fund --silent
+	cd examples/engine-client-node && $(KAPI_ISO_ENV) KAPI_BIN=$(BIN_DIR)/kapi node client.mjs
+
+engine-examples-python: build ## Run the Python EngineService example client
+	cd examples/engine-client-python && python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt
+	cd examples/engine-client-python && $(KAPI_ISO_ENV) KAPI_BIN=$(BIN_DIR)/kapi .venv/bin/python client.py
 
 # Bowrain Desktop backend tests run on their own (the bowrain module's
 # `test-bowrain` excludes apps/bowrain under CI) because the Wails app backend

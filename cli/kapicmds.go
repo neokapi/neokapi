@@ -97,6 +97,10 @@ func KapiCommandSet(a *App) []*cobra.Command {
 	mcpCmd.GroupID = "advanced"
 	cmds = append(cmds, mcpCmd)
 
+	engineCmd := NewEngineCmd(a)
+	engineCmd.GroupID = "advanced"
+	cmds = append(cmds, engineCmd)
+
 	return cmds
 }
 

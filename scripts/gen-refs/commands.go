@@ -192,6 +192,10 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	mcpCmd.GroupID = "advanced"
 	root.AddCommand(mcpCmd)
 
+	engineCmd := app.NewEngineCmd()
+	engineCmd.GroupID = "advanced"
+	root.AddCommand(engineCmd)
+
 	return root, toolNames
 }
 

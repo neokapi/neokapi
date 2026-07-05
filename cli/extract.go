@@ -60,5 +60,6 @@ plus one bilingual file per source → target pair in --out-dir (default "out/")
 	cmd.Flags().String("out-dir", "out", "directory for emitted bilingual files (relative to project)")
 	cmd.Flags().Bool("redact", false, "replace sensitive content with placeholders; originals stay in a local vault for merge")
 	cmd.Flags().String("redact-rules", "", "path to a redaction rules YAML file (implies --redact)")
+	AddProgressFlag(cmd)
 	return cmd
 }

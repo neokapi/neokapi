@@ -1,0 +1,28 @@
+{
+  "files": [
+    {
+      "input": "out/app.en-to-fr.xliff",
+      "applied": 8,
+      "stale": 1,
+      "skipped": 0,
+      "tm_new": 6,
+      "tm_updated": 2
+    },
+    {
+      "input": "out/bad.xliff",
+      "applied": 0,
+      "stale": 0,
+      "skipped": 0,
+      "tm_new": 0,
+      "tm_updated": 0,
+      "error": "no extraction batch note found"
+    }
+  ],
+  "applied": 8,
+  "stale": 1,
+  "skipped": 0,
+  "tm_new": 6,
+  "tm_updated": 2,
+  "conflict_policy": "prefer-incoming",
+  "failures": 1
+}

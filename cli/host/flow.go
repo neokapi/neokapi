@@ -262,6 +262,21 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		stopProgress = startStepProgress(os.Stderr, metrics)
 	}
 
+	// NDJSON progress (--progress jsonl): the flow-run event vocabulary on
+	// stderr, so machine consumers get the same event stream the desktop
+	// run sink receives.
+	sink := ProgressSink(cmd)
+	emit := func(ev FlowRunEvent) {
+		if sink != nil {
+			ev.Flow = flowName
+			ev.Locale = a.TargetLang
+			sink(ev)
+		}
+	}
+	runStart := time.Now()
+	emit(FlowRunEvent{Type: FlowEventState, Message: "running"})
+	emit(FlowRunEvent{Type: FlowEventProgress, FileIndex: 0, FileCount: 1, FilePath: inputPath})
+
 	// In project mode, run against the project's persistent block store
 	// (.kapi/cache/blocks.db) so SessionTools cache per-block work as
 	// overlays — that is what lets a later run skip already-done steps and
@@ -349,10 +364,17 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		if stopProgress != nil {
 			stopProgress()
 		}
+		emit(FlowRunEvent{Type: FlowEventFileDone, FilePath: inputPath})
+		emit(FlowRunEvent{
+			Type:       FlowEventComplete,
+			DurationMs: time.Since(runStart).Milliseconds(), FilesProcessed: 1,
+		})
 		if !a.Quiet {
-			fmt.Fprintf(cmd.OutOrStdout(),
-				"Committed overlays for %s to the project store — run `kapi merge` to write localized files.\n",
-				filepath.Base(inputPath))
+			return output.Print(cmd, output.FlowRunOutput{
+				FlowName:    flowName,
+				InputPath:   inputPath,
+				ProcessOnly: true,
+			})
 		}
 		return nil
 	}
@@ -394,6 +416,11 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	if stopProgress != nil {
 		stopProgress()
 	}
+	emit(FlowRunEvent{Type: FlowEventFileDone, FilePath: inputPath, OutputPath: outputPath})
+	emit(FlowRunEvent{
+		Type:       FlowEventComplete,
+		DurationMs: time.Since(runStart).Milliseconds(), FilesProcessed: 1,
+	})
 
 	// Write trace JSON if --trace was set.
 	if tracePath != "" && recorder != nil {
@@ -510,13 +537,30 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 	var mu sync.Mutex
 	var processed int
 
-	for _, inputPath := range inputPaths {
+	// NDJSON progress (--progress jsonl); the sink is mutex-guarded, so the
+	// concurrent per-file goroutines may emit directly.
+	sink := ProgressSink(cmd)
+	emit := func(ev FlowRunEvent) {
+		if sink != nil {
+			ev.Flow = flowName
+			ev.Locale = a.TargetLang
+			sink(ev)
+		}
+	}
+	runStart := time.Now()
+	emit(FlowRunEvent{Type: FlowEventState, Message: "running"})
+
+	for fileIndex, inputPath := range inputPaths {
 		g.Go(func() error {
 			releaseAdmission, admErr := admission.Acquire(ctx, safeio.FileWeight(inputPath))
 			if admErr != nil {
 				return admErr
 			}
 			defer releaseAdmission()
+
+			emit(FlowRunEvent{
+				Type: FlowEventProgress, FileIndex: fileIndex, FileCount: len(inputPaths), FilePath: inputPath,
+			})
 
 			var recorder *flow.TraceRecorder
 			var info *fileTraceInfo
@@ -551,6 +595,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 			mu.Lock()
 			processed++
 			mu.Unlock()
+			emit(FlowRunEvent{Type: FlowEventFileDone, FilePath: inputPath})
 			return nil
 		})
 	}
@@ -591,6 +636,11 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 			return fmt.Errorf("write batch trace: %w", err)
 		}
 	}
+
+	emit(FlowRunEvent{
+		Type:       FlowEventComplete,
+		DurationMs: time.Since(runStart).Milliseconds(), FilesProcessed: processed,
+	})
 
 	if !a.Quiet {
 		return output.Print(cmd, output.FlowRunOutput{

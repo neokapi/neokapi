@@ -472,6 +472,8 @@ const config: Config = {
             { label: "Project file", to: "/reference/project-file" },
             { label: "KLF format", to: "/reference/klf/overview" },
             { label: "MCP Server", to: "/reference/mcp" },
+            { label: "Scripting & JSON contract", to: "/reference/cli-contract" },
+            { label: "Engine service (gRPC)", to: "/reference/engine-service" },
           ],
         },
         {

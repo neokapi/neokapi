@@ -107,5 +107,6 @@ Use -p to run a flow from a .kapi project file:
 	a.AddFlowRunFlags(cmd)
 	cmd.Flags().Bool("until-gate", false, "loop the default flow until every gated scope is shippable (or a pass stalls); parks the rest")
 	cmd.Flags().Int("max-passes", 0, "cap on --until-gate passes (default 5)")
+	AddProgressFlag(cmd)
 	return cmd
 }

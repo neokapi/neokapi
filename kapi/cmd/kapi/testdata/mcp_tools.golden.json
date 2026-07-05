@@ -1,0 +1,3420 @@
+[
+  {
+    "name": "apply_edits",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "changeset": {
+          "description": "the typed change-set entries to apply",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "content_hash": {
+                "type": "string"
+              },
+              "file": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "list": {
+                "type": "string"
+              },
+              "locale": {
+                "type": "string"
+              },
+              "op": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "replacement": {
+                "type": "string"
+              },
+              "replaces": {
+                "type": "string"
+              },
+              "severity": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "source_locale": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "target_locale": {
+                "type": "string"
+              },
+              "term": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "value": {
+                "items": {
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": [
+                  "null",
+                  "array"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        }
+      },
+      "required": [
+        "changeset"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "approve_unit",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "description": "Target file path, as listed by review_queue",
+          "type": "string"
+        },
+        "key": {
+          "description": "Unit key, as listed by review_queue",
+          "type": "string"
+        },
+        "locale": {
+          "description": "Target locale, as listed by review_queue",
+          "type": "string"
+        },
+        "note": {
+          "description": "Reviewer note (the reason, for reject_unit)",
+          "type": "string"
+        },
+        "project": {
+          "description": "Path to the .kapi project file (default: the ambient project)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "locale",
+        "file",
+        "key"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "brand-voice-check",
+    "input_schema": {
+      "$id": "brand-voice-check",
+      "description": "Check text against a brand voice profile using an LLM provider",
+      "properties": {
+        "apiKey": {
+          "description": "API key for the AI provider",
+          "title": "API Key",
+          "type": "string"
+        },
+        "model": {
+          "description": "AI model name",
+          "title": "Model",
+          "type": "string"
+        },
+        "profileId": {
+          "description": "Brand voice profile to resolve from the store",
+          "title": "Profile ID",
+          "type": "string"
+        },
+        "provider": {
+          "default": "anthropic",
+          "description": "AI provider",
+          "options": [
+            {
+              "label": "Anthropic",
+              "value": "anthropic"
+            },
+            {
+              "label": "OpenAI",
+              "value": "openai"
+            },
+            {
+              "label": "Gemini",
+              "value": "gemini"
+            },
+            {
+              "label": "Azure OpenAI",
+              "value": "azureopenai"
+            },
+            {
+              "label": "Claude Code",
+              "value": "claude-code"
+            },
+            {
+              "label": "Ollama",
+              "value": "ollama"
+            },
+            {
+              "label": "Demo (illustrative)",
+              "value": "demo"
+            }
+          ],
+          "title": "AI Provider",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "AI Brand Voice Check",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "quality",
+        "defaultParallelBlocks": 5,
+        "description": "Check text against a brand voice profile using an LLM provider",
+        "displayName": "AI Brand Voice Check",
+        "id": "brand-voice-check",
+        "produces": [
+          {
+            "side": "target",
+            "type": "brand-voice"
+          }
+        ],
+        "requires": [
+          "credentials"
+        ],
+        "sideEffects": [
+          "api-call",
+          "remote-source-egress"
+        ],
+        "tags": [
+          "ai-powered",
+          "brand"
+        ]
+      },
+      "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "provider",
+            "apiKey",
+            "model"
+          ],
+          "id": "provider",
+          "label": "Provider"
+        }
+      ]
+    }
+  },
+  {
+    "name": "brand_check",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_file": {
+          "description": "path to a profile YAML",
+          "type": "string"
+        },
+        "profile_pack": {
+          "description": "starter pack name",
+          "type": "string"
+        },
+        "text": {
+          "description": "the text to check or rewrite",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "brand_guide",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_file": {
+          "description": "path to a profile YAML",
+          "type": "string"
+        },
+        "profile_pack": {
+          "description": "starter pack name (e.g. marketing-blog, technical-docs)",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "brand_rewrite",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_file": {
+          "description": "path to a profile YAML",
+          "type": "string"
+        },
+        "profile_pack": {
+          "description": "starter pack name",
+          "type": "string"
+        },
+        "text": {
+          "description": "the text to check or rewrite",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "case-transform",
+    "input_schema": {
+      "$id": "case-transform",
+      "properties": {
+        "applySource": {
+          "default": true,
+          "description": "Apply to source text",
+          "title": "Apply to Source",
+          "type": "boolean"
+        },
+        "applyTarget": {
+          "default": false,
+          "description": "Apply to target text",
+          "title": "Apply to Target",
+          "type": "boolean"
+        },
+        "mode": {
+          "default": "upper",
+          "description": "Case transformation mode",
+          "options": [
+            {
+              "label": "upper",
+              "value": "upper"
+            },
+            {
+              "label": "lower",
+              "value": "lower"
+            },
+            {
+              "label": "title",
+              "value": "title"
+            }
+          ],
+          "title": "Transformation Mode",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Case Transform",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "text-processing",
+        "displayName": "Case Transform",
+        "id": "case-transform",
+        "tags": [
+          "text-processing"
+        ],
+        "writesOutput": true
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "char-count",
+    "input_schema": {
+      "$id": "char-count",
+      "properties": {
+        "countInline": {
+          "default": false,
+          "description": "Include inline code content in character counts",
+          "title": "Count Inline Codes",
+          "type": "boolean"
+        },
+        "countSource": {
+          "default": true,
+          "description": "Count characters in source text",
+          "title": "Count Source",
+          "type": "boolean"
+        },
+        "countTarget": {
+          "default": true,
+          "description": "Count characters in target text",
+          "title": "Count Target",
+          "type": "boolean"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Character Count",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "analysis",
+        "displayName": "Character Count",
+        "id": "char-count",
+        "produces": [
+          {
+            "type": "char-count"
+          }
+        ],
+        "tags": [
+          "analysis"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "chars-check",
+    "input_schema": {
+      "$id": "chars-check",
+      "properties": {
+        "charset": {
+          "default": "ISO-8859-1",
+          "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)",
+          "title": "Character Set Encoding",
+          "type": "string"
+        },
+        "checkCharset": {
+          "default": false,
+          "description": "Warn if a character is not included in the specified character set encoding",
+          "title": "Check Against Charset Encoding",
+          "type": "boolean"
+        },
+        "checkCorrupted": {
+          "default": true,
+          "description": "Check for common corruption patterns such as mojibake",
+          "title": "Check Corrupted Characters",
+          "type": "boolean"
+        },
+        "forbiddenChars": {
+          "description": "Characters that should not appear in target text (e.g. {}[])",
+          "title": "Forbidden Characters",
+          "type": "string"
+        },
+        "requiredChars": {
+          "description": "Characters that must appear in target if present in source (e.g. punctuation)",
+          "title": "Required Characters",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Characters Check",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "quality",
+        "consumes": [
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "displayName": "Characters Check",
+        "id": "chars-check",
+        "produces": [
+          {
+            "side": "target",
+            "type": "qa"
+          }
+        ],
+        "requires": [
+          "target-language"
+        ],
+        "tags": [
+          "quality",
+          "l10n"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "check_file",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "dnt": {
+          "description": "do-not-translate terms that must survive verbatim into the target",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "file": {
+          "description": "path to the file whose content should be checked",
+          "type": "string"
+        },
+        "forbid": {
+          "description": "regex that must NOT appear in the content",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "max_chars": {
+          "description": "flag content longer than this many characters (0 = off)",
+          "type": "integer"
+        },
+        "max_words": {
+          "description": "flag content with more than this many words (0 = off)",
+          "type": "integer"
+        },
+        "profile_file": {
+          "description": "path to a brand voice profile YAML",
+          "type": "string"
+        },
+        "profile_pack": {
+          "description": "brand starter pack to check vocabulary against",
+          "type": "string"
+        },
+        "require": {
+          "description": "regex that MUST appear in the content",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "target": {
+          "description": "translated target file to check against the source (enables bilingual l10n checks)",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "locale of the target file (e.g. de)",
+          "type": "string"
+        },
+        "validate": {
+          "description": "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the report; strict also fails on a Major+ structure/encoding problem). Default off.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "check_text",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "forbid": {
+          "description": "regex that must NOT appear in the content",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "max_chars": {
+          "description": "flag content longer than this many characters (0 = off)",
+          "type": "integer"
+        },
+        "max_words": {
+          "description": "flag content with more than this many words (0 = off)",
+          "type": "integer"
+        },
+        "profile_file": {
+          "description": "path to a brand voice profile YAML",
+          "type": "string"
+        },
+        "profile_pack": {
+          "description": "brand starter pack to check vocabulary against (e.g. marketing-blog)",
+          "type": "string"
+        },
+        "require": {
+          "description": "regex that MUST appear in the content",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "text": {
+          "description": "the text to verify",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "content-lint",
+    "input_schema": {
+      "$id": "content-lint",
+      "properties": {
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Content Lint",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "text-processing",
+        "displayName": "Content Lint",
+        "id": "content-lint",
+        "produces": [
+          {
+            "type": "qa"
+          }
+        ],
+        "tags": [
+          "quality"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "detect_format",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "File path to detect format from",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "diff-leverage",
+    "input_schema": {
+      "$id": "diff-leverage",
+      "properties": {
+        "caseSensitive": {
+          "default": true,
+          "description": "Whether comparison is case-sensitive",
+          "title": "Case Sensitive",
+          "type": "boolean"
+        },
+        "fuzzyMatch": {
+          "default": false,
+          "description": "Enable fuzzy matching for similar texts",
+          "title": "Fuzzy Match",
+          "type": "boolean"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Diff Leverage",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "translation",
+        "displayName": "Diff Leverage",
+        "id": "diff-leverage",
+        "produces": [
+          {
+            "type": "alt-translation"
+          },
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "tags": [
+          "translation",
+          "l10n"
+        ],
+        "writesOutput": true
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "encoding-detect",
+    "input_schema": {
+      "$id": "encoding-detect",
+      "properties": {
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Encoding Detect",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "analysis",
+        "displayName": "Encoding Detect",
+        "id": "encoding-detect"
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "entity-extract",
+    "input_schema": {
+      "$id": "entity-extract",
+      "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
+      "properties": {
+        "apiKey": {
+          "description": "API key for the AI provider",
+          "title": "API Key",
+          "type": "string"
+        },
+        "batchConcurrency": {
+          "default": 1,
+          "description": "Number of concurrent batch calls (0 or 1 = sequential)",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "batchSize": {
+          "default": 1,
+          "description": "Number of blocks per LLM call (0 or 1 = one block per call)",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "engine": {
+          "default": "llm",
+          "description": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both)",
+          "options": [
+            {
+              "label": "LLM (AI provider)",
+              "value": "llm"
+            },
+            {
+              "label": "Local NER (on-device)",
+              "value": "ner"
+            },
+            {
+              "label": "Hybrid (NER + LLM)",
+              "value": "hybrid"
+            }
+          ],
+          "title": "Extraction Engine",
+          "type": "string",
+          "ui:enum-descriptions": {
+            "hybrid": "Run the local model and the LLM, merging results.",
+            "llm": "Extract with an AI provider.",
+            "ner": "On-device model — no credentials, nothing leaves the machine."
+          },
+          "ui:widget": "select"
+        },
+        "knownTerms": {
+          "description": "Terms to exclude from extraction (already in termbase)",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "locale": {
+          "description": "Locale of the source content",
+          "type": "string"
+        },
+        "model": {
+          "description": "AI model name",
+          "title": "Model",
+          "type": "string"
+        },
+        "provider": {
+          "default": "anthropic",
+          "description": "AI provider",
+          "options": [
+            {
+              "label": "Anthropic",
+              "value": "anthropic"
+            },
+            {
+              "label": "OpenAI",
+              "value": "openai"
+            },
+            {
+              "label": "Gemini",
+              "value": "gemini"
+            },
+            {
+              "label": "Azure OpenAI",
+              "value": "azureopenai"
+            },
+            {
+              "label": "Claude Code",
+              "value": "claude-code"
+            },
+            {
+              "label": "Ollama",
+              "value": "ollama"
+            },
+            {
+              "label": "Demo (illustrative)",
+              "value": "demo"
+            }
+          ],
+          "title": "AI Provider",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "AI Entity Extract",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "analysis",
+        "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
+        "displayName": "AI Entity Extract",
+        "id": "entity-extract",
+        "produces": [
+          {
+            "type": "entity"
+          },
+          {
+            "type": "term-candidate"
+          }
+        ],
+        "requires": [
+          "credentials"
+        ],
+        "sideEffects": [
+          "api-call",
+          "remote-source-egress"
+        ],
+        "tags": [
+          "ai-powered"
+        ]
+      },
+      "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "engine",
+            "locale",
+            "knownTerms"
+          ],
+          "id": "extract",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "provider",
+            "apiKey",
+            "model"
+          ],
+          "id": "llm:provider",
+          "label": "Provider",
+          "ui:visible": {
+            "any": [
+              {
+                "eq": "llm",
+                "field": "engine"
+              },
+              {
+                "eq": "hybrid",
+                "field": "engine"
+              }
+            ]
+          }
+        },
+        {
+          "fields": [
+            "batchConcurrency",
+            "batchSize"
+          ],
+          "id": "llm",
+          "label": "LLM (AI provider)",
+          "ui:visible": {
+            "any": [
+              {
+                "eq": "llm",
+                "field": "engine"
+              },
+              {
+                "eq": "hybrid",
+                "field": "engine"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "extract_content",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "description": "Override format detection",
+          "type": "string"
+        },
+        "path": {
+          "description": "File path to extract content from",
+          "type": "string"
+        },
+        "project": {
+          "description": "Path to .kapi project file for scoped format detection",
+          "type": "string"
+        },
+        "source_lang": {
+          "description": "Source language (default: en)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "inconsistency-check",
+    "input_schema": {
+      "$id": "inconsistency-check",
+      "properties": {
+        "caseSensitive": {
+          "default": true,
+          "description": "Whether comparison is case-sensitive",
+          "title": "Case Sensitive",
+          "type": "boolean"
+        },
+        "checkPerFile": {
+          "default": false,
+          "description": "Process each input file individually instead of comparing segments across all documents",
+          "title": "Per-File Checking",
+          "type": "boolean"
+        },
+        "checkSourceInconsistency": {
+          "default": false,
+          "description": "Flag when different sources share the same translation",
+          "title": "Check Source Inconsistency",
+          "type": "boolean"
+        },
+        "checkTargetInconsistency": {
+          "default": true,
+          "description": "Flag when the same source has different translations",
+          "title": "Check Target Inconsistency",
+          "type": "boolean"
+        },
+        "displayOption": {
+          "default": "generic",
+          "description": "Controls how inline codes are represented: original codes or generic markers or plain text",
+          "options": [
+            {
+              "label": "original",
+              "value": "original"
+            },
+            {
+              "label": "generic",
+              "value": "generic"
+            },
+            {
+              "label": "plain",
+              "value": "plain"
+            }
+          ],
+          "title": "Inline Code Display",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Inconsistency Check",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "quality",
+        "consumes": [
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "displayName": "Inconsistency Check",
+        "id": "inconsistency-check",
+        "produces": [
+          {
+            "side": "target",
+            "type": "qa"
+          }
+        ],
+        "requires": [
+          "target-language"
+        ],
+        "tags": [
+          "quality",
+          "l10n"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "length-check",
+    "input_schema": {
+      "$id": "length-check",
+      "properties": {
+        "checkMaxCharLength": {
+          "default": true,
+          "description": "Warn if target exceeds a percentage of source character length",
+          "title": "Check Maximum Length Ratio",
+          "type": "boolean"
+        },
+        "checkMinCharLength": {
+          "default": true,
+          "description": "Warn if target is shorter than a percentage of source character length",
+          "title": "Check Minimum Length Ratio",
+          "type": "boolean"
+        },
+        "maxCharLengthAbove": {
+          "default": 200,
+          "description": "Max percentage of source length allowed for long text",
+          "minimum": 0,
+          "title": "Percentage for Long Text (Max)",
+          "type": "integer"
+        },
+        "maxCharLengthBelow": {
+          "default": 350,
+          "description": "Max percentage of source length allowed for short text",
+          "minimum": 0,
+          "title": "Percentage for Short Text (Max)",
+          "type": "integer"
+        },
+        "maxCharLengthBreak": {
+          "default": 20,
+          "description": "Character count threshold between short and long text for max check",
+          "minimum": 0,
+          "title": "Short/Long Threshold (Max)",
+          "type": "integer"
+        },
+        "maxChars": {
+          "default": 0,
+          "description": "Absolute maximum character count for target text (0 = disabled)",
+          "minimum": 0,
+          "title": "Maximum Characters",
+          "type": "integer"
+        },
+        "maxPercentage": {
+          "default": 0,
+          "description": "Maximum target/source length ratio as percentage (0 = disabled)",
+          "minimum": 0,
+          "title": "Maximum Length Percentage",
+          "type": "number"
+        },
+        "maxWords": {
+          "default": 0,
+          "description": "Maximum word count for target text (0 = disabled)",
+          "minimum": 0,
+          "title": "Maximum Words",
+          "type": "integer"
+        },
+        "minCharLengthAbove": {
+          "default": 45,
+          "description": "Min percentage of source length allowed for long text",
+          "minimum": 0,
+          "title": "Percentage for Long Text (Min)",
+          "type": "integer"
+        },
+        "minCharLengthBelow": {
+          "default": 30,
+          "description": "Min percentage of source length allowed for short text",
+          "minimum": 0,
+          "title": "Percentage for Short Text (Min)",
+          "type": "integer"
+        },
+        "minCharLengthBreak": {
+          "default": 20,
+          "description": "Character count threshold between short and long text for min check",
+          "minimum": 0,
+          "title": "Short/Long Threshold (Min)",
+          "type": "integer"
+        },
+        "minPercentage": {
+          "default": 0,
+          "description": "Minimum target/source length ratio as percentage (0 = disabled)",
+          "minimum": 0,
+          "title": "Minimum Length Percentage",
+          "type": "number"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Length Check",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "quality",
+        "consumes": [
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "displayName": "Length Check",
+        "id": "length-check",
+        "produces": [
+          {
+            "side": "target",
+            "type": "qa"
+          }
+        ],
+        "requires": [
+          "target-language"
+        ],
+        "tags": [
+          "quality"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_flows",
+    "input_schema": {
+      "additionalProperties": false,
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_formats",
+    "input_schema": {
+      "additionalProperties": false,
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_tools",
+    "input_schema": {
+      "additionalProperties": false,
+      "type": "object"
+    }
+  },
+  {
+    "name": "media-refine",
+    "input_schema": {
+      "$id": "media-refine",
+      "description": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
+      "properties": {
+        "apiKey": {
+          "description": "API key for the AI provider",
+          "title": "API Key",
+          "type": "string"
+        },
+        "model": {
+          "description": "Multimodal model name",
+          "title": "Model",
+          "type": "string"
+        },
+        "provider": {
+          "default": "anthropic",
+          "description": "Multimodal AI provider",
+          "options": [
+            {
+              "label": "Anthropic",
+              "value": "anthropic"
+            },
+            {
+              "label": "OpenAI",
+              "value": "openai"
+            },
+            {
+              "label": "Gemini",
+              "value": "gemini"
+            },
+            {
+              "label": "Azure OpenAI",
+              "value": "azureopenai"
+            },
+            {
+              "label": "Claude Code",
+              "value": "claude-code"
+            },
+            {
+              "label": "Ollama",
+              "value": "ollama"
+            },
+            {
+              "label": "Demo (illustrative)",
+              "value": "demo"
+            }
+          ],
+          "title": "AI Provider",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        },
+        "threshold": {
+          "default": 0.85,
+          "description": "Re-read extracted lines whose confidence is below this",
+          "title": "Confidence Threshold",
+          "type": "number"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Media Refine",
+      "toolMeta": {
+        "category": "text-processing",
+        "description": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
+        "displayName": "Media Refine",
+        "id": "media-refine",
+        "requires": [
+          "credentials"
+        ],
+        "sideEffects": [
+          "api-call",
+          "remote-source-egress"
+        ],
+        "tags": [
+          "ai-powered",
+          "vision"
+        ]
+      },
+      "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "provider",
+            "apiKey",
+            "model"
+          ],
+          "id": "provider",
+          "label": "Provider"
+        }
+      ]
+    }
+  },
+  {
+    "name": "pattern-check",
+    "input_schema": {
+      "$id": "pattern-check",
+      "properties": {
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Pattern Check",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "quality",
+        "consumes": [
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "displayName": "Pattern Check",
+        "id": "pattern-check",
+        "produces": [
+          {
+            "side": "target",
+            "type": "qa"
+          }
+        ],
+        "requires": [
+          "target-language"
+        ],
+        "tags": [
+          "quality",
+          "regex"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "pseudo-translate",
+    "input_schema": {
+      "$id": "pseudo-translate",
+      "properties": {
+        "expansionPercent": {
+          "default": 0,
+          "description": "Extra padding percentage added to simulate translation expansion (0 = no padding)",
+          "minimum": 0,
+          "title": "Expansion Percent",
+          "type": "integer"
+        },
+        "prefix": {
+          "default": "▒ ",
+          "description": "Characters prepended before each translated block",
+          "title": "Prefix",
+          "type": "string"
+        },
+        "suffix": {
+          "default": " ▒",
+          "description": "Characters appended after each translated block",
+          "title": "Suffix",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Pseudo Translate",
+      "toolMeta": {
+        "aliases": [
+          "pseudo"
+        ],
+        "cardinality": "bilingual",
+        "category": "translation",
+        "defaultLocale": "qps",
+        "displayName": "Pseudo Translate",
+        "id": "pseudo-translate",
+        "produces": [
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "requires": [
+          "target-language"
+        ],
+        "tags": [
+          "translation",
+          "l10n"
+        ],
+        "writesOutput": true
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "pseudo_translate",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "output_path": {
+          "description": "Output file path (default: auto-generated)",
+          "type": "string"
+        },
+        "path": {
+          "description": "File path to pseudo-translate",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "Target language (default: qps)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "qa",
+    "input_schema": {
+      "$id": "qa",
+      "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
+      "properties": {
+        "absoluteMaxCharLength": {
+          "default": 255,
+          "description": "Maximum number of characters allowed in any target segment",
+          "title": "Absolute Maximum Characters",
+          "type": "integer"
+        },
+        "apiKey": {
+          "description": "API key for the AI provider",
+          "title": "API Key",
+          "type": "string"
+        },
+        "checkAbsoluteMaxCharLength": {
+          "default": false,
+          "description": "Flag target segments that exceed an absolute character count limit",
+          "title": "Check Absolute Maximum Length",
+          "type": "boolean"
+        },
+        "checkCodeDifference": {
+          "default": true,
+          "description": "Verify that target segments have the same inline codes as source segments",
+          "title": "Check Code Differences",
+          "type": "boolean"
+        },
+        "checkCorruptedCharacters": {
+          "default": true,
+          "description": "Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1)",
+          "title": "Check Corrupted Characters",
+          "type": "boolean"
+        },
+        "checkDoubleSpaces": {
+          "default": true,
+          "description": "Check for double spaces in target text",
+          "title": "Check Double Spaces",
+          "type": "boolean"
+        },
+        "checkDoubledWord": {
+          "default": true,
+          "description": "Check for consecutive repeated words in target text",
+          "title": "Warn on Doubled Words",
+          "type": "boolean"
+        },
+        "checkEmptySource": {
+          "default": true,
+          "description": "Check for non-empty target when source is empty",
+          "title": "Warn on Non-Empty Target with Empty Source",
+          "type": "boolean"
+        },
+        "checkEmptyTarget": {
+          "default": true,
+          "description": "Check for empty target when source has content",
+          "title": "Warn on Empty Target",
+          "type": "boolean"
+        },
+        "checkLeadingWhitespace": {
+          "default": true,
+          "description": "Check for leading whitespace mismatches between source and target",
+          "title": "Check Leading Whitespace",
+          "type": "boolean"
+        },
+        "checkMaxCharLength": {
+          "default": true,
+          "description": "Flag targets longer than a percentage of source character length",
+          "title": "Check Maximum Length Ratio",
+          "type": "boolean"
+        },
+        "checkMinCharLength": {
+          "default": true,
+          "description": "Flag targets shorter than a percentage of source character length",
+          "title": "Check Minimum Length Ratio",
+          "type": "boolean"
+        },
+        "checkPatterns": {
+          "default": true,
+          "description": "Verify that source patterns have expected corresponding content in the target",
+          "title": "Check Patterns",
+          "type": "boolean"
+        },
+        "checkSpanConstraints": {
+          "default": true,
+          "description": "Check non-deletable and non-cloneable span constraint violations",
+          "title": "Check Span Constraints",
+          "type": "boolean"
+        },
+        "checkTargetSameAsSource": {
+          "default": true,
+          "description": "Check when target text is identical to source text",
+          "title": "Warn on Target Same as Source",
+          "type": "boolean"
+        },
+        "checkTerminology": {
+          "default": false,
+          "description": "Enable terminology checks",
+          "title": "Verify Terminology",
+          "type": "boolean"
+        },
+        "checkTrailingWhitespace": {
+          "default": true,
+          "description": "Check for trailing whitespace mismatches between source and target",
+          "title": "Check Trailing Whitespace",
+          "type": "boolean"
+        },
+        "checks": {
+          "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Quality Checks",
+          "type": "array"
+        },
+        "doubledWordExceptions": {
+          "default": "sie;vous;nous",
+          "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)",
+          "title": "Doubled Word Exceptions",
+          "type": "string"
+        },
+        "maxCharLengthAbove": {
+          "default": 200,
+          "description": "Maximum allowed percentage of source length for long text",
+          "title": "Percentage for Long Text (Max)",
+          "type": "integer"
+        },
+        "maxCharLengthBelow": {
+          "default": 350,
+          "description": "Maximum allowed percentage of source length for short text",
+          "title": "Percentage for Short Text (Max)",
+          "type": "integer"
+        },
+        "maxCharLengthBreak": {
+          "default": 20,
+          "description": "Character count above which text is considered long for the maximum length check",
+          "title": "Short/Long Threshold (Max)",
+          "type": "integer"
+        },
+        "minCharLengthAbove": {
+          "default": 45,
+          "description": "Minimum required percentage of source length for long text",
+          "title": "Percentage for Long Text (Min)",
+          "type": "integer"
+        },
+        "minCharLengthBelow": {
+          "default": 30,
+          "description": "Minimum required percentage of source length for short text",
+          "title": "Percentage for Short Text (Min)",
+          "type": "integer"
+        },
+        "minCharLengthBreak": {
+          "default": 20,
+          "description": "Character count above which text is considered long for the minimum length check",
+          "title": "Short/Long Threshold (Min)",
+          "type": "integer"
+        },
+        "mode": {
+          "default": "rules",
+          "description": "How to check quality: deterministic local rules, or an AI provider's review",
+          "options": [
+            {
+              "label": "Deterministic rules",
+              "value": "rules"
+            },
+            {
+              "label": "AI review",
+              "value": "ai"
+            }
+          ],
+          "title": "QA Mode",
+          "type": "string",
+          "ui:enum-descriptions": {
+            "ai": "LLM-judged quality review via an AI provider.",
+            "rules": "Local rule-based checks — no credentials, no network."
+          },
+          "ui:widget": "select"
+        },
+        "model": {
+          "description": "AI model name",
+          "title": "Model",
+          "type": "string"
+        },
+        "provider": {
+          "default": "anthropic",
+          "description": "AI provider",
+          "options": [
+            {
+              "label": "Anthropic",
+              "value": "anthropic"
+            },
+            {
+              "label": "OpenAI",
+              "value": "openai"
+            },
+            {
+              "label": "Gemini",
+              "value": "gemini"
+            },
+            {
+              "label": "Azure OpenAI",
+              "value": "azureopenai"
+            },
+            {
+              "label": "Claude Code",
+              "value": "claude-code"
+            },
+            {
+              "label": "Ollama",
+              "value": "ollama"
+            },
+            {
+              "label": "Demo (illustrative)",
+              "value": "demo"
+            }
+          ],
+          "title": "AI Provider",
+          "type": "string"
+        },
+        "strictCodeOrder": {
+          "default": false,
+          "description": "Flag differences when codes appear in a different order between source and target",
+          "title": "Enforce Strict Code Order",
+          "type": "boolean"
+        },
+        "targetSameAsSourceWithCodes": {
+          "default": true,
+          "description": "Include inline codes when comparing source and target for identity",
+          "title": "Include Codes in Comparison",
+          "type": "boolean"
+        },
+        "targetSameAsSourceWithNumbers": {
+          "default": true,
+          "description": "Include number-only segments in same-as-source comparison",
+          "title": "Include Number-Only Segments",
+          "type": "boolean"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Quality Check",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "quality",
+        "consumes": [
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "defaultParallelBlocks": 5,
+        "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
+        "displayName": "Quality Check",
+        "id": "qa",
+        "produces": [
+          {
+            "side": "target",
+            "type": "qa"
+          }
+        ],
+        "requires": [
+          "target-language",
+          "credentials"
+        ],
+        "sideEffects": [
+          "api-call",
+          "remote-source-egress"
+        ],
+        "tags": [
+          "quality",
+          "l10n"
+        ],
+        "writesOutput": true
+      },
+      "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "mode"
+          ],
+          "id": "qa",
+          "label": "Quality check"
+        },
+        {
+          "fields": [
+            "checkLeadingWhitespace",
+            "checkTrailingWhitespace",
+            "checkEmptyTarget",
+            "checkEmptySource",
+            "checkTargetSameAsSource",
+            "targetSameAsSourceWithCodes",
+            "targetSameAsSourceWithNumbers",
+            "checkDoubleSpaces",
+            "checkDoubledWord",
+            "doubledWordExceptions",
+            "checkSpanConstraints"
+          ],
+          "id": "rules:general",
+          "label": "General",
+          "ui:visible": {
+            "eq": "rules",
+            "field": "mode"
+          }
+        },
+        {
+          "fields": [
+            "checkCodeDifference",
+            "strictCodeOrder"
+          ],
+          "id": "rules:inlineCodes",
+          "label": "InlineCodes",
+          "ui:visible": {
+            "eq": "rules",
+            "field": "mode"
+          }
+        },
+        {
+          "fields": [
+            "checkPatterns"
+          ],
+          "id": "rules:patterns",
+          "label": "Patterns",
+          "ui:visible": {
+            "eq": "rules",
+            "field": "mode"
+          }
+        },
+        {
+          "fields": [
+            "checkCorruptedCharacters"
+          ],
+          "id": "rules:characters",
+          "label": "Characters",
+          "ui:visible": {
+            "eq": "rules",
+            "field": "mode"
+          }
+        },
+        {
+          "fields": [
+            "checkMaxCharLength",
+            "maxCharLengthBreak",
+            "maxCharLengthAbove",
+            "maxCharLengthBelow",
+            "checkMinCharLength",
+            "minCharLengthBreak",
+            "minCharLengthAbove",
+            "minCharLengthBelow",
+            "checkAbsoluteMaxCharLength",
+            "absoluteMaxCharLength"
+          ],
+          "id": "rules:length",
+          "label": "Length",
+          "ui:visible": {
+            "eq": "rules",
+            "field": "mode"
+          }
+        },
+        {
+          "fields": [
+            "checkTerminology"
+          ],
+          "id": "rules",
+          "label": "Deterministic rules",
+          "ui:visible": {
+            "eq": "rules",
+            "field": "mode"
+          }
+        },
+        {
+          "fields": [
+            "provider",
+            "apiKey",
+            "model"
+          ],
+          "id": "ai:provider",
+          "label": "Provider",
+          "ui:visible": {
+            "eq": "ai",
+            "field": "mode"
+          }
+        },
+        {
+          "fields": [
+            "checks"
+          ],
+          "id": "ai",
+          "label": "AI review",
+          "ui:visible": {
+            "eq": "ai",
+            "field": "mode"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "recycle",
+    "input_schema": {
+      "$id": "recycle",
+      "properties": {
+        "downgradeIdenticalBestMatches": {
+          "default": false,
+          "description": "Reduce score by 1%% when multiple identical exact matches are returned",
+          "title": "Downgrade Identical Exact Matches",
+          "type": "boolean"
+        },
+        "fillIfTargetIsEmpty": {
+          "default": false,
+          "description": "Fill the target only when it has no existing content",
+          "title": "Only If Target Is Empty",
+          "type": "boolean"
+        },
+        "fillTarget": {
+          "default": true,
+          "description": "Copy the best translation candidate into the target content",
+          "title": "Fill Target with Translation",
+          "type": "boolean"
+        },
+        "fillTargetThreshold": {
+          "default": 95,
+          "description": "Minimum match score required to fill the target",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Fill Target Threshold",
+          "type": "integer"
+        },
+        "fuzzyThreshold": {
+          "default": 70,
+          "description": "Minimum score for fuzzy matches (0-100)",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Fuzzy Match Threshold",
+          "type": "integer"
+        },
+        "makeTmx": {
+          "default": false,
+          "description": "Create a TMX file with all leveraged matches",
+          "title": "Generate TMX Document",
+          "type": "boolean"
+        },
+        "noQueryThreshold": {
+          "default": 101,
+          "description": "Skip TM query if existing candidate scores at or above this value (101 = always query)",
+          "maximum": 101,
+          "minimum": 0,
+          "title": "No-Query Threshold",
+          "type": "integer"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        },
+        "tmxPath": {
+          "description": "File path for the generated TMX document",
+          "title": "TMX Output Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Recycle",
+      "toolMeta": {
+        "aliases": [
+          "tm-leverage"
+        ],
+        "cardinality": "bilingual",
+        "category": "translation",
+        "consumes": [
+          {
+            "optional": true,
+            "type": "segmentation"
+          }
+        ],
+        "displayName": "Recycle",
+        "id": "recycle",
+        "produces": [
+          {
+            "type": "tm-match"
+          },
+          {
+            "type": "alt-translation"
+          },
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "requires": [
+          "target-language",
+          "tm"
+        ],
+        "sideEffects": [
+          "tm-read"
+        ],
+        "tags": [
+          "translation",
+          "l10n"
+        ],
+        "writesOutput": true
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "redact",
+    "input_schema": {
+      "$id": "redact",
+      "description": "Replace sensitive spans with protected placeholders before processing",
+      "properties": {
+        "detectors": {
+          "description": "Detection backends to run: rules and/or entities",
+          "items": {
+            "type": "string"
+          },
+          "title": "Detectors",
+          "type": "array"
+        },
+        "entityTypes": {
+          "description": "Entity categories to redact: person",
+          "items": {
+            "type": "string"
+          },
+          "title": "Entity Categories",
+          "type": "array"
+        },
+        "placeholder": {
+          "description": "Visible stand-in template; supports {category} and {n}",
+          "title": "Placeholder Template",
+          "type": "string"
+        },
+        "rulesPath": {
+          "description": "Path to a redaction rules YAML file",
+          "title": "Rules File",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Redact",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "text-processing",
+        "consumes": [
+          {
+            "optional": true,
+            "type": "entity"
+          }
+        ],
+        "description": "Replace sensitive spans with protected placeholders before processing",
+        "displayName": "Redact",
+        "id": "redact",
+        "produces": [
+          {
+            "type": "source"
+          },
+          {
+            "type": "redaction.secret"
+          }
+        ],
+        "recoverable": true,
+        "tags": [
+          "security",
+          "redaction"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "reject_unit",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "description": "Target file path, as listed by review_queue",
+          "type": "string"
+        },
+        "key": {
+          "description": "Unit key, as listed by review_queue",
+          "type": "string"
+        },
+        "locale": {
+          "description": "Target locale, as listed by review_queue",
+          "type": "string"
+        },
+        "note": {
+          "description": "Reviewer note (the reason, for reject_unit)",
+          "type": "string"
+        },
+        "project": {
+          "description": "Path to the .kapi project file (default: the ambient project)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "locale",
+        "file",
+        "key"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "repetition-analysis",
+    "input_schema": {
+      "$id": "repetition-analysis",
+      "properties": {
+        "caseSensitive": {
+          "default": true,
+          "description": "Whether comparison is case-sensitive",
+          "title": "Case Sensitive",
+          "type": "boolean"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Repetition Analysis",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "analysis",
+        "displayName": "Repetition Analysis",
+        "id": "repetition-analysis",
+        "produces": [
+          {
+            "type": "repetition"
+          }
+        ],
+        "tags": [
+          "analysis"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "review",
+    "input_schema": {
+      "$id": "review",
+      "description": "Review translations with scoring using an LLM provider",
+      "properties": {
+        "apiKey": {
+          "description": "API key for the AI provider",
+          "title": "API Key",
+          "type": "string"
+        },
+        "model": {
+          "description": "AI model name",
+          "title": "Model",
+          "type": "string"
+        },
+        "provider": {
+          "default": "anthropic",
+          "description": "AI provider",
+          "options": [
+            {
+              "label": "Anthropic",
+              "value": "anthropic"
+            },
+            {
+              "label": "OpenAI",
+              "value": "openai"
+            },
+            {
+              "label": "Gemini",
+              "value": "gemini"
+            },
+            {
+              "label": "Azure OpenAI",
+              "value": "azureopenai"
+            },
+            {
+              "label": "Claude Code",
+              "value": "claude-code"
+            },
+            {
+              "label": "Ollama",
+              "value": "ollama"
+            },
+            {
+              "label": "Demo (illustrative)",
+              "value": "demo"
+            }
+          ],
+          "title": "AI Provider",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Review",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "quality",
+        "defaultParallelBlocks": 5,
+        "description": "Review translations with scoring using an LLM provider",
+        "displayName": "Review",
+        "id": "review",
+        "requires": [
+          "target-language",
+          "credentials"
+        ],
+        "sideEffects": [
+          "api-call",
+          "remote-source-egress"
+        ],
+        "tags": [
+          "ai-powered"
+        ],
+        "writesOutput": true
+      },
+      "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "provider",
+            "apiKey",
+            "model"
+          ],
+          "id": "provider",
+          "label": "Provider"
+        }
+      ]
+    }
+  },
+  {
+    "name": "review_queue",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "collection": {
+          "description": "Only list units in this content collection",
+          "type": "string"
+        },
+        "locale": {
+          "description": "Only list units for this target locale",
+          "type": "string"
+        },
+        "project": {
+          "description": "Path to the .kapi project file (default: the ambient project)",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "review_unit",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "description": "Target file path, as listed by review_queue",
+          "type": "string"
+        },
+        "key": {
+          "description": "Unit key, as listed by review_queue",
+          "type": "string"
+        },
+        "locale": {
+          "description": "Target locale, as listed by review_queue",
+          "type": "string"
+        },
+        "project": {
+          "description": "Path to the .kapi project file (default: the ambient project)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "locale",
+        "file",
+        "key"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "run_flow",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "flow_name": {
+          "description": "Name of the flow to run (e.g. pseudo-translate or qa)",
+          "type": "string"
+        },
+        "output_path": {
+          "description": "Output file path (default: auto-generated)",
+          "type": "string"
+        },
+        "path": {
+          "description": "Input file path (optional when project has content patterns)",
+          "type": "string"
+        },
+        "project": {
+          "description": "Path to a .kapi project file for project-scoped execution",
+          "type": "string"
+        },
+        "source_lang": {
+          "description": "Source language (default: en)",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "Target language",
+          "type": "string"
+        }
+      },
+      "required": [
+        "flow_name"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "scoping-report",
+    "input_schema": {
+      "$id": "scoping-report",
+      "properties": {
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Scoping Report",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "analysis",
+        "displayName": "Scoping Report",
+        "id": "scoping-report",
+        "produces": [
+          {
+            "type": "scoping-report"
+          }
+        ],
+        "tags": [
+          "analysis"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "script",
+    "input_schema": {
+      "$id": "script",
+      "properties": {
+        "allowSourceMutation": {
+          "default": false,
+          "description": "Permit the script to modify the source text (off by default; source is read-only)",
+          "title": "Allow Source Mutation",
+          "type": "boolean"
+        },
+        "code": {
+          "description": "Inline ES5 JavaScript code",
+          "title": "Inline Code",
+          "type": "string",
+          "ui:visible": {
+            "eq": "inline",
+            "field": "source"
+          },
+          "ui:widget": "code-editor"
+        },
+        "scriptFile": {
+          "description": "Path to a .js file",
+          "title": "Script File",
+          "type": "string",
+          "ui:visible": {
+            "eq": "file",
+            "field": "source"
+          },
+          "ui:widget": "file-picker"
+        },
+        "source": {
+          "default": "inline",
+          "description": "Script source mode",
+          "options": [
+            {
+              "label": "inline",
+              "value": "inline"
+            },
+            {
+              "label": "file",
+              "value": "file"
+            }
+          ],
+          "title": "Script Source",
+          "type": "string",
+          "ui:widget": "segmented"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Script",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "text-processing",
+        "displayName": "Script",
+        "id": "script",
+        "tags": [
+          "configurable"
+        ],
+        "writesOutput": true
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "search-replace",
+    "input_schema": {
+      "$id": "search-replace",
+      "properties": {
+        "dotAll": {
+          "default": false,
+          "description": "Make the period character match every character including line-feed",
+          "title": "Dot Also Matches Line-Feed",
+          "type": "boolean"
+        },
+        "ignoreCase": {
+          "default": false,
+          "description": "Ignore case when matching search patterns",
+          "title": "Ignore Case Differences",
+          "type": "boolean"
+        },
+        "multiLine": {
+          "default": false,
+          "description": "Make ^ and $ match at the beginning and end of each line",
+          "title": "Multiline Mode",
+          "type": "boolean"
+        },
+        "regEx": {
+          "default": false,
+          "description": "Enable regular expression mode for all search patterns",
+          "title": "Use Regular Expressions",
+          "type": "boolean"
+        },
+        "replaceAll": {
+          "default": true,
+          "description": "Replace all matches instead of only the first",
+          "title": "Replace All Instances",
+          "type": "boolean"
+        },
+        "source": {
+          "default": false,
+          "description": "Perform search and replace on source content",
+          "title": "Replace in Source Content",
+          "type": "boolean"
+        },
+        "target": {
+          "default": true,
+          "description": "Perform search and replace on target content",
+          "title": "Replace in Target Content",
+          "type": "boolean"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Search and Replace",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "text-processing",
+        "displayName": "Search and Replace",
+        "id": "search-replace",
+        "tags": [
+          "regex",
+          "configurable"
+        ],
+        "writesOutput": true
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "segment-count",
+    "input_schema": {
+      "$id": "segment-count",
+      "properties": {
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Segment Count",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "analysis",
+        "displayName": "Segment Count",
+        "id": "segment-count",
+        "produces": [
+          {
+            "type": "seg-count"
+          }
+        ],
+        "tags": [
+          "analysis"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "segmentation",
+    "input_schema": {
+      "$id": "segmentation",
+      "description": "Split source text into sentence or chunk segments (stand-off overlay)",
+      "properties": {
+        "credential": {
+          "description": "Stored credential name",
+          "title": "Credential",
+          "type": "string",
+          "ui:order": 30,
+          "ui:widget": "credential-picker"
+        },
+        "engine": {
+          "default": "srx",
+          "description": "Which segmenter to use; the default needs no configuration",
+          "options": [
+            {
+              "label": "Rule-based (hybrid SRX/UAX-29)",
+              "value": "srx"
+            },
+            {
+              "label": "Unicode baseline (UAX-29)",
+              "value": "uax29"
+            },
+            {
+              "label": "ML model (SaT)",
+              "value": "sat"
+            },
+            {
+              "label": "LLM (semantic chunks)",
+              "value": "llm"
+            }
+          ],
+          "title": "Segmentation Engine",
+          "type": "string",
+          "ui:enum-descriptions": {
+            "llm": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+            "sat": "wtpsplit Segment-any-Text ML model. Best for noisy, unpunctuated, or mixed-script multilingual text.",
+            "srx": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
+            "uax29": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions."
+          },
+          "ui:order": 0,
+          "ui:widget": "select"
+        },
+        "instruction": {
+          "description": "Optional guidance for how to chunk",
+          "title": "Chunking Instruction",
+          "type": "string",
+          "ui:order": 40,
+          "ui:widget": "textarea"
+        },
+        "layer": {
+          "description": "Segmentation overlay layer name; empty uses the engine's natural layer",
+          "title": "Overlay Layer",
+          "type": "string",
+          "ui:order": 10
+        },
+        "maxChunkRunes": {
+          "description": "Soft upper bound on chunk size in characters (0 = model default)",
+          "minimum": 0,
+          "title": "Max Chunk Size",
+          "type": "integer",
+          "ui:order": 50
+        },
+        "model": {
+          "description": "Model name",
+          "title": "Model",
+          "type": "string",
+          "ui:order": 20
+        },
+        "overwriteSegmentation": {
+          "default": false,
+          "description": "Re-segment already-segmented blocks replacing previous segmentation",
+          "title": "Overwrite Existing Segmentation",
+          "type": "boolean",
+          "ui:order": 10
+        },
+        "provider": {
+          "description": "AI provider id (anthropic",
+          "title": "Provider",
+          "type": "string",
+          "ui:order": 10
+        },
+        "renumberCodes": {
+          "default": false,
+          "description": "Renumber inline code IDs when materializing segments to a bilingual format",
+          "title": "Renumber Code IDs",
+          "type": "boolean",
+          "ui:order": 50
+        },
+        "rulesPath": {
+          "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)",
+          "title": "SRX Rules File",
+          "type": "string",
+          "ui:order": 10,
+          "ui:widget": "file-picker"
+        },
+        "segmentSource": {
+          "default": true,
+          "description": "Segment the source text",
+          "title": "Segment Source Text",
+          "type": "boolean",
+          "ui:order": 20
+        },
+        "segmentTarget": {
+          "default": false,
+          "description": "Segment existing target text",
+          "title": "Segment Target Text",
+          "type": "boolean",
+          "ui:order": 30
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        },
+        "treatIsolatedCodesAsWhitespace": {
+          "default": false,
+          "description": "Treat isolated inline codes as whitespace during segmentation",
+          "title": "Treat Isolated Codes as Whitespace",
+          "type": "boolean",
+          "ui:order": 20
+        },
+        "trimLeadingWhitespace": {
+          "default": true,
+          "description": "Exclude leading whitespace from each segment span",
+          "title": "Trim Leading Whitespace",
+          "type": "boolean",
+          "ui:order": 30
+        },
+        "trimTrailingWhitespace": {
+          "default": true,
+          "description": "Exclude trailing whitespace from each segment span",
+          "title": "Trim Trailing Whitespace",
+          "type": "boolean",
+          "ui:order": 40
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Segmentation",
+      "toolMeta": {
+        "aliases": [
+          "segment"
+        ],
+        "cardinality": "monolingual",
+        "category": "text-processing",
+        "displayName": "Segmentation",
+        "id": "segmentation",
+        "produces": [
+          {
+            "type": "segmentation"
+          },
+          {
+            "side": "target",
+            "type": "segmentation"
+          }
+        ],
+        "tags": [
+          "text-processing"
+        ],
+        "writesOutput": true
+      },
+      "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "engine",
+            "layer",
+            "segmentSource",
+            "segmentTarget"
+          ],
+          "id": "segmentation",
+          "label": "Segmentation"
+        },
+        {
+          "fields": [
+            "rulesPath"
+          ],
+          "id": "srx",
+          "label": "Rule-based (hybrid SRX/UAX-29)",
+          "ui:visible": {
+            "eq": "srx",
+            "field": "engine"
+          }
+        },
+        {
+          "fields": [
+            "provider",
+            "model",
+            "credential",
+            "instruction",
+            "maxChunkRunes"
+          ],
+          "id": "llm",
+          "label": "LLM (semantic chunks)",
+          "ui:visible": {
+            "eq": "llm",
+            "field": "engine"
+          }
+        },
+        {
+          "collapsed": true,
+          "collapsible": true,
+          "fields": [
+            "overwriteSegmentation",
+            "treatIsolatedCodesAsWhitespace",
+            "trimLeadingWhitespace",
+            "trimTrailingWhitespace",
+            "renumberCodes"
+          ],
+          "id": "boundaries",
+          "label": "Boundary handling"
+        }
+      ]
+    }
+  },
+  {
+    "name": "sign_off_unit",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "description": "Target file path, as listed by review_queue",
+          "type": "string"
+        },
+        "key": {
+          "description": "Unit key, as listed by review_queue",
+          "type": "string"
+        },
+        "locale": {
+          "description": "Target locale, as listed by review_queue",
+          "type": "string"
+        },
+        "note": {
+          "description": "Reviewer note (the reason, for reject_unit)",
+          "type": "string"
+        },
+        "project": {
+          "description": "Path to the .kapi project file (default: the ambient project)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "locale",
+        "file",
+        "key"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "source-check",
+    "input_schema": {
+      "$id": "source-check",
+      "properties": {
+        "blockSeverity": {
+          "description": "Lowest finding severity that keeps a block from being marked checked (minor|major|critical)",
+          "options": [
+            {
+              "label": "minor",
+              "value": "minor"
+            },
+            {
+              "label": "major",
+              "value": "major"
+            },
+            {
+              "label": "critical",
+              "value": "critical"
+            }
+          ],
+          "title": "Blocking severity",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Source Readiness",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "quality",
+        "consumes": [
+          {
+            "type": "source"
+          }
+        ],
+        "displayName": "Source Readiness",
+        "id": "source-check",
+        "tags": [
+          "quality"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "term-check",
+    "input_schema": {
+      "$id": "term-check",
+      "properties": {
+        "caseSensitive": {
+          "default": false,
+          "description": "Whether term matching is case-sensitive",
+          "title": "Case Sensitive",
+          "type": "boolean"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Terminology Check",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "quality",
+        "consumes": [
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "displayName": "Terminology Check",
+        "id": "term-check",
+        "produces": [
+          {
+            "type": "term"
+          }
+        ],
+        "requires": [
+          "target-language",
+          "termbase"
+        ],
+        "sideEffects": [
+          "termbase-read"
+        ],
+        "tags": [
+          "quality",
+          "l10n"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "term-extract",
+    "input_schema": {
+      "$id": "term-extract",
+      "description": "Extract candidate terminology from content using an LLM provider",
+      "properties": {
+        "apiKey": {
+          "description": "API key for the AI provider",
+          "title": "API Key",
+          "type": "string"
+        },
+        "domain": {
+          "description": "Subject domain for terminology extraction (e.g. medical legal technology)",
+          "title": "Domain",
+          "type": "string"
+        },
+        "model": {
+          "description": "AI model name",
+          "title": "Model",
+          "type": "string"
+        },
+        "provider": {
+          "default": "anthropic",
+          "description": "AI provider",
+          "options": [
+            {
+              "label": "Anthropic",
+              "value": "anthropic"
+            },
+            {
+              "label": "OpenAI",
+              "value": "openai"
+            },
+            {
+              "label": "Gemini",
+              "value": "gemini"
+            },
+            {
+              "label": "Azure OpenAI",
+              "value": "azureopenai"
+            },
+            {
+              "label": "Claude Code",
+              "value": "claude-code"
+            },
+            {
+              "label": "Ollama",
+              "value": "ollama"
+            },
+            {
+              "label": "Demo (illustrative)",
+              "value": "demo"
+            }
+          ],
+          "title": "AI Provider",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "AI Terminology Extraction",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "analysis",
+        "defaultParallelBlocks": 5,
+        "description": "Extract candidate terminology from content using an LLM provider",
+        "displayName": "AI Terminology Extraction",
+        "id": "term-extract",
+        "produces": [
+          {
+            "type": "term"
+          }
+        ],
+        "requires": [
+          "credentials"
+        ],
+        "sideEffects": [
+          "api-call",
+          "remote-source-egress"
+        ],
+        "tags": [
+          "ai-powered",
+          "terminology"
+        ]
+      },
+      "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "provider",
+            "apiKey",
+            "model"
+          ],
+          "id": "provider",
+          "label": "Provider"
+        }
+      ]
+    }
+  },
+  {
+    "name": "term_lookup",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "source_lang": {
+          "description": "source locale (e.g. en)",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "target locale (e.g. fr)",
+          "type": "string"
+        },
+        "term": {
+          "description": "the term to look up",
+          "type": "string"
+        },
+        "termbase": {
+          "description": "path to the termbase db (default: termbase.db)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "term"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "tm_search",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "min_score": {
+          "description": "minimum match score 0-1 (default 0.7)",
+          "type": "number"
+        },
+        "source_lang": {
+          "description": "source locale (e.g. en)",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "target locale (e.g. fr)",
+          "type": "string"
+        },
+        "text": {
+          "description": "source text to search for",
+          "type": "string"
+        },
+        "tm": {
+          "description": "path to the TM db (default: tm.db)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "source_lang",
+        "target_lang"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "translate",
+    "input_schema": {
+      "$id": "translate",
+      "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
+      "properties": {
+        "apiKey": {
+          "description": "API key for the AI provider",
+          "title": "API Key",
+          "type": "string"
+        },
+        "batchConcurrency": {
+          "default": 1,
+          "description": "Number of concurrent batch calls (0 or 1 = sequential)",
+          "minimum": 1,
+          "title": "Batch Concurrency",
+          "type": "integer"
+        },
+        "batchSize": {
+          "default": 100,
+          "description": "Number of blocks per LLM call",
+          "minimum": 1,
+          "title": "Batch Size",
+          "type": "integer"
+        },
+        "engine": {
+          "default": "llm",
+          "description": "Translation engine: an AI model or a machine-translation provider",
+          "options": [
+            {
+              "label": "AI (LLM)",
+              "value": "llm"
+            },
+            {
+              "label": "Machine translation",
+              "value": "mt"
+            }
+          ],
+          "title": "Engine",
+          "type": "string",
+          "ui:enum-descriptions": {
+            "llm": "Translate with a large language model.",
+            "mt": "Translate with a plugin-provided machine-translation engine."
+          },
+          "ui:order": 0,
+          "ui:widget": "select"
+        },
+        "model": {
+          "description": "AI model name",
+          "title": "Model",
+          "type": "string"
+        },
+        "provider": {
+          "default": "anthropic",
+          "description": "AI provider",
+          "options": [
+            {
+              "label": "Anthropic",
+              "value": "anthropic"
+            },
+            {
+              "label": "OpenAI",
+              "value": "openai"
+            },
+            {
+              "label": "Gemini",
+              "value": "gemini"
+            },
+            {
+              "label": "Azure OpenAI",
+              "value": "azureopenai"
+            },
+            {
+              "label": "Claude Code",
+              "value": "claude-code"
+            },
+            {
+              "label": "Ollama",
+              "value": "ollama"
+            },
+            {
+              "label": "Demo (illustrative)",
+              "value": "demo"
+            }
+          ],
+          "title": "AI Provider",
+          "type": "string",
+          "ui:option-sets": [
+            {
+              "options": [
+                {
+                  "label": "Anthropic",
+                  "value": "anthropic"
+                },
+                {
+                  "label": "OpenAI",
+                  "value": "openai"
+                },
+                {
+                  "label": "Gemini",
+                  "value": "gemini"
+                },
+                {
+                  "label": "Azure OpenAI",
+                  "value": "azureopenai"
+                },
+                {
+                  "label": "Claude Code",
+                  "value": "claude-code"
+                },
+                {
+                  "label": "Ollama",
+                  "value": "ollama"
+                },
+                {
+                  "label": "Demo (illustrative)",
+                  "value": "demo"
+                }
+              ],
+              "when": {
+                "eq": "llm",
+                "field": "engine"
+              }
+            },
+            {
+              "options": [],
+              "when": {
+                "eq": "mt",
+                "field": "engine"
+              }
+            }
+          ],
+          "ui:widget": "select"
+        },
+        "skipMatched": {
+          "default": false,
+          "description": "Skip blocks that already have a target translation",
+          "title": "Skip Matched",
+          "type": "boolean"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Translate",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "translation",
+        "defaultParallelBlocks": 5,
+        "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
+        "displayName": "Translate",
+        "id": "translate",
+        "produces": [
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "requires": [
+          "target-language",
+          "credentials"
+        ],
+        "sideEffects": [
+          "api-call",
+          "remote-source-egress"
+        ],
+        "tags": [
+          "translation",
+          "l10n"
+        ],
+        "writesOutput": true
+      },
+      "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "engine",
+            "provider",
+            "apiKey",
+            "model"
+          ],
+          "id": "provider",
+          "label": "Provider"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unredact",
+    "input_schema": {
+      "$id": "unredact",
+      "description": "Restore original values into redacted content after processing",
+      "properties": {
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Unredact",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "text-processing",
+        "consumes": [
+          {
+            "type": "redaction.secret"
+          }
+        ],
+        "description": "Restore original values into redacted content after processing",
+        "displayName": "Unredact",
+        "id": "unredact",
+        "produces": [
+          {
+            "type": "source"
+          },
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "tags": [
+          "security",
+          "redaction"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "up",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "jobs": {
+          "description": "how many languages to converge concurrently per pass (0 = project default, else 4)",
+          "type": "integer"
+        },
+        "materialize": {
+          "description": "after the loop, write localized files for every shippable locale (overrides the recipe's materialize policy)",
+          "type": "boolean"
+        },
+        "no_checks": {
+          "description": "skip the project's bound checks inside the loop (failing units then count as translated)",
+          "type": "boolean"
+        },
+        "passes": {
+          "description": "maximum reconciliation passes (0 = loop until converged or parked; 1 = single pass)",
+          "type": "integer"
+        },
+        "project": {
+          "description": "path to the .kapi recipe (default: discovered upward from the working directory, like git)",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "up_plan",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "description": "path to the .kapi recipe (default: discovered upward from the working directory, like git)",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "word-count",
+    "input_schema": {
+      "$id": "word-count",
+      "properties": {
+        "countInline": {
+          "default": false,
+          "description": "Include inline code content in word counts",
+          "title": "Count Inline Codes",
+          "type": "boolean"
+        },
+        "countSource": {
+          "default": true,
+          "description": "Count words in source text",
+          "title": "Count Source",
+          "type": "boolean"
+        },
+        "countTarget": {
+          "default": true,
+          "description": "Count words in target text",
+          "title": "Count Target",
+          "type": "boolean"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Word Count",
+      "toolMeta": {
+        "aliases": [
+          "wc"
+        ],
+        "cardinality": "monolingual",
+        "category": "analysis",
+        "displayName": "Word Count",
+        "id": "word-count",
+        "produces": [
+          {
+            "type": "word-count"
+          }
+        ],
+        "tags": [
+          "analysis"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "word_count",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "description": "Override format detection",
+          "type": "string"
+        },
+        "path": {
+          "description": "File path to count words in",
+          "type": "string"
+        },
+        "project": {
+          "description": "Path to .kapi project file for scoped format detection",
+          "type": "string"
+        },
+        "source_lang": {
+          "description": "Source language (default: en)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    }
+  }
+]
