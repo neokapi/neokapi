@@ -8,8 +8,10 @@ import (
 
 func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m,
-		// database/sql starts background pool goroutines per DB handle that
-		// are only cleaned up when DB.Close() is called.
+		// The shared pgtest pool lives for the whole test binary; its
+		// database/sql and underlying pgx pool background goroutines are only
+		// reaped on Close(), which never happens for the process-lifetime pool.
+		goleak.IgnoreTopFunction("github.com/jackc/pgx/v5/pgxpool.(*Pool).backgroundHealthCheck"),
 		goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
 		goleak.IgnoreTopFunction("database/sql.(*DB).connectionCleaner"),
 	)

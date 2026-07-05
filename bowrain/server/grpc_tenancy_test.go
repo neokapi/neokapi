@@ -33,6 +33,11 @@ func (s *tenancyAuthStore) GetMembership(_ context.Context, workspaceID, userID 
 	return nil, errors.New("not a member")
 }
 
+// Close satisfies auth.AuthStore so Server.Shutdown (invoked by
+// shutdownOnCleanup) closes the store without dispatching to the nil embedded
+// interface, which would nil-panic.
+func (s *tenancyAuthStore) Close() error { return nil }
+
 func ctxWithGRPCUser(userID string) context.Context {
 	return context.WithValue(context.Background(), grpcUserKey{}, &platauth.Claims{
 		RegisteredClaims: jwt.RegisteredClaims{Subject: userID},
