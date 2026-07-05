@@ -528,6 +528,17 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 
 	pushID := ev.Data["push_id"]
 	items := ev.Data["items"]
+	runID := ev.Data["run_id"] // set when a convergence run fans out review tasks
+
+	// taskData builds the per-locale linkage carried on each task, preserving
+	// run_id when present so a convergence-run task points back at its run.
+	taskData := func(localeStr string) map[string]string {
+		d := map[string]string{"push_id": pushID, "locale": localeStr, "items": items, "mode": mode}
+		if runID != "" {
+			d["run_id"] = runID
+		}
+		return d
+	}
 
 	// Load existing open tasks for deduplication.
 	existingLocales := s.existingOpenTaskLocales(ctx, proj.WorkspaceID, proj.ID, string(taskType))
@@ -554,12 +565,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 				Title:       fmt.Sprintf("Review %s translations", localeStr),
 				AssigneeID:  m.UserID,
 				CreatedBy:   "system",
-				Data: map[string]string{
-					"push_id": pushID,
-					"locale":  localeStr,
-					"items":   items,
-					"mode":    mode,
-				},
+				Data:        taskData(localeStr),
 			}
 			if err := s.TaskStore.Create(ctx, task); err != nil {
 				slog.Info("create-review-tasks: failed to create task for", "name", localeStr, "locale", m.UserID, "error", err)
@@ -586,12 +592,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 				Priority:    priority,
 				Title:       fmt.Sprintf("Review %s translations (unassigned)", localeStr),
 				CreatedBy:   "system",
-				Data: map[string]string{
-					"push_id": pushID,
-					"locale":  localeStr,
-					"items":   items,
-					"mode":    mode,
-				},
+				Data:        taskData(localeStr),
 			}
 			if err := s.TaskStore.Create(ctx, task); err == nil {
 				taskIDs = append(taskIDs, task.ID)

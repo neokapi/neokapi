@@ -33,8 +33,11 @@ type ConvergenceRun struct {
 	Passes        int                         `json:"passes"`
 	Standing      []ConvergenceLocaleStanding `json:"standing,omitempty"`
 	FailingChecks int                         `json:"failing_checks"`
-	CreatedAt     time.Time                   `json:"created_at"`
-	FinishedAt    *time.Time                  `json:"finished_at,omitempty"`
+	// Error carries a terminal failure reason (state=failed/canceled), e.g.
+	// "interrupted by server restart" or the loop's error. Empty otherwise.
+	Error      string     `json:"error,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	FinishedAt *time.Time `json:"finished_at,omitempty"`
 }
 
 // ConvergenceLocaleStanding is one locale's rollup within a run, mirroring the
@@ -78,12 +81,32 @@ func (s *ConvergenceRunStore) CreateRun(ctx context.Context, run *ConvergenceRun
 	standing, _ := json.Marshal(run.Standing)
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO convergence_runs
-			(id, project_id, trigger, state, passes, standing, failing_checks, created_at, finished_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+			(id, project_id, trigger, state, passes, standing, failing_checks, error, created_at, finished_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		run.ID, run.ProjectID, run.Trigger, run.State, run.Passes,
-		string(standing), run.FailingChecks, run.CreatedAt.UTC().Format(rfc3339Nano), finishedText(run.FinishedAt))
+		string(standing), run.FailingChecks, run.Error, run.CreatedAt.UTC().Format(rfc3339Nano), finishedText(run.FinishedAt))
 	if err != nil {
 		return fmt.Errorf("create convergence run: %w", err)
+	}
+	return nil
+}
+
+// ErrActiveRunExists is returned by CreateRun when the one-running-run-per-
+// project unique constraint rejects a second concurrent run. Callers treat it
+// as "join the existing run" rather than an error.
+var ErrActiveRunExists = errors.New("a convergence run is already active for this project")
+
+// CreateRunGuarded inserts a run and maps the unique-constraint violation from
+// the partial index (one running run per project) to ErrActiveRunExists, so a
+// racing starter can fall back to the in-flight run. The mapping is driver-
+// agnostic: on any insert error it re-checks ActiveRun and, if one now exists,
+// reports the conflict.
+func (s *ConvergenceRunStore) CreateRunGuarded(ctx context.Context, run *ConvergenceRun) error {
+	if err := s.CreateRun(ctx, run); err != nil {
+		if active, aerr := s.ActiveRun(ctx, run.ProjectID); aerr == nil && active != nil {
+			return ErrActiveRunExists
+		}
+		return err
 	}
 	return nil
 }
@@ -94,19 +117,35 @@ func (s *ConvergenceRunStore) UpdateRun(ctx context.Context, run *ConvergenceRun
 	standing, _ := json.Marshal(run.Standing)
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE convergence_runs
-			SET state=$1, passes=$2, standing=$3, failing_checks=$4, finished_at=$5
-			WHERE id=$6`,
-		run.State, run.Passes, string(standing), run.FailingChecks, finishedText(run.FinishedAt), run.ID)
+			SET state=$1, passes=$2, standing=$3, failing_checks=$4, error=$5, finished_at=$6
+			WHERE id=$7`,
+		run.State, run.Passes, string(standing), run.FailingChecks, run.Error, finishedText(run.FinishedAt), run.ID)
 	if err != nil {
 		return fmt.Errorf("update convergence run: %w", err)
 	}
 	return nil
 }
 
+// FailInterruptedRuns marks every run still in 'running' as failed with the
+// given reason — the startup sweep that reconciles zombie runs left behind by a
+// crash or restart (their in-process loop is gone, so they would otherwise
+// block the one-run guard forever). Returns how many were swept. Runs it before
+// the orchestrator accepts new work.
+func (s *ConvergenceRunStore) FailInterruptedRuns(ctx context.Context, reason string) (int64, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE convergence_runs SET state=$1, error=$2, finished_at=$3 WHERE state=$4`,
+		ConvergenceRunFailed, reason, time.Now().UTC().Format(rfc3339Nano), ConvergenceRunRunning)
+	if err != nil {
+		return 0, fmt.Errorf("sweep interrupted convergence runs: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
 // GetRun retrieves a run by ID.
 func (s *ConvergenceRunStore) GetRun(ctx context.Context, runID string) (*ConvergenceRun, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, created_at, finished_at
+		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, created_at, finished_at
 		 FROM convergence_runs WHERE id = $1`, runID)
 	return scanConvergenceRun(row)
 }
@@ -117,7 +156,7 @@ func (s *ConvergenceRunStore) ListRuns(ctx context.Context, projectID string, li
 		limit = 20
 	}
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, created_at, finished_at
+		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, created_at, finished_at
 		 FROM convergence_runs WHERE project_id = $1 ORDER BY created_at DESC LIMIT $2`, projectID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list convergence runs: %w", err)
@@ -138,7 +177,7 @@ func (s *ConvergenceRunStore) ListRuns(ctx context.Context, projectID string, li
 // none is in flight — the guard a start uses to avoid a second concurrent run.
 func (s *ConvergenceRunStore) ActiveRun(ctx context.Context, projectID string) (*ConvergenceRun, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, created_at, finished_at
+		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, created_at, finished_at
 		 FROM convergence_runs WHERE project_id = $1 AND state = $2 ORDER BY created_at DESC LIMIT 1`,
 		projectID, ConvergenceRunRunning)
 	run, err := scanConvergenceRun(row)
@@ -218,7 +257,7 @@ func scanConvergenceRun(row scannable) (*ConvergenceRun, error) {
 	var standing, createdStr string
 	var finishedStr sql.NullString
 	if err := row.Scan(&r.ID, &r.ProjectID, &r.Trigger, &r.State, &r.Passes,
-		&standing, &r.FailingChecks, &createdStr, &finishedStr); err != nil {
+		&standing, &r.FailingChecks, &r.Error, &createdStr, &finishedStr); err != nil {
 		return nil, err
 	}
 	if standing != "" && standing != "{}" {

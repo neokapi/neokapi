@@ -106,6 +106,44 @@ func TestConvergenceRunStore_Lifecycle(t *testing.T) {
 	}
 }
 
+func TestConvergenceRunStore_GuardAndSweep(t *testing.T) {
+	for _, mk := range []func(*testing.T) convergeBackend{sqliteConvergeBackend, pgConvergeBackend} {
+		be := mk(t)
+		t.Run(be.name, func(t *testing.T) {
+			ctx := context.Background()
+			be.newProject(t, "proj-1")
+			rs := store.NewConvergenceRunStore(be.db)
+
+			// First running run succeeds.
+			first := &store.ConvergenceRun{ProjectID: "proj-1", Trigger: "cli"}
+			require.NoError(t, rs.CreateRunGuarded(ctx, first))
+
+			// A second running run for the same project is rejected by the
+			// partial unique index and mapped to ErrActiveRunExists (F8).
+			second := &store.ConvergenceRun{ProjectID: "proj-1", Trigger: "push"}
+			require.ErrorIs(t, rs.CreateRunGuarded(ctx, second), store.ErrActiveRunExists)
+
+			// Sweep marks the running run failed (F3), freeing the guard.
+			n, err := rs.FailInterruptedRuns(ctx, "interrupted by server restart")
+			require.NoError(t, err)
+			assert.Equal(t, int64(1), n)
+			got, err := rs.GetRun(ctx, first.ID)
+			require.NoError(t, err)
+			assert.Equal(t, store.ConvergenceRunFailed, got.State)
+			assert.Equal(t, "interrupted by server restart", got.Error)
+			require.NotNil(t, got.FinishedAt)
+
+			// With no running run, a new run starts cleanly.
+			third := &store.ConvergenceRun{ProjectID: "proj-1", Trigger: "cli"}
+			require.NoError(t, rs.CreateRunGuarded(ctx, third))
+			active, err := rs.ActiveRun(ctx, "proj-1")
+			require.NoError(t, err)
+			require.NotNil(t, active)
+			assert.Equal(t, third.ID, active.ID)
+		})
+	}
+}
+
 func TestConvergenceRunStore_Events(t *testing.T) {
 	for _, mk := range []func(*testing.T) convergeBackend{sqliteConvergeBackend, pgConvergeBackend} {
 		be := mk(t)

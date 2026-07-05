@@ -25,8 +25,11 @@ type convergenceRunView struct {
 	Passes        int                                `json:"passes"`
 	Locales       []bstore.ConvergenceLocaleStanding `json:"locales,omitempty"`
 	FailingChecks int                                `json:"failing_checks,omitempty"`
-	CreatedAt     string                             `json:"created_at,omitempty"`
-	FinishedAt    string                             `json:"finished_at,omitempty"`
+	// Error is the terminal cause for a failed/canceled run — the message the
+	// CLI prints so `kapi up` explains why it didn't converge. Empty otherwise.
+	Error      string `json:"error,omitempty"`
+	CreatedAt  string `json:"created_at,omitempty"`
+	FinishedAt string `json:"finished_at,omitempty"`
 }
 
 func toConvergenceRunView(r *bstore.ConvergenceRun) convergenceRunView {
@@ -38,6 +41,7 @@ func toConvergenceRunView(r *bstore.ConvergenceRun) convergenceRunView {
 		Passes:        r.Passes,
 		Locales:       r.Standing,
 		FailingChecks: r.FailingChecks,
+		Error:         r.Error,
 	}
 	if !r.CreatedAt.IsZero() {
 		v.CreatedAt = r.CreatedAt.UTC().Format(time.RFC3339)
@@ -108,6 +112,18 @@ func (s *Server) HandleListConvergenceRuns(c echo.Context) error {
 	return c.JSON(http.StatusOK, views)
 }
 
+// runForProject fetches the :runID run and enforces that it belongs to the
+// authorized project (the :id the access middleware validated). A run owned by
+// another project reports not-found so the caller answers 404 — never 403, so
+// run existence across projects is not leaked (F1: cross-project IDOR).
+func (s *Server) runForProject(c echo.Context) (*bstore.ConvergenceRun, bool) {
+	run, err := s.ConvergenceRunStore.GetRun(c.Request().Context(), c.Param("runID"))
+	if err != nil || run == nil || run.ProjectID != c.Param("id") {
+		return nil, false
+	}
+	return run, true
+}
+
 // HandleGetConvergenceRun returns one run by ID.
 // GET /…/projects/:id/convergence/runs/:runID
 func (s *Server) HandleGetConvergenceRun(c echo.Context) error {
@@ -117,8 +133,8 @@ func (s *Server) HandleGetConvergenceRun(c echo.Context) error {
 	if s.ConvergenceRunStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "convergence runs not configured"})
 	}
-	run, err := s.ConvergenceRunStore.GetRun(c.Request().Context(), c.Param("runID"))
-	if err != nil {
+	run, ok := s.runForProject(c)
+	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "run not found"})
 	}
 	return c.JSON(http.StatusOK, toConvergenceRunView(run))
@@ -130,17 +146,49 @@ func (s *Server) HandleCancelConvergenceRun(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
 		return err
 	}
-	if s.convergence == nil {
+	if s.convergence == nil || s.ConvergenceRunStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "convergence runs not configured"})
 	}
-	s.convergence.Cancel(c.Param("runID"))
-	return c.NoContent(http.StatusOK)
+	run, ok := s.runForProject(c)
+	if !ok {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "run not found"})
+	}
+	// Cancel persists the terminal state even when no in-memory cancel func
+	// exists (e.g. a run adopted from another replica or across a restart), so
+	// the DB row never stays 'running' (F3). The bool reports whether a live
+	// loop was signaled.
+	signaled, err := s.convergence.Cancel(c.Request().Context(), run)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, map[string]any{"canceled": true, "signaled": signaled})
+}
+
+// resumeSeq is the last event sequence a reconnecting SSE client already saw,
+// so the stream resumes past it. It reads the standard Last-Event-ID request
+// header (native EventSource auto-sends it on reconnect) and falls back to an
+// explicit ?after=<seq> query param. An absent/invalid value means -1 (stream
+// from the beginning).
+func resumeSeq(c echo.Context) int {
+	raw := c.Request().Header.Get("Last-Event-ID")
+	if raw == "" {
+		raw = c.QueryParam("after")
+	}
+	if raw == "" {
+		return -1
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 0 {
+		return -1
+	}
+	return n
 }
 
 // HandleConvergenceRunSSE streams a run's convergence.Event feed: it replays
-// the persisted events from seq 0, then follows live until the terminal done
-// event (or the client disconnects). One `data: <Event JSON>` frame per event —
-// the exact protocol the CLI renders a local run from.
+// the persisted events (from the client's resume point, or the beginning),
+// then follows live until the terminal done event (or the client disconnects).
+// Each frame is `id: <seq>\ndata: <Event JSON>` — the exact event protocol the
+// CLI renders a local run from, with the persisted seq as the resumable id.
 // GET /…/projects/:id/convergence/runs/:runID/events
 func (s *Server) HandleConvergenceRunSSE(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
@@ -148,6 +196,9 @@ func (s *Server) HandleConvergenceRunSSE(c echo.Context) error {
 	}
 	if s.convergence == nil || s.ConvergenceRunStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "convergence runs not configured"})
+	}
+	if _, ok := s.runForProject(c); !ok {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "run not found"})
 	}
 	runID := c.Param("runID")
 
@@ -158,33 +209,58 @@ func (s *Server) HandleConvergenceRunSSE(c echo.Context) error {
 
 	ctx := c.Request().Context()
 
+	// Resume point: a reconnecting client resumes past the last event it saw
+	// (Last-Event-ID header, or ?after=<seq>), so a reconnect never re-delivers
+	// seen events — which is also what keeps a native-EventSource web consumer
+	// from double-folding the stream.
+	lastSeq := resumeSeq(c)
+
 	// Subscribe to live frames BEFORE replaying the store so no event emitted
 	// mid-replay is lost; dedupe by sequence.
 	ch := s.convergence.hub.subscribe(runID)
 	defer s.convergence.hub.unsubscribe(runID, ch)
 
-	writeFrame := func(payload []byte) bool {
-		if _, err := fmt.Fprintf(c.Response(), "data: %s\n\n", payload); err != nil {
+	writeFrame := func(seq int, payload []byte) bool {
+		if seq <= lastSeq {
+			return false // already delivered (or before the resume point)
+		}
+		lastSeq = seq
+		// The SSE id is the persisted, monotonic seq — the value a client echoes
+		// back as Last-Event-ID to resume exactly where it left off.
+		if _, err := fmt.Fprintf(c.Response(), "id: %d\ndata: %s\n\n", seq, payload); err != nil {
 			return false
 		}
 		c.Response().Flush()
 		return isTerminalEvent(payload)
 	}
 
-	// Replay persisted events.
-	seqs, payloads, err := s.ConvergenceRunStore.ListEvents(ctx, runID, 0)
-	if err != nil {
-		return nil
-	}
-	lastSeq := -1
-	for i, payload := range payloads {
-		lastSeq = seqs[i]
-		if writeFrame(payload) {
-			return nil // the run already finished; the done frame closes it
+	// drainStore delivers any persisted events past lastSeq — the source of
+	// truth. It is the recovery path for a frame the hub dropped (a full/slow
+	// subscriber channel), so a subscriber that stays connected to a finished
+	// run always receives the terminal done frame. Returns true once done is
+	// delivered.
+	drainStore := func() bool {
+		seqs, payloads, err := s.ConvergenceRunStore.ListEvents(ctx, runID, lastSeq+1)
+		if err != nil {
+			return false
 		}
+		for i, payload := range payloads {
+			if writeFrame(seqs[i], payload) {
+				return true
+			}
+		}
+		return false
 	}
 
-	// Follow live.
+	// Replay everything persisted so far.
+	if drainStore() {
+		return nil
+	}
+
+	// Follow live, with a periodic store reconciliation that heals any dropped
+	// hub frame and guarantees the terminal frame is eventually delivered.
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -193,11 +269,11 @@ func (s *Server) HandleConvergenceRunSSE(c echo.Context) error {
 			if !ok {
 				return nil
 			}
-			if frame.seq <= lastSeq {
-				continue // already replayed
+			if writeFrame(frame.seq, frame.data) {
+				return nil
 			}
-			lastSeq = frame.seq
-			if writeFrame(frame.data) {
+		case <-ticker.C:
+			if drainStore() {
 				return nil
 			}
 		}

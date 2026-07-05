@@ -332,11 +332,14 @@ var storeMigrations = []storage.Migration{
 				passes         INTEGER NOT NULL DEFAULT 0,
 				standing       TEXT NOT NULL DEFAULT '{}',
 				failing_checks INTEGER NOT NULL DEFAULT 0,
+				error          TEXT NOT NULL DEFAULT '',
 				created_at     TEXT NOT NULL DEFAULT (datetime('now')),
 				finished_at    TEXT
 			);
 			CREATE INDEX idx_convergence_runs_project ON convergence_runs(project_id, created_at DESC);
-			CREATE INDEX idx_convergence_runs_active ON convergence_runs(project_id, state);
+			-- At most one running run per project — a DB-level guard so the
+			-- one-run-per-project constraint is atomic (F8), not a racy SELECT.
+			CREATE UNIQUE INDEX idx_convergence_runs_one_active ON convergence_runs(project_id) WHERE state = 'running';
 
 			CREATE TABLE convergence_run_events (
 				run_id  TEXT NOT NULL REFERENCES convergence_runs(id) ON DELETE CASCADE,

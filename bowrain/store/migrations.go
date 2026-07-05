@@ -362,11 +362,16 @@ var storeMigrations = []storage.Migration{
 				passes         INT NOT NULL DEFAULT 0,
 				standing       TEXT NOT NULL DEFAULT '{}',          -- per-locale standing rollup (JSON)
 				failing_checks INT NOT NULL DEFAULT 0,
+				error          TEXT NOT NULL DEFAULT '',
 				created_at     TEXT NOT NULL DEFAULT '',
 				finished_at    TEXT NOT NULL DEFAULT ''
 			);
 			CREATE INDEX idx_convergence_runs_project ON convergence_runs(project_id, created_at DESC);
-			CREATE INDEX idx_convergence_runs_active ON convergence_runs(project_id, state);
+			-- At most one running run per project. A DB constraint (not just an
+			-- app-level check) makes the one-run-per-project guard atomic and
+			-- correct across replicas: a concurrent push-event + CLI start race
+			-- to INSERT and exactly one wins; the loser returns the existing run.
+			CREATE UNIQUE INDEX idx_convergence_runs_one_active ON convergence_runs(project_id) WHERE state = 'running';
 
 			CREATE TABLE convergence_run_events (
 				run_id  TEXT NOT NULL REFERENCES convergence_runs(id) ON DELETE CASCADE,

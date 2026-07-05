@@ -478,6 +478,10 @@ func NewServer(cfg Config) *Server {
 	// projects; manual projects converge only on demand (kapi up / REST).
 	if s.ConvergenceRunStore != nil {
 		s.convergence = newConvergenceOrchestrator(s)
+		// Reconcile zombie runs left 'running' by a crash/restart before
+		// accepting new work, so the one-run guard is never blocked by a dead
+		// row (F3).
+		s.convergence.SweepInterruptedRuns(context.Background())
 		s.subscribeConvergeOnPush()
 	}
 
