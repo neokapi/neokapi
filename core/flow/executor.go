@@ -149,20 +149,18 @@ func (e *DefaultExecutor) Execute(ctx context.Context, f *Flow, items []*Item) e
 
 	// Parallel execution with bounded concurrency.
 	g, ctx := errgroup.WithContext(ctx)
-	sem := make(chan struct{}, maxConc)
+	g.SetLimit(maxConc) // Go blocks until a slot frees
 
 	for _, item := range items {
 		if e.config.FailFast {
-			// Check context before acquiring semaphore to fail fast.
+			// Check context before submitting to fail fast.
 			select {
 			case <-ctx.Done():
 				return g.Wait()
 			default:
 			}
 		}
-		sem <- struct{}{} // acquire slot (blocks if at capacity)
 		g.Go(func() error {
-			defer func() { <-sem }() // release slot
 			parts, err := e.processItemCollect(ctx, f, item)
 			if err != nil {
 				return fmt.Errorf("processing %s: %w", item.Input.URI, err)
