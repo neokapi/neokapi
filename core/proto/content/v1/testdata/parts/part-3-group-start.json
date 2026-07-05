@@ -1,0 +1,11 @@
+{
+  "partType": 3,
+  "groupStart": {
+    "id": "g1",
+    "name": "table",
+    "type": "table",
+    "properties": {
+      "rows": "2"
+    }
+  }
+}

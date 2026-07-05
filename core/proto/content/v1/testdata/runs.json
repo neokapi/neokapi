@@ -1,0 +1,128 @@
+{
+  "id": "all-run-kinds",
+  "runs": [
+    {
+      "text": {
+        "text": "plain text — ünïcode 日本語 <b> & 'quotes'"
+      }
+    },
+    {
+      "ph": {
+        "id": "ph1",
+        "type": "jsx:var",
+        "subType": "expr",
+        "data": "{name}",
+        "equiv": "name",
+        "disp": "Name",
+        "constraints": {
+          "deletable": true,
+          "cloneable": true,
+          "reorderable": true
+        }
+      }
+    },
+    {
+      "pcOpen": {
+        "id": "pc1",
+        "type": "html:element",
+        "subType": "inline",
+        "data": "<span class=\"muted\">",
+        "equiv": "span",
+        "disp": "Span",
+        "constraints": {
+          "cloneable": true
+        }
+      }
+    },
+    {
+      "text": {
+        "text": "wrapped"
+      }
+    },
+    {
+      "pcClose": {
+        "id": "pc1",
+        "type": "html:element",
+        "subType": "inline",
+        "data": "</span>",
+        "equiv": "span"
+      }
+    },
+    {
+      "sub": {
+        "id": "sub1",
+        "ref": "block-42",
+        "equiv": "sub"
+      }
+    },
+    {
+      "plural": {
+        "pivot": "count",
+        "forms": {
+          "one": {
+            "runs": [
+              {
+                "ph": {
+                  "id": "p1",
+                  "type": "var",
+                  "data": "{n}",
+                  "equiv": "n"
+                }
+              },
+              {
+                "text": {
+                  "text": " item"
+                }
+              }
+            ]
+          },
+          "other": {
+            "runs": [
+              {
+                "ph": {
+                  "id": "p1",
+                  "type": "var",
+                  "data": "{n}",
+                  "equiv": "n"
+                }
+              },
+              {
+                "text": {
+                  "text": " items"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "select": {
+        "pivot": "gender",
+        "cases": {
+          "female": {
+            "runs": [
+              {
+                "text": {
+                  "text": "She"
+                }
+              }
+            ]
+          },
+          "other": {
+            "runs": [
+              {
+                "text": {
+                  "text": "They"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "kapi:target-status": "reviewed"
+  }
+}

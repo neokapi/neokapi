@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 
 	formatschema "github.com/neokapi/neokapi/core/format/schema"
@@ -14,7 +16,7 @@ import (
 // sideType is the reflect.Type of model.Side, special-cased so its fields emit
 // the TS string-literal union `Side` rather than `number` (Side is an int enum
 // with text marshaling).
-var sideType = reflect.TypeOf(model.Side(0))
+var sideType = reflect.TypeFor[model.Side]()
 
 // emitType describes one Go struct to render as a TS interface, with an optional
 // doc comment.
@@ -29,22 +31,22 @@ type emitType struct {
 // superset envelopes (ComponentSchema, PropertySchema, ConditionExpr) live in
 // manual.ts because the UI extends them beyond what Go models.
 var atoms = []emitType{
-	{"IOPort", reflect.TypeOf(schema.IOPort{}),
+	{"IOPort", reflect.TypeFor[schema.IOPort](),
 		"One entry of a tool's IO contract: a typed stand-off output the tool\nconsumes (reads upstream) or produces (writes). `type` names an overlay\ntype, a block-annotation key, or a pseudo-port (`target`/`source`)."},
-	{"ToolMeta", reflect.TypeOf(schema.ToolMeta{}),
+	{"ToolMeta", reflect.TypeFor[schema.ToolMeta](),
 		"Tool identification, classification, and IO contract (consumes/produces)."},
 	// ParameterGroup is hand-authored in manual.ts: its ui:visible field is a
 	// ConditionExpr (a hand-authored union with no 1:1 Go type), like
 	// PropertySchema/ComponentSchema.
-	{"LayoutHints", reflect.TypeOf(schema.LayoutHints{}),
+	{"LayoutHints", reflect.TypeFor[schema.LayoutHints](),
 		"Field-level layout hints."},
-	{"OptionItem", reflect.TypeOf(schema.OptionItem{}),
+	{"OptionItem", reflect.TypeFor[schema.OptionItem](),
 		"A labeled enum value for select/radio properties."},
-	{"FileFilter", reflect.TypeOf(schema.FileFilter{}),
+	{"FileFilter", reflect.TypeFor[schema.FileFilter](),
 		"A file-type filter for file picker dialogs."},
-	{"PathAnnotation", reflect.TypeOf(schema.PathAnnotation{}),
+	{"PathAnnotation", reflect.TypeFor[schema.PathAnnotation](),
 		"Describes a property that references a file path or named resource."},
-	{"FormatMeta", reflect.TypeOf(formatschema.FormatMeta{}),
+	{"FormatMeta", reflect.TypeFor[formatschema.FormatMeta](),
 		"Format identification metadata."},
 }
 
@@ -151,8 +153,7 @@ func renderInterface(e emitType) (string, error) {
 		b.WriteString(blockComment(e.doc))
 	}
 	fmt.Fprintf(&b, "export interface %s {\n", e.name)
-	for i := 0; i < e.typ.NumField(); i++ {
-		f := e.typ.Field(i)
+	for f := range e.typ.Fields() {
 		if !f.IsExported() {
 			continue
 		}
@@ -183,6 +184,17 @@ func tsType(t reflect.Type) (string, error) {
 	if t == sideType {
 		return "Side", nil
 	}
+	// model.Run has a custom MarshalJSON (flat text runs); references render
+	// as the hand-emitted `Run` union in content.gen.ts (see content.go).
+	if t == modelRunType {
+		return "Run", nil
+	}
+	// model.RunConstraints references resolve to the wire-section
+	// RunConstraints interface (all-optional booleans), which covers the model
+	// JSON too — the model always populates all three (see content.go).
+	if t == modelRunConstraintsType {
+		return "RunConstraints", nil
+	}
 	switch t.Kind() {
 	case reflect.Ptr:
 		return tsType(t.Elem())
@@ -212,7 +224,7 @@ func tsType(t reflect.Type) (string, error) {
 		// Named struct → reference by its (capitalized) Go name, which matches
 		// the emitted TS interface name for the atoms.
 		if t.Name() == "" {
-			return "", fmt.Errorf("anonymous struct fields are unsupported")
+			return "", errors.New("anonymous struct fields are unsupported")
 		}
 		return t.Name(), nil
 	default:
@@ -231,12 +243,7 @@ func parseJSONTag(f reflect.StructField) (name string, opts []string) {
 }
 
 func hasOption(opts []string, want string) bool {
-	for _, o := range opts {
-		if o == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(opts, want)
 }
 
 // tsKey quotes a property key when it is not a bare identifier (e.g. "$id",

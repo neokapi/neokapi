@@ -200,6 +200,36 @@ func protoToRunRange(msg *pb.RunRangeMessage) model.RunRange {
 	}
 }
 
+// mapFloat returns the first of the given keys present in m as a float64.
+func mapFloat(m map[string]any, keys ...string) (float64, bool) {
+	for _, k := range keys {
+		if f, ok := m[k].(float64); ok {
+			return f, true
+		}
+	}
+	return 0, false
+}
+
+// mapString returns the first of the given keys present in m as a string.
+func mapString(m map[string]any, keys ...string) (string, bool) {
+	for _, k := range keys {
+		if s, ok := m[k].(string); ok {
+			return s, true
+		}
+	}
+	return "", false
+}
+
+// mapBool returns the first of the given keys present in m as a bool.
+func mapBool(m map[string]any, keys ...string) (bool, bool) {
+	for _, k := range keys {
+		if b, ok := m[k].(bool); ok {
+			return b, true
+		}
+	}
+	return false, false
+}
+
 // populateAnnotation fills a typed annotation from a raw map.
 // This is used as a fallback when json.Unmarshal fails due to type mismatches
 // (e.g., the bridge sends Source/Target as strings but Go expects []Run).
@@ -226,22 +256,25 @@ func populateAnnotation(typeName string, a model.Payload, m map[string]any) mode
 			v.Locale = model.LocaleID(loc)
 		}
 		v.Origin, _ = m["origin"].(string)
-		if f, ok := m["combined_score"].(float64); ok {
+		// Metadata keys: canonical camelCase first, then the legacy snake_case
+		// spelling still emitted by released okapi-bridge JARs (see
+		// model.AltTranslation.UnmarshalJSON).
+		if f, ok := mapFloat(m, "combinedScore", "combined_score"); ok {
 			v.CombinedScore = f
 		}
-		if f, ok := m["fuzzy_score"].(float64); ok {
+		if f, ok := mapFloat(m, "fuzzyScore", "fuzzy_score"); ok {
 			v.FuzzyScore = f
 		}
-		if f, ok := m["quality_score"].(float64); ok {
+		if f, ok := mapFloat(m, "qualityScore", "quality_score"); ok {
 			v.QualityScore = f
 		}
 		v.Engine, _ = m["engine"].(string)
-		if mt, ok := m["match_type"].(string); ok {
+		if mt, ok := mapString(m, "matchType", "match_type"); ok {
 			v.MatchType = model.MatchType(mt)
 		}
-		v.ToolID, _ = m["tool_id"].(string)
-		v.AltTransType, _ = m["alt_trans_type"].(string)
-		v.FromOriginal, _ = m["from_original"].(bool)
+		v.ToolID, _ = mapString(m, "toolId", "tool_id")
+		v.AltTransType, _ = mapString(m, "altTransType", "alt_trans_type")
+		v.FromOriginal, _ = mapBool(m, "fromOriginal", "from_original")
 		return v
 
 	default:

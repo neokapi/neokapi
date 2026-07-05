@@ -51,6 +51,50 @@ tone/channel (targets are keyed by locale in `TargetEntry`) and per-target
 status/origin/score. Protocols that need them carry them in envelope
 properties (the sync protocol stashes them in segment properties).
 
+## Canonical JSON
+
+The canonical JSON for the content model is **protojson of the canonical
+proto**, with the fixed options in `core/proto/content/v1/json.go`
+(`MarshalJSON` / `MarshalJSONIndent` / `UnmarshalJSON`):
+
+- lowerCamelCase protojson JSON names (`pc_open` → `"pcOpen"`); proto-name
+  spellings are accepted on unmarshal but never emitted;
+- unpopulated fields omitted; bytes as base64 strings; deterministic output
+  (protojson's deliberate whitespace instability is normalized away);
+- unknown fields ignored on unmarshal, so older consumers read newer
+  producers (forward compatibility across appended fields).
+
+The encoding is locked by golden files under `core/proto/content/v1/testdata/`
+(`json_test.go`): marshal must reproduce the checked-in bytes, and the
+checked-in bytes must keep decoding to the same messages. A failure there is a
+wire-compatibility break. `core/model`'s own JSON struct tags follow the same
+camelCase convention (`model.AltTranslation` was converted from snake_case;
+its `UnmarshalJSON` accepts the legacy keys for payloads persisted before the
+switch and for released okapi-bridge JARs).
+
+Note that the model's in-process Run JSON (`model.Run.MarshalJSON`, RFC 0001 —
+flat `{"text":"literal"}` text runs) is a distinct, stable encoding used
+*inside* projections (ContentTree, KLF, flow traces); the wire form nests the
+text payload (`{"text":{"text":"literal"}}`).
+
+## Generated artifacts
+
+`scripts/gen-contract-types` (drift-gated by `make check-contract-types` in
+`.github/workflows/reference-data-drift.yml`) derives from the canonical
+schema:
+
+- **TypeScript types** — `packages/contract-types/src/content.gen.ts`: the
+  wire shapes as they appear in canonical protojson (rendered from the proto
+  descriptors; `RunMessage` and `ContentRef` as discriminated unions), plus
+  the model.Run JSON and the core/editor ContentTree projection shapes
+  (reflected from the Go structs). Frontend packages import these instead of
+  hand-mirroring the model; `@neokapi/ui-primitives/preview` layers only
+  deliberate, documented refinements on top.
+- **JSON Schema** — `core/proto/content/v1/content.schema.json` (draft
+  2020-12), generated from the proto descriptors for non-proto consumers. The
+  protojson golden files are the binding contract; the schema is a generated
+  convenience.
+
 ## Consumers
 
 - **Plugin bridge** (`core/plugin/proto/v2`) — imports the canonical package;

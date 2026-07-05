@@ -200,7 +200,10 @@ export function useLabRuntime(
         rt.vol.writeFile(path, typeof data === "string" ? enc.encode(data) : data);
         const res: InspectResult = await rt.inspect(path);
         if (!res.ok) return { ok: false, error: res.error };
-        return { ok: true, format: res.format, tree: res.tree as ContentTree };
+        // res.tree carries the strict generated projection shape
+        // (@neokapi/contract-types); the lab consumes the loose local
+        // refinement from @neokapi/ui-primitives/preview, hence the recast.
+        return { ok: true, format: res.format, tree: res.tree as unknown as ContentTree };
       });
     },
     [],
@@ -219,7 +222,8 @@ export function useLabRuntime(
         rt.vol.writeFile(path, typeof data === "string" ? enc.encode(data) : data);
         const res: InspectResult = await rt.inspectAnnotated(path, opts);
         if (!res.ok) return { ok: false, error: res.error };
-        return { ok: true, format: res.format, tree: res.tree as ContentTree };
+        // See inspect() above: generated strict shape → loose local refinement.
+        return { ok: true, format: res.format, tree: res.tree as unknown as ContentTree };
       });
     },
     [],

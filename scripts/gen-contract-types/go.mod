@@ -7,4 +7,7 @@ go 1.26.0
 // (core/schema, core/format/schema, core/model). It needs only the framework
 // module — no cli/Cobra — so it lives in its own module like the other
 // scripts/* generators. Local modules resolve via go.work.
-require github.com/neokapi/neokapi v0.0.0-00010101000000-000000000000
+require (
+	github.com/neokapi/neokapi v0.0.0-00010101000000-000000000000
+	google.golang.org/protobuf v1.36.11
+)

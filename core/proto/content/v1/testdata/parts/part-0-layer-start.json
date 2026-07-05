@@ -1,0 +1,18 @@
+{
+  "partType": 1,
+  "layer": {
+    "id": "l1",
+    "name": "doc.html",
+    "format": "html",
+    "locale": "en-US",
+    "encoding": "utf-8",
+    "mimeType": "text/html",
+    "lineBreak": "\n",
+    "isMultilingual": true,
+    "parentId": "l0",
+    "properties": {
+      "k": "v"
+    },
+    "hasBom": true
+  }
+}

@@ -1301,10 +1301,10 @@ check-reference-docs: ## Drift gate: fail if the committed reference dataset is 
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs
 
-generate-contract-types: ## Generate the shared TS IO-contract types (packages/contract-types) from Go (core/schema)
+generate-contract-types: ## Generate the shared TS contract + content-model types and the content JSON Schema from Go (core/schema, core/proto/content/v1)
 	$(GO) run ./scripts/gen-contract-types
 
-check-contract-types: ## Drift gate: fail if the committed contract types are stale vs. core/schema
+check-contract-types: ## Drift gate: fail if the committed contract/content types or content JSON Schema are stale vs. Go
 	$(GO) run ./scripts/gen-contract-types -check
 
 generate-reference-pages: ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/reference/{commands,formats,tools}
