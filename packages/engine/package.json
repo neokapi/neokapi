@@ -1,0 +1,86 @@
+{
+  "name": "@neokapi/engine",
+  "version": "0.1.0",
+  "private": false,
+  "description": "The kapi content engine (WebAssembly) as a typed npm package: boot loader, in-memory filesystem, KapiRuntime facade, versioned ABI with feature detection, and typed host-capability bridges. The wasm asset is served separately (CDN or self-hosted).",
+  "keywords": [
+    "wasm",
+    "webassembly",
+    "localization",
+    "l10n",
+    "content-model",
+    "kapi",
+    "neokapi"
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neokapi/neokapi.git",
+    "directory": "packages/engine"
+  },
+  "homepage": "https://github.com/neokapi/neokapi/tree/main/packages/engine#readme",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./runtime": "./src/runtime.ts",
+    "./memfs": "./src/memfs.ts",
+    "./abi": "./src/abi.ts",
+    "./capabilities": "./src/capabilities.ts",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./runtime": {
+        "types": "./dist/runtime.d.ts",
+        "default": "./dist/runtime.js"
+      },
+      "./memfs": {
+        "types": "./dist/memfs.d.ts",
+        "default": "./dist/memfs.js"
+      },
+      "./abi": {
+        "types": "./dist/abi.d.ts",
+        "default": "./dist/abi.js"
+      },
+      "./capabilities": {
+        "types": "./dist/capabilities.d.ts",
+        "default": "./dist/capabilities.js"
+      },
+      "./package.json": "./package.json"
+    },
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "prepack": "node build.mjs",
+    "typecheck": "vp check --no-fmt --no-lint",
+    "check": "vp check",
+    "lint": "vp lint",
+    "fmt": "vp fmt",
+    "test": "vp test"
+  },
+  "dependencies": {
+    "@neokapi/contract-types": "*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

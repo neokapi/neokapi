@@ -13,6 +13,7 @@ on:
       - "packages/kapi-lab/**"
       - "packages/kapi-format/**"
       - "packages/kapi-playground/**"
+      - "packages/engine/**"
       - ".github/workflows/docs-kapi.yml"
   pull_request:
     paths:
@@ -22,6 +23,7 @@ on:
       - "packages/kapi-lab/**"
       - "packages/kapi-format/**"
       - "packages/kapi-playground/**"
+      - "packages/engine/**"
       - ".github/workflows/docs-kapi.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.
@@ -101,6 +103,16 @@ jobs:
         run: |
           vp check --no-fmt
           vp test -- --run
+
+      # @neokapi/engine (the publishable wasm-engine wrapper the playground
+      # builds on) also has its CI home here: its facade unit tests run against
+      # a mocked global surface, and the publish build proves dist/ assembles.
+      - name: Engine package checks, tests, and publish build
+        working-directory: packages/engine
+        run: |
+          vp check --no-fmt
+          vp test -- --run
+          vp run build
 
       # Videos and vision models are served from the CDN (R2) for push and
       # same-repo PRs — referenced by URL, never staged into the artifact. The

@@ -118,7 +118,7 @@ func (p *localBrowserProvider) generate(ctx context.Context, messages []aiprovid
 		"temperature": p.cfg.Temperature,
 	}
 	if len(schema) > 0 {
-		payload["schema"] = json.RawMessage(schema)
+		payload["schema"] = schema
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {
