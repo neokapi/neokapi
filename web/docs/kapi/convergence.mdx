@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Convergence
-description: How kapi keeps a project up to date — the derived state model behind status, gates, up, and review. Convergence produces, review promotes, the gate releases; the same kapi up runs on your machine or on the Bowrain server.
+description: How kapi keeps a project up to date — the derived state model behind status, gates, up, and review. Convergence produces, review promotes, the gate releases; the same kapi up runs on your machine or on a connected server.
 keywords: [kapi, convergence, kapi up, ship gate, source gate, status, check, review, lifecycle, coverage, venue, transport]
 ---
 
@@ -237,7 +237,7 @@ surface:
   lanes={[
     { title: "Transport", sub: "kapi push / pull", role: "io", steps: ["move project state", "Merkle diff", "no translation"] },
     { title: "Convergence", sub: "kapi up", role: "translate", steps: ["drift → plan", "produce → check", "loop or park"] },
-    { title: "Venue", sub: "local | server", role: "qa", steps: ["your machine + keys", "or Bowrain + org keys", "same events either way"] },
+    { title: "Venue", sub: "local | server", role: "qa", steps: ["your machine + keys", "or a connected server", "same events either way"] },
   ]}
   caption="Transport moves state, convergence produces work, venue is where the loop runs — three orthogonal concerns."
 />
@@ -248,43 +248,29 @@ surface:
   `git fetch`.
 - **Convergence** — `kapi up`, the one loop that produces work toward the gates.
 - **Venue** — *where* `up`'s compute executes: your machine (your AI
-  subscription or keys) or the Bowrain server (the org's keys, shared TM and
+  subscription or keys) or a connected server (the org's keys, shared TM and
   terminology, always-on).
 
-In a **file-only** project `kapi up` converges locally. In a **server-connected**
-project — a recipe with a `server:` block — the same `kapi up` runs on the
-Bowrain server by default: it pushes the drift, the server converges on the org's
-keys and shared assets, progress streams back live into the same terminal view,
-results pull down, and parked units land in the *team's* review queue. Nothing
-about the run's output tells you which venue produced it — that is what makes one
-verb over two venues feel like one thing.
+In a **file-only** project `kapi up` converges locally — this is the whole story
+for the open-source `kapi` binary, which carries no server code. In a
+**server-connected** project — a recipe with a `server:` block — the same
+`kapi up` runs on the server by default: it pushes the drift, the server
+converges on the org's keys and shared assets, progress streams back live into
+the same terminal view, results pull down, and parked units land in the *team's*
+review queue. Nothing about the run's output tells you which venue produced it —
+that is what makes one verb over two venues feel like one thing. `kapi up --local`
+overrides the venue for one run, converging on your machine and then pushing the
+results so the server is never left stale.
 
-```yaml
-# my-app.kapi — a connected project runs up on the server
-server:
-  url: https://bowrain.acme.dev/acme/my-app
-  converge: on-push        # on-push (default) | manual
-```
-
-`kapi up --local` overrides the venue for one run — it converges on your machine
-and then pushes the results, so the server is never left stale. A team that
-connects only for review and assignment but produces locally sets the recipe's
-policy to `converge: manual` and always runs `kapi up --local`.
-
-Because transport is pure, **`kapi push` no longer translates behind your back**.
-Server-side continuous convergence is the explicit `server.converge` policy above
-(`on-push`, the default for connected projects, runs the full loop — with checks,
-gates, and parking — every time anyone pushes, recorded as a run anyone can
-watch), the way `git push` triggering CI is a repository policy, not a property
-of `git`. On the Bowrain side this is *convergence as a service* — always-on
-runs, org keys, shared TM and terminology, and parked units routed to the team's
-review queue.
+Because transport is pure, **`kapi push` no longer translates behind your back**:
+server-side continuous convergence is an explicit, per-project policy the way
+`git push` triggering CI is a repository policy, not a property of `git`.
 
 :::note
-The server venue arrives through the installed `kapi-bowrain` plugin — the
-open-source `kapi` binary carries no server code. `kapi up --local`, the
-`server.converge` policy, and the server Runs page are provided by that plugin
-in a connected project.
+The server venue — the `server:` block, `kapi push`/`pull`/`up --local`, the
+continuous-convergence policy, and the server-side Runs surface — is provided by
+the connected platform, not the open-source `kapi` binary. See the platform
+documentation for setting up a connected project and *convergence as a service*.
 :::
 
 One default flow can still vary by locale. `defaults.locales.<lang>.tools`
