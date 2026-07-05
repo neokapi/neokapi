@@ -15,11 +15,11 @@ import (
 // TestDemoteFailing: a failing unit reads at draft from translated and above;
 // states below translated pass through.
 func TestDemoteFailing(t *testing.T) {
-	assert.Equal(t, "draft", demoteFailing("translated"))
-	assert.Equal(t, "draft", demoteFailing("reviewed"))
-	assert.Equal(t, "draft", demoteFailing("signed-off"))
-	assert.Equal(t, "draft", demoteFailing("draft"), "draft demotes to itself (rank below translated is untouched)")
-	assert.Empty(t, demoteFailing(""))
+	assert.Equal(t, "draft", DemoteFailing("translated"))
+	assert.Equal(t, "draft", DemoteFailing("reviewed"))
+	assert.Equal(t, "draft", DemoteFailing("signed-off"))
+	assert.Equal(t, "draft", DemoteFailing("draft"), "draft demotes to itself (rank below translated is untouched)")
+	assert.Empty(t, DemoteFailing(""))
 }
 
 // TestUp_ChecksInLoop_FailingPlaceholderParks: a produced unit that drops a
@@ -83,26 +83,26 @@ func TestComputeShipCoverage_ExclusionDemotes(t *testing.T) {
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	a.SourceLang = "en-US"
-	units, err := a.unitsFromProject(proj, root, "")
+	units, err := a.UnitsFromProject(proj, root, "")
 	require.NoError(t, err)
 	require.NotEmpty(t, units)
 
 	ctx := t.Context()
-	cov, err := a.computeShipCoverage(ctx, proj, root, units, nil)
+	cov, err := a.ComputeShipCoverage(ctx, proj, root, units, nil)
 	require.NoError(t, err)
 	require.Len(t, cov, 1)
 	assert.Equal(t, 100, cov[0].Pct["translated"], "baseline: everything translated")
 
 	// Exclude the `greeting` unit of a.json: translated drops below 100, the
 	// unit still counts as draft (produced).
-	excl := &checkExclusions{failing: map[string]bool{}, byLocale: map[string]int{}}
+	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}}
 	for _, u := range units {
-		if filepath.Base(u.sourcePath) == "a.json" {
-			excl.failing[exclusionKey(u.sourcePath, "greeting", u.locale)] = true
-			excl.byLocale[u.locale]++
+		if filepath.Base(u.SourcePath) == "a.json" {
+			excl.Failing[ExclusionKey(u.SourcePath, "greeting", u.Locale)] = true
+			excl.ByLocale[u.Locale]++
 		}
 	}
-	cov2, err := a.computeShipCoverage(ctx, proj, root, units, excl)
+	cov2, err := a.ComputeShipCoverage(ctx, proj, root, units, excl)
 	require.NoError(t, err)
 	require.Len(t, cov2, 1)
 	assert.Less(t, cov2[0].Pct["translated"], 100, "excluded unit must not count as translated")

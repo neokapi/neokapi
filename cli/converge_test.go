@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -28,7 +28,7 @@ func demoProviderApp(t *testing.T) *App {
 	a.Config = config.NewAppConfig()
 	a.Config.Set(config.KeyAIProvider, "demo")
 	a.ToolReg.SetConfigPreprocessor(func(toolName string, requires []string, cfg map[string]any) (map[string]any, error) {
-		return applyAIDefaults(a.Config, toolName, requires, cfg), nil
+		return ApplyAIDefaults(a.Config, toolName, requires, cfg), nil
 	})
 	return a
 }
@@ -75,7 +75,7 @@ func convergeFixture(t *testing.T, targets []model.LocaleID, shipGate gate.Gate)
 // argument (the convergence path), capturing combined output.
 func runConverge(t *testing.T, a *App, recipe string, flags ...string) (string, error) {
 	t.Helper()
-	cmd := a.NewRunCmd(RunCmdOptions{})
+	cmd := NewRunCmd(a, RunCmdOptions{})
 	args := append([]string{"--project", recipe}, flags...)
 	cmd.SetArgs(args)
 	var out bytes.Buffer

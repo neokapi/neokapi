@@ -16,7 +16,7 @@ import (
 // cli/selfupdate): a package-manager install is nudged toward the exact upgrade
 // command (and, with --run, that command is executed); a direct/tarball install
 // is self-replaced after SHA-256 + cosign verification.
-func (a *App) NewUpdateCmd() *cobra.Command {
+func NewUpdateCmd(a *App) *cobra.Command {
 	var channel string
 	var run bool
 	var checkOnly bool

@@ -20,7 +20,7 @@ import (
 	"os/exec"
 
 	"github.com/neokapi/neokapi/cli"
-	cliconfig "github.com/neokapi/neokapi/cli/config"
+	cliconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/spf13/cobra"
 
 	// The bowrain plugin's commands package init() registers the
@@ -105,29 +105,29 @@ func buildCommandSubtree() *cobra.Command {
 		},
 	}
 
-	app.AddPersistentFlags(cmd)
-	app.AddCommandGroups(cmd)
+	cli.AddPersistentFlags(app, cmd)
+	cli.AddCommandGroups(app, cmd)
 
 	// Built-in framework commands the bowrain CLI used to expose
 	// alongside its own commands. We expose the full set so a power user
 	// running `kapi-bowrain command run translate` has the same surface
 	// as the legacy `bowrain` binary.
-	runCmd := app.NewRunCmd(cli.RunCmdOptions{})
+	runCmd := cli.NewRunCmd(app, cli.RunCmdOptions{})
 	runCmd.GroupID = "advanced"
 	cmd.AddCommand(runCmd)
-	cmd.AddCommand(app.NewExtractCmd(cli.ExtractCmdOptions{}))
-	cmd.AddCommand(app.NewMergeCmd(cli.MergeCmdOptions{}))
-	cmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
-	cmd.AddCommand(app.NewToolsCmd())
-	cmd.AddCommand(app.NewFormatsCmd())
-	cmd.AddCommand(app.NewRegistryCmd())
-	cmd.AddCommand(app.NewPresetsCmd())
-	cmd.AddCommand(app.NewTermbaseCmd())
-	cmd.AddCommand(app.NewTMCmd())
-	cmd.AddCommand(app.NewCredentialsCmd())
-	cmd.AddCommand(app.NewCompletionCmd())
+	cmd.AddCommand(cli.NewExtractCmd(app, cli.ExtractCmdOptions{}))
+	cmd.AddCommand(cli.NewMergeCmd(app, cli.MergeCmdOptions{}))
+	cmd.AddCommand(cli.NewFlowsCmd(app, cli.FlowCmdOptions{}))
+	cmd.AddCommand(cli.NewToolsCmd(app))
+	cmd.AddCommand(cli.NewFormatsCmd(app))
+	cmd.AddCommand(cli.NewRegistryCmd(app))
+	cmd.AddCommand(cli.NewPresetsCmd(app))
+	cmd.AddCommand(cli.NewTermbaseCmd(app))
+	cmd.AddCommand(cli.NewTMCmd(app))
+	cmd.AddCommand(cli.NewCredentialsCmd(app))
+	cmd.AddCommand(cli.NewCompletionCmd(app))
 
-	for _, tc := range app.NewToolCommands() {
+	for _, tc := range cli.NewToolCommands(app) {
 		cmd.AddCommand(tc)
 	}
 
@@ -157,7 +157,7 @@ func buildMCPServerCmd() *cobra.Command {
 			app.Shutdown()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mcpCmd := app.NewMCPCmd("kapi-bowrain")
+			mcpCmd := cli.NewMCPCmd(app, "kapi-bowrain")
 			return mcpCmd.RunE(mcpCmd, args)
 		},
 	}

@@ -47,7 +47,7 @@ func TestCLIToolCategories(t *testing.T) {
 
 func TestNewToolCommandsSetsGroupID(t *testing.T) {
 	app := newTestApp()
-	cmds := app.NewToolCommands()
+	cmds := NewToolCommands(app)
 	require.NotEmpty(t, cmds)
 
 	for _, cmd := range cmds {
@@ -58,7 +58,7 @@ func TestNewToolCommandsSetsGroupID(t *testing.T) {
 
 func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 	app := newTestApp()
-	cmds := app.NewToolCommands()
+	cmds := NewToolCommands(app)
 
 	// Verify specific tools are present.
 	names := make(map[string]bool)
@@ -91,7 +91,7 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 // TestCLIToolCategories) — only the cobra GroupID is rerouted.
 func TestLocalizationGroupRouting(t *testing.T) {
 	app := newTestApp()
-	cmds := app.NewToolCommands()
+	cmds := NewToolCommands(app)
 	require.NotEmpty(t, cmds)
 
 	groupByName := make(map[string]string)
@@ -124,7 +124,7 @@ func TestLocalizationGroupRouting(t *testing.T) {
 // muscle memory and recipes keep working.
 func TestRecycleAlias(t *testing.T) {
 	app := newTestApp()
-	cmds := app.NewToolCommands()
+	cmds := NewToolCommands(app)
 
 	var recycle *cobra.Command
 	for _, cmd := range cmds {
@@ -141,7 +141,7 @@ func TestRecycleAlias(t *testing.T) {
 
 func TestNewToolCommands_AliasesWork(t *testing.T) {
 	app := newTestApp()
-	cmds := app.NewToolCommands()
+	cmds := NewToolCommands(app)
 
 	aliasMap := make(map[string][]string)
 	for _, cmd := range cmds {
@@ -156,7 +156,7 @@ func TestNewToolCommands_AliasesWork(t *testing.T) {
 
 func TestNewToolCommands_WritesOutputHasOutputFlag(t *testing.T) {
 	app := newTestApp()
-	cmds := app.NewToolCommands()
+	cmds := NewToolCommands(app)
 
 	for _, cmd := range cmds {
 		info := app.ToolReg.ToolInfo(registry.ToolID(cmd.Name()))
@@ -174,7 +174,7 @@ func TestNewToolCommands_WritesOutputHasOutputFlag(t *testing.T) {
 
 func TestNewToolCommands_CredentialFlagForAITools(t *testing.T) {
 	app := newTestApp()
-	cmds := app.NewToolCommands()
+	cmds := NewToolCommands(app)
 
 	for _, cmd := range cmds {
 		info := app.ToolReg.ToolInfo(registry.ToolID(cmd.Name()))
@@ -206,7 +206,7 @@ func TestDefaultParallelBlocks_NonAITools(t *testing.T) {
 func TestAddCommandGroupsRegistersGroups(t *testing.T) {
 	root := &cobra.Command{Use: "test"}
 	app := &App{}
-	app.AddCommandGroups(root)
+	AddCommandGroups(app, root)
 
 	groupIDs := []string{"processing", "localization", "quality", "analysis", "text-processing", "management"}
 	for _, id := range groupIDs {

@@ -16,22 +16,22 @@ import (
 // runHookStopCapture invokes the stop hook with the given stdin payload and
 // returns the parsed decision plus the raw stdout (empty when the hook allows
 // Claude to stop).
-func runHookStopCapture(t *testing.T, stdin string) (stopHookDecision, string) {
+func runHookStopCapture(t *testing.T, stdin string) (StopHookDecision, string) {
 	t.Helper()
 	a := &App{}
-	cmd := a.newHookStopCmd()
+	cmd := newHookStopCmd(a)
 	cmd.SetIn(strings.NewReader(stdin))
-	// Invoking runHookStop directly bypasses cobra's Execute, which normally
+	// Invoking RunHookStop directly bypasses cobra's Execute, which normally
 	// seeds cmd.Context(); set it so the ctx-aware termbase/TM lookups in the
 	// verify gate get a real context instead of nil.
 	cmd.SetContext(t.Context())
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 
-	require.NoError(t, a.runHookStop(cmd), "the stop hook must not error — its verdict is the JSON on stdout")
+	require.NoError(t, a.RunHookStop(cmd), "the stop hook must not error — its verdict is the JSON on stdout")
 
 	raw := strings.TrimSpace(buf.String())
-	var dec stopHookDecision
+	var dec StopHookDecision
 	if raw != "" {
 		require.NoError(t, json.Unmarshal([]byte(raw), &dec), "hook output must be valid JSON: %s", raw)
 	}
@@ -124,10 +124,10 @@ func TestHookStop_AllowsOnEmptyStdin(t *testing.T) {
 // runHookPreEditCapture invokes the pre-edit hook with the given stdin payload
 // and returns the parsed decision plus the raw stdout (empty when the hook
 // allows the edit to proceed).
-func runHookPreEditCapture(t *testing.T, stdin string) (preToolUseDecision, string) {
+func runHookPreEditCapture(t *testing.T, stdin string) (PreToolUseDecision, string) {
 	t.Helper()
 	a := &App{}
-	cmd := a.newHookPreEditCmd()
+	cmd := newHookPreEditCmd(a)
 	cmd.SetIn(strings.NewReader(stdin))
 	// See runHookStopCapture: a direct call bypasses cobra's Execute, so seed
 	// the context the ctx-aware project lookups expect.
@@ -135,10 +135,10 @@ func runHookPreEditCapture(t *testing.T, stdin string) (preToolUseDecision, stri
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 
-	require.NoError(t, a.runHookPreEdit(cmd), "the pre-edit hook must not error — its verdict is the JSON on stdout")
+	require.NoError(t, a.RunHookPreEdit(cmd), "the pre-edit hook must not error — its verdict is the JSON on stdout")
 
 	raw := strings.TrimSpace(buf.String())
-	var dec preToolUseDecision
+	var dec PreToolUseDecision
 	if raw != "" {
 		require.NoError(t, json.Unmarshal([]byte(raw), &dec), "hook output must be valid JSON: %s", raw)
 	}

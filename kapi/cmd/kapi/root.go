@@ -5,11 +5,11 @@ import (
 	"os"
 
 	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/cli/config"
-	"github.com/neokapi/neokapi/cli/pluginhost"
+	"github.com/neokapi/neokapi/cli/pluginattach"
 	"github.com/neokapi/neokapi/cli/selfupdate"
 	"github.com/neokapi/neokapi/core/channel"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/host/config"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +37,7 @@ var rootCmd = &cobra.Command{
 	// subcommands still error (cobra's legacy args validation runs first),
 	// and --help output is untouched.
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return app.RootRunE(cmd, args)
+		return cli.RootRunE(app, cmd, args)
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		app.Config = config.NewAppConfig()
@@ -78,14 +78,14 @@ func init() {
 	// into the cobra tree before Execute parses argv.
 	app.InitPluginHost()
 
-	app.AddPersistentFlags(rootCmd)
-	app.AddCommandGroups(rootCmd)
+	cli.AddPersistentFlags(app, rootCmd)
+	cli.AddCommandGroups(app, rootCmd)
 
 	// Built-in command set, shared with the cli/i18n help-string generator
 	// (cli.KapiCommandSet is the single source of truth for what `kapi`
 	// exposes, so the localization inventory can never drift from the
 	// binary).
-	for _, cmd := range app.KapiCommandSet() {
+	for _, cmd := range cli.KapiCommandSet(app) {
 		// A plugin may provide its own version of a built-in command (e.g.
 		// kapi-bowrain's `status` shows server sync state). A built-in shadows a
 		// plugin command of the same name, so to let the plugin win we skip
@@ -110,7 +110,7 @@ func init() {
 	// SourceConnectorDispatcher is registered for the plugin's name,
 	// matching commands route through the daemon pool instead of
 	// spawning a fresh subprocess per invocation.
-	pluginhost.AttachCommandsWithOptions(rootCmd, app.PluginHost, pluginhost.AttachOptions{
+	pluginattach.AttachCommandsWithOptions(rootCmd, app.PluginHost, pluginattach.AttachOptions{
 		OnConflict: func(msg string) {
 			if !app.Quiet {
 				fmt.Fprintln(os.Stderr, "Warning: "+msg)
@@ -122,7 +122,7 @@ func init() {
 	// Plugin contributions augment built-in commands (e.g. bowrain extends
 	// `kapi init` to connect a project to a server). Wire these after the
 	// built-in + plugin command trees are in place so the target commands exist.
-	pluginhost.AttachContributions(rootCmd, app.PluginHost, func(msg string) {
+	pluginattach.AttachContributions(rootCmd, app.PluginHost, func(msg string) {
 		if !app.Quiet {
 			fmt.Fprintln(os.Stderr, "Warning: "+msg)
 		}

@@ -22,7 +22,7 @@ import (
 // output. Mirrors runConverge (converge_test.go) for the porcelain command.
 func runUp(t *testing.T, a *App, recipe string, flags ...string) (string, error) {
 	t.Helper()
-	cmd := a.NewUpCmd()
+	cmd := NewUpCmd(a)
 	args := append([]string{"--project", recipe}, flags...)
 	cmd.SetArgs(args)
 	var out bytes.Buffer
@@ -140,7 +140,7 @@ func TestUp_RejectsNegativePasses(t *testing.T) {
 func TestUp_RequiresProject(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	a := processOnlyApp(t)
-	cmd := a.NewUpCmd()
+	cmd := NewUpCmd(a)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -296,15 +296,15 @@ func TestRun_BareRunPointsAtUp(t *testing.T) {
 func TestUp_FirstRunInlineWizard(t *testing.T) {
 	a := processOnlyApp(t)
 	saved := map[string]string{}
-	wiz := aiSetupIO{
-		in:        strings.NewReader("\nn\n"), // accept default (Claude Code), skip live check
-		out:       io.Discard,
-		isTTY:     func() bool { return true },
-		detect:    func(context.Context) AIDetection { return AIDetection{ClaudeCode: true} },
-		liveCheck: func(context.Context, string, string, string) error { return nil },
-		setConfig: func(key, value string) error { saved[key] = value; return nil },
+	wiz := AISetupIO{
+		In:        strings.NewReader("\nn\n"), // accept default (Claude Code), skip live check
+		Out:       io.Discard,
+		IsTTY:     func() bool { return true },
+		Detect:    func(context.Context) AIDetection { return AIDetection{ClaudeCode: true} },
+		LiveCheck: func(context.Context, string, string, string) error { return nil },
+		SetConfig: func(key, value string) error { saved[key] = value; return nil },
 	}
-	a.aiSetupIOOverride = &wiz
+	a.AISetupIOOverride = &wiz
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
 	out, err := runUp(t, a, recipe)
@@ -322,11 +322,11 @@ func TestUp_FirstRunInlineWizard(t *testing.T) {
 // never engages (no prompts in output).
 func TestUp_ConfiguredSkipsWizard(t *testing.T) {
 	a := processOnlyApp(t)
-	wiz := aiSetupIO{
-		isTTY:  func() bool { return true },
-		detect: func(context.Context) AIDetection { return AIDetection{DefaultProvider: "ollama"} },
+	wiz := AISetupIO{
+		IsTTY:  func() bool { return true },
+		Detect: func(context.Context) AIDetection { return AIDetection{DefaultProvider: "ollama"} },
 	}
-	a.aiSetupIOOverride = &wiz
+	a.AISetupIOOverride = &wiz
 	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
 	out, err := runUp(t, a, recipe)

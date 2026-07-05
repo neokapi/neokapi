@@ -6,8 +6,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/i18n"
+	"github.com/neokapi/neokapi/host/output"
 )
 
 // TestLocalizeCommandHelp_TranslatesShortLongExample verifies the scope

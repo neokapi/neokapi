@@ -44,7 +44,7 @@ func mergeProjectFixture(t *testing.T, dir string) string {
 func runMergeCmd(t *testing.T, recipe string, flags ...string) (string, error) {
 	t.Helper()
 	a := newExtractApp(t)
-	cmd := a.NewMergeCmd(MergeCmdOptions{})
+	cmd := NewMergeCmd(a, MergeCmdOptions{})
 	args := append([]string{"--project", recipe}, flags...)
 	cmd.SetArgs(args)
 	var out bytes.Buffer

@@ -76,7 +76,7 @@ func processOnlyProjectFixture(t *testing.T, targets []model.LocaleID) (recipe, 
 // command, capturing combined stdout/stderr.
 func runRunCmd(t *testing.T, a *App, recipe, flow string, flags ...string) (string, error) {
 	t.Helper()
-	cmd := a.NewRunCmd(RunCmdOptions{})
+	cmd := NewRunCmd(a, RunCmdOptions{})
 	args := append([]string{flow, "--project", recipe}, flags...)
 	cmd.SetArgs(args)
 	var out bytes.Buffer
@@ -215,10 +215,10 @@ func TestRun_NoProject_WritesFile(t *testing.T) {
 	// &a.TargetLang), then set the languages so the bindings hold.
 	flowCmd := newRunSingleFileCmd(t, a)
 	require.NoError(t, flowCmd.Flags().Set("input", src))
-	a.projectContext = nil
+	a.ProjectContext = nil
 	a.SourceLang = "en-US"
 	a.TargetLang = "qps"
-	err := a.runSingleFile(t.Context(), flowCmd, "pseudo-translate", src)
+	err := a.RunSingleFile(t.Context(), flowCmd, "pseudo-translate", src)
 	require.NoError(t, err)
 
 	// Default sibling output path: <base>_<lang><ext>.
@@ -229,11 +229,11 @@ func TestRun_NoProject_WritesFile(t *testing.T) {
 }
 
 // newRunSingleFileCmd builds a cobra command carrying the flow-run flags so
-// runSingleFile can read --output / --trace / etc.
+// RunSingleFile can read --output / --trace / etc.
 func newRunSingleFileCmd(t *testing.T, a *App) *cobra.Command {
 	t.Helper()
 	cmd := &cobra.Command{Use: "x", RunE: func(*cobra.Command, []string) error { return nil }}
-	a.addFlowRunFlags(cmd)
+	a.AddFlowRunFlags(cmd)
 	return cmd
 }
 
@@ -244,10 +244,10 @@ func runDocCacheKeys(t *testing.T, recipe string) []string {
 	t.Helper()
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
-	c, err := openDocCache(layout.CacheDir())
+	c, err := OpenDocCache(layout.CacheDir())
 	require.NoError(t, err)
-	defer c.close()
-	rows, err := c.db.Query(`SELECT config_key FROM documents`)
+	defer c.Close()
+	rows, err := c.DB.Query(`SELECT config_key FROM documents`)
 	require.NoError(t, err)
 	defer rows.Close()
 	var keys []string

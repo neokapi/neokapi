@@ -7,7 +7,7 @@ package backend
 // exactly like the flow runner's: the shared ai.provider/ai.model defaults plus
 // the desktop credential store, so "the model that runs your flows" is the
 // model that reviews. Autonomous approvals record the honest identity
-// "ai/<model-id>" via cli.ApplyReviewDecisionAs.
+// "ai/<model-id>" via host.ApplyReviewDecisionAs.
 
 import (
 	"context"
@@ -18,9 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/cli"
-	appconfig "github.com/neokapi/neokapi/cli/config"
-	"github.com/neokapi/neokapi/cli/credentials"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -28,6 +25,9 @@ import (
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host"
+	appconfig "github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/credentials"
 )
 
 // Review AI actions.
@@ -222,7 +222,7 @@ func fixFindingsInstruction(currentTarget string, findings []string, extra strin
 // store when it still judges the given translation, else nil.
 func (a *App) freshAIReview(op *openProject, key string, loc model.LocaleID, targetText string) *state.AIReview {
 	root := filepath.Dir(op.Path)
-	st, err := state.Open(cli.StateFilePath(op.Project, root))
+	st, err := state.Open(host.StateFilePath(op.Project, root))
 	if err != nil {
 		return nil
 	}
@@ -318,7 +318,7 @@ type PreReviewResult struct {
 // locale (batch, explicitly invoked — never during queue listing). Every unit
 // gets an advisory annotation (score + findings) in the project state store,
 // bound to the translation it judged; with policy.AutoApprove, clean
-// high-scoring units are approved through cli.ApplyReviewDecisionAs with the
+// high-scoring units are approved through host.ApplyReviewDecisionAs with the
 // honest identity "ai/<model-id>". Human-required gates are unaffected by
 // those approvals (core/gate approver classes).
 func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy PreReviewPolicy) (*PreReviewResult, error) {
@@ -334,7 +334,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 	if err != nil {
 		return nil, err
 	}
-	var pending []cli.ReviewItem
+	var pending []host.ReviewItem
 	for _, it := range rep.Review {
 		if locale != "" && it.Locale != locale {
 			continue
@@ -364,7 +364,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 	// Group by (file, locale) so each pair is read and overlaid once, and the
 	// annotations for a file land in one state write.
 	type scopeKey struct{ file, locale string }
-	groups := map[scopeKey][]cli.ReviewItem{}
+	groups := map[scopeKey][]host.ReviewItem{}
 	order := []scopeKey{}
 	for _, it := range pending {
 		k := scopeKey{file: it.File, locale: it.Locale}
@@ -397,7 +397,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 
 		annotations := map[string]state.AIReview{}
 		type approval struct {
-			item  cli.ReviewItem
+			item  host.ReviewItem
 			score int
 		}
 		var approvals []approval
@@ -451,8 +451,8 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 		// annotation along (recordDecisionState preserves it).
 		for _, ap := range approvals {
 			if _, derr := a.convergenceCLI().ApplyReviewDecisionAs(ctx, op.Path, src,
-				cli.ReviewUnitRef{File: ap.item.File, Key: ap.item.Key, Locale: ap.item.Locale},
-				cli.ReviewDecisionApproved, "", state.AIIdentityPrefix+modelID); derr != nil {
+				host.ReviewUnitRef{File: ap.item.File, Key: ap.item.Key, Locale: ap.item.Locale},
+				host.ReviewDecisionApproved, "", state.AIIdentityPrefix+modelID); derr != nil {
 				return nil, fmt.Errorf("auto-approve %s:%s: %w", ap.item.File, ap.item.Key, derr)
 			}
 			res.AutoApproved++

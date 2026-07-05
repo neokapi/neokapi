@@ -25,7 +25,7 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
 
-	cmd := app.NewInitCmd()
+	cmd := NewInitCmd(app)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -75,7 +75,7 @@ func TestInitCmd_translationScaffold(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
 
-	cmd := app.NewInitCmd()
+	cmd := NewInitCmd(app)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -102,7 +102,7 @@ func TestInitCmd_framework(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
 
-	cmd := app.NewInitCmd()
+	cmd := NewInitCmd(app)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -127,7 +127,7 @@ func TestInitCmd_frameworkKapiReactRejected(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
 
-	cmd := app.NewInitCmd()
+	cmd := NewInitCmd(app)
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
 	cmd.SetArgs([]string{"--dir", dir, "--framework", "kapi-react"})
@@ -143,7 +143,7 @@ func TestInitCmd_frameworkUnknown(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
 
-	cmd := app.NewInitCmd()
+	cmd := NewInitCmd(app)
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
 	cmd.SetArgs([]string{"--dir", dir, "--framework", "nope"})
@@ -158,7 +158,7 @@ func TestInitCmd_idempotentOnExistingRecipe(t *testing.T) {
 	// Pre-create the recipe file under the same name init will use.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "existing.kapi"), []byte("version: v1\nname: existing\n"), 0o644))
 
-	cmd := app.NewInitCmd()
+	cmd := NewInitCmd(app)
 	cmd.SetArgs([]string{"--dir", dir, "--name", "existing"})
 	var out bytes.Buffer
 	cmd.SetOut(&out)
@@ -175,7 +175,7 @@ func TestInitCmd_refusesDifferentNamedProject(t *testing.T) {
 	// A project already exists under a different name.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "existing.kapi"), []byte("version: v1\nname: existing\n"), 0o644))
 
-	cmd := app.NewInitCmd()
+	cmd := NewInitCmd(app)
 	cmd.SetArgs([]string{"--dir", dir, "--name", "other"})
 	var out bytes.Buffer
 	cmd.SetOut(&out)

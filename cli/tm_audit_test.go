@@ -53,7 +53,7 @@ func TestTMAudit_FiltersByBatchID(t *testing.T) {
 	require.NoError(t, tm.Close())
 
 	a := newExtractApp(t)
-	cmd := a.NewTMCmd()
+	cmd := NewTMCmd(a)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -77,7 +77,7 @@ func TestTMAudit_RequiresBatchFlag(t *testing.T) {
 	require.NoError(t, tm.Close())
 
 	a := newExtractApp(t)
-	cmd := a.NewTMCmd()
+	cmd := NewTMCmd(a)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -98,7 +98,7 @@ func TestTMAudit_EmptyResultIsClearMessage(t *testing.T) {
 	require.NoError(t, tm.Close())
 
 	a := newExtractApp(t)
-	cmd := a.NewTMCmd()
+	cmd := NewTMCmd(a)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
@@ -107,10 +107,10 @@ func TestTMAudit_EmptyResultIsClearMessage(t *testing.T) {
 	assert.Contains(t, out.String(), "No TM entries found")
 }
 
-// confirm truncate helper behavior (used by audit output formatter)
+// Confirm truncate helper behavior (used by audit output formatter)
 func TestTruncateHelper(t *testing.T) {
-	assert.Equal(t, "short", truncate("short", 40))
-	truncated := truncate(strings.Repeat("x", 100), 16)
+	assert.Equal(t, "short", Truncate("short", 40))
+	truncated := Truncate(strings.Repeat("x", 100), 16)
 	// Rune-counted: 15 x's + 1 ellipsis.
 	runes := []rune(truncated)
 	assert.Len(t, runes, 16)
@@ -121,7 +121,7 @@ func TestTruncateHelper(t *testing.T) {
 func TestTMAudit_NonexistentDBErrors(t *testing.T) {
 	dir := t.TempDir()
 	a := newExtractApp(t)
-	cmd := a.NewTMCmd()
+	cmd := NewTMCmd(a)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)

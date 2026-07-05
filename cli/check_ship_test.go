@@ -16,11 +16,11 @@ func TestCheckShip_AbsorbsVerify(t *testing.T) {
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := a.NewCheckCmd()
+	cmd := NewCheckCmd(a)
 	require.NoError(t, cmd.Flags().Set("ship", "true"))
 
 	out, runErr := captureStdout(t, func() error {
-		return a.runCheck(cmd, nil)
+		return a.RunCheck(cmd, nil)
 	})
 
 	require.ErrorIs(t, runErr, ErrQualityGate, "unmet gates exit non-zero (exit 3)")
@@ -39,10 +39,10 @@ func TestCheckShip_MinScoreDefaultsToBrandThreshold(t *testing.T) {
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := a.NewCheckCmd()
+	cmd := NewCheckCmd(a)
 	require.NoError(t, cmd.Flags().Set("ship", "true"))
 
-	out, runErr := captureStdout(t, func() error { return a.runCheck(cmd, nil) })
+	out, runErr := captureStdout(t, func() error { return a.RunCheck(cmd, nil) })
 	require.ErrorIs(t, runErr, ErrQualityGate)
 	assert.Contains(t, out, "below the required minimum 80",
 		"ship mode applies the brand-gate default, not check's 0")
@@ -55,11 +55,11 @@ func TestCheckShip_NoFailReportsButExitsZero(t *testing.T) {
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := a.NewCheckCmd()
+	cmd := NewCheckCmd(a)
 	require.NoError(t, cmd.Flags().Set("ship", "true"))
 	require.NoError(t, cmd.Flags().Set("no-fail", "true"))
 
-	out, runErr := captureStdout(t, func() error { return a.runCheck(cmd, nil) })
+	out, runErr := captureStdout(t, func() error { return a.RunCheck(cmd, nil) })
 	require.NoError(t, runErr, "--no-fail downgrades a failing gate to report-only")
 	assert.Contains(t, out, "FAIL", "the verdict is still reported")
 }
@@ -72,7 +72,7 @@ func TestVerifyAlias_HiddenAndForwards(t *testing.T) {
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := a.NewVerifyCmd()
+	cmd := NewVerifyCmd(a)
 	assert.True(t, cmd.Hidden, "verify is a hidden alias (#1078 one-release policy)")
 	assert.Empty(t, cmd.GroupID, "hidden aliases are excluded from the help groups")
 

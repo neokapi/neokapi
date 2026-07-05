@@ -1,7 +1,7 @@
 package commands
 
 import (
-	cliconfig "github.com/neokapi/neokapi/cli/config"
+	cliconfig "github.com/neokapi/neokapi/host/config"
 )
 
 // newBowrainAppConfig creates a config reader for bowrain that layers

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli/pluginhost"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -51,11 +51,11 @@ func TestDiagnosePlugin_HealthyWithSelfCheck(t *testing.T) {
 	}
 	dir := t.TempDir()
 	bin := writeFakePluginBinary(t, dir, "kapi-av", "1.0.0", "ffmpeg bundled", 0)
-	res := diagnosePlugin(context.Background(), fakePlugin("av", "1.0.0", bin, true))
+	res := DiagnosePlugin(context.Background(), fakePlugin("av", "1.0.0", bin, true))
 
-	assert.True(t, res.healthy)
-	assert.Equal(t, "healthy", res.summary)
-	assert.Contains(t, res.output, "ffmpeg bundled")
+	assert.True(t, res.Healthy)
+	assert.Equal(t, "healthy", res.Summary)
+	assert.Contains(t, res.Output, "ffmpeg bundled")
 }
 
 func TestDiagnosePlugin_SelfCheckFails(t *testing.T) {
@@ -64,11 +64,11 @@ func TestDiagnosePlugin_SelfCheckFails(t *testing.T) {
 	}
 	dir := t.TempDir()
 	bin := writeFakePluginBinary(t, dir, "kapi-av", "1.0.0", "ffmpeg missing", 1)
-	res := diagnosePlugin(context.Background(), fakePlugin("av", "1.0.0", bin, true))
+	res := DiagnosePlugin(context.Background(), fakePlugin("av", "1.0.0", bin, true))
 
-	assert.False(t, res.healthy)
-	assert.Equal(t, "self-check failed", res.summary)
-	assert.Contains(t, res.output, "ffmpeg missing")
+	assert.False(t, res.Healthy)
+	assert.Equal(t, "self-check failed", res.Summary)
+	assert.Contains(t, res.Output, "ffmpeg missing")
 }
 
 func TestDiagnosePlugin_VersionMismatchIsWarningNotFatal(t *testing.T) {
@@ -79,17 +79,17 @@ func TestDiagnosePlugin_VersionMismatchIsWarningNotFatal(t *testing.T) {
 	// Binary reports 9.9.9 but the manifest claims 1.0.0. A version mismatch is
 	// surfaced as a warning — the passing self-check keeps the plugin healthy.
 	bin := writeFakePluginBinary(t, dir, "kapi-av", "9.9.9", "ok", 0)
-	res := diagnosePlugin(context.Background(), fakePlugin("av", "1.0.0", bin, true))
+	res := DiagnosePlugin(context.Background(), fakePlugin("av", "1.0.0", bin, true))
 
-	assert.True(t, res.healthy)
-	assert.Equal(t, "healthy", res.summary)
+	assert.True(t, res.Healthy)
+	assert.Equal(t, "healthy", res.Summary)
 	found := false
-	for _, c := range res.checks {
+	for _, c := range res.Checks {
 		if strings.Contains(c, "⚠") && strings.Contains(c, "version") {
 			found = true
 		}
 	}
-	assert.True(t, found, "expected a version warning check, got %v", res.checks)
+	assert.True(t, found, "expected a version warning check, got %v", res.Checks)
 }
 
 func TestDiagnosePlugin_NoSelfCheck(t *testing.T) {
@@ -98,17 +98,17 @@ func TestDiagnosePlugin_NoSelfCheck(t *testing.T) {
 	}
 	dir := t.TempDir()
 	bin := writeFakePluginBinary(t, dir, "kapi-demo", "2.0.0", "unused", 0)
-	res := diagnosePlugin(context.Background(), fakePlugin("demo", "2.0.0", bin, false))
+	res := DiagnosePlugin(context.Background(), fakePlugin("demo", "2.0.0", bin, false))
 
-	assert.True(t, res.healthy)
-	assert.Equal(t, "ok (no self-check)", res.summary)
-	assert.Empty(t, res.output, "no self-check should not run the doctor probe")
+	assert.True(t, res.Healthy)
+	assert.Equal(t, "ok (no self-check)", res.Summary)
+	assert.Empty(t, res.Output, "no self-check should not run the doctor probe")
 }
 
 func TestDiagnosePlugin_BinaryMissing(t *testing.T) {
-	res := diagnosePlugin(context.Background(), fakePlugin("gone", "1.0.0", "/no/such/kapi-gone", true))
-	assert.False(t, res.healthy)
-	assert.Contains(t, res.summary, "binary missing")
+	res := DiagnosePlugin(context.Background(), fakePlugin("gone", "1.0.0", "/no/such/kapi-gone", true))
+	assert.False(t, res.Healthy)
+	assert.Contains(t, res.Summary, "binary missing")
 }
 
 // TestPluginDoctorCmd_NoPlugins drives the command end-to-end with an isolated,
@@ -120,7 +120,7 @@ func TestPluginDoctorCmd_NoPlugins(t *testing.T) {
 
 	app := &App{}
 	var stdout, stderr bytes.Buffer
-	cmd := app.NewPluginCmd()
+	cmd := NewPluginCmd(app)
 	cmd.SetContext(context.Background())
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
@@ -137,7 +137,7 @@ func TestPluginDoctorCmd_UnknownPlugin(t *testing.T) {
 
 	app := &App{}
 	var stdout, stderr bytes.Buffer
-	cmd := app.NewPluginCmd()
+	cmd := NewPluginCmd(app)
 	cmd.SetContext(context.Background())
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)

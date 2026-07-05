@@ -17,7 +17,7 @@ func newBareRoot(a *App) (*cobra.Command, *bytes.Buffer) {
 		Short:         "test root",
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		RunE:          a.RootRunE,
+		RunE:          func(cmd *cobra.Command, args []string) error { return RootRunE(a, cmd, args) },
 	}
 	var out bytes.Buffer
 	root.SetOut(&out)
@@ -35,7 +35,7 @@ func TestRootRunE_InProject(t *testing.T) {
 	cmd, buf := newBareRoot(a)
 	cmd.SetArgs(nil)
 
-	// runStatus prints through output.Print on the fresh status command,
+	// RunStatus prints through output.Print on the fresh status command,
 	// which writes to the redirected stdout; capture both.
 	stdout, err := captureStdout(t, cmd.Execute)
 	require.NoError(t, err)

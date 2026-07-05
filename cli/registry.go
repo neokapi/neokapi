@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neokapi/neokapi/cli/config"
-	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
 
 // NewRegistryCmd creates the registry command group (list, add, remove).
-func (a *App) NewRegistryCmd() *cobra.Command {
+func NewRegistryCmd(a *App) *cobra.Command {
 	registryCmd := &cobra.Command{
 		Use:     "registry",
 		Short:   "Manage plugin registries",

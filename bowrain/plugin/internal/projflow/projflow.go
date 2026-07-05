@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/bowrain/core/project"
-	clioutput "github.com/neokapi/neokapi/cli/output"
+	clioutput "github.com/neokapi/neokapi/host/output"
 	"gopkg.in/yaml.v3"
 )
 

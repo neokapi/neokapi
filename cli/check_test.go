@@ -43,12 +43,12 @@ func TestCheck_BilingualFindings(t *testing.T) {
 `), 0o644))
 
 	a := &App{SourceLang: "en"}
-	cmd := a.NewCheckCmd()
+	cmd := NewCheckCmd(a)
 	require.NoError(t, cmd.Flags().Set("target", tgt))
 	require.NoError(t, cmd.Flags().Set("target-lang", "de"))
 	require.NoError(t, cmd.Flags().Set("dnt", "Acme Cloud"))
 
-	out, err := a.computeCheck(cmd, []string{src})
+	out, err := a.ComputeCheck(cmd, []string{src})
 	require.NoError(t, err)
 
 	assert.False(t, out.Pass, "gate must fail on critical findings")
@@ -72,11 +72,11 @@ func TestCheck_MonolingualSourceChecks(t *testing.T) {
 `), 0o644))
 
 	a := &App{SourceLang: "en"}
-	cmd := a.NewCheckCmd()
+	cmd := NewCheckCmd(a)
 	require.NoError(t, cmd.Flags().Set("max-chars", "20"))
 	require.NoError(t, cmd.Flags().Set("forbid", "(?i)todo"))
 
-	out, err := a.computeCheck(cmd, []string{src})
+	out, err := a.ComputeCheck(cmd, []string{src})
 	require.NoError(t, err)
 
 	counts := ruleCounts(out)
@@ -95,11 +95,11 @@ func TestCheck_MonolingualCleanSourcePasses(t *testing.T) {
 	require.NoError(t, os.WriteFile(src, []byte(`{"title": "Crisp copy"}`), 0o644))
 
 	a := &App{SourceLang: "en"}
-	cmd := a.NewCheckCmd()
+	cmd := NewCheckCmd(a)
 	require.NoError(t, cmd.Flags().Set("max-chars", "200"))
 	require.NoError(t, cmd.Flags().Set("forbid", "(?i)todo"))
 
-	out, err := a.computeCheck(cmd, []string{src})
+	out, err := a.ComputeCheck(cmd, []string{src})
 	require.NoError(t, err)
 	assert.True(t, out.Pass, "clean source should pass: %+v", out.Findings)
 	assert.Empty(t, out.Findings)
@@ -114,8 +114,8 @@ func TestCheck_HygieneAlwaysRuns(t *testing.T) {
 	require.NoError(t, os.WriteFile(src, []byte(`{"body": "We we shipped it"}`), 0o644))
 
 	a := &App{SourceLang: "en"}
-	cmd := a.NewCheckCmd()
-	out, err := a.computeCheck(cmd, []string{src})
+	cmd := NewCheckCmd(a)
+	out, err := a.ComputeCheck(cmd, []string{src})
 	require.NoError(t, err)
 	assert.Positive(t, ruleCounts(out)["hygiene.doubled-word"], "the doubled word must be flagged by default: %+v", out.Findings)
 }
@@ -132,19 +132,19 @@ func TestCheck_MonolingualGateOnMajor(t *testing.T) {
 
 	// Default gate is critical-only: a major length finding still passes.
 	a := &App{SourceLang: "en"}
-	def := a.NewCheckCmd()
+	def := NewCheckCmd(a)
 	require.NoError(t, def.Flags().Set("max-chars", "10"))
-	defOut, err := a.computeCheck(def, []string{src})
+	defOut, err := a.ComputeCheck(def, []string{src})
 	require.NoError(t, err)
 	assert.Positive(t, defOut.Summary.Major, "the over-long body should be a major finding: %+v", defOut.Findings)
 	assert.Zero(t, defOut.Summary.Critical)
 	assert.True(t, defOut.Pass, "the default critical-only gate passes on a major finding")
 
 	// --max-major 0 tightens the gate: the same major finding now fails it.
-	gated := a.NewCheckCmd()
+	gated := NewCheckCmd(a)
 	require.NoError(t, gated.Flags().Set("max-chars", "10"))
 	require.NoError(t, gated.Flags().Set("max-major", "0"))
-	gatedOut, err := a.computeCheck(gated, []string{src})
+	gatedOut, err := a.ComputeCheck(gated, []string{src})
 	require.NoError(t, err)
 	assert.False(t, gatedOut.Pass, "--max-major 0 must gate on the major length finding")
 }
@@ -162,11 +162,11 @@ func TestCheck_BilingualKeepsSourceFamilyAttribution(t *testing.T) {
 	require.NoError(t, os.WriteFile(tgt, []byte(`{"greeting": "Hallo"}`), 0o644))
 
 	a := &App{SourceLang: "en"}
-	cmd := a.NewCheckCmd()
+	cmd := NewCheckCmd(a)
 	require.NoError(t, cmd.Flags().Set("target", tgt))
 	require.NoError(t, cmd.Flags().Set("target-lang", "de"))
 
-	out, err := a.computeCheck(cmd, []string{src})
+	out, err := a.ComputeCheck(cmd, []string{src})
 	require.NoError(t, err)
 
 	counts := ruleCounts(out)
@@ -188,17 +188,17 @@ func TestCheck_StrictAndLenientPresets(t *testing.T) {
 	src := filepath.Join(dir, "app.json")
 	require.NoError(t, os.WriteFile(src, []byte(`{"body": "This source string is far too long for the limit"}`), 0o644))
 
-	strict := (&App{SourceLang: "en"}).NewCheckCmd()
+	strict := NewCheckCmd(&App{SourceLang: "en"})
 	require.NoError(t, strict.Flags().Set("max-chars", "10"))
 	require.NoError(t, strict.Flags().Set("strict", "true"))
-	strictOut, err := (&App{SourceLang: "en"}).computeCheck(strict, []string{src})
+	strictOut, err := (&App{SourceLang: "en"}).ComputeCheck(strict, []string{src})
 	require.NoError(t, err)
 	assert.False(t, strictOut.Pass, "--strict must fail on the major length finding")
 
-	lenient := (&App{SourceLang: "en"}).NewCheckCmd()
+	lenient := NewCheckCmd(&App{SourceLang: "en"})
 	require.NoError(t, lenient.Flags().Set("max-chars", "10"))
 	require.NoError(t, lenient.Flags().Set("lenient", "true"))
-	lenientOut, err := (&App{SourceLang: "en"}).computeCheck(lenient, []string{src})
+	lenientOut, err := (&App{SourceLang: "en"}).ComputeCheck(lenient, []string{src})
 	require.NoError(t, err)
 	assert.True(t, lenientOut.Pass, "--lenient must never fail the gate")
 	assert.Positive(t, lenientOut.Summary.Findings, "--lenient still reports the findings")
@@ -213,10 +213,10 @@ func TestCheck_MonolingualInvalidForbidPattern(t *testing.T) {
 	require.NoError(t, os.WriteFile(src, []byte(`{"title": "Copy"}`), 0o644))
 
 	a := &App{SourceLang: "en"}
-	cmd := a.NewCheckCmd()
+	cmd := NewCheckCmd(a)
 	require.NoError(t, cmd.Flags().Set("forbid", "[invalid"))
 
-	_, err := a.computeCheck(cmd, []string{src})
+	_, err := a.ComputeCheck(cmd, []string{src})
 	require.Error(t, err)
 }
 
@@ -231,12 +231,12 @@ func TestCheck_CleanTargetPasses(t *testing.T) {
 	require.NoError(t, os.WriteFile(tgt, []byte(`{"greeting": "Hallo {name}, öffne Acme Cloud"}`), 0o644))
 
 	a := &App{SourceLang: "en"}
-	cmd := a.NewCheckCmd()
+	cmd := NewCheckCmd(a)
 	require.NoError(t, cmd.Flags().Set("target", tgt))
 	require.NoError(t, cmd.Flags().Set("target-lang", "de"))
 	require.NoError(t, cmd.Flags().Set("dnt", "Acme Cloud"))
 
-	out, err := a.computeCheck(cmd, []string{src})
+	out, err := a.ComputeCheck(cmd, []string{src})
 	require.NoError(t, err)
 	assert.True(t, out.Pass, "faithful target should pass: %+v", out.Findings)
 	assert.Empty(t, out.Findings)
@@ -255,15 +255,15 @@ func TestCheck_ValidateFoldsStructureDiagnostic(t *testing.T) {
 
 	// --validate off (the default): a malformed file is an opaque operational
 	// error, byte-identical to the pre-RVM read — not a folded finding.
-	offCmd := (&App{SourceLang: "en"}).NewCheckCmd()
-	_, err := (&App{SourceLang: "en"}).computeCheck(offCmd, []string{src})
+	offCmd := NewCheckCmd(&App{SourceLang: "en"})
+	_, err := (&App{SourceLang: "en"}).ComputeCheck(offCmd, []string{src})
 	require.Error(t, err, "off mode keeps the opaque read error")
 
 	// --validate report: the structure problem folds into the Report as a
 	// located structure.json-syntax finding; the default gate still passes.
-	repCmd := (&App{SourceLang: "en"}).NewCheckCmd()
+	repCmd := NewCheckCmd(&App{SourceLang: "en"})
 	require.NoError(t, repCmd.Flags().Set("validate", "report"))
-	repOut, err := (&App{SourceLang: "en"}).computeCheck(repCmd, []string{src})
+	repOut, err := (&App{SourceLang: "en"}).ComputeCheck(repCmd, []string{src})
 	require.NoError(t, err, "report mode folds the structure problem instead of erroring")
 	counts := ruleCounts(repOut)
 	assert.Positive(t, counts["structure.json-syntax"], "should fold a structure.json-syntax finding: %+v", repOut.Findings)
@@ -277,9 +277,9 @@ func TestCheck_ValidateFoldsStructureDiagnostic(t *testing.T) {
 	}
 
 	// --validate strict: the same Major structure finding fails the gate.
-	strictCmd := (&App{SourceLang: "en"}).NewCheckCmd()
+	strictCmd := NewCheckCmd(&App{SourceLang: "en"})
 	require.NoError(t, strictCmd.Flags().Set("validate", "strict"))
-	strictOut, err := (&App{SourceLang: "en"}).computeCheck(strictCmd, []string{src})
+	strictOut, err := (&App{SourceLang: "en"}).ComputeCheck(strictCmd, []string{src})
 	require.NoError(t, err)
 	assert.False(t, strictOut.Pass, "strict mode gates on the structure problem")
 	assert.NotEmpty(t, strictOut.Gate.Failed)
@@ -293,9 +293,9 @@ func TestCheck_ValidateReportCleanFile(t *testing.T) {
 	src := filepath.Join(dir, "clean.json")
 	require.NoError(t, os.WriteFile(src, []byte(`{"title": "Crisp copy"}`), 0o644))
 
-	cmd := (&App{SourceLang: "en"}).NewCheckCmd()
+	cmd := NewCheckCmd(&App{SourceLang: "en"})
 	require.NoError(t, cmd.Flags().Set("validate", "report"))
-	out, err := (&App{SourceLang: "en"}).computeCheck(cmd, []string{src})
+	out, err := (&App{SourceLang: "en"}).ComputeCheck(cmd, []string{src})
 	require.NoError(t, err)
 	assert.True(t, out.Pass)
 	assert.Zero(t, ruleCounts(out)["structure.json-syntax"])

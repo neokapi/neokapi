@@ -12,7 +12,7 @@ import (
 // socket, which the browser/wasm runtime has no access to. The command
 // exists so shared command wiring compiles, and reports the limitation
 // when invoked.
-func (a *App) NewEngineCmd() *cobra.Command {
+func NewEngineCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:    "engine",
 		Short:  "Serve the content engine as a local gRPC API",

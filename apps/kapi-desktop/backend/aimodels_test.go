@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	appconfig "github.com/neokapi/neokapi/cli/config"
-	"github.com/neokapi/neokapi/cli/credentials"
+	appconfig "github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -15,16 +15,16 @@ import (
 func TestMergeToolPreset(t *testing.T) {
 	t.Run("no preset returns config unchanged", func(t *testing.T) {
 		cfg := map[string]any{"prefix": "step"}
-		assert.Equal(t, cfg, mergeToolPreset(nil, cfg))
+		assert.Equal(t, cfg, MergeToolPreset(nil, cfg))
 	})
 	t.Run("preset supplies defaults", func(t *testing.T) {
-		got := mergeToolPreset(map[string]any{"prefix": "preset", "suffix": "!"}, nil)
+		got := MergeToolPreset(map[string]any{"prefix": "preset", "suffix": "!"}, nil)
 		assert.Equal(t, map[string]any{"prefix": "preset", "suffix": "!"}, got)
 	})
 	t.Run("step keys win per key", func(t *testing.T) {
 		preset := map[string]any{"prefix": "preset", "suffix": "!"}
 		cfg := map[string]any{"prefix": "step"}
-		got := mergeToolPreset(preset, cfg)
+		got := MergeToolPreset(preset, cfg)
 		assert.Equal(t, map[string]any{"prefix": "step", "suffix": "!"}, got)
 		// Neither input is mutated.
 		assert.Equal(t, map[string]any{"prefix": "preset", "suffix": "!"}, preset)
@@ -33,23 +33,23 @@ func TestMergeToolPreset(t *testing.T) {
 }
 
 func TestApplyProjectBindings_ToolPresets(t *testing.T) {
-	a := &App{projectBindings: &projectBindings{
-		toolPresets: map[string]map[string]any{
+	a := &App{ProjectBindings: &ProjectBindings{
+		ToolPresets: map[string]map[string]any{
 			"pseudo-translate": {"prefix": "«", "suffix": "»"},
 		},
 	}}
 
 	t.Run("preset applies to a bare step", func(t *testing.T) {
-		got := a.applyProjectBindings("pseudo-translate", nil, nil)
+		got := a.ApplyProjectBindings("pseudo-translate", nil, nil)
 		assert.Equal(t, map[string]any{"prefix": "«", "suffix": "»"}, got)
 	})
 	t.Run("step config overrides preset per key", func(t *testing.T) {
-		got := a.applyProjectBindings("pseudo-translate", nil, map[string]any{"prefix": "["})
+		got := a.ApplyProjectBindings("pseudo-translate", nil, map[string]any{"prefix": "["})
 		assert.Equal(t, map[string]any{"prefix": "[", "suffix": "»"}, got)
 	})
 	t.Run("other tools are untouched", func(t *testing.T) {
 		cfg := map[string]any{"mode": "upper"}
-		assert.Equal(t, cfg, a.applyProjectBindings("case-transform", nil, cfg))
+		assert.Equal(t, cfg, a.ApplyProjectBindings("case-transform", nil, cfg))
 	})
 }
 

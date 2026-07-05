@@ -309,7 +309,7 @@ jobs:
           # that broke `kapi plugins install sat`.
           #
           # NOTE: the installer's verifier still accepts legacy bundles
-          # (cli/pluginhost/registry/cosign.go: convertLegacyCosignBundle)
+          # (host/pluginhost/registry/cosign.go: convertLegacyCosignBundle)
           # because already-published sat releases shipped the legacy format and
           # cannot be re-signed. Keep that path until no legacy artifacts remain
           # referenced by the registry.

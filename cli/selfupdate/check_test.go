@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neokapi/neokapi/cli/pluginhost/registry"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/host/pluginhost/registry"
 )
 
 func TestIsNewer(t *testing.T) {

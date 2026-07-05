@@ -2,52 +2,16 @@ package cli
 
 import (
 	"fmt"
-	"io"
-	"slices"
-	"sort"
 	"strings"
-	"text/tabwriter"
 
-	"github.com/neokapi/neokapi/cli/credentials"
-	"github.com/neokapi/neokapi/cli/output"
-	aiprovider "github.com/neokapi/neokapi/providers/ai"
+	"github.com/neokapi/neokapi/host/credentials"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
 
-// knownProviderTypes returns the canonical set of credential provider types
-// accepted by `credentials add`, derived from the registered AI providers
-// (aiprovider.Providers). Plugins that register additional AI providers are
-// reflected automatically. The result is a deduplicated, sorted slice suitable
-// for both membership checks and the help text shown on rejection.
-func knownProviderTypes() []string {
-	set := map[string]struct{}{}
-	for _, p := range aiprovider.Providers() {
-		set[strings.ToLower(p.Name.String())] = struct{}{}
-	}
-	out := make([]string, 0, len(set))
-	for name := range set {
-		out = append(out, name)
-	}
-	sort.Strings(out)
-	return out
-}
-
-// validateProviderType reports whether providerType is a known credential
-// provider type (case-insensitive). It returns a descriptive error listing the
-// valid values when the provider is unknown, so a typo is rejected before it is
-// persisted to the store.
-func validateProviderType(providerType string) error {
-	known := knownProviderTypes()
-	want := strings.ToLower(strings.TrimSpace(providerType))
-	if slices.Contains(known, want) {
-		return nil
-	}
-	return fmt.Errorf("unknown provider %q; valid providers are: %s", providerType, strings.Join(known, ", "))
-}
-
 // NewCredentialsCmd creates the "credentials" command group for managing
 // saved AI provider credentials.
-func (a *App) NewCredentialsCmd() *cobra.Command {
+func NewCredentialsCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "credentials",
 		Aliases: []string{"creds"},
@@ -55,15 +19,15 @@ func (a *App) NewCredentialsCmd() *cobra.Command {
 		GroupID: "assets",
 	}
 
-	cmd.AddCommand(a.newCredentialsAddCmd())
-	cmd.AddCommand(a.newCredentialsListCmd())
-	cmd.AddCommand(a.newCredentialsRemoveCmd())
-	cmd.AddCommand(a.newCredentialsTestCmd())
+	cmd.AddCommand(newCredentialsAddCmd(a))
+	cmd.AddCommand(newCredentialsListCmd(a))
+	cmd.AddCommand(newCredentialsRemoveCmd(a))
+	cmd.AddCommand(newCredentialsTestCmd(a))
 
 	return cmd
 }
 
-func (a *App) newCredentialsAddCmd() *cobra.Command {
+func newCredentialsAddCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <name>",
 		Short: "Save a named AI provider credential",
@@ -82,9 +46,9 @@ If only one credential is saved, tools will auto-detect it without --credential.
 			baseURL, _ := cmd.Flags().GetString("base-url")
 
 			if providerType == "" {
-				return fmt.Errorf("--provider is required (one of: %s)", strings.Join(knownProviderTypes(), ", "))
+				return fmt.Errorf("--provider is required (one of: %s)", strings.Join(KnownProviderTypes(), ", "))
 			}
-			if err := validateProviderType(providerType); err != nil {
+			if err := ValidateProviderType(providerType); err != nil {
 				return err
 			}
 			if apiKey == "" && !credentials.Keyless(providerType) {
@@ -107,7 +71,7 @@ If only one credential is saved, tools will auto-detect it without --credential.
 				}
 			}
 
-			return output.Print(cmd, credentialSavedOutput{
+			return output.Print(cmd, CredentialSavedOutput{
 				Name:     name,
 				Provider: providerType,
 				ID:       cfg.ID,
@@ -124,18 +88,7 @@ If only one credential is saved, tools will auto-detect it without --credential.
 	return cmd
 }
 
-type credentialSavedOutput struct {
-	Name     string `json:"name"`
-	Provider string `json:"provider"`
-	ID       string `json:"id"`
-}
-
-func (o credentialSavedOutput) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "Credential %q saved (provider: %s, id: %s)\n", o.Name, o.Provider, o.ID)
-	return nil
-}
-
-func (a *App) newCredentialsListCmd() *cobra.Command {
+func newCredentialsListCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List saved credentials",
@@ -143,10 +96,10 @@ func (a *App) newCredentialsListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configs := a.Credentials.List()
 
-			var rows []credentialRow
+			var rows []CredentialRow
 			for _, c := range configs {
 				_, err := a.Credentials.GetAPIKey(c.ID)
-				rows = append(rows, credentialRow{
+				rows = append(rows, CredentialRow{
 					Name:     c.Name,
 					Provider: c.ProviderType,
 					Model:    c.Model,
@@ -155,7 +108,7 @@ func (a *App) newCredentialsListCmd() *cobra.Command {
 				})
 			}
 
-			return output.Print(cmd, credentialListOutput{
+			return output.Print(cmd, CredentialListOutput{
 				Credentials: rows,
 				Total:       len(rows),
 			})
@@ -163,39 +116,7 @@ func (a *App) newCredentialsListCmd() *cobra.Command {
 	}
 }
 
-type credentialRow struct {
-	Name     string `json:"name"`
-	Provider string `json:"provider"`
-	Model    string `json:"model,omitempty"`
-	ID       string `json:"id"`
-	HasKey   bool   `json:"has_key"`
-}
-
-type credentialListOutput struct {
-	Credentials []credentialRow `json:"credentials"`
-	Total       int             `json:"total"`
-}
-
-func (o credentialListOutput) FormatText(w io.Writer) error {
-	if o.Total == 0 {
-		fmt.Fprintln(w, "No saved credentials. Use 'kapi credentials add' to save one.")
-		return nil
-	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(tw, "  NAME\tPROVIDER\tMODEL\tID\tKEY\n")
-	for _, r := range o.Credentials {
-		keyStatus := "missing"
-		if r.HasKey {
-			keyStatus = "ok"
-		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\n", r.Name, r.Provider, r.Model, r.ID, keyStatus)
-	}
-	tw.Flush()
-	fmt.Fprintf(w, "\n%d credential(s)\n", o.Total)
-	return nil
-}
-
-func (a *App) newCredentialsRemoveCmd() *cobra.Command {
+func newCredentialsRemoveCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "remove <name>",
 		Short: "Remove a saved credential",
@@ -218,7 +139,7 @@ func (a *App) newCredentialsRemoveCmd() *cobra.Command {
 	}
 }
 
-func (a *App) newCredentialsTestCmd() *cobra.Command {
+func newCredentialsTestCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "test <name>",
 		Short: "Test that a credential's API key is accessible",

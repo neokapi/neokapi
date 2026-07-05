@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/neokapi/neokapi/cli/config"
-	clii18n "github.com/neokapi/neokapi/cli/i18n"
 	"github.com/neokapi/neokapi/core/i18n"
+	"github.com/neokapi/neokapi/host/config"
+	clii18n "github.com/neokapi/neokapi/host/i18n"
 )
 
 // KapiRootShort / KapiRootLong are the canonical root help strings for the
@@ -28,76 +28,76 @@ of file types.`
 // the cli/i18n generator walks the same set to extract help strings, so the
 // two can never drift. Plugin-contributed commands are not included — they
 // attach via the command factories and the plugin host.
-func (a *App) KapiCommandSet() []*cobra.Command {
+func KapiCommandSet(a *App) []*cobra.Command {
 	var cmds []*cobra.Command
 
 	// Porcelain (#1078 C1): `kapi up` reconciles the project toward its ship
 	// gates; the bare `kapi run` remains as the custom-flow surface.
-	cmds = append(cmds, a.NewUpCmd())
+	cmds = append(cmds, NewUpCmd(a))
 
 	// Primary commands.
-	runCmd := a.NewRunCmd(RunCmdOptions{})
+	runCmd := NewRunCmd(a, RunCmdOptions{})
 	runCmd.GroupID = "advanced"
 	cmds = append(cmds, runCmd)
-	cmds = append(cmds, a.NewExtractCmd(ExtractCmdOptions{}))
-	cmds = append(cmds, a.NewMergeCmd(MergeCmdOptions{}))
+	cmds = append(cmds, NewExtractCmd(a, ExtractCmdOptions{}))
+	cmds = append(cmds, NewMergeCmd(a, MergeCmdOptions{}))
 
 	// .klz project snapshot hand-off (AD-025 §5): pack the working state
 	// into a portable .klz and rehydrate it elsewhere.
-	cmds = append(cmds, a.NewPackCmd(), a.NewUnpackCmd(), a.NewInfoCmd())
+	cmds = append(cmds, NewPackCmd(a), NewUnpackCmd(a), NewInfoCmd(a))
 
 	// Toolbox: format-aware cat / grep / sed, registered as hidden proxies
 	// for the kcat / kgrep / ksed multi-call binaries.
-	cmds = append(cmds, a.NewToolboxProxies()...)
-	cmds = append(cmds, a.NewInspectCmd())
+	cmds = append(cmds, NewToolboxProxies(a)...)
+	cmds = append(cmds, NewInspectCmd(a))
 	// apply is the write sibling of inspect: land a typed change-set (content +
 	// asset edits) through one reviewed write path.
-	cmds = append(cmds, a.NewApplyCmd())
-	cmds = append(cmds, a.NewStatsCmd())
+	cmds = append(cmds, NewApplyCmd(a))
+	cmds = append(cmds, NewStatsCmd(a))
 	cmds = append(cmds,
-		a.NewStatusCmd(),
-		a.NewVerifyCmd(),
-		a.NewCheckCmd(),
-		a.NewHookCmd(),
-		a.NewInitCmd(),
-		a.NewAddCmd(),
-		a.NewRmCmd(),
-		a.NewLsCmd(),
+		NewStatusCmd(a),
+		NewVerifyCmd(a),
+		NewCheckCmd(a),
+		NewHookCmd(a),
+		NewInitCmd(a),
+		NewAddCmd(a),
+		NewRmCmd(a),
+		NewLsCmd(a),
 	)
 
 	// Management commands.
 	cmds = append(cmds,
-		a.NewFlowsCmd(FlowCmdOptions{}),
-		a.NewToolsCmd(),
-		a.NewFormatsCmd(),
-		a.NewPluginCmd(),
-		a.NewModelsCmd(),
-		a.NewRegistryCmd(),
-		a.NewTermbaseCmd(),
-		a.NewTMCmd(),
-		a.NewBrandCmd(),
-		a.NewCredentialsCmd(),
-		a.NewConfigCmd(),
-		a.NewVersionCmd("kapi"),
-		a.NewUpdateCmd(),
-		a.NewCompletionCmd(),
+		NewFlowsCmd(a, FlowCmdOptions{}),
+		NewToolsCmd(a),
+		NewFormatsCmd(a),
+		NewPluginCmd(a),
+		NewModelsCmd(a),
+		NewRegistryCmd(a),
+		NewTermbaseCmd(a),
+		NewTMCmd(a),
+		NewBrandCmd(a),
+		NewCredentialsCmd(a),
+		NewConfigCmd(a),
+		NewVersionCmd(a, "kapi"),
+		NewUpdateCmd(a),
+		NewCompletionCmd(a),
 	)
 
 	// Hidden one-release aliases (#1078 C1 verb folds). `verify` hides itself
 	// (NewVerifyCmd); `ollama` and `presets` forward with a pointer note.
 	cmds = append(cmds,
-		deprecatedAlias(a.NewOllamaCmd(), "note: `kapi ollama` moved to `kapi models ollama`; this top-level alias will be removed in a future release."),
-		deprecatedAlias(a.NewPresetsCmd(), "note: `kapi presets` is deprecated — use `kapi init --list-presets` / `kapi init --preset <name>`; this alias will be removed in a future release."),
+		deprecatedAlias(NewOllamaCmd(a), "note: `kapi ollama` moved to `kapi models ollama`; this top-level alias will be removed in a future release."),
+		deprecatedAlias(NewPresetsCmd(a), "note: `kapi presets` is deprecated — use `kapi init --list-presets` / `kapi init --preset <name>`; this alias will be removed in a future release."),
 	)
 
 	// Top-level tool commands (declarative opt-in via the tool registry).
-	cmds = append(cmds, a.NewToolCommands()...)
+	cmds = append(cmds, NewToolCommands(a)...)
 
-	mcpCmd := a.NewMCPCmd("kapi")
+	mcpCmd := NewMCPCmd(a, "kapi")
 	mcpCmd.GroupID = "advanced"
 	cmds = append(cmds, mcpCmd)
 
-	engineCmd := a.NewEngineCmd()
+	engineCmd := NewEngineCmd(a)
 	engineCmd.GroupID = "advanced"
 	cmds = append(cmds, engineCmd)
 

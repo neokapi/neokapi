@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neokapi/neokapi/cli/output"
-	"github.com/neokapi/neokapi/cli/pluginhost"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
+	"github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -36,32 +36,32 @@ func TestResolveModelRef(t *testing.T) {
 	app := appWith(mkPlugin("acme", mkModel("gemma-4-e2b", true), mkModel("gemma-tiny", false)))
 
 	// Primary handle: a bare model id resolves to its plugin.
-	p, a, err := app.resolveModelRef("gemma-4-e2b")
+	p, a, err := app.ResolveModelRef("gemma-4-e2b")
 	require.NoError(t, err)
 	assert.Equal(t, "acme", p)
 	assert.Equal(t, "gemma-4-e2b", a.ID)
 
 	// A non-default model is still addressable by id.
-	_, a, err = app.resolveModelRef("gemma-tiny")
+	_, a, err = app.ResolveModelRef("gemma-tiny")
 	require.NoError(t, err)
 	assert.Equal(t, "gemma-tiny", a.ID)
 
 	// A bare plugin name resolves to that plugin's default model.
-	_, a, err = app.resolveModelRef("acme")
+	_, a, err = app.ResolveModelRef("acme")
 	require.NoError(t, err)
 	assert.Equal(t, "gemma-4-e2b", a.ID)
 
 	// Explicit plugin/model.
-	_, a, err = app.resolveModelRef("acme/gemma-tiny")
+	_, a, err = app.ResolveModelRef("acme/gemma-tiny")
 	require.NoError(t, err)
 	assert.Equal(t, "gemma-tiny", a.ID)
 
 	// Unknown reference.
-	_, _, err = app.resolveModelRef("nope")
+	_, _, err = app.ResolveModelRef("nope")
 	require.ErrorContains(t, err, "no model or plugin")
 
 	// Explicit pair with a wrong model.
-	_, _, err = app.resolveModelRef("acme/nope")
+	_, _, err = app.ResolveModelRef("acme/nope")
 	require.ErrorContains(t, err, "no model")
 }
 
@@ -69,8 +69,8 @@ func TestResolveModelRef(t *testing.T) {
 // output. The models parent gets the persistent output flags the root command
 // supplies in production, so subcommands honor --json.
 func runModelsCmd(app *App, args ...string) (string, error) {
-	root := app.NewModelsCmd()
-	output.AddPersistentFlags(root)
+	root := NewModelsCmd(app)
+	output.AddPersistentFlags(root.PersistentFlags())
 	var buf bytes.Buffer
 	root.SetOut(&buf)
 	root.SetErr(&buf)
@@ -139,8 +139,8 @@ func TestModelsBundledListedButNotPullable(t *testing.T) {
 
 func TestBuildModelRows(t *testing.T) {
 	t.Setenv("KAPI_MODELS_CACHE", t.TempDir())
-	plugins := []pluginModel{
-		{plugin: "sat", asset: mkModel("sat-3l-sm", true)},
+	plugins := []PluginModel{
+		{Plugin: "sat", Asset: mkModel("sat-3l-sm", true)},
 	}
 	installed := []aiprovider.OllamaModelInfo{
 		{Name: "llama3.2:3b", Size: 2000000000}, // a recommended model, installed
@@ -148,7 +148,7 @@ func TestBuildModelRows(t *testing.T) {
 	}
 	providers := aiprovider.Providers()
 
-	rows := buildModelRows(plugins, installed, providers, true, "")
+	rows := BuildModelRows(plugins, installed, providers, true, "")
 
 	// Ollama: recommended picks present; the installed one is marked installed,
 	// the default is flagged, and the extra installed model is included.
@@ -178,7 +178,7 @@ func TestBuildModelRows(t *testing.T) {
 	assert.False(t, sawClaudeCloud, "keyless claude-code must not appear under cloud · needs key")
 
 	// Not detected → no detected rows at all.
-	noDetect := buildModelRows(plugins, installed, providers, false, "")
+	noDetect := BuildModelRows(plugins, installed, providers, false, "")
 	for _, r := range noDetect {
 		assert.NotEqual(t, output.ModelSourceDetected, r.Source)
 	}
@@ -191,7 +191,7 @@ func TestBuildModelRows(t *testing.T) {
 	assert.True(t, sawPlugin, "plugin assets should appear")
 
 	// Filter to one source.
-	only := buildModelRows(plugins, installed, providers, true, output.ModelSourceCloud)
+	only := BuildModelRows(plugins, installed, providers, true, output.ModelSourceCloud)
 	require.NotEmpty(t, only)
 	for _, r := range only {
 		assert.Equal(t, output.ModelSourceCloud, r.Source)
@@ -203,13 +203,13 @@ func TestResolveModelRefAmbiguous(t *testing.T) {
 		mkPlugin("acme", mkModel("shared-id", true)),
 		mkPlugin("other", mkModel("shared-id", true)),
 	)
-	_, _, err := app.resolveModelRef("shared-id")
+	_, _, err := app.ResolveModelRef("shared-id")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "multiple plugins")
 	require.ErrorContains(t, err, "plugin/model")
 
 	// ...but the ambiguity is resolvable by qualifying.
-	p, a, err := app.resolveModelRef("other/shared-id")
+	p, a, err := app.ResolveModelRef("other/shared-id")
 	require.NoError(t, err)
 	assert.Equal(t, "other", p)
 	assert.Equal(t, "shared-id", a.ID)

@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli/pluginhost/registry"
+	"github.com/neokapi/neokapi/host/pluginhost/registry"
 )
 
 func makeTarGz(t *testing.T, name string, content []byte) []byte {

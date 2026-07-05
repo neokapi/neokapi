@@ -4,12 +4,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/neokapi/neokapi/cli"
-	appconfig "github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/host"
+	appconfig "github.com/neokapi/neokapi/host/config"
 )
 
 // Path resolution for the desktop app's default/system locations. The chains
-// themselves live in the shared CLI runtime (cli.ConfigDir,
+// themselves live in the shared CLI runtime (host.ConfigDir,
 // credentials.DefaultPath, config.GlobalConfigFilePath) so the desktop and
 // the kapi CLI derive identical paths; this file only names the desktop's
 // views of them.
@@ -30,9 +30,9 @@ import (
 // os.UserHomeDir() is $HOME; on Linux they follow XDG.
 
 // kapiConfigDir returns the kapi config root (termbases, tm, flows, presets,
-// plugins) — the shared cli.ConfigDir chain.
+// plugins) — the shared host.ConfigDir chain.
 func kapiConfigDir() string {
-	return cli.ConfigDir()
+	return host.ConfigDir()
 }
 
 // desktopConfigDir returns the kapi-desktop config root (settings, recent

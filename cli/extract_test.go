@@ -72,9 +72,9 @@ func extractProjectFixture(t *testing.T, dir string, targetLanguages []model.Loc
 func runExtractCmd(t *testing.T, recipe string, flags ...string) (string, error) {
 	t.Helper()
 	a := newExtractApp(t)
-	cmd := a.NewExtractCmd(ExtractCmdOptions{})
+	cmd := NewExtractCmd(a, ExtractCmdOptions{})
 	// No PersistentPreRun/PostRun is applied by the test harness — we
-	// short-circuit by invoking runExtract directly via Execute.
+	// short-circuit by invoking RunExtract directly via Execute.
 	args := append([]string{"--project", recipe}, flags...)
 	cmd.SetArgs(args)
 	var out bytes.Buffer
@@ -155,7 +155,7 @@ func TestExtractMergeKlzInterchangeRoundTrip(t *testing.T) {
 	// Extract --format klz.
 	ea := newExtractApp(t)
 	ea.TMBackend = tm
-	ecmd := ea.NewExtractCmd(ExtractCmdOptions{})
+	ecmd := NewExtractCmd(ea, ExtractCmdOptions{})
 	var eout bytes.Buffer
 	ecmd.SetOut(&eout)
 	ecmd.SetErr(&eout)
@@ -176,7 +176,7 @@ func TestExtractMergeKlzInterchangeRoundTrip(t *testing.T) {
 	// Merge the interchange .klz back.
 	ma := newExtractApp(t)
 	ma.TMBackend = tm
-	mcmd := ma.NewMergeCmd(MergeCmdOptions{})
+	mcmd := NewMergeCmd(ma, MergeCmdOptions{})
 	var mout bytes.Buffer
 	mcmd.SetOut(&mout)
 	mcmd.SetErr(&mout)

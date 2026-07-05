@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/bowrain/plugin/schema v0.0.0
-	github.com/neokapi/neokapi/cli v0.0.0-00010101000000-000000000000
+	github.com/neokapi/neokapi/host v0.0.0
 	github.com/stretchr/testify v1.11.1
 	github.com/wailsapp/wails/v3 v3.0.0-alpha2.104
 	gopkg.in/yaml.v3 v3.0.1
@@ -70,7 +70,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/in-toto/attestation v1.2.0 // indirect
 	github.com/in-toto/in-toto-golang v0.11.0 // indirect
-	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/itchyny/gojq v0.12.19 // indirect
 	github.com/itchyny/timefmt-go v0.1.8 // indirect
 	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
@@ -101,7 +100,6 @@ require (
 	github.com/sigstore/timestamp-authority/v2 v2.1.2 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
-	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/spf13/viper v1.21.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
@@ -133,14 +131,14 @@ require (
 	google.golang.org/grpc v1.81.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
-	modernc.org/libc v1.72.3 // indirect
+	modernc.org/libc v1.73.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.50.1 // indirect
+	modernc.org/sqlite v1.53.0 // indirect
 )
 
 replace (
 	github.com/neokapi/neokapi => ../../
 	github.com/neokapi/neokapi/bowrain/plugin/schema => ../../bowrain/plugin/schema
-	github.com/neokapi/neokapi/cli => ../../cli
+	github.com/neokapi/neokapi/host => ../../host
 )

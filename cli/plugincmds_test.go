@@ -17,9 +17,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli/pluginhost"
-	pluginreg "github.com/neokapi/neokapi/cli/pluginhost/registry"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
+	"github.com/neokapi/neokapi/host/pluginhost"
+	pluginreg "github.com/neokapi/neokapi/host/pluginhost/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -146,7 +146,7 @@ func withIsolatedXDG(t *testing.T) string {
 // in production). Returns the captured stdout/stderr + the RunE error.
 func runUpdate(t *testing.T, app *App, args ...string) (stdout, stderr bytes.Buffer, err error) {
 	t.Helper()
-	cmd := app.NewPluginCmd()
+	cmd := NewPluginCmd(app)
 	cmd.SetContext(context.Background())
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
@@ -257,7 +257,7 @@ var _ = pluginreg.FetchOrCached
 // non-interactively, capturing output and the RunE error.
 func runPlugins(t *testing.T, app *App, args ...string) (stdout, stderr bytes.Buffer, err error) {
 	t.Helper()
-	cmd := app.NewPluginCmd()
+	cmd := NewPluginCmd(app)
 	cmd.SetContext(context.Background())
 	cmd.SetIn(strings.NewReader(""))
 	cmd.SetOut(&stdout)

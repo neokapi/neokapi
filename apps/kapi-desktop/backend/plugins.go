@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/neokapi/neokapi/cli/pluginhost"
-	pluginhostreg "github.com/neokapi/neokapi/cli/pluginhost/registry"
 	"github.com/neokapi/neokapi/core/asr"
 	"github.com/neokapi/neokapi/core/av"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/core/vision"
+	"github.com/neokapi/neokapi/host/pluginhost"
+	pluginhostreg "github.com/neokapi/neokapi/host/pluginhost/registry"
 )
 
 // formatPluginProviders maps a format the host can't read in-core to the plugin

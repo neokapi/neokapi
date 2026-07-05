@@ -5,153 +5,23 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
+
+	coretools "github.com/neokapi/neokapi/core/tools"
 
 	"github.com/mattn/go-isatty"
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	coretools "github.com/neokapi/neokapi/core/tools"
-	aiprovider "github.com/neokapi/neokapi/providers/ai"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
-
-// allKLF returns true when every positional input path carries the
-// `.klf` extension. Used to decide whether a tool run defaults to
-// in-place output (the KLF writer is locale-additive — accumulates
-// target translations on each block) or the sibling `./out/...`
-// template (every other format).
-func allKLF(paths []string) bool {
-	if len(paths) == 0 {
-		return false
-	}
-	for _, p := range paths {
-		if !strings.EqualFold(filepath.Ext(p), ".klf") {
-			return false
-		}
-	}
-	return true
-}
-
-// hasTag reports whether a tool's freeform Tags include want (e.g.
-// schema.TagL10n). Used to route localization commands to the "Localization:"
-// help group.
-func hasTag(tags []string, want string) bool {
-	return slices.Contains(tags, want)
-}
-
-// CollectorFactories maps tool names to streaming collector factories.
-// Only tools that aggregate results across files need a collector.
-var CollectorFactories = map[string]func() flow.Collector{
-	"word-count":    func() flow.Collector { return coretools.NewStreamingWordCountCollector() },
-	"segment-count": func() flow.Collector { return coretools.NewStreamingSegCountCollector() },
-}
-
-// aiProgressWriter returns a ProgressEvent callback that writes a single
-// rewriting status line to w. Thinking summaries and block counters are
-// shown while running; the line is cleared when the final block completes.
-func aiProgressWriter(w *os.File) func(aiprovider.ProgressEvent) {
-	return func(e aiprovider.ProgressEvent) {
-		if e.Thinking != "" {
-			// Truncate long thinking summaries to fit a terminal line.
-			think := e.Thinking
-			if len(think) > 60 {
-				think = think[:57] + "..."
-			}
-			if e.TotalBlocks > 0 {
-				fmt.Fprintf(w, "\r\033[K  [%d/%d] thinking: %s", e.Block, e.TotalBlocks, think)
-			} else {
-				fmt.Fprintf(w, "\r\033[K  [%d] thinking: %s", e.Block, think)
-			}
-			return
-		}
-		// Block start or done — show/advance the counter. Rendering the start
-		// event (not just done) means the line moves as soon as a slow on-device
-		// generation begins, not only after it completes.
-		if e.TotalBlocks > 0 {
-			fmt.Fprintf(w, "\r\033[K  Translating [%d/%d]", e.Block, e.TotalBlocks)
-		} else {
-			fmt.Fprintf(w, "\r\033[K  Translating [%d]", e.Block)
-		}
-	}
-}
-
-// toolExamples maps tool names to their cobra Example strings. Each entry is a
-// newline-separated list of representative, runnable commands using the bundled
-// playground fixtures (messages.json, app.xliff, page.html, etc.) so they work
-// in the wasm CLI playground with no uploads.
-//
-// AI/MT commands use demo mode (no --provider flag needed in the playground).
-var toolExamples = map[string]string{
-	// ── Analysis ────────────────────────────────────────────────────────
-	"word-count": `  kapi word-count messages.json
-  kapi word-count app.xliff --json`,
-	"char-count": `  kapi char-count messages.json
-  kapi char-count page.html`,
-	"segment-count": `  kapi segment-count messages.json
-  kapi segment-count app.xliff`,
-	"scoping-report": `  kapi scoping-report messages.json
-  kapi scoping-report app.xliff --json`,
-	"repetition-analysis": `  kapi repetition-analysis messages.json
-  kapi repetition-analysis app.xliff`,
-
-	// ── Quality ─────────────────────────────────────────────────────────
-	"qa": `  kapi qa app.xliff --target-lang fr
-  kapi qa app.xliff --target-lang fr --provider anthropic
-  kapi qa app.xliff --target-lang de --json`,
-	"term-check": `  kapi term-check app.xliff --source-lang en --target-lang fr
-  kapi term-check messages.json --source-lang en --target-lang fr`,
-	"inconsistency-check": `  kapi inconsistency-check app.xliff --target-lang fr
-  kapi inconsistency-check app.xliff --target-lang de`,
-	"length-check": `  kapi length-check app.xliff --target-lang fr
-  kapi length-check app.xliff --target-lang ja`,
-	"chars-check": `  kapi chars-check app.xliff --target-lang fr
-  kapi chars-check app.xliff --target-lang zh`,
-	"pattern-check": `  kapi pattern-check app.xliff --target-lang fr
-  kapi pattern-check app.xliff --target-lang de`,
-	"brand-vocab-check": `  kapi brand-vocab-check app.xliff --target-lang fr
-  kapi brand-vocab-check messages.json --target-lang de`,
-
-	// ── Translation ─────────────────────────────────────────────────────
-	"pseudo-translate": `  kapi pseudo-translate messages.json -o messages.pseudo.json
-  kapi pseudo-translate app.xliff -o app.pseudo.xliff --target-lang qps`,
-	"translate": `  kapi translate messages.json --target-lang fr
-  kapi translate app.xliff --target-lang de --provider openai
-  kapi translate app.xliff --target-lang de -o app.de.xliff`,
-	"recycle": `  kapi recycle app.xliff --target-lang fr
-  kapi recycle messages.json --target-lang de`,
-
-	// ── Text Processing ─────────────────────────────────────────────────
-	"search-replace": `  kapi search-replace messages.json --find "foo" --replace "bar"
-  kapi search-replace page.html --find "colour" --replace "color"`,
-	"case-transform": `  kapi case-transform messages.json --mode upper
-  kapi case-transform messages.json --mode lower`,
-	"segmentation": `  kapi segmentation messages.json
-  kapi segmentation app.xliff`,
-
-	// ── AI Quality ───────────────────────────────────────────────────────
-	"review": `  kapi review app.xliff --target-lang fr
-  kapi review messages.json --target-lang de`,
-	"brand-voice-check": `  kapi brand-voice-check messages.json --target-lang fr
-  kapi brand-voice-check app.xliff --target-lang de`,
-
-	// ── AI Analysis ───────────────────────────────────────────────────────
-	"term-extract": `  kapi term-extract messages.json
-  kapi term-extract app.xliff --provider anthropic`,
-}
-
-// bespokeToolCommands names tools that own a dedicated, hand-written top-level
-// command (richer than the generic schema-driven one) and so must be skipped
-// here to avoid a duplicate registration.
-var bespokeToolCommands = map[string]bool{}
 
 // NewToolCommands creates cobra commands from all CLI-visible tools in the
 // ToolRegistry. This replaces the old hardcoded BuiltinToolCommands list —
 // the registry is the single source of truth for tool metadata.
-func (a *App) NewToolCommands() []*cobra.Command {
+func NewToolCommands(a *App) []*cobra.Command {
 	if a.ToolReg == nil {
 		return nil
 	}
@@ -178,11 +48,11 @@ func (a *App) NewToolCommands() []*cobra.Command {
 	var cmds []*cobra.Command
 	for _, entry := range entries {
 		toolName := string(entry.Info.Name)
-		if bespokeToolCommands[toolName] {
-			continue // a dedicated command owns this verb (see bespokeToolCommands)
+		if BespokeToolCommands[toolName] {
+			continue // a dedicated command owns this verb (see BespokeToolCommands)
 		}
 		info := entry.Info
-		toolSchema := entry.Schema
+		ToolSchema := entry.Schema
 		var formatMaps []string
 
 		short := info.Description
@@ -201,7 +71,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 		// translation category has no own group — see schema.CategoryTranslation —
 		// so an untagged MT/translate tool must still land here, not in a
 		// now-undefined "translation" group).
-		if hasTag(info.Tags, schema.TagL10n) || info.Category == schema.CategoryTranslation {
+		if HasTag(info.Tags, schema.TagL10n) || info.Category == schema.CategoryTranslation {
 			groupID = "localization"
 		}
 
@@ -210,7 +80,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 			Aliases: info.Aliases,
 			Short:   short,
 			GroupID: groupID,
-			Example: toolExamples[toolName],
+			Example: ToolExamples[toolName],
 			Args:    cobra.MinimumNArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
 				jsonOut, _ := cmd.Flags().GetBool("json")
@@ -241,7 +111,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 						// Root outputs under DIR using a locale-dir layout
 						// (DIR/{lang}/<file>), mirroring tsc/babel --out-dir.
 						outputTmpl = filepath.Join(outputDir, "{lang}") + string(filepath.Separator)
-					case allKLF(args):
+					case AllKLF(args):
 						// KLF writers are locale-additive: reading and writing
 						// back to the same file accumulates translations, so the
 						// natural default is in-place.
@@ -271,8 +141,8 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				// leverages nothing. Mirrors the termbase glossary injection
 				// below and reuses the flow path's TM opening logic.
 				var tmProvider coretools.TMProvider
-				if toolRequires(toolSchema, "tm") {
-					p, cleanup, terr := a.openToolTM(cmd)
+				if ToolRequires(ToolSchema, "tm") {
+					p, cleanup, terr := a.OpenToolTM(cmd)
 					if terr != nil {
 						return terr
 					}
@@ -284,7 +154,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				// and no AI provider is configured anywhere, walk through the
 				// compact setup wizard inline on a TTY (kapi translate "just
 				// works" on first use). Non-TTY runs keep the keys-only error.
-				if toolRequires(toolSchema, "credentials") {
+				if ToolRequires(ToolSchema, "credentials") {
 					if err := a.EnsureAIProviderInteractive(cmd); err != nil {
 						return err
 					}
@@ -293,19 +163,19 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				// When this run targets the local Ollama provider, make sure the
 				// runtime is up and the model is pulled before processing any
 				// files — one clear up-front step instead of a per-block failure.
-				if err := a.ensureOllamaForTool(cmd, toolSchema); err != nil {
+				if err := a.EnsureOllamaForTool(cmd, ToolSchema); err != nil {
 					return err
 				}
 
 				newTool := func() (tool.Tool, error) {
-					config := ReadAllSchemaFlags(cmd, toolSchema)
+					config := ReadAllSchemaFlags(cmd, ToolSchema)
 					// Tools that require a termbase (e.g. term-check) get the
 					// project's bound glossary injected when no glossary was
 					// supplied programmatically. This makes `kapi term-check
 					// fr.json` enforce the project termbase with no flag.
-					if toolRequires(toolSchema, "termbase") {
+					if ToolRequires(ToolSchema, "termbase") {
 						if _, ok := config["glossary"]; !ok {
-							glossary, gerr := a.resolveProjectGlossary(cmd, effectiveLang)
+							glossary, gerr := a.ResolveProjectGlossary(cmd, effectiveLang)
 							if gerr != nil {
 								return nil, gerr
 							}
@@ -333,7 +203,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 						config["credential"] = credName
 					}
 					if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
-						config["onProgress"] = aiProgressWriter(os.Stderr)
+						config["onProgress"] = AiProgressWriter(os.Stderr)
 					}
 					t, terr := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, effectiveLang)
 					if terr != nil {
@@ -409,9 +279,9 @@ func (a *App) NewToolCommands() []*cobra.Command {
 			cmd.Flags().StringP("output", "o", "", "output path template (variables: {dir}, {name}, {ext}, {lang})")
 			cmd.Flags().String("output-dir", "", "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)")
 		}
-		RegisterSchemaFlags(cmd, toolSchema)
-		if toolSchema.ToolMeta != nil {
-			for _, req := range toolSchema.ToolMeta.Requires {
+		RegisterSchemaFlags(cmd, ToolSchema)
+		if ToolSchema.ToolMeta != nil {
+			for _, req := range ToolSchema.ToolMeta.Requires {
 				switch req {
 				case "credentials":
 					cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")

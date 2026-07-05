@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/cli"
-	appconfig "github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host"
+	appconfig "github.com/neokapi/neokapi/host/config"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -180,7 +180,7 @@ func (a *App) AINeedsModelChoice(tabID, flowName string) bool {
 		if flowName != "" {
 			return false
 		}
-		spec = cli.DefaultConvergeFlowSpec()
+		spec = host.DefaultConvergeFlowSpec()
 	}
 	info := flow.BuildToolInfoMap(a.toolReg)
 	usesAI := false

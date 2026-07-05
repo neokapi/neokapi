@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli/pluginhost"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/project/projecttest"
+	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -224,7 +224,7 @@ func TestConfirm_AcceptsYesAndEmpty(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := confirm(strings.NewReader(tc.in), discardWriter{}, "ok? ")
+			got, err := Confirm(strings.NewReader(tc.in), discardWriter{}, "ok? ")
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})

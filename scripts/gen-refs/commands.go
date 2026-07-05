@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/cli"
-	cliconfig "github.com/neokapi/neokapi/cli/config"
+	cliconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -146,53 +146,53 @@ func buildKapiRoot() (*cobra.Command, map[string]bool) {
 translate with AI, and run quality checks across a wide range of file types.`,
 	}
 
-	app.AddPersistentFlags(root)
-	app.AddCommandGroups(root)
+	cli.AddPersistentFlags(app, root)
+	cli.AddCommandGroups(app, root)
 
 	// Provide a no-op config so PersistentPreRun-style flag lookups don't
 	// panic; not called during metadata extraction.
 	app.Config = cliconfig.NewAppConfig()
 
 	// Porcelain (#1078 C1): `kapi up` reconciles the project toward its gates.
-	root.AddCommand(app.NewUpCmd())
+	root.AddCommand(cli.NewUpCmd(app))
 
 	// Primary commands.
-	runCmd := app.NewRunCmd(cli.RunCmdOptions{})
+	runCmd := cli.NewRunCmd(app, cli.RunCmdOptions{})
 	runCmd.GroupID = "advanced"
 	root.AddCommand(runCmd)
-	root.AddCommand(app.NewExtractCmd(cli.ExtractCmdOptions{}))
-	root.AddCommand(app.NewMergeCmd(cli.MergeCmdOptions{}))
-	root.AddCommand(app.NewVerifyCmd())
-	root.AddCommand(app.NewInitCmd())
+	root.AddCommand(cli.NewExtractCmd(app, cli.ExtractCmdOptions{}))
+	root.AddCommand(cli.NewMergeCmd(app, cli.MergeCmdOptions{}))
+	root.AddCommand(cli.NewVerifyCmd(app))
+	root.AddCommand(cli.NewInitCmd(app))
 
 	// Management commands.
-	root.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
-	root.AddCommand(app.NewToolsCmd())
-	root.AddCommand(app.NewFormatsCmd())
-	root.AddCommand(app.NewPluginCmd())
-	root.AddCommand(app.NewModelsCmd())
-	root.AddCommand(app.NewRegistryCmd())
-	root.AddCommand(app.NewPresetsCmd())
-	root.AddCommand(app.NewTermbaseCmd())
-	root.AddCommand(app.NewTMCmd())
-	root.AddCommand(app.NewBrandCmd())
-	root.AddCommand(app.NewCredentialsCmd())
-	root.AddCommand(app.NewVersionCmd("kapi"))
-	root.AddCommand(app.NewCompletionCmd())
+	root.AddCommand(cli.NewFlowsCmd(app, cli.FlowCmdOptions{}))
+	root.AddCommand(cli.NewToolsCmd(app))
+	root.AddCommand(cli.NewFormatsCmd(app))
+	root.AddCommand(cli.NewPluginCmd(app))
+	root.AddCommand(cli.NewModelsCmd(app))
+	root.AddCommand(cli.NewRegistryCmd(app))
+	root.AddCommand(cli.NewPresetsCmd(app))
+	root.AddCommand(cli.NewTermbaseCmd(app))
+	root.AddCommand(cli.NewTMCmd(app))
+	root.AddCommand(cli.NewBrandCmd(app))
+	root.AddCommand(cli.NewCredentialsCmd(app))
+	root.AddCommand(cli.NewVersionCmd(app, "kapi"))
+	root.AddCommand(cli.NewCompletionCmd(app))
 
 	// Top-level tool commands (pseudo-translate, word-count, …). These are all
 	// present in the wasm build; AI/MT ones run there via the demo provider.
 	toolNames := map[string]bool{}
-	for _, c := range app.NewToolCommands() {
+	for _, c := range cli.NewToolCommands(app) {
 		toolNames[c.Name()] = true
 		root.AddCommand(c)
 	}
 
-	mcpCmd := app.NewMCPCmd("kapi")
+	mcpCmd := cli.NewMCPCmd(app, "kapi")
 	mcpCmd.GroupID = "advanced"
 	root.AddCommand(mcpCmd)
 
-	engineCmd := app.NewEngineCmd()
+	engineCmd := cli.NewEngineCmd(app)
 	engineCmd.GroupID = "advanced"
 	root.AddCommand(engineCmd)
 

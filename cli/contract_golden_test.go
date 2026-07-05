@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -210,7 +210,7 @@ func TestErrorCodeString(t *testing.T) {
 func newTestRootCmd(t *testing.T, jsonMode bool) *cobra.Command {
 	t.Helper()
 	root := &cobra.Command{Use: "kapi-test", SilenceUsage: true, SilenceErrors: true}
-	output.AddPersistentFlags(root)
+	output.AddPersistentFlags(root.PersistentFlags())
 	sub := &cobra.Command{
 		Use: "gate-fail",
 		RunE: func(cmd *cobra.Command, args []string) error {

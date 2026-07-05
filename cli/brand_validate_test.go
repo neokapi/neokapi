@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/brand/packs"
+	"github.com/neokapi/neokapi/host/output"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +20,7 @@ import (
 func runBrandValidate(t *testing.T, path string) (output.BrandValidateOutput, error) {
 	t.Helper()
 	a := &App{}
-	cmd := a.newBrandValidateCmd()
+	cmd := newBrandValidateCmd(a)
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 	var buf bytes.Buffer
@@ -81,7 +81,7 @@ vocabulary:
 
 func TestBrandValidate_TemplateIsValid(t *testing.T) {
 	// The scaffold emitted by `kapi brand new` must validate cleanly.
-	out, runErr := runBrandValidate(t, writeTempProfile(t, brandProfileTemplate))
+	out, runErr := runBrandValidate(t, writeTempProfile(t, BrandProfileTemplate))
 	require.NoError(t, runErr)
 	assert.True(t, out.Valid, "brand new template must validate: %+v", out.Errors)
 }
@@ -162,7 +162,7 @@ func TestBrandValidate_JSONShape(t *testing.T) {
 	// The --json result is exactly {valid, errors:[...]} (errors present even when
 	// valid), so CI can rely on the shape.
 	a := &App{}
-	cmd := a.newBrandValidateCmd()
+	cmd := newBrandValidateCmd(a)
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 	var buf bytes.Buffer

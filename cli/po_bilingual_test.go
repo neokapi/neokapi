@@ -41,10 +41,10 @@ func TestPO_WriteAndParseRoundTrip(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, writePOExtract(f, "fr-FR", "batch-xyz", "src/en/app.json", "sha256:abc", blocks))
+	require.NoError(t, WritePOExtract(f, "fr-FR", "batch-xyz", "src/en/app.json", "sha256:abc", blocks))
 	require.NoError(t, f.Close())
 
-	parsed, err := readPOForMerge(out)
+	parsed, err := ReadPOForMerge(out)
 	require.NoError(t, err)
 	assert.Equal(t, "batch-xyz", parsed.BatchID)
 	assert.Equal(t, "src/en/app.json", parsed.SourceFile)
@@ -83,7 +83,7 @@ func TestPO_UnquoteHandlesEscapes(t *testing.T) {
 	}
 	for in, want := range cases {
 		t.Run(in, func(t *testing.T) {
-			assert.Equal(t, want, poUnquote(in))
+			assert.Equal(t, want, POUnquote(in))
 		})
 	}
 }

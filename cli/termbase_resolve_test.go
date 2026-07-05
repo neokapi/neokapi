@@ -1,11 +1,11 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,8 +13,8 @@ import (
 // newTermbaseTestCmd returns a bare command carrying the resource flags the
 // termbase subcommands share (--name/--file/--local), for exercising path
 // resolution without running a full command.
-func newTermbaseTestCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "tb"}
+func newTermbaseTestCmd() *EnvCommand {
+	cmd := NewEnvCommand(context.Background(), "tb")
 	AddResourceFlags(cmd)
 	return cmd
 }
@@ -47,7 +47,7 @@ func TestResolveTermbaseCmdPath_ProjectAware(t *testing.T) {
 	t.Chdir(root)
 
 	a := &App{}
-	got, err := a.resolveTermbaseCmdPath(newTermbaseTestCmd())
+	got, err := a.ResolveTermbaseCmdPath(newTermbaseTestCmd())
 	require.NoError(t, err)
 	assert.Equal(t, bound, got, "no flag inside a project must resolve the bound termbase, not ./termbase.db")
 }
@@ -61,14 +61,14 @@ func TestResolveTermbaseCmdPath_ExplicitFlagWins(t *testing.T) {
 
 	localCmd := newTermbaseTestCmd()
 	require.NoError(t, localCmd.Flags().Set("local", "true"))
-	got, err := a.resolveTermbaseCmdPath(localCmd)
+	got, err := a.ResolveTermbaseCmdPath(localCmd)
 	require.NoError(t, err)
 	assert.Equal(t, "termbase.db", got, "--local must mean ./termbase.db, not the project termbase")
 
 	fileCmd := newTermbaseTestCmd()
 	explicit := filepath.Join(root, "custom.db")
 	require.NoError(t, fileCmd.Flags().Set("file", explicit))
-	got, err = a.resolveTermbaseCmdPath(fileCmd)
+	got, err = a.ResolveTermbaseCmdPath(fileCmd)
 	require.NoError(t, err)
 	assert.Equal(t, explicit, got, "--file must win over the project termbase")
 }
@@ -78,7 +78,7 @@ func TestResolveTermbaseCmdPath_ExplicitFlagWins(t *testing.T) {
 func TestResolveTermbaseCmdPath_NoProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	a := &App{}
-	got, err := a.resolveTermbaseCmdPath(newTermbaseTestCmd())
+	got, err := a.ResolveTermbaseCmdPath(newTermbaseTestCmd())
 	require.NoError(t, err)
 	assert.Equal(t, "termbase.db", got, "outside a project, default to ./termbase.db")
 }

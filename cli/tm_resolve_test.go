@@ -1,13 +1,13 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,16 +15,16 @@ import (
 // newTMTestCmd returns a bare command carrying the resource flags the tm
 // subcommands share (--name/--file/--local), for exercising path resolution
 // without running a full command.
-func newTMTestCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "tm"}
+func newTMTestCmd() *EnvCommand {
+	cmd := NewEnvCommand(context.Background(), "tm")
 	AddResourceFlags(cmd)
 	return cmd
 }
 
 // newTMLeverageTestCmd returns a bare command carrying the --tm flag that the
-// recycle tool command registers, for exercising openToolTM resolution.
-func newTMLeverageTestCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "recycle"}
+// recycle tool command registers, for exercising OpenToolTM resolution.
+func newTMLeverageTestCmd() *EnvCommand {
+	cmd := NewEnvCommand(context.Background(), "recycle")
 	cmd.Flags().String("tm", "", "named TM or path")
 	return cmd
 }
@@ -56,7 +56,7 @@ func TestResolveTMCmdPath_ProjectAware(t *testing.T) {
 	t.Chdir(root)
 
 	a := &App{}
-	got, err := a.resolveTMCmdPath(newTMTestCmd())
+	got, err := a.ResolveTMCmdPath(newTMTestCmd())
 	require.NoError(t, err)
 	assert.Equal(t, tmPath, got, "no flag inside a project must resolve .kapi/tm.db, not ./tm.db")
 }
@@ -70,14 +70,14 @@ func TestResolveTMCmdPath_ExplicitFlagWins(t *testing.T) {
 
 	localCmd := newTMTestCmd()
 	require.NoError(t, localCmd.Flags().Set("local", "true"))
-	got, err := a.resolveTMCmdPath(localCmd)
+	got, err := a.ResolveTMCmdPath(localCmd)
 	require.NoError(t, err)
 	assert.Equal(t, "tm.db", got, "--local must mean ./tm.db, not the project TM")
 
 	fileCmd := newTMTestCmd()
 	explicit := filepath.Join(root, "custom.db")
 	require.NoError(t, fileCmd.Flags().Set("file", explicit))
-	got, err = a.resolveTMCmdPath(fileCmd)
+	got, err = a.ResolveTMCmdPath(fileCmd)
 	require.NoError(t, err)
 	assert.Equal(t, explicit, got, "--file must win over the project TM")
 }
@@ -87,7 +87,7 @@ func TestResolveTMCmdPath_ExplicitFlagWins(t *testing.T) {
 func TestResolveTMCmdPath_NoProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	a := &App{}
-	got, err := a.resolveTMCmdPath(newTMTestCmd())
+	got, err := a.ResolveTMCmdPath(newTMTestCmd())
 	require.NoError(t, err)
 	assert.Equal(t, "tm.db", got, "outside a project, default to ./tm.db")
 }
@@ -112,7 +112,7 @@ func TestOpenToolTM_LeveragesProjectTM(t *testing.T) {
 
 	t.Chdir(root)
 	a := &App{}
-	provider, cleanup, err := a.openToolTM(newTMLeverageTestCmd())
+	provider, cleanup, err := a.OpenToolTM(newTMLeverageTestCmd())
 	require.NoError(t, err)
 	require.NotNil(t, provider, "inside a project the provider must be the project TM, not nil/Null")
 	defer cleanup()
@@ -123,12 +123,12 @@ func TestOpenToolTM_LeveragesProjectTM(t *testing.T) {
 }
 
 // TestOpenToolTM_NoProjectNoFlag asserts that outside a project with no --tm
-// flag, openToolTM returns no provider (a noop cleanup) so the tool falls back
+// flag, OpenToolTM returns no provider (a noop cleanup) so the tool falls back
 // to today's no-match behavior rather than erroring.
 func TestOpenToolTM_NoProjectNoFlag(t *testing.T) {
 	t.Chdir(t.TempDir())
 	a := &App{}
-	provider, cleanup, err := a.openToolTM(newTMLeverageTestCmd())
+	provider, cleanup, err := a.OpenToolTM(newTMLeverageTestCmd())
 	require.NoError(t, err)
 	assert.Nil(t, provider, "no project + no --tm flag means no provider")
 	require.NotNil(t, cleanup)
@@ -154,7 +154,7 @@ func TestOpenToolTM_ExplicitFileFlag(t *testing.T) {
 	cmd := newTMLeverageTestCmd()
 	require.NoError(t, cmd.Flags().Set("tm", explicit))
 	a := &App{}
-	provider, cleanup, err := a.openToolTM(cmd)
+	provider, cleanup, err := a.OpenToolTM(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, provider)
 	defer cleanup()

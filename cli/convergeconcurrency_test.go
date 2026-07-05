@@ -13,7 +13,7 @@ import (
 )
 
 // TestUp_SingleFile_ConcurrentLocales: a single-content-file project (both
-// locale workers drive runSingleFile over the SAME source, each with a
+// locale workers drive RunSingleFile over the SAME source, each with a
 // whole-run block-store session) converges concurrently — the desktop's
 // coverage-project shape.
 func TestUp_SingleFile_ConcurrentLocales(t *testing.T) {

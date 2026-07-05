@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/host/config"
 )
 
 // NewConfigCmd creates the `kapi config` command for reading and writing kapi's
@@ -17,7 +17,7 @@ import (
 //	kapi config set ai.provider ollama
 //	kapi config set ai.model llama3.2:3b
 //	kapi ai-translate input.json --target-lang fr   # uses the default
-func (a *App) NewConfigCmd() *cobra.Command {
+func NewConfigCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "config",
 		Short:   "Get or set kapi configuration",
@@ -35,11 +35,11 @@ func (a *App) NewConfigCmd() *cobra.Command {
 			"  kapi config get ai.provider\n" +
 			"  kapi config list",
 	}
-	cmd.AddCommand(a.newConfigGetCmd(), a.newConfigSetCmd(), a.newConfigListCmd(), a.newConfigPathCmd())
+	cmd.AddCommand(newConfigGetCmd(a), newConfigSetCmd(a), newConfigListCmd(a), newConfigPathCmd(a))
 	return cmd
 }
 
-func (a *App) newConfigGetCmd() *cobra.Command {
+func newConfigGetCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <key>",
 		Short: "Print a single config value",
@@ -54,7 +54,7 @@ func (a *App) newConfigGetCmd() *cobra.Command {
 	}
 }
 
-func (a *App) newConfigSetCmd() *cobra.Command {
+func newConfigSetCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "set <key> <value>",
 		Short: "Set a config value (persists to the global config file)",
@@ -69,7 +69,7 @@ func (a *App) newConfigSetCmd() *cobra.Command {
 	}
 }
 
-func (a *App) newConfigListCmd() *cobra.Command {
+func newConfigListCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List all configured values",
@@ -88,7 +88,7 @@ func (a *App) newConfigListCmd() *cobra.Command {
 	}
 }
 
-func (a *App) newConfigPathCmd() *cobra.Command {
+func newConfigPathCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "path",
 		Short: "Print the global config file path",
