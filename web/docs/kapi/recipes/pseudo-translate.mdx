@@ -3,77 +3,57 @@ id: pseudo-translate
 title: "Preview before you ship"
 sidebar_label: "Pseudo-translate"
 sidebar_position: 3
-description: "Generate locale-shaped pseudo-translations with kapi to surface UI truncation and missing-string bugs before real translation arrives."
+description: "Generate locale-shaped pseudo-translations to surface UI truncation and missing-string bugs before real translation arrives. No API key, no cost."
 hide_table_of_contents: true
 ---
 
-import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
 import { PseudoTranslateWidget } from "@site/src/components/Lab";
 
 # Preview before you ship
 
-:::note Runs anywhere
-No project needed — `kapi pseudo-translate` runs ad-hoc on any source catalogue.
-:::
+**Goal:** see how your interface holds up in another language before a single real translation exists. kapi fills every string with a longer, accented stand-in — load it into your UI and the labels that clip, the buttons that overflow, and the hard-coded strings (the ones that stay plain) are immediately visible. No API key, no waiting, no cost. Output defaults to the `qps` pseudo-locale, so no real target language is needed.
 
-**Goal:** see how your interface holds up in another language before a single
-real translation exists. kapi fills every string with a longer, accented stand-in,
-so the moment your UI re-renders you can spot the labels that clip, the buttons
-that overflow, and any text that stayed plain — a sign your code hard-coded it
-instead of pulling it from the catalogue. No API key, no waiting, no cost.
-
-## Steps
-
-1. Run `kapi pseudo-translate` on your source catalogue.
-2. Load the pseudo-translated file into your UI.
-3. Look for clipped labels, overflowing buttons, and any string that _didn't_
-   get accented — an un-accented string is one your code hard-coded instead of
-   pulling from the catalogue.
-
-Pseudo-translation defaults to the **`qps`** pseudo-locale (the BCP-47
-private-use locale reserved for pseudo-translation), so you don't need a real
-target language.
-
-## Try it
-
-Drop a file (or pick the JSON or Word sample) and kapi runs `pseudo-translate`
-on it right here in your browser — no install, no API key, no server. Every value
-comes back accented and wrapped in markers; any string that stays plain is one
-your code hard-coded instead of pulling from the catalogue.
+Try it right here — drop a file (or pick the JSON or Word sample) and kapi runs `pseudo-translate` in your browser:
 
 <PseudoTranslateWidget />
 
-Each value is bracketed with markers and expanded with diacritics. Tune the
-shape with `--prefix`, `--suffix`, and `--expansion-percent` (extra padding to
-simulate how much longer real translations tend to run).
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
 
-### From the CLI
+Pseudo-translation is a **quick tool** — no project needed:
 
-For scripting and CI, the same step is one command — the output path is just a
-name you choose with `-o`:
+1. Open **Toolbox**, pick the pseudo-translate tool, and choose your source catalog.
+2. Adjust the shape in the config form — prefix/suffix markers and expansion padding to simulate how much longer real translations run.
+3. Run it and load the output file into your UI; anything un-accented was hard-coded instead of pulled from the catalog.
+
+In a project, add `qps` as a target locale and pseudo-translation rides the normal flow — output lands on the language path like any locale.
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+Fold it into the layout question you actually have:
+
+> Pseudo-translate our locale catalog and check which strings exceed 40 characters after expansion.
+
+The assistant runs the tool, then sizes the result (`kapi check --max-chars`, `kapi stats`) and reports the strings likely to clip — a layout-risk review, not just a file transform.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+One command; the output path is a name you choose:
 
 ```bash
 kapi pseudo-translate messages.json -o messages.pseudo.json
 ```
 
-<KapiGuidedEmbed id="kapi-pseudo-translate" />
+Tune with `--prefix`, `--suffix`, and `--expansion-percent` — the full flags are in the [`pseudo-translate` reference](/reference/commands/pseudo-translate). In a project, run it with no file argument to cover the recipe's declared content, or as the gap-filler step after TM leverage — see [Reuse what you've translated](/kapi/recipes/pre-translate-with-tm).
 
-> The interactive embed and the recorded video both come from
-> [`walkthroughs/kapi-pseudo-translate.scene.yaml`](https://github.com/neokapi/neokapi/blob/main/web/walkthroughs/kapi-pseudo-translate.scene.yaml).
-> Change the scene spec and regenerate; don't edit the generated output by hand.
-
-## In a project
-
-In a `.kapi` project, pseudo-translation runs against the recipe's declared
-content and locales — `kapi pseudo-translate` with no file argument, or as a step
-in a flow you run with `kapi run`. The output binding follows the project (the
-store, materialized with `kapi merge`) instead of `-o`. See
-[Create your first project](/kapi/get-started/first-project).
+</TabItem>
+</Tabs>
 
 ## Next
 
-- [`kapi pseudo-translate`](/reference/commands/pseudo-translate) — full command
-  reference, including `--prefix`, `--suffix`, and `--expansion-percent`.
-- For broader checks, see [Quality checks](/framework/checks/qa-checks).
-- To run pseudo-translation as the gap-filler after a TM-leverage step, see
-  [Pre-translate with TM + termbase](/kapi/recipes/pre-translate-with-tm).
+- [Reuse what you've translated](/kapi/recipes/pre-translate-with-tm) — pseudo-translation as the visible-gap step.
+- [Quality checks](/framework/checks/qa-checks) — the broader check families.

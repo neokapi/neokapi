@@ -40,6 +40,7 @@ const LazyBlockPreview = React.lazy(async () => {
   const { useCuratedRuntime } = await import("./useCuratedRuntime");
   const { ensureSample, resolveInCwd } = await import("./seed");
   const { CodeView } = await import("@neokapi/ui-primitives/preview");
+  const { default: RunGate } = await import("@neokapi/kapi-lab/RunGate");
   type PreviewResult = import("./useCuratedRuntime").PreviewResult;
   type KapiRuntime = import("./useCuratedRuntime").KapiRuntime;
 
@@ -98,7 +99,7 @@ const LazyBlockPreview = React.lazy(async () => {
   }
 
   function BlockPreviewInner({ sample, title, caption }: BlockPreviewProps): React.ReactElement {
-    const { runtime, error, cold, armed, arm } = useCuratedRuntime();
+    const { runtime, cold, gate } = useCuratedRuntime();
     const [data, setData] = React.useState<PreviewResult | null>(null);
     const [resolvedPath, setResolvedPath] = React.useState<string>("");
     const [seedError, setSeedError] = React.useState<string>("");
@@ -143,22 +144,13 @@ const LazyBlockPreview = React.lazy(async () => {
           <div className="kapi-cur-body">
             {caption && <p className="kapi-cur-meta">{caption}</p>}
 
-            {(error || seedError) && (
-              <p className="kapi-cur-error">Could not read the file: {error || seedError}</p>
-            )}
+            {seedError && <p className="kapi-cur-error">Could not read the file: {seedError}</p>}
 
-            {!error && !seedError && !armed && (
-              <div className="kapi-cur-run">
-                <button type="button" className="kapi-cur-btn kapi-cur-btn--primary" onClick={arm}>
-                  ▶ Read with kapi
-                </button>
-                <p className="kapi-cur-meta">
-                  Parses {fileName} with the real engine. Nothing loads until you press it.
-                </p>
-              </div>
-            )}
+            {/* The shared activation gate (compact): idle → Run press → engine
+                boot progress → error/Retry. Nothing is fetched until pressed. */}
+            {!seedError && !runtime && <RunGate compact gate={gate} label="Read with kapi" />}
 
-            {!error && !seedError && armed && !data && (
+            {!seedError && runtime && !data && (
               <div className="kapi-cur-loading">
                 <span className="kapi-cur-spinner" aria-hidden="true" />
                 <span>

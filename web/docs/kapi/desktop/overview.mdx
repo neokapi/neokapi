@@ -18,12 +18,13 @@ terminology and translation-memory explorer, and the plugin manager. The kapi
 
 ## Features
 
-- **Project dashboard** — Open to your projects and pick up where you left off. Each project home shows its languages, content collections, and per-locale translation status, with flows a click from running.
+- **Project dashboard** — Open to your projects and pick up where you left off. Each project home shows its languages, content collections, and each locale's standing against its ship gate, with **Bring up to date** a click away — and **Plan…** beside it, a pre-flight dialog showing the pending work, TM leverage, and a token estimate before anything runs (the desktop form of `kapi up --plan`).
+- **Review surface** — Work the queue of translations awaiting a person: inspect source and target with findings, edit, then approve, reject, or sign off — keyboard-first, with an optional AI pre-review to triage the queue. See [Review & approve](/kapi/recipes/review-and-approve).
 - **Flow editor** — Build multi-tool pipelines visually. Chain AI translation, quality checks, pseudo-translation, and more into reusable flows saved in the project.
 - **Flow runner** — Execute a project's flows with live progress visualization: per-file status, node highlighting, and timing. Runs use the recipe's languages and content, so there are no flags to repeat.
 - **Quick tools (ad-hoc)** — For one-offs, run an individual tool or flow on a loose file with dynamic configuration forms generated from tool schemas — no project required.
 - **Plugin manager** — Browse the plugin registry, install, update, and manage plugins from a UI.
-- **Credential vault** — Store AI provider API keys securely in your OS keychain.
+- **Connect your AI** — On first open, a card offers the AI it detects — a Claude Code sign-in ([uses your Claude subscription](/kapi/get-started/use-with-claude#let-kapi-run-claude)), a local Ollama model — one click; API keys go in the credential vault, stored in your OS keychain.
 - **Project files** — The `.kapi` recipe is a portable file you can share via git or open with double-click.
 
 ## Install
@@ -39,38 +40,22 @@ For the Windows installer and the macOS DMG / Linux tarball builds, see
 
 ## Your first project
 
-The [guided tour](/kapi/desktop/tour) shows each surface in motion; here is the
-path through them when you start from nothing. Everything is configured visually —
-there is no YAML to write by hand.
-
-1. **Create the project.** Launch Kapi Desktop and click **New Project**. Give
-   it a name, set the **source language** (e.g. `en-US`), and add the **target
-   languages** you translate into (e.g. `fr-FR`, `de-DE`). Naming it is the only
-   required step.
-2. **Add content.** In the **Content** view, add a pattern that points at your
-   source files — for example `src/locales/en/*.json`. Kapi lists the files it
-   matches and the format it detected for each, grouped into a named collection.
-3. **Add a provider key.** In **Settings → Providers** (or **Credentials**),
-   add an AI provider and paste your API key. Keys are stored in your OS
-   keychain, never in the project file.
-4. **Compose a flow.** In **Flows**, create a flow and add the steps you need —
-   an AI translation, optionally followed by a quality or terminology check.
-   Each flow is a named pipeline saved alongside the project.
-5. **Run it.** Select the flow, pick input files and a target language, and
-   click **Run**. You'll see per-file progress, node highlighting, timing, and
-   the output file locations.
-6. **Install plugins (optional).** In **Plugins**, browse the registry and
-   install what your content needs — the **kapi-sat** segmenter, the
-   **kapi-pdfium** PDF reader, the **kapi-vision** OCR engine, or the
-   **kapi-asr** transcriber; the formats and tools a plugin adds appear
-   automatically.
+[Your first project](/kapi/get-started/first-project) walks the create → add
+content → bring up to date → review path step by step; the
+[guided tour](/kapi/desktop/tour) shows each surface in motion. The shape of the
+work here: the project home is one surface — content collections plus each
+locale's standing against its ship gate — **Bring up to date** runs the default
+flow until every gated scope ships or parks, and the **Review** queue takes
+what parked. Provider keys live in **Settings** (stored in your OS keychain,
+never in the project file); flows are composed in the **Toolbox**'s Flows tab;
+plugins install from the **Plugins** registry.
 
 Everything you configure is written to a portable `<name>.kapi` recipe file.
 Commit it to git to share with your team, reopen it in Kapi Desktop, or run it
 from the command line:
 
 ```bash
-kapi run translate -p myproject.kapi
+kapi up -p myproject.kapi
 ```
 
 ## Next Steps

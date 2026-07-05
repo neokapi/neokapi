@@ -288,9 +288,25 @@ const filesHeadingValidTarget: Run[] = [
     },
   },
   { text: "(" },
-  { ph: { id: "2", type: "jsx:var", subType: "number", data: "{count}", equiv: "count" } },
+  {
+    ph: {
+      id: "2",
+      type: "jsx:var",
+      subType: "number",
+      data: "{count}",
+      equiv: "count",
+    },
+  },
   { text: " trouvés)" },
-  { pcClose: { id: "1", type: "jsx:element", subType: "span", data: "</span>", equiv: "muted" } },
+  {
+    pcClose: {
+      id: "1",
+      type: "jsx:element",
+      subType: "span",
+      data: "</span>",
+      equiv: "muted",
+    },
+  },
 ];
 // Drops the required `count` variable.
 const filesHeadingMissingTarget: Run[] = [
@@ -304,7 +320,15 @@ const filesHeadingMissingTarget: Run[] = [
     },
   },
   { text: "(aucun)" },
-  { pcClose: { id: "1", type: "jsx:element", subType: "span", data: "</span>", equiv: "muted" } },
+  {
+    pcClose: {
+      id: "1",
+      type: "jsx:element",
+      subType: "span",
+      data: "</span>",
+      equiv: "muted",
+    },
+  },
 ];
 // Introduces a placeholder the source never declared.
 const filesHeadingExtraTarget: Run[] = [
@@ -314,7 +338,15 @@ const filesHeadingExtraTarget: Run[] = [
 // A tag-chip target that keeps only the required `label`, dropping both
 // optional nodes — legitimate.
 const tagChipOptionalTarget: Run[] = [
-  { ph: { id: "2", type: "jsx:var", subType: "string", data: "{label}", equiv: "label" } },
+  {
+    ph: {
+      id: "2",
+      type: "jsx:var",
+      subType: "string",
+      data: "{label}",
+      equiv: "label",
+    },
+  },
 ];
 
 // A block with a run carrying two discriminators — the wire decoder must
@@ -326,7 +358,13 @@ const malformedBlock = {
   type: "jsx:element",
   source: [{ text: "a", ph: { id: "1", type: "jsx:var", data: "{x}", equiv: "x" } }],
   placeholders: [],
-  properties: { file: "x", line: 1, component: "X", jsxPath: "X", element: "p" },
+  properties: {
+    file: "x",
+    line: 1,
+    component: "X",
+    jsxPath: "X",
+    element: "p",
+  },
 };
 
 // An unclosed paired code (pcOpen with no pcClose).
@@ -336,11 +374,25 @@ const unclosedBlock: Block = {
   translatable: true,
   type: "jsx:element",
   source: [
-    { pcOpen: { id: "1", type: "jsx:element", subType: "b", data: "<b>", equiv: "b" } },
+    {
+      pcOpen: {
+        id: "1",
+        type: "jsx:element",
+        subType: "b",
+        data: "<b>",
+        equiv: "b",
+      },
+    },
     { text: "bold" },
   ],
   placeholders: [{ name: "b", kind: "element", sourceExpr: "<b>" }],
-  properties: { file: "x", line: 1, component: "X", jsxPath: "X", element: "p" },
+  properties: {
+    file: "x",
+    line: 1,
+    component: "X",
+    jsxPath: "X",
+    element: "p",
+  },
 };
 const unmatchedCloseBlock: Block = {
   id: "unmatched",
@@ -349,7 +401,13 @@ const unmatchedCloseBlock: Block = {
   type: "jsx:element",
   source: [{ pcClose: { id: "1", type: "jsx:element", subType: "b", data: "</b>" } }],
   placeholders: [],
-  properties: { file: "x", line: 1, component: "X", jsxPath: "X", element: "p" },
+  properties: {
+    file: "x",
+    line: 1,
+    component: "X",
+    jsxPath: "X",
+    element: "p",
+  },
 };
 const unknownPlaceholderBlock: Block = {
   id: "unknown-ph",
@@ -358,7 +416,13 @@ const unknownPlaceholderBlock: Block = {
   type: "jsx:element",
   source: [{ ph: { id: "1", type: "jsx:var", data: "{x}", equiv: "undeclared" } }],
   placeholders: [],
-  properties: { file: "x", line: 1, component: "X", jsxPath: "X", element: "p" },
+  properties: {
+    file: "x",
+    line: 1,
+    component: "X",
+    jsxPath: "X",
+    element: "p",
+  },
 };
 
 function badEnvelope(mutate: (f: File) => void): string {
@@ -460,8 +524,20 @@ const CASES: ConfCase[] = [
     description: "A run anchor resolves to the run at the path with the matching id.",
     category: "anchor",
     expected: "ok:run:2",
-    runGo: (rt) => goAnchor(rt, tagChip, { kind: "run", block: "tag-chip", path: [2], runId: "2" }),
-    runTs: () => tsAnchor(tagChip, { kind: "run", block: "tag-chip", path: [2], runId: "2" }),
+    runGo: (rt) =>
+      goAnchor(rt, tagChip, {
+        kind: "run",
+        block: "tag-chip",
+        path: [2],
+        runId: "2",
+      }),
+    runTs: () =>
+      tsAnchor(tagChip, {
+        kind: "run",
+        block: "tag-chip",
+        path: [2],
+        runId: "2",
+      }),
   },
   {
     id: "anc-range",
@@ -514,8 +590,19 @@ const CASES: ConfCase[] = [
     category: "anchor",
     expected: "fail:run-id-mismatch",
     runGo: (rt) =>
-      goAnchor(rt, tagChip, { kind: "run", block: "tag-chip", path: [2], runId: "99" }),
-    runTs: () => tsAnchor(tagChip, { kind: "run", block: "tag-chip", path: [2], runId: "99" }),
+      goAnchor(rt, tagChip, {
+        kind: "run",
+        block: "tag-chip",
+        path: [2],
+        runId: "99",
+      }),
+    runTs: () =>
+      tsAnchor(tagChip, {
+        kind: "run",
+        block: "tag-chip",
+        path: [2],
+        runId: "99",
+      }),
   },
   {
     id: "anc-oob",
@@ -524,9 +611,19 @@ const CASES: ConfCase[] = [
     category: "anchor",
     expected: "fail:path-out-of-bounds",
     runGo: (rt) =>
-      goAnchor(rt, filesHeading, { kind: "run", block: "files-heading", path: [99], runId: "1" }),
+      goAnchor(rt, filesHeading, {
+        kind: "run",
+        block: "files-heading",
+        path: [99],
+        runId: "1",
+      }),
     runTs: () =>
-      tsAnchor(filesHeading, { kind: "run", block: "files-heading", path: [99], runId: "1" }),
+      tsAnchor(filesHeading, {
+        kind: "run",
+        block: "files-heading",
+        path: [99],
+        runId: "1",
+      }),
   },
   {
     id: "anc-block-nf",

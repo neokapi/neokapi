@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { CodeView } from "@neokapi/ui-primitives/preview";
 import { useLabRuntime } from "./useLabRuntime";
 import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
@@ -280,7 +281,7 @@ export default function ProjectExplorer({
       <div className={s.panel}>
         <div className={s.card}>
           <div className={s.cardTitle}>demo.kapi (the recipe — committed config)</div>
-          <pre className={s.output}>{recipe}</pre>
+          <CodeView text={recipe} lang="yaml" lineNumbers={false} maxHeight="18rem" />
         </div>
 
         <div className={s.card}>
@@ -352,7 +353,12 @@ export default function ProjectExplorer({
             (sample.binary ? (
               <div className={s.binaryNote}>{output}</div>
             ) : (
-              <pre className={s.output}>{output}</pre>
+              <CodeView
+                text={output}
+                filename={sample.filename}
+                lineNumbers={false}
+                maxHeight="18rem"
+              />
             ))}
         </div>
       </div>

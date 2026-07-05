@@ -48,7 +48,9 @@ describe("parseWordCountStat", () => {
   const json = JSON.stringify({
     total_source_words: 12,
     document_count: 1,
-    documents: { "/project/messages.json": { source_words: 12, block_count: 4 } },
+    documents: {
+      "/project/messages.json": { source_words: 12, block_count: 4 },
+    },
   });
 
   it("parses plain word-count --json into blocks/words/chars cards", () => {
@@ -78,12 +80,11 @@ describe("parseWordCountStat", () => {
 
 describe("ToolDropWidget (idle)", () => {
   // The lab gates work behind the shared zero-shift GateOverlay: the body is
-  // laid out from the start and the play button (aria-label "Run") covers it
-  // until the engine is ready. assets=null keeps the engine un-booted, so we
-  // exercise the rendered body without WASM. getByLabelText("Run") targets the
-  // gate's play button unambiguously (body controls have their own names).
+  // laid out from the start and the labeled primary action ("Run in your
+  // browser") covers it until the engine is ready. assets=null keeps the
+  // engine un-booted, so we exercise the rendered body without WASM.
 
-  it("gates the widget behind an explicit Run play button", () => {
+  it("gates the widget behind an explicit Run action", () => {
     render(
       <ToolDropWidget
         assets={null}
@@ -92,7 +93,7 @@ describe("ToolDropWidget (idle)", () => {
         autoRun={false}
       />,
     );
-    expect(screen.getByLabelText("Run")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /run in your browser/i })).toBeTruthy();
   });
 
   it("renders the drop-zone and sample chips, without booting WASM", () => {

@@ -15,7 +15,9 @@ import { SCRIPT_API_DTS } from "./scriptApi";
 // and document words leaking into completions the suggest options don't gate.
 // 0.52.2 honors those options. Configured once at module load (this is a
 // client-only, lazily-imported chunk, so it runs before the editor boots).
-loader.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs" } });
+loader.config({
+  paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs" },
+});
 
 function currentTheme(): "vs-dark" | "light" {
   if (typeof document === "undefined") return "light";
@@ -39,7 +41,10 @@ export default function ScriptCodeEditor({
   useEffect(() => {
     setTheme(currentTheme());
     const obs = new MutationObserver(() => setTheme(currentTheme()));
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
     return () => obs.disconnect();
   }, []);
 
@@ -68,8 +73,14 @@ export default function ScriptCodeEditor({
         tsd.addExtraLib(SCRIPT_API_DTS, "file:///script-api.d.ts");
         // Drop the DOM lib so browser globals (window, document, …) — which
         // the goja sandbox does not have — stop appearing in completions.
-        tsd.setCompilerOptions({ ...tsd.getCompilerOptions(), lib: ["es2020"] });
-        editor.updateOptions({ wordBasedSuggestions: "off", suggest: { showWords: false } });
+        tsd.setCompilerOptions({
+          ...tsd.getCompilerOptions(),
+          lib: ["es2020"],
+        });
+        editor.updateOptions({
+          wordBasedSuggestions: "off",
+          suggest: { showWords: false },
+        });
         // Block OS text substitutions from injecting characters into code —
         // notably macOS "Add period with double-space", which turns a double
         // space into ". ". Autocorrect-style replacements are never wanted in

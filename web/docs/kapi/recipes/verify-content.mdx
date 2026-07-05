@@ -1,274 +1,88 @@
 ---
 id: verify-content
-title: "Check content and loop with AI"
-sidebar_label: "Check & verify"
-description: "Run kapi check over a file to get a machine-readable hygiene, length, pattern, and brand report; gate in CI on exit 3; and drive an author → check → rewrite → re-check loop via MCP."
+title: "Check content like tests"
+sidebar_label: "Check content like tests"
+description: "Run kapi check over content the way you run tests over code: structured findings, a pass/fail gate, an exit code CI understands — and check --ship as the project's pre-release bar."
 hide_table_of_contents: true
 ---
 
-# Check content and loop with AI
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import { PendingMedia } from "@neokapi/docs-shared";
 
-:::note Runs anywhere
-No project needed — `kapi check` runs ad-hoc on any source file.
-:::
+# Check content like tests
 
-**Goal:** verify content before it ships — flag over-long strings, forbidden
-phrases, brand drift, and structural faults — and fix problems in a tightly
-scoped loop: either interactively from the command line or automatically by an
-AI assistant working over MCP.
+**Goal:** verify content before it ships — over-long strings, forbidden phrases, brand drift, structural faults — with a repeatable gate: structured findings, a pass/fail, and an exit code. `kapi check` never modifies content; fixing flagged blocks is [`kapi apply`'s job](/kapi/recipes/rewrite-content). For the Report model and every check family, see [Checks](/framework/checks).
 
-`kapi check` is the entry point. It reads a file, runs a content-first checkset,
-and returns one machine-readable `kapi.check/v1` Report. It never modifies
-content; editing the flagged blocks is `kapi apply`'s job.
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
 
-For the concepts, see [Checks](/framework/checks) and
-[Edit content](/kapi/recipes/rewrite-content); this recipe walks the task.
+Open your project and switch to the **Checks** view.
 
-## Run a check
+1. **Run the checkset.** Kapi runs the project's bound rules — hygiene, length, patterns, and brand vocabulary when a profile is bound — over the tracked content.
+2. **Read the findings.** Each finding names its rule, severity, and the exact block; click through to see the flagged text in context.
+3. **Fix and re-run.** Edit the source, re-run, and watch the findings clear. The same gate result the CLI reports is what the panel shows.
+
+<PendingMedia kind="screenshot" scene="harness/demos/kapi-desktop-content/demo.yaml">
+  The Checks view: a findings list grouped by rule and severity, with a
+  block-level detail pane and the pass/fail gate summary.
+</PendingMedia>
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+With [kapi connected](/kapi/get-started/use-with-claude), ask for the outcome:
+
+> Go through `docs/` and fix anything that fails our content rules.
+
+The assistant runs the loop itself: `check_file` returns the Report (stable rule ids, block locations), it rewrites the flagged blocks, lands them with `apply_edits` (content-hash guarded, structure preserved), and re-checks until the gate is green. Because rule ids are stable across runs, it can tell a fixed finding from a new one — and stops when the Report is clean.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+Point `kapi check` at files; add constraints inline or from a profile:
 
 ```bash
-kapi check src/locales/en.json
+kapi check src/locales/en.json                        # default checkset
+kapi check release-notes.md --max-chars 280 --forbid "click here"
+kapi check content/*.md --pack marketing-blog          # built-in starter pack
+kapi check blog-post.md --profile-file brand/voice.yaml
 ```
 
-kapi extracts the text from the file, runs the default checkset — hygiene,
-length, patterns, and brand vocabulary — and writes the result to stdout. With
-`--json`, it emits the structured Report instead:
-
-```bash
-kapi check src/locales/en.json --json
-```
+`--json` emits the structured `kapi.check/v1` Report — pass, a 0–100 score, a gate, one finding per stable rule id, each anchored to a block:
 
 ```json
 {
   "schema": "kapi.check/v1",
   "pass": false,
-  "summary": {
-    "score": 74,
-    "critical": 0,
-    "major": 2,
-    "minor": 3
-  },
-  "gate": "major",
+  "summary": { "score": 74, "critical": 0, "major": 2, "minor": 3 },
   "findings": [
     {
       "rule": "length.max-chars-exceeded",
       "severity": "major",
       "message": "Block exceeds the 120-character limit (148 chars).",
-      "suggestion": "Shorten to 120 characters.",
       "location": { "file": "src/locales/en.json", "block": "onboarding.welcome" }
-    },
-    {
-      "rule": "hygiene.doubled-word",
-      "severity": "major",
-      "message": "Doubled word: \"the the\".",
-      "location": { "file": "src/locales/en.json", "block": "settings.save_prompt" }
     }
   ]
 }
 ```
 
-(See [Checks](/framework/checks) for the full `kapi.check/v1` Report schema — every field, the score, the gate, and the finding model.)
+Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/brand-check).
 
-## Add length, pattern, and brand rules
+**Exit codes are the gate:** `0` pass, `3` gate failed, `1` operational error — so `kapi check` drops straight into CI. `--strict` fails on any critical or major finding; `--lenient` and `--no-fail` loosen it for report-only sweeps. `--validate report|strict` folds reader structure/encoding findings into the same Report.
 
-Pass constraints inline, or collect them in a named pack:
+**Bilingual checks** (placeholder integrity, do-not-translate, terminology) are opt-in: add `--target <file> --target-lang <lang>` to check a translation against its source.
 
-```bash
-# Length budget + forbidden phrase
-kapi check src/locales/en.json \
-  --max-chars 120 \
-  --max-words 30 \
-  --forbid "click here"
+</TabItem>
+</Tabs>
 
-# A named pack that bundles all house-style rules
-kapi check src/locales/en.json --pack house-style
+## In a project: the ship gate
 
-# Or point at a profile file
-kapi check src/locales/en.json --profile-file .kapi/check-profile.yaml
-```
-
-`--require RE` asserts the pattern must appear (useful for mandatory disclaimers
-or structured string formats). `--forbid RE` fails any block containing the
-pattern.
-
-## Gate in CI
-
-`kapi check` exits `3` when the gate trips — a severity at or above the gate
-threshold appears in the findings. This integrates directly with CI:
-
-```yaml title=".github/workflows/content.yml"
-- name: Check content
-  run: kapi check src/locales/en.json --pack house-style --json
-```
-
-The exit codes:
-
-| Exit | Meaning |
-|---|---|
-| `0` | All findings are below the gate threshold — pass |
-| `3` | At least one finding reached the gate — gate fail |
-| `1` | Operational error (file not found, format unrecognised) |
-
-`--strict` tightens the gate to minor severity (any finding fails). `--lenient`
-raises it to critical only. `--no-fail` always exits `0`, turning the check
-into a report-only run — useful inside an assistant fix-loop where the
-orchestrator reads the Report and decides whether to iterate.
-
-## Fold in structure and encoding findings
-
-By default, `kapi check` focuses on content rules. To also surface format-reader
-findings — malformed XML, invalid UTF-8, unrecognised character sets, rejected
-JSON — pass `--validate`:
-
-```bash
-# Add structure/encoding findings to the Report (does not gate)
-kapi check src/locales/en.json --validate report
-
-# Gate on structure/encoding findings too
-kapi check src/locales/en.json --validate strict
-```
-
-With `--validate report`, `structure.*` and `encoding.*` findings appear in the
-Report but do not affect the gate. With `--validate strict`, they gate like any
-other finding at their severity level.
-
-## Analyse before you check
-
-Two commands give a quick read of a file before running a full check.
-
-**`kapi inspect`** returns one record per content block, useful for RAG
-pipelines or feeding a snapshot to an AI:
-
-```bash
-kapi inspect src/locales/en.json
-```
-
-```json
-[
-  {
-    "file": "src/locales/en.json",
-    "number": 1,
-    "id": "onboarding.welcome",
-    "content_hash": "a3f2...",
-    "role": "block",
-    "level": 0,
-    "text": "Welcome to the app!"
-  }
-]
-```
-
-Add `--jsonl` for one JSON object per line (friendlier for streaming). Specify
-`-f fmt` to override format detection.
-
-**`kapi stats`** gives a file-level overview before you commit to a full check
-pass:
-
-```bash
-kapi stats src/locales/en.json
-kapi stats src/locales/en.json --json
-```
-
-```json
-{
-  "total": {
-    "blocks": 42,
-    "translatable": 38,
-    "non_translatable": 4,
-    "words": 312,
-    "characters": 2048,
-    "characters_no_space": 1740,
-    "segments": 54,
-    "by_role": { "block": 38, "data": 4 }
-  }
-}
-```
-
-The typical analysis sequence is: `kapi inspect` to browse the blocks, `kapi
-stats` to understand the volume, then `kapi check` to run the gates.
-
-## Opt in to bilingual checks
-
-Content-side checks run without a target file. To also check placeholder
-integrity, do-not-translate compliance, and terminology enforcement against a
-translated target, add `--target` and `--target-lang`:
-
-```bash
-kapi check src/locales/en.json \
-  --target src/locales/fr.json \
-  --target-lang fr
-```
-
-This folds bilingual findings into the same Report — one pass, one exit code,
-one `kapi.check/v1` schema.
-
-## The author → check → revise loop
-
-When a finding points at a block, read the blocks, rewrite the flagged ones
-yourself, and write them back with `kapi apply`. The file format is preserved;
-only the text changes, and no model is involved:
-
-```bash
-# Read the blocks, edit the flagged ones, preview the change
-kapi inspect src/locales/en.json --jsonl > blocks.jsonl
-# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
-# content entries to edits.jsonl — you (or your assistant) do this, no command
-kapi apply edits.jsonl --diff
-
-# Apply in place
-kapi apply edits.jsonl
-
-# Re-check
-kapi check src/locales/en.json --max-chars 120
-```
-
-Repeat until the exit is `0`. This is the same loop an AI assistant runs over
-MCP.
-
-## Drive the loop from an AI assistant
-
-When kapi is configured as an MCP server (`kapi mcp`), an assistant has four
-relevant tools:
-
-| MCP tool | What it does |
-|---|---|
-| `extract_content` | Read a file's blocks (`id`, `content_hash`, placeholder text) — the read leg |
-| `check_file` | Run `kapi check` on a file; returns the `kapi.check/v1` Report |
-| `check_text` | Check a text string inline without a file |
-| `apply_edits` | Apply a typed change-set of content edits in place — the write leg, no provider |
-| `brand_check` | Run brand vocabulary and voice rules against a file |
-
-A typical assistant turn:
-
-1. Author or edit content in a file.
-2. Call `check_file` — receives the Report with stable rule ids and block
-   locations.
-3. For each failing block, rewrite its text and send it back with `apply_edits`
-   (a `content` entry carrying the block's `content_hash`).
-4. Call `check_file` again. Iterate until `pass` is `true`.
-
-Because rule ids are stable across runs, the assistant can track which findings
-it resolved and which it introduced, and stop when the Report is clean. The
-loop requires no human intervention and works identically over files of any
-format kapi reads.
-
-See [MCP server](/reference/mcp) for setup and the full tool list.
-
-## In a project
-
-In a `.kapi` project, `kapi check` runs against the recipe's declared content and
-locales — `kapi check` with no file argument checks the project's source, and a
-check can run as a step in a flow you launch with `kapi run`. The check profile,
-length budgets, and brand vocabulary come from the recipe instead of inline
-flags, so the same gate applies everywhere it runs. See
-[Create your first project](/kapi/get-started/first-project).
+Inside a [`.kapi` project](/kapi/get-started/first-project), `kapi check` with no file arguments checks the project's declared content with the recipe's bound rules. **`kapi check --ship`** is the project gate mode: it runs the bound quality gates (brand, terminology, QA) plus the ship/source coverage gates, and exits non-zero when any gate is unmet — the pre-release bar. Ordinary builds never fail on target drift; `--ship` is the explicit enforcement point. See [Ship gates & CI](/kapi/recipes/gate-localization-in-ci).
 
 ## Next
 
-- [Checks](/framework/checks) — the check model, the Report schema, and every check
-  family.
-- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply`
-  loop that fixes the blocks a check flags.
-- [MCP server](/reference/mcp) — connect kapi to Claude, Cursor, and other MCP-compatible
-  assistants.
-- [Gate localization in CI](/kapi/recipes/gate-localization-in-ci) — run project-bound
-  gates (brand, terminology, QA) on every pull request.
+- [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — `kapi check --ship` on every PR.
+- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply` loop that fixes what a check flags.
+- [Content governance for AI](/kapi/recipes/content-governance-for-ai) — the rules that make agent output pass.
+- [Checks](/framework/checks) — the Report schema and every check family.

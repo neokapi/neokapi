@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
+import CodeBlock from "@theme/CodeBlock";
 import type { ReferenceEntry } from "@neokapi/reference-data";
 import { SchemaForm } from "@neokapi/ui-primitives";
 import { seedDefaults, buildFormatYamlLines, buildToolYamlLines, yamlText } from "../yaml";
@@ -58,7 +59,10 @@ export default function InteractiveConfig({ entry, kind }: Props) {
   // to flag the changed lines in the output.
   const baseline = useMemo(() => {
     if (activePreset && presets[activePreset]) {
-      return { ...defaults, ...(presets[activePreset] as Record<string, unknown>) };
+      return {
+        ...defaults,
+        ...(presets[activePreset] as Record<string, unknown>),
+      };
     }
     return defaults;
   }, [activePreset, defaults, presets]);
@@ -97,6 +101,13 @@ export default function InteractiveConfig({ entry, kind }: Props) {
         ? buildFormatYamlLines(entry.id, values, schema)
         : buildToolYamlLines(values, schema),
     [kind, entry.id, values, schema],
+  );
+
+  // 1-based line numbers whose key differs from the baseline — drives the
+  // CodeBlock metastring highlight below.
+  const dirtyLines = useMemo(
+    () => yamlLines.flatMap((line, i) => (line.key && dirtyKeys.has(line.key) ? [i + 1] : [])),
+    [yamlLines, dirtyKeys],
   );
 
   const copyYaml = useCallback(() => {
@@ -262,18 +273,16 @@ export default function InteractiveConfig({ entry, kind }: Props) {
                 )}
               </div>
 
-              <pre className={styles.yaml}>
-                {yamlLines.map((line, i) => (
-                  <div
-                    key={i}
-                    className={
-                      line.key && dirtyKeys.has(line.key) ? styles.yamlLineDirty : undefined
-                    }
-                  >
-                    {line.text || " "}
-                  </div>
-                ))}
-              </pre>
+              {/* Prism-highlighted YAML via the site theme; lines whose key
+                  differs from the baseline use the theme's highlighted-line
+                  treatment (metastring), replacing the old bespoke <pre>. */}
+              <CodeBlock
+                language="yaml"
+                className={pageStyles.configYaml}
+                metastring={dirtyLines.length > 0 ? `{${dirtyLines.join(",")}}` : undefined}
+              >
+                {yamlText(yamlLines)}
+              </CodeBlock>
 
               {/* Run this config */}
               <BrowserOnly>

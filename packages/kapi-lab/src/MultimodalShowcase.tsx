@@ -17,7 +17,11 @@ import {
 // to the live in-browser labs (/lab/audio, /lab/video) and /lab/vision.
 
 function tree(format: string, root: ContentNode[]): ContentTree {
-  return { format, root, stats: { layers: 0, groups: 0, blocks: 0, data: 0, media: 0, runs: 0 } };
+  return {
+    format,
+    root,
+    stats: { layers: 0, groups: 0, blocks: 0, data: 0, media: 0, runs: 0 },
+  };
 }
 
 function cue(id: string, startMs: number, endMs: number, src: string, tgt: string): ContentNode {
@@ -72,7 +76,11 @@ const imageTree = tree("image", [
   {
     kind: "media",
     id: "img",
-    media: { mimeType: "image/svg+xml", filename: "invoice.svg", uri: IMAGE_POSTER },
+    media: {
+      mimeType: "image/svg+xml",
+      filename: "invoice.svg",
+      uri: IMAGE_POSTER,
+    },
   },
   ocrLine("i1", 5.5, 22, 22, 13, "Invoice", "Facture", "heading"),
   ocrLine("i2", 5.5, 50, 38, 9, "Total: $42.00", "Total : 42,00 $", "paragraph"),
@@ -107,8 +115,14 @@ const videoTree = tree("video", [
     "La parole et le texte à l'écran sont traduits.",
   ),
   // On-screen frame text (timing + geometry) — overlaid at its timecode.
-  ocrLine("vf1", 6, 18, 26, 12, "Chapter 1", "Chapitre 1", "heading", { startMs: 0, endMs: 3000 }),
-  ocrLine("vf2", 6, 18, 30, 12, "Summary", "Résumé", "heading", { startMs: 3000, endMs: 6000 }),
+  ocrLine("vf1", 6, 18, 26, 12, "Chapter 1", "Chapitre 1", "heading", {
+    startMs: 0,
+    endMs: 3000,
+  }),
+  ocrLine("vf2", 6, 18, 30, 12, "Summary", "Résumé", "heading", {
+    startMs: 3000,
+    endMs: 6000,
+  }),
 ]);
 
 interface Chapter {
@@ -222,7 +236,10 @@ export default function MultimodalShowcase({
   );
 
   return (
-    <div className={"flex flex-col gap-4 " + (className ?? "")} data-testid="multimodal-showcase">
+    <div
+      className={"kapi-reference flex flex-col gap-4 " + (className ?? "")}
+      data-testid="multimodal-showcase"
+    >
       <div className="flex flex-wrap gap-2">{tabs}</div>
 
       <div className="rounded-lg border bg-card p-4">

@@ -1,64 +1,54 @@
 ---
 title: Your first project
-description: Set up a .kapi project with kapi init — capture content patterns, quality rules, and flows once, then run them without repeating flags. Content checks and AI-assisted rewriting work without any target languages; localization is an opt-in step.
-keywords: [kapi, project, kapi init, recipe, .kapi, check, inspect, stats, rewrite, flows, merge]
+description: Create a .kapi project — in Kapi Desktop, from your AI assistant, or on the command line — and bring it to its first green ship gate.
+keywords: [kapi, project, first project, Kapi Desktop, kapi init, kapi up, ship gate]
 ---
 
-import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
-import { ProjectExplorer } from "@site/src/components/Lab/ProjectExplorer";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import { PendingMedia } from "@neokapi/docs-shared";
 
 # Your first project
 
-The [Quick Start](/kapi/get-started/quickstart) runs kapi ad-hoc — one command,
-one file, flags for everything. That works for a one-off. For content you touch
-repeatedly — a product's copy, a docs set, a design system's strings — a
-**`.kapi` project** is the working model: capture the content patterns, quality
-rules, and flows in a committed recipe once, then run them with short commands
-and no repeated flags.
+A project is a committed recipe (`<name>.kapi`) plus a store that remembers your work — approvals, translation memory, terminology. Set it up once and every surface works the same project: the desktop app, your AI assistant, and the CLI. A new project starts source-only (checks, brand, terminology); [add languages](/kapi/get-started/add-languages) when you want them.
 
-A project starts with **content quality** — measuring, checking, and revising
-your source. No target languages are required. Localization (producing translated
-output) is an opt-in step you add when you need it.
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
 
-<KapiGuidedEmbed id="kapi-project-workflow" />
+Install [Kapi Desktop](/kapi/get-started/installation#install-kapi-desktop) and open it. On first open, the **Connect your AI** card offers whatever it detects — a Claude Code sign-in ([uses your Claude subscription](/kapi/get-started/use-with-claude#let-kapi-run-claude), no key), a local Ollama model, or a stored API key — one click; or skip and use the demo engine.
 
-## 1. Initialize the project
+1. **Create the project.** On the home screen, click **New Project**, name it, and pick a source language. Or click **KapiMart** under *sample projects* to explore a realistic, pre-seeded project first — content collections, five target languages, and a stocked translation memory.
+2. **Add content.** In the **Project** view, add a pattern that matches your source files (for example `docs/**/*.md`). Kapi lists the matched files and the detected format, grouped into a collection.
+3. **Bring it up to date.** The project view shows per-locale coverage and each scope's ship-gate standing. **Bring up to date** runs the project's default flow until every gated scope is shippable or parked for a person — the desktop form of `kapi up`.
+4. **Review what parked.** Anything a machine can't decide lands in the **Review** queue — open it from a ship-gate cell. See [Review & approve](/kapi/recipes/review-and-approve).
 
-Run `kapi init` in the directory you want kapi to manage. Supply your source
-locale; target locales are not required and can be added later:
+<PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
+  Creating a project from the New Project dialog, opening the KapiMart sample,
+  adding a content collection, and reading the coverage and ship-gate panel.
+</PendingMedia>
 
-```bash
-kapi init --source-locale en
-```
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
 
-```text
-Initialized kapi project "my-app"
-  recipe: my-app.kapi
-  state:  .kapi
-```
+With the [Kapi skill or MCP server](/kapi/get-started/use-with-claude) connected, ask for the project:
 
-The recipe file (`my-app.kapi`) is committed to the repository. The `.kapi/`
-state directory is regenerable and belongs in `.gitignore`.
+> Set kapi up for this project.
 
-## 2. Declare the content
+Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known i18n layout), adds the content patterns it finds, drafts a brand profile from your existing copy, and proposes glossary terms for you to approve. The result is committed: a recipe, a brand profile, a glossary. From there your prompts stay short — "check this is on brand" needs no flags, because the recipe carries them.
 
-Tell the project which files to track with `kapi add` — a glob and an
-auto-detected format:
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+[Install the CLI](/kapi/get-started/installation), then from your content directory:
 
 ```bash
-kapi add "docs/**/*.md"
+kapi init                      # scaffold <dir>.kapi + .kapi/ state (source-only)
+kapi add "docs/**/*.md"        # declare the content; format auto-detected
+kapi stats                     # blocks, words, characters for what's tracked
+kapi check                     # run the project's checkset; exit 3 on gate fail
 ```
 
-`kapi ls` lists what the project tracks (add `--stats` for per-file block and
-word counts). `kapi rm` removes an entry. For a known stack — for example
-`react-i18next` or `nextjs` — `kapi init --framework <stack>` pre-fills the
-content mapping; see `kapi presets list --framework`.
-
-## 3. Read the recipe
-
-The `<dir-name>.kapi` recipe is a portable YAML file. A content-first recipe
-declares the source locale and the content to track, without any target
-languages:
+For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`, …) pre-fills the content mapping — `kapi init --list-presets` lists them. The recipe is plain YAML:
 
 ```yaml title="my-app.kapi"
 version: v1
@@ -69,221 +59,13 @@ content:
   - path: "docs/**/*.md"
 ```
 
-`target_languages` is omitted. The project runs checks and rewrites against the
-source content; there are no locale outputs until you opt in to localization. See
-the [project file reference](/reference/project-file) for the full schema.
+Commit the recipe; `.kapi/` is regenerable and belongs in `.gitignore`. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema. When you're ready for AI-backed steps, `kapi models setup` detects what you already have — a Claude Code sign-in, Ollama, or an API key — and confirms it as the default ([Use with Claude](/kapi/get-started/use-with-claude)).
 
-## 4. Measure the content
-
-`kapi stats` gives a summary of what the project tracks:
-
-```bash
-kapi stats --json
-```
-
-```json
-{
-  "total": {
-    "blocks": 312,
-    "translatable": 298,
-    "non_translatable": 14,
-    "words": 18540,
-    "characters": 102300,
-    "characters_no_space": 86100,
-    "segments": 634,
-    "by_role": { "body": 201, "heading": 47, "list_item": 50 }
-  }
-}
-```
-
-`kapi inspect` extracts one record per content block — useful for feeding an AI
-assistant, a search index, or an audit script:
-
-```bash
-kapi inspect docs/guide.md --jsonl
-```
-
-```jsonl
-{"file":"docs/guide.md","number":1,"id":"b1a2c3","content_hash":"e3b0c4...","role":"heading","level":1,"text":"Getting started"}
-{"file":"docs/guide.md","number":2,"id":"b2d4e5","content_hash":"7f83b1...","role":"body","level":0,"text":"Install kapi from Homebrew or download the binary."}
-```
-
-Pass multiple files or a glob; use `-f` to override format detection. Without
-`--jsonl`, `kapi inspect` outputs a JSON array.
-
-## 5. Check content quality
-
-`kapi check` runs the configured rule set and reports findings:
-
-```bash
-kapi check
-```
-
-```json
-{
-  "schema": "kapi.check/v1",
-  "pass": false,
-  "summary": { "score": 84, "critical": 0, "major": 3, "minor": 7 },
-  "gate": "major",
-  "findings": [
-    {
-      "rule": "terminology.consistency",
-      "severity": "major",
-      "message": "\"kapi-cli\" should be \"kapi\"",
-      "suggestion": "Use the canonical product name throughout.",
-      "location": { "file": "docs/guide.md", "block": "b3f5a1" }
-    }
-  ]
-}
-```
-
-The command exits 0 when all findings pass the gate and 3 when the gate is not
-met. Scope constraints (`--max-chars`, `--max-words`, `--forbid`, `--require`),
-named profiles (`--profile`, `--profile-file`), and severity thresholds
-(`--strict`, `--lenient`, `--no-fail`) are all available. A bilingual check —
-comparing source against a translated file — adds `--target FILE --target-lang
-LANG`.
-
-## 6. Revise the content
-
-Read a file's blocks with `kapi inspect`, rewrite the ones you want to change,
-and write them back with `kapi apply` — faithfully, preserving format structure,
-inline markup, and non-text nodes, with no model involved:
-
-```bash
-kapi inspect docs/guide.md --jsonl > blocks.jsonl
-# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
-# content entries to edits.jsonl — you (or your assistant) do this, no command
-kapi apply edits.jsonl --diff
-```
-
-Review the diff, then apply in place:
-
-```bash
-kapi apply edits.jsonl
-```
-
-`--in-place=.bak` keeps a backup alongside each edited file. An edit that drifted
-or would corrupt an inline code is left unchanged and reported. See
-[Edit content in any format](/kapi/recipes/rewrite-content) for the `content`-entry
-shape and the guards.
-
-### Automated check–revise loop via MCP
-
-When kapi is connected to an AI assistant via its MCP server, the check–revise
-loop runs without manual steps. The assistant calls `check_file` to read
-findings, rewrites the flagged blocks itself, sends them back with `apply_edits`,
-then calls `check_file` again to confirm the gate passes. `brand_check` runs the
-full brand voice profile in a single call. `check_text` operates on inline text
-rather than a file path. See [MCP tools](/reference/mcp) for the complete tool list.
-
-## 7. Add localization (optional)
-
-When you want to produce output in other languages, add target locales to the
-recipe:
-
-```yaml title="my-app.kapi"
-version: v1
-name: my-app
-defaults:
-  source_language: en
-  target_languages: [fr, de]
-content:
-  - path: "src/locales/en/*.json"
-    target: "src/locales/{lang}"
-flows:
-  translate:
-    steps:
-      - tool: recycle
-      - tool: translate
-```
-
-The `target` path uses `{lang}` as a placeholder for the locale code. `{name}`
-and `{ext}` are also available for custom layouts — see the
-[project file reference](/reference/project-file#source-and-target-paths).
-
-### Run and merge
-
-From anywhere inside the project tree, run a flow by name:
-
-```bash
-kapi run translate
-```
-
-kapi discovers the nearest recipe by walking up the directory tree (like git),
-resolves the project's locales and content, and runs the flow. In a project, a
-run is **process-only** — results accumulate in `.kapi/cache/blocks.db` rather
-than being written to files immediately. Translation memory accrues across runs.
-
-When you're ready to write the localized files, `merge` replays the stored
-output to the target paths declared in the recipe:
-
-```bash
-kapi merge
-```
-
-This writes `src/locales/fr/*.json`, `src/locales/de/*.json`, and so on — no
-flags, because the recipe already says where each locale goes.
-
-### Review and approve
-
-A run takes each translation as far as a machine can (to *translated*); a person
-takes the ones that matter to *reviewed*. The worklist and the approval are one
-command each:
-
-```bash
-kapi status --review        # the units awaiting human review (file, id, locale)
-# approve one, addressed exactly as the worklist lists it:
-kapi apply <<<'{"kind":"review","file":"src/locales/fr/app.json","id":"save.label","locale":"fr","status":"reviewed"}'
-```
-
-The decision lands in the project's committed **state store** —
-`.kapi-state.json` beside the recipe — and is bound to the translation's content
-hash, so a later edit drops the unit back below *reviewed*. Commit it with your
-sources, so the decision travels with the project:
-
-```bash
-git add .kapi-state.json
-```
-
-This is the one authored artifact the caches can't rebuild; see
-[the project store](/kapi/project-store) for how it relates to the rebuildable
-caches and the TM.
-
-## Inspect a project
-
-The lab below is a live project. Pick a sample, step through a declared flow,
-and watch the recipe, per-locale state, and output files update:
-
-<ProjectExplorer defaultSampleId="json" />
-
-## Why project mode
-
-A project trades a one-time `init` for less repetition and more memory:
-
-- **Defaults captured once.** Source locale, content globs, flow definitions,
-  and quality rules live in the recipe. Repeated flags disappear.
-- **Quality memory accumulates.** The project store keeps a translation memory
-  and termbase that every run reads and writes, so each pass recycles the last
-  one's work.
-- **Git-style discovery.** Run `kapi` from any subdirectory and it finds the
-  project automatically — no `-p` flag, no directory dance.
-- **Portable and shareable.** The recipe is a committed YAML file; a colleague
-  who clones the repository runs the same flows with the same configuration.
-
-Ad-hoc runs stay available for one-offs, scripting, and CI — the two modes use
-the same commands with different **bindings** (where content enters and leaves).
-See [Modes & bindings](/kapi/modes) for the full model.
+</TabItem>
+</Tabs>
 
 ## Next
 
-- [Translate your content](/kapi/recipes/translate-content) — run the project's
-  translate flow across every locale.
-- [Check translations in CI](/kapi/recipes/gate-localization-in-ci) — gate the
-  project you just built on every PR.
-- [Modes & bindings](/kapi/modes) — the source/sink binding model and when to
-  mix ad-hoc and project runs.
-- [Interchange — XLIFF, PO, and your TMS](/kapi/bilingual-workflow) — extract a
-  project to bilingual files for vendor or human review, then merge back.
-- [Project file reference](/reference/project-file) — the full `.kapi` recipe
-  schema and discovery rules.
+- [Add languages](/kapi/get-started/add-languages) — target locales, `kapi up`, review, gates.
+- [Projects](/kapi/projects) — the concept: ad-hoc vs project, bindings, the store.
+- [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes) — the source-quality half.

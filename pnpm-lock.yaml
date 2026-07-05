@@ -1196,6 +1196,9 @@ importers:
       '@neokapi/flow-editor':
         specifier: '*'
         version: link:../packages/flow-editor
+      '@neokapi/kapi-format':
+        specifier: '*'
+        version: link:../packages/kapi-format
       '@neokapi/kapi-lab':
         specifier: '*'
         version: link:../packages/kapi-lab

@@ -45,7 +45,8 @@ export const STAGES: ProcessStage[] = [
     key: "pseudo",
     label: "Pseudo-translate",
     short: "Preview",
-    caption: "Preview every language before you ship — catch layout breaks and hardcoded strings early.",
+    caption:
+      "Preview every language before you ship — catch layout breaks and hardcoded strings early.",
   },
   {
     key: "leverage",
@@ -57,8 +58,7 @@ export const STAGES: ProcessStage[] = [
     key: "translate",
     label: "Translate · 日本語",
     short: "日本語",
-    caption:
-      "Translate the rest with AI, then a quick human check — terms and inline tags intact.",
+    caption: "Translate the rest with AI, then a quick human check — terms and inline tags intact.",
   },
   {
     key: "merge",

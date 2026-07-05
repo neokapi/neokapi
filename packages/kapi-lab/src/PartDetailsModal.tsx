@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import type { FlowNode, PartSnapshot, PartSnapshotSet } from "@neokapi/ui-primitives/preview";
-import { RunSequence } from "@neokapi/ui-primitives/preview";
+import { CodeView, RunSequence } from "@neokapi/ui-primitives/preview";
 import styles from "./PartDetailsModal.module.css";
 
 export interface PartDetailsModalProps {
@@ -154,7 +154,14 @@ export default function PartDetailsModal({
             <button className={styles.rawToggle} onClick={() => setShowRaw((v) => !v)}>
               {showRaw ? "Hide" : "Show"} snapshot JSON
             </button>
-            {showRaw && <pre className={styles.raw}>{JSON.stringify(set, null, 2)}</pre>}
+            {showRaw && (
+              <CodeView
+                text={JSON.stringify(set, null, 2)}
+                lang="json"
+                lineNumbers={false}
+                maxHeight="18rem"
+              />
+            )}
           </Section>
         </div>
       </div>

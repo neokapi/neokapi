@@ -67,7 +67,9 @@
   margin: 0;
 }
 
-/* ── Raw-text fallback (unparseable / .kapi files) with syntax highlight ──── */
+/* ── Raw-text fallback (unparseable / .kapi files) ───────────────────────
+   Rendered by the shared CodeView (@neokapi/ui-primitives/preview), which
+   brings its own token palette; this class only sizes the container. */
 
 .kapi-cur-raw {
   white-space: pre-wrap;
@@ -84,37 +86,6 @@
   line-height: 1.55;
 }
 
-/* Token colours emitted by @neokapi/kapi-playground/syntax HighlightedCode. */
-.kapi-cur-raw .kapi-pg-hl-text {
-  color: inherit;
-}
-.kapi-cur-raw .kapi-pg-hl-key,
-.kapi-cur-raw .kapi-pg-hl-tag {
-  color: var(--ifm-color-primary, #2e8555);
-}
-.kapi-cur-raw .kapi-pg-hl-attr,
-.kapi-cur-raw .kapi-pg-hl-section,
-.kapi-cur-raw .kapi-pg-hl-heading {
-  color: var(--ifm-color-warning-dark, #b07b00);
-  font-weight: 600;
-}
-.kapi-cur-raw .kapi-pg-hl-string {
-  color: var(--ifm-color-danger-dark, #c0392b);
-}
-.kapi-cur-raw .kapi-pg-hl-number,
-.kapi-cur-raw .kapi-pg-hl-boolean,
-.kapi-cur-raw .kapi-pg-hl-null {
-  color: var(--ifm-color-info-dark, #2877c0);
-}
-.kapi-cur-raw .kapi-pg-hl-comment,
-.kapi-cur-raw .kapi-pg-hl-meta {
-  color: var(--ifm-color-emphasis-500, #898d92);
-  font-style: italic;
-}
-.kapi-cur-raw .kapi-pg-hl-punct {
-  color: var(--ifm-color-emphasis-600, #606770);
-}
-
 /* ── Loading state (mirrors the kit's spinner copy) ──────────────────────── */
 
 .kapi-cur-loading {
@@ -124,15 +95,6 @@
   padding: 1.25rem 0.75rem;
   color: var(--kpg-muted, #606770);
   font-size: 0.86rem;
-}
-
-/* Idle "press Run" affordance — nothing boots until the user clicks. */
-.kapi-cur-run {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 1rem 0.75rem;
 }
 
 .kapi-cur-spinner {
@@ -260,6 +222,24 @@
   background: var(--kpg-surface, #fff);
   color: var(--kpg-fg, #1c1e21);
   flex: 1;
+}
+
+/* Docusaurus CodeBlock inside a curated pane: strip the standalone-block
+   chrome (outer margin, radius, shadow) so it sits flush like the old <pre>,
+   while keeping the theme's Prism highlighting + copy button. */
+.kapi-cur-pane .kapi-cur-codeblock {
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  flex: 1;
+}
+
+.kapi-cur-pane .kapi-cur-codeblock pre {
+  margin: 0;
+  border-radius: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  max-height: 360px;
 }
 
 .kapi-cur-arrow {

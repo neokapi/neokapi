@@ -120,10 +120,25 @@ const config: Config = {
 
   themes: ["@docusaurus/theme-mermaid"],
 
-  // The framework-first IA restructure (issue #670) moved pages freely. The
-  // site is not yet live, so no client-side redirects are kept — old URLs are
-  // simply gone.
   plugins: [
+    // Redirects for pages merged or moved by the desktop-first docs revamp:
+    // the Projects concept page absorbs "Projects vs ad-hoc" + "Modes &
+    // bindings", and "Use with Claude" absorbs the skills + MCP pages.
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        redirects: [
+          { from: "/kapi/get-started/project-vs-adhoc", to: "/kapi/projects" },
+          { from: "/kapi/modes", to: "/kapi/projects" },
+          { from: "/kapi/get-started/use-with-skills", to: "/kapi/get-started/use-with-claude" },
+          { from: "/kapi/get-started/use-with-mcp", to: "/kapi/get-started/use-with-claude" },
+          // The Models & Providers lab was removed (it demonstrated provider
+          // APIs, not neokapi functionality); provider setup lives in the
+          // Use-with-Claude/models docs, and /labs maps the remaining labs.
+          { from: "/lab/models", to: "/labs" },
+        ],
+      },
+    ],
     // Cloudflare Web Analytics: inject the beacon script just before </body> on
     // every page (postBodyTags renders at the end of <body>). Gated to production
     // builds so it ships on the deployed site + PR previews but not in local
@@ -422,12 +437,6 @@ const config: Config = {
           position: "left",
         },
         {
-          type: "docSidebar",
-          sidebarId: "frameworkSidebar",
-          label: "Framework",
-          position: "left",
-        },
-        {
           type: "dropdown",
           label: "Labs",
           position: "left",
@@ -438,14 +447,13 @@ const config: Config = {
             // widget. Old per-topic routes redirect to their new home.
             { label: "Labs overview", to: "/labs" },
             { label: "Content Model Workspace", to: "/lab" },
-            { label: "Models & Providers", to: "/lab/models" },
             { label: "Segmentation", to: "/lab/segmentation" },
             { label: "File Conversion", to: "/lab/convert" },
             { label: "Structure & Layout", to: "/lab/structure" },
             { label: "Vision", to: "/lab/vision" },
             { label: "Audio & Video", to: "/lab/media" },
             { label: "CLI Playground", to: "/playground-cli" },
-            { label: "KLF Format", to: "/klf-lab" },
+            { label: "KLF Anatomy", to: "/klf-lab" },
           ],
         },
         {
@@ -486,6 +494,14 @@ const config: Config = {
               label: "Kapi React",
             },
           ],
+        },
+        {
+          // The engine internals — demoted behind the product sections: readers
+          // arrive for Kapi; contributors and embedders find the framework here.
+          type: "docSidebar",
+          sidebarId: "frameworkSidebar",
+          label: "Framework",
+          position: "left",
         },
         {
           // Neokapi WebAssembly Lab status widget — engine + plugin state for

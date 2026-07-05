@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { Block, File, Run } from "@neokapi/kapi-format";
+import { CodeView } from "@neokapi/ui-primitives/preview";
 import { useLabRuntime } from "./useLabRuntime";
 import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
@@ -80,7 +81,10 @@ export default function KlfExplorer({
   );
 
   // Canonical bytes + per-block render/validation from the Go engine.
-  const [canonical, setCanonical] = useState<{ output: string; sha256: string } | null>(null);
+  const [canonical, setCanonical] = useState<{
+    output: string;
+    sha256: string;
+  } | null>(null);
   const [analysis, setAnalysis] = useState<Record<string, BlockAnalysis>>({});
   const [engineError, setEngineError] = useState<string | null>(null);
 
@@ -100,7 +104,10 @@ export default function KlfExplorer({
       return;
     }
     setEngineError(null);
-    setCanonical({ output: round.output as string, sha256: round.sha256 as string });
+    setCanonical({
+      output: round.output as string,
+      sha256: round.sha256 as string,
+    });
 
     const next: Record<string, BlockAnalysis> = {};
     for (const b of blocks) {
@@ -138,7 +145,11 @@ export default function KlfExplorer({
         });
         continue;
       }
-      const res = runtime.klf({ op: "resolveAnchor", block, anchor: rec.anchor });
+      const res = runtime.klf({
+        op: "resolveAnchor",
+        block,
+        anchor: rec.anchor,
+      });
       const r = (res.resolution as Record<string, unknown>) ?? {};
       out.push({
         id: rec.id ?? "?",
@@ -180,7 +191,7 @@ export default function KlfExplorer({
       <p className={styles.status}>{klfSampleById(sampleId).blurb}</p>
 
       <div className={styles.section}>
-        <span className={styles.label}>.klf document — edit it</span>
+        <span className={styles.label}>.klf document (editable)</span>
         <textarea
           className={`${styles.editor} ${parsed.error ? styles.editorError : ""}`}
           spellCheck={false}
@@ -212,6 +223,25 @@ export default function KlfExplorer({
         </div>
       )}
 
+      {/* The write-back: the canonical bytes the engine's serializer emits for
+          the document above. Shown only when they differ from the editor text,
+          so the pane demonstrates canonicalization rather than echoing input. */}
+      {runtime.ready &&
+        !parsed.error &&
+        !engineError &&
+        canonical &&
+        canonical.output !== klfValue && (
+          <div className={styles.section}>
+            <span className={styles.label}>Canonical write-back (engine output)</span>
+            <CodeView text={canonical.output} lang="json" maxHeight="20rem" />
+            <p className={styles.status}>
+              The serializer is deterministic — 2-space indent, pinned field order, sorted map keys,
+              trailing newline — so these bytes, and the content hash above, are identical across
+              the Go and TypeScript implementations.
+            </p>
+          </div>
+        )}
+
       {!hideAnnotations && (
         <div className={styles.section}>
           <span className={styles.label}>.klfl annotation overlay — stand-off anchors</span>
@@ -239,8 +269,8 @@ export default function KlfExplorer({
       )}
       <GateOverlay
         gate={gate}
-        title="Kapi L10n Format"
-        description="Explore the Kapi L10n Format with the real engine."
+        title="KLF round-trip"
+        description="Parses, validates, renders, and canonicalizes the document with the Go engine (core/klf) compiled to WebAssembly."
       />
     </div>
   );
@@ -302,7 +332,9 @@ function BlockCard({
             // InlinePreview.
             <div
               className={styles.preview}
-              dangerouslySetInnerHTML={{ __html: stripBlockWrapper(analysis.html) }}
+              dangerouslySetInnerHTML={{
+                __html: stripBlockWrapper(analysis.html),
+              }}
             />
           ) : (
             <div className={styles.preview}>—</div>

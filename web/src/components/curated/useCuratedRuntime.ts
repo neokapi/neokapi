@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useKapiPlaygroundConfig } from "@site/src/components/KapiPlayground/config";
-import { configurePlugins, bootEngine } from "@neokapi/kapi-playground/plugins";
+import { configurePlugins, bootEngine, usePluginManager } from "@neokapi/kapi-playground/plugins";
+import type { RunGate as RunGateState } from "@neokapi/kapi-lab/useRunGate";
 
 // Shared boot helper for the curated result-view components.
 //
@@ -42,6 +43,11 @@ export interface CuratedRuntimeState {
   armed: boolean;
   /** Request boot. Nothing is fetched until this is called. */
   arm: () => void;
+  /**
+   * The same state shaped for the shared <RunGate> (compact) — so curated
+   * views render the one site-wide activation gate instead of a bespoke one.
+   */
+  gate: RunGateState;
 }
 
 /**
@@ -55,6 +61,9 @@ export function useCuratedRuntime(): CuratedRuntimeState {
   const [runtime, setRuntime] = useState<KapiRuntime | null>(null);
   const [error, setError] = useState<string>("");
   const [armed, setArmed] = useState(false);
+  // Bumped on every arm() so a Retry after a failed boot re-runs the boot
+  // effect (bootEngine itself clears its cached promise on failure).
+  const [attempt, setAttempt] = useState(0);
   // Whether boot had already started when this hook first ran. `isBooted()`
   // lives in the heavy chunk, so we infer "cold" cheaply: the first hook on the
   // page to reach the effect that resolves is cold; later mounts reuse the
@@ -83,9 +92,34 @@ export function useCuratedRuntime(): CuratedRuntimeState {
     return () => {
       cancelled = true;
     };
-  }, [armed]);
+  }, [armed, attempt]);
 
-  const arm = useCallback(() => setArmed(true), []);
+  const arm = useCallback(() => {
+    setError("");
+    setArmed(true);
+    setAttempt((a) => a + 1);
+  }, []);
 
-  return { runtime, error, cold: startedCold.current, armed, arm };
+  // Shape the state for the shared <RunGate compact> so curated views show the
+  // site-wide gate copy (size hint · runs locally · warm-engine note). The
+  // manager's engine progress feeds the gate's download bar; RunGate reads the
+  // warm-engine state from the manager itself.
+  const mgr = usePluginManager();
+  const progress = mgr.state.engine.progress;
+  const gate = useMemo<RunGateState>(
+    () => ({
+      armed,
+      ready: armed && runtime !== null,
+      status: error ? "error" : runtime !== null ? "ready" : armed ? "booting" : "idle",
+      bootProgress: progress
+        ? { loaded: progress.loaded ?? 0, total: progress.total ?? null }
+        : null,
+      error: error || null,
+      requires: [],
+      run: arm,
+    }),
+    [armed, runtime, error, progress, arm],
+  );
+
+  return { runtime, error, cold: startedCold.current, armed, arm, gate };
 }

@@ -28,12 +28,6 @@ const LABS: LabEntry[] = [
     teaches: "Run real kapi commands in your browser, the way you would from a terminal.",
   },
   {
-    to: "/lab/models",
-    name: "Models & Providers",
-    teaches:
-      "The models kapi translates with — the same on-device models on web and desktop, plus cloud providers — and a real local translation in your browser.",
-  },
-  {
     to: "/lab/segmentation",
     name: "Segmentation",
     teaches:
@@ -61,8 +55,9 @@ const LABS: LabEntry[] = [
   },
   {
     to: "/klf-lab",
-    name: "KLF Format",
-    teaches: "Edit a KLF document live and watch the engine canonicalize, render, and validate it.",
+    name: "KLF Anatomy",
+    teaches:
+      "A worked reading of the Kapi Localization Format — envelope, blocks, runs, targets, provenance — with a live round-trip through the engine.",
   },
 ];
 

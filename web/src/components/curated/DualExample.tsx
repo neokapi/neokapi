@@ -65,6 +65,7 @@ const LazyDual = React.lazy(async () => {
   const { ensureSample, parseCommand } = await import("./seed");
   const { openKapi } = await import("@neokapi/kapi-playground/store");
   const { Maximize2 } = await import("lucide-react");
+  const { default: RunGate } = await import("@neokapi/kapi-lab/RunGate");
 
   // The terminal pane: seed, run the command capturing its output, render the
   // captured stdout/stderr in a Catppuccin strip. Reuses the singleton runtime.
@@ -75,7 +76,7 @@ const LazyDual = React.lazy(async () => {
     command: string;
     seed?: (string | InlineSample)[];
   }): React.ReactElement {
-    const { runtime, error, cold, armed, arm } = useCuratedRuntime();
+    const { runtime, gate } = useCuratedRuntime();
     const [output, setOutput] = React.useState<string>("");
     const [running, setRunning] = React.useState<boolean>(false);
     const [ran, setRan] = React.useState<boolean>(false);
@@ -132,11 +133,6 @@ const LazyDual = React.lazy(async () => {
             $
           </span>
           <span className="kapi-cur-cmd-text">{command.replace(/^kapi\s+/, "kapi ")}</span>
-          {!armed && (
-            <button type="button" className="kapi-cur-btn kapi-cur-btn--primary" onClick={arm}>
-              ▶ Run
-            </button>
-          )}
           <button
             type="button"
             className="kapi-cur-btn"
@@ -147,16 +143,9 @@ const LazyDual = React.lazy(async () => {
             Terminal
           </button>
         </div>
-        {error && <p className="kapi-cur-error">{error}</p>}
-        {!error && !armed && (
-          <p className="kapi-cur-meta">Press Run to execute this command in the real engine.</p>
-        )}
-        {!error && armed && !runtime && (
-          <div className="kapi-cur-loading">
-            <span className="kapi-cur-spinner" aria-hidden="true" />
-            <span>{cold ? "Starting kapi for the first time…" : "Getting kapi ready…"}</span>
-          </div>
-        )}
+        {/* The shared activation gate (compact): the press boots the engine and
+            runs the command. Nothing is fetched until pressed. */}
+        {!runtime && <RunGate compact gate={gate} label="Run in your browser" />}
         {runtime && (
           <pre className="kapi-cur-code kapi-cur-stdout">
             {running ? "…" : output || "(no output)"}

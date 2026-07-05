@@ -147,14 +147,13 @@
   margin: 0.5rem 0 0.4rem;
 }
 
-.codeBlock {
-  background: var(--ifm-code-background);
-  border: 1px solid var(--ifm-color-emphasis-200);
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
+/* An example's YAML config, rendered by the themed (Prism) CodeBlock. */
+.exampleConfig {
+  margin: 0.25rem 0 0.75rem;
+}
+
+.exampleConfig pre {
   font-size: 0.8rem;
-  overflow-x: auto;
-  white-space: pre;
 }
 
 .noteList {
@@ -176,4 +175,16 @@
   padding-top: 1rem;
   border-top: 1px solid var(--ifm-color-emphasis-200);
   font-size: 0.85rem;
+}
+
+/* The interactive configurator's YAML output: a themed (Prism-highlighted)
+   CodeBlock inside the sticky panel, so the standalone block margin is
+   dropped and the type size matches the old bespoke pane. */
+.configYaml {
+  margin: 0;
+}
+
+.configYaml pre {
+  font-size: 0.8rem;
+  line-height: 1.5;
 }

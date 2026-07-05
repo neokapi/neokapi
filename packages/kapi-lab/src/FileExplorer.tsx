@@ -137,9 +137,16 @@ export default function FileExplorer({
   function setMode(mode: string) {
     if (!mode) return;
     if (mode === "glob") {
-      onSelectionChange({ mode: "glob", paths: [], pattern: selection.pattern ?? "**/*" });
+      onSelectionChange({
+        mode: "glob",
+        paths: [],
+        pattern: selection.pattern ?? "**/*",
+      });
     } else {
-      onSelectionChange({ mode: multiple ? "multi" : "single", paths: selection.paths });
+      onSelectionChange({
+        mode: multiple ? "multi" : "single",
+        paths: selection.paths,
+      });
     }
   }
 

@@ -48,7 +48,10 @@ export default function PdfExplorer({
   const gate = useRunGate(runtime, { requires: ["pdfium"] });
   const library = useFileLibrary({ sampleIds: [] }); // no text samples; we seed PDFs
 
-  const [selection, setSelection] = useState<FileSelection>({ mode: "multi", paths: [] });
+  const [selection, setSelection] = useState<FileSelection>({
+    mode: "multi",
+    paths: [],
+  });
   const [activePath, setActivePath] = useState<string | null>(null);
   const [tree, setTree] = useState<ContentTree | null>(null);
   const [error, setError] = useState<string | null>(null);

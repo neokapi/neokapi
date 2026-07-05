@@ -1,129 +1,79 @@
 ---
 id: gate-localization-in-ci
-title: "Check translations in CI"
-sidebar_label: "Gate in CI"
+title: "Ship gates & CI"
+sidebar_label: "Ship gates & CI"
 sidebar_position: 7
-description: "Run a project's brand, terminology, and QA gates on every pull request with GitHub Actions, failing the build when a check regresses."
+description: "Enforce a project's ship gates with kapi check --ship — locally, from your assistant, and on every pull request — failing the build only at the explicit release bar, never on ordinary target drift."
 hide_table_of_contents: true
 ---
 
-:::note Needs a `.kapi` project
-This recipe runs `kapi verify`, which checks a **project's** bound gates. It
-assumes a committed [`.kapi` recipe](/kapi/get-started/first-project) at the
-repo root — the same project you author and run locally.
-:::
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import { PendingMedia } from "@neokapi/docs-shared";
 
-**Goal:** treat your translations like any other test in your pipeline. When a
-pull request changes source content or translated files, run the same checks you
-run locally on the runner and **fail the build** when something regresses — a
-dropped placeholder, a term that drifts, a brand-voice score below your bar — so
-the regression never merges.
+# Ship gates & CI
 
-For the shared model behind every gate — findings, severity, the pass/fail
-gate — see [Checks](/framework/checks); this recipe walks the CI task.
+**Goal:** treat content quality like any other test. A **ship gate** is the project's release bar — coverage thresholds over the translation lifecycle plus the bound quality gates (brand, terminology, QA). `kapi check --ship` evaluates all of it in one shot and exits non-zero when a gate is unmet, so a regression never merges. Ordinary builds never fail on target drift — a language that is behind is pending work; `--ship` is the explicit, opt-in enforcement point. The model is [Convergence](/kapi/convergence); this guide is the task. Needs a committed [`.kapi` project](/kapi/get-started/first-project).
 
-:::tip `kapi check` or `kapi verify`?
-Both gate (exit non-zero on failure), but they have different scopes:
-**`kapi check <files>`** runs **one checkset on the files you name** — ideal
-ad-hoc, on a single file, or in a script. **`kapi verify`** runs a **project's
-full bound gate set** (brand + terminology + QA, whichever the recipe binds) in
-one shot — the right default for a project's CI. Use `check` for a targeted,
-file-level gate; use `verify` to gate the whole project.
-:::
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
 
-## How `kapi verify` gates
+The project view shows each locale's standing against its gate continuously — the same derivation `check --ship` enforces:
 
-`kapi verify` runs a project's bound quality gates in one shot and returns a
-single pass/fail plus actionable findings. Each gate runs only when the project
-binds the resource it needs:
+1. **Read the gate cells.** Each locale row shows coverage per lifecycle rung (translated, reviewed, signed-off) and whether the scope clears its gate.
+2. **Close the gap.** **Bring up to date** produces what a machine can; a gate cell opens the [Review queue](/kapi/recipes/review-and-approve) for what needs a person.
+3. **Ship when green.** When every scope clears its gate, the CI check below passes by construction.
 
-- **brand** — when a brand voice is bound (`defaults.brand_voice`), score the
-  source content against it; fails below the threshold (default `80`, override
-  with `--min-score`). See [Brand Voice](/framework/checks/brand-voice).
-- **terminology** — when a termbase is bound (`defaults.termbase`), check that
-  target files use the required translations. See
-  [Enforce terminology](/kapi/recipes/terminology-qa).
-- **qa** — for translated targets, check placeholder and tag integrity against
-  the source and flag untranslated or empty targets. See
-  [QA Checks](/framework/checks/qa-checks).
+<PendingMedia kind="screenshot" scene="harness/demos/kapi-desktop-projects/demo.yaml">
+  The coverage grid with per-locale ship-gate cells — one scope green, one
+  pending with the unmet threshold named.
+</PendingMedia>
 
-The exit code is what gates CI:
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
 
-| Exit | Meaning |
-| ---- | ------- |
-| `0`  | all gates passed |
-| `3`  | a gate failed — not on-spec yet (read the findings and fix) |
-| `1`  | operational error (no project, load failure) |
+Ask for the standing, or for the fix:
 
-A failing gate exits `3`, which fails the workflow step. (The `--no-fail` flag
-turns verify into report-only mode — it always exits `0`. Use it inside an
-assistant fix-loop; **omit it for CI gating.**)
+> Are we shippable in German? If not, get us there.
 
-:::tip Gating on coverage and review
-The gates above are the quality checks. To also gate on *coverage* — the
-[convergence](/kapi/convergence) ship and source thresholds, including a
-`reviewed` bar — add `kapi verify --ship` (off by default, since target drift is
-non-blocking). A `reviewed` threshold reads its decisions from the project's
-committed [state store](/kapi/project-store) (`.kapi-state.json`,
-`defaults.state`), so **commit that file in the PR** — otherwise the runner sees
-no approvals and a `reviewed` gate can't pass.
-:::
+The assistant reads `kapi status --json`, runs `kapi up` for what a machine can close, walks you through the review worklist for what it can't, and confirms with `kapi check --ship`. With the Claude Code plugin installed, the Stop hook runs the gate automatically when Claude tries to finish — a failing gate keeps it working with the findings. See [Use with Claude](/kapi/get-started/use-with-claude).
 
-## The workflow
+</TabItem>
+<TabItem value="cli" label="CLI">
 
-Install the CLI on the runner with the companion
-[`setup-kapi`](https://github.com/neokapi/setup-kapi) action, then run
-`kapi verify`:
+`kapi check --ship` runs the project's bound quality gates plus its ship/source coverage gates; with no file arguments it inspects the project's content across every target language:
+
+```bash
+kapi check --ship                 # the pre-release bar: exit 0 pass, 3 gate fail
+kapi check --ship --locale de     # scope the target-side gates to one locale
+kapi check --ship --json          # structured result for a job summary
+```
+
+In GitHub Actions, install the CLI with the companion [`setup-kapi`](https://github.com/neokapi/setup-kapi) action and run the gate:
 
 ```yaml title=".github/workflows/localization.yml"
-name: Localization checks
-
+name: Ship gate
 on:
   pull_request:
-    paths:
-      - "content/**"
-      - "src/locales/**"
-
+    paths: ["content/**", "src/locales/**"]
 jobs:
-  verify:
+  ship-gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Installs the kapi CLI on the runner. Pin to a released version; see the
-      # action's README for available inputs.
       - uses: neokapi/setup-kapi@v1
-
-      # Runs the project's bound brand, terminology, and QA gates. Exits 3 — and
-      # fails the job — if any gate regresses. With no file arguments, verify
-      # inspects the project's content.
-      - run: kapi verify
+      # Exits 3 — failing the job — when a brand, terminology, QA, or
+      # coverage gate is unmet.
+      - run: kapi check --ship
 ```
 
-`kapi verify` reads the nearest `.kapi` recipe by walking up from the working
-directory, the same way it does locally, so no project path is needed when the
-recipe sits at the repo root.
+kapi finds the recipe by walking up from the working directory, so no project path is needed at the repo root. A `reviewed` threshold reads its decisions from the committed [state store](/kapi/project-store) (`.kapi-state.json`) — **commit that file in the PR**, or the runner sees no approvals and a `reviewed` gate can't pass. For a targeted, file-level gate on named files (no project), use plain [`kapi check`](/kapi/recipes/verify-content). If a CI job also *produces* translations (`kapi up` in a workflow), give it an API key via a secret env var — a Claude subscription sign-in is bound to your user and its usage window, so [CI always uses a key](/kapi/get-started/use-with-claude#let-kapi-run-claude).
 
-## Narrow or widen the gate
-
-- **One locale:** `kapi verify --locale de` scopes terminology and QA to a
-  single target language.
-- **Specific gates:** pass `--brand`, `--terms`, or `--qa` to run a subset (all
-  run by default).
-- **Specific files:** `kapi verify path/to/file.json` checks just those files
-  instead of the whole project.
-- **Machine-readable output:** add `--json` to capture the structured result for
-  a job summary or a bot comment.
-
-:::tip One step instead of two
-The all-in-one [`neokapi/kapi-action`](https://github.com/neokapi/kapi-action)
-wraps install + run in a single step. See its README for the inputs it accepts.
-:::
+</TabItem>
+</Tabs>
 
 ## Next
 
-- Author the gates the project binds: [Brand Voice](/framework/checks/brand-voice),
-  [terminology](/kapi/recipes/terminology-qa), and [QA Checks](/framework/checks/qa-checks).
-- Understand the shared model behind every gate: [Checks](/framework/checks).
-- Set up the project these checks run against:
-  [Create your first project](/kapi/get-started/first-project).
+- [Convergence](/kapi/convergence) — gates, ladders, and the derived-state model.
+- [Review & approve](/kapi/recipes/review-and-approve) — raising the `reviewed` coverage a gate measures.
+- [Check content like tests](/kapi/recipes/verify-content) — the file-level checkset and Report.

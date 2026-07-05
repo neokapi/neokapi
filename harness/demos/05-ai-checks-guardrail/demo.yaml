@@ -24,11 +24,11 @@ script:
   - comment: An AI translated app.json into German. Is it safe to ship?
   - command: cat app.de.json
   - comment: Check the translation against the source — like running tests.
-  - command: kapi check app.json app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
+  - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
   - comment: Two real breakages — a dropped placeholder and a translated product name. Apply the fixes.
   - command: cp -f app.de.fixed.json app.de.json && cat app.de.json
   - comment: Run the same check again.
-  - command: kapi check app.json app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
+  - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
 
 narration:
   - id: title

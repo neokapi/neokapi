@@ -1,8 +1,8 @@
 ---
 sidebar_position: 3
 title: Quick Start
-description: Get kapi running in minutes — pseudo-translate files, count words, and run AI translation from the command line. Runnable examples included; no install required.
-keywords: [kapi, quickstart, browser, playground, pseudo-translate, word count, ai translation, command line]
+description: Try kapi in your browser — pseudo-translate a file, count words, inspect the engine — with runnable examples and no install.
+keywords: [kapi, quickstart, browser, playground, pseudo-translate, word count, command line]
 ---
 
 import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
@@ -10,16 +10,13 @@ import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet
 # Quick Start
 
 Runnable first steps with kapi — no install, no setup. These are **ad-hoc** runs:
-one command, one file, configured by flags. It's the fastest way to see what kapi
-does, and the right shape for one-off jobs, scripting, and CI. For content you
-localize repeatedly, you'll graduate to a [project](/kapi/get-started/first-project) —
-see the end of this page.
+one command, one file, configured by flags — the right shape for one-off jobs,
+scripting, and CI. For content you work on repeatedly, you'll graduate to a
+[project](/kapi/get-started/first-project) — see the end of this page.
 
-Most commands below carry a **▸ Run** button. Pressing it runs the **real `kapi`
-binary** in your browser — no install, and nothing leaves your machine. The
-first run takes a moment to start; after that it's instant. The commands that
-need an API key are shown as static blocks; run those after
-[installing](/kapi/get-started/installation) and adding a credential.
+Each command below carries a **▸ Run** button. Pressing it runs the **real
+`kapi` binary** in your browser — nothing leaves your machine. The first run
+takes a moment to start; after that it's instant.
 
 ## Pseudo-translate a file
 
@@ -42,68 +39,13 @@ Estimate translation volume for cost planning:
 
 <RunnableSnippet cmd="kapi word-count messages.json" seed={["messages.json"]} />
 
-## Read, check, and edit content
-
-The engine also runs as content operations on **any** supported file — a Word
-document, a JSON catalog, Markdown — each with a structured `--json` form. Read a
-file into anchored blocks, size it, verify it, or edit the text in place.
-
-`kapi inspect` parses a file into one record per content block — the text, a
-stable content-hash anchor, and its structural role — as a JSON array, or
-`--jsonl` to stream one object per line:
-
-```bash
-kapi inspect messages.json
-kapi inspect --jsonl docs/*.md | jq .content_hash
-```
-
-`kapi stats` summarizes the content — blocks, words, characters, segments, and a
-by-role breakdown — the richer sibling of `word-count`:
-
-```bash
-kapi stats report.docx
-kapi stats --json docs/*.md | jq '.total.words'
-```
-
-`kapi check` verifies content against a checkset and returns a versioned
-`kapi.check/v1` Report — pass, a 0–100 score, a gate, and a finding per stable
-rule id, each anchored to a block. The default checkset is rule-based and needs
-no API key; it **exits non-zero when the gate fails**, so it drops straight into
-CI:
-
-```bash
-kapi check release-notes.md --max-chars 280
-kapi check release-notes.md --json          # the kapi.check/v1 Report
-```
-
-To edit the text inside a file, read its blocks with `kapi inspect --jsonl`,
-rewrite the ones you want to change, and write them back with `kapi apply` —
-only the text changes, the structure round-trips, and no model is involved.
-Preview with `--diff` before writing anything:
-
-```bash
-kapi inspect guide.md --jsonl > blocks.jsonl
-# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
-# content entries to edits.jsonl — you (or your assistant) do this, no command
-kapi apply edits.jsonl --diff     # preview, then drop --diff to apply in place
-```
-
-Together these are the loop an AI assistant runs over [MCP](/reference/mcp):
-`extract_content`, `check_file`, fix the flagged block with `apply_edits`,
-re-check until the gate is green. See [Edit content](/kapi/recipes/rewrite-content)
-for the guards and [Checks](/framework/checks) for the Report model.
-
 ## Explore formats, tools, and flows
 
-List every format kapi understands — no input file required:
+List every format kapi understands, then the processing tools and composable flows:
 
 <RunnableSnippet cmd="kapi formats" />
-
-List the available processing tools, composable flows, and presets:
-
 <RunnableSnippet cmd="kapi tools" />
 <RunnableSnippet cmd="kapi flows" />
-<RunnableSnippet cmd="kapi presets list" />
 
 ## Edit before you run
 
@@ -114,93 +56,26 @@ automatically — press **Enter** when you're ready, or tweak it first:
 
 For a full interactive terminal, open the [CLI Playground](/playground-cli).
 
-## Translate with AI
+## Beyond the demo
 
-Translate a file with an LLM, then run a QA check in the same flow:
+The commands that talk to a model or edit files in place run after you
+[install](/kapi/get-started/installation) — each has its own guide:
 
-```bash
-kapi run translate-qa -i input.html -o output.html --source-lang en --target-lang fr
-```
-
-Hosted providers need a credential, so install first and add one with
-`kapi credentials add` — see [Installation](/kapi/get-started/installation). For a
-**free, private, no-key** option, run a local model through
-[Ollama](https://ollama.com):
-
-```bash
-kapi models ollama install            # one-time runtime install (guidance per platform)
-kapi models ollama pull llama3.2:3b   # download a local translation model
-kapi run translate-qa -i input.html --source-lang en --target-lang fr --provider ollama --model llama3.2:3b
-```
-
-When a brand voice profile is bound on the flow, its guide is injected into the
-translation prompt, so output is on-brand at generation time.
-
-## Keep AI output on-brand
-
-Print a brand voice guide to paste into your AI assistant's context, starting
-from a built-in starter pack:
-
-```bash
-kapi brand guide --pack friendly-dtc
-```
-
-Score a draft against a profile. `--min-score` makes it a CI gate — kapi exits
-non-zero when the score is below the threshold:
-
-```bash
-kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
-```
-
-Input can be a file argument, `--input-text "…"`, or piped via stdin. Rewrite
-off-voice content — forbidden terms, competitor mentions, jargon:
-
-```bash
-kapi brand rewrite --profile-file brand.yaml --input-text "Leverage our solution to drive synergy."
-```
-
-Five starter packs ship built in: `professional-b2b`, `friendly-dtc`,
-`technical-docs`, `marketing-blog`, and `customer-support`. See
-[Brand Voice](/framework/checks/brand-voice).
-
-## Manage terminology
-
-```bash
-# Import terms from CSV
-kapi termbase import terms.csv --format csv -s en -t fr
-
-# Look up terms in text
-kapi termbase lookup "authentication module" -s en -t fr
-```
-
-## Use it inside your AI assistant
-
-Expose brand and terminology tools over MCP so your assistant stays on-brand
-while it writes:
-
-```bash
-kapi mcp
-```
-
-See [Use the Kapi Agent Skills](/kapi/get-started/use-with-skills) for the
-skill-based workflow, or [Use Kapi with MCP](/kapi/get-started/use-with-mcp) for
-MCP setup with Claude Code, Cursor, and Windsurf.
+- **Read, check, and edit any file** — `kapi inspect`, `kapi check`, and the one
+  write verb `kapi apply`: [Edit content](/kapi/recipes/rewrite-content) and
+  [Check content like tests](/kapi/recipes/verify-content).
+- **Translate with your AI** — one `kapi models setup` confirm connects your
+  Claude subscription, an API key, or a local Ollama model:
+  [Translate with your AI](/kapi/recipes/translate-content).
+- **Keep AI output on-brand** — brand profiles, scoring, and rewrite:
+  [Brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes).
+- **Drive it from Claude** — the Agent Skill and MCP server:
+  [Use with Claude](/kapi/get-started/use-with-claude).
 
 ## Next: set up a project
 
-The runs above are ad-hoc — perfect for a quick check or a CI step. Once you're
-localizing the same repository or content set more than once, capture the
-languages, content patterns, and flows in a `.kapi` project so you stop repeating
-flags and start accumulating translation memory.
-
-- [Create your first project](/kapi/get-started/first-project) — `kapi init`,
-  read the recipe, run a flow, merge the files out.
-- [Modes & bindings](/kapi/modes) — how ad-hoc and project runs differ, and when
-  to mix them.
-
-## Next steps
-
-- [Use the Kapi Agent Skills](/kapi/get-started/use-with-skills) — drive the kapi CLI from Claude Code
-- [Brand Voice](/framework/checks/brand-voice) — profiles, scoring, and enforcement
-- [Kapi CLI Overview](/kapi/cli) — full command reference
-- [Format Reference](/formats) — supported file formats
+Once you work on the same content more than once, capture the languages,
+patterns, and flows in a `.kapi` project so you stop repeating flags and start
+accumulating work: [create your first project](/kapi/get-started/first-project) —
+desktop, agent, or CLI — then `kapi up` reconciles it toward its ship gates
+([Projects](/kapi/projects) explains the model).

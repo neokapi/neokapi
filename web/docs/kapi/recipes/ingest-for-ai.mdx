@@ -5,248 +5,68 @@ description: "Parse any document format into anchored content blocks for RAG or 
 hide_table_of_contents: true
 ---
 
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
 # Feed content to your AI
 
-:::note Runs anywhere
-No project needed — `kapi stats`, `kapi inspect`, `kapi check`, and `kapi apply` run ad-hoc on any source document.
-:::
+**Goal:** turn any document — Word, PDF, JSON, Markdown, HTML — into a stream of clean, anchored content blocks an AI assistant or RAG pipeline can read without knowing anything about the source format. No translation is involved. Every block carries a stable `content_hash` anchor — a retrieval key derived from the block's text, not its position — so an edit produced later can be written back to the same block with the surrounding markup intact. Concepts: [Content model](/framework/content-model), [Checks](/framework/checks).
 
-**Goal:** turn any document — Word, PDF, JSON, Markdown, HTML — into a stream of
-clean, anchored content blocks an AI assistant or RAG pipeline can read without
-knowing anything about the source format. No translation is involved. Each block
-carries a stable `content_hash` anchor that lets you find and rewrite that block
-later, in the same file, without touching the surrounding markup.
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
 
-For the concepts behind anchored blocks and content checks, see
-[Content model](/framework/content-model) and [Checks](/framework/checks); this
-recipe walks the task.
+Ingestion is a pipeline job, so the desktop's role here is inspection, not export:
 
-## Step 1 — survey before you ingest
+1. **See what your AI will see.** Open a file in your project — the **Blocks** view is the same record stream `kapi inspect` emits: the text and its structural role, with the surrounding markup stripped away.
+2. **Judge the parse before you index.** **Preview** — plus **Structure** and **Layout** where the format carries them — shows whether headings, tables, and reading order came through; cheaper to catch here than in retrieval quality later.
+3. **Then stream.** The feed itself is `kapi inspect --jsonl` (CLI tab), or a connected assistant reading blocks directly (Agent tab).
 
-Before feeding a document to a model, `kapi stats` gives you a format-agnostic
-size and structure overview: block counts, word and character counts, and a
-breakdown by structural role (heading, paragraph, list-item, table-cell, and so
-on). Use it to estimate token budget and decide how to chunk.
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
 
-```bash
-kapi stats report.docx
-```
+A [connected assistant](/kapi/get-started/use-with-claude) needs no export step — the [MCP tools](/reference/mcp) are the feed:
 
-```
-Blocks:                     84
-  translatable:             76
-  non-translatable:          8
-Words:                   11342
-Characters:              71890
-  (no spaces):            60412
-Segments:                  289
+- `extract_content` streams the anchored blocks of any file it is pointed at;
+- `check_file` returns the structured `kapi.check/v1` Report, one finding per block;
+- `apply_edits` writes revisions back through the round-trip, drift-guarded by `content_hash`.
 
-By role:
-  paragraph             47
-  heading                9
-  list-item             20
-```
+You describe the outcome — "read the contract and flag every clause that mentions liability" — and the assistant reads blocks, not bytes.
 
-For scripting — sizing content inside a loop or a pipeline — add `--json`:
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+**Survey first.** `kapi stats` sizes the job — blocks, words, characters, a breakdown by structural role — to estimate token budget and decide how to chunk:
 
 ```bash
 kapi stats --json report.docx docs/*.md | jq '.total.words'
 ```
 
-The `total` record in the JSON output has the same shape as the per-file entries:
-`blocks`, `translatable`, `non_translatable`, `words`, `characters`,
-`characters_no_space`, `segments`, and `by_role`. Pass `-f` to declare the input
-format when auto-detection is ambiguous.
-
-## Step 2 — extract blocks with anchors
-
-`kapi inspect` reads a file through its format-aware parser and emits one record
-per content block. Every record contains the plain text, a stable
-`content_hash` (SHA-256 over the normalized source text), the block's structural
-`role`, and its nesting `level`. The format collapses: a Word document, a JSON
-catalog, and a Markdown page all yield the same record shape.
-
-```bash
-kapi inspect report.docx
-```
-
-Produces a JSON array:
-
-```json
-[
-  {
-    "file": "report.docx",
-    "number": 1,
-    "id": "b1",
-    "content_hash": "e3b0c44298fc1c149afb4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "role": "heading",
-    "level": 1,
-    "text": "Introduction"
-  },
-  {
-    "file": "report.docx",
-    "number": 2,
-    "id": "b2",
-    "content_hash": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4d",
-    "role": "paragraph",
-    "level": 0,
-    "text": "This document describes the migration path."
-  }
-]
-```
-
-For large documents or pipeline ingestion, `--jsonl` streams one object per line
-(newline-delimited JSON), which is easier to pipe incrementally than a closed
-array:
+**Extract blocks with anchors.** `kapi inspect` emits one record per block — the plain `text`, a stable `content_hash`, the structural `role`, the nesting `level`. The format collapses: a Word document, a JSON catalog, and a Markdown page all yield the same record shape. `--jsonl` streams one object per line for pipelines; `-f` declares the format when detection is ambiguous:
 
 ```bash
 kapi inspect --jsonl report.docx docs/*.md | \
   jq -c '{hash: .content_hash, role: .role, text: .text}'
-```
-
-Pass `-f` to declare the input format explicitly:
-
-```bash
 cat page.html | kapi inspect -f html --jsonl
 ```
 
-## The anchor and write-back contract
-
-The `content_hash` is a stable retrieval key derived from the block's text, not
-its position: a RAG pipeline that indexes blocks by their `content_hash` can
-later look up the original block when an AI assistant produces an edit. (See
-[Content model](/framework/content-model) for how blocks and anchors are
-represented.)
-
-The write-back path closes the loop:
-
-1. **Read** — `kapi inspect --jsonl` extracts blocks with anchors.
-2. **Retrieve** — the AI finds the relevant block by `content_hash` or `id`.
-3. **Edit** — the AI produces a revised version of the text.
-4. **Write-back** — `kapi apply` (or the MCP `apply_edits` tool) applies the
-   edit back to the file through the same format-aware round-trip, leaving
-   structure and inline markup intact. No model is involved — the AI wrote the
-   text; kapi writes it back.
-
-The write-back is a faithful, format-aware round-trip: only the text changes,
-and a block whose inline codes would be corrupted is left unchanged rather than
-written with unbalanced markup. See [Edit content](/kapi/recipes/rewrite-content)
-for the round-trip contract.
-
-## Checking content before or after editing
-
-`kapi check` runs a set of content checks over any file and returns a structured
-`kapi.check/v1` Report an AI assistant can act on without parsing free-form
-output.
+**Write back; check any time.** `kapi apply` lands an assistant's edits on the original blocks by anchor; `kapi check` returns findings a program can act on (exit `0` pass, `3` gate tripped, `--no-fail` for fix-loops):
 
 ```bash
-kapi check report.docx
-```
-
-Add length or pattern constraints:
-
-```bash
+kapi apply edits.jsonl --diff             # review before writing
 kapi check report.docx --max-chars 300 --forbid "TODO"
 ```
 
-Bind a brand profile to also run vocabulary and brand-voice checks:
+An edit that drifted (the file changed since you read it) or would corrupt an inline code is rejected rather than written — [Edit content](/kapi/recipes/rewrite-content) documents the entry shape and the guards.
 
-```bash
-kapi check report.docx --pack marketing-blog
-kapi check report.docx --profile my-profile
-kapi check report.docx --profile-file ./brand.yaml
-```
-
-The `--json` flag emits the `kapi.check/v1` Report:
-
-```bash
-kapi check --json report.docx | jq '.findings[] | select(.severity == "critical")'
-```
-
-The report shape:
-
-```json
-{
-  "schema": "kapi.check/v1",
-  "pass": false,
-  "summary": { "score": 74, "critical": 0, "major": 2, "minor": 3 },
-  "gate": { "failed": ["major findings exceed limit"] },
-  "findings": [
-    {
-      "rule": "length.max-chars-exceeded",
-      "severity": "major",
-      "message": "Block exceeds 300 characters (actual: 412).",
-      "suggestion": "Split or shorten the block.",
-      "location": { "file": "report.docx", "block": "b7" }
-    }
-  ]
-}
-```
-
-Exit codes: `0` when the gate passes, `3` when the gate trips. Use `--no-fail`
-to always exit `0` in a fix-loop where you want to inspect findings without
-aborting the script. Use `--lenient` for report-only mode.
-
-See [Checks](/framework/checks) for the full rule taxonomy and gate configuration.
-
-## Applying edits faithfully
-
-Once a block is flagged or an AI has drafted a revision, write the new text back
-with `kapi apply`. Produce a JSONL change-set of `content` entries — each naming
-the block's `file`, `id`, the `content_hash` you read, and the new `text` (keep
-the `<x id="…"/>` placeholders) — then apply it:
-
-```bash
-kapi inspect report.docx --jsonl > blocks.jsonl
-# rewrite each changed block's "text" (keep the <x id="…"/> tags), saving them as
-# content entries to edits.jsonl — you (or your assistant) do this, no command
-kapi apply edits.jsonl --diff             # review the change before writing
-kapi apply edits.jsonl --in-place=.bak    # apply in place, keeping a backup
-```
-
-No model is involved — the AI produced the text; `kapi apply` round-trips it back
-faithfully and rejects any edit that drifted or would corrupt an inline code. See
-[Edit content](/kapi/recipes/rewrite-content) for the `content`-entry shape and
-the inline-code preservation contract.
-
-## Running the loop via MCP
-
-If your AI assistant is connected to the [kapi MCP server](/reference/mcp),
-it can drive the same workflow through structured tool calls rather than shell
-commands:
-
-- `extract_content` — parse a file and return content blocks (the MCP equivalent
-  of `kapi inspect`).
-- `check_file` — run the check suite and return a `kapi.check/v1` Report.
-- `apply_edits` — write a typed change-set of content edits back faithfully (the
-  MCP equivalent of `kapi apply`); no provider.
-- `brand_check` — score text against a brand voice profile.
-
-A typical agent loop: the assistant calls `extract_content` to read blocks,
-`check_file` to find findings, rewrites the flagged block itself, sends it back
-with `apply_edits`, and runs `check_file` again to confirm the finding is resolved.
-
-See [MCP server](/reference/mcp) for setup and the full tool list.
+</TabItem>
+</Tabs>
 
 ## In a project
 
-In a `.kapi` project, ingestion runs against the recipe's declared content set —
-`kapi stats`, `kapi inspect`, and `kapi check` with no file argument survey every
-source the project declares, instead of paths you list by hand. A project also
-makes the write-back loop durable: edits applied with `kapi apply` land on the
-recipe's content, and the same `content_hash` anchors stay stable across runs, so
-an AI assistant indexing your project can retrieve and rewrite the same blocks
-over time. See [Create your first project](/kapi/get-started/first-project).
+In a [`.kapi` project](/kapi/get-started/first-project), `kapi stats`, `kapi inspect`, and `kapi check` with no file argument survey every source the recipe declares — and the same `content_hash` anchors stay stable across runs, so an assistant indexing your project can retrieve and rewrite the same blocks over time.
 
 ## Further reading
 
-- [Content model](/framework/content-model) — how blocks, roles, and inline
-  runs are represented by the neokapi engine.
-- [Checks](/framework/checks) — rule taxonomy, gate configuration, and the
-  `kapi.check/v1` schema.
-- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply`
-  loop, the inline-code preservation contract, and the `--diff` workflow.
-- [MCP server](/reference/mcp) — connect any MCP-compatible AI assistant to
-  the kapi content engine.
-- [Prepare content](/kapi/recipes/prepare-content) — if your goal is
-  translation rather than AI ingestion, start here instead.
+- [Edit content](/kapi/recipes/rewrite-content) — the inspect → edit → `apply` loop and the preservation contract.
+- [MCP server](/reference/mcp) — every structured tool behind the same loop.
+- [What gets translated](/kapi/recipes/prepare-content) — if your goal is translation rather than AI ingestion.

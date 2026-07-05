@@ -346,12 +346,13 @@ export default function KapiEmbed({
           type="button"
           className="kapi-pg-start-btn"
           onClick={() => setStarted(true)}
-          aria-label="Run — start the kapi terminal"
+          aria-label="Run in your browser — start the kapi terminal"
         >
-          ▶ Run
+          ▶ Run in your browser
         </button>
         <span className="kapi-pg-loading-sub">
-          Boots the kapi engine (~13&nbsp;MB) in your browser. Nothing loads until you press Run.
+          ~13&nbsp;MB engine · runs locally — nothing leaves your machine. Nothing loads until you
+          press Run.
         </span>
       </div>
     );

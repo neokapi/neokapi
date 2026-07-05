@@ -13,10 +13,10 @@ import type { LabRuntime, LabStatus } from "./useLabRuntime";
 // Once `ready`, the lab's normal body renders and its compute runs.
 //
 // The engine is a module-level singleton shared by every lab and the navbar
-// widget, so the gate is a FIRST-TIME affordance: once anything has activated
-// the engine (another lab on the page, the navbar "Boot engine", or this lab's
-// own Run), the phase is no longer "idle" and every gate auto-arms — the demo
-// shows directly instead of asking the user to press Run again.
+// widget. Once anything has activated it (another lab on the page, the navbar
+// "Boot engine"), other gates WARM — they attach to the running engine so
+// their own Run press is instant — but they never run on their own: running
+// is always the reader's explicit action; only the warm-up is shared.
 
 export interface RunGate {
   /** True once the user has pressed Run (boot requested). */
@@ -63,17 +63,18 @@ export function useRunGate(runtime: LabRuntime, opts: UseRunGateOptions = {}): R
     }
   }, [runtime, requiresKey]);
 
-  // Auto-arm once the engine is active elsewhere: attach this lab's runtime to
-  // the already-running singleton (boot() is idempotent) so its body renders
-  // without a redundant Run press.
+  // Warm-arm, don't auto-run: once the engine is active elsewhere (a sibling
+  // lab on the page, the navbar widget), attach this lab's runtime to the
+  // running singleton (boot() is idempotent — no second download) so its own
+  // Run press is instant. The gate STAYS up: running is always the reader's
+  // explicit action; only the engine warm-up is shared.
   useEffect(() => {
-    if (engineActive && !armed) run();
-  }, [engineActive, armed, run]);
+    if (engineActive && !armed) runtime.boot();
+  }, [engineActive, armed, runtime]);
 
-  const isArmed = armed || engineActive;
   return {
-    armed: isArmed,
-    ready: isArmed && runtime.ready,
+    armed,
+    ready: armed && runtime.ready,
     status: runtime.status,
     bootProgress: runtime.bootProgress,
     error: runtime.error,

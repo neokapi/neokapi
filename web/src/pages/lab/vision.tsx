@@ -3,14 +3,15 @@ import Layout from "@theme/Layout";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { VisionExplorer } from "@site/src/components/Lab";
+import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 import { readCdnConfig, cdnEnabled, cdnHref } from "@neokapi/docs-shared";
-import styles from "./pdf.module.css";
 
 // The Vision Lab: upload an image (or use a bundled sample) and run the real
 // kapi-vision models in your browser. Text comes from PP-OCRv5 (detection +
 // recognition) and document layout from PP-DocLayoutV3 — the same ONNX models
 // the native kapi-vision plugin runs, executed here via onnxruntime-web. Nothing
-// is mocked: only the runtime differs (WebAssembly instead of native onnxruntime).
+// is mocked: only the runtime differs (WebAssembly instead of native
+// onnxruntime). The explorer is gated: no model is fetched until Run.
 
 export default function VisionLabPage(): React.ReactElement {
   const samples = [
@@ -46,20 +47,21 @@ export default function VisionLabPage(): React.ReactElement {
       title="Vision Lab"
       description="Pull the text out of an image or scan — and see where every line sits on the page — so it can be searched, translated, or rebuilt in another language. Runs privately in your browser."
     >
-      <main className={styles.page}>
-        <div className={styles.hero}>
-          <h1>Vision Lab</h1>
-          <p className={styles.lede}>
+      <LabPageShell
+        title="Vision Lab"
+        lede={
+          <>
             Drop in an image — or a document with a picture in it — and neokapi reads the text
             inside it, keeping track of where each line sits and how the page is laid out (headings,
             paragraphs, tables, figures). The result isn&rsquo;t just a wall of text: it&rsquo;s
             structured content you can search, translate, and place back, the same way you would
             with any document. Everything runs in your browser, so nothing you upload leaves your
             device.
-          </p>
-        </div>
+          </>
+        }
+      >
         <VisionExplorer samples={samples} modelBase={modelBase} />
-      </main>
+      </LabPageShell>
     </Layout>
   );
 }

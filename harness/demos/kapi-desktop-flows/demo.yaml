@@ -38,10 +38,10 @@ narration:
   - id: library
     kind: desktop
     beat: library
-    caption: Flows defined in the project.
+    caption: The Flows tab lists the pipelines defined in the project.
     text: >-
-      Its Flows view lists the pipelines defined in the project, saved alongside
-      it and shared through version control.
+      The Flows tab in the Toolbox lists the pipelines defined in the project,
+      saved alongside it and shared through version control.
 
   - id: library-zoom
     kind: desktop
@@ -90,7 +90,7 @@ locales:
         caption: KapiMart — åpnet fra startskjermen.
       - id: library
         text: >-
-          Flyt-visningen lister pipelinene som er definert i prosjektet, lagret
+          Flyter-fanen i verktøykassen lister pipelinene som er definert i prosjektet, lagret
           sammen med det og delt gjennom versjonskontroll.
         caption: Flyter definert i prosjektet.
       - id: library-zoom

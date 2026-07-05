@@ -34,11 +34,11 @@ describe("GENERATIVE_TARGETS", () => {
 });
 
 describe("ConversionExplorer", () => {
-  it("gates the lab behind an explicit Run play button", () => {
+  it("gates the lab behind an explicit Run action", () => {
     render(<ConversionExplorer assets={null} />);
-    // The body lays out behind the zero-shift gate overlay; the play button
-    // (aria-label "Run") is the gate.
-    expect(screen.getByLabelText("Run")).toBeTruthy();
+    // The body lays out behind the zero-shift gate overlay; the labeled
+    // primary action ("Run in your browser") is the gate.
+    expect(screen.getByRole("button", { name: /run in your browser/i })).toBeTruthy();
   });
 
   it("renders the input picker behind the gate, without booting WASM", () => {

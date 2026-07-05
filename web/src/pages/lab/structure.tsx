@@ -2,7 +2,7 @@ import React from "react";
 import Layout from "@theme/Layout";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import { PdfExplorer } from "@site/src/components/Lab";
-import styles from "./pdf.module.css";
+import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 
 // Structure & Layout lab: how the engine recovers a document's *shape* — the
 // reading order, the outline, and per-block page geometry. PDF is the richest
@@ -24,20 +24,21 @@ export default function StructureLabPage(): React.ReactElement {
       title="Structure & Layout Lab"
       description="A PDF is just ink on a page until something recovers its reading order, its outline, and the place of every block. Drop one in and watch neokapi reconstruct its structure — privately, in your browser."
     >
-      <main className={styles.page}>
-        <div className={styles.hero}>
-          <h1>Structure &amp; Layout</h1>
-          <p className={styles.lede}>
+      <LabPageShell
+        title="Structure & Layout"
+        lede={
+          <>
             A document is more than its words — it has a reading order, an outline, and a place for
             every block on the page. Drop in a PDF and neokapi recovers all three, right here in
             your browser. Switch to <strong>Layout</strong> to see each block in its place on the
             page, <strong>Structure</strong> for the outline, and <strong>Blocks</strong> for the
             extracted content — so you can see exactly what it found and where. Nothing is fetched
             until you press Run.
-          </p>
-        </div>
+          </>
+        }
+      >
         <PdfExplorer samples={samples} />
-      </main>
+      </LabPageShell>
     </Layout>
   );
 }

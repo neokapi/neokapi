@@ -17,21 +17,25 @@ Two jobs, one engine:
 - **Keep your source content right** — edit it faithfully and verify it with
   **checks** for terminology, QA, and brand voice that act like **tests for AI
   output** (a draft scores 0–100 and a gate passes or fails).
-- **Make it multilingual** — translate it with AI or MT, reuse what you've already
-  translated, enforce your terminology, and hand bilingual files to translators —
-  all without ever mangling the file's structure.
+- **Make it multilingual** — one verb, `kapi up`, reconciles the project toward
+  its ship gates: translate with the AI you already have, reuse what you've
+  translated, enforce your terminology, and park what needs a person for
+  review — all without ever mangling the file's structure.
 
-## Two ways to run it
+## Three ways to run it
 
-Kapi comes in two forms that share the **same engine, tools, flows, and
+Every surface works the same **engine, tools, flows, and
 [`.kapi` projects](/reference/project-file)** — a workflow built in one runs in
-the other:
+the others:
 
+- **Kapi Desktop** — a visual app: create projects, watch coverage against the
+  ship gates, review and approve translations, build flows, manage plugins and
+  credentials — no YAML, no flags.
+- **Your AI assistant** — Claude (or any skill/MCP-capable tool) drives kapi by
+  plain language, inside kapi's guardrails. See
+  [Use with Claude](/kapi/get-started/use-with-claude).
 - **Kapi CLI** — a single binary that operates directly on files. Best for
-  automation, scripting, CI, offline work, and for serving tools to your AI
-  assistant over [MCP](/reference/mcp).
-- **Kapi Desktop** — a visual app for building flows, running tools, managing
-  plugins, and storing credentials — no YAML, no flags.
+  automation, scripting, and CI.
 
 Not sure which fits? See **[Kapi CLI or Kapi Desktop?](/kapi/get-started/cli-vs-desktop)**
 
@@ -40,7 +44,7 @@ Not sure which fits? See **[Kapi CLI or Kapi Desktop?](/kapi/get-started/cli-vs-
 You drive Kapi either **ad-hoc** (one-off, on files you name) or as a **project**
 (a `.kapi` recipe plus a store that remembers your work) — the same
 commands, a different binding. See
-**[Projects vs ad-hoc](/kapi/get-started/project-vs-adhoc)**.
+**[Projects](/kapi/projects)**.
 
 From there it's task by task: the [Kapi CLI recipes](/kapi/cli) walk preparing your
 source and going multilingual, and [Kapi Desktop](/kapi/desktop/overview) does the
@@ -52,5 +56,5 @@ same work visually.
   download) and Kapi Desktop (macOS cask).
 - **[Quick Start](/kapi/get-started/quickstart)** — do something in your browser,
   no install.
-- **[Use Kapi with your AI assistant](/kapi/get-started/use-with-mcp)** — wire it
+- **[Use Kapi with your AI assistant](/kapi/get-started/use-with-claude)** — wire it
   into Claude, Cursor, and more.

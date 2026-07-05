@@ -132,9 +132,12 @@ export default function ProjectPanel({
                         readOnly={!onPresetsChange}
                       />
                     ) : (
-                      <pre className="m-0 overflow-auto rounded-md bg-secondary px-2 py-1.5 font-mono text-[10px] leading-relaxed text-foreground">
-                        {JSON.stringify(values, null, 2)}
-                      </pre>
+                      <CodeView
+                        text={JSON.stringify(values, null, 2)}
+                        lang="json"
+                        lineNumbers={false}
+                        maxHeight="12rem"
+                      />
                     )}
                   </section>
                 );

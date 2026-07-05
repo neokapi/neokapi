@@ -30,7 +30,10 @@ export function specFromTrace(trace: FlowTrace): FlowSpec {
     .filter((n) => n.type === "tool" || n.type === "bridge-tool")
     // Older traces may omit `name`; fall back to the node id so the step
     // still renders rather than producing a ghost node.
-    .map((n) => ({ tool: n.name || n.id, ...(n.label ? { label: n.label } : {}) }))
+    .map((n) => ({
+      tool: n.name || n.id,
+      ...(n.label ? { label: n.label } : {}),
+    }))
     .filter((s) => s.tool);
   return { steps };
 }

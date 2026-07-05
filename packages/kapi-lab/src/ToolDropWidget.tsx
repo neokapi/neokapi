@@ -7,7 +7,7 @@ import { useLabRuntime } from "./useLabRuntime";
 import GateOverlay from "./GateOverlay";
 import { useRunGate } from "./useRunGate";
 import type { LabRuntimeAssets } from "./useLabRuntime";
-import { FileIcon } from "@neokapi/ui-primitives/preview";
+import { CodeView, FileIcon } from "@neokapi/ui-primitives/preview";
 import { downloadBytes, downloadText, formatBytes } from "@neokapi/ui-primitives/preview";
 import OutputView from "./OutputView";
 
@@ -153,9 +153,11 @@ export default function ToolDropWidget({
   const [outPath, setOutPath] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
   const [stats, setStats] = useState<ToolDropStat[] | null>(null);
-  const [diff, setDiff] = useState<{ before: string; after: string; bytes: Uint8Array } | null>(
-    null,
-  );
+  const [diff, setDiff] = useState<{
+    before: string;
+    after: string;
+    bytes: Uint8Array;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -376,17 +378,35 @@ export default function ToolDropWidget({
                 <Badge variant="outline" className="self-start">
                   Before
                 </Badge>
-                <pre className="overflow-auto rounded bg-muted/40 p-2 text-xs">
-                  {input.binary ? "(binary input — download to inspect)" : diff.before}
-                </pre>
+                {input.binary ? (
+                  <pre className="overflow-auto rounded bg-muted/40 p-2 text-xs">
+                    (binary input — download to inspect)
+                  </pre>
+                ) : (
+                  <CodeView
+                    text={diff.before}
+                    filename={input.name}
+                    lineNumbers={false}
+                    maxHeight="16rem"
+                  />
+                )}
               </div>
               <div className="flex flex-col gap-1">
                 <Badge variant="outline" className="self-start border-primary/50 text-primary">
                   After
                 </Badge>
-                <pre className="overflow-auto rounded bg-muted/40 p-2 text-xs">
-                  {input.binary ? "(binary output — download to inspect)" : diff.after}
-                </pre>
+                {input.binary ? (
+                  <pre className="overflow-auto rounded bg-muted/40 p-2 text-xs">
+                    (binary output — download to inspect)
+                  </pre>
+                ) : (
+                  <CodeView
+                    text={diff.after}
+                    filename={input.name}
+                    lineNumbers={false}
+                    maxHeight="16rem"
+                  />
+                )}
               </div>
             </div>
             <Button

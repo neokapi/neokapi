@@ -1,4 +1,5 @@
 import useBaseUrl from "@docusaurus/useBaseUrl";
+import CodeBlock from "@theme/CodeBlock";
 import { tools } from "@neokapi/reference-data";
 import type { ReferenceEntry, ReferenceSource } from "@neokapi/reference-data";
 import { BeforeAfter } from "@site/src/components/curated";
@@ -104,7 +105,11 @@ export default function ToolReferencePage({ id, source }: Props) {
             <div key={`${ex.title}-${i}`} className={styles.example}>
               <h3 className={styles.exampleTitle}>{ex.title}</h3>
               {ex.description && <Markdown>{ex.description}</Markdown>}
-              {ex.config && <pre className={styles.codeBlock}>{unfence(ex.config)}</pre>}
+              {ex.config && (
+                <CodeBlock language="yaml" className={styles.exampleConfig}>
+                  {unfence(ex.config)}
+                </CodeBlock>
+              )}
             </div>
           ))}
         </section>

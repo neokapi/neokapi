@@ -109,5 +109,5 @@ make up the [content model](/framework/content-model).
 The **project model** (the `.kapi` recipe, ad-hoc vs. project modes, bindings,
 and the `.klz`/`.klf` formats) is part of **Kapi**, not the framework — the
 framework is platform-agnostic and has no notion of a project. Those terms are
-defined under [Modes &amp; bindings](/kapi/modes).
+defined under [Projects](/kapi/projects).
 :::
