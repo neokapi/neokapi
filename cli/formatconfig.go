@@ -55,8 +55,9 @@ func formatConfigForSource(proj *project.KapiProject, formatName, relSource stri
 // config, stripping the reserved output.* writer options first (readers
 // normalize BOM/charset/newlines at parse time; the output options only
 // concern writers). A nil/empty map is a no-op; readers without a Config are
-// skipped.
-func applyFormatConfig(reader format.DataFormatReader, cfg map[string]any) error {
+// skipped. It needs only the config facet of a reader, so it takes
+// format.Configurable rather than the full DataFormatReader.
+func applyFormatConfig(reader format.Configurable, cfg map[string]any) error {
 	if len(cfg) == 0 {
 		return nil
 	}

@@ -29,7 +29,7 @@ var (
 
 // StreamingWriter marks this writer as able to consume a streaming skeleton
 // interleaved with the Part stream (Write → StreamSkeletonWrite). See [AD-005].
-func (w *Writer) StreamingWriter() bool { return true }
+func (w *Writer) StreamingWriter() {}
 
 // NewWriter creates a new Properties writer.
 func NewWriter() *Writer {

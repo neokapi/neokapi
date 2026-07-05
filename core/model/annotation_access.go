@@ -1,5 +1,10 @@
 package model
 
+import (
+	"iter"
+	"maps"
+)
+
 // Annotations are block-scoped typed metadata: a keyed payload attached to the
 // whole Block (or Layer) with no run position — the counterpart to positional
 // Overlays (see overlay.go). They are the former "annotation map": notes,
@@ -42,9 +47,18 @@ func (b *Block) SetAnno(key string, v Payload) {
 // DelAnno removes the block annotation stored under key.
 func (b *Block) DelAnno(key string) { delete(b.Annotations, key) }
 
-// AnnoMap returns the block's annotation map for ranging and length checks. The
-// returned map is the block's own storage; use SetAnno/DelAnno to mutate.
+// AnnoMap returns the block's annotation map for ranging and length checks.
+// The returned map is the block's own LIVE storage (the exported Annotations
+// field), not a copy — writing to it writes to the block. Use SetAnno/DelAnno
+// as the mutation path, and prefer Annos for read-only iteration so a read
+// never turns into an accidental write.
 func (b *Block) AnnoMap() map[string]Payload { return b.Annotations }
+
+// Annos yields the block's annotations for read-only iteration, without
+// handing out the underlying map.
+func (b *Block) Annos() iter.Seq2[string, Payload] {
+	return maps.All(b.Annotations)
+}
 
 // AltTranslations returns the block's alternative-translation candidates (the
 // []*AltTranslation under AnnoAltTranslation), or nil.
@@ -125,5 +139,13 @@ func (l *Layer) SetAnno(key string, v Payload) {
 // DelAnno removes the layer annotation stored under key.
 func (l *Layer) DelAnno(key string) { delete(l.Annotations, key) }
 
-// AnnoMap returns the layer's annotation map.
+// AnnoMap returns the layer's annotation map. As with Block.AnnoMap, the
+// returned map is the layer's own LIVE storage; use SetAnno/DelAnno to mutate
+// and prefer Annos for read-only iteration.
 func (l *Layer) AnnoMap() map[string]Payload { return l.Annotations }
+
+// Annos yields the layer's annotations for read-only iteration, without
+// handing out the underlying map.
+func (l *Layer) Annos() iter.Seq2[string, Payload] {
+	return maps.All(l.Annotations)
+}

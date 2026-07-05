@@ -737,7 +737,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// StreamingReaders) nor with preReadContent (OpenXML/AsciiDoc are not
 	// StreamingReaders), so those buffered-only concerns are excluded by
 	// construction.
-	if _, ok := reader.(format.StreamingReader); ok && preReadContent == nil {
+	if format.IsStreamingReader(reader) && preReadContent == nil {
 		source, oerr := openBudgetedFile(inputPath)
 		if oerr != nil {
 			reader.Close()
@@ -813,9 +813,7 @@ func sliceFeeder(parts []*model.Part) func(context.Context, chan<- *model.Part, 
 // capability, so the file-run path can wire a concurrent skeleton store and run
 // a bounded-memory round-trip.
 func isStreamingPair(reader format.DataFormatReader, writer format.DataFormatWriter) bool {
-	_, ro := reader.(format.StreamingReader)
-	_, wo := writer.(format.StreamingWriter)
-	return ro && wo
+	return format.IsStreamingReader(reader) && format.IsStreamingWriter(writer)
 }
 
 // RunSkeletonReconstruct runs the tool chain when the raw source is absent but
@@ -1156,7 +1154,7 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 	}
 
 	label := filepath.Base(srcURI)
-	if _, ok := reader.(format.StreamingReader); ok && preReadContent == nil {
+	if format.IsStreamingReader(reader) && preReadContent == nil {
 		// Streaming inner format: feed the reader directly from the source
 		// stream — the entry is never buffered whole.
 		if err := r.openReader(ctx, reader, &budgetedSource{Reader: safeio.DefaultBudget().Reader(in)}, srcURI, targetLang); err != nil {

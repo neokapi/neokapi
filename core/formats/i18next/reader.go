@@ -46,7 +46,7 @@ var _ format.StreamingReader = (*Reader)(nil)
 
 // StreamingReader marks this reader as streaming — it inherits the inner JSON
 // reader's bounded-memory token walk.
-func (r *Reader) StreamingReader() bool { return true }
+func (r *Reader) StreamingReader() {}
 
 // NewReader creates a new i18next reader.
 func NewReader() *Reader {

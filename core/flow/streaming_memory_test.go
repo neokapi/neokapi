@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/srt"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
@@ -110,12 +111,10 @@ func TestStreamingRoundTripBoundedMemory(t *testing.T) {
 
 	// Guard: the format must actually be on the streaming path, else the test
 	// would assert nothing meaningful.
-	var r any = srt.NewReader()
-	var w any = srt.NewWriter()
-	if _, ok := r.(interface{ StreamingReader() bool }); !ok {
+	if !format.IsStreamingReader(srt.NewReader()) {
 		t.Fatal("plaintext reader is not a StreamingReader")
 	}
-	if _, ok := w.(interface{ StreamingWriter() bool }); !ok {
+	if !format.IsStreamingWriter(srt.NewWriter()) {
 		t.Fatal("plaintext writer is not a StreamingWriter")
 	}
 

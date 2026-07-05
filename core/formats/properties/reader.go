@@ -32,7 +32,7 @@ var (
 // StreamingReader marks this reader as bounded-memory streaming: it reads
 // physical lines via bufio and emits each logical line (key=value, comment, or
 // blank) incrementally, holding only the in-progress continuation. See [AD-005].
-func (r *Reader) StreamingReader() bool { return true }
+func (r *Reader) StreamingReader() {}
 
 // NewReader creates a new Properties reader.
 func NewReader() *Reader {

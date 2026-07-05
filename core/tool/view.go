@@ -3,6 +3,7 @@ package tool
 import (
 	"context"
 	"iter"
+	"maps"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -21,7 +22,26 @@ import (
 // Because the read methods hand back the Block's live run slices, tools must
 // treat returned runs as read-only; the dispatcher's backstop check
 // (EnforceImmutability) catches accidental in-place edits in dev/test.
+//
+// BlockView is composed from named facets grouped by concern — BlockReader
+// (all reads), OverlayWriter, AnnotationWriter, and PropertyWriter (the three
+// writable output surfaces) — so tests can mock a facet and readers of the
+// code can see at a glance what a tool may touch.
 type BlockView interface {
+	BlockReader
+	OverlayWriter
+	AnnotationWriter
+	PropertyWriter
+
+	// Drop removes this block from the stream (e.g. remove-target with
+	// RemoveBlockIfEmpty). The dispatcher emits nothing for a dropped block.
+	Drop()
+}
+
+// BlockReader is the read-only facet of a block view: identity and metadata,
+// source and target content, and reads over overlays, annotations, and
+// properties.
+type BlockReader interface {
 	// Context returns the dispatch context, so a handler can honour
 	// cancellation/deadlines on any work it does (LLM/MT/NER calls, subprocess
 	// execution, DB lookups). It is never nil: views built without a context
@@ -59,10 +79,30 @@ type BlockView interface {
 	TargetText(loc model.LocaleID) string
 	Target(loc model.LocaleID) *model.Target
 
-	// Overlays / annotations / properties — the writable output surface.
+	// Overlays / annotations / properties (read side).
 	Overlays() []model.Overlay
 	SegmentationFor(variant *model.VariantKey) *model.Overlay
 	SegmentationLayerFor(variant *model.VariantKey, layer string) *model.Overlay
+	// OverlaySpans returns the spans of the source-side overlay of the
+	// given type (term, entity, term-candidate, …), or nil. Read-only.
+	OverlaySpans(t model.OverlayType) []model.Span
+	// Annotations returns a snapshot of the block annotations (the former
+	// annotation map). Use Annotate to write; writing to the returned map has
+	// no effect.
+	Annotations() map[string]model.Payload
+	// Properties returns a snapshot of the block properties. Use SetProperty
+	// to write; writing to the returned map has no effect.
+	Properties() map[string]string
+	Property(key string) string
+
+	// SourceStatus reports the block's authoring lifecycle state (authored →
+	// checked → approved); "" means the authored baseline.
+	SourceStatus() model.SourceStatus
+}
+
+// OverlayWriter is the overlay-writing facet of a block view: positional,
+// run-anchored stand-off layers (segmentation, term, entity, qa, alignment).
+type OverlayWriter interface {
 	SetSegmentation(variant *model.VariantKey, spans []model.Span)
 	SetSegmentationLayer(variant *model.VariantKey, layer string, spans []model.Span)
 	AddOverlay(o model.Overlay)
@@ -70,13 +110,15 @@ type BlockView interface {
 	// source-side overlay of the given type, merging into the existing overlay. The
 	// span's Range is the position and its ID the stable identity.
 	AddOverlaySpan(t model.OverlayType, s model.Span)
-	// OverlaySpans returns the spans of the source-side overlay of the
-	// given type (term, entity, term-candidate, …), or nil. Read-only.
-	OverlaySpans(t model.OverlayType) []model.Span
 	// RemoveOverlay drops the source-side overlay of the given type. A
 	// source-transform tool that consumes an overlay and then rewrites
 	// the source uses this to drop the now-stale run-anchored spans.
 	RemoveOverlay(t model.OverlayType)
+}
+
+// AnnotationWriter is the annotation-writing facet of a block view:
+// block-scoped typed metadata (notes, alt-translations, analysis results).
+type AnnotationWriter interface {
 	// AddAltTranslation appends an alternative-translation candidate to the
 	// block's AnnoAltTranslation collection (multiplicity lives in the
 	// collection, never in numbered keys).
@@ -87,36 +129,35 @@ type BlockView interface {
 	// AddNote appends a note to the block's note collection (multiplicity lives
 	// in the collection, never in numbered keys).
 	AddNote(n *model.NoteAnnotation)
-	// Annotations returns a snapshot of the block annotations (the former
-	// annotation map). Use Annotate to write; writing to the returned map has
-	// no effect.
-	Annotations() map[string]model.Payload
 	// Annotate stores a block annotation payload under key.
 	Annotate(key string, a model.Payload)
 	// RemoveAnnotation deletes the block annotation stored under key.
 	RemoveAnnotation(key string)
-	Properties() map[string]string
-	SetProperty(key, value string)
-	Property(key string) string
+}
 
-	// SourceStatus reports the block's authoring lifecycle state (authored →
-	// checked → approved); "" means the authored baseline.
-	SourceStatus() model.SourceStatus
+// PropertyWriter is the property-writing facet of a block view: string
+// properties plus the source lifecycle stamp, both metadata about the block
+// rather than content rewrites, so they are available at the read-only
+// Annotate tier.
+type PropertyWriter interface {
+	SetProperty(key, value string)
 	// SetSourceStatus stamps the block's authoring lifecycle state. This is
 	// metadata about the source, not a rewrite of its runs, so it is available
 	// at the read-only Annotate tier (like SetProperty) — a check tool that
 	// clears a block stamps `checked` without touching the source content.
 	SetSourceStatus(s model.SourceStatus)
-
-	// Drop removes this block from the stream (e.g. remove-target with
-	// RemoveBlockIfEmpty). The dispatcher emits nothing for a dropped block.
-	Drop()
 }
 
-// VariantView adds target-write access. Tools that translate or edit targets
-// receive this via the Produce handler.
+// VariantView adds target-write access (TargetWriter). Tools that translate
+// or edit targets receive this via the Produce handler.
 type VariantView interface {
 	BlockView
+	TargetWriter
+}
+
+// TargetWriter is the target-writing facet of a block view: committing,
+// stamping, and removing per-variant target content.
+type TargetWriter interface {
 	SetTarget(loc model.LocaleID, t *model.Target)
 	SetTargetVariant(key model.VariantKey, t *model.Target)
 	SetTargetRuns(loc model.LocaleID, runs []model.Run)
@@ -230,17 +271,21 @@ func (v *blockView) AddNote(n *model.NoteAnnotation)           { v.b.AddNote(n) 
 func (v *blockView) AppendAltUnder(key string, a *model.AltTranslation) {
 	v.b.AppendAltUnder(key, a)
 }
-func (v *blockView) Annotations() map[string]model.Payload { return v.b.AnnoMap() }
+
+// Annotations and Properties return snapshots (per the BlockReader contract):
+// handing the tool the live map would open an unchecked mutation channel past
+// Annotate/SetProperty, the sanctioned write paths.
+func (v *blockView) Annotations() map[string]model.Payload { return maps.Clone(v.b.Annotations) }
 func (v *blockView) Annotate(key string, a model.Payload)  { v.b.SetAnno(key, a) }
 func (v *blockView) RemoveAnnotation(key string)           { v.b.DelAnno(key) }
-func (v *blockView) Properties() map[string]string {
+func (v *blockView) Properties() map[string]string         { return maps.Clone(v.b.Properties) }
+func (v *blockView) SetProperty(key, value string) {
 	if v.b.Properties == nil {
 		v.b.Properties = make(map[string]string)
 	}
-	return v.b.Properties
+	v.b.Properties[key] = value
 }
-func (v *blockView) SetProperty(key, value string) { v.Properties()[key] = value }
-func (v *blockView) Property(key string) string    { return v.b.Properties[key] }
+func (v *blockView) Property(key string) string { return v.b.Properties[key] }
 
 func (v *blockView) SourceStatus() model.SourceStatus     { return v.b.SourceStatus }
 func (v *blockView) SetSourceStatus(s model.SourceStatus) { v.b.SourceStatus = s }

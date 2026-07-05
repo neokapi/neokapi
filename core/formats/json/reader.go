@@ -39,7 +39,7 @@ var _ format.StreamingReader = (*Reader)(nil)
 // materialising the document or its token slice. Cross-format and validation
 // modes keep the buffered path (they need the whole buffer); the reader still
 // emits Parts incrementally there. See [AD-005] "Streaming readers".
-func (r *Reader) StreamingReader() bool { return true }
+func (r *Reader) StreamingReader() {}
 
 // NewReader creates a new JSON reader.
 func NewReader() *Reader {

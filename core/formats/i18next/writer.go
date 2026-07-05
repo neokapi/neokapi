@@ -44,7 +44,7 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 // synchronized streaming skeleton store rather than a buffered one they race on.
 var _ format.StreamingWriter = (*Writer)(nil)
 
-func (w *Writer) StreamingWriter() bool { return true }
+func (w *Writer) StreamingWriter() {}
 
 // NewWriter creates a new i18next writer.
 func NewWriter() *Writer {
