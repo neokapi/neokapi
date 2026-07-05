@@ -433,18 +433,17 @@ func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName, sourceLang
 
 // resolveTargetPath derives the on-disk path of the translated file for a
 // source file and target language, using the content item's Target template
-// (e.g. "locales/{lang}.json" or "output/{lang}/*"). Returns "" when the item
-// declares no target template.
+// (e.g. "locales/{lang}.json" or "output/{lang}/*"). Template expansion goes
+// through the shared core resolver (project.ResolveTargetPath) — the same one
+// the runner uses to write outputs — so checks probe exactly the paths the
+// runner produces. Returns "" when the item declares no target template.
 func (a *App) resolveTargetPath(rf project.ResolvedFile, op *openProject, targetLang string) string {
 	if rf.Item == nil || rf.Item.Target == "" {
 		return ""
 	}
-	base := filepath.Dir(op.Path)
-	target := strings.ReplaceAll(rf.Item.Target, "{lang}", targetLang)
-	if strings.Contains(target, "*") {
-		target = strings.ReplaceAll(target, "*", filepath.Base(rf.Relative))
-	}
-	return filepath.Join(base, target)
+	root := filepath.Dir(op.Path)
+	relSlash := filepath.ToSlash(rf.Relative)
+	return filepath.Join(root, project.ResolveTargetPath(rf.Item.Path, rf.Item.Base, rf.Item.Target, relSlash, targetLang))
 }
 
 // overlayTargets pairs target-file blocks onto source blocks by their stable

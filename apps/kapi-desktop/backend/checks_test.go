@@ -185,3 +185,102 @@ func setupMarkupBlock(t *testing.T, app *App) markupFixture {
 	require.NotNil(t, multi, "expected a block with inline markup (multiple runs)")
 	return markupFixture{tabID: tab.ID, path: path, blockID: multi.ID}
 }
+
+// TestResolveTargetPathMatchesRunner asserts that the checks panel resolves
+// translated-file paths through the same canonical resolver the runner uses
+// (project.ResolveTargetPath), so checks probe exactly the paths the runner
+// writes — including item bases, multi-segment `**` globs, and directory
+// targets that the old hand-rolled expansion mishandled.
+func TestResolveTargetPathMatchesRunner(t *testing.T) {
+	root := t.TempDir()
+	projPath := filepath.Join(root, "proj.kapi")
+
+	cases := []struct {
+		name     string
+		itemPath string
+		base     string
+		target   string
+		relative string // source path relative to the project root
+		lang     string
+		want     string // expected path relative to the project root
+	}{
+		{
+			name:     "lang template",
+			itemPath: "locales/en.json",
+			target:   "locales/{lang}.json",
+			relative: "locales/en.json",
+			lang:     "fr",
+			want:     filepath.Join("locales", "fr.json"),
+		},
+		{
+			name:     "base dir with directory target mirrors subtree",
+			itemPath: "src/**/*.md",
+			base:     "src",
+			target:   "out/{lang}/",
+			relative: filepath.Join("src", "docs", "guide.md"),
+			lang:     "fr",
+			want:     filepath.Join("out", "fr", "docs", "guide.md"),
+		},
+		{
+			name:     "multi-segment glob with star target",
+			itemPath: "content/**/*.md",
+			target:   "translated/{lang}/*.md",
+			relative: filepath.Join("content", "blog", "post.md"),
+			lang:     "de",
+			want:     filepath.Join("translated", "de", "post.md"),
+		},
+		{
+			name:     "multi-segment glob with relpath token",
+			itemPath: "content/**/*.md",
+			target:   "translated/{lang}/{relpath}",
+			relative: filepath.Join("content", "blog", "post.md"),
+			lang:     "de",
+			want:     filepath.Join("translated", "de", "blog", "post.md"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			item := &project.ContentItem{Path: tc.itemPath, Base: tc.base, Target: tc.target}
+			op := &openProject{
+				ID:   "tab",
+				Path: projPath,
+				Project: &project.KapiProject{
+					Version:  project.CurrentVersion,
+					Defaults: project.Defaults{SourceLanguage: "en"},
+					Content: []project.ContentCollection{
+						{Path: tc.itemPath, Base: tc.base, Target: tc.target},
+					},
+				},
+			}
+			app := &App{projects: map[string]*openProject{"tab": op}}
+
+			rf := project.ResolvedFile{
+				Path:     filepath.Join(root, tc.relative),
+				Relative: tc.relative,
+				Item:     item,
+			}
+
+			got := app.resolveTargetPath(rf, op, tc.lang)
+			assert.Equal(t, filepath.Join(root, tc.want), got)
+
+			// Parity with the canonical resolver, applied the way the runner does.
+			relSlash := filepath.ToSlash(tc.relative)
+			canonical := filepath.Join(root, project.ResolveTargetPath(tc.itemPath, tc.base, tc.target, relSlash, tc.lang))
+			assert.Equal(t, canonical, got, "checks-side resolution must equal project.ResolveTargetPath")
+
+			// Parity with the runner's own output-path resolution.
+			runnerGot := app.resolveOutputPath(filepath.Join(root, tc.relative), tc.lang)
+			assert.Equal(t, runnerGot, got, "checks-side resolution must equal runner-side resolution")
+		})
+	}
+}
+
+// TestResolveTargetPathNoTemplate covers the empty cases: no item or no target
+// template means no path to probe.
+func TestResolveTargetPathNoTemplate(t *testing.T) {
+	app := &App{}
+	op := &openProject{Path: filepath.Join(t.TempDir(), "proj.kapi")}
+	assert.Empty(t, app.resolveTargetPath(project.ResolvedFile{Relative: "a.json"}, op, "fr"))
+	assert.Empty(t, app.resolveTargetPath(project.ResolvedFile{Relative: "a.json", Item: &project.ContentItem{Path: "a.json"}}, op, "fr"))
+}
