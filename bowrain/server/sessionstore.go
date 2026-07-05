@@ -37,9 +37,10 @@ type memoryEntry struct {
 // MemorySessionStore is an in-memory SessionStateStore with lazy expiry
 // and periodic background cleanup. Suitable for single-instance deployments.
 type MemorySessionStore struct {
-	mu      sync.Mutex
-	entries map[string]*memoryEntry
-	done    chan struct{}
+	mu        sync.Mutex
+	entries   map[string]*memoryEntry
+	done      chan struct{}
+	closeOnce sync.Once
 }
 
 // NewMemorySessionStore creates an in-memory session store with a background
@@ -87,9 +88,12 @@ func (s *MemorySessionStore) Delete(_ context.Context, key string) error {
 	return nil
 }
 
-// Close stops the background cleanup goroutine.
-func (s *MemorySessionStore) Close() {
-	close(s.done)
+// Close stops the background cleanup goroutine. It is safe to call more than
+// once, and the error return makes the store satisfy io.Closer so that
+// Server.Shutdown's session-store close actually reaches it.
+func (s *MemorySessionStore) Close() error {
+	s.closeOnce.Do(func() { close(s.done) })
+	return nil
 }
 
 func (s *MemorySessionStore) cleanupLoop() {

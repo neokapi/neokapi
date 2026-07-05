@@ -23,7 +23,7 @@ func newWorkflowTestServer(t *testing.T) (*Server, string, string) {
 	t.Helper()
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-workflow"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	ctx := t.Context()

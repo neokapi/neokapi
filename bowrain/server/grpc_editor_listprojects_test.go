@@ -19,7 +19,7 @@ import (
 func TestListEditorProjects_ResolvesWorkspaceSlugToID(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-list-editor-projects" // wire the AuthStore for slug resolution
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	require.NotNil(t, srv.AuthStore, "AuthStore must be wired for slug resolution")
 

@@ -183,7 +183,7 @@ func TestDashboardVisibility_Defaults(t *testing.T) {
 func TestPulseProjectAccessMiddleware_PrivateProject(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	ctx := t.Context()
@@ -222,7 +222,7 @@ func TestPulseProjectAccessMiddleware_PrivateProject(t *testing.T) {
 func TestPulseProjectAccessMiddleware_PublicProject(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	ctx := t.Context()
@@ -261,7 +261,7 @@ func TestPulseProjectAccessMiddleware_PublicProject(t *testing.T) {
 func TestPulseProjectAccessMiddleware_WrongWorkspace(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	ctx := t.Context()
@@ -305,7 +305,7 @@ func newPulseTestServer(t *testing.T) *Server {
 	t.Helper()
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	return srv
 }

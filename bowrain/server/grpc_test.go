@@ -22,7 +22,7 @@ func setupGRPC(t *testing.T) pb.NeokapiServiceClient {
 
 	cfg := DefaultConfig()
 
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	lis := bufconn.Listen(bufSize)

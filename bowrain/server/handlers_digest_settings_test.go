@@ -17,7 +17,7 @@ func setupDigestTestServer(t *testing.T) *Server {
 	t.Helper()
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	pgStore := srv.ContentStore.(*bstore.PostgresStore)
@@ -51,7 +51,7 @@ func TestHandleGetDigestSettings_Default(t *testing.T) {
 
 func TestHandleGetDigestSettings_NilStore(t *testing.T) {
 	cfg := DefaultConfig()
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	// DigestStore is nil by default.
 
@@ -144,7 +144,7 @@ func TestHandleUpdateDigestSettings_Off(t *testing.T) {
 
 func TestHandleUpdateDigestSettings_NilStore(t *testing.T) {
 	cfg := DefaultConfig()
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	// DigestStore is nil by default.
 

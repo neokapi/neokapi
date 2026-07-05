@@ -33,7 +33,7 @@ func TestDeviceAuthStartRespectsForwardedHeaders(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -57,7 +57,7 @@ func TestHandleDeviceVerificationFormValues(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -107,7 +107,7 @@ func TestHandleDeviceAuthPollStoreRefreshTokenError(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	// Wrap the wired AuthStore so StoreRefreshToken always fails.
 	srv.AuthStore = &storeRefreshFailingAuthStore{AuthStore: srv.AuthStore}
@@ -159,7 +159,7 @@ func TestHandleDeviceVerificationDefaultValues(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	// Manually create a device code entry and user code index.
@@ -220,7 +220,7 @@ func TestHandleDeviceVerificationOIDCRedirect(t *testing.T) {
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = mockOIDC.URL
 	cfg.OIDCClientID = "test-client"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	// Create a pending device code entry with user code index.
@@ -271,7 +271,7 @@ func TestHandleDeviceAuthCallbackMissingParams(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -287,7 +287,7 @@ func TestHandleDeviceAuthCallbackInvalidState(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -308,7 +308,7 @@ func TestDeviceVerifyStatesCleanup(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	ctx := t.Context()
@@ -343,7 +343,7 @@ func TestHandleDesktopLoginMissingParams(t *testing.T) {
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180" // needed to pass OIDC check
 	cfg.OIDCClientID = "test-client"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -361,7 +361,7 @@ func TestHandleDesktopLoginNonLocalhostRedirect(t *testing.T) {
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
 	cfg.OIDCClientID = "test-client"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -384,7 +384,7 @@ func TestHandleDesktopLoginAcceptsBowrainScheme(t *testing.T) {
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
 	cfg.OIDCClientID = "test-client"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -407,7 +407,7 @@ func TestHandleDesktopLoginUnsupportedChallengeMethod(t *testing.T) {
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
 	cfg.OIDCClientID = "test-client"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -427,7 +427,7 @@ func TestHandleDesktopCallbackMissingState(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -443,7 +443,7 @@ func TestHandleDesktopCallbackInvalidState(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -464,7 +464,7 @@ func TestDesktopAuthStatesCleanup(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	ctx := t.Context()
@@ -529,7 +529,7 @@ func TestWebFlowStateStoredAndConsumed(t *testing.T) {
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = mockOIDC.URL
 	cfg.OIDCClientID = "test-client"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -570,7 +570,7 @@ func TestWebFlowCallbackWithoutState(t *testing.T) {
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
 	cfg.OIDCClientID = "test-client"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -617,7 +617,7 @@ func TestOIDCRedirectIncludesPKCEAndNonce(t *testing.T) {
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = mockOIDC.URL
 	cfg.OIDCClientID = "test-client"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -701,7 +701,7 @@ func TestDesktopEntryHasPKCEAndNonce(t *testing.T) {
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = oidcURL
 	cfg.OIDCClientID = "test-client"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -752,7 +752,7 @@ func TestDeviceVerifyEntryHasPKCEAndNonce(t *testing.T) {
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = oidcURL
 	cfg.OIDCClientID = "test-client"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	// Create a pending device code via session store.
@@ -894,7 +894,7 @@ func TestLogoutClearsCookies(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 

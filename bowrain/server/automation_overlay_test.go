@@ -22,7 +22,7 @@ import (
 // adapter's own tests in bowrain/store/blockstore/.
 func TestAutomation_WriteOverlay_EndToEnd(t *testing.T) {
 	cfg := DefaultConfig()
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	ctx := context.Background()
@@ -81,7 +81,7 @@ func TestAutomation_WriteOverlay_EndToEnd(t *testing.T) {
 // so an invalid rule configuration doesn't silently no-op.
 func TestAutomation_WriteOverlay_MissingInputs(t *testing.T) {
 	cfg := DefaultConfig()
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	ctx := context.Background()
@@ -108,7 +108,7 @@ func TestAutomation_WriteOverlay_MissingInputs(t *testing.T) {
 // blockstore.Store. Keeps the integration point from regressing.
 func TestAutomation_OpenBlockstore_Works(t *testing.T) {
 	cfg := DefaultConfig()
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
 	ctx := context.Background()

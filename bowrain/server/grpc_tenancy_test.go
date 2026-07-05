@@ -51,7 +51,7 @@ func mustCreateProject(t *testing.T, srv *Server, name, workspaceID string) *sto
 // scoped to the caller's workspace memberships once an AuthStore is present, so
 // one tenant cannot enumerate, read, or mutate another tenant's projects.
 func TestGRPCProjectTenancyScoping(t *testing.T) {
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	initTestStores(t, srv)
 	srv.AuthStore = &tenancyAuthStore{members: map[string]bool{"ws-a/user-a": true}}
 
@@ -95,7 +95,7 @@ func TestGRPCProjectTenancyScoping(t *testing.T) {
 // TestGRPCProjectTenancyStandalone verifies the standalone/single-user bypass:
 // with no AuthStore configured, every project is visible (no workspace scoping).
 func TestGRPCProjectTenancyStandalone(t *testing.T) {
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	initTestStores(t, srv)
 	require.Nil(t, srv.AuthStore)
 

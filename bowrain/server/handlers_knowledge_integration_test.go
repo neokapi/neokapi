@@ -35,7 +35,7 @@ func kgIntegrationServer(t *testing.T) *Server {
 	t.Helper()
 	db := pgtest.NewTestDB(t)
 
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 
 	cs, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)

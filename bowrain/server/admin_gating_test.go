@@ -17,7 +17,7 @@ func TestAdminRoutes_NotMountedWithoutVerifier(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-secret" // normal production user-auth state
 	// AdminVerifier is nil and AllowInsecureAdminAuth defaults to false.
-	s := NewServer(cfg)
+	s := shutdownOnCleanup(t, NewServer(cfg))
 	e := s.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces", nil)
@@ -35,7 +35,7 @@ func TestAdminRoutes_MountedWithInsecureOptIn(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-secret"
 	cfg.AllowInsecureAdminAuth = true
-	s := NewServer(cfg)
+	s := shutdownOnCleanup(t, NewServer(cfg))
 	e := s.GetEcho()
 
 	// No Authorization header → the AuthMiddleware rejects with 401. The key

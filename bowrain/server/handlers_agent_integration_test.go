@@ -412,7 +412,7 @@ func TestBravoEndToEnd_UsageTracking(t *testing.T) {
 // when the agent service is not initialized.
 func TestBravoEndToEnd_AgentNotConfigured(t *testing.T) {
 	cfg := DefaultConfig()
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	e := srv.GetEcho()
 
 	tests := []struct {

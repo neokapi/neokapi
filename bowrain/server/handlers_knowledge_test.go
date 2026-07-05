@@ -44,7 +44,7 @@ type kgHarness struct {
 
 func newKGHarness(t *testing.T) *kgHarness {
 	t.Helper()
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	srv.wsStores.tbFactory = func() termbase.TBStore {
 		return &testTermStore{termbase.NewInMemoryTermBase()}
 	}
@@ -106,7 +106,7 @@ func withActor(c echo.Context, userID string) echo.Context {
 // register without panic, that every documented method+path is wired, and that
 // the former /:ws/terms routes are gone (the concept API replaces them).
 func TestKnowledgeRoutesRegistered(t *testing.T) {
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	e := echo.New()
 	g := e.Group("/:ws")
 	require.NotPanics(t, func() {
@@ -515,7 +515,7 @@ func TestChangesetSeparationOfDuties(t *testing.T) {
 // TestKnowledgeStoreUnavailable proves the store-backed handlers degrade to 503
 // when the knowledge graph is not configured (no PostgreSQL), rather than panicking.
 func TestKnowledgeStoreUnavailable(t *testing.T) {
-	srv := NewServer(DefaultConfig())
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	srv.KnowledgeStore = nil // not configured
 	e := srv.GetEcho()
 

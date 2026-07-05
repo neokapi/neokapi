@@ -95,7 +95,7 @@ func TestHandleTokenExchange_WithJWT(t *testing.T) {
 func TestHandleTokenExchange_Unauthorized(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-exchange-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
@@ -110,7 +110,7 @@ func TestHandleTokenExchange_Unauthorized(t *testing.T) {
 func TestHandleTokenExchange_InvalidAPIToken(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.JWTSecret = "test-exchange-secret"
-	srv := NewServer(cfg)
+	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
 
