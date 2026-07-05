@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/zalando/go-keyring"
 )
 
@@ -357,8 +357,8 @@ func (a *App) WaitForLogin() (bool, error) {
 		}
 
 		// Fetch full user info (including ID) from the server.
-		if user, err := fetchDesktopUserInfo(serverURL, result.AccessToken); err == nil {
-			stored.User = *user
+		if user, err := apiclient.FetchUser(context.Background(), serverURL, result.AccessToken); err == nil {
+			stored.User = storedDesktopUser{ID: user.ID, Email: user.Email, Name: user.Name}
 		}
 
 		if err := saveDesktopAuth(stored); err != nil {
@@ -555,32 +555,6 @@ func loadDesktopAuth() (*storedDesktopAuth, error) {
 	a.RefreshToken, _ = keyring.Get(keyringService(), keyringRefreshTokenKey)
 
 	return &a, nil
-}
-
-// fetchDesktopUserInfo calls /api/v1/auth/me to get user details from the server.
-func fetchDesktopUserInfo(serverURL, token string) (*storedDesktopUser, error) {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, serverURL+"/api/v1/auth/me", nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("auth/me returned %d: %s", resp.StatusCode, body)
-	}
-
-	var user storedDesktopUser
-	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		return nil, err
-	}
-	return &user, nil
 }
 
 // discoverGRPCAddr derives the gRPC address from the server URL.
