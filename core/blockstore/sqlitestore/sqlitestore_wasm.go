@@ -36,3 +36,8 @@ func New(path string) (blockstore.Store, error) {
 	wasmCacheStores[path] = s
 	return s, nil
 }
+
+// NewAutocommit matches the native two-mode constructor. On wasm the store is
+// an in-memory map with no SQLite transaction and no cross-connection locking,
+// so the autocommit/transactional distinction is moot — it is the same store.
+func NewAutocommit(path string) (blockstore.Store, error) { return New(path) }
