@@ -7,6 +7,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -247,6 +248,8 @@ const (
 // non-local provider returns false (cloud, fail-closed). The flow placement pass
 // uses this to refine a tool's remote-source-egress side effect (AD-006).
 func IsLocalProvider(id ProviderID) bool {
+	globalProvidersMu.RLock()
+	defer globalProvidersMu.RUnlock()
 	for _, reg := range globalProviders {
 		if reg.Info.Name == id || slices.Contains(reg.Aliases, id) {
 			return reg.Info.Local
@@ -297,6 +300,8 @@ func (i ProviderInfo) NeedsKey() bool { return !i.Local && !i.Keyless }
 // ProviderInfoFor returns the registered metadata for a provider id (aliases
 // included). ok is false for unregistered providers.
 func ProviderInfoFor(id ProviderID) (ProviderInfo, bool) {
+	globalProvidersMu.RLock()
+	defer globalProvidersMu.RUnlock()
 	for _, reg := range globalProviders {
 		if reg.Info.Name == id || slices.Contains(reg.Aliases, id) {
 			return reg.Info, true
@@ -313,7 +318,13 @@ type providerRegistration struct {
 }
 
 // globalProviders is the default provider registry, populated by init().
-var globalProviders []providerRegistration
+// Plugins register after init() (possibly from other goroutines), so every
+// access goes through globalProvidersMu — the same locked-registry pattern
+// mtprovider uses for its config factories.
+var (
+	globalProvidersMu sync.RWMutex
+	globalProviders   []providerRegistration
+)
 
 func init() {
 	RegisterProvider(ProviderInfo{Name: Anthropic, Label: "Anthropic", DefaultModel: "claude-sonnet-4-20250514", ModelPrefixes: []string{"claude"}},
@@ -355,13 +366,16 @@ func ProviderForModel(modelName string) (ProviderID, bool) {
 	if m == "" {
 		return "", false
 	}
+	globalProvidersMu.RLock()
 	for _, reg := range globalProviders {
 		for _, prefix := range reg.Info.ModelPrefixes {
 			if strings.HasPrefix(m, prefix) {
+				globalProvidersMu.RUnlock()
 				return reg.Info.Name, true
 			}
 		}
 	}
+	globalProvidersMu.RUnlock()
 	// Ollama tags are "<name>:<tag>" (gemma3:4b, llama3.2:3b). Anything that
 	// looks like one — or is a curated local pick — is the on-device catch-all.
 	if strings.Contains(m, ":") {
@@ -378,6 +392,8 @@ func ProviderForModel(modelName string) (ProviderID, bool) {
 // RegisterProvider registers a new AI provider factory. Plugins can call this
 // to add custom providers that will appear in tool schemas and CLI flags.
 func RegisterProvider(info ProviderInfo, factory ProviderFactory) {
+	globalProvidersMu.Lock()
+	defer globalProvidersMu.Unlock()
 	globalProviders = append(globalProviders, providerRegistration{
 		Info:    info,
 		Factory: factory,
@@ -386,6 +402,8 @@ func RegisterProvider(info ProviderInfo, factory ProviderFactory) {
 
 // RegisterProviderWithAliases registers a provider with alternative name aliases.
 func RegisterProviderWithAliases(info ProviderInfo, factory ProviderFactory, aliases ...ProviderID) {
+	globalProvidersMu.Lock()
+	defer globalProvidersMu.Unlock()
 	globalProviders = append(globalProviders, providerRegistration{
 		Info:    info,
 		Factory: factory,
@@ -396,21 +414,30 @@ func RegisterProviderWithAliases(info ProviderInfo, factory ProviderFactory, ali
 // NewProvider creates an LLMProvider by looking up the registered factory for
 // the given provider name. Returns an error if the provider is not registered.
 func NewProvider(name ProviderID, cfg Config) (LLMProvider, error) {
+	// Resolve the factory under the read lock, but call it (and build the
+	// not-found error, which re-enters the registry via ProviderNames) outside
+	// it — a factory registering another provider must not deadlock.
+	var factory ProviderFactory
+	globalProvidersMu.RLock()
 	for _, reg := range globalProviders {
-		if reg.Info.Name == name {
-			return reg.Factory(cfg), nil
-		}
-		if slices.Contains(reg.Aliases, name) {
-			return reg.Factory(cfg), nil
+		if reg.Info.Name == name || slices.Contains(reg.Aliases, name) {
+			factory = reg.Factory
+			break
 		}
 	}
-	return nil, fmt.Errorf("unknown AI provider: %s (supported: %s)", name, strings.Join(ProviderNames(), ", "))
+	globalProvidersMu.RUnlock()
+	if factory == nil {
+		return nil, fmt.Errorf("unknown AI provider: %s (supported: %s)", name, strings.Join(ProviderNames(), ", "))
+	}
+	return factory(cfg), nil
 }
 
 // Providers returns the list of available AI providers in display order.
 // This is the canonical source of truth for provider names — used by tool
 // schemas, CLI flags, and UI dropdowns.
 func Providers() []ProviderInfo {
+	globalProvidersMu.RLock()
+	defer globalProvidersMu.RUnlock()
 	infos := make([]ProviderInfo, len(globalProviders))
 	for i, reg := range globalProviders {
 		infos[i] = reg.Info
@@ -420,6 +447,8 @@ func Providers() []ProviderInfo {
 
 // ProviderNames returns just the provider name strings.
 func ProviderNames() []string {
+	globalProvidersMu.RLock()
+	defer globalProvidersMu.RUnlock()
 	names := make([]string, len(globalProviders))
 	for i, reg := range globalProviders {
 		names[i] = string(reg.Info.Name)
