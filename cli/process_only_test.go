@@ -110,11 +110,17 @@ func storeOverlayCount(t *testing.T, recipe, kind string) int {
 // TestRun_InProjectNoOutput_ProcessOnly verifies that a flow run inside a
 // project with NO -o commits `targets/<locale>` overlays to the project block
 // store and writes NO output file (AD-026 §3/§5).
+//
+// The runs here pin --target-lang fr-FR: without it, locale selection goes
+// through flow.ResolveFlowLocales (shared with the desktop runner), which
+// resolves the pseudo flow to pseudo-translate's default locale `qps` —
+// covered by flowrun_test.go. These tests exercise the process-only store
+// mechanics, so an explicit target keeps them locale-stable.
 func TestRun_InProjectNoOutput_ProcessOnly(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, srcRel, root := processOnlyProjectFixture(t, []model.LocaleID{"fr-FR"})
 
-	out, err := runRunCmd(t, a, recipe, "pseudo", "-i", filepath.Join(root, srcRel))
+	out, err := runRunCmd(t, a, recipe, "pseudo", "-i", filepath.Join(root, srcRel), "--target-lang", "fr-FR")
 	require.NoError(t, err, "run output: %s", out)
 
 	// Overlays committed to the project store.
@@ -137,7 +143,7 @@ func TestMerge_FromProjectStore(t *testing.T) {
 	recipe, srcRel, root := processOnlyProjectFixture(t, []model.LocaleID{"fr-FR"})
 
 	// 1. Process-only run lands overlays.
-	out, err := runRunCmd(t, a, recipe, "pseudo", "-i", filepath.Join(root, srcRel))
+	out, err := runRunCmd(t, a, recipe, "pseudo", "-i", filepath.Join(root, srcRel), "--target-lang", "fr-FR")
 	require.NoError(t, err, "run output: %s", out)
 
 	// 2. merge (no -i) materializes from the store.
@@ -160,7 +166,7 @@ func TestRoundTrip_ProcessOnlyMerge_EqualsDirectOutput(t *testing.T) {
 	// Path A: process-only run → merge.
 	aRun := processOnlyApp(t)
 	recipe, srcRel, root := processOnlyProjectFixture(t, []model.LocaleID{"fr-FR"})
-	out, err := runRunCmd(t, aRun, recipe, "pseudo", "-i", filepath.Join(root, srcRel))
+	out, err := runRunCmd(t, aRun, recipe, "pseudo", "-i", filepath.Join(root, srcRel), "--target-lang", "fr-FR")
 	require.NoError(t, err, "run output: %s", out)
 	mOut, err := runMergeCmd(t, recipe)
 	require.NoError(t, err, "merge output: %s", mOut)
@@ -171,7 +177,7 @@ func TestRoundTrip_ProcessOnlyMerge_EqualsDirectOutput(t *testing.T) {
 	directOut := filepath.Join(t.TempDir(), "direct.json")
 	aDirect := processOnlyApp(t)
 	dOut, err := runRunCmd(t, aDirect, recipe, "pseudo",
-		"-i", filepath.Join(root, srcRel), "-o", directOut)
+		"-i", filepath.Join(root, srcRel), "-o", directOut, "--target-lang", "fr-FR")
 	require.NoError(t, err, "direct run output: %s", dOut)
 	direct, err := os.ReadFile(directOut)
 	require.NoError(t, err)
@@ -261,7 +267,7 @@ func TestRun_InProject_PopulatesAndReusesDocumentCache(t *testing.T) {
 	recipe, srcRel, root := processOnlyProjectFixture(t, []model.LocaleID{"fr-FR"})
 	src := filepath.Join(root, srcRel)
 
-	out, err := runRunCmd(t, a, recipe, "pseudo", "-i", src)
+	out, err := runRunCmd(t, a, recipe, "pseudo", "-i", src, "--target-lang", "fr-FR")
 	require.NoError(t, err, "run output: %s", out)
 
 	keys := runDocCacheKeys(t, recipe)
@@ -277,7 +283,7 @@ func TestRun_InProject_PopulatesAndReusesDocumentCache(t *testing.T) {
 
 	// Second run: served from the cache, identical committed work.
 	a2 := processOnlyApp(t)
-	out2, err := runRunCmd(t, a2, recipe, "pseudo", "-i", src)
+	out2, err := runRunCmd(t, a2, recipe, "pseudo", "-i", src, "--target-lang", "fr-FR")
 	require.NoError(t, err, "second run output: %s", out2)
 	assert.Equal(t, first, storeOverlayCount(t, recipe, "targets/fr-FR"),
 		"a cache-served re-run commits the identical overlays")
@@ -285,7 +291,7 @@ func TestRun_InProject_PopulatesAndReusesDocumentCache(t *testing.T) {
 	// Rebuild invariant: delete the cache, re-run → still correct.
 	require.NoError(t, os.RemoveAll(layoutCacheDir(t, recipe)))
 	a3 := processOnlyApp(t)
-	out3, err := runRunCmd(t, a3, recipe, "pseudo", "-i", src)
+	out3, err := runRunCmd(t, a3, recipe, "pseudo", "-i", src, "--target-lang", "fr-FR")
 	require.NoError(t, err, "post-rebuild run output: %s", out3)
 	assert.Equal(t, first, storeOverlayCount(t, recipe, "targets/fr-FR"))
 }

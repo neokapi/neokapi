@@ -53,8 +53,11 @@ func TestOverlayKey_NoCollisionAcrossFiles(t *testing.T) {
 
 	// Two process-only runs, one per file — each commits its file's targets/fr-FR
 	// overlay. On the buggy code the second overwrites the first (shared id).
+	// Pinned --target-lang: without it the run resolves the pseudo flow's
+	// locale passes via flow.ResolveFlowLocales (→ pseudo-translate's default
+	// `qps`); this test asserts the fr-FR overlay keys.
 	for _, f := range []string{"a.json", "b.json"} {
-		out, rerr := runRunCmd(t, a, recipe, "pseudo", "-i", filepath.Join(sd, f))
+		out, rerr := runRunCmd(t, a, recipe, "pseudo", "-i", filepath.Join(sd, f), "--target-lang", "fr-FR")
 		require.NoError(t, rerr, "run %s: %s", f, out)
 	}
 

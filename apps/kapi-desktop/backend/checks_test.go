@@ -264,14 +264,13 @@ func TestResolveTargetPathMatchesRunner(t *testing.T) {
 			got := app.resolveTargetPath(rf, op, tc.lang)
 			assert.Equal(t, filepath.Join(root, tc.want), got)
 
-			// Parity with the canonical resolver, applied the way the runner does.
+			// Parity with the canonical resolver — the same
+			// project.ResolveTargetPath the flow runner now reaches through
+			// the shared cli orchestrator (cli.App.RunFlowAllLocales), so
+			// checks-side and runner-side resolution cannot diverge.
 			relSlash := filepath.ToSlash(tc.relative)
 			canonical := filepath.Join(root, project.ResolveTargetPath(tc.itemPath, tc.base, tc.target, relSlash, tc.lang))
 			assert.Equal(t, canonical, got, "checks-side resolution must equal project.ResolveTargetPath")
-
-			// Parity with the runner's own output-path resolution.
-			runnerGot := app.resolveOutputPath(filepath.Join(root, tc.relative), tc.lang)
-			assert.Equal(t, runnerGot, got, "checks-side resolution must equal runner-side resolution")
 		})
 	}
 }

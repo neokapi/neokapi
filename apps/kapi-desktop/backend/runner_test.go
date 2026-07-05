@@ -1,7 +1,10 @@
 package backend
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/stretchr/testify/assert"
@@ -34,6 +37,65 @@ func TestRunFlowNoInputs(t *testing.T) {
 	err := app.RunFlow(tab.ID, "qa", nil, []string{"fr"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no input files")
+}
+
+// TestRunFlowExecutesViaSharedOrchestrator runs a real flow end-to-end through
+// the shared cli orchestrator (RunFlow → cli.App.RunFlowAllLocales) and
+// asserts the Wails-facing contract held by the former hand-rolled loop: the
+// event vocabulary (state/progress/complete with the same fields), the locale
+// pass resolved from tool cardinality (pseudo-translate → its default qps),
+// and the written output file.
+func TestRunFlowExecutesViaSharedOrchestrator(t *testing.T) {
+	app := NewApp()
+	tab := newTestProject(t, app, "RunOrchestrated")
+
+	op := app.getOpenProject(tab.ID)
+	require.NotNil(t, op)
+	root := filepath.Dir(op.Path)
+	src := filepath.Join(root, "messages.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"greeting":"Hello, world."}`), 0o644))
+
+	_ = app.SaveFlow(tab.ID, "pseudo", &flow.StepsSpec{
+		Steps: []flow.FlowStep{{Tool: "pseudo-translate"}},
+	})
+
+	require.NoError(t, app.RunFlow(tab.ID, "pseudo", []string{src}, []string{"fr-FR"}))
+
+	// The run executes on a goroutine; poll until it leaves "running".
+	deadline := time.Now().Add(30 * time.Second)
+	for app.GetRunState() == string(RunStateRunning) && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	require.Equal(t, string(RunStateComplete), app.GetRunState())
+
+	events := app.GetRunEvents()
+	require.NotEmpty(t, events)
+
+	byType := map[string][]RunEvent{}
+	for _, ev := range events {
+		assert.Equal(t, "pseudo", ev.FlowID)
+		byType[ev.Type] = append(byType[ev.Type], ev)
+	}
+	states := byType["state"]
+	require.Len(t, states, 2)
+	assert.Equal(t, "running", states[0].Message)
+	assert.Contains(t, states[1].Message, "Running for qps (1 files)",
+		"locale pass must come from the shared flow.ResolveFlowLocales selection")
+
+	progress := byType["progress"]
+	require.NotEmpty(t, progress)
+	assert.Equal(t, 1, progress[0].FileCount)
+	assert.Equal(t, src, progress[0].FilePath)
+
+	complete := byType["complete"]
+	require.Len(t, complete, 1)
+	assert.Equal(t, 1, complete[0].FilesProcessed)
+	assert.Empty(t, byType["error"])
+
+	// No content target template in the recipe → default sibling output.
+	data, err := os.ReadFile(filepath.Join(root, "messages_qps.json"))
+	require.NoError(t, err, "the run must write the qps output file")
+	assert.NotEqual(t, `{"greeting":"Hello, world."}`, string(data))
 }
 
 func TestGetRunStateIdle(t *testing.T) {
