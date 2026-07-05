@@ -228,6 +228,7 @@ ifndef PROTOC_GEN_GO
 endif
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		core/proto/content/v1/*.proto \
 		core/plugin/proto/v1/*.proto core/plugin/proto/v2/*.proto
 
 _fw-deps:

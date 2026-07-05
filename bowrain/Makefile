@@ -495,8 +495,10 @@ endif
 	# Sync protocol messages live in the framework-only bowrain/core module so the
 	# push client can use them without the editor/server gRPC service surface.
 	# They are messages only (no service), so no go-grpc plugin is needed.
-	protoc --go_out=. --go_opt=paths=source_relative \
-		$(SYNC_PROTO_DIR)/*.proto
+	# Runs from the repo root: sync.proto imports the canonical content-model
+	# schema (core/proto/content/v1/content.proto), which resolves there.
+	cd .. && protoc --go_out=. --go_opt=paths=source_relative \
+		bowrain/$(SYNC_PROTO_DIR)/*.proto
 
 # ── Dependencies ─────────────────────────────────────────────────────────────
 

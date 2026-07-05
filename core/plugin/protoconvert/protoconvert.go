@@ -1,7 +1,7 @@
-// Package protoconvert provides conversions between core/model types and
-// the v2 plugin gRPC proto types defined in core/plugin/proto/v2. The
-// in-process Java bridge runner and Mode-C daemon clients use these
-// helpers to ferry parts across the wire.
+// Package protoconvert provides the canonical conversions between core/model
+// types and the content-model wire schema defined in core/proto/content/v1
+// (see AD-034). The in-process Java bridge runner, Mode-C daemon clients, and
+// the sync protocol use these helpers to ferry parts across the wire.
 package protoconvert
 
 import (
@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
-	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
+	pb "github.com/neokapi/neokapi/core/proto/content/v1"
 )
 
 // jsonToMap unmarshals JSON bytes to a map[string]any, returning an empty
