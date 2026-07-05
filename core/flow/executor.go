@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"iter"
 	"runtime"
+	"runtime/debug"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -379,7 +380,18 @@ func runTool(
 	session blockstore.Session,
 	in <-chan *model.Part,
 	out chan<- *model.Part,
-) error {
+) (err error) {
+	// Each tool runs in its own errgroup goroutine, and errgroup does not
+	// recover panics — an unrecovered panic here would crash the whole
+	// process (no recover middleware up the caller's stack can catch a
+	// panic on another goroutine). Convert it into an error so the
+	// errgroup fails the flow cleanly; both callers wrap it with the
+	// tool's name.
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panicked: %v\n%s", r, debug.Stack())
+		}
+	}()
 	if st, ok := t.(tool.SessionTool); ok && session.Capabilities().Persistent {
 		return st.SessionProcess(ctx, session, in, out)
 	}

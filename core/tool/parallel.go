@@ -3,6 +3,8 @@ package tool
 import (
 	"container/heap"
 	"context"
+	"fmt"
+	"runtime/debug"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -41,6 +43,19 @@ func (p *ParallelBlockTool) Config() ToolConfig { return p.inner.Config() }
 
 // SetConfig applies configuration to the wrapped tool.
 func (p *ParallelBlockTool) SetConfig(c ToolConfig) error { return p.inner.SetConfig(c) }
+
+// recoverHandle invokes fn, converting a panic into an error. The dispatcher
+// and its workers run tool handlers on their own goroutines, where an
+// unrecovered panic would crash the whole process instead of failing the
+// tool; this mirrors the executor's per-tool recovery (flow.runTool).
+func recoverHandle(name string, fn func() (*model.Part, error)) (result *model.Part, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("tool %s panicked: %v\n%s", name, r, debug.Stack())
+		}
+	}()
+	return fn()
+}
 
 // sequencedPart pairs a Part with a monotonic sequence number for ordering.
 type sequencedPart struct {
@@ -131,7 +146,9 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 						// Route through the dispatcher so the tool's typed
 						// handler (and the immutability backstop) applies; each
 						// worker handles a distinct block, so no shared state.
-						result, err := baseTool.handleBlock(ctx, part)
+						result, err := recoverHandle(p.inner.Name(), func() (*model.Part, error) {
+							return baseTool.handleBlock(ctx, part)
+						})
 						select {
 						case results <- sequencedPart{seq: currentSeq, part: result, err: err}:
 						case <-ctx.Done():
@@ -139,7 +156,9 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 					})
 				} else {
 					// Non-Block: dispatch to inner tool's handler, then send result.
-					result, err := baseTool.dispatch(ctx, part)
+					result, err := recoverHandle(p.inner.Name(), func() (*model.Part, error) {
+						return baseTool.dispatch(ctx, part)
+					})
 					select {
 					case results <- sequencedPart{seq: currentSeq, part: result, err: err}:
 					case <-ctx.Done():
