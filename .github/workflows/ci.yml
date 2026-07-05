@@ -363,6 +363,14 @@ jobs:
           path: junit-kapi.xml
           reporter: java-junit
 
+      - name: Upload raw test output on failure
+        uses: actions/upload-artifact@v7
+        if: steps.run-tests.outcome == 'failure'
+        with:
+          name: test-results-kapi-failed
+          path: test-results-kapi.json
+          retention-days: 3
+
       - name: Fail if tests failed
         if: steps.run-tests.outcome == 'failure'
         run: exit 1
