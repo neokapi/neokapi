@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/core/convergence"
@@ -38,7 +39,7 @@ func compactTokens(n int) string {
 	case n >= 1_000:
 		return fmt.Sprintf("%dk", n/1_000)
 	default:
-		return fmt.Sprintf("%d", n)
+		return strconv.Itoa(n)
 	}
 }
 

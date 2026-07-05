@@ -125,7 +125,7 @@ func (r *convergeRenderer) printAbove(msg string) {
 	if r.tty && r.drawn > 0 {
 		// Clear the region, print the line, redraw beneath it.
 		fmt.Fprintf(r.w, "\x1b[%dA", r.drawn)
-		for i := 0; i < r.drawn; i++ {
+		for range r.drawn {
 			fmt.Fprint(r.w, "\x1b[2K\n")
 		}
 		fmt.Fprintf(r.w, "\x1b[%dA", r.drawn)
@@ -185,10 +185,7 @@ func bar(done, units int) string {
 	const width = 14
 	filled := 0
 	if units > 0 {
-		filled = done * width / units
-		if filled > width {
-			filled = width
-		}
+		filled = min(done*width/units, width)
 	}
 	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
 }

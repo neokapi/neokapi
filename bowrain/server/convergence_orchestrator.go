@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -129,7 +130,7 @@ func (s *Server) subscribeConvergeOnPush() {
 func (o *convergenceOrchestrator) StartRun(ctx context.Context, projectID, trigger string, locales []string) (*bstore.ConvergenceRun, bool, error) {
 	store := o.server.ConvergenceRunStore
 	if store == nil {
-		return nil, false, fmt.Errorf("convergence runs not configured")
+		return nil, false, errors.New("convergence runs not configured")
 	}
 	// One run per project at a time: return the in-flight run rather than
 	// stacking a second.

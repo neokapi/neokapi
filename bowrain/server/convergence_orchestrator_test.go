@@ -151,7 +151,7 @@ func TestOrchestrator_SSEReplayAndLive(t *testing.T) {
 	// The live stream and the persisted replay agree in count.
 	_, persisted, err := runStore.ListEvents(ctx, run.ID, 0)
 	require.NoError(t, err)
-	assert.Equal(t, len(persisted), len(live))
+	assert.Len(t, live, len(persisted))
 }
 
 func convergenceEventTypes(t *testing.T, payloads [][]byte) []string {

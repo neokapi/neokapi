@@ -1,5 +1,6 @@
 import type { ApiAdapter } from "@neokapi/ui";
 import type {
+  ConvergenceRun,
   User,
   Workspace,
   Membership,
@@ -1091,6 +1092,33 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   async markActivitiesSeen(_ws: string): Promise<void> {}
+
+  // --- Convergence runs (AD-022; the desktop's Runs surface arrives with the
+  // web-frontend consolidation — list reads as empty until then) ---
+  async listConvergenceRuns(
+    _ws: string,
+    _projectId: string,
+    _limit?: number,
+  ): Promise<ConvergenceRun[]> {
+    return [];
+  }
+  async getConvergenceRun(
+    _ws: string,
+    _projectId: string,
+    _runId: string,
+  ): Promise<ConvergenceRun> {
+    throw new Error("Convergence runs are not yet surfaced in the desktop app");
+  }
+  async startConvergenceRun(
+    _ws: string,
+    _projectId: string,
+    _opts?: { trigger?: string; locales?: string[] },
+  ): Promise<ConvergenceRun> {
+    throw new Error("Convergence runs are not yet surfaced in the desktop app");
+  }
+  async cancelConvergenceRun(_ws: string, _projectId: string, _runId: string): Promise<void> {
+    throw new Error("Convergence runs are not yet surfaced in the desktop app");
+  }
 
   // --- Tasks (Bowrain AD-014, not yet supported in desktop) ---
   async listTasks(
