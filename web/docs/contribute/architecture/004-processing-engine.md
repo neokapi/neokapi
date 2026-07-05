@@ -214,7 +214,9 @@ Each `FlowEdge` connects a source node to a target node.
 returning an error if a cycle is detected so invalid flow graphs never
 reach the runtime executor.
 
-Built-in flow definitions include:
+The built-in flow catalog is a product concern and lives in the host
+module (`host/flowdef.BuiltInFlows`), not in the engine. Built-in flow
+definitions include:
 
 | Name               | Description                                              |
 | ------------------ | ------------------------------------------------------- |
@@ -230,8 +232,8 @@ Built-in flow definitions include:
 (`translate`, `pseudo-translate`, `qa`, `recycle`) are surfaced as
 top-level tool commands rather than as flows.
 
-`FlowStore` persists user-created flow definitions as JSON files on disk.
-Flow definitions are distinguished by source:
+`host/flowdef.FlowStore` persists user-created flow definitions as JSON
+files on disk. Flow definitions are distinguished by source:
 
 - `source: "built-in"` — ships with neokapi, immutable
 - `source: "user"` — created by the user, stored in the user's config directory

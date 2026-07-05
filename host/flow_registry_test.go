@@ -5,6 +5,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host/flowdef"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,19 +15,19 @@ func TestBuiltinComposedFlows_DerivedFromRegistry(t *testing.T) {
 	require.NotEmpty(t, composed, "should have at least one composed flow")
 
 	builtInIDs := make(map[string]bool)
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		builtInIDs[def.ID] = true
 	}
 	for _, cf := range composed {
 		assert.True(t, builtInIDs[cf.Name],
-			"composed flow %q should exist in flow.BuiltInFlows()", cf.Name)
+			"composed flow %q should exist in flowdef.BuiltInFlows()", cf.Name)
 	}
 }
 
 func TestBuiltinComposedFlows_OnlyMultiTool(t *testing.T) {
 	composed := builtinComposedFlows()
 	for _, cf := range composed {
-		for _, def := range flow.BuiltInFlows() {
+		for _, def := range flowdef.BuiltInFlows() {
 			if def.ID == cf.Name {
 				toolCount := 0
 				for _, n := range def.Nodes {
@@ -72,7 +73,7 @@ func TestDefaultParallelBlocks_Unknown(t *testing.T) {
 
 func TestAllBuiltInFlowToolsResolvable(t *testing.T) {
 	app := newTestApp()
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		for _, n := range def.Nodes {
 			if n.Type != "tool" {
 				continue

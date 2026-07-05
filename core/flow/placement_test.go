@@ -58,17 +58,6 @@ func warningRules(diags []flow.PlacementDiagnostic) []string {
 	return rules
 }
 
-// Every built-in flow must pass its own placement gate.
-func TestValidatePlacement_BuiltInFlowsPass(t *testing.T) {
-	t.Parallel()
-	reg := placementReg(t)
-	for _, def := range flow.BuiltInFlows() {
-		t.Run(def.ID, func(t *testing.T) {
-			assert.NoError(t, def.CheckPlacement(reg), "built-in flow %q must pass the placement gate", def.ID)
-		})
-	}
-}
-
 // A transformer after a target-producing step orphans the targets → error.
 func TestValidatePlacement_TransformerAfterTranslate(t *testing.T) {
 	t.Parallel()

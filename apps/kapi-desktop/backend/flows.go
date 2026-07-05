@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host/flowdef"
 	"gopkg.in/yaml.v3"
 )
 
@@ -61,7 +62,7 @@ func (a *App) ListUserFlows() []UserFlowInfo {
 	var result []UserFlowInfo
 
 	// Built-in flows.
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		stepCount := 0
 		for _, n := range def.Nodes {
 			if n.Type == flow.NodeTool {
@@ -118,7 +119,7 @@ func (a *App) ListUserFlows() []UserFlowInfo {
 // GetUserFlow returns a flow by ID (built-in or user).
 func (a *App) GetUserFlow(id string) *UserFlowDetail {
 	// Check built-in flows — convert graph to steps manually.
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		if def.ID == id {
 			steps := graphToSteps(&def)
 			return &UserFlowDetail{
@@ -172,7 +173,7 @@ func (a *App) SaveUserFlow(req SaveUserFlowRequest) error {
 
 // DeleteUserFlow deletes a user flow. Returns error for built-in flows.
 func (a *App) DeleteUserFlow(id string) error {
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		if def.ID == id {
 			return fmt.Errorf("cannot delete built-in flow %q", id)
 		}

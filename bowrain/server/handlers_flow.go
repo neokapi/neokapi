@@ -9,13 +9,14 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/host/flowdef"
 )
 
 // Flow definitions (Bowrain AD-013).
 //
 // Flows are server-side, project-scoped pipeline graphs (reader → tool(s) →
 // writer). Automation `run_flow` actions reference a flow by id. Built-in
-// flows (flow.BuiltInFlows) are always available and merged into the listing;
+// flows (flowdef.BuiltInFlows) are always available and merged into the listing;
 // project flows are persisted in the FlowDefStore and override or extend the
 // built-in set.
 //
@@ -28,7 +29,7 @@ func (s *Server) HandleListFlowDefinitions(c echo.Context) error {
 	projectID := c.Param("id")
 
 	defs := make([]flow.FlowDefinition, 0, 8)
-	defs = append(defs, flow.BuiltInFlows()...)
+	defs = append(defs, flowdef.BuiltInFlows()...)
 
 	if s.FlowDefStore != nil {
 		stored, err := s.FlowDefStore.List(c.Request().Context(), projectID)
@@ -47,7 +48,7 @@ func (s *Server) HandleGetFlowDefinition(c echo.Context) error {
 	projectID := c.Param("id")
 	flowID := c.Param("flowId")
 
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		if def.ID == flowID {
 			return c.JSON(http.StatusOK, def)
 		}
@@ -156,7 +157,7 @@ func (s *Server) HandleDeleteFlowDefinition(c echo.Context) error {
 }
 
 func isBuiltInFlowID(flowID string) bool {
-	for _, def := range flow.BuiltInFlows() {
+	for _, def := range flowdef.BuiltInFlows() {
 		if def.ID == flowID {
 			return true
 		}

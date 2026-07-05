@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host/flowdef"
 )
 
 // registerFlowTools registers flow execution MCP tools.
@@ -44,7 +45,7 @@ type flowSummary struct {
 }
 
 func (s *MCPServer) handleListFlows(ctx context.Context, req *mcp.CallToolRequest, input listFlowsInput) (*mcp.CallToolResult, listFlowsOutput, error) {
-	builtIn := flow.BuiltInFlows()
+	builtIn := flowdef.BuiltInFlows()
 	flows := make([]flowSummary, 0, len(builtIn))
 	for _, f := range builtIn {
 		flows = append(flows, flowSummary{
@@ -79,7 +80,7 @@ func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest,
 
 	// Find the flow definition.
 	var flowDef *flow.FlowDefinition
-	for _, f := range flow.BuiltInFlows() {
+	for _, f := range flowdef.BuiltInFlows() {
 		if f.ID == input.FlowName {
 			flowDef = &f
 			break

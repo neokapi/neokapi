@@ -20,17 +20,6 @@ func dataflowReg(t *testing.T) *registry.ToolRegistry {
 	return reg
 }
 
-// Every built-in flow must satisfy its own data-flow contract.
-func TestValidateDataFlow_BuiltInFlowsPass(t *testing.T) {
-	t.Parallel()
-	reg := dataflowReg(t)
-	for _, def := range flow.BuiltInFlows() {
-		t.Run(def.ID, func(t *testing.T) {
-			assert.NoError(t, def.ValidateDataFlow(reg), "built-in flow %q must satisfy its IO contract", def.ID)
-		})
-	}
-}
-
 func TestValidateDataFlow_NilRegistrySkips(t *testing.T) {
 	t.Parallel()
 	def := flow.FlowDefinition{

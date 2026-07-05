@@ -455,7 +455,7 @@ verify-isolation: ## Verify all Go module isolation boundaries
 #   kapi               framework + host + cli only — no bowrain dep
 #   apps/kapi-desktop  framework + host (+ plugin/schema) only — NO cli, NO cobra
 #   bowrain/cli        framework + host + cli + bowrain/core (the kapi-bowrain plugin)
-#   bowrain            framework + bowrain/core (the platform)
+#   bowrain            framework + host + bowrain/core (the platform; host for the host/flowdef flow catalog)
 #
 # bowrain and bowrain/cli are not isolation boundaries (they legitimately depend
 # on several modules), but they are audited for the same go.mod/go.sum tidiness —

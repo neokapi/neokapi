@@ -171,58 +171,6 @@ func TestStepsToGraph_ValidTopology(t *testing.T) {
 	assert.Len(t, order, len(nodes))
 }
 
-func TestParseFlowYAML_StepsFormat(t *testing.T) {
-	yaml := `
-steps:
-  - tool: pseudo-translate
-    config:
-      expansion: 30
-  - tool: qa
-`
-	def, err := parseFlowYAML([]byte(yaml))
-	require.NoError(t, err)
-	assert.Len(t, def.Nodes, 2) // 2 tool nodes (no reader/writer)
-	assert.Len(t, def.Edges, 1)
-
-	var pseudoNode *FlowNode
-	for i := range def.Nodes {
-		if def.Nodes[i].Name == "pseudo-translate" {
-			pseudoNode = &def.Nodes[i]
-			break
-		}
-	}
-	require.NotNil(t, pseudoNode)
-	assert.Equal(t, 30, pseudoNode.Config["expansion"])
-}
-
-// TestParseFlowYAML_GraphFormatStillWorks verifies legacy graphs that still
-// carry reader/writer nodes load (Validate tolerates them; execution ignores
-// non-tool nodes).
-func TestParseFlowYAML_GraphFormatStillWorks(t *testing.T) {
-	yaml := `
-id: test-flow
-name: Test Flow
-nodes:
-  - id: reader
-    type: reader
-    name: auto
-    position: {x: 0, y: 100}
-  - id: writer
-    type: writer
-    name: auto
-    position: {x: 250, y: 100}
-edges:
-  - id: e1
-    source: reader
-    target: writer
-`
-	def, err := parseFlowYAML([]byte(yaml))
-	require.NoError(t, err)
-	assert.Equal(t, "test-flow", def.ID)
-	assert.Len(t, def.Nodes, 2)
-	assert.Len(t, def.Edges, 1)
-}
-
 func filterEdges(edges []FlowEdge, source, target string) []FlowEdge {
 	var result []FlowEdge
 	for _, e := range edges {

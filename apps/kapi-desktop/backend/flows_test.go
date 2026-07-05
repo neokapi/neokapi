@@ -5,6 +5,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host/flowdef"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -84,7 +85,7 @@ func TestAdoptBuiltInFlowIntoProject(t *testing.T) {
 	app := NewApp()
 	tab := newTestProject(t, app, "AdoptBuiltin")
 
-	builtins := flow.BuiltInFlows()
+	builtins := flowdef.BuiltInFlows()
 	require.NotEmpty(t, builtins)
 	id := builtins[0].ID
 
