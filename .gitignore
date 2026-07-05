@@ -177,6 +177,7 @@ platform/docker/traefik/certs
 # Stray build outputs (use `make` targets, which place binaries under bin/ or
 # the wasm demo dir — these default `go build` outputs must never be committed)
 /bowrain/bowrain
+/kapi-wasm
 /kapi/kapi-wasm-cli
 
 # Transient libpdfium build/work dir (release-pdfium.yml + local plugin tests)
