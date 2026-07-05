@@ -79,8 +79,8 @@
   },
   "dependencies": {
     "@neokapi/kapi-format": "^1.0.0",
-    "@swc/core": "^1.15.41",
-    "unplugin": "^3.0.0"
+    "@swc/core": "^1.15.43",
+    "unplugin": "^3.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",

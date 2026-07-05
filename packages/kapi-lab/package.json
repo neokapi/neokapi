@@ -28,7 +28,7 @@
     "@neokapi/reference-data": "*",
     "@neokapi/ui-primitives": "*",
     "gliner": "^0.0.19",
-    "lucide-react": "^1.21.0"
+    "lucide-react": "^1.23.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
@@ -39,7 +39,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "typescript": "^6.0.3",
-    "vite-plus": "^0.2.1",
+    "vite-plus": "^0.2.2",
     "vitest": "^4.1.9"
   },
   "peerDependencies": {

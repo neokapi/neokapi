@@ -17,26 +17,26 @@
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource/dm-mono": "^5.2.7",
-    "@lexical/react": "^0.45.0",
+    "@lexical/react": "^0.46.0",
     "@neokapi/flow-editor": "*",
     "@neokapi/ui": "*",
-    "@tailwindcss/vite": "^4.3.1",
-    "@tanstack/react-query": "^5.101.0",
-    "@tanstack/react-router": "^1.170.16",
+    "@tailwindcss/vite": "^4.3.2",
+    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-router": "^1.170.17",
     "d3-geo": "3.1.1",
-    "lexical": "^0.45.0",
-    "lucide-react": "^1.21.0",
-    "posthog-js": "^1.391.0",
+    "lexical": "^0.46.0",
+    "lucide-react": "^1.23.0",
+    "posthog-js": "^1.396.6",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "recharts": "^3.8.1",
-    "tailwindcss": "^4.3.1",
+    "recharts": "^3.9.2",
+    "tailwindcss": "^4.3.2",
     "topojson-client": "3.1.0",
     "world-atlas": "2.0.2",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.0",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@types/d3-geo": "3.1.0",
     "@types/topojson-client": "3.1.5",
@@ -45,9 +45,9 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
+    "@vitejs/plugin-react": "^6.0.3",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
-    "vite-plus": "^0.2.1"
+    "vite-plus": "^0.2.2"
   }
 }

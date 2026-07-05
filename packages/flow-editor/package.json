@@ -23,9 +23,9 @@
     "@neokapi/contract-types": "*",
     "@neokapi/kapi-react": "*",
     "@neokapi/ui-primitives": "*",
-    "@xyflow/react": "^12.11.0",
-    "lucide-react": "^1.21.0",
-    "react-hook-form": "^7.79.0",
+    "@xyflow/react": "^12.11.1",
+    "lucide-react": "^1.23.0",
+    "react-hook-form": "^7.81.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "zod": "^4.4.3"
@@ -39,7 +39,7 @@
     "jsdom": "^29.1.1",
     "storybook": "^10.4.6",
     "typescript": "^6.0.3",
-    "vite-plus": "^0.2.1",
+    "vite-plus": "^0.2.2",
     "vitest": "^4.1.9"
   },
   "peerDependencies": {
