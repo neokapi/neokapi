@@ -302,3 +302,55 @@ func collectParts(ch <-chan *model.Part) []*model.Part {
 	}
 	return parts
 }
+
+// TestParallelBlockTool_BlockPanicRecovered verifies that a panic in a block
+// handler running on a worker goroutine is recovered into a tool error
+// (carrying the tool name) instead of crashing the process.
+func TestParallelBlockTool_BlockPanicRecovered(t *testing.T) {
+	inner := &tool.BaseTool{
+		ToolName: "panicky",
+		Annotate: func(v tool.BlockView) error {
+			panic("boom: crafted input")
+		},
+	}
+	pt := tool.NewParallelBlockTool(inner, 4)
+
+	in := make(chan *model.Part, 4)
+	out := make(chan *model.Part, 4)
+	for i := range 4 {
+		in <- makeBlock(fmt.Sprintf("b%d", i), "Hello")
+	}
+	close(in)
+
+	err := pt.Process(t.Context(), in, out)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tool panicky")
+	assert.Contains(t, err.Error(), "panicked")
+	assert.Contains(t, err.Error(), "boom: crafted input")
+}
+
+// TestParallelBlockTool_NonBlockPanicRecovered covers the dispatcher
+// goroutine's non-Block dispatch path.
+func TestParallelBlockTool_NonBlockPanicRecovered(t *testing.T) {
+	inner := &tool.BaseTool{
+		ToolName: "panicky-data",
+		// A block handler is required so the parallel path is taken.
+		Annotate: func(v tool.BlockView) error { return nil },
+		HandleDataFn: func(p *model.Part) (*model.Part, error) {
+			panic("boom: data")
+		},
+	}
+	pt := tool.NewParallelBlockTool(inner, 4)
+
+	in := make(chan *model.Part, 2)
+	out := make(chan *model.Part, 2)
+	in <- makeBlock("b1", "Hello")
+	in <- makeData("d1")
+	close(in)
+
+	err := pt.Process(t.Context(), in, out)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tool panicky-data")
+	assert.Contains(t, err.Error(), "panicked")
+	assert.Contains(t, err.Error(), "boom: data")
+}
