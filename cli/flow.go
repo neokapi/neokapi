@@ -1511,18 +1511,10 @@ func (a *App) resolveProjectGlossary(cmd *cobra.Command, targetLang string) ([]c
 	return glossary, nil
 }
 
-// runProjectSteps executes a flow defined in a .kapi project file.
-// It resolves tools by name from the registry, applying per-step configs,
-// and runs the flow using the standard single/multi-file execution path.
-func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName string, spec *flow.StepsSpec, rCtx *flow.ResourceContext) error {
-	inputPaths, _ := cmd.Flags().GetStringSlice("input")
-	return a.runProjectStepsOver(ctx, cmd, flowName, spec, rCtx, inputPaths)
-}
-
-// runProjectStepsOver runs a project flow's steps over an explicit input set,
-// rather than reading --input from the command. The convergence loop uses it to
-// drive the default flow over a chosen (locale, pending-files) slice per pass;
-// runProjectSteps is the thin wrapper that sources inputs from the flag.
+// runProjectStepsOver runs a project flow's steps over an explicit input set.
+// The convergence loop uses it to drive the default flow over a chosen
+// (locale, pending-files) slice per pass; runFromProject drives it once per
+// resolved locale pass.
 func (a *App) runProjectStepsOver(ctx context.Context, cmd *cobra.Command, flowName string, spec *flow.StepsSpec, rCtx *flow.ResourceContext, inputPaths []string) error {
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 
@@ -1530,73 +1522,14 @@ func (a *App) runProjectStepsOver(ctx context.Context, cmd *cobra.Command, flowN
 		return errors.New("--target-lang is required")
 	}
 
-	// Build tools from step definitions using the tool registry. Transformers
-	// are ordinary ordered steps (AD-006); their position is validated by the
-	// placement pass at flow load, not by a structural stage here.
-	//
-	// Tools that require a TM (e.g. recycle) need the project's TM provider
-	// injected: toolFromStep can't read the schema-hidden Provider/SourceLocale
-	// from the step config, so it would default to a no-match NullTMProvider.
-	// Open the TM once, share it across every TM step, and close it after the run.
-	var tmCleanups []func()
-	defer func() {
-		for _, c := range tmCleanups {
-			c()
-		}
-	}()
-	injectTM := func(step flow.FlowStep, t tool.Tool) error {
-		if !toolRequires(a.ToolReg.Schema(registry.ToolID(step.Tool)), schema.RequiresTM) {
-			return nil
-		}
-		cfg, ok := t.Config().(*coretools.TMLeverageConfig)
-		if !ok {
-			return nil
-		}
-		provider, cleanup, err := a.openToolTM(cmd)
-		if err != nil {
-			return err
-		}
-		if cleanup != nil {
-			tmCleanups = append(tmCleanups, cleanup)
-		}
-		if provider != nil {
-			cfg.Provider = provider
-		}
-		if cfg.SourceLocale.IsEmpty() && a.SourceLang != "" {
-			cfg.SourceLocale = model.LocaleID(a.SourceLang)
-		}
-		return nil
+	// Assemble the pass's tool chain through the shared builder (placement
+	// gate, per-step config resolution, project TM injection) — the same
+	// implementation the multi-locale orchestrator (RunFlowAllLocales) uses.
+	projectTools, cleanup, err := a.buildProjectFlowTools(cmd, flowName, spec, rCtx, nil)
+	if err != nil {
+		return err
 	}
-
-	if len(spec.SourceTransforms) > 0 {
-		return fmt.Errorf("flow %q uses the removed source_transforms stage (AD-006): list transformers as ordered steps", flowName)
-	}
-	// Transformer placement gate (AD-006) over the compiled steps graph —
-	// unconditional at load, like the built-in flow path. The gate sees each
-	// node's preset-merged config (defaults.tools), so a preset that enables
-	// entity detection drives the same contract resolution the runtime uses.
-	if nodes, edges, err := flow.StepsToGraph(spec); err == nil {
-		if b := a.projectBindings; b != nil && len(b.toolPresets) > 0 {
-			for i := range nodes {
-				nodes[i].Config = mergeToolPreset(b.toolPresets[nodes[i].Name], nodes[i].Config)
-			}
-		}
-		def := &flow.FlowDefinition{ID: flowName, Name: flowName, Nodes: nodes, Edges: edges}
-		if err := a.checkFlowPlacement(def); err != nil {
-			return err
-		}
-	}
-	var projectTools []tool.Tool
-	for _, step := range spec.Steps {
-		t, err := a.toolFromStep(step, cmd, rCtx)
-		if err != nil {
-			return fmt.Errorf("flow %q: %w", flowName, err)
-		}
-		if err := injectTM(step, t); err != nil {
-			return fmt.Errorf("flow %q: %w", flowName, err)
-		}
-		projectTools = append(projectTools, t)
-	}
+	defer cleanup()
 
 	// A convergence worker appends its progress tap as a trailing read-only
 	// step: it observes blocks leaving the pipeline and feeds the run's live
@@ -1636,14 +1569,18 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command, rCtx *flow.Re
 		}
 		config = a.applyProjectBindings(step.Tool, toolSchema, config)
 		t, err := a.ToolReg.NewToolWithConfig(toolID, config, a.TargetLang)
-		if err == nil {
-			return t, nil
+		if err != nil {
+			// Return the real failure (a credential-resolution or config
+			// error). NewToolWithConfig already falls back to the zero-arg
+			// factory for tools with no ConfigFactory, so retrying NewTool
+			// here could only mask the cause (or silently swap in a
+			// mock-provider default for AI tools).
+			return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
 		}
-		// If NewToolWithConfig failed (e.g., no ConfigFactory), fall through
-		// to the zero-arg factory below.
+		return t, nil
 	}
 
-	// Fall back to zero-arg factory.
+	// Unregistered name: fall back to the zero-arg factory for its error text.
 	t, err := a.ToolReg.NewTool(toolID)
 	if err != nil {
 		return nil, fmt.Errorf("tool %q: %w", step.Tool, err)

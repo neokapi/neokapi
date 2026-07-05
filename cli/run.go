@@ -201,7 +201,10 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
 
-	// Resolve content patterns if no --input flag was provided.
+	// Resolve content patterns if no --input flag was provided. The resolved
+	// set is passed explicitly to runProjectStepsOver below (re-reading the
+	// flag there would silently drop the content-derived inputs and run over
+	// zero files).
 	if len(inputPaths) == 0 {
 		resolved, err := ctx.ResolveContent(a.FormatReg)
 		if err != nil {
@@ -236,5 +239,38 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 		TargetLocale: a.TargetLang,
 	}
 
-	return a.runProjectSteps(cmd.Context(), cmd, flowName, spec, &rCtx)
+	// Locale selection: an explicit --target-lang wins (one pass with it);
+	// otherwise the flow's locale passes come from flow.ResolveFlowLocales —
+	// the SAME applicability-based selection the desktop runner and the
+	// shared orchestrator (RunFlowAllLocales) use, so the CLI and the desktop
+	// can never disagree about which locales a flow runs for. (Convergence
+	// deliberately answers a different question — "which locales still need
+	// work" — via localesNeedingPass in converge.go.) A source-only flow
+	// (nil passes) keeps the single default-target run.
+	if !cmd.Flags().Changed("target-lang") {
+		passes := flow.ResolveFlowLocales(spec, flow.BuildToolInfoMap(a.ToolReg), a.SourceLang, localeStrings(ctx.TargetLocales))
+		if len(passes) > 0 {
+			savedTarget := a.TargetLang
+			defer func() { a.TargetLang = savedTarget }()
+			for _, pass := range passes {
+				// Target locale is the second element of the pass (if
+				// present). A one-element multilingual pass (no project
+				// targets) leaves it empty so runProjectStepsOver returns
+				// its "--target-lang is required" error instead of the
+				// run silently doing nothing.
+				lang := ""
+				if len(pass) > 1 {
+					lang = pass[1]
+				}
+				a.TargetLang = lang
+				rCtx.TargetLocale = lang
+				if err := a.runProjectStepsOver(cmd.Context(), cmd, flowName, spec, &rCtx, inputPaths); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+
+	return a.runProjectStepsOver(cmd.Context(), cmd, flowName, spec, &rCtx, inputPaths)
 }

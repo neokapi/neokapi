@@ -8,6 +8,15 @@ import (
 // ResolveFlowLocales inspects a flow's tool chain and determines which locale
 // sets to process. Returns a slice of locale sets — one per execution pass.
 //
+// This is the canonical, applicability-based answer to "which locales does
+// this flow run for", shared by every flow-run surface (the CLI's project
+// flow-run and the desktop runner, both via the cli module's
+// RunFlowAllLocales orchestrator and runFromProject). It is intentionally
+// distinct from convergence's need-based selection ("which locales still
+// have work toward their ship gate" — the CLI's localesNeedingPass): a flow
+// run applies the flow to every locale it targets; convergence reconciles
+// only the remaining work.
+//
 // Return semantics:
 //   - nil → source-only flow (all tools are monolingual), run once with no target
 //   - [["en","qps"]] → one pass with a fixed default locale

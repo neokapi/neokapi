@@ -337,7 +337,13 @@ provider) refines it away through its contract resolver.
 #### Flow locale inference
 
 The runner inspects the tool chain's cardinality declarations to determine
-which locales to process:
+which locales to process. This is the single applicability-based answer to
+"which locales does this flow run for": the CLI's project flow-run and the
+Kapi Desktop runner both resolve their locale passes through it (via the cli
+module's shared multi-locale orchestrator), so the two surfaces cannot
+disagree. Convergence (`kapi up`) intentionally answers a different question
+with a need-based selection — only the locales still short of their ship
+gate run a pass.
 
 ```go
 func ResolveFlowLocales(

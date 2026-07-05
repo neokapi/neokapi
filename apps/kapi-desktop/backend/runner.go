@@ -4,23 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
-	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
-	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // RunState represents the current state of a flow execution.
@@ -85,9 +80,11 @@ func newRunner() *runner {
 }
 
 // RunFlow executes a flow by name from the current project. Target locales
-// are inferred from the flow's tool chain metadata (Framework AD-006) — the frontend
-// passes project target languages as a fallback, but ResolveFlowLocales
-// determines the actual locale passes based on tool cardinality.
+// are inferred from the flow's tool chain metadata (Framework AD-006) — the
+// frontend passes project target languages as a fallback, and the shared
+// orchestrator (cli.App.RunFlowAllLocales → flow.ResolveFlowLocales)
+// determines the actual locale passes based on tool cardinality, exactly as
+// the CLI's project flow-run does.
 func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs []string) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -120,215 +117,90 @@ func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLangs [
 	a.runState.events = nil // clear events from previous run
 	a.runState.mu.Unlock()
 
-	pctx := project.NewProjectContext(op.Project, op.Path)
-
-	// Resolve locale passes from tool chain metadata (Framework AD-006).
-	// Falls back to project target languages for bilingual tools without defaults.
-	toolInfoMap := flow.BuildToolInfoMap(a.toolReg)
-	localePasses := flow.ResolveFlowLocales(spec, toolInfoMap, string(pctx.SourceLocale), targetLangs)
-
-	go a.executeFlowAllLangs(ctx, flowName, spec, inputPaths, localePasses, pctx)
+	go a.executeFlowRun(ctx, op, flowName, spec, inputPaths, targetLangs)
 	return nil
 }
 
-// executeFlowAllLangs runs the flow for each locale pass sequentially.
-// Each pass is a locale set (e.g., ["en-US", "de-DE"]) determined by
-// ResolveFlowLocales. Tools are rebuilt per pass since target locale is
-// baked into tool config. If localePasses is nil (source-only flow),
-// runs once with no target.
-func (a *App) executeFlowAllLangs(ctx context.Context, flowName string, spec *flow.StepsSpec, inputPaths []string, localePasses [][]string, pctx *project.ProjectContext) {
+// executeFlowRun drives the shared multi-locale flow orchestrator
+// (cli.App.RunFlowAllLocales) and adapts its event stream to Wails run
+// events. Locale-pass selection, per-pass tool assembly (with the cleanup
+// contract the former hand-rolled loop leaked), per-file execution, and
+// event emission all live in the cli module now — shared with the CLI's
+// project flow-run, so the two surfaces agree about which locales a flow
+// runs for. The run uses a fresh cli.App carrying the desktop's own
+// registries (plugin-provided formats and segmenters stay available) and its
+// AI-default + credential-resolving config preprocessor already wired on
+// toolReg.
+func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName string, spec *flow.StepsSpec, inputPaths, targetLangs []string) {
 	defer func() {
 		a.runState.mu.Lock()
 		a.runState.running = false
 		a.runState.mu.Unlock()
 	}()
 
-	start := time.Now()
-
-	// Source-only flows: run once with no target.
-	if localePasses == nil {
-		localePasses = [][]string{{string(pctx.SourceLocale)}}
+	capp := &cli.App{
+		FormatReg:   a.formatReg,
+		ToolReg:     a.toolReg,
+		SchemaReg:   a.schemaReg,
+		Credentials: a.credentials,
+		Config:      a.aiConfig,
+		Quiet:       true,
 	}
-
-	totalFiles := len(inputPaths) * len(localePasses)
-	filesDone := 0
-
-	// Build pipeline metrics from step names.
-	stepNames := make([]string, len(spec.Steps))
-	for i, s := range spec.Steps {
-		stepNames[i] = s.Tool
-	}
-	metrics := flow.NewPipelineMetrics(stepNames)
-
-	// Start 200ms ticker to emit pipeline metrics snapshots.
-	ticker := time.NewTicker(200 * time.Millisecond)
-	stopTick := make(chan struct{})
-	tickDone := make(chan struct{})
-	go func() {
-		defer close(tickDone)
-		for {
-			select {
-			case <-ticker.C:
-				a.emitRunEvent(RunEvent{
-					Type: "pipeline_metrics", FlowID: flowName,
-					Steps: metrics.Snapshot(),
-				})
-			case <-stopTick:
-				return
-			}
-		}
-	}()
-	defer func() {
-		ticker.Stop()
-		close(stopTick)
-		<-tickDone
-	}()
-
-	a.emitRunEvent(RunEvent{
-		Type: "state", FlowID: flowName, Message: "running",
-	})
-
-	// Progress callback for AI tools — emits live block progress to the frontend.
-	onProgress := func(e aiprovider.ProgressEvent) {
-		msg := ""
-		if e.TotalBlocks > 0 {
-			msg = fmt.Sprintf("[%d/%d]", e.Block, e.TotalBlocks)
-		} else {
-			msg = fmt.Sprintf("[%d]", e.Block)
-		}
-		if e.Thinking != "" {
-			think := e.Thinking
-			if len(think) > 80 {
-				think = think[:77] + "..."
-			}
-			msg += " " + think
-		}
-		a.emitRunEvent(RunEvent{
-			Type: "progress", FlowID: flowName, Message: msg,
-			FileIndex: filesDone, FileCount: totalFiles,
-		})
-	}
-
-	for _, pass := range localePasses {
-		if ctx.Err() != nil {
-			break
-		}
-
-		// Target locale is the second element in the pass (if present).
-		lang := ""
-		if len(pass) > 1 {
-			lang = pass[1]
-		}
-
-		a.emitRunEvent(RunEvent{
-			Type:    "state",
-			FlowID:  flowName,
-			Message: fmt.Sprintf("Running for %s (%d files)...", lang, len(inputPaths)),
-		})
-
-		// Build tools for this locale pass, with metrics and progress callbacks.
-		var tools []tool.Tool
-		for _, step := range spec.Steps {
-			// Copy step config to avoid mutating the original flow spec.
-			config := make(map[string]any)
-			maps.Copy(config, step.Config)
-
-			// Inject live progress callback for AI tools.
-			config["onProgress"] = onProgress
-
-			t, err := a.toolReg.NewToolWithConfig(registry.ToolID(step.Tool), config, lang)
-			if err != nil {
-				a.emitRunEvent(RunEvent{
-					Type: "error", FlowID: flowName,
-					Message: toolBuildErrorMessage(step.Tool, lang, err),
-				})
-				a.runState.mu.Lock()
-				a.runState.state = RunStateError
-				a.runState.mu.Unlock()
-				return
-			}
-
-			tools = append(tools, t)
-		}
-
-		// Wrap with pipeline metrics (outermost wrapper).
-		tools = flow.WrapWithMetrics(tools, metrics)
-
-		// Process each file for this language.
-		for fileIdx, inputPath := range inputPaths {
-			if ctx.Err() != nil {
-				break
-			}
-
-			// Reset metrics for the new file and emit a zero snapshot.
-			metrics.Reset()
-
+	_, err := capp.RunFlowAllLocales(ctx, cli.FlowRunOptions{
+		FlowName:      flowName,
+		Spec:          spec,
+		Project:       op.Project,
+		ProjectPath:   op.Path,
+		InputPaths:    inputPaths,
+		TargetLocales: targetLangs,
+	}, func(ev cli.FlowRunEvent) {
+		switch ev.Type {
+		case cli.FlowEventState:
+			a.emitRunEvent(RunEvent{Type: "state", FlowID: flowName, Message: ev.Message})
+		case cli.FlowEventProgress:
 			a.emitRunEvent(RunEvent{
-				Type: "progress", FlowID: flowName,
-				FileIndex: filesDone, FileCount: totalFiles, FilePath: inputPath,
+				Type: "progress", FlowID: flowName, Message: ev.Message,
+				FileIndex: ev.FileIndex, FileCount: ev.FileCount, FilePath: ev.FilePath,
 			})
-
-			outputPath := a.resolveOutputPath(inputPath, lang)
-			runner := flow.NewFileRunner(flow.FileRunnerConfig{
-				FormatReg:    a.formatReg,
-				SourceLocale: pctx.SourceLocale,
-				Encoding:     pctx.Encoding,
-				DetectFormat: func(path string) registry.FormatID {
-					return registry.FormatID(pctx.DetectFormat(a.formatReg, path))
-				},
-				ConfigureReader: func(reader format.DataFormatReader, fmtName registry.FormatID) error {
-					return pctx.ConfigureReader(reader, string(fmtName))
-				},
-				ConfigureWriter: func(writer format.DataFormatWriter, fmtName registry.FormatID) error {
-					return pctx.ConfigureWriter(writer, string(fmtName))
-				},
-			})
-
-			if err := runner.RunFile(ctx, flowName, tools, inputPath, outputPath, lang); err != nil {
-				// Emit final metrics snapshot so the frontend preserves counts at failure.
-				a.emitRunEvent(RunEvent{
-					Type: "pipeline_metrics", FlowID: flowName,
-					Steps: metrics.Snapshot(),
-				})
-				a.emitRunEvent(RunEvent{
-					Type: "error", FlowID: flowName,
-					Message: fmt.Sprintf("%s [%s]: %v", filepath.Base(inputPath), lang, err),
-				})
-				a.runState.mu.Lock()
-				a.runState.state = RunStateError
-				a.runState.mu.Unlock()
-				return
-			}
-
-			filesDone++
-			_ = fileIdx
-
+		case cli.FlowEventPipelineMetrics:
+			a.emitRunEvent(RunEvent{Type: "pipeline_metrics", FlowID: flowName, Steps: ev.Steps})
+		case cli.FlowEventFileDone:
 			// Notify the Content view that a new output file landed so it can
 			// refresh the outputs shown beneath each source (issue #5).
-			a.emitEvent("outputs-changed", map[string]any{"path": outputPath})
+			a.emitEvent("outputs-changed", map[string]any{"path": ev.OutputPath})
+		case cli.FlowEventComplete:
+			// State transition before the closing event, preserving the order
+			// the frontend has always observed.
+			a.runState.mu.Lock()
+			if a.runState.state == RunStateRunning {
+				a.runState.state = RunStateComplete
+			}
+			a.runState.mu.Unlock()
+			a.emitRunEvent(RunEvent{
+				Type: "complete", FlowID: flowName,
+				DurationMs: ev.DurationMs, FilesProcessed: ev.FilesProcessed,
+				Message: ev.Message,
+			})
 		}
-	}
-
-	duration := time.Since(start)
-
-	// Emit final metrics snapshot so frontend shows completed state.
-	a.emitRunEvent(RunEvent{
-		Type: "pipeline_metrics", FlowID: flowName,
-		Steps: metrics.Snapshot(),
 	})
-
-	a.runState.mu.Lock()
-	if a.runState.state == RunStateRunning {
-		a.runState.state = RunStateComplete
+	if err != nil {
+		a.emitRunEvent(RunEvent{Type: "error", FlowID: flowName, Message: runErrorMessage(err)})
+		a.runState.mu.Lock()
+		a.runState.state = RunStateError
+		a.runState.mu.Unlock()
 	}
-	a.runState.mu.Unlock()
+}
 
-	a.emitRunEvent(RunEvent{
-		Type: "complete", FlowID: flowName,
-		DurationMs: duration.Milliseconds(), FilesProcessed: filesDone,
-		Message: fmt.Sprintf("Completed %d files for %d locale passes in %s",
-			filesDone, len(localePasses), duration.Round(time.Millisecond)),
-	})
+// runErrorMessage renders an orchestrator failure for the run feed: tool
+// assembly failures go through toolBuildErrorMessage (GUI-appropriate
+// credential guidance); file failures already carry the historical
+// "<file> [<lang>]: <cause>" text on the typed error.
+func runErrorMessage(err error) string {
+	var tb *cli.FlowToolBuildError
+	if errors.As(err, &tb) {
+		return toolBuildErrorMessage(tb.Tool, tb.Locale, tb.Err)
+	}
+	return err.Error()
 }
 
 // toolBuildErrorMessage renders a tool-construction failure for the run feed.
@@ -513,39 +385,4 @@ func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang st
 		Parts:     recorder.Snapshots(),
 		NodeOrder: nodeOrder,
 	}, nil
-}
-
-// resolveOutputPath computes the output file path for a given input and target
-// language. It replaces {lang} in the first matching content target pattern.
-// Falls back to input_targetLang.ext if no pattern matches.
-func (a *App) resolveOutputPath(inputPath, targetLang string) string {
-	// Try to find the matching content pattern and use its target template.
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	for _, op := range a.projects {
-		basePath := filepath.Dir(op.Path)
-		rel, err := filepath.Rel(basePath, inputPath)
-		if err != nil {
-			continue
-		}
-		relSlash := filepath.ToSlash(rel)
-		for _, coll := range op.Project.Content {
-			for _, item := range coll.EffectiveItems() {
-				if item.Target == "" {
-					continue
-				}
-				// Match the input against the content glob (doublestar, so `**`
-				// and `{a,b}` behave like ExpandGlob / ResolveContent).
-				if !project.MatchGlob(item.Path, relSlash) {
-					continue
-				}
-				// Resolve the output via the shared core resolver.
-				return filepath.Join(basePath, project.ResolveTargetPath(item.Path, item.Base, item.Target, relSlash, targetLang))
-			}
-		}
-	}
-	// Fallback: input_targetLang.ext
-	ext := filepath.Ext(inputPath)
-	base := inputPath[:len(inputPath)-len(ext)]
-	return fmt.Sprintf("%s_%s%s", base, targetLang, ext)
 }

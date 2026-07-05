@@ -449,6 +449,13 @@ func (a *App) deriveCoverage(ctx context.Context, cmd *cobra.Command, proj *proj
 // localesNeedingPass returns the locales (in target order) that still have work:
 // a gated scope that is not shippable, or — when ungated — content with no
 // committed target yet (below the lowest rung).
+//
+// This is convergence's NEED-based selection, deliberately distinct from the
+// applicability-based flow.ResolveFlowLocales that plain flow runs (the
+// desktop runner, runFromProject, RunFlowAllLocales) share: a flow run asks
+// "which locales does this flow apply to"; a convergence pass asks "which
+// locales are still short of their gate" so converged locales drop out of
+// later passes.
 func localesNeedingPass(cov []LocaleCoverage, locales []model.LocaleID) []model.LocaleID {
 	var out []model.LocaleID
 	for _, loc := range locales {
