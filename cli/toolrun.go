@@ -342,7 +342,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	if fmtName == "" {
 		// Content-aware: an extension claimed by several formats (.xliff 1.x/2.x,
 		// .xml, …) is disambiguated by the file head, not extension alone.
-		detected, err := a.FormatReg.DetectFile(filePath, nil)
+		detected, err := a.FormatReg.Detect(filePath, registry.DetectOptions{})
 		if err != nil {
 			if !cfg.FailOnUnknown {
 				if !cfg.NoWarn {
@@ -412,7 +412,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 			outExt := strings.ToLower(filepath.Ext(outputPath))
 			inExt := strings.ToLower(filepath.Ext(filePath))
 			if outExt != "" && outExt != inExt {
-				if det, err := a.FormatReg.DetectByExtension(outExt); err == nil && det != "" {
+				if det, err := a.FormatReg.Detect(outputPath, registry.DetectOptions{ExtensionOnly: true}); err == nil && det != "" {
 					writerFormatName = string(det)
 				}
 			}

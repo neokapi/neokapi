@@ -69,8 +69,9 @@ type KapiProject struct {
 	// SourceGate is the source-readiness bar: a single coverage gate over the
 	// source authoring ladder (authored → checked → approved), e.g.
 	// {checked: 100}. It is the source-side counterpart of ShipGate — it gates
-	// the author's own content, not the translations. Evaluated by
-	// `kapi verify --ship` (never an ordinary build).
+	// the author's own content, not the translations. BuildSourceGate
+	// resolves it; evaluated by `kapi verify --ship` (never an ordinary
+	// build).
 	SourceGate gate.Gate `yaml:"source_gate,omitempty" json:"source_gate,omitempty"`
 
 	// Requires lists plugin dependencies as a map of plugin name → version

@@ -183,6 +183,49 @@ type Run struct {
 	Select  *SelectRun      `json:"select,omitempty"`
 }
 
+// Intention-revealing constructors for the seven Run kinds. Each returns a
+// Run with exactly one discriminator set — the only valid shape — so callers
+// build inline content without hand-writing the union:
+//
+//	[]model.Run{model.TextR("Hello "), model.PhR(model.PlaceholderRun{ID: "1", Equiv: "name"})}
+
+// TextR returns a text Run holding s.
+func TextR(s string) Run { return Run{Text: &TextRun{Text: s}} }
+
+// PhR returns a placeholder Run holding p.
+func PhR(p PlaceholderRun) Run { return Run{Ph: &p} }
+
+// PcOpenR returns a paired-code opening Run holding p.
+func PcOpenR(p PcOpenRun) Run { return Run{PcOpen: &p} }
+
+// PcCloseR returns a paired-code closing Run holding p.
+func PcCloseR(p PcCloseRun) Run { return Run{PcClose: &p} }
+
+// SubR returns a subblock-reference Run holding s.
+func SubR(s SubRun) Run { return Run{Sub: &s} }
+
+// PluralR returns a plural Run holding p.
+func PluralR(p PluralRun) Run { return Run{Plural: &p} }
+
+// SelectR returns a select Run holding s.
+func SelectR(s SelectRun) Run { return Run{Select: &s} }
+
+// Valid reports whether the Run has exactly one discriminator set — the
+// invariant every constructor establishes and the JSON codec enforces on the
+// wire. The zero Run is invalid.
+func (r Run) Valid() bool {
+	n := 0
+	for _, set := range [...]bool{
+		r.Text != nil, r.Ph != nil, r.PcOpen != nil, r.PcClose != nil,
+		r.Sub != nil, r.Plural != nil, r.Select != nil,
+	} {
+		if set {
+			n++
+		}
+	}
+	return n == 1
+}
+
 // RunKind is a short string naming a Run's discriminator.
 type RunKind string
 
@@ -418,18 +461,18 @@ func RenderRunsWithData(runs []Run) string {
 
 func renderRunsDataTo(buf *strings.Builder, runs []Run) {
 	for _, r := range runs {
-		switch {
-		case r.Text != nil:
+		switch r.Kind() {
+		case RunKindText:
 			buf.WriteString(r.Text.Text)
-		case r.Ph != nil:
+		case RunKindPh:
 			buf.WriteString(r.Ph.Data)
-		case r.PcOpen != nil:
+		case RunKindPcOpen:
 			buf.WriteString(r.PcOpen.Data)
-		case r.PcClose != nil:
+		case RunKindPcClose:
 			buf.WriteString(r.PcClose.Data)
-		case r.Sub != nil:
+		case RunKindSub:
 			buf.WriteString(r.Sub.Ref)
-		case r.Plural != nil:
+		case RunKindPlural:
 			if form, ok := r.Plural.Forms[PluralOther]; ok {
 				renderRunsDataTo(buf, form)
 				continue
@@ -438,7 +481,7 @@ func renderRunsDataTo(buf *strings.Builder, runs []Run) {
 				renderRunsDataTo(buf, form)
 				break
 			}
-		case r.Select != nil:
+		case RunKindSelect:
 			if form, ok := r.Select.Cases["other"]; ok {
 				renderRunsDataTo(buf, form)
 				continue
@@ -453,18 +496,18 @@ func renderRunsDataTo(buf *strings.Builder, runs []Run) {
 
 func flattenRunsTo(buf *strings.Builder, runs []Run) {
 	for _, r := range runs {
-		switch {
-		case r.Text != nil:
+		switch r.Kind() {
+		case RunKindText:
 			buf.WriteString(r.Text.Text)
-		case r.Ph != nil:
+		case RunKindPh:
 			buf.WriteByte('{')
 			buf.WriteString(r.Ph.Equiv)
 			buf.WriteByte('}')
-		case r.Sub != nil:
+		case RunKindSub:
 			buf.WriteByte('[')
 			buf.WriteString(r.Sub.Equiv)
 			buf.WriteByte(']')
-		case r.Plural != nil:
+		case RunKindPlural:
 			if form, ok := r.Plural.Forms[PluralOther]; ok {
 				flattenRunsTo(buf, form)
 				continue
@@ -473,7 +516,7 @@ func flattenRunsTo(buf *strings.Builder, runs []Run) {
 				flattenRunsTo(buf, form)
 				break
 			}
-		case r.Select != nil:
+		case RunKindSelect:
 			if form, ok := r.Select.Cases["other"]; ok {
 				flattenRunsTo(buf, form)
 				continue
@@ -499,10 +542,10 @@ func RunsText(runs []Run) string {
 
 func runsTextTo(buf *strings.Builder, runs []Run) {
 	for _, r := range runs {
-		switch {
-		case r.Text != nil:
+		switch r.Kind() {
+		case RunKindText:
 			buf.WriteString(r.Text.Text)
-		case r.Plural != nil:
+		case RunKindPlural:
 			if form, ok := r.Plural.Forms[PluralOther]; ok {
 				runsTextTo(buf, form)
 				continue
@@ -511,7 +554,7 @@ func runsTextTo(buf *strings.Builder, runs []Run) {
 				runsTextTo(buf, form)
 				break
 			}
-		case r.Select != nil:
+		case RunKindSelect:
 			if form, ok := r.Select.Cases["other"]; ok {
 				runsTextTo(buf, form)
 				continue

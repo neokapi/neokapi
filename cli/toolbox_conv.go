@@ -282,7 +282,7 @@ func (a *App) writerByExt(ext string) registry.FormatID {
 	if ext == "" {
 		return ""
 	}
-	if det, err := a.FormatReg.DetectByExtension(ext); err == nil && det != "" && a.FormatReg.HasWriter(det) {
+	if det, err := a.FormatReg.Detect(ext, registry.DetectOptions{ExtensionOnly: true}); err == nil && det != "" && a.FormatReg.HasWriter(det) {
 		return det
 	}
 	return ""

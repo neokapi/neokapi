@@ -207,7 +207,7 @@ func (r *FileRunner) RunFile(ctx context.Context, flowName string, tools []tool.
 		var err error
 		// Content-aware: an extension claimed by several formats (.xliff 1.x/2.x,
 		// .xml, …) is disambiguated by the file head, not extension alone.
-		fmtName, err = reg.DetectFile(inputPath, nil)
+		fmtName, err = reg.Detect(inputPath, registry.DetectOptions{})
 		if err != nil {
 			return fmt.Errorf("detect format for %q: %w", filepath.Base(inputPath), err)
 		}
@@ -259,7 +259,7 @@ func (r *FileRunner) RunFileProcessOnly(ctx context.Context, flowName string, to
 		var err error
 		// Content-aware: an extension claimed by several formats (.xliff 1.x/2.x,
 		// .xml, …) is disambiguated by the file head, not extension alone.
-		fmtName, err = reg.DetectFile(inputPath, nil)
+		fmtName, err = reg.Detect(inputPath, registry.DetectOptions{})
 		if err != nil {
 			return fmt.Errorf("detect format for %q: %w", filepath.Base(inputPath), err)
 		}

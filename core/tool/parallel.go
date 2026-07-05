@@ -94,6 +94,12 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 	if p.concurrency <= 1 || !isBase || !baseTool.hasBlockHandler() {
 		return p.inner.Process(ctx, in, out)
 	}
+	// The fan-out path routes blocks through handleBlock directly (bypassing
+	// the inner tool's Process), so enforce the exactly-one-handler contract
+	// here the same way Process does.
+	if err := baseTool.ValidateHandlers(); err != nil {
+		return err
+	}
 
 	// Own a cancellable child context so that any early return (worker error
 	// or downstream cancel) unblocks the dispatcher and in-flight workers

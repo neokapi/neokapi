@@ -89,7 +89,7 @@ func (ctx *ProjectContext) DetectFormat(reg *registry.FormatRegistry, path strin
 	// Priority overrides from `defaults.formats[name].priority` let a recipe pick
 	// the preferred engine when several formats claim an extension (e.g. okf_vtt
 	// over okf_regex for .srt).
-	name, err := reg.DetectFileWithPriorities(path, ctx.AllowedSources, ctx.formatPriorityOverrides())
+	name, err := reg.Detect(path, registry.DetectOptions{AllowedSources: ctx.AllowedSources, PriorityOverrides: ctx.formatPriorityOverrides()})
 	if err != nil {
 		return ""
 	}

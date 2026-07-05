@@ -17,7 +17,7 @@ import (
 //   - integration via coreproj.KapiProject.Validate() surfaces decoder
 //     errors with scope-aware paths
 //
-// These tests deliberately do not call ResetExtensionsForTest — the
+// These tests deliberately do not call projecttest.ResetExtensions — the
 // init() registration is the system under test.
 
 func TestSchemaPackage_RegistersBowrainGroup(t *testing.T) {

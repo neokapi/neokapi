@@ -502,7 +502,7 @@ func (a *App) klzDetectFormat(sourcePath string) func(string) registry.FormatID 
 		name := preset.ParseFormatRef(a.FormatFlag).RegistryName()
 		return func(string) registry.FormatID { return registry.FormatID(name) }
 	}
-	if det, err := a.FormatReg.DetectByExtension(filepath.Ext(sourcePath)); err == nil && det != "" {
+	if det, err := a.FormatReg.Detect(sourcePath, registry.DetectOptions{ExtensionOnly: true}); err == nil && det != "" {
 		return func(string) registry.FormatID { return det }
 	}
 	return nil

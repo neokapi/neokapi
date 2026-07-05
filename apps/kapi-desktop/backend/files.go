@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/ignore"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // FileMatch represents a file matched by content patterns.
@@ -69,7 +70,7 @@ func (a *App) DetectFormat(path string) string {
 	if ext == "" {
 		return ""
 	}
-	detected, err := a.formatReg.DetectByExtension(ext)
+	detected, err := a.formatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 	if err != nil {
 		return ""
 	}

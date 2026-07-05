@@ -59,7 +59,7 @@ from the extension unless --format is given.
 				fmtName := format
 				if fmtName == "" {
 					if ext := filepath.Ext(pattern); ext != "" {
-						if det, derr := a.FormatReg.DetectByExtension(ext); derr == nil {
+						if det, derr := a.FormatReg.Detect(ext, registry.DetectOptions{ExtensionOnly: true}); derr == nil {
 							fmtName = string(det)
 						}
 					}
@@ -130,7 +130,7 @@ exclude list). With --stats, also show per-file block and word counts.
 					}
 					if fmtName == "" {
 						if ext := filepath.Ext(rp); ext != "" {
-							if det, derr := a.FormatReg.DetectByExtension(ext); derr == nil {
+							if det, derr := a.FormatReg.Detect(ext, registry.DetectOptions{ExtensionOnly: true}); derr == nil {
 								fmtName = string(det)
 							}
 						}

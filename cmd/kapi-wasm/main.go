@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strings"
 	"syscall/js"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -158,7 +157,7 @@ func run(filename string, input []byte, opts pseudoOpts) (runResult, error) {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
-	fmtName, err := reg.DetectByExtension(strings.ToLower(filepath.Ext(filename)))
+	fmtName, err := reg.Detect(filename, registry.DetectOptions{ExtensionOnly: true})
 	if err != nil {
 		return runResult{}, fmt.Errorf("detect format for %q: %w", filepath.Base(filename), err)
 	}

@@ -7,6 +7,7 @@ import (
 	"hash/fnv"
 	"reflect"
 	"slices"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -15,20 +16,53 @@ import (
 // PartHandler is the function signature for handling a single Part.
 type PartHandler func(part *model.Part) (*model.Part, error)
 
-// EnforceImmutability gates the dev/test backstop in the typed block-handler
-// dispatch. On by default: capability is enforced primarily by the handler's
-// parameter type (an Annotate handler has no source/target setters), and the
-// backstop additionally catches in-place edits made through the live run
-// slices the read-only view hands back — including a source rewrite while a
-// stand-off overlay is attached (overlays anchor to runs and would be
-// invalidated). Can be disabled in perf-sensitive embeddings.
+// EnforceImmutability is the process-wide default for the immutability hash
+// backstop in the typed block-handler dispatch. Capability is enforced
+// primarily by the handler's parameter type (an Annotate handler has no
+// source/target setters); the backstop additionally catches in-place edits
+// made through the live run slices the read-only view hands back — including
+// a source rewrite while a stand-off overlay is attached (overlays anchor to
+// runs and would be invalidated).
 //
-// Concurrency: this is a process-wide configuration knob, not per-run state.
-// Set it once during initialization, before any tool starts processing. It is
-// read (never written) from the concurrent per-block dispatch path, including
-// ParallelBlockTool's workers, so toggling it while a flow is running is a data
-// race and unsupported.
-var EnforceImmutability = true
+// Off by default: the backstop hashes every block's source and targets around
+// each handler call, which is dev/test tooling, not production work. Tests
+// enable it (see the tool/tools/flow TestMains); executors opt in per run via
+// flow.WithImmutabilityCheck, and any dispatch path can opt in via
+// [WithImmutabilityCheck] on its context.
+//
+// Deprecated: use flow.WithImmutabilityCheck (per executor) or
+// [WithImmutabilityCheck] (per dispatch context) instead of this global. It
+// remains as a compatibility knob and as the fallback when the context carries
+// no setting. Concurrency contract unchanged: set it once during
+// initialization, before any tool starts processing — it is read (never
+// written) from the concurrent per-block dispatch path, including
+// ParallelBlockTool's workers, so toggling it while a flow is running is a
+// data race and unsupported.
+var EnforceImmutability = false
+
+// immutabilityCtxKey keys the per-dispatch immutability-check setting in a
+// context (see WithImmutabilityCheck).
+type immutabilityCtxKey struct{}
+
+// WithImmutabilityCheck returns a context that fixes whether the block-handler
+// dispatch runs the immutability hash backstop, overriding the deprecated
+// package-level EnforceImmutability default for every dispatch carrying the
+// returned context. The flow executor wires this from its
+// flow.WithImmutabilityCheck option; callers driving BaseTool directly
+// (ApplyContext, custom Process loops) can set it themselves.
+func WithImmutabilityCheck(ctx context.Context, enabled bool) context.Context {
+	return context.WithValue(ctx, immutabilityCtxKey{}, enabled)
+}
+
+// immutabilityCheckEnabled resolves the effective backstop setting for one
+// dispatch: an explicit context value wins; otherwise the deprecated
+// process-wide default applies.
+func immutabilityCheckEnabled(ctx context.Context) bool {
+	if v, ok := ctx.Value(immutabilityCtxKey{}).(bool); ok {
+		return v
+	}
+	return EnforceImmutability
+}
 
 // BaseTool provides default pass-through behavior and event dispatch.
 // Embed in concrete tools and override Handle* methods as needed.
@@ -113,8 +147,37 @@ func (b *BaseTool) SetConfig(cfg ToolConfig) error {
 	return nil
 }
 
+// ValidateHandlers checks the "exactly one capability handler" contract: a
+// BaseTool sets at most one of the typed block handlers (Annotate, Produce,
+// Transform) — that choice IS its capability declaration. Setting more than
+// one would silently lose all but the highest-precedence handler in dispatch,
+// so it is rejected loudly instead: Process, Apply, and ApplyContext return
+// this error, and the tool registry panics at registration (init-time
+// programmer error). Zero typed handlers is fine (pass-through, or a tool
+// handling only Data/Media/Layer/Group parts).
+func (b *BaseTool) ValidateHandlers() error {
+	var set []string
+	if b.Annotate != nil {
+		set = append(set, "Annotate")
+	}
+	if b.Produce != nil {
+		set = append(set, "Produce")
+	}
+	if b.Transform != nil {
+		set = append(set, "Transform")
+	}
+	if len(set) > 1 {
+		return fmt.Errorf("tool %q sets %d capability handlers (%s): a BaseTool sets exactly one of Annotate, Produce, or Transform — the handler is the tool's capability declaration (AD-006)",
+			b.ToolName, len(set), strings.Join(set, ", "))
+	}
+	return nil
+}
+
 // Process dispatches each Part to the appropriate handler.
 func (b *BaseTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
+	if err := b.ValidateHandlers(); err != nil {
+		return err
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -183,12 +246,15 @@ func IsSourceTransform(t Tool) bool {
 // or nil if the handler dropped it. For callers that apply a BaseTool across an
 // in-memory slice of parts rather than driving the streaming pipeline.
 func (b *BaseTool) Apply(part *model.Part) (*model.Part, error) {
-	return b.dispatch(context.Background(), part)
+	return b.ApplyContext(context.Background(), part)
 }
 
 // ApplyContext is Apply with an explicit context, so a block handler driven
 // outside the streaming pipeline can still honour cancellation/deadlines.
 func (b *BaseTool) ApplyContext(ctx context.Context, part *model.Part) (*model.Part, error) {
+	if err := b.ValidateHandlers(); err != nil {
+		return nil, err
+	}
 	return b.dispatch(ctx, part)
 }
 
@@ -222,7 +288,8 @@ func (b *BaseTool) dispatch(ctx context.Context, part *model.Part) (*model.Part,
 
 // handleBlock dispatches a Block part to whichever capability-typed handler the
 // tool set. The handler's parameter type bounds what it may write; a dev/test
-// backstop (gated by EnforceImmutability) additionally catches in-place edits
+// backstop (gated per dispatch via WithImmutabilityCheck, falling back to the
+// deprecated EnforceImmutability global) additionally catches in-place edits
 // the read-only view type can't prevent — a tool that mutates the live run
 // slices it was handed.
 func (b *BaseTool) handleBlock(ctx context.Context, part *model.Part) (*model.Part, error) {
@@ -246,7 +313,7 @@ func (b *BaseTool) runAnnotate(ctx context.Context, part *model.Part) (*model.Pa
 		return part, nil
 	}
 	v := newBlockView(ctx, block)
-	if !EnforceImmutability {
+	if !immutabilityCheckEnabled(ctx) {
 		if err := b.Annotate(v); err != nil {
 			return nil, err
 		}
@@ -272,7 +339,7 @@ func (b *BaseTool) runProduce(ctx context.Context, part *model.Part) (*model.Par
 		return part, nil
 	}
 	v := newBlockView(ctx, block)
-	if !EnforceImmutability {
+	if !immutabilityCheckEnabled(ctx) {
 		if err := b.Produce(v); err != nil {
 			return nil, err
 		}
@@ -299,15 +366,16 @@ func (b *BaseTool) runTransform(ctx context.Context, part *model.Part) (*model.P
 		return part, nil
 	}
 	v := newBlockView(ctx, block)
+	enforce := immutabilityCheckEnabled(ctx)
 	var srcBefore, tgtBefore uint64
-	if EnforceImmutability {
+	if enforce {
 		srcBefore, tgtBefore = blockSourceSig(block), blockTargetsSig(block)
 	}
 	plan, err := b.Transform(v)
 	if err != nil {
 		return nil, err
 	}
-	if EnforceImmutability {
+	if enforce {
 		if blockSourceSig(block) != srcBefore {
 			return nil, fmt.Errorf("immutability: transform tool %q changed source of block %q in place — a transform is a read-only producer; return the rewrite in its EditPlan", b.ToolName, block.ID)
 		}

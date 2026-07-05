@@ -11,6 +11,7 @@ import (
 	"syscall/js"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // previewBlockLimit caps how many blocks we return for the file preview UI.
@@ -54,7 +55,7 @@ func doPreview(path string) (result any) {
 	// Content-aware detection so an extension shared by several formats
 	// (e.g. .xlf/.xliff → XLIFF 1.2 and 2.x) resolves to the reader that
 	// actually matches the bytes, not the alphabetically-first claimant.
-	fmtName, err := app.FormatReg.DetectFile(path, nil)
+	fmtName, err := app.FormatReg.Detect(path, registry.DetectOptions{})
 	if err != nil {
 		return errorResult("unsupported format for " + filepath.Base(path))
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/project/projecttest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -113,8 +114,8 @@ func TestSchemaExt_ValidPayloadPasses(t *testing.T) {
 	schemaExtMu.Lock()
 	defer schemaExtMu.Unlock()
 
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	host, cw := makeFakePlugin(t, validServerSchema)
 	pluginhost.RegisterSchemaExtensions(host, cw.add)
@@ -138,8 +139,8 @@ func TestSchemaExt_MissingRequiredFieldFails(t *testing.T) {
 	schemaExtMu.Lock()
 	defer schemaExtMu.Unlock()
 
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	host, cw := makeFakePlugin(t, validServerSchema)
 	pluginhost.RegisterSchemaExtensions(host, cw.add)
@@ -166,8 +167,8 @@ func TestSchemaExt_WrongTypeFails(t *testing.T) {
 	schemaExtMu.Lock()
 	defer schemaExtMu.Unlock()
 
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	host, cw := makeFakePlugin(t, validServerSchema)
 	pluginhost.RegisterSchemaExtensions(host, cw.add)
@@ -196,8 +197,8 @@ func TestSchemaExt_AdditionalPropertiesRejected(t *testing.T) {
 	schemaExtMu.Lock()
 	defer schemaExtMu.Unlock()
 
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	host, cw := makeFakePlugin(t, validServerSchema)
 	pluginhost.RegisterSchemaExtensions(host, cw.add)
@@ -223,8 +224,8 @@ func TestSchemaExt_BadSchemaFallsBack(t *testing.T) {
 	schemaExtMu.Lock()
 	defer schemaExtMu.Unlock()
 
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	host, cw := makeFakePlugin(t, brokenSchema)
 	pluginhost.RegisterSchemaExtensions(host, cw.add)
@@ -256,8 +257,8 @@ func TestSchemaExt_MissingSchemaFileFallsBack(t *testing.T) {
 	schemaExtMu.Lock()
 	defer schemaExtMu.Unlock()
 
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	host, cw := makeFakePlugin(t, "")
 	pluginhost.RegisterSchemaExtensions(host, cw.add)
@@ -282,8 +283,8 @@ func TestSchemaExt_ItemScopeValidation(t *testing.T) {
 	schemaExtMu.Lock()
 	defer schemaExtMu.Unlock()
 
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	tmp := t.TempDir()
 	pluginDir := filepath.Join(tmp, "sizecheck")
@@ -360,8 +361,8 @@ func TestSchemaExt_IdempotentSameGroup(t *testing.T) {
 	schemaExtMu.Lock()
 	defer schemaExtMu.Unlock()
 
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	// Simulate the compile-time (blank-import) registration: a typed
 	// decoder under group "demo" that rejects everything with a sentinel.
@@ -401,8 +402,8 @@ func TestSchemaExt_DifferentGroupWarns(t *testing.T) {
 	schemaExtMu.Lock()
 	defer schemaExtMu.Unlock()
 
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	project.RegisterExtension(project.Extension{
 		Name:    "server",

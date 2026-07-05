@@ -1497,10 +1497,10 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 			FromOriginal:  true,
 		}
 		if at.source != "" {
-			alt.Source = []model.Run{{Text: &model.TextRun{Text: at.source}}}
+			alt.Source = []model.Run{model.TextR(at.source)}
 		}
 		if at.target != "" {
-			alt.Target = []model.Run{{Text: &model.TextRun{Text: at.target}}}
+			alt.Target = []model.Run{model.TextR(at.target)}
 		}
 		block.AddAltTranslation(alt)
 
@@ -1592,7 +1592,7 @@ func parseInlineContent(innerXML string) []model.Run {
 		if textBuf.Len() == 0 {
 			return
 		}
-		runs = append(runs, model.Run{Text: &model.TextRun{Text: textBuf.String()}})
+		runs = append(runs, model.TextR(textBuf.String()))
 		textBuf.Reset()
 	}
 
@@ -1615,12 +1615,12 @@ func parseInlineContent(innerXML string) []model.Run {
 				data, subTexts := readInlineCodeContent(decoder)
 				depth--
 				flushText()
-				runs = append(runs, model.Run{PcOpen: &model.PcOpenRun{
+				runs = append(runs, model.PcOpenR(model.PcOpenRun{
 					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
 					Data: data, Equiv: attrVal(t.Attr, "equiv-text"),
-				}})
+				}))
 				for _, sub := range subTexts {
-					runs = append(runs, model.Run{Text: &model.TextRun{Text: sub}})
+					runs = append(runs, model.TextR(sub))
 				}
 
 			case "ept":
@@ -1628,12 +1628,12 @@ func parseInlineContent(innerXML string) []model.Run {
 				data, subTexts := readInlineCodeContent(decoder)
 				depth--
 				flushText()
-				runs = append(runs, model.Run{PcClose: &model.PcCloseRun{
+				runs = append(runs, model.PcCloseR(model.PcCloseRun{
 					ID: id, Type: ctypeToSpanType(attrVal(t.Attr, "ctype")),
 					Data: data, Equiv: attrVal(t.Attr, "equiv-text"),
-				}})
+				}))
 				for _, sub := range subTexts {
-					runs = append(runs, model.Run{Text: &model.TextRun{Text: sub}})
+					runs = append(runs, model.TextR(sub))
 				}
 
 			case "ph":
@@ -1651,7 +1651,7 @@ func parseInlineContent(innerXML string) []model.Run {
 				// pseudo-translate / AI-translate transformations on the
 				// run text propagate into <sub>.
 				for _, sub := range subTexts {
-					runs = append(runs, model.Run{Text: &model.TextRun{Text: sub}})
+					runs = append(runs, model.TextR(sub))
 				}
 
 			case "x":
@@ -1710,7 +1710,7 @@ func parseInlineContent(innerXML string) []model.Run {
 					}})
 				}
 				for _, sub := range subTexts {
-					runs = append(runs, model.Run{Text: &model.TextRun{Text: sub}})
+					runs = append(runs, model.TextR(sub))
 				}
 
 			case "mrk":

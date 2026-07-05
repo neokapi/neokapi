@@ -131,7 +131,7 @@ func TestKLFFormatIDAndJSXAlias(t *testing.T) {
 	assert.Equal(t, "klf", w.Name())
 
 	// Detection by extension / MIME returns the canonical id.
-	byExt, err := reg.DetectByExtension(".klf")
+	byExt, err := reg.Detect(".klf", registry.DetectOptions{ExtensionOnly: true})
 	require.NoError(t, err)
 	assert.Equal(t, registry.FormatID("klf"), byExt)
 	assert.Equal(t, registry.FormatID("klf"),
@@ -333,7 +333,7 @@ func TestDoclangContentDetection(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "report.dclg.xml")
 	require.NoError(t, os.WriteFile(p, []byte(doclang), 0o644))
-	det, err := reg.DetectFile(p, nil)
+	det, err := reg.Detect(p, registry.DetectOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, registry.FormatID("doclang"), det, ".dclg.xml file should detect as doclang")
 }

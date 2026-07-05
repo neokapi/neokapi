@@ -4,14 +4,15 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/project/projecttest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
 
 func TestRegisterExtension_RoundTrip(t *testing.T) {
-	ResetExtensionsForTest()
-	defer ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	type ServerSpec struct {
 		URL string `yaml:"url"`
@@ -45,8 +46,8 @@ server:
 }
 
 func TestValidate_ExtensionDecoderError(t *testing.T) {
-	ResetExtensionsForTest()
-	defer ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	RegisterExtension(Extension{
 		Name:  "server",
@@ -78,8 +79,8 @@ server: {}
 }
 
 func TestValidate_UnknownKeyRoundTrips(t *testing.T) {
-	ResetExtensionsForTest()
-	defer ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	p := &KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
@@ -94,8 +95,8 @@ future_thing:
 }
 
 func TestValidate_RequiresMissingGroup(t *testing.T) {
-	ResetExtensionsForTest()
-	defer ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	p := &KapiProject{
 		Version:  CurrentVersion,
@@ -108,8 +109,8 @@ func TestValidate_RequiresMissingGroup(t *testing.T) {
 }
 
 func TestValidate_RequiresPresentGroup(t *testing.T) {
-	ResetExtensionsForTest()
-	defer ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	RegisterExtension(Extension{
 		Name:  "anything",
@@ -125,8 +126,8 @@ func TestValidate_RequiresPresentGroup(t *testing.T) {
 }
 
 func TestValidate_RequiresInvalidConstraint(t *testing.T) {
-	ResetExtensionsForTest()
-	defer ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	p := &KapiProject{
 		Version:  CurrentVersion,
@@ -150,8 +151,8 @@ requires: [bowrain, okapi-bridge]
 }
 
 func TestRequiresMap_AcceptsMapForm(t *testing.T) {
-	ResetExtensionsForTest()
-	defer ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	RegisterExtension(Extension{Name: "anything", Scope: ScopeProject, Group: "bowrain"})
 	RegisterExtension(Extension{Name: "other", Scope: ScopeProject, Group: "okapi-bridge"})
@@ -169,8 +170,8 @@ requires:
 }
 
 func TestRegisterExtensionGroup_StampsGroup(t *testing.T) {
-	ResetExtensionsForTest()
-	defer ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	RegisterExtensionGroup("myext", []Extension{
 		{Name: "alpha", Scope: ScopeProject},
@@ -187,8 +188,8 @@ func TestRegisterExtensionGroup_StampsGroup(t *testing.T) {
 }
 
 func TestRegisterExtension_DuplicatePanics(t *testing.T) {
-	ResetExtensionsForTest()
-	defer ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	RegisterExtension(Extension{Name: "x", Scope: ScopeProject})
 	assert.Panics(t, func() {
@@ -197,8 +198,8 @@ func TestRegisterExtension_DuplicatePanics(t *testing.T) {
 }
 
 func TestRegisterExtension_DifferentScopesNoConflict(t *testing.T) {
-	ResetExtensionsForTest()
-	defer ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	RegisterExtension(Extension{Name: "collection", Scope: ScopeProject})
 	RegisterExtension(Extension{Name: "collection", Scope: ScopeItem})
@@ -213,8 +214,8 @@ func TestRegisterExtension_DifferentScopesNoConflict(t *testing.T) {
 }
 
 func TestValidate_ItemScopeDecoder(t *testing.T) {
-	ResetExtensionsForTest()
-	defer ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	RegisterExtension(Extension{
 		Name:  "max_size",

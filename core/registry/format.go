@@ -392,42 +392,108 @@ func (r *FormatRegistry) getOrCreateInfo(name FormatID) *FormatInfo {
 	return info
 }
 
+// DetectOptions parameterizes [FormatRegistry.Detect]. The zero value asks for
+// the default behavior: all sources allowed, registry priorities, content
+// sniffing when several formats claim the extension.
+type DetectOptions struct {
+	// AllowedSources restricts detection to formats whose Source matches one
+	// of these entries; nil or empty allows all sources. This enables
+	// project-scoped format detection: a project that doesn't declare a
+	// plugin should not auto-detect plugin-provided formats. Pass
+	// []string{"built-in"} to restrict to built-in formats only, or
+	// []string{"built-in", "okapi-bridge"} to also include that plugin's
+	// formats.
+	AllowedSources []string
+
+	// PriorityOverrides maps a format name to a priority that takes
+	// precedence over the registry's stored priority for this detection only
+	// — used by project-scoped detection so a recipe's
+	// `defaults.formats[name].priority` can pick the preferred engine for an
+	// extension claimed by several formats (e.g. okf_vtt over okf_regex for
+	// .srt) without mutating global registry state (which would race across
+	// open projects). Content sniffing still decides among candidates that
+	// claim the same extension; the overrides only break the deterministic
+	// extension/priority tie when sniffing is inconclusive.
+	PriorityOverrides map[string]int
+
+	// ExtensionOnly skips content sniffing: detection resolves purely on the
+	// path's extension (plus AllowedSources/PriorityOverrides). Use it when
+	// the path does not name a readable file — an output path that doesn't
+	// exist yet, or a bare extension like ".json" passed as the path.
+	ExtensionOnly bool
+}
+
+// Detect resolves the format for path. By default it detects by extension
+// AND, when that extension is claimed by more than one format, by content:
+// an ".xliff" can be XLIFF 1.x or 2.x, and ".xml" is claimed by many formats;
+// the file head decides which. Only the file head is read; on any read error
+// (or opts.ExtensionOnly) it falls back to the deterministic
+// extension/priority pick. See [DetectOptions] for source restriction and
+// per-call priority overrides.
+//
+// Detect replaces the older DetectByExtension / DetectByExtensionForSources /
+// DetectByExtensionForSourcesWithPriorities / DetectFile /
+// DetectFileWithPriorities ladder, which remains as deprecated wrappers.
+func (r *FormatRegistry) Detect(path string, opts DetectOptions) (FormatID, error) {
+	if opts.ExtensionOnly {
+		ext := strings.ToLower(filepath.Ext(path))
+		return r.detectByExtension(ext, opts.AllowedSources, opts.PriorityOverrides)
+	}
+	return r.detectFile(path, opts.AllowedSources, opts.PriorityOverrides)
+}
+
 // DetectByExtension maps a file extension to a registered format name.
 // If detection fails and an onMiss callback is set, it triggers lazy loading
 // (e.g., starting bridge processes) and retries once.
+//
+// Deprecated: use [FormatRegistry.Detect] with DetectOptions{ExtensionOnly: true}.
 func (r *FormatRegistry) DetectByExtension(ext string) (FormatID, error) {
-	if name, err := r.detector.DetectByExtension(ext); err == nil {
-		return FormatID(name), nil
-	}
-	if r.triggerOnMiss() {
-		name, err := r.detector.DetectByExtension(ext)
-		return FormatID(name), err
-	}
-	return "", fmt.Errorf("no format found for extension %q", ext)
+	return r.detectByExtensionAny(ext)
 }
 
 // DetectByExtensionForSources detects a format by extension, restricted to
 // formats whose Source matches one of the allowed sources. Pass nil or empty
 // to allow all sources (equivalent to DetectByExtension).
 //
-// This enables project-scoped format detection: a project that doesn't declare
-// a plugin should not auto-detect plugin-provided formats. Pass
-// []string{"built-in"} to restrict to built-in formats only, or
-// []string{"built-in", "okapi-bridge"} to also include that plugin's formats.
+// Deprecated: use [FormatRegistry.Detect] with DetectOptions{ExtensionOnly:
+// true, AllowedSources: allowedSources}.
 func (r *FormatRegistry) DetectByExtensionForSources(ext string, allowedSources []string) (FormatID, error) {
-	return r.DetectByExtensionForSourcesWithPriorities(ext, allowedSources, nil)
+	return r.detectByExtension(ext, allowedSources, nil)
 }
 
 // DetectByExtensionForSourcesWithPriorities is DetectByExtensionForSources with
-// per-call priority overrides. overrides maps a format name to a priority that
-// takes precedence over the registry's stored priority for the duration of this
-// detection only — used by project-scoped detection so a recipe's
-// `defaults.formats[name].priority` can pick the preferred engine for an
-// extension claimed by several formats (e.g. okf_vtt over okf_regex for .srt)
-// without mutating global registry state (which would race across open projects).
+// per-call priority overrides (see DetectOptions.PriorityOverrides).
+//
+// Deprecated: use [FormatRegistry.Detect] with DetectOptions{ExtensionOnly:
+// true, AllowedSources: allowedSources, PriorityOverrides: overrides}.
 func (r *FormatRegistry) DetectByExtensionForSourcesWithPriorities(ext string, allowedSources []string, overrides map[string]int) (FormatID, error) {
+	return r.detectByExtension(ext, allowedSources, overrides)
+}
+
+// DetectFile detects a format for a file by extension and, when that extension
+// is claimed by more than one format, by content.
+//
+// Deprecated: use [FormatRegistry.Detect] with DetectOptions{AllowedSources:
+// allowedSources}.
+func (r *FormatRegistry) DetectFile(path string, allowedSources []string) (FormatID, error) {
+	return r.detectFile(path, allowedSources, nil)
+}
+
+// DetectFileWithPriorities is DetectFile with per-call priority overrides.
+//
+// Deprecated: use [FormatRegistry.Detect] with DetectOptions{AllowedSources:
+// allowedSources, PriorityOverrides: overrides}.
+func (r *FormatRegistry) DetectFileWithPriorities(path string, allowedSources []string, overrides map[string]int) (FormatID, error) {
+	return r.detectFile(path, allowedSources, overrides)
+}
+
+// detectByExtension resolves a format purely from an extension, honouring the
+// allowed-source restriction and per-call priority overrides. With neither
+// restriction it delegates to the detector (which gets the onMiss lazy-load
+// retry via detectByExtensionAny).
+func (r *FormatRegistry) detectByExtension(ext string, allowedSources []string, overrides map[string]int) (FormatID, error) {
 	if len(allowedSources) == 0 && len(overrides) == 0 {
-		return r.DetectByExtension(ext)
+		return r.detectByExtensionAny(ext)
 	}
 	var allowed map[string]bool
 	if len(allowedSources) > 0 {
@@ -473,22 +539,26 @@ func (r *FormatRegistry) DetectByExtensionForSourcesWithPriorities(ext string, a
 	return "", fmt.Errorf("no format found for extension %q with allowed sources", ext)
 }
 
-// DetectFile detects a format for a file by extension AND, when that extension
-// is claimed by more than one format, by content. This stops a file from being
-// resolved purely on its extension when several formats share it — e.g. an
-// ".xliff" can be XLIFF 1.x or 2.x, and ".xml" is claimed by many formats; the
-// file head decides which. allowedSources restricts to those plugin sources
-// (nil/empty = all), mirroring DetectByExtensionForSources. Only the file head
-// is read; on any read error it falls back to extension-only detection.
-func (r *FormatRegistry) DetectFile(path string, allowedSources []string) (FormatID, error) {
-	return r.DetectFileWithPriorities(path, allowedSources, nil)
+// detectByExtensionAny is the unrestricted extension lookup: it asks the
+// detector directly and, on a miss, triggers lazy loading (e.g., starting
+// bridge processes) via the onMiss callback and retries once.
+func (r *FormatRegistry) detectByExtensionAny(ext string) (FormatID, error) {
+	if name, err := r.detector.DetectByExtension(ext); err == nil {
+		return FormatID(name), nil
+	}
+	if r.triggerOnMiss() {
+		name, err := r.detector.DetectByExtension(ext)
+		return FormatID(name), err
+	}
+	return "", fmt.Errorf("no format found for extension %q", ext)
 }
 
-// DetectFileWithPriorities is DetectFile with per-call priority overrides (see
-// DetectByExtensionForSourcesWithPriorities). Content sniffing still decides
-// among candidates that claim the same extension; the overrides only break the
-// deterministic extension/priority tie when sniffing is inconclusive.
-func (r *FormatRegistry) DetectFileWithPriorities(path string, allowedSources []string, overrides map[string]int) (FormatID, error) {
+// detectFile detects a format for a file by extension AND, when that extension
+// is claimed by more than one format, by content. This stops a file from being
+// resolved purely on its extension when several formats share it. Only the
+// file head is read; on any read error it falls back to extension-only
+// detection.
+func (r *FormatRegistry) detectFile(path string, allowedSources []string, overrides map[string]int) (FormatID, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == "" {
 		return "", fmt.Errorf("no extension to detect: %q", path)
@@ -535,7 +605,7 @@ func (r *FormatRegistry) DetectFileWithPriorities(path string, allowedSources []
 
 	// Single claimant, unreadable file, or content didn't match a candidate:
 	// fall back to the deterministic extension/priority pick.
-	return r.DetectByExtensionForSourcesWithPriorities(ext, allowedSources, overrides)
+	return r.detectByExtension(ext, allowedSources, overrides)
 }
 
 // NewReader creates a new reader instance for the given format name.

@@ -217,7 +217,7 @@ func handleDetectFormat(a *cli.App, input DetectFormatInput) (*mcp.CallToolResul
 		return nil, DetectFormatOutput{}, fmt.Errorf("no file extension in path %q", input.Path)
 	}
 
-	fmtName, err := a.FormatReg.DetectByExtension(ext)
+	fmtName, err := a.FormatReg.Detect(input.Path, registry.DetectOptions{ExtensionOnly: true})
 	if err != nil {
 		return nil, DetectFormatOutput{}, fmt.Errorf("unable to detect format: %w", err)
 	}
@@ -500,8 +500,7 @@ func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLan
 			}
 		}
 		if fmtName == "" {
-			ext := filepath.Ext(path)
-			detected, err := a.FormatReg.DetectByExtension(ext)
+			detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 			if err != nil {
 				return "", nil, fmt.Errorf("unable to detect format: %w", err)
 			}

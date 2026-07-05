@@ -307,11 +307,11 @@ func trimWhitespaceRuns(runs []model.Run) []model.Run {
 		case singleton && r.Text != nil:
 			// Both trims collapsed onto the same TextRun; trailingText
 			// already reflects the leading trim (see src = leadingText).
-			out = append(out, model.Run{Text: &model.TextRun{Text: trailingText}})
+			out = append(out, model.TextR(trailingText))
 		case i == start && r.Text != nil:
-			out = append(out, model.Run{Text: &model.TextRun{Text: leadingText}})
+			out = append(out, model.TextR(leadingText))
 		case i == end-1 && r.Text != nil:
-			out = append(out, model.Run{Text: &model.TextRun{Text: trailingText}})
+			out = append(out, model.TextR(trailingText))
 		default:
 			out = append(out, r)
 		}

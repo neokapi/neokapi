@@ -96,7 +96,7 @@ func (a *App) containerEntryFormat(name string) (string, bool) {
 	if ext == "" {
 		return "", false
 	}
-	detected, err := a.FormatReg.DetectByExtension(ext)
+	detected, err := a.FormatReg.Detect(name, registry.DetectOptions{ExtensionOnly: true})
 	if err != nil || detected == "" {
 		return "", false
 	}

@@ -390,8 +390,7 @@ func (a *App) rewriteFile(ctx context.Context, filePath, fmtName, sourceLang str
 // blocks. fmtName may be empty to auto-detect by extension.
 func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName, sourceLang string) ([]*model.Block, error) {
 	if fmtName == "" {
-		ext := filepath.Ext(path)
-		detected, err := a.formatReg.DetectByExtension(ext)
+		detected, err := a.formatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {
 			return nil, fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
 		}

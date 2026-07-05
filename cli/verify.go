@@ -1132,7 +1132,7 @@ func streamTranslatableBlocks(ctx context.Context, doc flow.CachedDocument) ([]*
 func (a *App) recordAndCollectBlocks(ctx context.Context, path, configKey, sourceLang string) ([]*model.Block, error) {
 	fmtName := a.FormatFlag
 	if fmtName == "" {
-		detected, err := a.FormatReg.DetectByExtension(filepath.Ext(path))
+		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {
 			return nil, fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
 		}
@@ -1194,8 +1194,7 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, configKey, sourc
 func (a *App) readBlocksValidated(ctx context.Context, path, sourceLang string, mode format.ValidationMode) ([]*model.Block, []format.Diagnostic, error) {
 	fmtName := a.FormatFlag
 	if fmtName == "" {
-		ext := filepath.Ext(path)
-		detected, err := a.FormatReg.DetectByExtension(ext)
+		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {
 			return nil, nil, fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
 		}
