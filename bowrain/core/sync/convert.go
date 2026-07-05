@@ -1,5 +1,10 @@
 // Package sync provides converters between the Go content model and the
 // sync protocol protobuf types (Bowrain AD-009).
+//
+// The run/segment payloads are the canonical content-model wire schema
+// (core/proto/content/v1, converted by core/plugin/protoconvert — see
+// AD-034); this package only owns the sync-specific envelope (SyncBlock,
+// hashes, the *_json escapes) and the Merkle hash helpers.
 package sync
 
 import (
@@ -13,6 +18,8 @@ import (
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/protoconvert"
+	contentv1 "github.com/neokapi/neokapi/core/proto/content/v1"
 )
 
 // BlockToProto converts a model.Block to a SyncBlock protobuf message.
@@ -42,7 +49,7 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 
 	// Source content — the flat run sequence rides as a single wire segment.
 	if len(b.Source) > 0 {
-		sb.Source = []*pb.SyncSegment{runsToSyncSegment("", b.Source)}
+		sb.Source = []*contentv1.SegmentMessage{runsToSegment("", b.Source)}
 	}
 
 	// Targets per variant. The variant key serializes to its text form
@@ -60,7 +67,7 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 				continue
 			}
 			sb.Targets[string(keyText)] = &pb.SyncSegmentList{
-				Segments: []*pb.SyncSegment{targetToSyncSegment(target)},
+				Segments: []*contentv1.SegmentMessage{targetToSegment(target)},
 			}
 		}
 	}
@@ -134,7 +141,7 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 	// Source content — concatenate the runs of every wire segment back into the
 	// block's flat run sequence.
 	for _, seg := range sb.Source {
-		b.Source = append(b.Source, syncProtoToRuns(seg.Runs)...)
+		b.Source = append(b.Source, protoconvert.ProtoToRuns(seg.Runs)...)
 	}
 
 	// If no structured source but source_text is set, create a simple run.
@@ -152,14 +159,14 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 				continue
 			}
 			var runs []model.Run
-			var first *pb.SyncSegment
+			var first *contentv1.SegmentMessage
 			for _, seg := range list.Segments {
 				if first == nil {
 					first = seg
 				}
-				runs = append(runs, syncProtoToRuns(seg.Runs)...)
+				runs = append(runs, protoconvert.ProtoToRuns(seg.Runs)...)
 			}
-			b.Targets[key] = syncSegmentToTarget(runs, first)
+			b.Targets[key] = segmentToTarget(runs, first)
 		}
 	}
 
@@ -201,11 +208,12 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 	return b, nil
 }
 
-// runsToSyncSegment wraps a flat run sequence in a single wire segment.
-func runsToSyncSegment(id string, runs []model.Run) *pb.SyncSegment {
-	return &pb.SyncSegment{
+// runsToSegment wraps a flat run sequence in a single canonical wire segment,
+// delegating run conversion to protoconvert.
+func runsToSegment(id string, runs []model.Run) *contentv1.SegmentMessage {
+	return &contentv1.SegmentMessage{
 		Id:   id,
-		Runs: runsToSyncProto(runs),
+		Runs: protoconvert.RunsToProto(runs),
 	}
 }
 
@@ -225,10 +233,10 @@ const (
 	propOriginTime   = "__origin_timestamp"
 )
 
-// targetToSyncSegment encodes a committed Target as a single wire segment,
+// targetToSegment encodes a committed Target as a single wire segment,
 // stashing status/origin/score in segment properties so the protocol shape
 // stays unchanged while the round-trip remains lossless.
-func targetToSyncSegment(t *model.Target) *pb.SyncSegment {
+func targetToSegment(t *model.Target) *contentv1.SegmentMessage {
 	props := map[string]string{}
 	if t.Status != "" {
 		props[propTargetStatus] = string(t.Status)
@@ -254,15 +262,15 @@ func targetToSyncSegment(t *model.Target) *pb.SyncSegment {
 	if len(props) == 0 {
 		props = nil
 	}
-	return &pb.SyncSegment{
-		Runs:       runsToSyncProto(t.Runs),
+	return &contentv1.SegmentMessage{
+		Runs:       protoconvert.RunsToProto(t.Runs),
 		Properties: props,
 	}
 }
 
-// syncSegmentToTarget rebuilds a Target from concatenated runs plus the first
+// segmentToTarget rebuilds a Target from concatenated runs plus the first
 // wire segment's metadata properties.
-func syncSegmentToTarget(runs []model.Run, first *pb.SyncSegment) *model.Target {
+func segmentToTarget(runs []model.Run, first *contentv1.SegmentMessage) *model.Target {
 	t := &model.Target{Runs: runs}
 	if first == nil {
 		return t
@@ -285,150 +293,6 @@ func syncSegmentToTarget(runs []model.Run, first *pb.SyncSegment) *model.Target 
 		Timestamp: props[propOriginTime],
 	}
 	return t
-}
-
-// runsToSyncProto converts a run sequence into the wire form.
-func runsToSyncProto(runs []model.Run) []*pb.SyncRun {
-	return model.BuildRuns[*pb.SyncRun, *pb.SyncRunList](runs, syncProtoRunBuilder{})
-}
-
-// syncProtoToRuns converts wire runs into model.Run form.
-func syncProtoToRuns(msgs []*pb.SyncRun) []model.Run {
-	return model.ParseRuns[*pb.SyncRun, *pb.SyncRunList](msgs, syncProtoRunParser{})
-}
-
-// syncProtoRunBuilder maps model runs onto the sync-protocol proto SyncRun /
-// SyncRunList types. The discriminator dispatch and the Plural/Select
-// recursion live in model.BuildRun.
-type syncProtoRunBuilder struct{}
-
-func (syncProtoRunBuilder) Text(t *model.TextRun) *pb.SyncRun {
-	return &pb.SyncRun{Kind: &pb.SyncRun_Text{Text: &pb.SyncTextRun{Text: t.Text}}}
-}
-
-func (syncProtoRunBuilder) Ph(p *model.PlaceholderRun) *pb.SyncRun {
-	return &pb.SyncRun{Kind: &pb.SyncRun_Ph{Ph: &pb.SyncPlaceholderRun{
-		Id: p.ID, Type: p.Type, SubType: p.SubType,
-		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
-		Constraints: runConstraintsToSyncProto(p.Constraints),
-	}}}
-}
-
-func (syncProtoRunBuilder) PcOpen(p *model.PcOpenRun) *pb.SyncRun {
-	return &pb.SyncRun{Kind: &pb.SyncRun_PcOpen{PcOpen: &pb.SyncPcOpenRun{
-		Id: p.ID, Type: p.Type, SubType: p.SubType,
-		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
-		Constraints: runConstraintsToSyncProto(p.Constraints),
-	}}}
-}
-
-func (syncProtoRunBuilder) PcClose(p *model.PcCloseRun) *pb.SyncRun {
-	return &pb.SyncRun{Kind: &pb.SyncRun_PcClose{PcClose: &pb.SyncPcCloseRun{
-		Id: p.ID, Type: p.Type, SubType: p.SubType,
-		Data: p.Data, Equiv: p.Equiv,
-	}}}
-}
-
-func (syncProtoRunBuilder) Sub(s *model.SubRun) *pb.SyncRun {
-	return &pb.SyncRun{Kind: &pb.SyncRun_Sub{Sub: &pb.SyncSubRun{
-		Id: s.ID, Ref: s.Ref, Equiv: s.Equiv,
-	}}}
-}
-
-func (syncProtoRunBuilder) Plural(pivot string, forms map[string]*pb.SyncRunList) *pb.SyncRun {
-	return &pb.SyncRun{Kind: &pb.SyncRun_Plural{Plural: &pb.SyncPluralRun{
-		Pivot: pivot, Forms: forms,
-	}}}
-}
-
-func (syncProtoRunBuilder) Select(pivot string, cases map[string]*pb.SyncRunList) *pb.SyncRun {
-	return &pb.SyncRun{Kind: &pb.SyncRun_Select{Select: &pb.SyncSelectRun{
-		Pivot: pivot, Cases: cases,
-	}}}
-}
-
-func (syncProtoRunBuilder) List(runs []*pb.SyncRun) *pb.SyncRunList {
-	return &pb.SyncRunList{Runs: runs}
-}
-func (syncProtoRunBuilder) Zero() *pb.SyncRun { return nil }
-
-// syncProtoRunParser is the reverse of syncProtoRunBuilder.
-type syncProtoRunParser struct{}
-
-func (syncProtoRunParser) Text(m *pb.SyncRun) (*model.TextRun, bool) {
-	if k, ok := m.GetKind().(*pb.SyncRun_Text); ok {
-		return &model.TextRun{Text: k.Text.GetText()}, true
-	}
-	return nil, false
-}
-
-func (syncProtoRunParser) Ph(m *pb.SyncRun) (*model.PlaceholderRun, bool) {
-	if k, ok := m.GetKind().(*pb.SyncRun_Ph); ok {
-		return &model.PlaceholderRun{
-			ID: k.Ph.GetId(), Type: k.Ph.GetType(), SubType: k.Ph.GetSubType(),
-			Data: k.Ph.GetData(), Equiv: k.Ph.GetEquiv(), Disp: k.Ph.GetDisp(),
-			Constraints: syncProtoToRunConstraints(k.Ph.GetConstraints()),
-		}, true
-	}
-	return nil, false
-}
-
-func (syncProtoRunParser) PcOpen(m *pb.SyncRun) (*model.PcOpenRun, bool) {
-	if k, ok := m.GetKind().(*pb.SyncRun_PcOpen); ok {
-		return &model.PcOpenRun{
-			ID: k.PcOpen.GetId(), Type: k.PcOpen.GetType(), SubType: k.PcOpen.GetSubType(),
-			Data: k.PcOpen.GetData(), Equiv: k.PcOpen.GetEquiv(), Disp: k.PcOpen.GetDisp(),
-			Constraints: syncProtoToRunConstraints(k.PcOpen.GetConstraints()),
-		}, true
-	}
-	return nil, false
-}
-
-func (syncProtoRunParser) PcClose(m *pb.SyncRun) (*model.PcCloseRun, bool) {
-	if k, ok := m.GetKind().(*pb.SyncRun_PcClose); ok {
-		return &model.PcCloseRun{
-			ID: k.PcClose.GetId(), Type: k.PcClose.GetType(), SubType: k.PcClose.GetSubType(),
-			Data: k.PcClose.GetData(), Equiv: k.PcClose.GetEquiv(),
-		}, true
-	}
-	return nil, false
-}
-
-func (syncProtoRunParser) Sub(m *pb.SyncRun) (*model.SubRun, bool) {
-	if k, ok := m.GetKind().(*pb.SyncRun_Sub); ok {
-		return &model.SubRun{ID: k.Sub.GetId(), Ref: k.Sub.GetRef(), Equiv: k.Sub.GetEquiv()}, true
-	}
-	return nil, false
-}
-
-func (syncProtoRunParser) Plural(m *pb.SyncRun) (string, map[string]*pb.SyncRunList, bool) {
-	if k, ok := m.GetKind().(*pb.SyncRun_Plural); ok {
-		return k.Plural.GetPivot(), k.Plural.GetForms(), true
-	}
-	return "", nil, false
-}
-
-func (syncProtoRunParser) Select(m *pb.SyncRun) (string, map[string]*pb.SyncRunList, bool) {
-	if k, ok := m.GetKind().(*pb.SyncRun_Select); ok {
-		return k.Select.GetPivot(), k.Select.GetCases(), true
-	}
-	return "", nil, false
-}
-
-func (syncProtoRunParser) ListRuns(l *pb.SyncRunList) []*pb.SyncRun { return l.GetRuns() }
-
-func runConstraintsToSyncProto(c *model.RunConstraints) *pb.SyncRunConstraints {
-	if c == nil {
-		return nil
-	}
-	return &pb.SyncRunConstraints{Deletable: c.Deletable, Cloneable: c.Cloneable, Reorderable: c.Reorderable}
-}
-
-func syncProtoToRunConstraints(msg *pb.SyncRunConstraints) *model.RunConstraints {
-	if msg == nil {
-		return nil
-	}
-	return &model.RunConstraints{Deletable: msg.GetDeletable(), Cloneable: msg.GetCloneable(), Reorderable: msg.GetReorderable()}
 }
 
 // ComputeItemHash computes the Merkle hash for an item by hashing

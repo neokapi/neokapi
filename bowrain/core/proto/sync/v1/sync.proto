@@ -7,10 +7,20 @@
 // unchanged from when these lived alongside the service protos — proto wire
 // encoding depends only on field numbers, not the proto/Go package name, and
 // no service proto references any Sync* message by name.
+//
+// Run/segment content embeds the canonical content-model schema
+// (core/proto/content/v1, see AD-034) instead of redefining it. The former
+// SyncSegment/SyncRun/SyncTextRun/… messages were field-for-field identical
+// to SegmentMessage/RunMessage/TextRunMessage/…, so this substitution is
+// wire-identical: same field numbers, same field types, byte-identical
+// encoding. Only the sync-specific envelope (hashes, expected_hash, the
+// *_json escapes) is defined here.
 
 syntax = "proto3";
 
 package neokapi.sync.v1;
+
+import "core/proto/content/v1/content.proto";
 
 option go_package = "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1;syncv1";
 
@@ -136,7 +146,11 @@ message SyncChunk {
 // Content types
 // ---------------------------------------------------------------------------
 
-// SyncBlock carries the full Block model through the sync boundary.
+// SyncBlock is the sync-protocol envelope around the canonical Block content:
+// canonical SegmentMessage/RunMessage payloads (core/proto/content/v1) plus
+// the sync-specific fields — item scoping, hashes, and the *_json escapes.
+// EXPLICITLY-LABELED ENVELOPE: the run/segment content is the canonical
+// schema; only the envelope is defined here.
 message SyncBlock {
   string id = 1;
   string item_name = 2;
@@ -145,8 +159,8 @@ message SyncBlock {
   string mime_type = 5;
   bool translatable = 6;
 
-  // Source content.
-  repeated SyncSegment source = 7;
+  // Source content (canonical schema; formerly the wire-identical SyncSegment).
+  repeated neokapi.content.v1.SegmentMessage source = 7;
   string source_text = 8;  // plain text convenience
 
   // Translations per locale.
@@ -173,86 +187,12 @@ message SyncBlock {
   string content_hash = 18;
 }
 
-message SyncSegment {
-  string id = 1;
-  repeated SyncRun runs = 2;
-  map<string, string> properties = 3;
-}
-
+// SyncSegmentList wraps a locale's segments so SyncBlock.targets can map
+// locale → segments (proto3 maps cannot have repeated-message values).
+// The segments themselves are the canonical schema; this wrapper is
+// wire-identical to the former SyncSegmentList-of-SyncSegment.
 message SyncSegmentList {
-  repeated SyncSegment segments = 1;
-}
-
-// SyncRunConstraints mirrors model.RunConstraints.
-message SyncRunConstraints {
-  bool deletable = 1;
-  bool cloneable = 2;
-  bool reorderable = 3;
-}
-
-message SyncTextRun {
-  string text = 1;
-}
-
-message SyncPlaceholderRun {
-  string id = 1;
-  string type = 2;
-  string sub_type = 3;
-  string data = 4;
-  string equiv = 5;
-  string disp = 6;
-  SyncRunConstraints constraints = 7;
-}
-
-message SyncPcOpenRun {
-  string id = 1;
-  string type = 2;
-  string sub_type = 3;
-  string data = 4;
-  string equiv = 5;
-  string disp = 6;
-  SyncRunConstraints constraints = 7;
-}
-
-message SyncPcCloseRun {
-  string id = 1;
-  string type = 2;
-  string sub_type = 3;
-  string data = 4;
-  string equiv = 5;
-}
-
-message SyncSubRun {
-  string id = 1;
-  string ref = 2;
-  string equiv = 3;
-}
-
-message SyncPluralRun {
-  string pivot = 1;
-  map<string, SyncRunList> forms = 2;
-}
-
-message SyncSelectRun {
-  string pivot = 1;
-  map<string, SyncRunList> cases = 2;
-}
-
-message SyncRunList {
-  repeated SyncRun runs = 1;
-}
-
-// SyncRun is the discriminated-union inline-content primitive.
-message SyncRun {
-  oneof kind {
-    SyncTextRun text = 1;
-    SyncPlaceholderRun ph = 2;
-    SyncPcOpenRun pc_open = 3;
-    SyncPcCloseRun pc_close = 4;
-    SyncSubRun sub = 5;
-    SyncPluralRun plural = 6;
-    SyncSelectRun select = 7;
-  }
+  repeated neokapi.content.v1.SegmentMessage segments = 1;
 }
 
 // SyncTerm carries a terminology concept with translations.

@@ -1,0 +1,347 @@
+// content.proto — the canonical wire schema for the neokapi content model
+// (Part / Block / Run / Overlay / Target / Skeleton — see AD-002 and AD-034).
+//
+// These messages were promoted VERBATIM from
+// core/plugin/proto/v2/neokapi_bridge.proto — same message shapes, same field
+// names, same field numbers — so the wire encoding of every field is
+// unchanged. Only the proto package (and thus the fully-qualified type names,
+// which matter for google.protobuf.Any packing and descriptor reflection,
+// neither of which the repo uses on these messages) changed.
+//
+// Compatibility policy:
+//   - Field numbers are FROZEN. Never renumber or repurpose a field.
+//   - Never rename fields (protojson and cross-language peers depend on names).
+//   - New fields append with fresh numbers; removed fields are reserved.
+//   - The Java okapi-bridge compiles this file alongside the bridge service
+//     proto; java_package stays "neokapi.bridge.proto" so the generated Java
+//     class names (and thus the Java bridge sources) are unchanged.
+//
+// Every other serialization of Blocks/Runs in the repo is either an import of
+// this schema or an explicitly-labeled lossy projection (BlockIndex,
+// ContentTree, structrec.Record, the bowrain editor proto). A guard test
+// (core/proto/content/guard_test.go) rejects new Block/Run message
+// definitions outside this file.
+
+syntax = "proto3";
+
+package neokapi.content.v1;
+
+option go_package = "github.com/neokapi/neokapi/core/proto/content/v1;contentv1";
+option java_package = "neokapi.bridge.proto";
+option java_multiple_files = true;
+
+// ────────────────────────────────────────────────────────────────────────────
+// Annotations
+// ────────────────────────────────────────────────────────────────────────────
+
+// AnnotationEntry is a typed annotation with a JSON-encoded payload.
+message AnnotationEntry {
+  string type = 1;    // "note", "alt-translation", "its-lqi", "generic", etc.
+  bytes data = 2;     // JSON-encoded type-specific payload
+}
+
+// RunRangeMessage is a run-anchored byte/run span (the position of a
+// overlay span).
+message RunRangeMessage {
+  int32 start_run = 1;
+  int32 start_offset = 2;
+  int32 end_run = 3;
+  int32 end_offset = 4;
+}
+
+// VariantMessage identifies a target variant (locale + optional tone/channel).
+// Its absence on an OverlayMessage means the overlay is source-side.
+message VariantMessage {
+  string locale = 1;
+  string tone = 2;
+  string channel = 3;
+}
+
+// SpanMessage is one occurrence within an overlay: a run-anchored
+// range, optional string props, and the typed payload (carried as an
+// AnnotationEntry so unknown payload types degrade to a generic map, exactly
+// like block-scoped annotations).
+message SpanMessage {
+  string id = 1;
+  RunRangeMessage range = 2;
+  map<string, string> props = 3;
+  AnnotationEntry value = 4;
+}
+
+// OverlayMessage is one stand-off overlay on a block: a typed, optionally
+// variant-scoped, layered set of spans. This carries the full overlay vocabulary
+// across the wire (term, entity, qa, alignment, and any plugin-defined
+// type), so an overlay type a peer doesn't recognise round-trips by type name and
+// JSON rather than being dropped. Segmentation overlays are NOT carried here —
+// they are reconstructed from the source/target SegmentMessage boundaries.
+message OverlayMessage {
+  string type = 1;             // overlay type ("term", "entity", "qa", …)
+  VariantMessage variant = 2;  // absent = source side
+  string layer = 3;            // "" = primary
+  repeated SpanMessage spans = 4;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Inline Markup (RFC 0001 Run model)
+// ────────────────────────────────────────────────────────────────────────────
+
+// RunConstraints control whether an inline-code run may be dropped,
+// duplicated, or reordered by a translation.
+message RunConstraints {
+  bool deletable = 1;
+  bool cloneable = 2;
+  bool reorderable = 3;
+}
+
+// TextRunMessage is a plain text chunk.
+message TextRunMessage {
+  string text = 1;
+}
+
+// PlaceholderRunMessage is a self-closing inline code (variable,
+// conditional JSX expression, line break, icon, etc.).
+message PlaceholderRunMessage {
+  string id = 1;
+  string type = 2;      // Vocabulary key, e.g. "jsx:var", "jsx:node", "html:br".
+  string sub_type = 3;  // Fine-grained discriminator.
+  string data = 4;      // Original source slice, preserved verbatim.
+  string equiv = 5;     // Stable human-friendly identifier (variable name, tag name).
+  string disp = 6;      // Display label for chips.
+  RunConstraints constraints = 7;
+}
+
+// PcOpenRunMessage is the opening half of a paired inline code.
+message PcOpenRunMessage {
+  string id = 1;
+  string type = 2;
+  string sub_type = 3;
+  string data = 4;      // Raw opening source ("<span class=\"muted\">").
+  string equiv = 5;
+  string disp = 6;
+  RunConstraints constraints = 7;
+}
+
+// PcCloseRunMessage is the closing half of a paired inline code.
+// Shares id with its PcOpen inside the same runs scope.
+message PcCloseRunMessage {
+  string id = 1;
+  string type = 2;
+  string sub_type = 3;
+  string data = 4;      // Raw closing source ("</span>").
+  string equiv = 5;
+}
+
+// SubRunMessage is a reference to a subblock (sub-filter output).
+message SubRunMessage {
+  string id = 1;
+  string ref = 2;
+  string equiv = 3;
+}
+
+// PluralRunMessage is a structured plural construct. Keys of `forms`
+// are ICU plural forms: "zero", "one", "two", "few", "many", "other".
+message PluralRunMessage {
+  string pivot = 1;
+  map<string, RunList> forms = 2;
+}
+
+// SelectRunMessage is a structured select construct, symmetric to
+// PluralRunMessage but keyed by arbitrary case values.
+message SelectRunMessage {
+  string pivot = 1;
+  map<string, RunList> cases = 2;
+}
+
+// RunList is a repeated-field holder used by map values in
+// PluralRunMessage and SelectRunMessage (proto3 maps cannot have
+// repeated-message values directly).
+message RunList {
+  repeated RunMessage runs = 1;
+}
+
+// RunMessage is the discriminated-union inline-content primitive.
+// Exactly one of the oneof fields is present per Run.
+message RunMessage {
+  oneof kind {
+    TextRunMessage text = 1;
+    PlaceholderRunMessage ph = 2;
+    PcOpenRunMessage pc_open = 3;
+    PcCloseRunMessage pc_close = 4;
+    SubRunMessage sub = 5;
+    PluralRunMessage plural = 6;
+    SelectRunMessage select = 7;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Segments & Targets
+// ────────────────────────────────────────────────────────────────────────────
+
+// SegmentMessage represents a single segment within a Block.
+message SegmentMessage {
+  string id = 1;
+  repeated RunMessage runs = 2;
+  map<string, string> properties = 3;
+}
+
+// TargetEntry maps a locale to its target segments.
+message TargetEntry {
+  string locale = 1;
+  repeated SegmentMessage segments = 2;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Lightweight Block (for gRPC transfer — no skeleton, no display hints)
+// ────────────────────────────────────────────────────────────────────────────
+
+// ContentBlock is a lightweight representation of a translatable block
+// designed for efficient gRPC transfer. It carries only the fields that
+// Go-side tools need for content processing — source/target text with
+// inline markup, properties, and identity. The heavy fields (skeleton,
+// display hints, is_referent) stay on the producing side.
+//
+// Size comparison for a typical XLSX cell:
+//   BlockMessage:   ~500 bytes (skeleton dominates)
+//   ContentBlock:   ~50 bytes  (just id + text)
+message ContentBlock {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string mime_type = 4;
+  bool translatable = 5;
+  repeated SegmentMessage source = 6;
+  repeated TargetEntry targets = 7;
+  map<string, string> properties = 8;
+  bool preserve_whitespace = 9;
+  map<string, AnnotationEntry> annotations = 10;
+  DisplayHintMessage display_hint = 11;
+  // Stand-off overlays (see BlockMessage.overlays).
+  repeated OverlayMessage overlays = 12;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Skeleton
+// ────────────────────────────────────────────────────────────────────────────
+
+// SkeletonMessage preserves non-translatable structure for reconstruction.
+message SkeletonMessage {
+  int32 strategy = 1;                   // 0=FragmentBased, 1=Reparse
+  repeated SkeletonPartMessage parts = 2;
+  string source_uri = 3;
+}
+
+// SkeletonPartMessage is either a text fragment or a resource reference.
+message SkeletonPartMessage {
+  string text = 1;         // Literal text (set for text parts)
+  string resource_id = 2;  // Resource ID (set for reference parts)
+  string property = 3;     // Property to reference (e.g., "target", "source")
+  string locale = 4;       // Target locale for locale-specific references
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Display Hints
+// ────────────────────────────────────────────────────────────────────────────
+
+// DisplayHintMessage provides rendering guidance for UI tools.
+message DisplayHintMessage {
+  int32 max_length = 1;     // Maximum character count (0 = unlimited)
+  string content_type = 2;  // Content type hint (e.g., "heading", "button")
+  string context = 3;       // Description of where this block appears
+  string preview = 4;       // Short preview of surrounding context
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Content Units
+// ────────────────────────────────────────────────────────────────────────────
+
+// BlockMessage represents a translatable content unit.
+message BlockMessage {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string mime_type = 4;
+  bool translatable = 5;
+  repeated SegmentMessage source = 6;
+  repeated TargetEntry targets = 7;
+  map<string, string> properties = 8;
+  map<string, AnnotationEntry> annotations = 9;
+  DisplayHintMessage display_hint = 10;
+  SkeletonMessage skeleton = 11;
+  bool preserve_whitespace = 12;
+  bool is_referent = 13;
+  // Stand-off overlays (term, entity, qa, alignment, plugin types).
+  // Segmentation is reconstructed from source/targets, so it is not repeated here.
+  repeated OverlayMessage overlays = 14;
+}
+
+// LayerMessage represents a structural layer.
+message LayerMessage {
+  string id = 1;
+  string name = 2;
+  string format = 3;
+  string locale = 4;
+  string encoding = 5;
+  string mime_type = 6;
+  string line_break = 7;
+  bool is_multilingual = 8;
+  string parent_id = 9;
+  map<string, string> properties = 10;
+  bool has_bom = 11;
+}
+
+// DataMessage represents non-translatable document structure.
+message DataMessage {
+  string id = 1;
+  string name = 2;
+  map<string, string> properties = 3;
+  SkeletonMessage skeleton = 4;
+  bool is_referent = 5;
+}
+
+// GroupStartMessage signals the beginning of a structural group.
+message GroupStartMessage {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  map<string, string> properties = 4;
+}
+
+// GroupEndMessage signals the end of a structural group.
+message GroupEndMessage {
+  string id = 1;
+}
+
+// MediaMessage holds binary or media content.
+message MediaMessage {
+  string id = 1;
+  string mime_type = 2;
+  bytes data = 3;
+  string uri = 4;
+  string alt_text = 5;
+  map<string, string> properties = 6;
+}
+
+// PartMessage is the fundamental unit flowing through a stream.
+message PartMessage {
+  int32 part_type = 1;
+  // Only one of these is set, based on part_type.
+  BlockMessage block = 2;
+  LayerMessage layer = 3;
+  DataMessage data = 4;
+  GroupStartMessage group_start = 5;
+  GroupEndMessage group_end = 6;
+  MediaMessage media = 7;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Content references
+// ────────────────────────────────────────────────────────────────────────────
+
+// ContentRef allows passing content as a file path instead of inline bytes.
+message ContentRef {
+  oneof location {
+    bytes  inline = 1;  // Inline bytes
+    string path   = 2;  // Local filesystem path
+    string uri    = 3;  // Remote/local URI (file://, s3://, gs://)
+  }
+}
