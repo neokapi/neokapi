@@ -19,6 +19,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/core/version"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	mtprovider "github.com/neokapi/neokapi/providers/mt"
 	"github.com/spf13/cobra"
@@ -26,6 +27,78 @@ import (
 )
 
 var app = &cli.App{}
+
+// ── Engine ABI (the @neokapi/engine contract) ───────────────────────────────
+//
+// Everything this binary installs on globalThis is the browser engine's JS
+// ABI, consumed by the @neokapi/engine npm package (packages/engine). The
+// contract:
+//
+//   - engineExports below is the single registration point. Each entry becomes
+//     a global function with exactly that name; nothing else in this binary may
+//     call js.Global().Set for an engine entry point.
+//   - kapiEngineABI() is the feature-detection endpoint. It returns
+//     {abi, version, functions}: `abi` is engineABIVersion, `version` is the
+//     kapi build version (ldflags; "dev" for source builds), and `functions`
+//     lists the registered global names so clients can probe capabilities
+//     without calling them. A build where kapiEngineABI is absent predates the
+//     ABI and should be treated as abi 0.
+//   - Within one `abi` value, changes are strictly additive: new functions may
+//     appear in `functions`, but existing names, signatures, and payload shapes
+//     never change or disappear. Renaming or removing a function, or changing a
+//     signature/payload incompatibly, bumps engineABIVersion.
+//   - Boot handshake: after registration, the binary invokes the host-provided
+//     __kapiCliReady() callback (if defined) and then blocks forever so the
+//     globals stay callable. The host must install its fs/process shims (the
+//     wasm_exec.js environment) before instantiation.
+//   - Reverse bridges: the engine optionally calls back into host-provided
+//     globals — __kapiPdfium (PDF text+geometry), kapiLocalGenerate (on-device
+//     LLM), kapiLocalNER (on-device NER), kapiBrowserTranslate (+ the
+//     platform's Translator API). These are capabilities the page MAY provide;
+//     each engine feature degrades with an actionable error when its bridge is
+//     absent. The typed capability interfaces live in
+//     packages/engine/src/capabilities.ts.
+//
+// The TypeScript half of this contract (ambient global typings + the
+// KapiRuntime facade) lives in packages/engine; the docs note is
+// web/docs/contribute/notes-internal/wasm-engine-abi.md. Keep all three in
+// sync when adding an entry point.
+
+// engineABIVersion is the `abi` field reported by kapiEngineABI(). Bump only
+// on a breaking change to an existing entry point (see the contract above).
+const engineABIVersion = 1
+
+// engineExports is the ordered, single registration point for the engine's
+// global entry points. The names double as the ABI's `functions` list.
+var engineExports = []struct {
+	name string
+	fn   func(js.Value, []js.Value) any
+}{
+	{"kapiRun", kapiRun},
+	{"kapiPreview", kapiPreview},
+	{"labInspect", labInspect},
+	{"labInspectAnnotated", labInspectAnnotated},
+	{"labSegment", labSegment},
+	{"labSegmentEngines", labSegmentEngines},
+	{"klf", klfDispatch},
+}
+
+// registerEngineABI installs every engine entry point plus the additive
+// kapiEngineABI() descriptor used for feature detection.
+func registerEngineABI() {
+	functions := make([]any, len(engineExports))
+	for i, e := range engineExports {
+		js.Global().Set(e.name, js.FuncOf(e.fn))
+		functions[i] = e.name
+	}
+	js.Global().Set("kapiEngineABI", js.FuncOf(func(js.Value, []js.Value) any {
+		return map[string]any{
+			"abi":       engineABIVersion,
+			"version":   version.Version,
+			"functions": functions,
+		}
+	}))
+}
 
 func main() {
 	// Populate format + tool registries once so command construction (which
@@ -51,13 +124,7 @@ func main() {
 	// termbase, term-check, and extract commands work in the browser build.
 	seedBackends()
 
-	js.Global().Set("kapiRun", js.FuncOf(kapiRun))
-	js.Global().Set("kapiPreview", js.FuncOf(kapiPreview))
-	js.Global().Set("labInspect", js.FuncOf(labInspect))
-	js.Global().Set("labInspectAnnotated", js.FuncOf(labInspectAnnotated))
-	js.Global().Set("labSegment", js.FuncOf(labSegment))
-	js.Global().Set("labSegmentEngines", js.FuncOf(labSegmentEngines))
-	js.Global().Set("klf", js.FuncOf(klfDispatch))
+	registerEngineABI()
 
 	if ready := js.Global().Get("__kapiCliReady"); ready.Type() == js.TypeFunction {
 		ready.Invoke()
