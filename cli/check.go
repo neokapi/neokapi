@@ -278,7 +278,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	var diags []check.Diagnostic
 
 	if validateMode != format.ValidationOff {
-		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, a.SourceLang, validateMode)
+		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, a.FormatFlag, a.SourceLang, validateMode)
 		if rerr != nil {
 			return nil, nil, rerr
 		}
@@ -393,7 +393,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	if opts.profile != nil {
 		vocab := coretools.NewBrandVocabCheckTool(opts.profile, nil)
 		for _, b := range blocks {
-			runCheckTool(ctx, vocab, b)
+			RunCheckTool(ctx, vocab, b)
 			if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 				loc := check.Location{File: displayName(file), Block: blockKey(b)}
 				for _, f := range ann.Findings {
@@ -436,7 +436,7 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 	// family.
 	seen := make([]int, len(blocks))
 	for i, b := range blocks {
-		seen[i] = len(findingsFromBlock(b))
+		seen[i] = len(FindingsFromBlock(b, false))
 	}
 
 	a.runFamily(ctx, blocks, coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(loc)))
@@ -453,18 +453,12 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 
 // runFamily runs one checker family's tool(s) over every block. Findings
 // accumulate on each block's unified annotation; the caller reads the delta.
-func (a *App) runFamily(ctx context.Context, blocks []*model.Block, tools ...blockProcessor) {
+func (a *App) runFamily(ctx context.Context, blocks []*model.Block, tools ...BlockProcessor) {
 	for _, b := range blocks {
 		for _, t := range tools {
-			runCheckTool(ctx, t, b)
+			RunCheckTool(ctx, t, b)
 		}
 	}
-}
-
-// blockProcessor is the minimal interface a check tool satisfies to run over a
-// single block via runCheckTool.
-type blockProcessor interface {
-	Process(context.Context, <-chan *model.Part, chan<- *model.Part) error
 }
 
 // mapBlockDeltas maps the findings each block gained since the last family (the
@@ -473,7 +467,7 @@ type blockProcessor interface {
 func mapBlockDeltas(blocks []*model.Block, seen []int, family, file string) []check.Diagnostic {
 	var out []check.Diagnostic
 	for i, b := range blocks {
-		all := findingsFromBlock(b)
+		all := FindingsFromBlock(b, false)
 		for _, f := range all[seen[i]:] {
 			out = append(out, check.DiagnosticFrom(f, family, check.Location{File: displayName(file), Block: blockKey(b)}))
 		}
@@ -512,14 +506,6 @@ func gateFromFlags(cmd *cobra.Command) check.Gate {
 		g = check.Gate{MaxCritical: -1, MaxMajor: -1, MaxMinor: -1, MinScore: 0}
 	}
 	return g
-}
-
-// findingsFromBlock reads the unified check annotation off a block.
-func findingsFromBlock(b *model.Block) []check.Finding {
-	if ann, ok := model.AnnoAs[*check.FindingsAnnotation](b, check.AnnotationKey); ok {
-		return ann.Findings
-	}
-	return nil
 }
 
 func (a *App) resolveCheckProfile(cmd *cobra.Command) (*brand.VoiceProfile, error) {

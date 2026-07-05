@@ -96,6 +96,15 @@ type App struct {
 	convergence   *cli.App
 	convergenceMu sync.Mutex
 
+	// checks is the shared cli.App behind RunChecks — the exported bilingual
+	// check pipeline (ReadBlocksForCheck / OverlayTargets / RunCheckTool /
+	// FindingsFromBlock), sharing the desktop's plugin-wired format registry.
+	// checksMu is held for the duration of a checks run: the run opens the
+	// project document cache on the app (WithDocumentCache), which is
+	// single-occupancy state.
+	checks   *cli.App
+	checksMu sync.Mutex
+
 	// TM and Termbase handles
 	tmHandles *handleStore[*sievepen.SQLiteTM]
 	tbHandles *handleStore[*termbase.SQLiteTermBase]
@@ -137,10 +146,10 @@ func NewApp() *App {
 	logger := log.New(os.Stderr, "[kapi-desktop] ", log.LstdFlags)
 	pluginDir := defaultPluginDir()
 
-	// Resolve the provider-config store under the env-overridable config dir
-	// (not credentials.DefaultPath, which hardcodes os.UserConfigDir) so an
-	// isolated KAPI_CONFIG_DIR fully isolates credentials from the user's own.
-	credStore := credentials.NewStore(filepath.Join(kapiConfigDir(), "providers.json"))
+	// The provider-config store at its shared default location
+	// (credentials.DefaultPath honors KAPI_CONFIG_DIR, so an isolated config
+	// dir fully isolates credentials from the user's own).
+	credStore := credentials.NewStore(credentials.DefaultPath())
 
 	// Load the shared kapi config (honors KAPI_CONFIG_DIR like the CLI) so the
 	// desktop reads the same ai.provider/ai.model default the CLI does.

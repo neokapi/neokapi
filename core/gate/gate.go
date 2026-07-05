@@ -330,6 +330,23 @@ func (c Coverage) AtLeastPct(l Ladder, state string) float64 {
 	return atLeastPct(c.Counts, c.Total, l, state)
 }
 
+// AtLeastCount returns the number of units at `state` or higher on the ladder
+// — the raw count behind AtLeastPct, for surfaces that render absolute
+// numbers (e.g. "12 of 30 translated") rather than percentages.
+func (c Coverage) AtLeastCount(l Ladder, state string) int {
+	target := l.rank(state)
+	if target < 0 {
+		return 0
+	}
+	n := 0
+	for s, cnt := range c.Counts {
+		if r := l.rank(s); r >= target {
+			n += cnt
+		}
+	}
+	return n
+}
+
 // AtLeastPctBy returns the "at least" percentage counting only the decisions
 // the approver class admits: ByAny sees the effective distribution, while
 // ByHuman (and the empty default) sees the human-only one, where AI-promoted

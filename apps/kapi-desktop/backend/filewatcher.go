@@ -2,12 +2,10 @@ package backend
 
 import (
 	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/neokapi/neokapi/core/ignore"
+	"github.com/neokapi/neokapi/core/project"
 )
 
 // fileWatcher polls a project directory for file changes and emits
@@ -68,28 +66,8 @@ func (fw *fileWatcher) loop() {
 }
 
 func (fw *fileWatcher) scan() map[string]time.Time {
-	ig := ignore.ForProjectDir(fw.dir)
 	snap := make(map[string]time.Time)
-	_ = filepath.Walk(fw.dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if strings.HasPrefix(info.Name(), ".") {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		rel, _ := filepath.Rel(fw.dir, path)
-		if rel == "." {
-			return nil
-		}
-		if ig.Match(filepath.ToSlash(rel), info.IsDir()) {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
+	_ = project.WalkProjectDir(fw.dir, func(rel string, info os.FileInfo) error {
 		snap[rel] = info.ModTime()
 		return nil
 	})

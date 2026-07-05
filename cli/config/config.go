@@ -283,12 +283,16 @@ func parseStringSlice(raw any) []string {
 // GlobalConfigFilePath returns the path to the global config file
 // for the given app name (e.g. ~/.config/kapi/kapi.yaml).
 // If no app name is provided, defaults to "kapi".
+//
+// The per-app env override is <NAME>_CONFIG_DIR with hyphens mapped to
+// underscores (e.g. "kapi-desktop" → KAPI_DESKTOP_CONFIG_DIR), so hyphenated
+// app names get a legal environment variable name.
 func GlobalConfigFilePath(appName ...string) string {
 	name := "kapi"
 	if len(appName) > 0 && appName[0] != "" {
 		name = appName[0]
 	}
-	envKey := strings.ToUpper(name) + "_CONFIG_DIR"
+	envKey := strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_CONFIG_DIR"
 	if dir := os.Getenv(envKey); dir != "" {
 		return filepath.Join(dir, name+".yaml")
 	}

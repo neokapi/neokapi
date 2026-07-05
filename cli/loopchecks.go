@@ -103,7 +103,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd *cobra.Command
 		if gerr != nil {
 			return nil, gerr
 		}
-		var termTool blockProcessor
+		var termTool BlockProcessor
 		if len(glossary) > 0 {
 			termTool = coretools.NewTermCheckTool(&coretools.TermCheckConfig{
 				Glossary:     glossary,
@@ -124,10 +124,10 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd *cobra.Command
 			if strings.TrimSpace(b.TargetText(model.LocaleID(u.locale))) == "" {
 				continue
 			}
-			runCheckTool(ctx, qa, b)
+			RunCheckTool(ctx, qa, b)
 			fails := slices.ContainsFunc(check.Findings(tool.NewBlockView(b)), qaFindingFails)
 			if !fails && termTool != nil {
-				runCheckTool(ctx, termTool, b)
+				RunCheckTool(ctx, termTool, b)
 				if b.Properties[coretools.PropTermCheckPassed] == "false" {
 					fails = true
 				}

@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"math"
-	"sort"
 
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -187,6 +187,12 @@ func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (r
 // rules resolve against (collection, locale); content not in a named collection
 // has an empty collection, where the rollup is effectively per-locale.
 //
+// It is the file-scan block source of the shared coverage engine
+// (convergence.CoverageTally): unit states are derived from working-tree file
+// reads and fed into the same tally/rollup the desktop's block-store status
+// path uses (convergence.TallyBlockStore), so both surfaces report the same
+// numbers for the same data.
+//
 // `reviewed` (loaded from the project state store) upgrades a unit from the
 // `translated` presence baseline to its decided rung. Units promoted by an
 // autonomous AI decision ("ai/…" identity) are tallied separately: they read as
@@ -207,24 +213,10 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 		return nil, err
 	}
 
-	type scope struct{ collection, locale string }
-	type scopeTally struct {
-		cov        gate.Coverage
-		aiReviewed int
-	}
-	tallies := map[scope]*scopeTally{}
-	tally := func(s scope) *scopeTally {
-		t, ok := tallies[s]
-		if !ok {
-			t = &scopeTally{}
-			tallies[s] = t
-		}
-		return t
-	}
-	add := func(s scope, state string) { tally(s).cov.Add(state) }
+	tally := convergence.NewCoverageTally()
 
 	for _, u := range units {
-		s := scope{collection: u.collection, locale: u.locale}
+		s := convergence.Scope{Collection: u.collection, Locale: u.locale}
 		blocks, missing, berr := a.bilingualBlocks(ctx, u)
 		if berr != nil {
 			if !errors.Is(berr, errTargetUnreadable) {
@@ -240,7 +232,7 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 			}
 			for _, b := range srcs {
 				if b.Translatable {
-					add(s, string(model.TargetStatusTranslated))
+					tally.Add(s, string(model.TargetStatusTranslated))
 				}
 			}
 			continue
@@ -253,7 +245,7 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 			}
 			for _, b := range srcs {
 				if b.Translatable {
-					add(s, "")
+					tally.Add(s, "")
 				}
 			}
 			continue
@@ -267,53 +259,18 @@ func (a *App) computeShipCoverage(ctx context.Context, proj *project.KapiProject
 			// the project's bound checks demotes to draft regardless of who
 			// approved it.
 			if excl.excluded(u.sourcePath, b, u.locale) {
-				add(s, demoteFailing(st))
+				tally.Add(s, demoteFailing(st))
 				continue
 			}
 			if aiDecided {
-				t := tally(s)
 				// The AI decision promoted the unit from the `translated`
 				// baseline; a human-class threshold sees it there.
-				t.cov.AddAIDecided(st, string(model.TargetStatusTranslated))
-				t.aiReviewed++
+				tally.AddAIDecided(s, st, string(model.TargetStatusTranslated))
 				continue
 			}
-			add(s, st)
+			tally.Add(s, st)
 		}
 	}
 
-	ladder := gate.TargetLadder()
-	scopes := make([]scope, 0, len(tallies))
-	for s := range tallies {
-		scopes = append(scopes, s)
-	}
-	sort.Slice(scopes, func(i, j int) bool {
-		if scopes[i].locale != scopes[j].locale {
-			return scopes[i].locale < scopes[j].locale
-		}
-		return scopes[i].collection < scopes[j].collection
-	})
-
-	out := make([]LocaleCoverage, 0, len(scopes))
-	for _, s := range scopes {
-		t := tallies[s]
-		cov := t.cov
-		lc := LocaleCoverage{
-			Locale: s.locale, Collection: s.collection, Total: cov.Total,
-			Pct: map[string]int{}, AIReviewed: t.aiReviewed,
-		}
-		for _, st := range ladder {
-			lc.Pct[st] = int(math.Round(cov.AtLeastPct(ladder, st)))
-		}
-		if g, ok := rs.Resolve(s.collection, s.locale); ok {
-			lc.Gated = true
-			res := gate.Evaluate(g, cov, ladder)
-			lc.Shippable = res.Pass
-			lc.Pending = res.Shortfalls
-		} else {
-			lc.Shippable = true // no gate matched this scope
-		}
-		out = append(out, lc)
-	}
-	return out, nil
+	return tally.Rollup(rs), nil
 }

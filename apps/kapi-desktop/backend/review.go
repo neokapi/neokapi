@@ -12,6 +12,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
@@ -114,11 +115,11 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 	if err != nil {
 		return nil, err
 	}
-	overlayTargets(passBlocks, targetBlocks, model.LocaleID(locale))
+	cli.OverlayTargets(passBlocks, targetBlocks, model.LocaleID(locale))
 	byKey := make(map[string]*model.Block, len(passBlocks))
 	for _, b := range passBlocks {
 		if b.Translatable {
-			byKey[checkBlockKey(b)] = b
+			byKey[convergence.BlockKey(b)] = b
 		}
 	}
 	return byKey, nil
@@ -133,7 +134,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 
 	if profile != nil {
 		vocab := coretools.NewBrandVocabCheckTool(profile, nil)
-		runCheckToolOnBlock(ctx, vocab, b)
+		cli.RunCheckTool(ctx, vocab, b)
 		if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 			for _, f := range ann.Findings {
 				findings = append(findings, toDesktopFinding(f, b, "source"))
@@ -143,8 +144,8 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 	}
 
 	placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(locale))
-	runCheckToolOnBlock(ctx, placeholder, b)
-	for _, f := range findingsFromCheckBlock(b) {
+	cli.RunCheckTool(ctx, placeholder, b)
+	for _, f := range cli.FindingsFromBlock(b, true) {
 		findings = append(findings, toDesktopFinding(f, b, "target"))
 	}
 
@@ -152,8 +153,8 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 		dntCfg := coretools.NewDNTCheckConfig(locale)
 		dntCfg.Terms = dntTerms
 		dnt := coretools.NewDNTCheckTool(dntCfg)
-		runCheckToolOnBlock(ctx, dnt, b)
-		for _, f := range findingsFromCheckBlock(b) {
+		cli.RunCheckTool(ctx, dnt, b)
+		for _, f := range cli.FindingsFromBlock(b, true) {
 			findings = append(findings, toDesktopFinding(f, b, "target"))
 		}
 	}
@@ -403,7 +404,7 @@ func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 	applied := false
 	var applyErr error
 	transform := func(b *model.Block) {
-		if checkBlockKey(b) != key {
+		if convergence.BlockKey(b) != key {
 			return
 		}
 		if !isSinglePlainTextRun(b.SourceRuns()) {

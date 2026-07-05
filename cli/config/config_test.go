@@ -73,6 +73,13 @@ func TestGlobalConfigFilePathCustomApp(t *testing.T) {
 	assert.Equal(t, "/tmp/test-myapp-config/myapp.yaml", GlobalConfigFilePath("myapp"))
 }
 
+func TestGlobalConfigFilePathHyphenatedApp(t *testing.T) {
+	// Hyphens map to underscores in the env key so hyphenated app names
+	// (kapi-desktop) get a legal environment variable.
+	t.Setenv("KAPI_DESKTOP_CONFIG_DIR", "/tmp/test-desktop-config")
+	assert.Equal(t, "/tmp/test-desktop-config/kapi-desktop.yaml", GlobalConfigFilePath("kapi-desktop"))
+}
+
 func TestSetGlobalConfig(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", dir)

@@ -11,7 +11,6 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/klf"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/version"
 )
 
 // This file centralizes block-store synchronization — the version stamp, the
@@ -21,30 +20,41 @@ import (
 // binding over ExtractToBlockStore; the CLI auto-extracts on drift before
 // each `up` pass via DetectStoreDrift + ExtractToBlockStore.
 
-// BlockStoreVersionStampPath is the sidecar file recording the kapi version
-// that last wrote the block store, e.g. `.kapi/cache/blocks.db.kapiversion`.
+// blockStoreSchemaVersion identifies the block-store extraction semantics:
+// how blocks are read, numbered, keyed (BlockStoreHash), and glob-expanded
+// into the store. Bump it whenever a change makes previously extracted stores
+// wrong (e.g. the historical `**`-glob fix), so they re-extract. Staleness is
+// stamped by THIS version, not the binary version: a CLI and a desktop built
+// from different releases with the same extraction semantics share one cache
+// instead of endlessly invalidating each other's.
+const blockStoreSchemaVersion = "2026-07-05.1"
+
+// BlockStoreVersionStampPath is the sidecar file recording the extraction
+// schema version that last wrote the block store, e.g.
+// `.kapi/cache/blocks.db.kapiversion` (the historical filename is kept so
+// existing stores keep their stamp file).
 func BlockStoreVersionStampPath(storePath string) string {
 	return storePath + ".kapiversion"
 }
 
-// BlockStoreStale reports whether the block store at storePath was written by
-// a different kapi version than the running binary — true when the version
-// stamp is missing/unreadable, or its contents don't match version.Version.
-// Callers invoke this only once the store is known to exist (a missing store
-// has nothing to be stale about).
+// BlockStoreStale reports whether the block store at storePath was written
+// under different extraction semantics than the running binary — true when
+// the stamp is missing/unreadable, or its contents don't match
+// blockStoreSchemaVersion. Callers invoke this only once the store is known
+// to exist (a missing store has nothing to be stale about).
 func BlockStoreStale(storePath string) bool {
 	data, err := os.ReadFile(BlockStoreVersionStampPath(storePath))
 	if err != nil {
 		return true
 	}
-	return strings.TrimSpace(string(data)) != version.Version
+	return strings.TrimSpace(string(data)) != blockStoreSchemaVersion
 }
 
-// StampBlockStoreVersion records the running kapi version as the writer of the
-// block store at storePath, so a later binary can tell whether it would have
-// extracted different content.
+// StampBlockStoreVersion records the running binary's extraction schema
+// version as the writer of the block store at storePath, so a later binary
+// can tell whether it would have extracted different content.
 func StampBlockStoreVersion(storePath string) error {
-	return os.WriteFile(BlockStoreVersionStampPath(storePath), []byte(version.Version), 0o644)
+	return os.WriteFile(BlockStoreVersionStampPath(storePath), []byte(blockStoreSchemaVersion), 0o644)
 }
 
 // SourceStamp records the identity of one source file at extract time: its

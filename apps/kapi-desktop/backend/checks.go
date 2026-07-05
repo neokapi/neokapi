@@ -12,15 +12,13 @@ import (
 	"strings"
 	"time"
 
-	brandstore "github.com/neokapi/neokapi/cli/storage/brand"
+	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/brand"
-	brandpacks "github.com/neokapi/neokapi/core/brand/packs"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/storage"
 	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
@@ -67,8 +65,13 @@ type CheckRunResult struct {
 // glob; all when empty), for the filter's target languages — source-side checks
 // run once per file, target-side checks run once per filtered language, and the
 // panel no longer carries its own language picker. With no languages selected,
-// only source-side checks run. It mirrors the CLI `kapi check` semantics
-// (cli/check.go): the gate fails on any critical finding.
+// only source-side checks run.
+//
+// The pipeline itself is the CLI's exported check service
+// (cli.App.ReadBlocksForCheck / cli.OverlayTargets / cli.RunCheckTool /
+// cli.FindingsFromBlock), run inside the project document cache
+// (WithDocumentCache) so unchanged files replay instead of re-parsing —
+// exactly the `kapi check` semantics: the gate fails on any critical finding.
 func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -82,108 +85,131 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	}
 
 	sourceLang := string(pctx.SourceLocale)
-
-	// Resolve standing project context once: a bound brand profile (for the
-	// source-side vocabulary check) and do-not-translate terms (from the bound
-	// termbase). Both are optional — when absent the corresponding check is
-	// simply skipped, matching the CLI's flag-free behavior.
-	profile := a.resolveProjectBrandProfile(op)
-	dntTerms := a.resolveProjectDNTTerms(op, sourceLang)
+	root := ""
+	if op.Path != "" {
+		root = filepath.Dir(op.Path)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
+	// The shared check pipeline holds single-occupancy state on the cli.App
+	// (the open document cache), so a checks run is serialized.
+	a.checksMu.Lock()
+	defer a.checksMu.Unlock()
+	capp := a.checksCLI()
+
+	// Resolve standing project context once: a bound brand profile (for the
+	// source-side vocabulary check, via the CLI's full resolution ladder) and
+	// do-not-translate terms (from the bound termbase). Both are optional —
+	// when absent the corresponding check is simply skipped, matching the
+	// CLI's flag-free behavior.
+	var profile *brand.VoiceProfile
+	if op.Project != nil && root != "" {
+		if p, _, ok, perr := capp.ResolveBrandProfile(ctx, op.Project, root, cli.BrandResolveOptions{}); perr == nil && ok {
+			profile = p
+		}
+	}
+	dntTerms := a.resolveProjectDNTTerms(op, sourceLang)
+
 	var allFindings []check.Finding
 	files := make([]CheckFileResult, 0, len(resolved))
 
-	for _, rf := range resolved {
-		if filter.FilesNarrowed() && !filter.MatchesFile(rf.Collection, rf.Relative) {
-			continue
-		}
+	runErr := capp.WithDocumentCache(root, func() error {
+		for _, rf := range resolved {
+			if filter.FilesNarrowed() && !filter.MatchesFile(rf.Collection, rf.Relative) {
+				continue
+			}
 
-		sourceBlocks, rerr := a.readBlocksForChecks(ctx, rf.Path, rf.Format, sourceLang)
-		if rerr != nil {
-			// Surface the read failure as a finding rather than aborting the
-			// whole run: one unreadable file should not hide the rest.
-			files = append(files, CheckFileResult{
-				Path: rf.Path,
-				Findings: []DesktopFinding{{
-					Category: "io",
-					Severity: string(check.SeverityMajor),
-					Message:  rerr.Error(),
-				}},
-			})
-			continue
-		}
+			sourceBlocks, rerr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, sourceLang)
+			if rerr != nil {
+				// Surface the read failure as a finding rather than aborting the
+				// whole run: one unreadable file should not hide the rest.
+				files = append(files, CheckFileResult{
+					Path: rf.Path,
+					Findings: []DesktopFinding{{
+						Category: "io",
+						Severity: string(check.SeverityMajor),
+						Message:  rerr.Error(),
+					}},
+				})
+				continue
+			}
 
-		var fileFindings []DesktopFinding
+			var fileFindings []DesktopFinding
 
-		// Brand vocabulary — source-side, when a profile is bound. Runs once per
-		// file (independent of how many target languages are checked).
-		if profile != nil {
-			vocab := coretools.NewBrandVocabCheckTool(profile, nil)
-			for _, b := range sourceBlocks {
-				runCheckToolOnBlock(ctx, vocab, b)
-				if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
-					for _, f := range ann.Findings {
-						fileFindings = append(fileFindings, toDesktopFinding(f, b, "source"))
-						allFindings = append(allFindings, f)
+			// Brand vocabulary — source-side, when a profile is bound. Runs once per
+			// file (independent of how many target languages are checked).
+			if profile != nil {
+				vocab := coretools.NewBrandVocabCheckTool(profile, nil)
+				for _, b := range sourceBlocks {
+					cli.RunCheckTool(ctx, vocab, b)
+					if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
+						for _, f := range ann.Findings {
+							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source"))
+							allFindings = append(allFindings, f)
+						}
 					}
 				}
 			}
-		}
 
-		// Target-side checks, once per filtered language.
-		for _, lang := range filter.Languages {
-			if lang == "" {
-				continue
-			}
-			targetLoc := model.LocaleID(lang)
-			tgtPath := a.resolveTargetPath(rf, op, lang)
-			if tgtPath == "" {
-				continue
-			}
-			if _, serr := os.Stat(tgtPath); serr != nil {
-				continue
-			}
-			// Read source blocks fresh per language — overlayTargets mutates them.
-			passBlocks, perr := a.readBlocksForChecks(ctx, rf.Path, rf.Format, sourceLang)
-			if perr != nil {
-				continue
-			}
-			targetBlocks, terr := a.readBlocksForChecks(ctx, tgtPath, "", sourceLang)
-			if terr != nil {
-				continue
-			}
-			overlayTargets(passBlocks, targetBlocks, targetLoc)
-
-			// Placeholder integrity.
-			placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(targetLoc))
-			for _, b := range passBlocks {
-				runCheckToolOnBlock(ctx, placeholder, b)
-				for _, f := range findingsFromCheckBlock(b) {
-					fileFindings = append(fileFindings, toDesktopFinding(f, b, "target"))
-					allFindings = append(allFindings, f)
+			// Target-side checks, once per filtered language.
+			for _, lang := range filter.Languages {
+				if lang == "" {
+					continue
 				}
-			}
+				targetLoc := model.LocaleID(lang)
+				tgtPath := a.resolveTargetPath(rf, op, lang)
+				if tgtPath == "" {
+					continue
+				}
+				if _, serr := os.Stat(tgtPath); serr != nil {
+					continue
+				}
+				// Read source blocks fresh per language — OverlayTargets mutates
+				// them (a cached file replays cheaply).
+				passBlocks, perr := capp.ReadBlocksForCheck(ctx, rf.Path, rf.Format, sourceLang)
+				if perr != nil {
+					continue
+				}
+				targetBlocks, terr := capp.ReadBlocksForCheck(ctx, tgtPath, "", sourceLang)
+				if terr != nil {
+					continue
+				}
+				cli.OverlayTargets(passBlocks, targetBlocks, targetLoc)
 
-			// Do-not-translate: only when terms are configured.
-			if len(dntTerms) > 0 {
-				dntCfg := coretools.NewDNTCheckConfig(targetLoc)
-				dntCfg.Terms = dntTerms
-				dnt := coretools.NewDNTCheckTool(dntCfg)
+				// Placeholder integrity.
+				placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(targetLoc))
 				for _, b := range passBlocks {
-					runCheckToolOnBlock(ctx, dnt, b)
-					for _, f := range findingsFromCheckBlock(b) {
+					cli.RunCheckTool(ctx, placeholder, b)
+					for _, f := range cli.FindingsFromBlock(b, true) {
 						fileFindings = append(fileFindings, toDesktopFinding(f, b, "target"))
 						allFindings = append(allFindings, f)
 					}
 				}
-			}
-		}
 
-		sortDesktopFindings(fileFindings)
-		files = append(files, CheckFileResult{Path: rf.Path, Findings: fileFindings})
+				// Do-not-translate: only when terms are configured.
+				if len(dntTerms) > 0 {
+					dntCfg := coretools.NewDNTCheckConfig(targetLoc)
+					dntCfg.Terms = dntTerms
+					dnt := coretools.NewDNTCheckTool(dntCfg)
+					for _, b := range passBlocks {
+						cli.RunCheckTool(ctx, dnt, b)
+						for _, f := range cli.FindingsFromBlock(b, true) {
+							fileFindings = append(fileFindings, toDesktopFinding(f, b, "target"))
+							allFindings = append(allFindings, f)
+						}
+					}
+				}
+			}
+
+			sortDesktopFindings(fileFindings)
+			files = append(files, CheckFileResult{Path: rf.Path, Findings: fileFindings})
+		}
+		return nil
+	})
+	if runErr != nil {
+		return nil, runErr
 	}
 
 	score := check.CalculateScore(allFindings).Overall
@@ -199,6 +225,47 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 		Score: score,
 		Files: files,
 	}, nil
+}
+
+// checksCLI lazily builds the cli.App behind RunChecks, sharing the desktop's
+// plugin-wired format and tool registries so plugin-provided formats read
+// exactly as they do everywhere else in the app. Callers must hold checksMu.
+func (a *App) checksCLI() *cli.App {
+	if a.checks == nil {
+		a.checks = &cli.App{FormatReg: a.formatReg, ToolReg: a.toolReg}
+	}
+	return a.checks
+}
+
+// readBlocksForChecks reads a file's translatable blocks through the shared
+// CLI check pipeline (cli.App.ReadBlocksForCheck) — the adapter the review and
+// inspect paths use for one-shot reads outside a checks run. fmtName may be
+// empty to auto-detect by extension.
+func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName, sourceLang string) ([]*model.Block, error) {
+	a.checksMu.Lock()
+	defer a.checksMu.Unlock()
+	return a.checksCLI().ReadBlocksForCheck(ctx, path, fmtName, sourceLang)
+}
+
+// resolveProjectBrandProfile resolves the brand voice profile bound to the
+// open project through the CLI's full resolution ladder
+// (cli.App.ResolveBrandProfile): defaults.brand_voice (profile_file / pack /
+// local brand store) then the convention brand.yaml files at the project
+// root. Best-effort: nil when nothing is bound or resolution fails — the
+// brand vocabulary check is then skipped, matching the CLI's flag-free
+// behavior.
+func (a *App) resolveProjectBrandProfile(op *openProject) *brand.VoiceProfile {
+	if op == nil || op.Project == nil || op.Path == "" {
+		return nil
+	}
+	root := filepath.Dir(op.Path)
+	a.checksMu.Lock()
+	defer a.checksMu.Unlock()
+	p, _, ok, err := a.checksCLI().ResolveBrandProfile(context.Background(), op.Project, root, cli.BrandResolveOptions{})
+	if err != nil || !ok {
+		return nil
+	}
+	return p
 }
 
 // ApplyCheckFix applies a single finding's structured replacement to a block in
@@ -386,50 +453,6 @@ func (a *App) rewriteFile(ctx context.Context, filePath, fmtName, sourceLang str
 
 // --- helpers ---------------------------------------------------------------
 
-// readBlocksForChecks reads a file through its format reader and returns the
-// blocks. fmtName may be empty to auto-detect by extension.
-func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName, sourceLang string) ([]*model.Block, error) {
-	if fmtName == "" {
-		detected, err := a.formatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
-		if err != nil {
-			return nil, fmt.Errorf("detect format for %q: %w", filepath.Base(path), err)
-		}
-		fmtName = string(detected)
-	}
-	reader, err := a.formatReg.NewReader(registry.FormatID(fmtName))
-	if err != nil {
-		return nil, fmt.Errorf("no reader for %q: %w", fmtName, err)
-	}
-	defer reader.Close()
-
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", filepath.Base(path), err)
-	}
-	doc := &model.RawDocument{
-		URI:          path,
-		SourceLocale: model.LocaleID(sourceLang),
-		Encoding:     "UTF-8",
-		Reader:       io.NopCloser(bytes.NewReader(content)),
-	}
-	if err := reader.Open(ctx, doc); err != nil {
-		return nil, fmt.Errorf("open %q: %w", filepath.Base(path), err)
-	}
-
-	var blocks []*model.Block
-	for pr := range reader.Read(ctx) {
-		if pr.Error != nil {
-			return nil, fmt.Errorf("read %q: %w", filepath.Base(path), pr.Error)
-		}
-		if pr.Part != nil && pr.Part.Type == model.PartBlock {
-			if b, ok := pr.Part.Resource.(*model.Block); ok {
-				blocks = append(blocks, b)
-			}
-		}
-	}
-	return blocks, nil
-}
-
 // resolveTargetPath derives the on-disk path of the translated file for a
 // source file and target language, using the content item's Target template
 // (e.g. "locales/{lang}.json" or "output/{lang}/*"). Template expansion goes
@@ -443,119 +466,6 @@ func (a *App) resolveTargetPath(rf project.ResolvedFile, op *openProject, target
 	root := filepath.Dir(op.Path)
 	relSlash := filepath.ToSlash(rf.Relative)
 	return filepath.Join(root, project.ResolveTargetPath(rf.Item.Path, rf.Item.Base, rf.Item.Target, relSlash, targetLang))
-}
-
-// overlayTargets pairs target-file blocks onto source blocks by their stable
-// key (Name, else ID) and copies the target text/runs onto the source block as
-// the given target locale, mirroring cli.bilingualBlocks.
-func overlayTargets(sourceBlocks, targetBlocks []*model.Block, locale model.LocaleID) {
-	byKey := make(map[string]*model.Block, len(targetBlocks))
-	for _, tb := range targetBlocks {
-		byKey[checkBlockKey(tb)] = tb
-	}
-	for _, sb := range sourceBlocks {
-		tb, ok := byKey[checkBlockKey(sb)]
-		if !ok {
-			continue
-		}
-		if runs := tb.SourceRuns(); len(runs) > 0 {
-			sb.SetTargetRuns(locale, runs)
-		} else {
-			sb.SetTargetText(locale, tb.SourceText())
-		}
-	}
-}
-
-// checkBlockKey returns the stable pairing key for a block: Name when set, else ID.
-func checkBlockKey(b *model.Block) string {
-	if b.Name != "" {
-		return b.Name
-	}
-	return b.ID
-}
-
-// resolveProjectBrandProfile resolves the brand voice profile bound to the open
-// project, mirroring cli.resolveProjectBrandProfile (minus the cobra plumbing):
-//   - defaults.brand_voice → profile_file (relative to root) / pack / profile
-//     (local brand store under the kapi config dir)
-//   - convention files brand.yaml, .kapi/brand.yaml at the project root
-//
-// Returns nil when no binding is found — the vocabulary check is then skipped.
-func (a *App) resolveProjectBrandProfile(op *openProject) *brand.VoiceProfile {
-	if op.Path == "" {
-		return nil
-	}
-	root := filepath.Dir(op.Path)
-
-	if bv := op.Project.Defaults.BrandVoice; bv != nil {
-		switch {
-		case bv.ProfileFile != "":
-			p := bv.ProfileFile
-			if !filepath.IsAbs(p) {
-				p = filepath.Join(root, p)
-			}
-			if prof := loadCheckProfileFile(p); prof != nil {
-				return prof
-			}
-		case bv.Pack != "":
-			if prof, err := brandpacks.Load(bv.Pack); err == nil {
-				return prof
-			}
-		case bv.Profile != "":
-			if prof := a.lookupBrandStoreProfile(bv.Profile); prof != nil {
-				return prof
-			}
-		}
-	}
-
-	for _, conv := range []string{
-		filepath.Join(root, "brand.yaml"),
-		filepath.Join(root, project.StateDirName, "brand.yaml"),
-	} {
-		if prof := loadCheckProfileFile(conv); prof != nil {
-			return prof
-		}
-	}
-	return nil
-}
-
-// lookupBrandStoreProfile loads a profile by id (then slugged name) from the
-// local SQLite brand store under the kapi config dir. Returns nil on any miss.
-func (a *App) lookupBrandStoreProfile(name string) *brand.VoiceProfile {
-	dbPath := filepath.Join(kapiConfigDir(), "brand.db")
-	if _, err := os.Stat(dbPath); err != nil {
-		return nil
-	}
-	db, err := storage.Open(dbPath)
-	if err != nil {
-		return nil
-	}
-	store, err := brandstore.NewSQLiteBrandStore(db)
-	if err != nil {
-		_ = db.Close()
-		return nil
-	}
-	defer store.Close()
-	ctx := context.Background()
-	if p, gerr := store.GetProfile(ctx, name); gerr == nil {
-		return p
-	}
-	return nil
-}
-
-// loadCheckProfileFile loads a VoiceProfile YAML, returning nil when the file
-// does not exist or fails to parse (best-effort: the check is optional).
-func loadCheckProfileFile(path string) *brand.VoiceProfile {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-	p, err := brand.LoadProfileYAML(f)
-	if err != nil {
-		return nil
-	}
-	return p
 }
 
 // resolveProjectDNTTerms collects do-not-translate terms from the project's
@@ -605,37 +515,6 @@ func dntConcept(props map[string]string) bool {
 		}
 	}
 	return false
-}
-
-// runCheckToolOnBlock runs an annotate-only block tool over a single block in
-// place, mirroring cli.runCheckTool.
-func runCheckToolOnBlock(ctx context.Context, t interface {
-	Process(context.Context, <-chan *model.Part, chan<- *model.Part) error
-}, b *model.Block) {
-	in := make(chan *model.Part, 1)
-	out := make(chan *model.Part, 1)
-	in <- &model.Part{Type: model.PartBlock, Resource: b}
-	close(in)
-	errc := make(chan error, 1)
-	go func() {
-		defer close(out)
-		errc <- t.Process(ctx, in, out)
-	}()
-	for range out { //nolint:revive // drain
-	}
-	<-errc
-}
-
-// findingsFromCheckBlock reads (and clears) the unified check annotation off a
-// block. Clearing lets the same block be run through a second checker without
-// re-collecting the first checker's findings.
-func findingsFromCheckBlock(b *model.Block) []check.Finding {
-	ann, ok := model.AnnoAs[*check.FindingsAnnotation](b, check.AnnotationKey)
-	if !ok {
-		return nil
-	}
-	b.DelAnno(check.AnnotationKey)
-	return ann.Findings
 }
 
 // toDesktopFinding flattens a check.Finding for the panel, wiring the block ID,

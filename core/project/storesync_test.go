@@ -11,7 +11,6 @@ import (
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -52,7 +51,7 @@ func TestBlockStoreStale(t *testing.T) {
 	assert.True(t, project.BlockStoreStale(storePath), "no stamp ⇒ stale")
 	require.NoError(t, project.StampBlockStoreVersion(storePath))
 	assert.False(t, project.BlockStoreStale(storePath))
-	require.NoError(t, os.WriteFile(project.BlockStoreVersionStampPath(storePath), []byte(version.Version+"-other"), 0o644))
+	require.NoError(t, os.WriteFile(project.BlockStoreVersionStampPath(storePath), []byte("some-other-schema"), 0o644))
 	assert.True(t, project.BlockStoreStale(storePath))
 }
 

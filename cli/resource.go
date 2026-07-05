@@ -83,12 +83,7 @@ func resolveNamedResource(kind, name string) (string, error) {
 		return "", fmt.Errorf("resource name must not contain path separators: %q", name)
 	}
 
-	kapiHome, err := kapiHomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	dir := filepath.Join(kapiHome, kind)
+	dir := filepath.Join(ConfigDir(), kind)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("create directory %s: %w", dir, err)
 	}
@@ -98,12 +93,7 @@ func resolveNamedResource(kind, name string) (string, error) {
 
 // ListNamedResources lists all .db files in ~/.config/kapi/<kind>/.
 func ListNamedResources(kind string) ([]ResourceInfo, error) {
-	kapiHome, err := kapiHomeDir()
-	if err != nil {
-		return nil, err
-	}
-
-	dir := filepath.Join(kapiHome, kind)
+	dir := filepath.Join(ConfigDir(), kind)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -132,15 +122,20 @@ func ListNamedResources(kind string) ([]ResourceInfo, error) {
 	return resources, nil
 }
 
-// kapiHomeDir returns the KAPI_HOME directory (~/.config/kapi/).
-// Uses KAPI_CONFIG_DIR env var if set, otherwise os.UserConfigDir()/kapi.
-func kapiHomeDir() (string, error) {
+// ConfigDir returns the kapi config root — named resources (termbases, tm,
+// brands), flows, format presets, and the plugin dir all hang off it. It
+// honors the KAPI_CONFIG_DIR env override (the isolation contract), else
+// resolves to <os.UserConfigDir()>/kapi (~/.config/kapi on Linux,
+// ~/Library/Application Support/kapi on macOS). Shared by every surface that
+// derives kapi paths (the CLI, the Kapi Desktop backend), so the chain is
+// defined once.
+func ConfigDir() string {
 	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
-		return dir, nil
+		return dir
 	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	return filepath.Join(configDir, "kapi"), nil
+	return filepath.Join(configDir, "kapi")
 }

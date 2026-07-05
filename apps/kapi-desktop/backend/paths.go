@@ -3,9 +3,16 @@ package backend
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/neokapi/neokapi/cli"
+	appconfig "github.com/neokapi/neokapi/cli/config"
 )
 
-// Path resolution for the desktop app's default/system locations.
+// Path resolution for the desktop app's default/system locations. The chains
+// themselves live in the shared CLI runtime (cli.ConfigDir,
+// credentials.DefaultPath, config.GlobalConfigFilePath) so the desktop and
+// the kapi CLI derive identical paths; this file only names the desktop's
+// views of them.
 //
 // Every default path is overridable from the environment so the app can run
 // fully isolated from the user's real data (tests, demo recordings, CI):
@@ -22,28 +29,17 @@ import (
 // On macOS os.UserConfigDir() is ~/Library/Application Support and
 // os.UserHomeDir() is $HOME; on Linux they follow XDG.
 
-// kapiConfigDir returns the kapi config root (termbases, tm, flows, presets, plugins).
+// kapiConfigDir returns the kapi config root (termbases, tm, flows, presets,
+// plugins) — the shared cli.ConfigDir chain.
 func kapiConfigDir() string {
-	if d := os.Getenv("KAPI_CONFIG_DIR"); d != "" {
-		return d
-	}
-	cfg, err := os.UserConfigDir()
-	if err != nil {
-		return filepath.Join(os.Getenv("HOME"), ".config", "kapi")
-	}
-	return filepath.Join(cfg, "kapi")
+	return cli.ConfigDir()
 }
 
-// desktopConfigDir returns the kapi-desktop config root (settings, recent files).
+// desktopConfigDir returns the kapi-desktop config root (settings, recent
+// files): the directory of the shared per-app config chain
+// (config.GlobalConfigFilePath), which honors KAPI_DESKTOP_CONFIG_DIR.
 func desktopConfigDir() string {
-	if d := os.Getenv("KAPI_DESKTOP_CONFIG_DIR"); d != "" {
-		return d
-	}
-	cfg, err := os.UserConfigDir()
-	if err != nil {
-		return filepath.Join(os.Getenv("HOME"), ".config", "kapi-desktop")
-	}
-	return filepath.Join(cfg, "kapi-desktop")
+	return filepath.Dir(appconfig.GlobalConfigFilePath("kapi-desktop"))
 }
 
 // userHomeDir returns the user's home directory, used for default project and
