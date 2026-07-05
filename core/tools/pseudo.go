@@ -446,19 +446,19 @@ func pseudoTranslateRuns(runs []model.Run, cfg *PseudoConfig) []model.Run {
 		case r.Text != nil:
 			accented := accentTransform(r.Text.Text)
 			totalTextRunes += len([]rune(accented))
-			out = append(out, model.Run{Text: &model.TextRun{Text: accented}})
+			out = append(out, model.TextR(accented))
 		case r.Plural != nil:
 			forms := make(map[model.PluralForm][]model.Run, len(r.Plural.Forms))
 			for k, v := range r.Plural.Forms {
 				forms[k] = pseudoTranslateRuns(v, cfg)
 			}
-			out = append(out, model.Run{Plural: &model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}})
+			out = append(out, model.PluralR(model.PluralRun{Pivot: r.Plural.Pivot, Forms: forms}))
 		case r.Select != nil:
 			cases := make(map[string][]model.Run, len(r.Select.Cases))
 			for k, v := range r.Select.Cases {
 				cases[k] = pseudoTranslateRuns(v, cfg)
 			}
-			out = append(out, model.Run{Select: &model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}})
+			out = append(out, model.SelectR(model.SelectRun{Pivot: r.Select.Pivot, Cases: cases}))
 		default:
 			out = append(out, r)
 		}
@@ -475,7 +475,7 @@ func pseudoTranslateRuns(runs []model.Run, cfg *PseudoConfig) []model.Run {
 				last.Text.Text += padding
 				out[len(out)-1] = last
 			} else {
-				out = append(out, model.Run{Text: &model.TextRun{Text: padding}})
+				out = append(out, model.TextR(padding))
 			}
 		}
 	}
@@ -483,8 +483,8 @@ func pseudoTranslateRuns(runs []model.Run, cfg *PseudoConfig) []model.Run {
 	// Pass 3: wrap the whole sequence exactly once. Prefix goes in
 	// a new leading text run, suffix in a new trailing text run.
 	prefix, suffix := effectiveWrap(cfg)
-	out = append([]model.Run{{Text: &model.TextRun{Text: prefix}}}, out...)
-	out = append(out, model.Run{Text: &model.TextRun{Text: suffix}})
+	out = append([]model.Run{model.TextR(prefix)}, out...)
+	out = append(out, model.TextR(suffix))
 	return out
 }
 

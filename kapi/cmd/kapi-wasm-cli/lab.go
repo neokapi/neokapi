@@ -13,6 +13,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // labInspect reads a file through the kapi format reader and returns its full
@@ -57,7 +58,7 @@ func doInspect(path string) (result any) {
 	// would hand a 2.x document to the 1.2 reader (which can't parse <unit>
 	// and yields zero blocks). DetectFile sniffs among the candidates and
 	// falls back to the extension pick when sniffing is inconclusive.
-	fmtName, err := app.FormatReg.DetectFile(path, nil)
+	fmtName, err := app.FormatReg.Detect(path, registry.DetectOptions{})
 	if err != nil {
 		return errorResult("unsupported format for " + filepath.Base(path))
 	}

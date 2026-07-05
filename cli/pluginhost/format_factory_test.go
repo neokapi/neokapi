@@ -131,7 +131,7 @@ func TestRegisterModeCFormats_RegistersReaderAndWriter(t *testing.T) {
 	assert.Equal(t, []string{".fakefmt"}, info.Extensions)
 
 	// Detection by extension goes through the registered signature.
-	id, err := reg.DetectByExtension(".fakefmt")
+	id, err := reg.Detect(".fakefmt", registry.DetectOptions{ExtensionOnly: true})
 	require.NoError(t, err)
 	assert.Equal(t, registry.FormatID("fakefmt"), id)
 }

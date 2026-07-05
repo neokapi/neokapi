@@ -175,17 +175,17 @@ func offsetInBounds(runs []Run, idx, off int) bool {
 // themselves run sequences. This mirrors runsTextTo's branch selection exactly
 // so overlay locators agree with RunsText on plural/select-bearing blocks.
 func runFlatLen(r Run) int {
-	switch {
-	case r.Text != nil:
+	switch r.Kind() {
+	case RunKindText:
 		return len([]rune(r.Text.Text))
-	case r.Plural != nil:
+	case RunKindPlural:
 		if form, ok := r.Plural.Forms[PluralOther]; ok {
 			return runsFlatLen(form)
 		}
 		for _, form := range r.Plural.Forms {
 			return runsFlatLen(form)
 		}
-	case r.Select != nil:
+	case RunKindSelect:
 		if form, ok := r.Select.Cases["other"]; ok {
 			return runsFlatLen(form)
 		}

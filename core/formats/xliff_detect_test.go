@@ -56,13 +56,13 @@ func TestDetectXLIFFVersionByContent(t *testing.T) {
 			require.NoError(t, os.WriteFile(path, []byte(tc.body), 0o600))
 
 			// The content-blind helper picks the wrong reader for 2.x.
-			byExt, err := reg.DetectByExtension(tc.ext)
+			byExt, err := reg.Detect(tc.ext, registry.DetectOptions{ExtensionOnly: true})
 			require.NoError(t, err)
 			assert.Equal(t, registry.FormatID("xliff"), byExt,
 				"DetectByExtension is content-blind and always picks the 1.2 reader")
 
 			// The content-aware helper (used by the lab path) picks correctly.
-			got, err := reg.DetectFile(path, nil)
+			got, err := reg.Detect(path, registry.DetectOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
@@ -98,7 +98,7 @@ func TestLabInspectBilingualXLIFF2(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "doc.xliff")
 		require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
 
-		fid, err := reg.DetectFile(path, nil)
+		fid, err := reg.Detect(path, registry.DetectOptions{})
 		require.NoError(t, err)
 		require.Equal(t, registry.FormatID("xliff2"), fid)
 

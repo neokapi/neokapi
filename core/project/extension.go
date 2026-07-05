@@ -2,8 +2,8 @@ package project
 
 import (
 	"fmt"
-	"sync"
 
+	"github.com/neokapi/neokapi/core/project/internal/extregistry"
 	"gopkg.in/yaml.v3"
 )
 
@@ -69,16 +69,9 @@ type Extension struct {
 	Decoder ExtensionDecoder
 }
 
-var (
-	extMu      sync.RWMutex
-	extensions = map[extKey]Extension{}
-	extGroups  = map[string]struct{}{}
-)
-
-type extKey struct {
-	scope Scope
-	name  string
-}
+// The registry state lives in the internal extregistry package so the public
+// test-support package (core/project/projecttest) can reset it between tests
+// without this package exporting a test hook.
 
 // RegisterExtension records one (Scope, Name) → Decoder binding. Safe to
 // call from package init(). Re-registering the same (Scope, Name) panics
@@ -88,15 +81,12 @@ func RegisterExtension(ext Extension) {
 	if ext.Name == "" {
 		panic("project: RegisterExtension: empty Name")
 	}
-	k := extKey{ext.Scope, ext.Name}
-	extMu.Lock()
-	defer extMu.Unlock()
-	if _, exists := extensions[k]; exists {
-		panic(fmt.Sprintf("project: RegisterExtension: duplicate registration for %s/%s", ext.Scope, ext.Name))
+	var decode func(node yaml.Node) error
+	if ext.Decoder != nil {
+		decode = ext.Decoder.Decode
 	}
-	extensions[k] = ext
-	if ext.Group != "" {
-		extGroups[ext.Group] = struct{}{}
+	if !extregistry.Register(int(ext.Scope), ext.Name, extregistry.Entry{Group: ext.Group, Decode: decode}) {
+		panic(fmt.Sprintf("project: RegisterExtension: duplicate registration for %s/%s", ext.Scope, ext.Name))
 	}
 }
 
@@ -129,29 +119,24 @@ func ExtensionRegistered(scope Scope, name string) (group string, ok bool) {
 // Group has been registered. Used by KapiProject.Validate to enforce
 // recipe-level `requires:` declarations.
 func HasExtensionGroup(group string) bool {
-	extMu.RLock()
-	defer extMu.RUnlock()
-	_, ok := extGroups[group]
-	return ok
-}
-
-// ResetExtensionsForTest clears the registry. Tests that register
-// extensions should call this in setup so they start from a clean slate.
-// Never called from production code.
-func ResetExtensionsForTest() {
-	extMu.Lock()
-	defer extMu.Unlock()
-	extensions = map[extKey]Extension{}
-	extGroups = map[string]struct{}{}
+	return extregistry.HasGroup(group)
 }
 
 // extensionFor returns the registered extension for (scope, name), or
 // the zero Extension and false when none is registered.
+//
+// Tests that register extensions reset the underlying registry via
+// projecttest.ResetExtensions.
 func extensionFor(scope Scope, name string) (Extension, bool) {
-	extMu.RLock()
-	defer extMu.RUnlock()
-	e, ok := extensions[extKey{scope, name}]
-	return e, ok
+	e, ok := extregistry.Lookup(int(scope), name)
+	if !ok {
+		return Extension{}, false
+	}
+	x := Extension{Name: name, Scope: scope, Group: e.Group}
+	if e.Decode != nil {
+		x.Decoder = ExtensionDecoderFunc(e.Decode)
+	}
+	return x, true
 }
 
 // validateExtras walks one Extras map and runs any registered decoder

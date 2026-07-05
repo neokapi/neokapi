@@ -84,19 +84,38 @@ type ToolGroupMemberInfo struct {
 	HasSchema   bool   `json:"hasSchema"`
 }
 
-// probeSourceTransform reports whether a default-constructed tool from factory
-// is source-transform-capable (tool.CapTransform). It is the DRY source of
+// probeTool default-constructs a tool from factory and reports whether it is
+// source-transform-capable (tool.CapTransform). It is the DRY source of
 // truth — capability comes from the tool's handler, not a hand-maintained flag.
+// It also enforces the exactly-one-capability-handler contract at registration:
+// a tool whose default construction sets more than one typed handler panics
+// here (init-time programmer error, matching the registry's other invariants)
+// instead of silently losing a handler to precedence dispatch.
 // Guarded: a factory that panics on default construction yields false.
-func probeSourceTransform(factory ToolFactory) (result bool) {
-	if factory == nil {
+func probeTool(name ToolID, factory ToolFactory) bool {
+	t := safeConstruct(factory)
+	if t == nil {
 		return false
 	}
-	defer func() { _ = recover() }()
-	if c, ok := factory().(tool.Capable); ok {
+	if v, ok := t.(interface{ ValidateHandlers() error }); ok {
+		if err := v.ValidateHandlers(); err != nil {
+			panic(fmt.Sprintf("registry: register tool %q: %v", name, err))
+		}
+	}
+	if c, ok := t.(tool.Capable); ok {
 		return c.Capability() == tool.CapTransform
 	}
 	return false
+}
+
+// safeConstruct invokes factory, converting a construction panic into a nil
+// tool so registration-time probes degrade gracefully.
+func safeConstruct(factory ToolFactory) (t tool.Tool) {
+	if factory == nil {
+		return nil
+	}
+	defer func() { _ = recover() }()
+	return factory()
 }
 
 // copyToolMeta copies all ToolMeta fields into a ToolInfo.
@@ -158,7 +177,7 @@ func (r *ToolRegistry) Register(name ToolID, factory ToolFactory) {
 	defer r.mu.Unlock()
 	r.tools[name] = &ToolRegistration{
 		Factory: factory,
-		Info:    ToolInfo{Name: name, Source: SourceBuiltIn, IsSourceTransform: probeSourceTransform(factory)},
+		Info:    ToolInfo{Name: name, Source: SourceBuiltIn, IsSourceTransform: probeTool(name, factory)},
 	}
 }
 
@@ -170,7 +189,7 @@ func (r *ToolRegistry) RegisterWithSchema(name ToolID, factory ToolFactory, s *s
 		Name:              name,
 		Source:            SourceBuiltIn,
 		HasSchema:         s != nil,
-		IsSourceTransform: probeSourceTransform(factory),
+		IsSourceTransform: probeTool(name, factory),
 	}
 	if s != nil {
 		info.DisplayName = s.Title
@@ -322,7 +341,20 @@ func (r *ToolRegistry) NewToolWithConfig(name ToolID, config map[string]any, tar
 	}
 
 	if reg.ConfigFactory != nil {
-		return reg.ConfigFactory(config, targetLang)
+		t, err := reg.ConfigFactory(config, targetLang)
+		if err != nil {
+			return nil, err
+		}
+		// Config-built tools bypass the registration-time probe, so enforce
+		// the exactly-one-capability-handler contract here (natural error
+		// path); Process would reject the tool anyway, but this fails at
+		// construction with the tool's name attached.
+		if v, ok := t.(interface{ ValidateHandlers() error }); ok {
+			if err := v.ValidateHandlers(); err != nil {
+				return nil, fmt.Errorf("tool %s: %w", name, err)
+			}
+		}
+		return t, nil
 	}
 	if reg.Factory != nil {
 		return reg.Factory(), nil

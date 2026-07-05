@@ -36,6 +36,12 @@ type ExecutorConfig struct {
 	// session; stream-only tools are unaffected. Defaults to
 	// blockstore.NewMemoryStore() (ephemeral).
 	Store blockstore.Store
+	// ImmutabilityCheck controls the per-block immutability hash backstop in
+	// tool dispatch (see tool.WithImmutabilityCheck). NewExecutor seeds it
+	// once, at construction, from the deprecated tool.EnforceImmutability
+	// global (false by default, so production runs skip the hashing);
+	// WithImmutabilityCheck overrides per executor.
+	ImmutabilityCheck bool
 }
 
 // ExecutorOption is a functional option for configuring a DefaultExecutor.
@@ -73,6 +79,18 @@ func WithCollectors(c ...Collector) ExecutorOption {
 	}
 }
 
+// WithImmutabilityCheck controls whether tool dispatch runs the immutability
+// hash backstop on every block this executor processes — a dev/test aid that
+// catches handlers mutating content in place through the live run slices their
+// read-only view hands back. Off by default in production executors (the
+// per-block hashing is measurable overhead); pass true in tests or when
+// vetting third-party tools.
+func WithImmutabilityCheck(enabled bool) ExecutorOption {
+	return func(c *ExecutorConfig) {
+		c.ImmutabilityCheck = enabled
+	}
+}
+
 // WithBlockStore sets the BlockStore used for SessionTool dispatch.
 // Defaults to blockstore.NewMemoryStore(). Pass a persistent store
 // (e.g. sqlitestore.New for a project's .kapi/cache/blocks.db) to enable
@@ -100,6 +118,9 @@ func NewExecutor(opts ...ExecutorOption) *DefaultExecutor {
 		MaxConcurrency: 1,
 		ChannelSize:    64,
 		FailFast:       true,
+		// Seed the default once, at construction, from the compatibility
+		// knob — embeddings that still set the global keep their behavior.
+		ImmutabilityCheck: tool.EnforceImmutability, //nolint:staticcheck // deliberate: the deprecated global seeds the executor default
 	}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -200,6 +221,9 @@ func (e *DefaultExecutor) processItemCollect(ctx context.Context, f *Flow, item 
 	session := newSyncSession(rawSession)
 
 	g, ctx := errgroup.WithContext(ctx)
+	// Fix the immutability-backstop setting for every tool dispatch in this
+	// pipeline (per-executor scope; see WithImmutabilityCheck).
+	ctx = tool.WithImmutabilityCheck(ctx, e.config.ImmutabilityCheck)
 
 	// Create channels: one input, one between each pair of tools, one output
 	channels := make([]chan *model.Part, len(tools)+1)
@@ -462,6 +486,9 @@ func (e *DefaultExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) (in 
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
+	// Fix the immutability-backstop setting for every tool dispatch in this
+	// pipeline (per-executor scope; see WithImmutabilityCheck).
+	ctx = tool.WithImmutabilityCheck(ctx, e.config.ImmutabilityCheck)
 	// All tools share this one session and run concurrently in their own
 	// goroutines, so guard it against concurrent use (see syncSession).
 	session := newSyncSession(rawSession)

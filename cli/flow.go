@@ -371,7 +371,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	// clobber it by reprocessing the source.
 	srcFmt := fmtName
 	if srcFmt == "" {
-		if det, derr := a.FormatReg.DetectByExtension(filepath.Ext(inputPath)); derr == nil {
+		if det, derr := a.FormatReg.Detect(inputPath, registry.DetectOptions{ExtensionOnly: true}); derr == nil {
 			srcFmt = string(det)
 		}
 	}
@@ -400,7 +400,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	if tracePath != "" && recorder != nil {
 		detectedFmt := fmtName
 		if detectedFmt == "" {
-			detected, _ := a.FormatReg.DetectByExtension(filepath.Ext(inputPath))
+			detected, _ := a.FormatReg.Detect(inputPath, registry.DetectOptions{ExtensionOnly: true})
 			detectedFmt = string(detected)
 		}
 		a.writeTraceFile(tracePath, flowName, detectedFmt, inputPath, outputPath, recorder, stepNames)
@@ -620,7 +620,7 @@ func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName,
 		if fmtName == "" {
 			// Content-aware: disambiguates extensions claimed by several formats
 			// (e.g. .xliff 1.x vs 2.x) by the file head, not extension alone.
-			detected, err := a.FormatReg.DetectFile(inputPath, nil)
+			detected, err := a.FormatReg.Detect(inputPath, registry.DetectOptions{})
 			if err != nil {
 				return "", nil, fmt.Errorf("unable to detect format: %w", err)
 			}
@@ -712,7 +712,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 	// user's intent declaration.
 	writerFormatName := registryName
 	if ext := filepath.Ext(outputPath); ext != "" {
-		if det, err := a.FormatReg.DetectByExtension(ext); err == nil && det != "" {
+		if det, err := a.FormatReg.Detect(outputPath, registry.DetectOptions{ExtensionOnly: true}); err == nil && det != "" {
 			writerFormatName = string(det)
 		}
 	}

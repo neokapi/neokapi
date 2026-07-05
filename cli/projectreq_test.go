@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/cli/pluginhost"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/project/projecttest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,8 +30,8 @@ func writeRecipe(t *testing.T, content string) string {
 }
 
 func TestLoadProjectInteractive_NoRequires_Loads(t *testing.T) {
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	path := writeRecipe(t, "version: v1\n")
 	app := &App{}
@@ -42,8 +43,8 @@ func TestLoadProjectInteractive_NoRequires_Loads(t *testing.T) {
 }
 
 func TestLoadProjectInteractive_NonTTY_NoYes_ReturnsActionableError(t *testing.T) {
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	path := writeRecipe(t, requiresRecipe)
 	app := &App{}
@@ -57,8 +58,8 @@ func TestLoadProjectInteractive_NonTTY_NoYes_ReturnsActionableError(t *testing.T
 }
 
 func TestLoadProjectInteractive_TTY_Confirm_InstallsAndRevalidates(t *testing.T) {
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	path := writeRecipe(t, requiresRecipe)
 
@@ -97,8 +98,8 @@ func TestLoadProjectInteractive_TTY_Confirm_InstallsAndRevalidates(t *testing.T)
 }
 
 func TestLoadProjectInteractive_TTY_DeclineConfirm_ReturnsActionableError(t *testing.T) {
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	path := writeRecipe(t, requiresRecipe)
 
@@ -122,8 +123,8 @@ func TestLoadProjectInteractive_TTY_DeclineConfirm_ReturnsActionableError(t *tes
 }
 
 func TestLoadProjectInteractive_AssumeYes_NonTTY_Installs(t *testing.T) {
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	path := writeRecipe(t, requiresRecipe)
 
@@ -156,8 +157,8 @@ func TestLoadProjectInteractive_AssumeYes_NonTTY_Installs(t *testing.T) {
 }
 
 func TestLoadProjectInteractive_InstallFails_PropagatesError(t *testing.T) {
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	path := writeRecipe(t, requiresRecipe)
 
@@ -179,8 +180,8 @@ func TestLoadProjectInteractive_InstallFails_PropagatesError(t *testing.T) {
 }
 
 func TestLoadProjectInteractive_PostInstallValidateRequires_FailsWhenStillMissing(t *testing.T) {
-	project.ResetExtensionsForTest()
-	defer project.ResetExtensionsForTest()
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
 
 	path := writeRecipe(t, requiresRecipe)
 
