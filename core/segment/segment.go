@@ -25,6 +25,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"sync"
 
@@ -200,4 +201,25 @@ func Descriptors() []EngineDescriptor {
 		return out[i].Name < out[j].Name
 	})
 	return out
+}
+
+// SnapshotEnginesForTest returns a copy of the process-wide engine registry.
+// Test support only: contract-snapshot tests pin a deterministic engine set
+// with [ReplaceEnginesForTest] (plugin discovery at binary init can register
+// machine-dependent engines) and restore the snapshot afterwards.
+func SnapshotEnginesForTest() map[string]EngineDescriptor {
+	mu.RLock()
+	defer mu.RUnlock()
+	out := make(map[string]EngineDescriptor, len(engines))
+	maps.Copy(out, engines)
+	return out
+}
+
+// ReplaceEnginesForTest replaces the process-wide engine registry. Test
+// support only; see [SnapshotEnginesForTest].
+func ReplaceEnginesForTest(set map[string]EngineDescriptor) {
+	mu.Lock()
+	defer mu.Unlock()
+	engines = make(map[string]EngineDescriptor, len(set))
+	maps.Copy(engines, set)
 }
