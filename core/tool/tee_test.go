@@ -1,6 +1,7 @@
 package tool
 
 import (
+	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -22,7 +23,7 @@ func TestTee_TwoOutputs(t *testing.T) {
 	}
 	close(in)
 
-	Tee(in, out1, out2)
+	Tee(t.Context(), in, out1, out2)
 
 	// Both outputs should receive all 3 parts
 	var got1, got2 []*model.Part
@@ -46,7 +47,7 @@ func TestTee_SingleOutput(t *testing.T) {
 	in <- &model.Part{Type: model.PartBlock}
 	close(in)
 
-	Tee(in, out)
+	Tee(t.Context(), in, out)
 
 	p := <-out
 	assert.Equal(t, model.PartBlock, p.Type)
@@ -61,8 +62,33 @@ func TestTee_Empty(t *testing.T) {
 	out := make(chan *model.Part, 1)
 	close(in)
 
-	Tee(in, out)
+	Tee(t.Context(), in, out)
 
 	_, ok := <-out
 	assert.False(t, ok) // output should be closed
+}
+
+// TestTee_CancelUnblocksBlockedSend verifies Tee returns (and closes its
+// outputs) when the context is cancelled while a send is blocked on an
+// unread output channel — previously a permanent goroutine leak.
+func TestTee_CancelUnblocksBlockedSend(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	in := make(chan *model.Part, 2)
+	out := make(chan *model.Part) // unbuffered, never read
+
+	in <- &model.Part{Type: model.PartBlock}
+	in <- &model.Part{Type: model.PartData}
+	close(in)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		Tee(ctx, in, out)
+	}()
+
+	cancel()
+	<-done // returns instead of blocking forever
+
+	_, ok := <-out
+	assert.False(t, ok, "output must be closed after cancellation")
 }

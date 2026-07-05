@@ -173,12 +173,10 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
-	sem := make(chan struct{}, concurrency)
+	g.SetLimit(concurrency) // Go blocks until a slot frees
 
 	for _, file := range files {
-		sem <- struct{}{}
 		g.Go(func() error {
-			defer func() { <-sem }()
 			active.Add(1)
 
 			var info *batchTraceInfo
