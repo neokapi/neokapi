@@ -1,0 +1,13 @@
+{
+  "partType": 7,
+  "media": {
+    "id": "m1",
+    "mimeType": "image/png",
+    "data": "iVBORw==",
+    "uri": "img/logo.png",
+    "altText": "Logo",
+    "properties": {
+      "w": "64"
+    }
+  }
+}

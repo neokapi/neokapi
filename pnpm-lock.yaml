@@ -904,6 +904,9 @@ importers:
       '@mlc-ai/web-llm':
         specifier: ^0.2.79
         version: 0.2.84
+      '@neokapi/contract-types':
+        specifier: '*'
+        version: link:../contract-types
       '@neokapi/ui-primitives':
         specifier: '*'
         version: link:../ui

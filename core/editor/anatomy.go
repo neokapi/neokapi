@@ -22,6 +22,14 @@ import (
 // the run-native content model (RFC 0001). Segment boundaries are exposed only
 // as a secondary overlay view ([]SegmentSpan, by run-index range), sourced from
 // the Block's stand-off segmentation overlay (AD-002).
+//
+// ContentTree is a PROJECTION, not a wire contract (AD-034): a purpose-built,
+// lossy view for explorers and previews. Its run payloads serialize with the
+// model's canonical Run JSON (model.Run.MarshalJSON — the RFC 0001
+// discriminated union, with flat `{"text":"…"}` text runs), but the node
+// envelope around them is this package's own shape and may evolve with the
+// editor. The canonical serialization of the content model is the
+// neokapi.content.v1 schema (core/proto/content/v1) and its protojson form.
 type ContentTree struct {
 	Format string         `json:"format"`
 	Root   []*ContentNode `json:"root"`

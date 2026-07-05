@@ -8,6 +8,12 @@ import (
 
 // BlockIndex stores all block and structural data for one item.
 // It enables O(1) random access to blocks and reconstruction without the original source.
+//
+// BlockIndex is a PROJECTION, not a wire contract (AD-034): it deliberately
+// flattens each Block's run sequence to plain `source`/`source_html` strings
+// for editor listings, and is versioned independently by `kat_version`. The
+// canonical serialization of the content model is the neokapi.content.v1
+// schema (core/proto/content/v1) and its protojson form.
 type BlockIndex struct {
 	Version        string      `json:"kat_version"`
 	SourceLanguage string      `json:"source_language"`

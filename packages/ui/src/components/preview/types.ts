@@ -1,9 +1,12 @@
-// Canonical lab data contracts, mirroring the Go wire types:
+// Lab data contracts consumed by the explorers and the flow-visualization
+// page:
 //   - FlowTrace  ← core/flow/trace.go        (the --trace / runWithTrace output)
 //   - ContentTree ← core/editor/anatomy.go    (the labInspect output)
 //
-// These are the single source of truth the lab explorers consume; the
-// flow-visualization page and any other host import them from here.
+// The ContentTree family is generated from Go into @neokapi/contract-types
+// (AD-034) and re-exported/refined below — see the section comment. FlowTrace
+// stays a local mirror. Both are projections of the content model, not wire
+// contracts; hosts import them from here.
 
 // ── FlowTrace (pipeline tracing) ─────────────────────────────────────────────
 
@@ -105,11 +108,73 @@ export interface Particle {
 
 // ── ContentTree (anatomy) ────────────────────────────────────────────────────
 //
-// Mirrors core/editor.ContentTree. The Block atom is a flat run sequence
-// (Source/Targets); Segments is a secondary run-index overlay.
+// The ContentTree family is no longer hand-mirrored here: the structural
+// envelope types are generated from the Go source of truth into
+// @neokapi/contract-types (content.gen.ts, via scripts/gen-contract-types —
+// AD-034) and re-exported below. ContentTree is a labeled PROJECTION of the
+// content model, not a wire contract; its runs use the model's canonical Run
+// JSON (RFC 0001).
+//
+// Where this file intentionally diverges from the generated reality, it keeps
+// a local refinement built ON TOP of the generated type (Omit + extend), so
+// field drift still propagates from Go:
+//   - `Run`/`CodeRun`: the local Run keeps the historical loose shape (an
+//     interface with all-optional discriminator keys, and a merged `CodeRun`
+//     for ph/pcOpen/pcClose with most fields optional). The generated
+//     contract-types `Run` is the strict union with required per-kind fields;
+//     the many existing fixtures and the coded-text bridge author runs against
+//     the loose shape. TODO(#817/AD-034): migrate consumers to the strict
+//     generated `Run` union and drop the local one.
+//   - `OverlayType` / `ContentNodeKind`: hand string-literal narrowings of
+//     fields the Go structs type as plain strings.
+//   - `OverlayView.spans`: kept required (the Go tag is omitempty, so the
+//     engine may omit it; existing consumers assume presence — unchanged).
+
+import type {
+  AnnotationView as GenAnnotationView,
+  ContentNode as GenContentNode,
+  ContentStats as GenContentStats,
+  ContentTree as GenContentTree,
+  GeometryAnnotation,
+  GeometryView as GenGeometryView,
+  GlyphView as GenGlyphView,
+  MediaView as GenMediaView,
+  OriginView,
+  OverlaySpanView,
+  OverlayView as GenOverlayView,
+  RelationView as GenRelationView,
+  RenderNode as GenRenderNode,
+  RunRange as GenRunRange,
+  SegmentSpan as GenSegmentSpan,
+  StructureView as GenStructureView,
+  TargetMeta as GenTargetMeta,
+  TimingView as GenTimingView,
+} from "@neokapi/contract-types";
+
+// Exact matches: pure re-exports (some under their historical local names).
+export type ContentStats = GenContentStats;
+export type SegmentSpan = GenSegmentSpan;
+export type TargetMeta = GenTargetMeta;
+export type Origin = OriginView;
+export type RunRange = GenRunRange;
+export type OverlaySpan = OverlaySpanView;
+export type AnnotationView = GenAnnotationView;
+export type StructureView = GenStructureView;
+export type RelationView = GenRelationView;
+export type GeometryView = GenGeometryView;
+export type GlyphView = GenGlyphView;
+export type TimingView = GenTimingView;
+export type MediaView = GenMediaView;
+/** Page geometry on a render node — generated model.GeometryAnnotation. */
+export type RenderGeometry = GeometryAnnotation;
 
 export type RunKind = "text" | "ph" | "pcOpen" | "pcClose" | "sub" | "plural" | "select";
 
+/**
+ * Merged loose shape for ph/pcOpen/pcClose payloads (see the divergence note
+ * above; the strict per-kind interfaces are PlaceholderRun / PcOpenRun /
+ * PcCloseRun in @neokapi/contract-types).
+ */
 export interface CodeRun {
   id: string;
   type?: string;
@@ -143,6 +208,8 @@ export interface SelectRun {
  * A run is an object with exactly one discriminator key (RFC 0001). Text runs
  * serialize flat — `{"text":"literal"}` — per Framework AD-002, so `text` is a
  * plain string; every other kind nests its struct under its discriminator key.
+ * Loose local mirror (see the divergence note above); the strict generated
+ * union is `Run` in @neokapi/contract-types.
  */
 export interface Run {
   text?: string;
@@ -154,53 +221,6 @@ export interface Run {
   select?: SelectRun;
 }
 
-export interface SegmentSpan {
-  id: string;
-  start: number;
-  end: number;
-}
-
-// ── Rich block detail (mirrors the extended anatomy serializer) ──────────────
-// These optional fields let the Block inspector show everything the content
-// model carries — committed-target provenance, stand-off overlays and
-// block-level annotations — not just the run sequences. They are omitted by
-// older engine builds, so every consumer treats them as optional.
-
-/** Provenance of a committed translation (mirrors model.Origin). */
-export interface Origin {
-  kind?: string; // human | tm | mt | ai
-  engine?: string;
-  tool?: string;
-  reference?: string;
-  timestamp?: string;
-}
-
-/** Lifecycle + provenance metadata for one target variant. */
-export interface TargetMeta {
-  status?: string; // "" | draft | translated | reviewed | signed-off
-  score?: number;
-  origin?: Origin;
-  tone?: string;
-  channel?: string;
-}
-
-export interface RunRange {
-  startRun: number;
-  startOffset: number;
-  endRun: number;
-  endOffset: number;
-}
-
-/** One run-anchored span within an overlay, with its extracted text. */
-export interface OverlaySpan {
-  id?: string;
-  range: RunRange;
-  props?: Record<string, string>;
-  /** The source/target text the span covers (extracted by the engine). */
-  text?: string;
-  ignorable?: boolean;
-}
-
 export type OverlayType =
   | "segmentation"
   | "term"
@@ -210,225 +230,52 @@ export type OverlayType =
   | "redaction"
   | "tm";
 
-/** A typed stand-off interpretation layered over one side of a block. */
-export interface OverlayView {
+/**
+ * A typed stand-off interpretation layered over one side of a block.
+ * Refinement of the generated OverlayView: `type` narrowed to OverlayType,
+ * `spans` kept required (see the divergence note above).
+ */
+export interface OverlayView extends Omit<GenOverlayView, "type" | "spans"> {
   type: OverlayType;
-  /** "source" or the target variant key (e.g. "fr-FR"). */
-  side: string;
-  layer?: string;
   spans: OverlaySpan[];
-}
-
-/** A block-level annotation (alt-translation, note, or generic). */
-export interface AnnotationView {
-  key: string;
-  type: string; // alt-translation | note | <generic kind>
-  summary?: string;
-  fields?: Record<string, unknown>;
-}
-
-/**
- * The block's structural role (the WS1 structural layer): what the block IS in
- * the document — a heading (with level), a list item, a table cell, furniture
- * (running header/footer) — and its reading order. Mirrors editor.StructureView.
- */
-export interface StructureView {
-  /** Normalized semantic role: heading | title | paragraph | list-item | table-cell | caption | … */
-  role?: string;
-  /** Layout layer / plane: body | furniture | background | overlay | metadata. */
-  layer?: string;
-  /** Presence condition: "" (visible) | conditional | hidden | print-only | screen-only. */
-  visibility?: string;
-  /** Heading / nesting level (1–9), 0 when not applicable. */
-  level?: number;
-  /** Explicit reading-order index when the source provides one. */
-  readingOrder?: number;
-}
-
-/** A cross-block edge (caption-of / footnote-of / label-for / triggers /
- * references). Mirrors editor.RelationView. */
-export interface RelationView {
-  type: string;
-  target: string;
-}
-
-/**
- * Where the block sits on a rendered page (the WS1 structural layer): page
- * number + bounding box in the coordinate space named by origin/resolution.
- * Mirrors editor.GeometryView. Present only for layout-aware sources (PDF,
- * Docling/DocLang, slide/sheet coordinates).
- */
-export interface GeometryView {
-  /** 1-based page number; 0 = unpaginated/unknown. */
-  page?: number;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  /** Edge length of the normalized coordinate grid (DocLang uses 512); 0 = absolute units. */
-  resolution?: number;
-  /** "top-left" (default) or "bottom-left". */
-  origin?: string;
-  /** Stacking order within the plane (higher = nearer the viewer); 0 = base. */
-  z?: number;
-  /** Optional per-character boxes within the block (same coord space as x/y/w/h). */
-  glyphs?: GlyphView[];
-}
-
-/** One character's text and box (GeometryView.glyphs). Mirrors editor.GlyphView. */
-export interface GlyphView {
-  text?: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-/**
- * A block's temporal anchor on a time-based source (subtitles, audio, video):
- * the [startMs, endMs) span it is spoken/shown over, plus an optional source ref
- * (the cue id in the originating file). Mirrors editor.TimingView. Present only
- * for timed sources (SRT/VTT/TTML, audio/video transcripts).
- */
-export interface TimingView {
-  /** Cue start, milliseconds from the media origin. */
-  startMs: number;
-  /** Cue end, milliseconds from the media origin. */
-  endMs: number;
-  /** The cue id / reference in the source file, when one exists. */
-  sourceRef?: string;
-}
-
-/**
- * Structured descriptor of the binary media a node carries or refers to (the
- * image being OCR'd, the audio/video being subtitled). Mirrors editor.MediaView.
- * `uri` is the default resolvable location; `blobKey`/`hasData` let a host
- * resolve bytes it holds out-of-band (a desktop content store, a wasm blob map).
- */
-export interface MediaView {
-  /** MIME type (e.g. "image/png", "audio/mpeg", "video/mp4"). */
-  mimeType?: string;
-  /** Original file name, when known. */
-  filename?: string;
-  /** A directly resolvable URL/URI for the media, when the source provides one. */
-  uri?: string;
-  /** An opaque key a host can use to look the bytes up in its own store. */
-  blobKey?: string;
-  /** True when the engine is holding the bytes inline (resolve via the host). */
-  hasData?: boolean;
-  /** Byte size, when known. */
-  size?: number;
 }
 
 export type ContentNodeKind = "layer" | "group" | "block" | "data" | "media";
 
-export interface ContentNode {
+/**
+ * One node in a ContentTree. Refinement of the generated ContentNode: `kind`
+ * narrowed to ContentNodeKind, runs/overlays/children repointed at the local
+ * loose Run and refined OverlayView/ContentNode.
+ */
+export interface ContentNode extends Omit<
+  GenContentNode,
+  "kind" | "source" | "targets" | "overlays" | "children"
+> {
   kind: ContentNodeKind;
-  id: string;
-  name?: string;
-  properties?: Record<string, string>;
-  // layer
-  format?: string;
-  locale?: string;
-  parentId?: string;
-  // block
-  type?: string;
-  translatable?: boolean;
-  sourceLocale?: string;
   source?: Run[];
   targets?: Record<string, Run[]>;
-  /** Per-variant lifecycle + provenance, keyed like `targets`. */
-  targetMeta?: Record<string, TargetMeta>;
-  segments?: SegmentSpan[];
-  /** Stand-off overlays (terms, entities, QA, alignment, extra segmentation). */
   overlays?: OverlayView[];
-  /** Block-level annotations. */
-  annotations?: AnnotationView[];
-  /** The structural role layer (WS1): role, layout layer, level, reading order. */
-  structure?: StructureView;
-  /** Page geometry (WS1): page + bounding box, for layout-aware sources. */
-  geometry?: GeometryView;
-  /** Temporal anchor (WS1): [startMs, endMs) cue span, for timed sources. */
-  timing?: TimingView;
-  /** Cross-block relationship edges (caption-of / footnote-of / …). */
-  relations?: RelationView[];
-  hasSkeleton?: boolean;
-  isReferent?: boolean;
-  preserveWhitespace?: boolean;
-  /** Content-addressable identity hash, when present. */
-  identity?: string;
-  // data / media
-  /** Legacy/flat MIME hint on a data or media node. Prefer the structured `media`. */
-  mimeType?: string;
-  /** Structured media descriptor (mime, filename, uri, blob key) for a media node. */
-  media?: MediaView;
-  summary?: string;
-  // containers
   children?: ContentNode[];
-}
-
-export interface ContentStats {
-  layers: number;
-  groups: number;
-  blocks: number;
-  data: number;
-  media: number;
-  runs: number;
-}
-
-/**
- * Optional page geometry on a render node (mirrors model.GeometryAnnotation's
- * JSON), present only for layout-bearing formats (PDF, Docling, slides).
- */
-export interface RenderGeometry {
-  page?: number;
-  bbox: { x: number; y: number; w: number; h: number };
-  resolution?: number;
-  origin?: string;
-  z?: number;
 }
 
 /**
  * RenderNode is the normalized generative-projection render AST built in Go
- * (core/projection) and shipped on ContentTree.render. It mirrors the Go
- * RenderNode field-for-field: a node is structural (carries `children`:
- * document, table, table-row, list) or a leaf (carries `runs`: paragraph,
- * heading, table-cell, list-item, code, …). The preview renders this tree
- * directly — inline runs as semantic markup, table topology as a real grid —
- * instead of re-deriving structure from the raw content tree.
+ * (core/projection) and shipped on ContentTree.render. Refinement of the
+ * generated RenderNode: runs/children repointed at the local loose Run and
+ * this recursive type.
  */
-export interface RenderNode {
-  /** Canonical semantic role (model.Role*) or a projection role ("document", "table-row"). */
-  role?: string;
-  /** Heading level / list nesting depth; 0 when n/a. */
-  level?: number;
-  /** Inline content of a leaf node. */
+export interface RenderNode extends Omit<GenRenderNode, "runs" | "children"> {
   runs?: Run[];
-  /** Structural children (rows of a table, items of a list, cells of a row). */
   children?: RenderNode[];
-  /** Source block Properties verbatim (code.language, table.header-kind, …). */
-  props?: Record<string, string>;
-  geometry?: RenderGeometry;
-  /** Merged-cell extents, meaningful on table-cell / table-header nodes. */
-  colSpan?: number;
-  rowSpan?: number;
-  /** True for a header cell (table-header). */
-  header?: boolean;
-  /** True for an ordered (numbered) list. */
-  ordered?: boolean;
-  /** Source block ID, for overlay anchoring + cross-reference to the content tree. */
-  blockId?: string;
 }
 
-export interface ContentTree {
-  format: string;
+/**
+ * The hierarchical content-model view (the labInspect output) — a labeled
+ * projection (AD-034). Refinement of the generated ContentTree over the
+ * refined ContentNode/RenderNode.
+ */
+export interface ContentTree extends Omit<GenContentTree, "root" | "render"> {
   root: ContentNode[];
-  stats: ContentStats;
-  /**
-   * The generative-projection render AST for the same stream (core/projection),
-   * built once in Go. Present on newer engine builds; consumers treat it as
-   * optional and fall back to deriving a render model from `root`.
-   */
   render?: RenderNode;
 }
 

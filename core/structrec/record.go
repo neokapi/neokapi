@@ -19,6 +19,11 @@ import (
 // retrieve → edit → write-back — an AI agent or RAG pipeline reads these
 // records, retrieves against the anchors, and writes edits back to the same
 // blocks (by ID).
+//
+// Record is a declared PROJECTION, not a wire contract (AD-034): it flattens
+// inline runs to placeholder text on purpose. The canonical serialization of
+// the content model is the neokapi.content.v1 schema (core/proto/content/v1)
+// and its protojson form.
 type Record struct {
 	// File is the source filename. Set by `kapi inspect` (which may span several
 	// files); omitted by the single-stream conversion writers.

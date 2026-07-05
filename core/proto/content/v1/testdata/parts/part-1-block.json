@@ -1,0 +1,19 @@
+{
+  "partType": 5,
+  "block": {
+    "id": "b1",
+    "translatable": true,
+    "source": [
+      {
+        "id": "s1",
+        "runs": [
+          {
+            "text": {
+              "text": "Hello"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

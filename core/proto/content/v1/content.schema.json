@@ -1,0 +1,681 @@
+{
+  "$defs": {
+    "AnnotationEntry": {
+      "properties": {
+        "data": {
+          "contentEncoding": "base64",
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "BlockMessage": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AnnotationEntry"
+          },
+          "type": "object"
+        },
+        "displayHint": {
+          "$ref": "#/$defs/DisplayHintMessage"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isReferent": {
+          "type": "boolean"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "overlays": {
+          "items": {
+            "$ref": "#/$defs/OverlayMessage"
+          },
+          "type": "array"
+        },
+        "preserveWhitespace": {
+          "type": "boolean"
+        },
+        "properties": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "skeleton": {
+          "$ref": "#/$defs/SkeletonMessage"
+        },
+        "source": {
+          "items": {
+            "$ref": "#/$defs/SegmentMessage"
+          },
+          "type": "array"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/TargetEntry"
+          },
+          "type": "array"
+        },
+        "translatable": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ContentBlock": {
+      "properties": {
+        "annotations": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AnnotationEntry"
+          },
+          "type": "object"
+        },
+        "displayHint": {
+          "$ref": "#/$defs/DisplayHintMessage"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "overlays": {
+          "items": {
+            "$ref": "#/$defs/OverlayMessage"
+          },
+          "type": "array"
+        },
+        "preserveWhitespace": {
+          "type": "boolean"
+        },
+        "properties": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "source": {
+          "items": {
+            "$ref": "#/$defs/SegmentMessage"
+          },
+          "type": "array"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/TargetEntry"
+          },
+          "type": "array"
+        },
+        "translatable": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ContentRef": {
+      "oneOf": [
+        {
+          "required": [
+            "inline"
+          ]
+        },
+        {
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "required": [
+            "uri"
+          ]
+        }
+      ],
+      "properties": {
+        "inline": {
+          "contentEncoding": "base64",
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "DataMessage": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "isReferent": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "skeleton": {
+          "$ref": "#/$defs/SkeletonMessage"
+        }
+      },
+      "type": "object"
+    },
+    "DisplayHintMessage": {
+      "properties": {
+        "contentType": {
+          "type": "string"
+        },
+        "context": {
+          "type": "string"
+        },
+        "maxLength": {
+          "type": "integer"
+        },
+        "preview": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "GroupEndMessage": {
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "GroupStartMessage": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "LayerMessage": {
+      "properties": {
+        "encoding": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "hasBom": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isMultilingual": {
+          "type": "boolean"
+        },
+        "lineBreak": {
+          "type": "string"
+        },
+        "locale": {
+          "type": "string"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parentId": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "MediaMessage": {
+      "properties": {
+        "altText": {
+          "type": "string"
+        },
+        "data": {
+          "contentEncoding": "base64",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "uri": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "OverlayMessage": {
+      "properties": {
+        "layer": {
+          "type": "string"
+        },
+        "spans": {
+          "items": {
+            "$ref": "#/$defs/SpanMessage"
+          },
+          "type": "array"
+        },
+        "type": {
+          "type": "string"
+        },
+        "variant": {
+          "$ref": "#/$defs/VariantMessage"
+        }
+      },
+      "type": "object"
+    },
+    "PartMessage": {
+      "properties": {
+        "block": {
+          "$ref": "#/$defs/BlockMessage"
+        },
+        "data": {
+          "$ref": "#/$defs/DataMessage"
+        },
+        "groupEnd": {
+          "$ref": "#/$defs/GroupEndMessage"
+        },
+        "groupStart": {
+          "$ref": "#/$defs/GroupStartMessage"
+        },
+        "layer": {
+          "$ref": "#/$defs/LayerMessage"
+        },
+        "media": {
+          "$ref": "#/$defs/MediaMessage"
+        },
+        "partType": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "PcCloseRunMessage": {
+      "properties": {
+        "data": {
+          "type": "string"
+        },
+        "equiv": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "subType": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "PcOpenRunMessage": {
+      "properties": {
+        "constraints": {
+          "$ref": "#/$defs/RunConstraints"
+        },
+        "data": {
+          "type": "string"
+        },
+        "disp": {
+          "type": "string"
+        },
+        "equiv": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "subType": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "PlaceholderRunMessage": {
+      "properties": {
+        "constraints": {
+          "$ref": "#/$defs/RunConstraints"
+        },
+        "data": {
+          "type": "string"
+        },
+        "disp": {
+          "type": "string"
+        },
+        "equiv": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "subType": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "PluralRunMessage": {
+      "properties": {
+        "forms": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RunList"
+          },
+          "type": "object"
+        },
+        "pivot": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "RunConstraints": {
+      "properties": {
+        "cloneable": {
+          "type": "boolean"
+        },
+        "deletable": {
+          "type": "boolean"
+        },
+        "reorderable": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "RunList": {
+      "properties": {
+        "runs": {
+          "items": {
+            "$ref": "#/$defs/RunMessage"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "RunMessage": {
+      "oneOf": [
+        {
+          "required": [
+            "text"
+          ]
+        },
+        {
+          "required": [
+            "ph"
+          ]
+        },
+        {
+          "required": [
+            "pcOpen"
+          ]
+        },
+        {
+          "required": [
+            "pcClose"
+          ]
+        },
+        {
+          "required": [
+            "sub"
+          ]
+        },
+        {
+          "required": [
+            "plural"
+          ]
+        },
+        {
+          "required": [
+            "select"
+          ]
+        }
+      ],
+      "properties": {
+        "pcClose": {
+          "$ref": "#/$defs/PcCloseRunMessage"
+        },
+        "pcOpen": {
+          "$ref": "#/$defs/PcOpenRunMessage"
+        },
+        "ph": {
+          "$ref": "#/$defs/PlaceholderRunMessage"
+        },
+        "plural": {
+          "$ref": "#/$defs/PluralRunMessage"
+        },
+        "select": {
+          "$ref": "#/$defs/SelectRunMessage"
+        },
+        "sub": {
+          "$ref": "#/$defs/SubRunMessage"
+        },
+        "text": {
+          "$ref": "#/$defs/TextRunMessage"
+        }
+      },
+      "type": "object"
+    },
+    "RunRangeMessage": {
+      "properties": {
+        "endOffset": {
+          "type": "integer"
+        },
+        "endRun": {
+          "type": "integer"
+        },
+        "startOffset": {
+          "type": "integer"
+        },
+        "startRun": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "SegmentMessage": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "runs": {
+          "items": {
+            "$ref": "#/$defs/RunMessage"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "SelectRunMessage": {
+      "properties": {
+        "cases": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RunList"
+          },
+          "type": "object"
+        },
+        "pivot": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "SkeletonMessage": {
+      "properties": {
+        "parts": {
+          "items": {
+            "$ref": "#/$defs/SkeletonPartMessage"
+          },
+          "type": "array"
+        },
+        "sourceUri": {
+          "type": "string"
+        },
+        "strategy": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "SkeletonPartMessage": {
+      "properties": {
+        "locale": {
+          "type": "string"
+        },
+        "property": {
+          "type": "string"
+        },
+        "resourceId": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "SpanMessage": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "props": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "range": {
+          "$ref": "#/$defs/RunRangeMessage"
+        },
+        "value": {
+          "$ref": "#/$defs/AnnotationEntry"
+        }
+      },
+      "type": "object"
+    },
+    "SubRunMessage": {
+      "properties": {
+        "equiv": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "TargetEntry": {
+      "properties": {
+        "locale": {
+          "type": "string"
+        },
+        "segments": {
+          "items": {
+            "$ref": "#/$defs/SegmentMessage"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "TextRunMessage": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "VariantMessage": {
+      "properties": {
+        "channel": {
+          "type": "string"
+        },
+        "locale": {
+          "type": "string"
+        },
+        "tone": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://neokapi.org/schemas/content/v1/content.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "GENERATED by scripts/gen-contract-types — DO NOT EDIT. JSON Schema for the canonical content-model JSON (AD-034): protojson of core/proto/content/v1/content.proto with the fixed options in json.go. The protojson golden files under core/proto/content/v1/testdata are the binding contract; this schema is a generated convenience for non-proto consumers. Unknown properties are permitted (the canonical decoder ignores them for forward compatibility).",
+  "title": "neokapi.content.v1 canonical JSON"
+}

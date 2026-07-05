@@ -1,0 +1,22 @@
+{
+  "partType": 6,
+  "data": {
+    "id": "d1",
+    "name": "header",
+    "properties": {
+      "raw": "<!doctype html>"
+    },
+    "skeleton": {
+      "parts": [
+        {
+          "text": "<!doctype html>"
+        },
+        {
+          "resourceId": "b1",
+          "property": "source"
+        }
+      ]
+    },
+    "isReferent": true
+  }
+}

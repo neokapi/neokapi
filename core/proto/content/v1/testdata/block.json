@@ -1,0 +1,132 @@
+{
+  "id": "golden-1",
+  "name": "greeting.title",
+  "type": "paragraph",
+  "mimeType": "text/html",
+  "translatable": true,
+  "source": [
+    {
+      "id": "s1",
+      "runs": [
+        {
+          "text": {
+            "text": "Hello "
+          }
+        },
+        {
+          "ph": {
+            "id": "ph1",
+            "type": "jsx:var",
+            "data": "{name}",
+            "equiv": "name"
+          }
+        },
+        {
+          "text": {
+            "text": ". Welcome."
+          }
+        }
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "locale": "de-DE",
+      "segments": [
+        {
+          "id": "s1",
+          "runs": [
+            {
+              "text": {
+                "text": "Hallo. Willkommen."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "locale": "fr-FR",
+      "segments": [
+        {
+          "id": "s1",
+          "runs": [
+            {
+              "text": {
+                "text": "Bonjour. "
+              }
+            }
+          ]
+        },
+        {
+          "id": "s2",
+          "runs": [
+            {
+              "text": {
+                "text": "Bienvenue."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "properties": {
+    "context": "landing page"
+  },
+  "annotations": {
+    "alt-translation": {
+      "type": "alt-translation",
+      "data": "eyJpdGVtcyI6W3sidGFyZ2V0IjpbeyJ0ZXh0IjoiU2FsdXQuIEJpZW52ZW51ZS4ifV0sImxvY2FsZSI6ImZyLUZSIiwib3JpZ2luIjoidG0iLCJzY29yZSI6MC45MiwibWF0Y2hUeXBlIjoiZnV6enkiLCJ0b29sSWQiOiJ0bS1sZXZlcmFnZSJ9XX0="
+    },
+    "note": {
+      "type": "note",
+      "data": "eyJpdGVtcyI6W3sidGV4dCI6ImtlZXAgdGhlIGdyZWV0aW5nIGluZm9ybWFsIiwiZnJvbSI6InJldmlld2VyIiwicHJpb3JpdHkiOjJ9XX0="
+    }
+  },
+  "displayHint": {
+    "maxLength": 120,
+    "contentType": "heading",
+    "context": "page header",
+    "preview": "Greeting…"
+  },
+  "skeleton": {
+    "parts": [
+      {
+        "text": "<title>"
+      },
+      {
+        "resourceId": "golden-1",
+        "property": "target",
+        "locale": "fr-FR"
+      },
+      {
+        "text": "</title>"
+      }
+    ],
+    "sourceUri": "source://file.html"
+  },
+  "preserveWhitespace": true,
+  "isReferent": true,
+  "overlays": [
+    {
+      "type": "term",
+      "spans": [
+        {
+          "id": "t1",
+          "range": {
+            "endRun": 1,
+            "endOffset": 5
+          },
+          "props": {
+            "concept": "c-42"
+          },
+          "value": {
+            "type": "term",
+            "data": "eyJTb3VyY2VUZXJtIjoiSGVsbG8iLCJDb25jZXB0SUQiOiJjLTQyIiwiVGFyZ2V0VGVybXMiOm51bGwsIlN0YXR1cyI6IiIsIlNjb3JlIjoxLCJNYXRjaFR5cGUiOiIifQ=="
+          }
+        }
+      ]
+    }
+  ]
+}

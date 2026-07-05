@@ -9,6 +9,7 @@
 // Boot is lazy: nothing is fetched until `boot()` is first called (i.e. when
 // the modal first opens). Subsequent opens reuse the warm instance.
 
+import type { ContentTree } from "@neokapi/contract-types";
 import { createMemFS } from "./memfs";
 import type { MemVolume } from "./memfs";
 import { installPdfiumBridge } from "./pdfiumBridge";
@@ -45,11 +46,12 @@ export interface InspectResult {
   error?: string;
   format?: string;
   /**
-   * Parsed ContentTree (the hierarchical content-model view). Typed as unknown
-   * here so the kit stays lab-agnostic; @neokapi/kapi-lab casts it to its
-   * ContentTree type.
+   * Parsed ContentTree (the hierarchical content-model view), typed with the
+   * generated projection shape from @neokapi/contract-types (AD-034 —
+   * generated from the Go core/editor structs, so it cannot drift).
+   * @neokapi/kapi-lab layers its own loose refinement on top.
    */
-  tree?: unknown;
+  tree?: ContentTree;
   bytes?: number;
 }
 
