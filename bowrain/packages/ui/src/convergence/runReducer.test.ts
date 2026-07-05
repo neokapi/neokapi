@@ -167,4 +167,45 @@ describe("reduceRun", () => {
     const incremental = events.reduce(applyEvent, emptyRunModel());
     expect(incremental).toEqual(reduceRun(events));
   });
+
+  // F12: the live stream is state-less on locale_done — the per-locale
+  // shippable/parked verdict is authoritative from the run's final standing.
+  it("marks a state-less locale_done as done without inventing a ship verdict", () => {
+    const m = reduceRun([
+      { type: "pass_start", pass: 1, maxPasses: 3, pending: ["fr-FR"] },
+      { type: "locale_start", pass: 1, locale: "fr-FR", units: 8 },
+      { type: "unit_progress", pass: 1, locale: "fr-FR", done: 8, viaTM: 5, viaAI: 3 },
+      // No `state` on locale_done — the engine no longer emits it live.
+      { type: "locale_done", pass: 1, locale: "fr-FR", units: 8, done: 8, viaTM: 5, viaAI: 3 },
+    ]);
+    const row = m.passes[0].rows[0];
+    expect(row.state).toBe("done"); // lifecycle terminal for the pass
+    expect(row.localeState).toBeUndefined(); // no fabricated ship verdict
+  });
+
+  it("derives the streaming row lifecycle from coverage (done/units), not from state", () => {
+    // Full coverage mid-stream reads as done even before locale_done arrives.
+    const covered = reduceRun([
+      { type: "pass_start", pass: 1, maxPasses: 1, pending: ["de-DE"] },
+      { type: "locale_start", pass: 1, locale: "de-DE", units: 5 },
+      { type: "unit_progress", pass: 1, locale: "de-DE", done: 5, viaAI: 5 },
+    ]);
+    expect(covered.passes[0].rows[0].state).toBe("done");
+
+    // Partial coverage reads as running.
+    const partial = reduceRun([
+      { type: "pass_start", pass: 1, maxPasses: 1, pending: ["de-DE"] },
+      { type: "locale_start", pass: 1, locale: "de-DE", units: 5 },
+      { type: "unit_progress", pass: 1, locale: "de-DE", done: 2, viaAI: 2 },
+    ]);
+    expect(partial.passes[0].rows[0].state).toBe("running");
+  });
+
+  it("still adopts a per-locale verdict when a compat stream carries state on locale_done", () => {
+    const m = reduceRun([
+      { type: "pass_start", pass: 1, maxPasses: 1, pending: ["fr-FR"] },
+      { type: "locale_done", pass: 1, locale: "fr-FR", units: 4, done: 4, state: "shippable" },
+    ]);
+    expect(m.passes[0].rows[0].localeState).toBe("shippable");
+  });
 });

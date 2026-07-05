@@ -23,7 +23,12 @@ export interface ConvergenceLocaleRow {
   viaTM: number;
   viaAI: number;
   state: LocaleRowState;
-  /** shippable | parked | pending — set once locale_done arrives. */
+  /**
+   * Authoritative per-locale ship verdict (shippable | parked | pending). The
+   * live stream is state-less, so this stays undefined while streaming — the
+   * badge falls back to `state` (the coverage-derived lifecycle) — and is only
+   * set from the run's terminal standing (or a compat state-carrying event).
+   */
   localeState?: string;
 }
 
@@ -61,6 +66,19 @@ export function emptyRunModel(): ConvergenceRunModel {
 
 function newRow(locale: string): ConvergenceLocaleRow {
   return { locale, units: 0, done: 0, viaTM: 0, viaAI: 0, state: "queued" };
+}
+
+/**
+ * deriveRowState derives a locale's lifecycle from coverage alone. The live
+ * stream does not carry a per-locale ship state, so the streaming badge is
+ * driven by progress: all units covered → done, some work started → running,
+ * else queued. The authoritative shippable/parked verdict comes from the run's
+ * terminal standing (REST), never inferred here.
+ */
+function deriveRowState(row: ConvergenceLocaleRow): LocaleRowState {
+  if (row.units > 0 && row.done >= row.units) return "done";
+  if (row.done > 0 || row.units > 0) return "running";
+  return "queued";
 }
 
 /** Find (or, defensively, create) a locale row in a pass. */
@@ -108,8 +126,8 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
       const pass = currentPass();
       if (pass && ev.locale) {
         const row = ensureRow(pass, ev.locale);
-        row.state = "running";
         if (ev.units != null) row.units = ev.units;
+        row.state = deriveRowState(row);
       }
       break;
     }
@@ -117,10 +135,10 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
       const pass = currentPass();
       if (pass && ev.locale) {
         const row = ensureRow(pass, ev.locale);
-        if (row.state === "queued") row.state = "running";
         row.done = ev.done ?? 0;
         row.viaTM = ev.viaTM ?? 0;
         row.viaAI = ev.viaAI ?? 0;
+        row.state = deriveRowState(row);
       }
       break;
     }
@@ -128,12 +146,16 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
       const pass = currentPass();
       if (pass && ev.locale) {
         const row = ensureRow(pass, ev.locale);
-        row.state = "done";
         if (ev.units != null) row.units = ev.units;
         row.done = ev.done ?? row.done;
         row.viaTM = ev.viaTM ?? row.viaTM;
         row.viaAI = ev.viaAI ?? row.viaAI;
-        row.localeState = ev.state;
+        // locale_done is terminal for the row within this pass.
+        row.state = "done";
+        // The live stream is state-less; only adopt a per-locale ship verdict
+        // when the event actually carries one (compat streams / final standing
+        // replayed as events). Never clobber a prior verdict with undefined.
+        if (ev.state) row.localeState = ev.state;
       }
       break;
     }
