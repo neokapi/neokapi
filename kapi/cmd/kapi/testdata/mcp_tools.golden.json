@@ -2540,10 +2540,6 @@
               "value": "uax29"
             },
             {
-              "label": "ML model (SaT)",
-              "value": "sat"
-            },
-            {
               "label": "LLM (semantic chunks)",
               "value": "llm"
             }
@@ -2552,7 +2548,6 @@
           "type": "string",
           "ui:enum-descriptions": {
             "llm": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
-            "sat": "wtpsplit Segment-any-Text ML model. Best for noisy, unpunctuated, or mixed-script multilingual text.",
             "srx": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
             "uax29": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions."
           },

@@ -10,6 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/segment"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,6 +29,24 @@ import (
 //
 // and note the change in web/docs/reference/cli-contract.md (MCP section).
 func TestMCPToolSurfaceSnapshot(t *testing.T) {
+	// Hermetic engine registry: this package's root.go init() runs
+	// InitPluginHost at process start, so on a developer machine plugin
+	// discovery registers machine-dependent segment engines (e.g. a
+	// brew-installed kapi-sat) into the process-wide registry before any
+	// test code — env isolation cannot help — and the segmentation tool's
+	// schema would embed them into the golden, which CI (no plugins) can
+	// never reproduce. The stable contract is the builtin binary's engines;
+	// pin exactly those and restore the live registry afterwards.
+	liveEngines := segment.SnapshotEnginesForTest()
+	t.Cleanup(func() { segment.ReplaceEnginesForTest(liveEngines) })
+	builtins := map[string]segment.EngineDescriptor{}
+	for _, name := range []string{"srx", "uax29", "llm"} {
+		if d, ok := liveEngines[name]; ok {
+			builtins[name] = d
+		}
+	}
+	segment.ReplaceEnginesForTest(builtins)
+
 	app := &cli.App{}
 	app.InitRegistries()
 
