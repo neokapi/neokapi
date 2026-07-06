@@ -18,26 +18,26 @@ func TestParseEntryLocator(t *testing.T) {
 	require.NoError(t, os.WriteFile(plain, []byte("{}"), 0o644))
 
 	t.Run("archive!entry parses", func(t *testing.T) {
-		loc, ok := ParseEntryLocator(zipPath + "!locales/en.json")
+		loc, ok := parseEntryLocator(zipPath + "!locales/en.json")
 		require.True(t, ok)
 		assert.Equal(t, zipPath, loc.Archive)
 		assert.Equal(t, "locales/en.json", loc.Entry)
 	})
 	t.Run("leading slash on entry trimmed", func(t *testing.T) {
-		loc, ok := ParseEntryLocator(zipPath + "!/a.json")
+		loc, ok := parseEntryLocator(zipPath + "!/a.json")
 		require.True(t, ok)
 		assert.Equal(t, "a.json", loc.Entry)
 	})
 	t.Run("plain path with bang but no container ext is not a locator", func(t *testing.T) {
-		_, ok := ParseEntryLocator(plain)
+		_, ok := parseEntryLocator(plain)
 		assert.False(t, ok)
 	})
 	t.Run("nonexistent archive is not a locator", func(t *testing.T) {
-		_, ok := ParseEntryLocator(filepath.Join(dir, "missing.zip") + "!a.json")
+		_, ok := parseEntryLocator(filepath.Join(dir, "missing.zip") + "!a.json")
 		assert.False(t, ok)
 	})
 	t.Run("empty entry is not a locator", func(t *testing.T) {
-		_, ok := ParseEntryLocator(zipPath + "!")
+		_, ok := parseEntryLocator(zipPath + "!")
 		assert.False(t, ok)
 	})
 }

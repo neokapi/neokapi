@@ -19,16 +19,16 @@ func init() {
 	RegisterMCPToolFactory(registerEditMCPTools)
 }
 
-// ApplyEditsInput is a typed change-set: the same shape `kapi apply` consumes.
+// applyEditsInput is a typed change-set: the same shape `kapi apply` consumes.
 // Each entry is a content edit or an asset edit (term/tm/brand/recipe).
-type ApplyEditsInput struct {
+type applyEditsInput struct {
 	Changeset []changeEntry `json:"changeset" jsonschema:"the typed change-set entries to apply"`
 }
 
-// ApplyEditsMCPOutput reports the per-block content outcome and per-entry asset
+// applyEditsMCPOutput reports the per-block content outcome and per-entry asset
 // outcomes; OK is false when any edit drifted (stale) or was rejected by the
 // inline-code guard, signalling the caller to re-inspect and retry.
-type ApplyEditsMCPOutput struct {
+type applyEditsMCPOutput struct {
 	OK      bool          `json:"ok"`
 	Applied []string      `json:"applied,omitempty"`
 	Skipped []string      `json:"skipped,omitempty"`
@@ -41,12 +41,12 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "apply_edits",
 		Description: "Apply a typed change-set — the one write verb. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (glossary term, TM pair, brand rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used.",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, in ApplyEditsInput) (*mcp.CallToolResult, ApplyEditsMCPOutput, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 		return a.applyEditsMCP(ctx, in)
 	})
 }
 
-func (a *App) applyEditsMCP(ctx context.Context, in ApplyEditsInput) (*mcp.CallToolResult, ApplyEditsMCPOutput, error) {
+func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 	var out applyOutput
 
 	byFile := map[string][]changeEntry{}
@@ -60,7 +60,7 @@ func (a *App) applyEditsMCP(ctx context.Context, in ApplyEditsInput) (*mcp.CallT
 		switch e.Kind {
 		case kindContent:
 			if e.File == "" {
-				return nil, ApplyEditsMCPOutput{}, fmt.Errorf("content entry for block %q has no \"file\"", e.ID)
+				return nil, applyEditsMCPOutput{}, fmt.Errorf("content entry for block %q has no \"file\"", e.ID)
 			}
 			if _, seen := byFile[e.File]; !seen {
 				fileOrder = append(fileOrder, e.File)
@@ -69,9 +69,9 @@ func (a *App) applyEditsMCP(ctx context.Context, in ApplyEditsInput) (*mcp.CallT
 		case kindTerm, kindTM, kindBrand, kindRecipe:
 			out.Assets = append(out.Assets, a.applyAssetEntry(ctx, cmd, e))
 		case "":
-			return nil, ApplyEditsMCPOutput{}, errors.New("change-set entry has no \"kind\"")
+			return nil, applyEditsMCPOutput{}, errors.New("change-set entry has no \"kind\"")
 		default:
-			return nil, ApplyEditsMCPOutput{}, fmt.Errorf("unknown change kind %q", e.Kind)
+			return nil, applyEditsMCPOutput{}, fmt.Errorf("unknown change kind %q", e.Kind)
 		}
 	}
 
@@ -80,7 +80,7 @@ func (a *App) applyEditsMCP(ctx context.Context, in ApplyEditsInput) (*mcp.CallT
 		byID, byHash := buildEditMaps(byFile[file])
 		t := coretools.NewApplyEditsTool(byID, byHash, report)
 		if derr := a.EditDocument(ctx, file, t, "", true, "", nil); derr != nil {
-			return nil, ApplyEditsMCPOutput{}, fmt.Errorf("%s: %w", DisplayName(file), derr)
+			return nil, applyEditsMCPOutput{}, fmt.Errorf("%s: %w", DisplayName(file), derr)
 		}
 		out.Content.Applied = append(out.Content.Applied, report.Applied...)
 		out.Content.Skipped = append(out.Content.Skipped, report.Skipped...)
@@ -88,7 +88,7 @@ func (a *App) applyEditsMCP(ctx context.Context, in ApplyEditsInput) (*mcp.CallT
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
 	}
 
-	return nil, ApplyEditsMCPOutput{
+	return nil, applyEditsMCPOutput{
 		OK:      out.ok(),
 		Applied: out.Content.Applied,
 		Skipped: out.Content.Skipped,

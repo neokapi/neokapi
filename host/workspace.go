@@ -15,8 +15,8 @@ import (
 	"github.com/neokapi/neokapi/klz"
 )
 
-// WorkspaceExt is the file extension for a .klz project snapshot.
-const WorkspaceExt = ".klz"
+// workspaceExt is the file extension for a .klz project snapshot.
+const workspaceExt = ".klz"
 
 // A .klz now carries the FULL project recipe (core/project.KapiProject), one
 // source of truth for intent (AD-025 §6). The helpers below centralize the

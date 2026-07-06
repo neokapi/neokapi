@@ -193,7 +193,7 @@ examples:
 // --name/--local/--file resource flags (default ./brand.db), mirroring the
 // termbase/tm pattern.
 func (a *App) OpenBrandStore(cmd Command) (*brandstore.SQLiteBrandStore, string, error) {
-	dbPath, err := ResolveResourcePath(cmd, "brands", "brand.db")
+	dbPath, err := resolveResourcePath(cmd, "brands", "brand.db")
 	if err != nil {
 		return nil, "", err
 	}
@@ -346,7 +346,7 @@ func (a *App) resolveProjectBrandProfile(cmd Command, locale, channel string) (*
 	// The local brand store from the standard --name/--local/--file resource
 	// flags; commands without those flags fall through to the ./brand.db
 	// default, exactly as before.
-	storePath, err := ResolveResourcePath(cmd, "brands", "brand.db")
+	storePath, err := resolveResourcePath(cmd, "brands", "brand.db")
 	if err != nil {
 		return nil, "", false, err
 	}
@@ -479,7 +479,7 @@ func loadProfileFile(path string) (*brand.VoiceProfile, error) {
 // lookupStoreProfile finds a profile in the local store by ID or by name,
 // resolving the store from the standard resource flags.
 func (a *App) lookupStoreProfile(cmd Command, name string) (*brand.VoiceProfile, error) {
-	dbPath, err := ResolveResourcePath(cmd, "brands", "brand.db")
+	dbPath, err := resolveResourcePath(cmd, "brands", "brand.db")
 	if err != nil {
 		return nil, err
 	}

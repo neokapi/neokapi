@@ -20,7 +20,7 @@ import (
 // locator) and streams its Blocks — the read backbone for kcat/kgrep/inspect on
 // one inner file. Only that entry is read (random-access for ZIP, scan for TAR);
 // the whole archive is never loaded.
-func (a *App) streamEntryBlocks(ctx context.Context, loc EntryLocator, fn func(index int, b *model.Block) error) (string, error) {
+func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, fn func(index int, b *model.Block) error) (string, error) {
 	content, _, err := container.OpenEntry(loc.Archive, loc.Entry)
 	if err != nil {
 		return "", fmt.Errorf("%s!%s: %w", loc.Archive, loc.Entry, err)
@@ -141,7 +141,7 @@ func (a *App) editBytes(ctx context.Context, name string, content []byte, t *too
 // In place (-i): the edited entry is spliced back into the archive (every other
 // member byte-for-byte). Otherwise the edited entry's content is written to out
 // (you addressed one file, so you get that file's edited text).
-func (a *App) editArchiveEntry(ctx context.Context, loc EntryLocator, t *tool.BaseTool, writeLocale model.LocaleID, inPlace bool, backupSuffix string, out io.Writer) error {
+func (a *App) editArchiveEntry(ctx context.Context, loc entryLocator, t *tool.BaseTool, writeLocale model.LocaleID, inPlace bool, backupSuffix string, out io.Writer) error {
 	content, _, err := container.OpenEntry(loc.Archive, loc.Entry)
 	if err != nil {
 		return fmt.Errorf("%s!%s: %w", loc.Archive, loc.Entry, err)

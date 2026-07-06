@@ -44,12 +44,12 @@ func (a *App) ResolveTMCmdPath(cmd Command) (string, error) {
 	local, _ := cmd.Flags().GetBool("local")
 	file, _ := cmd.Flags().GetString("file")
 	if name != "" || file != "" || local {
-		return ResolveResourcePath(cmd, "tm", "tm.db")
+		return resolveResourcePath(cmd, "tm", "tm.db")
 	}
 	if p, err := a.resolveProjectTMPath(cmd); err == nil && p != "" {
 		return p, nil
 	}
-	return ResolveResourcePath(cmd, "tm", "tm.db")
+	return resolveResourcePath(cmd, "tm", "tm.db")
 }
 
 // resolveProjectTMPath returns the authoritative TM path for the .kapi project

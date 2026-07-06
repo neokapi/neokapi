@@ -44,7 +44,7 @@ const (
 
 // FlowRunEvent is one progress event of a multi-locale flow run
 // (RunFlowAllLocales). Errors are not events: a failed run returns a typed
-// error (FlowToolBuildError, FlowFileError) so the embedding surface renders
+// error (FlowToolBuildError, flowFileError) so the embedding surface renders
 // it in its own voice.
 type FlowRunEvent struct {
 	Type string `json:"type"`
@@ -125,18 +125,18 @@ type FlowToolBuildError struct {
 func (e *FlowToolBuildError) Error() string { return e.Err.Error() }
 func (e *FlowToolBuildError) Unwrap() error { return e.Err }
 
-// FlowFileError reports one input file that failed during a locale pass. Its
+// flowFileError reports one input file that failed during a locale pass. Its
 // text is the run-feed line the desktop historically emitted.
-type FlowFileError struct {
+type flowFileError struct {
 	Path   string
 	Locale string
 	Err    error
 }
 
-func (e *FlowFileError) Error() string {
+func (e *flowFileError) Error() string {
 	return fmt.Sprintf("%s [%s]: %v", filepath.Base(e.Path), e.Locale, e.Err)
 }
-func (e *FlowFileError) Unwrap() error { return e.Err }
+func (e *flowFileError) Unwrap() error { return e.Err }
 
 // flowMetricsIntervalDefault paces the pipeline-metrics snapshots.
 const flowMetricsIntervalDefault = 200 * time.Millisecond
@@ -164,7 +164,7 @@ const flowMetricsIntervalDefault = 200 * time.Millisecond
 //
 // A source-only flow (all tools monolingual) runs once with no target. The
 // run stops at the first error, returned as a typed FlowToolBuildError or
-// FlowFileError; context cancellation is not an error — the run completes
+// flowFileError; context cancellation is not an error — the run completes
 // early with the files processed so far.
 func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink RunEventSink) (*FlowRunResult, error) {
 	if ctx == nil {
@@ -220,7 +220,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	cmd.SetErr(io.Discard)
 	AddProjectFlag(cmd)
 	if opts.ProjectPath != "" {
-		if err := cmd.Flags().Set(ProjectFlagName, opts.ProjectPath); err != nil {
+		if err := cmd.Flags().Set(projectFlagName, opts.ProjectPath); err != nil {
 			return nil, err
 		}
 	}
@@ -369,7 +369,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 			if err := runner.RunFile(ctx, opts.FlowName, tools, inputPath, outputPath, lang); err != nil {
 				// Final metrics snapshot so a UI preserves counts at failure.
 				emit(FlowRunEvent{Type: FlowEventPipelineMetrics, Steps: metrics.Snapshot()})
-				return &FlowFileError{Path: inputPath, Locale: lang, Err: err}
+				return &flowFileError{Path: inputPath, Locale: lang, Err: err}
 			}
 			filesDone.Add(1)
 			outputs = append(outputs, outputPath)

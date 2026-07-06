@@ -58,7 +58,7 @@ func writeReviewedCorrection(t *testing.T, root, srcText, _ string) {
 	t.Fatalf("no review unit with source %q in %v", srcText, rep.Review)
 }
 
-func reviewQueue(t *testing.T) ReviewQueueOutput {
+func reviewQueue(t *testing.T) reviewQueueOutput {
 	t.Helper()
 	a := &App{}
 	cmd := NewEnvCommand(context.Background(), "status")
@@ -68,7 +68,7 @@ func reviewQueue(t *testing.T) ReviewQueueOutput {
 	require.NoError(t, cmd.Flags().Set("json", "true"))
 	out, err := captureStdout(t, func() error { return a.RunStatus(cmd, nil) })
 	require.NoError(t, err)
-	var q ReviewQueueOutput
+	var q reviewQueueOutput
 	require.NoError(t, json.Unmarshal([]byte(out), &q), "review queue must emit valid JSON: %s", out)
 	return q
 }

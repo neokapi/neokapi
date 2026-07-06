@@ -40,7 +40,7 @@ content:
 }
 
 // runVerifyGates runs verify --json with the given flag overrides applied.
-func runVerifyGates(t *testing.T, flags map[string]string) (VerifyOutput, error) {
+func runVerifyGates(t *testing.T, flags map[string]string) (verifyOutput, error) {
 	t.Helper()
 	a := &App{}
 	cmd := NewEnvCommand(context.Background(), "verify")
@@ -51,7 +51,7 @@ func runVerifyGates(t *testing.T, flags map[string]string) (VerifyOutput, error)
 		require.NoError(t, cmd.Flags().Set(k, v))
 	}
 	out, runErr := captureStdout(t, func() error { return a.RunVerify(cmd, nil) })
-	var parsed VerifyOutput
+	var parsed verifyOutput
 	require.NoError(t, json.Unmarshal([]byte(out), &parsed), "verify must emit valid JSON: %s", out)
 	return parsed, runErr
 }

@@ -71,7 +71,7 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 	// brand profile) on THIS recipe rather than a cwd-relative discovery.
 	cmd := NewEnvCommand(ctx, "up")
 	AddProjectFlag(cmd)
-	if err := cmd.Flags().Set(ProjectFlagName, projectPath); err != nil {
+	if err := cmd.Flags().Set(projectFlagName, projectPath); err != nil {
 		return nil, err
 	}
 	cmd.SetOut(logW)

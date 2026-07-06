@@ -30,29 +30,29 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "brand_guide",
 		Description: "Render a brand voice guide (markdown) from a starter pack or a profile YAML, to inject into context before generating content",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, in BrandGuideInput) (*mcp.CallToolResult, BrandGuideMCPOutput, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in brandGuideInput) (*mcp.CallToolResult, brandGuideMCPOutput, error) {
 		p, err := loadProfileForMCP(in.ProfilePack, in.ProfileFile)
 		if err != nil {
-			return nil, BrandGuideMCPOutput{}, err
+			return nil, brandGuideMCPOutput{}, err
 		}
-		return nil, BrandGuideMCPOutput{Profile: p.Name, Guide: brand.RenderVoiceGuide(p)}, nil
+		return nil, brandGuideMCPOutput{Profile: p.Name, Guide: brand.RenderVoiceGuide(p)}, nil
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "brand_check",
 		Description: "Score text against a brand voice profile using deterministic vocabulary rules; returns a 0-100 compliance score and findings",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, in BrandCheckInput) (*mcp.CallToolResult, BrandCheckMCPOutput, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in brandCheckInput) (*mcp.CallToolResult, brandCheckMCPOutput, error) {
 		p, err := loadProfileForMCP(in.ProfilePack, in.ProfileFile)
 		if err != nil {
-			return nil, BrandCheckMCPOutput{}, err
+			return nil, brandCheckMCPOutput{}, err
 		}
 		findings, err := RunBlockTool(ctx, coretools.NewBrandVocabCheckTool(p, nil), in.Text)
 		if err != nil {
-			return nil, BrandCheckMCPOutput{}, err
+			return nil, brandCheckMCPOutput{}, err
 		}
 		score := brand.CalculateScore(findings)
 		score.ProfileID = p.ID
-		return nil, BrandCheckMCPOutput{
+		return nil, brandCheckMCPOutput{
 			Profile:    p.Name,
 			Score:      score.Overall,
 			Dimensions: score.Dimensions,
@@ -63,15 +63,15 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "brand_rewrite",
 		Description: "Rewrite text to comply with a brand voice profile by substituting forbidden/competitor terms (deterministic, offline)",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, in BrandCheckInput) (*mcp.CallToolResult, BrandRewriteMCPOutput, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in brandCheckInput) (*mcp.CallToolResult, brandRewriteMCPOutput, error) {
 		p, err := loadProfileForMCP(in.ProfilePack, in.ProfileFile)
 		if err != nil {
-			return nil, BrandRewriteMCPOutput{}, err
+			return nil, brandRewriteMCPOutput{}, err
 		}
 		rewritten, changes := RuleRewrite(p, in.Text)
-		out := BrandRewriteMCPOutput{Profile: p.Name, Original: in.Text, Rewritten: rewritten}
+		out := brandRewriteMCPOutput{Profile: p.Name, Original: in.Text, Rewritten: rewritten}
 		for _, c := range changes {
-			out.Changes = append(out.Changes, BrandChangeMCP{From: c.From, To: c.To, Count: c.Count})
+			out.Changes = append(out.Changes, brandChangeMCP{From: c.From, To: c.To, Count: c.Count})
 		}
 		return nil, out, nil
 	})
@@ -79,14 +79,14 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "term_lookup",
 		Description: "Look up a term in a local termbase to enforce consistent terminology",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, in TermLookupInput) (*mcp.CallToolResult, TermLookupMCPOutput, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in termLookupInput) (*mcp.CallToolResult, termLookupMCPOutput, error) {
 		path := in.Termbase
 		if path == "" {
 			path = "termbase.db"
 		}
 		tb, err := termbase.NewSQLiteTermBase(path)
 		if err != nil {
-			return nil, TermLookupMCPOutput{}, fmt.Errorf("open termbase: %w", err)
+			return nil, termLookupMCPOutput{}, fmt.Errorf("open termbase: %w", err)
 		}
 		defer tb.Close()
 		opts := termbase.LookupOptions{
@@ -96,11 +96,11 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 		}
 		matches, err := tb.Lookup(ctx, in.Term, opts)
 		if err != nil {
-			return nil, TermLookupMCPOutput{}, fmt.Errorf("term lookup: %w", err)
+			return nil, termLookupMCPOutput{}, fmt.Errorf("term lookup: %w", err)
 		}
-		var out TermLookupMCPOutput
+		var out termLookupMCPOutput
 		for _, m := range matches {
-			out.Matches = append(out.Matches, TermMatchMCP{
+			out.Matches = append(out.Matches, termMatchMCP{
 				Term:      m.Term.Text,
 				Locale:    string(m.Term.Locale),
 				Status:    string(m.Term.Status),
@@ -114,14 +114,14 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "tm_search",
 		Description: "Search a local translation memory for prior translations of source text",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, in TMSearchInput) (*mcp.CallToolResult, TMSearchMCPOutput, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in tMSearchInput) (*mcp.CallToolResult, tMSearchMCPOutput, error) {
 		path := in.TM
 		if path == "" {
 			path = "tm.db"
 		}
 		tm, err := sievepen.NewSQLiteTM(path)
 		if err != nil {
-			return nil, TMSearchMCPOutput{}, fmt.Errorf("open TM: %w", err)
+			return nil, tMSearchMCPOutput{}, fmt.Errorf("open TM: %w", err)
 		}
 		defer tm.Close()
 		minScore := in.MinScore
@@ -132,11 +132,11 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 		tgt := model.LocaleID(in.TargetLang)
 		matches, err := tm.LookupText(ctx, in.Text, src, tgt, sievepen.LookupOptions{MinScore: minScore, MaxResults: 10})
 		if err != nil {
-			return nil, TMSearchMCPOutput{}, fmt.Errorf("tm lookup: %w", err)
+			return nil, tMSearchMCPOutput{}, fmt.Errorf("tm lookup: %w", err)
 		}
-		var out TMSearchMCPOutput
+		var out tMSearchMCPOutput
 		for _, m := range matches {
-			out.Matches = append(out.Matches, TMMatchMCP{
+			out.Matches = append(out.Matches, tMMatchMCP{
 				Source:    m.Entry.VariantText(src),
 				Target:    m.Entry.VariantText(tgt),
 				Score:     m.Score,
@@ -166,62 +166,62 @@ func loadProfileForMCP(pack, file string) (*brand.VoiceProfile, error) {
 
 // --- MCP input/output types ---
 
-type BrandGuideInput struct {
+type brandGuideInput struct {
 	ProfilePack string `json:"profile_pack,omitempty" jsonschema:"starter pack name (e.g. marketing-blog, technical-docs)"`
 	ProfileFile string `json:"profile_file,omitempty" jsonschema:"path to a profile YAML"`
 }
 
-type BrandGuideMCPOutput struct {
+type brandGuideMCPOutput struct {
 	Profile string `json:"profile"`
 	Guide   string `json:"guide"`
 }
 
-type BrandCheckInput struct {
+type brandCheckInput struct {
 	Text        string `json:"text" jsonschema:"the text to check or rewrite"`
 	ProfilePack string `json:"profile_pack,omitempty" jsonschema:"starter pack name"`
 	ProfileFile string `json:"profile_file,omitempty" jsonschema:"path to a profile YAML"`
 }
 
-type BrandCheckMCPOutput struct {
+type brandCheckMCPOutput struct {
 	Profile    string                    `json:"profile"`
 	Score      int                       `json:"score"`
 	Dimensions []brand.DimensionScore    `json:"dimensions"`
 	Findings   []brand.BrandVoiceFinding `json:"findings"`
 }
 
-type BrandChangeMCP struct {
+type brandChangeMCP struct {
 	From  string `json:"from"`
 	To    string `json:"to"`
 	Count int    `json:"count"`
 }
 
-type BrandRewriteMCPOutput struct {
+type brandRewriteMCPOutput struct {
 	Profile   string           `json:"profile"`
 	Original  string           `json:"original"`
 	Rewritten string           `json:"rewritten"`
-	Changes   []BrandChangeMCP `json:"changes,omitempty"`
+	Changes   []brandChangeMCP `json:"changes,omitempty"`
 }
 
-type TermLookupInput struct {
+type termLookupInput struct {
 	Term       string `json:"term" jsonschema:"the term to look up"`
 	SourceLang string `json:"source_lang,omitempty" jsonschema:"source locale (e.g. en)"`
 	TargetLang string `json:"target_lang,omitempty" jsonschema:"target locale (e.g. fr)"`
 	Termbase   string `json:"termbase,omitempty" jsonschema:"path to the termbase db (default: termbase.db)"`
 }
 
-type TermMatchMCP struct {
+type termMatchMCP struct {
 	Term      string `json:"term"`
 	Locale    string `json:"locale"`
 	Status    string `json:"status,omitempty"`
 	MatchType string `json:"match_type,omitempty"`
 }
 
-type TermLookupMCPOutput struct {
-	Matches []TermMatchMCP `json:"matches"`
+type termLookupMCPOutput struct {
+	Matches []termMatchMCP `json:"matches"`
 	Total   int            `json:"total"`
 }
 
-type TMSearchInput struct {
+type tMSearchInput struct {
 	Text       string  `json:"text" jsonschema:"source text to search for"`
 	SourceLang string  `json:"source_lang" jsonschema:"source locale (e.g. en)"`
 	TargetLang string  `json:"target_lang" jsonschema:"target locale (e.g. fr)"`
@@ -229,14 +229,14 @@ type TMSearchInput struct {
 	TM         string  `json:"tm,omitempty" jsonschema:"path to the TM db (default: tm.db)"`
 }
 
-type TMMatchMCP struct {
+type tMMatchMCP struct {
 	Source    string  `json:"source"`
 	Target    string  `json:"target"`
 	Score     float64 `json:"score"`
 	MatchType string  `json:"match_type,omitempty"`
 }
 
-type TMSearchMCPOutput struct {
-	Matches []TMMatchMCP `json:"matches"`
+type tMSearchMCPOutput struct {
+	Matches []tMMatchMCP `json:"matches"`
 	Total   int          `json:"total"`
 }

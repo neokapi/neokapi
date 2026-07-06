@@ -8,21 +8,21 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// EntryLocator addresses a single entry inside an archive container, written
+// entryLocator addresses a single entry inside an archive container, written
 // with the JAR-style bang separator: `bundle.zip!locales/en.json` (AD-026 §6).
-type EntryLocator struct {
+type entryLocator struct {
 	Archive string // path to the container file
 	Entry   string // slash-separated entry path inside it
 }
 
-// ParseEntryLocator splits a `container!entry` locator. It returns ok=false for
+// parseEntryLocator splits a `container!entry` locator. It returns ok=false for
 // a plain path so callers can fall through to normal handling. To avoid mistaking
 // a real filename that contains '!' for a locator, it only matches when the part
 // before a '!' has a container extension AND exists as a regular file. Splitting
 // is single-level: the part before the first qualifying '!' is the archive and
 // the remainder (which may itself contain '/') is the entry; nested-archive
 // addressing is not supported.
-func ParseEntryLocator(s string) (EntryLocator, bool) {
+func parseEntryLocator(s string) (entryLocator, bool) {
 	for i := range len(s) {
 		if s[i] != '!' {
 			continue
@@ -34,14 +34,14 @@ func ParseEntryLocator(s string) (EntryLocator, bool) {
 		if fi, err := os.Stat(left); err != nil || fi.IsDir() {
 			continue
 		}
-		return EntryLocator{Archive: left, Entry: strings.TrimPrefix(right, "/")}, true
+		return entryLocator{Archive: left, Entry: strings.TrimPrefix(right, "/")}, true
 	}
-	return EntryLocator{}, false
+	return entryLocator{}, false
 }
 
-// HasEntryLocator reports whether s is a `container!entry` locator.
-func HasEntryLocator(s string) bool {
-	_, ok := ParseEntryLocator(s)
+// hasEntryLocator reports whether s is a `container!entry` locator.
+func hasEntryLocator(s string) bool {
+	_, ok := parseEntryLocator(s)
 	return ok
 }
 
@@ -50,7 +50,7 @@ func HasEntryLocator(s string) bool {
 // inner files, so per-entry filenames should be shown.
 func anyContainerInput(files []string) bool {
 	for _, f := range files {
-		if container.IsContainerPath(f) || HasEntryLocator(f) {
+		if container.IsContainerPath(f) || hasEntryLocator(f) {
 			return true
 		}
 	}

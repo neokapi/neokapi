@@ -197,7 +197,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			if qerr != nil {
 				return fmt.Errorf("compute review queue: %w", qerr)
 			}
-			return output.Print(cmd, ReviewQueueOutput{Project: proj.Name, Pending: items})
+			return output.Print(cmd, reviewQueueOutput{Project: proj.Name, Pending: items})
 		}
 
 		cov, err := a.ComputeShipCoverage(cmd.Context(), proj, root, units, nil)

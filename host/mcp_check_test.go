@@ -17,7 +17,7 @@ func TestCheckTextMCP(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	a := &App{SourceLang: "en"}
 
-	_, report, err := a.checkTextMCP(context.Background(), CheckTextInput{Text: "We we shipped it"})
+	_, report, err := a.checkTextMCP(context.Background(), checkTextInput{Text: "We we shipped it"})
 	require.NoError(t, err)
 	assert.Equal(t, "kapi.check/v1", report.Schema)
 	assert.Equal(t, "text", report.Target.Kind)
@@ -30,7 +30,7 @@ func TestCheckTextMCP_ForbidPattern(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	a := &App{SourceLang: "en"}
 
-	_, report, err := a.checkTextMCP(context.Background(), CheckTextInput{
+	_, report, err := a.checkTextMCP(context.Background(), checkTextInput{
 		Text:     "ship it TODO before launch",
 		Forbid:   []string{"(?i)todo"},
 		MaxWords: 0,
@@ -48,7 +48,7 @@ func TestCheckFileMCP(t *testing.T) {
 	require.NoError(t, os.WriteFile(src, []byte(`{"body": "This source string is far too long for the configured limit"}`), 0o644))
 
 	a := &App{SourceLang: "en"}
-	_, report, err := a.checkFileMCP(context.Background(), CheckFileInput{File: src, MaxChars: 10})
+	_, report, err := a.checkFileMCP(context.Background(), checkFileInput{File: src, MaxChars: 10})
 	require.NoError(t, err)
 	assert.Equal(t, "file", report.Target.Kind)
 	assert.Positive(t, report.Target.Blocks)

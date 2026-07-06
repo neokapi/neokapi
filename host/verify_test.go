@@ -96,7 +96,7 @@ content:
 // runVerifyJSON runs `verify --json` against the project rooted at the cwd and
 // returns the parsed output plus the RunE error (so the caller can assert the
 // quality-gate sentinel and exit code).
-func runVerifyJSON(t *testing.T) (VerifyOutput, error) {
+func runVerifyJSON(t *testing.T) (verifyOutput, error) {
 	t.Helper()
 	a := &App{}
 	cmd := NewEnvCommand(context.Background(), "verify")
@@ -110,20 +110,20 @@ func runVerifyJSON(t *testing.T) (VerifyOutput, error) {
 		return a.RunVerify(cmd, nil)
 	})
 
-	var parsed VerifyOutput
+	var parsed verifyOutput
 	require.NoError(t, json.Unmarshal([]byte(out), &parsed), "verify must emit valid JSON: %s", out)
 	return parsed, runErr
 }
 
 // gateByName returns the gate result with the given name (or a zero value with
 // found=false).
-func gateByName(o VerifyOutput, name string) (VerifyGateResult, bool) {
+func gateByName(o verifyOutput, name string) (verifyGateResult, bool) {
 	for _, g := range o.Gates {
 		if g.Gate == name {
 			return g, true
 		}
 	}
-	return VerifyGateResult{}, false
+	return verifyGateResult{}, false
 }
 
 // TestVerify_FailingProject asserts the failing project produces brand,
@@ -179,7 +179,7 @@ func TestVerify_NoFailReportsButExitsZero(t *testing.T) {
 	require.NoError(t, runErr, "--no-fail must not return the gate sentinel (exit 0)")
 	assert.Equal(t, ExitOK, ExitCode(nil, runErr), "--no-fail maps to exit 0 even on gate failure")
 
-	var parsed VerifyOutput
+	var parsed verifyOutput
 	require.NoError(t, json.Unmarshal([]byte(out), &parsed))
 	assert.False(t, parsed.Pass, "the verdict (pass:false) is still reported in the output")
 	assert.Positive(t, parsed.Summary.Failed, "findings are still reported")
@@ -256,7 +256,7 @@ func TestVerify_GateSelection(t *testing.T) {
 	// quality-gate sentinel — the point of this test is that ONLY that gate ran.
 	require.ErrorIs(t, err, ErrQualityGate)
 
-	var parsed VerifyOutput
+	var parsed verifyOutput
 	require.NoError(t, json.Unmarshal([]byte(out), &parsed))
 
 	require.Len(t, parsed.Gates, 1, "only the terminology gate should run")

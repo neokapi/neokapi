@@ -129,7 +129,7 @@ func (a *App) ResolveFormatName(path string, content []byte) string {
 // Block part in document order. Read-only — the backbone of cat and grep.
 func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, b *model.Block) error) (string, error) {
 	// A `container!entry` locator reads just that one entry, not the whole archive.
-	if loc, ok := ParseEntryLocator(path); ok {
+	if loc, ok := parseEntryLocator(path); ok {
 		return a.streamEntryBlocks(ctx, loc, fn)
 	}
 	content, err := readContent(ctx, path)
@@ -181,7 +181,7 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 	// A `container!entry` locator edits one inner file; a bare container path edits
 	// every eligible entry. Both repack through the container binding (AD-026 §6) —
 	// the archive format has no writer of its own.
-	if loc, ok := ParseEntryLocator(path); ok {
+	if loc, ok := parseEntryLocator(path); ok {
 		return a.editArchiveEntry(ctx, loc, t, writeLocale, inPlace, backupSuffix, out)
 	}
 	if container.IsContainerPath(path) {
@@ -312,8 +312,8 @@ func expandInputs(args []string, recursive bool, onSkip func(path string, err er
 		}
 		// A `container!entry` locator (AD-026 §6) names one file inside an archive;
 		// keep it verbatim — os.Stat on the whole string would fail. The archive
-		// part's existence was already verified by ParseEntryLocator.
-		if HasEntryLocator(arg) {
+		// part's existence was already verified by parseEntryLocator.
+		if hasEntryLocator(arg) {
 			files = append(files, arg)
 			continue
 		}

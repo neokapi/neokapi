@@ -74,7 +74,7 @@ func resolveRedaction(cmd Command, ctx *project.ProjectContext, rootDir string) 
 // follow-up and will land behind the same flag surface.
 const (
 	ExtractFormatXLIFF2 = project.ExtractionFormatXLIFF2
-	ExtractFormatPO     = project.ExtractionFormatPO
+	extractFormatPO     = project.ExtractionFormatPO
 	// ExtractFormatKLZ selects the bilingual interchange .klz output
 	// (kind=kapi-interchange) — neokapi's lossless interchange format for a
 	// translator or reviewer (AD-025 §7).
@@ -118,10 +118,10 @@ func (a *App) RunExtract(cmd Command) error {
 
 	format, _ := cmd.Flags().GetString("format")
 	switch format {
-	case ExtractFormatXLIFF2, ExtractFormatPO:
+	case ExtractFormatXLIFF2, extractFormatPO:
 		// ok
 	default:
-		return fmt.Errorf("extract: unknown --format %q (supported: %s, %s)", format, ExtractFormatXLIFF2, ExtractFormatPO)
+		return fmt.Errorf("extract: unknown --format %q (supported: %s, %s)", format, ExtractFormatXLIFF2, extractFormatPO)
 	}
 	xliffVersion, _ := cmd.Flags().GetString("xliff-version")
 	if xliffVersion != "" && !xliff2.IsSupportedVersion(xliffVersion) {
@@ -234,7 +234,7 @@ func (a *App) RunExtract(cmd Command) error {
 		res.RedactionVault = redactionVault
 	}
 
-	sink := ProgressSink(cmd)
+	sink := progressSink(cmd)
 	emit := func(ev FlowRunEvent) {
 		if sink != nil {
 			ev.Flow = "extract"
@@ -518,7 +518,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	}
 
 	switch task.format {
-	case ExtractFormatPO:
+	case extractFormatPO:
 		if err := WritePOExtract(outFile, task.targetLocale, task.batchID, task.source.Relative, task.sourceHash, blocks); err != nil {
 			_ = outFile.Close()
 			_ = os.Remove(task.outputPath)
@@ -774,7 +774,7 @@ func bilingualOutputName(src project.ResolvedFile, source, target model.LocaleID
 	slug = strings.ReplaceAll(slug, "/", "-")
 	out := fmt.Sprintf("%s.%s-to-%s", slug, source, target)
 	switch ext {
-	case ExtractFormatPO:
+	case extractFormatPO:
 		return out + ".po"
 	case ExtractFormatKLZ:
 		return out + ".klz"

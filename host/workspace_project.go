@@ -30,10 +30,10 @@ func (a *App) RunPack(cmd Command) error {
 	}
 	outPath, _ := cmd.Flags().GetString("output")
 	if outPath == "" {
-		outPath = "snapshot" + WorkspaceExt
+		outPath = "snapshot" + workspaceExt
 	}
-	if !strings.HasSuffix(outPath, WorkspaceExt) {
-		outPath += WorkspaceExt
+	if !strings.HasSuffix(outPath, workspaceExt) {
+		outPath += workspaceExt
 	}
 
 	layout, err := project.LayoutFor(projectPath)
