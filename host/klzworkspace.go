@@ -80,7 +80,7 @@ func (a *App) ExtractToKlz(ctx context.Context, sources []string, outKlz, target
 		return errors.New("extract: no source files")
 	}
 	if !IsKlzPath(outKlz) {
-		outKlz += WorkspaceExt
+		outKlz += workspaceExt
 	}
 
 	recipe := newWorkspaceRecipe(a.SourceLang, splitLocales(targetLang), outLayout)
@@ -306,10 +306,10 @@ func (a *App) MergeFromKlz(ctx context.Context, klzPath, outOverride string) err
 
 // ─── info: show workspace status (dirty?) ───────────────────────
 
-// WorkspaceInfo is the structured state of a .klz workspace: its sources,
+// workspaceInfo is the structured state of a .klz workspace: its sources,
 // recipe, per-locale overlay coverage, and dirty flag. Emitted as text or,
 // with --json, as JSON — the latter drives the docs lab's inspection panel.
-type WorkspaceInfo struct {
+type workspaceInfo struct {
 	Workspace   string         `json:"workspace"`
 	SourceLang  string         `json:"sourceLang,omitempty"`
 	TargetLangs []string       `json:"targetLangs,omitempty"`
@@ -320,7 +320,7 @@ type WorkspaceInfo struct {
 }
 
 // FormatText renders the workspace info for humans.
-func (o WorkspaceInfo) FormatText(w io.Writer) error {
+func (o workspaceInfo) FormatText(w io.Writer) error {
 	state := "clean (packed)"
 	if o.Dirty {
 		state = "dirty — run `kapi pack " + filepath.Base(o.Workspace) + "` to update the .klz"
@@ -349,7 +349,7 @@ func (a *App) InfoKlz(cmd Command, klzPath string) error {
 	if err != nil {
 		return err
 	}
-	info := WorkspaceInfo{Workspace: klzPath, Dirty: dirty, Overlays: map[string]int{}}
+	info := workspaceInfo{Workspace: klzPath, Dirty: dirty, Overlays: map[string]int{}}
 	for _, s := range c.meta.Sources {
 		info.Documents = append(info.Documents, s.Name)
 	}

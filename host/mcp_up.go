@@ -16,8 +16,8 @@ func init() {
 	RegisterMCPToolFactory(registerUpMCPTools)
 }
 
-// UpMCPInput is the input to the `up` MCP tool.
-type UpMCPInput struct {
+// upMCPInput is the input to the `up` MCP tool.
+type upMCPInput struct {
 	Project     string `json:"project,omitempty" jsonschema:"path to the .kapi recipe (default: discovered upward from the working directory, like git)"`
 	Passes      int    `json:"passes,omitempty" jsonschema:"maximum reconciliation passes (0 = loop until converged or parked; 1 = single pass)"`
 	Jobs        int    `json:"jobs,omitempty" jsonschema:"how many languages to converge concurrently per pass (0 = project default, else 4)"`
@@ -25,8 +25,8 @@ type UpMCPInput struct {
 	NoChecks    bool   `json:"no_checks,omitempty" jsonschema:"skip the project's bound checks inside the loop (failing units then count as translated)"`
 }
 
-// UpPlanMCPInput is the input to the `up_plan` MCP tool.
-type UpPlanMCPInput struct {
+// upPlanMCPInput is the input to the `up_plan` MCP tool.
+type upPlanMCPInput struct {
 	Project string `json:"project,omitempty" jsonschema:"path to the .kapi recipe (default: discovered upward from the working directory, like git)"`
 }
 
@@ -39,7 +39,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 			"each pass. Never fails on pending target work: parked units are reported, not thrown. Returns the " +
 			"structured convergence result (per-locale standing, parked scopes, materialized files). Use up_plan " +
 			"first to see the pending work and token estimate.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in UpMCPInput) (*mcp.CallToolResult, *ConvergeOutput, error) {
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in upMCPInput) (*mcp.CallToolResult, *ConvergeOutput, error) {
 		path, err := a.mcpProjectPath(in.Project)
 		if err != nil {
 			return nil, nil, err
@@ -62,7 +62,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 		Description: "Dry-run the convergence work for a kapi project: per (collection, locale), the units " +
 			"missing a target, exact-TM leverage, the remaining AI work, and a rough token estimate. No provider " +
 			"calls, nothing written. The pre-flight for the up tool.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in UpPlanMCPInput) (*mcp.CallToolResult, *UpPlanOutput, error) {
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in upPlanMCPInput) (*mcp.CallToolResult, *UpPlanOutput, error) {
 		path, err := a.mcpProjectPath(in.Project)
 		if err != nil {
 			return nil, nil, err

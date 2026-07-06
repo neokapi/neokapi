@@ -25,7 +25,7 @@ func AddResourceFlags(cmd Command) {
 	cmd.Flags().String("file", "", "explicit path to resource file")
 }
 
-// ResolveResourcePath resolves a resource file path from the --name, --local, and
+// resolveResourcePath resolves a resource file path from the --name, --local, and
 // --file flags. The kind parameter is the subdirectory name ("termbases" or "tm")
 // and defaultFilename is the default filename for --local mode (e.g. "termbase.db").
 //
@@ -36,7 +36,7 @@ func AddResourceFlags(cmd Command) {
 //   - (no flag)     → ./<defaultFilename>  (same as --local)
 //
 // Parent directories are created on demand.
-func ResolveResourcePath(cmd Command, kind, defaultFilename string) (string, error) {
+func resolveResourcePath(cmd Command, kind, defaultFilename string) (string, error) {
 	name, _ := cmd.Flags().GetString("name")
 	local, _ := cmd.Flags().GetBool("local")
 	file, _ := cmd.Flags().GetString("file")

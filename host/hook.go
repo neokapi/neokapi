@@ -113,7 +113,7 @@ func readStopHookInput(r io.Reader) stopHookInput {
 // hookBlockReason renders the failing gates' findings as the instruction fed
 // back to Claude. It mirrors what the assistant would see from `kapi verify`
 // so the guidance is consistent however the assistant arrives at it.
-func hookBlockReason(out VerifyOutput) string {
+func hookBlockReason(out verifyOutput) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "kapi verify has not passed yet — %d of %d gate(s) failing. ",
 		out.Summary.Failed, out.Summary.Gates)

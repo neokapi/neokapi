@@ -11,16 +11,16 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// ReviewQueueOutput is the structured result of `kapi status --review`: every
+// reviewQueueOutput is the structured result of `kapi status --review`: every
 // unit awaiting human review, the derived counterpart of the convergence loop's
 // "parked" outcome.
-type ReviewQueueOutput struct {
+type reviewQueueOutput struct {
 	Project string       `json:"project,omitempty"`
 	Pending []ReviewItem `json:"pending"`
 }
 
 // FormatText renders the review queue.
-func (o ReviewQueueOutput) FormatText(w io.Writer) error {
+func (o reviewQueueOutput) FormatText(w io.Writer) error {
 	if len(o.Pending) == 0 {
 		fmt.Fprintln(w, "Review queue empty: every translated unit is reviewed (or nothing is translated yet).")
 		return nil

@@ -129,7 +129,7 @@ func (a *App) RunMerge(cmd Command) error {
 	// historical human report byte-for-byte, so text mode is unchanged while
 	// --json gets a documented document on stdout.
 	res := output.MergeOutput{ConflictPolicy: policy}
-	sink := ProgressSink(cmd)
+	sink := progressSink(cmd)
 	emit := func(ev FlowRunEvent) {
 		if sink != nil {
 			ev.Flow = "merge"

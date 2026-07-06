@@ -27,7 +27,7 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 			"forbidden/required patterns, and brand vocabulary when a profile is given) and return a " +
 			"kapi.check/v1 Report: pass, a 0-100 score, the gate, and a finding per stable rule id. Use it to " +
 			"check content you authored, then fix and re-check until it passes.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in CheckTextInput) (*mcp.CallToolResult, check.Report, error) {
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkTextInput) (*mcp.CallToolResult, check.Report, error) {
 		return a.checkTextMCP(ctx, in)
 	})
 
@@ -37,13 +37,13 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 			"content checkset and return a kapi.check/v1 Report with per-block locations. The check counterpart to " +
 			"rewrite_file: author → check_file → fix the flagged block (optionally via rewrite_file) → re-check " +
 			"until pass. Pass target/target_lang to also run bilingual localization checks.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in CheckFileInput) (*mcp.CallToolResult, check.Report, error) {
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkFileInput) (*mcp.CallToolResult, check.Report, error) {
 		return a.checkFileMCP(ctx, in)
 	})
 }
 
-// CheckTextInput is the input to the check_text MCP tool.
-type CheckTextInput struct {
+// checkTextInput is the input to the check_text MCP tool.
+type checkTextInput struct {
 	Text        string   `json:"text" jsonschema:"the text to verify"`
 	MaxChars    int      `json:"max_chars,omitempty" jsonschema:"flag content longer than this many characters (0 = off)"`
 	MaxWords    int      `json:"max_words,omitempty" jsonschema:"flag content with more than this many words (0 = off)"`
@@ -53,8 +53,8 @@ type CheckTextInput struct {
 	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"path to a brand voice profile YAML"`
 }
 
-// CheckFileInput is the input to the check_file MCP tool.
-type CheckFileInput struct {
+// checkFileInput is the input to the check_file MCP tool.
+type checkFileInput struct {
 	File        string   `json:"file" jsonschema:"path to the file whose content should be checked"`
 	MaxChars    int      `json:"max_chars,omitempty" jsonschema:"flag content longer than this many characters (0 = off)"`
 	MaxWords    int      `json:"max_words,omitempty" jsonschema:"flag content with more than this many words (0 = off)"`
@@ -69,7 +69,7 @@ type CheckFileInput struct {
 }
 
 // checkTextMCP runs the source-side content checkset over a text snippet.
-func (a *App) checkTextMCP(ctx context.Context, in CheckTextInput) (*mcp.CallToolResult, check.Report, error) {
+func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToolResult, check.Report, error) {
 	a.InitRegistries()
 	opts, err := a.mcpCheckOptions(in.MaxChars, in.MaxWords, in.Forbid, in.Require, in.ProfilePack, in.ProfileFile)
 	if err != nil {
@@ -85,7 +85,7 @@ func (a *App) checkTextMCP(ctx context.Context, in CheckTextInput) (*mcp.CallToo
 
 // checkFileMCP runs the content checkset over a file's content, optionally with
 // the bilingual localization checks when a target is supplied.
-func (a *App) checkFileMCP(ctx context.Context, in CheckFileInput) (*mcp.CallToolResult, check.Report, error) {
+func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToolResult, check.Report, error) {
 	a.InitRegistries()
 	if in.File == "" {
 		return nil, check.Report{}, errors.New("file is required")

@@ -225,7 +225,7 @@ func TestApplyAssetEntry_noProjectIsError(t *testing.T) {
 	// A directory with no .kapi recipe and discovery opted out.
 	dir := t.TempDir()
 	t.Chdir(dir)
-	t.Setenv(NoProjectEnvVar, "1")
+	t.Setenv(noProjectEnvVar, "1")
 
 	a := &App{}
 	a.InitRegistries()

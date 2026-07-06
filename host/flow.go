@@ -266,7 +266,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	// NDJSON progress (--progress jsonl): the flow-run event vocabulary on
 	// stderr, so machine consumers get the same event stream the desktop
 	// run sink receives.
-	sink := ProgressSink(cmd)
+	sink := progressSink(cmd)
 	emit := func(ev FlowRunEvent) {
 		if sink != nil {
 			ev.Flow = flowName
@@ -540,7 +540,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 
 	// NDJSON progress (--progress jsonl); the sink is mutex-guarded, so the
 	// concurrent per-file goroutines may emit directly.
-	sink := ProgressSink(cmd)
+	sink := progressSink(cmd)
 	emit := func(ev FlowRunEvent) {
 		if sink != nil {
 			ev.Flow = flowName
@@ -1411,7 +1411,7 @@ type ProjectBindings struct {
 func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath string) (*ProjectBindings, error) {
 	root := filepath.Dir(projectPath)
 
-	storePath, err := ResolveResourcePath(cmd, "brands", "brand.db")
+	storePath, err := resolveResourcePath(cmd, "brands", "brand.db")
 	if err != nil {
 		return nil, err
 	}

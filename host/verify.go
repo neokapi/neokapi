@@ -38,10 +38,10 @@ const (
 // gate fails when the user does not override it with --min-score.
 const DefaultBrandMinScore = 80
 
-// VerifyFinding is a single actionable problem found by one of the verify
+// verifyFinding is a single actionable problem found by one of the verify
 // gates. The shape is shared by the human and JSON renderers and is the unit
 // an AI assistant reads, fixes, and re-runs against.
-type VerifyFinding struct {
+type verifyFinding struct {
 	Gate       string `json:"gate"`
 	File       string `json:"file,omitempty"`
 	Locale     string `json:"locale,omitempty"`
@@ -50,16 +50,16 @@ type VerifyFinding struct {
 	Suggestion string `json:"suggestion,omitempty"`
 }
 
-// VerifyGateResult is the outcome of one gate: whether it passed and the
+// verifyGateResult is the outcome of one gate: whether it passed and the
 // findings it produced.
-type VerifyGateResult struct {
+type verifyGateResult struct {
 	Gate     string          `json:"gate"`
 	Pass     bool            `json:"pass"`
-	Findings []VerifyFinding `json:"findings"`
+	Findings []verifyFinding `json:"findings"`
 }
 
-// VerifySummary carries the aggregate counts for a verify run.
-type VerifySummary struct {
+// verifySummary carries the aggregate counts for a verify run.
+type verifySummary struct {
 	Gates    int `json:"gates"`
 	Passed   int `json:"passed"`
 	Failed   int `json:"failed"`
@@ -68,16 +68,16 @@ type VerifySummary struct {
 	Warnings int `json:"warnings"` // findings with severity "warning"
 }
 
-// VerifyOutput is the single structured result of a `kapi verify` run.
-type VerifyOutput struct {
+// verifyOutput is the single structured result of a `kapi verify` run.
+type verifyOutput struct {
 	Pass    bool               `json:"pass"`
-	Gates   []VerifyGateResult `json:"gates"`
-	Summary VerifySummary      `json:"summary"`
+	Gates   []verifyGateResult `json:"gates"`
+	Summary verifySummary      `json:"summary"`
 }
 
 // FormatText renders the verify result as a human-readable summary,
 // implementing output.TextFormatter.
-func (o VerifyOutput) FormatText(w io.Writer) error {
+func (o verifyOutput) FormatText(w io.Writer) error {
 	for _, g := range o.Gates {
 		status := "PASS"
 		if !g.Pass {
@@ -177,8 +177,8 @@ func (a *App) RunVerify(cmd Command, args []string) error {
 // without printing or mapping to an exit code. Both `kapi verify` and the
 // Claude Code stop hook (`kapi hook stop`) call this so they evaluate a project
 // identically. The returned error is operational (no project, load failure);
-// a failing gate is reported in VerifyOutput.Pass, not as an error.
-func (a *App) computeVerify(cmd Command, args []string) (VerifyOutput, error) {
+// a failing gate is reported in verifyOutput.Pass, not as an error.
+func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	a.InitRegistries()
 
 	// The verify path threads cmd.Context() into ctx-aware TM/termbase lookups
@@ -194,11 +194,11 @@ func (a *App) computeVerify(cmd Command, args []string) (VerifyOutput, error) {
 	projectPath, err := RequireProjectPath(cmd)
 	if err != nil {
 		// Operational error (no project) → exit 1, the cobra default.
-		return VerifyOutput{}, err
+		return verifyOutput{}, err
 	}
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
-		return VerifyOutput{}, fmt.Errorf("load project: %w", err)
+		return verifyOutput{}, fmt.Errorf("load project: %w", err)
 	}
 	root := filepath.Dir(projectPath)
 
@@ -216,13 +216,13 @@ func (a *App) computeVerify(cmd Command, args []string) (VerifyOutput, error) {
 	}
 	a.SourceLang = sourceLang
 
-	var gates []VerifyGateResult
+	var gates []verifyGateResult
 
 	// --- brand gate -------------------------------------------------------
 	if sel.brand {
 		gate, err := a.verifyBrand(cmd, proj, root, args)
 		if err != nil {
-			return VerifyOutput{}, err
+			return verifyOutput{}, err
 		}
 		switch {
 		case gate != nil:
@@ -242,7 +242,7 @@ func (a *App) computeVerify(cmd Command, args []string) (VerifyOutput, error) {
 	if sel.terms {
 		bound, err := a.projectTermbaseBound(cmd)
 		if err != nil {
-			return VerifyOutput{}, err
+			return verifyOutput{}, err
 		}
 		switch {
 		case bound:
@@ -258,20 +258,20 @@ func (a *App) computeVerify(cmd Command, args []string) (VerifyOutput, error) {
 		// explicit file args, or the project's content × target languages.
 		units, err := a.resolveVerifyUnits(cmd, proj, root, args, localeFilter)
 		if err != nil {
-			return VerifyOutput{}, err
+			return verifyOutput{}, err
 		}
 
 		if runTerms {
 			termGate, err := a.verifyTerminology(cmd, units)
 			if err != nil {
-				return VerifyOutput{}, err
+				return verifyOutput{}, err
 			}
 			gates = append(gates, termGate)
 		}
 		if sel.qa {
 			qaGate, err := a.verifyQA(CmdContext(cmd), units)
 			if err != nil {
-				return VerifyOutput{}, err
+				return verifyOutput{}, err
 			}
 			gates = append(gates, qaGate)
 		}
@@ -284,19 +284,19 @@ func (a *App) computeVerify(cmd Command, args []string) (VerifyOutput, error) {
 	if ship, _ := cmd.Flags().GetBool("ship"); ship && (proj.HasShipGates() || proj.HasSourceGate()) {
 		shipUnits, err := a.resolveVerifyUnits(cmd, proj, root, args, localeFilter)
 		if err != nil {
-			return VerifyOutput{}, err
+			return verifyOutput{}, err
 		}
 		if proj.HasShipGates() {
 			shipGate, err := a.verifyShip(CmdContext(cmd), proj, root, shipUnits)
 			if err != nil {
-				return VerifyOutput{}, err
+				return verifyOutput{}, err
 			}
 			gates = append(gates, shipGate)
 		}
 		if proj.HasSourceGate() {
 			srcGate, err := a.verifySourceGate(CmdContext(cmd), proj, shipUnits)
 			if err != nil {
-				return VerifyOutput{}, err
+				return verifyOutput{}, err
 			}
 			gates = append(gates, srcGate)
 		}
@@ -309,18 +309,18 @@ func (a *App) computeVerify(cmd Command, args []string) (VerifyOutput, error) {
 // author's content. It is the source-side counterpart of verifyShip: it gates
 // the source (authored → checked → approved), not the translations. Like the
 // ship gate it is opt-in (--ship) — source drift never blocks an ordinary build.
-func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, units []VerifyUnit) (VerifyGateResult, error) {
+func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, units []VerifyUnit) (verifyGateResult, error) {
 	sc, err := a.computeSourceReadiness(ctx, proj, units)
 	if err != nil {
-		return VerifyGateResult{}, err
+		return verifyGateResult{}, err
 	}
-	g := VerifyGateResult{Gate: gateSource, Pass: true}
+	g := verifyGateResult{Gate: gateSource, Pass: true}
 	if !sc.Gated || sc.Shippable {
 		return g, nil
 	}
 	g.Pass = false
 	for _, sf := range sc.Pending {
-		g.Findings = append(g.Findings, VerifyFinding{
+		g.Findings = append(g.Findings, verifyFinding{
 			Gate:       gateSource,
 			Severity:   "error",
 			Message:    fmt.Sprintf("source %s readiness %d%% is below the required %d%%", sf.State, int(sf.Actual), sf.Required),
@@ -333,12 +333,12 @@ func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, u
 // verifyShip evaluates the project's ship gates over per-locale coverage. A
 // locale that does not clear its gate produces one finding per unmet threshold
 // and fails the gate. It is the enforcing counterpart of `kapi status`.
-func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) (VerifyGateResult, error) {
+func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
 	cov, err := a.ComputeShipCoverage(ctx, proj, root, units, nil)
 	if err != nil {
-		return VerifyGateResult{}, err
+		return verifyGateResult{}, err
 	}
-	g := VerifyGateResult{Gate: gateShip, Pass: true}
+	g := verifyGateResult{Gate: gateShip, Pass: true}
 	for _, lc := range cov {
 		if !lc.Gated || lc.Shippable {
 			continue
@@ -349,7 +349,7 @@ func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, root st
 			scope = lc.Locale + "/" + lc.Collection
 		}
 		for _, sf := range lc.Pending {
-			g.Findings = append(g.Findings, VerifyFinding{
+			g.Findings = append(g.Findings, verifyFinding{
 				Gate:       gateShip,
 				Locale:     lc.Locale,
 				Severity:   "error",
@@ -363,8 +363,8 @@ func (a *App) verifyShip(ctx context.Context, proj *project.KapiProject, root st
 
 // buildVerifyOutput aggregates per-gate results into the final structured
 // output, computing the overall pass/fail and summary counts.
-func buildVerifyOutput(gates []VerifyGateResult) VerifyOutput {
-	out := VerifyOutput{Pass: true, Gates: gates}
+func buildVerifyOutput(gates []verifyGateResult) verifyOutput {
+	out := verifyOutput{Pass: true, Gates: gates}
 	out.Summary.Gates = len(gates)
 	for i := range out.Gates {
 		sortFindings(out.Gates[i].Findings)
@@ -387,7 +387,7 @@ func buildVerifyOutput(gates []VerifyGateResult) VerifyOutput {
 		}
 	}
 	if out.Gates == nil {
-		out.Gates = []VerifyGateResult{}
+		out.Gates = []verifyGateResult{}
 	}
 	return out
 }
@@ -397,11 +397,11 @@ func buildVerifyOutput(gates []VerifyGateResult) VerifyOutput {
 // it as a failure — rather than silently skipping — means a CI user learns the
 // gate is misconfigured instead of seeing a false pass. The verdict is a normal
 // gate failure, so --no-fail still downgrades it to report-only (exit 0).
-func unboundGate(gate, binding, flag string) VerifyGateResult {
-	return VerifyGateResult{
+func unboundGate(gate, binding, flag string) verifyGateResult {
+	return verifyGateResult{
 		Gate: gate,
 		Pass: false,
-		Findings: []VerifyFinding{{
+		Findings: []verifyFinding{{
 			Gate:       gate,
 			Severity:   "error",
 			Message:    fmt.Sprintf("%s gate was requested with %s but the project binds no %s — nothing to check", gate, flag, binding),
@@ -428,7 +428,7 @@ func (a *App) projectTermbaseBound(cmd Command) (bool, error) {
 // brand voice profile. Returns nil (no gate) when the project binds no brand
 // voice — the gate only runs when there is something to check. Reuses the
 // brand check path (NewBrandVocabCheckTool + CalculateScore).
-func (a *App) verifyBrand(cmd Command, proj *project.KapiProject, root string, args []string) (*VerifyGateResult, error) {
+func (a *App) verifyBrand(cmd Command, proj *project.KapiProject, root string, args []string) (*verifyGateResult, error) {
 	profile, _, found, err := a.resolveProjectBrandProfile(cmd, "", "")
 	if err != nil {
 		return nil, err
@@ -445,7 +445,7 @@ func (a *App) verifyBrand(cmd Command, proj *project.KapiProject, root string, a
 		return nil, err
 	}
 
-	gate := VerifyGateResult{Gate: gateBrand, Pass: true, Findings: []VerifyFinding{}}
+	gate := verifyGateResult{Gate: gateBrand, Pass: true, Findings: []verifyFinding{}}
 	ctx := CmdContext(cmd)
 
 	var allFindings []brand.BrandVoiceFinding
@@ -469,7 +469,7 @@ func (a *App) verifyBrand(cmd Command, proj *project.KapiProject, root string, a
 		gate.Pass = false
 		// Lead with a summary finding so the assistant sees the score gap
 		// even when individual term findings are sparse.
-		gate.Findings = append([]VerifyFinding{{
+		gate.Findings = append([]verifyFinding{{
 			Gate:     gateBrand,
 			Severity: "error",
 			Message:  fmt.Sprintf("brand compliance score %d is below the required minimum %d", score.Overall, minScore),
@@ -508,13 +508,13 @@ func runBrandVocabOnBlock(ctx context.Context, vocab *coretools.BrandVocabCheckT
 	return nil
 }
 
-func brandFindingToVerify(file string, f brand.BrandVoiceFinding) VerifyFinding {
+func brandFindingToVerify(file string, f brand.BrandVoiceFinding) verifyFinding {
 	sev := "warning"
 	switch f.Severity {
 	case brand.SeverityMajor, brand.SeverityCritical:
 		sev = "error"
 	}
-	return VerifyFinding{
+	return verifyFinding{
 		Gate:       gateBrand,
 		File:       file,
 		Severity:   sev,
@@ -709,9 +709,9 @@ func expandTargetTemplate(tmpl, sourceRel, locale, root string) string {
 // locale from the project termbase (ResolveProjectGlossary). A locale with no
 // glossary entries contributes no findings; a missing target file
 // (untranslated) is flagged by the QA gate, so terminology skips it.
-func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (VerifyGateResult, error) {
+func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
-	gate := VerifyGateResult{Gate: gateTerms, Pass: true, Findings: []VerifyFinding{}}
+	gate := verifyGateResult{Gate: gateTerms, Pass: true, Findings: []verifyFinding{}}
 
 	// Cache the glossary per locale — building it opens the termbase.
 	glossaryByLocale := map[string][]coretools.GlossaryEntry{}
@@ -762,7 +762,7 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (VerifyGateResu
 					if strings.TrimSpace(m) == "" {
 						continue
 					}
-					gate.Findings = append(gate.Findings, VerifyFinding{
+					gate.Findings = append(gate.Findings, verifyFinding{
 						Gate:       gateTerms,
 						File:       u.DisplayPath,
 						Locale:     u.Locale,
@@ -782,8 +782,8 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (VerifyGateResu
 // verifyQA checks placeholder/tag integrity against the source and flags
 // untranslated/empty targets for each target file, reusing
 // core/tools.NewQACheckTool.
-func (a *App) verifyQA(ctx context.Context, units []VerifyUnit) (VerifyGateResult, error) {
-	gate := VerifyGateResult{Gate: gateQA, Pass: true, Findings: []VerifyFinding{}}
+func (a *App) verifyQA(ctx context.Context, units []VerifyUnit) (verifyGateResult, error) {
+	gate := verifyGateResult{Gate: gateQA, Pass: true, Findings: []verifyFinding{}}
 
 	for _, u := range units {
 		blocks, missing, err := a.bilingualBlocks(ctx, u)
@@ -795,7 +795,7 @@ func (a *App) verifyQA(ctx context.Context, units []VerifyUnit) (VerifyGateResul
 		}
 		if missing {
 			gate.Pass = false
-			gate.Findings = append(gate.Findings, VerifyFinding{
+			gate.Findings = append(gate.Findings, verifyFinding{
 				Gate:       gateQA,
 				File:       u.DisplayPath,
 				Locale:     u.Locale,
@@ -822,7 +822,7 @@ func (a *App) verifyQA(ctx context.Context, units []VerifyUnit) (VerifyGateResul
 				if failing {
 					sev = "error"
 				}
-				gate.Findings = append(gate.Findings, VerifyFinding{
+				gate.Findings = append(gate.Findings, verifyFinding{
 					Gate:       gateQA,
 					File:       u.DisplayPath,
 					Locale:     u.Locale,
@@ -1178,7 +1178,7 @@ func firstNonEmpty(vals ...string) string {
 // sortFindings orders findings deterministically (by file, locale, severity,
 // message) so JSON output and tests are stable. Currently applied per gate at
 // build time; exported helper kept small for reuse.
-func sortFindings(fs []VerifyFinding) {
+func sortFindings(fs []verifyFinding) {
 	sort.SliceStable(fs, func(i, j int) bool {
 		if fs[i].File != fs[j].File {
 			return fs[i].File < fs[j].File

@@ -8,30 +8,30 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// ProjectEnvVar is the environment variable kapi reads to locate a .kapi
+// projectEnvVar is the environment variable kapi reads to locate a .kapi
 // project recipe when the -p flag is not passed. Intended for CI where
 // walking up from cwd is awkward.
-const ProjectEnvVar = "KAPI_PROJECT"
+const projectEnvVar = "KAPI_PROJECT"
 
-// NoProjectEnvVar disables implicit project discovery. When set to any
+// noProjectEnvVar disables implicit project discovery. When set to any
 // non-empty value, ResolveProjectPath skips both the KAPI_PROJECT fallback
 // and the git-style upward walk, behaving as if no project exists (an
 // explicit -p flag still wins). Tests, scripts, and docs-scene recorders set
 // this so an in-repo invocation can never silently bind to a checked-in
 // recipe (e.g. a repo-root dogfood project). Note that KAPI_PROJECT="" does
 // NOT disable discovery — only a non-empty KAPI_NO_PROJECT does.
-const NoProjectEnvVar = "KAPI_NO_PROJECT"
+const noProjectEnvVar = "KAPI_NO_PROJECT"
 
-// ProjectFlagName is the long flag name for the project-recipe path. All
+// projectFlagName is the long flag name for the project-recipe path. All
 // project-aware kapi commands should register this flag with the short
 // alias "p" using AddProjectFlag.
-const ProjectFlagName = "project"
+const projectFlagName = "project"
 
 // AddProjectFlag registers the -p / --project flag on a command. Commands
 // resolve the flag via ResolveProjectPath so every command uses the same
 // semantics: explicit flag > env var > git-style upward walk.
 func AddProjectFlag(cmd Command) {
-	cmd.Flags().StringP(ProjectFlagName, "p", "", "path to a .kapi project recipe (auto-discovered from cwd if omitted)")
+	cmd.Flags().StringP(projectFlagName, "p", "", "path to a .kapi project recipe (auto-discovered from cwd if omitted)")
 }
 
 // ResolveProjectPath resolves the effective project recipe path for a
@@ -49,7 +49,7 @@ func AddProjectFlag(cmd Command) {
 // project.ErrAmbiguousLayout is wrapped with guidance to pass -p explicitly.
 func ResolveProjectPath(cmd Command) (string, error) {
 	if cmd != nil {
-		if flag, _ := cmd.Flags().GetString(ProjectFlagName); flag != "" {
+		if flag, _ := cmd.Flags().GetString(projectFlagName); flag != "" {
 			return flag, nil
 		}
 	}
@@ -57,11 +57,11 @@ func ResolveProjectPath(cmd Command) (string, error) {
 	// An explicit -p wins above; otherwise KAPI_NO_PROJECT opts out of all
 	// implicit discovery so an in-repo invocation can't bind to a checked-in
 	// recipe it didn't ask for.
-	if os.Getenv(NoProjectEnvVar) != "" {
+	if os.Getenv(noProjectEnvVar) != "" {
 		return "", nil
 	}
 
-	if env := os.Getenv(ProjectEnvVar); env != "" {
+	if env := os.Getenv(projectEnvVar); env != "" {
 		return env, nil
 	}
 

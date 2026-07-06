@@ -36,12 +36,12 @@ func (a *App) ResolveTermbaseCmdPath(cmd Command) (string, error) {
 	local, _ := cmd.Flags().GetBool("local")
 	file, _ := cmd.Flags().GetString("file")
 	if name != "" || file != "" || local {
-		return ResolveResourcePath(cmd, "termbases", "termbase.db")
+		return resolveResourcePath(cmd, "termbases", "termbase.db")
 	}
 	if p, err := a.resolveProjectTermbasePath(cmd); err == nil && p != "" {
 		return p, nil
 	}
-	return ResolveResourcePath(cmd, "termbases", "termbase.db")
+	return resolveResourcePath(cmd, "termbases", "termbase.db")
 }
 
 // ImportKLFTBFile imports a native .klftb document. Concepts keep their

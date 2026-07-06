@@ -21,7 +21,7 @@ func AddProgressFlag(cmd Command) {
 // nil (the discard sink) unless --progress=jsonl was passed. Events go to
 // stderr so stdout stays reserved for the command's result (text or --json).
 // The sink is safe for concurrent emitters.
-func ProgressSink(cmd Command) RunEventSink {
+func progressSink(cmd Command) RunEventSink {
 	mode, _ := cmd.Flags().GetString(progressFlagName)
 	if mode != "jsonl" {
 		return nil

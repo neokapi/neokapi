@@ -151,7 +151,7 @@ func TestVerify_SourceGate(t *testing.T) {
 	AddVerifyFlags(cmd)
 	require.NoError(t, cmd.Flags().Set("json", "true"))
 	out, _ := captureStdout(t, func() error { return a.RunVerify(cmd, nil) })
-	var parsed VerifyOutput
+	var parsed verifyOutput
 	require.NoError(t, json.Unmarshal([]byte(out), &parsed))
 	assert.False(t, hasGate(parsed, gateSource), "source gate must be opt-in (--ship)")
 
@@ -163,7 +163,7 @@ func TestVerify_SourceGate(t *testing.T) {
 	require.NoError(t, cmd2.Flags().Set("json", "true"))
 	require.NoError(t, cmd2.Flags().Set("ship", "true"))
 	out2, runErr := captureStdout(t, func() error { return a2.RunVerify(cmd2, nil) })
-	var parsed2 VerifyOutput
+	var parsed2 verifyOutput
 	require.NoError(t, json.Unmarshal([]byte(out2), &parsed2))
 	sg, has := findGate(parsed2, gateSource)
 	require.True(t, has, "--ship adds the source gate")
@@ -172,18 +172,18 @@ func TestVerify_SourceGate(t *testing.T) {
 	assert.Error(t, runErr, "a failed source gate exits non-zero")
 }
 
-func hasGate(out VerifyOutput, name string) bool {
+func hasGate(out verifyOutput, name string) bool {
 	_, ok := findGate(out, name)
 	return ok
 }
 
-func findGate(out VerifyOutput, name string) (VerifyGateResult, bool) {
+func findGate(out verifyOutput, name string) (verifyGateResult, bool) {
 	for _, g := range out.Gates {
 		if g.Gate == name {
 			return g, true
 		}
 	}
-	return VerifyGateResult{}, false
+	return verifyGateResult{}, false
 }
 
 // TestStatus_UnreadableTargetFallsBackToPresence: a content target whose format
@@ -258,13 +258,13 @@ func TestStatus_Coverage(t *testing.T) {
 	assert.False(t, ja.Shippable)
 }
 
-func shipGate(out VerifyOutput) (VerifyGateResult, bool) {
+func shipGate(out verifyOutput) (verifyGateResult, bool) {
 	for _, g := range out.Gates {
 		if g.Gate == gateShip {
 			return g, true
 		}
 	}
-	return VerifyGateResult{}, false
+	return verifyGateResult{}, false
 }
 
 func TestVerify_ShipGate(t *testing.T) {
@@ -277,7 +277,7 @@ func TestVerify_ShipGate(t *testing.T) {
 	AddVerifyFlags(cmd)
 	require.NoError(t, cmd.Flags().Set("json", "true"))
 	out, _ := captureStdout(t, func() error { return a.RunVerify(cmd, nil) })
-	var parsed VerifyOutput
+	var parsed verifyOutput
 	require.NoError(t, json.Unmarshal([]byte(out), &parsed))
 	_, has := shipGate(parsed)
 	assert.False(t, has, "ship gate must be opt-in (--ship)")
@@ -290,7 +290,7 @@ func TestVerify_ShipGate(t *testing.T) {
 	require.NoError(t, cmd2.Flags().Set("json", "true"))
 	require.NoError(t, cmd2.Flags().Set("ship", "true"))
 	out2, runErr := captureStdout(t, func() error { return a2.RunVerify(cmd2, nil) })
-	var parsed2 VerifyOutput
+	var parsed2 verifyOutput
 	require.NoError(t, json.Unmarshal([]byte(out2), &parsed2))
 	sg, has := shipGate(parsed2)
 	require.True(t, has, "--ship adds the ship gate")
