@@ -23,7 +23,7 @@ require (
 	github.com/neokapi/neokapi/bowrain/core v0.0.0
 	github.com/neokapi/neokapi/bowrain/plugin/schema v0.0.0-00010101000000-000000000000
 	github.com/neokapi/neokapi/host v0.0.0
-	github.com/posthog/posthog-go v1.17.2
+	github.com/posthog/posthog-go v1.17.5
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/samber/slog-echo v1.23.0
@@ -34,13 +34,13 @@ require (
 	github.com/testcontainers/testcontainers-go v0.43.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
 	github.com/wailsapp/wails/v3 v3.0.0-alpha2.104
-	github.com/wneessen/go-mail v0.7.3
+	github.com/wneessen/go-mail v0.8.0
 	github.com/zalando/go-keyring v0.2.8
 	go.uber.org/goleak v1.3.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.21.0
 	golang.org/x/time v0.15.0
-	google.golang.org/grpc v1.81.1
+	google.golang.org/grpc v1.82.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.53.0
