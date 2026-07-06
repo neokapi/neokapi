@@ -29,8 +29,10 @@ const canonicalProto = "core/proto/content/v1/content.proto"
 var projectionAllowlist = map[string][]string{
 	// Sync-protocol envelope: item scoping + hashes + *_json escapes around
 	// canonical SegmentMessage/RunMessage payloads (embeds the canonical
-	// schema; see sync.proto header).
-	"bowrain/core/proto/sync/v1/sync.proto": {"SyncBlock"},
+	// schema; see sync.proto header). SyncSegmentList is a repeated-field
+	// wrapper around canonical SegmentMessages (proto3 maps cannot have
+	// repeated-message values directly), not a segment redefinition.
+	"bowrain/core/proto/sync/v1/sync.proto": {"SyncBlock", "SyncSegmentList"},
 
 	// Editor proto's own Block/Run definitions — a projection kept for the
 	// bowrain desktop's EditorService; retired when the desktop moves to the
@@ -47,9 +49,10 @@ var projectionAllowlist = map[string][]string{
 }
 
 // messageDefRe matches a proto message definition whose name redefines the
-// content model: names ending in Run, Runs, RunList, RunMessage, Block,
-// Blocks, or BlockMessage.
-var messageDefRe = regexp.MustCompile(`^\s*message\s+(\w*(?:Run|Block)(?:s|List|Message)?)\s*\{`)
+// content model: names ending in Run, Block, or Segment, bare or with an
+// s/List/Message suffix (Runs, RunList, BlockMessage, SegmentList, …).
+// RPC envelopes like SegmentRequest/SegmentResponse do not match.
+var messageDefRe = regexp.MustCompile(`^\s*message\s+(\w*(?:Run|Block|Segment)(?:s|List|Message)?)\s*\{`)
 
 // skipDirs are directory names never scanned for proto files.
 var skipDirs = map[string]bool{

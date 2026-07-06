@@ -95,6 +95,40 @@ func TestBlockSourceStatusRoundTrip(t *testing.T) {
 	assert.False(t, leaked, "the reserved source-status key must be stripped, not surfaced as a property")
 }
 
+// TestBlockRunAttrsRoundTrip verifies canonical inline attributes (Run.Attrs:
+// href/src/alt/title on link/image runs) survive the sync round-trip. The
+// sync protocol embeds the canonical SegmentMessage, so attrs carriage is
+// inherited from core/plugin/protoconvert.
+func TestBlockRunAttrsRoundTrip(t *testing.T) {
+	b := &model.Block{ID: "b1", Translatable: true}
+	b.Source = []model.Run{
+		{Text: &model.TextRun{Text: "See "}},
+		{PcOpen: &model.PcOpenRun{
+			ID: "lnk1", Type: "link:hyperlink", Data: `<a href="https://example.com" title="Docs">`,
+			Equiv: "a",
+			Attrs: map[string]string{model.AttrHref: "https://example.com", model.AttrTitle: "Docs"},
+		}},
+		{Text: &model.TextRun{Text: "docs"}},
+		{PcClose: &model.PcCloseRun{ID: "lnk1", Type: "link:hyperlink", Data: "</a>", Equiv: "a"}},
+		{Ph: &model.PlaceholderRun{
+			ID: "img1", Type: "link:image", Data: `![Logo](img/logo.png)`, Equiv: "img",
+			Attrs: map[string]string{model.AttrSrc: "img/logo.png", model.AttrAlt: "Logo"},
+		}},
+	}
+	b.SetTargetRuns("fr", []model.Run{
+		{Text: &model.TextRun{Text: "Voir "}},
+		{Ph: &model.PlaceholderRun{
+			ID: "img1", Type: "link:image", Data: `![Logo](img/logo.png)`, Equiv: "img",
+			Attrs: map[string]string{model.AttrSrc: "img/logo.png", model.AttrAlt: "Logo"},
+		}},
+	})
+
+	b2, err := ProtoToBlock(BlockToProto(b, "en.json"))
+	require.NoError(t, err)
+	assert.Equal(t, b.Source, b2.Source, "source runs (incl. Attrs) survive sync")
+	assert.Equal(t, b.TargetRuns("fr"), b2.TargetRuns("fr"), "target runs (incl. Attrs) survive sync")
+}
+
 func TestBlockWithAnnotations(t *testing.T) {
 	b := &model.Block{ID: "b1"}
 	b.SetSourceText("Test")

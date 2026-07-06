@@ -108,6 +108,10 @@ message PlaceholderRunMessage {
   string equiv = 5;     // Stable human-friendly identifier (variable name, tag name).
   string disp = 6;      // Display label for chips.
   RunConstraints constraints = 7;
+  // Canonical, format-neutral attributes ("href", "src", "alt", "title", …)
+  // mirroring model.PlaceholderRun.Attrs. Appended per the compatibility
+  // policy above; absent for runs that carry no attributes.
+  map<string, string> attrs = 8;
 }
 
 // PcOpenRunMessage is the opening half of a paired inline code.
@@ -119,6 +123,10 @@ message PcOpenRunMessage {
   string equiv = 5;
   string disp = 6;
   RunConstraints constraints = 7;
+  // Canonical, format-neutral attributes ("href", "title", …) mirroring
+  // model.PcOpenRun.Attrs. Appended per the compatibility policy above;
+  // absent for runs that carry no attributes.
+  map<string, string> attrs = 8;
 }
 
 // PcCloseRunMessage is the closing half of a paired inline code.
