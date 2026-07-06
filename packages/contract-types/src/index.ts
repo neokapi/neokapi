@@ -13,6 +13,6 @@
 //   - ./manual — the superset envelope types (ComponentSchema, PropertySchema,
 //     ConditionExpr, ToolDoc, ToolDocParam) the UI extends beyond Go.
 
-export * from "./contract.gen";
-export * from "./content.gen";
-export * from "./manual";
+export * from "./contract.gen.ts";
+export * from "./content.gen.ts";
+export * from "./manual.ts";

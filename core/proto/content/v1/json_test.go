@@ -51,6 +51,21 @@ func runFixture() *contentv1.SegmentMessage {
 			ID: "pc1", Type: "html:element", SubType: "inline", Data: "</span>", Equiv: "span",
 		}},
 		{Sub: &model.SubRun{ID: "sub1", Ref: "block-42", Equiv: "sub"}},
+		// Attrs-bearing runs: a hyperlink pair (href/title on the opening
+		// half) and a self-closing image placeholder (src/alt). Added when the
+		// attrs field was appended to the schema — a compatible, additive
+		// golden change (the fixtures gained the new field).
+		{PcOpen: &model.PcOpenRun{
+			ID: "lnk1", Type: "link:hyperlink", Data: `<a href="https://example.com" title="Docs">`,
+			Equiv: "a", Disp: "Link",
+			Attrs: map[string]string{model.AttrHref: "https://example.com", model.AttrTitle: "Docs"},
+		}},
+		{Text: &model.TextRun{Text: "docs"}},
+		{PcClose: &model.PcCloseRun{ID: "lnk1", Type: "link:hyperlink", Data: "</a>", Equiv: "a"}},
+		{Ph: &model.PlaceholderRun{
+			ID: "img1", Type: "link:image", Data: `![Logo](img/logo.png)`, Equiv: "img", Disp: "Image",
+			Attrs: map[string]string{model.AttrSrc: "img/logo.png", model.AttrAlt: "Logo"},
+		}},
 		{Plural: &model.PluralRun{
 			Pivot: "count",
 			Forms: map[model.PluralForm][]model.Run{

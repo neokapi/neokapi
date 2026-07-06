@@ -384,6 +384,7 @@ func (protoRunBuilder) Ph(p *model.PlaceholderRun) *pb.RunMessage {
 	return &pb.RunMessage{Kind: &pb.RunMessage_Ph{Ph: &pb.PlaceholderRunMessage{
 		Id: p.ID, Type: p.Type, SubType: p.SubType,
 		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
+		Attrs:       p.Attrs,
 		Constraints: constraintsToProto(p.Constraints),
 	}}}
 }
@@ -392,6 +393,7 @@ func (protoRunBuilder) PcOpen(p *model.PcOpenRun) *pb.RunMessage {
 	return &pb.RunMessage{Kind: &pb.RunMessage_PcOpen{PcOpen: &pb.PcOpenRunMessage{
 		Id: p.ID, Type: p.Type, SubType: p.SubType,
 		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
+		Attrs:       p.Attrs,
 		Constraints: constraintsToProto(p.Constraints),
 	}}}
 }
@@ -439,6 +441,7 @@ func (protoRunParser) Ph(m *pb.RunMessage) (*model.PlaceholderRun, bool) {
 		return &model.PlaceholderRun{
 			ID: k.Ph.GetId(), Type: k.Ph.GetType(), SubType: k.Ph.GetSubType(),
 			Data: k.Ph.GetData(), Equiv: k.Ph.GetEquiv(), Disp: k.Ph.GetDisp(),
+			Attrs:       protoToAttrs(k.Ph.GetAttrs()),
 			Constraints: protoToConstraints(k.Ph.GetConstraints()),
 		}, true
 	}
@@ -450,6 +453,7 @@ func (protoRunParser) PcOpen(m *pb.RunMessage) (*model.PcOpenRun, bool) {
 		return &model.PcOpenRun{
 			ID: k.PcOpen.GetId(), Type: k.PcOpen.GetType(), SubType: k.PcOpen.GetSubType(),
 			Data: k.PcOpen.GetData(), Equiv: k.PcOpen.GetEquiv(), Disp: k.PcOpen.GetDisp(),
+			Attrs:       protoToAttrs(k.PcOpen.GetAttrs()),
 			Constraints: protoToConstraints(k.PcOpen.GetConstraints()),
 		}, true
 	}
@@ -525,6 +529,17 @@ func protoToConstraints(msg *pb.RunConstraints) *model.RunConstraints {
 		return nil
 	}
 	return &model.RunConstraints{Deletable: msg.GetDeletable(), Cloneable: msg.GetCloneable(), Reorderable: msg.GetReorderable()}
+}
+
+// protoToAttrs normalizes a wire attrs map to the model's nil-when-absent
+// convention. Proto3 does not distinguish an absent map from an empty one, so
+// both decode to nil — matching the model's `omitempty` JSON semantics, where
+// nil and empty Attrs are equivalent (both serialize to nothing).
+func protoToAttrs(m map[string]string) map[string]string {
+	if len(m) == 0 {
+		return nil
+	}
+	return m
 }
 
 // ────────────────────────────────────────────────────────────────────────────

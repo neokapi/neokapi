@@ -366,6 +366,12 @@
     },
     "PcOpenRunMessage": {
       "properties": {
+        "attrs": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
         "constraints": {
           "$ref": "#/$defs/RunConstraints"
         },
@@ -392,6 +398,12 @@
     },
     "PlaceholderRunMessage": {
       "properties": {
+        "attrs": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
         "constraints": {
           "$ref": "#/$defs/RunConstraints"
         },

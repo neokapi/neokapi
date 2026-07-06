@@ -56,6 +56,45 @@
       }
     },
     {
+      "pcOpen": {
+        "id": "lnk1",
+        "type": "link:hyperlink",
+        "data": "<a href=\"https://example.com\" title=\"Docs\">",
+        "equiv": "a",
+        "disp": "Link",
+        "attrs": {
+          "href": "https://example.com",
+          "title": "Docs"
+        }
+      }
+    },
+    {
+      "text": {
+        "text": "docs"
+      }
+    },
+    {
+      "pcClose": {
+        "id": "lnk1",
+        "type": "link:hyperlink",
+        "data": "</a>",
+        "equiv": "a"
+      }
+    },
+    {
+      "ph": {
+        "id": "img1",
+        "type": "link:image",
+        "data": "![Logo](img/logo.png)",
+        "equiv": "img",
+        "disp": "Image",
+        "attrs": {
+          "alt": "Logo",
+          "src": "img/logo.png"
+        }
+      }
+    },
+    {
       "plural": {
         "pivot": "count",
         "forms": {

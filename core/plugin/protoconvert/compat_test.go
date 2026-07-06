@@ -44,6 +44,23 @@ func compatRunCorpus() []model.Run {
 			ID: "pc1", Type: "html:element", SubType: "inline", Data: "</span>", Equiv: "span",
 		}},
 		{Sub: &model.SubRun{ID: "sub1", Ref: "block-42", Equiv: "sub"}},
+		// Canonical inline attributes (model Run.Attrs): a hyperlink pair with
+		// href/title on the opening half, and a self-closing image placeholder
+		// with src/alt/title.
+		{PcOpen: &model.PcOpenRun{
+			ID: "lnk1", Type: "link:hyperlink", Data: `<a href="https://example.com" title="Docs">`,
+			Equiv: "a", Disp: "Link",
+			Attrs: map[string]string{model.AttrHref: "https://example.com", model.AttrTitle: "Docs"},
+		}},
+		{Text: &model.TextRun{Text: "docs"}},
+		{PcClose: &model.PcCloseRun{ID: "lnk1", Type: "link:hyperlink", Data: "</a>", Equiv: "a"}},
+		{Ph: &model.PlaceholderRun{
+			ID: "img1", Type: "link:image", Data: `![Logo](img/logo.png "Kapi")`,
+			Equiv: "img", Disp: "Image",
+			Attrs: map[string]string{
+				model.AttrSrc: "img/logo.png", model.AttrAlt: "Logo", model.AttrTitle: "Kapi",
+			},
+		}},
 		{Plural: &model.PluralRun{
 			Pivot: "count",
 			Forms: map[model.PluralForm][]model.Run{
@@ -81,6 +98,30 @@ func TestCompatRunKinds(t *testing.T) {
 	runs := compatRunCorpus()
 	got := protoconvert.ProtoToRuns(protoconvert.RunsToProto(runs))
 	require.Equal(t, runs, got, "canonical Run wire schema must round-trip every kind")
+}
+
+// TestCompatRunAttrsNilEmpty pins the Attrs nil/empty normalization: nil
+// Attrs stay nil through the wire, and an empty (but non-nil) map — which
+// proto3 cannot distinguish from an absent one — decodes back to nil, matching
+// the model's `omitempty` JSON semantics where nil and empty are equivalent.
+func TestCompatRunAttrsNilEmpty(t *testing.T) {
+	nilRuns := []model.Run{
+		{Ph: &model.PlaceholderRun{ID: "p1", Type: "var", Data: "{n}", Equiv: "n"}},
+		{PcOpen: &model.PcOpenRun{ID: "b1", Type: "element", Data: "<b>", Equiv: "b"}},
+		{PcClose: &model.PcCloseRun{ID: "b1", Type: "element", Data: "</b>"}},
+	}
+	require.Equal(t, nilRuns, protoconvert.ProtoToRuns(protoconvert.RunsToProto(nilRuns)),
+		"nil Attrs must round-trip as nil")
+
+	emptyRuns := []model.Run{
+		{Ph: &model.PlaceholderRun{ID: "p1", Type: "var", Data: "{n}", Equiv: "n",
+			Attrs: map[string]string{}}},
+		{PcOpen: &model.PcOpenRun{ID: "b1", Type: "element", Data: "<b>", Equiv: "b",
+			Attrs: map[string]string{}}},
+	}
+	got := protoconvert.ProtoToRuns(protoconvert.RunsToProto(emptyRuns))
+	require.Nil(t, got[0].Ph.Attrs, "empty Attrs normalize to nil (absent on the wire)")
+	require.Nil(t, got[1].PcOpen.Attrs, "empty Attrs normalize to nil (absent on the wire)")
 }
 
 // TestCompatBlockCorpus pins the full Block round-trip: rich source runs,

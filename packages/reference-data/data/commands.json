@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-05T15:46:54Z",
+  "generatedAt": "2026-07-06T15:06:52Z",
   "commands": [
     {
       "id": "brand",
@@ -1564,18 +1564,25 @@
         "serve"
       ],
       "use": "serve",
-      "short": "Serve the EngineService gRPC API on a local Unix socket",
-      "long": "Serve the neokapi content engine as a gRPC service (EngineService,\ncore/proto/engine/v1) on a local Unix socket, so any gRPC-capable language\ncan extract documents into the canonical content model, process the part\nstream through tools or flows, and merge it back to document bytes.\n\nOn startup the command prints a one-line JSON handshake on stdout —\n{\"socket\": \"\u003cpath\u003e\", \"version\": \"\u003ckapi version\u003e\", \"pid\": \u003cpid\u003e} — mirroring\nthe plugin daemon convention, then serves until interrupted.\n\nTrust model: the service is for TRUSTED LOCAL PEERS ONLY. There is no\nauthentication in v1; the socket (created inside a 0700 directory) is the\nsecurity boundary, exactly like kapi's plugin daemon sockets. Do not expose\nthe socket over the network or place it in a shared directory.",
+      "short": "Serve the EngineService gRPC API on a local Unix socket or stdio",
+      "long": "Serve the neokapi content engine as a gRPC service (EngineService,\ncore/proto/engine/v1) on a local Unix socket, so any gRPC-capable language\ncan extract documents into the canonical content model, process the part\nstream through tools or flows, and merge it back to document bytes.\n\nOn startup the command prints a one-line JSON handshake on stdout —\n{\"socket\": \"\u003cpath\u003e\", \"version\": \"\u003ckapi version\u003e\", \"pid\": \u003cpid\u003e} — mirroring\nthe plugin daemon convention, then serves until interrupted.\n\nWith --stdio the server instead serves exactly ONE gRPC connection over\nstdin/stdout — spawn-per-session callers (an editor extension, a language\nSDK that execs kapi) skip socket management entirely. In this mode stdout\ncarries nothing but the gRPC byte stream: the handshake and all logging go\nto stderr, and the server exits cleanly when stdin reaches EOF. --stdio and\n--socket are mutually exclusive.\n\nTrust model: the service is for TRUSTED LOCAL PEERS ONLY. There is no\nauthentication in v1; the socket (created inside a 0700 directory) or the\nprocess pipes are the security boundary, exactly like kapi's plugin daemon\nsockets. Do not expose the socket over the network or place it in a shared\ndirectory.",
       "flags": [
         {
           "name": "socket",
           "usage": "Unix socket path to listen on (default: $XDG_RUNTIME_DIR/kapi/engine-\u003cpid\u003e.sock, falling back to the user cache dir)",
           "type": "string"
+        },
+        {
+          "name": "stdio",
+          "usage": "serve a single gRPC connection over stdin/stdout instead of a socket (handshake and logs go to stderr; exits on stdin EOF)",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
         "kapi engine serve",
-        "kapi engine serve --socket /tmp/my-engine.sock"
+        "kapi engine serve --socket /tmp/my-engine.sock",
+        "kapi engine serve --stdio"
       ],
       "offlineCapable": true,
       "runnableInBrowser": false,

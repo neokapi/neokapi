@@ -9,9 +9,10 @@ name: Publish npm packages
 #
 # Two ways to release (both run the same idempotent publish):
 #   - Push a scoped tag, mirroring the binary releases (`v*`) and the sat plugin
-#     (`sat-v*`): `kapi-react-vX.Y.Z` or `kapi-format-vX.Y.Z`. The tag version is
-#     verified against that package's package.json so a tag can't drift from what
-#     ships. Example: `git tag kapi-react-v1.0.1 && git push origin kapi-react-v1.0.1`.
+#     (`sat-v*`): `kapi-react-vX.Y.Z`, `kapi-format-vX.Y.Z`, `contract-types-vX.Y.Z`,
+#     or `engine-vX.Y.Z`. The tag version is verified against that package's
+#     package.json so a tag can't drift from what ships. Example:
+#     `git tag kapi-react-v1.0.1 && git push origin kapi-react-v1.0.1`.
 #   - Run the workflow manually (workflow_dispatch) as a fallback / re-run.
 #
 # First publish of a brand-new package must be bootstrapped once (npm login +
@@ -23,6 +24,8 @@ on:
     tags:
       - "kapi-react-v*"
       - "kapi-format-v*"
+      - "contract-types-v*"
+      - "engine-v*"
   workflow_dispatch: {}
 
 permissions:
@@ -67,8 +70,10 @@ jobs:
         run: |
           ref="$GITHUB_REF_NAME"
           case "$ref" in
-            kapi-react-v*)  pkg=packages/kapi-react;  expected="${ref#kapi-react-v}" ;;
-            kapi-format-v*) pkg=packages/kapi-format; expected="${ref#kapi-format-v}" ;;
+            kapi-react-v*)     pkg=packages/kapi-react;     expected="${ref#kapi-react-v}" ;;
+            kapi-format-v*)    pkg=packages/kapi-format;    expected="${ref#kapi-format-v}" ;;
+            contract-types-v*) pkg=packages/contract-types; expected="${ref#contract-types-v}" ;;
+            engine-v*)         pkg=packages/engine;         expected="${ref#engine-v}" ;;
             *) echo "::error::unrecognized release tag '$ref'"; exit 1 ;;
           esac
           actual="$(node -p "require('./$pkg/package.json').version")"
@@ -83,11 +88,14 @@ jobs:
           corepack enable
           corepack pnpm install --frozen-lockfile
 
-      # kapi-react consumes @neokapi/kapi-format; build the dependency first.
+      # Build in dependency order: kapi-react consumes @neokapi/kapi-format and
+      # @neokapi/engine consumes @neokapi/contract-types.
       - name: Build packages
         run: |
           pnpm --filter @neokapi/kapi-format run build
           pnpm --filter @neokapi/kapi-react run build
+          pnpm --filter @neokapi/contract-types run build
+          pnpm --filter @neokapi/engine run build
 
       # Publish in dependency order. Skip a package whose current version is
       # already on npm so re-running the workflow is idempotent.
@@ -117,6 +125,28 @@ jobs:
           VER=$(node -p "require('./package.json').version")
           if npm view "@neokapi/kapi-react@${VER}" version --@neokapi:registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
             echo "@neokapi/kapi-react@${VER} already published — skipping"
+          else
+            npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
+          fi
+
+      # @neokapi/engine depends on @neokapi/contract-types, so contract-types
+      # must publish first within the same release.
+      - name: Publish @neokapi/contract-types
+        working-directory: packages/contract-types
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          if npm view "@neokapi/contract-types@${VER}" version --@neokapi:registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
+            echo "@neokapi/contract-types@${VER} already published — skipping"
+          else
+            npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
+          fi
+
+      - name: Publish @neokapi/engine
+        working-directory: packages/engine
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          if npm view "@neokapi/engine@${VER}" version --@neokapi:registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
+            echo "@neokapi/engine@${VER} already published — skipping"
           else
             npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
           fi

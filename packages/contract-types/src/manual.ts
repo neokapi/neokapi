@@ -8,7 +8,13 @@
 // structural fields ($ref, $defs, oneOf, additionalProperties, …). Keeping the
 // union here means a single declaration nothing has to diverge from.
 
-import type { FormatMeta, LayoutHints, OptionItem, PathAnnotation, ToolMeta } from "./contract.gen";
+import type {
+  FormatMeta,
+  LayoutHints,
+  OptionItem,
+  PathAnnotation,
+  ToolMeta,
+} from "./contract.gen.ts";
 
 /**
  * Condition expression for `ui:visible` / `ui:enabled`. Supports simple field

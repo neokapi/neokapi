@@ -486,14 +486,18 @@ func (x *TextRunMessage) GetText() string {
 // PlaceholderRunMessage is a self-closing inline code (variable,
 // conditional JSX expression, line break, icon, etc.).
 type PlaceholderRunMessage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`                      // Vocabulary key, e.g. "jsx:var", "jsx:node", "html:br".
-	SubType       string                 `protobuf:"bytes,3,opt,name=sub_type,json=subType,proto3" json:"sub_type,omitempty"` // Fine-grained discriminator.
-	Data          string                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`                      // Original source slice, preserved verbatim.
-	Equiv         string                 `protobuf:"bytes,5,opt,name=equiv,proto3" json:"equiv,omitempty"`                    // Stable human-friendly identifier (variable name, tag name).
-	Disp          string                 `protobuf:"bytes,6,opt,name=disp,proto3" json:"disp,omitempty"`                      // Display label for chips.
-	Constraints   *RunConstraints        `protobuf:"bytes,7,opt,name=constraints,proto3" json:"constraints,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type        string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`                      // Vocabulary key, e.g. "jsx:var", "jsx:node", "html:br".
+	SubType     string                 `protobuf:"bytes,3,opt,name=sub_type,json=subType,proto3" json:"sub_type,omitempty"` // Fine-grained discriminator.
+	Data        string                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`                      // Original source slice, preserved verbatim.
+	Equiv       string                 `protobuf:"bytes,5,opt,name=equiv,proto3" json:"equiv,omitempty"`                    // Stable human-friendly identifier (variable name, tag name).
+	Disp        string                 `protobuf:"bytes,6,opt,name=disp,proto3" json:"disp,omitempty"`                      // Display label for chips.
+	Constraints *RunConstraints        `protobuf:"bytes,7,opt,name=constraints,proto3" json:"constraints,omitempty"`
+	// Canonical, format-neutral attributes ("href", "src", "alt", "title", …)
+	// mirroring model.PlaceholderRun.Attrs. Appended per the compatibility
+	// policy above; absent for runs that carry no attributes.
+	Attrs         map[string]string `protobuf:"bytes,8,rep,name=attrs,proto3" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -577,16 +581,27 @@ func (x *PlaceholderRunMessage) GetConstraints() *RunConstraints {
 	return nil
 }
 
+func (x *PlaceholderRunMessage) GetAttrs() map[string]string {
+	if x != nil {
+		return x.Attrs
+	}
+	return nil
+}
+
 // PcOpenRunMessage is the opening half of a paired inline code.
 type PcOpenRunMessage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	SubType       string                 `protobuf:"bytes,3,opt,name=sub_type,json=subType,proto3" json:"sub_type,omitempty"`
-	Data          string                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"` // Raw opening source ("<span class=\"muted\">").
-	Equiv         string                 `protobuf:"bytes,5,opt,name=equiv,proto3" json:"equiv,omitempty"`
-	Disp          string                 `protobuf:"bytes,6,opt,name=disp,proto3" json:"disp,omitempty"`
-	Constraints   *RunConstraints        `protobuf:"bytes,7,opt,name=constraints,proto3" json:"constraints,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type        string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	SubType     string                 `protobuf:"bytes,3,opt,name=sub_type,json=subType,proto3" json:"sub_type,omitempty"`
+	Data        string                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"` // Raw opening source ("<span class=\"muted\">").
+	Equiv       string                 `protobuf:"bytes,5,opt,name=equiv,proto3" json:"equiv,omitempty"`
+	Disp        string                 `protobuf:"bytes,6,opt,name=disp,proto3" json:"disp,omitempty"`
+	Constraints *RunConstraints        `protobuf:"bytes,7,opt,name=constraints,proto3" json:"constraints,omitempty"`
+	// Canonical, format-neutral attributes ("href", "title", …) mirroring
+	// model.PcOpenRun.Attrs. Appended per the compatibility policy above;
+	// absent for runs that carry no attributes.
+	Attrs         map[string]string `protobuf:"bytes,8,rep,name=attrs,proto3" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -666,6 +681,13 @@ func (x *PcOpenRunMessage) GetDisp() string {
 func (x *PcOpenRunMessage) GetConstraints() *RunConstraints {
 	if x != nil {
 		return x.Constraints
+	}
+	return nil
+}
+
+func (x *PcOpenRunMessage) GetAttrs() map[string]string {
+	if x != nil {
+		return x.Attrs
 	}
 	return nil
 }
@@ -2366,7 +2388,7 @@ const file_core_proto_content_v1_content_proto_rawDesc = "" +
 	"\tcloneable\x18\x02 \x01(\bR\tcloneable\x12 \n" +
 	"\vreorderable\x18\x03 \x01(\bR\vreorderable\"$\n" +
 	"\x0eTextRunMessage\x12\x12\n" +
-	"\x04text\x18\x01 \x01(\tR\x04text\"\xda\x01\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\"\xe0\x02\n" +
 	"\x15PlaceholderRunMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x19\n" +
@@ -2374,7 +2396,12 @@ const file_core_proto_content_v1_content_proto_rawDesc = "" +
 	"\x04data\x18\x04 \x01(\tR\x04data\x12\x14\n" +
 	"\x05equiv\x18\x05 \x01(\tR\x05equiv\x12\x12\n" +
 	"\x04disp\x18\x06 \x01(\tR\x04disp\x12D\n" +
-	"\vconstraints\x18\a \x01(\v2\".neokapi.content.v1.RunConstraintsR\vconstraints\"\xd5\x01\n" +
+	"\vconstraints\x18\a \x01(\v2\".neokapi.content.v1.RunConstraintsR\vconstraints\x12J\n" +
+	"\x05attrs\x18\b \x03(\v24.neokapi.content.v1.PlaceholderRunMessage.AttrsEntryR\x05attrs\x1a8\n" +
+	"\n" +
+	"AttrsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd6\x02\n" +
 	"\x10PcOpenRunMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x19\n" +
@@ -2382,7 +2409,12 @@ const file_core_proto_content_v1_content_proto_rawDesc = "" +
 	"\x04data\x18\x04 \x01(\tR\x04data\x12\x14\n" +
 	"\x05equiv\x18\x05 \x01(\tR\x05equiv\x12\x12\n" +
 	"\x04disp\x18\x06 \x01(\tR\x04disp\x12D\n" +
-	"\vconstraints\x18\a \x01(\v2\".neokapi.content.v1.RunConstraintsR\vconstraints\"|\n" +
+	"\vconstraints\x18\a \x01(\v2\".neokapi.content.v1.RunConstraintsR\vconstraints\x12E\n" +
+	"\x05attrs\x18\b \x03(\v2/.neokapi.content.v1.PcOpenRunMessage.AttrsEntryR\x05attrs\x1a8\n" +
+	"\n" +
+	"AttrsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"|\n" +
 	"\x11PcCloseRunMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x19\n" +
@@ -2580,7 +2612,7 @@ func file_core_proto_content_v1_content_proto_rawDescGZIP() []byte {
 	return file_core_proto_content_v1_content_proto_rawDescData
 }
 
-var file_core_proto_content_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_core_proto_content_v1_content_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
 var file_core_proto_content_v1_content_proto_goTypes = []any{
 	(*AnnotationEntry)(nil),       // 0: neokapi.content.v1.AnnotationEntry
 	(*RunRangeMessage)(nil),       // 1: neokapi.content.v1.RunRangeMessage
@@ -2612,17 +2644,19 @@ var file_core_proto_content_v1_content_proto_goTypes = []any{
 	(*PartMessage)(nil),           // 27: neokapi.content.v1.PartMessage
 	(*ContentRef)(nil),            // 28: neokapi.content.v1.ContentRef
 	nil,                           // 29: neokapi.content.v1.SpanMessage.PropsEntry
-	nil,                           // 30: neokapi.content.v1.PluralRunMessage.FormsEntry
-	nil,                           // 31: neokapi.content.v1.SelectRunMessage.CasesEntry
-	nil,                           // 32: neokapi.content.v1.SegmentMessage.PropertiesEntry
-	nil,                           // 33: neokapi.content.v1.ContentBlock.PropertiesEntry
-	nil,                           // 34: neokapi.content.v1.ContentBlock.AnnotationsEntry
-	nil,                           // 35: neokapi.content.v1.BlockMessage.PropertiesEntry
-	nil,                           // 36: neokapi.content.v1.BlockMessage.AnnotationsEntry
-	nil,                           // 37: neokapi.content.v1.LayerMessage.PropertiesEntry
-	nil,                           // 38: neokapi.content.v1.DataMessage.PropertiesEntry
-	nil,                           // 39: neokapi.content.v1.GroupStartMessage.PropertiesEntry
-	nil,                           // 40: neokapi.content.v1.MediaMessage.PropertiesEntry
+	nil,                           // 30: neokapi.content.v1.PlaceholderRunMessage.AttrsEntry
+	nil,                           // 31: neokapi.content.v1.PcOpenRunMessage.AttrsEntry
+	nil,                           // 32: neokapi.content.v1.PluralRunMessage.FormsEntry
+	nil,                           // 33: neokapi.content.v1.SelectRunMessage.CasesEntry
+	nil,                           // 34: neokapi.content.v1.SegmentMessage.PropertiesEntry
+	nil,                           // 35: neokapi.content.v1.ContentBlock.PropertiesEntry
+	nil,                           // 36: neokapi.content.v1.ContentBlock.AnnotationsEntry
+	nil,                           // 37: neokapi.content.v1.BlockMessage.PropertiesEntry
+	nil,                           // 38: neokapi.content.v1.BlockMessage.AnnotationsEntry
+	nil,                           // 39: neokapi.content.v1.LayerMessage.PropertiesEntry
+	nil,                           // 40: neokapi.content.v1.DataMessage.PropertiesEntry
+	nil,                           // 41: neokapi.content.v1.GroupStartMessage.PropertiesEntry
+	nil,                           // 42: neokapi.content.v1.MediaMessage.PropertiesEntry
 }
 var file_core_proto_content_v1_content_proto_depIdxs = []int32{
 	1,  // 0: neokapi.content.v1.SpanMessage.range:type_name -> neokapi.content.v1.RunRangeMessage
@@ -2631,54 +2665,56 @@ var file_core_proto_content_v1_content_proto_depIdxs = []int32{
 	2,  // 3: neokapi.content.v1.OverlayMessage.variant:type_name -> neokapi.content.v1.VariantMessage
 	3,  // 4: neokapi.content.v1.OverlayMessage.spans:type_name -> neokapi.content.v1.SpanMessage
 	5,  // 5: neokapi.content.v1.PlaceholderRunMessage.constraints:type_name -> neokapi.content.v1.RunConstraints
-	5,  // 6: neokapi.content.v1.PcOpenRunMessage.constraints:type_name -> neokapi.content.v1.RunConstraints
-	30, // 7: neokapi.content.v1.PluralRunMessage.forms:type_name -> neokapi.content.v1.PluralRunMessage.FormsEntry
-	31, // 8: neokapi.content.v1.SelectRunMessage.cases:type_name -> neokapi.content.v1.SelectRunMessage.CasesEntry
-	14, // 9: neokapi.content.v1.RunList.runs:type_name -> neokapi.content.v1.RunMessage
-	6,  // 10: neokapi.content.v1.RunMessage.text:type_name -> neokapi.content.v1.TextRunMessage
-	7,  // 11: neokapi.content.v1.RunMessage.ph:type_name -> neokapi.content.v1.PlaceholderRunMessage
-	8,  // 12: neokapi.content.v1.RunMessage.pc_open:type_name -> neokapi.content.v1.PcOpenRunMessage
-	9,  // 13: neokapi.content.v1.RunMessage.pc_close:type_name -> neokapi.content.v1.PcCloseRunMessage
-	10, // 14: neokapi.content.v1.RunMessage.sub:type_name -> neokapi.content.v1.SubRunMessage
-	11, // 15: neokapi.content.v1.RunMessage.plural:type_name -> neokapi.content.v1.PluralRunMessage
-	12, // 16: neokapi.content.v1.RunMessage.select:type_name -> neokapi.content.v1.SelectRunMessage
-	14, // 17: neokapi.content.v1.SegmentMessage.runs:type_name -> neokapi.content.v1.RunMessage
-	32, // 18: neokapi.content.v1.SegmentMessage.properties:type_name -> neokapi.content.v1.SegmentMessage.PropertiesEntry
-	15, // 19: neokapi.content.v1.TargetEntry.segments:type_name -> neokapi.content.v1.SegmentMessage
-	15, // 20: neokapi.content.v1.ContentBlock.source:type_name -> neokapi.content.v1.SegmentMessage
-	16, // 21: neokapi.content.v1.ContentBlock.targets:type_name -> neokapi.content.v1.TargetEntry
-	33, // 22: neokapi.content.v1.ContentBlock.properties:type_name -> neokapi.content.v1.ContentBlock.PropertiesEntry
-	34, // 23: neokapi.content.v1.ContentBlock.annotations:type_name -> neokapi.content.v1.ContentBlock.AnnotationsEntry
-	20, // 24: neokapi.content.v1.ContentBlock.display_hint:type_name -> neokapi.content.v1.DisplayHintMessage
-	4,  // 25: neokapi.content.v1.ContentBlock.overlays:type_name -> neokapi.content.v1.OverlayMessage
-	19, // 26: neokapi.content.v1.SkeletonMessage.parts:type_name -> neokapi.content.v1.SkeletonPartMessage
-	15, // 27: neokapi.content.v1.BlockMessage.source:type_name -> neokapi.content.v1.SegmentMessage
-	16, // 28: neokapi.content.v1.BlockMessage.targets:type_name -> neokapi.content.v1.TargetEntry
-	35, // 29: neokapi.content.v1.BlockMessage.properties:type_name -> neokapi.content.v1.BlockMessage.PropertiesEntry
-	36, // 30: neokapi.content.v1.BlockMessage.annotations:type_name -> neokapi.content.v1.BlockMessage.AnnotationsEntry
-	20, // 31: neokapi.content.v1.BlockMessage.display_hint:type_name -> neokapi.content.v1.DisplayHintMessage
-	18, // 32: neokapi.content.v1.BlockMessage.skeleton:type_name -> neokapi.content.v1.SkeletonMessage
-	4,  // 33: neokapi.content.v1.BlockMessage.overlays:type_name -> neokapi.content.v1.OverlayMessage
-	37, // 34: neokapi.content.v1.LayerMessage.properties:type_name -> neokapi.content.v1.LayerMessage.PropertiesEntry
-	38, // 35: neokapi.content.v1.DataMessage.properties:type_name -> neokapi.content.v1.DataMessage.PropertiesEntry
-	18, // 36: neokapi.content.v1.DataMessage.skeleton:type_name -> neokapi.content.v1.SkeletonMessage
-	39, // 37: neokapi.content.v1.GroupStartMessage.properties:type_name -> neokapi.content.v1.GroupStartMessage.PropertiesEntry
-	40, // 38: neokapi.content.v1.MediaMessage.properties:type_name -> neokapi.content.v1.MediaMessage.PropertiesEntry
-	21, // 39: neokapi.content.v1.PartMessage.block:type_name -> neokapi.content.v1.BlockMessage
-	22, // 40: neokapi.content.v1.PartMessage.layer:type_name -> neokapi.content.v1.LayerMessage
-	23, // 41: neokapi.content.v1.PartMessage.data:type_name -> neokapi.content.v1.DataMessage
-	24, // 42: neokapi.content.v1.PartMessage.group_start:type_name -> neokapi.content.v1.GroupStartMessage
-	25, // 43: neokapi.content.v1.PartMessage.group_end:type_name -> neokapi.content.v1.GroupEndMessage
-	26, // 44: neokapi.content.v1.PartMessage.media:type_name -> neokapi.content.v1.MediaMessage
-	13, // 45: neokapi.content.v1.PluralRunMessage.FormsEntry.value:type_name -> neokapi.content.v1.RunList
-	13, // 46: neokapi.content.v1.SelectRunMessage.CasesEntry.value:type_name -> neokapi.content.v1.RunList
-	0,  // 47: neokapi.content.v1.ContentBlock.AnnotationsEntry.value:type_name -> neokapi.content.v1.AnnotationEntry
-	0,  // 48: neokapi.content.v1.BlockMessage.AnnotationsEntry.value:type_name -> neokapi.content.v1.AnnotationEntry
-	49, // [49:49] is the sub-list for method output_type
-	49, // [49:49] is the sub-list for method input_type
-	49, // [49:49] is the sub-list for extension type_name
-	49, // [49:49] is the sub-list for extension extendee
-	0,  // [0:49] is the sub-list for field type_name
+	30, // 6: neokapi.content.v1.PlaceholderRunMessage.attrs:type_name -> neokapi.content.v1.PlaceholderRunMessage.AttrsEntry
+	5,  // 7: neokapi.content.v1.PcOpenRunMessage.constraints:type_name -> neokapi.content.v1.RunConstraints
+	31, // 8: neokapi.content.v1.PcOpenRunMessage.attrs:type_name -> neokapi.content.v1.PcOpenRunMessage.AttrsEntry
+	32, // 9: neokapi.content.v1.PluralRunMessage.forms:type_name -> neokapi.content.v1.PluralRunMessage.FormsEntry
+	33, // 10: neokapi.content.v1.SelectRunMessage.cases:type_name -> neokapi.content.v1.SelectRunMessage.CasesEntry
+	14, // 11: neokapi.content.v1.RunList.runs:type_name -> neokapi.content.v1.RunMessage
+	6,  // 12: neokapi.content.v1.RunMessage.text:type_name -> neokapi.content.v1.TextRunMessage
+	7,  // 13: neokapi.content.v1.RunMessage.ph:type_name -> neokapi.content.v1.PlaceholderRunMessage
+	8,  // 14: neokapi.content.v1.RunMessage.pc_open:type_name -> neokapi.content.v1.PcOpenRunMessage
+	9,  // 15: neokapi.content.v1.RunMessage.pc_close:type_name -> neokapi.content.v1.PcCloseRunMessage
+	10, // 16: neokapi.content.v1.RunMessage.sub:type_name -> neokapi.content.v1.SubRunMessage
+	11, // 17: neokapi.content.v1.RunMessage.plural:type_name -> neokapi.content.v1.PluralRunMessage
+	12, // 18: neokapi.content.v1.RunMessage.select:type_name -> neokapi.content.v1.SelectRunMessage
+	14, // 19: neokapi.content.v1.SegmentMessage.runs:type_name -> neokapi.content.v1.RunMessage
+	34, // 20: neokapi.content.v1.SegmentMessage.properties:type_name -> neokapi.content.v1.SegmentMessage.PropertiesEntry
+	15, // 21: neokapi.content.v1.TargetEntry.segments:type_name -> neokapi.content.v1.SegmentMessage
+	15, // 22: neokapi.content.v1.ContentBlock.source:type_name -> neokapi.content.v1.SegmentMessage
+	16, // 23: neokapi.content.v1.ContentBlock.targets:type_name -> neokapi.content.v1.TargetEntry
+	35, // 24: neokapi.content.v1.ContentBlock.properties:type_name -> neokapi.content.v1.ContentBlock.PropertiesEntry
+	36, // 25: neokapi.content.v1.ContentBlock.annotations:type_name -> neokapi.content.v1.ContentBlock.AnnotationsEntry
+	20, // 26: neokapi.content.v1.ContentBlock.display_hint:type_name -> neokapi.content.v1.DisplayHintMessage
+	4,  // 27: neokapi.content.v1.ContentBlock.overlays:type_name -> neokapi.content.v1.OverlayMessage
+	19, // 28: neokapi.content.v1.SkeletonMessage.parts:type_name -> neokapi.content.v1.SkeletonPartMessage
+	15, // 29: neokapi.content.v1.BlockMessage.source:type_name -> neokapi.content.v1.SegmentMessage
+	16, // 30: neokapi.content.v1.BlockMessage.targets:type_name -> neokapi.content.v1.TargetEntry
+	37, // 31: neokapi.content.v1.BlockMessage.properties:type_name -> neokapi.content.v1.BlockMessage.PropertiesEntry
+	38, // 32: neokapi.content.v1.BlockMessage.annotations:type_name -> neokapi.content.v1.BlockMessage.AnnotationsEntry
+	20, // 33: neokapi.content.v1.BlockMessage.display_hint:type_name -> neokapi.content.v1.DisplayHintMessage
+	18, // 34: neokapi.content.v1.BlockMessage.skeleton:type_name -> neokapi.content.v1.SkeletonMessage
+	4,  // 35: neokapi.content.v1.BlockMessage.overlays:type_name -> neokapi.content.v1.OverlayMessage
+	39, // 36: neokapi.content.v1.LayerMessage.properties:type_name -> neokapi.content.v1.LayerMessage.PropertiesEntry
+	40, // 37: neokapi.content.v1.DataMessage.properties:type_name -> neokapi.content.v1.DataMessage.PropertiesEntry
+	18, // 38: neokapi.content.v1.DataMessage.skeleton:type_name -> neokapi.content.v1.SkeletonMessage
+	41, // 39: neokapi.content.v1.GroupStartMessage.properties:type_name -> neokapi.content.v1.GroupStartMessage.PropertiesEntry
+	42, // 40: neokapi.content.v1.MediaMessage.properties:type_name -> neokapi.content.v1.MediaMessage.PropertiesEntry
+	21, // 41: neokapi.content.v1.PartMessage.block:type_name -> neokapi.content.v1.BlockMessage
+	22, // 42: neokapi.content.v1.PartMessage.layer:type_name -> neokapi.content.v1.LayerMessage
+	23, // 43: neokapi.content.v1.PartMessage.data:type_name -> neokapi.content.v1.DataMessage
+	24, // 44: neokapi.content.v1.PartMessage.group_start:type_name -> neokapi.content.v1.GroupStartMessage
+	25, // 45: neokapi.content.v1.PartMessage.group_end:type_name -> neokapi.content.v1.GroupEndMessage
+	26, // 46: neokapi.content.v1.PartMessage.media:type_name -> neokapi.content.v1.MediaMessage
+	13, // 47: neokapi.content.v1.PluralRunMessage.FormsEntry.value:type_name -> neokapi.content.v1.RunList
+	13, // 48: neokapi.content.v1.SelectRunMessage.CasesEntry.value:type_name -> neokapi.content.v1.RunList
+	0,  // 49: neokapi.content.v1.ContentBlock.AnnotationsEntry.value:type_name -> neokapi.content.v1.AnnotationEntry
+	0,  // 50: neokapi.content.v1.BlockMessage.AnnotationsEntry.value:type_name -> neokapi.content.v1.AnnotationEntry
+	51, // [51:51] is the sub-list for method output_type
+	51, // [51:51] is the sub-list for method input_type
+	51, // [51:51] is the sub-list for extension type_name
+	51, // [51:51] is the sub-list for extension extendee
+	0,  // [0:51] is the sub-list for field type_name
 }
 
 func init() { file_core_proto_content_v1_content_proto_init() }
@@ -2706,7 +2742,7 @@ func file_core_proto_content_v1_content_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_core_proto_content_v1_content_proto_rawDesc), len(file_core_proto_content_v1_content_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   41,
+			NumMessages:   43,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
