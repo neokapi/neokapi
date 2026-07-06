@@ -89,6 +89,7 @@ export interface PlaceholderRunMessage {
   equiv?: string;
   disp?: string;
   constraints?: RunConstraints;
+  attrs?: Record<string, string>;
 }
 
 /**
@@ -102,6 +103,7 @@ export interface PcOpenRunMessage {
   equiv?: string;
   disp?: string;
   constraints?: RunConstraints;
+  attrs?: Record<string, string>;
 }
 
 /**
