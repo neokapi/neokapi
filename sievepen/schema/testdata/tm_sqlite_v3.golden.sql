@@ -1,0 +1,3 @@
+
+		ALTER TABLE tm_entries ADD COLUMN has_codes INTEGER NOT NULL DEFAULT 0;
+		

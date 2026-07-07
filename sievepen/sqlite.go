@@ -14,6 +14,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/sievepen/schema"
 )
 
 // Sentinel errors for TM entry validation.
@@ -63,134 +64,34 @@ func NewSQLiteTMFromDB(db *storage.DB) (*SQLiteTM, error) {
 	return &SQLiteTM{db: db}, nil
 }
 
-// tmMigrations defines the multilingual TM schema. Every entry is
-// symmetric: there is no "source"/"target", only a set of language
-// variants. Match keys (plain, structural, generalized) are computed
-// per variant at write time and indexed for tiered lookup.
+// tmMigrations defines the multilingual TM schema. Every entry is symmetric:
+// there is no "source"/"target", only a set of language variants. Match keys
+// (plain, structural, generalized) are computed per variant at write time and
+// indexed for tiered lookup. The DDL is rendered from the shared schema
+// descriptors (sievepen/schema) so the SQLite and Postgres backends cannot
+// drift; the rendered SQLite DDL is byte-identical to the historical
+// migrations (golden-tested in sievepen/schema).
+//
+// tm_variant_search uses storage.FTSWordTokenizer, which resolves to the ICU
+// tokenizer under cgo builds and unicode61 under no-cgo builds (the ICU
+// tokenizer is a cgo-only extension). A .db whose FTS table was created with
+// one tokenizer cannot be FTS-word-queried by a binary built with the other;
+// the trigram table stays portable.
 var tmMigrations = []storage.Migration{
 	{
 		Version:     1,
 		Description: "multilingual TM schema with per-variant match keys and import sessions",
-		// tm_variant_search uses storage.FTSWordTokenizer, which resolves to the
-		// ICU tokenizer under cgo builds and unicode61 under no-cgo builds (the
-		// ICU tokenizer is a cgo-only extension). A .db whose FTS table was
-		// created with one tokenizer cannot be FTS-word-queried by a binary built
-		// with the other; the trigram table below stays portable.
-		SQL: fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS tm_entries (
-			id              TEXT PRIMARY KEY,
-			project_id      TEXT NOT NULL DEFAULT '',
-			stream          TEXT NOT NULL DEFAULT '',
-			hint_src_lang   TEXT NOT NULL DEFAULT '',
-			properties      TEXT NOT NULL DEFAULT '',
-			note            TEXT NOT NULL DEFAULT '',
-			created_at      TEXT NOT NULL,
-			updated_at      TEXT NOT NULL
-		);
-		CREATE INDEX IF NOT EXISTS idx_tm_project ON tm_entries(project_id);
-		CREATE INDEX IF NOT EXISTS idx_tm_updated ON tm_entries(updated_at DESC);
-		CREATE INDEX IF NOT EXISTS idx_tm_stream  ON tm_entries(stream);
-
-		CREATE TABLE IF NOT EXISTS tm_variants (
-			entry_id    TEXT NOT NULL REFERENCES tm_entries(id) ON DELETE CASCADE,
-			locale      TEXT NOT NULL,
-			coded       TEXT NOT NULL,
-			plain       TEXT NOT NULL,
-			struct_key  TEXT NOT NULL,
-			general_key TEXT NOT NULL,
-			PRIMARY KEY (entry_id, locale)
-		);
-		CREATE INDEX IF NOT EXISTS idx_tm_var_locale      ON tm_variants(locale);
-		CREATE INDEX IF NOT EXISTS idx_tm_var_plain_loc   ON tm_variants(plain, locale);
-		CREATE INDEX IF NOT EXISTS idx_tm_var_struct_loc  ON tm_variants(struct_key, locale);
-		CREATE INDEX IF NOT EXISTS idx_tm_var_general_loc ON tm_variants(general_key, locale);
-
-		CREATE VIRTUAL TABLE IF NOT EXISTS tm_variant_search USING fts5(
-			text,
-			locale UNINDEXED,
-			entry_id UNINDEXED,
-			tokenize='%s'
-		);
-
-		CREATE VIRTUAL TABLE IF NOT EXISTS tm_variant_trigram USING fts5(
-			plain, struct_key, general_key,
-			locale UNINDEXED,
-			entry_id UNINDEXED,
-			tokenize='trigram'
-		);
-
-		CREATE TABLE IF NOT EXISTS tm_entry_entities (
-			entry_id       TEXT NOT NULL REFERENCES tm_entries(id) ON DELETE CASCADE,
-			placeholder_id TEXT NOT NULL,
-			entity_type    TEXT NOT NULL,
-			PRIMARY KEY (entry_id, placeholder_id)
-		);
-		CREATE INDEX IF NOT EXISTS idx_entities_type ON tm_entry_entities(entity_type);
-
-		CREATE TABLE IF NOT EXISTS tm_entry_entity_values (
-			entry_id       TEXT NOT NULL,
-			placeholder_id TEXT NOT NULL,
-			locale         TEXT NOT NULL,
-			text_value     TEXT NOT NULL DEFAULT '',
-			start_pos      INTEGER NOT NULL DEFAULT 0,
-			end_pos        INTEGER NOT NULL DEFAULT 0,
-			PRIMARY KEY (entry_id, placeholder_id, locale),
-			FOREIGN KEY (entry_id, placeholder_id)
-				REFERENCES tm_entry_entities(entry_id, placeholder_id) ON DELETE CASCADE
-		);
-		CREATE INDEX IF NOT EXISTS idx_entity_values_text ON tm_entry_entity_values(text_value, locale);
-
-		CREATE TABLE IF NOT EXISTS tm_import_sessions (
-			id                    TEXT PRIMARY KEY,
-			file_key              TEXT NOT NULL,
-			file_hash             TEXT NOT NULL DEFAULT '',
-			file_size_bytes       INTEGER NOT NULL DEFAULT 0,
-			imported_at           TEXT NOT NULL,
-			imported_by           TEXT NOT NULL DEFAULT '',
-			tool_name             TEXT NOT NULL DEFAULT '',
-			tool_version          TEXT NOT NULL DEFAULT '',
-			seg_type              TEXT NOT NULL DEFAULT '',
-			admin_lang            TEXT NOT NULL DEFAULT '',
-			src_lang              TEXT NOT NULL DEFAULT '',
-			data_type             TEXT NOT NULL DEFAULT '',
-			original_format       TEXT NOT NULL DEFAULT '',
-			original_encoding     TEXT NOT NULL DEFAULT '',
-			entry_count           INTEGER NOT NULL DEFAULT 0,
-			properties_json       TEXT NOT NULL DEFAULT ''
-		);
-		CREATE INDEX IF NOT EXISTS idx_sessions_file_hash   ON tm_import_sessions(file_hash);
-		CREATE INDEX IF NOT EXISTS idx_sessions_imported_at ON tm_import_sessions(imported_at DESC);
-
-		CREATE TABLE IF NOT EXISTS tm_entry_origins (
-			entry_id   TEXT NOT NULL REFERENCES tm_entries(id) ON DELETE CASCADE,
-			ordinal    INTEGER NOT NULL,
-			source     TEXT NOT NULL,
-			key        TEXT NOT NULL DEFAULT '',
-			reference  TEXT NOT NULL DEFAULT '',
-			added_at   TEXT NOT NULL,
-			added_by   TEXT NOT NULL DEFAULT '',
-			session_id TEXT NOT NULL DEFAULT '',
-			PRIMARY KEY (entry_id, ordinal)
-		);
-		CREATE INDEX IF NOT EXISTS idx_origins_source  ON tm_entry_origins(source);
-		CREATE INDEX IF NOT EXISTS idx_origins_key     ON tm_entry_origins(key);
-		CREATE INDEX IF NOT EXISTS idx_origins_session ON tm_entry_origins(session_id);
-		`, storage.FTSWordTokenizer),
+		SQL:         schema.RenderTMSQLiteV1(storage.FTSWordTokenizer),
 	},
 	{
 		Version:     2,
 		Description: "add concept_id to entity mappings for termbase cross-reference",
-		SQL: `
-		ALTER TABLE tm_entry_entities ADD COLUMN concept_id TEXT NOT NULL DEFAULT '';
-		CREATE INDEX IF NOT EXISTS idx_entities_concept ON tm_entry_entities(concept_id);
-		`,
+		SQL:         schema.RenderTMSQLiteV2(),
 	},
 	{
 		Version:     3,
 		Description: "precomputed has_codes flag on tm_entries for fast facet queries",
-		SQL: `
-		ALTER TABLE tm_entries ADD COLUMN has_codes INTEGER NOT NULL DEFAULT 0;
-		`,
+		SQL:         schema.RenderTMSQLiteV3(),
 	},
 }
 
@@ -769,136 +670,10 @@ func (tm *SQLiteTM) LookupText(ctx context.Context, source string, sourceLocale,
 }
 
 func (tm *SQLiteTM) tieredLookup(ctx context.Context, plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
-	var matches []TMMatch
-	seen := make(map[string]bool)
-	modeEnabled := MatchModesEnabled(opts.MatchModes)
-
-	add := func(entry TMEntry, score float64, mt MatchType) {
-		if seen[entry.ID] {
-			return
-		}
-		// Entry must have the requested target variant.
-		if !entry.HasLocale(targetLocale) {
-			return
-		}
-		seen[entry.ID] = true
-		var adaptations []EntityAdaptation
-		if mt == MatchGeneralizedExact || mt == MatchGeneralizedFuzzy {
-			adaptations = ComputeEntityAdaptations(entry, sourceLocale, targetLocale, entityAnnotations)
-		}
-		matches = append(matches, TMMatch{
-			Entry:             entry,
-			Score:             score,
-			MatchType:         mt,
-			ProjectID:         entry.ProjectID,
-			EntityAdaptations: adaptations,
-		})
-	}
-
-	// Tier 1-3: exact matches via indexed variant columns.
-	if modeEnabled[MatchModeGeneralized] {
-		entries, err := tm.queryExactVariant(ctx, "general_key", generalKey, sourceLocale, opts)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range entries {
-			add(e, 1.0, MatchGeneralizedExact)
-		}
-	}
-	if modeEnabled[MatchModeStructural] {
-		entries, err := tm.queryExactVariant(ctx, "struct_key", structKey, sourceLocale, opts)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range entries {
-			add(e, 1.0, MatchStructuralExact)
-		}
-	}
-	if modeEnabled[MatchModePlain] {
-		entries, err := tm.queryExactVariant(ctx, "plain", plainKey, sourceLocale, opts)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range entries {
-			// Plain-text equality is not a full match when the inline-code
-			// structure differs (the industry "tag mismatch" penalty): a
-			// bare heading must not score 1.0 against an icon-button entry
-			// just because the words coincide.
-			score := 1.0
-			if entryStruct := NormalizeText(model.RunsStructuralText(e.Variant(sourceLocale))); entryStruct != structKey {
-				score = ScoreNearExact
-			}
-			add(e, score, MatchExact)
-		}
-	}
-
-	// Ambiguity rule: several full-score exacts with differing targets
-	// demote to ScoreNearExact — none of them is THE translation.
-	demoteAmbiguousExacts(matches, targetLocale)
-
-	if len(matches) > 0 && opts.MinScore >= 1.0 {
-		kept := matches[:0]
-		for _, m := range matches {
-			if m.Score >= opts.MinScore {
-				kept = append(kept, m)
-			}
-		}
-		return LimitResults(sortMatches(kept), opts.MaxResults), nil
-	}
-
-	// Tier 4-6: fuzzy candidates via trigram + Levenshtein scoring.
-	candidates, err := tm.queryFuzzyCandidates(ctx, plainKey, structKey, generalKey, sourceLocale, opts)
-	if err != nil {
-		return nil, err
-	}
-	// Convert the fixed query keys to runes once, not per candidate.
-	genKeyRunes := []rune(generalKey)
-	structKeyRunes := []rune(structKey)
-	plainKeyRunes := []rune(plainKey)
-	for _, entry := range candidates {
-		if seen[entry.ID] {
-			continue
-		}
-		srcRuns := entry.Variant(sourceLocale)
-		if len(srcRuns) == 0 {
-			continue
-		}
-		var bestScore float64
-		var bestType MatchType
-		if modeEnabled[MatchModeGeneralized] {
-			s := LevenshteinRatioRunes(genKeyRunes, []rune(NormalizeText(model.RunsGeneralizedText(srcRuns))))
-			if s >= opts.MinScore && s > bestScore {
-				bestScore = s
-				bestType = MatchGeneralizedFuzzy
-			}
-		}
-		if modeEnabled[MatchModeStructural] {
-			s := LevenshteinRatioRunes(structKeyRunes, []rune(NormalizeText(model.RunsStructuralText(srcRuns))))
-			if s >= opts.MinScore && s > bestScore {
-				bestScore = s
-				bestType = MatchStructuralFuzzy
-			}
-		}
-		if modeEnabled[MatchModePlain] {
-			s := LevenshteinRatioRunes(plainKeyRunes, []rune(NormalizeText(model.FlattenRuns(srcRuns))))
-			if s >= opts.MinScore && s > bestScore {
-				bestScore = s
-				bestType = MatchFuzzy
-			}
-		}
-		if bestScore < opts.MinScore {
-			continue
-		}
-		if opts.ProjectID != "" && entry.ProjectID == opts.ProjectID && bestScore < 1.0 {
-			bestScore += 0.03
-			if bestScore > 1.0 {
-				bestScore = 1.0
-			}
-		}
-		add(entry, bestScore, bestType)
-	}
-
-	return LimitResults(sortMatches(matches), opts.MaxResults), nil
+	return TieredLookup(ctx, plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts, TMCandidateSource{
+		Exact:           tm.queryExactVariant,
+		FuzzyCandidates: tm.queryFuzzyCandidates,
+	})
 }
 
 // sortMatches orders matches by score (desc), then match-type priority,

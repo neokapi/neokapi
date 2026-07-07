@@ -5,13 +5,11 @@
 package sievepen
 
 import (
-	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -19,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/model"
 	fw "github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/sievepen/schema"
 )
 
 // PostgresTM is a persistent, multilingual translation memory backed by
@@ -38,162 +37,26 @@ func NewPostgresTMFromDB(db *storage.PgDB, workspaceID string) (*PostgresTM, err
 	return &PostgresTM{db: db, workspaceID: workspaceID}, nil
 }
 
-// tmMigrationsPg holds the evolution of the TM Postgres schema. Version 4
-// wipes the legacy bilingual schema and creates the multilingual tables.
+// tmMigrationsPg holds the evolution of the TM Postgres schema. The three
+// legacy bilingual migrations (v1-v3) have been dropped — v4 already wipes
+// their tables — so a fresh database applies v4 (the multilingual schema) and
+// v5 directly. The v4/v5 DDL is rendered from the shared schema descriptors
+// (sievepen/schema), semantically identical to the historical hand-written
+// migrations (statement-set tested in sievepen/schema).
 var tmMigrationsPg = []storage.Migration{
 	{
-		Version:     1,
-		Description: "legacy bilingual TM schema (superseded by v4)",
-		SQL: `
-		CREATE TABLE IF NOT EXISTS tm_entries (
-			id              TEXT NOT NULL,
-			workspace_id    TEXT NOT NULL,
-			source_coded    TEXT NOT NULL,
-			target_coded    TEXT NOT NULL,
-			source_plain    TEXT NOT NULL,
-			source_struct   TEXT NOT NULL,
-			source_general  TEXT NOT NULL,
-			source_locale   TEXT NOT NULL,
-			target_locale   TEXT NOT NULL,
-			note            TEXT NOT NULL DEFAULT '',
-			properties      TEXT,
-			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			PRIMARY KEY (workspace_id, id)
-		);
-		`,
-	},
-	{
-		Version:     2,
-		Description: "add stream column (legacy)",
-		SQL:         `ALTER TABLE tm_entries ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';`,
-	},
-	{
-		Version:     3,
-		Description: "placeholder (legacy tsvector)",
-		SQL:         `SELECT 1;`,
-	},
-	{
 		Version:     4,
-		Description: "multilingual TM schema rewrite — variants, entities per locale, import sessions",
+		Description: "multilingual TM schema — variants, entities per locale, import sessions",
 		SQL: `
 		DROP TABLE IF EXISTS tm_entity_mappings CASCADE;
 		DROP TABLE IF EXISTS tm_entry_origins CASCADE;
 		DROP TABLE IF EXISTS tm_entries CASCADE;
-
-		CREATE TABLE tm_entries (
-			workspace_id    TEXT NOT NULL,
-			id              TEXT NOT NULL,
-			project_id      TEXT NOT NULL DEFAULT '',
-			stream          TEXT NOT NULL DEFAULT '',
-			hint_src_lang   TEXT NOT NULL DEFAULT '',
-			properties      JSONB NOT NULL DEFAULT '{}'::jsonb,
-			note            TEXT NOT NULL DEFAULT '',
-			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			PRIMARY KEY (workspace_id, id)
-		);
-		CREATE INDEX idx_tm_ws_project ON tm_entries(workspace_id, project_id);
-		CREATE INDEX idx_tm_ws_stream  ON tm_entries(workspace_id, stream);
-		CREATE INDEX idx_tm_ws_updated ON tm_entries(workspace_id, updated_at DESC);
-
-		CREATE TABLE tm_variants (
-			workspace_id TEXT NOT NULL,
-			entry_id     TEXT NOT NULL,
-			locale       TEXT NOT NULL,
-			coded        TEXT NOT NULL,
-			plain        TEXT NOT NULL,
-			struct_key   TEXT NOT NULL,
-			general_key  TEXT NOT NULL,
-			PRIMARY KEY (workspace_id, entry_id, locale),
-			FOREIGN KEY (workspace_id, entry_id) REFERENCES tm_entries(workspace_id, id) ON DELETE CASCADE
-		);
-		CREATE INDEX idx_tm_var_ws_locale      ON tm_variants(workspace_id, locale);
-		CREATE INDEX idx_tm_var_plain_loc      ON tm_variants(workspace_id, plain, locale);
-		CREATE INDEX idx_tm_var_struct_loc     ON tm_variants(workspace_id, struct_key, locale);
-		CREATE INDEX idx_tm_var_general_loc    ON tm_variants(workspace_id, general_key, locale);
-
-		CREATE EXTENSION IF NOT EXISTS pg_trgm;
-		CREATE INDEX idx_tm_var_trgm_plain   ON tm_variants USING gin (plain gin_trgm_ops);
-		CREATE INDEX idx_tm_var_trgm_struct  ON tm_variants USING gin (struct_key gin_trgm_ops);
-		CREATE INDEX idx_tm_var_trgm_general ON tm_variants USING gin (general_key gin_trgm_ops);
-
-		ALTER TABLE tm_variants ADD COLUMN search_tsv tsvector
-			GENERATED ALWAYS AS (to_tsvector('simple', plain)) STORED;
-		CREATE INDEX idx_tm_var_search_tsv ON tm_variants USING gin (search_tsv);
-
-		CREATE TABLE tm_entry_entities (
-			workspace_id   TEXT NOT NULL,
-			entry_id       TEXT NOT NULL,
-			placeholder_id TEXT NOT NULL,
-			entity_type    TEXT NOT NULL,
-			PRIMARY KEY (workspace_id, entry_id, placeholder_id),
-			FOREIGN KEY (workspace_id, entry_id) REFERENCES tm_entries(workspace_id, id) ON DELETE CASCADE
-		);
-		CREATE INDEX idx_tm_entities_type ON tm_entry_entities(workspace_id, entity_type);
-
-		CREATE TABLE tm_entry_entity_values (
-			workspace_id   TEXT NOT NULL,
-			entry_id       TEXT NOT NULL,
-			placeholder_id TEXT NOT NULL,
-			locale         TEXT NOT NULL,
-			text_value     TEXT NOT NULL DEFAULT '',
-			start_pos      INTEGER NOT NULL DEFAULT 0,
-			end_pos        INTEGER NOT NULL DEFAULT 0,
-			PRIMARY KEY (workspace_id, entry_id, placeholder_id, locale),
-			FOREIGN KEY (workspace_id, entry_id, placeholder_id)
-				REFERENCES tm_entry_entities(workspace_id, entry_id, placeholder_id) ON DELETE CASCADE
-		);
-		CREATE INDEX idx_tm_entity_values_text ON tm_entry_entity_values(workspace_id, text_value, locale);
-
-		CREATE TABLE tm_import_sessions (
-			workspace_id      TEXT NOT NULL,
-			id                TEXT NOT NULL,
-			file_key          TEXT NOT NULL,
-			file_hash         TEXT NOT NULL DEFAULT '',
-			file_size_bytes   BIGINT NOT NULL DEFAULT 0,
-			imported_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			imported_by       TEXT NOT NULL DEFAULT '',
-			tool_name         TEXT NOT NULL DEFAULT '',
-			tool_version      TEXT NOT NULL DEFAULT '',
-			seg_type          TEXT NOT NULL DEFAULT '',
-			admin_lang        TEXT NOT NULL DEFAULT '',
-			src_lang          TEXT NOT NULL DEFAULT '',
-			data_type         TEXT NOT NULL DEFAULT '',
-			original_format   TEXT NOT NULL DEFAULT '',
-			original_encoding TEXT NOT NULL DEFAULT '',
-			entry_count       INTEGER NOT NULL DEFAULT 0,
-			properties        JSONB NOT NULL DEFAULT '{}'::jsonb,
-			PRIMARY KEY (workspace_id, id)
-		);
-		CREATE INDEX idx_tm_sessions_hash ON tm_import_sessions(workspace_id, file_hash);
-		CREATE INDEX idx_tm_sessions_time ON tm_import_sessions(workspace_id, imported_at DESC);
-
-		CREATE TABLE tm_entry_origins (
-			workspace_id TEXT NOT NULL,
-			entry_id     TEXT NOT NULL,
-			ordinal      INTEGER NOT NULL,
-			source       TEXT NOT NULL,
-			key          TEXT NOT NULL DEFAULT '',
-			reference    TEXT NOT NULL DEFAULT '',
-			added_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			added_by     TEXT NOT NULL DEFAULT '',
-			session_id   TEXT NOT NULL DEFAULT '',
-			PRIMARY KEY (workspace_id, entry_id, ordinal),
-			FOREIGN KEY (workspace_id, entry_id) REFERENCES tm_entries(workspace_id, id) ON DELETE CASCADE
-		);
-		CREATE INDEX idx_tm_origin_source  ON tm_entry_origins(workspace_id, source);
-		CREATE INDEX idx_tm_origin_key     ON tm_entry_origins(workspace_id, key);
-		CREATE INDEX idx_tm_origin_session ON tm_entry_origins(workspace_id, session_id);
-		`,
+		` + schema.RenderTMPostgresCreate(),
 	},
 	{
 		Version:     5,
 		Description: "add concept_id to entity mappings for termbase cross-reference",
-		SQL: `
-		ALTER TABLE tm_entry_entities ADD COLUMN IF NOT EXISTS concept_id TEXT NOT NULL DEFAULT '';
-		CREATE INDEX IF NOT EXISTS idx_tm_entities_concept ON tm_entry_entities(workspace_id, concept_id);
-		`,
+		SQL:         schema.RenderTMPostgresConceptID(),
 	},
 }
 
@@ -399,119 +262,10 @@ func (tm *PostgresTM) LookupText(ctx context.Context, source string, sourceLocal
 }
 
 func (tm *PostgresTM) tieredLookup(ctx context.Context, plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
-	var matches []fw.TMMatch
-	seen := make(map[string]bool)
-	modeEnabled := fw.MatchModesEnabled(opts.MatchModes)
-
-	add := func(entry fw.TMEntry, score float64, mt fw.MatchType) {
-		if seen[entry.ID] {
-			return
-		}
-		if !entry.HasLocale(targetLocale) {
-			return
-		}
-		seen[entry.ID] = true
-		var adaptations []fw.EntityAdaptation
-		if mt == fw.MatchGeneralizedExact || mt == fw.MatchGeneralizedFuzzy {
-			adaptations = fw.ComputeEntityAdaptations(entry, sourceLocale, targetLocale, entityAnnotations)
-		}
-		matches = append(matches, fw.TMMatch{
-			Entry:             entry,
-			Score:             score,
-			MatchType:         mt,
-			ProjectID:         entry.ProjectID,
-			EntityAdaptations: adaptations,
-		})
-	}
-
-	if modeEnabled[fw.MatchModeGeneralized] {
-		entries, err := tm.queryExactVariant(ctx, "general_key", generalKey, sourceLocale, opts)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range entries {
-			add(e, 1.0, fw.MatchGeneralizedExact)
-		}
-	}
-	if modeEnabled[fw.MatchModeStructural] {
-		entries, err := tm.queryExactVariant(ctx, "struct_key", structKey, sourceLocale, opts)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range entries {
-			add(e, 1.0, fw.MatchStructuralExact)
-		}
-	}
-	if modeEnabled[fw.MatchModePlain] {
-		entries, err := tm.queryExactVariant(ctx, "plain", plainKey, sourceLocale, opts)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range entries {
-			add(e, 1.0, fw.MatchExact)
-		}
-	}
-
-	if len(matches) > 0 && opts.MinScore >= 1.0 {
-		return fw.LimitResults(matches, opts.MaxResults), nil
-	}
-
-	candidates, err := tm.queryFuzzyCandidates(ctx, plainKey, structKey, generalKey, sourceLocale, opts)
-	if err != nil {
-		return nil, err
-	}
-	for _, entry := range candidates {
-		if seen[entry.ID] {
-			continue
-		}
-		srcRuns := entry.Variant(sourceLocale)
-		if len(srcRuns) == 0 {
-			continue
-		}
-		var bestScore float64
-		var bestType fw.MatchType
-		if modeEnabled[fw.MatchModeGeneralized] {
-			s := fw.LevenshteinRatio(generalKey, fw.NormalizeText(model.RunsGeneralizedText(srcRuns)))
-			if s >= opts.MinScore && s > bestScore {
-				bestScore = s
-				bestType = fw.MatchGeneralizedFuzzy
-			}
-		}
-		if modeEnabled[fw.MatchModeStructural] {
-			s := fw.LevenshteinRatio(structKey, fw.NormalizeText(model.RunsStructuralText(srcRuns)))
-			if s >= opts.MinScore && s > bestScore {
-				bestScore = s
-				bestType = fw.MatchStructuralFuzzy
-			}
-		}
-		if modeEnabled[fw.MatchModePlain] {
-			s := fw.LevenshteinRatio(plainKey, fw.NormalizeText(model.FlattenRuns(srcRuns)))
-			if s >= opts.MinScore && s > bestScore {
-				bestScore = s
-				bestType = fw.MatchFuzzy
-			}
-		}
-		if bestScore < opts.MinScore {
-			continue
-		}
-		if opts.ProjectID != "" && entry.ProjectID == opts.ProjectID && bestScore < 1.0 {
-			bestScore += 0.03
-			if bestScore > 1.0 {
-				bestScore = 1.0
-			}
-		}
-		add(entry, bestScore, bestType)
-	}
-
-	slices.SortFunc(matches, func(a, b fw.TMMatch) int {
-		pa := fw.MatchTypePriority(a.MatchType)
-		pb := fw.MatchTypePriority(b.MatchType)
-		if c := cmp.Compare(pa, pb); c != 0 {
-			return c
-		}
-		return cmp.Compare(b.Score, a.Score)
+	return fw.TieredLookup(ctx, plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts, fw.TMCandidateSource{
+		Exact:           tm.queryExactVariant,
+		FuzzyCandidates: tm.queryFuzzyCandidates,
 	})
-	return fw.LimitResults(matches, opts.MaxResults), nil
 }
 
 func (tm *PostgresTM) queryExactVariant(ctx context.Context, column, key string, sourceLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMEntry, error) {
