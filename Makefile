@@ -363,6 +363,8 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	cd bowrain/apps/pulse && vp check
 	cd bowrain/apps/keycloak-theme && vp check
 	cd bowrain/emails && vp check
+	# Non-blocking Storybook coverage report (informational; does not fail the job).
+	node scripts/story-coverage.mjs || true
 
 ci-kapi-desktop-frontend: ## Mirror the CI `kapi-desktop` job's frontend half (Go backend test is a separate step)
 	cd packages/kapi-react && vp run build
@@ -1195,6 +1197,12 @@ check-eval: ## Run the content-check quality eval → web/src/pages/check-eval/_
 
 frontend-check-all: ## Run lint, format, and typecheck across all frontend projects
 	$(MAKE) -C bowrain frontend-check-all
+
+story-coverage: ## Report frontend components >=200 lines that lack a Storybook story (non-blocking)
+	node scripts/story-coverage.mjs
+
+story-coverage-strict: ## Fail if any tracked tree has a >=200-line component without a story
+	node scripts/story-coverage.mjs --strict
 
 # Forward pulse targets
 pulse-build pulse-dev pulse-check:
