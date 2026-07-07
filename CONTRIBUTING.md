@@ -27,6 +27,18 @@ Run a single test with `go test ./core/flow/ -run TestName -v`. For the
 frontend packages, use `vp` (viteplus) rather than `npx` — e.g.
 `vp check --fix` before committing.
 
+## Go conventions
+
+**Constructor style.** Match the constructor to the audience. Framework public
+API — the exported surface under `core/`, `sievepen/`, `termbase/`, `providers/`
+that external callers and plugins build against — takes **functional options**
+(`New(required, ...Option)`), so a call site stays source-compatible as options
+grow and defaults stay centralised. Internal services — application wiring in
+`host/`, `cli/`, and the `bowrain/` platform — may take a **config struct**
+(`New(Config)`); it is plainer and fine when the caller and constructor evolve
+together in-tree. Both styles are already common in the codebase; the rule is
+just to pick by this boundary rather than by habit.
+
 ## Pull requests
 
 - Keep changes focused; one logical change per PR.

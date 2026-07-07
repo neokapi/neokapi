@@ -114,7 +114,7 @@ func (r *Reader) skelRef(blockID string) {
 		return
 	}
 	r.skelFlush()
-	_ = r.skeletonStore.WriteRef(blockID)
+	r.skeletonStore.WriteRef(blockID)
 }
 
 // skelFlush writes any buffered verbatim bytes as one SkeletonText entry.
@@ -123,7 +123,7 @@ func (r *Reader) skelFlush() {
 		return
 	}
 	if r.skelBuf.Len() > 0 {
-		_ = r.skeletonStore.WriteText([]byte(r.skelBuf.String()))
+		r.skeletonStore.WriteText([]byte(r.skelBuf.String()))
 		r.skelBuf.Reset()
 	}
 }

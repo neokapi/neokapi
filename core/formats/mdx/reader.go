@@ -418,13 +418,13 @@ func renderBlockSource(block *model.Block) string {
 
 func (r *Reader) skelText(b []byte) {
 	if r.skeletonStore != nil && len(b) > 0 {
-		_ = r.skeletonStore.WriteText(b)
+		r.skeletonStore.WriteText(b)
 	}
 }
 
 func (r *Reader) skelRef(id string) {
 	if r.skeletonStore != nil {
-		_ = r.skeletonStore.WriteRef(id)
+		r.skeletonStore.WriteRef(id)
 	}
 }
 

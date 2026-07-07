@@ -29,12 +29,12 @@ func TestDocCache_StreamingRoundTrip(t *testing.T) {
 	require.Nil(t, c.OpenDocument(src, "k"), "cold cache is a miss")
 	rec := c.RecordDocument(src, "k", "json")
 	require.NotNil(t, rec)
-	require.NoError(t, rec.SkeletonStore().WriteText([]byte("{")))
+	rec.SkeletonStore().WriteText([]byte("{"))
 	for _, b := range []*model.Block{mkBlock("a", "Apple"), mkBlock("b", "Banana")} {
 		require.NoError(t, rec.Add(&model.Part{Type: model.PartBlock, Resource: b}))
-		require.NoError(t, rec.SkeletonStore().WriteRef(b.ID))
+		rec.SkeletonStore().WriteRef(b.ID)
 	}
-	require.NoError(t, rec.SkeletonStore().WriteText([]byte("}")))
+	rec.SkeletonStore().WriteText([]byte("}"))
 	require.NoError(t, rec.Commit())
 
 	// Hit → stream parts back one at a time.

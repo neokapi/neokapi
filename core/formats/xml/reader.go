@@ -1579,13 +1579,13 @@ func (r *Reader) writeSkeletonEntries(content []byte, contentRanges []skelConten
 	pos := 0
 	for _, ref := range refs {
 		if ref.start > pos {
-			_ = r.skeletonStore.WriteText(content[pos:ref.start])
+			r.skeletonStore.WriteText(content[pos:ref.start])
 		}
-		_ = r.skeletonStore.WriteRef(ref.blockID)
+		r.skeletonStore.WriteRef(ref.blockID)
 		pos = ref.end
 	}
 	if pos < len(content) {
-		_ = r.skeletonStore.WriteText(content[pos:])
+		r.skeletonStore.WriteText(content[pos:])
 	}
 }
 

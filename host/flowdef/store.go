@@ -96,21 +96,23 @@ func parseFlowFile(data []byte, filename string) (*flow.FlowDefinition, error) {
 // parseFlowYAML parses a YAML flow file, supporting both envelope and bare formats.
 // Detects steps-format (spec.steps) vs graph-format (spec.nodes + spec.edges).
 func parseFlowYAML(data []byte) (*flow.FlowDefinition, error) {
-	// Probe for envelope
+	// Probe for envelope. The error is intentionally ignored — this is a format
+	// probe, not a full parse: a malformed doc leaves probe.APIVersion empty and
+	// falls through to the strict unmarshal below, which reports the real error.
 	var probe struct {
 		APIVersion string `yaml:"apiVersion"`
 	}
-	_ = yaml.Unmarshal(data, &probe)
+	_ = yaml.Unmarshal(data, &probe) // format probe; strict parse below surfaces any error
 
 	if probe.APIVersion != "" {
 		return parseEnvelopedFlow(data, ".yaml")
 	}
 
-	// Probe for bare steps format
+	// Probe for bare steps format (same intentional-ignore rationale as above).
 	var stepsProbe struct {
 		Steps []any `yaml:"steps"`
 	}
-	_ = yaml.Unmarshal(data, &stepsProbe)
+	_ = yaml.Unmarshal(data, &stepsProbe) // format probe; strict parse below surfaces any error
 
 	if len(stepsProbe.Steps) > 0 {
 		return parseStepsFromBare(data)
@@ -126,11 +128,13 @@ func parseFlowYAML(data []byte) (*flow.FlowDefinition, error) {
 
 // parseFlowJSON parses a JSON flow file, supporting both envelope and bare formats.
 func parseFlowJSON(data []byte) (*flow.FlowDefinition, error) {
-	// Probe for envelope
+	// Probe for envelope. The error is intentionally ignored — this is a format
+	// probe, not a full parse: a malformed doc leaves probe.APIVersion empty and
+	// falls through to the strict unmarshal below, which reports the real error.
 	var probe struct {
 		APIVersion string `json:"apiVersion"`
 	}
-	_ = json.Unmarshal(data, &probe)
+	_ = json.Unmarshal(data, &probe) // format probe; strict parse below surfaces any error
 
 	if probe.APIVersion != "" {
 		return parseEnvelopedFlow(data, ".json")

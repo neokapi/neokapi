@@ -274,7 +274,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			// Emit skeleton part-boundary marker for subfiltered content
 			r.skelPartStart(itemPath)
 			if r.skeletonStore != nil {
-				_ = r.skeletonStore.WriteRef("layer:" + itemPath)
+				r.skeletonStore.WriteRef("layer:" + itemPath)
 			}
 			r.skelPartEnd(itemPath)
 
@@ -728,10 +728,10 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 					}
 					// Flush accumulated skeleton text, then write ref
 					if skelBuf.Len() > 0 {
-						_ = r.skeletonStore.WriteText(skelBuf.Bytes())
+						r.skeletonStore.WriteText(skelBuf.Bytes())
 						skelBuf.Reset()
 					}
-					_ = r.skeletonStore.WriteRef(blockID)
+					r.skeletonStore.WriteRef(blockID)
 					for _, tok := range closeTokens {
 						writeSkelToken(tok)
 					}
@@ -849,10 +849,10 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 					writeSkelToken(c)
 				}
 				if skelBuf.Len() > 0 {
-					_ = r.skeletonStore.WriteText(skelBuf.Bytes())
+					r.skeletonStore.WriteText(skelBuf.Bytes())
 					skelBuf.Reset()
 				}
-				_ = r.skeletonStore.WriteRef(blockID)
+				r.skeletonStore.WriteRef(blockID)
 				for _, c := range closes {
 					writeSkelToken(c)
 				}
@@ -908,10 +908,10 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 				skelBuf.WriteString(xmlEscape(lead))
 			}
 			if skelBuf.Len() > 0 {
-				_ = r.skeletonStore.WriteText(skelBuf.Bytes())
+				r.skeletonStore.WriteText(skelBuf.Bytes())
 				skelBuf.Reset()
 			}
-			_ = r.skeletonStore.WriteRef(blockID)
+			r.skeletonStore.WriteRef(blockID)
 			if trail != "" {
 				skelBuf.WriteString(xmlEscape(trail))
 			}
@@ -995,7 +995,7 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 	// final block's close tag, sibling whitespace, and the closing structural
 	// tags). Without this the reconstruction would truncate at the last block.
 	if r.skeletonStore != nil && skelBuf.Len() > 0 {
-		_ = r.skeletonStore.WriteText(skelBuf.Bytes())
+		r.skeletonStore.WriteText(skelBuf.Bytes())
 		skelBuf.Reset()
 	}
 }
@@ -1060,13 +1060,13 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 
 func (r *Reader) skelPartStart(partPath string) {
 	if r.skeletonStore != nil {
-		_ = r.skeletonStore.WriteRef(skelPartStartPrefix + partPath)
+		r.skeletonStore.WriteRef(skelPartStartPrefix + partPath)
 	}
 }
 
 func (r *Reader) skelPartEnd(partPath string) {
 	if r.skeletonStore != nil {
-		_ = r.skeletonStore.WriteRef(skelPartEndPrefix + partPath)
+		r.skeletonStore.WriteRef(skelPartEndPrefix + partPath)
 	}
 }
 

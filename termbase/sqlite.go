@@ -184,12 +184,29 @@ func validityFromColumns(validFrom, validTo sql.NullString, tags string) *graph.
 		}
 	}
 	if tags != "" && tags != "{}" {
+		// Best-effort, matching the nullable validFrom/validTo parses above:
+		// validity tags are optional relation metadata, so a malformed blob
+		// degrades to no tags rather than failing the read. validityFromColumns
+		// returns no error by design; mandatory columns (properties, created_at,
+		// updated_at) are propagated by the row scanners instead.
 		_ = json.Unmarshal([]byte(tags), &v.Tags)
 	}
 	if v.ValidFrom == nil && v.ValidTo == nil && len(v.Tags) == 0 {
 		return nil
 	}
 	return &v
+}
+
+// parseStoredTime parses an RFC3339 timestamp read back from one of our own
+// rows. An empty string (a NULL or never-set column) is not an error — it
+// yields the zero time; a non-empty but unparseable value is stored corruption
+// and is returned so the caller can surface it rather than silently substitute
+// the zero time.
+func parseStoredTime(s string) (time.Time, error) {
+	if s == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339, s)
 }
 
 // AddConcept inserts or updates a concept with all its terms using an empty stream.
@@ -454,7 +471,10 @@ func scanRelations(rows *sql.Rows, scope *graph.Scope) ([]ConceptRelation, error
 			return nil, fmt.Errorf("scan relation: %w", err)
 		}
 		rel.Validity = validityFromColumns(validFrom, validTo, tags)
-		rel.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+		var perr error
+		if rel.CreatedAt, perr = parseStoredTime(createdStr); perr != nil {
+			return nil, fmt.Errorf("relation %s: parse created_at: %w", rel.ID, perr)
+		}
 		if !MatchesScope(rel.Validity, scope) {
 			continue
 		}
@@ -969,11 +989,17 @@ func (tb *SQLiteTermBase) scanConcept(ctx context.Context, id string) (Concept, 
 	}
 
 	c.Source = TermSource(source)
-	c.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	c.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if c.CreatedAt, err = parseStoredTime(createdStr); err != nil {
+		return Concept{}, fmt.Errorf("concept %s: parse created_at: %w", c.ID, err)
+	}
+	if c.UpdatedAt, err = parseStoredTime(updatedStr); err != nil {
+		return Concept{}, fmt.Errorf("concept %s: parse updated_at: %w", c.ID, err)
+	}
 
 	if propsJSON != nil && *propsJSON != "" {
-		_ = json.Unmarshal([]byte(*propsJSON), &c.Properties)
+		if err := json.Unmarshal([]byte(*propsJSON), &c.Properties); err != nil {
+			return Concept{}, fmt.Errorf("concept %s: unmarshal properties: %w", c.ID, err)
+		}
 	}
 
 	rows, err := tb.db.QueryContext(ctx, `

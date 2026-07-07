@@ -94,9 +94,15 @@ func (s *SQLiteGraphStore) GetNode(ctx context.Context, id string) (*coreg.Node,
 	if err != nil {
 		return nil, fmt.Errorf("get node: %w", err)
 	}
-	_ = json.Unmarshal([]byte(propsJSON), &n.Properties)
-	n.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	n.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if err := json.Unmarshal([]byte(propsJSON), &n.Properties); err != nil {
+		return nil, fmt.Errorf("node %s: unmarshal properties: %w", n.ID, err)
+	}
+	if n.CreatedAt, err = parseStoredTime(createdStr); err != nil {
+		return nil, fmt.Errorf("node %s: parse created_at: %w", n.ID, err)
+	}
+	if n.UpdatedAt, err = parseStoredTime(updatedStr); err != nil {
+		return nil, fmt.Errorf("node %s: parse updated_at: %w", n.ID, err)
+	}
 	return &n, nil
 }
 
@@ -531,9 +537,16 @@ func (s *SQLiteGraphStore) queryNodes(ctx context.Context, where string, args []
 		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &createdStr, &updatedStr); err != nil {
 			continue
 		}
-		_ = json.Unmarshal([]byte(propsJSON), &n.Properties)
-		n.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-		n.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+		if err := json.Unmarshal([]byte(propsJSON), &n.Properties); err != nil {
+			return nil, fmt.Errorf("node %s: unmarshal properties: %w", n.ID, err)
+		}
+		var perr error
+		if n.CreatedAt, perr = parseStoredTime(createdStr); perr != nil {
+			return nil, fmt.Errorf("node %s: parse created_at: %w", n.ID, perr)
+		}
+		if n.UpdatedAt, perr = parseStoredTime(updatedStr); perr != nil {
+			return nil, fmt.Errorf("node %s: parse updated_at: %w", n.ID, perr)
+		}
 		nodes = append(nodes, &n)
 	}
 	if err := rows.Err(); err != nil {
@@ -576,9 +589,15 @@ func (s *SQLiteGraphStore) scanEdge(ctx context.Context, query string, args ...a
 	if err != nil {
 		return nil, fmt.Errorf("scan edge: %w", err)
 	}
-	_ = json.Unmarshal([]byte(propsJSON), &e.Properties)
-	e.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	e.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+		return nil, fmt.Errorf("edge %s: unmarshal properties: %w", e.ID, err)
+	}
+	if e.CreatedAt, err = parseStoredTime(createdStr); err != nil {
+		return nil, fmt.Errorf("edge %s: parse created_at: %w", e.ID, err)
+	}
+	if e.UpdatedAt, err = parseStoredTime(updatedStr); err != nil {
+		return nil, fmt.Errorf("edge %s: parse updated_at: %w", e.ID, err)
+	}
 	e.Validity = parseValidity(validFrom, validTo, tags)
 	return &e, nil
 }
@@ -594,9 +613,16 @@ func scanEdgeRow(row scanner) (*coreg.Edge, error) {
 	if err := row.Scan(&e.ID, &e.Source, &e.Target, &e.Label, &propsJSON, &validFrom, &validTo, &tags, &createdStr, &updatedStr); err != nil {
 		return nil, err
 	}
-	_ = json.Unmarshal([]byte(propsJSON), &e.Properties)
-	e.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	e.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+		return nil, fmt.Errorf("edge %s: unmarshal properties: %w", e.ID, err)
+	}
+	var perr error
+	if e.CreatedAt, perr = parseStoredTime(createdStr); perr != nil {
+		return nil, fmt.Errorf("edge %s: parse created_at: %w", e.ID, perr)
+	}
+	if e.UpdatedAt, perr = parseStoredTime(updatedStr); perr != nil {
+		return nil, fmt.Errorf("edge %s: parse updated_at: %w", e.ID, perr)
+	}
 	e.Validity = parseValidity(validFrom, validTo, tags)
 	return &e, nil
 }
@@ -617,10 +643,27 @@ func parseValidity(validFrom, validTo *string, tagsJSON string) *coreg.Validity 
 	}
 	var tags map[string]string
 	if tagsJSON != "" && tagsJSON != "{}" {
+		// Best-effort, matching the nullable validFrom/validTo parses above:
+		// validity tags are optional edge metadata, so a malformed blob degrades
+		// to no tags rather than failing the edge read. parseValidity returns no
+		// error by design; the mandatory columns (properties, created_at,
+		// updated_at) are propagated by the callers instead.
 		_ = json.Unmarshal([]byte(tagsJSON), &tags)
 	}
 	if vf == nil && vt == nil && len(tags) == 0 {
 		return nil
 	}
 	return &coreg.Validity{ValidFrom: vf, ValidTo: vt, Tags: tags}
+}
+
+// parseStoredTime parses an RFC3339 timestamp read back from one of our own
+// rows. An empty string (a NULL or never-set column) is not an error — it
+// yields the zero time; a non-empty but unparseable value is stored corruption
+// and is returned so the caller can surface it rather than silently substitute
+// the zero time.
+func parseStoredTime(s string) (time.Time, error) {
+	if s == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339, s)
 }

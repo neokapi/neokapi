@@ -199,7 +199,7 @@ func (r *Reader) emitSkeleton(toks []token) {
 		for _, t := range toks[pending:end] {
 			b.WriteString(t.raw)
 		}
-		_ = r.skeletonStore.WriteText([]byte(b.String()))
+		r.skeletonStore.WriteText([]byte(b.String()))
 		pending = end
 	}
 
@@ -226,7 +226,7 @@ func (r *Reader) emitSkeleton(toks []token) {
 				// Flush everything up to and including the <value> start tag
 				// (entry-relative valStart maps to toks index i+valStart).
 				flush(i + valStart + 1)
-				_ = r.skeletonStore.WriteRef("tu" + strconv.Itoa(blockCounter))
+				r.skeletonStore.WriteRef("tu" + strconv.Itoa(blockCounter))
 				// Resume verbatim emission at the </value> end tag, skipping
 				// the original inner-content tokens the ref now stands for.
 				pending = i + valEnd

@@ -139,7 +139,7 @@ func (s *tokenReaderState) nextDataID() string {
 // (e.g. between two leaf-block tags with no text-unit in between).
 func (s *tokenReaderState) flushPendingWS() {
 	for _, ws := range s.pendingWS {
-		_ = s.store.WriteText(ws)
+		s.store.WriteText(ws)
 	}
 	s.pendingWS = nil
 }
@@ -422,7 +422,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 		switch tt {
 		case html.DoctypeToken:
 			s.onStructuralEvent()
-			_ = s.store.WriteText(raw)
+			s.store.WriteText(raw)
 			s.reader.emit(ctx, ch, &model.Part{
 				Type: model.PartData,
 				Resource: &model.Data{
@@ -436,7 +436,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			// If so, this will be handled during block content collection.
 			// At top level or inside containers, it's non-translatable.
 			s.onStructuralEvent()
-			_ = s.store.WriteText(raw)
+			s.store.WriteText(raw)
 			// Carry the comment's verbatim markup on the Data part so the text
 			// is reachable downstream (Properties["raw"], like asciidoc
 			// emitData). The bytes still ride the skeleton above and the part
@@ -476,7 +476,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 				// leaf-block / inline-collection paths.
 				if preserveWS {
 					blockID := s.nextBlockID()
-					_ = s.store.WriteRef(blockID)
+					s.store.WriteRef(blockID)
 					block := buildBlockWithEntities(blockID, text)
 					block.PreserveWhitespace = true
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
@@ -495,7 +495,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 						body = trimLeadingHTMLWhitespace(text)
 					}
 					blockID := s.nextBlockID()
-					_ = s.store.WriteRef(blockID)
+					s.store.WriteRef(blockID)
 					block := buildBlockWithEntities(blockID, body)
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 					s.lastTextBlock = block
@@ -540,7 +540,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 				s.onStructuralEvent()
 			}
 
-			_ = s.store.WriteText(raw)
+			s.store.WriteText(raw)
 
 			// Restore translateNo from parent.
 			if len(stack) > 0 {
@@ -615,7 +615,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 				return
 			}
 		}
-		_ = s.store.WriteText(raw)
+		s.store.WriteText(raw)
 		s.reader.emit(ctx, ch, &model.Part{
 			Type: model.PartData,
 			Resource: &model.Data{
@@ -664,7 +664,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 		}
 
 		if a == atom.Head && s.needsCharsetMeta {
-			_ = s.store.WriteText([]byte(`<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`))
+			s.store.WriteText([]byte(`<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`))
 			s.reader.emit(ctx, ch, &model.Part{
 				Type: model.PartData,
 				Resource: &model.Data{
@@ -1004,7 +1004,7 @@ leafClosed:
 		s.collapseInternalNewlineRuns(b)
 	}
 
-	_ = s.store.WriteRef(blockID)
+	s.store.WriteRef(blockID)
 
 	// Emit block if it has content.
 	hasID := getTokenAttr(attrs, "id") != ""
@@ -1024,7 +1024,7 @@ leafClosed:
 
 	// Write close tag to skeleton.
 	if closeTagRaw != nil {
-		_ = s.store.WriteText(closeTagRaw)
+		s.store.WriteText(closeTagRaw)
 	}
 }
 
@@ -1362,7 +1362,7 @@ func (s *tokenReaderState) consumeUntilClose(tokenizer *html.Tokenizer, tag stri
 			return
 		}
 		raw := copyBytes(tokenizer.Raw())
-		_ = s.store.WriteText(raw)
+		s.store.WriteText(raw)
 
 		switch tt {
 		case html.StartTagToken:
@@ -1389,13 +1389,13 @@ func (s *tokenReaderState) consumeUntilClose(tokenizer *html.Tokenizer, tag stri
 // tag bytes.
 func (s *tokenReaderState) emitNonTranslatableContent(tokenizer *html.Tokenizer, startTagRaw []byte, tag string, attrs []html.Attribute, role string, ctx context.Context, ch chan<- model.PartResult) {
 	// Start tag stays skeleton.
-	_ = s.store.WriteText(startTagRaw)
+	s.store.WriteText(startTagRaw)
 
 	body, closeTag := s.consumeRawBody(tokenizer, tag)
 	if len(body) == 0 {
 		// Empty element: nothing to surface; keep delimiters in skeleton.
 		if closeTag != nil {
-			_ = s.store.WriteText(closeTag)
+			s.store.WriteText(closeTag)
 		}
 		return
 	}
@@ -1411,11 +1411,11 @@ func (s *tokenReaderState) emitNonTranslatableContent(tokenizer *html.Tokenizer,
 		block.Properties["type"] = t
 	}
 
-	_ = s.store.WriteRef(blockID)
+	s.store.WriteRef(blockID)
 	s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 
 	if closeTag != nil {
-		_ = s.store.WriteText(closeTag)
+		s.store.WriteText(closeTag)
 	}
 }
 
@@ -1491,7 +1491,7 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 	charset := getTokenAttr(attrs, "charset")
 
 	if charset != "" {
-		_ = s.store.WriteText(raw)
+		s.store.WriteText(raw)
 		s.reader.emit(ctx, ch, &model.Part{
 			Type: model.PartData,
 			Resource: &model.Data{
@@ -1505,7 +1505,7 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 
 	if httpEquiv == "content-type" && content != "" {
 		if cs := extractCharset(content); cs != "" {
-			_ = s.store.WriteText(raw)
+			s.store.WriteText(raw)
 			s.reader.emit(ctx, ch, &model.Part{
 				Type: model.PartData,
 				Resource: &model.Data{
@@ -1566,7 +1566,7 @@ func (s *tokenReaderState) handleMetaToken(raw []byte, attrs []html.Attribute, c
 		}
 	}
 
-	_ = s.store.WriteText(raw)
+	s.store.WriteText(raw)
 	s.reader.emit(ctx, ch, &model.Part{
 		Type:     model.PartData,
 		Resource: &model.Data{ID: s.nextDataID(), Name: "meta"},
@@ -1839,15 +1839,15 @@ func (s *tokenReaderState) writeAttrRefSkeleton(raw []byte, attrKey, blockID str
 	offset, length := findAttrValueRange(raw, attrKey)
 	if offset < 0 {
 		// Fallback: write whole tag then ref.
-		_ = s.store.WriteText(raw)
+		s.store.WriteText(raw)
 		return
 	}
 
 	// Write up to the attribute value.
-	_ = s.store.WriteText(raw[:offset])
-	_ = s.store.WriteRef(blockID)
+	s.store.WriteText(raw[:offset])
+	s.store.WriteRef(blockID)
 	// Write after the attribute value.
-	_ = s.store.WriteText(raw[offset+length:])
+	s.store.WriteText(raw[offset+length:])
 }
 
 // skelSpliceKind distinguishes how a spliced-out attribute-value byte range
@@ -1895,7 +1895,7 @@ func (s *tokenReaderState) writeStartTagSkeleton(raw []byte, transAttrs []transA
 	}
 
 	if len(splices) == 0 {
-		_ = s.store.WriteText(raw)
+		s.store.WriteText(raw)
 		return
 	}
 
@@ -1907,16 +1907,16 @@ func (s *tokenReaderState) writeStartTagSkeleton(raw []byte, transAttrs []transA
 
 	pos := 0
 	for _, sp := range splices {
-		_ = s.store.WriteText(raw[pos:sp.offset])
+		s.store.WriteText(raw[pos:sp.offset])
 		switch sp.kind {
 		case spliceRef:
-			_ = s.store.WriteRef(sp.payload)
+			s.store.WriteRef(sp.payload)
 		case spliceLang:
-			_ = s.store.WriteLang(sp.payload)
+			s.store.WriteLang(sp.payload)
 		}
 		pos = sp.offset + sp.length
 	}
-	_ = s.store.WriteText(raw[pos:])
+	s.store.WriteText(raw[pos:])
 }
 
 // findAttrValueRange returns the byte offset and length of an attribute's value
