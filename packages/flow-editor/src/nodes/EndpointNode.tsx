@@ -8,6 +8,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Eye } from "lucide-react";
 import { EndpointPicker } from "./EndpointPicker";
 import type { FlowBinding } from "../types";
+import { SimpleTooltip } from "@neokapi/ui-primitives";
 
 export function EndpointNode({ data }: NodeProps) {
   const role = data.role as "source" | "sink";
@@ -45,20 +46,23 @@ export function EndpointNode({ data }: NodeProps) {
           affordance). Hangs centered under the pill, like the side-effect
           satellites on tool nodes. */}
       {onInspect && (
-        <button
-          type="button"
-          onClick={onInspect}
-          aria-label={isSource ? "Inspect the source content" : "Inspect the written output"}
-          title={
+        <SimpleTooltip
+          content={
             isSource
               ? "See the content model the reader produces from this input"
               : "See what the flow wrote"
           }
-          className="absolute left-1/2 top-full z-10 mt-1 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
         >
-          <Eye size={10} />
-          Inspect
-        </button>
+          <button
+            type="button"
+            onClick={onInspect}
+            aria-label={isSource ? "Inspect the source content" : "Inspect the written output"}
+            className="absolute left-1/2 top-full z-10 mt-1 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-[9px] font-semibold text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Eye size={10} />
+            Inspect
+          </button>
+        </SimpleTooltip>
       )}
       <Handle
         type={isSource ? "source" : "target"}

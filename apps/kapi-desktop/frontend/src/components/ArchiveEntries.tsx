@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FileText, Loader2, FileWarning } from "lucide-react";
-import { ListCapRow } from "@neokapi/ui-primitives";
+import { ListCapRow, SimpleTooltip } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 
 // An archive can hold thousands of inner files. The entry list is scroll-contained
@@ -105,19 +105,26 @@ export function ArchiveEntries({ archivePath, onSelect, entries: preset }: Archi
       >
         {shown.map((e) => (
           <li key={e.name}>
-            <button
-              type="button"
-              disabled={!e.format}
-              onClick={e.format ? () => onSelect(e.name) : undefined}
-              className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-accent disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
-              title={e.format ? `Preview ${e.name}` : "No reader for this file type"}
+            <SimpleTooltip
+              content={e.format ? `Preview ${e.name}` : "No reader for this file type"}
             >
-              <FileText className="size-3 shrink-0 text-muted-foreground" />
-              <span className="truncate font-mono" translate="no">
-                {e.name}
+              <span className="block w-full">
+                <button
+                  type="button"
+                  disabled={!e.format}
+                  onClick={e.format ? () => onSelect(e.name) : undefined}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs hover:bg-accent disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent"
+                >
+                  <FileText className="size-3 shrink-0 text-muted-foreground" />
+                  <span className="truncate font-mono" translate="no">
+                    {e.name}
+                  </span>
+                  <span className="ml-auto shrink-0 text-muted-foreground">
+                    {humanSize(e.size)}
+                  </span>
+                </button>
               </span>
-              <span className="ml-auto shrink-0 text-muted-foreground">{humanSize(e.size)}</span>
-            </button>
+            </SimpleTooltip>
           </li>
         ))}
       </ul>

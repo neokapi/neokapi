@@ -47,70 +47,11 @@
 }
 
 /* ── Modal ────────────────────────────────────────────────────────────────── */
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  background: color-mix(in srgb, #000 55%, transparent);
-  backdrop-filter: blur(2px);
-}
-
-.modal {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 720px;
-  max-height: 85vh;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
-}
-
-:global(html[data-theme="dark"]) .modal {
-  background: #1b1b1d;
-}
-
-.modalHeader {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1.1rem 1.5rem;
-  border-bottom: 1px solid var(--ifm-color-emphasis-200);
-}
-
+/* Overlay, panel chrome, close button, and scroll-lock are supplied by the
+   ui-primitives Dialog; only the title font and the note cards below are ours. */
 .modalTitle {
-  flex: 1 1 auto;
   margin: 0;
   font-size: 1.2rem;
-}
-
-.modalClose {
-  flex: 0 0 auto;
-  appearance: none;
-  border: none;
-  background: none;
-  padding: 0.25rem 0.5rem;
-  font-size: 1rem;
-  line-height: 1;
-  color: var(--ifm-color-emphasis-700);
-  cursor: pointer;
-  border-radius: 6px;
-}
-
-.modalClose:hover {
-  background: var(--ifm-color-emphasis-200);
-}
-
-.modalBody {
-  display: grid;
-  gap: 1.25rem;
-  padding: 1.5rem;
-  overflow-y: auto;
 }
 
 .noteCard {

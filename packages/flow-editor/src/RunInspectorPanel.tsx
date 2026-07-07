@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
-import { Button, ScrollArea, PanelHeader, cn } from "@neokapi/ui-primitives";
+import { Button, ScrollArea, PanelHeader, SimpleTooltip, cn } from "@neokapi/ui-primitives";
 import type { FlowTrace, OverlaySnapshot, PartSnapshot } from "./traceTypes";
 import { partsThroughStep, snapshotDelta, type PartTransition } from "./traceSelectors";
 import { getPortType as portStyle } from "./portTypes";
@@ -26,19 +26,22 @@ export interface RunInspectorPanelProps {
 function OverlayChip({ type, spans, removed }: { type: string; spans: number; removed?: boolean }) {
   const style = portStyle(type);
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-0.5 rounded px-1 py-px font-mono text-[9px] font-semibold",
-        removed && "line-through opacity-60",
-      )}
-      style={{ background: `${style.color}1f`, color: style.color }}
-      title={
+    <SimpleTooltip
+      content={
         removed ? `${spans} ${type} span(s) consumed/dropped` : `${spans} ${type} span(s) added`
       }
     >
-      {removed ? "−" : "+"}
-      {spans} {type}
-    </span>
+      <span
+        className={cn(
+          "inline-flex items-center gap-0.5 rounded px-1 py-px font-mono text-[9px] font-semibold",
+          removed && "line-through opacity-60",
+        )}
+        style={{ background: `${style.color}1f`, color: style.color }}
+      >
+        {removed ? "−" : "+"}
+        {spans} {type}
+      </span>
+    </SimpleTooltip>
   );
 }
 
@@ -126,22 +129,18 @@ function TransitionRow({ t }: { t: PartTransition }) {
             <OverlayChip key={`r${i}`} type={o.type} spans={o.spans} removed />
           ))}
           {delta.addedAnnotations.map((k) => (
-            <span
-              key={`an-${k}`}
-              className="rounded bg-secondary px-1 py-px font-mono text-[9px] text-muted-foreground"
-              title={`Block annotation "${k}" added by this step`}
-            >
-              +{k}
-            </span>
+            <SimpleTooltip key={`an-${k}`} content={`Block annotation "${k}" added by this step`}>
+              <span className="rounded bg-secondary px-1 py-px font-mono text-[9px] text-muted-foreground">
+                +{k}
+              </span>
+            </SimpleTooltip>
           ))}
           {delta.removedAnnotations.map((k) => (
-            <span
-              key={`rm-${k}`}
-              className="rounded bg-secondary px-1 py-px font-mono text-[9px] text-muted-foreground line-through opacity-60"
-              title={`Block annotation "${k}" removed by this step`}
-            >
-              −{k}
-            </span>
+            <SimpleTooltip key={`rm-${k}`} content={`Block annotation "${k}" removed by this step`}>
+              <span className="rounded bg-secondary px-1 py-px font-mono text-[9px] text-muted-foreground line-through opacity-60">
+                −{k}
+              </span>
+            </SimpleTooltip>
           ))}
         </div>
       )}
@@ -211,15 +210,16 @@ export function RunInspectorPanel({
           <div className="text-[11px] font-semibold text-foreground">Run inspector</div>
           <div className="flex items-center gap-1">
             {onConfigure && (
-              <Button
-                variant="ghost"
-                size="xs"
-                className="h-5 px-1.5 text-[9px]"
-                onClick={onConfigure}
-                title="Edit this step's configuration"
-              >
-                <Pencil size={9} className="mr-0.5" /> Configure
-              </Button>
+              <SimpleTooltip content="Edit this step's configuration">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="h-5 px-1.5 text-[9px]"
+                  onClick={onConfigure}
+                >
+                  <Pencil size={9} className="mr-0.5" /> Configure
+                </Button>
+              </SimpleTooltip>
             )}
             <Button variant="ghost" size="xs" className="h-5 px-1.5 text-[9px]" onClick={onClose}>
               Close

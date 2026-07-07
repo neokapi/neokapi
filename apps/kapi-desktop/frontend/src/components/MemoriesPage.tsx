@@ -5,10 +5,15 @@ import {
   Button,
   Card,
   CardContent,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   Label,
   Input,
   PageHeader,
   ChartContainer,
+  SimpleTooltip,
   type ChartConfig,
 } from "@neokapi/ui-primitives";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
@@ -229,9 +234,11 @@ export function MemoriesPage({
           }
           backButton={
             isProject ? undefined : (
-              <Button variant="ghost" size="icon-xs" onClick={handleClose} title="Close TM">
-                <X size={16} />
-              </Button>
+              <SimpleTooltip content="Close TM">
+                <Button variant="ghost" size="icon-xs" onClick={handleClose} aria-label="Close TM">
+                  <X size={16} />
+                </Button>
+              </SimpleTooltip>
             )
           }
           actions={
@@ -364,10 +371,12 @@ export function MemoriesPage({
       )}
 
       {/* Create dialog */}
-      {showCreateDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
-            <h2 className="mb-3 text-lg font-semibold">New Translation Memory</h2>
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>New Translation Memory</DialogTitle>
+          </DialogHeader>
+          <div>
             <Label className="mb-1 block text-xs text-muted-foreground">Name</Label>
             <Input
               type="text"
@@ -389,17 +398,27 @@ export function MemoriesPage({
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Corruption recovery dialog */}
-      {corruptPath && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
-            <div className="mb-3 flex items-center gap-2">
+      <Dialog
+        open={!!corruptPath}
+        onOpenChange={(o) => {
+          if (!o) {
+            setCorruptPath(null);
+            setCorruptName("");
+          }
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <AlertTriangle size={18} className="text-destructive" />
-              <h2 className="text-base font-semibold">Corrupt Translation Memory</h2>
-            </div>
+              Corrupt Translation Memory
+            </DialogTitle>
+          </DialogHeader>
+          <div>
             <p className="mb-2 text-sm text-muted-foreground">
               <strong>{corruptName}</strong> could not be opened. The database may be corrupt.
             </p>
@@ -429,8 +448,8 @@ export function MemoriesPage({
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

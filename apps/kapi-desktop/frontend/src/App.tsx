@@ -22,15 +22,17 @@ import { NewProjectDialog } from "./components/NewProjectDialog";
 import { useShortenHome } from "./hooks/useShortenHome";
 import { isMacDesktop } from "./lib/platform";
 import { Undo2, Redo2 } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, SimpleTooltip, TooltipProvider } from "@neokapi/ui-primitives";
 
 export default function App() {
   return (
-    <ErrorProvider>
-      <JobFeedProvider>
-        <AppInner />
-      </JobFeedProvider>
-    </ErrorProvider>
+    <TooltipProvider>
+      <ErrorProvider>
+        <JobFeedProvider>
+          <AppInner />
+        </JobFeedProvider>
+      </ErrorProvider>
+    </TooltipProvider>
   );
 }
 
@@ -214,28 +216,34 @@ function AppInner() {
                   className={`flex shrink-0 items-center gap-0.5 pb-1.5 ${isMac ? "pl-16" : "pl-2"}`}
                   style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
                 >
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={history.undo}
-                    disabled={!history.canUndo}
-                    aria-label="Undo"
-                    title="Undo (⌘Z)"
-                    className="h-7 w-7"
-                  >
-                    <Undo2 size={14} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={history.redo}
-                    disabled={!history.canRedo}
-                    aria-label="Redo"
-                    title="Redo (⌘⇧Z)"
-                    className="h-7 w-7"
-                  >
-                    <Redo2 size={14} />
-                  </Button>
+                  <SimpleTooltip content="Undo (⌘Z)">
+                    <span className="inline-flex">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={history.undo}
+                        disabled={!history.canUndo}
+                        aria-label="Undo"
+                        className="h-7 w-7"
+                      >
+                        <Undo2 size={14} />
+                      </Button>
+                    </span>
+                  </SimpleTooltip>
+                  <SimpleTooltip content="Redo (⌘⇧Z)">
+                    <span className="inline-flex">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={history.redo}
+                        disabled={!history.canRedo}
+                        aria-label="Redo"
+                        className="h-7 w-7"
+                      >
+                        <Redo2 size={14} />
+                      </Button>
+                    </span>
+                  </SimpleTooltip>
                 </div>
               )}
               {/* Tabs or spacer */}

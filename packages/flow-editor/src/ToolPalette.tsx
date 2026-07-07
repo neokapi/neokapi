@@ -1,7 +1,13 @@
 import { useState, useMemo } from "react";
 import { t } from "@neokapi/kapi-react/runtime";
 import { Search, ChevronDown, ChevronRight, GripVertical, Layers, Check } from "lucide-react";
-import { InputGroup, InputGroupAddon, InputGroupInput, ScrollArea } from "@neokapi/ui-primitives";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  ScrollArea,
+  SimpleTooltip,
+} from "@neokapi/ui-primitives";
 import type { ToolInfo } from "./types";
 import { ALL_CATEGORIES } from "./category";
 import { IoContract, PortChip } from "./nodes/PortChip";
@@ -220,96 +226,98 @@ function PaletteItem({
   const needsInput = fit ? !fit.ready : false;
 
   return (
-    <button
-      type="button"
-      draggable
-      onDragStart={onDragStart}
-      onClick={onAdd}
-      className="flex w-full items-start gap-1.5 py-1.5 pl-5 pr-2.5 text-left cursor-grab hover:bg-muted transition-colors"
-      title={
+    <SimpleTooltip
+      content={
         needsInput && fit
-          ? `${tool.description}\n\nNeeds input not available here: ${fit.unmet
+          ? `Needs input not available here: ${fit.unmet
               .map((p) => getPortType(p.type).label)
               .join(", ")}`
-          : tool.description
+          : undefined
       }
     >
-      <GripVertical size={11} className="mt-0.5 shrink-0 text-border" />
-      <div className={`min-w-0 flex-1 ${needsInput ? "opacity-55" : ""}`}>
-        <div className="flex items-center gap-1">
-          {/* A clean fit reads at a glance — a small check, not a wall of green. */}
-          {fit?.ready && (
-            <Check
-              size={11}
-              className="shrink-0 text-emerald-600 dark:text-emerald-400"
-              aria-label="reads cleanly here"
-            />
-          )}
-          <div className="text-[11.5px] font-medium text-foreground">{displayName}</div>
-          {tool.isSourceTransform && (
-            <span
-              className="inline-flex shrink-0 items-center gap-0.5 rounded border border-sky-500/40 bg-sky-500/10 px-1 py-px text-[8px] font-semibold text-sky-600 dark:text-sky-400"
-              title="Transformer: rewrites the source. Place it before translation and remote-egress steps — the placement check flags an unsafe slot."
-            >
-              <Layers size={7} />
-              rewrites source
-            </span>
-          )}
-        </div>
-        <div className="text-[10px] leading-tight text-muted-foreground">{tool.description}</div>
-        {/* Tags + IO contract badges */}
-        <div className="mt-0.5 flex flex-wrap gap-0.5">
-          {tool.tags?.slice(0, 3).map((tag) => (
-            <span
-              key={tag}
-              className="rounded-sm bg-muted px-1 py-px text-[9px] font-medium text-muted-foreground"
-            >
-              {tag}
-            </span>
-          ))}
-          {tool.cardinality && tool.cardinality !== "monolingual" && (
-            <span className="rounded-sm bg-blue-500/10 px-1 py-px text-[9px] font-medium text-blue-600 dark:text-blue-400">
-              {tool.cardinality === "bilingual"
-                ? t("Bi", "bilingual badge")
-                : t("Multi", "multilingual badge")}
-            </span>
-          )}
-          {tool.default_locale && (
-            <span className="rounded-sm bg-purple-500/10 px-1 py-px text-[9px] font-medium text-purple-600 dark:text-purple-400">
-              {tool.default_locale}
-            </span>
-          )}
-          {tool.side_effects && tool.side_effects.length > 0 && (
-            <span className="rounded-sm bg-amber-500/10 px-1 py-px text-[9px] font-medium text-amber-600 dark:text-amber-400">
-              {tool.side_effects.map((s) => s.replace(/-/g, " ")).join(", ")}
-            </span>
-          )}
-        </div>
-        {/* Compact IO preview: what this tool reads → writes */}
-        {((tool.consumes && tool.consumes.length > 0) ||
-          (tool.produces && tool.produces.length > 0)) && (
-          <div className="mt-0.5">
-            <IoContract consumes={tool.consumes} produces={tool.produces} max={3} />
-          </div>
-        )}
-        {/* What's missing at this slot — names the unmet inputs, never blocks. */}
-        {needsInput && fit && fit.unmet.length > 0 && (
-          <div className="mt-0.5 flex flex-wrap items-center gap-0.5">
-            <span className="text-[9px] font-medium text-amber-600 dark:text-amber-400">
-              {t("needs", "label before the inputs a tool is missing at this slot")}
-            </span>
-            {fit.unmet.map((p, i) => (
-              <PortChip
-                key={`need-${p.type}-${p.side ?? ""}-${i}`}
-                type={p.type}
-                side={p.side}
-                verb="consumes"
-                showLabel
+      <button
+        type="button"
+        draggable
+        onDragStart={onDragStart}
+        onClick={onAdd}
+        className="flex w-full items-start gap-1.5 py-1.5 pl-5 pr-2.5 text-left cursor-grab hover:bg-muted transition-colors"
+      >
+        <GripVertical size={11} className="mt-0.5 shrink-0 text-border" />
+        <div className={`min-w-0 flex-1 ${needsInput ? "opacity-55" : ""}`}>
+          <div className="flex items-center gap-1">
+            {/* A clean fit reads at a glance — a small check, not a wall of green. */}
+            {fit?.ready && (
+              <Check
+                size={11}
+                className="shrink-0 text-emerald-600 dark:text-emerald-400"
+                aria-label="reads cleanly here"
               />
-            ))}
+            )}
+            <div className="text-[11.5px] font-medium text-foreground">{displayName}</div>
+            {tool.isSourceTransform && (
+              <SimpleTooltip content="Transformer: rewrites the source. Place it before translation and remote-egress steps — the placement check flags an unsafe slot.">
+                <span className="inline-flex shrink-0 items-center gap-0.5 rounded border border-sky-500/40 bg-sky-500/10 px-1 py-px text-[8px] font-semibold text-sky-600 dark:text-sky-400">
+                  <Layers size={7} />
+                  rewrites source
+                </span>
+              </SimpleTooltip>
+            )}
           </div>
-        )}
-      </div>
-    </button>
+          <div className="text-[10px] leading-tight text-muted-foreground">{tool.description}</div>
+          {/* Tags + IO contract badges */}
+          <div className="mt-0.5 flex flex-wrap gap-0.5">
+            {tool.tags?.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="rounded-sm bg-muted px-1 py-px text-[9px] font-medium text-muted-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+            {tool.cardinality && tool.cardinality !== "monolingual" && (
+              <span className="rounded-sm bg-blue-500/10 px-1 py-px text-[9px] font-medium text-blue-600 dark:text-blue-400">
+                {tool.cardinality === "bilingual"
+                  ? t("Bi", "bilingual badge")
+                  : t("Multi", "multilingual badge")}
+              </span>
+            )}
+            {tool.default_locale && (
+              <span className="rounded-sm bg-purple-500/10 px-1 py-px text-[9px] font-medium text-purple-600 dark:text-purple-400">
+                {tool.default_locale}
+              </span>
+            )}
+            {tool.side_effects && tool.side_effects.length > 0 && (
+              <span className="rounded-sm bg-amber-500/10 px-1 py-px text-[9px] font-medium text-amber-600 dark:text-amber-400">
+                {tool.side_effects.map((s) => s.replace(/-/g, " ")).join(", ")}
+              </span>
+            )}
+          </div>
+          {/* Compact IO preview: what this tool reads → writes */}
+          {((tool.consumes && tool.consumes.length > 0) ||
+            (tool.produces && tool.produces.length > 0)) && (
+            <div className="mt-0.5">
+              <IoContract consumes={tool.consumes} produces={tool.produces} max={3} />
+            </div>
+          )}
+          {/* What's missing at this slot — names the unmet inputs, never blocks. */}
+          {needsInput && fit && fit.unmet.length > 0 && (
+            <div className="mt-0.5 flex flex-wrap items-center gap-0.5">
+              <span className="text-[9px] font-medium text-amber-600 dark:text-amber-400">
+                {t("needs", "label before the inputs a tool is missing at this slot")}
+              </span>
+              {fit.unmet.map((p, i) => (
+                <PortChip
+                  key={`need-${p.type}-${p.side ?? ""}-${i}`}
+                  type={p.type}
+                  side={p.side}
+                  verb="consumes"
+                  showLabel
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </button>
+    </SimpleTooltip>
   );
 }

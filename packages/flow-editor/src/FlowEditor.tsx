@@ -58,6 +58,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import {
   serpentineGraph,
@@ -154,21 +155,26 @@ function FlowToolbar({
               while the redact … unredact wrap is on. Wrapping the flow lives
               with the other composition actions in the Add-tool dialog. */}
           {redacted && (
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={onToggleRedaction}
-              disabled={!onToggleRedaction}
-              className="border border-[oklch(0.6_0.2_15/0.4)] text-[oklch(0.6_0.2_15)]"
-              title={
+            <SimpleTooltip
+              content={
                 onToggleRedaction
                   ? "Protected: sensitive content is redacted before the tools run and restored after. Click to remove the wrap."
                   : "Protected: sensitive content is redacted before the tools run and restored after."
               }
             >
-              <Lock size={12} />
-              {t("Protected")}
-            </Button>
+              <span className="inline-flex">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={onToggleRedaction}
+                  disabled={!onToggleRedaction}
+                  className="border border-[oklch(0.6_0.2_15/0.4)] text-[oklch(0.6_0.2_15)]"
+                >
+                  <Lock size={12} />
+                  {t("Protected")}
+                </Button>
+              </span>
+            </SimpleTooltip>
           )}
 
           {onRun && (
@@ -434,15 +440,16 @@ export function StepConfigPanel({
             </Button>
           )}
           {doc?.wikiUrl && (
-            <a
-              href={doc.wikiUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[9px] text-muted-foreground no-underline px-1"
-              title="Open wiki documentation"
-            >
-              Wiki ↗
-            </a>
+            <SimpleTooltip content="Open wiki documentation">
+              <a
+                href={doc.wikiUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[9px] text-muted-foreground no-underline px-1"
+              >
+                Wiki ↗
+              </a>
+            </SimpleTooltip>
           )}
         </div>
 
@@ -1790,15 +1797,18 @@ export function FlowEditor({
             panelCollapsed && "translate-x-full",
           )}
         >
-          <button
-            type="button"
-            onClick={() => setPanelCollapsed((v) => !v)}
-            className="nopan absolute top-1/2 left-0 flex h-12 w-6 -translate-x-full -translate-y-1/2 items-center justify-center rounded-l-md border border-r-0 border-border bg-background text-muted-foreground shadow-[-4px_0_12px_oklch(0_0_0/0.12)] transition-colors hover:text-foreground"
-            title={panelCollapsed ? t("Show panel") : t("Hide panel — give the flow full width")}
-            aria-label={panelCollapsed ? t("Show panel") : t("Hide panel")}
+          <SimpleTooltip
+            content={panelCollapsed ? t("Show panel") : t("Hide panel — give the flow full width")}
           >
-            {panelCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-          </button>
+            <button
+              type="button"
+              onClick={() => setPanelCollapsed((v) => !v)}
+              className="nopan absolute top-1/2 left-0 flex h-12 w-6 -translate-x-full -translate-y-1/2 items-center justify-center rounded-l-md border border-r-0 border-border bg-background text-muted-foreground shadow-[-4px_0_12px_oklch(0_0_0/0.12)] transition-colors hover:text-foreground"
+              aria-label={panelCollapsed ? t("Show panel") : t("Hide panel")}
+            >
+              {panelCollapsed ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+            </button>
+          </SimpleTooltip>
           {rightPanel}
         </div>
       )}

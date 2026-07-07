@@ -167,18 +167,22 @@ describe("ParamHelp", () => {
 
   it("renders info button for existing parameter", () => {
     render(<ParamHelp paramKey="extraction" doc={sampleFilterDoc} />);
-    expect(screen.getByTitle("Show parameter documentation")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show parameter documentation" }),
+    ).toBeInTheDocument();
   });
 
   it("shows tooltip on click", async () => {
     render(<ParamHelp paramKey="extraction" doc={sampleFilterDoc} />);
-    await userEvent.click(screen.getByTitle("Show parameter documentation"));
+    await userEvent.click(screen.getByRole("button", { name: "Show parameter documentation" }));
     expect(screen.getByText("Controls what content is extracted.")).toBeInTheDocument();
   });
 
   it("hides tooltip on second click", async () => {
     render(<ParamHelp paramKey="extraction" doc={sampleFilterDoc} />);
-    const btn = screen.getByTitle("Show parameter documentation");
+    const btn = screen.getByRole("button", {
+      name: "Show parameter documentation",
+    });
     await userEvent.click(btn);
     expect(screen.getByText("Controls what content is extracted.")).toBeInTheDocument();
     await userEvent.click(btn);

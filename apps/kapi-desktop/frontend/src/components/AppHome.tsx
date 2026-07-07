@@ -1,5 +1,5 @@
 import { FolderKanban, FolderOpen, Sparkles, Workflow, Wrench, X } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, SimpleTooltip } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { ConnectAICard } from "./ConnectAICard";
 import type { AIDetectionResult } from "../types/api";
@@ -111,15 +111,17 @@ export function AppHome({
           <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Sparkles size={14} />
             <span className="flex-1">New to Kapi? Try a sample project</span>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={onDismissSamples}
-              className="text-muted-foreground/60"
-              title="Dismiss"
-            >
-              <X size={14} />
-            </Button>
+            <SimpleTooltip content="Dismiss">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={onDismissSamples}
+                className="text-muted-foreground/60"
+                aria-label="Dismiss"
+              >
+                <X size={14} />
+              </Button>
+            </SimpleTooltip>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Button

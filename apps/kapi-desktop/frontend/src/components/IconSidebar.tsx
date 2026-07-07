@@ -10,6 +10,7 @@ import {
   SlidersHorizontal,
   ShieldCheck,
 } from "lucide-react";
+import { SimpleTooltip } from "@neokapi/ui-primitives";
 
 const SW = 1.5;
 
@@ -45,7 +46,12 @@ interface IconSidebarProps {
 }
 
 const adhocItems: SidebarItem[] = [
-  { type: "item", view: "home", icon: <Home size={20} strokeWidth={SW} />, label: "Home" },
+  {
+    type: "item",
+    view: "home",
+    icon: <Home size={20} strokeWidth={SW} />,
+    label: "Home",
+  },
   { type: "separator" },
   {
     type: "item",
@@ -162,40 +168,43 @@ export function IconSidebar({
               ? `${item.label} (resolve plugin requirements in Settings)`
               : item.label;
           return (
-            <button
-              key={item.view}
-              onClick={() => !disabled && onChange(item.view)}
-              disabled={disabled}
-              className={`rounded-lg p-2 transition-colors ${
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : disabled
-                    ? "text-muted-foreground/30 cursor-not-allowed"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-              aria-label={item.label}
-              title={title}
-            >
-              {item.icon}
-            </button>
+            <SimpleTooltip key={item.view} content={title} side="right">
+              <span className="inline-flex">
+                <button
+                  onClick={() => !disabled && onChange(item.view)}
+                  disabled={disabled}
+                  className={`rounded-lg p-2 transition-colors ${
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : disabled
+                        ? "text-muted-foreground/30 cursor-not-allowed"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  }`}
+                  aria-label={item.label}
+                >
+                  {item.icon}
+                </button>
+              </span>
+            </SimpleTooltip>
           );
         })}
       </nav>
 
       {/* Global Settings — pinned at bottom */}
       <div className="flex flex-col items-center">
-        <button
-          onClick={() => onChange("app-settings")}
-          className={`rounded-lg p-2 transition-colors ${
-            active === "app-settings"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
-          }`}
-          aria-label="App Settings"
-          title="App Settings"
-        >
-          <Settings size={20} strokeWidth={SW} />
-        </button>
+        <SimpleTooltip content="App Settings" side="right">
+          <button
+            onClick={() => onChange("app-settings")}
+            className={`rounded-lg p-2 transition-colors ${
+              active === "app-settings"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground"
+            }`}
+            aria-label="App Settings"
+          >
+            <Settings size={20} strokeWidth={SW} />
+          </button>
+        </SimpleTooltip>
       </div>
     </aside>
   );

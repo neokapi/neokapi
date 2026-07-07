@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card, CardContent, ErrorNotice, ListCapRow } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Card,
+  CardContent,
+  ErrorNotice,
+  ListCapRow,
+  SimpleTooltip,
+} from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import { Check, CheckCircle2, ClipboardCheck, Loader2, PlayCircle, RefreshCw } from "lucide-react";
 import { api } from "../hooks/useApi";
@@ -193,9 +200,9 @@ function scopeLabel(cov: LocaleCoverage): string {
 function CoverageRow({ cov }: { cov: LocaleCoverage }) {
   return (
     <div className="flex items-center gap-3 text-xs" data-locale={cov.locale}>
-      <span className="w-24 shrink-0 truncate font-mono uppercase" title={scopeLabel(cov)}>
-        {scopeLabel(cov)}
-      </span>
+      <SimpleTooltip content={scopeLabel(cov)}>
+        <span className="w-24 shrink-0 truncate font-mono uppercase">{scopeLabel(cov)}</span>
+      </SimpleTooltip>
       <LadderBar pct={cov.pct} ladder={TARGET_LADDER} />
       <ShipStanding cov={cov} />
     </div>
@@ -249,12 +256,11 @@ function ShipStanding({ cov }: { cov: LocaleCoverage }) {
     );
   }
   return (
-    <span
-      className="w-28 shrink-0 text-right tabular-nums text-amber-600 dark:text-amber-500"
-      title={(cov.pending ?? []).map(shortfallText).join(", ")}
-    >
-      {t("pending")}
-    </span>
+    <SimpleTooltip content={(cov.pending ?? []).map(shortfallText).join(", ")}>
+      <span className="w-28 shrink-0 text-right tabular-nums text-amber-600 dark:text-amber-500">
+        {t("pending")}
+      </span>
+    </SimpleTooltip>
   );
 }
 
@@ -274,12 +280,11 @@ function SourceReadinessRow({ source }: { source: SourceCoverage }) {
               <CheckCircle2 size={12} /> {t("ready")}
             </span>
           ) : (
-            <span
-              className="w-28 shrink-0 text-right text-amber-600 dark:text-amber-500"
-              title={(source.pending ?? []).map(shortfallText).join(", ")}
-            >
-              {t("pending")}
-            </span>
+            <SimpleTooltip content={(source.pending ?? []).map(shortfallText).join(", ")}>
+              <span className="w-28 shrink-0 text-right text-amber-600 dark:text-amber-500">
+                {t("pending")}
+              </span>
+            </SimpleTooltip>
           )
         ) : (
           <span className="w-28 shrink-0 text-right text-muted-foreground">—</span>
@@ -329,17 +334,19 @@ function ReviewQueue({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-mono uppercase text-muted-foreground">{it.locale}</span>
-                    <span className="truncate text-muted-foreground" title={`${it.file}:${it.key}`}>
-                      {it.file}:{it.key}
-                    </span>
+                    <SimpleTooltip content={`${it.file}:${it.key}`}>
+                      <span className="truncate text-muted-foreground">
+                        {it.file}:{it.key}
+                      </span>
+                    </SimpleTooltip>
                   </div>
-                  <div className="truncate pl-1" title={it.source}>
-                    {it.source}
-                  </div>
+                  <SimpleTooltip content={it.source}>
+                    <div className="truncate pl-1">{it.source}</div>
+                  </SimpleTooltip>
                   {it.target && (
-                    <div className="truncate pl-1 text-muted-foreground" title={it.target}>
-                      → {it.target}
-                    </div>
+                    <SimpleTooltip content={it.target}>
+                      <div className="truncate pl-1 text-muted-foreground">→ {it.target}</div>
+                    </SimpleTooltip>
                   )}
                 </div>
                 <Button

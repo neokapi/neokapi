@@ -3,6 +3,7 @@ import { t } from "@neokapi/kapi-react/runtime";
 import { GitBranch, Layers } from "lucide-react";
 import {
   Button,
+  SimpleTooltip,
   Card,
   CardHeader,
   CardTitle,
@@ -143,9 +144,11 @@ function TemplateCard({
         </CardTitle>
         {template.hasParallel && (
           <CardAction>
-            <span title="Includes parallel steps">
-              <GitBranch size={12} className="text-accent-foreground" />
-            </span>
+            <SimpleTooltip content="Includes parallel steps">
+              <span>
+                <GitBranch size={12} className="text-accent-foreground" />
+              </span>
+            </SimpleTooltip>
           </CardAction>
         )}
         <CardDescription>{template.description}</CardDescription>

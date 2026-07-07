@@ -9,7 +9,7 @@ import {
   Trash2,
   ExternalLink,
 } from "lucide-react";
-import { Button, ScrollArea } from "@neokapi/ui-primitives";
+import { Button, ScrollArea, SimpleTooltip } from "@neokapi/ui-primitives";
 import { useJobFeed, type Job } from "../context/JobFeedContext";
 
 /**
@@ -108,13 +108,15 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
             <span className="text-[11px] font-semibold text-foreground">Jobs</span>
             <div className="flex items-center gap-1">
               {jobs.some((j) => j.status !== "running") && (
-                <button
-                  onClick={clearAll}
-                  className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                  title="Clear completed"
-                >
-                  <Trash2 size={11} />
-                </button>
+                <SimpleTooltip content="Clear completed">
+                  <button
+                    onClick={clearAll}
+                    className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Clear completed"
+                  >
+                    <Trash2 size={11} />
+                  </button>
+                </SimpleTooltip>
               )}
               <button
                 onClick={() => setOpen(false)}

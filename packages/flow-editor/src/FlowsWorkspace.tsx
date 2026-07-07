@@ -11,6 +11,7 @@ import {
   Input,
   Label,
   cn,
+  SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { FlowEditor } from "./FlowEditor";
 import { defToSpec, specToDef } from "./defAdapter";
@@ -85,15 +86,13 @@ function FlowList({ definitions, activeId, isLoading, canAuthor, onSelect, onNew
     >
       <div className="px-4 py-3 border-b border-border flex justify-between items-center">
         <span className="font-semibold text-sm text-foreground">Flows</span>
-        <Button
-          data-testid="new-flow-btn"
-          onClick={onNew}
-          size="sm"
-          disabled={!canAuthor}
-          title={canAuthor ? undefined : t("Select a project to author flows")}
-        >
-          + New
-        </Button>
+        <SimpleTooltip content={canAuthor ? undefined : t("Select a project to author flows")}>
+          <span className="inline-flex">
+            <Button data-testid="new-flow-btn" onClick={onNew} size="sm" disabled={!canAuthor}>
+              + New
+            </Button>
+          </span>
+        </SimpleTooltip>
       </div>
       <div className="flex-1 overflow-auto py-1">
         {isLoading && (

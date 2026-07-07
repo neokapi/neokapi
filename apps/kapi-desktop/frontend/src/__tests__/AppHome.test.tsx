@@ -23,7 +23,11 @@ describe("AppHome", () => {
 
   it("shows sample project cards even with recent files", () => {
     const recentFiles = [
-      { path: "/tmp/project.kapi", name: "Test", opened_at: "2026-03-01T00:00:00Z" },
+      {
+        path: "/tmp/project.kapi",
+        name: "Test",
+        opened_at: "2026-03-01T00:00:00Z",
+      },
     ];
     render(<AppHome {...defaultProps} recentFiles={recentFiles} />);
     expect(screen.getByText("KapiMart")).toBeInTheDocument();
@@ -45,7 +49,7 @@ describe("AppHome", () => {
   it("calls onDismissSamples when clicking dismiss button", async () => {
     const onDismissSamples = vi.fn();
     render(<AppHome {...defaultProps} onDismissSamples={onDismissSamples} />);
-    await userEvent.click(screen.getByTitle("Dismiss"));
+    await userEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(onDismissSamples).toHaveBeenCalled();
   });
 

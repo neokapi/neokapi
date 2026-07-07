@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { Play, Pause, SkipBack, SkipForward, RotateCcw, X } from "lucide-react";
-import { Button, cn } from "@neokapi/ui-primitives";
+import { Button, cn, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { TraceEvent } from "./traceTypes";
 
 export interface TracePanelProps {
@@ -71,58 +71,62 @@ export function TracePanel({
       <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:inline">
         Run
       </span>
-      <Button
-        variant="ghost"
-        size="xs"
-        className="h-6 px-1.5"
-        onClick={() => {
-          stop();
-          onCursorChange(0);
-        }}
-        title="Restart"
-        aria-label="Restart playback"
-      >
-        <RotateCcw size={12} />
-      </Button>
-      <Button
-        variant="ghost"
-        size="xs"
-        className="h-6 px-1.5"
-        onClick={() => {
-          stop();
-          onCursorChange(Math.max(0, cursor - 1));
-        }}
-        title="Step back"
-        aria-label="Step back"
-      >
-        <SkipBack size={12} />
-      </Button>
-      <Button
-        variant={playing ? "outline" : "default"}
-        size="xs"
-        className="h-6 px-2"
-        onClick={() => {
-          if (done) onCursorChange(0);
-          onPlayingChange(!playing);
-        }}
-        title={playing ? "Pause" : "Play"}
-        aria-label={playing ? "Pause playback" : "Play"}
-      >
-        {playing ? <Pause size={12} /> : <Play size={12} />}
-      </Button>
-      <Button
-        variant="ghost"
-        size="xs"
-        className="h-6 px-1.5"
-        onClick={() => {
-          stop();
-          onCursorChange(Math.min(total, cursor + 1));
-        }}
-        title="Step forward"
-        aria-label="Step forward"
-      >
-        <SkipForward size={12} />
-      </Button>
+      <SimpleTooltip content="Restart">
+        <Button
+          variant="ghost"
+          size="xs"
+          className="h-6 px-1.5"
+          onClick={() => {
+            stop();
+            onCursorChange(0);
+          }}
+          aria-label="Restart playback"
+        >
+          <RotateCcw size={12} />
+        </Button>
+      </SimpleTooltip>
+      <SimpleTooltip content="Step back">
+        <Button
+          variant="ghost"
+          size="xs"
+          className="h-6 px-1.5"
+          onClick={() => {
+            stop();
+            onCursorChange(Math.max(0, cursor - 1));
+          }}
+          aria-label="Step back"
+        >
+          <SkipBack size={12} />
+        </Button>
+      </SimpleTooltip>
+      <SimpleTooltip content={playing ? "Pause" : "Play"}>
+        <Button
+          variant={playing ? "outline" : "default"}
+          size="xs"
+          className="h-6 px-2"
+          onClick={() => {
+            if (done) onCursorChange(0);
+            onPlayingChange(!playing);
+          }}
+          aria-label={playing ? "Pause playback" : "Play"}
+        >
+          {playing ? <Pause size={12} /> : <Play size={12} />}
+        </Button>
+      </SimpleTooltip>
+      <SimpleTooltip content="Step forward">
+        <Button
+          variant="ghost"
+          size="xs"
+          className="h-6 px-1.5"
+          onClick={() => {
+            stop();
+            onCursorChange(Math.min(total, cursor + 1));
+          }}
+          aria-label="Step forward"
+        >
+          <SkipForward size={12} />
+        </Button>
+      </SimpleTooltip>
 
       <input
         type="range"
@@ -147,16 +151,17 @@ export function TracePanel({
         <span className="hidden sm:inline"> · {tsLabel(events, cursor, durationUs)}</span>
       </span>
 
-      <Button
-        variant="ghost"
-        size="xs"
-        className="h-6 px-1.5"
-        onClick={onClose}
-        title="Dismiss the run"
-        aria-label="Dismiss the run"
-      >
-        <X size={12} />
-      </Button>
+      <SimpleTooltip content="Dismiss the run">
+        <Button
+          variant="ghost"
+          size="xs"
+          className="h-6 px-1.5"
+          onClick={onClose}
+          aria-label="Dismiss the run"
+        >
+          <X size={12} />
+        </Button>
+      </SimpleTooltip>
     </div>
   );
 }

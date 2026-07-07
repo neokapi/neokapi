@@ -1,5 +1,6 @@
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type EdgeProps } from "@xyflow/react";
 import { Plus } from "lucide-react";
+import { SimpleTooltip } from "@neokapi/ui-primitives";
 
 /**
  * A clean smooth-step edge with an arrowhead. The data type crossing the edge
@@ -72,19 +73,20 @@ export function DotEdge({
               as a button at rest, so you click it instead of discovering it on
               hover. Hover only tints it (no scale/position jump, which used to
               make it look like two different controls switching). */}
-          <button
-            type="button"
-            className="nodrag nopan pointer-events-auto absolute z-[3] flex size-5 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors duration-150 hover:border-primary hover:bg-accent hover:text-primary focus-visible:border-primary focus-visible:text-primary focus-visible:outline-none"
-            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onInsert();
-            }}
-            title="Add a tool here"
-            aria-label="Add a tool here"
-          >
-            <Plus size={14} aria-hidden />
-          </button>
+          <SimpleTooltip content="Add a tool here">
+            <button
+              type="button"
+              className="nodrag nopan pointer-events-auto absolute z-[3] flex size-5 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors duration-150 hover:border-primary hover:bg-accent hover:text-primary focus-visible:border-primary focus-visible:text-primary focus-visible:outline-none"
+              style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onInsert();
+              }}
+              aria-label="Add a tool here"
+            >
+              <Plus size={14} aria-hidden />
+            </button>
+          </SimpleTooltip>
         </EdgeLabelRenderer>
       )}
       {/* One dot per in-transit part: moving while playing, frozen mid-edge
@@ -118,7 +120,6 @@ export function DotEdge({
           <div
             className="pointer-events-none absolute z-[1] rounded-full border border-border bg-card px-1 py-px font-mono text-[8px] font-semibold text-muted-foreground"
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
-            title={`${traversed} part(s) crossed this edge`}
           >
             {traversed}
           </div>
