@@ -75,28 +75,55 @@ interface NavRow {
 }
 
 const contentRows: NavRow[] = [
-  { view: "content", label: "Content", icon: <FileText size={17} strokeWidth={SW} /> },
-  { view: "check", label: "Check", icon: <ShieldCheck size={17} strokeWidth={SW} /> },
-  { view: "rewrite", label: "Rewrite", icon: <PenLine size={17} strokeWidth={SW} /> },
-  { view: "stats", label: "Stats", icon: <BarChart3 size={17} strokeWidth={SW} /> },
-  { view: "brand", label: "Brand", icon: <Palette size={17} strokeWidth={SW} /> },
+  {
+    view: "content",
+    label: "Content",
+    icon: <FileText size={17} strokeWidth={SW} />,
+  },
+  {
+    view: "check",
+    label: "Check",
+    icon: <ShieldCheck size={17} strokeWidth={SW} />,
+  },
+  {
+    view: "rewrite",
+    label: "Rewrite",
+    icon: <PenLine size={17} strokeWidth={SW} />,
+  },
+  {
+    view: "stats",
+    label: "Stats",
+    icon: <BarChart3 size={17} strokeWidth={SW} />,
+  },
+  {
+    view: "brand",
+    label: "Brand",
+    icon: <Palette size={17} strokeWidth={SW} />,
+  },
 ];
 
 const localizationRows: NavRow[] = [
-  { view: "translate", label: "Translate", icon: <Languages size={17} strokeWidth={SW} /> },
+  {
+    view: "translate",
+    label: "Translate",
+    icon: <Languages size={17} strokeWidth={SW} />,
+  },
   {
     view: "memories",
     label: "Translation Memories",
     icon: <Database size={17} strokeWidth={SW} />,
   },
-  { view: "termbases", label: "Termbases", icon: <BookOpen size={17} strokeWidth={SW} /> },
+  {
+    view: "termbases",
+    label: "Termbases",
+    icon: <BookOpen size={17} strokeWidth={SW} />,
+  },
 ];
 
 function NavButton({ row, active }: { row: NavRow; active: boolean }) {
   return (
     <button
       type="button"
-      title={row.label}
       className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors ${
         active
           ? "bg-primary text-primary-foreground"
@@ -156,7 +183,11 @@ export function AdaptiveSidebar({
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2">
         <NavButton
-          row={{ view: "home", label: "Home", icon: <Home size={17} strokeWidth={SW} /> }}
+          row={{
+            view: "home",
+            label: "Home",
+            icon: <Home size={17} strokeWidth={SW} />,
+          }}
           active={active === "home"}
         />
 
@@ -255,7 +286,11 @@ export function SourceFirstSidebar({
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2">
         <NavButton
-          row={{ view: "home", label: "Home", icon: <Home size={17} strokeWidth={SW} /> }}
+          row={{
+            view: "home",
+            label: "Home",
+            icon: <Home size={17} strokeWidth={SW} />,
+          }}
           active={active === "home"}
         />
 

@@ -38,6 +38,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   ListCapRow,
+  SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import type {
   KapiProject,
@@ -393,30 +394,33 @@ function LanguageTimeline({
                 {/* tag: locale pill (colours consistent with the rest of the UI)
                     + overall %; the on-line dot carries the ship-gate stage.
                     With onSelect wired, clicking opens Review for the language. */}
-                <span
-                  className={`absolute flex -translate-x-1/2 items-center gap-1 whitespace-nowrap ${
-                    onSelect ? "cursor-pointer" : "cursor-default"
-                  }`}
-                  style={{ left: x, top: tagTop }}
-                  onMouseEnter={() => setHovered(it.lang)}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={onSelect ? () => onSelect(it.lang) : undefined}
-                  role={onSelect ? "button" : undefined}
-                  aria-label={
-                    onSelect ? t("Review {lang} translations", { lang: it.lang }) : undefined
-                  }
-                  title={
+                <SimpleTooltip
+                  content={
                     onSelect
                       ? `${it.lang}: ${it.pct}% translated — ${t("click to review")}`
                       : `${it.lang}: ${it.pct}% translated`
                   }
-                  data-slot="timeline-lang-tag"
                 >
-                  <LocalePill locale={it.lang} />
-                  <span className="text-[10px] font-medium tabular-nums text-muted-foreground">
-                    {it.pct}%
+                  <span
+                    className={`absolute flex -translate-x-1/2 items-center gap-1 whitespace-nowrap ${
+                      onSelect ? "cursor-pointer" : "cursor-default"
+                    }`}
+                    style={{ left: x, top: tagTop }}
+                    onMouseEnter={() => setHovered(it.lang)}
+                    onMouseLeave={() => setHovered(null)}
+                    onClick={onSelect ? () => onSelect(it.lang) : undefined}
+                    role={onSelect ? "button" : undefined}
+                    aria-label={
+                      onSelect ? t("Review {lang} translations", { lang: it.lang }) : undefined
+                    }
+                    data-slot="timeline-lang-tag"
+                  >
+                    <LocalePill locale={it.lang} />
+                    <span className="text-[10px] font-medium tabular-nums text-muted-foreground">
+                      {it.pct}%
+                    </span>
                   </span>
-                </span>
+                </SimpleTooltip>
               </span>
             );
           })}
@@ -441,20 +445,21 @@ function LanguageTimeline({
                   }}
                 />
                 {/* dot on the line: collection fill + stage-coloured ring */}
-                <span
-                  className="absolute rounded-full"
-                  style={{
-                    left: cx,
-                    top: axisY,
-                    width: 11,
-                    height: 11,
-                    transform: "translate(-50%, -50%)",
-                    background: cc.color,
-                    border: `2px solid ${color(cc.stage)}`,
-                    boxShadow: "0 0 0 1px var(--card)",
-                  }}
-                  title={`${cc.name}: ${cc.pct}% · ${stageLabel(cc.stage)}`}
-                />
+                <SimpleTooltip content={`${cc.name}: ${cc.pct}% · ${stageLabel(cc.stage)}`}>
+                  <span
+                    className="absolute rounded-full"
+                    style={{
+                      left: cx,
+                      top: axisY,
+                      width: 11,
+                      height: 11,
+                      transform: "translate(-50%, -50%)",
+                      background: cc.color,
+                      border: `2px solid ${color(cc.stage)}`,
+                      boxShadow: "0 0 0 1px var(--card)",
+                    }}
+                  />
+                </SimpleTooltip>
                 {/* label above the stem */}
                 <span
                   className="absolute -translate-x-1/2 whitespace-nowrap rounded-full border bg-card px-1.5 py-0.5 text-[9px] font-medium shadow-sm"
@@ -1176,126 +1181,136 @@ export function CollectionsPanel({
                 const tOpen = expandedTemplate.has(m.relative);
                 return (
                   <Fragment key={i}>
-                    <tr
-                      onClick={() => setPreview({ path: m.path, relative: m.relative })}
-                      className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
-                      title={t("Preview {file}", { file: m.relative })}
-                    >
-                      <td className="px-3 py-1.5">
-                        <span className="flex items-center gap-1.5 font-mono">
-                          {outs.length > 0 ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setExpandedOutputs((prev) => {
-                                  const next = new Set(prev);
-                                  if (next.has(m.relative)) next.delete(m.relative);
-                                  else next.add(m.relative);
-                                  return next;
-                                });
-                              }}
-                              className="shrink-0 text-muted-foreground hover:text-foreground"
-                              title={isOpen ? t("Hide outputs") : t("Show outputs")}
-                              aria-label={isOpen ? t("Hide outputs") : t("Show outputs")}
-                            >
-                              {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                            </button>
-                          ) : (
-                            <FileText size={12} className="shrink-0 text-muted-foreground" />
-                          )}
-                          {m.relative}
-                        </span>
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <Badge variant="secondary">{m.format || "unknown"}</Badge>
-                      </td>
-                      <td className="px-3 py-1.5 text-muted-foreground">
-                        <span className="flex items-center justify-between gap-2">
-                          <span>{m.pattern}</span>
-                          {outs.length > 0 && (
-                            <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
-                              {t("{present}/{total} outputs", { present, total: outs.length })}
-                            </Badge>
-                          )}
-                        </span>
-                      </td>
-                    </tr>
+                    <SimpleTooltip content={t("Preview {file}", { file: m.relative })}>
+                      <tr
+                        onClick={() => setPreview({ path: m.path, relative: m.relative })}
+                        className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
+                      >
+                        <td className="px-3 py-1.5">
+                          <span className="flex items-center gap-1.5 font-mono">
+                            {outs.length > 0 ? (
+                              <SimpleTooltip
+                                content={isOpen ? t("Hide outputs") : t("Show outputs")}
+                              >
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedOutputs((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(m.relative)) next.delete(m.relative);
+                                      else next.add(m.relative);
+                                      return next;
+                                    });
+                                  }}
+                                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                                  aria-label={isOpen ? t("Hide outputs") : t("Show outputs")}
+                                >
+                                  {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                </button>
+                              </SimpleTooltip>
+                            ) : (
+                              <FileText size={12} className="shrink-0 text-muted-foreground" />
+                            )}
+                            {m.relative}
+                          </span>
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <Badge variant="secondary">{m.format || "unknown"}</Badge>
+                        </td>
+                        <td className="px-3 py-1.5 text-muted-foreground">
+                          <span className="flex items-center justify-between gap-2">
+                            <span>{m.pattern}</span>
+                            {outs.length > 0 && (
+                              <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
+                                {t("{present}/{total} outputs", { present, total: outs.length })}
+                              </Badge>
+                            )}
+                          </span>
+                        </td>
+                      </tr>
+                    </SimpleTooltip>
                     {/* One templated output line stands in for every locale; expand
                   it for the per-locale files. */}
                     {isOpen && outs.length > 0 && (
-                      <tr
-                        onClick={() =>
-                          setExpandedTemplate((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(m.relative)) next.delete(m.relative);
-                            else next.add(m.relative);
-                            return next;
-                          })
-                        }
-                        className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
-                        title={
+                      <SimpleTooltip
+                        content={
                           tOpen ? t("Hide per-language outputs") : t("Show per-language outputs")
                         }
                       >
-                        <td className="py-1 pl-9 pr-3">
-                          <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
-                            {tOpen ? (
-                              <ChevronDown size={11} className="shrink-0" />
-                            ) : (
-                              <ChevronRight size={11} className="shrink-0" />
-                            )}
-                            <ArrowRight size={10} className="shrink-0 opacity-50" />
-                            <span translate="no">{templated}</span>
-                          </span>
-                        </td>
-                        <td className="px-3 py-1">
-                          <Badge variant="secondary">{m.format || "—"}</Badge>
-                        </td>
-                        <td className="px-3 py-1 text-right">
-                          <Badge variant="outline" className="text-[10px] font-normal">
-                            {t("{present}/{total} generated", { present, total: outs.length })}
-                          </Badge>
-                        </td>
-                      </tr>
+                        <tr
+                          onClick={() =>
+                            setExpandedTemplate((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(m.relative)) next.delete(m.relative);
+                              else next.add(m.relative);
+                              return next;
+                            })
+                          }
+                          className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
+                        >
+                          <td className="py-1 pl-9 pr-3">
+                            <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
+                              {tOpen ? (
+                                <ChevronDown size={11} className="shrink-0" />
+                              ) : (
+                                <ChevronRight size={11} className="shrink-0" />
+                              )}
+                              <ArrowRight size={10} className="shrink-0 opacity-50" />
+                              <span translate="no">{templated}</span>
+                            </span>
+                          </td>
+                          <td className="px-3 py-1">
+                            <Badge variant="secondary">{m.format || "—"}</Badge>
+                          </td>
+                          <td className="px-3 py-1 text-right">
+                            <Badge variant="outline" className="text-[10px] font-normal">
+                              {t("{present}/{total} generated", { present, total: outs.length })}
+                            </Badge>
+                          </td>
+                        </tr>
+                      </SimpleTooltip>
                     )}
                     {isOpen &&
                       tOpen &&
                       outs.map((o) => (
-                        <tr
-                          key={`${i}-${o.relative}`}
-                          onClick={
-                            o.exists
-                              ? () => setPreview({ path: o.path, relative: o.relative })
-                              : undefined
-                          }
-                          className={`border-b border-border last:border-0 ${
-                            o.exists ? "cursor-pointer hover:bg-accent/30" : "opacity-60"
-                          }`}
-                          title={
+                        <SimpleTooltip
+                          content={
                             o.exists
                               ? t("Inspect {file}", { file: o.relative })
                               : t("Not generated yet — run a flow to create it")
                           }
                         >
-                          <td className="py-1 pl-16 pr-3">
-                            <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
-                              <LocalePill locale={o.lang} />
-                              <span>{o.relative}</span>
-                            </span>
-                          </td>
-                          <td className="px-3 py-1">
-                            {o.exists ? (
-                              <Badge variant="secondary">{o.format || "—"}</Badge>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground">
-                                {t("pending")}
+                          <tr
+                            key={`${i}-${o.relative}`}
+                            onClick={
+                              o.exists
+                                ? () => setPreview({ path: o.path, relative: o.relative })
+                                : undefined
+                            }
+                            className={`border-b border-border last:border-0 ${
+                              o.exists ? "cursor-pointer hover:bg-accent/30" : "opacity-60"
+                            }`}
+                          >
+                            <td className="py-1 pl-16 pr-3">
+                              <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
+                                <LocalePill locale={o.lang} />
+                                <span>{o.relative}</span>
                               </span>
-                            )}
-                          </td>
-                          <td className="px-3 py-1 text-right text-muted-foreground">
-                            {o.exists ? formatSize(o.size) : ""}
-                          </td>
-                        </tr>
+                            </td>
+                            <td className="px-3 py-1">
+                              {o.exists ? (
+                                <Badge variant="secondary">{o.format || "—"}</Badge>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {t("pending")}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-1 text-right text-muted-foreground">
+                              {o.exists ? formatSize(o.size) : ""}
+                            </td>
+                          </tr>
+                        </SimpleTooltip>
                       ))}
                   </Fragment>
                 );
@@ -1348,12 +1363,8 @@ export function CollectionsPanel({
                     : undefined;
                 return (
                   <Fragment key={f.relative}>
-                    <tr
-                      onClick={onRow}
-                      className={`border-b border-border last:border-0 text-muted-foreground hover:bg-accent/30 ${
-                        onRow ? "cursor-pointer" : ""
-                      }`}
-                      title={
+                    <SimpleTooltip
+                      content={
                         archive
                           ? t("Browse entries in {file}", { file: f.relative })
                           : f.format
@@ -1361,29 +1372,36 @@ export function CollectionsPanel({
                             : undefined
                       }
                     >
-                      <td className="px-3 py-1.5">
-                        <span className="flex items-center gap-1.5 font-mono">
-                          {archive ? (
-                            fileExpanded ? (
-                              <ChevronDown size={12} className="shrink-0" />
+                      <tr
+                        onClick={onRow}
+                        className={`border-b border-border last:border-0 text-muted-foreground hover:bg-accent/30 ${
+                          onRow ? "cursor-pointer" : ""
+                        }`}
+                      >
+                        <td className="px-3 py-1.5">
+                          <span className="flex items-center gap-1.5 font-mono">
+                            {archive ? (
+                              fileExpanded ? (
+                                <ChevronDown size={12} className="shrink-0" />
+                              ) : (
+                                <ChevronRight size={12} className="shrink-0" />
+                              )
                             ) : (
-                              <ChevronRight size={12} className="shrink-0" />
-                            )
+                              <FileText size={12} className="shrink-0" />
+                            )}
+                            {f.relative}
+                          </span>
+                        </td>
+                        <td className="px-3 py-1.5">
+                          {f.format ? (
+                            <Badge variant="secondary">{f.format}</Badge>
                           ) : (
-                            <FileText size={12} className="shrink-0" />
+                            <span>&mdash;</span>
                           )}
-                          {f.relative}
-                        </span>
-                      </td>
-                      <td className="px-3 py-1.5">
-                        {f.format ? (
-                          <Badge variant="secondary">{f.format}</Badge>
-                        ) : (
-                          <span>&mdash;</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-1.5 text-right">{formatSize(f.size)}</td>
-                    </tr>
+                        </td>
+                        <td className="px-3 py-1.5 text-right">{formatSize(f.size)}</td>
+                      </tr>
+                    </SimpleTooltip>
                     {archive && fileExpanded && (
                       <tr className="border-b border-border last:border-0">
                         <td colSpan={3} className="px-3 py-1.5">
@@ -1572,17 +1590,21 @@ export function CollectionsPanel({
             })
         : undefined;
       const cell = heatmap ? (
-        <span className="flex items-center justify-center gap-1 text-[10px]" title={cellTitle}>
-          <span className="size-2 shrink-0 rounded-full" style={{ background: r.color }} />
-          <span className="tabular-nums text-muted-foreground">{r.pct}</span>
-        </span>
-      ) : (
-        <span className="flex flex-col items-center gap-0.5" title={cellTitle}>
-          <span className="text-[10px] font-medium leading-none" style={{ color: r.color }}>
-            {r.label}
+        <SimpleTooltip content={cellTitle}>
+          <span className="flex items-center justify-center gap-1 text-[10px]">
+            <span className="size-2 shrink-0 rounded-full" style={{ background: r.color }} />
+            <span className="tabular-nums text-muted-foreground">{r.pct}</span>
           </span>
-          <span className="text-[10px] tabular-nums text-muted-foreground">{r.pct}%</span>
-        </span>
+        </SimpleTooltip>
+      ) : (
+        <SimpleTooltip content={cellTitle}>
+          <span className="flex flex-col items-center gap-0.5">
+            <span className="text-[10px] font-medium leading-none" style={{ color: r.color }}>
+              {r.label}
+            </span>
+            <span className="text-[10px] tabular-nums text-muted-foreground">{r.pct}%</span>
+          </span>
+        </SimpleTooltip>
       );
       // A ship-gate cell is an entry point into Review, scoped to its
       // (collection, locale).
@@ -1605,23 +1627,26 @@ export function CollectionsPanel({
       return <span className="text-center text-[10px] text-muted-foreground/40">&mdash;</span>;
     }
     return heatmap ? (
-      <span
-        className="flex h-6 items-center justify-center rounded text-[10px] font-medium tabular-nums"
-        style={{
-          background: coverageTint(p),
-          color: p > 55 ? "var(--primary-foreground)" : "var(--muted-foreground)",
-        }}
-        title={`${lang}: ${p}%`}
-      >
-        {p}
-      </span>
-    ) : (
-      <span className="flex flex-col items-center gap-1" title={`${lang}: ${p}%`}>
-        <span className="h-1.5 w-full overflow-hidden rounded-full bg-accent">
-          <span className="block h-full rounded-full bg-primary" style={{ width: `${p}%` }} />
+      <SimpleTooltip content={`${lang}: ${p}%`}>
+        <span
+          className="flex h-6 items-center justify-center rounded text-[10px] font-medium tabular-nums"
+          style={{
+            background: coverageTint(p),
+            color: p > 55 ? "var(--primary-foreground)" : "var(--muted-foreground)",
+          }}
+        >
+          {p}
         </span>
-        <span className="text-[10px] tabular-nums text-muted-foreground">{p}%</span>
-      </span>
+      </SimpleTooltip>
+    ) : (
+      <SimpleTooltip content={`${lang}: ${p}%`}>
+        <span className="flex flex-col items-center gap-1">
+          <span className="h-1.5 w-full overflow-hidden rounded-full bg-accent">
+            <span className="block h-full rounded-full bg-primary" style={{ width: `${p}%` }} />
+          </span>
+          <span className="text-[10px] tabular-nums text-muted-foreground">{p}%</span>
+        </span>
+      </SimpleTooltip>
     );
   };
   // Cake slices: one per displayed collection with blocks, coloured by position.
@@ -1704,20 +1729,23 @@ export function CollectionsPanel({
               selected. */}
           {selectable &&
             (flowNames.length === 1 ? (
-              <Button
-                size="sm"
-                disabled={hasActive || !runReady || !flowValid(flowNames[0])}
-                title={flowRunTitle(flowNames[0])}
-                onClick={() => runFlowScoped(flowNames[0], flows![flowNames[0]])}
-                aria-label={
-                  hasSelection
-                    ? t("Run {flow} on selected collections", { flow: flowNames[0] })
-                    : t("Run {flow} on all collections", { flow: flowNames[0] })
-                }
-              >
-                <Play size={12} />
-                {hasSelection ? t("Run on selected") : t("Run {flow}", { flow: flowNames[0] })}
-              </Button>
+              <SimpleTooltip content={flowRunTitle(flowNames[0])}>
+                <span className="inline-flex">
+                  <Button
+                    size="sm"
+                    disabled={hasActive || !runReady || !flowValid(flowNames[0])}
+                    onClick={() => runFlowScoped(flowNames[0], flows![flowNames[0]])}
+                    aria-label={
+                      hasSelection
+                        ? t("Run {flow} on selected collections", { flow: flowNames[0] })
+                        : t("Run {flow} on all collections", { flow: flowNames[0] })
+                    }
+                  >
+                    <Play size={12} />
+                    {hasSelection ? t("Run on selected") : t("Run {flow}", { flow: flowNames[0] })}
+                  </Button>
+                </span>
+              </SimpleTooltip>
             ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1734,32 +1762,41 @@ export function CollectionsPanel({
                       : t("Run on all collections")}
                   </DropdownMenuLabel>
                   {flowNames.map((fn) => (
-                    <DropdownMenuItem
-                      key={fn}
-                      disabled={!runReady || !flowValid(fn)}
-                      title={flowRunTitle(fn)}
-                      onClick={() => runFlowScoped(fn, flows![fn])}
-                    >
-                      <Play size={12} />
-                      {fn}
-                    </DropdownMenuItem>
+                    <SimpleTooltip key={fn} content={flowRunTitle(fn)}>
+                      <DropdownMenuItem
+                        disabled={!runReady || !flowValid(fn)}
+                        onClick={() => runFlowScoped(fn, flows![fn])}
+                      >
+                        <Play size={12} />
+                        {fn}
+                      </DropdownMenuItem>
+                    </SimpleTooltip>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             ))}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void handleExtract()}
-            disabled={extracting || scanning}
-            aria-label={hasData ? "Re-extract content" : "Run extract"}
-            title={t(
+          <SimpleTooltip
+            content={t(
               "Manual override — Bring up to date re-extracts changed sources automatically.",
             )}
           >
-            {extracting ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-            {hasData ? t("Re-extract") : t("Extract")}
-          </Button>
+            <span className="inline-flex">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleExtract()}
+                disabled={extracting || scanning}
+                aria-label={hasData ? "Re-extract content" : "Run extract"}
+              >
+                {extracting ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={12} />
+                )}
+                {hasData ? t("Re-extract") : t("Extract")}
+              </Button>
+            </span>
+          </SimpleTooltip>
           <span className="text-xs text-muted-foreground">
             {t("Tick collections below to scope a run.")}
           </span>
@@ -1994,9 +2031,9 @@ export function CollectionsPanel({
                         className="shrink-0"
                         style={{ color: collectionColor(idx) }}
                       />
-                      <span className="truncate text-sm font-medium" title={title}>
-                        {title}
-                      </span>
+                      <SimpleTooltip content={title}>
+                        <span className="truncate text-sm font-medium">{title}</span>
+                      </SimpleTooltip>
                     </button>
                     <span className="text-right text-xs tabular-nums text-muted-foreground">
                       {files.length}

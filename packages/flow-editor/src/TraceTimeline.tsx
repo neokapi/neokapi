@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Clock, AlertCircle, CheckCircle2 } from "lucide-react";
-import { cn, PanelHeader } from "@neokapi/ui-primitives";
+import { cn, PanelHeader, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { TraceEvent, NodeTraceStats } from "./traceTypes";
 import { computeNodeStats } from "./traceTypes";
 
@@ -39,15 +39,16 @@ function TimelineBar({
       )}
 
       {/* Node name */}
-      <span
-        className={cn(
-          "w-[100px] shrink-0 truncate text-[11px] font-medium",
-          s.hasError ? "text-destructive" : "text-foreground",
-        )}
-        title={name}
-      >
-        {name}
-      </span>
+      <SimpleTooltip content={name}>
+        <span
+          className={cn(
+            "w-[100px] shrink-0 truncate text-[11px] font-medium",
+            s.hasError ? "text-destructive" : "text-foreground",
+          )}
+        >
+          {name}
+        </span>
+      </SimpleTooltip>
 
       {/* Duration bar */}
       <div className="flex-1 h-1.5 rounded-sm overflow-hidden bg-muted">

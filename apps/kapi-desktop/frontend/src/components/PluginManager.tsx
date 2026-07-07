@@ -21,6 +21,7 @@ import {
   TabsTrigger,
   TabsContent,
   LoadingSpinner,
+  SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import type { PluginInfo } from "../types/api";
@@ -169,7 +170,10 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
   });
 
   const handleInstall = useCallback((name: string) => {
-    setInstallStatus((prev) => ({ ...prev, [name]: { state: "downloading", percent: 0 } }));
+    setInstallStatus((prev) => ({
+      ...prev,
+      [name]: { state: "downloading", percent: 0 },
+    }));
     // Fire-and-forget — the backend runs in a goroutine and emits events.
     void api.installPlugin(name);
   }, []);
@@ -193,14 +197,20 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
   }, []);
 
   const handleUpdate = useCallback((name: string) => {
-    setInstallStatus((prev) => ({ ...prev, [name]: { state: "downloading", percent: 0 } }));
+    setInstallStatus((prev) => ({
+      ...prev,
+      [name]: { state: "downloading", percent: 0 },
+    }));
     void api.updatePlugin(name);
   }, []);
 
   const handleUpdateAll = useCallback(async () => {
     setUpdatingAll(true);
     for (const u of updates) {
-      setInstallStatus((prev) => ({ ...prev, [u.name]: { state: "downloading", percent: 0 } }));
+      setInstallStatus((prev) => ({
+        ...prev,
+        [u.name]: { state: "downloading", percent: 0 },
+      }));
       void api.updatePlugin(u.name);
     }
     // The event handlers will manage state from here.
@@ -395,14 +405,13 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
                           <span className="text-[10px] text-muted-foreground">
                             {t("No build for")} {plugin.platform}
                           </span>
-                          <Button
-                            size="sm"
-                            disabled
-                            data-testid={`install-${plugin.name}`}
-                            title={t("This plugin has no build for your platform")}
-                          >
-                            <Download size={12} /> Install
-                          </Button>
+                          <SimpleTooltip content={t("This plugin has no build for your platform")}>
+                            <span className="inline-flex">
+                              <Button size="sm" disabled data-testid={`install-${plugin.name}`}>
+                                <Download size={12} /> Install
+                              </Button>
+                            </span>
+                          </SimpleTooltip>
                         </div>
                       ) : (
                         <Button
@@ -505,14 +514,16 @@ function InstalledPluginCard({
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {hasDetails && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={() => setExpanded(!expanded)}
-              title="Show capabilities"
-            >
-              {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            </Button>
+            <SimpleTooltip content="Show capabilities">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setExpanded(!expanded)}
+                aria-label="Show capabilities"
+              >
+                {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              </Button>
+            </SimpleTooltip>
           )}
           {/* Update button / progress */}
           {updateStatus?.state === "downloading" ? (
@@ -534,16 +545,23 @@ function InstalledPluginCard({
               )}
             </div>
           ) : updateAvailable && onUpdate ? (
-            <Button
-              variant="outline"
-              size="xs"
-              onClick={onUpdate}
-              className="border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-              title={t("Update to v{version}", { version: updateAvailable.latest_version ?? "" })}
+            <SimpleTooltip
+              content={t("Update to v{version}", {
+                version: updateAvailable.latest_version ?? "",
+              })}
             >
-              <ArrowUpCircle size={11} />
-              {updateAvailable.latest_version ? `v${updateAvailable.latest_version}` : t("Update")}
-            </Button>
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={onUpdate}
+                className="border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+              >
+                <ArrowUpCircle size={11} />
+                {updateAvailable.latest_version
+                  ? `v${updateAvailable.latest_version}`
+                  : t("Update")}
+              </Button>
+            </SimpleTooltip>
           ) : null}
           {/* Remove */}
           {removing ? (
@@ -560,15 +578,17 @@ function InstalledPluginCard({
               </Button>
             </div>
           ) : (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={onConfirmRemove}
-              className="hover:bg-destructive/10 hover:text-destructive"
-              title="Uninstall"
-            >
-              <Trash2 size={12} />
-            </Button>
+            <SimpleTooltip content="Uninstall">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={onConfirmRemove}
+                className="hover:bg-destructive/10 hover:text-destructive"
+                aria-label="Uninstall"
+              >
+                <Trash2 size={12} />
+              </Button>
+            </SimpleTooltip>
           )}
         </div>
       </div>

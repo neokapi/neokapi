@@ -11,7 +11,19 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { Badge, Button, Card, CardContent, LocalePill, ScrollArea } from "@neokapi/ui-primitives";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  LocalePill,
+  ScrollArea,
+  SimpleTooltip,
+} from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import { api } from "../hooks/useApi";
 import { VirtualRows } from "../lib/VirtualRows";
@@ -642,126 +654,130 @@ export function ReviewPage({
 
       {/* AI pre-review modal: reviewer model, policy (annotate-only default),
           scope summary, unit count; then progress and the result summary. */}
-      {preReviewOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      <Dialog
+        open={preReviewOpen}
+        onOpenChange={(o) => {
+          if (!o && !preReviewRunning) setPreReviewOpen(false);
+        }}
+      >
+        <DialogContent
+          className="w-[26rem] max-w-[90vw] sm:max-w-[26rem]"
+          showCloseButton={false}
           data-slot="review-prereview-modal"
         >
-          <Card className="w-[26rem] max-w-[90vw]">
-            <CardContent className="space-y-3 p-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Sparkles size={14} className="text-primary" />
-                <span className="font-semibold">{t("AI pre-review")}</span>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Sparkles size={14} className="text-primary" />
+              {t("AI pre-review")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <div>
+                {t("Reviewer model")}:{" "}
+                <span className="text-foreground" translate="no">
+                  {reviewerModel || t("project default")}
+                </span>
               </div>
-              <div className="space-y-1 text-xs text-muted-foreground">
-                <div>
-                  {t("Reviewer model")}:{" "}
-                  <span className="text-foreground" translate="no">
-                    {reviewerModel || t("project default")}
+              <div>
+                {t("Scope")}:{" "}
+                <span className="text-foreground">
+                  {localeFilter || t("all languages")}
+                  {collectionFilter ? ` · ${collectionFilter}` : ""}
+                </span>{" "}
+                — {t("{count} pending units", { count: preReviewPending.length })}
+              </div>
+            </div>
+            <div className="space-y-1.5 text-xs" role="radiogroup" aria-label={t("Policy")}>
+              <label className="flex items-start gap-2">
+                <input
+                  type="radio"
+                  name="prereview-policy"
+                  checked={!preReviewAuto}
+                  onChange={() => setPreReviewAuto(false)}
+                  data-slot="review-prereview-annotate"
+                />
+                <span>
+                  <span className="font-medium">{t("Annotate only")}</span>{" "}
+                  <span className="text-muted-foreground">
+                    {t("— store score and findings; every decision stays yours.")}
                   </span>
-                </div>
-                <div>
-                  {t("Scope")}:{" "}
-                  <span className="text-foreground">
-                    {localeFilter || t("all languages")}
-                    {collectionFilter ? ` · ${collectionFilter}` : ""}
+                </span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input
+                  type="radio"
+                  name="prereview-policy"
+                  checked={preReviewAuto}
+                  onChange={() => setPreReviewAuto(true)}
+                  data-slot="review-prereview-auto"
+                />
+                <span>
+                  <span className="font-medium">
+                    {t("Auto-approve clean units scoring at least")}
                   </span>{" "}
-                  — {t("{count} pending units", { count: preReviewPending.length })}
-                </div>
-              </div>
-              <div className="space-y-1.5 text-xs" role="radiogroup" aria-label={t("Policy")}>
-                <label className="flex items-start gap-2">
                   <input
-                    type="radio"
-                    name="prereview-policy"
-                    checked={!preReviewAuto}
-                    onChange={() => setPreReviewAuto(false)}
-                    data-slot="review-prereview-annotate"
-                  />
-                  <span>
-                    <span className="font-medium">{t("Annotate only")}</span>{" "}
-                    <span className="text-muted-foreground">
-                      {t("— store score and findings; every decision stays yours.")}
-                    </span>
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={preReviewMinScore}
+                    onChange={(e) => setPreReviewMinScore(Number(e.target.value))}
+                    className="w-14 rounded border border-input bg-transparent px-1 text-xs"
+                    aria-label={t("Minimum score")}
+                  />{" "}
+                  <span className="text-muted-foreground">
+                    {t("— approvals are recorded as ai/<model>; human-required gates ignore them.")}
                   </span>
-                </label>
-                <label className="flex items-start gap-2">
-                  <input
-                    type="radio"
-                    name="prereview-policy"
-                    checked={preReviewAuto}
-                    onChange={() => setPreReviewAuto(true)}
-                    data-slot="review-prereview-auto"
-                  />
-                  <span>
-                    <span className="font-medium">
-                      {t("Auto-approve clean units scoring at least")}
-                    </span>{" "}
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={preReviewMinScore}
-                      onChange={(e) => setPreReviewMinScore(Number(e.target.value))}
-                      className="w-14 rounded border border-input bg-transparent px-1 text-xs"
-                      aria-label={t("Minimum score")}
-                    />{" "}
-                    <span className="text-muted-foreground">
-                      {t(
-                        "— approvals are recorded as ai/<model>; human-required gates ignore them.",
-                      )}
-                    </span>
+                </span>
+              </label>
+            </div>
+            {preReviewResult && (
+              <div
+                className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs"
+                data-slot="review-prereview-result"
+              >
+                {t("{approved} auto-approved · {left} left for you", {
+                  approved: preReviewResult.auto_approved,
+                  left: preReviewResult.remaining,
+                })}
+                {preReviewResult.skipped ? (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    ({t("{count} skipped", { count: preReviewResult.skipped })})
                   </span>
-                </label>
+                ) : null}
               </div>
-              {preReviewResult && (
-                <div
-                  className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs"
-                  data-slot="review-prereview-result"
-                >
-                  {t("{approved} auto-approved · {left} left for you", {
-                    approved: preReviewResult.auto_approved,
-                    left: preReviewResult.remaining,
-                  })}
-                  {preReviewResult.skipped ? (
-                    <span className="text-muted-foreground">
-                      {" "}
-                      ({t("{count} skipped", { count: preReviewResult.skipped })})
-                    </span>
-                  ) : null}
-                </div>
-              )}
-              <div className="flex items-center justify-end gap-2 pt-1">
+            )}
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPreReviewOpen(false)}
+                disabled={preReviewRunning}
+              >
+                {preReviewResult ? t("Close") : t("Cancel")}
+              </Button>
+              {!preReviewResult && (
                 <Button
-                  variant="outline"
                   size="sm"
-                  onClick={() => setPreReviewOpen(false)}
-                  disabled={preReviewRunning}
+                  onClick={() => void runPreReview()}
+                  disabled={preReviewRunning || preReviewPending.length === 0}
+                  data-slot="review-prereview-run"
                 >
-                  {preReviewResult ? t("Close") : t("Cancel")}
+                  {preReviewRunning ? (
+                    <>
+                      <Loader2 size={12} className="animate-spin" />
+                      {t("Reviewing…")}
+                    </>
+                  ) : (
+                    t("Run pre-review")
+                  )}
                 </Button>
-                {!preReviewResult && (
-                  <Button
-                    size="sm"
-                    onClick={() => void runPreReview()}
-                    disabled={preReviewRunning || preReviewPending.length === 0}
-                    data-slot="review-prereview-run"
-                  >
-                    {preReviewRunning ? (
-                      <>
-                        <Loader2 size={12} className="animate-spin" />
-                        {t("Reviewing…")}
-                      </>
-                    ) : (
-                      t("Run pre-review")
-                    )}
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Batch bar (Phase 2): approve all clean units in the current filter. */}
       {cleanVisible.length > 0 && (
@@ -826,9 +842,11 @@ export function ReviewPage({
                 return (
                   <div className="mb-1 mt-2 flex items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground first:mt-0">
                     <FileText size={11} />
-                    <span className="truncate" translate="no" title={row.file}>
-                      {shortFile(row.file)}
-                    </span>
+                    <SimpleTooltip content={row.file}>
+                      <span className="truncate" translate="no">
+                        {shortFile(row.file)}
+                      </span>
+                    </SimpleTooltip>
                     <span className="text-muted-foreground/60">· {row.count}</span>
                   </div>
                 );
@@ -866,22 +884,25 @@ export function ReviewPage({
                       </span>
                       <LocalePill locale={it.locale} />
                       {it.aiScore !== undefined && (
-                        <span
-                          className="rounded bg-muted px-1 text-[10px] tabular-nums text-muted-foreground"
-                          title={
+                        <SimpleTooltip
+                          content={
                             it.aiModel
                               ? t("AI review score ({model})", { model: it.aiModel })
                               : t("AI review score")
                           }
-                          data-slot="review-queue-ai-score"
                         >
-                          {t("ai {score}", { score: it.aiScore })}
-                        </span>
+                          <span
+                            className="rounded bg-muted px-1 text-[10px] tabular-nums text-muted-foreground"
+                            data-slot="review-queue-ai-score"
+                          >
+                            {t("ai {score}", { score: it.aiScore })}
+                          </span>
+                        </SimpleTooltip>
                       )}
                     </span>
-                    <span className="block truncate text-muted-foreground" title={it.source}>
-                      {it.source}
-                    </span>
+                    <SimpleTooltip content={it.source}>
+                      <span className="block truncate text-muted-foreground">{it.source}</span>
+                    </SimpleTooltip>
                   </span>
                 </button>
               );
@@ -894,13 +915,11 @@ export function ReviewPage({
               <div className="space-y-3 pr-3">
                 {selected && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span
-                      className="truncate"
-                      translate="no"
-                      title={`${selected.file}:${selected.key}`}
-                    >
-                      {selected.file}:{selected.key}
-                    </span>
+                    <SimpleTooltip content={`${selected.file}:${selected.key}`}>
+                      <span className="truncate" translate="no">
+                        {selected.file}:{selected.key}
+                      </span>
+                    </SimpleTooltip>
                     <LocalePill locale={selected.locale} />
                     {unit?.status && (
                       <Badge

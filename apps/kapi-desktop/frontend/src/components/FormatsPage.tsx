@@ -33,6 +33,7 @@ import {
   ScrollArea,
   PageHeader,
   ItemCard,
+  SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useSchemaFormHost } from "../hooks/useSchemaFormHost";
@@ -619,18 +620,20 @@ function FormatDetail({
                   )}
                 </Button>
                 {p.source === "user" && (
-                  <Button
-                    variant="destructive"
-                    size="icon-xs"
-                    onClick={(e: React.MouseEvent) => {
-                      e.stopPropagation();
-                      void handleDeletePreset(p.name);
-                    }}
-                    className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full"
-                    title="Delete preset"
-                  >
-                    <X size={8} />
-                  </Button>
+                  <SimpleTooltip content="Delete preset">
+                    <Button
+                      variant="destructive"
+                      size="icon-xs"
+                      onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        void handleDeletePreset(p.name);
+                      }}
+                      className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full"
+                      aria-label="Delete preset"
+                    >
+                      <X size={8} />
+                    </Button>
+                  </SimpleTooltip>
                 )}
               </div>
             ))}

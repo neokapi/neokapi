@@ -3,7 +3,7 @@
 // self-documenting.
 
 import { useState } from "react";
-import { cn } from "@neokapi/ui-primitives";
+import { cn, SimpleTooltip } from "@neokapi/ui-primitives";
 import { Info, X, Layers } from "lucide-react";
 import { PORT_FAMILIES, type PortFamily } from "./portTypes";
 
@@ -24,19 +24,20 @@ export function FlowLegend() {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={cn(
-          "flex items-center gap-1 rounded-md border border-border bg-card/90 px-2 py-1",
-          "text-[10px] font-medium text-muted-foreground shadow-sm",
-          "hover:text-foreground hover:border-foreground/30 transition-colors",
-        )}
-        title="What do the colors mean?"
-      >
-        <Info size={11} />
-        Legend
-      </button>
+      <SimpleTooltip content="What do the colors mean?">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={cn(
+            "flex items-center gap-1 rounded-md border border-border bg-card/90 px-2 py-1",
+            "text-[10px] font-medium text-muted-foreground shadow-sm",
+            "hover:text-foreground hover:border-foreground/30 transition-colors",
+          )}
+        >
+          <Info size={11} />
+          Legend
+        </button>
+      </SimpleTooltip>
     );
   }
 

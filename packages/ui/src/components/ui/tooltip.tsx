@@ -6,16 +6,25 @@ import { Tooltip as TooltipPrimitive } from "radix-ui";
 import { cn } from "../../lib/utils";
 import { usePortalThemeClass } from "../../lib/portal-theme";
 
+/**
+ * Tracks whether a {@link TooltipProvider} is mounted above, so
+ * {@link SimpleTooltip} can fall back to a local provider when a host (tests,
+ * Storybook, embedded docs) renders it without an app-wide one.
+ */
+const TooltipProviderMountedContext = React.createContext(false);
+
 function TooltipProvider({
   delayDuration = 0,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Provider>) {
   return (
-    <TooltipPrimitive.Provider
-      data-slot="tooltip-provider"
-      delayDuration={delayDuration}
-      {...props}
-    />
+    <TooltipProviderMountedContext.Provider value={true}>
+      <TooltipPrimitive.Provider
+        data-slot="tooltip-provider"
+        delayDuration={delayDuration}
+        {...props}
+      />
+    </TooltipProviderMountedContext.Provider>
   );
 }
 
@@ -53,4 +62,49 @@ function TooltipContent({
   );
 }
 
-export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };
+interface SimpleTooltipProps {
+  /** Tooltip body. Falsy (`undefined`/`null`/`""`/`false`) renders the trigger alone. */
+  content: React.ReactNode;
+  /** A single element that can carry the trigger props (rendered via `asChild`). */
+  children: React.ReactElement;
+  side?: React.ComponentProps<typeof TooltipPrimitive.Content>["side"];
+  align?: React.ComponentProps<typeof TooltipPrimitive.Content>["align"];
+  sideOffset?: number;
+  /** Extra classes for the tooltip content bubble. */
+  className?: string;
+}
+
+/**
+ * One-liner tooltip: `<SimpleTooltip content="…">{trigger}</SimpleTooltip>`.
+ *
+ * The standard replacement for native `title=` attributes. Expects a single
+ * app-wide {@link TooltipProvider}; when none is mounted (tests, Storybook,
+ * embedded docs) it provides its own. A falsy `content` renders the trigger
+ * unchanged, so conditional tooltips stay a one-liner. Note that disabled
+ * elements don't emit pointer events — wrap them in a `<span>` to keep the
+ * tooltip firing.
+ */
+function SimpleTooltip({
+  content,
+  children,
+  side,
+  align,
+  sideOffset,
+  className,
+}: SimpleTooltipProps) {
+  const hasProvider = React.useContext(TooltipProviderMountedContext);
+  if (content === undefined || content === null || content === "" || content === false) {
+    return children;
+  }
+  const tooltip = (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side={side} align={align} sideOffset={sideOffset} className={className}>
+        {content}
+      </TooltipContent>
+    </Tooltip>
+  );
+  return hasProvider ? tooltip : <TooltipProvider>{tooltip}</TooltipProvider>;
+}
+
+export { SimpleTooltip, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };

@@ -4,7 +4,7 @@
 // palette, the config panel, and the legend.
 
 import { t } from "@neokapi/kapi-react/runtime";
-import { cn } from "@neokapi/ui-primitives";
+import { cn, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { IOPort, Side } from "../types";
 import { getPortType } from "../portTypes";
 
@@ -45,28 +45,29 @@ export function PortChip({
   const verbText = verb === "consumes" ? t("Consumes") : t("Produces");
   const optText = optional ? t(" (optional)") : "";
   return (
-    <span
-      title={`${verbText}: ${pt.label}${sideText}${optText} — ${pt.description}`}
-      className={cn(
-        "inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-medium leading-none",
-        optional && "border border-dashed",
-        className,
-      )}
-      style={{
-        background: pt.bg,
-        color: pt.color,
-        borderColor: optional ? pt.color : undefined,
-        opacity: optional ? 0.7 : 1,
-      }}
-    >
-      <Icon size={9} style={{ color: pt.color }} aria-hidden />
-      {showLabel && <span className="whitespace-nowrap">{pt.label}</span>}
-      {sides && sides.length > 1 && (
-        <span className="font-mono text-[7px] uppercase opacity-80" aria-hidden>
-          {sides.map((s) => s[0]).join("+")}
-        </span>
-      )}
-    </span>
+    <SimpleTooltip content={`${verbText}: ${pt.label}${sideText}${optText} — ${pt.description}`}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-medium leading-none",
+          optional && "border border-dashed",
+          className,
+        )}
+        style={{
+          background: pt.bg,
+          color: pt.color,
+          borderColor: optional ? pt.color : undefined,
+          opacity: optional ? 0.7 : 1,
+        }}
+      >
+        <Icon size={9} style={{ color: pt.color }} aria-hidden />
+        {showLabel && <span className="whitespace-nowrap">{pt.label}</span>}
+        {sides && sides.length > 1 && (
+          <span className="font-mono text-[7px] uppercase opacity-80" aria-hidden>
+            {sides.map((s) => s[0]).join("+")}
+          </span>
+        )}
+      </span>
+    </SimpleTooltip>
   );
 }
 
@@ -145,9 +146,9 @@ export function IoContract({
         />
       ))}
       {hidden > 0 && (
-        <span className="text-[8px] text-muted-foreground" title={`${hidden} more`}>
-          +{hidden}
-        </span>
+        <SimpleTooltip content={`${hidden} more`}>
+          <span className="text-[8px] text-muted-foreground">+{hidden}</span>
+        </SimpleTooltip>
       )}
     </div>
   );

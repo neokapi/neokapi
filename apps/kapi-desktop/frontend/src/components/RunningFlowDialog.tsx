@@ -1,4 +1,12 @@
-import { Button } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@neokapi/ui-primitives";
 
 interface RunningFlowDialogProps {
   /** Called when user chooses to cancel the running flow and proceed. */
@@ -13,19 +21,26 @@ interface RunningFlowDialogProps {
  */
 export function RunningFlowDialog({ onCancelFlow, onKeepRunning }: RunningFlowDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
-        <h2 className="mb-2 text-lg font-semibold">Flow Running</h2>
-        <p className="mb-5 text-sm text-muted-foreground">
-          A flow is still running. Do you want to cancel it and close, or keep it running?
-        </p>
-        <div className="flex justify-end gap-2">
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onKeepRunning();
+      }}
+    >
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>Flow Running</DialogTitle>
+          <DialogDescription>
+            A flow is still running. Do you want to cancel it and close, or keep it running?
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
           <Button variant="outline" onClick={onCancelFlow}>
             Cancel Flow &amp; Close
           </Button>
           <Button onClick={onKeepRunning}>Keep Running</Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

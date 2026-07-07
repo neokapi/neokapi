@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { Button, Label, Input, LocaleSelect } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  LocaleSelect,
+} from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import { api } from "../hooks/useApi";
 import { useLocales } from "../hooks/useLocales";
@@ -33,9 +42,16 @@ export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProject
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
-        <h2 className="mb-4 text-lg font-semibold">New Project</h2>
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onCancel();
+      }}
+    >
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>New Project</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div>
             <Label className="mb-1 block text-xs text-muted-foreground">
@@ -133,7 +149,7 @@ export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProject
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

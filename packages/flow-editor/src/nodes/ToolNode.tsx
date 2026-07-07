@@ -10,7 +10,7 @@ import {
   X,
   Layers,
 } from "lucide-react";
-import { cn } from "@neokapi/ui-primitives";
+import { cn, SimpleTooltip } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
 import type { IOPort } from "../types";
 import type { PlacementDiagnostic } from "../placement";
@@ -220,31 +220,33 @@ export function ToolNode({ data, selected }: NodeProps) {
           </span>
           {/* Transformer badge: this tool rewrites the source (AD-006). */}
           {isTransformer && (
-            <span
-              className="ml-1 inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-semibold"
-              style={{
-                color: TRANSFORMER_COLOR,
-                border: `1px solid ${TRANSFORMER_COLOR}`,
-              }}
-              title="Transformer: rewrites the source. The framework applier rebases overlays across its rewrite; the placement pass validates its position."
-            >
-              <Layers size={7} />
-              rewrites source
-            </span>
+            <SimpleTooltip content="Transformer: rewrites the source. The framework applier rebases overlays across its rewrite; the placement pass validates its position.">
+              <span
+                className="ml-1 inline-flex items-center gap-0.5 rounded px-1 py-px text-[8px] font-semibold"
+                style={{
+                  color: TRANSFORMER_COLOR,
+                  border: `1px solid ${TRANSFORMER_COLOR}`,
+                }}
+              >
+                <Layers size={7} />
+                rewrites source
+              </span>
+            </SimpleTooltip>
           )}
           {/* Project preset chip: this tool inherits defaults.tools config. */}
           {!!data.hasPreset && (
-            <span
-              className="ml-1 rounded px-1 py-px text-[8px] font-semibold"
-              style={{
-                color: "oklch(0.55 0.12 290)",
-                border: "1px solid oklch(0.55 0.12 290 / 0.55)",
-                background: "oklch(0.55 0.12 290 / 0.08)",
-              }}
-              title="Inherits a project preset (defaults.tools); the step's own config overrides it per key."
-            >
-              preset
-            </span>
+            <SimpleTooltip content="Inherits a project preset (defaults.tools); the step's own config overrides it per key.">
+              <span
+                className="ml-1 rounded px-1 py-px text-[8px] font-semibold"
+                style={{
+                  color: "oklch(0.55 0.12 290)",
+                  border: "1px solid oklch(0.55 0.12 290 / 0.55)",
+                  background: "oklch(0.55 0.12 290 / 0.08)",
+                }}
+              >
+                preset
+              </span>
+            </SimpleTooltip>
           )}
           {isParallel && (
             <GitBranch size={10} className="text-accent ml-auto" aria-label="Runs in parallel" />
@@ -285,33 +287,37 @@ export function ToolNode({ data, selected }: NodeProps) {
         {/* Capability/locale meta + side effects */}
         <div className="flex items-center gap-1 mt-1">
           {cardinality && cardinality !== "monolingual" && (
-            <span
-              className="rounded px-1 py-px text-[8px] font-mono font-semibold uppercase tracking-wider"
-              style={{
-                background:
-                  cardinality === "bilingual"
-                    ? "oklch(0.55 0.15 250 / 0.12)"
-                    : "oklch(0.55 0.15 320 / 0.12)",
-                color:
-                  cardinality === "bilingual" ? "oklch(0.55 0.15 250)" : "oklch(0.55 0.15 320)",
-              }}
-              title={
+            <SimpleTooltip
+              content={
                 cardinality === "bilingual" ? "Operates on two locales" : "Operates on all locales"
               }
             >
-              {cardinality === "bilingual"
-                ? t("BI", "bilingual badge")
-                : t("ML", "multilingual badge")}
-            </span>
+              <span
+                className="rounded px-1 py-px text-[8px] font-mono font-semibold uppercase tracking-wider"
+                style={{
+                  background:
+                    cardinality === "bilingual"
+                      ? "oklch(0.55 0.15 250 / 0.12)"
+                      : "oklch(0.55 0.15 320 / 0.12)",
+                  color:
+                    cardinality === "bilingual" ? "oklch(0.55 0.15 250)" : "oklch(0.55 0.15 320)",
+                }}
+              >
+                {cardinality === "bilingual"
+                  ? t("BI", "bilingual badge")
+                  : t("ML", "multilingual badge")}
+              </span>
+            </SimpleTooltip>
           )}
           {defaultLocale && (
-            <span
-              className="rounded px-1 py-px text-[8px] font-mono font-medium"
-              style={{ background: "oklch(0.6 0.12 290 / 0.12)", color: "oklch(0.55 0.12 290)" }}
-              title={`Default locale: ${defaultLocale}`}
-            >
-              {defaultLocale}
-            </span>
+            <SimpleTooltip content={`Default locale: ${defaultLocale}`}>
+              <span
+                className="rounded px-1 py-px text-[8px] font-mono font-medium"
+                style={{ background: "oklch(0.6 0.12 290 / 0.12)", color: "oklch(0.55 0.12 290)" }}
+              >
+                {defaultLocale}
+              </span>
+            </SimpleTooltip>
           )}
         </div>
 
@@ -320,30 +326,34 @@ export function ToolNode({ data, selected }: NodeProps) {
             changes the node's fixed height — keeping handle centers aligned
             across a row for straight connectors. */}
         {unmet && unmet.length > 0 && (
-          <div
-            className="absolute left-1/2 top-full z-[1] mt-1 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap text-[8px] font-medium"
-            style={{ color: "oklch(0.62 0.17 45)" }}
-            title={`Needs upstream: ${unmet.join(", ")} — add a tool that produces ${unmet.length > 1 ? "these" : "this"} earlier in the flow.`}
+          <SimpleTooltip
+            content={`Needs upstream: ${unmet.join(", ")} — add a tool that produces ${unmet.length > 1 ? "these" : "this"} earlier in the flow.`}
           >
-            <AlertCircle size={9} />
-            <span>needs {unmet.join(", ")}</span>
-          </div>
+            <div
+              className="absolute left-1/2 top-full z-[1] mt-1 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap text-[8px] font-medium"
+              style={{ color: "oklch(0.62 0.17 45)" }}
+            >
+              <AlertCircle size={9} />
+              <span>needs {unmet.join(", ")}</span>
+            </div>
+          </SimpleTooltip>
         )}
 
         {/* Placement diagnostic (AD-006): the transformer sits in an unsafe or
             wasteful slot. Same overlay treatment as the unmet warning so the
             node keeps its fixed height. Errors win over warnings. */}
         {!unmet && (placementError || placementWarning) && (
-          <div
-            className="absolute left-1/2 top-full z-[1] mt-1 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap text-[8px] font-medium"
-            style={{
-              color: placementError ? "var(--destructive)" : "oklch(0.62 0.17 45)",
-            }}
-            title={(placementError ?? placementWarning)!.message}
-          >
-            <AlertCircle size={9} />
-            <span>{placementError ? "unsafe placement" : "late placement"}</span>
-          </div>
+          <SimpleTooltip content={(placementError ?? placementWarning)!.message}>
+            <div
+              className="absolute left-1/2 top-full z-[1] mt-1 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap text-[8px] font-medium"
+              style={{
+                color: placementError ? "var(--destructive)" : "oklch(0.62 0.17 45)",
+              }}
+            >
+              <AlertCircle size={9} />
+              <span>{placementError ? "unsafe placement" : "late placement"}</span>
+            </div>
+          </SimpleTooltip>
         )}
 
         {/* External-system satellites: TM / termbase / API / analytics / vault
@@ -401,33 +411,33 @@ export function ToolNode({ data, selected }: NodeProps) {
                     />
                   );
                   return (
-                    <div
-                      key={s.key}
-                      className={cn("flex", stacked ? "flex-col items-center" : "items-center")}
-                      title={`${s.label}: ${s.description}`}
-                    >
-                      {onTop && (
-                        <>
-                          {chip}
-                          {arrow}
-                          {vStub}
-                        </>
-                      )}
-                      {onBottom && (
-                        <>
-                          {vStub}
-                          {arrow}
-                          {chip}
-                        </>
-                      )}
-                      {!stacked && (
-                        <>
-                          {hStub}
-                          {arrow}
-                          {chip}
-                        </>
-                      )}
-                    </div>
+                    <SimpleTooltip key={s.key} content={`${s.label}: ${s.description}`}>
+                      <div
+                        className={cn("flex", stacked ? "flex-col items-center" : "items-center")}
+                      >
+                        {onTop && (
+                          <>
+                            {chip}
+                            {arrow}
+                            {vStub}
+                          </>
+                        )}
+                        {onBottom && (
+                          <>
+                            {vStub}
+                            {arrow}
+                            {chip}
+                          </>
+                        )}
+                        {!stacked && (
+                          <>
+                            {hStub}
+                            {arrow}
+                            {chip}
+                          </>
+                        )}
+                      </div>
+                    </SimpleTooltip>
                   );
                 })}
               </div>
@@ -446,24 +456,25 @@ export function ToolNode({ data, selected }: NodeProps) {
       {/* Remove button — appears on hover or selection so the affordance is
           discoverable without 84 little circles cluttering an idle canvas. */}
       {onRemove && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          className={cn(
-            "nopan absolute -top-2 -left-2 size-5 rounded-full",
-            "bg-card border border-border shadow-sm",
-            "flex items-center justify-center cursor-pointer z-[2]",
-            "text-muted-foreground hover:text-destructive hover:border-destructive",
-            "transition-opacity duration-150",
-            selected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-          )}
-          title="Remove tool (Delete)"
-          aria-label="Remove tool"
-        >
-          <X size={12} strokeWidth={2.5} aria-hidden />
-        </button>
+        <SimpleTooltip content="Remove tool (Delete)">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className={cn(
+              "nopan absolute -top-2 -left-2 size-5 rounded-full",
+              "bg-card border border-border shadow-sm",
+              "flex items-center justify-center cursor-pointer z-[2]",
+              "text-muted-foreground hover:text-destructive hover:border-destructive",
+              "transition-opacity duration-150",
+              selected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+            )}
+            aria-label="Remove tool"
+          >
+            <X size={12} strokeWidth={2.5} aria-hidden />
+          </button>
+        </SimpleTooltip>
       )}
 
       {/* Status badge */}
@@ -473,25 +484,25 @@ export function ToolNode({ data, selected }: NodeProps) {
           processed and this node's wall-clock span — the trace data lives on
           the node, not in a separate timeline. */}
       {partCount !== undefined && partCount > 0 && (
-        <div
-          className="absolute -bottom-1.5 right-1 text-[9px] font-bold px-1.5 py-px rounded-full bg-secondary text-muted-foreground z-[1]"
-          title={`${partCount} part(s) processed${spanUs !== undefined ? ` · active for ${formatUs(spanUs)} (first enter → last exit)` : ""}`}
+        <SimpleTooltip
+          content={`${partCount} part(s) processed${spanUs !== undefined ? ` · active for ${formatUs(spanUs)} (first enter → last exit)` : ""}`}
         >
-          {partCount} parts
-          {spanUs !== undefined && (
-            <span className="ml-1 font-mono font-medium">{formatUs(spanUs)}</span>
-          )}
-        </div>
+          <div className="absolute -bottom-1.5 right-1 text-[9px] font-bold px-1.5 py-px rounded-full bg-secondary text-muted-foreground z-[1]">
+            {partCount} parts
+            {spanUs !== undefined && (
+              <span className="ml-1 font-mono font-medium">{formatUs(spanUs)}</span>
+            )}
+          </div>
+        </SimpleTooltip>
       )}
 
       {/* Retry badge */}
       {retryConfig && (
-        <div
-          className="absolute -bottom-1 -left-0.5 size-3.5 rounded-full bg-secondary flex items-center justify-center z-[1]"
-          title="Has retry policy"
-        >
-          <RefreshCw size={10} className="text-muted-foreground" />
-        </div>
+        <SimpleTooltip content="Has retry policy">
+          <div className="absolute -bottom-1 -left-0.5 size-3.5 rounded-full bg-secondary flex items-center justify-center z-[1]">
+            <RefreshCw size={10} className="text-muted-foreground" />
+          </div>
+        </SimpleTooltip>
       )}
     </div>
   );

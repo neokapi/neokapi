@@ -8,7 +8,7 @@
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { GitBranch, X, AlertCircle, Plus } from "lucide-react";
-import { cn } from "@neokapi/ui-primitives";
+import { cn, SimpleTooltip } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
 import { PortChip } from "./PortChip";
 import type { ParallelBranch } from "../conversion";
@@ -127,18 +127,19 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
                   ))}
                 </button>
                 {onRemoveBranch && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveBranch(i);
-                    }}
-                    className="nopan flex size-4 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/branch:opacity-100"
-                    title="Remove this branch"
-                    aria-label={`Remove branch ${b.label}`}
-                  >
-                    <X size={10} />
-                  </button>
+                  <SimpleTooltip content="Remove this branch">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveBranch(i);
+                      }}
+                      className="nopan flex size-4 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/branch:opacity-100"
+                      aria-label={`Remove branch ${b.label}`}
+                    >
+                      <X size={10} />
+                    </button>
+                  </SimpleTooltip>
                 )}
               </div>
             );
@@ -149,50 +150,53 @@ export function ParallelGroupNode({ data, selected }: NodeProps) {
       {/* Add-branch affordance — the route's own "+", same gesture as the edge. */}
       {onAddBranch && (
         <div className={cn("px-2", empty ? "pb-2 pt-0.5" : "pb-2")}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddBranch();
-            }}
-            className="nodrag flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-border py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
-            title="Add a tool that runs in parallel here"
-          >
-            <Plus size={11} />
-            Add branch
-          </button>
+          <SimpleTooltip content="Add a tool that runs in parallel here">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddBranch();
+              }}
+              className="nodrag flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-border py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
+            >
+              <Plus size={11} />
+              Add branch
+            </button>
+          </SimpleTooltip>
         </div>
       )}
 
       {unmet && unmet.length > 0 && (
-        <div
-          className="flex items-center gap-1 px-3 pb-1.5 text-[8px] font-medium"
-          style={{ color: "oklch(0.62 0.17 45)" }}
-          title={`Needs upstream: ${unmet.join(", ")}`}
-        >
-          <AlertCircle size={9} />
-          <span>needs {unmet.join(", ")}</span>
-        </div>
+        <SimpleTooltip content={`Needs upstream: ${unmet.join(", ")}`}>
+          <div
+            className="flex items-center gap-1 px-3 pb-1.5 text-[8px] font-medium"
+            style={{ color: "oklch(0.62 0.17 45)" }}
+          >
+            <AlertCircle size={9} />
+            <span>needs {unmet.join(", ")}</span>
+          </div>
+        </SimpleTooltip>
       )}
 
       <Handle type="source" position={outPosition} style={handleStyle} />
 
       {onRemove && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          className={cn(
-            "nopan absolute -top-1.5 -left-1.5 size-4 rounded-full bg-secondary border border-border",
-            "flex items-center justify-center cursor-pointer z-[2] transition-opacity duration-150",
-            selected ? "opacity-100" : "opacity-0 group-hover/par:opacity-100",
-          )}
-          title="Remove parallel route (Delete)"
-          aria-label="Remove parallel route"
-        >
-          <X size={10} className="text-muted-foreground" />
-        </button>
+        <SimpleTooltip content="Remove parallel route (Delete)">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className={cn(
+              "nopan absolute -top-1.5 -left-1.5 size-4 rounded-full bg-secondary border border-border",
+              "flex items-center justify-center cursor-pointer z-[2] transition-opacity duration-150",
+              selected ? "opacity-100" : "opacity-0 group-hover/par:opacity-100",
+            )}
+            aria-label="Remove parallel route"
+          >
+            <X size={10} className="text-muted-foreground" />
+          </button>
+        </SimpleTooltip>
       )}
     </div>
   );

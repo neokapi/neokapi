@@ -29,6 +29,7 @@ import {
   Input,
   ScrollArea,
   LoadingSpinner,
+  SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import { api } from "../hooks/useApi";
@@ -468,17 +469,20 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
                 <Label htmlFor="tool-files" className="mb-1 block">
                   Input Files
                 </Label>
-                <Button
-                  id="tool-files"
-                  type="button"
-                  variant="outline"
-                  disabled
-                  title={t("In-app execution is coming soon")}
-                  className="flex items-center gap-2 border-dashed text-muted-foreground w-full"
-                >
-                  <FileInput size={14} />
-                  Select files...
-                </Button>
+                <SimpleTooltip content={t("In-app execution is coming soon")}>
+                  <span className="flex w-full">
+                    <Button
+                      id="tool-files"
+                      type="button"
+                      variant="outline"
+                      disabled
+                      className="flex items-center gap-2 border-dashed text-muted-foreground w-full"
+                    >
+                      <FileInput size={14} />
+                      Select files...
+                    </Button>
+                  </span>
+                </SimpleTooltip>
               </div>
 
               {tool.requires?.includes("target-language") && (
@@ -498,10 +502,14 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
                 </div>
               )}
 
-              <Button type="button" disabled title={t("In-app execution is coming soon")}>
-                <Play size={14} />
-                {t("Run {name}", { name: tool.display_name || tool.name })}
-              </Button>
+              <SimpleTooltip content={t("In-app execution is coming soon")}>
+                <span className="inline-flex">
+                  <Button type="button" disabled>
+                    <Play size={14} />
+                    {t("Run {name}", { name: tool.display_name || tool.name })}
+                  </Button>
+                </span>
+              </SimpleTooltip>
             </fieldset>
           </CardContent>
         </Card>

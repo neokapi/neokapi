@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { Workflow, Plus, Play, Trash2, X } from "lucide-react";
-import { Button, Card } from "@neokapi/ui-primitives";
+import { Button, Card, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { FlowSpec, FlowInfo } from "../types/api";
 import { FlowEditor } from "@neokapi/flow-editor";
 import type { ToolInfo } from "@neokapi/flow-editor";
@@ -118,17 +118,21 @@ function SimulatedFlowsPage() {
                 className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Button variant="ghost" size="icon-xs" title="Run">
-                  <Play size={12} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="hover:bg-destructive/10 hover:text-destructive"
-                  title="Delete"
-                >
-                  <Trash2 size={12} />
-                </Button>
+                <SimpleTooltip content="Run">
+                  <Button variant="ghost" size="icon-xs" aria-label="Run">
+                    <Play size={12} />
+                  </Button>
+                </SimpleTooltip>
+                <SimpleTooltip content="Delete">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="hover:bg-destructive/10 hover:text-destructive"
+                    aria-label="Delete"
+                  >
+                    <Trash2 size={12} />
+                  </Button>
+                </SimpleTooltip>
               </div>
             </div>
           </Card>

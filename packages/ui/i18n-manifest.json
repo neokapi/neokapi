@@ -29,6 +29,7 @@
     "PopoverHeader": "header",
 
     "TooltipContent": "span",
+    "SimpleTooltip": "div",
 
     "Label": "label",
     "FormLabel": "label",

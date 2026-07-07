@@ -12,7 +12,7 @@ import {
   Info,
   GitBranch,
 } from "lucide-react";
-import { Button, Card } from "@neokapi/ui-primitives";
+import { Button, Card, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { FilterDoc, StepDoc, ParameterDoc } from "../types/api";
 
 type DocEntry = FilterDoc | StepDoc;
@@ -345,7 +345,12 @@ function ParameterEntry({
 function ExampleEntry({
   example,
 }: {
-  example: { title: string; description?: string; input?: string; output?: string };
+  example: {
+    title: string;
+    description?: string;
+    input?: string;
+    output?: string;
+  };
 }) {
   return (
     <div className="rounded-md border border-border/60 bg-background/50 overflow-hidden">
@@ -451,18 +456,20 @@ export function ParamHelp({ paramKey, doc }: ParamHelpProps) {
 
   return (
     <span className="relative inline-flex">
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        onClick={(e: React.MouseEvent) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-        className="inline-flex w-3.5 h-3.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
-        title="Show parameter documentation"
-      >
-        <Info size={8} />
-      </Button>
+      <SimpleTooltip content="Show parameter documentation">
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={(e: React.MouseEvent) => {
+            e.stopPropagation();
+            setOpen((v) => !v);
+          }}
+          className="inline-flex w-3.5 h-3.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+          aria-label="Show parameter documentation"
+        >
+          <Info size={8} />
+        </Button>
+      </SimpleTooltip>
       {open && (
         <div className="absolute left-0 top-5 z-50 w-64 rounded-md border border-border bg-popover p-3 shadow-lg">
           <div className="text-[11px] leading-relaxed text-popover-foreground">

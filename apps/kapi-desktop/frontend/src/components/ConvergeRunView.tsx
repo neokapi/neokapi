@@ -6,6 +6,7 @@ import {
   CardTitle,
   LocalePill,
   Progress,
+  SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import type { RunEvent } from "../context/JobFeedContext";
@@ -102,25 +103,29 @@ export function ConvergeRunView({ events, running, canceled, onOpenReview }: Con
                 <ul className="flex flex-wrap gap-1.5">
                   {(result.parkedScopes ?? []).map((s, i) => (
                     <li key={`${s.locale}-${s.collection}-${i}`}>
-                      <button
-                        type="button"
-                        className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs hover:bg-accent"
-                        onClick={() =>
-                          onOpenReview?.({ collection: s.collection ?? "", locale: s.locale })
-                        }
-                        data-slot="parked-scope-link"
-                        aria-label={t("Review {scope}", {
-                          scope: s.collection ? `${s.locale} · ${s.collection}` : s.locale,
-                        })}
-                        title={t("Open Review filtered to this scope")}
-                      >
-                        <LocalePill locale={s.locale} />
-                        {s.collection && (
-                          <span className="text-muted-foreground" translate="no">
-                            {s.collection}
-                          </span>
-                        )}
-                      </button>
+                      <SimpleTooltip content={t("Open Review filtered to this scope")}>
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs hover:bg-accent"
+                          onClick={() =>
+                            onOpenReview?.({
+                              collection: s.collection ?? "",
+                              locale: s.locale,
+                            })
+                          }
+                          data-slot="parked-scope-link"
+                          aria-label={t("Review {scope}", {
+                            scope: s.collection ? `${s.locale} · ${s.collection}` : s.locale,
+                          })}
+                        >
+                          <LocalePill locale={s.locale} />
+                          {s.collection && (
+                            <span className="text-muted-foreground" translate="no">
+                              {s.collection}
+                            </span>
+                          )}
+                        </button>
+                      </SimpleTooltip>
                     </li>
                   ))}
                 </ul>

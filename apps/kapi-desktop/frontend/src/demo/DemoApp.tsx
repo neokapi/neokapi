@@ -25,6 +25,8 @@ import {
 import {
   Button,
   PageHeader,
+  SimpleTooltip,
+  TooltipProvider,
   ResourceCard,
   TMBrowser,
   TermbaseBrowser,
@@ -55,7 +57,12 @@ const CONCEPTS: ConceptDTO[] = [
     definition: "The landing screen summarising a workspace's key metrics.",
     source: "terminology",
     terms: [
-      { text: "dashboard", locale: "en-US", status: "preferred", part_of_speech: "noun" },
+      {
+        text: "dashboard",
+        locale: "en-US",
+        status: "preferred",
+        part_of_speech: "noun",
+      },
       { text: "tableau de bord", locale: "fr-FR", status: "approved" },
       { text: "Dashboard", locale: "de-DE", status: "approved" },
       { text: "ダッシュボード", locale: "ja-JP", status: "approved" },
@@ -86,7 +93,12 @@ const CONCEPTS: ConceptDTO[] = [
     terms: [
       { text: "seat", locale: "en-US", status: "preferred" },
       { text: "siège", locale: "fr-FR", status: "approved" },
-      { text: "licence", locale: "fr-FR", status: "deprecated", note: "Use 'siège'." },
+      {
+        text: "licence",
+        locale: "fr-FR",
+        status: "deprecated",
+        note: "Use 'siège'.",
+      },
       { text: "Sitzplatz", locale: "de-DE", status: "approved" },
     ],
     created_at: hoursAgo(90),
@@ -100,7 +112,12 @@ const CONCEPTS: ConceptDTO[] = [
     source: "terminology",
     terms: [
       { text: "webhook", locale: "en-US", status: "preferred" },
-      { text: "webhook", locale: "fr-FR", status: "approved", note: "Keep in English." },
+      {
+        text: "webhook",
+        locale: "fr-FR",
+        status: "approved",
+        note: "Keep in English.",
+      },
       { text: "Webhook", locale: "de-DE", status: "approved" },
     ],
     created_at: hoursAgo(120),
@@ -156,7 +173,12 @@ const CONCEPTS: ConceptDTO[] = [
     source: "terminology",
     terms: [
       { text: "export", locale: "en-US", status: "preferred" },
-      { text: "exporter", locale: "fr-FR", status: "approved", part_of_speech: "verb" },
+      {
+        text: "exporter",
+        locale: "fr-FR",
+        status: "approved",
+        part_of_speech: "verb",
+      },
       { text: "Export", locale: "de-DE", status: "approved" },
     ],
     created_at: hoursAgo(240),
@@ -171,8 +193,16 @@ const TM_ENTRIES: TMEntryDTO[] = [
     project_id: "",
     hint_src_lang: "en-US",
     variants: {
-      "en-US": { locale: "en-US", text: "Welcome back", runs: [{ text: "Welcome back" }] },
-      "fr-FR": { locale: "fr-FR", text: "Bon retour", runs: [{ text: "Bon retour" }] },
+      "en-US": {
+        locale: "en-US",
+        text: "Welcome back",
+        runs: [{ text: "Welcome back" }],
+      },
+      "fr-FR": {
+        locale: "fr-FR",
+        text: "Bon retour",
+        runs: [{ text: "Bon retour" }],
+      },
       "de-DE": {
         locale: "de-DE",
         text: "Willkommen zurück",
@@ -266,7 +296,9 @@ const TM_ENTRIES: TMEntryDTO[] = [
         text: "Hi Bob, your report is ready",
         runs: [
           { text: "Hi " },
-          { ph: { id: "e1", type: "entity:person", data: "Bob", equiv: "Bob" } },
+          {
+            ph: { id: "e1", type: "entity:person", data: "Bob", equiv: "Bob" },
+          },
           { text: ", your report is ready" },
         ],
       },
@@ -275,7 +307,9 @@ const TM_ENTRIES: TMEntryDTO[] = [
         text: "Bonjour Bob, votre rapport est prêt",
         runs: [
           { text: "Bonjour " },
-          { ph: { id: "e1", type: "entity:person", data: "Bob", equiv: "Bob" } },
+          {
+            ph: { id: "e1", type: "entity:person", data: "Bob", equiv: "Bob" },
+          },
           { text: ", votre rapport est prêt" },
         ],
       },
@@ -288,7 +322,11 @@ const TM_ENTRIES: TMEntryDTO[] = [
     project_id: "",
     hint_src_lang: "en-US",
     variants: {
-      "en-US": { locale: "en-US", text: "Settings saved", runs: [{ text: "Settings saved" }] },
+      "en-US": {
+        locale: "en-US",
+        text: "Settings saved",
+        runs: [{ text: "Settings saved" }],
+      },
       "fr-FR": {
         locale: "fr-FR",
         text: "Paramètres enregistrés",
@@ -464,9 +502,16 @@ function TermbasesView() {
           title={open}
           subtitle={`~/.config/kapi/termbases/${open}.db`}
           backButton={
-            <Button variant="ghost" size="icon-xs" onClick={() => setOpen(null)} title="Close">
-              <X size={16} />
-            </Button>
+            <SimpleTooltip content="Close">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setOpen(null)}
+                aria-label="Close"
+              >
+                <X size={16} />
+              </Button>
+            </SimpleTooltip>
           }
           actions={
             <Button variant="outline" size="sm">
@@ -521,9 +566,16 @@ function MemoriesView() {
           title={open}
           subtitle={`~/.config/kapi/tm/${open}.db`}
           backButton={
-            <Button variant="ghost" size="icon-xs" onClick={() => setOpen(null)} title="Close">
-              <X size={16} />
-            </Button>
+            <SimpleTooltip content="Close">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setOpen(null)}
+                aria-label="Close"
+              >
+                <X size={16} />
+              </Button>
+            </SimpleTooltip>
           }
           actions={
             <div className="flex gap-2">
@@ -583,32 +635,34 @@ export default function DemoApp() {
   const [view, setView] = useState("home");
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
-      <div className="flex min-h-0 flex-1">
-        {/* Icon sidebar */}
-        <div className="flex shrink-0 flex-col bg-sidebar">
-          <div className="h-12 shrink-0" />
-          <div className="flex-1 border-r border-border">
-            <IconSidebar mode="adhoc" active={view} onChange={setView} />
+    <TooltipProvider>
+      <div className="flex h-screen flex-col bg-background text-foreground">
+        <div className="flex min-h-0 flex-1">
+          {/* Icon sidebar */}
+          <div className="flex shrink-0 flex-col bg-sidebar">
+            <div className="h-12 shrink-0" />
+            <div className="flex-1 border-r border-border">
+              <IconSidebar mode="adhoc" active={view} onChange={setView} />
+            </div>
           </div>
-        </div>
 
-        {/* Right: top bar + content */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex h-12 shrink-0 items-center border-b border-border bg-sidebar px-4">
-            <span className="text-sm font-medium text-muted-foreground">Kapi Desktop</span>
+          {/* Right: top bar + content */}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex h-12 shrink-0 items-center border-b border-border bg-sidebar px-4">
+              <span className="text-sm font-medium text-muted-foreground">Kapi Desktop</span>
+            </div>
+            <main className="flex-1 overflow-auto">
+              {view === "termbases" ? (
+                <TermbasesView />
+              ) : view === "memories" ? (
+                <MemoriesView />
+              ) : (
+                <HomeView onGo={setView} />
+              )}
+            </main>
           </div>
-          <main className="flex-1 overflow-auto">
-            {view === "termbases" ? (
-              <TermbasesView />
-            ) : view === "memories" ? (
-              <MemoriesView />
-            ) : (
-              <HomeView onGo={setView} />
-            )}
-          </main>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

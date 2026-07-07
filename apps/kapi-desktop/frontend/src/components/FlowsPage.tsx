@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import {
   Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   Skeleton,
   Label,
   Input,
@@ -23,6 +28,7 @@ import {
   ConfirmDeleteButton,
   PageHeader,
   EmptyState,
+  SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -384,14 +390,16 @@ export function FlowsPage({
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={handleCloseEditor}
-            title="Back to flow list"
-          >
-            <X size={16} />
-          </Button>
+          <SimpleTooltip content="Back to flow list">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={handleCloseEditor}
+              aria-label="Back to flow list"
+            >
+              <X size={16} />
+            </Button>
+          </SimpleTooltip>
           <Workflow size={16} className="text-muted-foreground" />
           <h1 className="text-sm font-semibold">{selectedId}</h1>
           {isReadOnly && (
@@ -522,10 +530,20 @@ export function FlowsPage({
         />
       )}
 
-      {showCreateDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
-            <h2 className="text-lg font-semibold mb-3">New Flow</h2>
+      <Dialog
+        open={showCreateDialog}
+        onOpenChange={(o) => {
+          if (!o) {
+            setShowCreateDialog(false);
+            setNewFlowName("");
+          }
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>New Flow</DialogTitle>
+          </DialogHeader>
+          <div>
             <Label className="text-xs text-muted-foreground block mb-1">Flow Name</Label>
             <Input
               type="text"
@@ -561,62 +579,57 @@ export function FlowsPage({
               </Button>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Import flow dialog (project mode) */}
-      {showImportDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Import Flow</h2>
-              <Button variant="ghost" size="icon-xs" onClick={() => setShowImportDialog(false)}>
-                <X size={14} />
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mb-4">
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Import Flow</DialogTitle>
+            <DialogDescription>
               Copy a built-in or user flow into this project. The flow will be independent — changes
               won't affect the original.
+            </DialogDescription>
+          </DialogHeader>
+          {importFlows.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No flows available to import.
             </p>
-            {importFlows.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No flows available to import.
-              </p>
-            ) : (
-              <ScrollArea className="max-h-64">
-                <div className="flex flex-col gap-1.5">
-                  {importFlows.map((item) => (
-                    <Button
-                      key={item.id}
-                      variant="outline"
-                      onClick={() => void handleImportFlow(item)}
-                      className="flex items-center gap-3 w-full h-auto text-left p-3 hover:border-primary/30 hover:bg-accent/50"
-                    >
-                      <Workflow size={14} className="text-muted-foreground shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold truncate">{item.name}</span>
-                          <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground shrink-0">
-                            {item.source}
-                          </span>
-                        </div>
-                        {item.description && (
-                          <div className="text-[10px] text-muted-foreground truncate mt-0.5">
-                            {item.description}
-                          </div>
-                        )}
+          ) : (
+            <ScrollArea className="max-h-64">
+              <div className="flex flex-col gap-1.5">
+                {importFlows.map((item) => (
+                  <Button
+                    key={item.id}
+                    variant="outline"
+                    onClick={() => void handleImportFlow(item)}
+                    className="flex items-center gap-3 w-full h-auto text-left p-3 hover:border-primary/30 hover:bg-accent/50"
+                  >
+                    <Workflow size={14} className="text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold truncate">{item.name}</span>
+                        <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground shrink-0">
+                          {item.source}
+                        </span>
                       </div>
-                      <span className="text-[10px] text-muted-foreground">
-                        {item.stepCount} steps
-                      </span>
-                    </Button>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </div>
-        </div>
-      )}
+                      {item.description && (
+                        <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                          {item.description}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      {item.stepCount} steps
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -698,20 +711,20 @@ function FlowCard({
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
           {onAdopt && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={onAdopt}
-              title={adoptProjectName ? `Add to project: ${adoptProjectName}` : "Add to project"}
-              aria-label="Add to project"
+            <SimpleTooltip
+              content={adoptProjectName ? `Add to project: ${adoptProjectName}` : "Add to project"}
             >
-              <FolderInput size={12} />
-            </Button>
+              <Button variant="ghost" size="icon-xs" onClick={onAdopt} aria-label="Add to project">
+                <FolderInput size={12} />
+              </Button>
+            </SimpleTooltip>
           )}
           {onCopy && (
-            <Button variant="ghost" size="icon-xs" onClick={onCopy} title="Copy to edit">
-              <Copy size={12} />
-            </Button>
+            <SimpleTooltip content="Copy to edit">
+              <Button variant="ghost" size="icon-xs" onClick={onCopy} aria-label="Copy to edit">
+                <Copy size={12} />
+              </Button>
+            </SimpleTooltip>
           )}
           {onDelete && <ConfirmDeleteButton onDelete={onDelete} mode="icon" />}
         </div>
