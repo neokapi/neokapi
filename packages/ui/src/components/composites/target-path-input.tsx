@@ -5,7 +5,7 @@
  * wildcards, and / path separators.
  */
 
-import { CodeInput, type CodeInputProps } from "./code-input";
+import { CodeInput, type CodeInputProps } from "../ui/code-input";
 import { cn } from "../../lib/utils";
 
 export interface TargetPathInputProps extends Omit<

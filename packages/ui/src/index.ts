@@ -203,32 +203,35 @@ export { Progress } from "./components/ui/progress";
 
 // Code editor (CodeMirror 6)
 export { CodeInput, type CodeInputProps, type CodeLanguage } from "./components/ui/code-input";
-export { GlobInput, type GlobInputProps } from "./components/ui/glob-input";
-export { TargetPathInput, type TargetPathInputProps } from "./components/ui/target-path-input";
+export { GlobInput, type GlobInputProps } from "./components/composites/glob-input";
+export {
+  TargetPathInput,
+  type TargetPathInputProps,
+} from "./components/composites/target-path-input";
 export {
   SelectableList,
   type SelectableListProps,
   type SelectableListColumn,
   type SelectableListAction,
-} from "./components/ui/selectable-list";
+} from "./components/composites/selectable-list";
 export { ItemCard, type ItemCardProps } from "./components/ui/item-card";
 export {
   ConfirmDeleteButton,
   type ConfirmDeleteButtonProps,
-} from "./components/ui/confirm-delete-button";
-export { ActionCard, type ActionCardProps } from "./components/ui/action-card";
+} from "./components/composites/confirm-delete-button";
+export { ActionCard, type ActionCardProps } from "./components/composites/action-card";
 export {
   FilterBar,
   type FilterBarProps,
   type FilterToken,
   type FilterField,
   type FilterPreset,
-} from "./components/ui/filter-bar";
+} from "./components/composites/filter-bar";
 export {
   FormatSelect,
   type FormatInfo as FormatSelectInfo,
   type FormatSelectProps,
-} from "./components/ui/format-select";
+} from "./components/composites/format-select";
 export {
   LocaleSelect,
   MultiLocaleSelect,
@@ -236,7 +239,7 @@ export {
   type LocaleInfo,
   type LocaleSelectProps,
   type MultiLocaleSelectProps,
-} from "./components/ui/locale-select";
+} from "./components/composites/locale-select";
 
 // Tag input (chip-based)
 export { TagInput, type TagInputProps } from "./components/ui/tag-input";

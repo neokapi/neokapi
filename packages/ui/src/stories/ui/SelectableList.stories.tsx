@@ -5,7 +5,7 @@ import {
   SelectableList,
   type SelectableListColumn,
   type SelectableListAction,
-} from "../../components/ui/selectable-list";
+} from "../../components/composites/selectable-list";
 import { Badge } from "../../components/ui/badge";
 
 // --- Sample data ---

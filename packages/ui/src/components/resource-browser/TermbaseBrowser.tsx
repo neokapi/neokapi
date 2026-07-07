@@ -5,8 +5,13 @@ import type { ConceptDTO, TermDTO } from "./types";
 import { BulkActionBar } from "./BulkActionBar";
 import { ConceptCard } from "./ConceptCard";
 import { Pagination } from "./Pagination";
-import { FilterBar, type FilterToken, type FilterField, type FilterPreset } from "../ui/filter-bar";
-import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../ui/locale-select";
+import {
+  FilterBar,
+  type FilterToken,
+  type FilterField,
+  type FilterPreset,
+} from "../composites/filter-bar";
+import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../composites/locale-select";
 
 interface TermbaseBrowserProps {
   adapter: TermbaseAdapter;

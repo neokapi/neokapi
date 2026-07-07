@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ActionCard } from "../../components/ui/action-card";
+import { ActionCard } from "../../components/composites/action-card";
 import { Badge } from "../../components/ui/badge";
 import {
   FolderInput,

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ItemCard } from "../../components/ui/item-card";
-import { ConfirmDeleteButton } from "../../components/ui/confirm-delete-button";
+import { ConfirmDeleteButton } from "../../components/composites/confirm-delete-button";
 import { Badge } from "../../components/ui/badge";
 import { FileText, Workflow } from "lucide-react";
 

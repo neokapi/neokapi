@@ -11,7 +11,7 @@
 
 import { useState, useCallback } from "react";
 import { Trash2 } from "lucide-react";
-import { Button } from "./button";
+import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
 
 export interface ConfirmDeleteButtonProps {

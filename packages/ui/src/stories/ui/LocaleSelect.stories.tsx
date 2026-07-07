@@ -4,7 +4,7 @@ import {
   LocaleSelect,
   MultiLocaleSelect,
   type LocaleInfo,
-} from "../../components/ui/locale-select";
+} from "../../components/composites/locale-select";
 
 // Sample locale data matching core/locale.WellKnownLocales() output.
 const sampleLocales: LocaleInfo[] = [

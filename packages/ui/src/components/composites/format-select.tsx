@@ -7,7 +7,7 @@
 
 import { useState, useMemo } from "react";
 import { ChevronsUpDown, X } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "./popover";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import {
   Command,
   CommandInput,
@@ -16,8 +16,8 @@ import {
   CommandGroup,
   CommandItem,
   CommandSeparator,
-} from "./command";
-import { Button } from "./button";
+} from "../ui/command";
+import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
 
 /** Format metadata for display in the selector. */

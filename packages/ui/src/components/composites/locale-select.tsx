@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { t } from "@neokapi/kapi-react/runtime";
 import { ChevronsUpDown, X } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "./popover";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import {
   Command,
   CommandInput,
@@ -16,8 +16,8 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandItem,
-} from "./command";
-import { Button } from "./button";
+} from "../ui/command";
+import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
 import { LocalePill } from "../resource-browser/LocalePill";
 

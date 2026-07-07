@@ -5,7 +5,7 @@ import {
   type FilterToken,
   type FilterField,
   type FilterPreset,
-} from "../../components/ui/filter-bar";
+} from "../../components/composites/filter-bar";
 
 const tmFields: FilterField[] = [
   {
