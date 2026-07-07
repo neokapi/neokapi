@@ -592,6 +592,38 @@ jobs:
           path: coverage/bowrain.out
           retention-days: 1
 
+  # ── Race pass over changed packages (PR only) ─────────────────────────────
+  # The PR test wall deliberately drops -race (Makefile fast profile) and main
+  # is unprotected, so a data race introduced in a PR could merge green and only
+  # surface on the push/nightly full gate. This job closes that window cheaply:
+  # it races ONLY the Go packages the PR changed (scripts/test-race-changed.sh;
+  # capped with a fixed-core-set fallback so a wide refactor can't turn it into
+  # a second full test wall). -short keeps the slow suites out.
+  race-changed:
+    name: Race (changed packages)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.any_go == 'true'
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          # Dedicated flavor: these builds ARE race-instrumented, unlike the PR
+          # wall's "pr" flavor, and only cover a slice of packages, unlike the
+          # push wall's "race" flavor. Passing "race" here would be rewritten to
+          # "pr" on pull_request (see the action), poisoning that cache with
+          # instrumented objects — so key it separately.
+          cache-flavor: race-changed
+
+      - name: Race-test changed packages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: make test-race-changed
+
   # ── Merge coverage from all test jobs ─────────────────────────────────────
   coverage:
     name: Coverage

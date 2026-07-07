@@ -27,12 +27,15 @@ var _ format.SubfilterAware = (*Writer)(nil)
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 var _ format.StreamingWriter = (*Writer)(nil)
 
-// StreamingWriter marks this writer as able to consume a streaming skeleton — it
-// drains the Part stream then reads the skeleton via store.Next(), which the
-// concurrent streaming store serves with synchronization. Pairing it with the
-// streaming JSON reader (also a StreamingReader) makes the file runner wire a
-// synchronized streaming skeleton store, instead of an unsynchronized buffered
-// one the streaming reader and writer would race on.
+// StreamingWriter marks this writer as able to consume a *streaming* skeleton
+// store interleaved with the arriving Part stream (Write → streamWrite): it
+// emits output incrementally as skeleton entries arrive, holding only the
+// blocks that have arrived but are not yet referenced — a small window for an
+// order-preserving flow, since the reader emits each skeleton ref immediately
+// before the part it refers to. Pairing it with the streaming JSON reader
+// (also a StreamingReader) makes the file runner wire a synchronized streaming
+// skeleton store, so the round-trip never materialises the document, the Part
+// stream, or the skeleton in memory.
 func (w *Writer) StreamingWriter() {}
 
 // NewWriter creates a new JSON writer.
@@ -64,6 +67,16 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 
 // Write consumes Parts from a channel and writes reconstructed JSON.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	// Streaming skeleton store (same-format streaming round-trip): interleave —
+	// consume skeleton entries as the reader produces them, pulling referenced
+	// blocks and child layers from the Part stream on demand, so neither the
+	// skeleton nor the block map is ever fully buffered. The buffered paths
+	// below (file/memory skeleton store, token reparse, generative) collect the
+	// whole stream first, exactly as before.
+	if w.skeletonStore != nil && w.skeletonStore.IsStreaming() {
+		return w.streamWrite(ctx, parts)
+	}
+
 	blocksByID := make(map[string]*model.Block)   // block.ID → block (for skeleton store)
 	blocksByPath := make(map[string]*model.Block) // json keypath → block (for token reparse)
 	childLayerValues := make(map[string]string)   // layer.Name (key path) → reconstructed string
@@ -222,6 +235,190 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		}
 	}
 	return nil
+}
+
+// streamItem carries a block or a rendered child layer from the part-draining
+// goroutine to the main skeleton loop in streamWrite.
+type streamItem struct {
+	block     *model.Block
+	layerName string
+	layerVal  string
+	isLayer   bool
+}
+
+// streamWrite is the genuinely streaming write path, used with a concurrent
+// (streaming) skeleton store: it consumes skeleton entries as the reader
+// produces them and emits output incrementally, matching each referenced block
+// — or embedded child layer — to content arriving on the Part stream. Nothing
+// is buffered up front: the only state held is the pending window of items that
+// arrived before their skeleton ref, which for a same-format round-trip (where
+// the reader writes each ref immediately before emitting its part) is at most
+// the reorder window of the tool chain — ~0 for order-preserving tools. The
+// output is byte-identical to the buffered writeFromSkeleton path.
+//
+// A dedicated goroutine owns the Part stream. It must, because the main loop
+// blocks in skeletonStore.Next() waiting for the reader's next skeleton entry,
+// and the reader cannot write that entry until it finishes emitting the parts
+// that precede it — including non-ref parts (Data, structural layers) that the
+// skeleton loop never asks for. Draining those concurrently is what keeps the
+// reader from stalling on a full Part channel while the loop is parked in
+// Next(). Blocks and rendered child layers are handed to the loop over an
+// unbuffered channel, so the drainer only runs ahead by the reorder window;
+// non-ref parts are discarded (exactly as the buffered path's block map ignores
+// them).
+//
+// Child layers (`layer:<path>` refs) are the one place content is buffered:
+// an embedded layer's parts are collected through its LayerEnd and rendered by
+// the sub-format writer exactly as on the buffered path (writeChildLayer), so
+// the window there is bounded by the size of one embedded value — not the
+// document. Fully interleaving *inside* an embedded layer would require every
+// sub-format writer to stream too; embedded values are single string fields
+// (e.g. an HTML fragment), so that is deliberately out of scope.
+func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) error {
+	items := make(chan streamItem)
+	done := make(chan struct{})
+	defer close(done) // unblock the drainer if the loop returns early
+
+	var drainErr error
+	go func() {
+		defer close(items)
+		send := func(it streamItem) bool {
+			select {
+			case items <- it:
+				return true
+			case <-ctx.Done():
+				return false
+			case <-done:
+				return false
+			}
+		}
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-done:
+				return
+			case p, ok := <-parts:
+				if !ok {
+					return
+				}
+				if p == nil {
+					continue
+				}
+				switch p.Type {
+				case model.PartBlock:
+					if b, ok := p.Resource.(*model.Block); ok {
+						if !send(streamItem{block: b}) {
+							return
+						}
+					}
+				case model.PartLayerStart:
+					if layer, ok := p.Resource.(*model.Layer); ok && layer.IsEmbedded() {
+						val, err := w.writeChildLayer(ctx, layer, parts)
+						if err != nil {
+							drainErr = fmt.Errorf("json: writing child layer %s: %w", layer.Name, err)
+							return
+						}
+						if !send(streamItem{layerName: layer.Name, layerVal: val, isLayer: true}) {
+							return
+						}
+					}
+				}
+			}
+		}
+	}()
+
+	pendingBlocks := make(map[string]*model.Block) // arrived before their ref
+	pendingLayers := make(map[string]string)       // rendered before their ref
+
+	// blockFor returns the block with id, pulling items until it appears. The
+	// reader emits a ref's block right after the ref, so this usually receives
+	// exactly one item; a buffering/reordering tool may make it receive more. A
+	// nil return (stream drained without the block) renders as the empty
+	// string, matching the buffered path's map miss.
+	blockFor := func(id string) *model.Block {
+		if b, ok := pendingBlocks[id]; ok {
+			delete(pendingBlocks, id)
+			return b
+		}
+		for it := range items {
+			if it.isLayer {
+				pendingLayers[it.layerName] = it.layerVal
+				continue
+			}
+			if it.block.ID == id {
+				return it.block
+			}
+			pendingBlocks[it.block.ID] = it.block
+		}
+		return nil
+	}
+
+	// layerFor returns the rendered value of the child layer at path, pulling
+	// items until it appears. Blocks encountered on the way join the pending
+	// window.
+	layerFor := func(path string) string {
+		if v, ok := pendingLayers[path]; ok {
+			delete(pendingLayers, path)
+			return v
+		}
+		for it := range items {
+			if it.isLayer {
+				if it.layerName == path {
+					return it.layerVal
+				}
+				pendingLayers[it.layerName] = it.layerVal
+				continue
+			}
+			pendingBlocks[it.block.ID] = it.block
+		}
+		return "" // matches the buffered path's map miss
+	}
+
+	for {
+		entry, err := w.skeletonStore.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("json writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			refID := string(entry.Data)
+			var text string
+			quote := byte('"')
+			if layerPath, isLayer := strings.CutPrefix(refID, "layer:"); isLayer {
+				text = layerFor(layerPath)
+			} else if block := blockFor(refID); block != nil {
+				text = w.blockText(block)
+				// JSON5 single-quoted source values round-trip with
+				// the same delimiter (set by the reader on the block).
+				if block.Properties["json.quote"] == "'" {
+					quote = '\''
+				}
+			}
+			encoded := escapeJSONStringQuoted(text, w.cfg.EscapeForwardSlashes, quote)
+			if _, err := io.WriteString(w.Output, encoded); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Drain any items past the last skeleton ref so the drainer finishes
+	// consuming the Part stream and the executor can close the session. The
+	// range ends when the drainer closes items (Part stream drained or ctx
+	// cancelled). Once it is closed, drainErr is safely visible.
+	for range items { //nolint:revive // draining to completion; body intentionally empty
+	}
+	if drainErr != nil {
+		return drainErr
+	}
+	return ctx.Err()
 }
 
 // reconstruct builds the JSON output from collected blocks.

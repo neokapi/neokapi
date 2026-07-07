@@ -130,6 +130,15 @@ test-race: ## Run tests with race detector
 	@$(MAKE) --no-print-directory _fw-test-race
 	@$(MAKE) -C bowrain test-race
 
+# PR CI rider: the fast PR profile drops -race (see the CI auto-detection block
+# above), and main is unprotected — so a race introduced in a PR could merge
+# green. This target races only the packages the PR actually changed (capped;
+# see the script header for the fallback rules), keeping the signal cheap while
+# push/nightly still run the full race gate. BASE_SHA/HEAD_SHA default to
+# origin/main...HEAD for local use.
+test-race-changed: ## Race-test only the Go packages changed vs BASE_SHA (PR CI)
+	@bash scripts/test-race-changed.sh
+
 test-verbose: ## Run tests with verbose output
 	@$(MAKE) --no-print-directory _fw-test-verbose
 	@$(MAKE) -C bowrain test-verbose
