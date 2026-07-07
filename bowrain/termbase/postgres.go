@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
 	fw "github.com/neokapi/neokapi/termbase"
+	tbschema "github.com/neokapi/neokapi/termbase/schema"
 )
 
 // PostgresTermBase is a persistent termbase backed by PostgreSQL.
@@ -33,104 +34,33 @@ func NewPostgresTermBaseFromDB(db *storage.PgDB, workspaceID string) (*PostgresT
 	return &PostgresTermBase{db: db, workspaceID: workspaceID}, nil
 }
 
+// tbMigrationsPg is the bowrain Postgres termbase schema. Each migration renders
+// from the shared descriptors in termbase/schema, the same source the framework
+// SQLite backend renders from, so the two backends cannot drift (semantic
+// equivalence is statement-set tested in termbase/schema). Version numbers are
+// preserved so existing databases are untouched; the fuzzy infrastructure
+// (pg_trgm GIN + a tsvector column/trigger) is the Postgres analogue of the
+// SQLite FTS5 trigram virtual table.
 var tbMigrationsPg = []storage.Migration{
 	{
 		Version:     1,
 		Description: "termbase schema",
-		SQL: `
-		CREATE TABLE IF NOT EXISTS tb_concepts (
-			id           TEXT NOT NULL,
-			workspace_id TEXT NOT NULL,
-			domain       TEXT NOT NULL DEFAULT '',
-			definition   TEXT NOT NULL DEFAULT '',
-			properties   TEXT,
-			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			PRIMARY KEY (workspace_id, id)
-		);
-		CREATE TABLE IF NOT EXISTS tb_terms (
-			id            SERIAL PRIMARY KEY,
-			workspace_id  TEXT NOT NULL,
-			concept_id    TEXT NOT NULL,
-			text          TEXT NOT NULL,
-			text_lower    TEXT NOT NULL,
-			locale        TEXT NOT NULL,
-			status        TEXT NOT NULL DEFAULT 'approved',
-			part_of_speech TEXT NOT NULL DEFAULT '',
-			gender        TEXT NOT NULL DEFAULT '',
-			note          TEXT NOT NULL DEFAULT '',
-			FOREIGN KEY (workspace_id, concept_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE
-		);
-		CREATE INDEX IF NOT EXISTS idx_tb_terms_ws_concept ON tb_terms(workspace_id, concept_id);
-		CREATE INDEX IF NOT EXISTS idx_tb_terms_ws_locale ON tb_terms(workspace_id, locale);
-		CREATE INDEX IF NOT EXISTS idx_tb_terms_ws_text ON tb_terms(workspace_id, text_lower, locale);
-		`,
+		SQL:         tbschema.RenderTBPostgresV1(),
 	},
 	{
 		Version:     2,
 		Description: "add stream column to concepts",
-		SQL: `ALTER TABLE tb_concepts ADD COLUMN stream TEXT NOT NULL DEFAULT '';
-		CREATE INDEX IF NOT EXISTS idx_tb_concepts_ws_stream ON tb_concepts(workspace_id, stream);`,
+		SQL:         tbschema.RenderTBPostgresV2(),
 	},
 	{
 		Version:     3,
 		Description: "pg_trgm trigram index for fuzzy term matching + tsvector for UI search",
-		SQL: `
-		CREATE EXTENSION IF NOT EXISTS pg_trgm;
-
-		CREATE INDEX IF NOT EXISTS idx_tb_terms_trgm ON tb_terms USING gin (text_lower gin_trgm_ops);
-
-		ALTER TABLE tb_terms ADD COLUMN search_tsv tsvector;
-		UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower);
-		CREATE INDEX IF NOT EXISTS idx_tb_terms_search_tsv ON tb_terms USING gin (search_tsv);
-
-		CREATE OR REPLACE FUNCTION tb_terms_search_tsv_update() RETURNS trigger AS $$
-		BEGIN
-			NEW.search_tsv := to_tsvector('simple', NEW.text_lower);
-			RETURN NEW;
-		END $$ LANGUAGE plpgsql;
-
-		DROP TRIGGER IF EXISTS tb_terms_search_tsv_trigger ON tb_terms;
-		CREATE TRIGGER tb_terms_search_tsv_trigger BEFORE INSERT OR UPDATE ON tb_terms
-			FOR EACH ROW EXECUTE FUNCTION tb_terms_search_tsv_update();
-		`,
+		SQL:         tbschema.RenderTBPostgresV3(),
 	},
 	{
 		Version:     4,
 		Description: "brand knowledge graph: concept source, term competitor/validity, persisted relations",
-		// Schema parity with the framework SQLite backend (AD-021): the source
-		// column on concepts, the competitor flag and validity columns on terms,
-		// and the workspace-scoped relations table. The stream column mirrors
-		// the tb_concepts stream pattern so relations can participate in
-		// stream-scoped shadows (pilots) like concepts do.
-		SQL: `
-		ALTER TABLE tb_concepts ADD COLUMN source TEXT NOT NULL DEFAULT 'terminology';
-
-		ALTER TABLE tb_terms ADD COLUMN competitor_term BOOLEAN NOT NULL DEFAULT FALSE;
-		ALTER TABLE tb_terms ADD COLUMN valid_from TIMESTAMPTZ;
-		ALTER TABLE tb_terms ADD COLUMN valid_to TIMESTAMPTZ;
-		ALTER TABLE tb_terms ADD COLUMN tags JSONB NOT NULL DEFAULT '{}';
-
-		CREATE TABLE IF NOT EXISTS tb_relations (
-			id           TEXT NOT NULL,
-			workspace_id TEXT NOT NULL,
-			source_id    TEXT NOT NULL,
-			target_id    TEXT NOT NULL,
-			relation     TEXT NOT NULL,
-			note         TEXT NOT NULL DEFAULT '',
-			stream       TEXT NOT NULL DEFAULT '',
-			valid_from   TIMESTAMPTZ,
-			valid_to     TIMESTAMPTZ,
-			tags         JSONB NOT NULL DEFAULT '{}',
-			created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			PRIMARY KEY (workspace_id, id),
-			FOREIGN KEY (workspace_id, source_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE,
-			FOREIGN KEY (workspace_id, target_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE
-		);
-		CREATE INDEX IF NOT EXISTS idx_tb_relations_ws_source ON tb_relations(workspace_id, source_id);
-		CREATE INDEX IF NOT EXISTS idx_tb_relations_ws_target ON tb_relations(workspace_id, target_id);
-		CREATE INDEX IF NOT EXISTS idx_tb_relations_ws_stream ON tb_relations(workspace_id, stream);
-		`,
+		SQL:         tbschema.RenderTBPostgresV4(),
 	},
 }
 
