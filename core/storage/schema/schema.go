@@ -52,7 +52,7 @@ type Column struct {
 	PGName  string // Postgres column name when it differs (empty = Name)
 	SQLite  string // SQLite type + constraints; empty = column absent on SQLite
 	PG      string // Postgres type + constraints; empty = column absent on Postgres
-	Comment string // verbatim SQLite trailing comment, appended after the comma
+	Comment string // verbatim SQLite-only trailing comment, appended after the comma (rendered for the SQLite dialect only)
 }
 
 func (c Column) name(d Dialect) string {
@@ -234,7 +234,14 @@ func (t Table) Create(d Dialect, o Opt) string {
 	cols := t.cols(d, o)
 	width := t.colWidth(d, cols)
 	for _, c := range cols {
-		lines = append(lines, bodyLine{pad(c.name(d), width) + c.spec(d), c.Comment})
+		// Comment is a SQLite-only trailing annotation: the Postgres schema
+		// carries no inline comments (and the semantic-equivalence tests
+		// tokenize statements, so a stray comment would look like drift).
+		comment := ""
+		if d == SQLite {
+			comment = c.Comment
+		}
+		lines = append(lines, bodyLine{pad(c.name(d), width) + c.spec(d), comment})
 	}
 	if pk := t.pk(d); len(pk) > 0 {
 		lines = append(lines, bodyLine{"PRIMARY KEY (" + strings.Join(pk, ", ") + ")", ""})
