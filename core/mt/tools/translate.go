@@ -192,7 +192,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 		return nil
 	}
 	if block.ID == "" {
-		return t.translate(tool.NewVariantViewWithContext(ctx, block))
+		return t.translate(tool.NewVariantViewWithContext(ctx, block)) //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
 	}
 	// Key overlays globally-unique per source file (falls back to the raw id for
 	// ad-hoc single-document runs) so multi-file projects don't collide.
@@ -209,7 +209,7 @@ func (t *MTTranslateTool) sessionHandleBlock(
 		}
 	}
 
-	if err := t.translate(tool.NewVariantViewWithContext(ctx, block)); err != nil {
+	if err := t.translate(tool.NewVariantViewWithContext(ctx, block)); err != nil { //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
 		return err
 	}
 

@@ -19,7 +19,7 @@ type ServiceBusQueue struct {
 
 // NewServiceBusQueue creates a ServiceBusQueue connected to the given queue name.
 // connStr is the Azure Service Bus connection string.
-func NewServiceBusQueue(connStr, queueName string) (*ServiceBusQueue, error) {
+func NewServiceBusQueue(ctx context.Context, connStr, queueName string) (*ServiceBusQueue, error) {
 	client, err := azservicebus.NewClientFromConnectionString(connStr, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create service bus client: %w", err)
@@ -27,14 +27,14 @@ func NewServiceBusQueue(connStr, queueName string) (*ServiceBusQueue, error) {
 
 	sender, err := client.NewSender(queueName, nil)
 	if err != nil {
-		client.Close(context.Background())
+		client.Close(ctx)
 		return nil, fmt.Errorf("create sender for %q: %w", queueName, err)
 	}
 
 	receiver, err := client.NewReceiverForQueue(queueName, nil)
 	if err != nil {
-		sender.Close(context.Background())
-		client.Close(context.Background())
+		sender.Close(ctx)
+		client.Close(ctx)
 		return nil, fmt.Errorf("create receiver for %q: %w", queueName, err)
 	}
 
@@ -70,11 +70,14 @@ func (q *ServiceBusQueue) Dequeue(ctx context.Context) (string, func(), func(), 
 	msg := messages[0]
 	jobID := string(msg.Body)
 
+	// Settlement is detached from the receive ctx (ack/nack run after the caller
+	// has processed the job, when that ctx may be done) but keeps its trace.
+	settleCtx := context.WithoutCancel(ctx)
 	ack := func() {
-		_ = q.receiver.CompleteMessage(context.Background(), msg, nil)
+		_ = q.receiver.CompleteMessage(settleCtx, msg, nil)
 	}
 	nack := func() {
-		_ = q.receiver.AbandonMessage(context.Background(), msg, nil)
+		_ = q.receiver.AbandonMessage(settleCtx, msg, nil)
 	}
 
 	return jobID, ack, nack, nil

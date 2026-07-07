@@ -14,6 +14,8 @@ import (
 // SIGTERM/SIGINT to the kapi process (which cobra translates into a cancelled
 // command context) terminates the plugin child instead of leaving it running
 // until it finishes on its own.
+//
+//nolint:contextcheck // the nil-ctx guard is an API fallback for embedded/desktop callers; ctx is otherwise threaded straight into exec.CommandContext
 func RunContributionSubprocess(ctx context.Context, p *Plugin, args []string, dir string) error {
 	if ctx == nil {
 		ctx = context.Background()

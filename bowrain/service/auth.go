@@ -416,9 +416,12 @@ func (s *AuthService) ValidateAPIToken(ctx context.Context, plaintext string) (*
 		return nil, errors.New("api token expired")
 	}
 
-	// Fire-and-forget last-used update.
+	// Fire-and-forget last-used update: detached from the request's
+	// cancellation (the write should complete even if the caller disconnects)
+	// but keeps the request's trace/values.
+	lastUsedCtx := context.WithoutCancel(ctx)
 	go func() {
-		_ = s.store.UpdateAPITokenLastUsed(context.Background(), token.ID)
+		_ = s.store.UpdateAPITokenLastUsed(lastUsedCtx, token.ID)
 	}()
 
 	return token, nil

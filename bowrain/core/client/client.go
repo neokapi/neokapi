@@ -19,9 +19,6 @@ import (
 
 // defaultHTTPClient is the http.Client used by package-level helper functions.
 // Override in tests to avoid real network calls.
-//
-// TODO: thread context.Context through the package-level helper signatures once
-// callers in bowrain/ have been migrated (finding #19/#21).
 var defaultHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 // StreamHeader is the HTTP header used to communicate the active stream (legacy).
@@ -466,7 +463,7 @@ func (c *BowrainClient) GetProjectMetadata(ctx context.Context) (*ProjectMetadat
 // No authentication is required. Returns the project ID and claim token.
 // If email is non-empty, the server sends a claim email to that address.
 // targetLocales may be empty (server treats as dynamic).
-func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales []string, email string) (projectID, claimToken string, err error) {
+func CreateAnonymousProject(ctx context.Context, serverURL, name, sourceLocale string, targetLocales []string, email string) (projectID, claimToken string, err error) {
 	payload := map[string]any{
 		"name":                    name,
 		"default_source_language": sourceLocale,
@@ -484,7 +481,7 @@ func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales 
 	}
 
 	u := strings.TrimRight(serverURL, "/") + "/api/v1/projects/anonymous"
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return "", "", fmt.Errorf("create request: %w", err)
 	}
@@ -513,14 +510,14 @@ func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales 
 
 // CreateAuthenticatedProject creates a project on the server as an authenticated user.
 // The project is created in the user's workspace. Returns the project ID.
-func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, targetLocales []string, workspace string) (projectID, workspaceSlug string, err error) {
+func CreateAuthenticatedProject(ctx context.Context, serverURL, token, name, sourceLocale string, targetLocales []string, workspace string) (projectID, workspaceSlug string, err error) {
 	// AD-011: authenticated projects are created under the workspace-scoped
 	// collection (POST /api/v1/:ws/projects). There is no flat /api/v1/projects
 	// create route, so resolve the caller's workspace when one isn't supplied
 	// (single workspace → use it; otherwise the first — callers may pass an
 	// explicit slug to target a specific one).
 	if workspace == "" {
-		wss, werr := ListWorkspaces(serverURL, token)
+		wss, werr := ListWorkspaces(ctx, serverURL, token)
 		if werr != nil {
 			return "", "", fmt.Errorf("resolve workspace: %w", werr)
 		}
@@ -544,7 +541,7 @@ func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, tar
 	}
 
 	u := strings.TrimRight(serverURL, "/") + "/api/v1/" + url.PathEscape(workspace) + "/projects"
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return "", "", fmt.Errorf("create request: %w", err)
 	}
@@ -588,9 +585,9 @@ type WorkspaceInfo struct {
 }
 
 // ListWorkspaces returns the workspaces accessible to the authenticated user.
-func ListWorkspaces(serverURL, token string) ([]WorkspaceInfo, error) {
+func ListWorkspaces(ctx context.Context, serverURL, token string) ([]WorkspaceInfo, error) {
 	u := strings.TrimRight(serverURL, "/") + "/api/v1/workspaces"
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -625,9 +622,9 @@ type ProjectInfo struct {
 }
 
 // GetProject retrieves a project by ID.
-func GetProject(serverURL, token, projectID string) (*ProjectInfo, error) {
+func GetProject(ctx context.Context, serverURL, token, projectID string) (*ProjectInfo, error) {
 	u := fmt.Sprintf("%s/api/v1/projects/%s", strings.TrimRight(serverURL, "/"), projectID)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -652,9 +649,9 @@ func GetProject(serverURL, token, projectID string) (*ProjectInfo, error) {
 }
 
 // DeleteProject deletes a project by ID.
-func DeleteProject(serverURL, token, projectID string) error {
+func DeleteProject(ctx context.Context, serverURL, token, projectID string) error {
 	u := fmt.Sprintf("%s/api/v1/projects/%s", strings.TrimRight(serverURL, "/"), projectID)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, u, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
@@ -680,7 +677,7 @@ type ClaimProjectResponse struct {
 }
 
 // ClaimProject moves an anonymous project into the user's workspace.
-func ClaimProject(serverURL, token, claimToken string) (*ClaimProjectResponse, error) {
+func ClaimProject(ctx context.Context, serverURL, token, claimToken string) (*ClaimProjectResponse, error) {
 	payload := map[string]string{"claim_token": claimToken}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -688,7 +685,7 @@ func ClaimProject(serverURL, token, claimToken string) (*ClaimProjectResponse, e
 	}
 
 	u := strings.TrimRight(serverURL, "/") + "/api/v1/projects/claim"
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -714,9 +711,9 @@ func ClaimProject(serverURL, token, claimToken string) (*ClaimProjectResponse, e
 }
 
 // JoinWorkspace accepts a workspace invite code and joins the workspace.
-func JoinWorkspace(serverURL, token, inviteCode string) error {
+func JoinWorkspace(ctx context.Context, serverURL, token, inviteCode string) error {
 	u := fmt.Sprintf("%s/api/v1/join/%s", strings.TrimRight(serverURL, "/"), inviteCode)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
@@ -736,7 +733,7 @@ func JoinWorkspace(serverURL, token, inviteCode string) error {
 }
 
 // CreateWorkspace creates a new team workspace on the server and returns it.
-func CreateWorkspace(serverURL, token, name, slug string) (*WorkspaceInfo, error) {
+func CreateWorkspace(ctx context.Context, serverURL, token, name, slug string) (*WorkspaceInfo, error) {
 	payload := map[string]string{
 		"name": name,
 		"slug": slug,
@@ -747,7 +744,7 @@ func CreateWorkspace(serverURL, token, name, slug string) (*WorkspaceInfo, error
 	}
 
 	u := strings.TrimRight(serverURL, "/") + "/api/v1/workspaces"
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}

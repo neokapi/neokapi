@@ -29,7 +29,8 @@ func NewRedisSessionStore(redisURL, password string) (*RedisSessionStore, error)
 
 	client := redis.NewClient(opts)
 
-	// Verify connectivity.
+	// Verify connectivity. Startup wiring — no request context exists yet;
+	// bounded by its own timeout.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := client.Ping(ctx).Err(); err != nil {

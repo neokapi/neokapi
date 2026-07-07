@@ -34,7 +34,7 @@ func (h *UsageHooks) DeductTokens(ctx context.Context, workspaceID string, token
 	// Check credit thresholds for notifications.
 	h.checkCreditThresholds(ctx, workspaceID)
 
-	h.reportMeter(workspaceID, "ai_token_usage", int64(tokens), op)
+	h.reportMeter(ctx, workspaceID, "ai_token_usage", int64(tokens), op)
 }
 
 // DeductContainerTime deducts container-time credits and reports to Stripe.
@@ -48,7 +48,7 @@ func (h *UsageHooks) DeductContainerTime(ctx context.Context, workspaceID string
 		slog.Info("billing: deduct container credits for", "id", workspaceID, "error", err)
 	}
 
-	h.reportMeter(workspaceID, "container_time_usage", int64(duration.Seconds()), "bravo_container")
+	h.reportMeter(ctx, workspaceID, "container_time_usage", int64(duration.Seconds()), "bravo_container")
 }
 
 // checkCreditThresholds sends notifications when credits cross warning/exhaustion thresholds.
@@ -78,18 +78,22 @@ func (h *UsageHooks) checkCreditThresholds(ctx context.Context, workspaceID stri
 }
 
 // reportMeter fires a Stripe meter event asynchronously.
-func (h *UsageHooks) reportMeter(workspaceID, eventName string, value int64, op string) {
+func (h *UsageHooks) reportMeter(ctx context.Context, workspaceID, eventName string, value int64, op string) {
 	if h.Stripe == nil {
 		return
 	}
 
-	// Look up Stripe customer ID from subscription.
-	sub, err := h.Store.GetSubscription(context.Background(), workspaceID)
+	// Look up Stripe customer ID from subscription. Detached from the request
+	// context: this gates a fire-and-forget meter event, so a client
+	// disconnect mid-request must not drop the billing lookup.
+	sub, err := h.Store.GetSubscription(context.WithoutCancel(ctx), workspaceID)
 	if err != nil || sub == nil || sub.StripeCustomerID == "" {
 		return
 	}
 
-	go h.Stripe.ReportMeterEvent(context.Background(), sub.StripeCustomerID, eventName, value, map[string]string{
+	// Fire-and-forget: detach from the caller's cancellation (the meter event
+	// outlives this call) but keep its trace/values.
+	go h.Stripe.ReportMeterEvent(context.WithoutCancel(ctx), sub.StripeCustomerID, eventName, value, map[string]string{
 		"workspace_id":   workspaceID,
 		"operation_type": op,
 	})

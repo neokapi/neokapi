@@ -75,6 +75,8 @@ func (h *notificationHub) notifyUser(userID string, notification *bstore.Notific
 	}
 
 	for _, c := range targets {
+		// Detached broadcast: writes go to other users' long-lived WebSocket
+		// connections, not to the originating request; bounded by a timeout.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := c.conn.Write(ctx, websocket.MessageText, msg); err != nil {
 			slog.Info("notification-ws: failed to write to user", "id", c.userID, "error", err)

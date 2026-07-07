@@ -61,12 +61,14 @@ func TestReadAltSidecar(t *testing.T) {
 
 	if media == nil {
 		t.Fatal("no Media part emitted")
+		return
 	}
 	if media.AltText != "A red bicycle" {
 		t.Errorf("Media.AltText = %q, want %q", media.AltText, "A red bicycle")
 	}
 	if caption == nil {
 		t.Fatal("no caption Block emitted")
+		return
 	}
 	if !caption.Translatable {
 		t.Error("caption block should be translatable")

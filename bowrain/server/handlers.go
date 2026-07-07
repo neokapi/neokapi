@@ -92,10 +92,11 @@ type pingable interface {
 
 // HandleReady returns a detailed readiness check of all server components.
 func (s *Server) HandleReady(c echo.Context) error {
+	ctx := c.Request().Context()
 	components := make(map[string]ComponentStatus)
 
 	// Database check.
-	components["database"] = s.checkDatabase()
+	components["database"] = s.checkDatabase(ctx)
 
 	// Queue check.
 	components["queue"] = s.checkQueue()
@@ -104,7 +105,7 @@ func (s *Server) HandleReady(c echo.Context) error {
 	components["ai"] = s.checkAI()
 
 	// Session store check.
-	components["session_store"] = s.checkSessionStore()
+	components["session_store"] = s.checkSessionStore(ctx)
 
 	// Email check.
 	components["email"] = s.checkEmail()
@@ -140,11 +141,11 @@ func (s *Server) HandleReady(c echo.Context) error {
 	})
 }
 
-func (s *Server) checkDatabase() ComponentStatus {
+func (s *Server) checkDatabase(ctx context.Context) ComponentStatus {
 	if s.wsStores.pgDB == nil {
 		return ComponentStatus{Status: "unconfigured"}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	start := time.Now()
 	if err := s.wsStores.pgDB.PingContext(ctx); err != nil {
@@ -194,12 +195,12 @@ func (s *Server) checkAI() ComponentStatus {
 	return ComponentStatus{Status: "up", Providers: providers}
 }
 
-func (s *Server) checkSessionStore() ComponentStatus {
+func (s *Server) checkSessionStore(ctx context.Context) ComponentStatus {
 	if s.SessionStore == nil {
 		return ComponentStatus{Status: "unconfigured"}
 	}
 	if p, ok := s.SessionStore.(pingable); ok {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
 		if err := p.Ping(ctx); err != nil {
 			return ComponentStatus{Status: "down", Type: "redis", Error: err.Error()}

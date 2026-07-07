@@ -290,7 +290,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 		return nil
 	}
 	if block.ID == "" {
-		return t.translate(tool.NewVariantViewWithContext(ctx, block))
+		return t.translate(tool.NewVariantViewWithContext(ctx, block)) //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
 	}
 	// Key overlays globally-unique per source file (falls back to the raw id for
 	// ad-hoc single-document runs) so multi-file projects don't collide.
@@ -309,7 +309,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 		}
 	}
 
-	if err := t.translate(tool.NewVariantViewWithContext(ctx, block)); err != nil {
+	if err := t.translate(tool.NewVariantViewWithContext(ctx, block)); err != nil { //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
 		return err
 	}
 
@@ -771,7 +771,7 @@ type batchResult struct {
 // Falls back to individual translation for any missing entries.
 func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEntry) error {
 	if len(entries) == 1 {
-		return t.translate(tool.NewVariantViewWithContext(ctx, entries[0].block))
+		return t.translate(tool.NewVariantViewWithContext(ctx, entries[0].block)) //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
 	}
 
 	// Build numbered prompt.
@@ -833,7 +833,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	for i, entry := range entries {
 		text, ok := translations[i+1]
 		if !ok || text == "" {
-			if err := t.translate(tool.NewVariantViewWithContext(ctx, entry.block)); err != nil {
+			if err := t.translate(tool.NewVariantViewWithContext(ctx, entry.block)); err != nil { //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
 				return err
 			}
 			continue

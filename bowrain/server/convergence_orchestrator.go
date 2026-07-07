@@ -131,6 +131,8 @@ func (s *Server) startOnPushRun(ev platev.Event, trigger string) {
 	if ev.ProjectID == "" || s.ContentStore == nil || s.convergence == nil {
 		return
 	}
+	// Event-bus callback: a run is the project's own clock and must outlive
+	// the request that published the event, so no request context applies.
 	ctx := context.Background()
 	proj, err := s.ContentStore.GetProject(ctx, ev.ProjectID)
 	if err != nil {
@@ -396,7 +398,7 @@ func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []st
 			if berr != nil {
 				return convergence.PassState{}, fmt.Errorf("load blocks for checks: %w", berr)
 			}
-			failing := countFailingBlocks(bl, loc)
+			failing := countFailingBlocks(ctx, bl, loc)
 			failingTotal += failing
 			effective := max(ls.TranslatedBlocks-failing, 0)
 			produced += effective
@@ -417,13 +419,13 @@ func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []st
 // blocks and returns how many carry an error-severity finding — the units the
 // gate must demote. At full coverage every translatable block has a target for
 // the locale, so the QA tool always reads a real translation.
-func countFailingBlocks(blocks []*platstore.StoredBlock, locale model.LocaleID) int {
+func countFailingBlocks(ctx context.Context, blocks []*platstore.StoredBlock, locale model.LocaleID) int {
 	failing := 0
 	for _, sb := range blocks {
 		if sb.Block == nil || !sb.Block.Translatable {
 			continue
 		}
-		for _, issue := range runQAOnBlock(sb.Block, locale) {
+		for _, issue := range runQAOnBlock(ctx, sb.Block, locale) {
 			if issue.Severity == "error" {
 				failing++
 				break

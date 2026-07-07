@@ -44,6 +44,8 @@ func ExecPluginSubcommandPath(ctx context.Context, route *CommandRoute, subPath 
 // SIGTERM/SIGINT to the kapi process (which cobra translates into a
 // cancelled command context) terminates the plugin child instead of
 // leaving it running until it finishes on its own.
+//
+//nolint:contextcheck // the nil-ctx guard is an API fallback for embedded/desktop callers; ctx is otherwise threaded straight into exec.CommandContext
 func runSubprocess(ctx context.Context, p *Plugin, args []string) error {
 	if ctx == nil {
 		ctx = context.Background()
@@ -94,6 +96,8 @@ func (r *CommandRoute) CaptureStdout(ctx context.Context, args ...string) ([]byt
 
 // runSubprocessCaptured mirrors runSubprocess but buffers stdout (returned to
 // the caller) and discards stderr. Cancellation semantics match runSubprocess.
+//
+//nolint:contextcheck // the nil-ctx guard is an API fallback for embedded/desktop callers; ctx is otherwise threaded straight into exec.CommandContext
 func runSubprocessCaptured(ctx context.Context, p *Plugin, args []string) ([]byte, error) {
 	if ctx == nil {
 		ctx = context.Background()

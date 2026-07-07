@@ -39,7 +39,7 @@ type asrEngine struct {
 }
 
 func (e *asrEngine) Transcribe(ctx context.Context, audioPath string, opts asr.Options) (*asr.Result, error) {
-	e.once.Do(func() { e.proc, e.initErr = e.dial() })
+	e.once.Do(func() { e.proc, e.initErr = e.dial() }) //nolint:contextcheck // the warm plugin daemon outlives any single request; Close owns its lifecycle
 	if e.initErr != nil {
 		return nil, e.initErr
 	}

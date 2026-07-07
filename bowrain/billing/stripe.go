@@ -109,7 +109,7 @@ func (c *StripeClient) CreatePortalSession(_ context.Context, customerID, return
 // ReportMeterEvent sends a meter event to Stripe for usage-based billing.
 // This is called asynchronously and errors are logged, not returned.
 // An idempotency key is derived from the dimensions to prevent duplicate billing.
-func (c *StripeClient) ReportMeterEvent(_ context.Context, customerID, eventName string, value int64, dimensions map[string]string) {
+func (c *StripeClient) ReportMeterEvent(ctx context.Context, customerID, eventName string, value int64, dimensions map[string]string) {
 	params := &stripe.V2BillingMeterEventCreateParams{
 		EventName: stripe.String(eventName),
 		Payload: map[string]string{
@@ -127,7 +127,9 @@ func (c *StripeClient) ReportMeterEvent(_ context.Context, customerID, eventName
 		params.Identifier = stripe.String(fmt.Sprintf("%s-%s-%s-%d", wsID, eventName, op, time.Now().Unix()))
 	}
 
-	if _, err := c.sc.V2BillingMeterEvents.Create(context.Background(), params); err != nil {
+	// Detached from the caller's cancellation (a best-effort meter event should
+	// still record if the request goes away) but keeps its trace/values.
+	if _, err := c.sc.V2BillingMeterEvents.Create(context.WithoutCancel(ctx), params); err != nil {
 		slog.Info("stripe meter event error", "error", err)
 	}
 }

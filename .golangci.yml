@@ -13,6 +13,7 @@ linters:
   enable:
     - errorlint
     - noctx
+    - contextcheck
     - bodyclose
     - nolintlint
     - gocritic
@@ -64,9 +65,34 @@ linters:
       - legacy
       - std-error-handling
     rules:
-      # bowrain/core/client needs context threading — separate effort
-      - linters: [noctx]
-        path: bowrain/core/client/
+      # contextcheck inside tests flags helpers that intentionally build fresh
+      # contexts and whole call-chains through test fixtures; the production
+      # rule (request ctx threads through handlers → services → stores) is
+      # enforced on non-test code.
+      - linters: [contextcheck]
+        path: _test\.go
+      # The lazy workspace-store getters (getTM/getTB) run schema migrations on
+      # first use, and the shared migration runner (storage.runMigrations)
+      # intentionally uses a detached context: a one-time DDL migration must run
+      # to completion and the cached store must outlive whichever request
+      # happened to trigger init — it must not be torn down by that request's
+      # cancellation. Threading a context through the shared migration machinery
+      # (used by auth/jobs/store/tm/tb alike) is a separate storage-layer effort
+      # (see P06); until then this specific chain is a deliberate boundary.
+      # TODO(P06): thread ctx through storage.runMigrations and drop this rule.
+      - linters: [contextcheck]
+        text: "MigratePostgresNS->runMigrations"
+      # SA5011 (possible nil dereference) is a known false-positive class in
+      # tests that guard with `if x == nil { t.Fatal(...) }` and then use x:
+      # staticcheck does not model testing.T.Fatal as terminating in every
+      # analysis state (the finding surfaces only under the full-tree lint the
+      # CI runner performs, not the local per-package one), so the guarded
+      # deref is misread as reachable-while-nil. The guard is correct; suppress
+      # the linter noise in test code only, leaving SA5011 fully active in
+      # production code.
+      - linters: [staticcheck]
+        path: _test\.go
+        text: "SA5011"
     paths:
       - node_modules/
       - third_party$

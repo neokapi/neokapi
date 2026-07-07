@@ -17,8 +17,9 @@
 #
 # Covered modules: the ones the PR test wall itself runs on plain ubuntu.
 # Excluded: apps/kapi-desktop and bowrain/apps/bowrain (need the GTK/WebKit
-# toolchain), plugins/sat (native ONNX stack), scripts/* tooling modules, and
-# the e2e suites (build binaries; nightly concern).
+# toolchain), plugins/sat (native ONNX stack), host/pluginhost (spawns plugin
+# subprocesses — flaky under -race on a loaded runner), scripts/* tooling
+# modules, and the e2e suites (build binaries; nightly concern).
 #
 # Env: BASE_SHA (default origin/main), HEAD_SHA (default HEAD),
 #      RACE_CHANGED_CAP (default 30), GOTAGS (default fts5).
@@ -110,6 +111,15 @@ while IFS= read -r f; do
   dir=$(dirname "$f")
   # Skip e2e suites (they build binaries; covered nightly).
   case "$dir" in */e2e|*/e2e/*) continue ;; esac
+  # Skip the Wails desktop apps (need the GTK/WebKit toolchain, absent on the
+  # plain-ubuntu race runner) and the native ONNX segmenter — the same packages
+  # the ordinary PR test wall excludes. Documented above; enforced here.
+  # host/pluginhost spawns real plugin-daemon subprocesses whose handshake
+  # timing is flaky under -race on a loaded shared runner; the nightly full
+  # -race gate covers it, and this fast best-effort job must not wedge on it.
+  case "$f" in
+    apps/kapi-desktop/*|bowrain/apps/bowrain/*|plugins/sat/*|host/pluginhost/*) continue ;;
+  esac
   # Skip deleted/emptied package dirs.
   if ! ls "$dir"/*.go >/dev/null 2>&1; then continue; fi
   if [ "$mod" = "." ]; then

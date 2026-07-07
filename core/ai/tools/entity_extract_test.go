@@ -50,10 +50,10 @@ func (m *mockNERProvider) DetectEntities(_ context.Context, req ner.Request) (*n
 	return &ner.Response{}, nil
 }
 
-func (m *mockNERProvider) DetectEntitiesBatch(_ context.Context, reqs []ner.Request) ([]ner.Response, error) {
+func (m *mockNERProvider) DetectEntitiesBatch(ctx context.Context, reqs []ner.Request) ([]ner.Response, error) {
 	results := make([]ner.Response, len(reqs))
 	for i, req := range reqs {
-		resp, err := m.DetectEntities(context.Background(), req)
+		resp, err := m.DetectEntities(ctx, req)
 		if err != nil {
 			return nil, err
 		}

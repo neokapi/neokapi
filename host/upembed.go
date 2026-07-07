@@ -50,9 +50,7 @@ type UpOptions struct {
 // result, not returned as an error.
 func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts UpOptions) (*ConvergeOutput, error) {
 	a.InitRegistries()
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = ctxOrBackground(ctx)
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
@@ -83,7 +81,7 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 	}
 
 	var result ConvergeOutput
-	err = a.RunDefaultFlowConverge(cmd, proj, projectPath, ConvergeOptions{
+	err = a.RunDefaultFlowConverge(cmd, proj, projectPath, ConvergeOptions{ //nolint:contextcheck // ctx flows via the Command (CmdContext), not a detached context
 		UntilGate:   opts.UntilGate,
 		MaxPasses:   maxPasses,
 		noExtract:   opts.NoExtract,

@@ -88,7 +88,9 @@ func (room *collabRoom) broadcast(sender *collabClient, msg []byte) {
 		if client == sender {
 			continue
 		}
-		// Non-blocking write with timeout.
+		// Detached broadcast: writes go to the other clients' long-lived
+		// WebSocket connections, not to the sender's request; bounded by a
+		// timeout.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err := client.conn.Write(ctx, websocket.MessageBinary, msg); err != nil {
 			slog.Info("collab: failed to write to client", "id", client.userID, "error", err)

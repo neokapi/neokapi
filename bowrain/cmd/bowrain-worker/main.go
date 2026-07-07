@@ -108,7 +108,7 @@ func runWorker(dbURL string) error {
 	var translationQueue jobs.Queue
 	switch {
 	case serviceBusConn != "":
-		translationQueue, err = jobs.NewServiceBusQueue(serviceBusConn, "translation-jobs")
+		translationQueue, err = jobs.NewServiceBusQueue(ctx, serviceBusConn, "translation-jobs")
 		if err != nil {
 			return fmt.Errorf("connect to Service Bus (translation): %w", err)
 		}
@@ -128,7 +128,7 @@ func runWorker(dbURL string) error {
 	var extractionQueue jobs.Queue
 	switch {
 	case serviceBusConn != "":
-		extractionQueue, err = jobs.NewServiceBusQueue(serviceBusConn, "extraction-jobs")
+		extractionQueue, err = jobs.NewServiceBusQueue(ctx, serviceBusConn, "extraction-jobs")
 		if err != nil {
 			return fmt.Errorf("connect to Service Bus (extraction): %w", err)
 		}
@@ -325,7 +325,7 @@ func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusCon
 	// Agent job queue (separate Service Bus queue).
 	var agentQueue jobs.Queue
 	if serviceBusConn != "" {
-		agentQueue, err = jobs.NewServiceBusQueue(serviceBusConn, "bravo-jobs")
+		agentQueue, err = jobs.NewServiceBusQueue(ctx, serviceBusConn, "bravo-jobs")
 		if err != nil {
 			return nil, nil, err
 		}
@@ -381,7 +381,9 @@ func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusCon
 	cleanup := func() {
 		agentQueue.Close()
 		redisClient.Close()
-		pool.StopAll(context.Background())
+		// Shutdown must run even if the worker's ctx is already cancelled;
+		// WithoutCancel detaches cancellation while keeping trace/values.
+		pool.StopAll(context.WithoutCancel(ctx))
 	}
 
 	jwtSecret := os.Getenv("BOWRAIN_JWT_SECRET")

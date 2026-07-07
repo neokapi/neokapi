@@ -1,13 +1,16 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/bowrain/storage/localblob"
+	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -268,4 +271,50 @@ func TestAssetStreamScopedRoutes(t *testing.T) {
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusNoContent, rec.Code)
+}
+
+// slowBlobStore blocks GenerateDownloadURL until its context is cancelled. It
+// embeds the BlobStore interface (nil) so only the one method under test is
+// implemented; any other call would panic, which is the intent.
+type slowBlobStore struct {
+	corestorage.BlobStore
+	reached chan struct{}
+}
+
+func (s *slowBlobStore) GenerateDownloadURL(ctx context.Context, _ string, _ corestorage.SignOptions) (string, error) {
+	close(s.reached)
+	<-ctx.Done()
+	return "", ctx.Err()
+}
+
+// TestGenerateDownloadURL_HonorsRequestCancellation locks the context-threading
+// contract for the asset handlers: generateDownloadURL runs the blob-store call
+// on the request's context (the handlers pass c.Request().Context()), so a
+// client disconnect — modelled here by cancelling the context — aborts the
+// store call instead of blocking forever on a detached context.Background().
+func TestGenerateDownloadURL_HonorsRequestCancellation(t *testing.T) {
+	bs := &slowBlobStore{reached: make(chan struct{})}
+	srv := &Server{BlobStore: bs}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan string, 1)
+	go func() { done <- srv.generateDownloadURL(ctx, "blob-key") }()
+
+	// The handler helper must actually reach the blob store first.
+	select {
+	case <-bs.reached:
+	case <-time.After(2 * time.Second):
+		t.Fatal("generateDownloadURL never reached the blob store")
+	}
+
+	cancel() // the client disconnects mid-request
+
+	select {
+	case url := <-done:
+		assert.Empty(t, url, "a cancelled request must not yield a download URL")
+	case <-time.After(2 * time.Second):
+		t.Fatal("generateDownloadURL ignored request cancellation — the blob-store call ran on a detached context")
+	}
 }

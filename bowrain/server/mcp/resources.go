@@ -61,13 +61,13 @@ func (s *MCPServer) registerResources() {
 	)
 }
 
-func (s *MCPServer) handleReadProfile(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+func (s *MCPServer) handleReadProfile(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 	uri := req.Params.URI
 	profileID := extractParam(uri, "brand://profiles/")
 	if profileID == "" {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
-	profile, err := s.brandStore.GetProfile(bgCtx(), profileID)
+	profile, err := s.brandStore.GetProfile(ctx, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
@@ -80,13 +80,13 @@ func (s *MCPServer) handleReadProfile(_ context.Context, req *mcp.ReadResourceRe
 	}, nil
 }
 
-func (s *MCPServer) handleReadVocabulary(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+func (s *MCPServer) handleReadVocabulary(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 	uri := req.Params.URI
 	profileID := extractParamBefore(uri, "brand://profiles/", "/vocabulary")
 	if profileID == "" {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
-	profile, err := s.brandStore.GetProfile(bgCtx(), profileID)
+	profile, err := s.brandStore.GetProfile(ctx, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
@@ -99,13 +99,13 @@ func (s *MCPServer) handleReadVocabulary(_ context.Context, req *mcp.ReadResourc
 	}, nil
 }
 
-func (s *MCPServer) handleReadExamples(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+func (s *MCPServer) handleReadExamples(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 	uri := req.Params.URI
 	profileID := extractParamBefore(uri, "brand://profiles/", "/examples")
 	if profileID == "" {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
-	profile, err := s.brandStore.GetProfile(bgCtx(), profileID)
+	profile, err := s.brandStore.GetProfile(ctx, profileID)
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
@@ -118,13 +118,13 @@ func (s *MCPServer) handleReadExamples(_ context.Context, req *mcp.ReadResourceR
 	}, nil
 }
 
-func (s *MCPServer) handleReadTerminology(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+func (s *MCPServer) handleReadTerminology(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 	uri := req.Params.URI
 	workspaceID := extractParam(uri, "brand://terminology/")
 	if workspaceID == "" {
 		return nil, mcp.ResourceNotFoundError(uri)
 	}
-	profiles, err := s.brandStore.ListProfiles(bgCtx(), workspaceID)
+	profiles, err := s.brandStore.ListProfiles(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list profiles: %w", err)
 	}

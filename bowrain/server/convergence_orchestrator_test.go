@@ -274,7 +274,7 @@ func TestCountFailingBlocks(t *testing.T) {
 	nonTranslatable := &model.Block{ID: "b3", Translatable: false}
 
 	blocks := []*platstore.StoredBlock{{Block: dropped}, {Block: clean}, {Block: nonTranslatable}}
-	assert.Equal(t, 1, countFailingBlocks(blocks, fr))
+	assert.Equal(t, 1, countFailingBlocks(t.Context(), blocks, fr))
 }
 
 func convergenceEventTypes(t *testing.T, payloads [][]byte) []string {

@@ -40,7 +40,9 @@ var initConnectCmd = &cobra.Command{
 	RunE:         runInitConnect,
 }
 
-func runInitConnect(_ *cobra.Command, _ []string) error {
+func runInitConnect(cmd *cobra.Command, _ []string) error {
+	ctx := cmd.Context()
+
 	// `kapi init` runs us in the project directory (KAPI_PROJECT_DIR); fall back
 	// to cwd when invoked directly.
 	startDir := os.Getenv("KAPI_PROJECT_DIR")
@@ -87,7 +89,7 @@ func runInitConnect(_ *cobra.Command, _ []string) error {
 	case connectAnonymous:
 		fmt.Printf("Creating project on %s...\n", serverURL)
 		projectID, claimToken, err := client.CreateAnonymousProject(
-			serverURL, projectName, string(recipe.Defaults.SourceLanguage), targets, connectEmail)
+			ctx, serverURL, projectName, string(recipe.Defaults.SourceLanguage), targets, connectEmail)
 		if err != nil {
 			return fmt.Errorf("create anonymous project on %s: %w", serverURL, err)
 		}
@@ -120,7 +122,7 @@ func runInitConnect(_ *cobra.Command, _ []string) error {
 		// connectWorkspace ("" → resolve the account's workspace; non-empty →
 		// create under that workspace, for users who belong to several).
 		projectID, workspaceSlug, err := client.CreateAuthenticatedProject(
-			targetServer, auth.AccessToken, projectName, string(recipe.Defaults.SourceLanguage), targets, connectWorkspace)
+			ctx, targetServer, auth.AccessToken, projectName, string(recipe.Defaults.SourceLanguage), targets, connectWorkspace)
 		if err != nil {
 			return fmt.Errorf("create project: %w", err)
 		}

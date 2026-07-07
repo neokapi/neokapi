@@ -41,7 +41,7 @@ Requires a .bowrain/ project with a configured workspace.`,
 			return errors.New("no workspace configured in the project recipe")
 		}
 
-		resp, err := client.CreateToken(stored.ServerURL, stored.AccessToken, proj.Recipe.Server.Workspace(), tokenName, tokenExpireDays)
+		resp, err := client.CreateToken(cmd.Context(), stored.ServerURL, stored.AccessToken, proj.Recipe.Server.Workspace(), tokenName, tokenExpireDays)
 		if err != nil {
 			return err
 		}
@@ -73,7 +73,7 @@ var authTokenListCmd = &cobra.Command{
 			return errors.New("no workspace configured in the project recipe")
 		}
 
-		tokens, err := client.ListTokens(stored.ServerURL, stored.AccessToken, proj.Recipe.Server.Workspace())
+		tokens, err := client.ListTokens(cmd.Context(), stored.ServerURL, stored.AccessToken, proj.Recipe.Server.Workspace())
 		if err != nil {
 			return err
 		}
@@ -113,7 +113,7 @@ var authTokenDeleteCmd = &cobra.Command{
 		}
 
 		tokenID := args[0]
-		if err := client.DeleteToken(stored.ServerURL, stored.AccessToken, proj.Recipe.Server.Workspace(), tokenID); err != nil {
+		if err := client.DeleteToken(cmd.Context(), stored.ServerURL, stored.AccessToken, proj.Recipe.Server.Workspace(), tokenID); err != nil {
 			return err
 		}
 

@@ -473,7 +473,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	// lookups (and thus out of pre-filled targets), so nothing sensitive
 	// reaches the XLIFF.
 	if task.redaction != nil {
-		if err := applyRedaction(blocks, task.redaction, task.layout.Root, task.redactionVault, task.ctx.SourceLocale); err != nil {
+		if err := applyRedaction(ctx, blocks, task.redaction, task.layout.Root, task.redactionVault, task.ctx.SourceLocale); err != nil {
 			return project.ExtractionFile{}, fmt.Errorf("redaction: %w", err)
 		}
 	}
@@ -483,7 +483,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	// preserved (hash is over SourceText(), which concatenates segments),
 	// so on/off toggles between extractions are safe.
 	if task.ctx.Project != nil && task.ctx.Project.Defaults.Segmentation.Source {
-		if err := applySegmentation(blocks, task.ctx.Project.Defaults.Segmentation); err != nil {
+		if err := applySegmentation(ctx, blocks, task.ctx.Project.Defaults.Segmentation); err != nil {
 			return project.ExtractionFile{}, fmt.Errorf("segmentation: %w", err)
 		}
 	}
@@ -665,7 +665,7 @@ func applyTMPrefill(ctx context.Context, tm sievepen.TranslationMemory, block *m
 // applyRedaction runs the redact tool over the source blocks in external
 // mode, writing originals to the batch vault sidecar at vaultPath. Rule paths
 // in the spec are resolved relative to rootDir.
-func applyRedaction(blocks []*model.Block, spec *project.RedactionSpec, rootDir, vaultPath string, sourceLocale model.LocaleID) error {
+func applyRedaction(ctx context.Context, blocks []*model.Block, spec *project.RedactionSpec, rootDir, vaultPath string, sourceLocale model.LocaleID) error {
 	cfg := &tools.RedactConfig{
 		Detectors:    spec.Detectors,
 		Placeholder:  spec.Placeholder,
@@ -688,14 +688,14 @@ func applyRedaction(blocks []*model.Block, spec *project.RedactionSpec, rootDir,
 	}
 	for _, b := range blocks {
 		part := &model.Part{Type: model.PartBlock, Resource: b}
-		if _, err := rt.Apply(part); err != nil {
+		if _, err := rt.ApplyContext(ctx, part); err != nil {
 			return err
 		}
 	}
 	return rt.Flush()
 }
 
-func applySegmentation(blocks []*model.Block, conf project.SegmentationDefaults) error {
+func applySegmentation(ctx context.Context, blocks []*model.Block, conf project.SegmentationDefaults) error {
 	cfg := &tools.SegmentationConfig{
 		SegmentSource: true,
 	}
@@ -705,7 +705,7 @@ func applySegmentation(blocks []*model.Block, conf project.SegmentationDefaults)
 	t := tools.NewSegmentationTool(cfg)
 	for _, b := range blocks {
 		part := &model.Part{Type: model.PartBlock, Resource: b}
-		if _, err := t.Apply(part); err != nil {
+		if _, err := t.ApplyContext(ctx, part); err != nil {
 			return err
 		}
 	}
