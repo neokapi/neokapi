@@ -5,13 +5,11 @@
 package sievepen
 
 import (
-	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -399,119 +397,10 @@ func (tm *PostgresTM) LookupText(ctx context.Context, source string, sourceLocal
 }
 
 func (tm *PostgresTM) tieredLookup(ctx context.Context, plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
-	var matches []fw.TMMatch
-	seen := make(map[string]bool)
-	modeEnabled := fw.MatchModesEnabled(opts.MatchModes)
-
-	add := func(entry fw.TMEntry, score float64, mt fw.MatchType) {
-		if seen[entry.ID] {
-			return
-		}
-		if !entry.HasLocale(targetLocale) {
-			return
-		}
-		seen[entry.ID] = true
-		var adaptations []fw.EntityAdaptation
-		if mt == fw.MatchGeneralizedExact || mt == fw.MatchGeneralizedFuzzy {
-			adaptations = fw.ComputeEntityAdaptations(entry, sourceLocale, targetLocale, entityAnnotations)
-		}
-		matches = append(matches, fw.TMMatch{
-			Entry:             entry,
-			Score:             score,
-			MatchType:         mt,
-			ProjectID:         entry.ProjectID,
-			EntityAdaptations: adaptations,
-		})
-	}
-
-	if modeEnabled[fw.MatchModeGeneralized] {
-		entries, err := tm.queryExactVariant(ctx, "general_key", generalKey, sourceLocale, opts)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range entries {
-			add(e, 1.0, fw.MatchGeneralizedExact)
-		}
-	}
-	if modeEnabled[fw.MatchModeStructural] {
-		entries, err := tm.queryExactVariant(ctx, "struct_key", structKey, sourceLocale, opts)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range entries {
-			add(e, 1.0, fw.MatchStructuralExact)
-		}
-	}
-	if modeEnabled[fw.MatchModePlain] {
-		entries, err := tm.queryExactVariant(ctx, "plain", plainKey, sourceLocale, opts)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range entries {
-			add(e, 1.0, fw.MatchExact)
-		}
-	}
-
-	if len(matches) > 0 && opts.MinScore >= 1.0 {
-		return fw.LimitResults(matches, opts.MaxResults), nil
-	}
-
-	candidates, err := tm.queryFuzzyCandidates(ctx, plainKey, structKey, generalKey, sourceLocale, opts)
-	if err != nil {
-		return nil, err
-	}
-	for _, entry := range candidates {
-		if seen[entry.ID] {
-			continue
-		}
-		srcRuns := entry.Variant(sourceLocale)
-		if len(srcRuns) == 0 {
-			continue
-		}
-		var bestScore float64
-		var bestType fw.MatchType
-		if modeEnabled[fw.MatchModeGeneralized] {
-			s := fw.LevenshteinRatio(generalKey, fw.NormalizeText(model.RunsGeneralizedText(srcRuns)))
-			if s >= opts.MinScore && s > bestScore {
-				bestScore = s
-				bestType = fw.MatchGeneralizedFuzzy
-			}
-		}
-		if modeEnabled[fw.MatchModeStructural] {
-			s := fw.LevenshteinRatio(structKey, fw.NormalizeText(model.RunsStructuralText(srcRuns)))
-			if s >= opts.MinScore && s > bestScore {
-				bestScore = s
-				bestType = fw.MatchStructuralFuzzy
-			}
-		}
-		if modeEnabled[fw.MatchModePlain] {
-			s := fw.LevenshteinRatio(plainKey, fw.NormalizeText(model.FlattenRuns(srcRuns)))
-			if s >= opts.MinScore && s > bestScore {
-				bestScore = s
-				bestType = fw.MatchFuzzy
-			}
-		}
-		if bestScore < opts.MinScore {
-			continue
-		}
-		if opts.ProjectID != "" && entry.ProjectID == opts.ProjectID && bestScore < 1.0 {
-			bestScore += 0.03
-			if bestScore > 1.0 {
-				bestScore = 1.0
-			}
-		}
-		add(entry, bestScore, bestType)
-	}
-
-	slices.SortFunc(matches, func(a, b fw.TMMatch) int {
-		pa := fw.MatchTypePriority(a.MatchType)
-		pb := fw.MatchTypePriority(b.MatchType)
-		if c := cmp.Compare(pa, pb); c != 0 {
-			return c
-		}
-		return cmp.Compare(b.Score, a.Score)
+	return fw.TieredLookup(ctx, plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts, fw.TMCandidateSource{
+		Exact:           tm.queryExactVariant,
+		FuzzyCandidates: tm.queryFuzzyCandidates,
 	})
-	return fw.LimitResults(matches, opts.MaxResults), nil
 }
 
 func (tm *PostgresTM) queryExactVariant(ctx context.Context, column, key string, sourceLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMEntry, error) {
