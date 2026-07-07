@@ -32,9 +32,9 @@ func openTestPostgresTermBase(t *testing.T) *pgtb.PostgresTermBase {
 	tb, err := pgtb.NewPostgresTermBaseFromDB(db, wsID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		db.Exec("DELETE FROM tb_terms WHERE workspace_id = $1", wsID)
-		db.Exec("DELETE FROM tb_concepts WHERE workspace_id = $1", wsID)
-		db.Close()
+		_, _ = db.Exec("DELETE FROM tb_terms WHERE workspace_id = $1", wsID)
+		_, _ = db.Exec("DELETE FROM tb_concepts WHERE workspace_id = $1", wsID)
+		_ = db.Close()
 	})
 	return tb
 }

@@ -1,20 +1,17 @@
 package termbase
 
 import (
-	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
-	"github.com/neokapi/neokapi/sievepen"
 	tbschema "github.com/neokapi/neokapi/termbase/schema"
 )
 
@@ -417,114 +414,28 @@ func scanRelations(rows *sql.Rows, scope *graph.Scope) ([]ConceptRelation, error
 
 // Lookup finds terms matching the source text.
 func (tb *SQLiteTermBase) Lookup(ctx context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
-	if sourceText == "" {
-		return nil, nil
-	}
-
-	opts = ApplyLookupDefaults(opts)
-	modeEnabled := MatchModesEnabled(opts.MatchModes)
-	normalizedSource := NormalizeTerm(sourceText)
-	var matches []TermMatch
-
-	if modeEnabled[model.MatchStrategyExact] {
-		m, err := tb.queryExactTerms(ctx, sourceText, opts)
-		if err != nil {
-			return nil, err
-		}
-		matches = append(matches, m...)
-	}
-
-	if modeEnabled[model.MatchStrategyNormalized] && len(matches) == 0 {
-		m, err := tb.queryNormalizedTerms(ctx, normalizedSource, opts)
-		if err != nil {
-			return nil, err
-		}
-		matches = append(matches, m...)
-	}
-
-	if modeEnabled[model.MatchStrategyFuzzy] && len(matches) == 0 {
-		m, err := tb.queryFuzzyTerms(ctx, normalizedSource, opts)
-		if err != nil {
-			return nil, err
-		}
-		matches = append(matches, m...)
-	}
-
-	slices.SortFunc(matches, func(a, b TermMatch) int {
-		return cmp.Compare(b.Score, a.Score)
+	return LookupTiered(ctx, sourceText, opts, TermCandidateSource{
+		Exact:           tb.queryExactTerms,
+		Normalized:      tb.queryNormalizedTerms,
+		FuzzyCandidates: tb.queryFuzzyTerms,
+		Concept:         tb.scanConcept,
 	})
-
-	return matches, nil
 }
 
-// LookupAll finds all terms appearing in the given text.
+// LookupAll finds all terms appearing in the given text. The locale/domain/
+// status/project/source filtering happens in SQL (queryTermsByLocale); the
+// position scan, validity-scope filter and project-priority de-duplication live
+// in the shared LookupAllTiered.
 func (tb *SQLiteTermBase) LookupAll(ctx context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
 	if sourceText == "" {
 		return nil, nil
 	}
-
 	opts = ApplyLookupDefaults(opts)
-	var matches []TermMatch
-	lowerSource := strings.ToLower(sourceText)
-
 	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter, opts)
 	if err != nil {
 		return nil, err
 	}
-
-	type matchKey struct {
-		text string
-		pos  int
-	}
-	seen := make(map[matchKey]int)
-
-	for _, entry := range terms {
-		searchIn := sourceText
-		searchFor := entry.term.Text
-		if !opts.CaseSensitive {
-			searchIn = lowerSource
-			searchFor = strings.ToLower(entry.term.Text)
-		}
-
-		offset := 0
-		for {
-			idx := strings.Index(searchIn[offset:], searchFor)
-			if idx < 0 {
-				break
-			}
-			pos := offset + idx
-			key := matchKey{text: searchFor, pos: pos}
-
-			m := TermMatch{
-				Concept:   entry.concept,
-				Term:      entry.term,
-				Score:     1.0,
-				MatchType: model.MatchStrategyExact,
-				Position:  model.TextRange{Start: pos, End: pos + len(searchFor)},
-			}
-
-			if existingIdx, exists := seen[key]; exists {
-				if opts.ProjectID != "" && entry.concept.ProjectID == opts.ProjectID &&
-					matches[existingIdx].Concept.ProjectID != opts.ProjectID {
-					matches[existingIdx] = m
-				}
-			} else {
-				seen[key] = len(matches)
-				matches = append(matches, m)
-			}
-
-			offset = pos + len(searchFor)
-		}
-	}
-
-	slices.SortFunc(matches, func(a, b TermMatch) int {
-		if c := cmp.Compare(a.Position.Start, b.Position.Start); c != 0 {
-			return c
-		}
-		return cmp.Compare(b.Position.End, a.Position.End)
-	})
-
-	return matches, nil
+	return LookupAllTiered(sourceText, opts, terms), nil
 }
 
 // Search performs a ranked full-text search across concepts and terms.
@@ -964,12 +875,7 @@ func (tb *SQLiteTermBase) scanConcept(ctx context.Context, id string) (Concept, 
 	return c, nil
 }
 
-type termWithConcept struct {
-	concept Concept
-	term    Term
-}
-
-func (tb *SQLiteTermBase) queryExactTerms(ctx context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
+func (tb *SQLiteTermBase) queryExactTerms(ctx context.Context, sourceText string, opts LookupOptions) ([]TermCandidate, error) {
 	searchText := sourceText
 	column := "t.text"
 	if !opts.CaseSensitive {
@@ -1017,10 +923,10 @@ func (tb *SQLiteTermBase) queryExactTerms(ctx context.Context, sourceText string
 	}
 	defer rows.Close()
 
-	return tb.scanTermMatches(ctx, rows, 1.0, model.MatchStrategyExact, opts)
+	return scanTermCandidates(rows)
 }
 
-func (tb *SQLiteTermBase) queryNormalizedTerms(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermMatch, error) {
+func (tb *SQLiteTermBase) queryNormalizedTerms(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
 	where := "t.text_lower = ? AND t.locale = ?"
 	args := []any{normalizedSource, string(opts.SourceLocale)}
 
@@ -1061,21 +967,25 @@ func (tb *SQLiteTermBase) queryNormalizedTerms(ctx context.Context, normalizedSo
 	}
 	defer rows.Close()
 
-	return tb.scanTermMatches(ctx, rows, 0.95, model.MatchStrategyNormalized, opts)
+	return scanTermCandidates(rows)
 }
 
-func (tb *SQLiteTermBase) queryFuzzyTerms(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermMatch, error) {
-	matches, err := tb.queryFuzzyTrigramCandidates(ctx, normalizedSource, opts)
+// queryFuzzyTerms returns the raw fuzzy candidate pool: the trigram pre-filter,
+// falling back to a length-bounded full scan only when the trigram index yields
+// no candidate rows. Levenshtein scoring and the MinScore gate live in the
+// shared LookupTiered, so both backends score identically.
+func (tb *SQLiteTermBase) queryFuzzyTerms(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
+	cands, err := tb.queryFuzzyTrigramCandidates(ctx, normalizedSource, opts)
 	if err != nil {
 		return nil, err
 	}
-	if matches != nil {
-		return matches, nil
+	if len(cands) > 0 {
+		return cands, nil
 	}
 	return tb.queryFuzzyFullScan(ctx, normalizedSource, opts)
 }
 
-func (tb *SQLiteTermBase) queryFuzzyTrigramCandidates(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermMatch, error) {
+func (tb *SQLiteTermBase) queryFuzzyTrigramCandidates(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
 	trigramQuery := `"` + strings.ReplaceAll(normalizedSource, `"`, `""`) + `"`
 
 	where := `t.id IN (SELECT rowid FROM tb_terms_trigram WHERE tb_terms_trigram MATCH ?)
@@ -1121,10 +1031,10 @@ func (tb *SQLiteTermBase) queryFuzzyTrigramCandidates(ctx context.Context, norma
 	}
 	defer rows.Close()
 
-	return tb.scoreFuzzyCandidates(ctx, rows, normalizedSource, opts)
+	return scanTermCandidates(rows)
 }
 
-func (tb *SQLiteTermBase) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermMatch, error) {
+func (tb *SQLiteTermBase) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
 	keyLen := len([]rune(normalizedSource))
 	minLen := int(float64(keyLen) * 0.7)
 	maxLen := int(float64(keyLen) * 1.3)
@@ -1174,59 +1084,10 @@ func (tb *SQLiteTermBase) queryFuzzyFullScan(ctx context.Context, normalizedSour
 	}
 	defer rows.Close()
 
-	return tb.scoreFuzzyCandidates(ctx, rows, normalizedSource, opts)
+	return scanTermCandidates(rows)
 }
 
-func (tb *SQLiteTermBase) scoreFuzzyCandidates(ctx context.Context, rows interface {
-	Next() bool
-	Scan(...any) error
-}, normalizedSource string, opts LookupOptions) ([]TermMatch, error) {
-	type fuzzyCandidate struct {
-		row   scanTermRow
-		score float64
-	}
-	var candidates []fuzzyCandidate
-	for rows.Next() {
-		var r scanTermRow
-		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags); err != nil {
-			continue
-		}
-		if !MatchesScope(r.validity(), opts.Scope) {
-			continue
-		}
-
-		score := sievepen.LevenshteinRatio(normalizedSource, NormalizeTerm(r.text))
-		if score >= opts.MinScore && MatchesStatus(model.TermStatus(r.status), opts.StatusFilter) {
-			candidates = append(candidates, fuzzyCandidate{row: r, score: score})
-		}
-	}
-
-	var matches []TermMatch
-	for _, c := range candidates {
-		concept, err := tb.scanConcept(ctx, c.row.conceptID)
-		if err != nil {
-			continue
-		}
-		matches = append(matches, TermMatch{
-			Concept: concept,
-			Term: Term{
-				Text:         c.row.text,
-				Locale:       model.LocaleID(c.row.locale),
-				Status:       model.TermStatus(c.row.status),
-				PartOfSpeech: c.row.pos,
-				Gender:       c.row.gender,
-				Note:         c.row.note,
-				Validity:     c.row.validity(),
-			},
-			Score:     c.score,
-			MatchType: model.MatchStrategyFuzzy,
-		})
-	}
-
-	return matches, nil
-}
-
-func (tb *SQLiteTermBase) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus, opts LookupOptions) ([]termWithConcept, error) {
+func (tb *SQLiteTermBase) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus, opts LookupOptions) ([]LocaleTerm, error) {
 	where := "t.locale = ?"
 	args := []any{string(locale)}
 
@@ -1263,13 +1124,14 @@ func (tb *SQLiteTermBase) queryTermsByLocale(ctx context.Context, locale model.L
 		SELECT c.id, c.project_id, c.domain, c.definition, c.source, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term, t.valid_from, t.valid_to, t.tags
 		FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 		WHERE %s
+		ORDER BY c.id, t.text
 	`, where), args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var results []termWithConcept
+	var results []LocaleTerm
 	for rows.Next() {
 		var cID, projectID, domain, definition, source, text, loc, status, pos, gender, note, tags string
 		var competitorInt int
@@ -1278,12 +1140,12 @@ func (tb *SQLiteTermBase) queryTermsByLocale(ctx context.Context, locale model.L
 			continue
 		}
 		validity := validityFromColumns(validFrom, validTo, tags)
-		if !MatchesScope(validity, opts.Scope) {
-			continue
-		}
-		results = append(results, termWithConcept{
-			concept: Concept{ID: cID, ProjectID: projectID, Domain: domain, Definition: definition, Source: TermSource(source)},
-			term: Term{
+		// The validity-scope filter now lives in the shared LookupAllTiered so
+		// both backends honor it identically; this query keeps only the
+		// SQL-expressible filters (locale/domain/status/project/source).
+		results = append(results, LocaleTerm{
+			Concept: Concept{ID: cID, ProjectID: projectID, Domain: domain, Definition: definition, Source: TermSource(source)},
+			Term: Term{
 				Text:           text,
 				Locale:         model.LocaleID(loc),
 				Status:         model.TermStatus(status),
@@ -1312,32 +1174,22 @@ func (r scanTermRow) validity() *graph.Validity {
 	return validityFromColumns(r.validFrom, r.validTo, r.tags)
 }
 
-func (tb *SQLiteTermBase) scanTermMatches(ctx context.Context, rows interface {
+// scanTermCandidates scans the shared 10-column term projection into raw
+// candidates. Validity is reconstructed here (SQLite's TEXT RFC3339 codec); the
+// shared LookupTiered applies the scope/status/score filters and hydrates the
+// owning concept.
+func scanTermCandidates(rows interface {
 	Next() bool
 	Scan(...any) error
-}, score float64, matchType model.MatchStrategy, opts LookupOptions) ([]TermMatch, error) {
-	var raw []scanTermRow
+}) ([]TermCandidate, error) {
+	var out []TermCandidate
 	for rows.Next() {
 		var r scanTermRow
 		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags); err != nil {
 			continue
 		}
-		if !MatchesScope(r.validity(), opts.Scope) {
-			continue
-		}
-		if MatchesStatus(model.TermStatus(r.status), opts.StatusFilter) {
-			raw = append(raw, r)
-		}
-	}
-
-	var matches []TermMatch
-	for _, r := range raw {
-		concept, err := tb.scanConcept(ctx, r.conceptID)
-		if err != nil {
-			continue
-		}
-		matches = append(matches, TermMatch{
-			Concept: concept,
+		out = append(out, TermCandidate{
+			ConceptID: r.conceptID,
 			Term: Term{
 				Text:         r.text,
 				Locale:       model.LocaleID(r.locale),
@@ -1347,11 +1199,9 @@ func (tb *SQLiteTermBase) scanTermMatches(ctx context.Context, rows interface {
 				Note:         r.note,
 				Validity:     r.validity(),
 			},
-			Score:     score,
-			MatchType: matchType,
 		})
 	}
-	return matches, nil
+	return out, nil
 }
 
 // sourceFilterSQL appends a WHERE clause for SourceFilter and returns updated args.

@@ -1,20 +1,17 @@
 package termbase
 
 import (
-	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/sievepen"
 	fw "github.com/neokapi/neokapi/termbase"
 	tbschema "github.com/neokapi/neokapi/termbase/schema"
 )
@@ -376,97 +373,33 @@ func pgScanRelations(rows *sql.Rows, scope *graph.Scope) ([]fw.ConceptRelation, 
 	return out, rows.Err()
 }
 
-// Lookup finds terms matching the source text.
+// Lookup finds terms matching the source text. The tier gating, validity-scope
+// filter, status filter, Levenshtein scoring and sort live in the shared
+// fw.LookupTiered, so the Postgres and SQLite backends rank identically — and
+// Postgres now honors term validity (valid_from/valid_to), which it previously
+// ignored, by construction.
 func (tb *PostgresTermBase) Lookup(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
-	if sourceText == "" {
-		return nil, nil
-	}
-
-	opts = fw.ApplyLookupDefaults(opts)
-	modeEnabled := fw.MatchModesEnabled(opts.MatchModes)
-	normalizedSource := fw.NormalizeTerm(sourceText)
-	var matches []fw.TermMatch
-
-	if modeEnabled[model.MatchStrategyExact] {
-		m, err := tb.queryExactTerms(ctx, sourceText, opts)
-		if err != nil {
-			return nil, err
-		}
-		matches = append(matches, m...)
-	}
-
-	if modeEnabled[model.MatchStrategyNormalized] && len(matches) == 0 {
-		m, err := tb.queryNormalizedTerms(ctx, normalizedSource, opts)
-		if err != nil {
-			return nil, err
-		}
-		matches = append(matches, m...)
-	}
-
-	if modeEnabled[model.MatchStrategyFuzzy] && len(matches) == 0 {
-		m, err := tb.queryFuzzyTerms(ctx, normalizedSource, opts)
-		if err != nil {
-			return nil, err
-		}
-		matches = append(matches, m...)
-	}
-
-	slices.SortFunc(matches, func(a, b fw.TermMatch) int {
-		return cmp.Compare(b.Score, a.Score)
+	return fw.LookupTiered(ctx, sourceText, opts, fw.TermCandidateSource{
+		Exact:           tb.queryExactTerms,
+		Normalized:      tb.queryNormalizedTerms,
+		FuzzyCandidates: tb.queryFuzzyTerms,
+		Concept:         tb.scanConcept,
 	})
-
-	return matches, nil
 }
 
-// LookupAll finds all terms appearing in the given text.
+// LookupAll finds all terms appearing in the given text. The position scan,
+// validity-scope filter and (text, position) de-duplication live in the shared
+// fw.LookupAllTiered, which Postgres now inherits.
 func (tb *PostgresTermBase) LookupAll(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
 	if sourceText == "" {
 		return nil, nil
 	}
-
 	opts = fw.ApplyLookupDefaults(opts)
-	var matches []fw.TermMatch
-	lowerSource := strings.ToLower(sourceText)
-
 	terms, err := tb.queryTermsByLocale(ctx, opts.SourceLocale, opts.Domains, opts.StatusFilter)
 	if err != nil {
 		return nil, err
 	}
-
-	for _, entry := range terms {
-		searchIn := sourceText
-		searchFor := entry.term.Text
-		if !opts.CaseSensitive {
-			searchIn = lowerSource
-			searchFor = strings.ToLower(entry.term.Text)
-		}
-
-		offset := 0
-		for {
-			idx := strings.Index(searchIn[offset:], searchFor)
-			if idx < 0 {
-				break
-			}
-			pos := offset + idx
-			matches = append(matches, fw.TermMatch{
-				Concept:   entry.concept,
-				Term:      entry.term,
-				Score:     1.0,
-				MatchType: model.MatchStrategyExact,
-				Position:  model.TextRange{Start: pos, End: pos + len(searchFor)},
-			})
-			offset = pos + len(searchFor)
-		}
-	}
-
-	slices.SortFunc(matches, func(a, b fw.TermMatch) int {
-		if c := cmp.Compare(a.Position.Start, b.Position.Start); c != 0 {
-			return c
-		}
-		return cmp.Compare(b.Position.End, a.Position.End)
-	})
-
-	return matches, nil
+	return fw.LookupAllTiered(sourceText, opts, terms), nil
 }
 
 // Search performs a ranked full-text search across concepts and terms.
@@ -870,12 +803,11 @@ func (tb *PostgresTermBase) scanConcept(ctx context.Context, id string) (fw.Conc
 	return c, nil
 }
 
-type pgTermWithConcept struct {
-	concept fw.Concept
-	term    fw.Term
-}
+// pgTermSelectCols is the shared 10-column term projection every candidate
+// query selects, including the validity columns the shared lookup filters on.
+const pgTermSelectCols = "t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags"
 
-func (tb *PostgresTermBase) queryExactTerms(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
+func (tb *PostgresTermBase) queryExactTerms(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
 	searchText := sourceText
 	column := "t.text"
 	if !opts.CaseSensitive {
@@ -884,7 +816,7 @@ func (tb *PostgresTermBase) queryExactTerms(ctx context.Context, sourceText stri
 	}
 
 	q := fmt.Sprintf(`
-		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+		SELECT `+pgTermSelectCols+`
 		FROM tb_terms t
 		WHERE t.workspace_id = $1 AND %s = $2 AND t.locale = $3
 	`, column)
@@ -895,12 +827,12 @@ func (tb *PostgresTermBase) queryExactTerms(ctx context.Context, sourceText stri
 	}
 	defer rows.Close()
 
-	return tb.scanTermMatches(ctx, rows, 1.0, model.MatchStrategyExact, opts), nil
+	return pgScanTermCandidates(rows), nil
 }
 
-func (tb *PostgresTermBase) queryNormalizedTerms(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
+func (tb *PostgresTermBase) queryNormalizedTerms(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
 	rows, err := tb.db.QueryContext(ctx, `
-		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+		SELECT `+pgTermSelectCols+`
 		FROM tb_terms t
 		WHERE t.workspace_id = $1 AND t.text_lower = $2 AND t.locale = $3
 	`, tb.workspaceID, normalizedSource, string(opts.SourceLocale))
@@ -909,25 +841,28 @@ func (tb *PostgresTermBase) queryNormalizedTerms(ctx context.Context, normalized
 	}
 	defer rows.Close()
 
-	return tb.scanTermMatches(ctx, rows, 0.95, model.MatchStrategyNormalized, opts), nil
+	return pgScanTermCandidates(rows), nil
 }
 
-func (tb *PostgresTermBase) queryFuzzyTerms(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
-	// Try pg_trgm candidate retrieval first, fall back to full scan.
-	matches, err := tb.queryFuzzyTrigramCandidates(ctx, normalizedSource, opts)
+// queryFuzzyTerms returns the raw fuzzy candidate pool: the pg_trgm pre-filter,
+// falling back to a length-bounded full scan when the trigram path yields no
+// candidate rows (or pg_trgm is unavailable). Levenshtein scoring and the
+// MinScore gate live in the shared fw.LookupTiered.
+func (tb *PostgresTermBase) queryFuzzyTerms(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
+	cands, err := tb.queryFuzzyTrigramCandidates(ctx, normalizedSource, opts)
 	if err != nil {
 		return nil, err
 	}
-	if matches != nil {
-		return matches, nil
+	if len(cands) > 0 {
+		return cands, nil
 	}
 	return tb.queryFuzzyFullScan(ctx, normalizedSource, opts)
 }
 
-func (tb *PostgresTermBase) queryFuzzyTrigramCandidates(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
+func (tb *PostgresTermBase) queryFuzzyTrigramCandidates(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
 	// Use pg_trgm similarity operator (%) with GIN index.
 	rows, err := tb.db.QueryContext(ctx, `
-		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+		SELECT `+pgTermSelectCols+`
 		FROM tb_terms t
 		WHERE t.workspace_id = $1 AND t.locale = $2 AND t.text_lower % $3
 		LIMIT 200
@@ -938,10 +873,10 @@ func (tb *PostgresTermBase) queryFuzzyTrigramCandidates(ctx context.Context, nor
 	}
 	defer rows.Close()
 
-	return tb.pgScoreFuzzyCandidates(ctx, rows, normalizedSource, opts), nil
+	return pgScanTermCandidates(rows), nil
 }
 
-func (tb *PostgresTermBase) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
+func (tb *PostgresTermBase) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
 	keyLen := len([]rune(normalizedSource))
 	minLen := int(float64(keyLen) * 0.7)
 	maxLen := int(float64(keyLen) * 1.3)
@@ -950,7 +885,7 @@ func (tb *PostgresTermBase) queryFuzzyFullScan(ctx context.Context, normalizedSo
 	}
 
 	rows, err := tb.db.QueryContext(ctx, `
-		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+		SELECT `+pgTermSelectCols+`
 		FROM tb_terms t
 		WHERE t.workspace_id = $1 AND t.locale = $2 AND LENGTH(t.text_lower) BETWEEN $3 AND $4
 		LIMIT 500
@@ -960,55 +895,10 @@ func (tb *PostgresTermBase) queryFuzzyFullScan(ctx context.Context, normalizedSo
 	}
 	defer rows.Close()
 
-	return tb.pgScoreFuzzyCandidates(ctx, rows, normalizedSource, opts), nil
+	return pgScanTermCandidates(rows), nil
 }
 
-func (tb *PostgresTermBase) pgScoreFuzzyCandidates(ctx context.Context, rows interface {
-	Next() bool
-	Scan(...any) error
-}, normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
-	type fuzzyCandidate struct {
-		row   pgScanTermRow
-		score float64
-	}
-	var candidates []fuzzyCandidate
-	for rows.Next() {
-		var r pgScanTermRow
-		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note); err != nil {
-			continue
-		}
-
-		score := sievepen.LevenshteinRatio(normalizedSource, fw.NormalizeTerm(r.text))
-		if score >= opts.MinScore && fw.MatchesStatus(model.TermStatus(r.status), opts.StatusFilter) {
-			candidates = append(candidates, fuzzyCandidate{row: r, score: score})
-		}
-	}
-
-	var matches []fw.TermMatch
-	for _, c := range candidates {
-		concept, err := tb.scanConcept(ctx, c.row.conceptID)
-		if err != nil {
-			continue
-		}
-		matches = append(matches, fw.TermMatch{
-			Concept: concept,
-			Term: fw.Term{
-				Text:         c.row.text,
-				Locale:       model.LocaleID(c.row.locale),
-				Status:       model.TermStatus(c.row.status),
-				PartOfSpeech: c.row.pos,
-				Gender:       c.row.gender,
-				Note:         c.row.note,
-			},
-			Score:     c.score,
-			MatchType: model.MatchStrategyFuzzy,
-		})
-	}
-
-	return matches
-}
-
-func (tb *PostgresTermBase) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus) ([]pgTermWithConcept, error) {
+func (tb *PostgresTermBase) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus) ([]fw.LocaleTerm, error) {
 	where := "t.workspace_id = $1 AND t.locale = $2"
 	args := []any{tb.workspaceID, string(locale)}
 	argN := 3
@@ -1034,30 +924,33 @@ func (tb *PostgresTermBase) queryTermsByLocale(ctx context.Context, locale model
 	}
 
 	rows, err := tb.db.QueryContext(ctx, fmt.Sprintf(`
-		SELECT c.id, c.domain, c.definition, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+		SELECT c.id, c.domain, c.definition, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.valid_from, t.valid_to, t.tags
 		FROM tb_terms t JOIN tb_concepts c ON t.workspace_id = c.workspace_id AND t.concept_id = c.id
 		WHERE %s
+		ORDER BY c.id, t.text
 	`, where), args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var results []pgTermWithConcept
+	var results []fw.LocaleTerm
 	for rows.Next() {
-		var cID, domain, definition, text, loc, status, pos, gender, note string
-		if err := rows.Scan(&cID, &domain, &definition, &text, &loc, &status, &pos, &gender, &note); err != nil {
+		var cID, domain, definition, text, loc, status, pos, gender, note, tags string
+		var validFrom, validTo sql.NullTime
+		if err := rows.Scan(&cID, &domain, &definition, &text, &loc, &status, &pos, &gender, &note, &validFrom, &validTo, &tags); err != nil {
 			continue
 		}
-		results = append(results, pgTermWithConcept{
-			concept: fw.Concept{ID: cID, Domain: domain, Definition: definition},
-			term: fw.Term{
+		results = append(results, fw.LocaleTerm{
+			Concept: fw.Concept{ID: cID, Domain: domain, Definition: definition},
+			Term: fw.Term{
 				Text:         text,
 				Locale:       model.LocaleID(loc),
 				Status:       model.TermStatus(status),
 				PartOfSpeech: pos,
 				Gender:       gender,
 				Note:         note,
+				Validity:     pgValidityFromColumns(validFrom, validTo, tags),
 			},
 		})
 	}
@@ -1069,31 +962,31 @@ func (tb *PostgresTermBase) queryTermsByLocale(ctx context.Context, locale model
 
 type pgScanTermRow struct {
 	conceptID, text, locale, status, pos, gender, note string
+	validFrom, validTo                                 sql.NullTime
+	tags                                               string
 }
 
-func (tb *PostgresTermBase) scanTermMatches(ctx context.Context, rows interface {
+// validity rebuilds the term validity from the scanned columns (Postgres
+// TIMESTAMPTZ codec).
+func (r pgScanTermRow) validity() *graph.Validity {
+	return pgValidityFromColumns(r.validFrom, r.validTo, r.tags)
+}
+
+// pgScanTermCandidates scans the shared 10-column term projection into raw
+// candidates. Validity is reconstructed here; the shared fw.LookupTiered
+// applies the scope/status/score filters and hydrates the owning concept.
+func pgScanTermCandidates(rows interface {
 	Next() bool
 	Scan(...any) error
-}, score float64, matchType model.MatchStrategy, opts fw.LookupOptions) []fw.TermMatch {
-	var raw []pgScanTermRow
+}) []fw.TermCandidate {
+	var out []fw.TermCandidate
 	for rows.Next() {
 		var r pgScanTermRow
-		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note); err != nil {
+		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags); err != nil {
 			continue
 		}
-		if fw.MatchesStatus(model.TermStatus(r.status), opts.StatusFilter) {
-			raw = append(raw, r)
-		}
-	}
-
-	var matches []fw.TermMatch
-	for _, r := range raw {
-		concept, err := tb.scanConcept(ctx, r.conceptID)
-		if err != nil {
-			continue
-		}
-		matches = append(matches, fw.TermMatch{
-			Concept: concept,
+		out = append(out, fw.TermCandidate{
+			ConceptID: r.conceptID,
 			Term: fw.Term{
 				Text:         r.text,
 				Locale:       model.LocaleID(r.locale),
@@ -1101,12 +994,11 @@ func (tb *PostgresTermBase) scanTermMatches(ctx context.Context, rows interface 
 				PartOfSpeech: r.pos,
 				Gender:       r.gender,
 				Note:         r.note,
+				Validity:     r.validity(),
 			},
-			Score:     score,
-			MatchType: matchType,
 		})
 	}
-	return matches
+	return out
 }
 
 func nullableString(b []byte) *string {
