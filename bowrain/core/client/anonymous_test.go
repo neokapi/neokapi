@@ -33,7 +33,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, claimToken, err := CreateAnonymousProject(srv.URL, "my-project", "en", []string{"nb", "fr"}, "")
+		projectID, claimToken, err := CreateAnonymousProject(t.Context(), srv.URL, "my-project", "en", []string{"nb", "fr"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_123", projectID)
 		assert.Equal(t, "clm_abc456", claimToken)
@@ -54,7 +54,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, _, err := CreateAnonymousProject(srv.URL, "my-project", "en", nil, "user@example.com")
+		projectID, _, err := CreateAnonymousProject(t.Context(), srv.URL, "my-project", "en", nil, "user@example.com")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_789", projectID)
 	})
@@ -73,7 +73,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, _, err := CreateAnonymousProject(srv.URL, "my-project", "en", nil, "")
+		projectID, _, err := CreateAnonymousProject(t.Context(), srv.URL, "my-project", "en", nil, "")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_dyn", projectID)
 	})
@@ -85,7 +85,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, _, err := CreateAnonymousProject(srv.URL, "my-project", "en", []string{"nb"}, "")
+		_, _, err := CreateAnonymousProject(t.Context(), srv.URL, "my-project", "en", []string{"nb"}, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "HTTP 500")
 	})
@@ -101,7 +101,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, claimToken, err := CreateAnonymousProject(srv.URL+"/", "test", "en", []string{"de"}, "")
+		projectID, claimToken, err := CreateAnonymousProject(t.Context(), srv.URL+"/", "test", "en", []string{"de"}, "")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_456", projectID)
 		assert.Equal(t, "clm_def789", claimToken)
@@ -140,7 +140,7 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, wsSlug, err := CreateAuthenticatedProject(srv.URL, "my-token", "my-project", "en", nil, "")
+		projectID, wsSlug, err := CreateAuthenticatedProject(t.Context(), srv.URL, "my-token", "my-project", "en", nil, "")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_auth_123", projectID)
 		assert.Equal(t, "my-ws", wsSlug, "slug falls back to the resolved workspace when the response omits it")
@@ -163,7 +163,7 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		projectID, wsSlug, err := CreateAuthenticatedProject(srv.URL, "my-token", "my-project", "en", nil, "team-ws")
+		projectID, wsSlug, err := CreateAuthenticatedProject(t.Context(), srv.URL, "my-token", "my-project", "en", nil, "team-ws")
 		require.NoError(t, err)
 		assert.False(t, listed, "an explicit workspace must not trigger workspace resolution")
 		assert.Equal(t, "proj_ws_456", projectID)
@@ -177,7 +177,7 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, _, err := CreateAuthenticatedProject(srv.URL, "bad-token", "my-project", "en", nil, "team-ws")
+		_, _, err := CreateAuthenticatedProject(t.Context(), srv.URL, "bad-token", "my-project", "en", nil, "team-ws")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "HTTP 401")
 	})
@@ -190,7 +190,7 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, _, err := CreateAuthenticatedProject(srv.URL, "my-token", "my-project", "en", nil, "")
+		_, _, err := CreateAuthenticatedProject(t.Context(), srv.URL, "my-token", "my-project", "en", nil, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no workspace available")
 	})
@@ -211,7 +211,7 @@ func TestListWorkspaces(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		workspaces, err := ListWorkspaces(srv.URL, "my-token")
+		workspaces, err := ListWorkspaces(t.Context(), srv.URL, "my-token")
 		require.NoError(t, err)
 		require.Len(t, workspaces, 2)
 		assert.Equal(t, "personal", workspaces[0].Slug)
@@ -225,7 +225,7 @@ func TestListWorkspaces(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, err := ListWorkspaces(srv.URL, "my-token")
+		_, err := ListWorkspaces(t.Context(), srv.URL, "my-token")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "HTTP 401")
 	})
@@ -253,7 +253,7 @@ func TestCreateWorkspace(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		ws, err := CreateWorkspace(srv.URL, "my-token", "My Team", "my-team")
+		ws, err := CreateWorkspace(t.Context(), srv.URL, "my-token", "My Team", "my-team")
 		require.NoError(t, err)
 		assert.Equal(t, "my-team", ws.Slug)
 		assert.Equal(t, "My Team", ws.Name)
@@ -266,7 +266,7 @@ func TestCreateWorkspace(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, err := CreateWorkspace(srv.URL, "my-token", "My Team", "my-team")
+		_, err := CreateWorkspace(t.Context(), srv.URL, "my-token", "My Team", "my-team")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "HTTP 409")
 	})

@@ -65,6 +65,7 @@ func TestReadFeatures_FormsCluster(t *testing.T) {
 	}
 	if cb == nil {
 		t.Fatal("no checkbox block")
+		return
 	}
 	if cb.Translatable || !cb.CheckboxChecked() {
 		t.Errorf("checkbox translatable=%v checked=%v, want false/true", cb.Translatable, cb.CheckboxChecked())

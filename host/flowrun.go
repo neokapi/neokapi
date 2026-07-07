@@ -167,9 +167,7 @@ const flowMetricsIntervalDefault = 200 * time.Millisecond
 // flowFileError; context cancellation is not an error — the run completes
 // early with the files processed so far.
 func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink RunEventSink) (*FlowRunResult, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = ctxOrBackground(ctx)
 	a.InitRegistries()
 
 	if opts.FlowName == "" {
@@ -239,7 +237,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 		a.SourceLang = source
 	}
 	if opts.ProjectPath != "" {
-		bindings, err := a.resolveProjectBindings(cmd, proj, opts.ProjectPath)
+		bindings, err := a.resolveProjectBindings(cmd, proj, opts.ProjectPath) //nolint:contextcheck // ctx flows via the Command (CmdContext), not a detached context
 		if err != nil {
 			return nil, err
 		}

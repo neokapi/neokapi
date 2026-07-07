@@ -140,8 +140,10 @@ func (d *DockerSandbox) Execute(ctx context.Context, req mcpserver.SandboxReques
 		return nil, fmt.Errorf("sandbox create: %w", err)
 	}
 
-	// Ensure cleanup on any exit path.
-	defer d.removeContainer(context.Background(), containerID)
+	// Ensure cleanup on any exit path. Detached from execCtx so a cancelled or
+	// timed-out run still tears the container down (never leak it), while
+	// keeping execCtx's trace/values.
+	defer d.removeContainer(context.WithoutCancel(execCtx), containerID)
 
 	// 2. Copy input files to /workspace if any.
 	if len(req.Files) > 0 {

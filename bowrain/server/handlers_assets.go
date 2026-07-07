@@ -124,11 +124,11 @@ func variantToResponse(v *store.AssetVariant) AssetVariantResponse {
 
 // generateDownloadURL attempts to generate a SAS/pre-signed download URL.
 // Returns empty string if BlobStore is nil or doesn't support pre-signed URLs.
-func (s *Server) generateDownloadURL(blobKey string) string {
+func (s *Server) generateDownloadURL(ctx context.Context, blobKey string) string {
 	if s.BlobStore == nil {
 		return ""
 	}
-	url, err := s.BlobStore.GenerateDownloadURL(context.Background(), blobKey, corestorage.SignOptions{})
+	url, err := s.BlobStore.GenerateDownloadURL(ctx, blobKey, corestorage.SignOptions{})
 	if err != nil {
 		return ""
 	}
@@ -219,7 +219,7 @@ func (s *Server) HandleCreateAsset(c echo.Context) error {
 	}
 
 	resp := assetToResponse(asset)
-	resp.DownloadURL = s.generateDownloadURL(asset.BlobKey)
+	resp.DownloadURL = s.generateDownloadURL(c.Request().Context(), asset.BlobKey)
 	return c.JSON(http.StatusCreated, resp)
 }
 
@@ -241,7 +241,7 @@ func (s *Server) HandleListAssets(c echo.Context) error {
 	result := make([]AssetResponse, len(assets))
 	for i, a := range assets {
 		result[i] = assetToResponse(a)
-		result[i].DownloadURL = s.generateDownloadURL(a.BlobKey)
+		result[i].DownloadURL = s.generateDownloadURL(c.Request().Context(), a.BlobKey)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"assets": result})
@@ -263,7 +263,7 @@ func (s *Server) HandleGetAsset(c echo.Context) error {
 	}
 
 	resp := assetToResponse(asset)
-	resp.DownloadURL = s.generateDownloadURL(asset.BlobKey)
+	resp.DownloadURL = s.generateDownloadURL(c.Request().Context(), asset.BlobKey)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -359,7 +359,7 @@ func (s *Server) HandleCreateVariant(c echo.Context) error {
 	}
 
 	resp := variantToResponse(variant)
-	resp.DownloadURL = s.generateDownloadURL(variant.BlobKey)
+	resp.DownloadURL = s.generateDownloadURL(c.Request().Context(), variant.BlobKey)
 	return c.JSON(http.StatusCreated, resp)
 }
 
@@ -380,7 +380,7 @@ func (s *Server) HandleListVariants(c echo.Context) error {
 	result := make([]AssetVariantResponse, len(variants))
 	for i, v := range variants {
 		result[i] = variantToResponse(v)
-		result[i].DownloadURL = s.generateDownloadURL(v.BlobKey)
+		result[i].DownloadURL = s.generateDownloadURL(c.Request().Context(), v.BlobKey)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"variants": result})

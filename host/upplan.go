@@ -95,9 +95,7 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 // provider calls and writes nothing — not even the block store.
 func (a *App) runUpPlan(cmd Command, proj *project.KapiProject, projectPath string) error {
 	ctx := cmd.Context()
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = ctxOrBackground(ctx)
 
 	// Source language: an explicit --source-lang wins; otherwise the project's
 	// source_language (the flag's static default would shadow it).
@@ -175,9 +173,7 @@ func (a *App) applyPlanProvider(plan *UpPlanOutput) {
 // non-empty.
 func (a *App) UpPlan(ctx context.Context, projectPath, sourceLang string) (*UpPlanOutput, error) {
 	a.InitRegistries()
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = ctxOrBackground(ctx)
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)

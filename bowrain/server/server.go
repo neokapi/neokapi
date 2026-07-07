@@ -428,13 +428,13 @@ func NewServer(cfg Config) *Server {
 	// worker consumes.
 	switch {
 	case cfg.ServiceBusConnection != "":
-		q, err := jobs.NewServiceBusQueue(cfg.ServiceBusConnection, "translation-jobs")
+		q, err := jobs.NewServiceBusQueue(context.Background(), cfg.ServiceBusConnection, "translation-jobs")
 		if err != nil {
 			slog.Warn("failed to connect to Service Bus queue", "error", err)
 		} else {
 			s.JobQueue = q
 		}
-		eq, err := jobs.NewServiceBusQueue(cfg.ServiceBusConnection, "extraction-jobs")
+		eq, err := jobs.NewServiceBusQueue(context.Background(), cfg.ServiceBusConnection, "extraction-jobs")
 		if err != nil {
 			slog.Warn("failed to connect to Service Bus extraction queue", "error", err)
 		} else {
@@ -485,7 +485,7 @@ func NewServer(cfg Config) *Server {
 		s.convergence = newConvergenceOrchestrator(s)
 		// Reconcile zombie runs left 'running' by a crash/restart before
 		// accepting new work, so the one-run guard is never blocked by a dead
-		// row (F3).
+		// row (F3). Startup wiring — no request context exists yet.
 		s.convergence.SweepInterruptedRuns(context.Background())
 		s.subscribeConvergeOnPush()
 	}
@@ -700,6 +700,7 @@ func NewServer(cfg Config) *Server {
 
 	// Initialize admin OIDC verifier (Bowrain AD-018).
 	if cfg.AdminOIDCIssuerURL != "" && cfg.AdminOIDCClientID != "" {
+		// Startup wiring — no request context exists yet.
 		ctx := context.Background()
 		verifier, err := auth.NewOIDCVerifier(ctx, cfg.AdminOIDCIssuerURL, cfg.AdminOIDCClientID)
 		if err != nil {

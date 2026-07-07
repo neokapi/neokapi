@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -69,7 +70,7 @@ func (s *Server) setupAgentQueue(cfg Config) error {
 	}
 
 	// Service Bus sender for bravo-jobs queue.
-	queue, err := jobs.NewServiceBusQueue(cfg.ServiceBusConnection, "bravo-jobs")
+	queue, err := jobs.NewServiceBusQueue(context.Background(), cfg.ServiceBusConnection, "bravo-jobs")
 	if err != nil {
 		return fmt.Errorf("connect to Service Bus (bravo-jobs): %w", err)
 	}

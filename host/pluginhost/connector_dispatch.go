@@ -68,7 +68,7 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 	case "status":
 		callCtx, cancel := rpcCtx()
 		defer cancel()
-		resp, err := sc.Status(callCtx, &pb.StatusRequest{Project: ref})
+		resp, err := sc.Status(callCtx, &pb.StatusRequest{Project: ref}) //nolint:contextcheck // callCtx derives from the caller ctx via the rpcCtx closure
 		if err != nil {
 			return fmt.Errorf("daemon Status: %w", err)
 		}
@@ -86,7 +86,7 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 	case "ls":
 		callCtx, cancel := rpcCtx()
 		defer cancel()
-		resp, err := sc.ListFiles(callCtx, &pb.ListFilesRequest{Project: ref, Paths: rest})
+		resp, err := sc.ListFiles(callCtx, &pb.ListFilesRequest{Project: ref, Paths: rest}) //nolint:contextcheck // callCtx derives from the caller ctx via the rpcCtx closure
 		if err != nil {
 			return fmt.Errorf("daemon ListFiles: %w", err)
 		}
@@ -104,7 +104,7 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		positional := parseFlags(flags, rest)
 		callCtx, cancel := rpcCtx()
 		defer cancel()
-		resp, err := sc.Push(callCtx, &pb.PushRequest{
+		resp, err := sc.Push(callCtx, &pb.PushRequest{ //nolint:contextcheck // callCtx derives from the caller ctx via the rpcCtx closure
 			Project: ref,
 			Paths:   positional,
 			Force:   force,
@@ -127,7 +127,7 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		_ = parseFlags(flags, rest)
 		callCtx, cancel := rpcCtx()
 		defer cancel()
-		resp, err := sc.Pull(callCtx, &pb.PullRequest{
+		resp, err := sc.Pull(callCtx, &pb.PullRequest{ //nolint:contextcheck // callCtx derives from the caller ctx via the rpcCtx closure
 			Project: ref,
 			Locales: locales,
 			Force:   force,

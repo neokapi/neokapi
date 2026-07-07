@@ -40,14 +40,14 @@ type TokenInfo struct {
 }
 
 // CreateToken creates a new API token in the given workspace.
-func CreateToken(serverURL, token, workspace, name string, expireDays int) (*CreateTokenResponse, error) {
+func CreateToken(ctx context.Context, serverURL, token, workspace, name string, expireDays int) (*CreateTokenResponse, error) {
 	body, err := json.Marshal(CreateTokenRequest{Name: name, ExpireDays: expireDays})
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
 	u := fmt.Sprintf("%s/api/v1/%s/tokens", strings.TrimRight(serverURL, "/"), workspace)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, u, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -73,9 +73,9 @@ func CreateToken(serverURL, token, workspace, name string, expireDays int) (*Cre
 }
 
 // ListTokens returns all API tokens for the given workspace.
-func ListTokens(serverURL, token, workspace string) ([]TokenInfo, error) {
+func ListTokens(ctx context.Context, serverURL, token, workspace string) ([]TokenInfo, error) {
 	u := fmt.Sprintf("%s/api/v1/%s/tokens", strings.TrimRight(serverURL, "/"), workspace)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -100,9 +100,9 @@ func ListTokens(serverURL, token, workspace string) ([]TokenInfo, error) {
 }
 
 // DeleteToken deletes an API token by ID.
-func DeleteToken(serverURL, token, workspace, tokenID string) error {
+func DeleteToken(ctx context.Context, serverURL, token, workspace, tokenID string) error {
 	u := fmt.Sprintf("%s/api/v1/%s/tokens/%s", strings.TrimRight(serverURL, "/"), workspace, tokenID)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, u, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}

@@ -816,7 +816,7 @@ func (a *App) verifyQA(ctx context.Context, units []VerifyUnit) (verifyGateResul
 		qa := coretools.NewQACheckTool(cfg)
 		for _, b := range blocks {
 			RunCheckTool(ctx, qa, b)
-			for _, f := range check.Findings(tool.NewBlockView(b)) {
+			for _, f := range check.Findings(tool.NewBlockViewWithContext(ctx, b)) {
 				failing := qaFindingFails(f)
 				sev := verifySeverity(f.Severity)
 				if failing {

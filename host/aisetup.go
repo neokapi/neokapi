@@ -51,9 +51,7 @@ const aiDetectOllamaTimeout = 2 * time.Second
 // DetectAIOptions gathers the machine's AI options. OllamaBaseURL "" probes
 // the default localhost port. Safe with a nil credential store or config.
 func (a *App) DetectAIOptions(ctx context.Context, ollamaBaseURLParam string) AIDetection {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = ctxOrBackground(ctx)
 	var det AIDetection
 
 	det.ClaudeCodePath, det.ClaudeCode = aiprovider.ClaudeCodeBinaryPath()

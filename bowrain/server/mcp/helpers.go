@@ -1,18 +1,11 @@
 package mcp
 
 import (
-	"context"
 	"strings"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 )
-
-// bgCtx returns a background context. Used by resource handlers that don't
-// receive a context from the MCP SDK's resource handler interface.
-func bgCtx() context.Context {
-	return context.Background()
-}
 
 // extractParam extracts the value after a prefix from a URI.
 // For "brand://profiles/abc123", extractParam(uri, "brand://profiles/") returns "abc123".

@@ -20,9 +20,7 @@ import (
 // files replay from the cache instead of re-parsing, exactly like the CLI's
 // verify/status path.
 func (a *App) ReadBlocksForCheck(ctx context.Context, path, formatName, sourceLang string) ([]*model.Block, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = ctxOrBackground(ctx)
 	return a.readBlocksAs(ctx, path, formatName, sourceLang)
 }
 

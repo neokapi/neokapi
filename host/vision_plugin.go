@@ -50,7 +50,7 @@ type visionEngine struct {
 func newVisionEngine() (vision.Engine, error) { return &visionEngine{}, nil }
 
 func (e *visionEngine) OCR(ctx context.Context, imagePath string, opts vision.OCROptions) (*vision.OCRResult, error) {
-	e.once.Do(func() {
+	e.once.Do(func() { //nolint:contextcheck // the warm plugin daemon outlives any single request; Close owns its lifecycle
 		if e.transport == nil {
 			e.transport, e.initErr = e.dial()
 		}
@@ -66,7 +66,7 @@ func (e *visionEngine) OCR(ctx context.Context, imagePath string, opts vision.OC
 
 // Layout implements vision.LayoutEngine, delegating to the plugin.
 func (e *visionEngine) Layout(ctx context.Context, imagePath string, opts vision.LayoutOptions) ([]vision.Region, error) {
-	e.once.Do(func() {
+	e.once.Do(func() { //nolint:contextcheck // the warm plugin daemon outlives any single request; Close owns its lifecycle
 		if e.transport == nil {
 			e.transport, e.initErr = e.dial()
 		}

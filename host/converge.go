@@ -177,10 +177,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		}
 	}
 
-	ctx := cmd.Context()
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx := CmdContext(cmd)
 
 	// Project context + content sources (the flow reads source, writes per-locale
 	// targets via the project's target template).
@@ -341,7 +338,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			return err
 		}
 		d := res.Final.Detail.(derivedState)
-		return a.finishConverge(cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales, d.excl, opts, emitter.Emit)
+		return a.finishConverge(ctx, cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales, d.excl, opts, emitter.Emit)
 	})
 }
 
@@ -503,14 +500,10 @@ func producedUnits(cov []LocaleCoverage) int {
 // are ALL shippable has its localized files written from the project block
 // store via the shared merge/materialize path; parked locales are skipped —
 // their content isn't at the bar yet.
-func (a *App) finishConverge(cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *CheckExclusions, opts ConvergeOptions, emit func(convergence.Event)) error {
+func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *CheckExclusions, opts ConvergeOptions, emit func(convergence.Event)) error {
 	out := buildConvergeOutput(flowName, passes, cov, locales, excl)
 
 	if opts.materialize || proj.Defaults.ResolvedMaterialize() == project.MaterializeOnConverge {
-		ctx := cmd.Context()
-		if ctx == nil {
-			ctx = context.Background()
-		}
 		for i := range out.Locales {
 			lc := &out.Locales[i]
 			if !lc.Shippable {

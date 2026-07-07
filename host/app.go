@@ -3,6 +3,7 @@
 package host
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -372,4 +373,16 @@ func (a *App) Shutdown() {
 // is torn down by App.Shutdown.
 func (a *App) DaemonPool() *pluginhost.DaemonPool {
 	return a.ensurePluginRuntime().DaemonPool()
+}
+
+// ctxOrBackground returns ctx unless it is nil, in which case it falls back
+// to a fresh background context. Host App entry points accept nil from
+// embedded/desktop callers (Wails bindings, tests) that have no request
+// context; the fallback is a deliberate API convenience, not a detached
+// context.
+func ctxOrBackground(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
 }

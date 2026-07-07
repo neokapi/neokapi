@@ -332,7 +332,7 @@ func (t *AIEntityExtractTool) processBatched(ctx context.Context, in <-chan *mod
 			if ents, ok := nerResults[globalIdx]; ok {
 				nerEnts = ents
 			}
-			t.attachAnnotationsFromBatch(tool.NewBlockView(entry.block), nerEnts, llmResult, entry.blockID)
+			t.attachAnnotationsFromBatch(tool.NewBlockViewWithContext(ctx, entry.block), nerEnts, llmResult, entry.blockID)
 		}
 		entryOffset += len(batch)
 	}

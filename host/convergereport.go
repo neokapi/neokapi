@@ -25,9 +25,7 @@ import (
 // report is always current with the files on disk.
 func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang string) (*ConvergenceReport, error) {
 	a.InitRegistries()
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = ctxOrBackground(ctx)
 
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
@@ -153,9 +151,7 @@ func (a *App) ApplyReviewDecision(ctx context.Context, projectPath, sourceLang s
 // classes).
 func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note, by string) (bool, error) {
 	a.InitRegistries()
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = ctxOrBackground(ctx)
 	status, err := decisionStatus(decision)
 	if err != nil {
 		return false, err
@@ -259,9 +255,7 @@ func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, 
 // unit keys that no longer resolve are skipped (content moved on), not errors.
 func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, locale, file string, reviews map[string]state.AIReview) (int, error) {
 	a.InitRegistries()
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = ctxOrBackground(ctx)
 	if len(reviews) == 0 {
 		return 0, nil
 	}
@@ -367,9 +361,7 @@ type ReviewUnitInfo struct {
 // state. It is the read leg agents pair with ApplyReviewDecisionAs.
 func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef) (*ReviewUnitInfo, error) {
 	a.InitRegistries()
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx = ctxOrBackground(ctx)
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)

@@ -32,7 +32,7 @@ func TestRunQAOnBlock_MapsFindingsToWireShape(t *testing.T) {
 	}
 	block.SetTargetText(model.LocaleFrench, "Bonjour  le monde")
 
-	issues := runQAOnBlock(block, model.LocaleFrench)
+	issues := runQAOnBlock(t.Context(), block, model.LocaleFrench)
 	require.NotEmpty(t, issues)
 
 	byType := map[string]string{} // category -> wire severity
@@ -61,7 +61,7 @@ func TestRunQAOnBlock_CleanBlock(t *testing.T) {
 	block := model.NewBlock("b1", "Hello world")
 	block.SetTargetText(model.LocaleFrench, "Bonjour le monde")
 
-	issues := runQAOnBlock(block, model.LocaleFrench)
+	issues := runQAOnBlock(t.Context(), block, model.LocaleFrench)
 	assert.Empty(t, issues)
 	assert.NotNil(t, issues, "must be a non-nil empty slice so JSON encodes as []")
 }

@@ -50,7 +50,10 @@ func (a *App) reconnectLoop(ctx context.Context) {
 
 		if a.tryReconnect() {
 			slog.Info("bowrain: reconnected to server")
-			a.replayPendingChanges()
+			// Drains the offline queue on the reconnect loop's own background
+			// clock; the remote client's methods are ctx-less (threading them is
+			// separate desktop-client work, P07), so no request context applies.
+			a.replayPendingChanges() //nolint:contextcheck // background reconnect replay against the ctx-less desktop remote client (P07)
 			// Signal the frontend to force a full refresh of every open view.
 			// While offline we may have missed any number of external changes
 			// (other users, kapi push, connector sync, automations); replaying

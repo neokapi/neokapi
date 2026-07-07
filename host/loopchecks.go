@@ -74,7 +74,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, units
 
 	// Glossary per locale, resolved once (opens the termbase).
 	glossaryByLocale := map[string][]coretools.GlossaryEntry{}
-	glossaryFor := func(locale string) ([]coretools.GlossaryEntry, error) {
+	glossaryFor := func(locale string) ([]coretools.GlossaryEntry, error) { //nolint:contextcheck // ctx flows via the Command (CmdContext), not a detached context
 		if g, ok := glossaryByLocale[locale]; ok {
 			return g, nil
 		}
@@ -124,7 +124,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, units
 				continue
 			}
 			RunCheckTool(ctx, qa, b)
-			fails := slices.ContainsFunc(check.Findings(tool.NewBlockView(b)), qaFindingFails)
+			fails := slices.ContainsFunc(check.Findings(tool.NewBlockViewWithContext(ctx, b)), qaFindingFails)
 			if !fails && termTool != nil {
 				RunCheckTool(ctx, termTool, b)
 				if b.Properties[coretools.PropTermCheckPassed] == "false" {

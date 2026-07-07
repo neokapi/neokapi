@@ -29,7 +29,7 @@ func TestClientServerSyncContract(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. ListWorkspaces — GET /api/v1/workspaces.
-	wss, err := client.ListWorkspaces(ts.URL, token)
+	wss, err := client.ListWorkspaces(ctx, ts.URL, token)
 	require.NoError(t, err, "ListWorkspaces must hit a real route")
 	require.NotEmpty(t, wss, "the test user owns one workspace")
 	var haveTestWS bool
@@ -44,7 +44,7 @@ func TestClientServerSyncContract(t *testing.T) {
 	//    workspace-scoped /api/v1/:ws/projects (AD-011). PRE-FIX this 404'd
 	//    because the client used the non-existent flat /api/v1/projects.
 	projectID, wsSlug, err := client.CreateAuthenticatedProject(
-		ts.URL, token, "Integration Project", "en", []string{"fr", "de"}, "")
+		ctx, ts.URL, token, "Integration Project", "en", []string{"fr", "de"}, "")
 	require.NoError(t, err, "create must hit the workspace-scoped route, not a flat 404")
 	require.NotEmpty(t, projectID)
 	assert.Equal(t, "test", wsSlug)

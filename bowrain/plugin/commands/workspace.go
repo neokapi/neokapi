@@ -30,7 +30,7 @@ var workspaceListCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		workspaces, err := client.ListWorkspaces(serverURL, token)
+		workspaces, err := client.ListWorkspaces(cmd.Context(), serverURL, token)
 		if err != nil {
 			return err
 		}
@@ -63,7 +63,7 @@ var workspaceCreateCmd = &cobra.Command{
 		if slug == "" {
 			slug = toSlug(name)
 		}
-		ws, err := client.CreateWorkspace(serverURL, token, name, slug)
+		ws, err := client.CreateWorkspace(cmd.Context(), serverURL, token, name, slug)
 		if err != nil {
 			return err
 		}

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -74,7 +75,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// Non-interactive: flags provided or stdin is not a TTY.
 	if initAnonymous || initEmail != "" || initServerURL != "" || initProjectID != "" || !isTTY() {
-		result, err = runInitNonInteractive(cwd)
+		result, err = runInitNonInteractive(cmd.Context(), cwd)
 	} else {
 		result, err = runInitInteractive(cmd, cwd)
 	}
@@ -179,7 +180,7 @@ func requireBowrain(r *project.Recipe) {
 	}
 }
 
-func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
+func runInitNonInteractive(ctx context.Context, cwd string) (*output.InitOutput, error) {
 	recipe := newRecipeFromFlags("")
 
 	// If --project is specified, use it directly (requires auth).
@@ -211,7 +212,7 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 		if projectName == "" {
 			projectName = filepath.Base(cwd)
 		}
-		return runInitAnonymous(cwd, recipe, serverURL, projectName, initEmail)
+		return runInitAnonymous(ctx, cwd, recipe, serverURL, projectName, initEmail)
 	}
 
 	// Default non-interactive: use auth if available, otherwise set server URL if provided.
@@ -231,17 +232,19 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 	if projectName == "" {
 		projectName = filepath.Base(cwd)
 	}
-	return runInitCreateAuthenticated(cwd, recipe, auth, "", projectName)
+	return runInitCreateAuthenticated(ctx, cwd, recipe, auth, "", projectName)
 }
 
 func runInitInteractive(cmd *cobra.Command, cwd string) (*output.InitOutput, error) {
+	ctx := cmd.Context()
+
 	// Check if already logged in.
 	stored, authErr := loadAuth()
 	serverURL := resolveServerURL()
 
 	if authErr == nil && stored.ServerURL != "" {
 		// Already logged in — select workspace first, then project details.
-		wsSlug, err := selectWorkspace(stored.ServerURL, stored.AccessToken)
+		wsSlug, err := selectWorkspace(ctx, stored.ServerURL, stored.AccessToken)
 		if err != nil {
 			return nil, err
 		}
@@ -270,7 +273,7 @@ func runInitInteractive(cmd *cobra.Command, cwd string) (*output.InitOutput, err
 		}
 
 		recipe := newRecipeFromFlags(sourceLocale)
-		return runInitCreateAuthenticated(cwd, recipe, stored, wsSlug, projectName)
+		return runInitCreateAuthenticated(ctx, cwd, recipe, stored, wsSlug, projectName)
 	}
 
 	// Not logged in — show menu.
@@ -298,9 +301,9 @@ func runInitInteractive(cmd *cobra.Command, cwd string) (*output.InitOutput, err
 	case "signin":
 		return runInitSignIn(cmd, cwd, serverURL)
 	case "email":
-		return runInitEmailClaim(cwd, serverURL)
+		return runInitEmailClaim(ctx, cwd, serverURL)
 	case "anonymous":
-		return runInitAnonymousInteractive(cwd, serverURL)
+		return runInitAnonymousInteractive(ctx, cwd, serverURL)
 	case "local":
 		return runInitLocal(cwd)
 	default:
@@ -316,7 +319,7 @@ func runInitSignIn(cmd *cobra.Command, cwd, serverURL string) (*output.InitOutpu
 	}
 
 	// Select workspace first, then project details.
-	wsSlug, err := selectWorkspace(stored.ServerURL, stored.AccessToken)
+	wsSlug, err := selectWorkspace(cmd.Context(), stored.ServerURL, stored.AccessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -344,11 +347,11 @@ func runInitSignIn(cmd *cobra.Command, cwd, serverURL string) (*output.InitOutpu
 	}
 
 	recipe := newRecipeFromFlags(sourceLocale)
-	return runInitCreateAuthenticated(cwd, recipe, stored, wsSlug, projectName)
+	return runInitCreateAuthenticated(cmd.Context(), cwd, recipe, stored, wsSlug, projectName)
 }
 
 // runInitEmailClaim creates an anonymous project and sends the claim email.
-func runInitEmailClaim(cwd, serverURL string) (*output.InitOutput, error) {
+func runInitEmailClaim(ctx context.Context, cwd, serverURL string) (*output.InitOutput, error) {
 	dirName := filepath.Base(cwd)
 	var projectName, sourceLocale, email string
 
@@ -381,11 +384,11 @@ func runInitEmailClaim(cwd, serverURL string) (*output.InitOutput, error) {
 	}
 
 	recipe := newRecipeFromFlags(sourceLocale)
-	return runInitAnonymous(cwd, recipe, serverURL, projectName, email)
+	return runInitAnonymous(ctx, cwd, recipe, serverURL, projectName, email)
 }
 
 // runInitAnonymousInteractive creates an anonymous project (no email).
-func runInitAnonymousInteractive(cwd, serverURL string) (*output.InitOutput, error) {
+func runInitAnonymousInteractive(ctx context.Context, cwd, serverURL string) (*output.InitOutput, error) {
 	dirName := filepath.Base(cwd)
 	var projectName, sourceLocale string
 
@@ -409,7 +412,7 @@ func runInitAnonymousInteractive(cwd, serverURL string) (*output.InitOutput, err
 	}
 
 	recipe := newRecipeFromFlags(sourceLocale)
-	return runInitAnonymous(cwd, recipe, serverURL, projectName, "")
+	return runInitAnonymous(ctx, cwd, recipe, serverURL, projectName, "")
 }
 
 func runInitLocal(cwd string) (*output.InitOutput, error) {
@@ -442,7 +445,7 @@ func runInitLocal(cwd string) (*output.InitOutput, error) {
 
 // runInitAnonymous creates an anonymous project on the server.
 // If email is non-empty, the server sends a claim email.
-func runInitAnonymous(cwd string, recipe *project.Recipe, serverURL, projectName, email string) (*output.InitOutput, error) {
+func runInitAnonymous(ctx context.Context, cwd string, recipe *project.Recipe, serverURL, projectName, email string) (*output.InitOutput, error) {
 	if recipe.Defaults.SourceLanguage == "" {
 		recipe.Defaults.SourceLanguage = "en"
 	}
@@ -455,6 +458,7 @@ func runInitAnonymous(cwd string, recipe *project.Recipe, serverURL, projectName
 	fmt.Printf("Creating project on %s...\n", serverURL)
 
 	projectID, claimToken, err := client.CreateAnonymousProject(
+		ctx,
 		serverURL,
 		projectName,
 		string(recipe.Defaults.SourceLanguage),
@@ -493,7 +497,7 @@ func runInitAnonymous(cwd string, recipe *project.Recipe, serverURL, projectName
 }
 
 // runInitCreateAuthenticated creates a project on the server using existing auth.
-func runInitCreateAuthenticated(cwd string, recipe *project.Recipe, auth *config.StoredAuth, workspace, projectName string) (*output.InitOutput, error) {
+func runInitCreateAuthenticated(ctx context.Context, cwd string, recipe *project.Recipe, auth *config.StoredAuth, workspace, projectName string) (*output.InitOutput, error) {
 	if recipe.Defaults.SourceLanguage == "" {
 		recipe.Defaults.SourceLanguage = "en"
 	}
@@ -506,6 +510,7 @@ func runInitCreateAuthenticated(cwd string, recipe *project.Recipe, auth *config
 	fmt.Printf("Creating project on %s...\n", auth.ServerURL)
 
 	projectID, workspaceSlug, err := client.CreateAuthenticatedProject(
+		ctx,
 		auth.ServerURL,
 		auth.AccessToken,
 		projectName,
@@ -524,8 +529,8 @@ func runInitCreateAuthenticated(cwd string, recipe *project.Recipe, auth *config
 
 // selectWorkspace prompts the user to pick a workspace if multiple are
 // available. If only one workspace exists it is returned automatically.
-func selectWorkspace(serverURL, token string) (string, error) {
-	workspaces, err := client.ListWorkspaces(serverURL, token)
+func selectWorkspace(ctx context.Context, serverURL, token string) (string, error) {
+	workspaces, err := client.ListWorkspaces(ctx, serverURL, token)
 	if err != nil {
 		// Non-fatal: server may not support workspaces yet.
 		return "", nil
@@ -558,14 +563,14 @@ func selectWorkspace(serverURL, token string) (string, error) {
 	}
 
 	if selected == "_create_" {
-		return createWorkspace(serverURL, token)
+		return createWorkspace(ctx, serverURL, token)
 	}
 	return selected, nil
 }
 
 // createWorkspace prompts for a workspace name, derives a slug, creates it
 // on the server, and returns the new workspace's slug.
-func createWorkspace(serverURL, token string) (string, error) {
+func createWorkspace(ctx context.Context, serverURL, token string) (string, error) {
 	var name string
 	err := huh.NewForm(
 		huh.NewGroup(
@@ -587,7 +592,7 @@ func createWorkspace(serverURL, token string) (string, error) {
 	slug := toSlug(name)
 
 	fmt.Printf("Creating workspace %q (%s)...\n", name, slug)
-	ws, err := client.CreateWorkspace(serverURL, token, name, slug)
+	ws, err := client.CreateWorkspace(ctx, serverURL, token, name, slug)
 	if err != nil {
 		return "", fmt.Errorf("create workspace: %w", err)
 	}

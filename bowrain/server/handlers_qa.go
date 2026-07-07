@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -52,7 +53,7 @@ func (s *Server) HandleQACheckBlock(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	issues := runQAOnBlock(sb.Block, model.LocaleID(locale))
+	issues := runQAOnBlock(c.Request().Context(), sb.Block, model.LocaleID(locale))
 	return c.JSON(http.StatusOK, issues)
 }
 
@@ -84,9 +85,10 @@ func (s *Server) HandleQACheckFile(c echo.Context) error {
 	}
 
 	targetLocale := model.LocaleID(locale)
+	ctx := c.Request().Context()
 	results := make([]FileQAResultResponse, 0, len(storedBlocks))
 	for _, sb := range storedBlocks {
-		issues := runQAOnBlock(sb.Block, targetLocale)
+		issues := runQAOnBlock(ctx, sb.Block, targetLocale)
 		results = append(results, FileQAResultResponse{
 			BlockID: sb.Block.ID,
 			Issues:  issues,
@@ -97,7 +99,7 @@ func (s *Server) HandleQACheckFile(c echo.Context) error {
 }
 
 // runQAOnBlock runs the QA check tool on a single block and returns issues.
-func runQAOnBlock(block *model.Block, locale model.LocaleID) []QAIssueResponse {
+func runQAOnBlock(ctx context.Context, block *model.Block, locale model.LocaleID) []QAIssueResponse {
 	cfg := tools.NewQACheckConfig(locale)
 	qaTool := tools.NewQACheckTool(cfg)
 
@@ -107,11 +109,11 @@ func runQAOnBlock(block *model.Block, locale model.LocaleID) []QAIssueResponse {
 	}
 
 	// Process through the tool (ignoring error since the tool is deterministic).
-	_, _ = qaTool.Apply(part)
+	_, _ = qaTool.ApplyContext(ctx, part)
 
 	// Read the unified findings the tool recorded and map them onto the stable
 	// wire shape ({type, severity, message}) the editor's Problems panel expects.
-	findings := check.Findings(tool.NewBlockView(block))
+	findings := check.Findings(tool.NewBlockViewWithContext(ctx, block))
 	if len(findings) == 0 {
 		return []QAIssueResponse{}
 	}

@@ -61,6 +61,8 @@ func (s *Server) loadStoredAutomationRules() {
 		return
 	}
 
+	// Startup wiring: runs once while the server is being constructed, before
+	// any request exists, so a fresh background context is correct here.
 	ctx := context.Background()
 	projects, err := s.ContentStore.ListProjects(ctx)
 	if err != nil {
@@ -106,6 +108,8 @@ func (s *Server) executeAutomationAction(action event.AutomationAction, ev plate
 			status = "failed"
 			errMsg = err.Error()
 		}
+		// Automation-engine callback: event-driven background work with no
+		// request context in scope; the history record must always be written.
 		_ = s.AutomationRuleStore.RecordExecution(context.Background(), &event.HistoryEntry{
 			ID:        id.New(),
 			ProjectID: ev.ProjectID,
@@ -389,6 +393,8 @@ func (s *Server) executeNotifyAction(action event.AutomationAction, ev platev.Ev
 	}
 	body := action.Config["body"]
 
+	// Automation action: event-driven background work with no request context
+	// in scope; bounded by its own timeout.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	n := &bstore.Notification{
