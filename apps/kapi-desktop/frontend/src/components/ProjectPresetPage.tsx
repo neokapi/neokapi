@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Sparkles, SkipForward } from "lucide-react";
 import { Badge, ActionCard } from "@neokapi/ui-primitives";
 import type { KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 
 export interface ProjectPresetPageProps {
   tabID: string;
@@ -18,16 +20,11 @@ export function ProjectPresetPage({
   onSkip,
 }: ProjectPresetPageProps) {
   const [applying, setApplying] = useState(false);
-  const [presets, setPresets] = useState<Array<{ name: string; description: string }>>([]);
-
-  useEffect(() => {
-    api
-      .listPresets()
-      .then((p) => {
-        if (p) setPresets(p);
-      })
-      .catch(() => {});
-  }, []);
+  const presetsQuery = useQuery({
+    queryKey: qk.presets(),
+    queryFn: () => api.listPresets(),
+  });
+  const presets = presetsQuery.data ?? [];
 
   const detected = presets.find((p) => p.name === detectedPreset);
   const others = presets.filter((p) => p.name !== detectedPreset);

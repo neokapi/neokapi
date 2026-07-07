@@ -67,6 +67,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.3.1
         version: 4.3.1(@voidzero-dev/vite-plus-core@0.2.1(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(typescript@6.0.3))
+      '@tanstack/react-query':
+        specifier: 5.94.5
+        version: 5.94.5(react@19.2.7)
       '@tanstack/react-virtual':
         specifier: 3.14.5
         version: 3.14.5(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1058,6 +1061,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.0.0
         version: 4.3.0(@voidzero-dev/vite-plus-core@0.2.1(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(typescript@6.0.3))
+      '@tanstack/react-query':
+        specifier: 5.94.5
+        version: 5.94.5(react@19.2.7)
       react:
         specifier: ^19.0.0
         version: 19.2.7

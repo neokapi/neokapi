@@ -5,8 +5,29 @@ import {
   neokapiGlobalType,
   type NeokapiStorybookOptions,
 } from "@neokapi/kapi-react/storybook";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { themes } from "storybook/theming";
 import React from "react";
+
+/**
+ * Provide a react-query client to every story.
+ *
+ * Desktop pages (and any component that reads server state via react-query)
+ * need a QueryClientProvider in the tree. Stories typically pre-load their data
+ * through props, so queries stay disabled — but the provider must exist for the
+ * hooks to mount. A fresh client per preview keeps stories isolated; retries are
+ * off so the empty (no-Wails) state renders immediately.
+ */
+export function withQueryClient(Story: React.ComponentType) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
+  });
+  return (
+    <QueryClientProvider client={client}>
+      <Story />
+    </QueryClientProvider>
+  );
+}
 
 /**
  * Wraps each story in a themed container so the correct theme surface
@@ -81,6 +102,7 @@ export function createPreview(options: CreatePreviewOptions = {}): Preview {
       }),
     },
     decorators: [
+      withQueryClient,
       ...extraDecorators,
       ...(i18n ? [neokapiDecorator(i18n)] : []),
       ThemeDecorator,

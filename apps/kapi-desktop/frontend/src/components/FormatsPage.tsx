@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/kapi-react/runtime";
-import { useWailsEvent } from "../hooks/useWailsEvent";
+import { qk } from "../lib/queryKeys";
+import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -60,41 +62,36 @@ export function FormatsPage({
   presets: propPresets,
   forceLoading = false,
 }: FormatsPageProps = {}) {
-  const [formats, setFormats] = useState<FormatInfo[]>(propFormats ?? []);
-  const [loading, setLoading] = useState(forceLoading || !propFormats);
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [docs] = useState<PluginDocs | null>(propDocs ?? null);
-  const [docsSummary, setDocsSummary] = useState<PluginDocsSummary | null>(null);
 
   const { showError } = useError();
 
+  // Server state via react-query: the Wails bindings are the query fns. Props
+  // pre-load the data in Storybook, so the queries stay disabled there.
+  const formatsQuery = useQuery({
+    queryKey: qk.formats(),
+    queryFn: () => api.listFormats(),
+    enabled: !propFormats && !forceLoading,
+  });
+  const docsSummaryQuery = useQuery({
+    queryKey: qk.pluginDocsSummary(),
+    queryFn: () => api.getPluginDocsSummary(),
+    enabled: !propFormats && !forceLoading && !propDocs,
+  });
+
+  const formats = propFormats ?? formatsQuery.data ?? [];
+  const docsSummary: PluginDocsSummary | null = docsSummaryQuery.data ?? null;
+  const loading = forceLoading || formatsQuery.isLoading;
+
+  // Surface load failures through the shared error banner.
   useEffect(() => {
-    if (propFormats || forceLoading) return;
-    Promise.all([api.listFormats(), propDocs ? Promise.resolve(null) : api.getPluginDocsSummary()])
-      .then(([f, summary]) => {
-        if (f) setFormats(f);
-        if (summary) setDocsSummary(summary);
-      })
-      .catch((err) => showError("Failed to load formats", err))
-      .finally(() => setLoading(false));
-  }, [showError, propDocs, propFormats]);
+    if (formatsQuery.error) showError("Failed to load formats", formatsQuery.error);
+  }, [formatsQuery.error, showError]);
 
   // Refresh when plugins change (formats may have been added/removed).
-  useWailsEvent("registries-changed", () => {
-    api
-      .listFormats()
-      .then((f) => {
-        if (f) setFormats(f);
-      })
-      .catch(() => {});
-    api
-      .getPluginDocsSummary()
-      .then((s) => {
-        if (s) setDocsSummary(s);
-      })
-      .catch(() => {});
-  });
+  useInvalidateOnEvent("registries-changed", [qk.formats(), qk.pluginDocsSummary()]);
 
   // Total documented count for display
   const documentedCount = propDocs
@@ -353,9 +350,6 @@ function FormatDetail({
   propPresets?: PresetInfoItem[];
   onBack: () => void;
 }) {
-  const [schema, setSchema] = useState<ComponentSchema | null>(propSchema ?? null);
-  const [presets, setPresets] = useState<PresetInfoItem[]>(propPresets ?? []);
-  const [loadingSchema, setLoadingSchema] = useState(!propSchema);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("editor");
@@ -373,27 +367,44 @@ function FormatDetail({
   const [runnerParts, setRunnerParts] = useState<FormatPartInfo[] | null>(null);
   const [runnerLoading, setRunnerLoading] = useState(false);
 
-  // Filter documentation — pre-loaded (Storybook) or fetched on demand
-  const [filterDoc, setFilterDoc] = useState<FilterDoc | undefined>(() =>
-    resolveFilterDoc(formatName, docs),
-  );
-
   // Native file/folder dialogs + credential vault for schema-form path /
   // credential widgets.
   const schemaHost = useSchemaFormHost();
 
   const { showError } = useError();
+  const qc = useQueryClient();
 
-  // Fetch filter doc on demand if not pre-loaded
+  // Schema, presets and filter doc as react-query reads (Wails bindings as
+  // query fns). Props pre-load these in Storybook, disabling the queries there.
+  const schemaQuery = useQuery({
+    queryKey: qk.formatSchema(formatName),
+    queryFn: () => api.getFormatSchema(formatName),
+    enabled: !propSchema,
+  });
+  const presetsQuery = useQuery({
+    queryKey: qk.formatPresets(formatName),
+    queryFn: () => api.listFormatPresets(formatName),
+    enabled: !propPresets,
+  });
+  const filterDocQuery = useQuery({
+    queryKey: qk.filterDoc(formatName),
+    queryFn: () => api.getFilterDoc(formatName),
+    enabled: !docs,
+  });
+
+  const schema: ComponentSchema | null =
+    propSchema ?? (schemaQuery.data as ComponentSchema | null) ?? null;
+  const presets: PresetInfoItem[] =
+    propPresets ?? (presetsQuery.data as PresetInfoItem[] | null) ?? [];
+  const loadingSchema = !propSchema && schemaQuery.isLoading;
+  // Pre-loaded docs win; otherwise the on-demand fetch fills it in.
+  const filterDoc: FilterDoc | undefined =
+    resolveFilterDoc(formatName, docs) ?? filterDocQuery.data ?? undefined;
+
+  // Surface schema load failures through the shared error banner.
   useEffect(() => {
-    if (docs) return; // Already have pre-loaded docs
-    api
-      .getFilterDoc(formatName)
-      .then((d) => {
-        if (d) setFilterDoc(d);
-      })
-      .catch(() => {});
-  }, [formatName, docs]);
+    if (schemaQuery.error) showError("Failed to load format details", schemaQuery.error);
+  }, [schemaQuery.error, showError]);
 
   // Get preset values for modified-from-preset indicator
   const presetValues = useMemo(() => {
@@ -402,26 +413,10 @@ function FormatDetail({
     return preset?.config;
   }, [selectedPreset, presets]);
 
-  // Load schema and presets (skip if pre-loaded via props)
-  const loadPresets = useCallback(() => {
-    if (propPresets) return Promise.resolve();
-    return api.listFormatPresets(formatName).then((p) => {
-      if (p) setPresets(p as PresetInfoItem[]);
-    });
-  }, [formatName, propPresets]);
-
-  useEffect(() => {
-    if (propSchema) return;
-    setLoadingSchema(true);
-    Promise.all([api.getFormatSchema(formatName), loadPresets()])
-      .then(([s]) => {
-        if (s) setSchema(s as ComponentSchema);
-      })
-      .catch((err) => showError("Failed to load format details", err))
-      .finally(() => setLoadingSchema(false));
-  }, [formatName, showError, loadPresets, propSchema]);
-
-  // Phase 3: Update YAML when switching to YAML tab or config changes
+  // Phase 3: Update YAML when switching to YAML tab or config changes. This is a
+  // live, two-way derive of editable client state (the config the user edits in
+  // the textarea), not cached server state — so it stays an effect rather than a
+  // query.
   useEffect(() => {
     if (activeTab === "yaml") {
       api
@@ -456,7 +451,7 @@ function FormatDetail({
     setSaving(true);
     try {
       await api.saveFormatPreset(formatName, savePresetName.trim(), config);
-      await loadPresets();
+      await qc.invalidateQueries({ queryKey: qk.formatPresets(formatName) });
       setSelectedPreset(savePresetName.trim());
       setShowSavePreset(false);
       setSavePresetName("");
@@ -465,14 +460,14 @@ function FormatDetail({
     } finally {
       setSaving(false);
     }
-  }, [formatName, savePresetName, config, loadPresets, showError]);
+  }, [formatName, savePresetName, config, qc, showError]);
 
   // Phase 2: Delete preset handler
   const handleDeletePreset = useCallback(
     async (presetName: string) => {
       try {
         await api.deleteFormatPreset(formatName, presetName);
-        await loadPresets();
+        await qc.invalidateQueries({ queryKey: qk.formatPresets(formatName) });
         if (selectedPreset === presetName) {
           setSelectedPreset(null);
         }
@@ -480,7 +475,7 @@ function FormatDetail({
         showError("Failed to delete preset", err);
       }
     },
-    [formatName, loadPresets, selectedPreset, showError],
+    [formatName, qc, selectedPreset, showError],
   );
 
   // Phase 3: YAML text change handler (parse back to config)

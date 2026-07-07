@@ -1,9 +1,11 @@
-import { useEffect, useState, useCallback, useRef, useReducer } from "react";
+import { useCallback, useRef, useReducer } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { FlowSpec } from "../types/api";
-import { useWailsEvent } from "../hooks/useWailsEvent";
 import { FlowEditor } from "@neokapi/flow-editor";
 import type { ToolInfo, ToolDoc, ComponentSchema } from "@neokapi/flow-editor";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
+import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useJobFeed } from "../context/JobFeedContext";
 
 interface FlowPageProps {
@@ -18,45 +20,39 @@ interface FlowPageProps {
 
 export function FlowPage({ flowName, flow, onChange, onRun, readOnly, tabID }: FlowPageProps) {
   const { hasActive } = useJobFeed();
-  const [tools, setTools] = useState<ToolInfo[]>([]);
   const schemasRef = useRef<Record<string, ComponentSchema | null>>({});
   const docsRef = useRef<Record<string, ToolDoc | null>>({});
   const fetchingRef = useRef<Set<string>>(new Set());
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
-  const loadTools = useCallback(() => {
-    // Use project-scoped tools when in project mode.
-    const promise = tabID ? api.listProjectTools(tabID) : api.listTools();
-    void promise.then((result) => {
-      if (result) {
-        setTools(
-          result.map((t) => ({
-            name: t.name,
-            display_name: t.display_name,
-            description: t.description,
-            category: t.category,
-            has_schema: t.has_schema,
-            tags: t.tags,
-            requires: t.requires,
-            cardinality: t.cardinality,
-            default_locale: t.default_locale,
-            consumes: t.consumes,
-            produces: t.produces,
-            side_effects: t.side_effects,
-            isSourceTransform: t.is_source_transform,
-            recoverable: t.recoverable,
-          })),
-        );
-      }
-    });
-  }, [tabID]);
+  // Tools list as react-query server state. `select` maps the backend's raw
+  // ToolInfo to the flow-editor's shape, so the raw cache entry is shared with
+  // ToolRunnerPage under the same key. The "registries-changed" event
+  // invalidates it (tools may have been added/removed by a plugin change).
+  const toolsQuery = useQuery({
+    queryKey: tabID ? qk.projectTools(tabID) : qk.tools(),
+    queryFn: () => (tabID ? api.listProjectTools(tabID) : api.listTools()),
+    select: (result): ToolInfo[] =>
+      (result ?? []).map((t) => ({
+        name: t.name,
+        display_name: t.display_name,
+        description: t.description,
+        category: t.category,
+        has_schema: t.has_schema,
+        tags: t.tags,
+        requires: t.requires,
+        cardinality: t.cardinality,
+        default_locale: t.default_locale,
+        consumes: t.consumes,
+        produces: t.produces,
+        side_effects: t.side_effects,
+        isSourceTransform: t.is_source_transform,
+        recoverable: t.recoverable,
+      })),
+  });
+  const tools: ToolInfo[] = toolsQuery.data ?? [];
 
-  useEffect(() => {
-    loadTools();
-  }, [loadTools]);
-
-  // Refresh when plugins change (tools may have been added/removed).
-  useWailsEvent("registries-changed", loadTools);
+  useInvalidateOnEvent("registries-changed", [tabID ? qk.projectTools(tabID) : qk.tools()]);
 
   const handleGetSchema = useCallback((toolName: string): ComponentSchema | null => {
     if (toolName in schemasRef.current) {

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "./testUtils";
 import { describe, it, expect, vi } from "vitest";
 import { RunnerPage } from "../components/RunnerPage";
 import { JobFeedProvider } from "../context/JobFeedContext";

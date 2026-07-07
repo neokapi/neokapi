@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import type { ProjectFilter } from "../types/api";
 
 interface ActiveFilterValue {
@@ -44,27 +46,33 @@ export function ActiveFilterProvider({
   enabled: boolean;
   children: React.ReactNode;
 }) {
-  const [filters, setFilters] = useState<ProjectFilter[]>([]);
-  const [activeId, setActiveId] = useState("");
+  const qc = useQueryClient();
+
+  // Saved filters are read-only server state keyed by the active tab; switching
+  // tabs re-keys the query and loads that project's filters.
+  const filtersQuery = useQuery({
+    queryKey: qk.projectFilters(tabID ?? ""),
+    queryFn: () => api.getProjectFilters(tabID!),
+    enabled: !!tabID && enabled,
+  });
+  const filters: ProjectFilter[] = tabID && enabled ? (filtersQuery.data?.filters ?? []) : [];
+  const serverActiveId = tabID && enabled ? (filtersQuery.data?.active ?? "") : "";
+
+  // Optimistic active selection: flips immediately, then clears once the server
+  // confirms (fresh query data arrives).
+  const [activeOverride, setActiveOverride] = useState<string | null>(null);
+  const activeId = activeOverride ?? serverActiveId;
+  useEffect(() => {
+    setActiveOverride(null);
+  }, [filtersQuery.data]);
 
   const reload = useCallback(async () => {
-    if (!tabID || !enabled) {
-      setFilters([]);
-      setActiveId("");
-      return;
-    }
-    const res = await api.getProjectFilters(tabID);
-    setFilters(res?.filters ?? []);
-    setActiveId(res?.active ?? "");
-  }, [tabID, enabled]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+    await qc.invalidateQueries({ queryKey: qk.projectFilters(tabID ?? "") });
+  }, [qc, tabID]);
 
   const setActive = useCallback(
     async (id: string) => {
-      setActiveId(id); // optimistic
+      setActiveOverride(id); // optimistic
       if (!tabID) return;
       try {
         await api.setActiveFilter(tabID, id);

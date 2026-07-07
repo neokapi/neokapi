@@ -1,44 +1,55 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./useApi";
-import { useWailsEvent } from "./useWailsEvent";
+import { qk } from "../lib/queryKeys";
+import { useInvalidateOnEvent } from "./useInvalidateOnEvent";
 
 /**
  * App-level initialization: theme, recent files, external link intercept.
+ *
+ * Server state (settings, recent files) reads through react-query; the persisted
+ * theme is applied as a side effect of the settings query resolving.
  */
 export function useAppInit() {
-  const [recentFiles, setRecentFiles] = useState<
-    Array<{ path: string; name: string; opened_at: string }>
-  >([]);
-  const [samplesDismissed, setSamplesDismissed] = useState(true);
+  const qc = useQueryClient();
+
+  const settingsQuery = useQuery({
+    queryKey: qk.settings(),
+    queryFn: () => api.getSettings(),
+  });
+  const recentQuery = useQuery({
+    queryKey: qk.recentFiles(),
+    queryFn: () => api.listRecentFiles(),
+  });
+
+  // Optimistic dismissal — flips immediately, before the settings refetch.
+  const [dismissedOverride, setDismissedOverride] = useState(false);
+
+  const recentFiles = recentQuery.data ?? [];
+  const samplesDismissed = settingsQuery.data
+    ? dismissedOverride || !!settingsQuery.data.samples_dismissed
+    : true;
 
   const refreshRecent = useCallback(() => {
-    void api.listRecentFiles().then((f) => {
-      if (f) setRecentFiles(f);
-    });
-  }, []);
+    void qc.invalidateQueries({ queryKey: qk.recentFiles() });
+  }, [qc]);
 
-  // Apply persisted theme and load settings on startup.
+  // Apply the persisted theme once settings load.
   useEffect(() => {
-    api
-      .getSettings()
-      .then((s) => {
-        if (s) {
-          setSamplesDismissed(!!s.samples_dismissed);
-          const mode = s.theme || "system";
-          if (mode === "system") {
-            const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-            document.documentElement.classList.toggle("dark", prefersDark);
-          } else {
-            document.documentElement.classList.toggle("dark", mode === "dark");
-          }
-        }
-      })
-      .catch(() => {});
-  }, []);
+    const s = settingsQuery.data;
+    if (!s) return;
+    const mode = s.theme || "system";
+    if (mode === "system") {
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.classList.toggle("dark", prefersDark);
+    } else {
+      document.documentElement.classList.toggle("dark", mode === "dark");
+    }
+  }, [settingsQuery.data]);
 
   // Per Wails v3 docs: common:ApplicationStarted fires after all
   // ServiceStartup hooks complete — data is guaranteed available.
-  useWailsEvent("common:ApplicationStarted", () => refreshRecent());
+  useInvalidateOnEvent("common:ApplicationStarted", [qk.recentFiles()]);
 
   // Intercept external link clicks and open in the system browser.
   useEffect(() => {
@@ -59,9 +70,14 @@ export function useAppInit() {
   }, []);
 
   const dismissSamples = useCallback(() => {
-    setSamplesDismissed(true);
-    api.dismissSamples().catch(() => {});
-  }, []);
+    setDismissedOverride(true);
+    api
+      .dismissSamples()
+      .catch(() => {})
+      .finally(() => {
+        void qc.invalidateQueries({ queryKey: qk.settings() });
+      });
+  }, [qc]);
 
   return { recentFiles, samplesDismissed, refreshRecent, dismissSamples };
 }

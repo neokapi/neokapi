@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, DragEvent } from "react";
+import { useState, useCallback, DragEvent } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, FolderOpen, Plus, RefreshCw, Loader2, Upload } from "lucide-react";
 import { Button, Badge, Card, PageHeader } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useShortenHome } from "../hooks/useShortenHome";
 
@@ -26,33 +28,28 @@ function formatSize(bytes: number): string {
 
 export function ProjectFilesPage({ tabID, basePath }: ProjectFilesPageProps) {
   const shortenHome = useShortenHome();
-  const [files, setFiles] = useState<ProjectFile[]>([]);
-  const [loading, setLoading] = useState(false);
+  const qc = useQueryClient();
   const [dragging, setDragging] = useState(false);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await api.listProjectFiles(tabID);
-      setFiles(result ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, [tabID]);
+  const filesQuery = useQuery({
+    queryKey: qk.projectFiles(tabID),
+    queryFn: () => api.listProjectFiles(tabID),
+  });
+  const files: ProjectFile[] = filesQuery.data ?? [];
+  const loading = filesQuery.isFetching;
 
-  // Initial load.
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  const refresh = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: qk.projectFiles(tabID) });
+  }, [qc, tabID]);
 
   // Auto-refresh when files change on disk.
   useWailsEvent("project-files-changed", (data) => {
-    if (data === tabID) void refresh();
+    if (data === tabID) refresh();
   });
 
   const handleAddFiles = async () => {
     const added = await api.addFilesDialog(tabID, "");
-    if (added && added.length > 0) void refresh();
+    if (added && added.length > 0) refresh();
   };
 
   const handleDrop = useCallback(
@@ -70,7 +67,7 @@ export function ProjectFilesPage({ tabID, basePath }: ProjectFilesPageProps) {
           await api.copyFileToProject(tabID, path, "");
         }
       }
-      void refresh();
+      refresh();
     },
     [tabID, refresh],
   );

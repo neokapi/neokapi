@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "./testUtils";
 import { describe, it, expect } from "vitest";
 import { PipelineProgress, StepBadge, deriveStepState } from "../components/PipelineProgress";
 import type { StepSnapshot } from "../context/JobFeedContext";

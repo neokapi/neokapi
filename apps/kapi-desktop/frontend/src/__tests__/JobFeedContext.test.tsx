@@ -1,4 +1,4 @@
-import { render, screen, act, waitFor } from "@testing-library/react";
+import { render, screen, act, waitFor } from "./testUtils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { JobFeedProvider, useJobFeed } from "../context/JobFeedContext";
 import { api } from "../hooks/useApi";

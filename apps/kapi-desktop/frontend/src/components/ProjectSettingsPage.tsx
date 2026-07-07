@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { t } from "@neokapi/kapi-react/runtime";
 import { Globe, Plug, Cpu, FileType, AlertTriangle } from "lucide-react";
 import {
@@ -25,6 +26,7 @@ import type {
   FormatDefaults,
 } from "../types/api";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { useLocales } from "../hooks/useLocales";
 
@@ -82,17 +84,16 @@ export function ProjectSettingsPage({
   const defaults = project.defaults ?? {};
   const plugins = project.plugins ?? {};
   const formatDefaults = defaults.formats ?? {};
-  const [installed, setInstalled] = useState<PluginInfo[]>(propInstalled ?? []);
+  const pluginsQuery = useQuery({
+    queryKey: qk.plugins(),
+    queryFn: () => api.listPlugins(),
+    enabled: !propInstalled,
+  });
+  const installed: PluginInfo[] = propInstalled ?? pluginsQuery.data ?? [];
 
   useEffect(() => {
-    if (propInstalled) return;
-    api
-      .listPlugins()
-      .then((p) => {
-        if (p) setInstalled(p);
-      })
-      .catch((err) => showError("Failed to load plugins", err));
-  }, [showError, propInstalled]);
+    if (pluginsQuery.error) showError("Failed to load plugins", pluginsQuery.error);
+  }, [pluginsQuery.error, showError]);
 
   const { locales } = useLocales();
 

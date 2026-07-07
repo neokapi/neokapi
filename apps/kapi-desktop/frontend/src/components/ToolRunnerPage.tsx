@@ -32,7 +32,9 @@ import {
   SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { useSchemaFormHost } from "../hooks/useSchemaFormHost";
 import { useError } from "./ErrorBanner";
 
@@ -87,27 +89,30 @@ export function ToolRunnerPage({
   tools: propTools,
   tabID,
 }: ToolRunnerPageProps = {}) {
-  const [tools, setTools] = useState<ToolInfo[]>(propTools ?? []);
-  const [loading, setLoading] = useState(!propTools);
   const [docs] = useState<PluginDocs | null>(propDocs ?? null);
-  const [docsSummary, setDocsSummary] = useState<PluginDocsSummary | null>(null);
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
 
   const { showError } = useError();
 
+  const toolsQuery = useQuery({
+    queryKey: tabID ? qk.projectTools(tabID) : qk.tools(),
+    queryFn: () => (tabID ? api.listProjectTools(tabID) : api.listTools()),
+    enabled: !propTools,
+  });
+  const docsSummaryQuery = useQuery({
+    queryKey: qk.pluginDocsSummary(),
+    queryFn: () => api.getPluginDocsSummary(),
+    enabled: !propTools && !propDocs,
+  });
+  const tools: ToolInfo[] = propTools ?? toolsQuery.data ?? [];
+  const docsSummary: PluginDocsSummary | null = docsSummaryQuery.data ?? null;
+  const loading = !propTools && toolsQuery.isLoading;
+
   useEffect(() => {
-    if (propTools) return;
-    const toolsPromise = tabID ? api.listProjectTools(tabID) : api.listTools();
-    Promise.all([toolsPromise, propDocs ? Promise.resolve(null) : api.getPluginDocsSummary()])
-      .then(([t, summary]) => {
-        if (t) setTools(t);
-        if (summary) setDocsSummary(summary);
-      })
-      .catch((err) => showError("Failed to load tools", err))
-      .finally(() => setLoading(false));
-  }, [showError, propDocs, propTools, tabID]);
+    if (toolsQuery.error) showError("Failed to load tools", toolsQuery.error);
+  }, [toolsQuery.error, showError]);
 
   // Group tools by category. Category strings the UI doesn't have a
   // label / icon for collapse into `utility` so we don't render N
@@ -316,17 +321,33 @@ export function ToolRunnerPage({
 // --- Tool Detail Panel ---
 
 function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null }) {
-  const [schema, setSchema] = useState<ComponentSchema | null>(null);
   const [config, setConfig] = useState<Record<string, unknown>>({});
-  const [loadingSchema, setLoadingSchema] = useState(false);
   const [targetLang, setTargetLang] = useState("");
 
   const { showError: _showError } = useError();
 
-  // Step documentation — pre-loaded (Storybook) or fetched on demand
-  const [stepDoc, setStepDoc] = useState<StepDoc | undefined>(() =>
-    resolveStepDoc(tool.name, docs),
-  );
+  // Schema (always attempted — may come from plugin schemas) and step doc
+  // (pre-loaded via docs, else fetched) as react-query reads keyed by tool name.
+  const schemaQuery = useQuery({
+    queryKey: qk.toolSchema(tool.name),
+    queryFn: () => api.getToolSchema(tool.name),
+  });
+  const schema = (schemaQuery.data as ComponentSchema | null) ?? null;
+  const loadingSchema = schemaQuery.isLoading;
+
+  const stepDocQuery = useQuery({
+    queryKey: qk.stepDoc(tool.name),
+    queryFn: () => api.getStepDoc(tool.name),
+    enabled: !docs,
+  });
+  const stepDoc: StepDoc | undefined =
+    resolveStepDoc(tool.name, docs) ?? stepDocQuery.data ?? undefined;
+
+  // Reset the edited config whenever the selected tool changes.
+  useEffect(() => {
+    setConfig({});
+  }, [tool.name]);
+
   const cat = tool.category || "utility";
   const meta = categoryMeta(cat);
   const Icon = meta.icon;
@@ -334,32 +355,6 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
   // Native file/folder dialogs + credential vault for schema-form path /
   // credential widgets.
   const schemaHost = useSchemaFormHost();
-
-  // Fetch step doc on demand if not pre-loaded
-  useEffect(() => {
-    setStepDoc(resolveStepDoc(tool.name, docs));
-    if (docs) return;
-    api
-      .getStepDoc(tool.name)
-      .then((d) => {
-        if (d) setStepDoc(d);
-      })
-      .catch(() => {});
-  }, [tool.name, docs]);
-
-  // Load schema when tool changes — always try, schema may come from plugin schemas
-  useEffect(() => {
-    setConfig({});
-    setSchema(null);
-    setLoadingSchema(true);
-    api
-      .getToolSchema(tool.name)
-      .then((s) => {
-        if (s) setSchema(s as ComponentSchema);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingSchema(false));
-  }, [tool.name]);
 
   // Ad-hoc tool execution from the desktop runner is not wired up yet: it
   // needs a dedicated RunTool(toolName, inputPaths, targetLang, config)

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, ClipboardList, Cloud, FolderX, Loader2, PlayCircle } from "lucide-react";
 import {
   Badge,
@@ -21,7 +22,8 @@ import {
 import { t } from "@neokapi/kapi-react/runtime";
 import type { ConvergePlan, ConvergenceReport, ProjectServer, UpPlanScope } from "../types/api";
 import { api } from "../hooks/useApi";
-import { useWailsEvent } from "../hooks/useWailsEvent";
+import { qk } from "../lib/queryKeys";
+import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useJobFeed } from "../context/JobFeedContext";
 import { AIModelPromptDialog } from "./AIModelPromptDialog";
 
@@ -61,48 +63,47 @@ export function ConvergenceHero({
   server: propServer,
 }: ConvergenceHeroProps) {
   const { hasActive, startJob, failActiveJob } = useJobFeed();
-  const [convergence, setConvergence] = useState<ConvergenceReport | null>(propConvergence ?? null);
-  const [plan, setPlan] = useState<ConvergePlan | null>(propPlan ?? null);
-  const [server, setServer] = useState<ProjectServer | null>(propServer ?? null);
   const [planOpen, setPlanOpen] = useState(false);
-  const [loaded, setLoaded] = useState(!!(propConvergence && propPlan));
   // A synchronous launch failure renders inline on the hero — the user stays
   // home instead of landing in a runner view with nothing running behind it.
   const [launchError, setLaunchError] = useState<unknown>(null);
-  // The tab's files vanished from disk (moved/deleted directory): a quiet
-  // terminal state, not an error banner per poll.
-  const [filesMissing, setFilesMissing] = useState(false);
   const [modelPromptOpen, setModelPromptOpen] = useState(false);
 
-  const refresh = useCallback(() => {
-    if (propConvergence && propPlan && propServer) return;
-    void Promise.allSettled([
-      propConvergence ? Promise.resolve(null) : api.getConvergence(tabID),
-      propPlan ? Promise.resolve(null) : api.getConvergePlan(tabID),
-      propServer ? Promise.resolve(null) : api.getProjectServer(tabID),
-    ]).then(([c, p, s]) => {
-      if (!propConvergence && c.status === "fulfilled" && c.value) {
-        setConvergence(c.value as ConvergenceReport);
-      }
-      if (!propPlan && p.status === "fulfilled" && p.value) setPlan(p.value as ConvergePlan);
-      if (!propServer && s.status === "fulfilled" && s.value) setServer(s.value as ProjectServer);
-      // The backend answers both derivations with a single typed error when
-      // the recipe is gone from disk — render the quiet reopen state.
-      setFilesMissing(
-        [c, p].some(
-          (r) => r.status === "rejected" && String(r.reason).includes(MISSING_FILES_MARKER),
-        ),
+  // Both derivations are cheap read-only calls; react-query owns caching and the
+  // "project:extracted" event invalidates them. A single query fn keeps the
+  // three reads (and the files-missing derivation) atomic.
+  const dataQuery = useQuery({
+    queryKey: qk.convergence(tabID),
+    enabled: !(propConvergence && propPlan && propServer),
+    queryFn: async () => {
+      const [c, p, s] = await Promise.allSettled([
+        propConvergence ? Promise.resolve(null) : api.getConvergence(tabID),
+        propPlan ? Promise.resolve(null) : api.getConvergePlan(tabID),
+        propServer ? Promise.resolve(null) : api.getProjectServer(tabID),
+      ]);
+      // The backend answers both derivations with a single typed error when the
+      // recipe is gone from disk — render the quiet reopen state.
+      const filesMissing = [c, p].some(
+        (r) => r.status === "rejected" && String(r.reason).includes(MISSING_FILES_MARKER),
       );
-      setLoaded(true);
-    });
-  }, [tabID, propConvergence, propPlan, propServer]);
+      return {
+        convergence: c.status === "fulfilled" ? (c.value as ConvergenceReport | null) : null,
+        plan: p.status === "fulfilled" ? (p.value as ConvergePlan | null) : null,
+        server: s.status === "fulfilled" ? (s.value as ProjectServer | null) : null,
+        filesMissing,
+      };
+    },
+  });
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const convergence: ConvergenceReport | null =
+    propConvergence ?? dataQuery.data?.convergence ?? null;
+  const plan: ConvergePlan | null = propPlan ?? dataQuery.data?.plan ?? null;
+  const server: ProjectServer | null = propServer ?? dataQuery.data?.server ?? null;
+  const filesMissing = dataQuery.data?.filesMissing ?? false;
+  const loaded = !!(propConvergence && propPlan) || dataQuery.isSuccess;
 
   // A convergence run or extraction elsewhere changed the derived state.
-  useWailsEvent("project:extracted", () => refresh());
+  useInvalidateOnEvent("project:extracted", [qk.convergence(tabID)]);
 
   // doLaunch starts the run through the shared `kapi up` engine and navigates
   // to the runner only once the launch call succeeded. A rejected launch

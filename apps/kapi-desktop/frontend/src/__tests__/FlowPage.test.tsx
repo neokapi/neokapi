@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen } from "./testUtils";
 import { describe, it, expect, vi } from "vitest";
 import { FlowPage } from "../components/FlowPage";
 
