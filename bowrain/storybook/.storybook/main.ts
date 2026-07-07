@@ -18,6 +18,7 @@ const config = createMainConfig(
       "../../apps/keycloak-theme/src/**/*.stories.@(ts|tsx)",
       "../../apps/web/src/**/*.stories.@(ts|tsx)",
       "../../apps/bowrain/frontend/src/**/*.stories.@(ts|tsx)",
+      "../../apps/ctrl/src/**/*.stories.@(ts|tsx)",
     ],
   },
   import.meta,

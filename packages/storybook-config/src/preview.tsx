@@ -6,6 +6,12 @@ import {
   type NeokapiStorybookOptions,
 } from "@neokapi/kapi-react/storybook";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  RouterProvider,
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+} from "@tanstack/react-router";
 import { themes } from "storybook/theming";
 import React from "react";
 
@@ -27,6 +33,31 @@ export function withQueryClient(Story: React.ComponentType) {
       <Story />
     </QueryClientProvider>
   );
+}
+
+/**
+ * Provide a TanStack Router context to every story.
+ *
+ * Components that call router hooks (`useNavigate`, `useLocation`,
+ * `useSearch`, `Link`) need a RouterProvider in the tree — otherwise they
+ * throw on mount. This decorator mounts the story as the component of a
+ * throwaway in-memory router so those hooks resolve. Navigation targets that
+ * don't exist in the single-route tree are inert (stories don't navigate), so
+ * a bare root route is enough to render admin sidebars, tables, and pages that
+ * merely *read* router state.
+ *
+ * Use it per-story (`decorators: [withRouter]`) rather than globally so plain
+ * component stories keep the simpler tree.
+ */
+export function withRouter(Story: React.ComponentType) {
+  const rootRoute = createRootRoute({ component: () => <Story /> });
+  const router = createRouter({
+    routeTree: rootRoute,
+    history: createMemoryHistory({ initialEntries: ["/"] }),
+  });
+  // The story router is intentionally minimal; the generic RouterProvider
+  // accepts any router instance when no app has augmented the Register type.
+  return <RouterProvider router={router as never} />;
 }
 
 /**
