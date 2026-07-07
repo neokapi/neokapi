@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/neokapi/neokapi/bowrain/connector"
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -43,17 +44,18 @@ type App struct {
 
 	// Server connection (online mode).
 	mu              sync.RWMutex
-	remote          *ServerClient      // nil when disconnected
-	connState       ConnectionState    // current connection state
-	serverURL       string             // e.g. "http://localhost:8080"
-	activeWS        string             // selected workspace slug
-	authInfo        *config.StoredAuth // cached auth info (shared bowrain/core/config store)
-	pkceVerifier    string             // PKCE code_verifier
-	pkceResultCh    chan *pkceResult   // result from URL protocol callback
-	watcher         *ProjectWatcher    // active WatchProject stream
-	offlineQueue    *OfflineQueue      // pending mutations when offline
-	reconnectCancel context.CancelFunc // stops the reconnection goroutine
-	autoConnectDone bool               // true after BOWRAIN_TOKEN auto-connect attempted
+	remote          *ServerClient            // gRPC editor client — presence/watch/review only; nil when disconnected
+	remoteHTTP      *apiclient.BowrainClient // REST editor client — browse/blocks/TM/terms/providers; nil when disconnected
+	connState       ConnectionState          // current connection state
+	serverURL       string                   // e.g. "http://localhost:8080"
+	activeWS        string                   // selected workspace slug
+	authInfo        *config.StoredAuth       // cached auth info (shared bowrain/core/config store)
+	pkceVerifier    string                   // PKCE code_verifier
+	pkceResultCh    chan *pkceResult         // result from URL protocol callback
+	watcher         *ProjectWatcher          // active WatchProject stream
+	offlineQueue    *OfflineQueue            // pending mutations when offline
+	reconnectCancel context.CancelFunc       // stops the reconnection goroutine
+	autoConnectDone bool                     // true after BOWRAIN_TOKEN auto-connect attempted
 
 	// tmPath overrides the default TM database path (for testing).
 	tmPath string

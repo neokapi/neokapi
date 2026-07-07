@@ -91,15 +91,13 @@ func entryToInfo(e sievepen.TMEntry, sourceLocale, targetLocale string) TMEntryI
 // GetTMEntries searches the TM with optional query and locale filters.
 func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*TMSearchResult, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		result, err := a.remote.GetTMEntries(ws, query, sourceLocale, targetLocale, offset, limit)
+		client, ws := a.editorRemote()
+		result, err := client.GetTMEntries(context.Background(), ws, query, sourceLocale, targetLocale, offset, limit)
 		if err != nil {
 			a.goOffline()
 			// Fall through to local TM.
 		} else {
-			return result, nil
+			return editorTMResultToSearch(result), nil
 		}
 	}
 	tm, err := a.getOrCreateTM()
@@ -131,10 +129,8 @@ func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, 
 // GetTMCount returns the total number of entries in the TM.
 func (a *App) GetTMCount(projectID string) (int, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		count, err := a.remote.GetTMCount(ws)
+		client, ws := a.editorRemote()
+		count, err := client.GetTMCount(context.Background(), ws)
 		if err != nil {
 			a.goOffline()
 		} else {
@@ -152,10 +148,8 @@ func (a *App) GetTMCount(projectID string) (int, error) {
 // UpdateTMEntry updates an existing TM entry.
 func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		err := a.remote.UpdateTMEntry(ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
+		client, ws := a.editorRemote()
+		err := client.UpdateTMEntry(context.Background(), ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
 		if err != nil {
 			a.goOffline()
 			a.enqueue("update_tm_entry", req)
@@ -196,10 +190,8 @@ func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
 // DeleteTMEntry deletes a TM entry by ID.
 func (a *App) DeleteTMEntry(projectID, entryID string) error {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		err := a.remote.DeleteTMEntry(ws, entryID)
+		client, ws := a.editorRemote()
+		err := client.DeleteTMEntry(context.Background(), ws, entryID)
 		if err != nil {
 			a.goOffline()
 			a.enqueue("delete_tm_entry", deleteTMPayload{EntryID: entryID})
@@ -220,10 +212,8 @@ func (a *App) DeleteTMEntry(projectID, entryID string) error {
 // AddTMEntry adds a new entry to the TM.
 func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale string) (*TMEntryInfo, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		info, err := a.remote.AddTMEntry(ws, source, target, sourceLocale, targetLocale)
+		client, ws := a.editorRemote()
+		info, err := client.AddTMEntry(context.Background(), ws, source, target, sourceLocale, targetLocale)
 		if err != nil {
 			a.goOffline()
 			a.enqueue("add_tm_entry", addTMPayload{
@@ -231,7 +221,8 @@ func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale s
 			})
 			// Fall through to local.
 		} else {
-			return info, nil
+			out := editorTMEntryToInfo(*info)
+			return &out, nil
 		}
 	} else if a.isOffline() {
 		a.enqueue("add_tm_entry", addTMPayload{

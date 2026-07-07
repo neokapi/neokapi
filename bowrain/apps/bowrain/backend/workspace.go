@@ -1,5 +1,7 @@
 package backend
 
+import "context"
+
 // WorkspaceInfo represents a workspace as exposed to the Bowrain frontend.
 type WorkspaceInfo struct {
 	ID          string `json:"id"`
@@ -15,9 +17,10 @@ type WorkspaceInfo struct {
 // a single "Personal" local workspace.
 func (a *App) ListWorkspaces() []WorkspaceInfo {
 	if a.isConnected() {
-		ws, err := a.remote.ListWorkspaces()
+		client, _ := a.editorRemote()
+		ws, err := client.ListWorkspaces(context.Background())
 		if err == nil && len(ws) > 0 {
-			return ws
+			return editorWorkspacesToInfos(ws)
 		}
 		// Fall through to local on error.
 	}
@@ -39,11 +42,12 @@ func (a *App) GetCurrentWorkspace() WorkspaceInfo {
 		slug := a.activeWS
 		a.mu.RUnlock()
 		if slug != "" {
-			ws, err := a.remote.ListWorkspaces()
+			client, _ := a.editorRemote()
+			ws, err := client.ListWorkspaces(context.Background())
 			if err == nil {
 				for _, w := range ws {
 					if w.Slug == slug {
-						return w
+						return editorWorkspaceToInfo(w)
 					}
 				}
 			}

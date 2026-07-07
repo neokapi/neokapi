@@ -20,15 +20,14 @@ import (
 // On connection failure, falls back to the local cache.
 func (a *App) GetItemBlocks(projectID, itemName string) ([]BlockInfo, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		blocks, err := a.remote.GetBlocks(ws, projectID, itemName)
+		client, ws := a.editorRemote()
+		remoteBlocks, err := client.GetEditorBlocks(context.Background(), ws, projectID, itemName)
 		if err != nil {
 			// Connection failed — fall back to offline mode.
 			a.goOffline()
 			return a.getItemBlocksLocal(projectID, itemName)
 		}
+		blocks := editorBlocksToInfos(remoteBlocks)
 		// Cache the blocks locally for offline access.
 		a.cacheBlocks(projectID, itemName, blocks)
 		return blocks, nil
@@ -256,13 +255,11 @@ func runConstraintsFromInfo(ri *RunConstraintsInfo) *model.RunConstraints {
 // When connected, sends to server. On failure, queues for later replay and updates local cache.
 func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
+		client, ws := a.editorRemote()
 		// Wrap the plain-text update in a single TextRun so the
 		// server sees the canonical Run sequence.
-		runs := []RunInfo{{Text: &TextRunInfo{Text: req.Text}}}
-		err := a.remote.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, runs)
+		runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
+		err := client.UpdateBlockTargetRuns(context.Background(), ws, req.ProjectID, req.BlockID, req.TargetLocale, runs)
 		if err != nil {
 			a.goOffline()
 			a.enqueue("update_block_target", req)
@@ -295,10 +292,8 @@ func (a *App) updateBlockTargetLocal(projectID, blockID, targetLocale, text stri
 // structured Run sequence.
 func (a *App) UpdateBlockTargetRuns(req UpdateBlockTargetRunsRequest) error {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		err := a.remote.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, req.Runs)
+		client, ws := a.editorRemote()
+		err := client.UpdateBlockTargetRuns(context.Background(), ws, req.ProjectID, req.BlockID, req.TargetLocale, runInfosToRuns(req.Runs))
 		if err != nil {
 			a.goOffline()
 			a.enqueue("update_block_target_runs", req)
@@ -328,7 +323,7 @@ func (a *App) ReviewBlock(projectID, itemName, blockID, targetLocale string, rev
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		err := a.remote.ReviewBlock(ws, projectID, itemName, blockID, targetLocale, reviewed)
+		err := a.remote.ReviewBlock(context.Background(), ws, projectID, itemName, blockID, targetLocale, reviewed)
 		if err != nil {
 			a.goOffline()
 			a.enqueue("review_block", reviewBlockPayload{
@@ -542,15 +537,13 @@ type TMMatchInfo struct {
 // LookupTMForBlock looks up TM matches for a specific block.
 func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string) ([]TMMatchInfo, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		matches, err := a.remote.LookupTMForBlock(ws, projectID, blockID, targetLocale)
+		client, ws := a.editorRemote()
+		matches, err := client.LookupTMForBlock(context.Background(), ws, projectID, blockID, targetLocale)
 		if err != nil {
 			a.goOffline()
 			// Fall through to local TM lookup.
 		} else {
-			return matches, nil
+			return editorTMMatchesToInfos(matches), nil
 		}
 	}
 	ctx := context.Background()
@@ -608,15 +601,13 @@ type BlockTermMatch struct {
 // LookupTermsForBlock looks up term matches in a specific block's source text.
 func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale string) ([]BlockTermMatch, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		matches, err := a.remote.LookupTermsForBlock(ws, projectID, blockID, targetLocale)
+		client, ws := a.editorRemote()
+		matches, err := client.LookupTermsForBlock(context.Background(), ws, projectID, blockID, targetLocale)
 		if err != nil {
 			a.goOffline()
 			// Fall through to local term lookup.
 		} else {
-			return matches, nil
+			return editorTermMatchesToBlockMatches(matches), nil
 		}
 	}
 	ctx := context.Background()

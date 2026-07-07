@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"time"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // goOffline transitions the app to offline state and starts the reconnection goroutine.
@@ -50,10 +52,10 @@ func (a *App) reconnectLoop(ctx context.Context) {
 
 		if a.tryReconnect() {
 			slog.Info("bowrain: reconnected to server")
-			// Drains the offline queue on the reconnect loop's own background
-			// clock; the remote client's methods are ctx-less (threading them is
-			// separate desktop-client work, P07), so no request context applies.
-			a.replayPendingChanges() //nolint:contextcheck // background reconnect replay against the ctx-less desktop remote client (P07)
+			// Drain the offline queue against the reconnect loop's own context so
+			// a cancellation (Disconnect) stops replay promptly. The REST editor
+			// client threads this ctx through every request.
+			a.replayPendingChanges(ctx)
 			// Signal the frontend to force a full refresh of every open view.
 			// While offline we may have missed any number of external changes
 			// (other users, kapi push, connector sync, automations); replaying
@@ -89,7 +91,7 @@ func (a *App) tryReconnect() bool {
 }
 
 // replayPendingChanges drains the offline queue by replaying each change to the server.
-func (a *App) replayPendingChanges() {
+func (a *App) replayPendingChanges(ctx context.Context) {
 	if a.offlineQueue == nil {
 		return
 	}
@@ -108,13 +110,15 @@ func (a *App) replayPendingChanges() {
 		}
 
 		for _, change := range changes {
-			if err := a.replayChange(change); err != nil {
+			if err := a.replayChange(ctx, change); err != nil {
 				slog.Warn("bowrain: replay failed for change", "change_id", change.ID, "operation", change.Operation, "error", err)
 				_ = a.offlineQueue.MarkFailed(change.ID, err.Error())
 
-				// If we lost connection again during replay, go offline.
+				// If we lost connection again during replay, go offline. This
+				// spins up a fresh, independent reconnect loop whose lifetime is
+				// deliberately not tied to this replay's context.
 				if !a.isConnected() {
-					a.goOffline()
+					a.goOffline() //nolint:contextcheck // starts an independent reconnect loop with its own root context, by design
 					return
 				}
 				continue
@@ -127,14 +131,17 @@ func (a *App) replayPendingChanges() {
 	slog.Info("bowrain: pending changes replayed")
 }
 
-// replayChange replays a single pending change to the server.
-func (a *App) replayChange(change PendingChange) error {
+// replayChange replays a single pending change to the server. Most operations
+// go through the REST editor client (which threads ctx); ReviewBlock still
+// travels over the gRPC client until the review-status path has a REST home.
+func (a *App) replayChange(ctx context.Context, change PendingChange) error {
 	a.mu.RLock()
 	ws := a.activeWS
-	client := a.remote
+	client := a.remoteHTTP
+	grpc := a.remote
 	a.mu.RUnlock()
 
-	if client == nil {
+	if client == nil || grpc == nil {
 		return errNotConnected
 	}
 
@@ -146,29 +153,29 @@ func (a *App) replayChange(change PendingChange) error {
 		}
 		// Plain-text replay: emit a single TextRun so the server
 		// receives the canonical Run sequence.
-		runs := []RunInfo{{Text: &TextRunInfo{Text: req.Text}}}
-		return client.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, runs)
+		runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
+		return client.UpdateBlockTargetRuns(ctx, ws, req.ProjectID, req.BlockID, req.TargetLocale, runs)
 
 	case "update_block_target_runs":
 		var req UpdateBlockTargetRunsRequest
 		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
 			return err
 		}
-		return client.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, req.Runs)
+		return client.UpdateBlockTargetRuns(ctx, ws, req.ProjectID, req.BlockID, req.TargetLocale, runInfosToRuns(req.Runs))
 
 	case "review_block":
 		var req reviewBlockPayload
 		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
 			return err
 		}
-		return client.ReviewBlock(ws, req.ProjectID, req.ItemName, req.BlockID, req.TargetLocale, req.Reviewed)
+		return grpc.ReviewBlock(ctx, ws, req.ProjectID, req.ItemName, req.BlockID, req.TargetLocale, req.Reviewed)
 
 	case "add_tm_entry":
 		var req addTMPayload
 		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
 			return err
 		}
-		_, err := client.AddTMEntry(ws, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
+		_, err := client.AddTMEntry(ctx, ws, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
 		return err
 
 	case "update_tm_entry":
@@ -176,21 +183,21 @@ func (a *App) replayChange(change PendingChange) error {
 		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
 			return err
 		}
-		return client.UpdateTMEntry(ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
+		return client.UpdateTMEntry(ctx, ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
 
 	case "delete_tm_entry":
 		var req deleteTMPayload
 		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
 			return err
 		}
-		return client.DeleteTMEntry(ws, req.EntryID)
+		return client.DeleteTMEntry(ctx, ws, req.EntryID)
 
 	case "add_concept":
 		var req AddConceptRequest
 		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
 			return err
 		}
-		_, err := client.AddConcept(ws, req.Domain, req.Definition, req.Terms)
+		_, err := client.EditorAddConcept(ctx, ws, req.Domain, req.Definition, termInfosToEditor(req.Terms))
 		return err
 
 	case "update_concept":
@@ -198,14 +205,14 @@ func (a *App) replayChange(change PendingChange) error {
 		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
 			return err
 		}
-		return client.UpdateConcept(ws, req.ConceptID, req.Domain, req.Definition, req.Terms)
+		return client.EditorUpdateConcept(ctx, ws, req.ConceptID, req.Domain, req.Definition, termInfosToEditor(req.Terms))
 
 	case "delete_concept":
 		var req deleteConceptPayload
 		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
 			return err
 		}
-		return client.DeleteConcept(ws, req.ConceptID)
+		return client.EditorDeleteConcept(ctx, ws, req.ConceptID)
 
 	default:
 		slog.Info("bowrain: unknown pending change operation:", "value", change.Operation)

@@ -102,6 +102,7 @@ func (a *App) connectWithToken(serverURL, token string) error {
 
 	a.mu.Lock()
 	a.remote = client
+	a.remoteHTTP = apiclient.NewEditorClient(serverURL, token)
 	a.authInfo = &config.StoredAuth{
 		ServerURL:   serverURL,
 		AccessToken: token,
@@ -218,13 +219,42 @@ func (a *App) ConnectToServer(serverURL string) error {
 		return fmt.Errorf("gRPC connect: %w", err)
 	}
 
+	editorClient := apiclient.NewEditorClient(serverURL, stored.AccessToken)
+	a.wireRemoteRefresh(editorClient, serverURL, stored)
+
 	a.mu.Lock()
 	a.remote = client
+	a.remoteHTTP = editorClient
 	a.authInfo = stored
 	a.connState = StateConnected
 	a.mu.Unlock()
 
 	return nil
+}
+
+// wireRemoteRefresh configures the REST editor client to auto-refresh its
+// access token on 401 and persist the rotated tokens through the shared
+// bowrain/core/config store, keeping the gRPC client and cached auth in sync so
+// a refresh triggered by any surface is visible to all of them.
+func (a *App) wireRemoteRefresh(c *apiclient.BowrainClient, serverURL string, stored *config.StoredAuth) {
+	if stored == nil || stored.RefreshToken == "" {
+		return
+	}
+	c.SetRefreshToken(stored.RefreshToken, func(newAccess, newRefresh string) {
+		a.mu.Lock()
+		if a.authInfo != nil {
+			a.authInfo.AccessToken = newAccess
+			a.authInfo.RefreshToken = newRefresh
+		}
+		updated := a.authInfo
+		if a.remote != nil {
+			a.remote.SetToken(newAccess)
+		}
+		a.mu.Unlock()
+		if updated != nil {
+			_ = config.SaveAuth(*updated)
+		}
+	})
 }
 
 // StartLogin begins an authorization code + PKCE flow against the server.
@@ -455,9 +485,18 @@ func (a *App) Disconnect() {
 		a.remote.Close()
 		a.remote = nil
 	}
+	a.remoteHTTP = nil
 	a.connState = StateDisconnected
 	a.authInfo = nil
 	a.activeWS = ""
+}
+
+// editorRemote returns the REST editor client and active workspace slug under
+// the lock. The client is nil when disconnected; callers gate on isConnected.
+func (a *App) editorRemote() (*apiclient.BowrainClient, string) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.remoteHTTP, a.activeWS
 }
 
 // GetServerWorkspaces returns workspaces from the connected server.
@@ -465,7 +504,12 @@ func (a *App) GetServerWorkspaces() ([]WorkspaceInfo, error) {
 	if !a.isConnected() {
 		return nil, errors.New("not connected")
 	}
-	return a.remote.ListWorkspaces()
+	client, _ := a.editorRemote()
+	ws, err := client.ListWorkspaces(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	return editorWorkspacesToInfos(ws), nil
 }
 
 // SelectWorkspace sets the active workspace for all subsequent operations.

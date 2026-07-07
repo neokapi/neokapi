@@ -193,15 +193,14 @@ func (a *App) CreateProject(name, sourceLang string, targetLangs []string) (*Pro
 // GetProject returns the current project info.
 func (a *App) GetProject(projectID string) (*ProjectInfo, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		info, err := a.remote.GetProject(ws, projectID)
+		client, ws := a.editorRemote()
+		info, err := client.GetEditorProject(context.Background(), ws, projectID)
 		if err != nil {
 			a.goOffline()
 			// Fall through to local.
 		} else {
-			return info, nil
+			out := editorProjectToInfo(*info)
+			return &out, nil
 		}
 	}
 	ctx := context.Background()
@@ -215,12 +214,10 @@ func (a *App) GetProject(projectID string) (*ProjectInfo, error) {
 // ListProjects returns all open projects.
 func (a *App) ListProjects() []ProjectInfo {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		projects, err := a.remote.ListProjects(ws)
+		client, ws := a.editorRemote()
+		projects, err := client.ListEditorProjects(context.Background(), ws)
 		if err == nil {
-			return projects
+			return editorProjectsToInfos(projects)
 		}
 		// Fall through to local on error.
 	}

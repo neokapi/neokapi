@@ -141,14 +141,12 @@ func termsFromInfo(terms []TermInfo) []termbase.Term {
 // GetTerms searches the termbase.
 func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*TermSearchResult, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		result, err := a.remote.GetTerms(ws, query, sourceLocale, targetLocale, offset, limit)
+		client, ws := a.editorRemote()
+		result, err := client.GetTerms(context.Background(), ws, query, sourceLocale, targetLocale, offset, limit)
 		if err != nil {
 			a.goOffline()
 		} else {
-			return result, nil
+			return editorTermResultToSearch(result), nil
 		}
 	}
 	tb, err := a.getOrCreateTB()
@@ -172,10 +170,8 @@ func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offs
 // GetTermCount returns the total number of concepts in the termbase.
 func (a *App) GetTermCount(projectID string) (int, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		count, err := a.remote.GetTermCount(ws)
+		client, ws := a.editorRemote()
+		count, err := client.GetTermCount(context.Background(), ws)
 		if err != nil {
 			a.goOffline()
 		} else {
@@ -192,15 +188,14 @@ func (a *App) GetTermCount(projectID string) (int, error) {
 // AddConcept adds a new concept to the termbase.
 func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		info, err := a.remote.AddConcept(ws, req.Domain, req.Definition, req.Terms)
+		client, ws := a.editorRemote()
+		info, err := client.EditorAddConcept(context.Background(), ws, req.Domain, req.Definition, termInfosToEditor(req.Terms))
 		if err != nil {
 			a.goOffline()
 			a.enqueue("add_concept", req)
 		} else {
-			return info, nil
+			out := editorConceptToInfo(*info)
+			return &out, nil
 		}
 	} else if a.isOffline() {
 		a.enqueue("add_concept", req)
@@ -229,10 +224,8 @@ func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
 // UpdateConcept updates an existing concept in the termbase.
 func (a *App) UpdateConcept(req UpdateConceptRequest) error {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		err := a.remote.UpdateConcept(ws, req.ConceptID, req.Domain, req.Definition, req.Terms)
+		client, ws := a.editorRemote()
+		err := client.EditorUpdateConcept(context.Background(), ws, req.ConceptID, req.Domain, req.Definition, termInfosToEditor(req.Terms))
 		if err != nil {
 			a.goOffline()
 			a.enqueue("update_concept", req)
@@ -259,10 +252,8 @@ func (a *App) UpdateConcept(req UpdateConceptRequest) error {
 // DeleteConcept removes a concept from the termbase.
 func (a *App) DeleteConcept(projectID, conceptID string) error {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		err := a.remote.DeleteConcept(ws, conceptID)
+		client, ws := a.editorRemote()
+		err := client.EditorDeleteConcept(context.Background(), ws, conceptID)
 		if err != nil {
 			a.goOffline()
 			a.enqueue("delete_concept", deleteConceptPayload{ConceptID: conceptID})
@@ -321,10 +312,8 @@ func (a *App) LookupTerms(projectID, text, sourceLocale, targetLocale string) (*
 // ImportTermsCSV imports terms from CSV content into the termbase.
 func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, domain string, hasHeader bool) (int, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		count, err := a.remote.ImportTermsCSV(ws, csvContent, sourceLocale, targetLocale, domain, hasHeader)
+		client, ws := a.editorRemote()
+		count, err := client.ImportTermsCSV(context.Background(), ws, csvContent, sourceLocale, targetLocale, domain, hasHeader)
 		if err != nil {
 			a.goOffline()
 		} else {
@@ -351,10 +340,8 @@ func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, 
 // ImportTermsJSON imports terms from JSON content into the termbase.
 func (a *App) ImportTermsJSON(projectID, jsonContent string) (int, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		count, err := a.remote.ImportTermsJSON(ws, jsonContent)
+		client, ws := a.editorRemote()
+		count, err := client.ImportTermsJSON(context.Background(), ws, jsonContent)
 		if err != nil {
 			a.goOffline()
 		} else {
@@ -376,10 +363,8 @@ func (a *App) ImportTermsJSON(projectID, jsonContent string) (int, error) {
 // ExportTermsJSON exports the termbase as JSON.
 func (a *App) ExportTermsJSON(projectID, name string) (string, error) {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		result, err := a.remote.ExportTermsJSON(ws, name)
+		client, ws := a.editorRemote()
+		result, err := client.ExportTermsJSON(context.Background(), ws, name)
 		if err != nil {
 			a.goOffline()
 		} else {
