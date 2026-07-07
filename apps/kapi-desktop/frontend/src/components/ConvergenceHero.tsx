@@ -13,6 +13,12 @@ import {
   DialogTitle,
   ErrorNotice,
   LocalePill,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -392,37 +398,64 @@ export function ConvergePlanDialog({
             {t("Nothing to do: every unit has a committed target.")}
           </p>
         ) : (
-          <table className="w-full text-xs" data-slot="plan-table">
-            <thead>
-              <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="py-1.5 pr-2 font-medium">{t("Scope")}</th>
-                <th className="px-2 py-1.5 text-right font-medium">{t("Missing")}</th>
-                <th className="px-2 py-1.5 text-right font-medium">{t("TM exact")}</th>
-                <th className="px-2 py-1.5 text-right font-medium">{t("AI work")}</th>
-                <th className="py-1.5 pl-2 text-right font-medium">{t("~tokens")}</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="text-xs" data-slot="plan-table">
+            <TableHeader>
+              <TableRow className="text-muted-foreground hover:bg-transparent">
+                <TableHead className="h-auto py-1.5 pr-2 text-muted-foreground">
+                  {t("Scope")}
+                </TableHead>
+                <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
+                  {t("Missing")}
+                </TableHead>
+                <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
+                  {t("TM exact")}
+                </TableHead>
+                <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
+                  {t("AI work")}
+                </TableHead>
+                <TableHead className="h-auto py-1.5 pl-2 text-right text-muted-foreground">
+                  {t("~tokens")}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {scopes.map((s, i) => (
-                <tr key={`${s.locale}-${s.collection}-${i}`} className="border-b border-border/50">
-                  <td className="py-1.5 pr-2">{scopeName(s)}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{s.missingTarget}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{s.tmExact}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{s.aiRemaining}</td>
-                  <td className="py-1.5 pl-2 text-right tabular-nums">{s.tokenEstimate}</td>
-                </tr>
+                <TableRow
+                  key={`${s.locale}-${s.collection}-${i}`}
+                  className="border-border/50 hover:bg-transparent"
+                >
+                  <TableCell className="py-1.5 pr-2">{scopeName(s)}</TableCell>
+                  <TableCell className="px-2 py-1.5 text-right tabular-nums">
+                    {s.missingTarget}
+                  </TableCell>
+                  <TableCell className="px-2 py-1.5 text-right tabular-nums">{s.tmExact}</TableCell>
+                  <TableCell className="px-2 py-1.5 text-right tabular-nums">
+                    {s.aiRemaining}
+                  </TableCell>
+                  <TableCell className="py-1.5 pl-2 text-right tabular-nums">
+                    {s.tokenEstimate}
+                  </TableCell>
+                </TableRow>
               ))}
               {totals && (
-                <tr className="font-medium" data-slot="plan-totals">
-                  <td className="py-1.5 pr-2">{t("Total")}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{totals.missingTarget}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{totals.tmExact}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums">{totals.aiRemaining}</td>
-                  <td className="py-1.5 pl-2 text-right tabular-nums">{totals.tokenEstimate}</td>
-                </tr>
+                <TableRow className="font-medium hover:bg-transparent" data-slot="plan-totals">
+                  <TableCell className="py-1.5 pr-2">{t("Total")}</TableCell>
+                  <TableCell className="px-2 py-1.5 text-right tabular-nums">
+                    {totals.missingTarget}
+                  </TableCell>
+                  <TableCell className="px-2 py-1.5 text-right tabular-nums">
+                    {totals.tmExact}
+                  </TableCell>
+                  <TableCell className="px-2 py-1.5 text-right tabular-nums">
+                    {totals.aiRemaining}
+                  </TableCell>
+                  <TableCell className="py-1.5 pl-2 text-right tabular-nums">
+                    {totals.tokenEstimate}
+                  </TableCell>
+                </TableRow>
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
 
         {subscription && (
