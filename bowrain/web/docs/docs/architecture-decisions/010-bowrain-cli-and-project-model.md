@@ -14,7 +14,7 @@ Bowrain ships as a **manifest-driven kapi plugin**, not as part of the
 bowrain-server, the bowrain MCP tools, and the recipe-schema decoders that
 validate `server:`/`hooks:`/`automations:` all live in `bowrain/plugin/`
 and compile into a standalone plugin binary, `kapi-bowrain` (built from
-`bowrain/cli/cmd/kapi-bowrain/`).
+`bowrain/plugin/cmd/kapi-bowrain/`).
 
 The `kapi` binary contains **zero bowrain code**. It discovers the
 installed plugin at runtime by reading its `manifest.json`, then dispatches
@@ -102,7 +102,7 @@ Two binaries are produced from this source tree:
 | Binary | Built from | Role |
 |---|---|---|
 | `kapi` | `kapi/cmd/kapi` | The single user-facing CLI. Framework-only; no bowrain code. |
-| `kapi-bowrain` | `bowrain/cli/cmd/kapi-bowrain` | The bowrain plugin binary. Carries a `manifest.json` declaring its commands, MCP tools, schema extensions, and source connector. |
+| `kapi-bowrain` | `bowrain/plugin/cmd/kapi-bowrain` | The bowrain plugin binary. Carries a `manifest.json` declaring its commands, MCP tools, schema extensions, and source connector. |
 
 `kapi-bowrain` is installed into a plugin directory rather than placed on
 `PATH`. `kapi` discovers it at runtime by scanning, in order,

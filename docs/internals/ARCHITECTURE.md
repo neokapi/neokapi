@@ -68,8 +68,8 @@ The project is a **multi-module monorepo** with seven Go modules coordinated by
 `go.work`. The **framework** (`github.com/neokapi/neokapi`) at the repo root
 provides the localization engine and stays platform-agnostic. A shared **CLI**
 base (`cli/`) is reused by both the **kapi** binary and bowrain. The **kapi
-desktop** app and the four **bowrain** modules (`bowrain`, `bowrain/core`,
-`bowrain/cli`, `bowrain/plugin`) build on top. The bowrain modules are
+desktop** app and the three **bowrain** modules (`bowrain`, `bowrain/core`,
+`bowrain/plugin`) build on top. The bowrain modules are
 documented here as cross-module facts; their own architecture lives under
 `bowrain/docs/`.
 
@@ -133,8 +133,7 @@ neokapi/
 ├── bowrain/
 │   ├── go.mod                       # module github.com/neokapi/neokapi/bowrain
 │   ├── core/                        # module github.com/neokapi/neokapi/bowrain/core (framework only)
-│   ├── cli/                         # module github.com/neokapi/neokapi/bowrain/cli (kapi-bowrain plugin)
-│   ├── plugin/                      # module github.com/neokapi/neokapi/bowrain/plugin (schema/commands/connector/mcp)
+│   ├── plugin/                      # module github.com/neokapi/neokapi/bowrain/plugin (schema/commands/connector/mcp + cmd/kapi-bowrain)
 │   ├── auth/ store/ connector/ service/ event/ server/   # server-side packages
 │   ├── cmd/bowrain-server/          # Echo v4 REST API server
 │   ├── cmd/bowrain-worker/          # Background worker

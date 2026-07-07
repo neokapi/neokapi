@@ -23,7 +23,7 @@ jobs:
         env:
           GOTOOLCHAIN: local
         run: |
-          for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain; do
+          for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain; do
             echo "Tidying $dir..."
             (cd "$dir" && go mod tidy)
           done

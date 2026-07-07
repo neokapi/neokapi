@@ -41,7 +41,7 @@ const OUT_OF_SURFACE = [
   // storybook + web/landing inherit this config and ARE checked (no bowrain root
   // config), so never exclude them wholesale. These are Go CLI, email templates,
   // infra compose, and the bowrain docs site (built by `make -C bowrain`).
-  "bowrain/cli/**",
+  "bowrain/plugin/**",
   "bowrain/mailer/**",
   "bowrain/deploy/**",
   "bowrain/web/docs/**",

@@ -25,7 +25,6 @@ jobs:
           - kapi
           - apps/kapi-desktop
           - bowrain/core
-          - bowrain/cli
           - bowrain/plugin
           - bowrain/plugin/schema
           - bowrain

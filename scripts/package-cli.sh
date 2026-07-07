@@ -19,7 +19,7 @@
 # Usage: package-cli.sh <version> <bins-dir> <out-dir> <manifest-json>
 #   bins-dir   holds the downloaded cli-bins-<os>-<arch>/ subdirectories
 #   out-dir    archives + checksums.txt are written here
-#   manifest   path to bowrain/cli/cmd/kapi-bowrain/manifest.json
+#   manifest   path to bowrain/plugin/cmd/kapi-bowrain/manifest.json
 set -euo pipefail
 
 version="${1:?version required}"

@@ -176,11 +176,13 @@ func (r *Recipe) Save(path string) error {
 	return SaveRecipe(path, r)
 }
 
-// Validate delegates to the framework loader. The schema decoders
-// registered by bowrain/plugin/schema validate the bowrain-specific
-// extension blocks during KapiProject.Validate, so this method has
-// nothing left to add — it stays as a hook for callers that explicitly
-// validate after mutating a Recipe.
+// Validate runs the framework's KapiProject validation, then fans out to
+// each typed bowrain extension block so callers that mutate a Recipe
+// in-memory (where the schema decoders never see the YAML) still get the
+// block-level checks. The fan-out is hand-coded; the drift-guard tests in
+// recipe_extensions_test.go pin it to the extension set registered by
+// bowrain/plugin/schema (see core/project.RegisteredExtensions), so a new
+// schema block cannot be silently missed here.
 func (r *Recipe) Validate() error {
 	if err := r.KapiProject.Validate(); err != nil {
 		return err

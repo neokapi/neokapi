@@ -67,7 +67,7 @@ runs:
       uses: actions/cache@v5
       with:
         path: ${{ steps.gocache.outputs.mod }}
-        key: go-mod-${{ runner.os }}-${{ hashFiles('go.sum', 'host/go.sum', 'cli/go.sum', 'kapi/go.sum', 'apps/kapi-desktop/go.sum', 'bowrain/go.sum', 'bowrain/core/go.sum', 'bowrain/cli/go.sum', 'bowrain/plugin/go.sum', 'bowrain/plugin/schema/go.sum') }}
+        key: go-mod-${{ runner.os }}-${{ hashFiles('go.sum', 'host/go.sum', 'cli/go.sum', 'kapi/go.sum', 'apps/kapi-desktop/go.sum', 'bowrain/go.sum', 'bowrain/core/go.sum', 'bowrain/plugin/go.sum', 'bowrain/plugin/schema/go.sum') }}
         restore-keys: |
           go-mod-${{ runner.os }}-
 
@@ -94,7 +94,7 @@ runs:
         # from a trusted GitHub-hosted cache, so `go mod verify` (a full
         # cache-hash walk) is pure per-job overhead and is intentionally omitted.
         if [ "${{ inputs.modules }}" = "all" ]; then
-          mods=". host cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain"
+          mods=". host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain"
         else
           mods="${{ inputs.modules }}"
         fi

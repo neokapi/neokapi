@@ -2,6 +2,7 @@ package commands
 
 import (
 	"errors"
+	"slices"
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/cli"
@@ -143,10 +144,8 @@ func (a *runAccumulator) output(final *apiclient.ConvergenceRun) cli.ConvergeOut
 }
 
 func appendUnique(s []string, v string) []string {
-	for _, e := range s {
-		if e == v {
-			return s
-		}
+	if slices.Contains(s, v) {
+		return s
 	}
 	return append(s, v)
 }

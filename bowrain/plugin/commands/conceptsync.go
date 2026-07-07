@@ -17,7 +17,6 @@ import (
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/termbase"
-	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -365,7 +364,7 @@ func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath s
 		}, nil
 	}
 
-	name := fmt.Sprintf("kapi push %s", time.Now().UTC().Format("2006-01-02 15:04"))
+	name := "kapi push " + time.Now().UTC().Format("2006-01-02 15:04")
 	desc := fmt.Sprintf("Governed terminology edits proposed by kapi push: %d operation(s).", len(plan.governed))
 	return plan.apply(ctx, client, name, desc)
 }
@@ -712,23 +711,6 @@ func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pus
 		res.ChangesetURL = changesetURL(proj, res.ChangesetID)
 	}
 	return res, nil
-}
-
-// printConceptPushSummary writes a concept push summary to the command's stdout
-// for the kapi sync path (which prints progress directly rather than through the
-// structured output layer).
-func printConceptPushSummary(cmd *cobra.Command, res *PushConceptsResult) {
-	w := cmd.OutOrStdout()
-	if res.ConceptsApplied > 0 || res.RelationsApplied > 0 {
-		fmt.Fprintf(w, "Applied %d concept edit(s) and %d relation edit(s) directly\n",
-			res.ConceptsApplied, res.RelationsApplied)
-	}
-	if res.ConceptsProposed > 0 {
-		fmt.Fprintf(w, "Proposed %d governed edit(s) in change-set %s\n", res.ConceptsProposed, res.ChangesetID)
-		if res.ChangesetURL != "" {
-			fmt.Fprintf(w, "Review it at %s\n", res.ChangesetURL)
-		}
-	}
 }
 
 // ---------------------------------------------------------------------------

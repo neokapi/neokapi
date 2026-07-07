@@ -71,8 +71,7 @@ neokapi/                              ── Framework Module Tests (repo root) 
 │
 └── bowrain/                          ── Bowrain Module Tests ──
     ├── core/                         # bowrain/core module
-    ├── cli/                          # bowrain/cli module (kapi-bowrain plugin)
-    ├── plugin/                       # bowrain/plugin module
+    ├── plugin/                       # bowrain/plugin module (incl. cmd/kapi-bowrain)
     ├── store/ auth/ connector/ server/   # server-side package tests
     └── …                              # each package has *_test.go
 ```
@@ -734,7 +733,7 @@ func BenchmarkNativeVsBridge(b *testing.B) {
 ### GitHub Actions (`ci.yml`)
 
 The real `ci.yml` runs one test job per module (framework, cli, kapi,
-kapi-desktop, bowrain, bowrain/core, bowrain/cli, bowrain/plugin) plus
+kapi-desktop, bowrain, bowrain/core, bowrain/plugin) plus
 frontend and lint jobs. It pins Go `1.26.0` and additionally tries `stable` on
 pushes. The shape below is illustrative:
 

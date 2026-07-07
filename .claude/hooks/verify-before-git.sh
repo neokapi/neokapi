@@ -55,8 +55,8 @@ while IFS= read -r f; do
       MOD_KAPI_DESKTOP=true ;;
     bowrain/core/*)
       MOD_PLATFORM=true ;;
-    bowrain/cli/*)
-      MOD_BOWRAIN_CLI=true ;;
+    bowrain/plugin/*)
+      MOD_BOWRAIN_PLUGIN=true ;;
     bowrain/apps/web/*|bowrain/apps/bowrain/frontend/*|bowrain/packages/*)
       MOD_FRONTEND=true ;;
     bowrain/*)
@@ -66,7 +66,7 @@ while IFS= read -r f; do
     .golangci.yml)
       # Lint config change affects all Go modules
       MOD_FRAMEWORK=true; MOD_CLI=true; MOD_KAPI=true
-      MOD_PLATFORM=true; MOD_BOWRAIN_CLI=true; MOD_BOWRAIN=true ;;
+      MOD_PLATFORM=true; MOD_BOWRAIN_PLUGIN=true; MOD_BOWRAIN=true ;;
   esac
 done <<< "$STAGED"
 
@@ -130,9 +130,9 @@ if [ "$MOD_PLATFORM" = true ]; then
   run_check "Platform tests" bash -c "cd bowrain/core && go test -shuffle=on ./... -count=1 -short"
 fi
 
-if [ "$MOD_BOWRAIN_CLI" = true ]; then
-  run_check "Bowrain CLI build" bash -c "cd bowrain/cli && go build ./..."
-  run_check "Bowrain CLI tests" bash -c "cd bowrain/cli && go test -shuffle=on ./... -count=1 -short"
+if [ "$MOD_BOWRAIN_PLUGIN" = true ]; then
+  run_check "Bowrain plugin build" bash -c "cd bowrain/plugin && go build ./..."
+  run_check "Bowrain plugin tests" bash -c "cd bowrain/plugin && go test -shuffle=on ./... -count=1 -short"
 fi
 
 if [ "$MOD_BOWRAIN" = true ]; then

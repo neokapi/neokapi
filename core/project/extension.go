@@ -2,6 +2,7 @@ package project
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/neokapi/neokapi/core/project/internal/extregistry"
 	"gopkg.in/yaml.v3"
@@ -113,6 +114,17 @@ func ExtensionRegistered(scope Scope, name string) (group string, ok bool) {
 		return "", false
 	}
 	return e.Group, true
+}
+
+// RegisteredExtensions returns the names of every extension registered at
+// the given scope, sorted. Introspection only — platform layers use it to
+// keep hand-written fan-out over their extension blocks (e.g. a typed
+// Recipe wrapper that validates each block) in lockstep with the schema
+// their `init()` registered, typically via a drift-guard test.
+func RegisteredExtensions(scope Scope) []string {
+	names := extregistry.Names(int(scope))
+	sort.Strings(names)
+	return names
 }
 
 // HasExtensionGroup reports whether at least one Extension with this

@@ -27,7 +27,6 @@ jobs:
       cli: ${{ github.event_name == 'push' || steps.filter.outputs.cli }}
       platform: ${{ github.event_name == 'push' || steps.filter.outputs.platform }}
       kapi: ${{ github.event_name == 'push' || steps.filter.outputs.kapi }}
-      bowrain_cli: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_cli }}
       bowrain_plugin: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_plugin }}
       bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
@@ -35,7 +34,7 @@ jobs:
       bowrain_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_desktop }}
       kapi_react: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_react }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
-      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_cli || steps.filter.outputs.bowrain_plugin || steps.filter.outputs.bowrain }}
+      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_plugin || steps.filter.outputs.bowrain }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -70,10 +69,9 @@ jobs:
           else
             echo "kapi=false" >> "$GITHUB_OUTPUT"
           fi
-          check_paths bowrain_cli '^bowrain/cli/'
           check_paths bowrain_plugin '^bowrain/plugin/'
-          # bowrain: anything under bowrain/ except frontend app dirs, packages/, bowrain/core/, bowrain/cli/, docker/, and deploy/
-          if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/(apps/(web|bowrain/frontend|keycloak-theme|ctrl|pulse)|packages/|emails/|core/|cli/|docker/|deploy/)' | grep -q .; then
+          # bowrain: anything under bowrain/ except frontend app dirs, packages/, bowrain/core/, bowrain/plugin/, docker/, and deploy/
+          if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/(apps/(web|bowrain/frontend|keycloak-theme|ctrl|pulse)|packages/|emails/|core/|plugin/|docker/|deploy/)' | grep -q .; then
             echo "bowrain=true" >> "$GITHUB_OUTPUT"
           else
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
@@ -404,53 +402,11 @@ jobs:
       - name: Run engine example clients
         run: make engine-examples
 
-  test-bowrain-cli:
-    name: Test (Bowrain CLI)
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true'
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/setup-go-modules
-
-      - name: Run Bowrain CLI tests
-        id: run-tests
-        run: make test-bowrain-cli
-        continue-on-error: true
-
-      - name: Convert to JUnit XML
-        if: always()
-        uses: ./.github/actions/go-junit-report
-        with:
-          in: bowrain/test-results-bowrain-cli.json
-          out: junit-bowrain-cli.xml
-
-      - name: Report test results
-        uses: dorny/test-reporter@v3
-        if: always()
-        continue-on-error: true
-        with:
-          name: Bowrain CLI Tests
-          path: junit-bowrain-cli.xml
-          reporter: java-junit
-
-      - name: Fail if tests failed
-        if: steps.run-tests.outcome == 'failure'
-        run: exit 1
-
-      - name: Upload coverage
-        uses: actions/upload-artifact@v7
-        if: always() && github.event_name == 'push'
-        with:
-          name: coverage-bowrain-cli
-          path: coverage/bowrain-cli.out
-          retention-days: 1
-
   test-bowrain-plugin:
     name: Test (Bowrain Plugin)
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true' || needs.changes.outputs.bowrain_plugin == 'true'
+    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_plugin == 'true'
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
@@ -596,7 +552,7 @@ jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
-    needs: [test-framework, test-cli, test-platform, test-kapi, test-bowrain-cli, test-bowrain-plugin, test-bowrain]
+    needs: [test-framework, test-cli, test-platform, test-kapi, test-bowrain-plugin, test-bowrain]
     # Coverage is collected and pushed to Codecov on the full gate only. PR fast
     # runs skip -coverprofile (it disables Go's test cache), so there is nothing
     # to merge — and uploading near-empty coverage would spam Codecov PR comments.
@@ -619,7 +575,7 @@ jobs:
             echo "mode: atomic" > coverage.out
           fi
           # Append remaining files (skip header line)
-          for f in cli.out host.out platform.out kapi.out bowrain-cli.out bowrain-plugin.out bowrain-plugin-schema.out bowrain.out; do
+          for f in cli.out host.out platform.out kapi.out bowrain-plugin.out bowrain-plugin-schema.out bowrain.out; do
             if [ -f "$f" ]; then
               tail -n +2 "$f" >> coverage.out
             fi
@@ -682,7 +638,7 @@ jobs:
     name: Lint (platform)
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true' || needs.changes.outputs.bowrain == 'true'
+    if: needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_plugin == 'true' || needs.changes.outputs.bowrain == 'true'
     steps:
       - uses: actions/checkout@v7
 
@@ -705,10 +661,10 @@ jobs:
         with:
           working-directory: bowrain/core
 
-      - name: Lint Bowrain CLI
+      - name: Lint Bowrain plugin
         uses: ./.github/actions/golangci
         with:
-          working-directory: bowrain/cli
+          working-directory: bowrain/plugin
 
       - name: Install Linux dependencies for Wails
         run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev libicu-dev pkg-config
