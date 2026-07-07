@@ -2,46 +2,24 @@ package backend
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	"github.com/zalando/go-keyring"
+	"github.com/neokapi/neokapi/bowrain/core/config"
 )
 
 var errNotConnected = errors.New("not connected to server")
 
 // DefaultServerURL is the Bowrain SaaS instance URL used when no custom server is specified.
 const DefaultServerURL = "https://bowrain.cloud"
-
-const (
-	keyringServiceBase     = "bowrain"
-	keyringAccessTokenKey  = "access-token"
-	keyringRefreshTokenKey = "refresh-token"
-)
-
-// keyringService returns the OS keychain service name for the desktop auth
-// tokens. It is namespaced by the config dir so an isolated
-// BOWRAIN_DESKTOP_CONFIG_DIR (tests, or an alternate/dogfood instance) gets its
-// own token slot instead of reading or clobbering the user's real login — the
-// same env var that already isolates auth.json now isolates the tokens too. The
-// default config dir keeps the bare "bowrain" service for backward
-// compatibility with existing installs.
-func keyringService() string {
-	if dir := os.Getenv("BOWRAIN_DESKTOP_CONFIG_DIR"); dir != "" {
-		return keyringServiceBase + ":" + dir
-	}
-	return keyringServiceBase
-}
 
 // ConnectionState represents the connection state of the desktop client.
 type ConnectionState string
@@ -60,24 +38,6 @@ type ConnectionInfo struct {
 	UserName  string          `json:"user_name,omitempty"`
 	UserEmail string          `json:"user_email,omitempty"`
 	Workspace string          `json:"workspace,omitempty"`
-}
-
-// storedDesktopAuth holds non-secret auth metadata persisted at <UserConfigDir>/bowrain-desktop/auth.json.
-// Tokens are stored in the OS keychain (macOS Keychain, Windows Credential Manager, etc.).
-type storedDesktopAuth struct {
-	ServerURL string            `json:"server_url"`
-	Expiry    time.Time         `json:"expiry"`
-	User      storedDesktopUser `json:"user"`
-
-	// In-memory only — loaded from keyring, never serialized to disk.
-	AccessToken  string `json:"-"`
-	RefreshToken string `json:"-"`
-}
-
-type storedDesktopUser struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-	Name  string `json:"name"`
 }
 
 // pkceResult is the result received from the local PKCE callback server.
@@ -142,10 +102,10 @@ func (a *App) connectWithToken(serverURL, token string) error {
 
 	a.mu.Lock()
 	a.remote = client
-	a.authInfo = &storedDesktopAuth{
+	a.authInfo = &config.StoredAuth{
 		ServerURL:   serverURL,
 		AccessToken: token,
-		User:        storedDesktopUser{Email: "ci@bowrain.cloud", Name: "CI"},
+		User:        config.StoredUser{Email: "ci@bowrain.cloud", Name: "CI"},
 	}
 	a.connState = StateConnected
 	a.serverURL = serverURL
@@ -344,13 +304,15 @@ func (a *App) WaitForLogin() (bool, error) {
 			return false, result.Err
 		}
 
-		// Save tokens to keychain and metadata to disk.
-		stored := &storedDesktopAuth{
+		// Save tokens to the shared bowrain/core/config store (OS keychain +
+		// non-secret metadata), so a desktop login and a kapi CLI login share
+		// one set of credentials.
+		stored := &config.StoredAuth{
 			ServerURL:    serverURL,
 			AccessToken:  result.AccessToken,
 			RefreshToken: result.RefreshToken,
 			Expiry:       time.Now().Add(24 * time.Hour),
-			User: storedDesktopUser{
+			User: config.StoredUser{
 				Email: result.UserEmail,
 				Name:  result.UserName,
 			},
@@ -358,10 +320,10 @@ func (a *App) WaitForLogin() (bool, error) {
 
 		// Fetch full user info (including ID) from the server.
 		if user, err := apiclient.FetchUser(context.Background(), serverURL, result.AccessToken); err == nil {
-			stored.User = storedDesktopUser{ID: user.ID, Email: user.Email, Name: user.Name}
+			stored.User = config.StoredUser{ID: user.ID, Email: user.Email, Name: user.Name}
 		}
 
-		if err := saveDesktopAuth(stored); err != nil {
+		if err := config.SaveAuth(*stored); err != nil {
 			return true, fmt.Errorf("save auth: %w", err)
 		}
 
@@ -467,11 +429,18 @@ func (a *App) cleanupPKCE() {
 
 // Logout removes stored auth and disconnects.
 func (a *App) Logout() {
+	a.mu.RLock()
+	serverURL := a.serverURL
+	a.mu.RUnlock()
+	if serverURL == "" {
+		if stored, err := loadDesktopAuth(); err == nil {
+			serverURL = stored.ServerURL
+		}
+	}
 	a.Disconnect()
-	_ = os.Remove(desktopAuthFilePath())
-	// Remove tokens from keyring (best-effort).
-	_ = keyring.Delete(keyringService(), keyringAccessTokenKey)
-	_ = keyring.Delete(keyringService(), keyringRefreshTokenKey)
+	// Clear credentials from the shared bowrain/core/config store (keychain +
+	// metadata). Missing entries are not an error.
+	_ = config.DeleteAuth(serverURL)
 }
 
 // Disconnect closes the server connection.
@@ -508,53 +477,17 @@ func (a *App) SelectWorkspace(slug string) error {
 }
 
 // --- Auth persistence ---
-// Non-secret metadata: <UserConfigDir>/bowrain-desktop/auth.json
-// Tokens: OS keychain via go-keyring
+//
+// Desktop credentials live in the shared bowrain/core/config store — the same
+// OS keychain scheme (service "kapi", URL-namespaced keys) and metadata file
+// (~/.config/bowrain/auth.json) the kapi CLI + kapi-bowrain plugin use. This is
+// what makes a desktop login and a CLI login mutually visible. loadDesktopAuth
+// first runs a one-time migration off the legacy desktop-only scheme (see
+// desktopauth_migrate.go).
 
-func desktopAuthFilePath() string {
-	return filepath.Join(desktopConfigDir(), "auth.json")
-}
-
-func saveDesktopAuth(a *storedDesktopAuth) error {
-	// Save tokens to OS keychain.
-	if a.AccessToken != "" {
-		if err := keyring.Set(keyringService(), keyringAccessTokenKey, a.AccessToken); err != nil {
-			return fmt.Errorf("save access token to keyring: %w", err)
-		}
-	}
-	if a.RefreshToken != "" {
-		if err := keyring.Set(keyringService(), keyringRefreshTokenKey, a.RefreshToken); err != nil {
-			return fmt.Errorf("save refresh token to keyring: %w", err)
-		}
-	}
-
-	// Save non-secret metadata to disk.
-	path := desktopAuthFilePath()
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(a, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0600)
-}
-
-func loadDesktopAuth() (*storedDesktopAuth, error) {
-	data, err := os.ReadFile(desktopAuthFilePath())
-	if err != nil {
-		return nil, err
-	}
-	var a storedDesktopAuth
-	if err := json.Unmarshal(data, &a); err != nil {
-		return nil, err
-	}
-
-	// Load tokens from keyring.
-	a.AccessToken, _ = keyring.Get(keyringService(), keyringAccessTokenKey)
-	a.RefreshToken, _ = keyring.Get(keyringService(), keyringRefreshTokenKey)
-
-	return &a, nil
+func loadDesktopAuth() (*config.StoredAuth, error) {
+	migrateLegacyDesktopAuth()
+	return config.LoadAuth()
 }
 
 // discoverGRPCAddr derives the gRPC address from the server URL.

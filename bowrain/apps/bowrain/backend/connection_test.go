@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando/go-keyring"
@@ -117,24 +118,30 @@ func TestDiscoverGRPCAddrHTTPSWithPort(t *testing.T) {
 }
 
 // --- Auth persistence tests ---
+//
+// Desktop credentials now persist through the shared bowrain/core/config store
+// (keychain service "kapi", URL-namespaced keys, metadata at
+// $BOWRAIN_CONFIG_DIR/auth.json) — the same scheme the kapi CLI uses, which is
+// what makes a desktop login and a CLI login mutually visible. These tests
+// exercise that shared store via the desktop's loadDesktopAuth wrapper.
 
 func TestSaveAndLoadDesktopAuth(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
-	stored := &storedDesktopAuth{
+	stored := config.StoredAuth{
 		ServerURL:   "http://localhost:8080",
 		AccessToken: "test-token-123",
 		Expiry:      time.Now().Add(time.Hour).Truncate(time.Second),
-		User: storedDesktopUser{
+		User: config.StoredUser{
 			ID:    "user-1",
 			Email: "alice@test.com",
 			Name:  "Alice",
 		},
 	}
 
-	err := saveDesktopAuth(stored)
+	err := config.SaveAuth(stored)
 	require.NoError(t, err)
 
 	// Verify file exists.
@@ -154,7 +161,7 @@ func TestSaveAndLoadDesktopAuth(t *testing.T) {
 
 func TestLoadDesktopAuthMissing(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
 	_, err := loadDesktopAuth()
 	require.Error(t, err)
@@ -163,14 +170,14 @@ func TestLoadDesktopAuthMissing(t *testing.T) {
 func TestSaveDesktopAuthPermissions(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
-	stored := &storedDesktopAuth{
+	stored := config.StoredAuth{
 		ServerURL:   "http://localhost:8080",
 		AccessToken: "secret-token",
 	}
 
-	err := saveDesktopAuth(stored)
+	err := config.SaveAuth(stored)
 	require.NoError(t, err)
 
 	path := filepath.Join(tmpDir, "auth.json")
@@ -179,34 +186,35 @@ func TestSaveDesktopAuthPermissions(t *testing.T) {
 	// Should be 0600 (owner read/write only).
 	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
 
-	// Tokens should be in keyring, not in the JSON file.
+	// Tokens should be in the keychain, not in the JSON file.
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), "secret-token")
 
-	kr, err := keyring.Get(keyringService(), keyringAccessTokenKey)
+	// The token round-trips through the shared store's keychain.
+	loaded, err := loadDesktopAuth()
 	require.NoError(t, err)
-	assert.Equal(t, "secret-token", kr)
+	assert.Equal(t, "secret-token", loaded.AccessToken)
 }
 
 func TestDesktopAuthJSONFormat(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
-	stored := &storedDesktopAuth{
+	stored := config.StoredAuth{
 		ServerURL:    "http://localhost:8080",
 		AccessToken:  "token",
 		RefreshToken: "refresh",
-		User:         storedDesktopUser{ID: "u1", Email: "a@b.com", Name: "A"},
+		User:         config.StoredUser{ID: "u1", Email: "a@b.com", Name: "A"},
 	}
-	err := saveDesktopAuth(stored)
+	err := config.SaveAuth(stored)
 	require.NoError(t, err)
 
 	data, err := os.ReadFile(filepath.Join(tmpDir, "auth.json"))
 	require.NoError(t, err)
 
-	// JSON should have metadata but NOT tokens (those go to keyring).
+	// JSON should have metadata but NOT tokens (those go to the keychain).
 	var parsed map[string]any
 	err = json.Unmarshal(data, &parsed)
 	require.NoError(t, err)
@@ -214,13 +222,46 @@ func TestDesktopAuthJSONFormat(t *testing.T) {
 	assert.Nil(t, parsed["access_token"])  // json:"-" means it won't be serialized
 	assert.Nil(t, parsed["refresh_token"]) // json:"-" means it won't be serialized
 
-	// Tokens should be in keyring.
-	at, err := keyring.Get(keyringService(), keyringAccessTokenKey)
+	// Both tokens round-trip through the shared store's keychain.
+	loaded, err := loadDesktopAuth()
 	require.NoError(t, err)
-	assert.Equal(t, "token", at)
-	rt, err := keyring.Get(keyringService(), keyringRefreshTokenKey)
+	assert.Equal(t, "token", loaded.AccessToken)
+	assert.Equal(t, "refresh", loaded.RefreshToken)
+}
+
+// TestMigrateLegacyDesktopAuth verifies the one-time migration off the legacy
+// desktop-only keychain scheme ("bowrain" service + bowrain-desktop/auth.json)
+// into the shared bowrain/core/config store.
+func TestMigrateLegacyDesktopAuth(t *testing.T) {
+	keyring.MockInit()
+	legacyDir := t.TempDir()
+	sharedDir := t.TempDir()
+	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", legacyDir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", sharedDir)
+
+	// Seed the legacy scheme: metadata file + keychain tokens.
+	legacyMeta := `{"server_url":"http://localhost:8080","expiry":"2099-01-01T00:00:00Z","user":{"id":"u1","email":"a@b.com","name":"Alice"}}`
+	require.NoError(t, os.WriteFile(legacyDesktopAuthFilePath(), []byte(legacyMeta), 0o600))
+	require.NoError(t, keyring.Set(legacyKeyringService(), legacyAccessTokenKey, "legacy-access"))
+	require.NoError(t, keyring.Set(legacyKeyringService(), legacyRefreshTokenKey, "legacy-refresh"))
+
+	// loadDesktopAuth triggers the migration, then reads from the shared store.
+	loaded, err := loadDesktopAuth()
 	require.NoError(t, err)
-	assert.Equal(t, "refresh", rt)
+	assert.Equal(t, "http://localhost:8080", loaded.ServerURL)
+	assert.Equal(t, "legacy-access", loaded.AccessToken)
+	assert.Equal(t, "legacy-refresh", loaded.RefreshToken)
+	assert.Equal(t, "Alice", loaded.User.Name)
+
+	// Shared metadata now exists; legacy file is cleaned up.
+	_, err = os.Stat(filepath.Join(sharedDir, "auth.json"))
+	require.NoError(t, err)
+	_, err = os.Stat(legacyDesktopAuthFilePath())
+	assert.True(t, os.IsNotExist(err), "legacy auth.json should be removed")
+
+	// Legacy keychain entries are cleared.
+	_, err = keyring.Get(legacyKeyringService(), legacyAccessTokenKey)
+	assert.Error(t, err)
 }
 
 // --- Connection state tests ---
@@ -258,7 +299,7 @@ func TestDisconnectResetsState(t *testing.T) {
 	app.connState = StateConnected
 	app.serverURL = "http://localhost:8080"
 	app.activeWS = "ws-1"
-	app.authInfo = &storedDesktopAuth{User: storedDesktopUser{Name: "Alice"}}
+	app.authInfo = &config.StoredAuth{User: config.StoredUser{Name: "Alice"}}
 	app.mu.Unlock()
 
 	app.Disconnect()
@@ -272,14 +313,14 @@ func TestDisconnectResetsState(t *testing.T) {
 func TestLogoutRemovesAuthFile(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
 	// Save auth first.
-	stored := &storedDesktopAuth{
+	stored := config.StoredAuth{
 		ServerURL:   "http://localhost:8080",
 		AccessToken: "token",
 	}
-	err := saveDesktopAuth(stored)
+	err := config.SaveAuth(stored)
 	require.NoError(t, err)
 
 	path := filepath.Join(tmpDir, "auth.json")
@@ -287,6 +328,9 @@ func TestLogoutRemovesAuthFile(t *testing.T) {
 	require.NoError(t, err)
 
 	app := newTestApp(t)
+	app.mu.Lock()
+	app.serverURL = "http://localhost:8080"
+	app.mu.Unlock()
 	app.Logout()
 
 	_, err = os.Stat(path)
@@ -295,7 +339,7 @@ func TestLogoutRemovesAuthFile(t *testing.T) {
 
 func TestConnectToServerNoStoredAuth(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
 	app := newTestApp(t)
 	err := app.ConnectToServer("http://localhost:8080")
@@ -309,15 +353,15 @@ func TestConnectToServerNoStoredAuth(t *testing.T) {
 func TestConnectToServerExpiredToken(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
 	// Save expired auth.
-	stored := &storedDesktopAuth{
+	stored := config.StoredAuth{
 		ServerURL:   "http://localhost:8080",
 		AccessToken: "expired-token",
 		Expiry:      time.Now().Add(-time.Hour),
 	}
-	err := saveDesktopAuth(stored)
+	err := config.SaveAuth(stored)
 	require.NoError(t, err)
 
 	app := newTestApp(t)
@@ -335,7 +379,7 @@ func TestCancelLogin(t *testing.T) {
 
 func TestTryAutoConnectNoAuth(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
 	app := newTestApp(t)
 	app.TryAutoConnect()
@@ -405,14 +449,14 @@ func TestHandleDeepLinkMissingID(t *testing.T) {
 func TestTryAutoConnectExpiredAuth(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", tmpDir)
 
-	stored := &storedDesktopAuth{
+	stored := config.StoredAuth{
 		ServerURL:   "http://localhost:8080",
 		AccessToken: "expired",
 		Expiry:      time.Now().Add(-time.Hour),
 	}
-	err := saveDesktopAuth(stored)
+	err := config.SaveAuth(stored)
 	require.NoError(t, err)
 
 	app := newTestApp(t)
