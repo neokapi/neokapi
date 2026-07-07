@@ -1,25 +1,19 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "./useApi";
-
-let cachedHome: string | null = null;
+import { qk } from "../lib/queryKeys";
 
 /**
  * Returns a function that replaces the user's home directory with ~/ in paths.
- * Fetches the home directory from the backend once and caches it.
- * Works on macOS, Linux, and Windows.
+ * The home directory is fetched once via react-query (cached forever) and works
+ * on macOS, Linux, and Windows.
  */
 export function useShortenHome(): (path: string) => string {
-  const [home, setHome] = useState(cachedHome);
-
-  useEffect(() => {
-    if (cachedHome) return;
-    void api.getHomeDir().then((h) => {
-      if (h) {
-        cachedHome = h;
-        setHome(h);
-      }
-    });
-  }, []);
+  const { data: home } = useQuery({
+    queryKey: qk.homeDir(),
+    queryFn: () => api.getHomeDir(),
+    staleTime: Infinity,
+  });
 
   return useCallback(
     (path: string): string => {

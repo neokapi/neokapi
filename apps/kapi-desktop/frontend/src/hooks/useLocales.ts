@@ -1,26 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { LocaleInfo } from "@neokapi/ui-primitives";
 import { api } from "./useApi";
+import { qk } from "../lib/queryKeys";
 
 /**
  * Fetches the known locale list from the Wails backend and provides
- * display name lookup. Caches the result for the component lifetime.
+ * display name lookup. react-query caches the result across the app.
  */
 export function useLocales() {
-  const [locales, setLocales] = useState<LocaleInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const query = useQuery({
+    queryKey: qk.knownLocales(),
+    queryFn: () => api.getKnownLocales(),
+    staleTime: Infinity,
+  });
 
-  useEffect(() => {
-    api
-      .getKnownLocales()
-      .then((raw) => {
-        if (raw) {
-          setLocales(raw.map((l) => ({ code: l.code, displayName: l.display_name })));
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const locales = useMemo<LocaleInfo[]>(
+    () => (query.data ?? []).map((l) => ({ code: l.code, displayName: l.display_name })),
+    [query.data],
+  );
 
   const getDisplayName = useCallback(
     (code: string): string => {
@@ -30,5 +28,5 @@ export function useLocales() {
     [locales],
   );
 
-  return { locales, loading, getDisplayName };
+  return { locales, loading: query.isLoading, getDisplayName };
 }

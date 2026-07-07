@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "./testUtils";
 
 import { TranslationStatusPanel, type ProjectStatus } from "../components/TranslationStatusPanel";
 import { api } from "../hooks/useApi";

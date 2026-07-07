@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, CardContent, ErrorNotice } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import { Loader2, RefreshCw } from "lucide-react";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 
 export interface CollectionStatus {
   name: string;
@@ -32,40 +34,33 @@ export interface TranslationStatusPanelProps {
  * blockstore integration step.
  */
 export function TranslationStatusPanel({ tabID, status: propStatus }: TranslationStatusPanelProps) {
-  const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
-  const [error, setError] = useState<unknown>(null);
+  const qc = useQueryClient();
+  const [extractError, setExtractError] = useState<unknown>(null);
   const [extracting, setExtracting] = useState(false);
   const [extractLog, setExtractLog] = useState<string | null>(null);
 
-  const refreshStatus = useCallback(() => {
-    if (propStatus) return;
-    let cancelled = false;
-    api
-      .getProjectStatus(tabID)
-      .then((s) => {
-        if (!cancelled) setStatus(s);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [tabID, propStatus]);
+  const statusQuery = useQuery({
+    queryKey: qk.projectStatus(tabID),
+    queryFn: () => api.getProjectStatus(tabID),
+    enabled: !propStatus,
+  });
+  const status = propStatus ?? statusQuery.data ?? null;
+  // A failed extract takes precedence over a stale status-load error.
+  const error = extractError ?? (propStatus ? null : statusQuery.error);
 
-  useEffect(() => {
-    refreshStatus();
-  }, [refreshStatus]);
+  const refreshStatus = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: qk.projectStatus(tabID) });
+  }, [qc, tabID]);
 
   const runExtract = useCallback(async () => {
     setExtracting(true);
-    setError(null);
+    setExtractError(null);
     try {
       const result = await api.runExtract(tabID);
       if (result) setExtractLog(result.log);
       refreshStatus();
     } catch (e) {
-      setError(e);
+      setExtractError(e);
     } finally {
       setExtracting(false);
     }

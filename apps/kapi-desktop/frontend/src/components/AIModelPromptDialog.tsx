@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,7 @@ import {
 import { t } from "@neokapi/kapi-react/runtime";
 import type { AIModelOption } from "../types/api";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { AIModelList } from "./AIModelList";
 
 export interface AIModelPromptDialogProps {
@@ -34,14 +36,15 @@ export function AIModelPromptDialog({
   onResolved,
   onCancel,
 }: AIModelPromptDialogProps) {
-  const [models, setModels] = useState<AIModelOption[]>(propModels ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open || propModels) return;
-    void api.listAIModels().then((m) => setModels(m ?? []));
-  }, [open, propModels]);
+  const modelsQuery = useQuery({
+    queryKey: qk.aiModels(),
+    queryFn: () => api.listAIModels(),
+    enabled: open && !propModels,
+  });
+  const models = propModels ?? modelsQuery.data ?? [];
 
   const pick = async (m: AIModelOption) => {
     setBusy(true);

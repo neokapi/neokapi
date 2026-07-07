@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, Plus, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { t } from "@neokapi/kapi-react/runtime";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@neokapi/ui-primitives";
 import type { ComponentSchema, FormatInfo } from "../types/api";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { useSchemaFormHost } from "../hooks/useSchemaFormHost";
 import { useError } from "./ErrorBanner";
 
@@ -121,25 +123,23 @@ export function FormatConfigDialog({
   const active = selected ?? "";
   const inList = selected === null;
 
-  // Per-format schema + preset caches (loaded lazily for the open detail).
-  const [schemas, setSchemas] = useState<Record<string, ComponentSchema | null>>({});
-  const [presets, setPresets] = useState<Record<string, PresetItem[]>>({});
-  const [loading, setLoading] = useState(false);
+  // Per-format schema + presets, loaded lazily for the open detail. react-query
+  // caches them per format (re-keyed as `active` changes), replacing the manual
+  // record caches.
+  const schemaQuery = useQuery({
+    queryKey: qk.formatSchema(active),
+    queryFn: () => api.getFormatSchema(active),
+    enabled: open && !!active,
+  });
+  const presetsQuery = useQuery({
+    queryKey: qk.formatPresets(active),
+    queryFn: () => api.listFormatPresets(active),
+    enabled: open && !!active,
+  });
 
   useEffect(() => {
-    if (!open || !active || schemas[active] !== undefined) return;
-    setLoading(true);
-    Promise.all([api.getFormatSchema(active), api.listFormatPresets(active)])
-      .then(([s, p]) => {
-        setSchemas((prev) => ({ ...prev, [active]: (s as ComponentSchema) ?? null }));
-        setPresets((prev) => ({ ...prev, [active]: (p as PresetItem[]) ?? [] }));
-      })
-      .catch((err) => {
-        showError("Failed to load format schema", err);
-        setSchemas((prev) => ({ ...prev, [active]: null }));
-      })
-      .finally(() => setLoading(false));
-  }, [open, active, schemas, showError]);
+    if (schemaQuery.error) showError("Failed to load format schema", schemaQuery.error);
+  }, [schemaQuery.error, showError]);
 
   const addOptions = useMemo(() => {
     const ext = filterExtension?.toLowerCase();
@@ -158,8 +158,13 @@ export function FormatConfigDialog({
   }, []);
 
   const current = values[active] ?? {};
-  const activeSchema = schemas[active];
-  const activePresets = presets[active] ?? [];
+  // undefined while the schema is still loading (drives the skeleton); null once
+  // loaded with no configurable schema.
+  const activeSchema: ComponentSchema | null | undefined = schemaQuery.isSuccess
+    ? ((schemaQuery.data as ComponentSchema | null) ?? null)
+    : undefined;
+  const activePresets: PresetItem[] = (presetsQuery.data as PresetItem[] | null) ?? [];
+  const loading = !!active && (schemaQuery.isLoading || presetsQuery.isLoading);
 
   // Baseline for the per-property "modified" dots: the format's schema defaults,
   // overlaid with the selected preset. A property whose current value differs

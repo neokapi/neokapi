@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/kapi-react/runtime";
 import { Database, Plus, FolderOpen, X, Upload, Download, AlertTriangle } from "lucide-react";
 import {
@@ -18,6 +19,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { useTMAdapter } from "../hooks/useTMAdapter";
@@ -47,8 +49,7 @@ export function MemoriesPage({
   resources: propResources,
   forceLoading = false,
 }: MemoriesPageProps = {}) {
-  const [resources, setResources] = useState<ResourceInfo[]>(propResources ?? []);
-  const [loading, setLoading] = useState(forceLoading || !propResources);
+  const qc = useQueryClient();
   const [handle, setHandle] = useState<string | null>(null);
   const [tmName, setTmName] = useState("");
   const [tmPath, setTmPath] = useState("");
@@ -59,14 +60,25 @@ export function MemoriesPage({
   const [corruptName, setCorruptName] = useState("");
   const [recovering, setRecovering] = useState(false);
 
-  // Project TM state
-  const [projectHandle, setProjectHandle] = useState<string | null>(null);
-  const [projectStats, setProjectStats] = useState<{ count: number } | null>(null);
-  const [activityStats, setActivityStats] = useState<ActivityPoint[]>([]);
   const { showError } = useError();
   const { locales } = useLocales();
   const { active: activeFilter } = useActiveFilter();
-  const [sourceLang, setSourceLang] = useState("");
+
+  // Project-scoped TM handle + source locale (auto-selects the project's own TM
+  // rather than a blank picker). Read-only server state via react-query.
+  const projectHandlesQuery = useQuery({
+    queryKey: qk.projectHandles(tabID ?? ""),
+    queryFn: () => api.getProjectHandles(tabID!),
+    enabled: !!tabID,
+  });
+  const projectQuery = useQuery({
+    queryKey: qk.project(tabID ?? ""),
+    queryFn: () => api.getProject(tabID!),
+    enabled: !!tabID,
+  });
+  const projectHandle = tabID ? (projectHandlesQuery.data?.tmHandle ?? null) : null;
+  const sourceLang = projectQuery.data?.defaults?.source_language ?? "";
+
   // Focus the TM on the Active Filter's languages: the multi-language view shows
   // the source plus the chosen targets, while the bilingual target defaults to a
   // chosen target. No filter → show all.
@@ -77,55 +89,39 @@ export function MemoriesPage({
   const activeHandle = projectHandle || handle;
   const adapter = useTMAdapter(activeHandle);
 
-  // Load the project-scoped TM handle when opened from a project tab so the
-  // project's own TM is auto-selected (and marked) rather than a blank picker.
-  // Also read the source locale for the filter scope.
-  useEffect(() => {
-    if (!tabID) return;
-    api
-      .getProjectHandles(tabID)
-      .then((h) => {
-        if (h?.tmHandle) setProjectHandle(h.tmHandle);
-      })
-      .catch(() => {});
-    api
-      .getProject(tabID)
-      .then((p) => setSourceLang(p?.defaults?.source_language ?? ""))
-      .catch(() => {});
-  }, [tabID]);
-
   // Dashboard stats (count, activity) for whichever TM is open — project OR
   // named. Both use the same view, so a named TM shows the same activity chart.
-  useEffect(() => {
-    if (!activeHandle) {
-      setProjectStats(null);
-      setActivityStats([]);
-      return;
-    }
-    void api.getTMStats(activeHandle).then((s) => {
-      if (s) setProjectStats(s);
-    });
-    void api.getTMActivityStats(activeHandle).then((stats) => {
-      if (stats) setActivityStats(stats);
-    });
-  }, [activeHandle]);
+  const statsQuery = useQuery({
+    queryKey: qk.tmStats(activeHandle ?? ""),
+    queryFn: () => api.getTMStats(activeHandle!),
+    enabled: !!activeHandle,
+  });
+  const activityQuery = useQuery({
+    queryKey: qk.tmActivityStats(activeHandle ?? ""),
+    queryFn: () => api.getTMActivityStats(activeHandle!),
+    enabled: !!activeHandle,
+  });
+  const projectStats = activeHandle ? (statsQuery.data ?? null) : null;
+  const activityStats: ActivityPoint[] = activeHandle ? (activityQuery.data ?? []) : [];
 
-  const refreshResources = useCallback(async () => {
-    if (propResources || forceLoading) return;
-    setLoading(true);
-    try {
-      const list = await api.listNamedTMs();
-      setResources(list ?? []);
-    } catch (err) {
-      showError("Failed to load translation memories", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [showError, propResources, forceLoading]);
+  // Named-TM list — only when there is no project TM to show instead.
+  const resourcesQuery = useQuery({
+    queryKey: qk.namedTMs(),
+    queryFn: () => api.listNamedTMs(),
+    enabled: !propResources && !forceLoading && !projectHandle,
+  });
+  const resources: ResourceInfo[] = propResources ?? resourcesQuery.data ?? [];
+  const loading = forceLoading || (!propResources && !projectHandle && resourcesQuery.isLoading);
 
   useEffect(() => {
-    if (!projectHandle) void refreshResources();
-  }, [refreshResources, projectHandle]);
+    if (resourcesQuery.error) {
+      showError("Failed to load translation memories", resourcesQuery.error);
+    }
+  }, [resourcesQuery.error, showError]);
+
+  const refreshResources = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: qk.namedTMs() });
+  }, [qc]);
 
   const handleOpen = useCallback(async (path: string, name: string) => {
     try {
@@ -196,7 +192,7 @@ export function MemoriesPage({
       setHandle(null);
       setTmName("");
       setTmPath("");
-      void refreshResources();
+      refreshResources();
     }
   }, [handle, refreshResources]);
 

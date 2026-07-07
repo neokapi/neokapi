@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, FileWarning } from "lucide-react";
 import {
   Sheet,
@@ -10,6 +10,7 @@ import {
 import { DocumentViewer } from "@neokapi/ui-primitives/preview";
 import type { ContentTree, ContentNode } from "@neokapi/ui-primitives/preview";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 
 // collectMediaNodes walks the tree for media nodes that carry a resolvable URI
 // (the image/audio/video readers emit the asset by URI). Each needs its bytes
@@ -69,62 +70,48 @@ export function FilePreview({
   entryPath,
   tree: presetTree,
 }: FilePreviewProps) {
-  const [tree, setTree] = useState<ContentTree | null>(presetTree ?? null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // Backend-served data: URLs for the tree's media nodes, keyed by node id.
-  const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
+  // Inspect the file (or one archive entry) and serve any media bytes in a single
+  // query fn — the Wails bindings are the data source, react-query owns caching.
+  const previewQuery = useQuery({
+    queryKey: entryPath
+      ? qk.inspectArchiveEntry(tabID, filePath ?? "", entryPath)
+      : qk.inspectFile(tabID, filePath ?? "", true),
+    enabled: !!filePath && !presetTree,
+    queryFn: async () => {
+      const json = entryPath
+        ? await api.inspectArchiveEntry(tabID, filePath!, entryPath)
+        : await api.inspectFileAnnotated(tabID, filePath!);
+      if (!json) {
+        return { tree: null as ContentTree | null, mediaUrls: {} as Record<string, string> };
+      }
+      const parsed = JSON.parse(json) as ContentTree;
+      // Serve each media node's bytes so the viewer can render image/audio/video.
+      const nodes = collectMediaNodes(parsed);
+      let mediaUrls: Record<string, string> = {};
+      if (nodes.length > 0) {
+        const pairs = await Promise.all(
+          nodes.map(async (n) => {
+            const url = await api.mediaDataURL(n.media!.uri!);
+            return url ? ([n.id, url] as const) : null;
+          }),
+        );
+        mediaUrls = Object.fromEntries(pairs.filter((p): p is [string, string] => p !== null));
+      }
+      return { tree: parsed, mediaUrls };
+    },
+  });
 
-  useEffect(() => {
-    if (!filePath) return;
-    if (presetTree) {
-      setTree(presetTree);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    setTree(null);
-    setMediaUrls({});
-    // An entryPath previews one file inside an archive; otherwise the whole file.
-    const inspect = entryPath
-      ? api.inspectArchiveEntry(tabID, filePath, entryPath)
-      : api.inspectFileAnnotated(tabID, filePath);
-    inspect
-      .then(async (json) => {
-        if (cancelled) return;
-        if (!json) {
-          setError("Preview is unavailable in this environment.");
-          return;
-        }
-        const parsed = JSON.parse(json) as ContentTree;
-        setTree(parsed);
-        // Serve each media node's bytes so the viewer can render image/audio/video.
-        const nodes = collectMediaNodes(parsed);
-        if (nodes.length > 0) {
-          const pairs = await Promise.all(
-            nodes.map(async (n) => {
-              const url = await api.mediaDataURL(n.media!.uri!);
-              return url ? ([n.id, url] as const) : null;
-            }),
-          );
-          if (!cancelled) {
-            setMediaUrls(
-              Object.fromEntries(pairs.filter((p): p is [string, string] => p !== null)),
-            );
-          }
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [tabID, filePath, entryPath, presetTree]);
+  const tree = presetTree ?? previewQuery.data?.tree ?? null;
+  const mediaUrls = previewQuery.data?.mediaUrls ?? {};
+  const loading = !presetTree && !!filePath && previewQuery.isLoading;
+  const error = previewQuery.error
+    ? previewQuery.error instanceof Error
+      ? previewQuery.error.message
+      : String(previewQuery.error)
+    : // A null inspect result (no Wails runtime) resolves successfully but empty.
+      !presetTree && previewQuery.isSuccess && previewQuery.data.tree === null
+      ? "Preview is unavailable in this environment."
+      : null;
 
   return (
     <Sheet open={!!filePath} onOpenChange={(open) => !open && onClose()}>

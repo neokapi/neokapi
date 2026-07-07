@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, KeyRound, Loader2, Sparkles } from "lucide-react";
 import { Button, ErrorNotice, Input, Label, cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
 import type { AIDetectionResult, DetectedAIProvider } from "../types/api";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 
 /** Key-entry providers offered by the "I have an API key" path. */
 const KEY_PROVIDERS = [
@@ -26,8 +28,6 @@ export interface ConnectAICardProps {
  * skips to the demo engine. Hides itself once anything is configured.
  */
 export function ConnectAICard({ detection: propDetection, onConfigured }: ConnectAICardProps) {
-  const [detection, setDetection] = useState<AIDetectionResult | null>(propDetection ?? null);
-  const [loaded, setLoaded] = useState(!!propDetection);
   const [keyOpen, setKeyOpen] = useState(false);
   const [keyProvider, setKeyProvider] = useState(KEY_PROVIDERS[0].name);
   const [apiKey, setApiKey] = useState("");
@@ -35,13 +35,13 @@ export function ConnectAICard({ detection: propDetection, onConfigured }: Connec
   const [error, setError] = useState<unknown>(null);
   const [done, setDone] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (propDetection) return;
-    void api.detectAIProviders().then((d) => {
-      if (d) setDetection(d);
-      setLoaded(true);
-    });
-  }, [propDetection]);
+  const detectionQuery = useQuery({
+    queryKey: qk.aiDetection(),
+    queryFn: () => api.detectAIProviders(),
+    enabled: !propDetection,
+  });
+  const detection: AIDetectionResult | null = propDetection ?? detectionQuery.data ?? null;
+  const loaded = !!propDetection || !detectionQuery.isPending;
 
   const finish = useCallback(
     (label: string) => {

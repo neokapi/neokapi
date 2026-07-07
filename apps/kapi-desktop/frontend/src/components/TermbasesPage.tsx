@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/kapi-react/runtime";
 import { BookOpen, Plus, FolderOpen, X, Upload, AlertTriangle } from "lucide-react";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { ConceptsView } from "./ConceptsView";
@@ -47,8 +49,7 @@ export function TermbasesPage({
   resources: propResources,
   forceLoading = false,
 }: TermbasesPageProps = {}) {
-  const [resources, setResources] = useState<ResourceInfo[]>(propResources ?? []);
-  const [loading, setLoading] = useState(forceLoading || !propResources);
+  const qc = useQueryClient();
   const [handle, setHandle] = useState<string | null>(null);
   const [tbName, setTbName] = useState("");
   const [tbPath, setTbPath] = useState("");
@@ -59,14 +60,23 @@ export function TermbasesPage({
   const [corruptName, setCorruptName] = useState("");
   const [recovering, setRecovering] = useState(false);
 
-  // Project termbase state
-  const [projectHandle, setProjectHandle] = useState<string | null>(null);
-  const [projectStats, setProjectStats] = useState<{ count: number } | null>(null);
-  const [activityStats, setActivityStats] = useState<ActivityPoint[]>([]);
-
   const { showError } = useError();
   const { active: activeFilter } = useActiveFilter();
-  const [sourceLang, setSourceLang] = useState("");
+
+  // Project-scoped termbase handle + source locale (auto-selects the project's
+  // own termbase rather than a blank picker). Read-only server state.
+  const projectHandlesQuery = useQuery({
+    queryKey: qk.projectHandles(tabID ?? ""),
+    queryFn: () => api.getProjectHandles(tabID!),
+    enabled: !!tabID,
+  });
+  const projectQuery = useQuery({
+    queryKey: qk.project(tabID ?? ""),
+    queryFn: () => api.getProject(tabID!),
+    enabled: !!tabID,
+  });
+  const projectHandle = tabID ? (projectHandlesQuery.data?.termbaseHandle ?? null) : null;
+  const sourceLang = projectQuery.data?.defaults?.source_language ?? "";
   const activeHandle = projectHandle || handle;
 
   // Scope concept terms to the Active Filter's languages plus the project source
@@ -75,56 +85,40 @@ export function TermbasesPage({
     ? [sourceLang, ...activeFilter.languages].filter(Boolean)
     : undefined;
 
-  // Load the project-scoped termbase handle when opened from a project tab so
-  // the project's own termbase is auto-selected (and marked) rather than a
-  // blank picker. Also read the source locale for the filter scope.
-  useEffect(() => {
-    if (!tabID) return;
-    api
-      .getProjectHandles(tabID)
-      .then((h) => {
-        if (h?.termbaseHandle) setProjectHandle(h.termbaseHandle);
-      })
-      .catch(() => {});
-    api
-      .getProject(tabID)
-      .then((p) => setSourceLang(p?.defaults?.source_language ?? ""))
-      .catch(() => {});
-  }, [tabID]);
-
   // Dashboard stats (count, activity, locales) for whichever termbase is open —
   // project OR named. Both use the same view, so a named termbase shows the same
   // activity chart + filters as a project one.
-  useEffect(() => {
-    if (!activeHandle) {
-      setProjectStats(null);
-      setActivityStats([]);
-      return;
-    }
-    void api.getTermbaseStats(activeHandle).then((s) => {
-      if (s) setProjectStats(s);
-    });
-    void api.getTermbaseActivityStats(activeHandle).then((stats) => {
-      if (stats) setActivityStats(stats);
-    });
-  }, [activeHandle]);
+  const statsQuery = useQuery({
+    queryKey: qk.termbaseStats(activeHandle ?? ""),
+    queryFn: () => api.getTermbaseStats(activeHandle!),
+    enabled: !!activeHandle,
+  });
+  const activityQuery = useQuery({
+    queryKey: qk.termbaseActivityStats(activeHandle ?? ""),
+    queryFn: () => api.getTermbaseActivityStats(activeHandle!),
+    enabled: !!activeHandle,
+  });
+  const projectStats = activeHandle ? (statsQuery.data ?? null) : null;
+  const activityStats: ActivityPoint[] = activeHandle ? (activityQuery.data ?? []) : [];
 
-  const refreshResources = useCallback(async () => {
-    if (propResources || forceLoading) return;
-    setLoading(true);
-    try {
-      const list = await api.listNamedTermbases();
-      setResources(list ?? []);
-    } catch (err) {
-      showError("Failed to load termbases", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [showError, propResources, forceLoading]);
+  // Named-termbase list — only when there is no project termbase to show instead.
+  const resourcesQuery = useQuery({
+    queryKey: qk.namedTermbases(),
+    queryFn: () => api.listNamedTermbases(),
+    enabled: !propResources && !forceLoading && !projectHandle,
+  });
+  const resources: ResourceInfo[] = propResources ?? resourcesQuery.data ?? [];
+  const loading = forceLoading || (!propResources && !projectHandle && resourcesQuery.isLoading);
 
   useEffect(() => {
-    if (!projectHandle) void refreshResources();
-  }, [refreshResources, projectHandle]);
+    if (resourcesQuery.error) {
+      showError("Failed to load termbases", resourcesQuery.error);
+    }
+  }, [resourcesQuery.error, showError]);
+
+  const refreshResources = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: qk.namedTermbases() });
+  }, [qc]);
 
   const handleOpen = useCallback(async (path: string, name: string) => {
     try {
@@ -195,7 +189,7 @@ export function TermbasesPage({
       setHandle(null);
       setTbName("");
       setTbPath("");
-      void refreshResources();
+      refreshResources();
     }
   }, [handle, refreshResources]);
 

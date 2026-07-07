@@ -352,10 +352,6 @@ export { useProviderConfigs, useProviderApi } from "./hooks/useProviderApi";
 export { useLocales } from "./hooks/useLocales";
 export { useFormats } from "./hooks/useFormats";
 export { useTools } from "./hooks/useTools";
-export { useNotificationApi } from "./hooks/useNotificationApi";
-export { useActivities } from "./hooks/useActivities";
-export { useTasks } from "./hooks/useTasks";
-export { useNotifications } from "./hooks/useNotifications";
 // useIsMobile re-exported from @neokapi/ui-primitives above
 
 // Types

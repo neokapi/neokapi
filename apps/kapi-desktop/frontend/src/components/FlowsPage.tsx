@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/kapi-react/runtime";
 import {
   Workflow,
@@ -31,6 +32,7 @@ import {
   SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
 import type { FlowSpec } from "../types/api";
@@ -73,8 +75,7 @@ export function FlowsPage({
   adoptTabID,
   adoptProjectName,
 }: FlowsPageProps) {
-  const [flows, setFlows] = useState<FlowListItem[]>(propFlows ?? []);
-  const [loading, setLoading] = useState(!propFlows);
+  const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSpec, setSelectedSpec] = useState<FlowSpec | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("user");
@@ -116,45 +117,42 @@ export function FlowsPage({
     return () => clearTimeout(id);
   }, [adoptNotice]);
 
-  const refreshFlows = useCallback(async () => {
-    if (propFlows) return;
-    setLoading(true);
-    try {
+  // Flow list as react-query server state: project flows keyed by tab, ad-hoc
+  // user flows under a global key. Actions invalidate via refreshFlows().
+  const flowsQuery = useQuery({
+    queryKey: isProjectMode ? qk.flows(tabID!) : qk.userFlows(),
+    enabled: !propFlows,
+    queryFn: async (): Promise<FlowListItem[]> => {
       if (isProjectMode) {
-        // Project mode: list project flows.
-        const result = await api.listFlows(tabID);
-        setFlows(
-          (result ?? []).map((f) => ({
-            id: f.name,
-            name: f.name,
-            description: f.description,
-            source: "project",
-            stepCount: f.step_count,
-          })),
-        );
-      } else {
-        // Ad-hoc mode: list built-in + user flows.
-        const result = await api.listUserFlows();
-        setFlows(
-          (result ?? []).map((f) => ({
-            id: f.id,
-            name: f.name,
-            description: f.description,
-            source: f.source,
-            stepCount: f.step_count,
-          })),
-        );
+        const result = await api.listFlows(tabID!);
+        return (result ?? []).map((f) => ({
+          id: f.name,
+          name: f.name,
+          description: f.description,
+          source: "project",
+          stepCount: f.step_count,
+        }));
       }
-    } catch (err) {
-      showError("Failed to load flows", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [tabID, isProjectMode, showError, propFlows]);
+      const result = await api.listUserFlows();
+      return (result ?? []).map((f) => ({
+        id: f.id,
+        name: f.name,
+        description: f.description,
+        source: f.source,
+        stepCount: f.step_count,
+      }));
+    },
+  });
+  const flows: FlowListItem[] = propFlows ?? flowsQuery.data ?? [];
+  const loading = !propFlows && flowsQuery.isLoading;
 
   useEffect(() => {
-    void refreshFlows();
-  }, [refreshFlows]);
+    if (flowsQuery.error) showError("Failed to load flows", flowsQuery.error);
+  }, [flowsQuery.error, showError]);
+
+  const refreshFlows = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: isProjectMode ? qk.flows(tabID!) : qk.userFlows() });
+  }, [qc, isProjectMode, tabID]);
 
   const handleOpenFlow = useCallback(
     async (item: FlowListItem) => {
@@ -257,7 +255,7 @@ export function FlowsPage({
             }
           }
         }
-        void refreshFlows();
+        refreshFlows();
       } catch (err) {
         showError("Failed to copy flow", err);
       }
@@ -301,7 +299,7 @@ export function FlowsPage({
           setSelectedId(name);
           setSelectedSpec(spec);
           setSelectedSource("project");
-          void refreshFlows();
+          refreshFlows();
         }
       } catch (err) {
         showError("Failed to import flow", err);
@@ -326,7 +324,7 @@ export function FlowsPage({
       setSelectedId(name);
       setSelectedSpec(spec);
       setSelectedSource(isProjectMode ? "project" : "user");
-      void refreshFlows();
+      refreshFlows();
     } catch (err) {
       showError("Failed to create flow", err);
     }
@@ -345,7 +343,7 @@ export function FlowsPage({
           setSelectedId(null);
           setSelectedSpec(null);
         }
-        void refreshFlows();
+        refreshFlows();
       } catch (err) {
         showError("Failed to delete flow", err);
       }
@@ -381,7 +379,7 @@ export function FlowsPage({
   const handleCloseEditor = useCallback(() => {
     setSelectedId(null);
     setSelectedSpec(null);
-    void refreshFlows();
+    refreshFlows();
   }, [refreshFlows]);
 
   // Editor view.

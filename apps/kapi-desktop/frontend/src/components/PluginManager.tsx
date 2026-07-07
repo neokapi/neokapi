@@ -24,9 +24,11 @@ import {
   SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PluginInfo } from "../types/api";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 
 interface AvailablePlugin {
@@ -59,10 +61,9 @@ export interface PluginManagerProps {
 }
 
 export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {}) {
+  const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [plugins, setPlugins] = useState<PluginInfo[]>(propPlugins ?? []);
   const [available, setAvailable] = useState<AvailablePlugin[]>([]);
-  const [loading, setLoading] = useState(!propPlugins);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
   const [installStatus, setInstallStatus] = useState<Record<string, InstallStatus>>({});
   const [removing, setRemoving] = useState<string | null>(null);
@@ -75,20 +76,26 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
 
   const { showError } = useError();
 
-  const loadPlugins = useCallback(async () => {
-    if (propPlugins) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await api.listPlugins();
-      if (result) setPlugins(result);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [propPlugins]);
+  // Installed plugins as react-query server state; the "plugins-changed" event
+  // invalidates it (see below).
+  const pluginsQuery = useQuery({
+    queryKey: qk.plugins(),
+    queryFn: () => api.listPlugins(),
+    enabled: !propPlugins,
+  });
+  const plugins: PluginInfo[] = propPlugins ?? pluginsQuery.data ?? [];
+  const loading = !propPlugins && pluginsQuery.isLoading;
 
+  useEffect(() => {
+    if (pluginsQuery.error) setError(String(pluginsQuery.error));
+  }, [pluginsQuery.error]);
+
+  const refreshPlugins = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: qk.plugins() });
+  }, [qc]);
+
+  // The "available" catalog is loaded lazily when its tab opens (and re-loaded on
+  // debounced search); it stays an imperative load rather than a mount query.
   const loadAvailable = useCallback(
     async (query?: string) => {
       setLoadingAvailable(true);
@@ -104,11 +111,6 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
     [showError],
   );
 
-  // Initial load.
-  useEffect(() => {
-    void loadPlugins();
-  }, [loadPlugins]);
-
   // Load available when switching to tab.
   useEffect(() => {
     if (tab === "available") {
@@ -118,7 +120,7 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
 
   // Refresh installed list when plugins change (install, remove, CLI action).
   useWailsEvent("plugins-changed", () => {
-    void loadPlugins();
+    refreshPlugins();
     if (tab === "available") void loadAvailable();
   });
 
@@ -225,20 +227,20 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
       setConfirmRemove(null);
       try {
         await api.removePlugin(pluginName);
-        // Optimistically remove from local state immediately.
-        setPlugins((prev) => prev.filter((p) => p.id !== pluginId));
+        // Refetch the installed list; optimistically flip the available row.
+        refreshPlugins();
         setAvailable((prev) =>
           prev.map((p) => (p.name === pluginName ? { ...p, installed: false } : p)),
         );
       } catch (e) {
         showError("Failed to remove plugin", e);
         // Refresh to restore accurate state on error.
-        await loadPlugins();
+        refreshPlugins();
       } finally {
         setRemoving(null);
       }
     },
-    [loadPlugins, showError],
+    [refreshPlugins, showError],
   );
 
   const filtered = plugins.filter(

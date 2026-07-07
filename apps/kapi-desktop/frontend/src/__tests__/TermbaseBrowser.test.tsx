@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method -- vitest mock assertions reference methods */
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TermbaseBrowser } from "@neokapi/ui-primitives";

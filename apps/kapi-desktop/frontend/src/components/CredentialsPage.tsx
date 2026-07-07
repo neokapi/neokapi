@@ -26,6 +26,7 @@ import {
   cn,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   ProviderConfig,
   AIModelOption,
@@ -33,6 +34,7 @@ import type {
   AIDetectionResult,
 } from "../types/api";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { AIModelList } from "./AIModelList";
 import { useError } from "./ErrorBanner";
 
@@ -75,23 +77,24 @@ export function CredentialsPage({
   models: propModels,
   detection: propDetection,
 }: CredentialsPageProps = {}) {
-  const [providers, setProviders] = useState<ProviderConfig[]>(propProviders ?? []);
-  const [providerTypes, setProviderTypes] = useState<ProviderTypeOption[]>(propProviderTypes ?? []);
-  const [models, setModels] = useState<AIModelOption[]>(propModels ?? []);
-  const [detection, setDetection] = useState<AIDetectionResult | null>(propDetection ?? null);
-  const [defaultModel, setDefaultModel] = useState<DefaultModelInfo>({ provider: "", model: "" });
-  const [loading, setLoading] = useState(!propProviders);
+  const qc = useQueryClient();
   const [editing, setEditing] = useState<ProviderConfig | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
+  // Optimistic default-model selection; cleared once the server confirms.
+  const [defaultOverride, setDefaultOverride] = useState<DefaultModelInfo | null>(null);
 
   const { showError } = useError();
 
-  const load = useCallback(async () => {
-    if (propProviders) return;
-    try {
+  // All AI-model data (providers, types, catalog, default, machine detection)
+  // loads in a single query fn — the Wails bindings are the source, react-query
+  // owns caching. Mutations invalidate this key via reload().
+  const dataQuery = useQuery({
+    queryKey: qk.aiModelData(),
+    enabled: !propProviders,
+    queryFn: async () => {
       const [result, types, modelList, def, det] = await Promise.all([
         api.listProviders(),
         api.listProviderTypes(),
@@ -99,21 +102,39 @@ export function CredentialsPage({
         api.getDefaultModel(),
         propDetection ? Promise.resolve(null) : api.detectAIProviders(),
       ]);
-      if (result) setProviders(result);
-      if (types) setProviderTypes(types);
-      if (modelList) setModels(modelList);
-      if (def) setDefaultModel(def);
-      if (det) setDetection(det);
-    } catch (err) {
-      showError("Failed to load AI models", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [showError, propProviders, propDetection]);
+      return {
+        providers: result ?? [],
+        providerTypes: types ?? [],
+        models: modelList ?? [],
+        defaultModel: def ?? { provider: "", model: "" },
+        detection: det ?? null,
+      };
+    },
+  });
+
+  const providers: ProviderConfig[] = propProviders ?? dataQuery.data?.providers ?? [];
+  const providerTypes: ProviderTypeOption[] =
+    propProviderTypes ?? dataQuery.data?.providerTypes ?? [];
+  const models: AIModelOption[] = propModels ?? dataQuery.data?.models ?? [];
+  const detection: AIDetectionResult | null = propDetection ?? dataQuery.data?.detection ?? null;
+  const defaultModel: DefaultModelInfo = defaultOverride ??
+    dataQuery.data?.defaultModel ?? { provider: "", model: "" };
+  const loading = !propProviders && dataQuery.isLoading;
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (dataQuery.error) showError("Failed to load AI models", dataQuery.error);
+  }, [dataQuery.error, showError]);
+
+  // Clear the optimistic default once fresh server data arrives.
+  useEffect(() => {
+    setDefaultOverride(null);
+  }, [dataQuery.data]);
+
+  const load = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: qk.aiModelData() });
+    // Also refresh the raw providers list the schema-form credential picker reads.
+    void qc.invalidateQueries({ queryKey: qk.providers() });
+  }, [qc]);
 
   // One group per provider (in catalog order: local first, then cloud), each
   // carrying that provider's models and its saved keys — so a credential is
@@ -150,8 +171,8 @@ export function CredentialsPage({
     setError(null);
     try {
       await api.selectAIProvider(provider, model);
-      setDefaultModel({ provider, model });
-      await load();
+      setDefaultOverride({ provider, model });
+      load();
     } catch (e) {
       setError(String(e));
     }
@@ -160,13 +181,13 @@ export function CredentialsPage({
   // Choosing a model persists the shared default (ai.provider/ai.model); the
   // provider follows from the model.
   const handleSelectModel = async (m: AIModelOption) => {
-    setDefaultModel({ provider: m.provider, model: m.model });
+    setDefaultOverride({ provider: m.provider, model: m.model });
     try {
       await api.setDefaultModel(m.model, m.provider);
-      await load();
+      load();
     } catch (e) {
       setError(String(e));
-      void load();
+      load();
     }
   };
 
@@ -174,7 +195,7 @@ export function CredentialsPage({
   const handleSetKeyDefault = async (id: string) => {
     try {
       await api.setProviderDefault(id);
-      await load();
+      load();
     } catch (e) {
       setError(String(e));
     }
@@ -195,7 +216,7 @@ export function CredentialsPage({
       await api.saveProvider({ ...editing, api_key: apiKey });
       setEditing(null);
       setApiKey("");
-      await load();
+      load();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -207,7 +228,7 @@ export function CredentialsPage({
     setError(null);
     try {
       await api.deleteProvider(id);
-      await load();
+      load();
     } catch (e) {
       setError(String(e));
     }

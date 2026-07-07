@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RotateCcw, Plus, Trash2, EyeOff, Eye } from "lucide-react";
 import {
   Card,
@@ -12,6 +13,7 @@ import {
   type SelectableListAction,
 } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 import { useError } from "./ErrorBanner";
 
 interface CustomLocale {
@@ -65,27 +67,39 @@ const columns: SelectableListColumn<LocaleEntry>[] = [
 
 export function LocaleSettings() {
   const { showError } = useError();
-  const [allLocales, setAllLocales] = useState<Array<{ code: string; display_name: string }>>([]);
-  const [hiddenSet, setHiddenSet] = useState<Set<string>>(new Set());
-  const [customLocales, setCustomLocales] = useState<CustomLocale[]>([]);
+  const qc = useQueryClient();
   const [newCode, setNewCode] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [addError, setAddError] = useState("");
-  const [loading, setLoading] = useState(true);
+
+  const allLocalesQuery = useQuery({
+    queryKey: qk.allLocales(),
+    queryFn: () => api.getAllLocales(),
+  });
+  const settingsQuery = useQuery({
+    queryKey: qk.settings(),
+    queryFn: () => api.getSettings(),
+  });
+  const allLocales = allLocalesQuery.data ?? [];
+  const settings = settingsQuery.data as AppSettings | undefined;
+  const loading = allLocalesQuery.isLoading || settingsQuery.isLoading;
 
   useEffect(() => {
-    Promise.all([api.getAllLocales(), api.getSettings()])
-      .then(([locales, settings]) => {
-        if (locales) setAllLocales(locales);
-        if (settings) {
-          const s = settings as AppSettings;
-          setHiddenSet(new Set(s.hidden_locales ?? []));
-          setCustomLocales(s.custom_locales ?? []);
-        }
-      })
-      .catch((err) => showError("Failed to load locale settings", err))
-      .finally(() => setLoading(false));
-  }, [showError]);
+    if (allLocalesQuery.error) showError("Failed to load locale settings", allLocalesQuery.error);
+  }, [allLocalesQuery.error, showError]);
+
+  // Hidden/custom locales come from settings (server-as-truth), with a local
+  // override that flips optimistically until the settings refetch confirms.
+  const serverHidden = useMemo(() => new Set(settings?.hidden_locales ?? []), [settings]);
+  const serverCustom = useMemo(() => settings?.custom_locales ?? [], [settings]);
+  const [hiddenOverride, setHiddenOverride] = useState<Set<string> | null>(null);
+  const [customOverride, setCustomOverride] = useState<CustomLocale[] | null>(null);
+  const hiddenSet = hiddenOverride ?? serverHidden;
+  const customLocales = customOverride ?? serverCustom;
+  useEffect(() => {
+    setHiddenOverride(null);
+    setCustomOverride(null);
+  }, [settingsQuery.data]);
 
   const entries = useMemo<LocaleEntry[]>(() => {
     const result: LocaleEntry[] = allLocales.map((l) => ({
@@ -109,12 +123,12 @@ export function LocaleSettings() {
 
   const saveSettings = async (hidden: Set<string>, custom: CustomLocale[]) => {
     try {
-      const current = (await api.getSettings()) as AppSettings;
       await api.saveSettings({
-        ...current,
+        ...settings,
         hidden_locales: [...hidden],
         custom_locales: custom,
       });
+      await qc.invalidateQueries({ queryKey: qk.settings() });
     } catch (err) {
       showError("Failed to save locale settings", err);
     }
@@ -130,7 +144,7 @@ export function LocaleSettings() {
       onAction: (selected) => {
         const next = new Set(hiddenSet);
         for (const s of selected) if (!s.isCustom) next.add(s.code);
-        setHiddenSet(next);
+        setHiddenOverride(next);
         void saveSettings(next, customLocales);
       },
       when: (item) => !item.isHidden && !item.isCustom,
@@ -144,7 +158,7 @@ export function LocaleSettings() {
       onAction: (selected) => {
         const next = new Set(hiddenSet);
         for (const s of selected) next.delete(s.code);
-        setHiddenSet(next);
+        setHiddenOverride(next);
         void saveSettings(next, customLocales);
       },
       when: (item) => item.isHidden,
@@ -158,7 +172,7 @@ export function LocaleSettings() {
       onAction: (selected) => {
         const codes = new Set(selected.map((s) => s.code));
         const next = customLocales.filter((cl) => !codes.has(cl.code));
-        setCustomLocales(next);
+        setCustomOverride(next);
         void saveSettings(hiddenSet, next);
       },
       when: (item) => item.isCustom,
@@ -178,7 +192,7 @@ export function LocaleSettings() {
     }
     const cl: CustomLocale = { code, display_name: newDisplayName.trim() || undefined };
     const next = [...customLocales, cl];
-    setCustomLocales(next);
+    setCustomOverride(next);
     setNewCode("");
     setNewDisplayName("");
     setAddError("");
@@ -186,8 +200,8 @@ export function LocaleSettings() {
   };
 
   const resetToDefaults = () => {
-    setHiddenSet(new Set());
-    setCustomLocales([]);
+    setHiddenOverride(new Set());
+    setCustomOverride([]);
     void saveSettings(new Set(), []);
   };
 

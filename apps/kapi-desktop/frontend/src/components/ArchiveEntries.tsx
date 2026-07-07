@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { FileText, Loader2, FileWarning } from "lucide-react";
 import { ListCapRow, SimpleTooltip } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 
 // An archive can hold thousands of inner files. The entry list is scroll-contained
 // (bounded height) and its rows are capped with an honest ListCapRow, so browsing
@@ -42,38 +43,22 @@ export interface ArchiveEntriesProps {
 // entry is selectable and opens a per-entry preview (InspectArchiveEntry);
 // entries kapi has no reader for are shown but disabled.
 export function ArchiveEntries({ archivePath, onSelect, entries: preset }: ArchiveEntriesProps) {
-  const [entries, setEntries] = useState<ArchiveEntry[] | null>(preset ?? null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const query = useQuery({
+    queryKey: qk.archiveEntries(archivePath),
+    queryFn: () => api.listArchiveEntries(archivePath),
+    enabled: !preset,
+  });
 
-  useEffect(() => {
-    if (preset) {
-      setEntries(preset);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    api
-      .listArchiveEntries(archivePath)
-      .then((list) => {
-        if (cancelled) return;
-        if (list === null) {
-          setError("Archive listing is unavailable in this environment.");
-          return;
-        }
-        setEntries(list);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [archivePath, preset]);
+  const entries = preset ?? query.data ?? null;
+  const loading = !preset && query.isLoading;
+  const error = query.error
+    ? query.error instanceof Error
+      ? query.error.message
+      : String(query.error)
+    : // A null result (no Wails runtime) is not an exception but still unavailable.
+      !preset && query.isSuccess && query.data === null
+      ? "Archive listing is unavailable in this environment."
+      : null;
 
   if (loading) {
     return (
