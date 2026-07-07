@@ -1064,6 +1064,9 @@ importers:
       '@tanstack/react-query':
         specifier: 5.94.5
         version: 5.94.5(react@19.2.7)
+      '@tanstack/react-router':
+        specifier: ^1.170.16
+        version: 1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react:
         specifier: ^19.0.0
         version: 19.2.7
