@@ -68,6 +68,16 @@ type SkeletonStore struct {
 	// the file/buf backings are unused; Flush is a no-op and Bytes is
 	// unsupported. See NewStreamingSkeletonStore.
 	stream *skeletonStream
+
+	// writeErr holds the first error a buffered write hit. WriteText/WriteRef/
+	// WriteLang do not return an error: a memory- or streaming-backed store
+	// cannot fail a write, and a file-backed store buffers through a bufio.Writer
+	// whose I/O only reaches disk on an internal flush — an error there is
+	// retained here (and by bufio) and surfaced at Flush/Bytes, which every
+	// consumer already checks before replaying the skeleton. Recording it once,
+	// stickily, keeps that single surface honest without a per-write error return
+	// that all ~113 reader call sites would otherwise discard.
+	writeErr error
 }
 
 // skeletonStream is the unbounded, concurrency-safe queue backing a streaming
@@ -139,6 +149,9 @@ func (s *SkeletonStore) EntriesWritten() int { return s.entries }
 func (s *SkeletonStore) Bytes() ([]byte, error) {
 	if s.stream != nil {
 		return nil, errors.New("skeleton store: Bytes is unsupported in streaming mode")
+	}
+	if s.writeErr != nil {
+		return nil, fmt.Errorf("skeleton store: deferred write: %w", s.writeErr)
 	}
 	if s.writer != nil {
 		if err := s.writer.Flush(); err != nil {
@@ -240,28 +253,34 @@ func OpenSkeletonStore(path string) (*SkeletonStore, error) {
 	}, nil
 }
 
-// WriteText writes a non-translatable text entry to the store.
-func (s *SkeletonStore) WriteText(data []byte) error {
+// WriteText writes a non-translatable text entry to the store. It does not
+// return an error: writes buffer (memory/streaming backings cannot fail; a
+// file backing goes through a bufio.Writer), so any I/O error is retained on
+// the store and surfaced at Flush/Bytes, which every consumer checks before
+// replaying the skeleton.
+func (s *SkeletonStore) WriteText(data []byte) {
 	if len(data) == 0 {
-		return nil
+		return
 	}
-	return s.writeEntry(SkeletonText, data)
+	s.writeEntry(SkeletonText, data)
 }
 
-// WriteRef writes a block ID reference entry to the store.
-func (s *SkeletonStore) WriteRef(blockID string) error {
-	return s.writeEntry(SkeletonRef, []byte(blockID))
+// WriteRef writes a block ID reference entry to the store. Like WriteText it
+// does not return an error; see WriteText for why.
+func (s *SkeletonStore) WriteRef(blockID string) {
+	s.writeEntry(SkeletonRef, []byte(blockID))
 }
 
 // WriteLang writes a language-attribute value entry to the store. The value
 // is the raw source-locale lang value spliced out of a lang=/xml:lang=
 // attribute, so the writer can retarget it structurally instead of
 // rewriting serialized bytes. See SkeletonLang for the consumption contract.
-func (s *SkeletonStore) WriteLang(value string) error {
-	return s.writeEntry(SkeletonLang, []byte(value))
+// Like WriteText it does not return an error; see WriteText for why.
+func (s *SkeletonStore) WriteLang(value string) {
+	s.writeEntry(SkeletonLang, []byte(value))
 }
 
-func (s *SkeletonStore) writeEntry(typ SkeletonEntryType, data []byte) error {
+func (s *SkeletonStore) writeEntry(typ SkeletonEntryType, data []byte) {
 	if s.stream != nil {
 		// Copy: callers reuse their buffer (e.g. skelBuf.Reset()) right after
 		// WriteText, so the queued slice must own its bytes.
@@ -272,21 +291,26 @@ func (s *SkeletonStore) writeEntry(typ SkeletonEntryType, data []byte) error {
 		s.entries++
 		s.stream.cond.Signal()
 		s.stream.mu.Unlock()
-		return nil
+		return
+	}
+	if s.writeErr != nil {
+		return // stay sticky: a prior write already failed
 	}
 	if err := s.writer.WriteByte(byte(typ)); err != nil {
-		return err
+		s.writeErr = err
+		return
 	}
 	var lenBuf [4]byte
 	binary.BigEndian.PutUint32(lenBuf[:], uint32(len(data)))
 	if _, err := s.writer.Write(lenBuf[:]); err != nil {
-		return err
+		s.writeErr = err
+		return
 	}
 	if _, err := s.writer.Write(data); err != nil {
-		return err
+		s.writeErr = err
+		return
 	}
 	s.entries++
-	return nil
 }
 
 // Flush finishes writing and prepares the store for reading. On stores
@@ -296,6 +320,12 @@ func (s *SkeletonStore) Flush() error {
 		// Streaming stores are read concurrently via Next; there is nothing to
 		// flush or seek.
 		return nil
+	}
+	if s.writeErr != nil {
+		// A buffered write failed earlier (WriteText/WriteRef/WriteLang do not
+		// return an error); surface it here, the single point every consumer
+		// checks before replaying the skeleton.
+		return fmt.Errorf("skeleton store: deferred write: %w", s.writeErr)
 	}
 	if s.reader != nil && s.writer == nil {
 		// Already prepared for reading by OpenSkeletonStore — nothing to

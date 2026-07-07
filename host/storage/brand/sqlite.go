@@ -195,8 +195,12 @@ func (s *SQLiteBrandStore) GetProfile(ctx context.Context, id string) (*corebran
 	if err := json.Unmarshal([]byte(autonomyJSON), &p.Autonomy); err != nil {
 		p.Autonomy = corebrand.AutonomyConfig{}
 	}
-	p.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	p.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if p.CreatedAt, err = parseStoredTime(createdStr); err != nil {
+		return nil, fmt.Errorf("profile %s: parse created_at: %w", p.ID, err)
+	}
+	if p.UpdatedAt, err = parseStoredTime(updatedStr); err != nil {
+		return nil, fmt.Errorf("profile %s: parse updated_at: %w", p.ID, err)
+	}
 	return &p, nil
 }
 
@@ -322,9 +326,16 @@ func (s *SQLiteBrandStore) GetScores(ctx context.Context, projectID string, loc 
 			&dimsJSON, &findingsJSON, &checkedStr); err != nil {
 			continue
 		}
-		_ = json.Unmarshal([]byte(dimsJSON), &sc.Dimensions)
-		_ = json.Unmarshal([]byte(findingsJSON), &sc.Findings)
-		sc.CheckedAt, _ = time.Parse(time.RFC3339, checkedStr)
+		if err := json.Unmarshal([]byte(dimsJSON), &sc.Dimensions); err != nil {
+			return nil, fmt.Errorf("score %s: unmarshal dimensions: %w", sc.ID, err)
+		}
+		if err := json.Unmarshal([]byte(findingsJSON), &sc.Findings); err != nil {
+			return nil, fmt.Errorf("score %s: unmarshal findings: %w", sc.ID, err)
+		}
+		var perr error
+		if sc.CheckedAt, perr = parseStoredTime(checkedStr); perr != nil {
+			return nil, fmt.Errorf("score %s: parse checked_at: %w", sc.ID, perr)
+		}
 		scores = append(scores, &sc)
 	}
 	if err := rows.Err(); err != nil {
@@ -502,8 +513,13 @@ func (s *SQLiteBrandStore) ListProfileVersions(ctx context.Context, profileID st
 		if err := rows.Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &createdStr); err != nil {
 			continue
 		}
-		_ = json.Unmarshal([]byte(snapshotJSON), &v.Snapshot)
-		v.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+		if err := json.Unmarshal([]byte(snapshotJSON), &v.Snapshot); err != nil {
+			return nil, fmt.Errorf("profile %s v%d: unmarshal snapshot: %w", v.ProfileID, v.Version, err)
+		}
+		var perr error
+		if v.CreatedAt, perr = parseStoredTime(createdStr); perr != nil {
+			return nil, fmt.Errorf("profile %s v%d: parse created_at: %w", v.ProfileID, v.Version, perr)
+		}
 		versions = append(versions, &v)
 	}
 	if err := rows.Err(); err != nil {
@@ -525,8 +541,12 @@ func (s *SQLiteBrandStore) GetProfileVersion(ctx context.Context, profileID stri
 	if err != nil {
 		return nil, fmt.Errorf("get profile version: %w", err)
 	}
-	_ = json.Unmarshal([]byte(snapshotJSON), &v.Snapshot)
-	v.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	if err := json.Unmarshal([]byte(snapshotJSON), &v.Snapshot); err != nil {
+		return nil, fmt.Errorf("profile %s v%d: unmarshal snapshot: %w", v.ProfileID, v.Version, err)
+	}
+	if v.CreatedAt, err = parseStoredTime(createdStr); err != nil {
+		return nil, fmt.Errorf("profile %s v%d: parse created_at: %w", v.ProfileID, v.Version, err)
+	}
 	return &v, nil
 }
 
@@ -580,7 +600,10 @@ func (s *SQLiteBrandStore) ListProfileTags(ctx context.Context, profileID string
 		if err := rows.Scan(&t.ProfileID, &t.Name, &t.Version, &t.CreatedBy, &createdStr); err != nil {
 			continue
 		}
-		t.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+		var perr error
+		if t.CreatedAt, perr = parseStoredTime(createdStr); perr != nil {
+			return nil, fmt.Errorf("profile tag %s/%s: parse created_at: %w", t.ProfileID, t.Name, perr)
+		}
 		tags = append(tags, &t)
 	}
 	if err := rows.Err(); err != nil {
@@ -620,9 +643,16 @@ func (s *SQLiteBrandStore) GetScoresByStream(ctx context.Context, projectID, str
 			&dimsJSON, &findingsJSON, &checkedStr); err != nil {
 			continue
 		}
-		_ = json.Unmarshal([]byte(dimsJSON), &sc.Dimensions)
-		_ = json.Unmarshal([]byte(findingsJSON), &sc.Findings)
-		sc.CheckedAt, _ = time.Parse(time.RFC3339, checkedStr)
+		if err := json.Unmarshal([]byte(dimsJSON), &sc.Dimensions); err != nil {
+			return nil, fmt.Errorf("score %s: unmarshal dimensions: %w", sc.ID, err)
+		}
+		if err := json.Unmarshal([]byte(findingsJSON), &sc.Findings); err != nil {
+			return nil, fmt.Errorf("score %s: unmarshal findings: %w", sc.ID, err)
+		}
+		var perr error
+		if sc.CheckedAt, perr = parseStoredTime(checkedStr); perr != nil {
+			return nil, fmt.Errorf("score %s: parse checked_at: %w", sc.ID, perr)
+		}
 		scores = append(scores, &sc)
 	}
 	if err := rows.Err(); err != nil {
@@ -633,4 +663,16 @@ func (s *SQLiteBrandStore) GetScoresByStream(ctx context.Context, projectID, str
 
 func (s *SQLiteBrandStore) Close() error {
 	return s.db.Close()
+}
+
+// parseStoredTime parses an RFC3339 timestamp read back from one of our own
+// rows. An empty string (a NULL or never-set column) is not an error — it
+// yields the zero time; a non-empty but unparseable value is stored corruption
+// and is returned so the caller can surface it rather than silently substitute
+// the zero time.
+func parseStoredTime(s string) (time.Time, error) {
+	if s == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339, s)
 }

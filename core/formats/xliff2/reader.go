@@ -1172,13 +1172,13 @@ var _ = bytes.Equal
 
 func (r *Reader) skelText(s string) {
 	if r.skeletonStore != nil && s != "" {
-		_ = r.skeletonStore.WriteText([]byte(s))
+		r.skeletonStore.WriteText([]byte(s))
 	}
 }
 
 func (r *Reader) skelRef(id string) {
 	if r.skeletonStore != nil {
-		_ = r.skeletonStore.WriteRef(id)
+		r.skeletonStore.WriteRef(id)
 	}
 }
 

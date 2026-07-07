@@ -106,7 +106,10 @@ func readStopHookInput(r io.Reader) stopHookInput {
 	if err != nil || len(bytes.TrimSpace(data)) == 0 {
 		return in
 	}
-	_ = json.Unmarshal(data, &in)
+	// Best-effort: malformed or partial hook payloads fall back to the caller's
+	// defaults (in) rather than failing the hook; the error is intentionally
+	// ignored.
+	_ = json.Unmarshal(data, &in) // best-effort; falls back to defaults on malformed input
 	return in
 }
 
@@ -260,7 +263,10 @@ func readPreEditHookInput(r io.Reader) preEditHookInput {
 	if err != nil || len(bytes.TrimSpace(data)) == 0 {
 		return in
 	}
-	_ = json.Unmarshal(data, &in)
+	// Best-effort: malformed or partial hook payloads fall back to the caller's
+	// defaults (in) rather than failing the hook; the error is intentionally
+	// ignored.
+	_ = json.Unmarshal(data, &in) // best-effort; falls back to defaults on malformed input
 	return in
 }
 

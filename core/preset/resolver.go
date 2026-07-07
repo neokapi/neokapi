@@ -163,14 +163,17 @@ func LoadConfigFile(path string) (map[string]any, error) {
 
 	ext := strings.ToLower(filepath.Ext(path))
 
-	// Try envelope parsing first: probe for apiVersion
+	// Try envelope parsing first: probe for apiVersion. The unmarshal error is
+	// intentionally ignored — this is a format probe, not a full parse: a
+	// malformed doc simply leaves probe.APIVersion empty and falls through to
+	// the strict parse below, which reports the real error.
 	var probe struct {
 		APIVersion string `json:"apiVersion" yaml:"apiVersion"`
 	}
 	if ext == ".json" {
-		_ = json.Unmarshal(data, &probe)
+		_ = json.Unmarshal(data, &probe) // format probe; strict parse below surfaces any error
 	} else {
-		_ = yaml.Unmarshal(data, &probe)
+		_ = yaml.Unmarshal(data, &probe) // format probe; strict parse below surfaces any error
 	}
 
 	if probe.APIVersion != "" {

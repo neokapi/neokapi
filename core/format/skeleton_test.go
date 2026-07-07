@@ -14,11 +14,11 @@ func TestSkeletonStore_RoundTrip(t *testing.T) {
 	defer store.Close()
 
 	// Write entries.
-	require.NoError(t, store.WriteText([]byte("<html><body><p>")))
-	require.NoError(t, store.WriteRef("tu1"))
-	require.NoError(t, store.WriteText([]byte("</p><p>")))
-	require.NoError(t, store.WriteRef("tu2"))
-	require.NoError(t, store.WriteText([]byte("</p></body></html>")))
+	store.WriteText([]byte("<html><body><p>"))
+	store.WriteRef("tu1")
+	store.WriteText([]byte("</p><p>"))
+	store.WriteRef("tu2")
+	store.WriteText([]byte("</p></body></html>"))
 
 	// Flush and read back.
 	require.NoError(t, store.Flush())
@@ -58,9 +58,9 @@ func TestMemorySkeletonStore_RoundTrip(t *testing.T) {
 	store := NewMemorySkeletonStore()
 	defer store.Close()
 
-	require.NoError(t, store.WriteText([]byte("<p>")))
-	require.NoError(t, store.WriteRef("tu1"))
-	require.NoError(t, store.WriteText([]byte("</p>")))
+	store.WriteText([]byte("<p>"))
+	store.WriteRef("tu1")
+	store.WriteText([]byte("</p>"))
 	assert.Equal(t, 3, store.EntriesWritten())
 
 	require.NoError(t, store.Flush())
@@ -89,8 +89,8 @@ func TestSkeletonStore_EmptyTextSkipped(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 
-	require.NoError(t, store.WriteText([]byte{}))
-	require.NoError(t, store.WriteRef("tu1"))
+	store.WriteText([]byte{})
+	store.WriteRef("tu1")
 	require.NoError(t, store.Flush())
 
 	e1, err := store.Next()
@@ -119,7 +119,7 @@ func TestSkeletonStore_LargeData(t *testing.T) {
 	for i := range bigData {
 		bigData[i] = byte(i % 256)
 	}
-	require.NoError(t, store.WriteText(bigData))
+	store.WriteText(bigData)
 	require.NoError(t, store.Flush())
 
 	e, err := store.Next()

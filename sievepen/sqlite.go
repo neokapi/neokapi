@@ -919,10 +919,17 @@ func (tm *SQLiteTM) scanEntriesWithChildren(ctx context.Context, rows interface 
 		}
 		e.HintSrcLang = model.LocaleID(hint)
 		e.Note = note
-		e.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-		e.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+		var perr error
+		if e.CreatedAt, perr = parseStoredTime(createdStr); perr != nil {
+			return nil, fmt.Errorf("entry %s: parse created_at: %w", e.ID, perr)
+		}
+		if e.UpdatedAt, perr = parseStoredTime(updatedStr); perr != nil {
+			return nil, fmt.Errorf("entry %s: parse updated_at: %w", e.ID, perr)
+		}
 		if propsJSON != "" {
-			_ = json.Unmarshal([]byte(propsJSON), &e.Properties)
+			if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+				return nil, fmt.Errorf("entry %s: unmarshal properties: %w", e.ID, err)
+			}
 		}
 		e.Variants = make(map[model.LocaleID][]model.Run)
 		entries = append(entries, e)
@@ -1041,7 +1048,11 @@ func (tm *SQLiteTM) scanEntriesWithChildren(ctx context.Context, rows interface 
 			if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &addedAtStr, &o.AddedBy, &o.SessionID); err != nil {
 				continue
 			}
-			o.AddedAt, _ = time.Parse(time.RFC3339, addedAtStr)
+			var perr error
+			if o.AddedAt, perr = parseStoredTime(addedAtStr); perr != nil {
+				originRows.Close()
+				return nil, fmt.Errorf("origin for entry %s: parse added_at: %w", eid, perr)
+			}
 			if idx, ok := byID[eid]; ok {
 				entries[idx].Origins = append(entries[idx].Origins, o)
 			}
@@ -1050,6 +1061,18 @@ func (tm *SQLiteTM) scanEntriesWithChildren(ctx context.Context, rows interface 
 	}
 
 	return entries, nil
+}
+
+// parseStoredTime parses an RFC3339 timestamp read back from one of our own
+// rows. An empty string (a NULL or never-set column) is not an error — it
+// yields the zero time; a non-empty but unparseable value is stored corruption
+// and is returned so the caller can surface it rather than silently substitute
+// the zero time.
+func parseStoredTime(s string) (time.Time, error) {
+	if s == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339, s)
 }
 
 func scanIDs(rows interface {
@@ -1446,7 +1469,11 @@ func (tm *SQLiteTM) FacetStatsFiltered(ctx context.Context, params SearchParams)
 			var sf ImportSessionFacet
 			var importedAtStr string
 			if err := rows.Scan(&sf.SessionID, &sf.FileKey, &sf.ToolName, &importedAtStr, &sf.Count); err == nil {
-				sf.ImportedAt, _ = time.Parse(time.RFC3339, importedAtStr)
+				var perr error
+				if sf.ImportedAt, perr = parseStoredTime(importedAtStr); perr != nil {
+					recordErr(fmt.Errorf("import session facet %s: parse imported_at: %w", sf.SessionID, perr))
+					continue
+				}
 				sessions = append(sessions, sf)
 			}
 		}
@@ -1606,7 +1633,10 @@ func (tm *SQLiteTM) ListImportSessions(ctx context.Context) ([]ImportSession, er
 	defer rows.Close()
 	var out []ImportSession
 	for rows.Next() {
-		s, ok := scanSession(rows)
+		s, ok, err := scanSession(rows)
+		if err != nil {
+			return nil, err
+		}
 		if ok {
 			out = append(out, s)
 		}
@@ -1652,24 +1682,33 @@ type sessionScanner interface {
 	Scan(dest ...any) error
 }
 
-func scanSession(sc sessionScanner) (ImportSession, bool) {
+// scanSession scans a single import-session row. A scan failure (including no
+// row) yields ok=false with a nil error — the callers treat that as "not
+// found". A non-nil error means the row exists but stored corruption (a
+// malformed imported_at timestamp or properties JSON) was surfaced instead of
+// silently substituting zero values.
+func scanSession(sc sessionScanner) (ImportSession, bool, error) {
 	var s ImportSession
 	var importedAtStr, propsJSON string
 	if err := sc.Scan(&s.ID, &s.FileKey, &s.FileHash, &s.FileSizeBytes,
 		&importedAtStr, &s.ImportedBy, &s.ToolName, &s.ToolVersion,
 		&s.SegType, &s.AdminLang, &s.SrcLang, &s.DataType,
 		&s.OriginalFormat, &s.OriginalEncoding, &s.EntryCount, &propsJSON); err != nil {
-		return ImportSession{}, false
+		return ImportSession{}, false, nil
 	}
-	s.ImportedAt, _ = time.Parse(time.RFC3339, importedAtStr)
+	var err error
+	if s.ImportedAt, err = parseStoredTime(importedAtStr); err != nil {
+		return ImportSession{}, false, fmt.Errorf("session %s: parse imported_at: %w", s.ID, err)
+	}
 	if propsJSON != "" {
-		_ = json.Unmarshal([]byte(propsJSON), &s.Properties)
+		if err := json.Unmarshal([]byte(propsJSON), &s.Properties); err != nil {
+			return ImportSession{}, false, fmt.Errorf("session %s: unmarshal properties: %w", s.ID, err)
+		}
 	}
-	return s, true
+	return s, true, nil
 }
 
 func (tm *SQLiteTM) querySingleSession(ctx context.Context, q string, args ...any) (ImportSession, bool, error) {
 	row := tm.db.QueryRowContext(ctx, q, args...)
-	s, ok := scanSession(row)
-	return s, ok, nil
+	return scanSession(row)
 }

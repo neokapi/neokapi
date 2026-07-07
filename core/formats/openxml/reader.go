@@ -435,7 +435,7 @@ func (r *Reader) emitSettingsLangSkeleton(zr *zip.Reader, partPath string) {
 
 	strict := bytes.Contains(data, []byte(wmlStrictNamespace))
 	if strict || !bytes.Contains(data, []byte("<w:themeFontLang")) {
-		_ = r.skeletonStore.WriteText(data)
+		r.skeletonStore.WriteText(data)
 		return
 	}
 
@@ -448,11 +448,11 @@ func (r *Reader) emitSettingsLangSkeleton(zr *zip.Reader, partPath string) {
 	for _, loc := range wmlThemeFontLangValRE.FindAllSubmatchIndex(data, -1) {
 		// loc: [matchStart matchEnd, g1Start g1End, g2Start g2End]
 		valStart, valEnd := loc[4], loc[5]
-		_ = r.skeletonStore.WriteText(data[pos:valStart])
-		_ = r.skeletonStore.WriteLang(string(data[valStart:valEnd]))
+		r.skeletonStore.WriteText(data[pos:valStart])
+		r.skeletonStore.WriteLang(string(data[valStart:valEnd]))
 		pos = valEnd
 	}
-	_ = r.skeletonStore.WriteText(data[pos:])
+	r.skeletonStore.WriteText(data[pos:])
 }
 
 // Skeleton part-boundary markers. The writer uses these to split the
@@ -464,13 +464,13 @@ const (
 
 func (r *Reader) skelPartStart(partPath string) {
 	if r.skeletonStore != nil {
-		_ = r.skeletonStore.WriteRef(skelPartStartPrefix + partPath)
+		r.skeletonStore.WriteRef(skelPartStartPrefix + partPath)
 	}
 }
 
 func (r *Reader) skelPartEnd(partPath string) {
 	if r.skeletonStore != nil {
-		_ = r.skeletonStore.WriteRef(skelPartEndPrefix + partPath)
+		r.skeletonStore.WriteRef(skelPartEndPrefix + partPath)
 	}
 }
 
@@ -842,16 +842,16 @@ func (p *corePropsParser) skelText(s string) {
 func (p *corePropsParser) skelRef(id string) {
 	if p.skeletonStore != nil {
 		if p.skelBuf.Len() > 0 {
-			_ = p.skeletonStore.WriteText(p.skelBuf.Bytes())
+			p.skeletonStore.WriteText(p.skelBuf.Bytes())
 			p.skelBuf.Reset()
 		}
-		_ = p.skeletonStore.WriteRef(id)
+		p.skeletonStore.WriteRef(id)
 	}
 }
 
 func (p *corePropsParser) skelFlush() {
 	if p.skeletonStore != nil && p.skelBuf.Len() > 0 {
-		_ = p.skeletonStore.WriteText(p.skelBuf.Bytes())
+		p.skeletonStore.WriteText(p.skelBuf.Bytes())
 		p.skelBuf.Reset()
 	}
 }

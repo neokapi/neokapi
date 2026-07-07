@@ -808,16 +808,16 @@ func (p *smlParser) skelText(s string) {
 func (p *smlParser) skelRef(id string) {
 	if p.skeletonStore != nil {
 		if p.skelBuf.Len() > 0 {
-			_ = p.skeletonStore.WriteText(p.skelBuf.Bytes())
+			p.skeletonStore.WriteText(p.skelBuf.Bytes())
 			p.skelBuf.Reset()
 		}
-		_ = p.skeletonStore.WriteRef(id)
+		p.skeletonStore.WriteRef(id)
 	}
 }
 
 func (p *smlParser) skelFlush() {
 	if p.skeletonStore != nil && p.skelBuf.Len() > 0 {
-		_ = p.skeletonStore.WriteText(p.skelBuf.Bytes())
+		p.skeletonStore.WriteText(p.skelBuf.Bytes())
 		p.skelBuf.Reset()
 	}
 }

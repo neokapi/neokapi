@@ -285,7 +285,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			}
 			r.skelPartStart("content.xml")
 			if r.skeletonStore != nil {
-				_ = r.skeletonStore.WriteRef("layer:content.xml")
+				r.skeletonStore.WriteRef("layer:content.xml")
 			}
 			r.skelPartEnd("content.xml")
 			r.emitSubfiltered(ctx, ch, contentData, "content.xml", rootLayer.ID, childLayer, &blockCounter)
@@ -340,7 +340,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			}
 			r.skelPartStart("styles.xml")
 			if r.skeletonStore != nil {
-				_ = r.skeletonStore.WriteRef("layer:styles.xml")
+				r.skeletonStore.WriteRef("layer:styles.xml")
 			}
 			r.skelPartEnd("styles.xml")
 			r.emitSubfiltered(ctx, ch, stylesData, "styles.xml", rootLayer.ID, childLayer, &blockCounter)
@@ -371,16 +371,16 @@ func (p *odfParser) skelText(s string) {
 func (p *odfParser) skelRef(id string) {
 	if p.skeletonStore != nil {
 		if p.skelBuf.Len() > 0 {
-			_ = p.skeletonStore.WriteText(p.skelBuf.Bytes())
+			p.skeletonStore.WriteText(p.skelBuf.Bytes())
 			p.skelBuf.Reset()
 		}
-		_ = p.skeletonStore.WriteRef(id)
+		p.skeletonStore.WriteRef(id)
 	}
 }
 
 func (p *odfParser) skelFlush() {
 	if p.skeletonStore != nil && p.skelBuf.Len() > 0 {
-		_ = p.skeletonStore.WriteText(p.skelBuf.Bytes())
+		p.skeletonStore.WriteText(p.skelBuf.Bytes())
 		p.skelBuf.Reset()
 	}
 }
@@ -987,13 +987,13 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 
 func (r *Reader) skelPartStart(partPath string) {
 	if r.skeletonStore != nil {
-		_ = r.skeletonStore.WriteRef(skelPartStartPrefix + partPath)
+		r.skeletonStore.WriteRef(skelPartStartPrefix + partPath)
 	}
 }
 
 func (r *Reader) skelPartEnd(partPath string) {
 	if r.skeletonStore != nil {
-		_ = r.skeletonStore.WriteRef(skelPartEndPrefix + partPath)
+		r.skeletonStore.WriteRef(skelPartEndPrefix + partPath)
 	}
 }
 
