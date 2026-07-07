@@ -11,6 +11,7 @@ vi.mock("../hooks/useApi", () => ({
   },
 }));
 
+import { Toaster } from "@neokapi/ui-primitives";
 import { FlowsPage, type FlowListItem } from "../components/FlowsPage";
 import { ErrorProvider } from "../components/ErrorBanner";
 
@@ -19,9 +20,12 @@ const userFlows: FlowListItem[] = [
 ];
 
 function renderAdhoc(props: Partial<React.ComponentProps<typeof FlowsPage>> = {}) {
+  // Adoption feedback is a Sonner toast, mounted app-wide via <Toaster>; render
+  // one here so the toast surfaces in the DOM under test.
   return render(
     <ErrorProvider>
       <FlowsPage flows={userFlows} {...props} />
+      <Toaster />
     </ErrorProvider>,
   );
 }

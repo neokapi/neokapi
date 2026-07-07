@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ConfirmDeleteButton } from "../../components/ui/confirm-delete-button";
+import { ConfirmDeleteButton } from "../../components/composites/confirm-delete-button";
 
 const meta: Meta<typeof ConfirmDeleteButton> = {
   title: "Foundations/ConfirmDeleteButton",

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { FormatSelect, type FormatInfo } from "../../components/ui/format-select";
+import { FormatSelect, type FormatInfo } from "../../components/composites/format-select";
 
 const sampleFormats: FormatInfo[] = [
   { name: "json", display_name: "JSON", extensions: [".json"] },

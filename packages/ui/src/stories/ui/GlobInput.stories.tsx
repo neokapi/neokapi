@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { GlobInput } from "../../components/ui/glob-input";
-import { TargetPathInput } from "../../components/ui/target-path-input";
+import { GlobInput } from "../../components/composites/glob-input";
+import { TargetPathInput } from "../../components/composites/target-path-input";
 
 function GlobWrapper({ initial = "", placeholder }: { initial?: string; placeholder?: string }) {
   const [value, setValue] = useState(initial);

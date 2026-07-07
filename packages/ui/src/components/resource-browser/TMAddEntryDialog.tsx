@@ -1,4 +1,4 @@
-import { LocaleSelect, type LocaleInfo } from "../ui/locale-select";
+import { LocaleSelect, type LocaleInfo } from "../composites/locale-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";

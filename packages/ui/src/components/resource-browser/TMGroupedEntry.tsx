@@ -24,7 +24,7 @@ import { OriginsPopover } from "./OriginsPopover";
 import { ItemCard } from "../ui/item-card";
 import { Checkbox } from "../ui/checkbox";
 import { Button } from "../ui/button";
-import { ConfirmDeleteButton } from "../ui/confirm-delete-button";
+import { ConfirmDeleteButton } from "../composites/confirm-delete-button";
 import { relativeTime } from "./utils";
 import { ChevronRight } from "lucide-react";
 import { cn } from "../../lib/utils";

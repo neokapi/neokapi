@@ -7,8 +7,8 @@
 
 import { useState, useMemo, useCallback, type ReactNode } from "react";
 import { t } from "@neokapi/kapi-react/runtime";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "./table";
-import { Input } from "./input";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "../ui/table";
+import { Input } from "../ui/input";
 import { cn } from "../../lib/utils";
 
 export interface SelectableListColumn<T> {

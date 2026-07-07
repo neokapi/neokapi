@@ -3,7 +3,7 @@ import { createElement, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { StepConfigPanel } from "../FlowEditor";
+import { StepConfigPanel } from "../StepConfigPanel";
 import type { ComponentSchema } from "../types";
 
 /**

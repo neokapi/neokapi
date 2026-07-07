@@ -15,7 +15,7 @@ import { TMBrowserToolbar } from "./TMBrowserToolbar";
 import { TMEntryList } from "./TMEntryList";
 import { TMAddEntryDialog } from "./TMAddEntryDialog";
 import { EntityAnnotationDialog } from "./EntityAnnotationDialog";
-import { resolveLocaleName, type LocaleInfo } from "../ui/locale-select";
+import { resolveLocaleName, type LocaleInfo } from "../composites/locale-select";
 import { Button } from "../ui/button";
 import {
   buildSearchBarFilterFields,

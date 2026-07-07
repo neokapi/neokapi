@@ -1,7 +1,18 @@
 import { useState, useCallback, DragEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, FolderOpen, Plus, RefreshCw, Loader2, Upload } from "lucide-react";
-import { Button, Badge, Card, PageHeader } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Badge,
+  Card,
+  PageHeader,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useWailsEvent } from "../hooks/useWailsEvent";
@@ -125,55 +136,53 @@ export function ProjectFilesPage({ tabID, basePath }: ProjectFilesPageProps) {
       >
         {files.length > 0 ? (
           <Card>
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border text-left text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">Name</th>
-                  <th className="px-3 py-2 font-medium">Format</th>
-                  <th className="px-3 py-2 text-right font-medium">Size</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="text-xs">
+              <TableHeader>
+                <TableRow className="text-muted-foreground hover:bg-transparent">
+                  <TableHead className="h-auto px-3 py-2 text-muted-foreground">Name</TableHead>
+                  <TableHead className="h-auto px-3 py-2 text-muted-foreground">Format</TableHead>
+                  <TableHead className="h-auto px-3 py-2 text-right text-muted-foreground">
+                    Size
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {directories.map((f) => (
-                  <tr
-                    key={f.relative}
-                    className="border-b border-border last:border-0 hover:bg-accent/30"
-                  >
-                    <td className="px-3 py-1.5">
+                  <TableRow key={f.relative} className="hover:bg-accent/30">
+                    <TableCell className="px-3 py-1.5">
                       <span className="flex items-center gap-1.5 font-mono">
                         <FolderOpen size={12} className="text-muted-foreground" />
                         {f.relative}/
                       </span>
-                    </td>
-                    <td className="px-3 py-1.5 text-muted-foreground">&mdash;</td>
-                    <td className="px-3 py-1.5 text-right text-muted-foreground">&mdash;</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="px-3 py-1.5 text-muted-foreground">&mdash;</TableCell>
+                    <TableCell className="px-3 py-1.5 text-right text-muted-foreground">
+                      &mdash;
+                    </TableCell>
+                  </TableRow>
                 ))}
                 {regularFiles.map((f) => (
-                  <tr
-                    key={f.relative}
-                    className="border-b border-border last:border-0 hover:bg-accent/30"
-                  >
-                    <td className="px-3 py-1.5">
+                  <TableRow key={f.relative} className="hover:bg-accent/30">
+                    <TableCell className="px-3 py-1.5">
                       <span className="flex items-center gap-1.5 font-mono">
                         <FileText size={12} className="text-muted-foreground" />
                         {f.relative}
                       </span>
-                    </td>
-                    <td className="px-3 py-1.5">
+                    </TableCell>
+                    <TableCell className="px-3 py-1.5">
                       {f.format ? (
                         <Badge variant="secondary">{f.format}</Badge>
                       ) : (
                         <span className="text-muted-foreground">&mdash;</span>
                       )}
-                    </td>
-                    <td className="px-3 py-1.5 text-right text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="px-3 py-1.5 text-right text-muted-foreground">
                       {formatSize(f.size)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </Card>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">

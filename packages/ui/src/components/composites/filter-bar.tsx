@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { t } from "@neokapi/kapi-react/runtime";
 import { createPortal } from "react-dom";
 import { X, Search, Check, ChevronDown } from "lucide-react";
-import { Badge } from "./badge";
+import { Badge } from "../ui/badge";
 
 // ---------------------------------------------------------------------------
 // Types
