@@ -4,7 +4,6 @@ use (
 	.
 	./apps/kapi-desktop
 	./bowrain
-	./bowrain/cli
 	./bowrain/core
 	./bowrain/plugin
 	./bowrain/plugin/schema

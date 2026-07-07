@@ -1,7 +1,7 @@
 # bowrain/Makefile
 # =================
-# Build, test, and lint targets for the Bowrain platform, CLI, and core modules.
-# Modules: neokapi/bowrain/core (interface), neokapi/bowrain/cli (CLI), neokapi/bowrain (server+app).
+# Build, test, and lint targets for the Bowrain platform, plugin, and core modules.
+# Modules: neokapi/bowrain/core (interface), neokapi/bowrain/plugin (kapi-bowrain plugin), neokapi/bowrain (server+app).
 # Can be used standalone (cd bowrain && make test) or delegated from root.
 
 # Suppress macOS linker warnings for CGO (Wails WebView)
@@ -108,7 +108,7 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         dev-deps dev-deps-down dev-server dev-worker dev-web dev-ctrl bowrain-dev certs \
         stack-up stack-up-web stack-up-shared stack-shared-down stack-down stack-logs stack-ps stack-build \
         test test-fast test-unit test-race test-verbose test-integration \
-        test-platform test-bowrain-cli test-bowrain-plugin test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
+        test-platform test-bowrain-plugin test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         cover fmt vet lint check proto deps deps-update clean
 
 # ── General ──────────────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ build-worker: ## Build the Bowrain worker
 
 build-kapi-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 	@mkdir -p $(BIN_DIR)
-	cd cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
+	cd plugin && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 
 build-bowrain: frontend-build ## Build the Bowrain desktop app
 	cd apps/bowrain && wails3 build -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
@@ -147,7 +147,7 @@ build-headless: frontend-build ## Build headless desktop binary (server mode, no
 	cd apps/bowrain && $(GOBUILD) -tags server $(LDFLAGS) -o $(BIN_DIR)/bowrain-headless .
 
 install-kapi-bowrain-plugin: ## Install kapi-bowrain plugin binary to GOPATH/bin
-	cd cli && $(GO) install $(LDFLAGS) ./cmd/kapi-bowrain
+	cd plugin && $(GO) install $(LDFLAGS) ./cmd/kapi-bowrain
 
 # ── Frontend (Bowrain UI) ───────────────────────────────────────────────────
 
@@ -391,27 +391,27 @@ test-e2e-dev: ## Run cloud e2e tests against the dev environment
 
 test: ## Run all platform tests
 	cd core && $(GOTEST_BASE) ./... -count=1
-	cd cli && $(GOTEST_BASE) ./... -count=1
+	cd plugin && $(GOTEST_BASE) ./... -count=1
 	$(GOTEST_BASE) ./... -count=1
 
 test-fast: ## Run all platform tests with caching
 	cd core && $(GOTEST_BASE) ./...
-	cd cli && $(GOTEST_BASE) ./...
+	cd plugin && $(GOTEST_BASE) ./...
 	$(GOTEST_BASE) ./...
 
 test-unit: ## Run platform unit tests only
 	cd core && $(GOTEST_BASE) ./... -count=1 -short
-	cd cli && $(GOTEST_BASE) ./... -count=1 -short
+	cd plugin && $(GOTEST_BASE) ./... -count=1 -short
 	$(GOTEST_BASE) ./... -count=1 -short
 
 test-race: ## Run platform tests with race detector
 	cd core && $(GOTEST) -race -shuffle=on ./... -count=1
-	cd cli && $(GOTEST) -race -shuffle=on ./... -count=1
+	cd plugin && $(GOTEST) -race -shuffle=on ./... -count=1
 	$(GOTEST) -race -shuffle=on ./... -count=1
 
 test-verbose: ## Run platform tests with verbose output
 	cd core && $(GOTEST_BASE) ./... -count=1 -v
-	cd cli && $(GOTEST_BASE) ./... -count=1 -v
+	cd plugin && $(GOTEST_BASE) ./... -count=1 -v
 	$(GOTEST_BASE) ./... -count=1 -v
 
 test-integration: ## Run platform integration tests
@@ -423,14 +423,6 @@ ifdef CI
 	cd core && $(GOTEST_BASE) $(call cov,$(COVER_DIR)/platform.out) $(_SHORT) -json ./... > ../test-results-platform.json
 else
 	cd core && $(GOTEST_BASE) ./... -count=1
-endif
-
-test-bowrain-cli: ## Run Bowrain CLI tests only
-	@mkdir -p $(COVER_DIR)
-ifdef CI
-	cd cli && $(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain-cli.out) $(_SHORT) -json ./... > ../test-results-bowrain-cli.json
-else
-	cd cli && $(GOTEST_BASE) ./... -count=1
 endif
 
 test-bowrain-plugin: ## Run bowrain plugin tests (bowrain/plugin + bowrain/plugin/schema, separate go.mod)
@@ -456,7 +448,7 @@ endif
 cover: ## Run platform tests with coverage
 	@mkdir -p $(COVER_DIR)
 	cd core && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/platform.out $(_COVMODE) ./... -count=1
-	cd cli && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain-cli.out $(_COVMODE) ./... -count=1
+	cd plugin && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain-plugin.out $(_COVMODE) ./... -count=1
 	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain.out $(_COVMODE) ./... -count=1
 
 # ── Code Quality ─────────────────────────────────────────────────────────────
@@ -466,13 +458,13 @@ fmt: ## Format Go source files
 
 vet: ## Run go vet
 	cd core && $(GOVET) ./...
-	cd cli && $(GOVET) ./...
+	cd plugin && $(GOVET) ./...
 	$(GOVET) ./...
 
 lint: ## Run golangci-lint
 ifdef GOLANGCI_LINT
 	cd core && $(GOLANGCI_LINT) run ./...
-	cd cli && $(GOLANGCI_LINT) run ./...
+	cd plugin && $(GOLANGCI_LINT) run ./...
 	$(GOLANGCI_LINT) run ./...
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
@@ -504,12 +496,12 @@ endif
 
 deps: ## Download and tidy platform dependencies
 	cd core && $(GO) mod download && $(GO) mod tidy
-	cd cli && $(GO) mod download && $(GO) mod tidy
+	cd plugin && $(GO) mod download && $(GO) mod tidy
 	$(GO) mod download && $(GO) mod tidy
 
 deps-update: ## Update platform dependencies
 	cd core && $(GO) get -u ./... && $(GO) mod tidy
-	cd cli && $(GO) get -u ./... && $(GO) mod tidy
+	cd plugin && $(GO) get -u ./... && $(GO) mod tidy
 	$(GO) get -u ./... && $(GO) mod tidy
 
 # ── Clean ────────────────────────────────────────────────────────────────────

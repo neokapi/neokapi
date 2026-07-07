@@ -272,7 +272,7 @@ else
 	cd kapi && $(GOTEST_BASE) ./... -count=1
 endif
 
-test-platform test-bowrain-cli test-bowrain-plugin test-bowrain: ## Run individual bowrain module tests
+test-platform test-bowrain-plugin test-bowrain: ## Run individual bowrain module tests
 	$(MAKE) -C bowrain $@
 
 # ── EngineService example clients (contract lock) ───────────────────────────
@@ -311,9 +311,6 @@ ci-test-kapi: ## Run kapi tests with full CI flags locally
 ci-test-platform: ## Run platform tests with full CI flags locally
 	$(MAKE) -C bowrain CI=true test-platform
 
-ci-test-bowrain-cli: ## Run Bowrain CLI tests with full CI flags locally
-	$(MAKE) -C bowrain CI=true test-bowrain-cli
-
 ci-test-bowrain: ## Run bowrain tests with full CI flags locally
 	$(MAKE) -C bowrain CI=true test-bowrain
 
@@ -325,7 +322,7 @@ ci-test-bowrain-desktop: ## Run Bowrain Desktop tests with full CI flags locally
 
 ci-test-all: ## Run all module tests with full CI flags locally
 	$(MAKE) CI=true test-framework test-cli test-kapi kapi-desktop-test bowrain-desktop-test
-	$(MAKE) -C bowrain CI=true test-platform test-bowrain-cli test-bowrain-plugin test-bowrain
+	$(MAKE) -C bowrain CI=true test-platform test-bowrain-plugin test-bowrain
 
 # ── CI job bodies (thin-CI) ─────────────────────────────────────────────────
 #
@@ -385,21 +382,21 @@ ci-build: ## Mirror the CI `build` job: build all three binaries (no fts5) + ass
 	@mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
 	@mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html
 	cd kapi && go build -o ../bin/kapi ./cmd/kapi
-	cd bowrain/cli && go build -o ../../bin/kapi-bowrain ./cmd/kapi-bowrain
+	cd bowrain/plugin && go build -o ../../bin/kapi-bowrain ./cmd/kapi-bowrain
 	cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 	GOWORK=off bash -c "go build ./..."
 	GOWORK=off bash -c "cd host && go build ./..."
 	GOWORK=off bash -c "cd cli && go build ./..."
 	GOWORK=off bash -c "cd bowrain/core && go build ./..."
 	GOWORK=off bash -c "cd kapi && go build ./..."
-	GOWORK=off bash -c "cd bowrain/cli && go build ./..."
+	GOWORK=off bash -c "cd bowrain/plugin && go build ./..."
 	@# kapi must not depend on platform / bowrain / heavy deps
 	@if cd kapi && GOWORK=off go list -m all | grep -q 'neokapi/platform'; then echo "kapi should not depend on platform"; exit 1; fi
 	@if cd bowrain && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then echo "bowrain should not depend on cli"; exit 1; fi
 	@if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|labstack/echo|keycloak'; then exit 1; fi
 
 ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fail on drift
-	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain/plugin bowrain/plugin/schema bowrain; do \
+	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain/plugin/schema bowrain; do \
 	  echo "Checking $$dir..."; \
 	  (cd "$$dir" && go mod tidy); \
 	done
@@ -416,7 +413,7 @@ verify-isolation: ## Verify all Go module isolation boundaries
 	GOWORK=off bash -c "cd cli && go build ./..."
 	GOWORK=off bash -c "cd bowrain/core && go build ./..."
 	GOWORK=off bash -c "cd kapi && go build ./..."
-	GOWORK=off bash -c "cd bowrain/cli && go build ./..."
+	GOWORK=off bash -c "cd bowrain/plugin && go build ./..."
 	@# kapi must not depend on bowrain
 	@if cd kapi && GOWORK=off go list -m all 2>/dev/null | grep -q 'neokapi/bowrain'; then echo "ERROR: kapi depends on bowrain"; exit 1; fi
 	@# bowrain/core must not depend on the main bowrain module (framework-only)
@@ -454,10 +451,10 @@ verify-isolation: ## Verify all Go module isolation boundaries
 #   bowrain/core       framework (+ plugin/schema) only — no cli AND no main bowrain dep
 #   kapi               framework + host + cli only — no bowrain dep
 #   apps/kapi-desktop  framework + host (+ plugin/schema) only — NO cli, NO cobra
-#   bowrain/cli        framework + host + cli + bowrain/core (the kapi-bowrain plugin)
+#   bowrain/plugin     framework + host + cli + bowrain/core (bowrain behavior + the kapi-bowrain plugin binary)
 #   bowrain            framework + host + bowrain/core (the platform; host for the host/flowdef flow catalog)
 #
-# bowrain and bowrain/cli are not isolation boundaries (they legitimately depend
+# bowrain and bowrain/plugin are not isolation boundaries (they legitimately depend
 # on several modules), but they are audited for the same go.mod/go.sum tidiness —
 # e.g. a require that should be indirect after a package moves. CI's Tidy Check
 # covers all modules, so they belong here too.
@@ -467,7 +464,7 @@ verify-isolation: ## Verify all Go module isolation boundaries
 # after a frontend build, so — like `make kapi-desktop-test` — we build only
 # ./backend/... for it. `go mod tidy` still resolves the whole module graph
 # (embeds don't affect dependency resolution), so the boundary contract holds.
-AUDIT_MODULES := . host cli bowrain/core kapi apps/kapi-desktop bowrain/cli bowrain
+AUDIT_MODULES := . host cli bowrain/core kapi apps/kapi-desktop bowrain/plugin bowrain
 
 audit-modules: ## Assert module isolation + go.mod/go.sum tidiness (fails on drift)
 	@set -e; rc=0; for dir in $(AUDIT_MODULES); do \
@@ -727,7 +724,7 @@ bin/kapi: build
 
 build-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 	@mkdir -p $(BIN_DIR)
-	cd bowrain/cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
+	cd bowrain/plugin && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 
 PLUGIN_DIR := packages/kapi-claude-plugin
 PLUGIN_SKILLS_DIR := $(PLUGIN_DIR)/plugins/kapi/skills
@@ -765,7 +762,7 @@ build-all: ## Build all Go binaries
 	@mkdir -p $(BIN_DIR)
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi ./cmd/kapi
 	@$(LINK_KAPI_BUSYBOX)
-	cd bowrain/cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
+	cd bowrain/plugin && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 	$(MAKE) -C bowrain build-server build-worker build-kapi-bowrain-plugin
 
 # Forward bowrain build targets
@@ -1097,7 +1094,7 @@ cover: ## Run tests with coverage (merged report)
 	tail -n +2 $(COVER_DIR)/cli.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/kapi.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/platform.out >> $(COVER_DIR)/coverage.out
-	tail -n +2 $(COVER_DIR)/bowrain-cli.out >> $(COVER_DIR)/coverage.out
+	tail -n +2 $(COVER_DIR)/bowrain-plugin.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/bowrain.out >> $(COVER_DIR)/coverage.out
 	$(GO) tool cover -html=$(COVER_DIR)/coverage.out -o $(COVER_DIR)/coverage.html
 	@echo "Coverage report: $(COVER_DIR)/coverage.html"
@@ -1611,10 +1608,10 @@ help: ## Show this help
         parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain test-parallel \
-        test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain-plugin test-bowrain \
+        test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
-        ci-test-bowrain-cli ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
+        ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
         ci-frontend ci-kapi-desktop-frontend ci-bowrain-desktop-frontend ci-kapi-react ci-build ci-tidy \
         verify-isolation audit-modules \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \

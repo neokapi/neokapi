@@ -72,12 +72,12 @@ func TestRunAccumulator_TerminalError(t *testing.T) {
 
 	canceled := &runAccumulator{}
 	canceled.observe(convergence.Event{Type: convergence.EventDone, State: convergence.RunCanceled})
-	assert.Error(t, canceled.terminalError(nil))
+	require.Error(t, canceled.terminalError(nil))
 
 	// Fallback to the persisted final state when the stream was cut before the
 	// terminal frame (sawDone never set).
 	cut := &runAccumulator{}
-	assert.Error(t, cut.terminalError(&apiclient.ConvergenceRun{State: "failed"}))
+	require.Error(t, cut.terminalError(&apiclient.ConvergenceRun{State: "failed"}))
 
 	ok := &runAccumulator{}
 	ok.observe(convergence.Event{Type: convergence.EventDone, State: convergence.RunConverged})

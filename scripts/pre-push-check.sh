@@ -71,7 +71,7 @@ if matches '^core/' '^go\.(mod|sum)$' '^cli/' '^kapi/' '^go\.work'; then
     run_check "Go lint (framework)" make check-framework
 fi
 
-if matches '^bowrain/core/' '^bowrain/cli/' '^bowrain/go\.(mod|sum)$'; then
+if matches '^bowrain/core/' '^bowrain/plugin/' '^bowrain/go\.(mod|sum)$'; then
     run_check "Go lint (bowrain)" make check-bowrain
 fi
 
@@ -79,7 +79,7 @@ fi
 
 if matches '^go\.(mod|sum)$' '/go\.(mod|sum)$'; then
     run_check "go mod tidy" bash -c '
-      for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/cli bowrain; do
+      for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain; do
         (cd "$dir" && go mod tidy)
       done
       git diff --exit-code -- "**go.mod" "**go.sum"'

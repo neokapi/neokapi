@@ -118,7 +118,7 @@ func buildKapiBowrain(t *testing.T) string {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "kapi-bowrain")
 
-	// We're in bowrain/cli/cmd/kapi-bowrain, so "." is correct.
+	// We are in bowrain/plugin/cmd/kapi-bowrain, so "." is correct.
 	cmd := exec.CommandContext(t.Context(), "go", "build", "-o", out, ".")
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stderr

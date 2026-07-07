@@ -327,7 +327,7 @@ its owning workspace.
 | `bowrain/auth/`               | `AuthStore` interface + SQLite / PostgreSQL implementations, OIDC helpers |
 | `bowrain/server/`             | REST/gRPC server, auth middleware chain, workspace handlers, gRPC auth interceptors |
 | `bowrain/service/auth.go`     | `AuthService` business logic                                  |
-| `bowrain/cli/cmd/bowrain/auth.go` | `kapi auth login | logout | status`                    |
+| `bowrain/plugin/commands/auth.go` | `kapi auth login | logout | status`                    |
 
 ## Consequences
 

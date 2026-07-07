@@ -176,7 +176,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
-          ( cd bowrain/cli && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain ./cmd/kapi-bowrain )
+          ( cd bowrain/plugin && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain ./cmd/kapi-bowrain )
 
       # ---- Build (Windows, MSYS2 mingw + static ICU) ----
       - name: Set up MSYS2 (Windows)
@@ -207,7 +207,7 @@ jobs:
           PCDIR=$(ICU_LIBDIR="$(cygpath -m "$MROOT/lib")" ICU_INCLUDEDIR="$(cygpath -m "$MROOT/include")" bash scripts/gen-icu-static-pc.sh)
           export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
           mkdir -p out
-          ( cd bowrain/cli && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain.exe ./cmd/kapi-bowrain )
+          ( cd bowrain/plugin && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain.exe ./cmd/kapi-bowrain )
 
       # ---- Upload binaries for the package-bowrain-cli job ----
       - name: Upload CLI binaries
@@ -266,7 +266,7 @@ jobs:
           set -euo pipefail
           VERSION="${REF_NAME#bowrain-v}"
           bash scripts/package-cli.sh "$VERSION" cli-artifacts dist \
-            bowrain/cli/cmd/kapi-bowrain/manifest.json
+            bowrain/plugin/cmd/kapi-bowrain/manifest.json
 
       # Keyless cosign signature (sigstore bundle) for the kapi-bowrain plugin
       # tarballs — kapi's plugin-install verifier requires it.

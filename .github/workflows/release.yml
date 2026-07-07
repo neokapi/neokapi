@@ -338,7 +338,7 @@ jobs:
           set -euo pipefail
           VERSION="${REF_NAME#v}"
           bash scripts/package-cli.sh "$VERSION" cli-artifacts dist \
-            bowrain/cli/cmd/kapi-bowrain/manifest.json
+            bowrain/plugin/cmd/kapi-bowrain/manifest.json
 
       # Linux .deb / .rpm for the kapi CLI (nfpm). These are direct-download
       # system packages; apt/dnf own updates, so they are not in cli.json.

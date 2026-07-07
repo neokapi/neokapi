@@ -14,8 +14,7 @@ The repository is a **multi-module monorepo** whose Go modules are:
 - **Bowrain Core** (`github.com/neokapi/neokapi/bowrain/core`) — shared bowrain platform types and interfaces: Recipe wrapper around the framework's `KapiProject` (with type aliases re-exported from `bowrain/plugin/schema`), Project facade, auth types, connector interfaces, REST client (incl. the Merkle-diff push client), store interfaces, event types, plus the low sync packages the push client needs — `bowrain/core/sync` (pure model↔protobuf converters + content-hash helpers) and `bowrain/core/proto/sync/v1` (the sync-protocol protobuf messages). Depends on framework only (+ `bowrain/plugin/schema`); no CLI dependency (no Cobra, Viper) and **no dependency on the main `bowrain` module** — the redis-backed sync hash cache and the store-backed diff engine stay in `bowrain/sync`, which re-exports the pure converters so server-side callers keep one import.
 - **Kapi** (`github.com/neokapi/neokapi/kapi`) — primary CLI binary (Apache-2.0). Contains zero vendor-plugin code. Plugins (bowrain, okapi-bridge, …) are discovered at runtime via the unified manifest model (#438) and dispatched as subprocesses. Depends on framework + host + CLI only.
 - **Kapi Desktop** (`github.com/neokapi/neokapi/kapi-desktop`) — Wails v3 desktop app for visual localization workflows. Blank-imports `bowrain/plugin/schema` (Apache-2.0) so it validates bowrain recipes on open. Depends on framework + host + bowrain/plugin/schema — all three Apache-2.0, so the desktop binary links no AGPL code. **No dependency on the cli module or cobra** (asserted by `make audit-modules` via `go list -deps`).
-- **Bowrain CLI** (`github.com/neokapi/neokapi/bowrain/cli`) — produces the `kapi-bowrain` manifest-driven plugin binary (in `cmd/kapi-bowrain/`). The plugin is dispatched to by kapi under the unified plugin model. The legacy standalone `bowrain` binary has been retired; all bowrain commands flow through `kapi <command>` once `bowrain-cli` is brew-installed.
-- **Bowrain Plugin** (`github.com/neokapi/neokapi/bowrain/plugin`) — Go packages implementing bowrain's behavior: `schema/` (recipe extension decoders, registers via `init()` against `core/project.RegisterExtension`), `commands/` (push, pull, sync, status, init, auth, …, registers via `cli.RegisterCommandFactory`), `connector/` (BowrainSourceConnector), `mcp/` (bowrain MCP tools, registers via `cli.RegisterMCPToolFactory`). These are blank-imported into the `kapi-bowrain` plugin binary; they are no longer imported by the default `kapi` binary. The `schema/` sub-package has its own go.mod **and is licensed Apache-2.0** (it is recipe *vocabulary* — typed specs + YAML decoders — importing only the framework, not any AGPL `bowrain/*` package), so kapi-desktop can blank-import it cheaply without taking on AGPL code. The rest of `bowrain/plugin` (`commands/`, `connector/`, `mcp/`) stays AGPL-3.0.
+- **Bowrain Plugin** (`github.com/neokapi/neokapi/bowrain/plugin`) — Go packages implementing bowrain's behavior plus the `kapi-bowrain` manifest-driven plugin binary itself (`cmd/kapi-bowrain/`, dispatched to by kapi under the unified plugin model; the legacy standalone `bowrain` binary has been retired — all bowrain commands flow through `kapi <command>` once `bowrain-cli` is brew-installed): `schema/` (recipe extension decoders, registers via `init()` against `core/project.RegisterExtension`), `commands/` (push, pull, sync, status, init, auth, …, registers via `cli.RegisterCommandFactory`), `connector/` (BowrainSourceConnector), `mcp/` (bowrain MCP tools, registers via `cli.RegisterMCPToolFactory`). These are blank-imported into the `kapi-bowrain` plugin binary; they are no longer imported by the default `kapi` binary. The `schema/` sub-package has its own go.mod **and is licensed Apache-2.0** (it is recipe *vocabulary* — typed specs + YAML decoders — importing only the framework, not any AGPL `bowrain/*` package), so kapi-desktop can blank-import it cheaply without taking on AGPL code. The rest of `bowrain/plugin` (`commands/`, `connector/`, `mcp/`) stays AGPL-3.0.
 - **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, web app, connectors, persistent SQLite/PostgreSQL storage. Depends on framework + host (for the `host/flowdef` flow catalog) + bowrain/core.
 - **SaT plugin** (`github.com/neokapi/neokapi/plugins/sat`) — the `kapi-sat` segmenter plugin: runs wtpsplit *Segment any Text* ONNX models in-process (cgo onnxruntime + XLM-RoBERTa tokenizer, gated behind `-tags onnx`) and speaks a line-delimited JSON segmentation protocol on stdin/stdout. Isolated so its native ML stack never enters the `kapi` binary; the host module's plugin host discovers it via the manifest segmenter capability and drives it over the Mode-C segment RPC. The pure-Go `satproto` package + protocol/algorithm tests build with no native deps.
 
@@ -103,7 +102,7 @@ For the multi-module structure:
 - CLI packages: `cd cli && go build ./...`
 - Bowrain Core packages: `cd bowrain/core && go build ./...`
 - Kapi CLI: `cd kapi && go build ./...`
-- Bowrain CLI: `cd bowrain/cli && go build ./...`
+- Bowrain plugin (incl. the kapi-bowrain binary): `cd bowrain/plugin && go build ./...`
 - Bowrain packages: `cd bowrain && go build ./...`
 - Kapi Desktop: `cd apps/kapi-desktop && go build ./...`
 - With `go.work`, all modules resolve cross-module imports automatically
@@ -256,9 +255,11 @@ neokapi/
 │   ├── core/              # module github.com/neokapi/neokapi/bowrain/core (framework only)
 │   │   └── auth/ store/ connector/ project/ event/ agent/ client/ config/
 │   │
-│   │   ── Bowrain CLI Module ────────────
-│   ├── cli/               # module github.com/neokapi/neokapi/bowrain/cli (framework + host + cli + bowrain/core)
-│   │   └── cmd/kapi-bowrain/   # Manifest-driven kapi-bowrain plugin binary (Mode A/B/C)
+│   │   ── Bowrain Plugin Module ─────────
+│   ├── plugin/            # module github.com/neokapi/neokapi/bowrain/plugin (framework + host + cli + bowrain/core)
+│   │   ├── cmd/kapi-bowrain/   # Manifest-driven kapi-bowrain plugin binary (Mode A/B/C)
+│   │   ├── commands/ connector/ mcp/   # AGPL-3.0 plugin behavior
+│   │   └── schema/        # module bowrain/plugin/schema (Apache-2.0 recipe vocabulary)
 │   │
 │   ├── auth/              # OIDC, AuthStore, SQLite + PostgreSQL auth (server-specific)
 │   ├── connector/         # Concrete connector implementations (File, Git, etc.)

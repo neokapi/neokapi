@@ -12,9 +12,10 @@ Bowrain is the full-stack localization platform built on the neokapi framework.
 It adds a versioned content store, bidirectional connectors to live systems,
 event-driven automation, multi-user workspaces, and collaborative editing on
 top of the framework's streaming pipeline. Bowrain ships as three Go modules —
-`bowrain/core` (shared platform types), `bowrain/cli` (project-sync companion
-CLI), and `bowrain` (server, workers, desktop and web apps) — all licensed
-under AGPL-3.0.
+`bowrain/core` (shared platform types), `bowrain/plugin` (plugin behavior +
+the `kapi-bowrain` project-sync plugin binary), and `bowrain` (server,
+workers, desktop and web apps) — all licensed under AGPL-3.0, except the
+Apache-2.0 `bowrain/plugin/schema` recipe-vocabulary sub-module.
 
 ## Context
 
@@ -72,7 +73,7 @@ Bowrain is composed of three independent Go modules, each with its own
 | Module         | Import Path                               | Directory       | Role                                                                       |
 | -------------- | ----------------------------------------- | --------------- | -------------------------------------------------------------------------- |
 | `bowrain/core` | `github.com/neokapi/neokapi/bowrain/core` | `bowrain/core/` | Shared platform types and interfaces: project model, auth, connector, store, event, client, agent |
-| `bowrain/cli`  | `github.com/neokapi/neokapi/bowrain/cli`  | `bowrain/cli/`  | Project-sync companion CLI (`bowrain` binary): `.kapi` recipe init, push, pull, status, auth |
+| `bowrain/plugin` | `github.com/neokapi/neokapi/bowrain/plugin` | `bowrain/plugin/` | Plugin behavior (schema, commands, connector, MCP) + the `kapi-bowrain` plugin binary: `.kapi` recipe init, push, pull, status, auth |
 | `bowrain`      | `github.com/neokapi/neokapi/bowrain`      | `bowrain/`      | Server, workers, desktop and web apps, storage implementations             |
 
 Dependency rules, verified in CI with `GOWORK=off` builds:
@@ -82,11 +83,11 @@ framework (root, Apache-2.0)
     ↑
     ├── cli (shared CLI base, framework only)
     │    ↑
-    │    └── bowrain/cli (framework + cli + bowrain/core)
+    │    └── bowrain/plugin (framework + cli + bowrain/core)
     │
     └── bowrain/core (framework only — pure types/interfaces)
          ↑
-         ├── bowrain/cli (framework + cli + bowrain/core)
+         ├── bowrain/plugin (framework + cli + bowrain/core)
          └── bowrain (framework + bowrain/core)
 ```
 
@@ -96,8 +97,8 @@ Key constraints:
   and interfaces — no Cobra, no Viper, no SQLite, no Wails, no Echo, no OIDC,
   no keychain bindings. Every package that wants to share platform types
   without taking on platform dependencies imports from `bowrain/core`.
-- `bowrain/cli` depends on framework + shared CLI + `bowrain/core`. It is the
-  only module that combines the shared CLI base with platform types.
+- `bowrain/plugin` depends on framework + shared CLI + `bowrain/core`. It is
+  the only module that combines the shared CLI base with platform types.
 - `bowrain` depends on framework + `bowrain/core`. It does NOT depend on the
   shared CLI module — the server and its apps don't need Cobra.
 - Kapi and `bowrain` have no dependency on each other.
@@ -117,15 +118,19 @@ Key constraints:
 | `agent/`    | Agent mode types, session grants                                  |
 | `config/`   | Auth persistence helpers                                          |
 
-**`bowrain/cli/`** holds:
+**`bowrain/plugin/`** holds:
 
-| Package          | Purpose                                                  |
-| ---------------- | -------------------------------------------------------- |
-| `cmd/bowrain/`   | Root command wiring. Extends the shared CLI base with project commands (init, ls, add, rm, status, diff, pull, push, run, serve, auth, stream) |
+| Package             | Purpose                                                  |
+| ------------------- | -------------------------------------------------------- |
+| `cmd/kapi-bowrain/` | The manifest-driven `kapi-bowrain` plugin binary kapi dispatches to (Mode A/B/C) |
+| `commands/`         | Project commands (init, status, diff, pull, push, auth, stream, …) registered via `cli.RegisterCommandFactory` |
+| `connector/`        | `BowrainSourceConnector`                                 |
+| `mcp/`              | Bowrain MCP tools                                        |
+| `schema/`           | Recipe extension decoders (own Apache-2.0 go.mod)        |
 
-The bowrain CLI sets the shared CLI base's `RegistryResolver` hook during
-initialization to resolve plugin registries from the project's `.kapi` recipe.
-The shared CLI module never imports `bowrain/core/project`.
+The plugin registers its commands, MCP tools, and recipe schema against the
+shared CLI base's registries via `init()`. The shared CLI module never
+imports `bowrain/core/project`.
 
 **`bowrain/`** holds the full platform:
 
@@ -159,7 +164,7 @@ The shared CLI module never imports `bowrain/core/project`.
 
 | Binary / App            | Module         | Role                                                     |
 | ----------------------- | -------------- | -------------------------------------------------------- |
-| `bowrain` CLI           | `bowrain/cli`  | Project-centric sync CLI, analogous to `git`             |
+| `kapi-bowrain` plugin   | `bowrain/plugin` | Project-centric sync commands dispatched via `kapi`, analogous to `git` |
 | `bowrain-server`        | `bowrain`      | Echo v4 REST + gRPC server (multiplexed on one port via h2c) |
 | `bowrain-worker`        | `bowrain`      | Background worker for async push, asset processing, events |
 | `apps/bowrain`          | `bowrain`      | Wails v3 desktop app                                     |
@@ -195,9 +200,10 @@ re-export them via Go type aliases for backward compatibility.
 
 ### Workspace Coordination
 
-A top-level `go.work` at the repository root lists all seven Go modules
-(framework, shared CLI, kapi, kapi-desktop, `bowrain/core`, `bowrain/cli`,
-`bowrain`) so that a single `go build ./...` from the root resolves
+A top-level `go.work` at the repository root lists all the Go modules
+(framework, host, shared CLI, kapi, kapi-desktop, `bowrain/core`,
+`bowrain/plugin`, `bowrain/plugin/schema`, `bowrain`, and the scripts/*
+tooling modules) so that a single `go build ./...` from the root resolves
 cross-module imports without `replace` directives. Each child module still
 declares `replace` directives in its own `go.mod` for CI builds with
 `GOWORK=off` — these CI builds catch accidental cross-module imports before
@@ -207,9 +213,9 @@ Each module is tagged independently:
 
 ```
 v0.16.0              → framework
-bowrain/core/v0.1.0  → bowrain/core
-bowrain/cli/v0.1.0   → bowrain/cli
-bowrain/v0.16.0      → bowrain
+bowrain/core/v0.1.0    → bowrain/core
+bowrain/plugin/v0.1.0  → bowrain/plugin
+bowrain/v0.16.0        → bowrain
 ```
 
 ### Frontend Workspace
@@ -223,11 +229,11 @@ members.
 
 ## Consequences
 
-- Each binary carries only the dependencies it needs. `bowrain` CLI has no
-  SQLite, Wails, Echo, or OIDC; `bowrain-server` has no Cobra; kapi CLI has
-  no bowrain at all.
-- The three-module split inside `bowrain/` lets `bowrain/core` evolve as a
-  stable types contract while `bowrain/cli` and `bowrain` iterate on
+- Each binary carries only the dependencies it needs. The `kapi-bowrain`
+  plugin has no Wails, Echo, or OIDC; `bowrain-server` has no Cobra; kapi CLI
+  has no bowrain at all.
+- The module split inside `bowrain/` lets `bowrain/core` evolve as a
+  stable types contract while `bowrain/plugin` and `bowrain` iterate on
   behavior.
 - All AGPL-3.0 code is contained within the `bowrain/` subtree, making the
   license boundary visually obvious and verifiable in CI.

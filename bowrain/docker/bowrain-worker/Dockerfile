@@ -15,7 +15,6 @@ COPY kapi/go.mod kapi/go.sum ./kapi/
 COPY apps/kapi-desktop/go.mod apps/kapi-desktop/go.sum ./apps/kapi-desktop/
 COPY bowrain/go.mod bowrain/go.sum ./bowrain/
 COPY bowrain/core/go.mod bowrain/core/go.sum ./bowrain/core/
-COPY bowrain/cli/go.mod bowrain/cli/go.sum ./bowrain/cli/
 COPY bowrain/plugin/go.mod bowrain/plugin/go.sum ./bowrain/plugin/
 COPY bowrain/plugin/schema/go.mod bowrain/plugin/schema/go.sum ./bowrain/plugin/schema/
 # GOWORK=off: download per-module deps without the workspace. go.work lists
@@ -28,7 +27,7 @@ RUN export GOWORK=off \
     && cd ../kapi && go mod download \
     && cd ../bowrain && go mod download \
     && cd core && go mod download \
-    && cd ../cli && go mod download
+    && cd ../plugin && go mod download
 
 # Copy source.
 COPY . .

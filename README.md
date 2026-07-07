@@ -51,7 +51,7 @@ The Go side is a multi-module workspace coordinated by `go.work`:
 | **Kapi**        | `kapi/`               | Standalone file-processing CLI                       |
 | **Kapi Desktop**| `apps/kapi-desktop/`  | Wails v3 desktop app                                 |
 | **Bowrain Core**| `bowrain/core/`       | Shared platform types (see bowrain/README.md)        |
-| **Bowrain plugin**| `bowrain/cli/`      | `kapi-bowrain` plugin — project sync, run as `kapi <cmd>` |
+| **Bowrain plugin**| `bowrain/plugin/`   | `kapi-bowrain` plugin — project sync, run as `kapi <cmd>` |
 | **Bowrain**     | `bowrain/`             | Full platform                                        |
 
 ## Quick Start

@@ -41,7 +41,7 @@ func knowledgeTestServer(t *testing.T) *httptest.Server {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/{ws}/concepts", func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, testWorkspace, r.PathValue("ws"))
+		assert.Equal(t, testWorkspace, r.PathValue("ws"))
 		_ = json.NewEncoder(w).Encode(apiclient.ConceptSearchResult{Concepts: concepts, TotalCount: len(concepts)})
 	})
 	mux.HandleFunc("GET /api/v1/{ws}/concepts/{cid}/story", func(w http.ResponseWriter, r *http.Request) {

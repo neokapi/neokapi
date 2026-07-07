@@ -54,6 +54,20 @@ func Lookup(scope int, name string) (Entry, bool) {
 	return e, ok
 }
 
+// Names returns the names of all entries registered at the given scope, in
+// unspecified order.
+func Names(scope int) []string {
+	mu.RLock()
+	defer mu.RUnlock()
+	var names []string
+	for k := range entries {
+		if k.scope == scope {
+			names = append(names, k.name)
+		}
+	}
+	return names
+}
+
 // HasGroup reports whether at least one entry with this group is registered.
 func HasGroup(group string) bool {
 	mu.RLock()
