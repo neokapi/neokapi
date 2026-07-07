@@ -12,7 +12,6 @@ import {
   FolderOpen,
   Download,
   FolderInput,
-  CheckCircle2,
 } from "lucide-react";
 import {
   Button,
@@ -30,6 +29,7 @@ import {
   PageHeader,
   EmptyState,
   SimpleTooltip,
+  toast,
 } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
@@ -83,7 +83,6 @@ export function FlowsPage({
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importFlows, setImportFlows] = useState<FlowListItem[]>([]);
   const [newFlowName, setNewFlowName] = useState("");
-  const [adoptNotice, setAdoptNotice] = useState<string | null>(null);
 
   const { showError } = useError();
   const isProjectMode = !!tabID;
@@ -97,7 +96,7 @@ export function FlowsPage({
         const result = await api.adoptUserFlowIntoProject(adoptTabID, item.id);
         if (result) {
           const target = adoptProjectName ? ` to ${adoptProjectName}` : " to project";
-          setAdoptNotice(
+          toast.success(
             result.renamed
               ? `Added "${item.name}"${target} as "${result.name}" (renamed to avoid a clash)`
               : `Added "${result.name}"${target}`,
@@ -109,13 +108,6 @@ export function FlowsPage({
     },
     [adoptTabID, adoptProjectName, showError],
   );
-
-  // Auto-dismiss the adopt notice after a few seconds.
-  useEffect(() => {
-    if (!adoptNotice) return;
-    const id = setTimeout(() => setAdoptNotice(null), 5000);
-    return () => clearTimeout(id);
-  }, [adoptNotice]);
 
   // Flow list as react-query server state: project flows keyed by tab, ad-hoc
   // user flows under a global key. Actions invalidate via refreshFlows().
@@ -479,16 +471,6 @@ export function FlowsPage({
           </div>
         }
       />
-
-      {adoptNotice && (
-        <div
-          className="mb-4 flex items-center gap-2 rounded-md border border-green-500/30 bg-green-500/5 px-3 py-2 text-sm text-green-700 dark:text-green-400"
-          role="status"
-        >
-          <CheckCircle2 size={14} className="shrink-0" />
-          {adoptNotice}
-        </div>
-      )}
 
       {(loading || flows.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
