@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -52,7 +53,7 @@ func newGovTestApp(t *testing.T, handler http.HandlerFunc) (*App, *recordedReque
 	app.serverURL = srv.URL
 	app.activeWS = "acme"
 	app.remote = client
-	app.authInfo = &storedDesktopAuth{ServerURL: srv.URL, AccessToken: "tok-xyz"}
+	app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok-xyz"}
 	app.mu.Unlock()
 
 	return app, rec

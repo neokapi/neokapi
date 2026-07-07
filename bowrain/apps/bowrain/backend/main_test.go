@@ -15,8 +15,19 @@ func TestMain(m *testing.M) {
 	// Replace the OS keychain with an in-memory mock for the whole package, so
 	// no test can ever read or write the developer's real bowrain tokens — even
 	// one that forgets to call keyring.MockInit() itself. Defense in depth on
-	// top of the per-test mocks and the config-dir-namespaced keyringService.
+	// top of the per-test mocks.
 	keyring.MockInit()
+
+	// Isolate auth from the developer's real ~/.config/bowrain/auth.json. Desktop
+	// credentials now persist through the shared bowrain/core/config store, which
+	// resolves its metadata file via BOWRAIN_CONFIG_DIR; pin it to a throwaway
+	// dir so no test reads or clobbers a real login. Individual auth tests
+	// override this with their own temp dir.
+	authDir, err := os.MkdirTemp("", "bowrain-test-auth")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("BOWRAIN_CONFIG_DIR", authDir)
 
 	// Isolate tests from locally-installed plugins.
 	dir, err := os.MkdirTemp("", "bowrain-test-plugins")
@@ -26,6 +37,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("KAPI_PLUGIN_DIR", dir)
 	code := m.Run()
 	os.RemoveAll(dir)
+	os.RemoveAll(authDir)
 	os.Exit(code)
 }
 

@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/neokapi/neokapi/bowrain/connector"
+	"github.com/neokapi/neokapi/bowrain/core/config"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/event"
@@ -46,7 +47,7 @@ type App struct {
 	connState       ConnectionState    // current connection state
 	serverURL       string             // e.g. "http://localhost:8080"
 	activeWS        string             // selected workspace slug
-	authInfo        *storedDesktopAuth // cached auth info
+	authInfo        *config.StoredAuth // cached auth info (shared bowrain/core/config store)
 	pkceVerifier    string             // PKCE code_verifier
 	pkceResultCh    chan *pkceResult   // result from URL protocol callback
 	watcher         *ProjectWatcher    // active WatchProject stream

@@ -3,6 +3,7 @@ package backend
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,10 +30,10 @@ func TestGetCollabSessionConnectedFallsBackToCachedUser(t *testing.T) {
 	app.serverURL = "http://localhost:8080"
 	app.activeWS = "acme"
 	app.remote = client
-	app.authInfo = &storedDesktopAuth{
+	app.authInfo = &config.StoredAuth{
 		ServerURL:   "http://localhost:8080",
 		AccessToken: "tok-abc",
-		User: storedDesktopUser{
+		User: config.StoredUser{
 			ID:    "user-42",
 			Email: "alice@acme.test",
 			Name:  "Alice",
@@ -60,7 +61,7 @@ func TestGetCollabSessionConnectedNoTokenErrors(t *testing.T) {
 	app.serverURL = "http://localhost:8080"
 	app.activeWS = "acme"
 	app.remote = client
-	app.authInfo = &storedDesktopAuth{ServerURL: "http://localhost:8080"} // no AccessToken
+	app.authInfo = &config.StoredAuth{ServerURL: "http://localhost:8080"} // no AccessToken
 	app.mu.Unlock()
 
 	_, err = app.GetCollabSession()
@@ -79,10 +80,10 @@ func TestGetCollabSessionUsesEmailWhenNameEmpty(t *testing.T) {
 	app.serverURL = "http://localhost:8080"
 	app.activeWS = "acme"
 	app.remote = client
-	app.authInfo = &storedDesktopAuth{
+	app.authInfo = &config.StoredAuth{
 		ServerURL:   "http://localhost:8080",
 		AccessToken: "tok",
-		User:        storedDesktopUser{ID: "u1", Email: "bob@acme.test"}, // no Name
+		User:        config.StoredUser{ID: "u1", Email: "bob@acme.test"}, // no Name
 	}
 	app.mu.Unlock()
 
