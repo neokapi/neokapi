@@ -11,8 +11,10 @@ import {
   CreateWorkspaceDialog,
   ProjectDashboard,
   ProjectView,
-  TMExplorer,
-  TermExplorer,
+  TMBrowser,
+  TermbaseBrowser,
+  useTMBrowserAdapter,
+  useTermbaseBrowserAdapter,
   cn,
   type View,
   type NavItem,
@@ -111,6 +113,38 @@ const localWorkspace = {
   type: "personal" as const,
   role: "owner" as const,
 };
+
+/**
+ * Renders the shared @neokapi/ui-primitives TM browser against bowrain's REST
+ * adapter. Must live below ApiProvider/WorkspaceProvider so the adapter hook
+ * can resolve the active workspace.
+ */
+function DesktopTMBrowser({
+  sourceLocale,
+  targetLocales,
+}: {
+  sourceLocale: string;
+  targetLocales: string[];
+}) {
+  const adapter = useTMBrowserAdapter(sourceLocale, targetLocales);
+  if (!adapter) return null;
+  return <TMBrowser adapter={adapter} sourceLocale={sourceLocale} targetLocales={targetLocales} />;
+}
+
+/** Renders the shared termbase browser against bowrain's REST adapter. */
+function DesktopTermbaseBrowser({
+  sourceLocale,
+  targetLocales,
+}: {
+  sourceLocale: string;
+  targetLocales: string[];
+}) {
+  const adapter = useTermbaseBrowserAdapter();
+  if (!adapter) return null;
+  return (
+    <TermbaseBrowser adapter={adapter} sourceLocale={sourceLocale} targetLocales={targetLocales} />
+  );
+}
 
 function App() {
   const connection = useConnection();
@@ -628,21 +662,18 @@ function App() {
   const renderView = () => {
     if (activeView === "translate" && activeProject && showTermExplorer) {
       return (
-        <TermExplorer
+        <DesktopTermbaseBrowser
           sourceLocale={activeProject.default_source_language}
           targetLocales={activeProject.target_languages}
-          projectName={activeProject.name}
-          onBack={handleBackToProject}
         />
       );
     }
 
     if (activeView === "translate" && activeProject && showTMExplorer) {
       return (
-        <TMExplorer
+        <DesktopTMBrowser
           sourceLocale={activeProject.default_source_language}
           targetLocales={activeProject.target_languages}
-          onBack={handleBackToProject}
         />
       );
     }

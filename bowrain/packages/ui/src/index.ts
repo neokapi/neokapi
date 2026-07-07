@@ -177,8 +177,10 @@ export { WordCountChart } from "./components/WordCountChart";
 export { CollectionHeatmap } from "./components/CollectionHeatmap";
 export { FileProgressTable } from "./components/FileProgressTable";
 // Chart components re-exported from @neokapi/ui-primitives above
-export { TMExplorer } from "./components/tm/TMExplorer";
-export { TermExplorer } from "./components/terms/TermExplorer";
+// TM + termbase browsers are the shared Apache-licensed suites from
+// @neokapi/ui-primitives, fed by bowrain's REST adapter via the
+// useTMBrowserAdapter / useTermbaseBrowserAdapter hooks below.
+export { TMBrowser, TermbaseBrowser } from "@neokapi/ui-primitives";
 export { InviteManager } from "./components/InviteManager";
 export { ApiTokenManager } from "./components/ApiTokenManager";
 export { RoleTemplateManager } from "./components/RoleTemplateManager";
@@ -346,8 +348,7 @@ export type {
 // Hooks
 export { useProjectApi, useProjects } from "./hooks/useProjectApi";
 export { useEditorApi } from "./hooks/useEditorApi";
-export { useTMApi } from "./hooks/useTMApi";
-export { useTermsApi } from "./hooks/useTermsApi";
+export { useTMBrowserAdapter, useTermbaseBrowserAdapter } from "./hooks/useResourceBrowserAdapters";
 export { useProviderConfigs, useProviderApi } from "./hooks/useProviderApi";
 export { useLocales } from "./hooks/useLocales";
 export { useFormats } from "./hooks/useFormats";

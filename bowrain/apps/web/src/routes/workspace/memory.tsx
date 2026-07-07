@@ -1,12 +1,9 @@
 import { useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { TMExplorer, useWorkspace, useApi, Card } from "@neokapi/ui";
+import { TMBrowser, useTMBrowserAdapter, useWorkspace, useApi, Card } from "@neokapi/ui";
 import { projectsQueryOptions } from "../../queries";
 
 export function MemoryRoute() {
-  const navigate = useNavigate();
-  const { workspace } = useParams({ strict: false });
   const { activeWorkspace } = useWorkspace();
   const adapter = useApi();
   const ws = activeWorkspace?.slug ?? "";
@@ -43,7 +40,9 @@ export function MemoryRoute() {
     };
   }, [projects]);
 
-  if (!activeWorkspace) {
+  const tmAdapter = useTMBrowserAdapter(sourceLocale, targetLocales);
+
+  if (!activeWorkspace || !tmAdapter) {
     return (
       <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
         Select a workspace
@@ -53,12 +52,7 @@ export function MemoryRoute() {
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-      <TMExplorer
-        sourceLocale={sourceLocale}
-        targetLocales={targetLocales}
-        projects={projects}
-        onBack={() => navigate({ to: "/$workspace", params: { workspace: workspace ?? "" } })}
-      />
+      <TMBrowser adapter={tmAdapter} sourceLocale={sourceLocale} targetLocales={targetLocales} />
     </div>
   );
 }

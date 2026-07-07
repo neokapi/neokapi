@@ -1,12 +1,15 @@
 import { useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { TermExplorer, useWorkspace, useApi, Card } from "@neokapi/ui";
+import {
+  TermbaseBrowser,
+  useTermbaseBrowserAdapter,
+  useWorkspace,
+  useApi,
+  Card,
+} from "@neokapi/ui";
 import { projectsQueryOptions } from "../../queries";
 
 export function TermbaseRoute() {
-  const navigate = useNavigate();
-  const { workspace } = useParams({ strict: false });
   const { activeWorkspace } = useWorkspace();
   const adapter = useApi();
   const ws = activeWorkspace?.slug ?? "";
@@ -42,7 +45,9 @@ export function TermbaseRoute() {
     };
   }, [projects]);
 
-  if (!activeWorkspace) {
+  const termbaseAdapter = useTermbaseBrowserAdapter();
+
+  if (!activeWorkspace || !termbaseAdapter) {
     return (
       <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
         Select a workspace
@@ -52,11 +57,10 @@ export function TermbaseRoute() {
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-      <TermExplorer
+      <TermbaseBrowser
+        adapter={termbaseAdapter}
         sourceLocale={sourceLocale}
         targetLocales={targetLocales}
-        projects={projects}
-        onBack={() => navigate({ to: "/$workspace", params: { workspace: workspace ?? "" } })}
       />
     </div>
   );
