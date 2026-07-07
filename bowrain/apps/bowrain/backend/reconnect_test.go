@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -86,7 +87,7 @@ func TestReplayPendingChangesEmptyQueue(t *testing.T) {
 	app.offlineQueue = q
 
 	// Should not panic with empty queue.
-	app.replayPendingChanges()
+	app.replayPendingChanges(context.Background())
 }
 
 func TestReplayPendingChangesNilQueue(t *testing.T) {
@@ -97,7 +98,7 @@ func TestReplayPendingChangesNilQueue(t *testing.T) {
 	app.offlineQueue = nil
 
 	// Should not panic with nil queue.
-	app.replayPendingChanges()
+	app.replayPendingChanges(context.Background())
 }
 
 func TestReplayPendingChangesNoClient(t *testing.T) {
@@ -118,7 +119,7 @@ func TestReplayPendingChangesNoClient(t *testing.T) {
 	})
 
 	// No remote client → replay should fail and mark change as failed.
-	app.replayPendingChanges()
+	app.replayPendingChanges(context.Background())
 
 	changes, err := q.PeekPending(10)
 	require.NoError(t, err)
@@ -136,7 +137,7 @@ func TestReplayChangeNoClient(t *testing.T) {
 		Operation: "update_block_target",
 		Payload:   `{"project_id":"p1","block_id":"b1","target_locale":"fr","text":"Bonjour"}`,
 	}
-	err := app.replayChange(change)
+	err := app.replayChange(context.Background(), change)
 	assert.ErrorIs(t, err, errNotConnected)
 }
 

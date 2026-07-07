@@ -1,6 +1,9 @@
 package backend
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 // ProviderConfigInfo is the frontend-facing provider config (no API key).
 type ProviderConfigInfo struct {
@@ -26,10 +29,12 @@ func (a *App) ListProviderConfigs() ([]ProviderConfigInfo, error) {
 	if !a.isConnected() {
 		return nil, errors.New("AI provider management requires a server connection")
 	}
-	a.mu.RLock()
-	ws := a.activeWS
-	a.mu.RUnlock()
-	return a.remote.ListProviderConfigs(ws)
+	client, ws := a.editorRemote()
+	configs, err := client.ListProviderConfigs(context.Background(), ws)
+	if err != nil {
+		return nil, err
+	}
+	return editorProvidersToInfos(configs), nil
 }
 
 // SaveProviderConfig creates or updates a provider configuration on the server.
@@ -37,10 +42,13 @@ func (a *App) SaveProviderConfig(req SaveProviderRequest) (*ProviderConfigInfo, 
 	if !a.isConnected() {
 		return nil, errors.New("AI provider management requires a server connection")
 	}
-	a.mu.RLock()
-	ws := a.activeWS
-	a.mu.RUnlock()
-	return a.remote.SaveProviderConfig(ws, req)
+	client, ws := a.editorRemote()
+	saved, err := client.SaveProviderConfig(context.Background(), ws, saveProviderReqToEditor(req))
+	if err != nil {
+		return nil, err
+	}
+	out := editorProviderToInfo(*saved)
+	return &out, nil
 }
 
 // DeleteProviderConfig removes a provider configuration on the server.
@@ -48,10 +56,8 @@ func (a *App) DeleteProviderConfig(id string) error {
 	if !a.isConnected() {
 		return errors.New("AI provider management requires a server connection")
 	}
-	a.mu.RLock()
-	ws := a.activeWS
-	a.mu.RUnlock()
-	return a.remote.DeleteProviderConfig(ws, id)
+	client, ws := a.editorRemote()
+	return client.DeleteProviderConfig(context.Background(), ws, id)
 }
 
 // TestProviderConfig tests a provider configuration via the server.
@@ -59,8 +65,6 @@ func (a *App) TestProviderConfig(req SaveProviderRequest) error {
 	if !a.isConnected() {
 		return errors.New("AI provider management requires a server connection")
 	}
-	a.mu.RLock()
-	ws := a.activeWS
-	a.mu.RUnlock()
-	return a.remote.TestProviderConfig(ws, req)
+	client, ws := a.editorRemote()
+	return client.TestProviderConfig(context.Background(), ws, saveProviderReqToEditor(req))
 }
