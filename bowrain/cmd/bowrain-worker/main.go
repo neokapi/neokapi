@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/neokapi/neokapi/bowrain/agent"
@@ -245,7 +246,7 @@ func runWorker(dbURL string) error {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"status":"ok"}`))
 		})
-		srv := &http.Server{Addr: ":" + healthPort, Handler: mux}
+		srv := &http.Server{Addr: ":" + healthPort, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 		go func() {
 			<-ctx.Done()
 			srv.Close()

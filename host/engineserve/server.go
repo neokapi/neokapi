@@ -143,7 +143,7 @@ func (s *Server) Extract(stream enginev1.EngineService_ExtractServer) error {
 	}
 	return stream.Send(&enginev1.ExtractResponse{
 		Response: &enginev1.ExtractResponse_Complete{
-			Complete: &enginev1.ExtractComplete{Format: string(formatID), Parts: int32(sent)}, //nolint:gosec // part counts don't overflow int32
+			Complete: &enginev1.ExtractComplete{Format: string(formatID), Parts: int32(sent)},
 		},
 	})
 }
@@ -276,7 +276,7 @@ func (s *Server) Process(stream enginev1.EngineService_ProcessServer) error {
 	}
 	return stream.Send(&enginev1.ProcessResponse{
 		Response: &enginev1.ProcessResponse_Complete{
-			Complete: &enginev1.ProcessComplete{PartsIn: int32(received), PartsOut: int32(sent)}, //nolint:gosec // part counts don't overflow int32
+			Complete: &enginev1.ProcessComplete{PartsIn: int32(received), PartsOut: int32(sent)},
 		},
 	})
 }

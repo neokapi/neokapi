@@ -25,6 +25,7 @@ linters:
     - copyloopvar
     - intrange
     - modernize
+    - gosec
   settings:
     staticcheck:
       checks:
@@ -45,6 +46,58 @@ linters:
         - ifElseChain
         - singleCaseSwitch
         - unlambda
+    gosec:
+      # gosec is enabled for its high-value rules (Slowloris/timeout G112/G114,
+      # weak crypto/TLS G401/G402/G403/G501/G502, SSRF G107, …). The rules below
+      # are excluded after a full-tree triage (2026-07): each is either pure
+      # noise on this codebase or already covered by another linter. See the
+      # triage notes for the reasoning per rule.
+      excludes:
+        # G101 — "hardcoded credentials": fires on constant *property-key*
+        # names like PropWordCountTargetPrefix ("word-count-target:"), which
+        # are map keys, not secrets. No real credential is ever inlined.
+        - G101
+        # G115 — integer-overflow on type conversions: every hit is a
+        # len()/enum-bitmask/byte-value conversion bounded far below the target
+        # type's range (e.g. int32(len(blocks)), int64(Permission)). No path
+        # takes an attacker-controlled magnitude near 2^31/2^63. Classic gosec
+        # false-positive class.
+        - G115
+        # G110 — decompression bomb: the only sites unpack signed plugin
+        # tarballs and epub parts. Plugin archives are cosign-verified before
+        # extraction; the extractor is already Zip-Slip hardened (see G305).
+        - G110
+        # G201 — SQL string formatting: the dynamic query builders interpolate
+        # only a constant WHERE skeleton and "$N" placeholder tokens; every
+        # user value is bound through args (parameterized). Verified in
+        # bowrain/store/{activity,notification,review_queue}.go.
+        - G201
+        # G204 — subprocess with tainted args: launches are plugin binaries
+        # resolved from the signed manifest, ffmpeg via a resolved bin, and the
+        # okapi/tikal parity harness — all trusted, non-network inputs. The
+        # plugin-host's whole job is to exec discovered plugin binaries.
+        - G204
+        # G304 — file inclusion via variable: paths come from validated project
+        # config / CLI args, not untrusted network input. (Not currently
+        # firing; excluded pre-emptively as it is the same trusted-path class.)
+        - G304
+        # G305 — Zip-Slip on symlink extraction: the sole site already resolves
+        # the target and enforces containment with a filepath.Rel-based
+        # withinDir() check plus O_NOFOLLOW (host/pluginhost/install.go). The
+        # guard is present; gosec cannot see it.
+        - G305
+        # G306 — WriteFile permission > 0600: hits are config files, extraction
+        # outputs, local blob-store content, and test fixtures — none are
+        # secrets, so 0644 is correct. Secrets live in the OS keychain, not on
+        # disk.
+        - G306
+        # G404 — weak random (math/rand): used for retry-backoff jitter and
+        # test data, never for tokens/keys. crypto/rand is used where it
+        # matters (core/id).
+        - G404
+        # G602 — slice bounds out of range: false positives on indices already
+        # bounded by a modulo (base62[b%len]) or an enclosing loop (gray[gy*n+gx]).
+        - G602
     testifylint:
       # Only the checks below stay disabled, each for a reason:
       #   contains/encoded-compare/negative-positive — too many false positives
@@ -93,6 +146,12 @@ linters:
       - linters: [staticcheck]
         path: _test\.go
         text: "SA5011"
+      # gosec: test code is not a deployment surface. Test fixtures spin up
+      # throwaway HTTP servers, write scratch files, and use math/rand for
+      # sample data — hardening rules (timeouts, file perms, weak-random) are
+      # noise there. The production rules stay fully active on non-test code.
+      - linters: [gosec]
+        path: _test\.go
     paths:
       - node_modules/
       - third_party$
