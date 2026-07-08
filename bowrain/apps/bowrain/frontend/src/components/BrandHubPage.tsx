@@ -52,8 +52,8 @@ export interface BrandHubPageProps {
 /**
  * BrandHubFreshness keeps the working-copy brand queries fresh.
  *
- * The desktop's only server push channel is the project-scoped gRPC
- * WatchProject stream (watcher.go), which carries brand-voice / termbase
+ * The desktop's only server push channel is the project-scoped SSE
+ * project-events stream (watcher.go), which carries brand-voice / termbase
  * change events but no workspace-scoped concept/change-set events — and it is
  * closed while the Brand hub is open, since the hub has no active project. So
  * the lightest correct freshness model for the workspace-scoped knowledge graph

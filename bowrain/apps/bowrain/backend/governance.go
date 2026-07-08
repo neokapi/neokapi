@@ -14,8 +14,8 @@ import (
 )
 
 // governance.go is the desktop's REST proxy for the bowrain-server governance
-// surfaces that have no gRPC EditorService equivalent: workspace members and
-// the brand correction-learning loop (AD-019). The desktop frontend reaches the
+// surfaces: workspace members and the brand correction-learning loop (AD-019).
+// The desktop frontend reaches the
 // server only through Wails bindings, and the keychain auth token is never
 // exposed to it, so these *App methods do the authenticated HTTP calls here and
 // return decoded JSON. Paths mirror bowrain/packages/ui/src/api/rest-adapter.ts.
@@ -31,7 +31,7 @@ func (a *App) govRequest(method, path string, body, out any) error {
 	a.mu.RLock()
 	serverURL := a.serverURL
 	auth := a.authInfo
-	connected := a.connState == StateConnected && a.remote != nil
+	connected := a.connState == StateConnected && a.remoteHTTP != nil
 	a.mu.RUnlock()
 
 	if !connected {

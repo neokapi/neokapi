@@ -2,17 +2,18 @@ package backend
 
 import (
 	"context"
-	"errors"
-	"io"
 	"log/slog"
+	"strings"
 	"time"
 
-	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 )
 
-// ProjectWatcher manages a WatchProject gRPC stream for real-time updates.
+// ProjectWatcher subscribes to a project's change-event stream over the server's
+// /:ws/events SSE relay (via bowrain/core/client) and fans each event out to the
+// frontend. It replaces the former gRPC WatchProject stream; the same relay
+// backs the web app's useWorkspaceEvents.
 type ProjectWatcher struct {
-	client pb.EditorServiceClient
 	app    *App
 	cancel context.CancelFunc
 }
@@ -27,9 +28,8 @@ type BlockChangedEvent struct {
 
 // PresenceChangedEvent is emitted to the frontend when user presence changes.
 type PresenceChangedEvent struct {
-	ChangeType string         `json:"change_type"`
-	User       PresenceUser   `json:"user"`
-	AllUsers   []PresenceUser `json:"all_users"`
+	ChangeType string       `json:"change_type"`
+	User       PresenceUser `json:"user"`
 }
 
 // PresenceUser represents a user's presence info for the frontend.
@@ -53,7 +53,7 @@ type ChangeEvent struct {
 	Actor      string `json:"actor,omitempty"`
 }
 
-// StartWatching opens a WatchProject stream for the given project.
+// StartWatching opens a change-event subscription for the given project.
 // Call StopWatching to close the stream when navigating away.
 func (a *App) StartWatching(projectID string) {
 	a.StopWatching() // close any existing watcher
@@ -62,27 +62,19 @@ func (a *App) StartWatching(projectID string) {
 		return
 	}
 
-	a.mu.RLock()
-	ws := a.activeWS
-	client := a.remote
-	a.mu.RUnlock()
-
+	client, ws := a.editorRemote()
 	if client == nil {
 		return
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	watcher := &ProjectWatcher{
-		client: client.editor,
-		app:    a,
-		cancel: cancel,
-	}
+	watcher := &ProjectWatcher{app: a, cancel: cancel}
 
 	a.mu.Lock()
 	a.watcher = watcher
 	a.mu.Unlock()
 
-	go watcher.run(ctx, ws, projectID)
+	go watcher.run(ctx, client, ws, projectID)
 }
 
 // StopWatching closes the active project watcher.
@@ -97,24 +89,25 @@ func (a *App) StopWatching() {
 	}
 }
 
-// UpdatePresence reports the user's current position to the server.
+// UpdatePresence reports the user's current editing focus to the server, which
+// fans it out to other watchers over the SSE relay. Best-effort — a failure is
+// logged and swallowed (per-cursor presence is carried over Yjs awareness).
 func (a *App) UpdatePresence(projectID, itemName, blockID string) {
 	if !a.isConnected() {
 		return
 	}
-	a.mu.RLock()
-	ws := a.activeWS
-	client := a.remote
-	a.mu.RUnlock()
-
+	client, ws := a.editorRemote()
 	if client == nil {
 		return
 	}
-
-	_ = client.UpdatePresence(ws, projectID, itemName, blockID)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := client.ReportPresence(ctx, ws, projectID, itemName, blockID); err != nil {
+		slog.Debug("bowrain: report presence failed", "error", err)
+	}
 }
 
-func (w *ProjectWatcher) run(ctx context.Context, wsSlug, projectID string) {
+func (w *ProjectWatcher) run(ctx context.Context, client *apiclient.BowrainClient, wsSlug, projectID string) {
 	const maxBackoff = 30 * time.Second
 	backoff := time.Second
 
@@ -125,19 +118,20 @@ func (w *ProjectWatcher) run(ctx context.Context, wsSlug, projectID string) {
 		default:
 		}
 
-		err := w.watchOnce(ctx, wsSlug, projectID)
+		// StreamProjectEvents reads a single SSE connection to exhaustion and
+		// returns; we reconnect with backoff. A non-nil error is a hard failure.
+		err := client.StreamProjectEvents(ctx, wsSlug, projectID, w.handleEvent)
 		if ctx.Err() != nil {
 			return // context cancelled, clean shutdown
 		}
 
-		slog.Warn("bowrain: WatchProject stream ended, reconnecting", "error", err, "backoff", backoff)
+		slog.Warn("bowrain: change-event stream ended, reconnecting", "error", err, "backoff", backoff)
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(backoff):
 		}
 
-		// Exponential backoff.
 		backoff *= 2
 		if backoff > maxBackoff {
 			backoff = maxBackoff
@@ -145,104 +139,78 @@ func (w *ProjectWatcher) run(ctx context.Context, wsSlug, projectID string) {
 	}
 }
 
-func (w *ProjectWatcher) watchOnce(ctx context.Context, wsSlug, projectID string) error {
-	stream, err := w.client.WatchProject(ctx, &pb.WatchProjectRequest{
-		WorkspaceSlug: wsSlug,
-		ProjectId:     projectID,
-	})
-	if err != nil {
-		return err
-	}
-
-	for {
-		event, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-
-		w.handleEvent(event)
-	}
-}
-
-func (w *ProjectWatcher) handleEvent(event *pb.ProjectEvent) {
+// handleEvent maps a relayed change event to the frontend event the matching
+// view listens for. It mirrors the server's busEventToProjectEvent routing but
+// over the flattened SSE ChangeEvent shape.
+func (w *ProjectWatcher) handleEvent(ev apiclient.EditorChangeEvent) {
 	// emit() is safe when both the Wails app and the event sink are absent, and
 	// the recording wbridge relies on the sink even without a Wails runtime, so
 	// don't bail early here — let emit fan out to whichever sinks exist.
-	switch e := event.Event.(type) {
-	case *pb.ProjectEvent_BlockChange:
-		w.app.emit("blocks-changed", BlockChangedEvent{
-			BlockIDs:   []string{e.BlockChange.BlockId},
-			ItemName:   e.BlockChange.ItemName,
-			ChangeType: e.BlockChange.ChangeType,
-			ChangedBy:  e.BlockChange.ChangedBy,
-		})
+	t := ev.Type
 
-	case *pb.ProjectEvent_PresenceChange:
-		var user PresenceUser
-		if e.PresenceChange.User != nil {
-			user = PresenceUser{
-				UserID:    e.PresenceChange.User.UserId,
-				UserName:  e.PresenceChange.User.UserName,
-				AvatarURL: e.PresenceChange.User.AvatarUrl,
-				ItemName:  e.PresenceChange.User.ItemName,
-				BlockID:   e.PresenceChange.User.BlockId,
-			}
+	switch {
+	case strings.HasPrefix(t, "editor.presence."):
+		changeType := "moved"
+		switch {
+		case strings.Contains(t, "joined"):
+			changeType = "joined"
+		case strings.Contains(t, "left"):
+			changeType = "left"
 		}
 		w.app.emit("presence-changed", PresenceChangedEvent{
-			ChangeType: e.PresenceChange.ChangeType,
-			User:       user,
+			ChangeType: changeType,
+			User: PresenceUser{
+				UserID:    ev.UserID,
+				UserName:  ev.UserName,
+				AvatarURL: ev.AvatarURL,
+				ItemName:  ev.ItemName,
+				BlockID:   ev.BlockID,
+			},
 		})
 
-	case *pb.ProjectEvent_ProjectChange:
+	case strings.HasPrefix(t, "editor.block."), strings.HasPrefix(t, "block."):
+		w.app.emit("blocks-changed", BlockChangedEvent{
+			BlockIDs:   []string{ev.BlockID},
+			ItemName:   ev.ItemName,
+			ChangeType: ev.ChangeType,
+			ChangedBy:  ev.ChangedBy,
+		})
+
+	case strings.HasPrefix(t, "item."):
 		w.app.emit("project-changed", ChangeEvent{
-			EventType:  e.ProjectChange.EventType,
-			ChangeType: e.ProjectChange.ChangeType,
-			Actor:      e.ProjectChange.Actor,
+			EventType: t,
+			ItemName:  ev.ItemName,
+			Stream:    ev.Stream,
 		})
 
-	case *pb.ProjectEvent_ItemChange:
-		// Items are part of project content; refreshing the project view
-		// (and any open file list) is the right response.
+	case strings.HasPrefix(t, "connector."):
+		w.app.emit("connector-sync", ChangeEvent{EventType: t, Actor: ev.Actor})
+
+	case strings.HasPrefix(t, "flow."):
+		w.app.emit("flow-changed", ChangeEvent{EventType: t})
+
+	case strings.HasPrefix(t, "member."), strings.HasPrefix(t, "task."):
+		w.app.emit("membership-changed", ChangeEvent{EventType: t, Actor: ev.Actor})
+
+	case strings.HasPrefix(t, "brand."):
+		w.app.emit("brand-voice-changed", ChangeEvent{EventType: t})
+
+	case strings.HasPrefix(t, "term."), strings.HasPrefix(t, "concept."):
+		w.app.emit("termbase-changed", ChangeEvent{EventType: t})
+
+	case strings.HasPrefix(t, "stream."):
+		w.app.emit("stream-changed", ChangeEvent{EventType: t, Stream: ev.Stream})
+
+	case t == "":
+		// Ignore empty/keepalive frames.
+
+	default:
+		// Project lifecycle, collections, extraction, quality gates, versions,
+		// and any other state-changing event → generic project refresh.
 		w.app.emit("project-changed", ChangeEvent{
-			EventType: e.ItemChange.EventType,
-			ItemName:  e.ItemChange.ItemName,
-			Stream:    e.ItemChange.Stream,
-		})
-
-	case *pb.ProjectEvent_ConnectorSync:
-		w.app.emit("connector-sync", ChangeEvent{
-			EventType: e.ConnectorSync.EventType,
-			Actor:     e.ConnectorSync.Actor,
-		})
-
-	case *pb.ProjectEvent_FlowEvent:
-		w.app.emit("flow-changed", ChangeEvent{
-			EventType: e.FlowEvent.EventType,
-		})
-
-	case *pb.ProjectEvent_MembershipChange:
-		w.app.emit("membership-changed", ChangeEvent{
-			EventType: e.MembershipChange.EventType,
-			Actor:     e.MembershipChange.Actor,
-		})
-
-	case *pb.ProjectEvent_BrandVoice:
-		w.app.emit("brand-voice-changed", ChangeEvent{
-			EventType: e.BrandVoice.EventType,
-		})
-
-	case *pb.ProjectEvent_Termbase:
-		w.app.emit("termbase-changed", ChangeEvent{
-			EventType: e.Termbase.EventType,
-		})
-
-	case *pb.ProjectEvent_Stream:
-		w.app.emit("stream-changed", ChangeEvent{
-			EventType: e.Stream.EventType,
-			Stream:    e.Stream.Stream,
+			EventType:  t,
+			ChangeType: ev.ChangeType,
+			Actor:      ev.Actor,
 		})
 	}
 }

@@ -1219,6 +1219,11 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.PUT("/:id/members/:uid", s.HandleUpdateProjectMember)
 	g.DELETE("/:id/members/:uid", s.HandleRemoveProjectMember)
 
+	// Presence — /:ws/:id/presence. Reports the caller's editing focus; the
+	// change relay fans it out to project watchers over the /:ws/events SSE
+	// stream (per-cursor presence uses the Yjs awareness channel).
+	g.POST("/:id/presence", s.HandleUpdatePresence)
+
 	// Project settings — Bowrain AD-011: /:ws/:id/settings
 	g.GET("/:id/settings/extraction", s.HandleGetExtractionSettings)
 	g.PUT("/:id/settings/extraction", s.HandleUpdateExtractionSettings)
@@ -1291,6 +1296,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.PUT("/:id/blocks/:ref/:bid", s.HandleUpdateBlockTarget)
 	g.PUT("/:id/blocks/:ref/:bid/runs", s.HandleUpdateBlockTargetRuns)
 	g.PUT("/:id/blocks/:ref/:bid/status", s.HandleSetBlockStatus)
+	g.PUT("/:id/blocks/:ref/:bid/review", s.HandleReviewBlock)
 	g.GET("/:id/blocks/:ref/:bid/history", s.HandleGetBlockHistory)
 	g.POST("/:id/blocks/:ref/:bid/rollback", s.HandleRollbackBlock)
 	g.POST("/:id/revert", s.HandleRevertBatch)

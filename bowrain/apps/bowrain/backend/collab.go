@@ -1,6 +1,12 @@
 package backend
 
-import "errors"
+import (
+	"context"
+	"errors"
+	"time"
+
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+)
 
 // CollabUser identifies the current user for a collaboration session.
 // The shape mirrors the @neokapi/ui useCollaboration `user` option.
@@ -44,7 +50,6 @@ func (a *App) GetCollabSession() (CollabSession, error) {
 	serverURL := a.serverURL
 	workspace := a.activeWS
 	auth := a.authInfo
-	remote := a.remote
 	a.mu.RUnlock()
 
 	if auth == nil || auth.AccessToken == "" {
@@ -61,20 +66,20 @@ func (a *App) GetCollabSession() (CollabSession, error) {
 
 	// Prefer the server's authoritative user record (it carries the avatar URL
 	// and a stable ID, which the cached desktop auth metadata may lack). Fall
-	// back silently to the cached values on any RPC error so presence still
-	// works offline-of-identity-service.
-	if remote != nil {
-		if u, err := remote.GetCurrentUser(); err == nil && u != nil {
-			if u.GetId() != "" {
-				user.UserID = u.GetId()
-			}
-			if u.GetName() != "" {
-				user.Name = u.GetName()
-			} else if u.GetEmail() != "" {
-				user.Name = u.GetEmail()
-			}
-			user.AvatarURL = u.GetAvatarUrl()
+	// back silently to the cached values on any error so presence still works
+	// offline-of-identity-service. This uses the shared REST /auth/me client.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if u, err := apiclient.FetchUser(ctx, serverURL, auth.AccessToken); err == nil && u != nil {
+		if u.ID != "" {
+			user.UserID = u.ID
 		}
+		if u.Name != "" {
+			user.Name = u.Name
+		} else if u.Email != "" {
+			user.Name = u.Email
+		}
+		user.AvatarURL = u.AvatarURL
 	}
 
 	return CollabSession{

@@ -131,17 +131,12 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 	slog.Info("bowrain: pending changes replayed")
 }
 
-// replayChange replays a single pending change to the server. Most operations
-// go through the REST editor client (which threads ctx); ReviewBlock still
-// travels over the gRPC client until the review-status path has a REST home.
+// replayChange replays a single pending change to the server. Every operation
+// goes through the REST/SSE editor client, which threads ctx so a cancellation
+// (Disconnect) stops replay promptly.
 func (a *App) replayChange(ctx context.Context, change PendingChange) error {
-	a.mu.RLock()
-	ws := a.activeWS
-	client := a.remoteHTTP
-	grpc := a.remote
-	a.mu.RUnlock()
-
-	if client == nil || grpc == nil {
+	client, ws := a.editorRemote()
+	if client == nil {
 		return errNotConnected
 	}
 
@@ -168,7 +163,7 @@ func (a *App) replayChange(ctx context.Context, change PendingChange) error {
 		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
 			return err
 		}
-		return grpc.ReviewBlock(ctx, ws, req.ProjectID, req.ItemName, req.BlockID, req.TargetLocale, req.Reviewed)
+		return client.ReviewBlock(ctx, ws, req.ProjectID, req.ItemName, req.BlockID, req.TargetLocale, req.Reviewed)
 
 	case "add_tm_entry":
 		var req addTMPayload

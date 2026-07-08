@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,16 +44,13 @@ func newGovTestApp(t *testing.T, handler http.HandlerFunc) (*App, *recordedReque
 	t.Cleanup(srv.Close)
 
 	app := newTestApp(t)
-	// A lazily-dialing gRPC client satisfies isConnected()'s remote != nil
-	// check without any real network use; the proxy uses plain HTTP, not gRPC.
-	client, err := NewServerClient("127.0.0.1:1", "tok-xyz", false)
-	require.NoError(t, err)
-
+	// A REST client satisfies isConnected()'s remoteHTTP != nil check; govRequest
+	// itself issues plain HTTP against a.serverURL (the httptest server).
 	app.mu.Lock()
 	app.connState = StateConnected
 	app.serverURL = srv.URL
 	app.activeWS = "acme"
-	app.remote = client
+	app.remoteHTTP = apiclient.NewEditorClient(srv.URL, "tok-xyz")
 	app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok-xyz"}
 	app.mu.Unlock()
 

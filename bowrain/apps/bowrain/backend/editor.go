@@ -320,10 +320,8 @@ func (a *App) updateBlockTargetRunsLocal(req UpdateBlockTargetRunsRequest) error
 // ReviewBlock marks a block as reviewed or un-reviewed for a target locale.
 func (a *App) ReviewBlock(projectID, itemName, blockID, targetLocale string, reviewed bool) error {
 	if a.isConnected() {
-		a.mu.RLock()
-		ws := a.activeWS
-		a.mu.RUnlock()
-		err := a.remote.ReviewBlock(context.Background(), ws, projectID, itemName, blockID, targetLocale, reviewed)
+		client, ws := a.editorRemote()
+		err := client.ReviewBlock(context.Background(), ws, projectID, itemName, blockID, targetLocale, reviewed)
 		if err != nil {
 			a.goOffline()
 			a.enqueue("review_block", reviewBlockPayload{
