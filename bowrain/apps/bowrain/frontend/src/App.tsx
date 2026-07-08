@@ -37,7 +37,9 @@ import { WailsApiAdapter } from "./api/WailsApiAdapter";
 import type { ProjectInfo, Workspace, User } from "@neokapi/ui";
 import { Shuffle, Link, Loader2, Users } from "lucide-react";
 import { Events } from "@wailsio/runtime";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Backend } from "./api/backend";
+import { queryClient } from "./lib/queryClient";
 
 type AppView = View | "flows" | "connectors" | "members" | "brand";
 type AppMode = "loading" | "connecting" | "ready";
@@ -146,7 +148,7 @@ function DesktopTermbaseBrowser({
   );
 }
 
-function App() {
+function AppInner() {
   const connection = useConnection();
 
   // Connection flow state
@@ -841,6 +843,21 @@ function App() {
         </ApiProvider>
       </TooltipProvider>
     </ThemeProvider>
+  );
+}
+
+/**
+ * App root. Provides the app-wide react-query client so every view (Settings,
+ * Connectors, Members, Brand, the shared @neokapi/ui surfaces) shares one cache
+ * and invalidation model — matching kapi-desktop (#1142) and web/ctrl/pulse.
+ * The provider wraps the pre-app screens too (loading / ServerConnect), since
+ * those read server state via react-query as well.
+ */
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppInner />
+    </QueryClientProvider>
   );
 }
 

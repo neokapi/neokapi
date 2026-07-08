@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useApi,
   useWorkspace,
@@ -16,6 +17,8 @@ import {
 } from "@neokapi/ui";
 import type { Membership } from "@neokapi/ui";
 import { Trash2, Users } from "lucide-react";
+import { qk } from "../lib/queryKeys";
+import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 
 const ROLES = ["owner", "admin", "member", "viewer"] as const;
 
@@ -28,68 +31,75 @@ const ROLES = ["owner", "admin", "member", "viewer"] as const;
  */
 export function MembersPage() {
   const api = useApi();
+  const qc = useQueryClient();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
+  // Members are a server/team feature — the personal (disconnected) workspace
+  // has none, so the query stays disabled there.
+  const isTeam = !!ws && activeWorkspace?.type !== "personal";
 
-  const [members, setMembers] = useState<Membership[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [busyUser, setBusyUser] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const canManage = activeWorkspace?.role === "owner" || activeWorkspace?.role === "admin";
 
-  const load = useCallback(async () => {
-    // Members are a server/team feature — skip the fetch in personal mode.
-    if (!ws || activeWorkspace?.type === "personal") return;
-    setLoading(true);
-    setError(null);
-    try {
-      const list = await api.listMembers(ws);
-      setMembers(list);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load members");
-      setMembers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [api, ws, activeWorkspace?.type]);
+  const membersQuery = useQuery({
+    queryKey: qk.members(ws),
+    enabled: isTeam,
+    queryFn: () => api.listMembers(ws),
+  });
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // Membership changes pushed from the server (working-copy freshness).
+  useInvalidateOnEvent("membership-changed", [qk.members(ws)]);
+
+  const members = membersQuery.data ?? [];
+  const loading = isTeam && membersQuery.isLoading;
+  const error =
+    actionError ??
+    (membersQuery.error
+      ? membersQuery.error instanceof Error
+        ? membersQuery.error.message
+        : "Failed to load members"
+      : null);
 
   const handleRoleChange = useCallback(
     async (userId: string, role: string) => {
       setBusyUser(userId);
-      setError(null);
+      setActionError(null);
       try {
         await api.updateMemberRole(ws, userId, role);
-        setMembers((prev) =>
-          prev.map((m) => (m.user_id === userId ? { ...m, role: role as Membership["role"] } : m)),
+        // Optimistically reflect the new role in the cached roster.
+        qc.setQueryData<Membership[]>(qk.members(ws), (prev) =>
+          (prev ?? []).map((m) =>
+            m.user_id === userId ? { ...m, role: role as Membership["role"] } : m,
+          ),
         );
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to update role");
+        setActionError(e instanceof Error ? e.message : "Failed to update role");
       } finally {
         setBusyUser(null);
       }
     },
-    [api, ws],
+    [api, ws, qc],
   );
 
   const handleRemove = useCallback(
     async (userId: string) => {
       setBusyUser(userId);
-      setError(null);
+      setActionError(null);
       try {
         await api.removeMember(ws, userId);
-        setMembers((prev) => prev.filter((m) => m.user_id !== userId));
+        // Optimistically drop the removed member from the cached roster.
+        qc.setQueryData<Membership[]>(qk.members(ws), (prev) =>
+          (prev ?? []).filter((m) => m.user_id !== userId),
+        );
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to remove member");
+        setActionError(e instanceof Error ? e.message : "Failed to remove member");
       } finally {
         setBusyUser(null);
       }
     },
-    [api, ws],
+    [api, ws, qc],
   );
 
   if (!activeWorkspace || activeWorkspace.type === "personal") {

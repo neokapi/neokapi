@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { qk } from "../lib/queryKeys";
 import type {
   FormatInfo,
   ToolInfo,
@@ -32,85 +34,66 @@ import type {
 import { Backend } from "../api/backend";
 import { optionalBinding } from "../api/optionalBinding";
 
+// Server-state reads are react-query queries: the Wails bindings are the query
+// fns, and the hooks keep their original `{ data, loading, error }` shape so the
+// consuming pages (SettingsPage, FlowBuilder) are unchanged. `error` stays a
+// string to preserve the old contract.
+function errMessage(error: Error | null): string | null {
+  return error ? error.message : null;
+}
+
 export function useFormats() {
-  const [formats, setFormats] = useState<FormatInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    Backend.ListFormats()
-      .then((r: FormatInfo[]) => setFormats(r))
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { formats, loading, error };
+  const q = useQuery({
+    queryKey: qk.formats(),
+    queryFn: () => Backend.ListFormats() as Promise<FormatInfo[]>,
+  });
+  return { formats: q.data ?? [], loading: q.isLoading, error: errMessage(q.error) };
 }
 
 export function useTools() {
-  const [tools, setTools] = useState<ToolInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    Backend.ListTools()
-      .then((r: ToolInfo[]) => setTools(r))
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { tools, loading, error };
+  const q = useQuery({
+    queryKey: qk.tools(),
+    queryFn: () => Backend.ListTools() as Promise<ToolInfo[]>,
+  });
+  return { tools: q.data ?? [], loading: q.isLoading, error: errMessage(q.error) };
 }
 
 export function useFlows(projectId = "") {
-  const [flows, setFlows] = useState<FlowInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    Backend.ListFlowDefinitions(projectId)
-      .then((r: FlowDefinitionInfo[]) =>
-        setFlows((r || []).map((d) => ({ name: d.name, description: d.description || "" }))),
-      )
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [projectId]);
-
-  return { flows, loading, error };
+  const q = useQuery({
+    queryKey: qk.flows(projectId),
+    queryFn: async (): Promise<FlowInfo[]> => {
+      const r = (await Backend.ListFlowDefinitions(projectId)) as FlowDefinitionInfo[];
+      return (r || []).map((d) => ({ name: d.name, description: d.description || "" }));
+    },
+  });
+  return { flows: q.data ?? [], loading: q.isLoading, error: errMessage(q.error) };
 }
 
 export function usePlugins() {
-  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
-  const [pluginDir, setPluginDir] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    Promise.all([Backend.ListPlugins(), Backend.PluginDir()])
-      .then(([pl, dir]: [PluginInfo[], string]) => {
-        setPlugins(pl);
-        setPluginDir(dir);
-      })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { plugins, pluginDir, loading, error };
+  const q = useQuery({
+    queryKey: qk.plugins(),
+    queryFn: async (): Promise<{ plugins: PluginInfo[]; pluginDir: string }> => {
+      const [plugins, pluginDir] = (await Promise.all([
+        Backend.ListPlugins(),
+        Backend.PluginDir(),
+      ])) as [PluginInfo[], string];
+      return { plugins, pluginDir };
+    },
+  });
+  return {
+    plugins: q.data?.plugins ?? [],
+    pluginDir: q.data?.pluginDir ?? "",
+    loading: q.isLoading,
+    error: errMessage(q.error),
+  };
 }
 
 export function useVersion() {
-  const [version, setVersion] = useState<VersionInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    Backend.GetVersion()
-      .then((r: VersionInfo) => setVersion(r))
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { version, loading, error };
+  const q = useQuery({
+    queryKey: qk.version(),
+    queryFn: () => Backend.GetVersion() as Promise<VersionInfo>,
+  });
+  return { version: q.data ?? null, loading: q.isLoading, error: errMessage(q.error) };
 }
 
 export function useHealth() {
@@ -433,23 +416,18 @@ export function useEditorApi() {
 // Provider config hooks
 
 export function useProviderConfigs() {
-  const [configs, setConfigs] = useState<ProviderConfig[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: qk.providerConfigs(),
+    queryFn: async (): Promise<ProviderConfig[]> => {
+      const c = (await Backend.ListProviderConfigs()) as ProviderConfig[];
+      return c || [];
+    },
+  });
   const refresh = useCallback(() => {
-    setLoading(true);
-    Backend.ListProviderConfigs()
-      .then((c: ProviderConfig[]) => setConfigs(c || []))
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  return { configs, loading, error, refresh };
+    void qc.invalidateQueries({ queryKey: qk.providerConfigs() });
+  }, [qc]);
+  return { configs: q.data ?? [], loading: q.isLoading, error: errMessage(q.error), refresh };
 }
 
 // TM API hooks
@@ -650,58 +628,36 @@ export function useTermsApi() {
 // Tool schema hook
 
 export function useToolSchema(toolName: string | null) {
-  const [schema, setSchema] = useState<ToolSchema | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!toolName) {
-      setSchema(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-
-    // Try to call the backend method; gracefully handle if not available
-    const fn = optionalBinding<(name: string) => Promise<ToolSchema | null>>(
-      Backend,
-      "GetToolSchema",
-    );
-    if (fn) {
-      fn(toolName)
-        .then((s) => setSchema(s))
-        .catch((e: Error) => setError(e.message))
-        .finally(() => setLoading(false));
-    } else {
-      // Backend doesn't have GetToolSchema yet
-      setSchema(null);
-      setLoading(false);
-    }
-  }, [toolName]);
-
-  return { schema, loading, error };
+  const q = useQuery({
+    queryKey: qk.toolSchema(toolName ?? ""),
+    enabled: !!toolName,
+    queryFn: (): Promise<ToolSchema | null> => {
+      // The backend may not expose GetToolSchema yet; degrade to null.
+      const fn = optionalBinding<(name: string) => Promise<ToolSchema | null>>(
+        Backend,
+        "GetToolSchema",
+      );
+      return fn ? fn(toolName as string) : Promise.resolve(null);
+    },
+  });
+  return { schema: q.data ?? null, loading: q.isLoading, error: errMessage(q.error) };
 }
 
 // Flow definition hooks
 
 export function useFlowDefinitions(projectId: string) {
-  const [definitions, setDefinitions] = useState<FlowDefinitionInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: qk.flowDefinitions(projectId),
+    queryFn: async (): Promise<FlowDefinitionInfo[]> => {
+      const r = (await Backend.ListFlowDefinitions(projectId)) as FlowDefinitionInfo[];
+      return r || [];
+    },
+  });
   const refresh = useCallback(() => {
-    setLoading(true);
-    Backend.ListFlowDefinitions(projectId)
-      .then((r: FlowDefinitionInfo[]) => setDefinitions(r || []))
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [projectId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  return { definitions, loading, error, refresh };
+    void qc.invalidateQueries({ queryKey: qk.flowDefinitions(projectId) });
+  }, [qc, projectId]);
+  return { definitions: q.data ?? [], loading: q.isLoading, error: errMessage(q.error), refresh };
 }
 
 export function useFlowDefinitionApi(projectId: string) {

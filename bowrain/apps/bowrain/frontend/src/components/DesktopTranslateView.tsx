@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { TranslationEditor, PresenceAvatars, useCollaboration } from "@neokapi/ui";
 import type { ProjectInfo } from "@neokapi/ui";
-import type { WailsApiAdapter, CollabSessionInfo } from "../api/WailsApiAdapter";
+import type { WailsApiAdapter } from "../api/WailsApiAdapter";
+import { qk } from "../lib/queryKeys";
 
 interface DesktopTranslateViewProps {
   adapter: WailsApiAdapter;
@@ -46,24 +47,14 @@ export function DesktopTranslateView({
   surfaceTabs,
   reloadSignal,
 }: DesktopTranslateViewProps) {
-  const [session, setSession] = useState<CollabSessionInfo | null>(null);
-
   // Fetch the collab session from the backend. Failure (e.g. local/standalone
-  // mode with no server) simply disables presence; the editor still works.
-  useEffect(() => {
-    let cancelled = false;
-    adapter
-      .getCollabSession()
-      .then((s) => {
-        if (!cancelled) setSession(s);
-      })
-      .catch(() => {
-        if (!cancelled) setSession(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [adapter]);
+  // mode with no server) simply disables presence; the editor still works —
+  // retries are off (client default), so a missing server yields null at once.
+  const sessionQuery = useQuery({
+    queryKey: qk.collabSession(),
+    queryFn: () => adapter.getCollabSession(),
+  });
+  const session = sessionQuery.data ?? null;
 
   const collabEnabled = !!session?.serverUrl && !!workspaceSlug && !!fileName;
 

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Button,
   Input,
@@ -17,6 +18,8 @@ import {
   DialogFooter,
 } from "@neokapi/ui";
 import { Backend } from "../api/backend";
+import { qk } from "../lib/queryKeys";
+import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 
 interface ConnectorInfo {
   id: string;
@@ -59,40 +62,45 @@ const CONNECTOR_FIELDS: Record<
 };
 
 export function ConnectorPanel() {
-  const [connectorTypes, setConnectorTypes] = useState<string[]>([]);
-  const [activeConnectors, setActiveConnectors] = useState<ConnectorInfo[]>([]);
+  const qc = useQueryClient();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedType, setSelectedType] = useState("");
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
-  const [contentItems, setContentItems] = useState<ContentItem[]>([]);
   const [selectedConnector, setSelectedConnector] = useState<string | null>(null);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fields = selectedType ? (CONNECTOR_FIELDS[selectedType] ?? []) : [];
 
-  const loadConnectorTypes = useCallback(async () => {
-    try {
-      const types = await Backend.ListConnectorTypes();
-      setConnectorTypes(types || []);
-    } catch (e) {
-      console.error("Failed to load connector types:", e);
-    }
-  }, []);
+  // Server state via react-query: the Wails bindings are the query fns.
+  const connectorTypesQuery = useQuery({
+    queryKey: qk.connectorTypes(),
+    queryFn: async () => ((await Backend.ListConnectorTypes()) as string[]) || [],
+  });
+  const connectorsQuery = useQuery({
+    queryKey: qk.connectors(),
+    queryFn: async () => ((await Backend.ListConnectors()) as ConnectorInfo[]) || [],
+  });
+  // Selecting a connector drives the content + status queries; deselected
+  // (null) leaves them disabled, mirroring the old empty state.
+  const contentQuery = useQuery({
+    queryKey: qk.connectorContent(selectedConnector ?? ""),
+    enabled: !!selectedConnector,
+    queryFn: async () =>
+      ((await Backend.ListContentItems(selectedConnector as string)) as ContentItem[]) || [],
+  });
+  const statusQuery = useQuery({
+    queryKey: qk.connectorStatus(selectedConnector ?? ""),
+    enabled: !!selectedConnector,
+    queryFn: () => Backend.GetConnectorStatus(selectedConnector as string) as Promise<SyncStatus>,
+  });
 
-  const loadActiveConnectors = useCallback(async () => {
-    try {
-      const connectors = await Backend.ListConnectors();
-      setActiveConnectors(connectors || []);
-    } catch (e) {
-      console.error("Failed to load connectors:", e);
-    }
-  }, []);
+  const connectorTypes = connectorTypesQuery.data ?? [];
+  const activeConnectors = connectorsQuery.data ?? [];
+  const contentItems = contentQuery.data ?? [];
+  const syncStatus = statusQuery.data ?? null;
 
-  useEffect(() => {
-    void loadConnectorTypes();
-    void loadActiveConnectors();
-  }, [loadConnectorTypes, loadActiveConnectors]);
+  // Connector sync events pushed from the server refresh the active list.
+  useInvalidateOnEvent("connector-sync", [qk.connectors()]);
 
   const handleAddConnector = async () => {
     if (!selectedType) return;
@@ -106,7 +114,7 @@ export function ConnectorPanel() {
       setSelectedType("");
       setConfigValues({});
       setShowAddDialog(false);
-      void loadActiveConnectors();
+      void qc.invalidateQueries({ queryKey: qk.connectors() });
     } catch (e) {
       setError(String(e));
     }
@@ -125,30 +133,16 @@ export function ConnectorPanel() {
       await Backend.RemoveConnector(id);
       if (selectedConnector === id) {
         setSelectedConnector(null);
-        setContentItems([]);
-        setSyncStatus(null);
       }
-      void loadActiveConnectors();
+      void qc.invalidateQueries({ queryKey: qk.connectors() });
     } catch (e) {
       setError(String(e));
     }
   };
 
-  const handleSelectConnector = async (id: string) => {
+  const handleSelectConnector = (id: string) => {
     setSelectedConnector(id);
     setError(null);
-    try {
-      const items = await Backend.ListContentItems(id);
-      setContentItems(items || []);
-    } catch {
-      setContentItems([]);
-    }
-    try {
-      const status = await Backend.GetConnectorStatus(id);
-      setSyncStatus(status);
-    } catch {
-      setSyncStatus(null);
-    }
   };
 
   return (
