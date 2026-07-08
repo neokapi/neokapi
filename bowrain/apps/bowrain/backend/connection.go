@@ -90,18 +90,7 @@ func (a *App) GetConnectionState() ConnectionInfo {
 func (a *App) connectWithToken(serverURL, token string) error {
 	serverURL = strings.TrimRight(serverURL, "/")
 
-	grpcAddr, useTLS, err := discoverGRPCAddr(serverURL)
-	if err != nil {
-		return fmt.Errorf("discover gRPC: %w", err)
-	}
-
-	client, err := NewServerClient(grpcAddr, token, useTLS)
-	if err != nil {
-		return fmt.Errorf("gRPC connect: %w", err)
-	}
-
 	a.mu.Lock()
-	a.remote = client
 	a.remoteHTTP = apiclient.NewEditorClient(serverURL, token)
 	a.authInfo = &config.StoredAuth{
 		ServerURL:   serverURL,
@@ -144,7 +133,7 @@ func (a *App) GetDefaultServerURL() string {
 func (a *App) isConnected() bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.connState == StateConnected && a.remote != nil
+	return a.connState == StateConnected && a.remoteHTTP != nil
 }
 
 // isOffline returns true when the app has lost its server connection
@@ -174,9 +163,9 @@ func (a *App) GetPendingChangesCount() int {
 	return a.offlineQueue.PendingCount()
 }
 
-// ConnectToServer establishes a gRPC connection to the given server URL.
-// The URL should be the HTTP base URL (e.g. "http://localhost:8080").
-// gRPC port is discovered from the server health endpoint.
+// ConnectToServer establishes a REST/SSE connection to the given server URL
+// using stored credentials. The URL should be the HTTP base URL
+// (e.g. "http://localhost:8080").
 func (a *App) ConnectToServer(serverURL string) error {
 	serverURL = strings.TrimRight(serverURL, "/")
 	a.mu.Lock()
@@ -201,29 +190,10 @@ func (a *App) ConnectToServer(serverURL string) error {
 		return errors.New("token expired — please log in again")
 	}
 
-	// Determine gRPC address. Convention: gRPC port = HTTP port + 1000.
-	// Can be overridden via the health endpoint in the future.
-	grpcAddr, useTLS, err := discoverGRPCAddr(serverURL)
-	if err != nil {
-		a.mu.Lock()
-		a.connState = StateDisconnected
-		a.mu.Unlock()
-		return fmt.Errorf("discover gRPC: %w", err)
-	}
-
-	client, err := NewServerClient(grpcAddr, stored.AccessToken, useTLS)
-	if err != nil {
-		a.mu.Lock()
-		a.connState = StateDisconnected
-		a.mu.Unlock()
-		return fmt.Errorf("gRPC connect: %w", err)
-	}
-
 	editorClient := apiclient.NewEditorClient(serverURL, stored.AccessToken)
 	a.wireRemoteRefresh(editorClient, serverURL, stored)
 
 	a.mu.Lock()
-	a.remote = client
 	a.remoteHTTP = editorClient
 	a.authInfo = stored
 	a.connState = StateConnected
@@ -232,10 +202,10 @@ func (a *App) ConnectToServer(serverURL string) error {
 	return nil
 }
 
-// wireRemoteRefresh configures the REST editor client to auto-refresh its
+// wireRemoteRefresh configures the REST/SSE editor client to auto-refresh its
 // access token on 401 and persist the rotated tokens through the shared
-// bowrain/core/config store, keeping the gRPC client and cached auth in sync so
-// a refresh triggered by any surface is visible to all of them.
+// bowrain/core/config store, keeping the cached auth in sync so a refresh
+// triggered by any surface (including the CLI) is visible.
 func (a *App) wireRemoteRefresh(c *apiclient.BowrainClient, serverURL string, stored *config.StoredAuth) {
 	if stored == nil || stored.RefreshToken == "" {
 		return
@@ -247,9 +217,6 @@ func (a *App) wireRemoteRefresh(c *apiclient.BowrainClient, serverURL string, st
 			a.authInfo.RefreshToken = newRefresh
 		}
 		updated := a.authInfo
-		if a.remote != nil {
-			a.remote.SetToken(newAccess)
-		}
 		a.mu.Unlock()
 		if updated != nil {
 			_ = config.SaveAuth(*updated)
@@ -481,10 +448,6 @@ func (a *App) Disconnect() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.remote != nil {
-		a.remote.Close()
-		a.remote = nil
-	}
 	a.remoteHTTP = nil
 	a.connState = StateDisconnected
 	a.authInfo = nil
@@ -532,92 +495,6 @@ func (a *App) SelectWorkspace(slug string) error {
 func loadDesktopAuth() (*config.StoredAuth, error) {
 	migrateLegacyDesktopAuth()
 	return config.LoadAuth()
-}
-
-// discoverGRPCAddr derives the gRPC address from the server URL.
-// gRPC is served on the same port as HTTP via h2c protocol multiplexing.
-//
-// For bowrain.cloud domains, the gRPC endpoint uses the grpc.{domain}
-// subdomain which routes directly to the Container App (bypassing Azure
-// Front Door, which only supports HTTP/1.1 to origins).
-func discoverGRPCAddr(serverURL string) (addr string, useTLS bool, err error) {
-	u, err := parseServerURL(serverURL)
-	if err != nil {
-		return "", false, err
-	}
-
-	useTLS = u.scheme == "https"
-	host := grpcHost(u.host)
-
-	port := u.port
-	if port == "" {
-		if useTLS {
-			port = "443"
-		} else {
-			port = "80"
-		}
-	}
-
-	return fmt.Sprintf("%s:%s", host, port), useTLS, nil
-}
-
-// grpcHost returns the gRPC hostname for a given server hostname.
-// For bowrain.cloud domains fronted by Azure Front Door (which downgrades
-// to HTTP/1.1), gRPC uses a dedicated subdomain that routes directly to
-// the Container App with full HTTP/2 support.
-func grpcHost(host string) string {
-	switch host {
-	case "bowrain.cloud":
-		return "grpc.bowrain.cloud"
-	case "dev.bowrain.cloud":
-		return "grpc.dev.bowrain.cloud"
-	default:
-		return host
-	}
-}
-
-type parsedURL struct {
-	scheme string
-	host   string
-	port   string
-}
-
-func parseServerURL(serverURL string) (*parsedURL, error) {
-	// Simple URL parsing for scheme://host:port patterns.
-	scheme := "http"
-	rest := serverURL
-
-	if len(rest) >= 8 && rest[:8] == "https://" {
-		scheme = "https"
-		rest = rest[8:]
-	} else if len(rest) >= 7 && rest[:7] == "http://" {
-		rest = rest[7:]
-	}
-
-	// Strip trailing slash and path.
-	for i := 0; i < len(rest); i++ {
-		if rest[i] == '/' {
-			rest = rest[:i]
-			break
-		}
-	}
-
-	host := rest
-	port := ""
-	// Check for host:port.
-	for i := len(rest) - 1; i >= 0; i-- {
-		if rest[i] == ':' {
-			host = rest[:i]
-			port = rest[i+1:]
-			break
-		}
-	}
-
-	if host == "" {
-		return nil, fmt.Errorf("empty host in URL %q", serverURL)
-	}
-
-	return &parsedURL{scheme: scheme, host: host, port: port}, nil
 }
 
 // TryAutoConnect attempts to reconnect using stored auth on startup.

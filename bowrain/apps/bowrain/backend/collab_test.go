@@ -3,10 +3,16 @@ package backend
 import (
 	"testing"
 
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// unreachableURL points at a port nothing listens on, so the /auth/me lookup
+// inside GetCollabSession fails fast (connection refused) and the cached-auth
+// fallback path is exercised deterministically.
+const unreachableURL = "http://127.0.0.1:1"
 
 func TestGetCollabSessionNotConnected(t *testing.T) {
 	app := newTestApp(t)
@@ -19,19 +25,13 @@ func TestGetCollabSessionNotConnected(t *testing.T) {
 func TestGetCollabSessionConnectedFallsBackToCachedUser(t *testing.T) {
 	app := newTestApp(t)
 
-	// A grpc.NewClient client connects lazily, so it never dials here; the
-	// GetCurrentUser RPC inside GetCollabSession will fail (no server), which
-	// exercises the cached-auth fallback path deterministically.
-	client, err := NewServerClient("127.0.0.1:1", "tok-abc", false)
-	require.NoError(t, err)
-
 	app.mu.Lock()
 	app.connState = StateConnected
-	app.serverURL = "http://localhost:8080"
+	app.serverURL = unreachableURL
 	app.activeWS = "acme"
-	app.remote = client
+	app.remoteHTTP = apiclient.NewEditorClient(unreachableURL, "tok-abc")
 	app.authInfo = &config.StoredAuth{
-		ServerURL:   "http://localhost:8080",
+		ServerURL:   unreachableURL,
 		AccessToken: "tok-abc",
 		User: config.StoredUser{
 			ID:    "user-42",
@@ -43,7 +43,7 @@ func TestGetCollabSessionConnectedFallsBackToCachedUser(t *testing.T) {
 
 	sess, err := app.GetCollabSession()
 	require.NoError(t, err)
-	assert.Equal(t, "http://localhost:8080", sess.ServerURL)
+	assert.Equal(t, unreachableURL, sess.ServerURL)
 	assert.Equal(t, "tok-abc", sess.AuthToken)
 	assert.Equal(t, "acme", sess.Workspace)
 	assert.Equal(t, "user-42", sess.User.UserID)
@@ -53,18 +53,15 @@ func TestGetCollabSessionConnectedFallsBackToCachedUser(t *testing.T) {
 func TestGetCollabSessionConnectedNoTokenErrors(t *testing.T) {
 	app := newTestApp(t)
 
-	client, err := NewServerClient("127.0.0.1:1", "", false)
-	require.NoError(t, err)
-
 	app.mu.Lock()
 	app.connState = StateConnected
-	app.serverURL = "http://localhost:8080"
+	app.serverURL = unreachableURL
 	app.activeWS = "acme"
-	app.remote = client
-	app.authInfo = &config.StoredAuth{ServerURL: "http://localhost:8080"} // no AccessToken
+	app.remoteHTTP = apiclient.NewEditorClient(unreachableURL, "")
+	app.authInfo = &config.StoredAuth{ServerURL: unreachableURL} // no AccessToken
 	app.mu.Unlock()
 
-	_, err = app.GetCollabSession()
+	_, err := app.GetCollabSession()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no auth token")
 }
@@ -72,16 +69,13 @@ func TestGetCollabSessionConnectedNoTokenErrors(t *testing.T) {
 func TestGetCollabSessionUsesEmailWhenNameEmpty(t *testing.T) {
 	app := newTestApp(t)
 
-	client, err := NewServerClient("127.0.0.1:1", "tok", false)
-	require.NoError(t, err)
-
 	app.mu.Lock()
 	app.connState = StateConnected
-	app.serverURL = "http://localhost:8080"
+	app.serverURL = unreachableURL
 	app.activeWS = "acme"
-	app.remote = client
+	app.remoteHTTP = apiclient.NewEditorClient(unreachableURL, "tok")
 	app.authInfo = &config.StoredAuth{
-		ServerURL:   "http://localhost:8080",
+		ServerURL:   unreachableURL,
 		AccessToken: "tok",
 		User:        config.StoredUser{ID: "u1", Email: "bob@acme.test"}, // no Name
 	}

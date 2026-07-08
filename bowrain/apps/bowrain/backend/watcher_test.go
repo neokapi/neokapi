@@ -3,7 +3,7 @@ package backend
 import (
 	"testing"
 
-	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,69 +15,38 @@ type emittedEvent struct {
 
 func TestHandleBlockChangeEvent(t *testing.T) {
 	app := newTestApp(t)
-
-	watcher := &ProjectWatcher{
-		app: app,
-	}
-
-	event := &pb.ProjectEvent{
-		Event: &pb.ProjectEvent_BlockChange{
-			BlockChange: &pb.BlockChangeEvent{
-				BlockId:    "b1",
-				ItemName:   "file.html",
-				ChangeType: "updated",
-				ChangedBy:  "Alice",
-			},
-		},
-	}
+	watcher := &ProjectWatcher{app: app}
 
 	// Should not panic even without Wails app.
-	watcher.handleEvent(event)
+	watcher.handleEvent(apiclient.EditorChangeEvent{
+		Type:       "editor.block.updated",
+		BlockID:    "b1",
+		ItemName:   "file.html",
+		ChangeType: "updated",
+		ChangedBy:  "Alice",
+	})
 }
 
 func TestHandlePresenceChangeEvent(t *testing.T) {
 	app := newTestApp(t)
-
-	watcher := &ProjectWatcher{
-		app: app,
-	}
-
-	event := &pb.ProjectEvent{
-		Event: &pb.ProjectEvent_PresenceChange{
-			PresenceChange: &pb.PresenceChangeEvent{
-				ChangeType: "joined",
-				User: &pb.PresenceInfo{
-					UserId:   "u1",
-					UserName: "Alice",
-					ItemName: "file.html",
-					BlockId:  "b1",
-				},
-			},
-		},
-	}
+	watcher := &ProjectWatcher{app: app}
 
 	// Should not panic even without Wails app.
-	watcher.handleEvent(event)
+	watcher.handleEvent(apiclient.EditorChangeEvent{
+		Type:     "editor.presence.joined",
+		UserID:   "u1",
+		UserName: "Alice",
+		ItemName: "file.html",
+		BlockID:  "b1",
+	})
 }
 
-func TestHandlePresenceChangeEventNilUser(t *testing.T) {
+func TestHandlePresenceChangeEventNoUser(t *testing.T) {
 	app := newTestApp(t)
+	watcher := &ProjectWatcher{app: app}
 
-	watcher := &ProjectWatcher{
-		app: app,
-	}
-
-	event := &pb.ProjectEvent{
-		Event: &pb.ProjectEvent_PresenceChange{
-			PresenceChange: &pb.PresenceChangeEvent{
-				ChangeType: "left",
-				User:       nil,
-			},
-		},
-	}
-
-	// Should not panic with nil user.
-	watcher.handleEvent(event)
+	// Should not panic with an unpopulated user.
+	watcher.handleEvent(apiclient.EditorChangeEvent{Type: "editor.presence.left"})
 }
 
 func TestStartStopWatching(t *testing.T) {
@@ -129,20 +98,20 @@ func TestPresenceChangedEvent(t *testing.T) {
 	assert.Equal(t, "Alice", event.User.UserName)
 }
 
-// TestHandleEventEmitsTypedFrontendEvents verifies each broadened
-// ProjectEvent variant maps to the right typed frontend event so each desktop
-// view can refetch on the relevant external change.
+// TestHandleEventEmitsTypedFrontendEvents verifies each relayed change-event
+// type maps to the right typed frontend event so each desktop view can refetch
+// on the relevant external change.
 func TestHandleEventEmitsTypedFrontendEvents(t *testing.T) {
 	tests := []struct {
 		name      string
-		event     *pb.ProjectEvent
+		event     apiclient.EditorChangeEvent
 		wantName  string
 		wantType  string
 		assertExt func(t *testing.T, ce ChangeEvent)
 	}{
 		{
 			name:     "project change",
-			event:    &pb.ProjectEvent{Event: &pb.ProjectEvent_ProjectChange{ProjectChange: &pb.ProjectChangeEvent{EventType: "project.updated", ChangeType: "renamed", Actor: "alice"}}},
+			event:    apiclient.EditorChangeEvent{Type: "project.updated", ChangeType: "renamed", Actor: "alice"},
 			wantName: "project-changed",
 			wantType: "project.updated",
 			assertExt: func(t *testing.T, ce ChangeEvent) {
@@ -152,7 +121,7 @@ func TestHandleEventEmitsTypedFrontendEvents(t *testing.T) {
 		},
 		{
 			name:     "item change → project-changed",
-			event:    &pb.ProjectEvent{Event: &pb.ProjectEvent_ItemChange{ItemChange: &pb.ItemChangeEvent{EventType: "item.created", ItemName: "about.json", Stream: "main"}}},
+			event:    apiclient.EditorChangeEvent{Type: "item.created", ItemName: "about.json", Stream: "main"},
 			wantName: "project-changed",
 			wantType: "item.created",
 			assertExt: func(t *testing.T, ce ChangeEvent) {
@@ -161,37 +130,37 @@ func TestHandleEventEmitsTypedFrontendEvents(t *testing.T) {
 		},
 		{
 			name:     "connector sync",
-			event:    &pb.ProjectEvent{Event: &pb.ProjectEvent_ConnectorSync{ConnectorSync: &pb.ConnectorSyncEvent{EventType: "connector.sync.completed", Actor: "system"}}},
+			event:    apiclient.EditorChangeEvent{Type: "connector.sync.completed", Actor: "system"},
 			wantName: "connector-sync",
 			wantType: "connector.sync.completed",
 		},
 		{
 			name:     "flow event",
-			event:    &pb.ProjectEvent{Event: &pb.ProjectEvent_FlowEvent{FlowEvent: &pb.FlowEventEvent{EventType: "flow.completed"}}},
+			event:    apiclient.EditorChangeEvent{Type: "flow.completed"},
 			wantName: "flow-changed",
 			wantType: "flow.completed",
 		},
 		{
 			name:     "membership change",
-			event:    &pb.ProjectEvent{Event: &pb.ProjectEvent_MembershipChange{MembershipChange: &pb.MembershipChangeEvent{EventType: "task.assigned", Actor: "alice"}}},
+			event:    apiclient.EditorChangeEvent{Type: "task.assigned", Actor: "alice"},
 			wantName: "membership-changed",
 			wantType: "task.assigned",
 		},
 		{
 			name:     "brand voice",
-			event:    &pb.ProjectEvent{Event: &pb.ProjectEvent_BrandVoice{BrandVoice: &pb.BrandVoiceEvent{EventType: "brand.profile.updated"}}},
+			event:    apiclient.EditorChangeEvent{Type: "brand.profile.updated"},
 			wantName: "brand-voice-changed",
 			wantType: "brand.profile.updated",
 		},
 		{
 			name:     "termbase",
-			event:    &pb.ProjectEvent{Event: &pb.ProjectEvent_Termbase{Termbase: &pb.TermBaseEvent{EventType: "concept.updated"}}},
+			event:    apiclient.EditorChangeEvent{Type: "concept.updated"},
 			wantName: "termbase-changed",
 			wantType: "concept.updated",
 		},
 		{
 			name:     "stream",
-			event:    &pb.ProjectEvent{Event: &pb.ProjectEvent_Stream{Stream: &pb.StreamEvent{EventType: "stream.merged", Stream: "feature-x"}}},
+			event:    apiclient.EditorChangeEvent{Type: "stream.merged", Stream: "feature-x"},
 			wantName: "stream-changed",
 			wantType: "stream.merged",
 			assertExt: func(t *testing.T, ce ChangeEvent) {
@@ -233,13 +202,38 @@ func TestHandleBlockChangeEmitsBlocksChanged(t *testing.T) {
 	})
 	watcher := &ProjectWatcher{app: app}
 
-	watcher.handleEvent(&pb.ProjectEvent{Event: &pb.ProjectEvent_BlockChange{
-		BlockChange: &pb.BlockChangeEvent{BlockId: "b1", ItemName: "home.json", ChangeType: "updated"},
-	}})
+	watcher.handleEvent(apiclient.EditorChangeEvent{
+		Type: "editor.block.updated", BlockID: "b1", ItemName: "home.json", ChangeType: "updated",
+	})
 
 	assert.Len(t, got, 1)
 	assert.Equal(t, "blocks-changed", got[0].name)
 	bc, ok := got[0].data.(BlockChangedEvent)
 	assert.True(t, ok)
 	assert.Equal(t, []string{"b1"}, bc.BlockIDs)
+}
+
+// TestHandlePresenceEmitsPresenceChanged confirms a presence relay event maps
+// to the frontend presence-changed event with identity fields.
+func TestHandlePresenceEmitsPresenceChanged(t *testing.T) {
+	app := newTestApp(t)
+	var got []emittedEvent
+	app.SetEventSink(func(name string, data any) {
+		got = append(got, emittedEvent{name: name, data: data})
+	})
+	watcher := &ProjectWatcher{app: app}
+
+	watcher.handleEvent(apiclient.EditorChangeEvent{
+		Type: "editor.presence.moved", UserID: "u1", UserName: "Alice",
+		AvatarURL: "https://x/a.png", ItemName: "home.json", BlockID: "b1",
+	})
+
+	require.Len(t, got, 1)
+	assert.Equal(t, "presence-changed", got[0].name)
+	pc, ok := got[0].data.(PresenceChangedEvent)
+	require.True(t, ok)
+	assert.Equal(t, "moved", pc.ChangeType)
+	assert.Equal(t, "u1", pc.User.UserID)
+	assert.Equal(t, "Alice", pc.User.UserName)
+	assert.Equal(t, "https://x/a.png", pc.User.AvatarURL)
 }

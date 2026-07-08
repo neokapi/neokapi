@@ -44,15 +44,14 @@ type App struct {
 
 	// Server connection (online mode).
 	mu              sync.RWMutex
-	remote          *ServerClient            // gRPC editor client — presence/watch/review only; nil when disconnected
-	remoteHTTP      *apiclient.BowrainClient // REST editor client — browse/blocks/TM/terms/providers; nil when disconnected
+	remoteHTTP      *apiclient.BowrainClient // REST/SSE editor client — the single server client; nil when disconnected
 	connState       ConnectionState          // current connection state
 	serverURL       string                   // e.g. "http://localhost:8080"
 	activeWS        string                   // selected workspace slug
 	authInfo        *config.StoredAuth       // cached auth info (shared bowrain/core/config store)
 	pkceVerifier    string                   // PKCE code_verifier
 	pkceResultCh    chan *pkceResult         // result from URL protocol callback
-	watcher         *ProjectWatcher          // active WatchProject stream
+	watcher         *ProjectWatcher          // active change-event (SSE) subscription
 	offlineQueue    *OfflineQueue            // pending mutations when offline
 	reconnectCancel context.CancelFunc       // stops the reconnection goroutine
 	autoConnectDone bool                     // true after BOWRAIN_TOKEN auto-connect attempted
@@ -447,9 +446,6 @@ func (a *App) ServiceShutdown() error {
 	a.stopReconnect()
 	// Stop project watcher and close server connection.
 	a.StopWatching()
-	if a.remote != nil {
-		a.remote.Close()
-	}
 	if a.offlineQueue != nil {
 		a.offlineQueue.Close()
 	}

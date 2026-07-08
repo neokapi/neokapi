@@ -31,7 +31,7 @@ func (a *App) govRequest(method, path string, body, out any) error {
 	a.mu.RLock()
 	serverURL := a.serverURL
 	auth := a.authInfo
-	connected := a.connState == StateConnected && a.remote != nil
+	connected := a.connState == StateConnected && a.remoteHTTP != nil
 	a.mu.RUnlock()
 
 	if !connected {
