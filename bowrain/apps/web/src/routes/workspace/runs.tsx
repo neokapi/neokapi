@@ -87,7 +87,12 @@ export function RunsRoute() {
 
       {selectedRunId && (
         <Card className="p-4">
-          <ConvergenceRunView model={model} run={selectedRun} connecting={connecting} />
+          <ConvergenceRunView
+            model={model}
+            run={selectedRun}
+            connecting={connecting}
+            running={!model.done && !connecting}
+          />
         </Card>
       )}
     </div>

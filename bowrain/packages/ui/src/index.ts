@@ -189,8 +189,11 @@ export { WorkspaceLanguageSettings } from "./components/WorkspaceLanguageSetting
 export { AutomationsPage } from "./components/AutomationsPage";
 export { AutomationRuleEditor } from "./components/AutomationRuleEditor";
 export { AutomationRunsPage } from "./components/AutomationRunsPage";
-export { ConvergenceRunView } from "./components/ConvergenceRunView";
-export type { ConvergenceRunViewProps } from "./components/ConvergenceRunView";
+// The convergence run view is the shared Apache component (@neokapi/status-views),
+// consumed by both bowrain's Runs surface and kapi-desktop's Runner. bowrain's
+// SSE reducer (convergence/runReducer) folds into its render model.
+export { ConvergenceRunView } from "@neokapi/status-views";
+export type { ConvergenceRunViewProps } from "@neokapi/status-views";
 export { ConvergenceRunsList } from "./components/ConvergenceRunsList";
 export type { ConvergenceRunsListProps } from "./components/ConvergenceRunsList";
 export { reduceRun, applyEvent, emptyRunModel } from "./convergence/runReducer";

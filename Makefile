@@ -964,7 +964,7 @@ kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typec
 KAPI_REACT_CLI := node $(CURDIR)/packages/kapi-react/dist/cli.js
 # Keep these globs in sync with the `extract` script in
 # apps/kapi-desktop/frontend/package.json.
-KAPI_DESKTOP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../../../packages/ui/src/**/*.tsx" --src "../../../packages/flow-editor/src/**/*.tsx" --ignore "src/stories/**" --ignore "../../../packages/*/src/stories/**" --ignore "../../../packages/*/src/__tests__/**"
+KAPI_DESKTOP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../../../packages/ui/src/**/*.tsx" --src "../../../packages/flow-editor/src/**/*.tsx" --src "../../../packages/status-views/src/**/*.tsx" --ignore "src/stories/**" --ignore "../../../packages/*/src/stories/**" --ignore "../../../packages/*/src/__tests__/**"
 
 kapi-react-build: ## Build @neokapi/kapi-react (runtime + vite plugin + CLI) into dist/
 	cd packages/kapi-react && vp run build

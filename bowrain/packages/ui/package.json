@@ -28,6 +28,7 @@
     "@neokapi/concept-ui": "*",
     "@neokapi/contract-types": "*",
     "@neokapi/kapi-format": "*",
+    "@neokapi/status-views": "*",
     "@neokapi/ui-primitives": "*",
     "@radix-ui/react-slot": "^1.3.0",
     "@tailwindcss/vite": "^4.3.1",

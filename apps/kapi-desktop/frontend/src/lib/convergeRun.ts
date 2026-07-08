@@ -1,47 +1,16 @@
 import type { ConvergeEvent } from "../types/api";
 import type { RunEvent } from "../context/JobFeedContext";
+// The render model is shared across the Apache/AGPL boundary — this reducer
+// (which knows the desktop job-feed's typed events) folds into it, and the
+// shared <ConvergenceRunView /> renders it. See @neokapi/status-views.
+import type {
+  ConvergenceLocaleRow as ConvergeLocaleRow,
+  ConvergencePassView as ConvergePassView,
+  ConvergenceRunModel as ConvergeRunModel,
+  LocaleRowState,
+} from "@neokapi/status-views";
 
-/** A locale's lifecycle within a pass, mirroring the CLI live renderer. */
-export type LocaleRowState = "queued" | "running" | "done";
-
-/** One locale's live cell in a pass: unit progress + the TM/AI split. */
-export interface ConvergeLocaleRow {
-  locale: string;
-  units: number;
-  done: number;
-  viaTM: number;
-  viaAI: number;
-  state: LocaleRowState;
-}
-
-/** One pass of a run: its live locale rows plus the post-derivation summary. */
-export interface ConvergePassView {
-  pass: number;
-  /** Cap on passes (0 when unknown, e.g. the compat path). */
-  maxPasses: number;
-  rows: ConvergeLocaleRow[];
-  /** True once the pass's post-derivation (pass_done) has arrived. */
-  settled: boolean;
-  produced?: number;
-  producedDelta?: number;
-  failingChecks?: number;
-  /** Locales still short of their gate after the pass. */
-  pending?: string[];
-}
-
-/** The reduced run model the live view renders. */
-export interface ConvergeRunModel {
-  passes: ConvergePassView[];
-  materializedFiles?: number;
-  /** "converged" | "parked" once the run's done event arrived. */
-  finalState?: string;
-  /**
-   * True when the model was built from the typed converge_event stream (live
-   * locale rows). False for the compatibility path, built from the coarser
-   * converge_pass summaries (no per-locale rows).
-   */
-  live: boolean;
-}
+export type { ConvergeLocaleRow, ConvergePassView, ConvergeRunModel, LocaleRowState };
 
 function newRow(locale: string): ConvergeLocaleRow {
   return { locale, units: 0, done: 0, viaTM: 0, viaAI: 0, state: "queued" };
