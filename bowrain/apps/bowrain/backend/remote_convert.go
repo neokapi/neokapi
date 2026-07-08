@@ -6,7 +6,7 @@ import apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 // the server REST shapes, carrying canonical core/model.Run for block content)
 // and the frontend-facing *Info types the Wails bindings expose. It is the one
 // place the desktop translates the REST editor surface into its presentation
-// model — the gRPC EditorService's bespoke EditorRun encoding is gone.
+// model — the former bespoke gRPC editor wire encoding is gone.
 
 // --- Workspaces ---
 

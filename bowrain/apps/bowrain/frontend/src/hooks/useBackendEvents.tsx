@@ -11,7 +11,7 @@ import { Events } from "@wailsio/runtime";
 
 /**
  * Backend freshness events emitted by the Go backend's ProjectWatcher (over the
- * gRPC WatchProject stream) and reconnect logic. Each view subscribes to the
+ * SSE project-events stream) and reconnect logic. Each view subscribes to the
  * event(s) it cares about and refetches its own data; on `reconnected` every
  * subscriber refetches, since while offline we may have missed any number of
  * external changes.

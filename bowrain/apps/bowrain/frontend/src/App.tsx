@@ -508,7 +508,7 @@ function AppInner() {
     setBlocksReloadSignal((n) => n + 1);
   }, []);
 
-  // Open/close the gRPC WatchProject stream as the active project changes (server
+  // Open/close the SSE project-events stream as the active project changes (server
   // mode only). This is what feeds the typed backend events the freshness layer
   // listens to; without it no external change would ever reach the desktop UI.
   useEffect(() => {
