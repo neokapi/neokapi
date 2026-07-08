@@ -97,56 +97,46 @@ jobs:
           pnpm --filter @neokapi/contract-types run build
           pnpm --filter @neokapi/engine run build
 
-      # Publish in dependency order. Skip a package whose current version is
-      # already on npm so re-running the workflow is idempotent.
+      # Publish in dependency order (kapi-format before kapi-react; contract-types
+      # before engine). Skip a package whose current version is already on npm so
+      # re-running the workflow is idempotent.
       #
-      # The publish (and the existence check that gates it) stay on `npm`, with a
-      # SCOPE-specific registry override (`--@neokapi:registry=...`). The repo
-      # root .npmrc maps the @neokapi scope to GitHub Packages for installs, and
-      # a scope registry takes precedence over a plain `--registry`, so the check
-      # must use the same `--@neokapi:registry` the publish uses or it queries the
-      # wrong registry and tries to republish an existing version. The publish
-      # itself also has to be npm (not pnpm): npm's OIDC trusted-publishing token
-      # exchange is only implemented by the npm CLI (pnpm#9812). Build/install use
-      # pnpm. The guard keeps re-runs idempotent.
-      - name: Publish @neokapi/kapi-format
-        working-directory: packages/kapi-format
+      # Why pnpm pack → npm publish <tarball>, not `npm publish` in the dir:
+      #   * The @neokapi packages split `exports` (TS src, for in-repo consumers)
+      #     from `publishConfig.exports` (built dist, for npm consumers). pnpm's
+      #     publishConfig field substitution is only applied by `pnpm pack` /
+      #     `pnpm publish` — the npm CLI does NOT apply it. So `npm publish` in the
+      #     package dir ships the src-based exports and consumers get raw TS.
+      #   * `pnpm pack` builds a tarball whose package.json HAS the substitution
+      #     applied (dist exports). `npm publish <tarball>` then publishes that
+      #     tarball verbatim — so dist exports ship — while still generating OIDC
+      #     provenance (npm provenance works with a tarball arg in CI). We keep
+      #     npm for the publish because npm's OIDC trusted-publishing token
+      #     exchange is only implemented by the npm CLI (pnpm#9812).
+      #
+      # The existence check + publish stay on `npm` with a SCOPE-specific registry
+      # override (`--@neokapi:registry=...`). The repo root .npmrc maps the
+      # @neokapi scope to GitHub Packages for installs, and a scope registry takes
+      # precedence over a plain `--registry`, so the check must use the same
+      # `--@neokapi:registry` the publish uses or it queries the wrong registry
+      # and tries to republish an existing version.
+      - name: Publish @neokapi packages
         run: |
-          VER=$(node -p "require('./package.json').version")
-          if npm view "@neokapi/kapi-format@${VER}" version --@neokapi:registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
-            echo "@neokapi/kapi-format@${VER} already published — skipping"
-          else
-            npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
-          fi
-
-      - name: Publish @neokapi/kapi-react
-        working-directory: packages/kapi-react
-        run: |
-          VER=$(node -p "require('./package.json').version")
-          if npm view "@neokapi/kapi-react@${VER}" version --@neokapi:registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
-            echo "@neokapi/kapi-react@${VER} already published — skipping"
-          else
-            npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
-          fi
-
-      # @neokapi/engine depends on @neokapi/contract-types, so contract-types
-      # must publish first within the same release.
-      - name: Publish @neokapi/contract-types
-        working-directory: packages/contract-types
-        run: |
-          VER=$(node -p "require('./package.json').version")
-          if npm view "@neokapi/contract-types@${VER}" version --@neokapi:registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
-            echo "@neokapi/contract-types@${VER} already published — skipping"
-          else
-            npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
-          fi
-
-      - name: Publish @neokapi/engine
-        working-directory: packages/engine
-        run: |
-          VER=$(node -p "require('./package.json').version")
-          if npm view "@neokapi/engine@${VER}" version --@neokapi:registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
-            echo "@neokapi/engine@${VER} already published — skipping"
-          else
-            npm publish --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
-          fi
+          set -euo pipefail
+          publish_pkg() {
+            dir="$1"; name="$2"
+            ver="$(node -p "require('./${dir}/package.json').version")"
+            if npm view "${name}@${ver}" version --@neokapi:registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
+              echo "${name}@${ver} already published — skipping"
+              return
+            fi
+            # pnpm names the tarball "<scope-stripped>-<name>-<version>.tgz"
+            # (e.g. @neokapi/contract-types → neokapi-contract-types-0.1.0.tgz).
+            tgz="${name#@}"; tgz="${tgz//\//-}-${ver}.tgz"
+            ( cd "$dir" && pnpm pack --pack-destination "$RUNNER_TEMP" )
+            npm publish "$RUNNER_TEMP/$tgz" --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
+          }
+          publish_pkg packages/kapi-format    @neokapi/kapi-format
+          publish_pkg packages/kapi-react     @neokapi/kapi-react
+          publish_pkg packages/contract-types @neokapi/contract-types
+          publish_pkg packages/engine         @neokapi/engine
