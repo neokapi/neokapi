@@ -35,6 +35,24 @@ func blockTexts(blocks []*model.Block) []string {
 	return texts
 }
 
+// readFirstError drives the streaming reader and returns the first error that
+// surfaces on the Read channel, or nil if the stream completes cleanly. The
+// messageformat reader is a StreamingReader, so parse errors surface from Read
+// (PartResult.Error), not from Open.
+func readFirstError(t *testing.T, input string) error {
+	t.Helper()
+	ctx := t.Context()
+	reader := messageformat.NewReader()
+	defer reader.Close()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	for res := range reader.Read(ctx) {
+		if res.Error != nil {
+			return res.Error
+		}
+	}
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Tests translated from MessageFormatFilterTest.java
 // ---------------------------------------------------------------------------
@@ -284,9 +302,7 @@ func TestExtract_EmbeddedPluralNames(t *testing.T) {
 
 // okapi: MessageFormatFilterTest#testInvalid
 func TestExtract_Invalid(t *testing.T) {
-	ctx := t.Context()
-	reader := messageformat.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString("{invalid, broken", model.LocaleEnglish))
+	err := readFirstError(t, "{invalid, broken")
 	require.Error(t, err, "invalid message format should produce an error")
 	assert.Contains(t, err.Error(), "Error reading Message Format String")
 }
@@ -477,20 +493,16 @@ func TestParser_FormattedMessage(t *testing.T) {
 
 // okapi: MessageFormatParserTest#testChoiceMessage
 func TestParser_ChoiceMessage(t *testing.T) {
-	ctx := t.Context()
-	reader := messageformat.NewReader()
 	input := "{0,choice,0#no files|1#one file|1<{0,number,integer} files}"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	err := readFirstError(t, input)
 	require.Error(t, err, "CHOICE format should be rejected by the filter")
 	assert.Contains(t, err.Error(), "Error reading Message Format String")
 }
 
 // okapi: MessageFormatParserTest#testCountChoice
 func TestParser_CountChoice(t *testing.T) {
-	ctx := t.Context()
-	reader := messageformat.NewReader()
 	input := "{0,choice,0#zero|1#one|2#two}"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	err := readFirstError(t, input)
 	require.Error(t, err, "CHOICE format should be rejected by the filter")
 	assert.Contains(t, err.Error(), "Error reading Message Format String")
 }
@@ -501,9 +513,7 @@ func TestParser_InvalidMessageFormat(t *testing.T) {
 	// as a valid ICU type. Our native parser is more lenient: {name, type} is syntactically
 	// valid MessageFormat (a typed argument reference), so we treat it as a placeholder.
 	// Instead, test with genuinely broken syntax (unmatched braces).
-	ctx := t.Context()
-	reader := messageformat.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString("{unterminated, plural,", model.LocaleEnglish))
+	err := readFirstError(t, "{unterminated, plural,")
 	require.Error(t, err, "invalid message format should produce an error")
 	assert.Contains(t, err.Error(), "Error reading Message Format String")
 }

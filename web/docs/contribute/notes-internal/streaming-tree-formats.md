@@ -111,9 +111,11 @@ Validation:
 | **JSON** | Ancestor-stack streamable | Forward walk + prefix-skeleton; PoC built here. |
 | **XML** | Ancestor-stack streamable | Already `xml.Decoder` + iterative `elementFrame` stack. |
 | **HTML** | Ancestor-stack streamable (tokenizer path) | The skeleton path is tokenizer-based; the DOM `html.Parse` path is for normalization/error-recovery. |
-| arb, designtokens, i18next, xcstrings | Substrate = **JSON** | Inherit JSON's verdict (wrappers/config over the JSON reader). |
-| resx, ts, tmx, androidxml | Substrate = **XML** | Inherit XML's verdict (XML-token walks). |
-| messageformat, phpcontent | Streamable | Line-buffered/lexer, bounded per-line state. |
+| arb, designtokens, xcstrings | Substrate = **whole-JSON buffer** | `io.ReadAll` + `json.Unmarshal` into a typed tree, writer rebuilds from the tree — not JSON's forward tokenizer walk. Need JSON's ancestor-stack substrate; do **not** mark streaming yet. |
+| i18next | Substrate = **JSON** (streaming) | **Done** — wraps the streaming JSON reader/writer, declares `StreamingReader`/`StreamingWriter`. |
+| resx, ts, tmx, androidxml | Substrate = **XML** | Whole-buffer tokenizer + byte-faithful splice; inherit XML's verdict (the parser-swap), do **not** mark streaming yet. |
+| messageformat | **Done** (streaming pair) | Line-buffered `bufio` reader + `StreamSkeletonWrite` writer; parse errors surface on the Read channel. |
+| applestrings | Line/record but **whole-buffer transcode** | Whole-document UTF-16→UTF-8 transcode + BOM detection before parsing; de-prioritized. |
 | **YAML** | **Hard** | `yaml.v3` materializes the whole `Node` AST; aliases are forward references; byte mapping needs pre-computed line offsets. Streaming needs a different parser. |
 | **Markdown / MDX** | **Hard** | `goldmark` materializes the whole AST and normalizes (nesting fixes, link-def resolution); byte mapping needs the full parse. MDX segments forward but delegates Markdown spans to goldmark. |
 | Archives (openxml/odf/epub/idml/icml) | Not applicable | Random-access zip — stream at the *entry* level (already do, #1020 §6), not within an entry. |
@@ -122,6 +124,59 @@ So the ancestor-stack model covers JSON + XML + their catalogs + HTML's
 tokenizer path — the large majority of the remaining OOM surface. YAML and
 Markdown are blocked by their third-party AST parsers, which is a parser-swap
 project, not a data-model limitation.
+
+### Implemented streaming pairs (as of the catalog assessment)
+
+The table above is the *theoretical* classification; the genuinely-streaming
+reader+writer pairs shipped so far are: the #1020 line/record formats, **JSON**
+(#1138), **messageformat** (this line of work), and **i18next** (which inherits
+streaming from the inner JSON reader/writer it wraps). Everything else stays
+buffered until its substrate is converted.
+
+`messageformat` was the one cheap non-substrate candidate ([#1025](https://github.com/neokapi/neokapi/issues/1025)):
+its reader now parses one message per line via a `bufio` window (no
+`io.ReadAll`, no retained `parsedLines`) and its writer routes a streaming
+skeleton store through `format.StreamSkeletonWrite`. The one behavioural change
+is that a syntax error now surfaces on the Read channel (`PartResult.Error`)
+instead of from `Open` — the streaming consequence of not pre-parsing — which
+the file runner and subfilter driver already propagate. Verified byte-exact
+through the streaming path and flat-peak on an `io.Pipe`-streamed document.
+
+### Catalog formats: do **not** convert these (false-claim risk)
+
+Assessed the app-string catalogs against the streaming precondition (`isStreamingPair`
+= `IsStreamingReader && IsStreamingWriter`; a `StreamingReader` must read
+incrementally from `doc.Reader`, never `io.ReadAll`). None is a cheap
+line/record conversion, and marking a writer streaming while its reader
+`io.ReadAll`s never wires the concurrent skeleton store — the same false claim
+#1138 removed from JSON. Per-format blocker:
+
+- **xcstrings, arb, designtokens** — substrate = **whole-JSON buffer**: the
+  reader `io.ReadAll`s then `json.Unmarshal`s the entire document into a typed
+  tree and the writer reconstructs from that tree. Not a forward line/record
+  walk (unlike JSON's own tokenizer path). designtokens additionally
+  `io.ReadAll`s for a `$deprecated` pre-scan (should become inline detection if
+  ever touched, per review §5.5). Streaming these means adopting JSON's
+  ancestor-stack tokenizer as their substrate — the JSON-substrate follow-up,
+  not a per-format PR.
+- **resx, androidxml** — substrate = **whole-buffer XML tokenizer**: the reader
+  `io.ReadAll`s then `newTokenizer(string(content)).tokenize()` over the whole
+  string and retains every byte (`resx.original` / `androidxml.original` layer
+  property, or the byte-range skeleton) for byte-faithful splice-on-write. This
+  is the same byte-range-slicing blocker as the XML family — it needs the whole
+  source buffer + an incremental tokenizer, i.e. the XML parser-swap, not a
+  cheap pass.
+- **applestrings** — the `.strings` grammar *is* line/record-oriented, but the
+  reader does a **whole-buffer UTF-16→UTF-8 transcode + BOM detection**
+  (`decodeToUTF8(raw)`) before parsing and retains the original bytes for
+  byte-faithful rewrite. The transcode is inherently whole-document for UTF-16
+  inputs, so a bounded-memory reader is not free here. De-prioritized (review
+  §5.5: per-document guard + the §5.3 `safeio` wrap is adequate).
+
+Bottom line: the only catalog that streams today is **i18next** (via its JSON
+substrate); the rest share the whole-JSON-buffer or whole-buffer-XML/transcode
+blocker and must **not** declare `StreamingReader`/`StreamingWriter` until their
+substrate is converted.
 
 ## Productionization plan (remaining formats)
 

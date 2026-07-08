@@ -22,16 +22,24 @@ type Reader struct {
 	format.BaseFormatReader
 	cfg *Config
 
-	// parsedLines stores the parsed node trees per line, used by the writer
-	// to reconstruct the original pattern structure.
-	parsedLines   []parsedLine
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
-	lineEndings   []string     // preserved line endings per parsedLine
 }
 
-// Ensure Reader implements SkeletonStoreEmitter.
-var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+// Ensure Reader implements SkeletonStoreEmitter and StreamingReader.
+var (
+	_ format.SkeletonStoreEmitter = (*Reader)(nil)
+	_ format.StreamingReader      = (*Reader)(nil)
+)
+
+// StreamingReader marks this reader as bounded-memory streaming: Open only
+// stores the document, and Read parses one MessageFormat message per line via a
+// bufio window (never io.ReadAll), holding just the in-progress line. A syntax
+// error therefore surfaces on the Read channel (PartResult.Error) rather than
+// from Open — the streaming consequence of not pre-parsing the whole file. That
+// error is propagated, never swallowed, by the file runner (feedReader) and the
+// subfilter driver, which both check PartResult.Error. See [AD-005].
+func (r *Reader) StreamingReader() {}
 
 type parsedLine struct {
 	lineNum int
@@ -67,101 +75,14 @@ func (r *Reader) Signature() format.FormatSignature {
 	}
 }
 
-// Open opens a RawDocument for reading.
-func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
+// Open opens a RawDocument for reading. As a StreamingReader, Open only stores
+// the document; parsing happens incrementally in Read (one message per line via
+// a bufio window), so a syntax error surfaces on the Read channel rather than
+// here.
+func (r *Reader) Open(_ context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
 		return errors.New("messageformat: nil document or reader")
 	}
-
-	r.parsedLines = nil
-	r.lineEndings = nil
-
-	if r.skeletonStore != nil {
-		return r.openWithSkeleton(ctx, doc)
-	}
-
-	// Pre-parse all lines to detect errors early (like CHOICE format).
-	// Bound the streamed read with the shared safeio byte budget so an
-	// unbounded/oversized stream fails with a typed error (identical limit
-	// across CLI/server/WASM — see core/safeio); the parsed lines accumulate
-	// in memory, so this is a whole-document read.
-	scanner := bufio.NewScanner(safeio.DefaultBudget().Reader(doc.Reader))
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		raw := scanner.Text()
-		if strings.TrimSpace(raw) == "" {
-			r.parsedLines = append(r.parsedLines, parsedLine{lineNum: lineNum, raw: raw})
-			continue
-		}
-		nodes, err := parse(raw)
-		if err != nil {
-			return fmt.Errorf("messageformat: line %d: %w", lineNum, err)
-		}
-		r.parsedLines = append(r.parsedLines, parsedLine{lineNum: lineNum, raw: raw, nodes: nodes})
-	}
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("messageformat: read error: %w", err)
-	}
-
-	r.Doc = doc
-	return nil
-}
-
-// rawLine holds a line's content and its original line ending.
-type rawLine struct {
-	content    string
-	lineEnding string
-}
-
-// splitRawLines splits raw bytes into lines preserving line endings.
-func splitRawLines(data []byte) []rawLine {
-	remaining := string(data)
-	var lines []rawLine
-	for len(remaining) > 0 {
-		idx := strings.Index(remaining, "\n")
-		if idx < 0 {
-			lines = append(lines, rawLine{content: remaining})
-			break
-		}
-		lineContent := remaining[:idx]
-		ending := "\n"
-		if strings.HasSuffix(lineContent, "\r") {
-			lineContent = lineContent[:len(lineContent)-1]
-			ending = "\r\n"
-		}
-		lines = append(lines, rawLine{content: lineContent, lineEnding: ending})
-		remaining = remaining[idx+1:]
-	}
-	return lines
-}
-
-func (r *Reader) openWithSkeleton(_ context.Context, doc *model.RawDocument) error {
-	// Bound the whole-input read with the shared safeio byte budget so an
-	// unbounded/oversized stream fails with a typed error (identical limit
-	// across CLI/server/WASM — see core/safeio).
-	data, err := io.ReadAll(safeio.DefaultBudget().Reader(doc.Reader))
-	if err != nil {
-		return fmt.Errorf("messageformat: read error: %w", err)
-	}
-
-	rLines := splitRawLines(data)
-	lineNum := 0
-	for _, rl := range rLines {
-		lineNum++
-		raw := rl.content
-		r.lineEndings = append(r.lineEndings, rl.lineEnding)
-		if strings.TrimSpace(raw) == "" {
-			r.parsedLines = append(r.parsedLines, parsedLine{lineNum: lineNum, raw: raw})
-			continue
-		}
-		nodes, err := parse(raw)
-		if err != nil {
-			return fmt.Errorf("messageformat: line %d: %w", lineNum, err)
-		}
-		r.parsedLines = append(r.parsedLines, parsedLine{lineNum: lineNum, raw: raw, nodes: nodes})
-	}
-
 	r.Doc = doc
 	return nil
 }
@@ -194,8 +115,70 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// Stream one line at a time via a bufio window so only the in-progress line
+	// is held (bounded memory). The read is bounded by the shared safeio byte
+	// budget: an unbounded/oversized stream fails with a typed error (identical
+	// limit across CLI/server/WASM — see core/safeio). Unlike a bufio.Scanner,
+	// ReadString imposes no per-line token cap, so an over-long single line is
+	// read (up to the byte budget) rather than rejected.
+	br := bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader))
 	blockCounter := 0
 	contentCounter := 0
+	lineNum := 0
+	for {
+		raw, readErr := br.ReadString('\n')
+		if raw != "" {
+			content, lineEnding := splitLineEnding(raw)
+			lineNum++
+			if !r.emitLine(ctx, ch, content, lineEnding, lineNum, &blockCounter, &contentCounter) {
+				return
+			}
+		}
+		if readErr != nil {
+			if !errors.Is(readErr, io.EOF) {
+				r.emitErr(ctx, ch, fmt.Errorf("messageformat: read error: %w", readErr))
+				return
+			}
+			break
+		}
+	}
+
+	r.skelFlush()
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// splitLineEnding separates a raw line read up to and including its terminator
+// into content and the preserved line ending ("", "\n", or "\r\n").
+func splitLineEnding(raw string) (content, ending string) {
+	switch {
+	case strings.HasSuffix(raw, "\r\n"):
+		return raw[:len(raw)-2], "\r\n"
+	case strings.HasSuffix(raw, "\n"):
+		return raw[:len(raw)-1], "\n"
+	default:
+		return raw, ""
+	}
+}
+
+// emitLine parses one message line and emits its parts (framing prose,
+// translatable segments, and skeleton entries). It returns false when the read
+// should stop — either the context was cancelled mid-emit or a parse error was
+// already surfaced on the channel.
+func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, content, lineEnding string, lineNum int, blockCounter, contentCounter *int) bool {
+	if strings.TrimSpace(content) == "" {
+		// Empty line → skeleton text only (a no-op when no skeleton store is
+		// wired), no part emission.
+		r.skelText(content + lineEnding)
+		return true
+	}
+
+	nodes, err := parse(content)
+	if err != nil {
+		r.emitErr(ctx, ch, fmt.Errorf("messageformat: line %d: %w", lineNum, err))
+		return false
+	}
+	pl := parsedLine{lineNum: lineNum, raw: content, nodes: nodes}
 
 	// emitFrames surfaces the literal prose that frames a plural/select branch
 	// (the sentence frame around a picker) as non-translatable content blocks —
@@ -204,13 +187,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// parity) byte-identical to the prior behavior. The framing text rides only
 	// the skeleton's raw line, so these blocks carry no skeleton ref and the
 	// write round-trip stays byte-exact.
-	emitFrames := func(pl parsedLine) bool {
+	emitFrames := func() bool {
 		if !r.cfg.ExtractNonTranslatableContent() {
 			return true
 		}
 		for _, lit := range extractLiteralSiblings(pl.nodes) {
-			contentCounter++
-			block := newContentBlock(fmt.Sprintf("txt%d", contentCounter), lit, pl.lineNum)
+			*contentCounter++
+			block := newContentBlock(fmt.Sprintf("txt%d", *contentCounter), lit, pl.lineNum)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return false
 			}
@@ -218,69 +201,53 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return true
 	}
 
-	for i, pl := range r.parsedLines {
-		lineEnding := ""
-		if i < len(r.lineEndings) {
-			lineEnding = r.lineEndings[i]
-		}
+	// Extract translatable segments from this pattern.
+	segments := extractSegments(pl.nodes, "")
 
-		if pl.nodes == nil {
-			// Empty line → skeleton text, skip part emission
-			r.skelText(pl.raw + lineEnding)
-			continue
-		}
+	if r.skeletonStore != nil && len(segments) == 1 {
+		// Simple case: one block per line, use skeleton ref. A single segment is
+		// a branchless leaf, so there is no framing prose to surface and the raw
+		// line is not preserved in the skeleton — leave this path untouched.
+		*blockCounter++
+		blockID := fmt.Sprintf("tu%d", *blockCounter)
+		r.skelRef(blockID)
+		r.skelText(lineEnding)
 
-		// Extract translatable segments from this pattern
-		segments := extractSegments(pl.nodes, "")
-
-		if r.skeletonStore != nil && len(segments) == 1 {
-			// Simple case: one block per line, use skeleton ref. A single
-			// segment is a branchless leaf, so there is no framing prose to
-			// surface and the raw line is not preserved in the skeleton — leave
-			// this path untouched.
-			blockCounter++
-			blockID := fmt.Sprintf("tu%d", blockCounter)
-			r.skelRef(blockID)
-			r.skelText(lineEnding)
-
-			block := r.createBlock(blockID, segments[0], pl)
-			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-				return
-			}
-		} else if r.skeletonStore != nil {
-			// Complex case: multiple segments per line (plural/select).
-			// Store entire line as skeleton text for byte-exact roundtrip.
-			r.skelText(pl.raw + lineEnding)
-
-			if !emitFrames(pl) {
-				return
-			}
-			for _, seg := range segments {
-				blockCounter++
-				blockID := fmt.Sprintf("tu%d", blockCounter)
-				block := r.createBlock(blockID, seg, pl)
-				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-					return
-				}
-			}
-		} else {
-			if !emitFrames(pl) {
-				return
-			}
-			for _, seg := range segments {
-				blockCounter++
-				blockID := fmt.Sprintf("tu%d", blockCounter)
-				block := r.createBlock(blockID, seg, pl)
-				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-					return
-				}
-			}
-		}
+		block := r.createBlock(blockID, segments[0], pl)
+		return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}
 
-	r.skelFlush()
+	if r.skeletonStore != nil {
+		// Complex case: multiple segments per line (plural/select). Store the
+		// entire line as skeleton text for byte-exact roundtrip.
+		r.skelText(pl.raw + lineEnding)
+		if !emitFrames() {
+			return false
+		}
+		for _, seg := range segments {
+			*blockCounter++
+			blockID := fmt.Sprintf("tu%d", *blockCounter)
+			block := r.createBlock(blockID, seg, pl)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return false
+			}
+		}
+		return true
+	}
 
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+	// No skeleton store.
+	if !emitFrames() {
+		return false
+	}
+	for _, seg := range segments {
+		*blockCounter++
+		blockID := fmt.Sprintf("tu%d", *blockCounter)
+		block := r.createBlock(blockID, seg, pl)
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+			return false
+		}
+	}
+	return true
 }
 
 // newContentBlock builds a non-translatable content block carrying literal
@@ -429,6 +396,16 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 		return true
 	case <-ctx.Done():
 		return false
+	}
+}
+
+// emitErr surfaces a parse or read error on the Part channel. Streaming readers
+// report errors here (not from Open); the file runner and the subfilter driver
+// both check PartResult.Error, so the error is never swallowed.
+func (r *Reader) emitErr(ctx context.Context, ch chan<- model.PartResult, err error) {
+	select {
+	case ch <- model.PartResult{Error: err}:
+	case <-ctx.Done():
 	}
 }
 

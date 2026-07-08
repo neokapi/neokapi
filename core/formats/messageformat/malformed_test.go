@@ -14,10 +14,12 @@ import (
 // TestReadMalformedRejected feeds broken, truncated, and stray-brace patterns
 // and asserts the reader surfaces a clean error without panicking.
 //
-// The MessageFormat reader pre-parses every line in Open (like the CHOICE
-// format), so a syntax error surfaces from Open rather than the Read channel.
-// Each error must carry the format's diagnostic prefix so callers can tell the
-// failure came from MessageFormat parsing.
+// The MessageFormat reader is a StreamingReader: Open only stores the document
+// and parsing happens per line in Read, so a syntax error surfaces on the Read
+// channel (PartResult.Error) rather than from Open. Each error must carry the
+// format's diagnostic prefix so callers can tell the failure came from
+// MessageFormat parsing. The error is never swallowed — the file runner and the
+// subfilter driver both check PartResult.Error.
 func TestReadMalformedRejected(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -79,12 +81,20 @@ func TestReadMalformedRejected(t *testing.T) {
 			reader := messageformat.NewReader()
 			defer reader.Close()
 
-			var err error
+			// Streaming reader: Open only stores the document.
+			require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(tt.input, model.LocaleEnglish)))
+
+			var readErr error
 			require.NotPanics(t, func() {
-				err = reader.Open(ctx, testutil.RawDocFromString(tt.input, model.LocaleEnglish))
+				for res := range reader.Read(ctx) {
+					if res.Error != nil {
+						readErr = res.Error
+						break
+					}
+				}
 			})
-			require.Error(t, err, "malformed MessageFormat input must be rejected")
-			assert.Contains(t, err.Error(), "messageformat:",
+			require.Error(t, readErr, "malformed MessageFormat input must be rejected on the Read channel")
+			assert.Contains(t, readErr.Error(), "messageformat:",
 				"error should be attributed to the messageformat reader")
 		})
 	}
@@ -153,28 +163,34 @@ func TestReadTolerantInputs(t *testing.T) {
 	}
 }
 
-// TestReadVeryLargeLine feeds a single literal line larger than the default
-// bufio.Scanner token limit (64KB). The reader treats input as one message per
-// line and uses a default-capacity scanner, so an over-long single line is
-// rejected with a clean error from Open — it must not panic and must not
-// silently truncate or corrupt the document. This documents the per-line size
-// bound rather than papering over it.
+// TestReadVeryLargeLine feeds a single literal line far larger than the old
+// bufio.Scanner token limit (64KB). The streaming reader reads lines via a
+// bufio window with no per-line token cap — the total read is bounded by the
+// shared safeio byte budget (1 GiB) instead — so an over-long literal line is
+// read and emitted as one message block, not rejected, truncated, or corrupted.
+// It must not panic and must not surface a spurious error.
 func TestReadVeryLargeLine(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	reader := messageformat.NewReader()
 	defer reader.Close()
 
-	// ~4MB on a single line, well past bufio.MaxScanTokenSize.
+	// ~4MB on a single line, well past the old bufio.MaxScanTokenSize but far
+	// under the safeio byte budget.
 	input := strings.Repeat("the quick brown fox ", 200000)
 
-	var err error
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+
+	blocks := 0
 	require.NotPanics(t, func() {
-		err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+		for res := range reader.Read(ctx) {
+			require.NoError(t, res.Error, "an over-long literal line must read cleanly")
+			if res.Part != nil && res.Part.Type == model.PartBlock {
+				blocks++
+			}
+		}
 	})
-	require.Error(t, err, "an over-long single line exceeds the scanner token limit")
-	assert.Contains(t, err.Error(), "messageformat:",
-		"the size limit error should be attributed to the messageformat reader")
+	assert.Equal(t, 1, blocks, "the whole line is one literal message block")
 }
 
 // TestReadNilDocumentNoPanic verifies Open rejects a nil document without
