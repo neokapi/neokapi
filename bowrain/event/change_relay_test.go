@@ -125,7 +125,7 @@ func TestChangeRelay_WorkspaceFromEventData(t *testing.T) {
 	assert.Equal(t, "brand.profile.updated", ce.Type)
 }
 
-func TestChangeRelay_SkipsPresenceAndAgent(t *testing.T) {
+func TestChangeRelay_SkipsAgent(t *testing.T) {
 	bus := NewChannelEventBus()
 	defer bus.Close()
 	relay := NewChangeRelay(bus, fakeResolver{"proj-1": "ws-1"})
@@ -133,14 +133,45 @@ func TestChangeRelay_SkipsPresenceAndAgent(t *testing.T) {
 
 	_, ch := relay.Subscribe("ws-1", "proj-1")
 
-	bus.Publish(platev.Event{Type: "editor.presence.joined", ProjectID: "proj-1", Data: map[string]string{"event_kind": "presence"}})
+	// Agent chatter is dropped (delivered over the @bravo SSE stream instead).
 	bus.Publish(platev.Event{Type: platev.EventAgentMessageSent, ProjectID: "proj-1", Data: map[string]string{}})
 	// A real content event should still come through.
 	bus.Publish(platev.Event{Type: platev.EventBlockUpdated, ProjectID: "proj-1", Data: map[string]string{"block_id": "x"}})
 
 	ce, ok := recvOne(t, ch)
 	require.True(t, ok)
-	assert.Equal(t, "block.updated", ce.Type, "presence/agent events must be filtered out")
+	assert.Equal(t, "block.updated", ce.Type, "agent events must be filtered out")
+}
+
+func TestChangeRelay_CarriesPresence(t *testing.T) {
+	bus := NewChannelEventBus()
+	defer bus.Close()
+	relay := NewChangeRelay(bus, fakeResolver{"proj-1": "ws-1"})
+	defer relay.Close()
+
+	_, ch := relay.Subscribe("ws-1", "proj-1")
+
+	bus.Publish(platev.Event{
+		Type:      "editor.presence.moved",
+		ProjectID: "proj-1",
+		Data: map[string]string{
+			"event_kind": "presence",
+			"user_id":    "u-1",
+			"user_name":  "Alice",
+			"avatar_url": "https://example.test/a.png",
+			"item_name":  "file.html",
+			"block_id":   "b-1",
+		},
+	})
+
+	ce, ok := recvOne(t, ch)
+	require.True(t, ok)
+	assert.Equal(t, "editor.presence.moved", ce.Type)
+	assert.Equal(t, "u-1", ce.UserID)
+	assert.Equal(t, "Alice", ce.UserName)
+	assert.Equal(t, "https://example.test/a.png", ce.AvatarURL)
+	assert.Equal(t, "file.html", ce.ItemName)
+	assert.Equal(t, "b-1", ce.BlockID)
 }
 
 func TestChangeRelay_Teardown(t *testing.T) {

@@ -12,9 +12,10 @@ import (
 // UserInfo contains the authenticated user's profile returned by
 // GET /api/v1/auth/me.
 type UserInfo struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-	Name  string `json:"name"`
+	ID        string `json:"id"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	AvatarURL string `json:"avatar_url"`
 }
 
 // FetchUser retrieves the authenticated user's profile from the server

@@ -57,6 +57,11 @@ type relayClient struct {
 // ChangeEvent is the wire shape relayed to clients. It is a flattened,
 // client-friendly projection of a platform event: the discriminating type plus
 // the identifying fields a view needs to decide what to refetch.
+//
+// Presence events (type "editor.presence.*") additionally carry the acting
+// user's identity so a client can render a presence indicator without a
+// separate lookup. The web app ignores presence frames (it renders cursors over
+// the Yjs awareness channel); the desktop consumes them over this same stream.
 type ChangeEvent struct {
 	Type       string `json:"type"`
 	ProjectID  string `json:"projectId,omitempty"`
@@ -66,6 +71,11 @@ type ChangeEvent struct {
 	ChangedBy  string `json:"changedBy,omitempty"`
 	ChangeType string `json:"changeType,omitempty"`
 	Actor      string `json:"actor,omitempty"`
+
+	// Presence identity (populated only for "editor.presence.*" events).
+	UserID    string `json:"userId,omitempty"`
+	UserName  string `json:"userName,omitempty"`
+	AvatarURL string `json:"avatarUrl,omitempty"`
 }
 
 // NewChangeRelay creates a relay and attaches it to the bus. The resolver may
@@ -208,15 +218,10 @@ func (r *ChangeRelay) eventWorkspaceID(ev platev.Event) string {
 
 // relayableEvent maps a platform event to the relay wire shape. It returns
 // ok=false for events that are not interesting to view freshness (internal
-// agent chatter, presence — presence already flows over its own channels).
+// agent chatter).
 func relayableEvent(ev platev.Event) (ChangeEvent, bool) {
 	t := string(ev.Type)
 
-	// Presence flows over the gRPC presence variant + Yjs awareness; the relay
-	// is for content/state freshness, not cursors.
-	if strings.HasPrefix(t, "editor.presence.") {
-		return ChangeEvent{}, false
-	}
 	// Agent conversation chatter is delivered over the @bravo SSE stream.
 	if strings.HasPrefix(t, "agent.") {
 		return ChangeEvent{}, false
@@ -233,6 +238,15 @@ func relayableEvent(ev platev.Event) (ChangeEvent, bool) {
 		ce.Stream = ev.Data["stream"]
 		ce.ItemName = ev.Data["item_name"]
 		ce.BlockID = ev.Data["block_id"]
+	}
+
+	// Presence events carry the acting user's identity so a client can render a
+	// presence indicator directly. The web app ignores them (Yjs awareness owns
+	// cursors); the desktop maps them to its presence-changed event.
+	if strings.HasPrefix(t, "editor.presence.") && ev.Data != nil {
+		ce.UserID = ev.Data["user_id"]
+		ce.UserName = ev.Data["user_name"]
+		ce.AvatarURL = ev.Data["avatar_url"]
 	}
 	return ce, true
 }

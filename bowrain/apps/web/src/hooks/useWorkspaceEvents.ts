@@ -33,6 +33,14 @@ export function invalidateForEvent(
   const t = ev.type ?? "";
   const invalidate = (queryKey: unknown[]) => void qc.invalidateQueries({ queryKey });
 
+  // Presence frames ("editor.presence.*") carry cursor/focus signals, not data
+  // changes — the web app renders cursors over the Yjs awareness channel, so
+  // there is nothing to refetch. Ignore them (they are high-frequency; letting
+  // them fall through to the generic branch would thrash every query).
+  if (t.startsWith("editor.presence.")) {
+    return;
+  }
+
   // Block + per-block editor changes → the open project's blocks and the
   // translation dashboard counts.
   if (t.startsWith("block.") || t.startsWith("editor.block.")) {
