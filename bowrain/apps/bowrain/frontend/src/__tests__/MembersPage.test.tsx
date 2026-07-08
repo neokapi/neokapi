@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method -- asserting on vi.fn() mock references is intentional */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "./testUtils";
 import {
   ApiProvider,
   WorkspaceProvider,

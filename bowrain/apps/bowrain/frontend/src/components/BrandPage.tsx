@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useApi,
   useWorkspace,
@@ -12,14 +13,10 @@ import {
   Alert,
   AlertDescription,
 } from "@neokapi/ui";
-import type {
-  ProjectInfo,
-  VoiceProfile,
-  CandidateRule,
-  BlastRadius,
-  DriftResult,
-} from "@neokapi/ui";
+import type { ProjectInfo, CandidateRule, BlastRadius } from "@neokapi/ui";
 import { ShieldCheck } from "lucide-react";
+import { qk } from "../lib/queryKeys";
+import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 
 interface BrandPageProps {
   /** Projects available for blast-radius / drift evaluation. */
@@ -37,123 +34,113 @@ interface BrandPageProps {
  */
 export function BrandPage({ projects }: BrandPageProps) {
   const api = useApi();
+  const qc = useQueryClient();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
+  // The brand review surface is a server/team feature; the personal
+  // (disconnected) workspace has none, so the queries stay disabled there.
+  const isTeam = !!ws && activeWorkspace?.type !== "personal";
 
-  const [profiles, setProfiles] = useState<VoiceProfile[]>([]);
   const [profileId, setProfileId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [showHistory, setShowHistory] = useState(false);
-  const [candidates, setCandidates] = useState<CandidateRule[]>([]);
-  const [drift, setDrift] = useState<DriftResult | null>(null);
   const [preview, setPreview] = useState<{ term: string; radius: BlastRadius } | null>(null);
   const [busyTerm, setBusyTerm] = useState<string | undefined>(undefined);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Load profiles for the workspace (server/team feature only).
+  // Profiles for the workspace.
+  const profilesQuery = useQuery({
+    queryKey: qk.brandProfiles(ws),
+    enabled: isTeam,
+    queryFn: () => api.listBrandProfiles(ws),
+  });
+  const profiles = profilesQuery.data ?? [];
+
+  // Auto-select the first profile once loaded (UI selection, not a fetch).
   useEffect(() => {
-    if (!ws || activeWorkspace?.type === "personal") return;
-    let cancelled = false;
-    api
-      .listBrandProfiles(ws)
-      .then((list) => {
-        if (cancelled) return;
-        setProfiles(list);
-        if (list.length > 0) setProfileId((cur) => cur || list[0].id);
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load brand profiles");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, ws, activeWorkspace?.type]);
+    if (profiles.length > 0) setProfileId((cur) => cur || profiles[0].id);
+  }, [profiles]);
 
-  // Load candidates for the selected profile.
-  const loadCandidates = useCallback(async () => {
-    if (!ws || !profileId) {
-      setCandidates([]);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const list = await api.listBrandCandidates(ws, profileId, { all: showHistory });
-      setCandidates(list);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load candidate rules");
-      setCandidates([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [api, ws, profileId, showHistory]);
+  // Candidate rules for the selected profile.
+  const candidatesQuery = useQuery({
+    queryKey: qk.brandCandidates(ws, profileId, showHistory),
+    enabled: isTeam && !!profileId,
+    queryFn: () => api.listBrandCandidates(ws, profileId, { all: showHistory }),
+  });
+  const candidates = candidatesQuery.data ?? [];
+  const loading = isTeam && !!profileId && candidatesQuery.isLoading;
 
-  useEffect(() => {
-    void loadCandidates();
-  }, [loadCandidates]);
+  // Drift for the selected project. Errors degrade silently (no drift shown),
+  // preserving the original behaviour.
+  const driftQuery = useQuery({
+    queryKey: qk.brandDrift(ws, projectId),
+    enabled: isTeam && !!projectId,
+    queryFn: () => api.getBrandDrift(ws, projectId),
+  });
+  const drift = driftQuery.data ?? null;
 
-  // Load drift for the selected project.
-  useEffect(() => {
-    if (!ws || !projectId) {
-      setDrift(null);
-      return;
-    }
-    let cancelled = false;
-    api
-      .getBrandDrift(ws, projectId)
-      .then((d) => {
-        if (!cancelled) setDrift(d);
-      })
-      .catch(() => {
-        if (!cancelled) setDrift(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, ws, projectId]);
+  // Cross-client freshness: brand-voice changes pushed from the server refresh
+  // the workspace profiles + candidate rules.
+  useInvalidateOnEvent("brand-voice-changed", [qk.brandProfiles(ws), ["brand-candidates", ws]]);
+
+  const error =
+    actionError ??
+    (profilesQuery.error
+      ? profilesQuery.error instanceof Error
+        ? profilesQuery.error.message
+        : "Failed to load brand profiles"
+      : null) ??
+    (candidatesQuery.error
+      ? candidatesQuery.error instanceof Error
+        ? candidatesQuery.error.message
+        : "Failed to load candidate rules"
+      : null);
+
+  const refetchCandidates = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: ["brand-candidates", ws, profileId] });
+  }, [qc, ws, profileId]);
 
   const onPromote = useCallback(
     async (c: CandidateRule) => {
       setBusyTerm(c.term);
-      setError(null);
+      setActionError(null);
       try {
         await api.promoteBrandRule(ws, profileId, {
           term: c.term,
           replacement: c.replacement,
           correction_count: c.correction_count,
         });
-        await loadCandidates();
+        refetchCandidates();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to promote rule");
+        setActionError(e instanceof Error ? e.message : "Failed to promote rule");
       } finally {
         setBusyTerm(undefined);
       }
     },
-    [api, ws, profileId, loadCandidates],
+    [api, ws, profileId, refetchCandidates],
   );
 
   const onReject = useCallback(
     async (c: CandidateRule) => {
       setBusyTerm(c.term);
-      setError(null);
+      setActionError(null);
       try {
         await api.rejectBrandRule(ws, profileId, { term: c.term, replacement: c.replacement });
-        await loadCandidates();
+        refetchCandidates();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to reject rule");
+        setActionError(e instanceof Error ? e.message : "Failed to reject rule");
       } finally {
         setBusyTerm(undefined);
       }
     },
-    [api, ws, profileId, loadCandidates],
+    [api, ws, profileId, refetchCandidates],
   );
 
   const onEvaluate = useCallback(
     async (c: CandidateRule) => {
       if (!projectId) return;
       setBusyTerm(c.term);
-      setError(null);
+      setActionError(null);
       try {
         const radius = await api.evaluateBrandRule(ws, profileId, {
           term: c.term,
@@ -162,7 +149,7 @@ export function BrandPage({ projects }: BrandPageProps) {
         });
         setPreview({ term: c.term, radius });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to evaluate rule");
+        setActionError(e instanceof Error ? e.message : "Failed to evaluate rule");
       } finally {
         setBusyTerm(undefined);
       }
