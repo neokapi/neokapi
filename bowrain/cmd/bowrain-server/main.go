@@ -244,7 +244,6 @@ func run() error {
 	}
 	grpcSrv := grpc.NewServer(grpcOpts...)
 	pb.RegisterNeokapiServiceServer(grpcSrv, server.NewGRPCServer(srv))
-	pb.RegisterEditorServiceServer(grpcSrv, server.NewEditorGRPCServer(srv))
 	srv.GRPCServer = grpcSrv
 
 	// Start pprof on a separate localhost-only listener (if enabled).
