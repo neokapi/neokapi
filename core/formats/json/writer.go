@@ -104,7 +104,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			case model.PartLayerStart:
 				if layer, ok := part.Resource.(*model.Layer); ok {
 					if layer.IsEmbedded() {
-						val, err := w.writeChildLayer(ctx, layer, parts)
+						val, err := w.writeChildLayer(ctx, nil, layer, parts)
 						if err != nil {
 							return fmt.Errorf("json: writing child layer %s: %w", layer.Name, err)
 						}
@@ -131,14 +131,26 @@ done:
 	return w.reconstruct(originalJSON, blocksByPath, childLayerValues)
 }
 
+// errChildLayerAborted is returned by writeChildLayer when the streaming
+// drainer's done channel closes while it is still collecting an embedded layer's
+// parts. It lets the drainer unwind cleanly without relying on ctx cancellation
+// and without reporting a spurious write error (the writer is already stopping).
+var errChildLayerAborted = errors.New("json: child layer write aborted (writer stopping)")
+
 // writeChildLayer collects parts until the matching PartLayerEnd and writes them
-// through the appropriate sub-format writer.
-func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts <-chan *model.Part) (string, error) {
+// through the appropriate sub-format writer. done, when non-nil (the streaming
+// drainer's stop signal), unblocks the collect loop if the main streamWrite loop
+// returns early — so the drainer never parks here waiting on a Part that will
+// not arrive, without depending on the executor cancelling ctx. The buffered
+// caller passes a nil done (a nil channel is never selected).
+func (w *Writer) writeChildLayer(ctx context.Context, done <-chan struct{}, layer *model.Layer, parts <-chan *model.Part) (string, error) {
 	var childParts []*model.Part
 	for {
 		select {
 		case <-ctx.Done():
 			return "", ctx.Err()
+		case <-done:
+			return "", errChildLayerAborted
 		case part, ok := <-parts:
 			if !ok {
 				return "", fmt.Errorf("unexpected end of parts stream in child layer %s", layer.ID)
@@ -314,9 +326,13 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 					}
 				case model.PartLayerStart:
 					if layer, ok := p.Resource.(*model.Layer); ok && layer.IsEmbedded() {
-						val, err := w.writeChildLayer(ctx, layer, parts)
+						val, err := w.writeChildLayer(ctx, done, layer, parts)
 						if err != nil {
-							drainErr = fmt.Errorf("json: writing child layer %s: %w", layer.Name, err)
+							// done closed → the main loop already returned; unwind
+							// quietly rather than reporting a spurious write error.
+							if !errors.Is(err, errChildLayerAborted) {
+								drainErr = fmt.Errorf("json: writing child layer %s: %w", layer.Name, err)
+							}
 							return
 						}
 						if !send(streamItem{layerName: layer.Name, layerVal: val, isLayer: true}) {
