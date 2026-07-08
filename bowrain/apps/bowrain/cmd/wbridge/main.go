@@ -34,6 +34,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sync"
+	"time"
 
 	// Parity with the desktop app: register bowrain recipe schema extensions.
 	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
@@ -241,7 +242,11 @@ func main() {
 	}
 	addr := "127.0.0.1:" + port
 	log.Printf("bowrain wbridge listening on http://%s/wbridge (config=%s)", addr, configInfo())
-	log.Fatal(http.ListenAndServe(addr, mux))
+	// Bound the header-read phase (Slowloris) without a whole-request
+	// ReadTimeout, since /wbridge streams Server-Sent Events over a
+	// long-lived connection.
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	log.Fatal(srv.ListenAndServe())
 }
 
 func configInfo() string {

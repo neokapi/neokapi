@@ -1441,6 +1441,11 @@ func (s *Server) Start(addr string) error {
 		Addr:      addr,
 		Handler:   handler,
 		Protocols: protocols,
+		// Bound the header-read phase so a slow client cannot hold a
+		// connection open indefinitely (Slowloris). Request bodies can be
+		// large (block pushes) and stream over slow links, so only the
+		// header deadline is set — not a whole-request ReadTimeout.
+		ReadHeaderTimeout: 30 * time.Second,
 	}
 	s.httpServer = srv
 	slog.Info("starting Bowrain server", "addr", addr, "mode", "HTTP+gRPC")
