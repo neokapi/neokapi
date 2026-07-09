@@ -8,9 +8,6 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as cli$0 from "../../cli/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as convergence$0 from "../../core/convergence/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -18,6 +15,9 @@ import * as flow$0 from "../../core/flow/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as model$0 from "../../core/model/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as host$0 from "../../host/models.js";
 
 /**
  * AIDetectionResult is the desktop-facing report of the AI options available
@@ -1173,9 +1173,9 @@ export class ConvergePlan {
         if (!("plan" in $$source)) {
             /**
              * @member
-             * @type {cli$0.UpPlanOutput}
+             * @type {host$0.UpPlanOutput}
              */
-            this["plan"] = (new cli$0.UpPlanOutput());
+            this["plan"] = (new host$0.UpPlanOutput());
         }
         if (!("changedFiles" in $$source)) {
             /**
@@ -3627,8 +3627,9 @@ export class ProjectStatus {
         }
         if (!("stale" in $$source)) {
             /**
-             * Stale reports that the block store exists but was written by a different
-             * kapi version than the running binary, so its counts may be wrong (e.g. a
+             * Stale reports that the block store exists but was written under
+             * different extraction semantics (core/project's block-store schema
+             * version) than the running binary, so its counts may be wrong (e.g. a
              * store extracted before the `**`-glob fix shows too few blocks). The UI
              * should offer a Re-extract rather than trusting the numbers. It is always
              * false for the "no data yet" shells (no store ⇒ nothing to be stale about).
@@ -4331,14 +4332,14 @@ export class RunEvent {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {cli$0.ConvergePassEvent | null | undefined}
+             * @type {host$0.ConvergePassEvent | null | undefined}
              */
             this["converge"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {cli$0.ConvergeOutput | null | undefined}
+             * @type {host$0.ConvergeOutput | null | undefined}
              */
             this["converge_result"] = undefined;
         }
@@ -5901,7 +5902,7 @@ const $$createType17 = $Create.Array($$createType16);
 const $$createType18 = CheckFileResult.createFrom;
 const $$createType19 = $Create.Array($$createType18);
 const $$createType20 = $Create.Map($Create.Any, $Create.Any);
-const $$createType21 = cli$0.UpPlanOutput.createFrom;
+const $$createType21 = host$0.UpPlanOutput.createFrom;
 const $$createType22 = EntityValueDTO.createFrom;
 const $$createType23 = $Create.Map($Create.Any, $$createType22);
 const $$createType24 = ExtractSkip.createFrom;
@@ -5933,9 +5934,9 @@ const $$createType49 = flow$0.StepSnapshot.createFrom;
 const $$createType50 = $Create.Array($$createType49);
 const $$createType51 = convergence$0.Event.createFrom;
 const $$createType52 = $Create.Nullable($$createType51);
-const $$createType53 = cli$0.ConvergePassEvent.createFrom;
+const $$createType53 = host$0.ConvergePassEvent.createFrom;
 const $$createType54 = $Create.Nullable($$createType53);
-const $$createType55 = cli$0.ConvergeOutput.createFrom;
+const $$createType55 = host$0.ConvergeOutput.createFrom;
 const $$createType56 = $Create.Nullable($$createType55);
 const $$createType57 = flow$0.FlowStep.createFrom;
 const $$createType58 = $Create.Array($$createType57);

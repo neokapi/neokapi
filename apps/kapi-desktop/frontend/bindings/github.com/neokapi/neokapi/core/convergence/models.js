@@ -133,7 +133,12 @@ export class Event {
         }
         if (/** @type {any} */(false)) {
             /**
-             * State: locale_done → shippable|parked|pending; done → converged|parked.
+             * State on done is the run outcome (converged|parked|failed|canceled) and
+             * is always set. On locale_done State is OPTIONAL: a per-locale
+             * shippable|parked|pending verdict is a whole-pass property (it depends on
+             * the gate rollup after every locale finishes), so the live stream may
+             * leave it empty and a consumer should take authoritative per-locale state
+             * from the run's final standing, not from a streamed locale_done.
              * @member
              * @type {string | undefined}
              */

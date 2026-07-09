@@ -175,7 +175,7 @@ export class ConvergeOutput {
 
 /**
  * ConvergePassEvent is the structured per-pass progress of a convergence run,
- * emitted through convergeOptions.onPass / UpOptions.OnPass after each pass's
+ * emitted through ConvergeOptions.onPass / UpOptions.OnPass after each pass's
  * post-derivation. It carries what the desktop's convergence view renders:
  * "pass N: extracted X, produced Y, checks failing Z" plus the locales still
  * short of their gate.
@@ -266,7 +266,7 @@ export class ConvergePassEvent {
  * The convergence report MODEL and the per-block ladder helpers live in the
  * framework (core/convergence) so any surface derives the same shape from the
  * same rules. The CLI owns the file-IO orchestration that feeds them
- * (unitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
+ * (UnitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
  * and re-exports the types via aliases so existing CLI + desktop callers — and
  * the generated Wails bindings — are unchanged.
  *
@@ -280,7 +280,7 @@ export const ConvergenceReport = convergence$0.Report;
  * The convergence report MODEL and the per-block ladder helpers live in the
  * framework (core/convergence) so any surface derives the same shape from the
  * same rules. The CLI owns the file-IO orchestration that feeds them
- * (unitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
+ * (UnitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
  * and re-exports the types via aliases so existing CLI + desktop callers — and
  * the generated Wails bindings — are unchanged.
  *
@@ -333,7 +333,7 @@ export class ParkedScope {
  * The convergence report MODEL and the per-block ladder helpers live in the
  * framework (core/convergence) so any surface derives the same shape from the
  * same rules. The CLI owns the file-IO orchestration that feeds them
- * (unitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
+ * (UnitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
  * and re-exports the types via aliases so existing CLI + desktop callers — and
  * the generated Wails bindings — are unchanged.
  */
@@ -343,7 +343,7 @@ export const ReviewItem = convergence$0.ReviewItem;
  * The convergence report MODEL and the per-block ladder helpers live in the
  * framework (core/convergence) so any surface derives the same shape from the
  * same rules. The CLI owns the file-IO orchestration that feeds them
- * (unitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
+ * (UnitsFromProject, readBlocks, bilingualBlocks, the state-store review index)
  * and re-exports the types via aliases so existing CLI + desktop callers — and
  * the generated Wails bindings — are unchanged.
  * @typedef {convergence$0.ReviewItem} ReviewItem
