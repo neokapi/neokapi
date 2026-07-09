@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -79,6 +80,27 @@ type EditorProject struct {
 	Items                 []EditorProjectItem `json:"items"`
 	CreatedAt             string              `json:"created_at"`
 	ModifiedAt            string              `json:"modified_at"`
+}
+
+// EditorTranslationStats mirrors TranslationStatsResponse — the result of a
+// bulk item action (pseudo-translate, tm-translate).
+type EditorTranslationStats struct {
+	TotalBlocks      int `json:"total_blocks"`
+	TranslatedBlocks int `json:"translated_blocks"`
+	WordCount        int `json:"word_count"`
+}
+
+// EditorTermEnforceResult mirrors TermEnforceResultResponse — one terminology
+// violation reported by the server-owned term-enforce action.
+type EditorTermEnforceResult struct {
+	BlockID      string   `json:"block_id"`
+	SourceTerm   string   `json:"source_term"`
+	ConceptID    string   `json:"concept_id"`
+	Expected     []string `json:"expected"`
+	SourceText   string   `json:"source_text"`
+	TargetText   string   `json:"target_text"`
+	SourceLocale string   `json:"source_locale"`
+	TargetLocale string   `json:"target_locale"`
 }
 
 // EditorBlock mirrors BlockInfoResponse. Runs travel as canonical model.Run.
@@ -312,6 +334,113 @@ func (c *BowrainClient) LookupTermsForBlock(ctx context.Context, ws, projectID, 
 	q.Set("target_locale", targetLocale)
 	var out []EditorTermMatch
 	if err := c.editorDo(ctx, http.MethodGet, blockPath(ws, projectID, blockID, "/term-matches"), q, nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ---------------------------------------------------------------------------
+// Item management & bulk actions (Bowrain AD-011: /:ws/:id/items|actions/:ref)
+// ---------------------------------------------------------------------------
+
+// projectPath builds /api/v1/:ws/:id<suffix> with slug and id path-escaped.
+func projectPath(ws, projectID, suffix string) string {
+	return fmt.Sprintf("/api/v1/%s/%s%s", url.PathEscape(ws), url.PathEscape(projectID), suffix)
+}
+
+// actionPath builds /api/v1/:ws/:id/actions/main/<verb>.
+func actionPath(ws, projectID, verb string) string {
+	return projectPath(ws, projectID, "/actions/"+editorRef+"/"+verb)
+}
+
+// UploadItems uploads one or more files into a project as items (server-side
+// parse + block extraction) and returns the refreshed project. The desktop
+// routes AddItems through this so local file ingest reaches the server, which
+// owns the authoritative content store.
+func (c *BowrainClient) UploadItems(ctx context.Context, ws, projectID string, files map[string][]byte) (*EditorProject, error) {
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for name, data := range files {
+		fw, err := mw.CreateFormFile("files", name)
+		if err != nil {
+			return nil, fmt.Errorf("create form file %q: %w", name, err)
+		}
+		if _, err := fw.Write(data); err != nil {
+			return nil, fmt.Errorf("write form file %q: %w", name, err)
+		}
+	}
+	if err := mw.Close(); err != nil {
+		return nil, fmt.Errorf("close multipart: %w", err)
+	}
+
+	u := c.baseURL + projectPath(ws, projectID, "/items/"+editorRef)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, &buf)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("request items: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("items upload failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+	var out EditorProject
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode items response: %w", err)
+	}
+	return &out, nil
+}
+
+// RemoveItem deletes an item from a project and returns the refreshed project.
+func (c *BowrainClient) RemoveItem(ctx context.Context, ws, projectID, itemName string) (*EditorProject, error) {
+	q := url.Values{}
+	q.Set("item", itemName)
+	var out EditorProject
+	if err := c.editorDo(ctx, http.MethodDelete, projectPath(ws, projectID, "/items/"+editorRef), q, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// PseudoTranslateItem pseudo-translates all blocks in an item on the server.
+func (c *BowrainClient) PseudoTranslateItem(ctx context.Context, ws, projectID, itemName, targetLocale string) (*EditorTranslationStats, error) {
+	return c.itemStatsAction(ctx, ws, projectID, itemName, "pseudo-translate", targetLocale)
+}
+
+// TMTranslateItem leverages the workspace TM to translate an item on the server.
+func (c *BowrainClient) TMTranslateItem(ctx context.Context, ws, projectID, itemName, targetLocale string) (*EditorTranslationStats, error) {
+	return c.itemStatsAction(ctx, ws, projectID, itemName, "tm-translate", targetLocale)
+}
+
+// itemStatsAction issues a bulk item action that returns translation stats.
+func (c *BowrainClient) itemStatsAction(ctx context.Context, ws, projectID, itemName, verb, targetLocale string) (*EditorTranslationStats, error) {
+	q := url.Values{}
+	q.Set("item", itemName)
+	body := struct {
+		TargetLocale string `json:"target_locale"`
+	}{targetLocale}
+	var out EditorTranslationStats
+	if err := c.editorDo(ctx, http.MethodPost, actionPath(ws, projectID, verb), q, body, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// TermEnforceItem runs the server-owned terminology-enforcement check over an
+// item's blocks and returns the violations found.
+func (c *BowrainClient) TermEnforceItem(ctx context.Context, ws, projectID, itemName, targetLocale string) ([]EditorTermEnforceResult, error) {
+	q := url.Values{}
+	q.Set("item", itemName)
+	body := struct {
+		TargetLocale string `json:"target_locale"`
+	}{targetLocale}
+	var out []EditorTermEnforceResult
+	if err := c.editorDo(ctx, http.MethodPost, actionPath(ws, projectID, "term-enforce"), q, body, &out); err != nil {
 		return nil, err
 	}
 	return out, nil

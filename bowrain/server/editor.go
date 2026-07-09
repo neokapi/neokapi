@@ -803,6 +803,80 @@ func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *wor
 	return editorComputeStats(outParts, targetLocale), nil
 }
 
+// TermEnforceResultResponse represents a terminology violation in a block —
+// the API shape for POST /:ws/:id/actions/:ref/term-enforce. The server owns
+// the check by running the framework termbase.TermEnforceTool, so the desktop
+// no longer hand-reimplements the matching logic.
+type TermEnforceResultResponse struct {
+	BlockID      string   `json:"block_id"`
+	SourceTerm   string   `json:"source_term"`
+	ConceptID    string   `json:"concept_id"`
+	Expected     []string `json:"expected"`
+	SourceText   string   `json:"source_text"`
+	TargetText   string   `json:"target_text"`
+	SourceLocale string   `json:"source_locale"`
+	TargetLocale string   `json:"target_locale"`
+}
+
+// editorTermEnforce runs terminology enforcement over an item's blocks using
+// the framework term-enforce tool and returns the violations found. It is a
+// read-only check: blocks are annotated in memory but not persisted.
+func editorTermEnforce(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, stream, itemName, targetLocale string) ([]TermEnforceResultResponse, error) {
+	proj, err := cs.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	tb, err := wsStores.getTB(ws)
+	if err != nil {
+		return nil, fmt.Errorf("init termbase: %w", err)
+	}
+	if count, cerr := tb.Count(ctx); cerr != nil {
+		return nil, cerr
+	} else if count == 0 {
+		return nil, nil
+	}
+
+	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		Stream:    stream,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	srcLocale := proj.DefaultSourceLanguage
+	tgtLocale := model.LocaleID(targetLocale)
+
+	parts := storedBlocksToParts(storedBlocks)
+	enforceTool := termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+		SourceLocale: srcLocale,
+		TargetLocale: tgtLocale,
+	})
+	outParts, err := runToolOnParts(ctx, enforceTool, parts)
+	if err != nil {
+		return nil, fmt.Errorf("term-enforce: %w", err)
+	}
+
+	var results []TermEnforceResultResponse
+	for _, block := range partsToBlocks(outParts) {
+		for _, v := range termbase.ViolationsFromBlock(block) {
+			results = append(results, TermEnforceResultResponse{
+				BlockID:      block.ID,
+				SourceTerm:   v.SourceTerm,
+				ConceptID:    v.ConceptID,
+				Expected:     v.Expected,
+				SourceText:   block.SourceText(),
+				TargetText:   block.TargetText(tgtLocale),
+				SourceLocale: string(srcLocale),
+				TargetLocale: string(tgtLocale),
+			})
+		}
+	}
+	return results, nil
+}
+
 // editorGetWordCount computes word/char counts from stored blocks.
 func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, stream, itemName string, targetLocales []string) (*WordCountResponse, error) {
 	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{

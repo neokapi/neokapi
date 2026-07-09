@@ -358,6 +358,52 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 	return nil
 }
 
+// TermViolation is a structured terminology-enforcement finding extracted from
+// the term-violation overlays that TermEnforceTool writes onto a block. It lets
+// callers (the CLI, the server action, the desktop) report enforcement results
+// without re-deriving the matching logic the tool already performed.
+type TermViolation struct {
+	SourceTerm string   // the source term as found
+	ConceptID  string   // the matched concept
+	Expected   []string // acceptable target-term texts that did not appear
+}
+
+// ViolationsFromBlock returns the enforcement violations TermEnforceTool
+// recorded on a block — the "term-violation:*" OverlayTerm spans. Callers pair
+// each violation with the block's own id and source/target text to build a
+// report. It returns nil for a block with no recorded violations.
+func ViolationsFromBlock(b *model.Block) []TermViolation {
+	if b == nil {
+		return nil
+	}
+	var out []TermViolation
+	for i := range b.Overlays {
+		o := &b.Overlays[i]
+		if o.Type != model.OverlayTerm {
+			continue
+		}
+		for _, span := range o.Spans {
+			if !strings.HasPrefix(span.ID, "term-violation:") {
+				continue
+			}
+			ann, ok := span.Value.(*model.TermAnnotation)
+			if !ok || ann == nil {
+				continue
+			}
+			expected := make([]string, 0, len(ann.TargetTerms))
+			for _, ref := range ann.TargetTerms {
+				expected = append(expected, ref.Text)
+			}
+			out = append(out, TermViolation{
+				SourceTerm: ann.SourceTerm,
+				ConceptID:  ann.ConceptID,
+				Expected:   expected,
+			})
+		}
+	}
+	return out
+}
+
 // lookupScope builds the validity scope for a tool from an optional RFC3339
 // AsOf instant and tag constraints. With neither set it returns nil — no
 // validity filtering, the pre-scope behavior.

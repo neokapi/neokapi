@@ -383,8 +383,29 @@ func (a *App) ExportTermsJSON(projectID, name string) (string, error) {
 	return buf.String(), nil
 }
 
-// TermEnforceItem runs terminology enforcement on a project item.
+// TermEnforceItem runs terminology enforcement on a project item. When
+// connected the check is owned by the server (which runs the framework
+// term-enforce tool over the authoritative content); when offline it runs the
+// same framework tool against the local cache. It is a read-only check, so
+// there is nothing to queue for replay.
 func (a *App) TermEnforceItem(projectID, itemName, targetLocale string) ([]TermEnforceResult, error) {
+	if a.isConnected() {
+		client, ws := a.editorRemote()
+		results, err := client.TermEnforceItem(context.Background(), ws, projectID, itemName, targetLocale)
+		if err != nil {
+			a.goOffline()
+			// Fall through to local enforcement against the cache.
+		} else {
+			return editorTermEnforceToResults(results), nil
+		}
+	}
+	return a.termEnforceItemLocal(projectID, itemName, targetLocale)
+}
+
+// termEnforceItemLocal runs the framework term-enforce tool over the local
+// cache — the offline fallback. It uses the same tool as the server so results
+// stay in parity (no hand-reimplemented matching).
+func (a *App) termEnforceItemLocal(projectID, itemName, targetLocale string) ([]TermEnforceResult, error) {
 	ctx := context.Background()
 	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
@@ -412,58 +433,31 @@ func (a *App) TermEnforceItem(projectID, itemName, targetLocale string) ([]TermE
 	srcLocale := proj.DefaultSourceLanguage
 	tgtLocale := model.LocaleID(targetLocale)
 
-	var results []TermEnforceResult
-	for _, sb := range storedBlocks {
-		block := sb.Block
-		if !block.Translatable {
-			continue
-		}
-		if !block.HasTarget(tgtLocale) {
-			continue
-		}
-
-		sourceText := block.SourceText()
-		targetText := block.TargetText(tgtLocale)
-
-		matches, err := tb.LookupAll(ctx, sourceText, termbase.LookupOptions{
-			SourceLocale: srcLocale,
-			StatusFilter: []model.TermStatus{model.TermPreferred, model.TermApproved},
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		for _, m := range matches {
-			targetTerms := m.Concept.TargetTerms(tgtLocale)
-			if len(targetTerms) == 0 {
-				continue
-			}
-			found := false
-			for _, tt := range targetTerms {
-				if strings.Contains(strings.ToLower(targetText), strings.ToLower(tt.Text)) {
-					found = true
-					break
-				}
-			}
-			if !found {
-				var expected []string
-				for _, tt := range targetTerms {
-					expected = append(expected, tt.Text)
-				}
-				results = append(results, TermEnforceResult{
-					BlockID:      block.ID,
-					SourceTerm:   m.Term.Text,
-					ConceptID:    m.Concept.ID,
-					Expected:     expected,
-					SourceText:   sourceText,
-					TargetText:   targetText,
-					SourceLocale: string(srcLocale),
-					TargetLocale: string(tgtLocale),
-				})
-			}
-		}
+	parts := storedBlocksToParts(storedBlocks)
+	enforceTool := termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+		SourceLocale: srcLocale,
+		TargetLocale: tgtLocale,
+	})
+	outParts, err := runToolOnParts(ctx, enforceTool, parts)
+	if err != nil {
+		return nil, fmt.Errorf("term-enforce: %w", err)
 	}
 
+	var results []TermEnforceResult
+	for _, block := range partsToBlocks(outParts) {
+		for _, v := range termbase.ViolationsFromBlock(block) {
+			results = append(results, TermEnforceResult{
+				BlockID:      block.ID,
+				SourceTerm:   v.SourceTerm,
+				ConceptID:    v.ConceptID,
+				Expected:     v.Expected,
+				SourceText:   block.SourceText(),
+				TargetText:   block.TargetText(tgtLocale),
+				SourceLocale: string(srcLocale),
+				TargetLocale: string(tgtLocale),
+			})
+		}
+	}
 	return results, nil
 }
 

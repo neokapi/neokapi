@@ -93,6 +93,39 @@ func editorBlocksToInfos(bs []apiclient.EditorBlock) []BlockInfo {
 	return out
 }
 
+// --- Item actions ---
+
+func editorStatsToStats(s *apiclient.EditorTranslationStats) *TranslationStats {
+	if s == nil {
+		return &TranslationStats{}
+	}
+	return &TranslationStats{
+		TotalBlocks:      s.TotalBlocks,
+		TranslatedBlocks: s.TranslatedBlocks,
+		WordCount:        s.WordCount,
+	}
+}
+
+func editorTermEnforceToResults(rs []apiclient.EditorTermEnforceResult) []TermEnforceResult {
+	if len(rs) == 0 {
+		return nil
+	}
+	out := make([]TermEnforceResult, len(rs))
+	for i, r := range rs {
+		out[i] = TermEnforceResult{
+			BlockID:      r.BlockID,
+			SourceTerm:   r.SourceTerm,
+			ConceptID:    r.ConceptID,
+			Expected:     r.Expected,
+			SourceText:   r.SourceText,
+			TargetText:   r.TargetText,
+			SourceLocale: r.SourceLocale,
+			TargetLocale: r.TargetLocale,
+		}
+	}
+	return out
+}
+
 // --- TM ---
 
 func editorTMEntryToInfo(e apiclient.EditorTMEntry) TMEntryInfo {
