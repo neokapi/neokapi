@@ -223,7 +223,7 @@ describe("MultiLocaleSelect", () => {
     expect(screen.getByTestId("tgt-remove-de")).toBeInTheDocument();
   });
 
-  it("opens dropdown on chip area click", async () => {
+  it("opens dropdown on search input click", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(
@@ -236,7 +236,7 @@ describe("MultiLocaleSelect", () => {
       expect(screen.getByTestId("tgt-remove-fr")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByTestId("tgt-chips"));
+    await user.click(screen.getByTestId("tgt-search"));
     // "fr" already selected, so "en", "de", "es", "ja" should appear
     expect(screen.getByTestId("tgt-option-en")).toBeInTheDocument();
     expect(screen.getByTestId("tgt-option-de")).toBeInTheDocument();
@@ -256,7 +256,7 @@ describe("MultiLocaleSelect", () => {
       expect(screen.getByTestId("tgt-remove-fr")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByTestId("tgt-chips"));
+    await user.click(screen.getByTestId("tgt-search"));
     await user.click(screen.getByTestId("tgt-option-de"));
 
     expect(onChange).toHaveBeenCalledWith(["fr", "de"]);
@@ -296,7 +296,7 @@ describe("MultiLocaleSelect", () => {
       expect(screen.getByTestId("tgt-remove-fr")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByTestId("tgt-chips"));
+    await user.click(screen.getByTestId("tgt-search"));
     await user.click(screen.getByTestId("tgt-option-de"));
 
     // Should only call onChange once — to add "de"
@@ -317,18 +317,17 @@ describe("MultiLocaleSelect", () => {
       expect(screen.getByTestId("tgt-remove-fr")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByTestId("tgt-chips"));
     const searchInput = screen.getByTestId("tgt-search");
-    await user.clear(searchInput);
+    await user.click(searchInput);
     await user.type(searchInput, "Jap");
 
-    expect(screen.getByTestId("tgt-option-ja")).toBeInTheDocument();
-    expect(screen.queryByTestId("tgt-option-en")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("tgt-option-de")).not.toBeInTheDocument();
+    // Non-matching options are filtered out of the a11y tree (base-ui hides them).
+    expect(screen.getByRole("option", { name: /Japanese/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /English/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /German/ })).not.toBeInTheDocument();
   });
 
   it("shows 'All locales selected' when all are chosen", async () => {
-    const user = userEvent.setup();
     const allCodes = mockLocales.map((l) => l.code);
     render(
       <Wrapper>
@@ -340,7 +339,7 @@ describe("MultiLocaleSelect", () => {
       expect(screen.getByTestId("tgt-remove-en")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByTestId("tgt-chips"));
+    // With every locale selected the add-picker collapses to an inline hint.
     expect(screen.getByText("All locales selected")).toBeInTheDocument();
   });
 });
