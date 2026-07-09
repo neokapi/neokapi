@@ -244,6 +244,11 @@ func (a *App) CloseProject(projectID string) error {
 // parses and extracts blocks — the local store is a cache filled lazily on
 // read. Only offline does the desktop parse locally, seeding the cache and
 // queueing the upload for replay on reconnect.
+//
+// This one stays hand-written rather than using writeThroughResult: it does
+// pre-work (collectUploadFiles) that can short-circuit before any server call,
+// and the file paths, not the collected bytes, drive the local fallback — a
+// shape the generic helper deliberately does not model.
 func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, error) {
 	if a.isConnected() {
 		files, err := collectUploadFiles(filePaths)
@@ -257,7 +262,7 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 		proj, err := client.UploadItems(context.Background(), ws, projectID, files)
 		if err != nil {
 			a.goOffline()
-			a.enqueue("add_items", addItemsPayload{ProjectID: projectID, Files: files})
+			a.enqueue(addItemsOp{ProjectID: projectID, Files: files})
 			// Fall through to local ingest so the offline cache reflects the add.
 			return a.addItemsLocal(context.Background(), projectID, filePaths)
 		}
@@ -269,7 +274,7 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 			return nil, err
 		}
 		if len(files) > 0 {
-			a.enqueue("add_items", addItemsPayload{ProjectID: projectID, Files: files})
+			a.enqueue(addItemsOp{ProjectID: projectID, Files: files})
 		}
 	}
 	return a.addItemsLocal(context.Background(), projectID, filePaths)
@@ -372,21 +377,19 @@ func (a *App) addItemsLocal(ctx context.Context, projectID string, filePaths []s
 // sent to the server (source of truth) with the local cache updated to match;
 // on failure or offline it updates the cache and queues the removal for replay.
 func (a *App) RemoveItem(projectID, itemName string) (*ProjectInfo, error) {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		proj, err := client.RemoveItem(context.Background(), ws, projectID, itemName)
-		if err != nil {
-			a.goOffline()
-			a.enqueue("remove_item", removeItemPayload{ProjectID: projectID, ItemName: itemName})
-		} else {
-			_, _ = a.removeItemLocal(context.Background(), projectID, itemName)
+	return writeThroughResult(a, removeItemOp{ProjectID: projectID, ItemName: itemName},
+		func() (*ProjectInfo, error) {
+			client, ws := a.editorRemote()
+			proj, err := client.RemoveItem(context.Background(), ws, projectID, itemName)
+			if err != nil {
+				return nil, err
+			}
 			out := editorProjectToInfo(*proj)
 			return &out, nil
-		}
-	} else if a.isOffline() {
-		a.enqueue("remove_item", removeItemPayload{ProjectID: projectID, ItemName: itemName})
-	}
-	return a.removeItemLocal(context.Background(), projectID, itemName)
+		},
+		func(*ProjectInfo) { _, _ = a.removeItemLocal(context.Background(), projectID, itemName) },
+		func() (*ProjectInfo, error) { return a.removeItemLocal(context.Background(), projectID, itemName) },
+	)
 }
 
 // removeItemLocal deletes an item from the local cache store.

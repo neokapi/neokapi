@@ -266,29 +266,25 @@ func runConstraintsFromInfo(ri *RunConstraintsInfo) *model.RunConstraints {
 	return &model.RunConstraints{Deletable: ri.Deletable, Cloneable: ri.Cloneable, Reorderable: ri.Reorderable}
 }
 
-// UpdateBlockTarget updates the target text for a specific block.
-// When connected, sends to server. On failure, queues for later replay and updates local cache.
+// UpdateBlockTarget updates the target text for a specific block. The local
+// cache is authoritative for block edits, so a successful server write is still
+// reconciled into the cache; an offline or failed write queues the op and
+// updates the cache alone.
 func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		// Wrap the plain-text update in a single TextRun so the
-		// server sees the canonical Run sequence.
-		runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
-		err := client.UpdateBlockTargetRuns(context.Background(), ws, req.ProjectID, req.BlockID, req.TargetLocale, runs)
-		if err != nil {
-			a.goOffline()
-			a.enqueue("update_block_target", req)
-			// Fall through to update local cache.
-		} else {
-			// Update local cache on success.
-			return a.updateBlockTargetLocal(req.ProjectID, req.BlockID, req.TargetLocale, req.Text)
-		}
-	} else if a.isOffline() {
-		a.enqueue("update_block_target", req)
+	local := func() error {
+		return a.updateBlockTargetLocal(req.ProjectID, req.BlockID, req.TargetLocale, req.Text)
 	}
-
-	// Update local store (both offline and local modes).
-	return a.updateBlockTargetLocal(req.ProjectID, req.BlockID, req.TargetLocale, req.Text)
+	return a.writeThroughVoid(updateBlockTargetOp{req},
+		func() error {
+			client, ws := a.editorRemote()
+			// Wrap the plain-text update in a single TextRun so the server
+			// sees the canonical Run sequence.
+			runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
+			return client.UpdateBlockTargetRuns(context.Background(), ws, req.ProjectID, req.BlockID, req.TargetLocale, runs)
+		},
+		nil, // reconcile the local cache on success
+		local,
+	)
 }
 
 func (a *App) updateBlockTargetLocal(projectID, blockID, targetLocale, text string) error {
@@ -306,20 +302,14 @@ func (a *App) updateBlockTargetLocal(projectID, blockID, targetLocale, text stri
 // UpdateBlockTargetRuns updates the target for a block using a
 // structured Run sequence.
 func (a *App) UpdateBlockTargetRuns(req UpdateBlockTargetRunsRequest) error {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		err := client.UpdateBlockTargetRuns(context.Background(), ws, req.ProjectID, req.BlockID, req.TargetLocale, runInfosToRuns(req.Runs))
-		if err != nil {
-			a.goOffline()
-			a.enqueue("update_block_target_runs", req)
-		} else {
-			return a.updateBlockTargetRunsLocal(req)
-		}
-	} else if a.isOffline() {
-		a.enqueue("update_block_target_runs", req)
-	}
-
-	return a.updateBlockTargetRunsLocal(req)
+	return a.writeThroughVoid(updateBlockTargetRunsOp{req},
+		func() error {
+			client, ws := a.editorRemote()
+			return client.UpdateBlockTargetRuns(context.Background(), ws, req.ProjectID, req.BlockID, req.TargetLocale, runInfosToRuns(req.Runs))
+		},
+		nil, // reconcile the local cache on success
+		func() error { return a.updateBlockTargetRunsLocal(req) },
+	)
 }
 
 func (a *App) updateBlockTargetRunsLocal(req UpdateBlockTargetRunsRequest) error {
@@ -334,26 +324,18 @@ func (a *App) updateBlockTargetRunsLocal(req UpdateBlockTargetRunsRequest) error
 
 // ReviewBlock marks a block as reviewed or un-reviewed for a target locale.
 func (a *App) ReviewBlock(projectID, itemName, blockID, targetLocale string, reviewed bool) error {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		err := client.ReviewBlock(context.Background(), ws, projectID, itemName, blockID, targetLocale, reviewed)
-		if err != nil {
-			a.goOffline()
-			a.enqueue("review_block", reviewBlockPayload{
-				ProjectID: projectID, ItemName: itemName, BlockID: blockID,
-				TargetLocale: targetLocale, Reviewed: reviewed,
-			})
-		} else {
-			return a.reviewBlockLocal(projectID, blockID, reviewed)
-		}
-	} else if a.isOffline() {
-		a.enqueue("review_block", reviewBlockPayload{
-			ProjectID: projectID, ItemName: itemName, BlockID: blockID,
-			TargetLocale: targetLocale, Reviewed: reviewed,
-		})
+	op := reviewBlockOp{
+		ProjectID: projectID, ItemName: itemName, BlockID: blockID,
+		TargetLocale: targetLocale, Reviewed: reviewed,
 	}
-
-	return a.reviewBlockLocal(projectID, blockID, reviewed)
+	return a.writeThroughVoid(op,
+		func() error {
+			client, ws := a.editorRemote()
+			return client.ReviewBlock(context.Background(), ws, projectID, itemName, blockID, targetLocale, reviewed)
+		},
+		nil, // reconcile the local cache on success
+		func() error { return a.reviewBlockLocal(projectID, blockID, reviewed) },
+	)
 }
 
 func (a *App) reviewBlockLocal(projectID, blockID string, reviewed bool) error {
@@ -378,20 +360,21 @@ func (a *App) reviewBlockLocal(projectID, blockID string, reviewed bool) error {
 // refreshed from the result; on failure or offline it runs locally against the
 // cache and queues the action for replay on reconnect.
 func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		stats, err := client.PseudoTranslateItem(context.Background(), ws, projectID, itemName, targetLocale)
-		if err != nil {
-			a.goOffline()
-			a.enqueue("pseudo_translate_item", itemActionPayload{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale})
-		} else {
-			a.refreshItemCache(projectID, itemName)
+	op := pseudoTranslateItemOp{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale}
+	return writeThroughResult(a, op,
+		func() (*TranslationStats, error) {
+			client, ws := a.editorRemote()
+			stats, err := client.PseudoTranslateItem(context.Background(), ws, projectID, itemName, targetLocale)
+			if err != nil {
+				return nil, err
+			}
 			return editorStatsToStats(stats), nil
-		}
-	} else if a.isOffline() {
-		a.enqueue("pseudo_translate_item", itemActionPayload{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale})
-	}
-	return a.pseudoTranslateItemLocal(projectID, itemName, targetLocale)
+		},
+		func(*TranslationStats) { a.refreshItemCache(projectID, itemName) },
+		func() (*TranslationStats, error) {
+			return a.pseudoTranslateItemLocal(projectID, itemName, targetLocale)
+		},
+	)
 }
 
 func (a *App) pseudoTranslateItemLocal(projectID, itemName, targetLocale string) (*TranslationStats, error) {
@@ -445,20 +428,19 @@ func (a *App) pseudoTranslateItemLocal(projectID, itemName, targetLocale string)
 // mirrors PseudoTranslateItem: server-first when connected, local cache with a
 // queued replay when offline.
 func (a *App) TMTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		stats, err := client.TMTranslateItem(context.Background(), ws, projectID, itemName, targetLocale)
-		if err != nil {
-			a.goOffline()
-			a.enqueue("tm_translate_item", itemActionPayload{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale})
-		} else {
-			a.refreshItemCache(projectID, itemName)
+	op := tmTranslateItemOp{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale}
+	return writeThroughResult(a, op,
+		func() (*TranslationStats, error) {
+			client, ws := a.editorRemote()
+			stats, err := client.TMTranslateItem(context.Background(), ws, projectID, itemName, targetLocale)
+			if err != nil {
+				return nil, err
+			}
 			return editorStatsToStats(stats), nil
-		}
-	} else if a.isOffline() {
-		a.enqueue("tm_translate_item", itemActionPayload{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale})
-	}
-	return a.tmTranslateItemLocal(projectID, itemName, targetLocale)
+		},
+		func(*TranslationStats) { a.refreshItemCache(projectID, itemName) },
+		func() (*TranslationStats, error) { return a.tmTranslateItemLocal(projectID, itemName, targetLocale) },
+	)
 }
 
 func (a *App) tmTranslateItemLocal(projectID, itemName, targetLocale string) (*TranslationStats, error) {

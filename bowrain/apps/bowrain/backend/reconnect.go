@@ -2,11 +2,8 @@ package backend
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"time"
-
-	"github.com/neokapi/neokapi/core/model"
 )
 
 // goOffline transitions the app to offline state and starts the reconnection goroutine.
@@ -131,169 +128,29 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 	slog.Info("bowrain: pending changes replayed")
 }
 
-// replayChange replays a single pending change to the server. Every operation
-// goes through the REST/SSE editor client, which threads ctx so a cancellation
-// (Disconnect) stops replay promptly.
+// replayChange replays a single pending change to the server. The persisted
+// kind+payload is decoded back into its typed offlineOp, which knows how to
+// replay itself; every op goes through the REST/SSE editor client, which threads
+// ctx so a cancellation (Disconnect) stops replay promptly.
 func (a *App) replayChange(ctx context.Context, change PendingChange) error {
 	client, ws := a.editorRemote()
 	if client == nil {
 		return errNotConnected
 	}
 
-	switch change.Operation {
-	case "update_block_target":
-		var req UpdateBlockRequest
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		// Plain-text replay: emit a single TextRun so the server
-		// receives the canonical Run sequence.
-		runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
-		return client.UpdateBlockTargetRuns(ctx, ws, req.ProjectID, req.BlockID, req.TargetLocale, runs)
-
-	case "update_block_target_runs":
-		var req UpdateBlockTargetRunsRequest
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		return client.UpdateBlockTargetRuns(ctx, ws, req.ProjectID, req.BlockID, req.TargetLocale, runInfosToRuns(req.Runs))
-
-	case "review_block":
-		var req reviewBlockPayload
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		return client.ReviewBlock(ctx, ws, req.ProjectID, req.ItemName, req.BlockID, req.TargetLocale, req.Reviewed)
-
-	case "add_tm_entry":
-		var req addTMPayload
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		_, err := client.AddTMEntry(ctx, ws, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
+	op, err := decodeOp(opKind(change.Operation), change.Payload)
+	if err != nil {
 		return err
-
-	case "update_tm_entry":
-		var req TMUpdateRequest
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		return client.UpdateTMEntry(ctx, ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
-
-	case "delete_tm_entry":
-		var req deleteTMPayload
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		return client.DeleteTMEntry(ctx, ws, req.EntryID)
-
-	case "add_concept":
-		var req AddConceptRequest
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		_, err := client.EditorAddConcept(ctx, ws, req.Domain, req.Definition, termInfosToEditor(req.Terms))
-		return err
-
-	case "update_concept":
-		var req UpdateConceptRequest
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		return client.EditorUpdateConcept(ctx, ws, req.ConceptID, req.Domain, req.Definition, termInfosToEditor(req.Terms))
-
-	case "delete_concept":
-		var req deleteConceptPayload
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		return client.EditorDeleteConcept(ctx, ws, req.ConceptID)
-
-	case "add_items":
-		var req addItemsPayload
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		_, err := client.UploadItems(ctx, ws, req.ProjectID, req.Files)
-		return err
-
-	case "remove_item":
-		var req removeItemPayload
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		_, err := client.RemoveItem(ctx, ws, req.ProjectID, req.ItemName)
-		return err
-
-	case "pseudo_translate_item":
-		var req itemActionPayload
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		_, err := client.PseudoTranslateItem(ctx, ws, req.ProjectID, req.ItemName, req.TargetLocale)
-		return err
-
-	case "tm_translate_item":
-		var req itemActionPayload
-		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
-			return err
-		}
-		_, err := client.TMTranslateItem(ctx, ws, req.ProjectID, req.ItemName, req.TargetLocale)
-		return err
-
-	default:
+	}
+	if op == nil {
 		slog.Info("bowrain: unknown pending change operation:", "value", change.Operation)
 		return nil // skip unknown operations
 	}
+	return op.replay(ctx, client, ws)
 }
 
 // emitConnectionState sends the current connection state to the frontend (Wails
 // runtime and/or the recording event sink).
 func (a *App) emitConnectionState() {
 	a.emit("connection-state-changed", a.GetConnectionState())
-}
-
-// Payload types for offline queue serialization.
-
-type reviewBlockPayload struct {
-	ProjectID    string `json:"project_id"`
-	ItemName     string `json:"item_name"`
-	BlockID      string `json:"block_id"`
-	TargetLocale string `json:"target_locale"`
-	Reviewed     bool   `json:"reviewed"`
-}
-
-type addTMPayload struct {
-	Source       string `json:"source"`
-	Target       string `json:"target"`
-	SourceLocale string `json:"source_locale"`
-	TargetLocale string `json:"target_locale"`
-}
-
-type deleteTMPayload struct {
-	EntryID string `json:"entry_id"`
-}
-
-type deleteConceptPayload struct {
-	ConceptID string `json:"concept_id"`
-}
-
-// itemActionPayload is the queued form of a bulk item action
-// (pseudo-translate, tm-translate).
-type itemActionPayload struct {
-	ProjectID    string `json:"project_id"`
-	ItemName     string `json:"item_name"`
-	TargetLocale string `json:"target_locale"`
-}
-
-// addItemsPayload is the queued form of a file upload — the raw bytes travel
-// base64-encoded in the JSON payload so the upload can replay on reconnect.
-type addItemsPayload struct {
-	ProjectID string            `json:"project_id"`
-	Files     map[string][]byte `json:"files"`
-}
-
-type removeItemPayload struct {
-	ProjectID string `json:"project_id"`
-	ItemName  string `json:"item_name"`
 }

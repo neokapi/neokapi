@@ -244,7 +244,7 @@ func TestEnqueueWithNilQueue(t *testing.T) {
 	}
 
 	// Should not panic.
-	app.enqueue("test_op", map[string]string{"key": "value"})
+	app.enqueue(deleteTMEntryOp{EntryID: "e1"})
 }
 
 func TestEnqueueAddsToQueue(t *testing.T) {
@@ -255,6 +255,6 @@ func TestEnqueueAddsToQueue(t *testing.T) {
 	}
 	app.offlineQueue = q
 
-	app.enqueue("test_op", map[string]string{"key": "value"})
+	app.enqueue(deleteTMEntryOp{EntryID: "e1"})
 	assert.Equal(t, 1, q.PendingCount())
 }

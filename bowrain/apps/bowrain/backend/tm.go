@@ -145,20 +145,21 @@ func (a *App) GetTMCount(projectID string) (int, error) {
 	return tm.Count(context.Background())
 }
 
-// UpdateTMEntry updates an existing TM entry.
+// UpdateTMEntry updates an existing TM entry. The server is authoritative for
+// the TM, so a successful online update skips the local mirror; the local write
+// runs only offline (queued for replay) or in pure local mode.
 func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		err := client.UpdateTMEntry(context.Background(), ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
-		if err != nil {
-			a.goOffline()
-			a.enqueue("update_tm_entry", req)
-		} else {
-			return nil
-		}
-	} else if a.isOffline() {
-		a.enqueue("update_tm_entry", req)
-	}
+	return a.writeThroughVoid(updateTMEntryOp{req},
+		func() error {
+			client, ws := a.editorRemote()
+			return client.UpdateTMEntry(context.Background(), ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
+		},
+		func() error { return nil }, // server-authoritative: skip the local mirror on success
+		func() error { return a.updateTMEntryLocal(req) },
+	)
+}
+
+func (a *App) updateTMEntryLocal(req TMUpdateRequest) error {
 	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return fmt.Errorf("init TM: %w", err)
@@ -189,46 +190,41 @@ func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
 
 // DeleteTMEntry deletes a TM entry by ID.
 func (a *App) DeleteTMEntry(projectID, entryID string) error {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		err := client.DeleteTMEntry(context.Background(), ws, entryID)
-		if err != nil {
-			a.goOffline()
-			a.enqueue("delete_tm_entry", deleteTMPayload{EntryID: entryID})
-		} else {
-			return nil
-		}
-	} else if a.isOffline() {
-		a.enqueue("delete_tm_entry", deleteTMPayload{EntryID: entryID})
-	}
-	tm, err := a.getOrCreateTM()
-	if err != nil {
-		return fmt.Errorf("init TM: %w", err)
-	}
-
-	return tm.Delete(context.Background(), entryID)
+	return a.writeThroughVoid(deleteTMEntryOp{EntryID: entryID},
+		func() error {
+			client, ws := a.editorRemote()
+			return client.DeleteTMEntry(context.Background(), ws, entryID)
+		},
+		func() error { return nil }, // server-authoritative: skip the local mirror on success
+		func() error {
+			tm, err := a.getOrCreateTM()
+			if err != nil {
+				return fmt.Errorf("init TM: %w", err)
+			}
+			return tm.Delete(context.Background(), entryID)
+		},
+	)
 }
 
 // AddTMEntry adds a new entry to the TM.
 func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale string) (*TMEntryInfo, error) {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		info, err := client.AddTMEntry(context.Background(), ws, source, target, sourceLocale, targetLocale)
-		if err != nil {
-			a.goOffline()
-			a.enqueue("add_tm_entry", addTMPayload{
-				Source: source, Target: target, SourceLocale: sourceLocale, TargetLocale: targetLocale,
-			})
-			// Fall through to local.
-		} else {
+	op := addTMEntryOp{Source: source, Target: target, SourceLocale: sourceLocale, TargetLocale: targetLocale}
+	return writeThroughResult(a, op,
+		func() (*TMEntryInfo, error) {
+			client, ws := a.editorRemote()
+			info, err := client.AddTMEntry(context.Background(), ws, source, target, sourceLocale, targetLocale)
+			if err != nil {
+				return nil, err
+			}
 			out := editorTMEntryToInfo(*info)
 			return &out, nil
-		}
-	} else if a.isOffline() {
-		a.enqueue("add_tm_entry", addTMPayload{
-			Source: source, Target: target, SourceLocale: sourceLocale, TargetLocale: targetLocale,
-		})
-	}
+		},
+		nil, // server returns the canonical entry; nothing to reconcile locally
+		func() (*TMEntryInfo, error) { return a.addTMEntryLocal(source, target, sourceLocale, targetLocale) },
+	)
+}
+
+func (a *App) addTMEntryLocal(source, target, sourceLocale, targetLocale string) (*TMEntryInfo, error) {
 	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return nil, fmt.Errorf("init TM: %w", err)
