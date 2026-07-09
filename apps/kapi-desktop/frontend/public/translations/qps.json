@@ -1152,7 +1152,7 @@
   "3NC1QQ": "▒ {t}:{value} {=m2} {value_2} {/=m2} ▒",
   "1BptsJ": "▒ {t}:{value} {=m2} {value_2} {value_3} {/=m2}{value_4} — {t_2} ▒",
   "2dANc": "▒ {value} ({t}) ▒",
-  "2Kq5IP": "▒ · {row.count} ▒",
+  "4a3eoj": "▒ · {row.count} ▒",
   "4ArLdw": "▒ {=m0} {selected.file}:{selected.key} {/=m0} ▒",
   "1ed8xW": "▒ ↳ {f.suggestion} ▒",
   "2HnsWv": "▒ {=m0}{t}{/=m0} {=m2}{value}%{/=m2} ▒",
