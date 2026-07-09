@@ -64,6 +64,21 @@ func (a *App) getItemBlocksLocal(projectID, itemName string) ([]BlockInfo, error
 	return blocks, nil
 }
 
+// refreshItemCache re-fetches an item's blocks from the server and updates the
+// local cache. Called after a server-side bulk action so an offline reader sees
+// the mutated content. Best-effort: cache-refresh failures are non-fatal.
+func (a *App) refreshItemCache(projectID, itemName string) {
+	client, ws := a.editorRemote()
+	if client == nil {
+		return
+	}
+	remoteBlocks, err := client.GetEditorBlocks(context.Background(), ws, projectID, itemName)
+	if err != nil {
+		return
+	}
+	a.cacheBlocks(projectID, itemName, editorBlocksToInfos(remoteBlocks))
+}
+
 // cacheBlocks stores server-fetched blocks in the local ContentStore for offline access.
 func (a *App) cacheBlocks(projectID, itemName string, blocks []BlockInfo) {
 	ctx := context.Background()
@@ -358,8 +373,28 @@ func (a *App) reviewBlockLocal(projectID, blockID string, reviewed bool) error {
 	return a.store.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
 }
 
-// PseudoTranslateItem pseudo-translates all blocks in an item.
+// PseudoTranslateItem pseudo-translates all blocks in an item. When connected
+// the action runs on the server (source of truth) and the local cache is
+// refreshed from the result; on failure or offline it runs locally against the
+// cache and queues the action for replay on reconnect.
 func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
+	if a.isConnected() {
+		client, ws := a.editorRemote()
+		stats, err := client.PseudoTranslateItem(context.Background(), ws, projectID, itemName, targetLocale)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("pseudo_translate_item", itemActionPayload{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale})
+		} else {
+			a.refreshItemCache(projectID, itemName)
+			return editorStatsToStats(stats), nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("pseudo_translate_item", itemActionPayload{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale})
+	}
+	return a.pseudoTranslateItemLocal(projectID, itemName, targetLocale)
+}
+
+func (a *App) pseudoTranslateItemLocal(projectID, itemName, targetLocale string) (*TranslationStats, error) {
 	ctx := context.Background()
 	storedBlocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID,
@@ -406,8 +441,27 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 	return computeStats(outParts, targetLocale), nil
 }
 
-// TMTranslateItem leverages translation memory to translate blocks.
+// TMTranslateItem leverages translation memory to translate blocks. Routing
+// mirrors PseudoTranslateItem: server-first when connected, local cache with a
+// queued replay when offline.
 func (a *App) TMTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
+	if a.isConnected() {
+		client, ws := a.editorRemote()
+		stats, err := client.TMTranslateItem(context.Background(), ws, projectID, itemName, targetLocale)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("tm_translate_item", itemActionPayload{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale})
+		} else {
+			a.refreshItemCache(projectID, itemName)
+			return editorStatsToStats(stats), nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("tm_translate_item", itemActionPayload{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale})
+	}
+	return a.tmTranslateItemLocal(projectID, itemName, targetLocale)
+}
+
+func (a *App) tmTranslateItemLocal(projectID, itemName, targetLocale string) (*TranslationStats, error) {
 	ctx := context.Background()
 	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {

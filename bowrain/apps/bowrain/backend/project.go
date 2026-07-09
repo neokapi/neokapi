@@ -239,9 +239,65 @@ func (a *App) CloseProject(projectID string) error {
 	return a.store.DeleteProject(ctx, projectID)
 }
 
-// AddItems imports items into a project, auto-detecting format and extracting blocks.
+// AddItems imports items into a project. Local file ingest is a server-side
+// concern (CLAUDE.md): when connected, files are uploaded to the server, which
+// parses and extracts blocks — the local store is a cache filled lazily on
+// read. Only offline does the desktop parse locally, seeding the cache and
+// queueing the upload for replay on reconnect.
 func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, error) {
-	ctx := context.Background()
+	if a.isConnected() {
+		files, err := collectUploadFiles(filePaths)
+		if err != nil {
+			return nil, err
+		}
+		if len(files) == 0 {
+			return a.GetProject(projectID)
+		}
+		client, ws := a.editorRemote()
+		proj, err := client.UploadItems(context.Background(), ws, projectID, files)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("add_items", addItemsPayload{ProjectID: projectID, Files: files})
+			// Fall through to local ingest so the offline cache reflects the add.
+			return a.addItemsLocal(context.Background(), projectID, filePaths)
+		}
+		out := editorProjectToInfo(*proj)
+		return &out, nil
+	} else if a.isOffline() {
+		files, err := collectUploadFiles(filePaths)
+		if err != nil {
+			return nil, err
+		}
+		if len(files) > 0 {
+			a.enqueue("add_items", addItemsPayload{ProjectID: projectID, Files: files})
+		}
+	}
+	return a.addItemsLocal(context.Background(), projectID, filePaths)
+}
+
+// collectUploadFiles reads the regular files at the given paths into a
+// name→bytes map for server upload, skipping directories.
+func collectUploadFiles(filePaths []string) (map[string][]byte, error) {
+	files := make(map[string][]byte)
+	for _, filePath := range filePaths {
+		info, err := os.Stat(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("stat %q: %w", filePath, err)
+		}
+		if info.IsDir() {
+			continue
+		}
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("read %q: %w", filePath, err)
+		}
+		files[filepath.Base(filePath)] = data
+	}
+	return files, nil
+}
+
+// addItemsLocal parses files into the local cache store — the offline path.
+func (a *App) addItemsLocal(ctx context.Context, projectID string, filePaths []string) (*ProjectInfo, error) {
 	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -312,18 +368,36 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 	return buildProjectInfo(ctx, a.store, proj)
 }
 
-// RemoveItem removes an item from the project.
+// RemoveItem removes an item from the project. When connected the removal is
+// sent to the server (source of truth) with the local cache updated to match;
+// on failure or offline it updates the cache and queues the removal for replay.
 func (a *App) RemoveItem(projectID, itemName string) (*ProjectInfo, error) {
-	ctx := context.Background()
+	if a.isConnected() {
+		client, ws := a.editorRemote()
+		proj, err := client.RemoveItem(context.Background(), ws, projectID, itemName)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("remove_item", removeItemPayload{ProjectID: projectID, ItemName: itemName})
+		} else {
+			_, _ = a.removeItemLocal(context.Background(), projectID, itemName)
+			out := editorProjectToInfo(*proj)
+			return &out, nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("remove_item", removeItemPayload{ProjectID: projectID, ItemName: itemName})
+	}
+	return a.removeItemLocal(context.Background(), projectID, itemName)
+}
+
+// removeItemLocal deletes an item from the local cache store.
+func (a *App) removeItemLocal(ctx context.Context, projectID, itemName string) (*ProjectInfo, error) {
 	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
-
 	if err := a.store.DeleteItem(ctx, projectID, "main", itemName); err != nil {
 		return nil, err
 	}
-
 	return buildProjectInfo(ctx, a.store, proj)
 }
 

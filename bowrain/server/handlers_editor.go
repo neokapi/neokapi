@@ -589,6 +589,42 @@ func (s *Server) HandleTMTranslate(c echo.Context) error {
 	return c.JSON(http.StatusOK, stats)
 }
 
+// HandleTermEnforce runs terminology enforcement over an item's blocks and
+// returns the violations. It is a read-only check owned by the server via the
+// framework term-enforce tool.
+func (s *Server) HandleTermEnforce(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
+
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	pid := projectParam(c)
+	fname := fileParam(c)
+
+	var req struct {
+		TargetLocale string `json:"target_locale"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if req.TargetLocale == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "target_locale is required"})
+	}
+
+	results, err := editorTermEnforce(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), fname, req.TargetLocale)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	if results == nil {
+		results = []TermEnforceResultResponse{}
+	}
+	return c.JSON(http.StatusOK, results)
+}
+
 // HandleGetWordCount returns word and character counts for a file.
 func (s *Server) HandleGetWordCount(c echo.Context) error {
 	if s.ContentStore == nil {

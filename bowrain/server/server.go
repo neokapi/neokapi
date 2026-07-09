@@ -1321,6 +1321,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/:id/actions/:ref/export", s.HandleExportTranslatedFile)
 	g.POST("/:id/actions/:ref/qa-check", s.HandleQACheckFile)
 	g.POST("/:id/actions/:ref/qa-check-block", s.HandleQACheckBlock)
+	g.POST("/:id/actions/:ref/term-enforce", s.HandleTermEnforce)
 
 	// Preview and word count — Bowrain AD-011: /:ws/:id/preview/:ref, /:ws/:id/word-count/:ref
 	g.GET("/:id/preview/:ref", s.HandleRenderDocumentPreview)

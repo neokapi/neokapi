@@ -209,6 +209,38 @@ func (a *App) replayChange(ctx context.Context, change PendingChange) error {
 		}
 		return client.EditorDeleteConcept(ctx, ws, req.ConceptID)
 
+	case "add_items":
+		var req addItemsPayload
+		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
+			return err
+		}
+		_, err := client.UploadItems(ctx, ws, req.ProjectID, req.Files)
+		return err
+
+	case "remove_item":
+		var req removeItemPayload
+		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
+			return err
+		}
+		_, err := client.RemoveItem(ctx, ws, req.ProjectID, req.ItemName)
+		return err
+
+	case "pseudo_translate_item":
+		var req itemActionPayload
+		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
+			return err
+		}
+		_, err := client.PseudoTranslateItem(ctx, ws, req.ProjectID, req.ItemName, req.TargetLocale)
+		return err
+
+	case "tm_translate_item":
+		var req itemActionPayload
+		if err := json.Unmarshal([]byte(change.Payload), &req); err != nil {
+			return err
+		}
+		_, err := client.TMTranslateItem(ctx, ws, req.ProjectID, req.ItemName, req.TargetLocale)
+		return err
+
 	default:
 		slog.Info("bowrain: unknown pending change operation:", "value", change.Operation)
 		return nil // skip unknown operations
@@ -244,4 +276,24 @@ type deleteTMPayload struct {
 
 type deleteConceptPayload struct {
 	ConceptID string `json:"concept_id"`
+}
+
+// itemActionPayload is the queued form of a bulk item action
+// (pseudo-translate, tm-translate).
+type itemActionPayload struct {
+	ProjectID    string `json:"project_id"`
+	ItemName     string `json:"item_name"`
+	TargetLocale string `json:"target_locale"`
+}
+
+// addItemsPayload is the queued form of a file upload — the raw bytes travel
+// base64-encoded in the JSON payload so the upload can replay on reconnect.
+type addItemsPayload struct {
+	ProjectID string            `json:"project_id"`
+	Files     map[string][]byte `json:"files"`
+}
+
+type removeItemPayload struct {
+	ProjectID string `json:"project_id"`
+	ItemName  string `json:"item_name"`
 }
