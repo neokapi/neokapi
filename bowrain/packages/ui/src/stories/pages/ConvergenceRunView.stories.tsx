@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ConvergenceRunView } from "../../components/ConvergenceRunView";
+import { ConvergenceRunView } from "@neokapi/status-views";
 import { reduceRun } from "../../convergence/runReducer";
 import type { ConvergenceEvent, ConvergenceRun } from "../../types/api";
 
