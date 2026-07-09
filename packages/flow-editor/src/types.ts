@@ -140,6 +140,65 @@ export interface FlowSpec {
 }
 
 /** Props for the FlowEditor component — fully decoupled from any backend. */
+/**
+ * Run control for the editor's Run button (see FlowEditorProps.run). Groups the
+ * previously-overlapping `onRun` / `runDisabled` / `running` flags: `disabled`
+ * can mean "engine not ready" or "read-only replay", which must not read as
+ * running, so `running` drives the spinner/"Running…" label independently.
+ */
+export interface FlowRunControl {
+  /** Called when the user requests to run the flow. Omit to hide the Run button. */
+  onRun?: (flow: FlowSpec) => void;
+  /** Whether the run button is disabled (e.g. engine not ready, or a flow is already running). */
+  disabled?: boolean;
+  /** A run is actually in flight — drives the Run button's spinner/"Running…" label. */
+  running?: boolean;
+}
+
+/** Read-only access controls for the editor (see FlowEditorProps.access). */
+export interface FlowAccess {
+  /** Whether the flow is read-only (built-in flows): the whole canvas is locked. */
+  readOnly?: boolean;
+  /**
+   * Make only the Source/Sink binding pickers read-only while the rest of the
+   * flow stays editable. For embeddings where the binding is fixed by the host
+   * (the lab always feeds the working-set files), so a dropdown would suggest a
+   * choice that has no effect.
+   */
+  endpointsReadOnly?: boolean;
+}
+
+/**
+ * Guided-lesson integration for the editor (see FlowEditorProps.lesson). Groups
+ * the host-driven focus request with the anchored lesson callout and its
+ * collapsed presentation.
+ */
+export interface FlowLesson {
+  /**
+   * Host-rendered lesson callout. When the active focusRequest points at a
+   * node, the callout renders ANCHORED to that node on the canvas (and the
+   * editor pans the node into view); otherwise it floats bottom-left. Hidden
+   * on phones — stack the same content above the editor there instead.
+   */
+  panel?: import("react").ReactNode;
+  /**
+   * Render the lesson callout minimized: a small launcher in the canvas's
+   * bottom-left corner instead of the anchored card, freeing the flow. The
+   * host owns the toggle (the card's own minimize button drives it) and is
+   * responsible for rendering `panel` in its collapsed form to match.
+   */
+  collapsed?: boolean;
+  /**
+   * Host-driven focus (e.g. a guided lesson step): when `nonce` changes the
+   * editor applies the request — selecting a tool node (`tool-<i>`, opening
+   * its run inspector or config panel per `mode`) or an endpoint
+   * (`endpoint-source` / `endpoint-sink`, opening the endpoint inspector), or
+   * clearing the selection (`select: null`). The focused node is also drawn
+   * with a highlight ring so a lesson can point at it.
+   */
+  focusRequest?: FlowFocusRequest;
+}
+
 export interface FlowEditorProps {
   /** The flow to display/edit, in steps format. */
   flow: FlowSpec;
@@ -147,18 +206,12 @@ export interface FlowEditorProps {
   tools: ToolInfo[];
   /** Called when the flow is modified. */
   onChange: (flow: FlowSpec) => void;
-  /** Called when the user requests to run the flow. */
-  onRun?: (flow: FlowSpec) => void;
-  /** Whether the run button is disabled (e.g. a flow is already running). */
-  runDisabled?: boolean;
-  /**
-   * A run is actually in flight — drives the Run button's spinner/"Running…"
-   * label. `runDisabled` alone can also mean "engine not ready" or
-   * "read-only replay", which must not read as running.
-   */
-  running?: boolean;
-  /** Whether the flow is read-only (built-in flows). */
-  readOnly?: boolean;
+  /** Run control (Run button handler + disabled/running state). */
+  run?: FlowRunControl;
+  /** Read-only access controls (whole-canvas and endpoint-only). */
+  access?: FlowAccess;
+  /** Guided-lesson integration (callout panel, collapsed state, focus request). */
+  lesson?: FlowLesson;
   /** Called to fetch a tool's config schema. Returns null if none available. */
   onGetSchema?: (toolName: string) => ComponentSchema | null;
   /** Called to fetch documentation for a tool. Returns null if unavailable. */
@@ -192,15 +245,6 @@ export interface FlowEditorProps {
    */
   renderEndpointPanel?: (role: "source" | "sink", close: () => void) => import("react").ReactNode;
   /**
-   * Host-driven focus (e.g. a guided lesson step): when `nonce` changes the
-   * editor applies the request — selecting a tool node (`tool-<i>`, opening
-   * its run inspector or config panel per `mode`) or an endpoint
-   * (`endpoint-source` / `endpoint-sink`, opening the endpoint inspector), or
-   * clearing the selection (`select: null`). The focused node is also drawn
-   * with a highlight ring so a lesson can point at it.
-   */
-  focusRequest?: FlowFocusRequest;
-  /**
    * Host-supplied replacement for a step's config panel. Called when a tool
    * node's configuration opens; returning non-null renders that panel (in the
    * editor's right overlay) instead of the schema-driven default — e.g. the
@@ -208,27 +252,6 @@ export interface FlowEditorProps {
    * default panel.
    */
   renderStepConfigPanel?: (ctx: StepConfigRenderContext) => import("react").ReactNode | null;
-  /**
-   * Host-rendered lesson callout. When the active focusRequest points at a
-   * node, the callout renders ANCHORED to that node on the canvas (and the
-   * editor pans the node into view); otherwise it floats bottom-left. Hidden
-   * on phones — stack the same content above the editor there instead.
-   */
-  lessonPanel?: import("react").ReactNode;
-  /**
-   * Make only the Source/Sink binding pickers read-only while the rest of the
-   * flow stays editable. For embeddings where the binding is fixed by the
-   * host (the lab always feeds the working-set files), so a dropdown would
-   * suggest a choice that has no effect.
-   */
-  endpointsReadOnly?: boolean;
-  /**
-   * Render the lesson callout minimized: a small launcher in the canvas's
-   * bottom-left corner instead of the anchored card, freeing the flow. The
-   * host owns the toggle (the card's own minimize button drives it) and is
-   * responsible for rendering `lessonPanel` in its collapsed form to match.
-   */
-  lessonCollapsed?: boolean;
   /**
    * Called when the user asks to edit a tool's project-level preset from the
    * config panel (the "Edit project defaults" affordance on the inherited

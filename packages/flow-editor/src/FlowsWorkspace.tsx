@@ -374,9 +374,8 @@ export function FlowsWorkspace({
                 onChange={handleFlowChange}
                 onGetSchema={onGetSchema}
                 onGetDoc={onGetDoc}
-                onRun={onRun}
-                runDisabled={runDisabled}
-                readOnly={isReadOnly}
+                run={{ onRun, disabled: runDisabled }}
+                access={{ readOnly: isReadOnly }}
               />
             </div>
           </>

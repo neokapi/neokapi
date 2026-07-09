@@ -734,32 +734,34 @@ export default function FlowBuilderRunner({
             onChange={handleFlowChange}
             onGetSchema={handleGetSchema}
             onGetDoc={handleGetDoc}
-            onRun={imported ? undefined : (spec) => void runFlow(spec)}
-            runDisabled={!runtime.ready || busy}
-            running={busy}
-            readOnly={!!imported}
-            endpointsReadOnly={!bindingsTeachable}
+            run={{
+              onRun: imported ? undefined : (spec) => void runFlow(spec),
+              disabled: !runtime.ready || busy,
+              running: busy,
+            }}
+            access={{ readOnly: !!imported, endpointsReadOnly: !bindingsTeachable }}
             trace={imported?.trace ?? trace ?? undefined}
             onTraceDismiss={() => (imported ? setImported(null) : setRuns({}))}
             projectPresets={imported ? undefined : presets}
             renderEndpointPanel={imported ? undefined : renderEndpointPanel}
-            focusRequest={imported ? undefined : focusRequest}
             renderStepConfigPanel={renderStepConfigPanel}
             onEditPresets={imported ? undefined : () => openProject("defaults")}
-            lessonCollapsed={lessonCollapsed}
-            lessonPanel={
-              scenario.walkthrough && !imported ? (
-                <WalkthroughCard
-                  steps={scenario.walkthrough}
-                  index={walkIndex}
-                  onIndexChange={(i) => goToStep(scenario.walkthrough, i)}
-                  onRun={() => void runFlow(flow)}
-                  runDisabled={!runtime.ready || busy}
-                  collapsed={lessonCollapsed}
-                  onToggleCollapse={() => setLessonCollapsed((v) => !v)}
-                />
-              ) : undefined
-            }
+            lesson={{
+              focusRequest: imported ? undefined : focusRequest,
+              collapsed: lessonCollapsed,
+              panel:
+                scenario.walkthrough && !imported ? (
+                  <WalkthroughCard
+                    steps={scenario.walkthrough}
+                    index={walkIndex}
+                    onIndexChange={(i) => goToStep(scenario.walkthrough, i)}
+                    onRun={() => void runFlow(flow)}
+                    runDisabled={!runtime.ready || busy}
+                    collapsed={lessonCollapsed}
+                    onToggleCollapse={() => setLessonCollapsed((v) => !v)}
+                  />
+                ) : undefined,
+            }}
           />
           {projectOpen && (
             <div className="absolute bottom-0 right-0 top-0 z-30 shadow-[-8px_0_24px_oklch(0_0_0/0.25)]">
