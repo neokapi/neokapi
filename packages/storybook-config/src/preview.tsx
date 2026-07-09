@@ -35,6 +35,59 @@ export function withQueryClient(Story: React.ComponentType) {
   );
 }
 
+/** A single query-cache seed: pre-load `data` at `queryKey`. */
+export interface QuerySeedEntry {
+  queryKey: readonly unknown[];
+  data: unknown;
+}
+
+export interface MakeQueryClientDecoratorOptions {
+  /**
+   * Query-cache entries to pre-load. A seeded query resolves from the cache
+   * without ever running its `queryFn`, so components that read server state
+   * through react-query render their loaded state with no live backend — the
+   * seam that lets Wails/desktop container pages story without a runtime.
+   */
+  seed?: QuerySeedEntry[];
+}
+
+/**
+ * Build a QueryClient decorator that can pre-seed the react-query cache.
+ *
+ * This is the reusable primitive behind mocking a data-fetching backend in
+ * Storybook. Container pages read server state through react-query where the
+ * `queryFn` is the real backend call (a Wails binding, a REST client). Seeding
+ * the cache — with `staleTime: Infinity` so seeded queries never re-fetch —
+ * lets those queries resolve to fixture data, so the page renders its loaded
+ * state and the real backend is never invoked. Unseeded queries stay disabled
+ * or error out harmlessly (retries off), matching the empty state.
+ *
+ * `withQueryClient` is the no-seed case (fresh client, all queries empty). Apps
+ * compose this with their own provider decorators (workspace, adapter, router)
+ * to assemble a full container-page decorator; see the bowrain-desktop
+ * `withBackend` story decorator for an example.
+ */
+export function makeQueryClientDecorator(
+  options: MakeQueryClientDecoratorOptions = {},
+): (Story: React.ComponentType) => React.ReactElement {
+  const { seed = [] } = options;
+  return function SeededQueryClient(Story: React.ComponentType) {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, refetchOnWindowFocus: false, staleTime: Infinity },
+      },
+    });
+    for (const { queryKey, data } of seed) {
+      client.setQueryData(queryKey as unknown[], data);
+    }
+    return (
+      <QueryClientProvider client={client}>
+        <Story />
+      </QueryClientProvider>
+    );
+  };
+}
+
 /**
  * Provide a TanStack Router context to every story.
  *
