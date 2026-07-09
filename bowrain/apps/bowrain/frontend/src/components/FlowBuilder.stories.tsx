@@ -90,7 +90,7 @@ export const SecureTranslate: Story = {
 
 export const SecureTranslateReadOnly: Story = {
   name: "Secure Translate — read-only (built-in)",
-  args: { flow: secureTranslate, readOnly: true },
+  args: { flow: secureTranslate, access: { readOnly: true } },
 };
 
 export const AiTranslateQa: Story = {
