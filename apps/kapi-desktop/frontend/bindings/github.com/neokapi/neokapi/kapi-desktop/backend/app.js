@@ -13,9 +13,6 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as cli$0 from "../../cli/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as convergence$0 from "../../core/convergence/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -29,6 +26,9 @@ import * as locale$0 from "../../core/locale/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as project$0 from "../../core/project/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as host$0 from "../../host/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as sievepen$0 from "../../sievepen/models.js";
@@ -207,7 +207,7 @@ export function ApplyTemplate(tabID, template) {
 /**
  * ApproveReviewItem promotes one review-queue unit to `reviewed`: it records an
  * `approved` decision in the project state store, bound to the content hash of
- * the translation it blesses, through the shared cli.ApplyReviewDecision path.
+ * the translation it blesses, through the shared host.ApplyReviewDecision path.
  * After it returns, GetConvergence shows the unit reviewed and it leaves the
  * queue. The unit is addressed by (locale, file, key) as listed in the review
  * queue.
@@ -223,7 +223,7 @@ export function ApproveReviewItem(tabID, locale, file, key) {
 
 /**
  * BringUpToDate reconciles the project toward its ship gates with the same
- * engine as the CLI's `kapi up` (cli.App.RunUp → runDefaultFlowConverge):
+ * engine as the CLI's `kapi up` (host.App.RunUp → runDefaultFlowConverge):
  * loop-to-gate over the project's default flow, auto-extract on block-store
  * drift before each pass, bound checks in the loop, and the recipe's
  * materialize policy. It returns once the run is launched; per-pass progress
@@ -630,7 +630,7 @@ export function GetConceptForView(handle, conceptID) {
 
 /**
  * GetConvergePlan returns the pre-flight convergence plan for a project tab:
- * the same dry-run derivation as `kapi up --plan` (through the shared cli.App
+ * the same dry-run derivation as `kapi up --plan` (through the shared host.App
  * path), plus the store drift summary the home hero renders. Read-only; safe
  * to call on every home load/refresh.
  * @param {string} tabID
@@ -652,7 +652,7 @@ export function GetConvergePlan(tabID) {
  * A project with no recipe path yet (unsaved) returns an empty report rather
  * than an error, so the panel renders a "nothing tracked yet" state.
  * @param {string} tabID
- * @returns {$CancellablePromise<cli$0.ConvergenceReport | null>}
+ * @returns {$CancellablePromise<host$0.ConvergenceReport | null>}
  */
 export function GetConvergence(tabID) {
     return $Call.ByID(3935215541, tabID).then(/** @type {($result: any) => any} */(($result) => {
@@ -828,11 +828,12 @@ export function GetProjectServer(tabID) {
 /**
  * GetProjectStatus returns the current per-collection coverage for a project
  * tab, computed from the project's persistent block store
- * (`.kapi/cache/blocks.db`). It reuses the same store keys the CLI uses —
- * blocks are addressed by their ID and translated targets live under
- * `targets/<locale>` overlays (the keys `kapi run` / `kapi merge` write and
- * read) — so the metric here is the same translated-vs-total measure, not a
- * parallel one.
+ * (`.kapi/cache/blocks.db`) through the shared coverage engine
+ * (convergence.TallyBlockStore + CoverageTally) — the same tally the CLI's
+ * `kapi status` feeds from working-tree file reads, so the desktop and the
+ * CLI count with one rung semantics. Blocks are addressed by their ID and
+ * translated targets live under `targets/<locale>` overlays (the keys
+ * `kapi run` / `kapi merge` write and read).
  * 
  * If the block store does not exist yet (the project has never been
  * extracted), the returned status has HasData=false and zeroed coverage; this
@@ -887,7 +888,7 @@ export function GetRelations(handle, conceptID) {
  * order findings-first and offer a "clean only" batch. Enrichment is
  * best-effort: a file that cannot be measured leaves its items unmarked.
  * @param {string} tabID
- * @returns {$CancellablePromise<cli$0.ReviewItem[]>}
+ * @returns {$CancellablePromise<host$0.ReviewItem[]>}
  */
 export function GetReviewQueue(tabID) {
     return $Call.ByID(3360875527, tabID).then(/** @type {($result: any) => any} */(($result) => {
@@ -1282,7 +1283,8 @@ export function IsArchive(filePath) {
 
 /**
  * IsEmptyProject returns true if the project directory contains only
- * ignored files (project.kapi, hidden files, .kapiignore entries).
+ * ignored files (project.kapi, hidden files, .kapiignore entries), using the
+ * shared project walk so "empty" agrees with what ListProjectFiles shows.
  * @param {string} tabID
  * @returns {$CancellablePromise<boolean>}
  */
@@ -1697,7 +1699,7 @@ export function RecoverResource(path) {
 /**
  * RejectReviewItem sends one review-queue unit back to the work queue: it
  * records a `rejected` decision (status draft) in the project state store, with
- * the reviewer's note, through the same cli.ApplyReviewDecision path the CLI
+ * the reviewer's note, through the same host.ApplyReviewDecision path the CLI
  * uses. The unit leaves the review queue; retranslating it makes the rejection
  * stale and it re-enters review.
  * @param {string} tabID
@@ -1814,7 +1816,7 @@ export function ReviewAIAction(tabID, locale, file, key, action, instruction) {
  * locale (batch, explicitly invoked — never during queue listing). Every unit
  * gets an advisory annotation (score + findings) in the project state store,
  * bound to the translation it judged; with policy.AutoApprove, clean
- * high-scoring units are approved through cli.ApplyReviewDecisionAs with the
+ * high-scoring units are approved through host.ApplyReviewDecisionAs with the
  * honest identity "ai/<model-id>". Human-required gates are unaffected by
  * those approvals (core/gate approver classes).
  * @param {string} tabID
@@ -1836,8 +1838,13 @@ export function RunAIPreReview(tabID, locale, scope, policy) {
  * glob; all when empty), for the filter's target languages — source-side checks
  * run once per file, target-side checks run once per filtered language, and the
  * panel no longer carries its own language picker. With no languages selected,
- * only source-side checks run. It mirrors the CLI `kapi check` semantics
- * (cli/check.go): the gate fails on any critical finding.
+ * only source-side checks run.
+ * 
+ * The pipeline itself is the CLI's exported check service
+ * (host.App.ReadBlocksForCheck / host.OverlayTargets / host.RunCheckTool /
+ * host.FindingsFromBlock), run inside the project document cache
+ * (WithDocumentCache) so unchanged files replay instead of re-parsing —
+ * exactly the `kapi check` semantics: the gate fails on any critical finding.
  * @param {string} tabID
  * @param {$models.ProjectFilter} filter
  * @returns {$CancellablePromise<$models.CheckRunResult | null>}
@@ -1871,9 +1878,11 @@ export function RunExtract(tabID) {
 
 /**
  * RunFlow executes a flow by name from the current project. Target locales
- * are inferred from the flow's tool chain metadata (Framework AD-006) — the frontend
- * passes project target languages as a fallback, but ResolveFlowLocales
- * determines the actual locale passes based on tool cardinality.
+ * are inferred from the flow's tool chain metadata (Framework AD-006) — the
+ * frontend passes project target languages as a fallback, and the shared
+ * orchestrator (host.App.RunFlowAllLocales → flow.ResolveFlowLocales)
+ * determines the actual locale passes based on tool cardinality, exactly as
+ * the CLI's project flow-run does.
  * @param {string} tabID
  * @param {string} flowName
  * @param {string[]} inputPaths
@@ -2222,7 +2231,7 @@ export function SetUILanguage(lang) {
 
 /**
  * SignOffReviewItem promotes one review-queue unit to `signed-off` — the top
- * rung of the target ladder — through cli.ApplyReviewDecision.
+ * rung of the target ladder — through host.ApplyReviewDecision.
  * @param {string} tabID
  * @param {string} locale
  * @param {string} file
