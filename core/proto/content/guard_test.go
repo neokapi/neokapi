@@ -34,15 +34,6 @@ var projectionAllowlist = map[string][]string{
 	// repeated-message values directly), not a segment redefinition.
 	"bowrain/core/proto/sync/v1/sync.proto": {"SyncBlock", "SyncSegmentList"},
 
-	// Editor proto's own Block/Run definitions — a projection kept for the
-	// bowrain desktop's EditorService; retired when the desktop moves to the
-	// REST/sync client (plan 07). Do not add fields.
-	"bowrain/proto/v1/editor_service.proto": {
-		"EditorTextRun", "EditorPlaceholderRun", "EditorPcOpenRun",
-		"EditorPcCloseRun", "EditorSubRun", "EditorPluralRun",
-		"EditorSelectRun", "EditorRunList", "EditorRun", "EditorRuns",
-	},
-
 	// Store-service projection: a deliberately lossy flat block (source as
 	// plain string, targets as locale→string) for block storage/streaming.
 	"bowrain/proto/v1/neokapi_service.proto": {"BlockMessage"},
