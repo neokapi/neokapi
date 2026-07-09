@@ -22,17 +22,20 @@ const buildStamp = (() => {
 // URL of the kapi/neokapi docs site, used for cross-site links.
 // Defaults to the GitHub Pages production URL; override via env var locally
 // to point at a localhost build of the kapi site.
-const KAPI_WEB_SITE = process.env.KAPI_WEB_SITE || "https://neokapi.github.io/web/neokapi/";
+const KAPI_WEB_SITE =
+  process.env.KAPI_WEB_SITE || "https://neokapi.github.io/web/neokapi/";
 
 // URL of the Bowrain marketing landing page (the bowrain-web Vite app that sits
 // one level up from these docs, at /web/bowrain/). The top-left navbar logo
 // links here so it navigates back out to the product landing page; override via
 // env var locally to point at a localhost build of the bowrain site.
-const BOWRAIN_WEB_SITE = process.env.BOWRAIN_WEB_SITE || "https://neokapi.github.io/web/bowrain/";
+const BOWRAIN_WEB_SITE =
+  process.env.BOWRAIN_WEB_SITE || "https://neokapi.github.io/web/bowrain/";
 
 const config: Config = {
   title: "Bowrain",
-  tagline: "Govern and steward brand voice, terminology, and translation — as a team",
+  tagline:
+    "Govern and steward brand voice, terminology, and translation — as a team",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",
@@ -83,7 +86,8 @@ const config: Config = {
           path: "docs",
           routeBasePath: "/",
           sidebarPath: "./sidebars.ts",
-          editUrl: "https://github.com/neokapi/neokapi/tree/main/bowrain/web/docs/",
+          editUrl:
+            "https://github.com/neokapi/neokapi/tree/main/bowrain/web/docs/",
         },
         blog: false,
         theme: {
@@ -106,8 +110,14 @@ const config: Config = {
         configureWebpack(
           _config: unknown,
           isServer: boolean,
-          { getJSLoader }: { getJSLoader: (opts: { isServer: boolean }) => unknown },
-        ) {
+          {
+            getJSLoader,
+          }: {
+            getJSLoader: (opts: {
+              isServer: boolean;
+            }) => import("webpack").RuleSetUseItem;
+          },
+        ): import("webpack").Configuration {
           return {
             module: {
               rules: [
@@ -203,7 +213,10 @@ const config: Config = {
           title: "More",
           items: [
             { label: "GitHub", href: "https://github.com/neokapi/neokapi" },
-            { label: "Homebrew Tap", href: "https://github.com/neokapi/homebrew-tap" },
+            {
+              label: "Homebrew Tap",
+              href: "https://github.com/neokapi/homebrew-tap",
+            },
           ],
         },
       ],

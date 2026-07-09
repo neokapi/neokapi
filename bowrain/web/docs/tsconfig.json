@@ -1,7 +1,24 @@
 {
-  "extends": "@docusaurus/tsconfig",
+  // Inlined from @docusaurus/tsconfig MINUS compilerOptions.baseUrl. TypeScript 7
+  // removed the baseUrl option (TS5102), and a baseUrl inherited via `extends`
+  // cannot be removed by a child config — so inline the Docusaurus recommended
+  // options here instead of extending. "@site/*" resolves through `paths`
+  // relative to this tsconfig's directory (no baseUrl needed). Mirrors
+  // ../../../web/tsconfig.json.
   "compilerOptions": {
-    "noEmit": true
+    "allowJs": true,
+    "esModuleInterop": true,
+    "jsx": "preserve",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "moduleResolution": "bundler",
+    "module": "esnext",
+    "noEmit": true,
+    "paths": {
+      "@site/*": ["./*"]
+    },
+    "resolveJsonModule": true,
+    "skipLibCheck": true
   },
   "include": ["src/", "docusaurus.config.ts", "sidebars.ts"]
 }
