@@ -187,19 +187,22 @@ func (a *App) GetTermCount(projectID string) (int, error) {
 
 // AddConcept adds a new concept to the termbase.
 func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		info, err := client.EditorAddConcept(context.Background(), ws, req.Domain, req.Definition, termInfosToEditor(req.Terms))
-		if err != nil {
-			a.goOffline()
-			a.enqueue("add_concept", req)
-		} else {
+	return writeThroughResult(a, addConceptOp{req},
+		func() (*ConceptInfo, error) {
+			client, ws := a.editorRemote()
+			info, err := client.EditorAddConcept(context.Background(), ws, req.Domain, req.Definition, termInfosToEditor(req.Terms))
+			if err != nil {
+				return nil, err
+			}
 			out := editorConceptToInfo(*info)
 			return &out, nil
-		}
-	} else if a.isOffline() {
-		a.enqueue("add_concept", req)
-	}
+		},
+		nil, // server returns the canonical concept; nothing to reconcile locally
+		func() (*ConceptInfo, error) { return a.addConceptLocal(req) },
+	)
+}
+
+func (a *App) addConceptLocal(req AddConceptRequest) (*ConceptInfo, error) {
 	tb, err := a.getOrCreateTB()
 	if err != nil {
 		return nil, fmt.Errorf("init termbase: %w", err)
@@ -221,53 +224,49 @@ func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
 	return &info, nil
 }
 
-// UpdateConcept updates an existing concept in the termbase.
+// UpdateConcept updates an existing concept in the termbase. The server is
+// authoritative for the termbase, so a successful online update skips the local
+// mirror; the local write runs only offline (queued for replay) or in pure
+// local mode.
 func (a *App) UpdateConcept(req UpdateConceptRequest) error {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		err := client.EditorUpdateConcept(context.Background(), ws, req.ConceptID, req.Domain, req.Definition, termInfosToEditor(req.Terms))
-		if err != nil {
-			a.goOffline()
-			a.enqueue("update_concept", req)
-		} else {
-			return nil
-		}
-	} else if a.isOffline() {
-		a.enqueue("update_concept", req)
-	}
-	tb, err := a.getOrCreateTB()
-	if err != nil {
-		return fmt.Errorf("init termbase: %w", err)
-	}
-	concept := termbase.Concept{
-		ID:         req.ConceptID,
-		Domain:     req.Domain,
-		Definition: req.Definition,
-		Terms:      termsFromInfo(req.Terms),
-	}
-
-	return tb.AddConcept(context.Background(), concept)
+	return a.writeThroughVoid(updateConceptOp{req},
+		func() error {
+			client, ws := a.editorRemote()
+			return client.EditorUpdateConcept(context.Background(), ws, req.ConceptID, req.Domain, req.Definition, termInfosToEditor(req.Terms))
+		},
+		func() error { return nil }, // server-authoritative: skip the local mirror on success
+		func() error {
+			tb, err := a.getOrCreateTB()
+			if err != nil {
+				return fmt.Errorf("init termbase: %w", err)
+			}
+			concept := termbase.Concept{
+				ID:         req.ConceptID,
+				Domain:     req.Domain,
+				Definition: req.Definition,
+				Terms:      termsFromInfo(req.Terms),
+			}
+			return tb.AddConcept(context.Background(), concept)
+		},
+	)
 }
 
 // DeleteConcept removes a concept from the termbase.
 func (a *App) DeleteConcept(projectID, conceptID string) error {
-	if a.isConnected() {
-		client, ws := a.editorRemote()
-		err := client.EditorDeleteConcept(context.Background(), ws, conceptID)
-		if err != nil {
-			a.goOffline()
-			a.enqueue("delete_concept", deleteConceptPayload{ConceptID: conceptID})
-		} else {
-			return nil
-		}
-	} else if a.isOffline() {
-		a.enqueue("delete_concept", deleteConceptPayload{ConceptID: conceptID})
-	}
-	tb, err := a.getOrCreateTB()
-	if err != nil {
-		return fmt.Errorf("init termbase: %w", err)
-	}
-	return tb.DeleteConcept(context.Background(), conceptID)
+	return a.writeThroughVoid(deleteConceptOp{ConceptID: conceptID},
+		func() error {
+			client, ws := a.editorRemote()
+			return client.EditorDeleteConcept(context.Background(), ws, conceptID)
+		},
+		func() error { return nil }, // server-authoritative: skip the local mirror on success
+		func() error {
+			tb, err := a.getOrCreateTB()
+			if err != nil {
+				return fmt.Errorf("init termbase: %w", err)
+			}
+			return tb.DeleteConcept(context.Background(), conceptID)
+		},
+	)
 }
 
 // LookupTerms looks up terms matching the given text.

@@ -144,16 +144,6 @@ func (a *App) isOffline() bool {
 	return a.connState == StateOffline
 }
 
-// enqueue adds a mutation to the offline queue. Silently logs on failure.
-func (a *App) enqueue(operation string, payload any) {
-	if a.offlineQueue == nil {
-		return
-	}
-	if err := a.offlineQueue.Enqueue(operation, payload); err != nil {
-		slog.Info("bowrain: failed to enqueue", "id", operation, "error", err)
-	}
-}
-
 // GetPendingChangesCount returns the number of queued offline changes.
 // Exposed to the frontend so it can show a pending sync indicator.
 func (a *App) GetPendingChangesCount() int {
