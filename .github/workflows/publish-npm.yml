@@ -54,11 +54,23 @@ jobs:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
-      # Trusted publishing (OIDC) needs npm >= 11.5.1.
-      - name: Ensure recent npm
+      # Trusted publishing (OIDC) needs npm >= 11.5.1. Node 24 already bundles
+      # a newer npm, so we use that and only ASSERT the floor — we deliberately
+      # do NOT `npm install -g npm@latest`: a global self-upgrade can leave
+      # npm's bundled `sigstore` module unresolvable, and `npm publish
+      # --provenance` then dies with "Cannot find module 'sigstore'". The
+      # node-bundled npm keeps sigstore intact.
+      - name: Assert npm supports OIDC provenance (>= 11.5.1)
         run: |
-          npm install -g npm@latest
-          npm --version
+          set -euo pipefail
+          ver="$(npm --version)"
+          min="11.5.1"
+          echo "npm $ver (floor $min)"
+          if [ "$(printf '%s\n%s\n' "$min" "$ver" | sort -V | head -n1)" != "$min" ]; then
+            echo "npm $ver < $min — OIDC trusted publishing requires >= $min" >&2
+            exit 1
+          fi
+          echo "npm $ver OK for OIDC trusted publishing"
 
       # On a tag push, verify the tag's version matches the package's
       # package.json so a release tag can never drift from what actually ships.
