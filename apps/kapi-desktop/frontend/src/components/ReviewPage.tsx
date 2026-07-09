@@ -25,8 +25,8 @@ import {
   SimpleTooltip,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/kapi-react/runtime";
+import { VirtualList } from "@neokapi/editor-grid";
 import { api } from "../hooks/useApi";
-import { VirtualRows } from "../lib/VirtualRows";
 import { useError } from "./ErrorBanner";
 import type {
   DesktopFinding,
@@ -827,19 +827,20 @@ export function ReviewPage({
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)] gap-4">
           {/* Left: the queue, grouped by file. Virtualized once it grows past a
-              handful of units (see VirtualRows) so a thousands-strong queue
-              never mounts a thousands-strong DOM; the viewport is bounded so the
-              page never becomes the scroll surface. */}
-          <VirtualRows
+              handful of units (shared @neokapi/editor-grid VirtualList) so a
+              thousands-strong queue never mounts a thousands-strong DOM; the
+              viewport is bounded so the page never becomes the scroll surface.
+              The primitive owns the positioned, measured row wrapper; the queue
+              rows (file header or unit button) render unchanged inside it. */}
+          <VirtualList
             items={rows}
             estimateSize={44}
             overscan={16}
             className="min-h-0 flex-1 rounded-md border p-2"
             dataSlot="review-queue"
-          >
-            {(row) => {
-              if (row.kind === "header") {
-                return (
+            renderRow={(row, { key, rowProps }) => (
+              <div key={key} {...rowProps}>
+                {row.kind === "header" ? (
                   <div className="mb-1 mt-2 flex items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground first:mt-0">
                     <FileText size={11} />
                     <SimpleTooltip content={row.file}>
@@ -849,65 +850,70 @@ export function ReviewPage({
                     </SimpleTooltip>
                     <span className="text-muted-foreground/60">· {row.count}</span>
                   </div>
-                );
-              }
-              const it = row.item;
-              const id = itemId(it);
-              const active = id === selectedId;
-              return (
-                <button
-                  className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-                    active ? "bg-primary/10" : "hover:bg-accent"
-                  }`}
-                  onClick={() => setSelectedId(id)}
-                  data-slot="review-queue-item"
-                  data-active={active || undefined}
-                  data-key={it.key}
-                >
-                  {it.hasFindings ? (
-                    <Circle
-                      size={8}
-                      className="mt-1 shrink-0 fill-amber-500 text-amber-500"
-                      aria-label={t("Has findings")}
-                    />
-                  ) : (
-                    <Circle
-                      size={8}
-                      className={`mt-1 shrink-0 ${it.hasFindings === false ? "text-primary" : "text-muted-foreground/40"}`}
-                      aria-label={it.hasFindings === false ? t("Clean") : t("Not checked")}
-                    />
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5">
-                      <span className="truncate font-medium" translate="no">
-                        {it.key}
-                      </span>
-                      <LocalePill locale={it.locale} />
-                      {it.aiScore !== undefined && (
-                        <SimpleTooltip
-                          content={
-                            it.aiModel
-                              ? t("AI review score ({model})", { model: it.aiModel })
-                              : t("AI review score")
-                          }
-                        >
-                          <span
-                            className="rounded bg-muted px-1 text-[10px] tabular-nums text-muted-foreground"
-                            data-slot="review-queue-ai-score"
-                          >
-                            {t("ai {score}", { score: it.aiScore })}
+                ) : (
+                  (() => {
+                    const it = row.item;
+                    const id = itemId(it);
+                    const active = id === selectedId;
+                    return (
+                      <button
+                        className={`flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                          active ? "bg-primary/10" : "hover:bg-accent"
+                        }`}
+                        onClick={() => setSelectedId(id)}
+                        data-slot="review-queue-item"
+                        data-active={active || undefined}
+                        data-key={it.key}
+                      >
+                        {it.hasFindings ? (
+                          <Circle
+                            size={8}
+                            className="mt-1 shrink-0 fill-amber-500 text-amber-500"
+                            aria-label={t("Has findings")}
+                          />
+                        ) : (
+                          <Circle
+                            size={8}
+                            className={`mt-1 shrink-0 ${it.hasFindings === false ? "text-primary" : "text-muted-foreground/40"}`}
+                            aria-label={it.hasFindings === false ? t("Clean") : t("Not checked")}
+                          />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-1.5">
+                            <span className="truncate font-medium" translate="no">
+                              {it.key}
+                            </span>
+                            <LocalePill locale={it.locale} />
+                            {it.aiScore !== undefined && (
+                              <SimpleTooltip
+                                content={
+                                  it.aiModel
+                                    ? t("AI review score ({model})", { model: it.aiModel })
+                                    : t("AI review score")
+                                }
+                              >
+                                <span
+                                  className="rounded bg-muted px-1 text-[10px] tabular-nums text-muted-foreground"
+                                  data-slot="review-queue-ai-score"
+                                >
+                                  {t("ai {score}", { score: it.aiScore })}
+                                </span>
+                              </SimpleTooltip>
+                            )}
                           </span>
-                        </SimpleTooltip>
-                      )}
-                    </span>
-                    <SimpleTooltip content={it.source}>
-                      <span className="block truncate text-muted-foreground">{it.source}</span>
-                    </SimpleTooltip>
-                  </span>
-                </button>
-              );
-            }}
-          </VirtualRows>
+                          <SimpleTooltip content={it.source}>
+                            <span className="block truncate text-muted-foreground">
+                              {it.source}
+                            </span>
+                          </SimpleTooltip>
+                        </span>
+                      </button>
+                    );
+                  })()
+                )}
+              </div>
+            )}
+          />
 
           {/* Center: the unit — SOURCE / TARGET, findings, context, actions. */}
           <div className="flex min-h-0 flex-col" data-slot="review-unit">
