@@ -6,8 +6,7 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@neokapi/ui-primitives";
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { Search } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useLocales } from "../hooks/useLocales";
 
 interface LocaleSelectProps {
@@ -73,7 +72,11 @@ interface MultiLocaleSelectProps {
   "data-testid"?: string;
 }
 
-/** Multi-locale chip input with search. Shows removable chips for each selected locale. */
+/**
+ * Multi-locale chip input with search. Shows removable chips for each selected
+ * locale plus a shared Combobox "add" picker (searchable, keyboard-navigable) \u2014
+ * no hand-rolled dropdown / click-outside / focus wiring.
+ */
 export function MultiLocaleSelect({
   value,
   onChange,
@@ -82,143 +85,103 @@ export function MultiLocaleSelect({
   ...rest
 }: MultiLocaleSelectProps) {
   const { locales, getDisplayName, loading } = useLocales();
+  const testid = rest["data-testid"];
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
 
-  const available = useMemo(() => {
+  // Options available to add: known locales, restricted to `codes`, minus already-selected.
+  const selectable = useMemo(() => {
     const selected = new Set(value);
     const codeSet = codes ? new Set(codes) : null;
-    let list = locales.filter((l) => !selected.has(l.code) && (!codeSet || codeSet.has(l.code)));
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (l) => l.display_name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q),
-      );
-    }
-    return list;
-  }, [locales, value, search]);
+    return locales.filter((l) => !selected.has(l.code) && (!codeSet || codeSet.has(l.code)));
+  }, [locales, value, codes]);
 
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setSearch("");
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  // Focus the search input when the dropdown opens
-  useEffect(() => {
-    if (open) {
-      // Small delay to let the dropdown render before focusing
-      requestAnimationFrame(() => searchRef.current?.focus());
-    }
-  }, [open]);
+  // base-ui does not filter loose children on its own, so match on the typed text.
+  const available = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return selectable;
+    return selectable.filter(
+      (l) => l.display_name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q),
+    );
+  }, [selectable, search]);
 
   const removeLocale = (code: string) => {
     onChange(value.filter((v) => v !== code));
   };
 
-  const addLocale = useCallback(
-    (code: string) => {
-      onChange([...value, code]);
-      setSearch("");
-      // Re-focus search after adding
-      requestAnimationFrame(() => searchRef.current?.focus());
-    },
-    [value, onChange],
-  );
+  const addLocale = (code: string) => {
+    if (code && !value.includes(code)) onChange([...value, code]);
+    setSearch("");
+  };
 
   return (
-    <div ref={wrapperRef} className="relative" style={style} data-testid={rest["data-testid"]}>
-      <div
-        className="flex flex-wrap gap-2 px-4 py-2.5 rounded-xl min-h-[44px] items-center cursor-pointer transition-all duration-300 backdrop-blur-sm bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)]"
-        onClick={() => setOpen(!open)}
-        data-testid={rest["data-testid"] ? `${rest["data-testid"]}-chips` : undefined}
-      >
-        {value.length === 0 && (
-          <span className="text-sm opacity-50">{loading ? "Loading..." : "Select locales..."}</span>
-        )}
-        {value.map((code) => (
-          <span
-            key={code}
-            className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary text-primary-foreground rounded-md text-xs font-medium"
-          >
-            {getDisplayName(code)} ({code})
+    <div style={style} data-testid={testid} className="flex flex-col gap-2">
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-2" data-testid={testid ? `${testid}-chips` : undefined}>
+          {value.map((code) => (
             <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                removeLocale(code);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  removeLocale(code);
-                }
-              }}
-              className="cursor-pointer text-sm opacity-80 hover:opacity-100"
-              data-testid={
-                rest["data-testid"] ? `${rest["data-testid"]}-remove-${code}` : undefined
-              }
+              key={code}
+              className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground"
             >
-              {"\u00D7"}
-            </span>
-          </span>
-        ))}
-      </div>
-      {open && (
-        <div
-          className="absolute top-full left-0 right-0 mt-1 rounded-xl shadow-md z-50 overflow-hidden backdrop-blur-md bg-[var(--dropdown-bg)] border border-[var(--dropdown-border)] shadow-[var(--dropdown-glow)]"
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--dropdown-border)]">
-            <Search className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-80" />
-            <input
-              ref={searchRef}
-              type="text"
-              placeholder="Search locales..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 border-none bg-transparent text-sm outline-none font-medium text-[var(--input-text)]"
-              data-testid={rest["data-testid"] ? `${rest["data-testid"]}-search` : undefined}
-            />
-          </div>
-          <div className="max-h-60 overflow-y-auto p-1.5">
-            {available.map((l) => (
-              <button
-                key={l.code}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  addLocale(l.code);
+              {getDisplayName(code)} ({code})
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => removeLocale(code)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    removeLocale(code);
+                  }
                 }}
-                className="block w-full px-3 py-1.5 border-none bg-transparent text-sm cursor-pointer text-left rounded-lg text-[var(--dropdown-item-text)]"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--dropdown-item-hover)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                }}
-                data-testid={
-                  rest["data-testid"] ? `${rest["data-testid"]}-option-${l.code}` : undefined
-                }
+                className="cursor-pointer text-sm opacity-80 hover:opacity-100"
+                data-testid={testid ? `${testid}-remove-${code}` : undefined}
               >
-                {l.display_name} <span className="opacity-60 text-xs">({l.code})</span>
-              </button>
-            ))}
-            {available.length === 0 && (
-              <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
-                {search ? "No matching locales" : "All locales selected"}
-              </div>
-            )}
-          </div>
+                {"\u00D7"}
+              </span>
+            </span>
+          ))}
         </div>
+      )}
+      {selectable.length === 0 ? (
+        <p
+          className="px-1 py-2 text-xs text-muted-foreground"
+          data-testid={testid ? `${testid}-empty` : undefined}
+        >
+          {value.length > 0
+            ? "All locales selected"
+            : loading
+              ? "Loading..."
+              : "No locales available"}
+        </p>
+      ) : (
+        // Force-remount on each add so the picker resets to an empty search/value.
+        <Combobox
+          key={value.length}
+          value={null}
+          onValueChange={(v: string | null) => {
+            if (v != null) addLocale(v);
+          }}
+          onInputValueChange={(text: string) => setSearch(text)}
+        >
+          <ComboboxInput
+            placeholder={loading ? "Loading..." : "Add locale..."}
+            data-testid={testid ? `${testid}-search` : undefined}
+          />
+          <ComboboxContent>
+            <ComboboxList>
+              <ComboboxEmpty>No matching locales</ComboboxEmpty>
+              {available.map((l) => (
+                <ComboboxItem
+                  key={l.code}
+                  value={l.code}
+                  data-testid={testid ? `${testid}-option-${l.code}` : undefined}
+                >
+                  {l.display_name} <span className="text-xs opacity-60">({l.code})</span>
+                </ComboboxItem>
+              ))}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
       )}
     </div>
   );

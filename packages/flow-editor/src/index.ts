@@ -60,6 +60,9 @@ export type {
 export type { ParallelSuggestion } from "./parallelChecker";
 export type {
   FlowEditorProps,
+  FlowRunControl,
+  FlowAccess,
+  FlowLesson,
   FlowFocusRequest,
   StepConfigRenderContext,
   FlowSpec,

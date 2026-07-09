@@ -195,7 +195,7 @@ const meta: Meta<typeof FlowEditor> = {
   tags: ["autodocs"],
   args: {
     onChange: fn(),
-    onRun: fn(),
+    run: { onRun: fn() },
     onGetSchema: getSchema,
     onGetDoc: getDoc,
   },
@@ -296,7 +296,7 @@ export const LessonFocus: Story = {
       steps: [{ tool: "redact" }, { tool: "translate" }, { tool: "qa" }],
     },
     tools,
-    focusRequest: { nonce: 1, select: "tool-0", mode: "configure" },
+    lesson: { focusRequest: { nonce: 1, select: "tool-0", mode: "configure" } },
   },
 };
 
@@ -310,22 +310,24 @@ export const LessonCallout: Story = {
       steps: [{ tool: "redact" }, { tool: "translate" }, { tool: "qa" }],
     },
     tools,
-    focusRequest: { nonce: 1, select: "tool-0", mode: "configure" },
-    lessonPanel: (
-      <div
-        style={{
-          borderRadius: 8,
-          border: "1px solid var(--border)",
-          borderLeft: "4px solid var(--primary)",
-          background: "var(--card)",
-          padding: "10px 12px",
-          fontSize: 13,
-          boxShadow: "0 8px 24px oklch(0 0 0 / 0.25)",
-        }}
-      >
-        Host-rendered walkthrough step — prose, Back/Next, Run — floating over the canvas.
-      </div>
-    ),
+    lesson: {
+      focusRequest: { nonce: 1, select: "tool-0", mode: "configure" },
+      panel: (
+        <div
+          style={{
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            borderLeft: "4px solid var(--primary)",
+            background: "var(--card)",
+            padding: "10px 12px",
+            fontSize: 13,
+            boxShadow: "0 8px 24px oklch(0 0 0 / 0.25)",
+          }}
+        >
+          Host-rendered walkthrough step — prose, Back/Next, Run — floating over the canvas.
+        </div>
+      ),
+    },
   },
 };
 
@@ -393,8 +395,8 @@ export const RunMetadataMultiRow: Story = {
       ],
     },
     tools,
-    readOnly: true,
-    onRun: undefined,
+    access: { readOnly: true },
+    run: { onRun: undefined },
     // A completed single-part run; the transport replays it on the nodes.
     traceEvents: [
       { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
@@ -461,8 +463,8 @@ export const ReadOnly: Story = {
       steps: [{ tool: "translate" }, { tool: "qa" }],
     },
     tools,
-    readOnly: true,
-    onRun: undefined,
+    access: { readOnly: true },
+    run: { onRun: undefined },
   },
 };
 
@@ -582,8 +584,8 @@ export const WithTraceData: Story = {
       steps: [{ tool: "translate" }, { tool: "qa" }, { tool: "word-count" }],
     },
     tools,
-    readOnly: true,
-    onRun: undefined,
+    access: { readOnly: true },
+    run: { onRun: undefined },
     traceEvents: [
       { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
       { ts: 500, type: "exit", nodeId: "tool-0", partId: "p1" },

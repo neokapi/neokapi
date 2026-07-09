@@ -101,11 +101,13 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly, tabID }: F
       flow={flow}
       tools={tools}
       onChange={onChange}
-      onRun={onRun ? (spec) => onRun(flowName, spec) : undefined}
-      runDisabled={hasActive}
+      run={{
+        onRun: onRun ? (spec) => onRun(flowName, spec) : undefined,
+        disabled: hasActive,
+      }}
       onGetSchema={handleGetSchema}
       onGetDoc={handleGetDoc}
-      readOnly={readOnly}
+      access={{ readOnly }}
     />
   );
 }

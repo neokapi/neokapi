@@ -110,24 +110,24 @@ export function FlowEditor({
   flow,
   tools,
   onChange,
-  onRun,
-  runDisabled,
+  run,
+  access,
+  lesson,
   onGetSchema,
   onGetDoc,
-  readOnly = false,
   traceEvents,
   trace,
   onTraceDismiss,
   projectPresets,
   renderEndpointPanel,
-  focusRequest,
   renderStepConfigPanel,
-  lessonPanel,
-  running,
-  endpointsReadOnly,
   onEditPresets,
-  lessonCollapsed,
 }: FlowEditorProps) {
+  // The public API groups the overlapping flags into cohesive objects; the body
+  // below keeps working with the individual values.
+  const { onRun, disabled: runDisabled, running } = run ?? {};
+  const { readOnly = false, endpointsReadOnly } = access ?? {};
+  const { panel: lessonPanel, collapsed: lessonCollapsed, focusRequest } = lesson ?? {};
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
   const [dismissedTemplates, setDismissedTemplates] = useState(false);
