@@ -1,6 +1,7 @@
 package ts
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/xml"
@@ -23,8 +24,16 @@ type Reader struct {
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
 
-// Ensure Reader implements SkeletonStoreEmitter.
-var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+// Ensure Reader implements SkeletonStoreEmitter and StreamingReader.
+var (
+	_ format.SkeletonStoreEmitter = (*Reader)(nil)
+	_ format.StreamingReader      = (*Reader)(nil)
+)
+
+// StreamingReader marks that the reader can read incrementally from doc.Reader
+// (via a bounded CaptureReader window) without materialising the whole document
+// — see readStreaming. The file-runner uses this to concurrent-feed the reader.
+func (r *Reader) StreamingReader() {}
 
 // NewReader creates a new Qt TS reader.
 func NewReader() *Reader {
@@ -76,7 +85,12 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
-// readContent uses streaming XML parsing to handle Qt TS features.
+// readContent dispatches to the streaming or buffered walk. Both share
+// walkTokens; they differ only in where raw skeleton bytes come from (a bounded
+// CaptureReader window vs. the whole buffer) and whether the reader holds the
+// document in memory. The XML prologue and prevailing line break are resolved
+// from the document head (both are near the start), so the walk never needs the
+// whole buffer for them.
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
@@ -85,18 +99,83 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
-	// across CLI/server/WASM — see core/safeio).
-	content, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
+	// across CLI/server/WASM — see core/safeio). A 64 KiB bufio window is
+	// ample to Peek the prologue (`<?xml?><!DOCTYPE TS><TS …>`) and the first
+	// line break without consuming the stream.
+	br := bufio.NewReaderSize(safeio.DefaultBudget().Reader(r.Doc.Reader), 1<<16)
+
+	// Streaming path: same-format skeleton round-trip with validation off.
+	// StreamingReader is declared so the file-runner concurrent-feeds and the
+	// reader stays bounded to O(read-ahead + current message).
+	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
+		r.readStreaming(ctx, ch, locale, br)
+		return
+	}
+	r.readBuffered(ctx, ch, locale, br)
+}
+
+// readBuffered is the whole-document fallback: it reads the entire input, then
+// walks a decoder over the buffer. Raw skeleton bytes come from the buffer;
+// nothing is discarded.
+func (r *Reader) readBuffered(ctx context.Context, ch chan<- model.PartResult, locale model.LocaleID, br io.Reader) {
+	content, err := io.ReadAll(br)
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("ts: reading: %w", err)}
 		return
 	}
 	rawText := string(content)
+	prologue, tsTag := extractTSPrologue(rawText)
+	lineBreak := detectLineBreak(rawText)
+	rawAt := func(start, end int64) string { return rawText[start:end] }
+	r.walkTokens(ctx, ch, newTSDecoder(bytes.NewReader(content)), locale, prologue, tsTag, lineBreak,
+		rawAt, func(int64) {}, func() int64 { return 0 })
+}
 
-	decoder := xml.NewDecoder(bytes.NewReader(content))
+// readStreaming walks the decoder over a bounded CaptureReader window: raw
+// skeleton bytes are sliced from the window and the window is discarded as each
+// <message> completes, so peak reader memory is O(read-ahead + current
+// message), not the document size. The prologue and line break are resolved
+// from the peeked head up front.
+func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult, locale model.LocaleID, br *bufio.Reader) {
+	head, _ := br.Peek(1 << 16)
+	prologue, tsTag := extractTSPrologue(string(head))
+	lineBreak := detectLineBreak(string(head))
+
+	cr := format.NewCaptureReader(br)
+	var sliceErr error
+	rawAt := func(start, end int64) string {
+		b, ok := cr.Slice(start, end)
+		if !ok {
+			if sliceErr == nil {
+				sliceErr = fmt.Errorf("ts: skeleton range [%d,%d) outside capture window", start, end)
+			}
+			return ""
+		}
+		return string(b)
+	}
+	r.walkTokens(ctx, ch, newTSDecoder(cr), locale, prologue, tsTag, lineBreak, rawAt, cr.DiscardTo, cr.Base)
+	if sliceErr != nil {
+		ch <- model.PartResult{Error: sliceErr}
+	}
+}
+
+// newTSDecoder builds an xml.Decoder configured for Qt TS's lenient dialect.
+func newTSDecoder(r io.Reader) *xml.Decoder {
+	decoder := xml.NewDecoder(r)
 	decoder.Strict = false
 	decoder.AutoClose = xml.HTMLAutoClose
 	decoder.Entity = xml.HTMLEntity
+	return decoder
+}
+
+// walkTokens is the shared Qt TS token walk. rawAt returns the raw source bytes
+// for an absolute byte range (from the buffer or the CaptureReader window);
+// discard releases window bytes below an offset (a no-op in buffered mode);
+// windowBase returns the lowest offset still available (0 in buffered mode).
+// Skeleton is emitted incrementally per <message> — source/translation elements
+// are non-overlapping in document order, so a monotonic emit frontier over the
+// same gap spans the batch path used reproduces the byte-exact skeleton.
+func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, decoder *xml.Decoder, locale model.LocaleID, prologue, tsTag, lineBreak string, rawAt func(start, end int64) string, discard func(int64), windowBase func() int64) {
 
 	// numerusFormRange records the raw byte offsets of one
 	// `<numerusform …>…</numerusform>` element so the writer can
@@ -215,6 +294,34 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// Incremental skeleton frontier. Each <message>'s elemPositions are flushed
+	// when the message closes (flushMsgSkel), advancing emitPos over the same
+	// gap spans the batch path used — so the stripCDATA/rewriteSkelCharData
+	// transforms get byte-identical inputs. elemSeen gates trailing emission so
+	// a document with no translatable elements emits no skeleton (matching the
+	// prior whole-buffer behavior).
+	var emitPos int64
+	elemSeen := false
+	flushMsgSkel := func(eps []elemPos) {
+		if r.skeletonStore == nil {
+			return
+		}
+		for _, ep := range eps {
+			if int64(ep.startOffset) > emitPos {
+				r.skelText(rewriteSkelCharData(stripCDATA(rawAt(emitPos, int64(ep.startOffset)))))
+			}
+			if ep.prefix != "" {
+				r.skelText(ep.prefix)
+			}
+			r.skelRef(fmt.Sprintf("%d:%s", ep.blockIdx, ep.elemType))
+			if ep.suffix != "" {
+				r.skelText(ep.suffix)
+			}
+			emitPos = int64(ep.endOffset)
+			elemSeen = true
+		}
+	}
+
 	for {
 		token, err := decoder.Token()
 		if errors.Is(err, io.EOF) {
@@ -250,9 +357,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				// original XML declaration (encoding, standalone) and
 				// DOCTYPE (including any internal subset `[]`) — the
 				// streaming xml.Decoder discards both.
-				if pre, ts := extractTSPrologue(rawText); pre != "" {
-					dataProps["xml-prologue"] = pre
-					dataProps["ts-tag"] = ts
+				if prologue != "" {
+					dataProps["xml-prologue"] = prologue
+					dataProps["ts-tag"] = tsTag
 				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: &model.Data{
 					ID:         "d1",
@@ -382,9 +489,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					// openStart is found by scanning backward to the
 					// `<numerusform` token start.
 					openEnd := int(decoder.InputOffset())
-					openStart := strings.LastIndex(rawText[:openEnd], "<numerusform")
-					if openStart < 0 {
-						openStart = openEnd
+					// Find the current `<numerusform` open-tag start by scanning
+					// backward within the available window (base..openEnd). The
+					// nearest match is within this message, so the window (which
+					// is not discarded mid-message) always contains it.
+					base := windowBase()
+					openStart := openEnd
+					if rel := strings.LastIndex(rawAt(base, int64(openEnd)), "<numerusform"); rel >= 0 {
+						openStart = int(base) + rel
 					}
 					numerusFormOpenStartOff = openStart
 					numerusFormOpenEndOff = openEnd
@@ -563,7 +675,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 							if len(numerusFormRanges) > 0 {
 								last := numerusFormRanges[len(numerusFormRanges)-1].closeEnd
 								if last < endPos {
-									numerusFormTrailingWS = rawText[last:endPos]
+									numerusFormTrailingWS = rawAt(int64(last), int64(endPos))
 								}
 							}
 						}
@@ -667,13 +779,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						// in addTargetSection, so CRLF-encoded files
 						// synthesize `\r\n<translation …>`.
 						pos := int(lastValidBeforeEndOff)
-						lb := detectLineBreak(rawText)
 						elemPositions = append(elemPositions, elemPos{
 							startOffset: pos,
 							endOffset:   pos,
 							blockIdx:    blockCount - 1,
 							elemType:    "synthesized_translation",
-							prefix:      lb + "<translation type=\"unfinished\" variants=\"no\">",
+							prefix:      lineBreak + "<translation type=\"unfinished\" variants=\"no\">",
 							suffix:      "</translation>",
 						})
 					}
@@ -833,7 +944,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						// pairs separated and surrounded by the same line
 						// terminator the source used between adjacent
 						// numerusforms.
-						block.Properties["_line_break"] = detectLineBreak(rawText)
+						block.Properties["_line_break"] = lineBreak
 						// Per-form non-empty flags ('1' = had content,
 						// '0' = was empty). Joined with commas to keep
 						// the value parseable when the writer reaches it.
@@ -854,7 +965,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 							prev := int(elemStartOff)
 							for _, rng := range numerusFormRanges {
 								if rng.openStart >= prev {
-									prefixes = append(prefixes, rawText[prev:rng.openStart])
+									prefixes = append(prefixes, rawAt(int64(prev), int64(rng.openStart)))
 								} else {
 									prefixes = append(prefixes, "")
 								}
@@ -934,6 +1045,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						return
 					}
+
+					// Emit this message's skeleton (source/translation/
+					// synthesized refs plus the gap markup between them),
+					// advancing the frontier, then release the window below it.
+					// Bytes between here and the next message's first element
+					// stay retained until that element's gap is emitted.
+					flushMsgSkel(elemPositions)
+					elemPositions = elemPositions[:0]
+					discard(emitPos)
 				}
 			}
 
@@ -972,41 +1092,21 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 	}
 
-	// Build skeleton from collected element positions
-	if r.skeletonStore != nil && len(elemPositions) > 0 {
-		skelPos := 0
-		for _, ep := range elemPositions {
-			// Write skeleton text from skelPos to element content start.
-			// CDATA sections in the skeleton are unwrapped to their inner
-			// payload — okapi TsFilter's procCDATA writes the raw inner
-			// characters into the skeleton without the surrounding
-			// `<![CDATA[…]]>` markers. Then rewriteSkelCharData
-			// re-encodes character data with okapi's quoteMode=0
-			// settings (collapses `&quot;`/`&apos;` into raw `"`/`'`).
-			if ep.startOffset > skelPos {
-				r.skelText(rewriteSkelCharData(stripCDATA(rawText[skelPos:ep.startOffset])))
+	// Trailing skeleton: the tail markup after the last element (e.g.
+	// `</message>\n  </context>\n</TS>\n`). Any elemPositions still buffered
+	// (defensive — messages flush their own at </message>) are emitted first.
+	// Gated on elemSeen so a document with no translatable elements emits no
+	// skeleton at all, matching the prior whole-buffer behavior. The CDATA/
+	// char-data transforms are applied to the same spans the batch path used.
+	if r.skeletonStore != nil {
+		flushMsgSkel(elemPositions)
+		if elemSeen {
+			total := decoder.InputOffset()
+			if total > emitPos {
+				r.skelText(rewriteSkelCharData(stripCDATA(rawAt(emitPos, total))))
 			}
-			// For synthesized translation sections, append the
-			// `\n<translation type="unfinished" variants="no">` opener
-			// (and later the matching `</translation>` closer) so the
-			// writer's translation-ref handling can drop the target text
-			// inside without needing to know the wrapping markup.
-			if ep.prefix != "" {
-				r.skelText(ep.prefix)
-			}
-			// Write skeleton ref: "blockIdx:elemType"
-			refID := fmt.Sprintf("%d:%s", ep.blockIdx, ep.elemType)
-			r.skelRef(refID)
-			if ep.suffix != "" {
-				r.skelText(ep.suffix)
-			}
-			skelPos = ep.endOffset
+			r.skelFlush()
 		}
-		// Write remaining skeleton text
-		if skelPos < len(rawText) {
-			r.skelText(rewriteSkelCharData(stripCDATA(rawText[skelPos:])))
-		}
-		r.skelFlush()
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})

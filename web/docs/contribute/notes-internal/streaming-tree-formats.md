@@ -233,12 +233,17 @@ Per-format status / next:
 
 - **JSON** — done (#1024).
 - **`encoding/xml` group (xml, tmx, ts)** — capturing reader (`slice`/`discardTo`)
-  + incremental prefix emission over the decided-frontier. `xml` is **ITS-gated**
-  (stream only when `skeletonStore != nil && ValidationMode()==Off` **and** no
-  global `<its:rules>`/external rules; buffered fallback otherwise); `tmx`/`ts`
-  stream unconditionally. `tmx` additionally needs lang-tagged skeleton refs
-  (`WriteLang`, #1140) for its multi-`<tuv>`-per-`<tu>` model, buffering one
-  bounded `<tu>` at a time.
+  + incremental prefix emission over the decided-frontier. **`tmx` (#1165) and
+  `ts` are done** — both stream reader-side (gated to the same-format skeleton
+  round-trip with validation off; `tmx` additionally gates on UTF-8 input, since
+  its UTF-16 transcode is whole-document). Each keys skeleton refs by
+  `tuIdx:lang` / `blockIdx:elemType`, so the multi-variant / synthesized-section
+  cases need no `WriteLang`. Discard happens at the record boundary (`</tu>` /
+  `</message>`), so within-record backward slices stay in the window; the
+  prologue / line-break are resolved from the peeked head. **`xml` remains** —
+  **ITS-gated** (stream only when `skeletonStore != nil && ValidationMode()==Off`
+  **and** no global `<its:rules>`/external rules; buffered fallback otherwise),
+  which needs a two-pass rules scan since global rules can appear anywhere.
 - **resx, androidxml** — custom-tokenizer substrate (not `encoding/xml`); need a
   streaming variant of their own tokenizer + dropping `.original` retention.
   Follow-up.
