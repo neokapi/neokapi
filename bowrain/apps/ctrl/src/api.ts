@@ -21,11 +21,11 @@ function resolveApiBaseUrl(): string {
   if (import.meta.env.VITE_ADMIN_API_URL) {
     return import.meta.env.VITE_ADMIN_API_URL;
   }
-  // Derive from hostname: ctrl[.dev].bowrain.cloud → [dev.]bowrain.cloud/api/admin
-  const host = window.location.hostname;
-  if (host.startsWith("ctrl.")) {
-    return `https://${host.slice(5)}/api/admin`;
-  }
+  // Same-origin: every deployment fronts ctrl with a proxy that forwards
+  // /api/* to bowrain-server (Caddy in prod, traefik/the vite dev proxy
+  // locally). A cross-origin absolute fallback (e.g. the apex domain) would
+  // have no DNS record in prod and be blocked by the server's CORS allowlist
+  // anyway — it only allows the OIDC public URL origin.
   return "/api/admin";
 }
 

@@ -4,7 +4,7 @@
   "loginTheme": "bowrain",
   "registrationAllowed": true,
   "registrationEmailAsUsername": true,
-  "resetPasswordAllowed": false,
+  "resetPasswordAllowed": true,
   "verifyEmail": true,
   "loginWithEmailAllowed": true,
   "sslRequired": "none",
@@ -61,6 +61,18 @@
         "backchannel.logout.session.required": "false",
         "backchannel.logout.revoke.offline.tokens": "true"
       }
+    },
+    {
+      "clientId": "bowrain-svc",
+      "name": "Bowrain Service Account",
+      "description": "Confidential service-account client used by bowrain-server for Keycloak Admin API write-through (email change). Secret substituted from BOWRAIN_SVC_CLIENT_SECRET by docker-entrypoint.sh.",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "placeholder-bowrain-svc-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect"
     }
   ],
   "identityProviders": [
@@ -113,6 +125,14 @@
       "firstName": "Admin",
       "lastName": "User",
       "credentials": []
+    },
+    {
+      "username": "service-account-bowrain-svc",
+      "enabled": true,
+      "serviceAccountClientId": "bowrain-svc",
+      "clientRoles": {
+        "realm-management": ["view-users", "manage-users"]
+      }
     }
   ],
   "authenticationFlows": [
