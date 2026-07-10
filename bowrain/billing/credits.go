@@ -5,6 +5,44 @@ import (
 	"time"
 )
 
+// Credit allocation sources. Credits are the single user-facing ledger (Epic
+// 004). A workspace draws from two buckets:
+//
+//   - SourcePlan: the weekly plan allowance (50K/500K/2M per WeeklyCredits).
+//     Scoped to the current week; unspent plan credits expire at week rollover.
+//   - SourcePurchased: one-time top-up packs bought with Stripe. Non-expiring —
+//     they persist across weekly rollovers until spent (see the purchased-week
+//     sentinel below).
+//
+// Spend cascades plan-first, then purchased (PgBillingStore.DeductCredits), and
+// the spendable balance sums both (PgBillingStore.CheckCredits).
+const (
+	SourcePlan      = "plan"
+	SourcePurchased = "purchased"
+)
+
+// purchasedWeekStart / purchasedWeekEnd are the sentinel week bounds stored on
+// purchased credit allocations. Purchased packs are not tied to any calendar
+// week; storing them under a fixed sentinel collapses every purchase for a
+// workspace into a single accumulating row via the
+// UNIQUE(workspace_id, week_start, source) constraint, and keeps them out of
+// current-week ("this week's plan allowance") queries. They are identified and
+// summed purely by source='purchased', so they never expire at week rollover.
+var (
+	purchasedWeekStart = time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)
+	purchasedWeekEnd   = time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)
+)
+
+// allocationWeek returns the (week_start, week_end) bounds to store a grant of
+// the given source under: the current calendar week for plan credits, the
+// non-expiring sentinel week for purchased packs.
+func allocationWeek(source string, now time.Time) (weekStart, weekEnd time.Time) {
+	if source == SourcePurchased {
+		return purchasedWeekStart, purchasedWeekEnd
+	}
+	return WeekStart(now), WeekEnd(now)
+}
+
 // WeekStart returns Monday 00:00 UTC for the week containing t.
 func WeekStart(t time.Time) time.Time {
 	t = t.UTC()

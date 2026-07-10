@@ -35,6 +35,29 @@ func main() {
 	}
 }
 
+// guardSecretsKey enforces that a multi-tenant Postgres deployment configures a
+// secrets key. crypto.NewCipher("") is a nil, pass-through cipher, so an ABSENT
+// key silently stores every tenant's AI provider key and connector secret in
+// PLAINTEXT in Postgres (only an INVALID key aborts at startup). On a billed SaaS
+// deployment (STRIPE_SECRET_KEY set) this is a hard startup failure; on a
+// self-hosted Postgres deployment it is a loud error-level warning for operators
+// who knowingly accept plaintext-at-rest. Non-Postgres (dev/SQLite) is exempt.
+func guardSecretsKey(secretsKey, databaseURL string) error {
+	if secretsKey != "" {
+		return nil
+	}
+	if !strings.HasPrefix(databaseURL, "postgres://") && !strings.HasPrefix(databaseURL, "postgresql://") {
+		return nil
+	}
+	if os.Getenv("STRIPE_SECRET_KEY") != "" {
+		return errors.New("BOWRAIN_SECRETS_KEY is required on a billed multi-tenant deployment: " +
+			"without it every workspace's AI provider key and connector secret is stored in plaintext in Postgres")
+	}
+	slog.Error("BOWRAIN_SECRETS_KEY is not set: workspace AI provider keys and connector secrets " +
+		"will be stored UNENCRYPTED in Postgres; set a 32-byte base64 key before storing tenant secrets")
+	return nil
+}
+
 func run() error {
 	cfg := server.DefaultConfig()
 
@@ -75,6 +98,9 @@ func run() error {
 	}
 	if _, err := crypto.NewCipher(cfg.SecretsKey); err != nil {
 		return fmt.Errorf("invalid BOWRAIN_SECRETS_KEY: %w", err)
+	}
+	if err := guardSecretsKey(cfg.SecretsKey, cfg.DatabaseURL); err != nil {
+		return err
 	}
 	if envJWT := os.Getenv("BOWRAIN_JWT_SECRET"); envJWT != "" {
 		cfg.JWTSecret = envJWT

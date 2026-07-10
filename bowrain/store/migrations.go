@@ -703,4 +703,38 @@ var storeMigrations = []storage.Migration{
 				ON overlays_ext(project_id, stream, block_id);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "workspace-scoped AI provider configs (Epic 004 hybrid AI)",
+		SQL: `
+			-- Per-workspace AI provider configurations (Epic 004). This replaces
+			-- the machine-global, keychain-backed core/credentials store for
+			-- server-side provider keys, which does not work in a headless,
+			-- multi-tenant production container (no Secret Service; one config
+			-- shared across all workspaces).
+			--
+			-- The API key is sealed at rest with crypto.Cipher / BOWRAIN_SECRETS_KEY,
+			-- exactly like connector secrets (collections.connector_config). A NULL
+			-- api_key_sealed means "no key stored" (e.g. keyless providers like
+			-- Ollama). workspace_id is the durable scope key; workspace_slug is kept
+			-- as a secondary resolution key so the worker can resolve a saved config
+			-- from a queued job that only persists the workspace slug.
+			CREATE TABLE provider_configs (
+				id             TEXT PRIMARY KEY,
+				workspace_id   TEXT NOT NULL,
+				workspace_slug TEXT NOT NULL DEFAULT '',
+				name           TEXT NOT NULL,
+				type           TEXT NOT NULL DEFAULT '',
+				model          TEXT NOT NULL DEFAULT '',
+				base_url       TEXT NOT NULL DEFAULT '',
+				api_key_sealed BYTEA,
+				created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE UNIQUE INDEX idx_provider_configs_ws_name ON provider_configs(workspace_id, name);
+			CREATE INDEX idx_provider_configs_ws ON provider_configs(workspace_id);
+			CREATE INDEX idx_provider_configs_ws_slug ON provider_configs(workspace_slug)
+				WHERE workspace_slug != '';
+		`,
+	},
 }

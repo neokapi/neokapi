@@ -289,10 +289,17 @@ func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, us
 			OutputTokens:   result.OutputTokens,
 		})
 
-		// Deduct billing credits and report to Stripe.
+		// Deduct billing credits and report to Stripe. The reference id is the
+		// per-message id (unique per deduction, stable on retry), NOT the
+		// conversation id — a conversation has many messages, so keying on it would
+		// collapse every message after the first into one Stripe meter event.
 		if s.billingHooks != nil {
 			totalTokens := result.InputTokens + result.OutputTokens
-			s.billingHooks.DeductTokens(ctx, workspaceID, totalTokens, "bravo_message", conversationID)
+			refID := result.MessageID
+			if refID == "" {
+				refID = conversationID
+			}
+			s.billingHooks.DeductTokens(ctx, workspaceID, totalTokens, "bravo_message", refID)
 		}
 	}
 
@@ -435,9 +442,17 @@ func (s *AgentService) cleanupConversation(ctx context.Context, conversationID s
 				DurationSec:    duration.Seconds(),
 			})
 
-			// Deduct billing credits for container time.
+			// Deduct billing credits for container time. The reference id is the
+			// per-container-session id (the runtime container id), unique per spawned
+			// container and stable across a retried meter report — not the
+			// conversation id, which a workspace reuses across many container
+			// sessions and would collapse into one Stripe meter event.
 			if s.billingHooks != nil {
-				s.billingHooks.DeductContainerTime(ctx, container.WorkspaceID, duration, conversationID)
+				refID := container.ID
+				if refID == "" {
+					refID = conversationID
+				}
+				s.billingHooks.DeductContainerTime(ctx, container.WorkspaceID, duration, refID)
 			}
 		}
 	}
