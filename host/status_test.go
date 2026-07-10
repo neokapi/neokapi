@@ -309,3 +309,48 @@ func TestStatus_NeverFails(t *testing.T) {
 	_, err := captureStdout(t, func() error { return a.RunStatus(cmd, nil) })
 	assert.NoError(t, err, "status must never return a non-nil error for drift")
 }
+
+// A recipe with a server: block reports the effective convergence venue —
+// degraded to local (with a note) when no plugin provides the server-up
+// plumbing. A plain local recipe reports no venue at all: nothing ambiguous.
+func TestStatus_VenueLine(t *testing.T) {
+	root := writeStatusProject(t)
+	recipePath := filepath.Join(root, "proj.kapi")
+	recipe, err := os.ReadFile(recipePath)
+	require.NoError(t, err)
+	withServer := string(recipe) + "\nserver:\n  url: https://bowrain.example/acme/demo\n  converge: on-push\n"
+	require.NoError(t, os.WriteFile(recipePath, []byte(withServer), 0o644))
+
+	t.Chdir(root)
+	a := &App{}
+	cmd := NewEnvCommand(context.Background(), "status")
+	AddProjectFlag(cmd)
+	AddStatusFlags(cmd)
+	require.NoError(t, cmd.Flags().Set("json", "true"))
+
+	out, err := captureStdout(t, func() error { return a.RunStatus(cmd, nil) })
+	require.NoError(t, err)
+
+	var got StatusOutput
+	require.NoError(t, json.Unmarshal([]byte(out), &got))
+	require.NotNil(t, got.Venue, "a server: recipe must report its venue")
+	assert.Equal(t, "local", got.Venue.Venue, "without the server-up plumbing the venue degrades to local")
+	assert.Equal(t, "on-push", got.Venue.ConvergePolicy)
+	assert.Contains(t, got.Venue.Note, "plugin not installed")
+}
+
+func TestStatus_NoVenueWithoutServer(t *testing.T) {
+	t.Chdir(writeStatusProject(t))
+	a := &App{}
+	cmd := NewEnvCommand(context.Background(), "status")
+	AddProjectFlag(cmd)
+	AddStatusFlags(cmd)
+	require.NoError(t, cmd.Flags().Set("json", "true"))
+
+	out, err := captureStdout(t, func() error { return a.RunStatus(cmd, nil) })
+	require.NoError(t, err)
+
+	var got StatusOutput
+	require.NoError(t, json.Unmarshal([]byte(out), &got))
+	assert.Nil(t, got.Venue, "a plain local project has no venue ambiguity to report")
+}

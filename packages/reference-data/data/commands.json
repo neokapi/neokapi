@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-10T16:02:04Z",
+  "generatedAt": "2026-07-10T21:22:36Z",
   "commands": [
     {
       "id": "brand",
@@ -6555,7 +6555,7 @@
       ],
       "use": "up",
       "short": "Reconcile the project toward its ship gates (run the default flow until converged)",
-      "long": "Reconcile the project toward its ship gates: treat the recipe as the desired\nstate and run the project's default flow (defaults.flow) over all content\nacross every target language, looping until every gated scope is shippable or\nparked for a human.\n\nWithout defaults.flow, up runs the built-in default flow — TM reuse (recycle)\nfollowed by AI translate — so a recipe needs no flow YAML at all to converge.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a unit with failing findings (dropped placeholders, glossary\nviolations) counts as drafted, not translated, so it cannot lift its locale\nover the gate until fixed. --no-checks opts out.\n\nWhen the loop ends, the materialize policy decides whether localized files\nare written from the project store: 'defaults.materialize: on-converge' (or\nthe --materialize flag) writes them for every locale whose gated scopes are\nall shippable; the default ('manual') leaves that to 'kapi merge'.\n\n--plan is a dry run: instead of running anything, up reports the pending work\nper (collection, locale) — units missing a target, exact TM leverage, the\nremaining AI work, and a rough token estimate — with no provider calls and no\nwrites. Combine with --json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
+      "long": "Reconcile the project toward its ship gates: treat the recipe as the desired\nstate and run the project's default flow (defaults.flow) over all content\nacross every target language, looping until every gated scope is shippable or\nparked for a human.\n\nWithout defaults.flow, up runs the built-in default flow — TM reuse (recycle)\nfollowed by AI translate — so a recipe needs no flow YAML at all to converge.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a unit with failing findings (dropped placeholders, glossary\nviolations) counts as drafted, not translated, so it cannot lift its locale\nover the gate until fixed. --no-checks opts out.\n\nWhen the loop ends, the materialize policy decides whether localized files\nare written from the project store: 'defaults.materialize: on-converge' (or\nthe --materialize flag) writes them for every locale whose gated scopes are\nall shippable; the default ('manual') leaves that to 'kapi merge'.\n\nVenue: in a server-connected project (a recipe with a server: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default — on\nthe org's keys, against the org's shared TM and terminology — and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever a server:\nblock is present. Without a server: block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale) — units missing a target, exact TM\nleverage, the remaining AI work, and a rough token estimate — computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
       "groupID": "work",
       "flags": [
         {
@@ -6610,6 +6610,12 @@
         {
           "name": "json",
           "usage": "output the structured result as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "local",
+          "usage": "converge on this machine even when the recipe declares a server (the results are then pushed so the server stays current)",
           "default": "false",
           "type": "bool"
         },
@@ -6679,6 +6685,12 @@
           "type": "string"
         },
         {
+          "name": "server",
+          "usage": "require the server venue: fail rather than converge locally when the recipe has no server or the server plumbing is unavailable",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "source-lang",
           "usage": "source language (e.g. en, en-US)",
           "default": "en",
@@ -6701,6 +6713,12 @@
           "type": "string"
         },
         {
+          "name": "timeout",
+          "usage": "server venue: maximum time to wait for the server run to finish before pulling available results",
+          "default": "15m0s",
+          "type": "duration"
+        },
+        {
           "name": "tm",
           "usage": "named TM for recycle flow (resolves from KAPI_HOME)",
           "type": "string"
@@ -6716,6 +6734,7 @@
         "kapi up --plan         # dry run: pending work, TM leverage, and a token estimate per locale",
         "kapi up --passes 1     # a single pass over every locale that needs work",
         "kapi up --materialize  # also write localized files for the shippable locales",
+        "kapi up --local        # connected project: converge on this machine, then push the results",
         "kapi up -p app.kapi    # reconcile an explicit project recipe"
       ],
       "offlineCapable": false,
