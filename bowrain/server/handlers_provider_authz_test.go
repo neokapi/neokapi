@@ -3,12 +3,12 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	"github.com/neokapi/neokapi/bowrain/credentials"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,22 +43,29 @@ func TestProviderConfigListRequiresManageConnectors(t *testing.T) {
 		do(t, s, http.MethodGet, "/api/v1/test/providers", memberToken, ""),
 		"a member must not enumerate provider configs")
 
-	// Owner (manage_connectors) passes the authz check (503 when the credential
+	// Owner (manage_connectors) passes the authz check (503 when the provider
 	// store is unconfigured in tests is fine — it means authz did not block).
 	assert.NotEqual(t, http.StatusForbidden,
 		do(t, s, http.MethodGet, "/api/v1/test/providers", ownerToken, ""),
 		"an owner with manage_connectors must not be forbidden from listing")
 }
 
-// TestProviderConfigWorkspacePartition proves the shared (global) credential
+// TestProviderConfigWorkspacePartition proves the workspace-scoped provider
 // store is partitioned by workspace at the API boundary: one tenant cannot
-// enumerate or delete another tenant's provider configs even though both live in
-// the same on-disk store.
+// enumerate or delete another tenant's provider configs, because every handler
+// derives the workspace id from the auth context and passes it to the store.
 func TestProviderConfigWorkspacePartition(t *testing.T) {
 	s, ownerToken := newTestServer(t) // owns "test-ws" (slug "test")
 	attackerToken := addWorkspaceWithOwner(t, s, "attacker-ws", "attacker", "attacker-user", "attacker@example.com")
 
-	s.CredentialStore = credentials.NewStore(filepath.Join(t.TempDir(), "providers.json"))
+	// Back the /:ws/providers handlers with a real workspace-scoped provider
+	// store (Epic 004). A nil cipher exercises the plaintext pass-through path.
+	pgdb := pgtest.NewTestDB(t)
+	_, err := bstore.NewPostgresStoreFromDB(pgdb) // baseline migrations create provider_configs
+	require.NoError(t, err)
+	s.ProviderStore = bstore.NewProviderConfigStore(pgdb.DB, nil)
+
+	ctx := t.Context()
 
 	// test-ws owner creates a provider config.
 	require.Equal(t, http.StatusCreated,
@@ -66,14 +73,12 @@ func TestProviderConfigWorkspacePartition(t *testing.T) {
 			`{"provider_type":"openai","model":"gpt-4o","name":"test-openai"}`),
 		"workspace owner must be able to save a provider config")
 
-	// The config is stamped with its owning workspace on the shared store.
-	var victimID string
-	for _, cfg := range s.CredentialStore.List() {
-		if cfg.WorkspaceID == "test-ws" {
-			victimID = cfg.ID
-		}
-	}
-	require.NotEmpty(t, victimID, "saved config must be stamped with the owning workspace")
+	// The config is stamped with — and scoped to — its owning workspace.
+	ownerConfigs, err := s.ProviderStore.List(ctx, "test-ws")
+	require.NoError(t, err)
+	require.Len(t, ownerConfigs, 1, "the owning workspace must have exactly its own config")
+	victimID := ownerConfigs[0].ID
+	require.NotEmpty(t, victimID, "saved config must have an id")
 
 	// The attacker's own listing must not reveal the other tenant's config.
 	code, body := doWithBody(t, s, http.MethodGet, "/api/v1/attacker/providers", attackerToken, "")
@@ -87,7 +92,7 @@ func TestProviderConfigWorkspacePartition(t *testing.T) {
 		"cross-tenant provider delete must be denied (404)")
 
 	// The config survives the cross-tenant delete attempt.
-	_, err := s.CredentialStore.Get(victimID)
+	_, err = s.ProviderStore.Get(ctx, "test-ws", victimID)
 	require.NoError(t, err, "victim provider config must survive a cross-tenant delete attempt")
 
 	// The rightful owner still sees and can delete its own config.
