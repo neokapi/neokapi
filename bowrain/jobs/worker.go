@@ -49,7 +49,32 @@ type WorkerDeps struct {
 	}
 	// EventBus publishes events after sync push processing.
 	EventBus platev.EventBus
+	// MaxJobAttempts bounds transient-failure retries before a job is failed.
+	// Zero uses defaultMaxJobAttempts.
+	MaxJobAttempts int
 }
+
+// maxJobAttempts returns the configured retry budget or the default.
+func (d *WorkerDeps) maxJobAttempts() int {
+	if d.MaxJobAttempts > 0 {
+		return d.MaxJobAttempts
+	}
+	return defaultMaxJobAttempts
+}
+
+// jobHeartbeatInterval is how often a running translation refreshes its job's
+// updated_at while it still holds the lease. It sits comfortably below the
+// stale-job sweeper threshold (defaultStaleJobThreshold, 15m) so a slow-but-live
+// job — e.g. one chunk stuck behind a rate-limited model — is never mistaken for
+// a crashed worker and swept out from under itself.
+const jobHeartbeatInterval = 2 * time.Minute
+
+// errLeaseLost signals that the worker lost ownership of a job mid-run: the
+// stale-job sweeper reset it to 'queued' and a fresh worker re-claimed it
+// (bumping claim_epoch). The abandoned worker returns this to stop translating,
+// billing, and persisting, so the fresh owner's work is not duplicated or
+// overwritten. processJobWithDeps treats it as a clean hand-off (no failure).
+var errLeaseLost = errors.New("job lease lost (resurrected by stale-job sweeper)")
 
 // providerRateLimits maps provider types to their default rate limits (requests/sec).
 var providerRateLimits = map[string]rate.Limit{
@@ -79,7 +104,7 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 		default:
 		}
 
-		jobID, ack, _, err := deps.Queue.Dequeue(ctx)
+		jobID, ack, nack, err := deps.Queue.Dequeue(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -89,20 +114,52 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 			continue
 		}
 
-		if processErr := processJobWithDeps(ctx, deps, jobID); processErr != nil {
+		processErr := processJobWithDeps(ctx, deps, jobID)
+		if processErr != nil {
+			var te *transientError
+			if errors.As(processErr, &te) {
+				// Transient upstream failure with retry budget left:
+				// processJobWithDeps has already reset the row to 'queued'.
+				//
+				// Do NOT rely on nack() to reproduce the delivery: if this job
+				// ran longer than the broker AckWait, JetStream may have already
+				// redelivered THIS message to a peer worker (which saw
+				// 'processing', returned nil, and ACKed it), removing the broker
+				// message. A nack() on our now-stale delivery is then a no-op and
+				// the row is stranded in 'queued' with no message — and the
+				// sweeper only recovers 'processing' rows. Instead publish a FRESH
+				// message and ACK this one. Enqueue is idempotent: ClaimJob dedups
+				// a stray concurrent redelivery. Fall back to nack() only if the
+				// fresh enqueue fails, so the broker can still redeliver if it
+				// happens to hold the message.
+				if eqErr := deps.Queue.Enqueue(ctx, jobID); eqErr != nil {
+					slog.WarnContext(ctx, "job transient failure; re-enqueue failed, nacking instead",
+						"job_id", jobID, "error", processErr, "enqueue_error", eqErr)
+					nack()
+				} else {
+					slog.WarnContext(ctx, "job transient failure; re-enqueued fresh message for retry",
+						"job_id", jobID, "error", processErr)
+					ack()
+				}
+				continue
+			}
 			slog.ErrorContext(ctx, "job failed", "job_id", jobID, "error", processErr)
 		}
-		// Always ack: processJob marks failed jobs in the database.
-		// Nacking would cause infinite retries for permanent errors.
+		// Success, permanent failure, or exhausted retries: processJobWithDeps
+		// has recorded the terminal status in the DB, so ACK to drop the
+		// message. Nacking here would cause infinite redelivery of a job that
+		// will never succeed.
 		ack()
 	}
 }
 
 func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) error {
-	// Atomically claim the job (queued → processing). If another worker
-	// already claimed it, skip without error. This prevents double-processing
-	// when multiple workers dequeue the same job ID.
-	claimed, err := deps.JobStore.ClaimJob(ctx, jobID)
+	// Atomically claim the job (queued → processing) and take the lease. If
+	// another worker already claimed it, skip without error. This prevents
+	// double-processing when multiple workers dequeue the same job ID. The
+	// returned epoch is our lease token: it invalidates our writes if the job is
+	// later swept and re-claimed by a fresh worker.
+	claimed, epoch, err := deps.JobStore.ClaimJob(ctx, jobID)
 	if err != nil {
 		return fmt.Errorf("claim job: %w", err)
 	}
@@ -136,8 +193,37 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		fmt.Sprintf("Translating %s for %s", job.ItemName, job.TargetLocale),
 		map[string]string{"item": job.ItemName, "locale": job.TargetLocale, "model": job.Model})
 
-	// Run the translation; on failure, mark as failed.
-	if err := executeTranslationWithDeps(ctx, deps, job); err != nil {
+	// Run the translation. Classify failures: a transient upstream error
+	// (provider 5xx/429/529, timeout, network) is retried via the broker; a
+	// permanent error (auth/validation/config, missing content) is failed now.
+	if err := executeTranslationWithDeps(ctx, deps, job, epoch); err != nil {
+		if errors.Is(err, errLeaseLost) {
+			// The sweeper resurrected this job and a fresh worker owns it now.
+			// Abandon quietly: do NOT mark failed (that would clobber the new
+			// owner) and do NOT retry (the fresh delivery drives it). The loop
+			// ACKs this stale delivery.
+			slog.InfoContext(ctx, "job lease lost mid-run; abandoning to fresh owner",
+				"job_id", jobID)
+			return nil
+		}
+		if isTransientError(err) {
+			retry, rerr := deps.JobStore.RetryOrFail(ctx, jobID, deps.maxJobAttempts(), err.Error())
+			if rerr != nil {
+				slog.WarnContext(ctx, "retry bookkeeping failed", "job_id", jobID, "error", rerr)
+			}
+			if retry {
+				emitLog(deps, job.StepID, "warn",
+					"Transient error, retrying: "+err.Error(),
+					map[string]string{"item": job.ItemName, "locale": job.TargetLocale})
+				// Signal the loop to NAK; the row is back in 'queued'.
+				return &transientError{err: err}
+			}
+			// Retry budget exhausted — RetryOrFail marked the job failed.
+			emitLog(deps, job.StepID, "error",
+				"Translation failed after retries: "+err.Error(),
+				map[string]string{"item": job.ItemName, "locale": job.TargetLocale})
+			return err
+		}
 		_ = deps.JobStore.UpdateJobStatus(ctx, jobID, StatusFailed, err.Error())
 		emitLog(deps, job.StepID, "error",
 			"Translation failed: "+err.Error(),
@@ -165,7 +251,14 @@ func emitLog(deps *WorkerDeps, stepID, level, message string, data map[string]st
 	}
 }
 
-func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *TranslationJob) error {
+func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *TranslationJob, epoch int64) error {
+	// Lease heartbeat: while we translate, periodically refresh updated_at so a
+	// slow-but-live job is never swept as stale (the primary defense against a
+	// duplicate run). Runs until the function returns; a lost lease is caught
+	// authoritatively by the per-chunk gate below (which stops before billing).
+	stopHeartbeat := startLeaseHeartbeat(ctx, deps.JobStore, job.ID, epoch)
+	defer stopHeartbeat()
+
 	proj, err := deps.ContentStore.GetProject(ctx, job.ProjectID)
 	if err != nil {
 		return fmt.Errorf("get project: %w", err)
@@ -231,6 +324,20 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		}
 		allOutParts = append(allOutParts, outParts...)
 
+		// Lease gate: only bill + persist this chunk while we still own the job.
+		// If a (possibly slow) chunk let the sweeper resurrect the job and a
+		// fresh worker re-claimed it (claim_epoch advanced), RenewLease reports
+		// !owner — abandon before RecordUsage/DeductTokens so the fresh owner is
+		// not double-charged. RenewLease also refreshes updated_at, so a live job
+		// making steady chunk progress additionally never looks stale.
+		owner, lerr := deps.JobStore.RenewLease(ctx, job.ID, epoch)
+		if lerr != nil {
+			return fmt.Errorf("renew lease: %w", lerr)
+		}
+		if !owner {
+			return errLeaseLost
+		}
+
 		// Read actual token usage from the provider (via tool accumulator).
 		// Fall back to estimate if the provider returned zero usage.
 		currentUsage := translateTool.TotalUsage()
@@ -278,6 +385,18 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	// Update total token usage on the job.
 	job.TokensUsed = totalTokensUsed
 
+	// Final ownership check before persisting: if the lease was lost after the
+	// last chunk gate, do not write the translations — the fresh owner will, and
+	// overwriting its output (or marking the job completed) would corrupt the
+	// resurrected run.
+	owner, lerr := deps.JobStore.RenewLease(ctx, job.ID, epoch)
+	if lerr != nil {
+		return fmt.Errorf("renew lease: %w", lerr)
+	}
+	if !owner {
+		return errLeaseLost
+	}
+
 	// Store translated blocks. Targets land in the `translations`
 	// overlay table via StoreBlocks (#405) — no separate overlay
 	// write is needed: `ContentStore.StoreBlocks` now extracts
@@ -292,6 +411,48 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	}
 
 	return nil
+}
+
+// startLeaseHeartbeat launches a goroutine that refreshes the job's updated_at
+// on jobHeartbeatInterval while the caller holds the lease (epoch). It keeps a
+// slow-but-live job from being swept as stale. The returned stop func blocks
+// until the goroutine has fully exited, so the worker's goleak check stays
+// green. Ownership loss is not acted on here (it only stops the heartbeat and
+// logs) — the per-chunk RenewLease gate is the authoritative place that halts
+// billing/persistence, so cancellation semantics stay simple.
+func startLeaseHeartbeat(ctx context.Context, store JobStore, jobID string, epoch int64) func() {
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(jobHeartbeatInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				owner, err := store.RenewLease(ctx, jobID, epoch)
+				if err != nil {
+					slog.WarnContext(ctx, "job lease heartbeat failed", "job_id", jobID, "error", err)
+					continue
+				}
+				if !owner {
+					// Lost the lease; stop refreshing. The per-chunk gate will
+					// return errLeaseLost at the next boundary.
+					slog.WarnContext(ctx, "job lease lost (heartbeat); will abandon at next chunk boundary",
+						"job_id", jobID)
+					return
+				}
+			}
+		}
+	}()
+	return func() {
+		close(stop)
+		<-done
+	}
 }
 
 // resolveProvider creates the appropriate LLM provider for the job.
@@ -407,7 +568,7 @@ func sleepCtx(ctx context.Context, d time.Duration) {
 
 // ProcessSyncPushJobForTest is an exported wrapper for testing the sync push worker.
 func ProcessSyncPushJobForTest(ctx context.Context, deps *WorkerDeps, jobID string) error {
-	claimed, err := deps.JobStore.ClaimJob(ctx, jobID)
+	claimed, _, err := deps.JobStore.ClaimJob(ctx, jobID)
 	if err != nil || !claimed {
 		return err
 	}

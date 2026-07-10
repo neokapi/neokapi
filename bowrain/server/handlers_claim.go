@@ -66,10 +66,20 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 		}
 	}
 
-	// Send claim email if email is provided and SMTP is configured.
+	// Send claim email if email is provided and SMTP is configured. The send is
+	// additionally capped per client IP per hour: the route's IP throttle bounds
+	// project-creation rate, but a single burst still under that limit could fan
+	// claim emails to many recipients (spam relay). When the hourly cap is hit we
+	// still create the project (returning the claim token in the response) but
+	// skip the outbound email.
 	if req.Email != "" && s.EmailSender != nil {
-		baseURL := requestBaseURL(c)
-		go s.sendClaimEmail(context.WithoutCancel(ctx), req.Email, projectID, claimToken, baseURL)
+		if s.claimEmailLimiter == nil || s.claimEmailLimiter.Allow(c.RealIP()) {
+			baseURL := requestBaseURL(c)
+			go s.sendClaimEmail(context.WithoutCancel(ctx), req.Email, projectID, claimToken, baseURL)
+		} else {
+			slog.Warn("claim-email rate limit hit; project created but email suppressed",
+				"ip", c.RealIP(), "project_id", projectID)
+		}
 	}
 
 	return c.JSON(http.StatusCreated, AnonymousProjectResponse{

@@ -107,6 +107,20 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 	return c.JSON(http.StatusCreated, profile)
 }
 
+// profileInRequestWorkspace reports whether the brand profile belongs to the
+// workspace the request is scoped to. BrandStore.GetProfile/UpdateProfile/
+// DeleteProfile take only a GLOBAL profile id and ignore VoiceProfile.WorkspaceID,
+// so without this check an owner/admin of workspace A could read, update, or
+// delete workspace B's brand profile by addressing it through their own
+// workspace (/api/v1/<A>/brand-profiles/<B-profile-id>) — a cross-tenant IDOR.
+// Callers respond 404 (anti-enumeration) on a mismatch, matching the
+// project-level cross-tenant guard in ProjectAccessMiddleware. Fails closed when
+// the workspace context is missing (wsID empty).
+func profileInRequestWorkspace(c echo.Context, profile *corebrand.VoiceProfile) bool {
+	wsID, _ := c.Get("workspace_id").(string)
+	return wsID != "" && profile != nil && profile.WorkspaceID == wsID
+}
+
 // HandleGetBrandProfile returns a single brand voice profile by ID.
 func (s *Server) HandleGetBrandProfile(c echo.Context) error {
 	if s.BrandStore == nil {
@@ -116,6 +130,9 @@ func (s *Server) HandleGetBrandProfile(c echo.Context) error {
 	profile, err := s.BrandStore.GetProfile(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	if !profileInRequestWorkspace(c, profile) {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "brand profile not found"})
 	}
 	return c.JSON(http.StatusOK, profile)
 }
@@ -138,6 +155,9 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 	profile, err := s.BrandStore.GetProfile(ctx, c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	if !profileInRequestWorkspace(c, profile) {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "brand profile not found"})
 	}
 	beforeVersion := strconv.Itoa(profile.Version)
 
@@ -175,7 +195,17 @@ func (s *Server) HandleDeleteBrandProfile(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}
 
-	if err := s.BrandStore.DeleteProfile(c.Request().Context(), c.Param("id")); err != nil {
+	// Fetch first to assert workspace ownership: DeleteProfile takes a global id,
+	// so an unscoped delete would let a caller destroy another tenant's profile.
+	ctx := c.Request().Context()
+	profile, err := s.BrandStore.GetProfile(ctx, c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	if !profileInRequestWorkspace(c, profile) {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "brand profile not found"})
+	}
+	if err := s.BrandStore.DeleteProfile(ctx, profile.ID); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -199,6 +229,9 @@ func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
 	profile, err := s.BrandStore.GetProfile(ctx, c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	if !profileInRequestWorkspace(c, profile) {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "brand profile not found"})
 	}
 
 	// Run vocabulary-based brand checks against the profile using the shared

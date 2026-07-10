@@ -484,7 +484,7 @@ func (s *Server) HandleGetBravoUsage(c echo.Context) error {
 }
 
 // registerBravoRoutes registers all @bravo agent endpoints on a workspace group.
-func (s *Server) registerBravoRoutes(g *echo.Group) {
+func (s *Server) registerBravoRoutes(g *echo.Group, aiLimit echo.MiddlewareFunc) {
 	bravo := g.Group("/bravo")
 
 	bravo.POST("/conversations", s.HandleCreateBravoConversation)
@@ -492,8 +492,9 @@ func (s *Server) registerBravoRoutes(g *echo.Group) {
 	bravo.GET("/conversations/:id", s.HandleGetBravoConversation)
 	bravo.DELETE("/conversations/:id", s.HandleDeleteBravoConversation)
 
-	// Message sending consumes credits — apply QuotaGuard.
-	bravo.POST("/conversations/:id/messages", s.HandleSendBravoMessage, billing.QuotaGuard(s.BillingStore))
+	// Message sending consumes credits and drives the LLM — per-IP throttle in
+	// addition to QuotaGuard so a client cannot burst provider spend.
+	bravo.POST("/conversations/:id/messages", s.HandleSendBravoMessage, aiLimit, billing.QuotaGuard(s.BillingStore))
 
 	bravo.GET("/conversations/:id/messages", s.HandleListBravoMessages)
 	bravo.PATCH("/conversations/:id/mode", s.HandleUpdateBravoMode)

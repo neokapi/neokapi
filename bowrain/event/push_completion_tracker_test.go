@@ -32,8 +32,20 @@ func (s *stubJobStore) UpdateJobStatus(ctx context.Context, id string, status jo
 	return nil
 }
 func (s *stubJobStore) DeleteJob(ctx context.Context, id string) error { return nil }
-func (s *stubJobStore) ClaimJob(ctx context.Context, id string) (bool, error) {
+func (s *stubJobStore) ClaimJob(ctx context.Context, id string) (bool, int64, error) {
+	return true, 1, nil
+}
+func (s *stubJobStore) RenewLease(ctx context.Context, id string, epoch int64) (bool, error) {
 	return true, nil
+}
+func (s *stubJobStore) RetryOrFail(ctx context.Context, id string, maxAttempts int, errMsg string) (bool, error) {
+	return false, nil
+}
+func (s *stubJobStore) SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) ([]string, int, error) {
+	return nil, 0, nil
+}
+func (s *stubJobStore) RevertSweepRequeue(ctx context.Context, id string, staleThreshold time.Duration) error {
+	return nil
 }
 func (s *stubJobStore) ListJobsByPushID(ctx context.Context, pushID string) ([]*jobs.TranslationJob, error) {
 	s.mu.Lock()

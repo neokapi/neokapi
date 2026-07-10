@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -18,9 +19,42 @@ type JobStore interface {
 	UpdateJobStatus(ctx context.Context, id string, status JobStatus, errMsg string) error
 	DeleteJob(ctx context.Context, id string) error
 	ListJobsByPushID(ctx context.Context, pushID string) ([]*TranslationJob, error)
-	// ClaimJob atomically transitions a job from queued to processing.
-	// Returns true if this caller won the claim, false if another worker already claimed it.
-	ClaimJob(ctx context.Context, id string) (bool, error)
+	// ClaimJob atomically transitions a job from queued to processing and bumps
+	// its claim_epoch (the lease generation). Returns claimed=true with the new
+	// epoch if this caller won the claim, or (false, 0, nil) if another worker
+	// already claimed it. The caller holds the returned epoch as its lease token
+	// and passes it to RenewLease so a job resurrected by the sweeper (which
+	// bumps the epoch on re-claim) invalidates the abandoned worker's writes.
+	ClaimJob(ctx context.Context, id string) (claimed bool, epoch int64, err error)
+	// RenewLease refreshes the job's updated_at heartbeat while the caller still
+	// holds the lease (status still 'processing' AND claim_epoch == epoch). It
+	// returns owner=false once the job has been swept back to 'queued' or
+	// re-claimed by another worker (claim_epoch advanced), signalling the caller
+	// to abandon its in-flight work so a fresh owner is not double-billed. It
+	// never resurrects a terminal (completed/failed) job.
+	RenewLease(ctx context.Context, id string, epoch int64) (owner bool, err error)
+	// RetryOrFail records a transient failure for a job currently in
+	// 'processing'. If it still has retry budget (attempts < maxAttempts) the
+	// job is reset to 'queued' (attempts incremented) and (true, nil) is
+	// returned so the caller re-delivers it; once the budget is exhausted the
+	// job is marked 'failed' with errMsg and (false, nil) is returned. A job
+	// that is no longer 'processing' (raced to a terminal state) yields
+	// (false, nil).
+	RetryOrFail(ctx context.Context, id string, maxAttempts int, errMsg string) (retry bool, err error)
+	// SweepStaleProcessing recovers jobs stuck in 'processing' longer than
+	// olderThan (a worker crashed after ClaimJob). Jobs with retry budget left
+	// are reset to 'queued' — their IDs are returned so the caller can
+	// re-enqueue them — and jobs out of budget are marked 'failed'. Returns the
+	// requeued IDs and the count of failed jobs.
+	SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) (requeued []string, failed int, err error)
+	// RevertSweepRequeue rolls a job that SweepStaleProcessing flipped to
+	// 'queued' back to 'processing' when the caller's follow-up Enqueue failed,
+	// leaving the row with no live broker message. Since nothing scans 'queued'
+	// orphans, such a row would be stranded forever; reverting it to 'processing'
+	// with a STALE updated_at (older than staleThreshold) — and undoing the sweep's
+	// attempts increment — lets the NEXT sweep re-select and re-enqueue it. Guarded
+	// by status='queued' so it never disturbs a job a worker has since claimed.
+	RevertSweepRequeue(ctx context.Context, id string, staleThreshold time.Duration) error
 }
 
 // jobMigrations defines the PostgreSQL schema for translation jobs.
@@ -51,6 +85,28 @@ var jobMigrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_jobs_workspace ON translation_jobs(workspace_slug, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_jobs_status ON translation_jobs(status);
 			CREATE INDEX IF NOT EXISTS idx_jobs_push_id ON translation_jobs(push_id) WHERE push_id != '';
+		`,
+	},
+	{
+		Version:     2,
+		Description: "translation job retry attempt tracking",
+		SQL: `
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0;
+			-- Partial index over the (status, updated_at) columns the stale-job
+			-- sweeper scans so recovery stays cheap as the jobs table grows.
+			CREATE INDEX IF NOT EXISTS idx_jobs_processing_updated
+				ON translation_jobs(updated_at) WHERE status = 'processing';
+		`,
+	},
+	{
+		Version:     3,
+		Description: "translation job claim lease (epoch) for double-run protection",
+		SQL: `
+			-- claim_epoch is the lease generation: ClaimJob bumps it on every
+			-- claim so a worker that gets swept-and-reclaimed can detect (via
+			-- RenewLease) that it no longer owns the job and must stop before
+			-- double-billing the fresh owner's work.
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS claim_epoch BIGINT NOT NULL DEFAULT 0;
 		`,
 	},
 }
@@ -135,15 +191,125 @@ func (s *jobStore) UpdateJobProgress(ctx context.Context, id string, doneBlocks,
 	return nil
 }
 
-func (s *jobStore) ClaimJob(ctx context.Context, id string) (bool, error) {
-	res, err := s.db.ExecContext(ctx,
-		`UPDATE translation_jobs SET status = 'processing', updated_at = NOW()
-		 WHERE id = $1 AND status = 'queued'`, id)
+func (s *jobStore) ClaimJob(ctx context.Context, id string) (bool, int64, error) {
+	var epoch int64
+	err := s.db.QueryRowContext(ctx,
+		`UPDATE translation_jobs
+		 SET status = 'processing', claim_epoch = claim_epoch + 1, updated_at = NOW()
+		 WHERE id = $1 AND status = 'queued'
+		 RETURNING claim_epoch`, id).Scan(&epoch)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Not queued (already processing/terminal): another worker won.
+		return false, 0, nil
+	}
 	if err != nil {
-		return false, fmt.Errorf("claim job: %w", err)
+		return false, 0, fmt.Errorf("claim job: %w", err)
+	}
+	return true, epoch, nil
+}
+
+func (s *jobStore) RenewLease(ctx context.Context, id string, epoch int64) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs SET updated_at = NOW()
+		 WHERE id = $1 AND status = 'processing' AND claim_epoch = $2`, id, epoch)
+	if err != nil {
+		return false, fmt.Errorf("renew lease: %w", err)
 	}
 	n, _ := res.RowsAffected()
 	return n == 1, nil
+}
+
+func (s *jobStore) RetryOrFail(ctx context.Context, id string, maxAttempts int, errMsg string) (bool, error) {
+	if maxAttempts < 1 {
+		maxAttempts = 1
+	}
+	// A single statement increments attempts and, in the same row, decides
+	// whether there is budget left: with budget it goes back to 'queued' (so a
+	// redelivery can re-claim it), otherwise it is marked 'failed'. RETURNING
+	// reflects the post-update row, so `status = 'queued'` is the retry verdict.
+	// The `status = 'processing'` guard makes a race with a completing worker a
+	// no-op (ErrNoRows → no retry).
+	var requeued bool
+	err := s.db.QueryRowContext(ctx,
+		`UPDATE translation_jobs
+		 SET attempts = attempts + 1,
+		     status = CASE WHEN attempts + 1 < $2 THEN 'queued' ELSE 'failed' END,
+		     error  = CASE WHEN attempts + 1 < $2 THEN error ELSE $3 END,
+		     updated_at = NOW()
+		 WHERE id = $1 AND status = 'processing'
+		 RETURNING status = 'queued'`,
+		id, maxAttempts, errMsg).Scan(&requeued)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("retry-or-fail job: %w", err)
+	}
+	return requeued, nil
+}
+
+func (s *jobStore) SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) ([]string, int, error) {
+	if maxAttempts < 1 {
+		maxAttempts = 1
+	}
+	cutoff := time.Now().UTC().Add(-olderThan)
+
+	// Phase 1: requeue stalled jobs that still have retry budget.
+	rows, err := s.db.QueryContext(ctx,
+		`UPDATE translation_jobs
+		 SET status = 'queued', attempts = attempts + 1, updated_at = NOW()
+		 WHERE status = 'processing' AND updated_at < $1 AND attempts + 1 < $2
+		 RETURNING id`,
+		cutoff, maxAttempts)
+	if err != nil {
+		return nil, 0, fmt.Errorf("sweep requeue stale jobs: %w", err)
+	}
+	var requeued []string
+	for rows.Next() {
+		var id string
+		if scanErr := rows.Scan(&id); scanErr != nil {
+			_ = rows.Close()
+			return nil, 0, fmt.Errorf("scan requeued job id: %w", scanErr)
+		}
+		requeued = append(requeued, id)
+	}
+	if rowsErr := rows.Err(); rowsErr != nil {
+		_ = rows.Close()
+		return nil, 0, fmt.Errorf("iterate requeued jobs: %w", rowsErr)
+	}
+	_ = rows.Close()
+
+	// Phase 2: fail stalled jobs that have exhausted their retry budget. The
+	// attempts predicate is disjoint from phase 1, so the two never overlap.
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs
+		 SET status = 'failed', attempts = attempts + 1,
+		     error = 'stalled in processing; exceeded max attempts', updated_at = NOW()
+		 WHERE status = 'processing' AND updated_at < $1 AND attempts + 1 >= $2`,
+		cutoff, maxAttempts)
+	if err != nil {
+		return requeued, 0, fmt.Errorf("sweep fail exhausted jobs: %w", err)
+	}
+	failed, _ := res.RowsAffected()
+	return requeued, int(failed), nil
+}
+
+func (s *jobStore) RevertSweepRequeue(ctx context.Context, id string, staleThreshold time.Duration) error {
+	// Age updated_at comfortably past the sweep cutoff (NOW() - staleThreshold) so
+	// the next sweep's `updated_at < cutoff` predicate re-selects this row. Undo
+	// the sweep's attempts+1 (GREATEST guards against underflow) so a failed
+	// enqueue never eats retry budget. status='queued' guard: a no-op if a worker
+	// already re-claimed the row (it then owns a lease and must not be disturbed).
+	stale := time.Now().UTC().Add(-staleThreshold - time.Minute)
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs
+		 SET status = 'processing', attempts = GREATEST(attempts - 1, 0), updated_at = $2
+		 WHERE id = $1 AND status = 'queued'`,
+		id, stale)
+	if err != nil {
+		return fmt.Errorf("revert sweep requeue: %w", err)
+	}
+	return nil
 }
 
 func (s *jobStore) UpdateJobStatus(ctx context.Context, id string, status JobStatus, errMsg string) error {

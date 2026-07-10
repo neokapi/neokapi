@@ -28,6 +28,13 @@ type ProviderConfig struct {
 	ProviderType string `json:"provider_type"` // "anthropic", "openai", "ollama", "azureopenai", "gemini"
 	Model        string `json:"model,omitempty"`
 	BaseURL      string `json:"base_url,omitempty"`
+	// WorkspaceID scopes a config to a tenant on a shared (multi-tenant) store
+	// such as the bowrain server, which keeps every workspace's provider configs
+	// in one store. Single-tenant consumers (kapi CLI, desktop) leave it empty.
+	// Name de-duplication in Upsert is scoped by this field, and server handlers
+	// filter List/Get/Remove by it, so one tenant cannot see, overwrite, or
+	// delete another tenant's provider config.
+	WorkspaceID string `json:"workspace_id,omitempty"`
 	// Default marks this as the credential to use when its provider has more than
 	// one saved — at most one per provider type (enforced by SetDefault). With a
 	// single credential the flag is irrelevant (it always resolves).
@@ -118,9 +125,13 @@ func (s *Store) Upsert(cfg ProviderConfig) (ProviderConfig, error) {
 		// that entry in place rather than creating a second, indistinguishable
 		// record — two same-named credentials make auto-detect ambiguous and
 		// can't be told apart in a picker. Adopt the existing ID so the
-		// update path below runs (and the caller's key write targets it).
+		// update path below runs (and the caller's key write targets it). The
+		// match is scoped to the config's workspace so that on a multi-tenant
+		// store two workspaces may each hold a same-named config without one
+		// silently overwriting the other (empty WorkspaceID = single-tenant, so
+		// this is a no-op for the CLI/desktop).
 		for _, c := range s.configs {
-			if strings.EqualFold(c.Name, cfg.Name) {
+			if c.WorkspaceID == cfg.WorkspaceID && strings.EqualFold(c.Name, cfg.Name) {
 				cfg.ID = c.ID
 				break
 			}

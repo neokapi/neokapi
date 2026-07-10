@@ -940,14 +940,27 @@ func (s *Server) HandleDeleteTMEntry(c echo.Context) error {
 
 // HandleListProviderConfigs lists all saved AI provider configurations.
 func (s *Server) HandleListProviderConfigs(c echo.Context) error {
+	// Provider configs expose credential metadata (provider, model, endpoints);
+	// gate listing behind the same permission as save/delete/test so a caller
+	// without connector-management rights cannot enumerate them.
+	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
+		return err
+	}
 	if s.CredentialStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
 	}
 
-	configs := s.CredentialStore.List()
-	out := make([]ProviderConfigResponse, len(configs))
-	for i, cfg := range configs {
-		out[i] = toProviderConfigResponse(cfg)
+	// Partition by workspace: the credential store is a single global store
+	// shared by every workspace, so return only configs owned by the request's
+	// workspace. Without this any member with manage_connectors in one workspace
+	// could enumerate every tenant's provider/model/endpoint metadata.
+	wsID, _ := c.Get("workspace_id").(string)
+	out := make([]ProviderConfigResponse, 0)
+	for _, cfg := range s.CredentialStore.List() {
+		if cfg.WorkspaceID != wsID {
+			continue
+		}
+		out = append(out, toProviderConfigResponse(cfg))
 	}
 
 	return c.JSON(http.StatusOK, out)
@@ -967,7 +980,21 @@ func (s *Server) HandleSaveProviderConfig(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	saved, err := s.CredentialStore.Upsert(req.toCredentials())
+	// Stamp the owning workspace so the config is partitioned on the shared store
+	// (List/Delete filter by it). On an update (req.ID set), verify the existing
+	// config belongs to this workspace before letting the caller overwrite it —
+	// otherwise a caller could hijack another tenant's config by id.
+	wsID, _ := c.Get("workspace_id").(string)
+	cfg := req.toCredentials()
+	cfg.WorkspaceID = wsID
+	if cfg.ID != "" {
+		existing, err := s.CredentialStore.Get(cfg.ID)
+		if err == nil && existing.WorkspaceID != wsID {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "provider config not found"})
+		}
+	}
+
+	saved, err := s.CredentialStore.Upsert(cfg)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: fmt.Sprintf("save provider config: %s", err)})
 	}
@@ -992,6 +1019,14 @@ func (s *Server) HandleDeleteProviderConfig(c echo.Context) error {
 	}
 
 	id := c.Param("id")
+	// Verify workspace ownership before deleting: Remove takes a global id, so an
+	// unscoped delete would let a caller destroy another tenant's provider config
+	// (and its keychain API key) via /api/v1/<their-ws>/providers/<victim-id>.
+	wsID, _ := c.Get("workspace_id").(string)
+	existing, err := s.CredentialStore.Get(id)
+	if err != nil || existing.WorkspaceID != wsID {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "provider config not found"})
+	}
 	if err := s.CredentialStore.Remove(id); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}

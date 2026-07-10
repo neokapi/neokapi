@@ -138,8 +138,24 @@ func (s *Server) HandleGetJob(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "job not found"})
 	}
+	// Cross-tenant guard: GetJob resolves by GLOBAL id (unlike ListJobs, which
+	// filters WHERE workspace_slug). Without this a caller could read another
+	// tenant's job (project id, file paths, provider config, tokens, errors) via
+	// /api/v1/<their-ws>/jobs/<victim-job-id>. 404 (anti-enumeration) on mismatch.
+	if !jobInRequestWorkspace(c, job) {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "job not found"})
+	}
 
 	return c.JSON(http.StatusOK, job)
+}
+
+// jobInRequestWorkspace reports whether the job belongs to the workspace the
+// request is scoped to. TranslationJob.WorkspaceSlug stores the workspace SLUG
+// (as :ws in the path), so the comparison is against c.Param("ws"). Fails closed
+// when the path carries no workspace slug.
+func jobInRequestWorkspace(c echo.Context, job *jobs.TranslationJob) bool {
+	ws := c.Param("ws")
+	return ws != "" && job != nil && job.WorkspaceSlug == ws
 }
 
 // HandleListJobs lists recent jobs for a workspace.
@@ -184,8 +200,14 @@ func (s *Server) HandleDeleteJob(c echo.Context) error {
 	id := c.Param("id")
 	ctx := c.Request().Context()
 
-	// Verify job exists.
-	if _, err := s.JobStore.GetJob(ctx, id); err != nil {
+	// Verify job exists AND belongs to this workspace. GetJob resolves by global
+	// id, so without the workspace check a caller could cancel another tenant's
+	// in-flight job via /api/v1/<their-ws>/jobs/<victim-job-id>.
+	job, err := s.JobStore.GetJob(ctx, id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "job not found"})
+	}
+	if !jobInRequestWorkspace(c, job) {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "job not found"})
 	}
 

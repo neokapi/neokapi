@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/neokapi/neokapi/bowrain/agent"
+	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/crypto"
@@ -44,15 +46,35 @@ func main() {
 }
 
 func run() error {
+	allowInsecureDev := flag.Bool("allow-insecure-dev", false,
+		"Allow starting without BOWRAIN_DATABASE_URL (local development only; also BOWRAIN_ALLOW_INSECURE_DEV=1)")
+	flag.Parse()
+
 	dbURL := os.Getenv("BOWRAIN_DATABASE_URL")
-	if dbURL == "" {
-		return errors.New("BOWRAIN_DATABASE_URL is required (must be a postgres:// URL)")
-	}
-	if !strings.HasPrefix(dbURL, "postgres://") && !strings.HasPrefix(dbURL, "postgresql://") {
-		return errors.New("BOWRAIN_DATABASE_URL must start with postgres:// or postgresql://")
+	insecureDev := *allowInsecureDev || boot.AllowInsecureDevFromEnv()
+	if err := validateWorkerDBURL(dbURL, insecureDev); err != nil {
+		return err
 	}
 
 	return runWorker(dbURL)
+}
+
+// validateWorkerDBURL enforces the worker's fail-fast boot contract, mirroring
+// bowrain-server (see cmd/internal/boot): a malformed BOWRAIN_DATABASE_URL is
+// always fatal; a MISSING one is fatal unless the insecure-dev escape hatch is
+// set. A worker cannot reach its stores without a database, so a typo'd or
+// unset env var must abort startup with a clear message rather than boot a
+// process that will nil-panic or silently do nothing.
+func validateWorkerDBURL(dbURL string, insecureDev bool) error {
+	if dbURL == "" {
+		if insecureDev {
+			slog.Warn("INSECURE DEV MODE: starting worker without BOWRAIN_DATABASE_URL")
+			return nil
+		}
+		return fmt.Errorf("BOWRAIN_DATABASE_URL is required (set --allow-insecure-dev or %s=1 to override for local development)", boot.InsecureDevEnv)
+	}
+	// A non-empty but malformed URL is always fatal — never excusable as dev mode.
+	return boot.ValidatePostgresURL("BOWRAIN_DATABASE_URL", dbURL)
 }
 
 func runWorker(dbURL string) error {
@@ -262,6 +284,18 @@ func runWorker(dbURL string) error {
 	g.Go(func() error {
 		slog.Info("starting translation worker")
 		return jobs.RunWorkerWithDeps(ctx, translationDeps)
+	})
+
+	// Stale-job sweeper (epic 003 item 7): a worker that crashes between
+	// ClaimJob (queued→processing) and completion leaves the row stuck in
+	// 'processing' forever with no NAK to trigger redelivery. The sweeper
+	// periodically resets such rows to 'queued' (with attempt tracking) and
+	// re-enqueues them, or fails them once retries are exhausted. It shares the
+	// translation queue and job store.
+	staleSweeper := jobs.NewStaleJobSweeper(pgJS, translationQueue, 0, 0, 0)
+	g.Go(func() error {
+		slog.Info("starting stale-job sweeper")
+		return staleSweeper.Run(ctx)
 	})
 
 	// Extraction worker (auto-extract-on-push automation, AD-013/AD-015).

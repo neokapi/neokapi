@@ -31,7 +31,7 @@ func newTestWorkerDeps(t *testing.T) *WorkerDeps {
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_, _ = db.ExecContext(t.Context(), "DELETE FROM translation_jobs")
-		db.Close()
+		closePgDB(db) // closes the pgxpool too, keeping the goleak check green
 	})
 	js, err := NewJobStore(db)
 	require.NoError(t, err)
