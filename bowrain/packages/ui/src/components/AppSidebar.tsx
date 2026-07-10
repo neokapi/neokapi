@@ -275,6 +275,7 @@ function MobileNav<V extends string>({
   sidebarContext,
   activeSubNav,
   onSubNavChange,
+  hiddenSubNavIds,
 }: {
   activeView: V;
   onViewChange: (view: V) => void;
@@ -282,6 +283,7 @@ function MobileNav<V extends string>({
   sidebarContext: SidebarContext;
   activeSubNav?: string;
   onSubNavChange?: (id: string) => void;
+  hiddenSubNavIds?: string[];
 }) {
   const { setOpenMobile } = useSidebar();
   const mainItems = [...workspaceNavItems, ...extraNavItems];
@@ -506,6 +508,7 @@ export function AppSidebar<V extends string = string>({
             sidebarContext={effectiveContext}
             activeSubNav={activeSubNav}
             onSubNavChange={onSubNavChange}
+            hiddenSubNavIds={hiddenSubNavIds}
           />
         </SidebarContent>
       </Sidebar>
