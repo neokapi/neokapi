@@ -166,15 +166,15 @@ func TestProviderConfigCrossTenantIsolation(t *testing.T) {
 
 	// B cannot Get A's config by id.
 	_, err = s.Get(ctx, bID, a.ID)
-	assert.ErrorIs(t, err, ErrProviderConfigNotFound)
+	require.ErrorIs(t, err, ErrProviderConfigNotFound)
 
 	// B cannot Resolve A's config, even naming A's id.
 	_, err = s.Resolve(ctx, bID, a.ID)
-	assert.ErrorIs(t, err, ErrProviderConfigNotFound)
+	require.ErrorIs(t, err, ErrProviderConfigNotFound)
 
 	// B cannot Delete A's config; A's row survives.
 	err = s.Delete(ctx, bID, a.ID)
-	assert.ErrorIs(t, err, ErrProviderConfigNotFound)
+	require.ErrorIs(t, err, ErrProviderConfigNotFound)
 	got, err := s.Get(ctx, aID, a.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "sk-a-secret", got.APIKey)
@@ -204,7 +204,7 @@ func TestProviderConfigResolveByWorkspaceID(t *testing.T) {
 
 	// A wrong id does not resolve.
 	_, err = s.Resolve(ctx, "nope-id", saved.ID)
-	assert.ErrorIs(t, err, ErrProviderConfigNotFound)
+	require.ErrorIs(t, err, ErrProviderConfigNotFound)
 
 	// An empty scope never resolves (guards against a blank/anon job leaking a config).
 	_, err = s.Resolve(ctx, "", saved.ID)
@@ -234,7 +234,7 @@ func TestProviderConfigResolveIgnoresStaleSlug(t *testing.T) {
 	// reusable after release). The attacker knows the victim's config id and
 	// supplies its own workspace_id — which does not own the row.
 	_, err = s.Resolve(ctx, "ws-attacker", victim.ID)
-	assert.ErrorIs(t, err, ErrProviderConfigNotFound,
+	require.ErrorIs(t, err, ErrProviderConfigNotFound,
 		"a foreign workspace_id must not resolve the victim's config")
 
 	// The victim can still resolve its own config by its durable id.
