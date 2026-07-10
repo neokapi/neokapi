@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-10T21:34:00Z",
+  "generatedAt": "2026-07-10T21:48:30Z",
   "commands": [
     {
       "id": "brand",
@@ -3016,6 +3016,64 @@
       ],
       "use": "rebuild-cache",
       "short": "Force a rebuild of the plugin dispatch cache",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "plugin.registry",
+      "path": [
+        "plugin",
+        "registry"
+      ],
+      "use": "registry",
+      "short": "Manage plugin registries",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "plugin.registry.add",
+      "path": [
+        "plugin",
+        "registry",
+        "add"
+      ],
+      "use": "add \u003cname\u003e \u003curl\u003e",
+      "short": "Add a registry to global config",
+      "flags": [
+        {
+          "name": "channels",
+          "usage": "available channels (comma-separated, e.g., default,snapshot)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "plugin.registry.list",
+      "path": [
+        "plugin",
+        "registry",
+        "list"
+      ],
+      "use": "list",
+      "short": "List configured registries",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "plugin.registry.remove",
+      "path": [
+        "plugin",
+        "registry",
+        "remove"
+      ],
+      "use": "remove \u003cname\u003e",
+      "short": "Remove a registry from global config",
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false

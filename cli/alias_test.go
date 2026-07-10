@@ -117,7 +117,32 @@ func TestHelpGroups_RenderInPorcelainOrder(t *testing.T) {
 	for _, gone := range []string{"\nProcessing:", "Project & Content:", "Info & Management:"} {
 		assert.NotContains(t, help, gone, "the pre-porcelain group headings are gone")
 	}
-	for _, hidden := range []string{"\n  verify ", "\n  ollama ", "\n  presets "} {
-		assert.NotContains(t, help, hidden, "hidden aliases stay out of help")
+	for _, hidden := range []string{"\n  verify ", "\n  ollama ", "\n  presets ", "\n  registry ", "\n  engine "} {
+		assert.NotContains(t, help, hidden, "hidden aliases and plumbing stay out of help")
 	}
+}
+
+// TestRootHelpBudget pins the visible root surface (surface strategy A6):
+// demoted tool verbs, deprecated aliases, and machine plumbing are hidden,
+// and the visible command count must not silently creep back up. Raising the
+// budget is a deliberate product decision, not a side effect.
+func TestRootHelpBudget(t *testing.T) {
+	a := processOnlyApp(t)
+	root := &cobra.Command{Use: "kapi", Short: "test"}
+	AddCommandGroups(a, root)
+	for _, c := range KapiCommandSet(a) {
+		root.AddCommand(c)
+	}
+
+	visible := 0
+	var names []string
+	for _, c := range root.Commands() {
+		if c.Hidden || !c.IsAvailableCommand() {
+			continue
+		}
+		visible++
+		names = append(names, c.Name())
+	}
+	assert.LessOrEqualf(t, visible, 40,
+		"visible root commands grew past the budget — new verbs belong in a group (kapi tool, an assets subtree) or hidden plumbing; visible now: %v", names)
 }

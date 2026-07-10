@@ -304,6 +304,18 @@
           "rebuild-cache": {
             "short": "Force a rebuild of the plugin dispatch cache"
           },
+          "registry": {
+            "add": {
+              "short": "Add a registry to global config"
+            },
+            "list": {
+              "short": "List configured registries"
+            },
+            "remove": {
+              "short": "Remove a registry from global config"
+            },
+            "short": "Manage plugin registries"
+          },
           "remove": {
             "short": "Remove an installed plugin"
           },
