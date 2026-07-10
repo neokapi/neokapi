@@ -7,6 +7,13 @@ import (
 )
 
 // Migration represents a single schema migration step.
+//
+// Migration rule: migrations are APPEND-ONLY. Bowrain databases now carry
+// production data, so a migration that has shipped must never be edited,
+// renumbered, or removed — schema changes are expressed as a new Migration
+// with the next version number (using ALTER TABLE / CREATE ... IF NOT EXISTS
+// as appropriate). The per-namespace tracking tables record which versions a
+// database has applied; rewriting history desynchronizes them.
 type Migration struct {
 	Version     int
 	Description string
