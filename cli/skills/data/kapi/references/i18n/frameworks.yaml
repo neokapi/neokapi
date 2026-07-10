@@ -1,0 +1,569 @@
+# i18n framework registry — the machine-readable source of truth behind the
+# per-ecosystem playbooks in this directory. Schema and scoring rubric:
+# docs/internals/i18n-toil.md (repo). Maintained by the refresh-i18n-framework
+# skill (.skills/) and the i18n-triage workflow (.claude/workflows/i18n-triage.js).
+#
+# Toil axes 0-3: w=marking, x=extraction, s=sync, r=runtime-correctness,
+# e=ecosystem risk. grade is derived from `recommended` per the rubric.
+# status: recommended | supported | caution | avoid.
+# All `watch` claims verified 2026-07-10 (see strategy/i18n-skill/research-*.md).
+
+version: 1
+rubric: docs/internals/i18n-toil.md
+
+frameworks:
+  # ── React ──────────────────────────────────────────────────────────────
+  - id: kapi-react
+    ecosystem: react
+    reference: react.md
+    status: recommended
+    detect:
+      deps: ["@neokapi/kapi-react"]
+      files: ["i18n/*.klf"]
+    catalog: { format: klf, layout: "i18n/{lang}.klf" }
+    kapi: { preset: kapi-react, flags: null }   # preset is detection-only; adoption is the bundler workflow (Path A)
+    toil:
+      stock:       { w: 1, x: 0, s: 1, r: 1, e: 1 }
+      recommended: { w: 0, x: 0, s: 0, r: 0, e: 1 }
+      grade: T0
+      buys:
+        - "w: @neokapi/kapi-react-lint strict preset (finds the t() escape hatches)"
+        - "s: kapi-react extract in CI + kapi convergence"
+        - "r: kapi pseudo-translate qps gate + translate-qa"
+    watch: { repo: https://github.com/neokapi/neokapi, latest_verified: "1.0.1", verified: 2026-07-10 }
+    notes: "Zero-wrapper: plain JSX is extracted at build time; source text is the key."
+
+  - id: react-i18next
+    ecosystem: react
+    reference: react.md
+    status: supported
+    detect:
+      deps: [react-i18next, i18next]
+      files: ["public/locales/*/"]
+    catalog: { format: json, layout: "public/locales/{lang}/*.json" }
+    kapi: { preset: react-i18next, flags: "--format i18next" }
+    toil:
+      stock:       { w: 2, x: 2, s: 2, r: 1, e: 1 }
+      recommended: { w: 2, x: 1, s: 1, r: 1, e: 1 }
+      grade: T2
+      buys:
+        - "x: official i18next-cli extract --ci (i18next-parser is deprecated)"
+        - "s: i18next-cli sync/status + kapi project convergence"
+    watch: { repo: https://github.com/i18next/i18next, latest_verified: "i18next 26.x / react-i18next 17.x / i18next-cli 1.x", verified: 2026-07-10 }
+    notes: "Stable feature-scoped IDs + defaultValue is the maintainers' idiom; suffix plurals (key_one/key_other)."
+
+  - id: next-intl
+    ecosystem: react
+    reference: react.md
+    status: recommended
+    detect:
+      deps: [next-intl]
+      files: ["messages/*.json", "i18n/request.ts"]
+    catalog: { format: json, layout: "messages/{lang}.json" }
+    kapi: { preset: nextjs, flags: null }
+    toil:
+      stock:       { w: 2, x: 2, s: 2, r: 1, e: 1 }
+      recommended: { w: 2, x: 2, s: 1, r: 1, e: 1 }
+      grade: T2
+      buys:
+        - "s: lingualdev/i18n-check in CI (no first-party extractor; useExtracted still experimental)"
+        - "r: kapi pseudo-translate + translate-qa placeholder validation"
+    watch: { repo: https://github.com/amannn/next-intl, latest_verified: "4.13", verified: 2026-07-10 }
+    notes: "De-facto Next.js App Router standard; IDs are its idiom — do not convert it to source-as-key."
+
+  - id: lingui
+    ecosystem: react
+    reference: react.md
+    status: recommended
+    detect:
+      deps: ["@lingui/core", "@lingui/react"]
+      files: ["lingui.config.*"]
+    catalog: { format: po, layout: "src/locales/{lang}/messages.po" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 1, x: 1, s: 1, r: 1, e: 2 }
+      recommended: { w: 1, x: 1, s: 1, r: 1, e: 2 }
+      grade: T2
+      buys:
+        - "r: kapi pseudo-translate + translate-qa on the .po catalogs"
+    watch: { repo: https://github.com/lingui/js-lingui, latest_verified: "6.5", verified: 2026-07-10 }
+    notes: "Source-as-key macros, PO catalogs, obsolete-marking. SWC plugin pins to exact Next.js versions."
+
+  - id: react-intl
+    ecosystem: react
+    reference: react.md
+    status: caution
+    detect:
+      deps: [react-intl]
+      files: []
+    catalog: { format: json, layout: "src/lang/{lang}.json" }
+    kapi: { preset: react-intl, flags: null }
+    toil:
+      stock:       { w: 3, x: 1, s: 2, r: 1, e: 2 }
+      recommended: { w: 3, x: 1, s: 1, r: 1, e: 2 }
+      grade: T3
+      buys:
+        - "s: TMS/TM pipeline absorbing hash-ID churn + formatjs CI extract"
+    watch: { repo: https://github.com/formatjs/formatjs, latest_verified: "10.x", verified: 2026-07-10 }
+    notes: "Maximum per-string boilerplate; hash IDs churn on copy edits. Right only for ICU-standardized enterprises with a TMS."
+
+  - id: next-i18next
+    ecosystem: react
+    reference: react.md
+    status: supported
+    detect:
+      deps: [next-i18next]
+      files: ["next-i18next.config.*"]
+    catalog: { format: json, layout: "public/locales/{lang}/*.json" }
+    kapi: { preset: react-i18next, flags: "--format i18next" }
+    toil:
+      stock:       { w: 2, x: 2, s: 2, r: 2, e: 2 }
+      recommended: { w: 2, x: 1, s: 1, r: 2, e: 2 }
+      grade: T2
+      buys:
+        - "x/s: i18next-cli extract --ci + sync/status"
+    watch: { repo: https://github.com/i18next/next-i18next, latest_verified: "16.x (App Router support since 2026-03)", verified: 2026-07-10 }
+    notes: "For existing i18next investments on Next.js; v16 revived it. Greenfield Next.js → next-intl."
+
+  # ── Vue / Nuxt ─────────────────────────────────────────────────────────
+  - id: vue-i18n
+    ecosystem: vue
+    reference: vue.md
+    status: recommended
+    detect:
+      deps: [vue-i18n]
+      files: ["src/locales/"]
+    catalog: { format: json, layout: "src/locales/{lang}.json" }
+    kapi: { preset: vue-i18n, flags: null }
+    toil:
+      stock:       { w: 2, x: 2, s: 2, r: 1, e: 1 }
+      recommended: { w: 2, x: 2, s: 1, r: 1, e: 1 }
+      grade: T2
+      buys:
+        - "s: eslint-plugin-vue-i18n (no-missing-keys, no-raw-text) in CI + kapi convergence"
+        - "perf/CSP: @intlify/unplugin-vue-i18n is mandatory, not optional"
+    watch: { repo: https://github.com/intlify/vue-i18n, latest_verified: "11.x (v9/v10 EOL 2025-07)", verified: 2026-07-10 }
+    notes: "Composition API only; Legacy API and v-t die in v12. Intlify format, not ICU."
+
+  - id: nuxtjs-i18n
+    ecosystem: vue
+    reference: vue.md
+    status: recommended
+    detect:
+      deps: ["@nuxtjs/i18n"]
+      files: ["i18n/locales/"]
+    catalog: { format: json, layout: "i18n/locales/{lang}.json" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 2, s: 2, r: 1, e: 0 }
+      recommended: { w: 2, x: 2, s: 1, r: 1, e: 0 }
+      grade: T2
+      buys:
+        - "s: same lint stack as vue-i18n + kapi convergence"
+    watch: { repo: https://github.com/nuxt-modules/i18n, latest_verified: "10.x", verified: 2026-07-10 }
+    notes: "The only sane default on Nuxt; owns routing/SEO/detection. Inherits vue-i18n's message toil."
+
+  # ── Angular ────────────────────────────────────────────────────────────
+  - id: angular
+    ecosystem: angular
+    reference: angular.md
+    status: recommended
+    detect:
+      deps: ["@angular/localize"]
+      files: [angular.json]
+    catalog: { format: xliff, layout: "src/locale/messages.{lang}.xlf" }
+    kapi: { preset: angular, flags: null }
+    toil:
+      stock:       { w: 1, x: 1, s: 3, r: 0, e: 0 }
+      recommended: { w: 1, x: 1, s: 1, r: 0, e: 0 }
+      grade: T1
+      buys:
+        - "s: ng-extract-i18n-merge as the extract builder (mandatory — stock has no target merge and hash IDs churn)"
+    watch: { repo: https://github.com/angular/angular, latest_verified: "Angular 22; i18n subsystem frozen (#38953 open since 2020)", verified: 2026-07-10 }
+    notes: "Source-as-key templates, compile-checked ICU, zero i18n runtime. No runtime language switch — reload per locale."
+
+  - id: transloco
+    ecosystem: angular
+    reference: angular.md
+    status: recommended
+    detect:
+      deps: ["@jsverse/transloco", "@ngneat/transloco"]
+      files: ["transloco.config.*"]
+    catalog: { format: json, layout: "assets/i18n/{lang}.json" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 1, s: 1, r: 1, e: 1 }
+      recommended: { w: 2, x: 1, s: 1, r: 0, e: 1 }
+      grade: T1
+      buys:
+        - "s: transloco-keys-manager --emit-errors in CI + typed keys"
+        - "r: transloco-messageformat (ICU) + kapi pseudo-translate/translate-qa"
+    watch: { repo: https://github.com/jsverse/transloco, latest_verified: "8.x (@jsverse; @ngneat frozen)", verified: 2026-07-10 }
+    notes: "The runtime-switching pick; scopes match lazy routes."
+
+  - id: ngx-translate
+    ecosystem: angular
+    reference: angular.md
+    status: caution
+    detect:
+      deps: ["@ngx-translate/core"]
+      files: ["public/i18n/", "assets/i18n/"]
+    catalog: { format: json, layout: "public/i18n/{lang}.json" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 2, s: 2, r: 2, e: 2 }
+      recommended: { w: 2, x: 2, s: 1, r: 1, e: 2 }
+      grade: T2
+      buys:
+        - "x: @vendure/ngx-translate-extract (the maintained fork)"
+        - "r: ngx-translate-messageformat-compiler + kapi exec qa"
+    watch: { repo: https://github.com/ngx-translate/core, latest_verified: "18.x (revived by CodeAndWeb 2024; single-major support window)", verified: 2026-07-10 }
+    notes: "Stay-if-you're-on-it (upgrade to v18); greenfield goes to Transloco or built-in."
+
+  # ── Svelte / Astro / Solid ─────────────────────────────────────────────
+  - id: paraglide
+    ecosystem: svelte
+    reference: svelte.md
+    status: recommended
+    detect:
+      deps: ["@inlang/paraglide-js"]
+      files: ["project.inlang/", "messages/en.json"]
+    catalog: { format: json, layout: "messages/{lang}.json" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 0, s: 0, r: 1, e: 2 }
+      recommended: { w: 2, x: 0, s: 0, r: 1, e: 2 }
+      grade: T1
+      buys:
+        - "r: kapi pseudo-translate + translate-qa on messages/*.json"
+    watch: { repo: https://github.com/opral/paraglide-js, latest_verified: "2.21 (official `sv add paraglide`)", verified: 2026-07-10 }
+    notes: "Compiled typed message functions; missing message = compile error. Static keys only; bootstrapped steward. Also the pick for Astro and Solid(Start)."
+
+  - id: svelte-i18n
+    ecosystem: svelte
+    reference: svelte.md
+    status: avoid
+    detect:
+      deps: [svelte-i18n]
+      files: []
+    catalog: { format: json, layout: "src/lib/i18n/{lang}.json" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 2, s: 2, r: 2, e: 3 }
+      recommended: { w: 2, x: 2, s: 2, r: 2, e: 3 }
+      grade: T3
+      buys: []
+    watch: { repo: https://github.com/kaisermann/svelte-i18n, latest_verified: "4.0.1 (dormant since early 2024)", verified: 2026-07-10 }
+    notes: "Dormant. New work → Paraglide; migration path in svelte.md."
+
+  - id: astro-i18next
+    ecosystem: astro
+    reference: svelte.md
+    status: avoid
+    detect:
+      deps: [astro-i18next]
+      files: []
+    catalog: { format: json, layout: "public/locales/{lang}/*.json" }
+    kapi: { preset: null, flags: "--format i18next" }
+    toil:
+      stock:       { w: 2, x: 2, s: 3, r: 2, e: 3 }
+      recommended: { w: 2, x: 2, s: 3, r: 2, e: 3 }
+      grade: T4
+      buys: []
+    watch: { repo: https://github.com/yassinedoghri/astro-i18next, latest_verified: "1.0.0-beta.21 (dead since 2023)", verified: 2026-07-10 }
+    notes: "Dead. Astro = built-in i18n routing + Paraglide (or the docs-recipe ui.ts for tiny sites)."
+
+  - id: solid-primitives-i18n
+    ecosystem: solid
+    reference: svelte.md
+    status: caution
+    detect:
+      deps: ["@solid-primitives/i18n"]
+      files: []
+    catalog: { format: json, layout: "src/i18n/{lang}.json" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 3, s: 2, r: 1, e: 1 }
+      recommended: { w: 2, x: 3, s: 1, r: 1, e: 1 }
+      grade: T3
+      buys:
+        - "s: kapi convergence over the JSON dictionaries"
+    watch: { repo: https://github.com/solidjs-community/solid-primitives, latest_verified: "maintained (solidjs-community)", verified: 2026-07-10 }
+    notes: "Minimalist by design — no extractor/ICU/routing. SolidStart SSR or >2 locales → Paraglide."
+
+  # ── Mobile ─────────────────────────────────────────────────────────────
+  - id: ios-xcstrings
+    ecosystem: ios
+    reference: ios.md
+    status: recommended
+    detect:
+      deps: []
+      files: ["*.xcstrings", "*.xcodeproj"]
+    catalog: { format: xcstrings, layout: "Localizable.xcstrings (single multi-locale file)" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 0, x: 0, s: 1, r: 1, e: 0 }
+      recommended: { w: 0, x: 0, s: 1, r: 1, e: 0 }
+      grade: T0
+      buys:
+        - "s: .gitattributes union merge driver + CI stale-count check"
+        - "r: kapi pseudo-translate/translate-qa directly on .xcstrings"
+    watch: { repo: https://developer.apple.com/xcode/, latest_verified: "Xcode 27 (agentic localization); xcstrings v1.1 since Xcode 26", verified: 2026-07-10 }
+    notes: "The add-and-forget reference point: compiler extraction on every build, stale-marking sync, typed symbols. Legacy .strings → migrate via Xcode."
+
+  - id: android
+    ecosystem: android
+    reference: android.md
+    status: recommended
+    detect:
+      deps: []
+      files: ["app/src/main/res/values/strings.xml", "build.gradle*"]
+    catalog: { format: androidxml, layout: "res/values-{lang}/strings.xml" }
+    kapi: { preset: null, flags: "--format androidxml" }
+    toil:
+      stock:       { w: 2, x: 2, s: 2, r: 2, e: 0 }
+      recommended: { w: 2, x: 2, s: 1, r: 1, e: 0 }
+      grade: T2
+      buys:
+        - "s/r: HardcodedText + MissingTranslation lint as CI errors; kapi convergence + qa"
+    watch: { repo: https://developer.android.com/guide/topics/resources/localization, latest_verified: "AGP 8.8 localeFilters; per-app language API 33+", verified: 2026-07-10 }
+    notes: "IDs mandatory; no alternative exists. English quantity=\"zero\" is silently ignored — known plural trap."
+
+  - id: flutter
+    ecosystem: flutter
+    reference: flutter.md
+    status: recommended
+    detect:
+      deps: []
+      files: [pubspec.yaml, l10n.yaml, "lib/l10n/*.arb"]
+    catalog: { format: arb, layout: "lib/l10n/app_{lang}.arb" }
+    kapi: { preset: flutter, flags: null }
+    toil:
+      stock:       { w: 2, x: 2, s: 2, r: 1, e: 0 }
+      recommended: { w: 2, x: 2, s: 1, r: 1, e: 0 }
+      grade: T2
+      buys:
+        - "s: untranslated-messages-file report in CI + kapi convergence over ARB"
+    watch: { repo: https://github.com/flutter/flutter, latest_verified: "gen_l10n; synthetic package:flutter_gen removed (~3.29–3.32 churn)", verified: 2026-07-10 }
+    notes: "gen_l10n is the default (ICU-complete, typed). slang is the DX alternative; easy_localization is avoid-for-production."
+
+  - id: flutter-slang
+    ecosystem: flutter
+    reference: flutter.md
+    status: supported
+    detect:
+      deps: [slang]
+      files: ["slang.yaml", "i18n/"]
+    catalog: { format: json, layout: "i18n/{lang}.json" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 2, s: 1, r: 0, e: 1 }
+      recommended: { w: 2, x: 2, s: 1, r: 0, e: 1 }
+      grade: T2
+      buys:
+        - "s: dart run slang analyze (best drift tooling in Flutter)"
+    watch: { repo: https://github.com/slang-i18n/slang, latest_verified: "4.18 (2026-06)", verified: 2026-07-10 }
+    notes: "Terse t.checkout.title access, no context needed; third-party dependency for the whole string layer."
+
+  - id: react-native
+    ecosystem: react-native
+    reference: react-native.md
+    status: supported
+    detect:
+      deps: [react-native-localize, expo-localization]
+      files: [app.json, "metro.config.*"]
+    catalog: { format: json, layout: "locales/{lang}/*.json" }
+    kapi: { preset: null, flags: "--format i18next" }
+    toil:
+      stock:       { w: 2, x: 2, s: 2, r: 2, e: 1 }
+      recommended: { w: 2, x: 1, s: 1, r: 1, e: 1 }
+      grade: T2
+      buys:
+        - "x/s: i18next-cli extract --ci + sync"
+        - "r: FormatJS Intl polyfills on iOS (Hermes lacks full ECMA-402 there) + kapi exec qa"
+    watch: { repo: https://github.com/i18next/react-i18next, latest_verified: "react-i18next 17.x; Lingui has first-party RN tutorial", verified: 2026-07-10 }
+    notes: "Default react-i18next + expo-localization/react-native-localize; Lingui for extraction hygiene + ICU."
+
+  # ── Backend / classic ──────────────────────────────────────────────────
+  - id: gettext
+    ecosystem: gettext
+    reference: gettext.md
+    status: recommended
+    detect:
+      deps: []
+      files: ["po/*.po", "locales/*/LC_MESSAGES/", "*.pot"]
+    catalog: { format: po, layout: "po/{lang}.po" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 1, x: 0, s: 1, r: 1, e: 0 }
+      recommended: { w: 1, x: 0, s: 1, r: 0, e: 0 }
+      grade: T1
+      buys:
+        - "r: msgfmt -c in CI + kapi pseudo-translate on .po"
+    watch: { repo: https://www.gnu.org/software/gettext/, latest_verified: "1.0 (2026-01; po-fetch, msgpre LLM pre-translation)", verified: 2026-07-10 }
+    notes: "The reference workflow: source-as-key, xgettext total extraction, msgmerge fuzzy. Covers C/C++, Python (Babel), PHP/WordPress, Ruby fast_gettext."
+
+  - id: django
+    ecosystem: django
+    reference: gettext.md
+    status: recommended
+    detect:
+      deps: [django]
+      files: [manage.py, "locale/*/LC_MESSAGES/"]
+    catalog: { format: po, layout: "locale/{lang}/LC_MESSAGES/django.po" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 1, x: 0, s: 1, r: 1, e: 0 }
+      recommended: { w: 1, x: 0, s: 1, r: 0, e: 0 }
+      grade: T1
+      buys:
+        - "r: msgfmt -c + kapi exec qa; know that compilemessages silently skips fuzzy entries"
+    watch: { repo: https://github.com/django/django, latest_verified: "makemessages/compilemessages stable; needs gettext >= 0.15 binaries", verified: 2026-07-10 }
+    notes: "Best-integrated web-framework i18n anywhere. Footguns: lazy-vs-eager, fuzzy-skipping."
+
+  - id: rails
+    ecosystem: rails
+    reference: rails.md
+    status: recommended
+    detect:
+      deps: [rails]
+      files: ["config/locales/*.yml", Gemfile]
+    catalog: { format: yaml, layout: "config/locales/{lang}.yml" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 2, s: 3, r: 1, e: 0 }
+      recommended: { w: 2, x: 2, s: 1, r: 1, e: 0 }
+      grade: T2
+      buys:
+        - "s: i18n-tasks health as a CI gate from day one (missing/unused/normalize) + kapi convergence"
+    watch: { repo: https://github.com/glebm/i18n-tasks, latest_verified: "i18n-tasks active 2026", verified: 2026-07-10 }
+    notes: "Key-based YAML is the paved road; without i18n-tasks it is T3. gettext_i18n_rails is the niche source-as-key alternative (hybrid toil)."
+
+  - id: go
+    ecosystem: go
+    reference: backend.md
+    status: caution
+    detect:
+      deps: ["github.com/nicksnyder/go-i18n/v2", "golang.org/x/text"]
+      files: [go.mod, "active.*.toml"]
+    catalog: { format: json, layout: "active.{lang}.toml or {lang}.json" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 3, x: 2, s: 2, r: 1, e: 1 }
+      recommended: { w: 2, x: 2, s: 1, r: 1, e: 1 }
+      grade: T2
+      buys:
+        - "w: source-English-as-ID message convention"
+        - "s: goi18n extract && merge enforced in CI (hash-based change detection)"
+    watch: { repo: https://github.com/nicksnyder/go-i18n, latest_verified: "v2 active; x/text gotext still experimental", verified: 2026-07-10 }
+    notes: "Still comparatively painful. Prefer minimizing the translatable surface (emit codes; localize at the UI edge)."
+
+  - id: jvm
+    ecosystem: jvm
+    reference: backend.md
+    status: caution
+    detect:
+      deps: []
+      files: ["src/main/resources/messages*.properties", pom.xml, "build.gradle*"]
+    catalog: { format: properties, layout: "messages_{lang}.properties" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 3, s: 3, r: 1, e: 0 }
+      recommended: { w: 2, x: 3, s: 1, r: 1, e: 0 }
+      grade: T3
+      buys:
+        - "s: kapi convergence + CI locale-parity check (the platform ships no merge/fuzzy/unused tooling)"
+        - "r: ICU4J MessageFormat from day one (never ChoiceFormat)"
+    watch: { repo: https://unicode-org.github.io/icu/, latest_verified: "ResourceBundle frozen; ICU4J healthy (MF2 still tech preview)", verified: 2026-07-10 }
+    notes: "No extraction exists (X=3) — the T3 warning stands even with tooling. Typed Messages facade recommended."
+
+  - id: dotnet
+    ecosystem: dotnet
+    reference: backend.md
+    status: caution
+    detect:
+      deps: []
+      files: ["*.resx", "*.csproj"]
+    catalog: { format: resx, layout: "Resources/{Name}.{lang}.resx" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 3, s: 2, r: 2, e: 0 }
+      recommended: { w: 1, x: 3, s: 1, r: 1, e: 0 }
+      grade: T3
+      buys:
+        - "w: string-as-key IStringLocalizer (English fallback for free)"
+        - "s: ResXManager/TMS + kapi convergence over .resx"
+        - "r: an ICU MessageFormat library — string.Format has no plural engine"
+    watch: { repo: https://learn.microsoft.com/dotnet/core/extensions/localization, latest_verified: ".NET 10; resx unchanged", verified: 2026-07-10 }
+    notes: "No extraction (X=3) — T3 warning stands. Typed resx only for desktop (WPF/WinForms/MAUI)."
+
+  - id: fluent
+    ecosystem: gettext
+    reference: backend.md
+    status: caution
+    detect:
+      deps: []
+      files: ["*.ftl"]
+    catalog: { format: null, layout: "locales/{lang}/*.ftl" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 3, s: 2, r: 0, e: 3 }
+      recommended: { w: 2, x: 3, s: 2, r: 0, e: 3 }
+      grade: T3
+      buys: []
+    watch: { repo: https://github.com/projectfluent/fluent-rs, latest_verified: "maintainer energy moved to MessageFormat 2; MF2 still ICU tech preview", verified: 2026-07-10 }
+    notes: "Best message syntax, orphan risk outside Mozilla. kapi has no ftl reader (known gap). Don't panic-migrate existing users; don't start new."
+
+  # ── Docs sites ─────────────────────────────────────────────────────────
+  - id: docusaurus
+    ecosystem: docs
+    reference: docs-sites.md
+    status: recommended
+    detect:
+      deps: ["@docusaurus/core"]
+      files: ["docusaurus.config.*", "i18n/"]
+    catalog: { format: json, layout: "i18n/{lang}/** (JSON for UI, copied .md/.mdx for content)" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 1, x: 1, s: 2, r: 1, e: 0 }
+      recommended: { w: 1, x: 1, s: 1, r: 1, e: 0 }
+      grade: T1
+      buys:
+        - "s: kapi project convergence over docs content (this repo dogfoods exactly this: web/docs → i18n/nb)"
+    watch: { repo: https://github.com/facebook/docusaurus, latest_verified: "write-translations JSON + file-copy content model", verified: 2026-07-10 }
+    notes: "Content model is whole-file copies — no native drift detection; kapi's convergence is the fix. Source locale strict, target locales warn."
+
+  - id: sphinx
+    ecosystem: docs
+    reference: docs-sites.md
+    status: supported
+    detect:
+      deps: [sphinx]
+      files: [conf.py]
+    catalog: { format: po, layout: "locales/{lang}/LC_MESSAGES/*.po" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 0, x: 0, s: 1, r: 1, e: 0 }
+      recommended: { w: 0, x: 0, s: 1, r: 1, e: 0 }
+      grade: T1
+      buys: []
+    watch: { repo: https://www.sphinx-doc.org, latest_verified: "sphinx-intl gettext pipeline", verified: 2026-07-10 }
+    notes: "Full gettext pipeline; paragraph-level msgids mean edits fuzzy whole paragraphs — automated but churn-heavy."
+
+  - id: hugo
+    ecosystem: docs
+    reference: docs-sites.md
+    status: caution
+    detect:
+      deps: []
+      files: ["hugo.toml", "config.toml", "i18n/"]
+    catalog: { format: yaml, layout: "i18n/{lang}.yaml + per-language content copies (Hugo also accepts TOML — use YAML; kapi has no TOML reader)" }
+    kapi: { preset: null, flags: null }
+    toil:
+      stock:       { w: 2, x: 3, s: 2, r: 1, e: 0 }
+      recommended: { w: 2, x: 3, s: 1, r: 1, e: 0 }
+      grade: T3
+      buys:
+        - "s: kapi convergence over i18n/*.yaml and content copies"
+    watch: { repo: https://gohugo.io, latest_verified: "manual key-based UI strings; per-language content files", verified: 2026-07-10 }
+    notes: "Fully manual beyond small sites — T3 warning applies."

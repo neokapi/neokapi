@@ -1,6 +1,6 @@
 ---
 name: kapi
-description: Read, edit, check, and localize the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); authors new content and checks it against a brand voice profile and terminology, looping until it passes; and translates into other languages with glossary enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting on-brand copy, brand voice/tone, forbidden/competitor terms, a glossary or consistent terminology, checking content, translating or localizing (to fr/de/ja…), making a project multilingual, or adding i18n.
+description: Read, edit, check, and localize the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); authors new content and checks it against a brand voice profile and terminology, looping until it passes; and translates into other languages with glossary enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting on-brand copy, brand voice/tone, forbidden/competitor terms, a glossary or consistent terminology, checking content, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
 ---
 
 # kapi
@@ -80,9 +80,12 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
   through kapi — don't reach for a provider. The provider-backed modes
   (`kapi translate`, the optional `--ai` checks) are for unattended runs only;
   kapi never sends content to a model to rewrite it.
-- **Add i18n to a project** — set up the kapi-react stack for React apps, or plug
-  kapi into the catalogs another stack already uses. See
-  [references/i18n.md](references/i18n.md).
+- **Add i18n to a project / choose an i18n framework** — detect the stack,
+  recommend the lowest-toil setup for it (every known framework carries a
+  **Toil Index** grade from T0 "add and forget" to T4 "you're on your own"),
+  set up the kapi-react stack for React apps, or plug kapi into the catalogs
+  another stack already uses — with the specific tools that make that stack
+  maintainable. See [references/i18n.md](references/i18n.md).
 
 ## Prerequisites
 
@@ -94,4 +97,6 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
   unattended translation (`kapi translate`) or the optional `--ai` checks. The
   rule-based brand and terminology checks need no credential.
 
-The English source text is always the key — don't introduce message IDs.
+In kapi's own stacks (kapi-react, KLF) the English source text is always the
+key — don't introduce message IDs. When plugging into another stack's catalogs,
+follow that stack's key idiom instead (see references/i18n.md).

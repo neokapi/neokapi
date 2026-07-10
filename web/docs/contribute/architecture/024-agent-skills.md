@@ -127,7 +127,14 @@ covers editing, creating, brand, terminology, localization, i18n, the toolbox,
 and a project model, with one reference file per concern — edit (the read → edit →
 write → verify loop), create (the author → parse → check loop), brand, localize
 (translation and terminology), i18n, project, and the toolbox. Terminology folds
-into the brand and localize references rather than a standalone file. The split is
+into the brand and localize references rather than a standalone file. The i18n
+concern is itself a small tree: `references/i18n.md` routes by detected stack
+into per-ecosystem playbooks under `references/i18n/`, driven by a
+machine-readable framework registry (`references/i18n/frameworks.yaml`) that
+carries detection signals, catalog layouts, kapi presets, and a maintenance-cost
+grade per framework (the Toil Index, `docs/internals/i18n-toil.md`); the
+registry is kept current by the `refresh-i18n-framework` skill and the
+`i18n-triage` workflow. The split is
 the organizing principle for the surface a skill targets; the framework owns the
 kapi skill source (`cli/skills/data`), and a bowrain skill is contributed by the
 bowrain plugin.
