@@ -49,6 +49,14 @@ kapi status
 - Requires a `server.url` field on the recipe (the compound URL encodes the project ID)
 - If the `server:` block is missing, shows a message directing you to add one
 
+### Terminology and Venue
+
+- **terms**: when the workspace's governed terminology was last snapshotted
+  into the local termbase (concept/relation counts), or `never synced` when
+  no concept pull has run — refresh it with `kapi pull --concepts`
+- **venue**: where `kapi up` would run the convergence loop (`server` or
+  `local`) and the recipe's `server.converge` policy
+
 ### Sync Cache
 
 Status is tracked in `.kapi/cache/sync-cache.json` (auto-gitignored):

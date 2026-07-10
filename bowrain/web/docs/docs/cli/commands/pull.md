@@ -51,6 +51,7 @@ kapi pull --force
 | `--locale`  | Target locales to pull (repeatable)              | all     |
 | `--force`   | Pull from beginning, ignoring sync cursor        | `false` |
 | `--dry-run` | Show what would be pulled without changing files | `false` |
+| `--concepts` | Sync only the workspace terminology (concepts + relations) into the local termbase — no content transport, no hooks | `false` |
 
 ## What Happens
 

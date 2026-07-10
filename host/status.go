@@ -47,12 +47,23 @@ type StatusVenue struct {
 // `kapi status`: ahead/behind transport counts plus any in-flight convergence
 // runs. It mirrors the JSON the kapi-bowrain `server-status` command emits.
 type StatusServerSection struct {
-	ServerURL   string            `json:"server_url,omitempty"`
-	Project     string            `json:"project,omitempty"`
-	PendingPush int               `json:"pending_push"`
-	PendingPull int               `json:"pending_pull"`
-	LastSync    string            `json:"last_sync,omitempty"`
-	ActiveRuns  []StatusActiveRun `json:"active_runs,omitempty"`
+	ServerURL   string             `json:"server_url,omitempty"`
+	Project     string             `json:"project,omitempty"`
+	PendingPush int                `json:"pending_push"`
+	PendingPull int                `json:"pending_pull"`
+	LastSync    string             `json:"last_sync,omitempty"`
+	ActiveRuns  []StatusActiveRun  `json:"active_runs,omitempty"`
+	Terminology *StatusTerminology `json:"terminology,omitempty"`
+}
+
+// StatusTerminology is the local snapshot standing of the workspace's
+// governed terminology: when the last concept pull ran and what it carried.
+// nil when no concept pull has ever recorded a baseline — rendered as
+// never-synced so stale local term checks are visible, not silent.
+type StatusTerminology struct {
+	PulledAt  string `json:"pulled_at"`
+	Concepts  int    `json:"concepts"`
+	Relations int    `json:"relations"`
 }
 
 // StatusActiveRun is one in-flight server convergence run in the status report.
@@ -144,6 +155,11 @@ func writeServerLine(w io.Writer, s StatusServerSection) {
 		fmt.Fprintf(w, " · run %s %s%s", r.ID, r.State, passes)
 	}
 	fmt.Fprintln(w)
+	if t := s.Terminology; t != nil {
+		fmt.Fprintf(w, "terms   synced %s · %d concepts · %d relations\n", t.PulledAt, t.Concepts, t.Relations)
+	} else {
+		fmt.Fprintln(w, "terms   never synced — kapi pull snapshots the workspace terminology for offline checks")
+	}
 }
 
 // sourceLadder is the column order for the source-readiness line.

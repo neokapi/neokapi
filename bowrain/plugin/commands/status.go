@@ -29,12 +29,23 @@ var serverStatusCmd = &cobra.Command{
 // serverStatusJSON is the exact shape the built-in `kapi status` merges under
 // its "server" section.
 type serverStatusJSON struct {
-	ServerURL   string          `json:"server_url"`
-	Project     string          `json:"project"`
-	PendingPush int             `json:"pending_push"`
-	PendingPull int             `json:"pending_pull"`
-	LastSync    string          `json:"last_sync,omitempty"`
-	ActiveRuns  []activeRunJSON `json:"active_runs"`
+	ServerURL   string           `json:"server_url"`
+	Project     string           `json:"project"`
+	PendingPush int              `json:"pending_push"`
+	PendingPull int              `json:"pending_pull"`
+	LastSync    string           `json:"last_sync,omitempty"`
+	ActiveRuns  []activeRunJSON  `json:"active_runs"`
+	Terminology *terminologyJSON `json:"terminology,omitempty"`
+}
+
+// terminologyJSON is the local snapshot standing of the workspace's governed
+// terminology — the concept baseline a pull records into the sync cache.
+// Absent when no concept pull has ever run; the built-in status renders that
+// as never-synced.
+type terminologyJSON struct {
+	PulledAt  string `json:"pulled_at"`
+	Concepts  int    `json:"concepts"`
+	Relations int    `json:"relations"`
 }
 
 type activeRunJSON struct {
@@ -54,6 +65,16 @@ func runServerStatus(cmd *cobra.Command, _ []string) error {
 	if proj.Recipe.Server != nil {
 		out.ServerURL = proj.Recipe.Server.ServerURL()
 		out.Project = proj.Recipe.Server.ProjectID()
+	}
+
+	// Terminology snapshot standing, read straight from the sync cache so it
+	// costs no server round-trip and reports even when the server is down.
+	if b := project.LoadSyncCache(proj.Layout).ConceptBaseline; b != nil {
+		out.Terminology = &terminologyJSON{
+			PulledAt:  b.PulledAt.Format(timeRFC3339),
+			Concepts:  len(b.Concepts),
+			Relations: len(b.Relations),
+		}
 	}
 
 	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
