@@ -244,9 +244,12 @@ Per-format status / next:
   **ITS-gated** (stream only when `skeletonStore != nil && ValidationMode()==Off`
   **and** no global `<its:rules>`/external rules; buffered fallback otherwise),
   which needs a two-pass rules scan since global rules can appear anywhere.
-- **resx, androidxml** — custom-tokenizer substrate (not `encoding/xml`); need a
-  streaming variant of their own tokenizer + dropping `.original` retention.
-  Follow-up.
+- **resx, androidxml** — custom-tokenizer substrate (not `encoding/xml`): each
+  needs a **streaming variant of its own tokenizer** + dropping `.original`
+  retention (only retained when no skeleton store is wired). **`resx` is done** —
+  a `streamTokenizer` reads from a bufio window producing the identical token
+  sequence, and the walk buffers only the current `<data>` entry. `androidxml`
+  follows the same pattern.
 - **HTML** — the tokenizer skeleton path is streamable; the DOM path stays for
   normalization.
 - **YAML, Markdown** — blocked by `yaml.v3` / `goldmark` full-AST parsers; need a
