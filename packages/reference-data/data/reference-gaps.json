@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-07-04T16:44:52Z",
+  "generatedAt": "2026-07-10T16:02:04Z",
   "summary": {
     "built-in/format/description": 3,
     "built-in/format/doc.examples": 3,
     "built-in/format/doc.overview": 3,
     "built-in/tool/description": 1,
-    "built-in/tool/doc.overview": 2,
+    "built-in/tool/doc.overview": 3,
     "plugin/format/doc.overview": 1,
-    "total": 13
+    "total": 14
   },
   "gaps": [
     {
@@ -77,6 +77,13 @@
       "kind": "format",
       "source": "built-in",
       "id": "video",
+      "field": "doc.overview",
+      "detail": "no overview / rich documentation"
+    },
+    {
+      "kind": "tool",
+      "source": "built-in",
+      "id": "brand-voice-infer",
       "field": "doc.overview",
       "detail": "no overview / rich documentation"
     },

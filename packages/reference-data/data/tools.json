@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-04T16:44:52Z",
+  "generatedAt": "2026-07-10T16:02:04Z",
   "kind": "tool",
   "entries": [
     {
@@ -160,6 +160,126 @@
             "config": "provider: anthropic\nprofileId: acme-marketing\n"
           }
         ]
+      }
+    },
+    {
+      "id": "brand-voice-infer",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "AI Brand Voice Inference",
+      "description": "Infer a draft brand voice profile from a content corpus using an LLM provider",
+      "category": "analysis",
+      "tags": [
+        "ai-powered",
+        "brand"
+      ],
+      "requires": [
+        "credentials"
+      ],
+      "cardinality": "monolingual",
+      "sideEffects": [
+        "api-call",
+        "remote-source-egress"
+      ],
+      "schema": {
+        "$id": "brand-voice-infer",
+        "title": "AI Brand Voice Inference",
+        "description": "Infer a draft brand voice profile from a content corpus using an LLM provider",
+        "type": "object",
+        "toolMeta": {
+          "id": "brand-voice-infer",
+          "category": "analysis",
+          "displayName": "AI Brand Voice Inference",
+          "description": "Infer a draft brand voice profile from a content corpus using an LLM provider",
+          "tags": [
+            "ai-powered",
+            "brand"
+          ],
+          "requires": [
+            "credentials"
+          ],
+          "cardinality": "monolingual",
+          "sideEffects": [
+            "api-call",
+            "remote-source-egress"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "provider",
+              "apiKey",
+              "model"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the AI provider"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain",
+            "description": "Subject domain hint for the analysis (e.g. medical legal technology)"
+          },
+          "maxExamples": {
+            "type": "integer",
+            "title": "Max Examples",
+            "description": "Maximum before/after examples to infer",
+            "default": 3,
+            "minimum": 1
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "AI model name"
+          },
+          "profileName": {
+            "type": "string",
+            "title": "Profile Name",
+            "description": "Name for the inferred draft profile"
+          },
+          "provider": {
+            "type": "string",
+            "title": "AI Provider",
+            "description": "AI provider",
+            "default": "anthropic",
+            "options": [
+              {
+                "value": "anthropic",
+                "label": "Anthropic"
+              },
+              {
+                "value": "openai",
+                "label": "OpenAI"
+              },
+              {
+                "value": "gemini",
+                "label": "Gemini"
+              },
+              {
+                "value": "azureopenai",
+                "label": "Azure OpenAI"
+              },
+              {
+                "value": "claude-code",
+                "label": "Claude Code"
+              },
+              {
+                "value": "ollama",
+                "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
+              }
+            ]
+          }
+        }
       }
     },
     {

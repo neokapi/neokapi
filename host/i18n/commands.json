@@ -49,6 +49,9 @@
           "example": "  kapi brand-voice-check messages.json --target-lang fr\n  kapi brand-voice-check app.xliff --target-lang de",
           "short": "Check text against a brand voice profile using an LLM provider"
         },
+        "brand-voice-infer": {
+          "short": "Infer a draft brand voice profile from a content corpus using an LLM provider"
+        },
         "case-transform": {
           "example": "  kapi case-transform messages.json --mode upper\n  kapi case-transform messages.json --mode lower",
           "short": "Case Transform"

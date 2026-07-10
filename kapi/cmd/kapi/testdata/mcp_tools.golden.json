@@ -236,6 +236,120 @@
     }
   },
   {
+    "name": "brand-voice-infer",
+    "input_schema": {
+      "$id": "brand-voice-infer",
+      "description": "Infer a draft brand voice profile from a content corpus using an LLM provider",
+      "properties": {
+        "apiKey": {
+          "description": "API key for the AI provider",
+          "title": "API Key",
+          "type": "string"
+        },
+        "domain": {
+          "description": "Subject domain hint for the analysis (e.g. medical legal technology)",
+          "title": "Domain",
+          "type": "string"
+        },
+        "maxExamples": {
+          "default": 3,
+          "description": "Maximum before/after examples to infer",
+          "minimum": 1,
+          "title": "Max Examples",
+          "type": "integer"
+        },
+        "model": {
+          "description": "AI model name",
+          "title": "Model",
+          "type": "string"
+        },
+        "profileName": {
+          "description": "Name for the inferred draft profile",
+          "title": "Profile Name",
+          "type": "string"
+        },
+        "provider": {
+          "default": "anthropic",
+          "description": "AI provider",
+          "options": [
+            {
+              "label": "Anthropic",
+              "value": "anthropic"
+            },
+            {
+              "label": "OpenAI",
+              "value": "openai"
+            },
+            {
+              "label": "Gemini",
+              "value": "gemini"
+            },
+            {
+              "label": "Azure OpenAI",
+              "value": "azureopenai"
+            },
+            {
+              "label": "Claude Code",
+              "value": "claude-code"
+            },
+            {
+              "label": "Ollama",
+              "value": "ollama"
+            },
+            {
+              "label": "Demo (illustrative)",
+              "value": "demo"
+            }
+          ],
+          "title": "AI Provider",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "AI Brand Voice Inference",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "analysis",
+        "description": "Infer a draft brand voice profile from a content corpus using an LLM provider",
+        "displayName": "AI Brand Voice Inference",
+        "id": "brand-voice-infer",
+        "requires": [
+          "credentials"
+        ],
+        "sideEffects": [
+          "api-call",
+          "remote-source-egress"
+        ],
+        "tags": [
+          "ai-powered",
+          "brand"
+        ]
+      },
+      "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "provider",
+            "apiKey",
+            "model"
+          ],
+          "id": "provider",
+          "label": "Provider"
+        }
+      ]
+    }
+  },
+  {
     "name": "brand_check",
     "input_schema": {
       "additionalProperties": false,
