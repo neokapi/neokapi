@@ -108,7 +108,13 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 		})
 	}
 	if deps.BillingHooks != nil && job.WorkspaceID != "" {
-		deps.BillingHooks.DeductContainerTime(ctx, job.WorkspaceID, containerDuration, job.ConversationID)
+		// Reference id is per-deduction-unique: each worker job serves one message
+		// with its own slice of container time, so key on the message id (stable on
+		// retry). The conversation id would collapse every message in a conversation
+		// into one Stripe meter event, since the pool reuses one container across
+		// them. Fall back to the container id, then the conversation id.
+		refID := conversationRefID(result, container, job.ConversationID)
+		deps.BillingHooks.DeductContainerTime(ctx, job.WorkspaceID, containerDuration, refID)
 	}
 
 	// Record token usage.
@@ -122,6 +128,22 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 			InputTokens:    result.InputTokens,
 			OutputTokens:   result.OutputTokens,
 		})
+
+		// Deduct billing credits + report the Stripe meter for the message tokens.
+		// In queue mode this worker is the only place @bravo message tokens are
+		// billed — the server's sendQueuedStream path never touches billingHooks
+		// (Epic 004). Mirrors service/agent.go's in-process path. Reference id is
+		// the per-message id (unique per deduction, stable on retry), NOT the
+		// conversation id, which would collapse every message in a conversation
+		// into one Stripe meter event.
+		if deps.BillingHooks != nil && job.WorkspaceID != "" {
+			totalTokens := result.InputTokens + result.OutputTokens
+			refID := result.MessageID
+			if refID == "" {
+				refID = job.ConversationID
+			}
+			deps.BillingHooks.DeductTokens(ctx, job.WorkspaceID, totalTokens, "bravo_message", refID)
+		}
 	}
 
 	// Update conversation timestamp.
@@ -131,6 +153,22 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 	}
 
 	return nil
+}
+
+// conversationRefID picks a per-deduction-unique, retry-stable reference id for a
+// container-time billing deduction (Epic 004). It prefers the message id — each
+// worker job serves exactly one message with its own slice of container time —
+// then the container-session id, then the conversation id. Keying on the
+// conversation id alone would collapse every message in a conversation into a
+// single Stripe meter event, since the pool reuses one container across them.
+func conversationRefID(result *service.GatewayResult, container *service.AgentContainer, conversationID string) string {
+	if result != nil && result.MessageID != "" {
+		return result.MessageID
+	}
+	if container != nil && container.ID != "" {
+		return container.ID
+	}
+	return conversationID
 }
 
 // redisSinkWriter implements service.EventSink by publishing events to Redis.

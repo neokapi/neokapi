@@ -165,6 +165,67 @@ func TestUsageHooks_CheckCreditThresholds_NoNotifier(t *testing.T) {
 	assert.Equal(t, 1, store.deductCalls)
 }
 
+// thresholdFakeStore decouples the plan-only allocation from the full spendable
+// balance so the MINOR-7 case can be expressed: a depleted weekly plan bucket
+// while purchased credits keep CheckCredits positive. It embeds BillingStore so
+// only the two methods checkCreditThresholds calls are provided.
+type thresholdFakeStore struct {
+	BillingStore
+	alloc          *CreditAllocation
+	checkRemaining int64
+}
+
+func (f *thresholdFakeStore) GetCurrentAllocation(context.Context, string) (*CreditAllocation, error) {
+	return f.alloc, nil
+}
+
+func (f *thresholdFakeStore) CheckCredits(context.Context, string) (int64, error) {
+	return f.checkRemaining, nil
+}
+
+// TestUsageHooks_CheckCreditThresholds_PurchasedSuppressesExhaustion is the
+// MINOR-7 regression: when the weekly PLAN bucket is fully consumed but purchased
+// credits keep the spendable balance positive, the workspace must not be told it
+// is out of credits. Exhaustion is judged on CheckCredits (plan + purchased), not
+// the plan-only allocation.
+func TestUsageHooks_CheckCreditThresholds_PurchasedSuppressesExhaustion(t *testing.T) {
+	sender := &mockEmailSender{}
+	h := &UsageHooks{
+		Store: &thresholdFakeStore{
+			alloc:          &CreditAllocation{CreditsTotal: 50_000, CreditsUsed: 50_000}, // plan drained
+			checkRemaining: 500_000,                                                      // purchased still spendable
+		},
+		Notifier:      &BillingNotifier{Sender: sender},
+		GetOwnerEmail: func(context.Context, string) string { return "owner@example.com" },
+	}
+
+	h.checkCreditThresholds(t.Context(), "ws-1")
+
+	require.Equal(t, 1, sender.sendCalls, "the 80%-plan-used warning still fires")
+	assert.Contains(t, sender.lastSubj, "running low")
+	assert.NotContains(t, sender.lastSubj, "exhausted",
+		"must not send 'exhausted' while purchased credits remain spendable")
+}
+
+// TestUsageHooks_CheckCreditThresholds_ExhaustedOnZeroSpendable verifies the
+// exhausted notice still fires when the full spendable balance is zero.
+func TestUsageHooks_CheckCreditThresholds_ExhaustedOnZeroSpendable(t *testing.T) {
+	sender := &mockEmailSender{}
+	h := &UsageHooks{
+		Store: &thresholdFakeStore{
+			alloc:          &CreditAllocation{CreditsTotal: 50_000, CreditsUsed: 50_000},
+			checkRemaining: 0,
+		},
+		Notifier:      &BillingNotifier{Sender: sender},
+		GetOwnerEmail: func(context.Context, string) string { return "owner@example.com" },
+	}
+
+	h.checkCreditThresholds(t.Context(), "ws-1")
+
+	require.Equal(t, 1, sender.sendCalls)
+	assert.Contains(t, sender.lastSubj, "exhausted")
+}
+
 func TestUsageHooks_ReportMeter_NilStripe(t *testing.T) {
 	store := &recordingBillingStore{
 		mockBillingStore: mockBillingStore{remaining: 50000},

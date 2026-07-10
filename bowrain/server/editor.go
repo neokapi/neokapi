@@ -18,11 +18,14 @@ import (
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
 	"github.com/neokapi/neokapi/bowrain/storage"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	sqltb "github.com/neokapi/neokapi/bowrain/termbase"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/editor"
+	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
@@ -375,26 +378,6 @@ type SaveProviderConfigRequest struct {
 	APIKey       string `json:"api_key"`
 }
 
-func toProviderConfigResponse(c credentials.ProviderConfig) ProviderConfigResponse {
-	return ProviderConfigResponse{
-		ID:           c.ID,
-		Name:         c.Name,
-		ProviderType: c.ProviderType,
-		Model:        c.Model,
-		BaseURL:      c.BaseURL,
-	}
-}
-
-func (r SaveProviderConfigRequest) toCredentials() credentials.ProviderConfig {
-	return credentials.ProviderConfig{
-		ID:           r.ID,
-		Name:         r.Name,
-		ProviderType: r.ProviderType,
-		Model:        r.Model,
-		BaseURL:      r.BaseURL,
-	}
-}
-
 // streamParam extracts the active stream from the request.
 // It checks the URL path param first (stream-scoped routes), then falls back
 // to a query param, then defaults to "main".
@@ -704,7 +687,23 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 }
 
 // editorAITranslate translates blocks using an AI provider.
-func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, stream, itemName string, req TranslateRequest, credStore *credentials.Store, billingHooks *billing.UsageHooks, workspaceID string) (*TranslationStatsResponse, error) {
+//
+// Provider resolution mirrors the worker (Epic 004): a saved provider_config_id
+// resolves from the per-workspace Postgres ProviderStore, scoped to the caller's
+// durable workspace id (never the keychain, which is empty in a headless
+// container); an inline api_key/provider builds a one-off provider. Both the
+// platform path and any bring-your-own path RECORD ai_usage (the monthly abuse
+// cap must see all traffic), while only the platform path DEDUCTS credits.
+func editorAITranslate(
+	ctx context.Context,
+	cs store.ContentStore,
+	providerStore *bstore.ProviderConfigStore,
+	quotaStore jobs.QuotaStore,
+	projectID, stream, itemName string,
+	req TranslateRequest,
+	billingHooks *billing.UsageHooks,
+	workspaceID, workspaceSlug string,
+) (*TranslationStatsResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -721,11 +720,31 @@ func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, st
 
 	parts := storedBlocksToParts(storedBlocks)
 
+	// A saved provider_config_id is a bring-your-own key; an inline api_key is
+	// too. Everything else is the platform path (metered in credits).
+	byoSaved := req.ProviderConfigID != "" && req.ProviderConfigID != "platform"
+	byo := byoSaved || req.APIKey != ""
+
 	var prov aiprovider.LLMProvider
-	if req.ProviderConfigID != "" && credStore != nil {
-		prov, err = credentials.NewProvider(credStore, req.ProviderConfigID)
+	if byoSaved {
+		if providerStore == nil {
+			return nil, errors.New("resolve provider config: provider store not configured")
+		}
+		cfg, cerr := providerStore.Resolve(ctx, workspaceID, req.ProviderConfigID)
+		if cerr != nil {
+			return nil, fmt.Errorf("resolve provider config: %w", cerr)
+		}
+		m := cfg.Model
+		if m == "" {
+			m = req.Model
+		}
+		prov, err = aiprovider.NewProvider(aiprovider.ProviderID(cfg.Type), aiprovider.Config{
+			APIKey:  cfg.APIKey,
+			Model:   m,
+			BaseURL: cfg.BaseURL,
+		})
 		if err != nil {
-			return nil, fmt.Errorf("resolve provider config: %w", err)
+			return nil, fmt.Errorf("build provider %q: %w", cfg.Type, err)
 		}
 	} else {
 		prov = editorCreateProvider(req.Provider, req.APIKey, req.Model)
@@ -743,9 +762,34 @@ func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, st
 		return nil, fmt.Errorf("AI translate: %w", err)
 	}
 
-	// Deduct billing credits based on actual token usage from the provider.
-	if usage := translateTool.TotalUsage(); usage.TotalTokens() > 0 {
-		billingHooks.DeductTokens(ctx, workspaceID, usage.TotalTokens(), "ai_translation", projectID)
+	usage := translateTool.TotalUsage()
+
+	// Record ai_usage for BOTH platform and BYO (mirror the worker): the monthly
+	// DefaultMonthlyQuota abuse cap must see every AI call, including BYO ones
+	// that burn no credits. Without this, the synchronous editor path was a blind
+	// spot in the cap.
+	if quotaStore != nil && usage.TotalTokens() > 0 {
+		_ = quotaStore.RecordUsage(ctx, jobs.AIUsageRecord{
+			WorkspaceSlug: workspaceSlug,
+			WorkspaceID:   workspaceID,
+			ProjectID:     projectID,
+			Model:         req.Model,
+			Operation:     "translate",
+			PromptTokens:  usage.InputTokens,
+			OutputTokens:  usage.OutputTokens,
+			TotalTokens:   usage.TotalTokens(),
+		})
+	}
+
+	// Deduct billing credits based on actual token usage from the provider — but
+	// only for the platform-held key. A workspace bring-your-own key (an inline
+	// api_key or a saved provider_config_id) burns NO credits (Epic 004): it is
+	// capped via ai_usage above, not charged here. The reference id is unique per
+	// deduction (project+item+locale+nonce) so distinct editor translations never
+	// collapse into one Stripe meter event.
+	if usage.TotalTokens() > 0 && !byo {
+		refID := fmt.Sprintf("%s:%s:%s:%s", projectID, itemName, req.TargetLocale, id.New())
+		billingHooks.DeductTokens(ctx, workspaceID, usage.TotalTokens(), "ai_translation", refID)
 	}
 
 	blocks := partsToBlocks(outParts)
