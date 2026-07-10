@@ -79,8 +79,8 @@
   },
   "dependencies": {
     "@neokapi/kapi-format": "^1.0.0",
-    "@swc/core": "^1.15.41",
-    "unplugin": "^3.0.0"
+    "@swc/core": "^1.15.43",
+    "unplugin": "^3.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
@@ -93,7 +93,7 @@
     "esbuild": "^0.28.1",
     "react": "^19.2.7",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "@babel/core": "^7.29.7",

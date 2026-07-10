@@ -22,7 +22,7 @@
   "dependencies": {
     "@neokapi/kapi-react": "*",
     "@neokapi/ui-primitives": "*",
-    "lucide-react": "^1.21.0"
+    "lucide-react": "^1.24.0"
   },
   "devDependencies": {
     "@storybook/react-vite": "^10.4.6",
@@ -34,8 +34,8 @@
     "jsdom": "^29.1.1",
     "storybook": "^10.4.6",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.1",
-    "vitest": "^4.1.9"
+    "vite-plus": "^0.2.4",
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "react": "^19.0.0",
