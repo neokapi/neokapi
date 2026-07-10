@@ -33,6 +33,13 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, BrandVoiceCheckSchema())
 	reg.SetConfigFactory("brand-voice-check", NewBrandVoiceCheckFromConfig)
 
+	// AI Brand Voice Infer — draft a voice profile FROM a content corpus (the
+	// inverse of brand-voice-check: onboarding, not compliance).
+	reg.RegisterWithSchema("brand-voice-infer", func() tool.Tool {
+		return NewBrandVoiceInferTool(aiprovider.NewMockProvider(), BrandVoiceInferConfig{})
+	}, BrandVoiceInferSchema())
+	reg.SetConfigFactory("brand-voice-infer", NewBrandVoiceInferFromConfig)
+
 	// Term Extract — extract candidate terminology from content (the LLM
 	// counterpart to the deterministic term-check).
 	reg.RegisterWithSchema("term-extract", func() tool.Tool {
@@ -56,7 +63,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// resolver in the group def; the remaining single-backend AI tools share
 	// ResolveAIEgressContract.
 	for _, name := range []registry.ToolID{
-		"review", "brand-voice-check",
+		"review", "brand-voice-check", "brand-voice-infer",
 		"term-extract", "media-refine",
 	} {
 		reg.SetContractResolver(name, ResolveAIEgressContract)

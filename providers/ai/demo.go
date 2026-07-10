@@ -3,9 +3,11 @@ package aiprovider
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -87,9 +89,12 @@ func (p *DemoProvider) Chat(_ context.Context, messages []Message) (*ChatRespons
 
 // ChatStructured returns JSON conforming to the requested schema. The batch
 // translation schema (emitted by translate) is honoured by parsing the
-// numbered prompt and translating each segment. All other schemas get a
-// neutral, schema-valid response (empty arrays / zero values) so that QA and
-// brand-voice tools run without fabricating findings.
+// numbered prompt and translating each segment. The brand-voice inference
+// schema (emitted by brand-voice-infer) is honoured by deterministic surface
+// heuristics over the corpus embedded in the prompt — a generative onboarding
+// draft, clearly marked as illustrative. All other schemas get a neutral,
+// schema-valid response (empty arrays / zero values) so that QA and
+// brand-voice check tools run without fabricating findings.
 func (p *DemoProvider) ChatStructured(_ context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
 	noticeOnce()
 	prompt := lastUserMessage(messages)
@@ -98,6 +103,8 @@ func (p *DemoProvider) ChatStructured(_ context.Context, messages []Message, sch
 	switch schema.Name {
 	case "batch_translations":
 		content = demoBatchTranslations(prompt)
+	case "brand_voice_inference":
+		content = demoBrandVoiceInference(prompt)
 	default:
 		content = neutralSchemaJSON(schema)
 	}
@@ -310,6 +317,210 @@ func demoBatchTranslations(prompt string) string {
 	b, err := json.Marshal(out)
 	if err != nil {
 		return `{"translations":[]}`
+	}
+	return string(b)
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic demo brand-voice inference
+// ---------------------------------------------------------------------------
+
+// demoContractionRe matches common English contractions ("we're", "don't").
+var demoContractionRe = regexp.MustCompile(`(?i)\b[a-z]+'(?:t|s|re|ve|ll|d|m)\b`)
+
+// demoPassiveRe approximates passive-voice constructions ("was processed").
+var demoPassiveRe = regexp.MustCompile(`(?i)\b(?:was|were|is|are|been|being|be)\s+\w+ed\b`)
+
+// demoCapTermRe matches capitalized terms of three or more characters —
+// product-name candidates for the preferred-terms heuristic.
+var demoCapTermRe = regexp.MustCompile(`\b[A-Z][A-Za-z0-9]{2,}\b`)
+
+// demoSentenceSplitRe splits a corpus into sentences on terminal punctuation.
+var demoSentenceSplitRe = regexp.MustCompile(`[.!?]+`)
+
+// demoWeRe / demoYouRe count first-person-plural and second-person pronouns
+// for the point-of-view heuristic.
+var (
+	demoWeRe  = regexp.MustCompile(`(?i)\b(?:we|our|us)\b`)
+	demoYouRe = regexp.MustCompile(`(?i)\b(?:you|your)\b`)
+)
+
+// demoCapStopwords excludes ordinary sentence-initial title-case words from
+// the capitalized-term heuristic.
+var demoCapStopwords = map[string]bool{
+	"The": true, "This": true, "That": true, "These": true, "Those": true,
+	"And": true, "But": true, "You": true, "Your": true, "Our": true,
+	"With": true, "For": true, "When": true, "What": true, "How": true,
+	"Not": true, "All": true, "Are": true, "Was": true, "Will": true,
+	"Can": true, "It's": true, "Its": true, "They": true, "There": true,
+	"Here": true, "Then": true, "Now": true, "Get": true, "Try": true,
+}
+
+// demoBrandVoiceInference derives an illustrative draft brand voice profile
+// from the corpus embedded in an inference prompt (the text after the
+// "Corpus:" delimiter line that brand-voice-infer emits), using deterministic
+// surface heuristics: contraction, exclamation, pronoun, passive-voice, and
+// sentence-length counts, plus recurring capitalized terms. Like the demo
+// translator it is honest about being a stub — the guidelines and every
+// evidence note carry the ⟦demo⟧ marker. Returns JSON matching the
+// brand_voice_inference schema.
+func demoBrandVoiceInference(prompt string) string {
+	corpus := prompt
+	if idx := strings.LastIndex(prompt, "\nCorpus:\n"); idx >= 0 {
+		corpus = prompt[idx+len("\nCorpus:\n"):]
+	}
+	corpus = strings.TrimSpace(corpus)
+
+	words := strings.Fields(corpus)
+	var sentences []string
+	for _, s := range demoSentenceSplitRe.Split(corpus, -1) {
+		if s = strings.TrimSpace(s); s != "" {
+			sentences = append(sentences, s)
+		}
+	}
+	sentenceCount := max(len(sentences), 1)
+	avgWords := float64(len(words)) / float64(sentenceCount)
+
+	contractions := len(demoContractionRe.FindAllString(corpus, -1))
+	exclamations := strings.Count(corpus, "!")
+	passives := len(demoPassiveRe.FindAllString(corpus, -1))
+	weCount := len(demoWeRe.FindAllString(corpus, -1))
+	youCount := len(demoYouRe.FindAllString(corpus, -1))
+
+	// Tone.
+	var personality []string
+	if contractions > 0 || exclamations > 0 {
+		personality = append(personality, "friendly")
+	}
+	if avgWords <= 12 {
+		personality = append(personality, "direct")
+	}
+	if weCount > 0 {
+		personality = append(personality, "collaborative")
+	}
+	if len(personality) == 0 {
+		personality = []string{"measured"}
+	}
+	formality := "neutral"
+	if contractions > 0 || exclamations > 0 {
+		formality = "casual"
+	}
+	emotion := "neutral"
+	if exclamations > 0 {
+		emotion = "warm"
+	}
+
+	// Style.
+	sentenceLength := "varied"
+	switch {
+	case avgWords < 12:
+		sentenceLength = "short"
+	case avgWords < 20:
+		sentenceLength = "medium"
+	}
+	personPOV := "third"
+	switch {
+	case weCount > 0 && weCount >= youCount:
+		personPOV = "first_plural"
+	case youCount > 0:
+		personPOV = "second"
+	}
+	contractionUse := "never"
+	switch {
+	case contractions >= sentenceCount:
+		contractionUse = "always"
+	case contractions > 0:
+		contractionUse = "sometimes"
+	}
+	activeVoice := passives == 0 || passives*4 < sentenceCount
+
+	// Vocabulary: recurring capitalized terms, most frequent first (ties
+	// alphabetical) for a deterministic order.
+	capCounts := map[string]int{}
+	for _, m := range demoCapTermRe.FindAllString(corpus, -1) {
+		if !demoCapStopwords[m] {
+			capCounts[m]++
+		}
+	}
+	var capTerms []string
+	for term, n := range capCounts {
+		if n >= 2 {
+			capTerms = append(capTerms, term)
+		}
+	}
+	sort.Slice(capTerms, func(i, j int) bool {
+		if capCounts[capTerms[i]] != capCounts[capTerms[j]] {
+			return capCounts[capTerms[i]] > capCounts[capTerms[j]]
+		}
+		return capTerms[i] < capTerms[j]
+	})
+	if len(capTerms) > 5 {
+		capTerms = capTerms[:5]
+	}
+	preferred := make([]map[string]any, 0, len(capTerms))
+	for _, term := range capTerms {
+		preferred = append(preferred, map[string]any{
+			"term":        term,
+			"replacement": "",
+			"note":        fmt.Sprintf("⟦demo⟧ appears %d times in the corpus", capCounts[term]),
+		})
+	}
+
+	// Examples: contrast the first corpus sentence (on-voice) with a hedged,
+	// off-voice rewrite of itself.
+	examples := make([]map[string]any, 0, 1)
+	if len(sentences) > 0 {
+		first := sentences[0]
+		lowered := first
+		if r := []rune(first); len(r) > 0 {
+			lowered = strings.ToLower(string(r[0])) + string(r[1:])
+		}
+		examples = append(examples, map[string]any{
+			"before":      "It should be noted that " + lowered + ".",
+			"after":       first + ".",
+			"explanation": "⟦demo⟧ the corpus favors direct sentences over hedged openers",
+		})
+	}
+
+	// Confidence grows with corpus size, clamped to a modest ceiling: a stub
+	// never reports high certainty.
+	conf := 0.2 + float64(len(words))/400
+	if conf > 0.9 {
+		conf = 0.9
+	}
+	evidence := []map[string]any{
+		{"field": "tone", "confidence": conf, "source": fmt.Sprintf("⟦demo⟧ %d exclamation marks and %d contractions across %d sentences", exclamations, contractions, sentenceCount)},
+		{"field": "style", "confidence": conf, "source": fmt.Sprintf("⟦demo⟧ average sentence length %.1f words; pronoun counts we=%d you=%d; %d passive constructions", avgWords, weCount, youCount, passives)},
+		{"field": "vocabulary", "confidence": conf, "source": fmt.Sprintf("⟦demo⟧ %d recurring capitalized terms", len(preferred))},
+		{"field": "examples", "confidence": conf, "source": "⟦demo⟧ representative sentence drawn from the corpus"},
+	}
+
+	result := map[string]any{
+		"tone": map[string]any{
+			"personality": personality,
+			"formality":   formality,
+			"emotion":     emotion,
+			"humor":       "none",
+			"guidelines":  fmt.Sprintf("⟦demo⟧ illustrative draft inferred from %d words across %d sentences", len(words), sentenceCount),
+		},
+		"style": map[string]any{
+			"active_voice":        activeVoice,
+			"sentence_length":     sentenceLength,
+			"person_pov":          personPOV,
+			"contractions":        contractionUse,
+			"prohibited_patterns": []any{},
+		},
+		"vocabulary": map[string]any{
+			"preferred":  preferred,
+			"forbidden":  []any{},
+			"competitor": []any{},
+		},
+		"examples": examples,
+		"evidence": evidence,
+	}
+	b, err := json.Marshal(result)
+	if err != nil {
+		return "{}"
 	}
 	return string(b)
 }
