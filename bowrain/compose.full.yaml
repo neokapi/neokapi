@@ -37,8 +37,13 @@ name: bowrain-local
 services:
   # ── Backing services ───────────────────────────────────────────────────────
   postgres:
-    # Apache AGE = PostgreSQL 16 + graph extension (drop-in superset).
-    image: apache/age:release_PG16_1.6.0
+    # Standard PostgreSQL 16. The brand knowledge graph runs on the default
+    # plain-SQL graph backend (BOWRAIN_GRAPH_BACKEND unset → "sql"), so dev and
+    # managed RDS/Aurora share the same stock image. To opt into Apache AGE
+    # instead, switch this image to `apache/age:release_PG16_1.6.0`, re-add the
+    # `./migrations/init-age.sql:/docker-entrypoint-initdb.d/01-init-age.sql:ro`
+    # volume, and set `BOWRAIN_GRAPH_BACKEND: age` on bowrain-server.
+    image: postgres:16
     environment:
       POSTGRES_USER: bowrain
       POSTGRES_PASSWORD: bowrain
@@ -47,7 +52,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./migrations/init-age.sql:/docker-entrypoint-initdb.d/01-init-age.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bowrain -d bowrain"]
       interval: 5s
