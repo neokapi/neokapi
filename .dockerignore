@@ -20,6 +20,8 @@ node_modules/
 
 # Frontend dist (built in container)
 bowrain/apps/web/dist/
+bowrain/apps/ctrl/dist/
+bowrain/apps/pulse/dist/
 bowrain/apps/bowrain/frontend/dist/
 
 # Bowrain desktop app (not needed for server)

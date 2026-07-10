@@ -77,7 +77,36 @@ jobs:
     with:
       image-tag: ${{ needs.image-tag.outputs.value }}
 
-# Deploy dispatch removed 2026-07-10: the Azure per-target workflows in
-# neokapi/bowrain-infra were deleted in its Terraform consolidation, and Azure
-# is being replaced by the AWS environment (strategy roadmap epic 002), whose
-# pipeline consumes the ghcr images pushed above.
+  deploy:
+    name: Deploy to ECS
+    # No-op until the AWS environment exists: with the repo var unset the job
+    # is skipped and the workflow stays green (build + publish only).
+    if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' }}
+    needs: [image-tag, build]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: ${{ inputs.environment || 'prod' }}
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Task definitions are Terraform-owned and pin :latest — the forced
+      # deployments make ECS re-pull the :latest images pushed above.
+      # Rollback = re-run this workflow from an older commit (a retag
+      # workflow_dispatch input can make that a one-click revert later).
+      - name: Force new deployment of server + worker
+        env:
+          CLUSTER: ${{ vars.ECS_CLUSTER }}
+          PREFIX: bowrain-${{ inputs.environment || 'prod' }}
+        run: |
+          aws ecs update-service --cluster "$CLUSTER" --service "$PREFIX-server" \
+            --force-new-deployment > /dev/null
+          aws ecs update-service --cluster "$CLUSTER" --service "$PREFIX-worker" \
+            --force-new-deployment > /dev/null
+          aws ecs wait services-stable --cluster "$CLUSTER" \
+            --services "$PREFIX-server" "$PREFIX-worker"
