@@ -42,6 +42,10 @@ func TestHandleCheckBrandVoice_WholeWordAndConceptID(t *testing.T) {
 		c := e.NewContext(req, rec)
 		c.SetParamNames("id")
 		c.SetParamValues(profile.ID)
+		// WorkspaceAccessMiddleware sets workspace_id in production; set it here so
+		// the handler's cross-tenant guard (profile.WorkspaceID must match the
+		// request workspace) resolves to the profile's own workspace.
+		c.Set("workspace_id", profile.WorkspaceID)
 		require.NoError(t, srv.HandleCheckBrandVoice(c))
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 		var out BrandCheckResponse

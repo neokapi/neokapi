@@ -88,11 +88,14 @@ services:
       timeout: 5s
       retries: 5
 
-  # Apache AGE extends PostgreSQL with graph database capabilities.
-  # It is a drop-in replacement for the standard postgres image — all
-  # existing services (Keycloak, bowrain-server) work unchanged.
+  # Standard PostgreSQL 16. The brand knowledge graph runs on the default
+  # plain-SQL graph backend (BOWRAIN_GRAPH_BACKEND unset → "sql"), which needs
+  # no extension — so dev matches managed RDS/Aurora. To exercise the opt-in
+  # Apache AGE backend locally, swap this image to
+  # `apache/age:release_PG16_1.6.0`, re-add the `./migrations/init-age.sql`
+  # init volume, and set `BOWRAIN_GRAPH_BACKEND=age` on the server.
   postgres:
-    image: apache/age:release_PG16_1.6.0
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: bowrain
       POSTGRES_PASSWORD: bowrain
@@ -106,7 +109,6 @@ services:
       retries: 10
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./migrations/init-age.sql:/docker-entrypoint-initdb.d/01-init-age.sql
 
 volumes:
   nats-data:

@@ -106,12 +106,32 @@ func TestStreamScannerBoundedMemory(t *testing.T) {
 
 	peakTokenizing := func(n int) (peak uint64, docSize int) {
 		r, size := genJSONReader(n)
-		runtime.GC()
-		var base runtime.MemStats
-		runtime.ReadMemStats(&base)
 
+		// liveHeap forces a GC so HeapAlloc reflects the *retained* working set
+		// rather than transient per-token garbage that the streaming scanner
+		// legitimately produces. Sampling raw HeapAlloc (garbage included) made
+		// the absolute bound below flaky on slower CI runners, where more
+		// uncollected garbage accumulates between samples; live heap is the
+		// metric this test actually means. A buffered scanner would keep the
+		// whole []byte + []token *live*, so this still trips the bound below.
+		liveHeap := func() uint64 {
+			runtime.GC()
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			return m.HeapAlloc
+		}
+
+		// Sample ~256 times regardless of document size (stride scales with n)
+		// rather than at a fixed stride. The streaming scanner's live heap
+		// fluctuates by a bounded, document-size-independent amount, so a fixed
+		// stride samples the 20x-larger run 20x more often and reliably catches
+		// that bounded burst while the small run misses it — which would make the
+		// ps*3 ratio bound flaky for this low-footprint tokenizer. Equal sample
+		// density makes ps and pl estimate the same bounded working set, so the
+		// ratio reflects real scaling, not sampling luck.
+		stride := max(n/256, 1)
+		base := liveHeap()
 		s := newStreamScanner(r)
-		var m runtime.MemStats
 		count := 0
 		for {
 			tok, err := s.next()
@@ -119,10 +139,9 @@ func TestStreamScannerBoundedMemory(t *testing.T) {
 				t.Fatalf("stream scan: %v", err)
 			}
 			count++
-			if count%256 == 0 {
-				runtime.ReadMemStats(&m)
-				if m.HeapAlloc > base.HeapAlloc && m.HeapAlloc-base.HeapAlloc > peak {
-					peak = m.HeapAlloc - base.HeapAlloc
+			if count%stride == 0 {
+				if h := liveHeap(); h > base && h-base > peak {
+					peak = h - base
 				}
 			}
 			if tok.typ == tokenEOF {

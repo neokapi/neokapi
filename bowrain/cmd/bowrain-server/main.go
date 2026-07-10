@@ -16,6 +16,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
@@ -35,6 +36,29 @@ func main() {
 	}
 }
 
+// guardSecretsKey enforces that a multi-tenant Postgres deployment configures a
+// secrets key. crypto.NewCipher("") is a nil, pass-through cipher, so an ABSENT
+// key silently stores every tenant's AI provider key and connector secret in
+// PLAINTEXT in Postgres (only an INVALID key aborts at startup). On a billed SaaS
+// deployment (STRIPE_SECRET_KEY set) this is a hard startup failure; on a
+// self-hosted Postgres deployment it is a loud error-level warning for operators
+// who knowingly accept plaintext-at-rest. Non-Postgres (dev/SQLite) is exempt.
+func guardSecretsKey(secretsKey, databaseURL string) error {
+	if secretsKey != "" {
+		return nil
+	}
+	if !strings.HasPrefix(databaseURL, "postgres://") && !strings.HasPrefix(databaseURL, "postgresql://") {
+		return nil
+	}
+	if os.Getenv("STRIPE_SECRET_KEY") != "" {
+		return errors.New("BOWRAIN_SECRETS_KEY is required on a billed multi-tenant deployment: " +
+			"without it every workspace's AI provider key and connector secret is stored in plaintext in Postgres")
+	}
+	slog.Error("BOWRAIN_SECRETS_KEY is not set: workspace AI provider keys and connector secrets " +
+		"will be stored UNENCRYPTED in Postgres; set a 32-byte base64 key before storing tenant secrets")
+	return nil
+}
+
 func run() error {
 	cfg := server.DefaultConfig()
 
@@ -47,6 +71,8 @@ func run() error {
 	flag.StringVar(&cfg.OIDCClientID, "oidc-client-id", cfg.OIDCClientID, "OIDC OAuth client ID")
 	flag.StringVar(&cfg.OIDCClientSecret, "oidc-client-secret", cfg.OIDCClientSecret, "OIDC OAuth client secret")
 	flag.StringVar(&cfg.WebUIDir, "web-ui-dir", cfg.WebUIDir, "Path to built web UI static files")
+	allowInsecureDev := flag.Bool("allow-insecure-dev", false,
+		"Allow starting without BOWRAIN_JWT_SECRET / BOWRAIN_DATABASE_URL (local development only; also BOWRAIN_ALLOW_INSECURE_DEV=1)")
 	flag.Parse()
 
 	// Allow environment variable overrides.
@@ -75,6 +101,9 @@ func run() error {
 	}
 	if _, err := crypto.NewCipher(cfg.SecretsKey); err != nil {
 		return fmt.Errorf("invalid BOWRAIN_SECRETS_KEY: %w", err)
+	}
+	if err := guardSecretsKey(cfg.SecretsKey, cfg.DatabaseURL); err != nil {
+		return err
 	}
 	if envJWT := os.Getenv("BOWRAIN_JWT_SECRET"); envJWT != "" {
 		cfg.JWTSecret = envJWT
@@ -227,9 +256,24 @@ func run() error {
 		cfg.AuditSIEMWebhookURL = v
 	}
 
-	// Validate that DatabaseURL is a PostgreSQL connection string.
-	if cfg.DatabaseURL != "" && !strings.HasPrefix(cfg.DatabaseURL, "postgres://") && !strings.HasPrefix(cfg.DatabaseURL, "postgresql://") {
-		return errors.New("invalid -database-url: must start with postgres:// or postgresql://")
+	// Fail-fast boot validation. A malformed database URL is always fatal;
+	// MISSING JWT secret / database URL are fatal unless the insecure-dev
+	// escape hatch is explicitly set (a typo'd env var must never silently
+	// ship a server with no auth routes or no stores).
+	if cfg.DatabaseURL != "" {
+		if err := boot.ValidatePostgresURL("BOWRAIN_DATABASE_URL (or -database-url)", cfg.DatabaseURL); err != nil {
+			return err
+		}
+	}
+	insecureDev := *allowInsecureDev || boot.AllowInsecureDevFromEnv()
+	if missing := boot.MissingServerConfig(cfg.JWTSecret, cfg.DatabaseURL); len(missing) > 0 {
+		if !insecureDev {
+			return fmt.Errorf("refusing to start (set --allow-insecure-dev or %s=1 to override for local development): %w",
+				boot.InsecureDevEnv, errors.Join(missing...))
+		}
+		for _, m := range missing {
+			slog.Warn("INSECURE DEV MODE: starting despite missing configuration", "issue", m.Error())
+		}
 	}
 
 	srv := server.NewServer(cfg)

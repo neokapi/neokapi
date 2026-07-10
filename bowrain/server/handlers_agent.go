@@ -484,16 +484,25 @@ func (s *Server) HandleGetBravoUsage(c echo.Context) error {
 }
 
 // registerBravoRoutes registers all @bravo agent endpoints on a workspace group.
-func (s *Server) registerBravoRoutes(g *echo.Group) {
+//
+// The whole group is gated behind billing.FeatureBravo, which is dark by default
+// (false on every plan; see billing/plans.go) — so @bravo is off for all
+// workspaces at launch and can be enabled per-workspace via a control-plane
+// feature override (for founder dogfooding) or by flipping the plan matrix once
+// the runtime + billing guardrails are hardened. Un-entitled workspaces get a
+// 403 upgrade_required from PlanGuard before reaching any handler.
+func (s *Server) registerBravoRoutes(g *echo.Group, aiLimit echo.MiddlewareFunc) {
 	bravo := g.Group("/bravo")
+	bravo.Use(billing.PlanGuard(billing.FeatureBravo))
 
 	bravo.POST("/conversations", s.HandleCreateBravoConversation)
 	bravo.GET("/conversations", s.HandleListBravoConversations)
 	bravo.GET("/conversations/:id", s.HandleGetBravoConversation)
 	bravo.DELETE("/conversations/:id", s.HandleDeleteBravoConversation)
 
-	// Message sending consumes credits — apply QuotaGuard.
-	bravo.POST("/conversations/:id/messages", s.HandleSendBravoMessage, billing.QuotaGuard(s.BillingStore))
+	// Message sending consumes credits and drives the LLM — per-IP throttle in
+	// addition to QuotaGuard so a client cannot burst provider spend.
+	bravo.POST("/conversations/:id/messages", s.HandleSendBravoMessage, aiLimit, billing.QuotaGuard(s.BillingStore))
 
 	bravo.GET("/conversations/:id/messages", s.HandleListBravoMessages)
 	bravo.PATCH("/conversations/:id/mode", s.HandleUpdateBravoMode)

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -10,6 +11,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
+	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -292,6 +294,26 @@ func (g *GRPCServer) ExecuteFlow(req *pb.ExecuteFlowRequest, stream pb.NeokapiSe
 	}
 	if len(blocks) == 0 {
 		return status.Error(codes.NotFound, "no blocks found in project")
+	}
+
+	// Reserve the batch's in-flight size from the server-level admission budget
+	// so concurrent flow executions cannot exhaust memory. On saturation, shed
+	// load with ResourceExhausted (the gRPC analog of HTTP 429/503).
+	if g.srv.Services.Flow != nil {
+		var weight int64
+		for _, sb := range blocks {
+			if sb.Block != nil {
+				weight += int64(len(sb.Block.SourceText()))
+			}
+		}
+		release, err := g.srv.Services.Flow.AcquireCapacity(stream.Context(), weight)
+		if err != nil {
+			if errors.Is(err, service.ErrCapacityExhausted) {
+				return status.Error(codes.ResourceExhausted, err.Error())
+			}
+			return status.FromContextError(err).Err()
+		}
+		defer release()
 	}
 
 	// Send execution progress.

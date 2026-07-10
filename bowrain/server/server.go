@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -71,6 +72,12 @@ type Server struct {
 
 	// CredentialStore manages AI provider credentials.
 	CredentialStore *credentials.Store
+
+	// ProviderStore holds workspace-scoped AI provider configs in Postgres
+	// (Epic 004), sealed at rest under BOWRAIN_SECRETS_KEY. It is the
+	// multi-tenant, keychain-free replacement for CredentialStore on the
+	// /:ws/providers surface. Nil until PostgreSQL stores are initialized.
+	ProviderStore *bstore.ProviderConfigStore
 
 	// EmailSender sends raw transactional emails. Prefer Mailer for
 	// template-rendered messages. Kept for backward compatibility with tests.
@@ -203,6 +210,11 @@ type Server struct {
 	// subscribers. Nil when the run store is not configured.
 	convergence *convergenceOrchestrator
 
+	// unclaimedPurger periodically removes expired anonymous projects — their
+	// unclaimed auth records and orphaned content-store projects. Nil when auth
+	// / content stores are not configured.
+	unclaimedPurger *jobs.UnclaimedProjectPurger
+
 	// stepCompletionTracker monitors async automation steps. Nil when not configured.
 	stepCompletionTracker *event.StepCompletionTracker
 
@@ -265,6 +277,12 @@ type Server struct {
 	// Keycloak access tokens use aud="account" so the standard ID-token
 	// verifier rejects them. This verifier skips the audience check.
 	AdminAccessVerifier *oidc.IDTokenVerifier
+
+	// claimEmailLimiter caps outbound claim emails per client IP per hour so an
+	// unauthenticated caller cannot use anonymous project creation as an
+	// email-spam relay (see HandleCreateAnonymousProject). Initialized in
+	// SetupRoutes from BOWRAIN_RL_CLAIM_EMAIL_PER_HOUR.
+	claimEmailLimiter *hourlyIPLimiter
 }
 
 // NewServer creates a new Server with the given configuration.
@@ -377,14 +395,16 @@ func NewServer(cfg Config) *Server {
 			slog.Warn("failed to open PostgreSQL stores", "error", err)
 		} else {
 			s.ContentStore = pg.Content
-			// Encrypt secret columns (connector credentials) at rest when a key
-			// is configured. The key was validated at startup; log defensively.
+			// Encrypt secret columns (connector credentials, AI provider keys) at
+			// rest when a key is configured. The key was validated at startup; log
+			// defensively. The same cipher seals the provider_configs store below.
+			secretsCipher, cerr := crypto.NewCipher(cfg.SecretsKey)
+			if cerr != nil {
+				slog.Error("invalid secrets key; connector config and provider keys stored unencrypted", "error", cerr)
+				secretsCipher = nil
+			}
 			if pgStore, ok := pg.Content.(*bstore.PostgresStore); ok {
-				if secretsCipher, cerr := crypto.NewCipher(cfg.SecretsKey); cerr == nil {
-					pgStore.SetSecretsCipher(secretsCipher)
-				} else {
-					slog.Error("invalid secrets key; connector config stored unencrypted", "error", cerr)
-				}
+				pgStore.SetSecretsCipher(secretsCipher)
 			}
 			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
 			s.JobStore = pg.Job
@@ -392,6 +412,9 @@ func NewServer(cfg Config) *Server {
 			s.QuotaStore = pg.Quota
 			s.wsStores.pgDB = pg.DB
 			pgSQL := pg.DB.DB // embedded *sql.DB
+			// Workspace-scoped AI provider configs (Epic 004), sealed at rest with
+			// the same cipher. Backs the /:ws/providers handlers.
+			s.ProviderStore = bstore.NewProviderConfigStore(pgSQL, secretsCipher)
 			s.AuditLogger = event.NewAuditLogger(pgSQL, s.EventBus)
 			if cfg.AuditRetentionDays > 0 {
 				s.AuditRetention = event.NewAuditRetentionCleaner(
@@ -488,6 +511,22 @@ func NewServer(cfg Config) *Server {
 		// row (F3). Startup wiring — no request context exists yet.
 		s.convergence.SweepInterruptedRuns(context.Background())
 		s.subscribeConvergeOnPush()
+	}
+
+	// Unclaimed-project purge (epic 003 item 6): periodically remove expired
+	// anonymous projects — both the unclaimed auth records
+	// (auth.PurgeExpiredUnclaimed, which nothing else calls) and the orphaned
+	// content-store projects the anonymous-create flow leaves behind
+	// (handlers_claim.go). Claimed projects are guarded. Same ticker/goroutine
+	// lifecycle as the convergence sweep and the other periodic cleaners; the
+	// deletions run through the event-emitting content store wired above.
+	if s.AuthStore != nil && s.ContentStore != nil && s.wsStores.pgDB != nil {
+		s.unclaimedPurger = jobs.NewUnclaimedProjectPurger(jobs.UnclaimedPurgeConfig{
+			Lister:   jobs.NewPgUnclaimedLister(s.wsStores.pgDB),
+			Auth:     s.AuthStore,
+			Projects: s.ContentStore,
+			Interval: time.Hour,
+		})
 	}
 
 	// Wire up activity recorder (Bowrain AD-014).
@@ -757,8 +796,76 @@ func NewServer(cfg Config) *Server {
 	return s
 }
 
+// configureIPExtractor pins echo's RealIP resolution to the client address
+// appended by our trusted reverse proxy, closing the X-Forwarded-For spoofing
+// hole that would otherwise let a client forge its per-IP identity.
+//
+// Deployment assumption: the server runs behind EXACTLY ONE trusted reverse
+// proxy (Caddy on the box, or a cloud ALB). That proxy overwrites/append the
+// real client IP as the right-most X-Forwarded-For hop; anything to its left is
+// client-controlled and untrusted. echo.ExtractIPFromXFFHeader walks the header
+// right-to-left, skipping trusted hops, and returns the first UNtrusted IP —
+// i.e. exactly the address the proxy appended.
+//
+// Trust set: loopback + link-local + private ranges (echo defaults — covers a
+// same-box Caddy or an ALB on a private subnet) plus any extra CIDRs from
+// BOWRAIN_TRUSTED_PROXIES (comma/space-separated), for a proxy that presents a
+// non-private source address. Invalid CIDRs are logged and skipped.
+func configureIPExtractor(e *echo.Echo) {
+	opts := []echo.TrustOption{
+		echo.TrustLoopback(true),
+		echo.TrustLinkLocal(true),
+		echo.TrustPrivateNet(true),
+	}
+	for _, cidr := range parseTrustedProxyCIDRs(os.Getenv("BOWRAIN_TRUSTED_PROXIES")) {
+		_, ipNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			slog.Warn("ignoring invalid BOWRAIN_TRUSTED_PROXIES entry", "value", cidr, "error", err)
+			continue
+		}
+		// Reject a default-route (/0) trust range. Trusting 0.0.0.0/0 or ::/0
+		// makes EVERY hop trusted, so ExtractIPFromXFFHeader returns the
+		// left-most (fully client-controlled) X-Forwarded-For entry — reopening
+		// the XFF-spoofing hole this extractor exists to close (rate-limit key
+		// forgery, audit-IP forgery, /metrics bypass). This is the one
+		// misconfiguration that fails OPEN, so drop it with a loud warning.
+		if ones, _ := ipNet.Mask.Size(); ones == 0 {
+			slog.Warn("ignoring default-route BOWRAIN_TRUSTED_PROXIES entry (would trust all hops and reopen XFF spoofing)",
+				"value", cidr)
+			continue
+		}
+		opts = append(opts, echo.TrustIPRange(ipNet))
+	}
+	e.IPExtractor = echo.ExtractIPFromXFFHeader(opts...)
+}
+
+// parseTrustedProxyCIDRs splits a comma/whitespace-separated list of CIDR
+// ranges, dropping empty tokens.
+func parseTrustedProxyCIDRs(raw string) []string {
+	fields := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\n'
+	})
+	out := make([]string, 0, len(fields))
+	for _, f := range fields {
+		if f != "" {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // SetupRoutes registers all API routes on the Echo instance.
 func (s *Server) SetupRoutes(e *echo.Echo) {
+	// Trust the client IP only as far as the reverse proxy in front of us.
+	// Every per-IP control below (login/refresh/device/anonymous/AI rate
+	// limits, the claim-email cap, the /metrics private-IP gate) keys on
+	// c.RealIP(); without a configured IPExtractor echo would trust the
+	// leftmost, client-controlled X-Forwarded-For / X-Real-IP value, so any of
+	// them is bypassable by spoofing that header. Configuring the extractor
+	// pins RealIP to the address our trusted proxy appended (the right-most XFF
+	// hop), which the client cannot forge.
+	configureIPExtractor(e)
+
 	// Middleware — order matters:
 	// 1. Request ID (propagate/generate correlation ID)
 	// 2. Structured request logging (slog-echo, includes request_id)
@@ -779,8 +886,17 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	e.Use(middleware.BodyLimit("50M"))
 	e.Use(middleware.CORSWithConfig(s.corsConfig()))
 
-	// Prometheus metrics endpoint (no auth).
-	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
+	// Per-IP throttle knobs (env-overridable) used across the abuse-prone
+	// public and pre-auth routes below.
+	rl := loadRateLimitDefaults()
+	s.claimEmailLimiter = newHourlyIPLimiter(rl.ClaimEmailPerHour)
+
+	// Prometheus metrics endpoint. Gated (not public): a bearer token when
+	// BOWRAIN_METRICS_TOKEN is set, otherwise restricted to loopback/private
+	// source IPs so an in-cluster scraper works while external clients (via the
+	// ingress, presenting a public RealIP) are refused.
+	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()),
+		MetricsAccessMiddleware(os.Getenv("BOWRAIN_METRICS_TOKEN")))
 
 	// pprof endpoints are served on a separate localhost-only listener
 	// (see observe.StartPprofServer in main.go).
@@ -816,15 +932,25 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 	// Authenticated mode: auth routes, protected endpoints, workspace management.
 	if s.Config.JWTSecret != "" {
-		// Anonymous project creation (no auth required).
-		v1.POST("/projects/anonymous", s.HandleCreateAnonymousProject)
+		// Anonymous project creation (no auth required) — IP-throttled: it
+		// writes a project + claim token (and optionally sends an email) with no
+		// credential, so it is a prime abuse target.
+		v1.POST("/projects/anonymous", s.HandleCreateAnonymousProject,
+			RateLimitByIP(rl.AnonPerMin, rl.AnonBurst))
+
+		// Shared per-IP throttle for the unauthenticated / pre-auth token
+		// endpoints (login, refresh, device-code start). One bucket across them
+		// so a client cannot fan a brute-force / token-mint flood across
+		// endpoints. OIDC redirect callbacks are intentionally excluded — they
+		// carry provider state and must not be dropped.
+		authLimit := RateLimitByIP(rl.AuthPerMin, rl.AuthBurst)
 
 		// Public auth routes (no token required)
 		authGroup := v1.Group("/auth")
-		authGroup.POST("/device/start", s.HandleDeviceAuthStart)
+		authGroup.POST("/device/start", s.HandleDeviceAuthStart, authLimit)
 		authGroup.POST("/device/poll", s.HandleDeviceAuthPoll)
-		authGroup.POST("/refresh", s.HandleTokenRefresh)
-		authGroup.GET("/login", s.HandleAuthLogin)
+		authGroup.POST("/refresh", s.HandleTokenRefresh, authLimit)
+		authGroup.GET("/login", s.HandleAuthLogin, authLimit)
 		authGroup.GET("/callback", s.HandleAuthCallback)
 		authGroup.POST("/callback", s.HandleAuthCallback)
 		authGroup.GET("/desktop/login", s.HandleDesktopLogin)
@@ -860,11 +986,17 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authProtected.POST("/logout", s.HandleAuthLogout)
 		authProtected.POST("/token/exchange", s.HandleTokenExchange)
 
+		// Per-IP throttles for invite and AI-consuming routes (env-overridable).
+		// Shared instances so all invite routes / all AI routes each draw from a
+		// single per-IP bucket.
+		inviteLimit := RateLimitByIP(rl.InvitePerMin, rl.InviteBurst)
+		aiLimit := RateLimitByIP(rl.AIPerMin, rl.AIBurst)
+
 		// Project claim and invite acceptance (auth required, no workspace).
 		jwtProtected := v1.Group("")
 		jwtProtected.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		jwtProtected.POST("/projects/claim", s.HandleClaimProject)
-		jwtProtected.POST("/join/:code", s.HandleAcceptInvite)
+		jwtProtected.POST("/join/:code", s.HandleAcceptInvite, inviteLimit)
 
 		// Flat sync routes for unclaimed projects (claim-token or JWT auth).
 		// Bowrain AD-011: /api/v1/projects/:id/sync/:ref/*
@@ -906,6 +1038,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		if s.AuthStore != nil {
 			wsSpecific.Use(WorkspaceAccessMiddleware(s.AuthStore))
 			wsSpecific.Use(WeeklyAllocationMiddleware(s.BillingStore))
+			// Load per-workspace feature overrides so PlanGuard (and the
+			// entitlements surfaced to clients) honor admin-granted overrides.
+			wsSpecific.Use(FeatureOverridesMiddleware(s.BillingStore))
 		}
 		wsSpecific.GET("", s.HandleGetWorkspace)
 		wsSpecific.PUT("", s.HandleUpdateWorkspace)
@@ -921,8 +1056,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// Optional ?project=<id> narrows the stream to one project.
 		wsSpecific.GET("/events", s.HandleWorkspaceEventsSSE)
 
-		// Invite routes (workspace-scoped, admin/owner only).
-		wsSpecific.POST("/invites", s.HandleCreateInvite)
+		// Invite routes (workspace-scoped, admin/owner only). Creation is
+		// IP-throttled — it can trigger an outbound invite email per call.
+		wsSpecific.POST("/invites", s.HandleCreateInvite, inviteLimit)
 		wsSpecific.GET("/invites", s.HandleListInvites)
 		wsSpecific.DELETE("/invites/:id", s.HandleDeleteInvite)
 
@@ -958,10 +1094,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		tokenGroup.GET("", s.HandleListTokens)
 		tokenGroup.DELETE("/:id", s.HandleDeleteToken)
 
-		s.registerWorkspaceContentRoutes(wsSpecific)
+		s.registerWorkspaceContentRoutes(wsSpecific, aiLimit)
 
 		// @bravo agent routes (Bowrain AD-016) with QuotaGuard for credit-consuming operations.
-		s.registerBravoRoutes(wsSpecific)
+		s.registerBravoRoutes(wsSpecific, aiLimit)
 
 		// Billing routes (Bowrain AD-018, workspace-scoped)
 		billingGroup := wsSpecific.Group("/billing")
@@ -1093,7 +1229,10 @@ func serveSPAFile(c echo.Context, dir string) error {
 //
 // Note: During migration, handlers still extract project ID via c.Param("pid")
 // or c.Param("id"). Slug-to-ID resolution middleware will be added separately.
-func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
+//
+// aiLimit is a per-IP throttle applied to the AI-consuming routes (ai-translate,
+// brand-voice check) so a single client cannot drive unbounded provider spend.
+func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.MiddlewareFunc) {
 	// Apply project-level permission resolution for routes with :pid or :id params.
 	// The middleware is a no-op when no project ID is present (workspace-scoped routes).
 	if s.AuthStore != nil {
@@ -1144,7 +1283,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/brand-profiles/:id", s.HandleGetBrandProfile)
 	g.PUT("/brand-profiles/:id", s.HandleUpdateBrandProfile)
 	g.DELETE("/brand-profiles/:id", s.HandleDeleteBrandProfile)
-	g.POST("/brand-profiles/:id/check", s.HandleCheckBrandVoice)
+	g.POST("/brand-profiles/:id/check", s.HandleCheckBrandVoice, aiLimit)
 	g.POST("/brand-profiles/from-starter", s.HandleCreateFromStarter)
 	g.GET("/brand-profiles/suggested-rules", s.HandleGetSuggestedRules)
 	g.GET("/brand-profiles/:id/candidates", s.HandleListCandidates)
@@ -1316,7 +1455,11 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 
 	// Actions — Bowrain AD-011: /:ws/:id/actions/:ref/<verb>
 	g.POST("/:id/actions/:ref/pseudo-translate", s.HandlePseudoTranslate)
-	g.POST("/:id/actions/:ref/ai-translate", s.HandleAITranslate, billing.QuotaGuard(s.BillingStore, s.billingGuardEvent()))
+	// ai-translate enforces the weekly-credit gate INSIDE the handler via
+	// billing.GuardSyncCredits (not QuotaGuard middleware) so it can exempt
+	// bring-your-own-key requests, which the middleware cannot see in the body.
+	// A per-IP AI throttle (003) still fronts it so a client cannot burst spend.
+	g.POST("/:id/actions/:ref/ai-translate", s.HandleAITranslate, aiLimit)
 	g.POST("/:id/actions/:ref/tm-translate", s.HandleTMTranslate)
 	g.POST("/:id/actions/:ref/export", s.HandleExportTranslatedFile)
 	g.POST("/:id/actions/:ref/qa-check", s.HandleQACheckFile)
@@ -1498,6 +1641,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	if s.deadlineChecker != nil {
 		s.deadlineChecker.Close()
+	}
+	if s.unclaimedPurger != nil {
+		s.unclaimedPurger.Close()
 	}
 	if s.progressTracker != nil {
 		s.progressTracker.Close()

@@ -186,7 +186,21 @@ func (r *Reader) Close() error {
 	return nil
 }
 
+// readContent dispatches to the streaming or buffered walk. Streaming applies
+// to the same-format skeleton round-trip with validation off — there the
+// skeleton (not androidxml.original) is the merge source of truth, so the
+// reader can tokenize incrementally and never hold the whole document. Every
+// other case (no skeleton store → androidxml.original retained; or validation
+// mode) keeps the buffered walk.
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
+	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
+		r.readStreaming(ctx, ch)
+		return
+	}
+	r.readBuffered(ctx, ch)
+}
+
+func (r *Reader) readBuffered(ctx context.Context, ch chan<- model.PartResult) {
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
 	// across CLI/server/WASM — see core/safeio).

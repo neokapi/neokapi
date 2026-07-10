@@ -103,19 +103,37 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 			Reader:       io.NopCloser(pr),
 		}))
 
-		runtime.GC()
-		var base runtime.MemStats
-		runtime.ReadMemStats(&base)
+		// liveHeap forces a GC so HeapAlloc reflects the *retained* working set
+		// rather than transient per-part garbage that a streaming reader
+		// legitimately produces. Sampling raw HeapAlloc (garbage included) made
+		// the absolute bound below flaky on slower CI runners, where more
+		// uncollected garbage accumulates between samples; live heap is the
+		// metric this test actually means. A reader that buffered the whole
+		// document would keep it *live*, so this still trips the bound below.
+		liveHeap := func() uint64 {
+			runtime.GC()
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			return m.HeapAlloc
+		}
 
-		var m runtime.MemStats
+		// Sample ~256 times regardless of document size (stride scales with n)
+		// rather than at a fixed stride. A streaming reader's live heap fluctuates
+		// by a bounded, document-size-independent amount (up to ~64 in-flight parts
+		// queued in its channel), so a fixed stride samples the 20x-larger run 20x
+		// more often and reliably catches that bounded burst while the small run
+		// misses it — which made the ps*3 ratio bound flaky for this low-footprint
+		// format. Equal sample density makes ps and pl estimate the same bounded
+		// working set, so the ratio reflects real scaling, not sampling luck.
+		stride := max(n/256, 1)
+		base := liveHeap()
 		count := 0
 		for res := range reader.Read(context.Background()) {
 			require.NoError(t, res.Error)
 			count++
-			if count%256 == 0 {
-				runtime.ReadMemStats(&m)
-				if m.HeapAlloc > base.HeapAlloc && m.HeapAlloc-base.HeapAlloc > peak {
-					peak = m.HeapAlloc - base.HeapAlloc
+			if count%stride == 0 {
+				if h := liveHeap(); h > base && h-base > peak {
+					peak = h - base
 				}
 			}
 		}

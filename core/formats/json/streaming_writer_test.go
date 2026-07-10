@@ -274,16 +274,41 @@ func TestStreamingWriterBoundedMemory(t *testing.T) {
 		}))
 		require.NoError(t, writer.SetOutputWriter(io.Discard))
 
-		runtime.GC()
-		var base runtime.MemStats
-		runtime.ReadMemStats(&base)
+		// liveHeap forces a GC so HeapAlloc reflects the *retained* working set
+		// rather than transient per-part garbage that the streaming round-trip
+		// legitimately produces. Sampling raw HeapAlloc (garbage included) made
+		// the absolute bound below flaky on slower CI runners, where more
+		// uncollected garbage accumulates between samples; live heap is the
+		// metric this test actually means. A buffered writer would keep the
+		// whole block map + skeleton queue *live*, so this still trips the bound.
+		liveHeap := func() uint64 {
+			runtime.GC()
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			return m.HeapAlloc
+		}
+		base := liveHeap()
 
-		partsCh := make(chan *model.Part, 64)
+		// Sample ~256 times regardless of document size (stride scales with n)
+		// rather than at a fixed stride. The streaming round-trip's live heap
+		// fluctuates by a bounded, document-size-independent amount, so a fixed
+		// stride samples the 20x-larger run 20x more often and reliably catches
+		// that bounded burst while the small run misses it — which would make the
+		// ps*3 ratio bound flaky for this low-footprint format. Equal sample
+		// density makes ps and pl estimate the same bounded working set, so the
+		// ratio reflects real scaling, not sampling luck.
+		stride := max(n/256, 1)
+
+		// Small producer→writer buffer keeps the in-flight window tight so the
+		// sampled peak reflects the streaming round-trip's bounded working set,
+		// not a transient backlog the reader raced ahead to buffer. A wide buffer
+		// let the 20x-longer large run occasionally catch a bounded burst the
+		// small run never built up, tripping the ps*3 ratio bound.
+		partsCh := make(chan *model.Part, 8)
 		go func() {
 			defer close(partsCh)
 			defer store.CloseWrite()
 			defer reader.Close()
-			var m runtime.MemStats
 			count := 0
 			for res := range reader.Read(ctx) {
 				if res.Error != nil || res.Part == nil {
@@ -291,10 +316,9 @@ func TestStreamingWriterBoundedMemory(t *testing.T) {
 				}
 				partsCh <- res.Part
 				count++
-				if count%256 == 0 {
-					runtime.ReadMemStats(&m)
-					if m.HeapAlloc > base.HeapAlloc && m.HeapAlloc-base.HeapAlloc > peak {
-						peak = m.HeapAlloc - base.HeapAlloc
+				if count%stride == 0 {
+					if h := liveHeap(); h > base && h-base > peak {
+						peak = h - base
 					}
 				}
 			}

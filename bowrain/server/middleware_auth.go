@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"log/slog"
@@ -367,6 +368,62 @@ func (s *Server) ProjectAccessMiddleware() echo.MiddlewareFunc {
 			projectID := projectParam(c)
 			if projectID == "" {
 				projectID = c.Param("id")
+			}
+
+			// Cross-tenant guard (fail-closed). When the request path carries an
+			// explicit workspace (WorkspaceAccessMiddleware ran and set
+			// workspace_id from the :ws slug), the addressed project MUST belong
+			// to that workspace. Without this check ProjectAccessMiddleware would
+			// fall back to the caller's OWN workspace role for a project owned by
+			// a DIFFERENT workspace, letting any owner/admin of workspace A
+			// read/write a project in workspace B via /api/v1/<A>/<B-project-id>
+			// (cross-tenant IDOR). The flat sync/convergence groups run without a
+			// workspace context (workspace_id empty) and derive the workspace
+			// from the project itself in workspaceRoleFallback, so they are
+			// unaffected. Respond 404 (not 403) to avoid leaking that the project
+			// exists (anti-enumeration, matching PulseProjectAccessMiddleware).
+			//
+			// Crucially, :id is NOT always a project id: this middleware runs for
+			// every route under the /:ws group, including sibling routes whose :id
+			// is a non-project resource (/:ws/jobs/:id, /:ws/brand-profiles/:id,
+			// /:ws/providers/:id, /:ws/connectors/:id/...). For those, GetProject
+			// returns sql.ErrNoRows — which must be treated as "not a project
+			// route" and fall through to normal resolution, NOT as a cross-tenant
+			// hit (otherwise the guard 404s a broad swath of the workspace API).
+			// Only a project that ACTUALLY EXISTS in a different workspace is the
+			// IDOR we fail closed on. A genuine (non-ErrNoRows) store error also
+			// fails closed so a transient error can't reopen the hole.
+			if projectID != "" && s.ContentStore != nil {
+				if wsID, _ := c.Get("workspace_id").(string); wsID != "" {
+					proj, err := s.ContentStore.GetProject(ctx, projectID)
+					switch {
+					case err == nil && proj != nil && proj.WorkspaceID != wsID:
+						// A real project owned by a DIFFERENT workspace: cross-tenant
+						// IDOR. Fail closed (audit + anti-enumeration 404).
+						if actor, _ := c.Get("user_id").(string); actor != "" {
+							s.emitAudit(c, auditEvent{
+								Type:      platev.EventAuthzDenied,
+								ProjectID: projectID,
+								Effect:    "deny",
+								Data: map[string]string{
+									"reason": "cross_workspace_project",
+									"path":   c.Path(),
+								},
+							})
+						}
+						return c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found"})
+					case err != nil && !errors.Is(err, sql.ErrNoRows):
+						// A genuine store error (not "no such project"). Fail closed
+						// rather than fall through — a transient DB error must never
+						// silently reopen the cross-tenant hole.
+						slog.WarnContext(ctx, "cross-tenant guard: project lookup failed; denying",
+							"project_id", projectID, "path", c.Path(), "error", err)
+						return c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found"})
+					}
+					// sql.ErrNoRows: :id is not a project (it is a sibling resource
+					// id — job, brand-profile, provider, connector). Fall through to
+					// normal workspace-role resolution below.
+				}
 			}
 
 			var resolved *platauth.ResolvedPermission

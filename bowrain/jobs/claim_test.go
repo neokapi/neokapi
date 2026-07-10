@@ -20,7 +20,7 @@ func newTestJobStore(t *testing.T) JobStore {
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_, _ = db.ExecContext(t.Context(), "DELETE FROM translation_jobs")
-		db.Close()
+		closePgDB(db) // closes the pgxpool too, keeping the goleak check green
 	})
 	store, err := NewJobStore(db)
 	require.NoError(t, err)
@@ -42,12 +42,12 @@ func TestClaimJob_OnlyOneWins(t *testing.T) {
 	require.NoError(t, store.CreateJob(ctx, job))
 
 	// First claim succeeds.
-	ok1, err := store.ClaimJob(ctx, job.ID)
+	ok1, _, err := store.ClaimJob(ctx, job.ID)
 	require.NoError(t, err)
 	assert.True(t, ok1, "first claim should succeed")
 
 	// Second claim fails (already processing).
-	ok2, err := store.ClaimJob(ctx, job.ID)
+	ok2, _, err := store.ClaimJob(ctx, job.ID)
 	require.NoError(t, err)
 	assert.False(t, ok2, "second claim should fail")
 
@@ -75,7 +75,7 @@ func TestClaimJob_SkipsNonQueued(t *testing.T) {
 	require.NoError(t, store.UpdateJobStatus(ctx, job.ID, StatusCompleted, ""))
 
 	// Claim should fail.
-	ok, err := store.ClaimJob(ctx, job.ID)
+	ok, _, err := store.ClaimJob(ctx, job.ID)
 	require.NoError(t, err)
 	assert.False(t, ok, "should not claim completed job")
 }

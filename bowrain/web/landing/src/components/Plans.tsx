@@ -81,7 +81,6 @@ const TIERS: Tier[] = [
       `${CREDITS.team} AI credits / week`,
       "Unlimited projects & seats",
       "Custom connectors",
-      "Bravo code execution",
       "Team collaboration & review",
       "Priority support",
     ],
