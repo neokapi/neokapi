@@ -246,10 +246,12 @@ Per-format status / next:
   which needs a two-pass rules scan since global rules can appear anywhere.
 - **resx, androidxml** — custom-tokenizer substrate (not `encoding/xml`): each
   needs a **streaming variant of its own tokenizer** + dropping `.original`
-  retention (only retained when no skeleton store is wired). **`resx` is done** —
-  a `streamTokenizer` reads from a bufio window producing the identical token
-  sequence, and the walk buffers only the current `<data>` entry. `androidxml`
-  follows the same pattern.
+  retention (only retained when no skeleton store is wired). **`resx` and
+  `androidxml` are done** — each adds a `streamTokenizer` that reads from a bufio
+  window producing the identical token sequence, and a streaming walk that
+  buffers only one entry subtree at a time (`resx` the `<data>` entry; `androidxml`
+  streams *through* `<resources>` and buffers each `<string>`/`<string-array>`/
+  `<plurals>` subtree, reusing the buffered walk's emit handlers).
 - **HTML** — the tokenizer skeleton path is streamable; the DOM path stays for
   normalization.
 - **YAML, Markdown** — blocked by `yaml.v3` / `goldmark` full-AST parsers; need a
