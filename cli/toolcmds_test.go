@@ -50,9 +50,56 @@ func TestNewToolCommandsSetsGroupID(t *testing.T) {
 	cmds := NewToolCommands(app)
 	require.NotEmpty(t, cmds)
 
+	// The curated tier and the `tool` group render in root help groups; the
+	// demoted top-level aliases are hidden with no group (surface A3).
 	for _, cmd := range cmds {
-		assert.NotEmpty(t, cmd.GroupID,
-			"command %q should have GroupID set", cmd.Use)
+		if TopLevelTools[cmd.Name()] || cmd.Name() == "tool" {
+			assert.NotEmpty(t, cmd.GroupID,
+				"visible command %q should have GroupID set", cmd.Use)
+			assert.False(t, cmd.Hidden, "curated command %q must stay visible", cmd.Use)
+			continue
+		}
+		assert.True(t, cmd.Hidden,
+			"non-curated top-level tool %q must be a hidden one-release alias", cmd.Use)
+		assert.Empty(t, cmd.GroupID,
+			"hidden alias %q must not claim a help group", cmd.Use)
+	}
+}
+
+// TestToolTiering pins the surface-A3 contract: every CLI-visible tool is
+// reachable under `kapi tool <name>`, and only the curated TopLevelTools tier
+// is visible at the top level.
+func TestToolTiering(t *testing.T) {
+	app := newTestApp()
+	cmds := NewToolCommands(app)
+
+	var toolGroup *cobra.Command
+	byName := map[string]*cobra.Command{}
+	for _, cmd := range cmds {
+		byName[cmd.Name()] = cmd
+		if cmd.Name() == "tool" {
+			toolGroup = cmd
+		}
+	}
+	require.NotNil(t, toolGroup, "the `kapi tool` group command must exist")
+
+	inGroup := map[string]bool{}
+	for _, sub := range toolGroup.Commands() {
+		inGroup[sub.Name()] = true
+		assert.False(t, sub.Hidden, "tool-group entry %q should be visible in `kapi tool --help`", sub.Name())
+	}
+	for name := range TopLevelTools {
+		assert.True(t, inGroup[name], "curated tool %q must also be reachable under `kapi tool`", name)
+		if c := byName[name]; assert.NotNil(t, c, "curated tool %q missing at top level", name) {
+			assert.False(t, c.Hidden)
+		}
+	}
+	// Spot-check demoted tools: under `tool`, hidden alias on top.
+	for _, name := range []string{"term-check", "content-lint", "length-check"} {
+		assert.True(t, inGroup[name], "tool %q must be reachable under `kapi tool`", name)
+		if c := byName[name]; assert.NotNil(t, c, "tool %q should keep a top-level alias", name) {
+			assert.True(t, c.Hidden, "top-level %q must be hidden", name)
+		}
 	}
 }
 
@@ -100,23 +147,16 @@ func TestLocalizationGroupRouting(t *testing.T) {
 	}
 
 	// Localization toolchain → "localization", regardless of schema Category.
-	// (Only CLI-visible tools — those with a config factory — appear here;
-	// flow-only checks like dnt-check carry the tag but are not commands.)
-	for _, name := range []string{"recycle", "translate", "pseudo-translate", "qa", "term-check", "inconsistency-check"} {
+	// Group routing is only observable on the curated tier now (demoted
+	// aliases are hidden and carry no group — see TestToolTiering).
+	for _, name := range []string{"recycle", "translate", "pseudo-translate", "qa"} {
 		assert.Equal(t, "localization", groupByName[name],
 			"l10n tool %q should route to the localization group", name)
 	}
 
-	// Generic / deliberately-untagged tools keep their category group.
-	generic := map[string]string{
-		"word-count":   schema.CategoryAnalysis,
-		"content-lint": schema.CategoryTextProcessing,
-		"length-check": schema.CategoryQuality, // intentionally not l10n-tagged
-	}
-	for name, want := range generic {
-		assert.Equal(t, want, groupByName[name],
-			"generic tool %q should keep its category group", name)
-	}
+	// Generic / deliberately-untagged curated tools keep their category group.
+	assert.Equal(t, schema.CategoryAnalysis, groupByName["word-count"],
+		"generic tool word-count should keep its category group")
 }
 
 // TestRecycleAlias proves the tm-leverage → recycle rename: the canonical
@@ -208,7 +248,7 @@ func TestAddCommandGroupsRegistersGroups(t *testing.T) {
 	app := &App{}
 	AddCommandGroups(app, root)
 
-	groupIDs := []string{"processing", "localization", "quality", "analysis", "text-processing", "management"}
+	groupIDs := []string{"work", "assets", "localization", "analysis", "advanced"}
 	for _, id := range groupIDs {
 		cmd := &cobra.Command{Use: "test-" + id, GroupID: id}
 		assert.NotPanics(t, func() {

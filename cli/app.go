@@ -19,24 +19,24 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 // Porcelain comes first: "Work:" holds the everyday project verbs
 // (init, add, up, status, apply, check) and "Assets:" the standing resources
 // (tm, termbase, brand, models, credentials). The tool-category groups
-// (localization/quality/analysis/text-processing) remain for the top-level
-// tool commands, whose GroupID derives from each tool's schema Category (see
-// the routing in NewToolCommands). "Advanced:" collects the plumbing (run,
-// flows, tools, extract, merge, pack/unpack/info, inspect, stats, formats,
-// plugin, config, hook, mcp, registry). Standard commands (version, update,
-// completion) stay ungrouped under cobra's "Additional Commands:".
+// (localization/analysis) remain for the curated top-level tool tier, whose
+// GroupID derives from each tool's schema Category (see TopLevelTools and
+// the routing in NewToolCommands — the rest of the registry lives under
+// `kapi tool` and renders no root group). "Advanced:" collects the plumbing
+// (run, flows, tool, tools, extract, merge, pack/unpack/info, inspect,
+// stats, formats, plugin, config, hook, mcp, registry). Standard commands
+// (version, update, completion) stay ungrouped under cobra's "Additional
+// Commands:".
 func AddCommandGroups(a *App, cmd *cobra.Command) {
 	cmd.AddGroup(
 		&cobra.Group{ID: "work", Title: "Work:"},
 		&cobra.Group{ID: "assets", Title: "Assets:"},
-		// The localization toolchain (translate, recycle, the bilingual
-		// checks, pseudo-translate) groups here regardless of each tool's
+		// The localization toolchain (translate, recycle, qa,
+		// pseudo-translate) groups here regardless of each tool's
 		// schema Category — see schema.TagL10n and the routing in
 		// NewToolCommands.
 		&cobra.Group{ID: "localization", Title: "Localization:"},
-		&cobra.Group{ID: "quality", Title: "Quality:"},
 		&cobra.Group{ID: "analysis", Title: "Analysis:"},
-		&cobra.Group{ID: "text-processing", Title: "Text Processing:"},
 		&cobra.Group{ID: "advanced", Title: "Advanced:"},
 	)
 }

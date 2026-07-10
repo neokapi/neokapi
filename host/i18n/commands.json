@@ -499,6 +499,120 @@
             "short": "Show translation memory statistics"
           }
         },
+        "tool": {
+          "brand-voice-check": {
+            "example": "  kapi brand-voice-check messages.json --target-lang fr\n  kapi brand-voice-check app.xliff --target-lang de",
+            "short": "Check text against a brand voice profile using an LLM provider"
+          },
+          "brand-voice-infer": {
+            "short": "Infer a draft brand voice profile from a content corpus using an LLM provider"
+          },
+          "case-transform": {
+            "example": "  kapi case-transform messages.json --mode upper\n  kapi case-transform messages.json --mode lower",
+            "short": "Case Transform"
+          },
+          "char-count": {
+            "example": "  kapi char-count messages.json\n  kapi char-count page.html",
+            "short": "Character Count"
+          },
+          "chars-check": {
+            "example": "  kapi chars-check app.xliff --target-lang fr\n  kapi chars-check app.xliff --target-lang zh",
+            "short": "Characters Check"
+          },
+          "content-lint": {
+            "short": "Content Lint"
+          },
+          "diff-leverage": {
+            "short": "Diff Leverage"
+          },
+          "encoding-detect": {
+            "short": "Encoding Detect"
+          },
+          "entity-extract": {
+            "short": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both"
+          },
+          "inconsistency-check": {
+            "example": "  kapi inconsistency-check app.xliff --target-lang fr\n  kapi inconsistency-check app.xliff --target-lang de",
+            "short": "Inconsistency Check"
+          },
+          "length-check": {
+            "example": "  kapi length-check app.xliff --target-lang fr\n  kapi length-check app.xliff --target-lang ja",
+            "short": "Length Check"
+          },
+          "long": "Run any CLI-visible registry tool on files. The everyday tools (translate,\npseudo-translate, qa, recycle, word-count) also live at the top level; the\nrest of the registry — format converters, checks, extractors, redaction — is\nmounted here to keep 'kapi --help' navigable.\n\nDiscover tools and their options with 'kapi tools list' and\n'kapi tools schema \u003cname\u003e'.",
+          "media-refine": {
+            "short": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM"
+          },
+          "pattern-check": {
+            "example": "  kapi pattern-check app.xliff --target-lang fr\n  kapi pattern-check app.xliff --target-lang de",
+            "short": "Pattern Check"
+          },
+          "pseudo-translate": {
+            "example": "  kapi pseudo-translate messages.json -o messages.pseudo.json\n  kapi pseudo-translate app.xliff -o app.pseudo.xliff --target-lang qps",
+            "short": "Pseudo Translate"
+          },
+          "qa": {
+            "example": "  kapi qa app.xliff --target-lang fr\n  kapi qa app.xliff --target-lang fr --provider anthropic\n  kapi qa app.xliff --target-lang de --json",
+            "short": "Check translation quality with deterministic rules or an LLM (select with --mode)"
+          },
+          "recycle": {
+            "example": "  kapi recycle app.xliff --target-lang fr\n  kapi recycle messages.json --target-lang de",
+            "short": "Recycle"
+          },
+          "redact": {
+            "short": "Replace sensitive spans with protected placeholders before processing"
+          },
+          "repetition-analysis": {
+            "example": "  kapi repetition-analysis messages.json\n  kapi repetition-analysis app.xliff",
+            "short": "Repetition Analysis"
+          },
+          "review": {
+            "example": "  kapi review app.xliff --target-lang fr\n  kapi review messages.json --target-lang de",
+            "short": "Review translations with scoring using an LLM provider"
+          },
+          "scoping-report": {
+            "example": "  kapi scoping-report messages.json\n  kapi scoping-report app.xliff --json",
+            "short": "Scoping Report"
+          },
+          "script": {
+            "short": "Script"
+          },
+          "search-replace": {
+            "example": "  kapi search-replace messages.json --find \"foo\" --replace \"bar\"\n  kapi search-replace page.html --find \"colour\" --replace \"color\"",
+            "short": "Search and Replace"
+          },
+          "segment-count": {
+            "example": "  kapi segment-count messages.json\n  kapi segment-count app.xliff",
+            "short": "Segment Count"
+          },
+          "segmentation": {
+            "example": "  kapi segmentation messages.json\n  kapi segmentation app.xliff",
+            "short": "Split source text into sentence or chunk segments (stand-off overlay)"
+          },
+          "short": "Run any registry tool on files (the full set behind the curated top-level verbs)",
+          "source-check": {
+            "short": "Source Readiness"
+          },
+          "term-check": {
+            "example": "  kapi term-check app.xliff --source-lang en --target-lang fr\n  kapi term-check messages.json --source-lang en --target-lang fr",
+            "short": "Terminology Check"
+          },
+          "term-extract": {
+            "example": "  kapi term-extract messages.json\n  kapi term-extract app.xliff --provider anthropic",
+            "short": "Extract candidate terminology from content using an LLM provider"
+          },
+          "translate": {
+            "example": "  kapi translate messages.json --target-lang fr\n  kapi translate app.xliff --target-lang de --provider openai\n  kapi translate app.xliff --target-lang de -o app.de.xliff",
+            "short": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)"
+          },
+          "unredact": {
+            "short": "Restore original values into redacted content after processing"
+          },
+          "word-count": {
+            "example": "  kapi word-count messages.json\n  kapi word-count app.xliff --json",
+            "short": "Word Count"
+          }
+        },
         "tools": {
           "example": "  kapi tools\n  kapi tools list",
           "list": {
