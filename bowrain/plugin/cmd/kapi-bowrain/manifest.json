@@ -44,10 +44,10 @@
     ],
     "schema_extensions": [
       {"name": "server",       "scope": "project", "group": "bowrain"},
-      {"name": "hooks",        "scope": "project", "group": "bowrain"},
-      {"name": "automations",  "scope": "project", "group": "bowrain"},
-      {"name": "assets",       "scope": "project", "group": "bowrain"},
-      {"name": "brand_voice",  "scope": "project", "group": "bowrain"},
+      {"name": "hooks",        "scope": "project", "group": "bowrain", "depends_on": "server"},
+      {"name": "automations",  "scope": "project", "group": "bowrain", "depends_on": "server"},
+      {"name": "assets",       "scope": "project", "group": "bowrain", "depends_on": "server"},
+      {"name": "brand_voice",  "scope": "project", "group": "bowrain", "depends_on": "server"},
       {"name": "collection",   "scope": "item",    "group": "bowrain"}
     ],
     "source_connectors": [

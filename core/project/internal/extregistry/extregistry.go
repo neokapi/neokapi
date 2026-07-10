@@ -11,11 +11,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Entry is one registered extension binding: the owning group and the decode
-// hook (nil for a marker-only registration).
+// Entry is one registered extension binding: the owning group, the decode
+// hook (nil for a marker-only registration), and an optional sibling-key
+// dependency (the extension is inert when that key is absent).
 type Entry struct {
-	Group  string
-	Decode func(node yaml.Node) error
+	Group     string
+	Decode    func(node yaml.Node) error
+	DependsOn string
 }
 
 type key struct {

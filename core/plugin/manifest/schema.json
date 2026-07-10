@@ -199,7 +199,8 @@
               "name": { "type": "string" },
               "scope": { "type": "string", "enum": ["project", "defaults", "collection", "item"] },
               "group": { "type": "string" },
-              "json_schema": { "type": "string" }
+              "json_schema": { "type": "string" },
+              "depends_on": { "type": "string" }
             }
           }
         },

@@ -62,10 +62,11 @@ func RegisterSchemaExtensions(host *Host, onWarn func(msg string)) {
 
 		decoder := loadSchemaDecoder(reg, onWarn)
 		ext := project.Extension{
-			Name:    reg.Extension.Name,
-			Scope:   scope,
-			Group:   group,
-			Decoder: decoder,
+			Name:      reg.Extension.Name,
+			Scope:     scope,
+			Group:     group,
+			Decoder:   decoder,
+			DependsOn: reg.Extension.DependsOn,
 		}
 
 		// Belt-and-suspenders: registration isn't synchronized against a

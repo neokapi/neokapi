@@ -201,6 +201,9 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		return verifyOutput{}, fmt.Errorf("load project: %w", err)
 	}
 	root := filepath.Dir(projectPath)
+	// A gate run is where a silently-inert recipe field (automations:
+	// without server:) is most misleading — surface it here and in status.
+	a.WarnInertRecipeFields(cmd, proj)
 
 	sel := resolveGateSelection(cmd)
 	localeFilter, _ := cmd.Flags().GetString("locale")
