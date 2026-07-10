@@ -55,6 +55,27 @@ func AddUpFlags(cmd Command) {
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 }
 
+// ServerRecipeURL reports whether the recipe at projectPath declares a
+// server: block, and the declared URL when parsable. Best-effort: a load or
+// decode error reports no server — ExecuteUp surfaces real load failures.
+// The server extension schema is owned by the bowrain plugin; this reads the
+// raw extension node so the venue decision needs no plugin code.
+func (a *App) ServerRecipeURL(projectPath string) (hasServer bool, url string) {
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return false, ""
+	}
+	node, ok := proj.Extras["server"]
+	if !ok {
+		return false, ""
+	}
+	var spec struct {
+		URL string `yaml:"url"`
+	}
+	_ = node.Decode(&spec)
+	return true, spec.URL
+}
+
 // WarnIfServerRecipeConvergingLocally prints a one-line stderr warning when a
 // recipe declares a server: block but the built-in up (no bowrain plugin) is
 // about to converge it locally: the run spends the user's own AI provider and
@@ -64,11 +85,7 @@ func (a *App) WarnIfServerRecipeConvergingLocally(cmd Command, projectPath strin
 	if a.Quiet {
 		return
 	}
-	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
-	if err != nil {
-		return
-	}
-	if _, hasServer := proj.Extras["server"]; !hasServer {
+	if hasServer, _ := a.ServerRecipeURL(projectPath); !hasServer {
 		return
 	}
 	fmt.Fprintln(cmd.ErrOrStderr(),

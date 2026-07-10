@@ -2,8 +2,12 @@ package cli
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
+	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // NewUpCmd creates `kapi up`: reconcile the project toward its ship gates.
@@ -12,6 +16,13 @@ import (
 // across every target language, looping until every gated scope ships or is
 // parked for a human. It reuses the same engine as the no-argument `kapi run`
 // (RunDefaultFlowConverge), with until-gate looping ON by default.
+//
+// up owns the verb in every install (the no-shadowing rule). The venue is
+// resolved here: when the recipe declares a server: block and a plugin
+// provides the hidden `server-up` plumbing (kapi-bowrain), the run is
+// dispatched there — push, converge on the server, stream progress, pull
+// results. Otherwise the loop runs locally via ExecuteUp. The resolved venue
+// is printed up front whenever a server: block makes the choice ambiguous.
 func NewUpCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "up",
@@ -45,10 +56,20 @@ are written from the project store: 'defaults.materialize: on-converge' (or
 the --materialize flag) writes them for every locale whose gated scopes are
 all shippable; the default ('manual') leaves that to 'kapi merge'.
 
---plan is a dry run: instead of running anything, up reports the pending work
-per (collection, locale) — units missing a target, exact TM leverage, the
-remaining AI work, and a rough token estimate — with no provider calls and no
-writes. Combine with --json for agents.
+Venue: in a server-connected project (a recipe with a server: block, with the
+bowrain plugin installed) the loop runs on the Bowrain server by default — on
+the org's keys, against the org's shared TM and terminology — and this command
+pushes local changes, streams the server run's live progress, and pulls the
+produced targets. --local keeps the loop on this machine and then pushes the
+results so the server never goes stale; --server fails rather than falling
+back to a local run. The resolved venue is printed first whenever a server:
+block is present. Without a server: block, up is purely local.
+
+--plan is a dry run in every venue: instead of running anything, up reports
+the pending work per (collection, locale) — units missing a target, exact TM
+leverage, the remaining AI work, and a rough token estimate — computed locally
+against the working tree, with no provider calls and no writes. Combine with
+--json for agents.
 
 up never fails the build on target drift: parked, pending target content is
 normal toil, reported rather than thrown. Use 'kapi status' to inspect
@@ -61,6 +82,7 @@ gates (e.g. before a release tag).
   kapi up --plan         # dry run: pending work, TM leverage, and a token estimate per locale
   kapi up --passes 1     # a single pass over every locale that needs work
   kapi up --materialize  # also write localized files for the shippable locales
+  kapi up --local        # connected project: converge on this machine, then push the results
   kapi up -p app.kapi    # reconcile an explicit project recipe`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			projectPath, err := ResolveProjectPath(cmd)
@@ -70,22 +92,105 @@ gates (e.g. before a release tag).
 			if projectPath == "" {
 				return errors.New("kapi up needs a project — pass -p <recipe> or run from inside a kapi project directory")
 			}
-			// This RunE only runs when no plugin owns `up` (kapi/cmd/kapi
-			// skips the built-in when a plugin declares the verb). So if the
-			// recipe declares a server: block, the bowrain plugin that would
-			// run it on the server is absent: warn that this converges LOCALLY
-			// on the user's own AI keys and does NOT push, rather than silently
-			// diverging from the connected behavior. --plan is a read-only dry
-			// run, so it needs no warning.
-			if !BoolFlag(cmd, "plan") {
-				a.WarnIfServerRecipeConvergingLocally(cmd, projectPath)
-			}
-			return a.ExecuteUp(cmd, projectPath)
+			return runUpWithVenue(a, cmd, projectPath)
 		},
 	}
 
 	AddProjectFlag(cmd)
 	a.AddFlowRunFlags(cmd)
 	AddUpFlags(cmd)
+	cmd.Flags().Bool("local", false, "converge on this machine even when the recipe declares a server (the results are then pushed so the server stays current)")
+	cmd.Flags().Bool("server", false, "require the server venue: fail rather than converge locally when the recipe has no server or the server plumbing is unavailable")
+	cmd.Flags().Duration("timeout", 15*time.Minute, "server venue: maximum time to wait for the server run to finish before pulling available results")
 	return cmd
+}
+
+// runUpWithVenue resolves where the convergence loop runs and executes it.
+//
+// The server venue engages when the recipe declares a server: block AND an
+// installed plugin provides the hidden `server-up` plumbing command. --local
+// still dispatches to the plumbing (the plugin converges locally, then pushes
+// so the server copy never goes stale). --plan never dispatches: the server
+// runs the same loop, so the local plan against the working tree is the
+// honest preview. Without the plumbing, the loop runs locally — with the
+// existing stale-server warning when a server: block is present, or an error
+// under --server.
+func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
+	hasServer, serverURL := a.ServerRecipeURL(projectPath)
+	plan := BoolFlag(cmd, "plan")
+	local := BoolFlag(cmd, "local")
+	forceServer := BoolFlag(cmd, "server")
+	if local && forceServer {
+		return errors.New("--local and --server are mutually exclusive")
+	}
+
+	var route *pluginhost.CommandRoute
+	if a.PluginHost != nil {
+		route = a.PluginHost.CommandRoute("server-up")
+	}
+
+	if forceServer {
+		switch {
+		case !hasServer:
+			return errors.New("--server needs a recipe with a server: block — run 'kapi init --server <url>' to connect this project")
+		case route == nil:
+			return errors.New("--server needs the server venue plumbing, which no installed plugin provides — install the bowrain plugin (kapi plugin install bowrain)")
+		}
+	}
+
+	if hasServer && route != nil && !plan {
+		printUpVenue(a, cmd, local, serverURL)
+		return pluginhost.ExecPluginCommand(cmd.Context(), route, forwardedFlagArgs(cmd.Flags(), "server"))
+	}
+
+	if hasServer && route == nil && !plan {
+		a.WarnIfServerRecipeConvergingLocally(cmd, projectPath)
+	}
+	return a.ExecuteUp(cmd, projectPath)
+}
+
+// printUpVenue names the resolved venue on stderr before the run starts.
+// Printed only when a server: block makes the venue ambiguous — a plain
+// local project gets no banner. Suppressed under --quiet and --json (the
+// NDJSON stream is the machine surface; agents read the plan/events).
+func printUpVenue(a *App, cmd *cobra.Command, local bool, serverURL string) {
+	if a.Quiet || BoolFlag(cmd, "json") {
+		return
+	}
+	target := serverURL
+	if target == "" {
+		target = "server"
+	}
+	if local {
+		fmt.Fprintf(cmd.ErrOrStderr(), "Venue: local (--local) — converging on this machine; results push to %s.\n", target)
+		return
+	}
+	fmt.Fprintf(cmd.ErrOrStderr(), "Venue: server — converging on %s (use --local to converge on this machine).\n", target)
+}
+
+// forwardedFlagArgs re-renders the flags the user set as argv for the plugin
+// plumbing subprocess, which parses the same flag surface itself. Flags named
+// in except are venue-resolution flags the core owns and the plumbing does
+// not know.
+func forwardedFlagArgs(fs *pflag.FlagSet, except ...string) []string {
+	skip := map[string]bool{}
+	for _, name := range except {
+		skip[name] = true
+	}
+	var args []string
+	fs.Visit(func(f *pflag.Flag) {
+		if skip[f.Name] {
+			return
+		}
+		if sv, ok := f.Value.(pflag.SliceValue); ok {
+			for _, v := range sv.GetSlice() {
+				args = append(args, "--"+f.Name, v)
+			}
+			return
+		}
+		// --name=value survives every value shape (bools, negatives,
+		// empty strings) without argv ambiguity.
+		args = append(args, "--"+f.Name+"="+f.Value.String())
+	})
+	return args
 }

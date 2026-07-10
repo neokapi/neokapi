@@ -22,19 +22,19 @@ var (
 	upTimeout time.Duration
 )
 
-// upCmd owns the `up` verb in a bowrain-connected install: `kapi up` reconciles
-// the project toward its ship gates. In a connected project the loop runs on
-// the Bowrain server by default (org keys, shared TM/terminology, always-on);
-// --local runs it on this machine and then pushes the results so the server
-// never goes stale. When the recipe has no server: block, up is purely local —
-// identical to the built-in `kapi up`.
-//
-// The plugin declares `up` in its manifest, so kapi dispatches `kapi up` here
-// (the plugin wins the verb) once kapi-bowrain is installed.
+// upCmd is the hidden `server-up` plumbing behind `kapi up`'s server venue.
+// The built-in up owns the verb in every install (the no-shadowing rule) and
+// dispatches here — with the user's flags forwarded — when the recipe
+// declares a server: block: the loop runs on the Bowrain server by default
+// (org keys, shared TM/terminology, always-on); --local runs it on this
+// machine and then pushes the results so the server never goes stale. The
+// local paths delegate to the same ExecuteUp as the built-in, so a
+// disconnected recipe behaves byte-identically either way.
 var upCmd = &cobra.Command{
-	Use:   "up",
-	Short: "Reconcile the project toward its ship gates (runs on the server when connected)",
-	Args:  cobra.NoArgs,
+	Use:    "server-up",
+	Hidden: true,
+	Short:  "Plumbing for kapi up's server venue: push, converge on the server, stream progress, pull results",
+	Args:   cobra.NoArgs,
 	Long: `Reconcile the project toward its ship gates: treat the recipe as the desired
 state and run the project's default flow over all content across every target
 language, looping until every gated scope ships or is parked for a human.

@@ -89,7 +89,7 @@ until the next sync re-establishes the baseline.
 
 ## Related Commands
 
-- [`kapi diff`](/cli/commands/diff) — Show detailed line-by-line changes
+- [`kapi bowrain diff`](/cli/commands/diff) — Show detailed line-by-line changes
 - [`kapi pull`](/cli/commands/pull) — Fetch changes from server
 - [`kapi push`](/cli/commands/push) — Send local changes to server
 

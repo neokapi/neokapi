@@ -107,7 +107,7 @@ The sync cache can be safely deleted — it will be regenerated on the next push
 
 - [`kapi pull`](/cli/commands/pull) — Fetch changes from server
 - [`kapi status`](/cli/commands/status) — Show what will be pushed
-- [`kapi diff`](/cli/commands/diff) — Show detailed changes
+- [`kapi bowrain diff`](/cli/commands/diff) — Show detailed changes
 
 ## When to Use
 

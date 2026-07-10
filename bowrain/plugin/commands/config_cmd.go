@@ -8,17 +8,21 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/host/config"
 	"github.com/spf13/cobra"
 )
 
 var configGlobal bool
 
+// configCmd lives under the plugin group (`kapi bowrain config`): the
+// built-in `kapi config` (app config: ai.provider, ai.model, …) keeps the
+// top-level verb under the no-shadowing rule, and pluginattach mounts this
+// colliding name group-only.
 var configCmd = &cobra.Command{
 	Use:   "config [key] [value]",
-	Short: "View or change settings",
-	Long: `View or set configuration values.
+	Short: "View or change bowrain project/server settings",
+	Long: `View or set bowrain configuration values.
 
 With no arguments, shows the path to the config file.
 With one argument (key), prints the current value.
@@ -26,6 +30,9 @@ With two arguments (key value), sets the value.
 
 Use --global to read/write the global config file (~/.config/bowrain/bowrain.yaml).
 Without --global, reads/writes the project recipe (<project>/<name>.kapi).
+
+(kapi's own app configuration — default AI provider/model and the like —
+lives under the built-in 'kapi config'.)
 
 Project keys (no --global):
   project.name
@@ -35,11 +42,11 @@ Project keys (no --global):
   preset
 
 Examples:
-  kapi config project.name                       # Print project name
-  kapi config project.name "My Project"          # Set project name
-  kapi config server.url                         # Print project server URL
-  kapi config --global server.url                # Print global server URL
-  kapi config --global server.url https://bowrain.example.com  # Set global server URL`,
+  kapi bowrain config project.name                       # Print project name
+  kapi bowrain config project.name "My Project"          # Set project name
+  kapi bowrain config server.url                         # Print project server URL
+  kapi bowrain config --global server.url                # Print global server URL
+  kapi bowrain config --global server.url https://bowrain.example.com  # Set global server URL`,
 	Args: cobra.MaximumNArgs(2),
 	RunE: runConfig,
 }

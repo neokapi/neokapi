@@ -296,6 +296,13 @@ type Command struct {
 	// a bare string (a leaf subcommand) or an object carrying its own
 	// nested subcommands; see Subcommand.UnmarshalJSON.
 	Subcommands []Subcommand `json:"subcommands,omitempty"`
+
+	// Hidden marks plumbing commands that exist for kapi itself to
+	// dispatch (e.g. bowrain's server-status, consumed by kapi status;
+	// server-up, consumed by kapi up's server venue) rather than for
+	// users to type. Hidden commands are omitted from --help and shell
+	// completion but stay routable.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 // Subcommand describes one nested subcommand under a Command (or under

@@ -84,7 +84,7 @@ This is efficient because the server's change log is indexed by locale.
 
 - [`kapi push`](/cli/commands/push) — Send local changes to server
 - [`kapi status`](/cli/commands/status) — Show sync state
-- [`kapi diff`](/cli/commands/diff) — Show detailed changes
+- [`kapi bowrain diff`](/cli/commands/diff) — Show detailed changes
 
 ## When to Use
 

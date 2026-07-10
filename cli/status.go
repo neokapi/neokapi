@@ -7,9 +7,10 @@ import "github.com/spf13/cobra"
 // to `kapi verify` (the gate). State is derived from the project's content ×
 // target files, so it is always current with the working tree.
 //
-// When a plugin provides its own `status` (e.g. kapi-bowrain's sync status), the
-// plugin's command takes precedence and this built-in is not registered (see the
-// command wiring in cmd/kapi/root.go).
+// The built-in owns the verb in every install (the no-shadowing rule): a
+// server-connected project gets its sync section merged in via the plugin's
+// hidden `server-status` plumbing (see host.appendServerStatus), never via a
+// replacement command.
 func NewStatusCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "status",

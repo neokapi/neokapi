@@ -105,7 +105,8 @@
                   }
                 }
               },
-              "subcommands": { "type": "array", "items": { "$ref": "#/$defs/subcommand" } }
+              "subcommands": { "type": "array", "items": { "$ref": "#/$defs/subcommand" } },
+              "hidden": { "type": "boolean" }
             }
           }
         },

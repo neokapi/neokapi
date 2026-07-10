@@ -34,6 +34,19 @@ func NewConfigCmd(a *App) *cobra.Command {
 			"  kapi config set ai.model llama3.2:3b\n" +
 			"  kapi config get ai.provider\n" +
 			"  kapi config list",
+		Args: cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+			// `kapi config server.url` was the bowrain plugin's positional
+			// form back when it shadowed this verb; point migrants at the
+			// group spelling when that surface is installed.
+			if a.PluginHost != nil && a.PluginHost.CommandRoute("config") != nil {
+				return fmt.Errorf("unknown config subcommand %q — kapi config manages kapi's app configuration (get/set/list/path); bowrain project/server settings live under 'kapi bowrain config'", args[0])
+			}
+			return fmt.Errorf("unknown config subcommand %q (expected get, set, list, or path)", args[0])
+		},
 	}
 	cmd.AddCommand(newConfigGetCmd(a), newConfigSetCmd(a), newConfigListCmd(a), newConfigPathCmd(a))
 	return cmd

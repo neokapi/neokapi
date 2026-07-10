@@ -11,19 +11,17 @@
   "group": "bowrain",
   "capabilities": {
     "commands": [
-      {"name": "up",     "short": "Reconcile the project toward its ship gates (runs on the server when connected)"},
+      {"name": "server-up", "hidden": true,
+        "short": "Plumbing for kapi up's server venue: push, converge on the server, stream progress, pull results"},
       {"name": "push",   "short": "Upload local changes to the server",
         "args": [{"name": "paths", "variadic": true, "optional": true}]},
       {"name": "pull",   "short": "Download translations from the server"},
-      {"name": "server-status", "short": "Emit the server sync + convergence-run standing as JSON (plumbing for kapi status)"},
-      {"name": "ls",     "short": "List tracked files",
+      {"name": "server-status", "hidden": true,
+        "short": "Emit the server sync + convergence-run standing as JSON (plumbing for kapi status)"},
+      {"name": "ls",     "short": "List tracked files with their server sync state",
         "args": [{"name": "paths", "variadic": true, "optional": true}]},
-      {"name": "add",    "short": "Add files to the project",
-        "args": [{"name": "patterns", "variadic": true}]},
-      {"name": "rm",     "short": "Remove files from the project",
-        "args": [{"name": "patterns", "variadic": true}]},
       {"name": "diff",   "short": "Show differences between local and remote"},
-      {"name": "config", "short": "View or change settings",
+      {"name": "config", "short": "View or change bowrain project/server settings",
         "args": [
           {"name": "key", "optional": true},
           {"name": "value", "optional": true}

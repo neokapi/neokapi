@@ -57,7 +57,7 @@ Push/pull workflow similar to git:
 
 ```bash
 kapi status    # Show local changes
-kapi diff      # Compare local vs. server
+kapi bowrain diff      # Compare local vs. server
 kapi pull      # Fetch from server
 kapi push -m "message"  # Upload to server
 ```
@@ -69,9 +69,9 @@ Only changed blocks transfer (content-addressed sync).
 View or set project and global configuration values:
 
 ```bash
-kapi config name              # Print project name
-kapi config name "My App"     # Set project name
-kapi config --global server.url https://bowrain.cloud  # Set global server URL
+kapi bowrain config name              # Print project name
+kapi bowrain config name "My App"     # Set project name
+kapi bowrain config --global server.url https://bowrain.cloud  # Set global server URL
 ```
 
 ## When to use it
