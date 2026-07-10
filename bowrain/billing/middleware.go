@@ -12,6 +12,20 @@ import (
 // contextKeyWorkspacePlan is the echo context key for the workspace plan.
 const contextKeyWorkspacePlan = "workspace_plan"
 
+// ContextKeyFeatureOverrides is the echo context key under which the resolved
+// per-workspace feature overrides (map[Feature]bool) are stored. It is populated
+// by the server's feature-overrides middleware after workspace access resolves,
+// and read by PlanGuard and by handlers that surface entitlements to clients.
+// Exported so the server package sets the same key PlanGuard reads.
+const ContextKeyFeatureOverrides = "feature_overrides"
+
+// OverridesFromContext returns the per-workspace feature overrides stored on the
+// echo context by the feature-overrides middleware, or nil if none are set.
+func OverridesFromContext(c echo.Context) map[Feature]bool {
+	o, _ := c.Get(ContextKeyFeatureOverrides).(map[Feature]bool)
+	return o
+}
+
 // PlanGuard returns Echo middleware that rejects requests when the workspace
 // plan does not include the required feature. It reads the plan from
 // the echo context (set by workspace access middleware) and checks overrides.
@@ -28,10 +42,7 @@ func PlanGuard(feature Feature, onBlock ...GuardEventFunc) echo.MiddlewareFunc {
 			plan := Plan(planStr)
 
 			// Check overrides if available on context.
-			var overrides map[Feature]bool
-			if o, ok := c.Get("feature_overrides").(map[Feature]bool); ok {
-				overrides = o
-			}
+			overrides := OverridesFromContext(c)
 
 			if HasFeature(plan, feature, overrides) {
 				return next(c)

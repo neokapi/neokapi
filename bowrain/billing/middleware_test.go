@@ -24,6 +24,12 @@ func TestPlanGuard(t *testing.T) {
 		{"free blocked git connectors", "free", FeatureConnectorsGit, nil, http.StatusForbidden},
 		{"team allowed bravo code exec", "team", FeatureBravoCodeExec, nil, http.StatusOK},
 		{"pro blocked bravo code exec", "pro", FeatureBravoCodeExec, nil, http.StatusForbidden},
+		// FeatureBravo is dark by default (false on every plan; epic 015) — only a
+		// per-workspace override can enable it, which is how the founder dogfoods.
+		{"bravo dark on team blocked", "team", FeatureBravo, nil, http.StatusForbidden},
+		{"bravo dark on enterprise blocked", "enterprise", FeatureBravo, nil, http.StatusForbidden},
+		{"bravo enabled via override", "free", FeatureBravo, map[Feature]bool{FeatureBravo: true}, http.StatusOK},
+		{"bravo override revoked stays blocked", "team", FeatureBravo, map[Feature]bool{FeatureBravo: false}, http.StatusForbidden},
 		{"enterprise allowed sso", "enterprise", FeatureSSOSAML, nil, http.StatusOK},
 		{"team blocked sso", "team", FeatureSSOSAML, nil, http.StatusForbidden},
 		{"free with override allowed", "free", FeatureConnectorsGit, map[Feature]bool{FeatureConnectorsGit: true}, http.StatusOK},

@@ -99,6 +99,11 @@ export interface AppSidebarProps<V extends string = string> {
   sidebarContext?: SidebarContext;
   activeSubNav?: string;
   onSubNavChange?: (id: string) => void;
+  /**
+   * Sub-nav item ids to hide from the secondary menu (e.g. gate a feature-flagged
+   * item like the @bravo settings entry). Filtered out of the rendered sub-nav.
+   */
+  hiddenSubNavIds?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -369,8 +374,11 @@ function MobileNav<V extends string>({
     );
   }
 
-  // Workspace-level: show main nav items
-  const subItems = subNavConfig[activeView as string];
+  // Workspace-level: show main nav items. Keep undefined (not []) when a view has
+  // no sub-nav, so the secondary menu stays hidden for those views.
+  const subItems = subNavConfig[activeView as string]?.filter(
+    (item) => !hiddenSubNavIds?.includes(item.id),
+  );
 
   return (
     <>
@@ -459,6 +467,7 @@ export function AppSidebar<V extends string = string>({
   sidebarContext,
   activeSubNav,
   onSubNavChange,
+  hiddenSubNavIds,
   // Consumed but not passed to Sidebar DOM
   user: _user,
   onSignOut: _onSignOut,

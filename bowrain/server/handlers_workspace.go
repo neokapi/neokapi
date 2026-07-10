@@ -119,7 +119,34 @@ func (s *Server) HandleGetWorkspace(c echo.Context) error {
 			w.Role = m.Role
 		}
 	}
-	return c.JSON(http.StatusOK, w)
+	return c.JSON(http.StatusOK, workspaceWithFeatures{
+		Workspace: w,
+		Features:  s.resolveWorkspaceFeatures(c, w.Plan),
+	})
+}
+
+// workspaceWithFeatures augments a workspace response with the caller's resolved
+// feature entitlements, so the web app can gate UI (e.g. the @bravo surface) on
+// the same source of truth the server enforces with PlanGuard. Embedding the
+// workspace pointer keeps every existing field in the JSON and just adds
+// "features".
+type workspaceWithFeatures struct {
+	*platauth.Workspace
+	Features map[string]bool `json:"features"`
+}
+
+// resolveWorkspaceFeatures computes the caller's effective entitlements for the
+// workspace, honoring the per-workspace overrides loaded onto the context by
+// FeatureOverridesMiddleware. Only client-gated features are surfaced.
+func (s *Server) resolveWorkspaceFeatures(c echo.Context, plan string) map[string]bool {
+	overrides := billing.OverridesFromContext(c)
+	p := billing.Plan(plan)
+	surfaced := []billing.Feature{billing.FeatureBravo}
+	features := make(map[string]bool, len(surfaced))
+	for _, f := range surfaced {
+		features[string(f)] = billing.HasFeature(p, f, overrides)
+	}
+	return features
 }
 
 func (s *Server) HandleUpdateWorkspace(c echo.Context) error {

@@ -14,7 +14,6 @@ import { ChevronDown } from "lucide-react";
 // ---------------------------------------------------------------------------
 
 const freePlanFeatures: PlanFeature[] = [
-  { label: "@bravo chat (5 messages/day)", included: true },
   { label: "1 project", included: true },
   { label: "Git connectors", included: false },
   { label: "API access", included: false },
@@ -22,13 +21,11 @@ const freePlanFeatures: PlanFeature[] = [
 ];
 
 const proPlanFeatures: PlanFeature[] = [
-  { label: "@bravo unlimited messages", included: true },
   { label: "Up to 10 projects", included: true },
   { label: "3 seats", included: true },
   { label: "Git connectors", included: true },
   { label: "API access", included: true },
   { label: "Custom MT providers", included: true },
-  { label: "@bravo code execution", included: false },
   { label: "SSO/SAML", included: false },
 ];
 
@@ -36,7 +33,6 @@ const teamPlanFeatures: PlanFeature[] = [
   { label: "Everything in Pro", included: true },
   { label: "Unlimited projects", included: true },
   { label: "Unlimited seats", included: true },
-  { label: "@bravo code execution", included: true },
   { label: "Custom connectors", included: true },
   { label: "SSO/SAML", included: false },
 ];
@@ -53,14 +49,6 @@ const comparisonFeatures: ComparisonFeature[] = [
   {
     label: "Weekly AI Credits",
     values: { free: "50K", pro: "500K", team: "2M", enterprise: "Custom" },
-  },
-  {
-    label: "@bravo Messages",
-    values: { free: "5/day", pro: "Unlimited", team: "Unlimited", enterprise: "Unlimited" },
-  },
-  {
-    label: "@bravo Code Execution",
-    values: { free: false, pro: false, team: true, enterprise: true },
   },
   {
     label: "Projects",
@@ -95,7 +83,7 @@ const comparisonFeatures: ComparisonFeature[] = [
 const faqItems = [
   {
     q: "How do weekly credits work?",
-    a: "Every Monday at 00:00 UTC, your credit balance resets to your plan's weekly allocation. One credit equals one AI token (input or output). Different operations consume credits at different rates: AI translation and quality checks cost 1 credit per token, @bravo messages cost 1 credit per token, and @bravo container execution costs 10 credits per second.",
+    a: "Every Monday at 00:00 UTC, your credit balance resets to your plan's weekly allocation. One credit equals one AI token (input or output). AI translation and quality checks consume 1 credit per token.",
   },
   {
     q: "What happens when I run out of credits?",
@@ -115,7 +103,7 @@ const faqItems = [
   },
   {
     q: "Is there a free trial?",
-    a: "New accounts start on the Free plan which includes 50K weekly credits. The Free plan is free forever and includes full access to @bravo chat and the translation editor.",
+    a: "New accounts start on the Free plan which includes 50K weekly credits. The Free plan is free forever and includes full access to the translation editor.",
   },
 ];
 

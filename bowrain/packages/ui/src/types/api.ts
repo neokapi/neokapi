@@ -64,6 +64,13 @@ export interface Workspace {
   dashboard_visibility?: DashboardVisibility;
   pulse_access_key?: string;
   role: string; // current user's role in the workspace
+  /**
+   * Resolved feature entitlements for the current caller, keyed by feature id
+   * (e.g. `bravo`). Populated by the server on the workspace GET response,
+   * honoring the plan matrix + per-workspace overrides. Used to gate UI on the
+   * same source of truth the server enforces. Absent in single-tenant/local mode.
+   */
+  features?: Record<string, boolean>;
 }
 
 /** Membership — ties a user to a workspace */
