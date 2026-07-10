@@ -28,6 +28,16 @@ func ExtractRules(content []byte) (*RuleSet, []ExternalRef, error) {
 	return parseRulesStream(dec)
 }
 
+// ExtractRulesReader is the bounded-memory twin of ExtractRules: it scans an
+// io.Reader for <its:rules> blocks without materialising the whole document.
+// parseRulesStream already skips every non-rules token, so peak memory is
+// O(the rules themselves), not the document — this is what lets the streaming
+// xml reader resolve ITS in a first pass over a re-openable input. The returned
+// RuleSet and external refs are identical to ExtractRules on the same bytes.
+func ExtractRulesReader(r io.Reader) (*RuleSet, []ExternalRef, error) {
+	return parseRulesStream(xml.NewDecoder(r))
+}
+
 // ExternalRef describes one <its:rules xlink:href="..."> reference
 // the caller should resolve and process.
 type ExternalRef struct {
