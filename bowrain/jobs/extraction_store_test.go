@@ -21,7 +21,7 @@ func newTestExtractionStore(t *testing.T) ExtractionJobStore {
 	t.Cleanup(func() {
 		// Clean up test data.
 		_, _ = db.ExecContext(t.Context(), "DELETE FROM extraction_jobs")
-		db.Close()
+		closePgDB(db) // closes the pgxpool too, keeping the goleak check green
 	})
 	store, err := NewExtractionJobStore(db)
 	require.NoError(t, err)

@@ -64,8 +64,14 @@ func newBillingWorkerFixture(t *testing.T) *billingWorkerFixture {
 
 func (f *billingWorkerFixture) runJob(t *testing.T, job *TranslationJob) {
 	t.Helper()
-	require.NoError(t, f.deps.JobStore.CreateJob(t.Context(), job))
-	require.NoError(t, executeTranslationWithDeps(t.Context(), f.deps, job))
+	ctx := t.Context()
+	require.NoError(t, f.deps.JobStore.CreateJob(ctx, job))
+	// Claim the job to obtain the lease epoch the per-chunk RenewLease gate
+	// checks (Epic 003 double-run protection), mirroring the real worker loop.
+	claimed, epoch, err := f.deps.JobStore.ClaimJob(ctx, job.ID)
+	require.NoError(t, err)
+	require.True(t, claimed)
+	require.NoError(t, executeTranslationWithDeps(ctx, f.deps, job, epoch))
 }
 
 // TestWorkerBilling_PlatformDeducts verifies that a platform-key job records AI

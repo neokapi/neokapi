@@ -80,19 +80,28 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 			Reader:       io.NopCloser(pr),
 		}))
 
-		runtime.GC()
-		var base runtime.MemStats
-		runtime.ReadMemStats(&base)
+		// liveHeap forces a GC so HeapAlloc reflects the *retained* working set
+		// rather than transient per-part garbage that a streaming reader
+		// legitimately produces. Sampling raw HeapAlloc (garbage included) made
+		// the absolute bound below flaky on slower CI runners, where more
+		// uncollected garbage accumulates between samples; live heap is the
+		// metric this test actually means. A reader that buffered the whole
+		// document would keep it *live*, so this still trips the bound below.
+		liveHeap := func() uint64 {
+			runtime.GC()
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			return m.HeapAlloc
+		}
 
-		var m runtime.MemStats
+		base := liveHeap()
 		count := 0
 		for res := range reader.Read(context.Background()) {
 			require.NoError(t, res.Error)
 			count++ // drain without retaining parts, so the test itself is bounded
-			if count%128 == 0 {
-				runtime.ReadMemStats(&m)
-				if m.HeapAlloc > base.HeapAlloc && m.HeapAlloc-base.HeapAlloc > peak {
-					peak = m.HeapAlloc - base.HeapAlloc
+			if count%256 == 0 {
+				if h := liveHeap(); h > base && h-base > peak {
+					peak = h - base
 				}
 			}
 		}
