@@ -37,6 +37,8 @@ COPY packages/kapi-react/package.json packages/kapi-react/
 COPY packages/ui/package.json packages/ui/
 COPY packages/concept-ui/package.json packages/concept-ui/
 COPY packages/contract-types/package.json packages/contract-types/
+COPY packages/editor-grid/package.json packages/editor-grid/
+COPY packages/status-views/package.json packages/status-views/
 COPY packages/flow-editor/package.json packages/flow-editor/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
 COPY bowrain/apps/web/package.json bowrain/apps/web/
@@ -54,6 +56,8 @@ COPY packages/kapi-react/ packages/kapi-react/
 COPY packages/ui/ packages/ui/
 COPY packages/concept-ui/ packages/concept-ui/
 COPY packages/contract-types/ packages/contract-types/
+COPY packages/editor-grid/ packages/editor-grid/
+COPY packages/status-views/ packages/status-views/
 COPY packages/flow-editor/ packages/flow-editor/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
 COPY bowrain/apps/web/ bowrain/apps/web/

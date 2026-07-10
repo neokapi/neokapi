@@ -18,9 +18,14 @@ ADD --chmod=644 --checksum=sha256:4091dee2a1ec9e0771bef4bd46005197d86b0a2b1f2519
 RUN /opt/keycloak/bin/kc.sh build --health-enabled=true --db=postgres
 
 # Seed realm configuration for initial import (writable for entrypoint sed).
+# BOTH realms: bowrain (product) and bowrain-admin (ctrl control plane) — the
+# server's /api/admin/* stack fails closed if the admin realm is missing.
 COPY --chown=1000:0 bowrain/docker/keycloak/realm.json /opt/keycloak/data/import/realm.json
+COPY --chown=1000:0 bowrain/docker/keycloak/bowrain-admin-realm.json /opt/keycloak/data/import/bowrain-admin-realm.json
 
-# Entrypoint wrapper that substitutes OIDC_CLIENT_SECRET in realm.json before starting Keycloak.
+# Entrypoint wrapper that substitutes secrets (OIDC/bowrain-svc/Apple), the
+# admin seed password, and the KC_SMTP_* relay into the realm files before
+# starting Keycloak.
 COPY --chmod=0755 bowrain/docker/keycloak/docker-entrypoint.sh /opt/keycloak/docker-entrypoint.sh
 
 ENV KC_HEALTH_ENABLED=true

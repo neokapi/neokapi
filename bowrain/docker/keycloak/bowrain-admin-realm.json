@@ -50,7 +50,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "admin",
+          "value": "placeholder-admin-initial-password",
           "temporary": false
         }
       ]

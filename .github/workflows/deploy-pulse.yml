@@ -16,6 +16,10 @@ on:
       - "bowrain/apps/pulse/**"
       - "bowrain/packages/ui/**"
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
     name: Build Pulse Assets
@@ -23,6 +27,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
+
+      # pulse bundles @neokapi/ui → @neokapi/ui-primitives, which imports
+      # @neokapi/kapi-react/runtime (a built ./dist subpath export). Build it
+      # first so the pulse vite build resolves the import.
+      - name: Build @neokapi/kapi-react
+        working-directory: packages/kapi-react
+        run: vp run build
 
       - name: Build pulse app
         working-directory: bowrain/apps/pulse
@@ -35,7 +46,62 @@ jobs:
           path: bowrain/apps/pulse/dist
           retention-days: 7
 
-# Deploy dispatch removed 2026-07-10: the Azure per-target workflows in
-# neokapi/bowrain-infra were deleted in its Terraform consolidation, and Azure
-# is being replaced by the AWS environment (strategy roadmap epic 002). The
-# build job stays as CI validation; epic 002/008 adds image publishing + deploy.
+  docker:
+    name: Build Pulse Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push pulse image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: bowrain/docker/bowrain-pulse/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/neokapi/bowrain-pulse:${{ github.sha }}
+            ghcr.io/neokapi/bowrain-pulse:latest
+          cache-from: type=gha,scope=bowrain-pulse
+          cache-to: type=gha,mode=max,scope=bowrain-pulse
+
+  deploy:
+    name: Deploy to ECS
+    # No-op until the AWS environment exists: with the repo var unset the job
+    # is skipped and the workflow stays green (build + publish only).
+    if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' }}
+    needs: [docker]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: ${{ inputs.environment || 'prod' }}
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Task definitions are Terraform-owned and pin :latest — the forced
+      # deployment makes ECS re-pull the :latest image pushed above. All three
+      # SPAs (web, ctrl, pulse) run as containers of the single spa service.
+      # Rollback = re-run this workflow from an older commit (a retag
+      # workflow_dispatch input can make that a one-click revert later).
+      - name: Force new deployment of the SPA service
+        env:
+          CLUSTER: ${{ vars.ECS_CLUSTER }}
+          SERVICE: bowrain-${{ inputs.environment || 'prod' }}-spa
+        run: |
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
+            --force-new-deployment > /dev/null
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"

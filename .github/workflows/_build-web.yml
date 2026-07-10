@@ -11,6 +11,14 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
 
+      # The web app bundles @neokapi/ui → @neokapi/ui-primitives and
+      # @neokapi/status-views, which import @neokapi/kapi-react/runtime (a
+      # built ./dist subpath export). Build it first so the web vite build
+      # resolves the import.
+      - name: Build @neokapi/kapi-react
+        working-directory: packages/kapi-react
+        run: vp run build
+
       - name: Build web app
         working-directory: bowrain/apps/web
         env:

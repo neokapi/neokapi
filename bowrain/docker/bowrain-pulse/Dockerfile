@@ -20,7 +20,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches/ patches/
 RUN corepack pnpm fetch
 
-# Workspace manifests for ctrl's dependency closure (ctrl → @neokapi/ui →
+# Workspace manifests for pulse's dependency closure (pulse → @neokapi/ui →
 # concept-ui, contract-types, editor-grid, kapi-format, status-views,
 # ui-primitives → kapi-react); glob workspace members resolve only from the
 # dirs present here.
@@ -32,12 +32,12 @@ COPY packages/kapi-react/package.json packages/kapi-react/
 COPY packages/status-views/package.json packages/status-views/
 COPY packages/ui/package.json packages/ui/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
-COPY bowrain/apps/ctrl/package.json bowrain/apps/ctrl/
-# Install every present workspace project's deps from the store (ctrl bundles
+COPY bowrain/apps/pulse/package.json bowrain/apps/pulse/
+# Install every present workspace project's deps from the store (pulse bundles
 # its @neokapi/* workspace deps from source, so those need their deps too).
 RUN corepack pnpm install --offline
 
-# Source for ctrl + its workspace deps (consumed from source via package exports).
+# Source for pulse + its workspace deps (consumed from source via package exports).
 COPY packages/concept-ui/ packages/concept-ui/
 COPY packages/contract-types/ packages/contract-types/
 COPY packages/editor-grid/ packages/editor-grid/
@@ -46,18 +46,18 @@ COPY packages/kapi-react/ packages/kapi-react/
 COPY packages/status-views/ packages/status-views/
 COPY packages/ui/ packages/ui/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
-COPY bowrain/apps/ctrl/ bowrain/apps/ctrl/
+COPY bowrain/apps/pulse/ bowrain/apps/pulse/
 
 # @neokapi/kapi-react/runtime is a built ./dist subpath export consumed by
-# @neokapi/ui-primitives and @neokapi/status-views; build it before the ctrl
-# build so the import resolves.
+# @neokapi/ui-primitives (reached from pulse via @neokapi/ui); build it before
+# the pulse build so the import resolves.
 RUN corepack pnpm --filter @neokapi/kapi-react run build
 
 # Build. Type safety is enforced by `vp check` in CI, not the build.
-RUN corepack pnpm --filter bowrain-ctrl run build
+RUN corepack pnpm --filter bowrain-pulse run build
 
 FROM nginx:1-alpine
 RUN rm /etc/nginx/conf.d/default.conf
-COPY bowrain/docker/bowrain-ctrl/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /src/bowrain/apps/ctrl/dist /usr/share/nginx/html
+COPY bowrain/docker/bowrain-pulse/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /src/bowrain/apps/pulse/dist /usr/share/nginx/html
 EXPOSE 80
