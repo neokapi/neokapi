@@ -115,10 +115,7 @@ type hourlyIPLimiter struct {
 // burst equal to perHour (or at least 1) so the first few in an hour are not
 // artificially delayed.
 func newHourlyIPLimiter(perHour int) *hourlyIPLimiter {
-	burst := perHour
-	if burst < 1 {
-		burst = 1
-	}
+	burst := max(perHour, 1)
 	return &hourlyIPLimiter{newProjectRateLimiter(rate.Limit(float64(perHour)/3600.0), burst)}
 }
 

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsTransientError(t *testing.T) {
@@ -65,10 +66,10 @@ func TestTransientErrorUnwraps(t *testing.T) {
 	te := &transientError{err: base}
 
 	assert.Equal(t, base.Error(), te.Error())
-	assert.ErrorIs(t, te, base)
+	require.ErrorIs(t, te, base)
 
 	var got *transientError
-	assert.True(t, errors.As(fmt.Errorf("wrapped: %w", te), &got))
+	assert.ErrorAs(t, fmt.Errorf("wrapped: %w", te), &got)
 }
 
 // timeoutError is a net.Error whose Timeout() reports true.

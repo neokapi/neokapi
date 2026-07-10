@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -76,7 +77,7 @@ func TestFlowServiceAcquireCapacity_ContextCanceled(t *testing.T) {
 	cancel() // already canceled
 	_, err = fs.AcquireCapacity(ctx, 100)
 	require.Error(t, err)
-	assert.NotErrorIs(t, err, ErrCapacityExhausted)
+	require.NotErrorIs(t, err, ErrCapacityExhausted)
 	assert.ErrorIs(t, err, context.Canceled)
 }
 
@@ -95,9 +96,7 @@ func TestFlowServiceAcquireCapacity_ConcurrentContention(t *testing.T) {
 		other    int32
 	)
 	for range goroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			// 60 > budget/2, so at most one holder fits at a time.
 			release, err := fs.AcquireCapacity(context.Background(), 60)
 			switch {
@@ -105,12 +104,12 @@ func TestFlowServiceAcquireCapacity_ConcurrentContention(t *testing.T) {
 				atomic.AddInt32(&admitted, 1)
 				time.Sleep(120 * time.Millisecond) // hold past the others' shed-wait
 				release()
-			case err == ErrCapacityExhausted:
+			case errors.Is(err, ErrCapacityExhausted):
 				atomic.AddInt32(&shed, 1)
 			default:
 				atomic.AddInt32(&other, 1)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

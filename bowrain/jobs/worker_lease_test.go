@@ -76,7 +76,7 @@ func TestExecuteTranslation_LeaseLostStopsBilling(t *testing.T) {
 	// 60 source blocks in one item → two progress chunks (progressChunk=50).
 	const nBlocks = 60
 	blocks := make([]*model.Block, 0, nBlocks)
-	for i := 0; i < nBlocks; i++ {
+	for i := range nBlocks {
 		b := &model.Block{ID: fmt.Sprintf("b%02d", i), Translatable: true}
 		b.SetSourceText(fmt.Sprintf("Hello number %d", i))
 		blocks = append(blocks, b)

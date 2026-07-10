@@ -95,7 +95,7 @@ func TestUnclaimedProjectPurger_PurgeOnce(t *testing.T) {
 
 	// Orphan is gone.
 	_, err = cs.GetProject(ctx, "proj-expired")
-	assert.Error(t, err, "expired unclaimed content project must be deleted")
+	require.Error(t, err, "expired unclaimed content project must be deleted")
 
 	// Live project survives (both auth record and content project).
 	live, err := cs.GetProject(ctx, "proj-live")
@@ -115,7 +115,7 @@ func TestUnclaimedProjectPurger_PurgeOnce(t *testing.T) {
 
 	// Expired auth records are gone (purged by PurgeExpiredUnclaimed).
 	_, err = authStore.GetUnclaimedByToken(ctx, "hash-expired")
-	assert.Error(t, err)
+	require.Error(t, err)
 	_, err = authStore.GetUnclaimedByToken(ctx, "hash-claimed")
 	assert.Error(t, err)
 }
