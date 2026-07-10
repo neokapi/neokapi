@@ -31,6 +31,11 @@ services:
       - "--providers.file.watch=true"
     restart: unless-stopped
 
+  # Standard PostgreSQL — the brand knowledge graph runs on the default
+  # plain-SQL graph backend (no Apache AGE extension required), so this works
+  # unchanged on managed PostgreSQL such as RDS/Aurora. Apache AGE is an opt-in
+  # backend (BOWRAIN_GRAPH_BACKEND=age + an AGE-enabled image); see
+  # bowrain/graph/NOTES.md.
   postgres:
     image: postgres:16-alpine
     environment:

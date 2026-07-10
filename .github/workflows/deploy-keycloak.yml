@@ -47,18 +47,7 @@ jobs:
     with:
       image-tag: ${{ needs.image-tag.outputs.value }}
 
-  trigger-deploy:
-    name: Trigger Deploy
-    needs: [image-tag, build]
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
-      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
-      IMAGE_TAG: ${{ needs.image-tag.outputs.value }}
-    steps:
-      - name: Deploy keycloak
-        run: |
-          gh workflow run deploy-keycloak.yml \
-            --repo neokapi/bowrain-infra \
-            -f environment="$ENVIRONMENT" \
-            -f imageTag="$IMAGE_TAG"
+# Deploy dispatch removed 2026-07-10: the Azure per-target workflows in
+# neokapi/bowrain-infra were deleted in its Terraform consolidation, and Azure
+# is being replaced by the AWS environment (strategy roadmap epic 002), whose
+# pipeline consumes the ghcr image pushed above.

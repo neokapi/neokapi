@@ -1,6 +1,7 @@
 package resx
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -35,6 +36,14 @@ type Reader struct {
 // token verbatim except the inner content of each translatable <value>, which
 // is replaced by a SkeletonRef the writer fills back in on merge.
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+
+// Ensure Reader satisfies StreamingReader: the skeleton round-trip reads
+// incrementally from doc.Reader (bounded to one <data> entry) — see
+// readStreaming. The file-runner uses this to concurrent-feed the reader.
+var _ format.StreamingReader = (*Reader)(nil)
+
+// StreamingReader marks the bounded-memory skeleton path.
+func (r *Reader) StreamingReader() {}
 
 // SetSkeletonStore wires a skeleton store so the reader emits byte-exact
 // skeleton entries. With a store set, the layer's "resx.original" property is
@@ -94,7 +103,122 @@ func (r *Reader) Close() error {
 	return nil
 }
 
+// readContent dispatches to the streaming or buffered walk. Streaming applies
+// to the same-format skeleton round-trip with validation off — there the
+// skeleton (not resx.original) is the merge source of truth, so the reader can
+// tokenize incrementally and never hold the whole document. Every other case
+// (no skeleton store → resx.original retained; or validation mode) keeps the
+// buffered walk.
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
+	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
+		r.readStreaming(ctx, ch)
+		return
+	}
+	r.readBuffered(ctx, ch)
+}
+
+// readStreaming tokenizes the document incrementally through a bounded bufio
+// window, buffering only the current <data> entry. Skeleton is emitted in
+// document order — verbatim tokens immediately, and for each translatable entry
+// the bytes up to <value>, a ref, then the bytes from </value> — byte-identical
+// to the buffered emitSkeleton, but with peak memory O(read-ahead + one entry).
+func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult) {
+	locale := r.Doc.SourceLocale
+	if locale.IsEmpty() {
+		locale = model.LocaleEnglish
+	}
+	layer := &model.Layer{
+		ID:         "doc1",
+		Name:       r.Doc.URI,
+		Format:     "resx",
+		Locale:     locale,
+		Encoding:   r.Doc.Encoding,
+		MimeType:   "text/microsoft-resx",
+		Properties: map[string]string{},
+	}
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
+		return
+	}
+
+	tz := newStreamTokenizer(bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader)))
+	blockCounter := 0
+	for {
+		tok, err := tz.next()
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("resx: %w", err)}
+			return
+		}
+		if tok.kind == tokEOF {
+			break
+		}
+		if !(tok.kind == tokStartTag && tok.name == "data") {
+			r.skeletonStore.WriteText([]byte(tok.raw))
+			continue
+		}
+		// Buffer the whole <data> entry (bounded — one resource entry),
+		// tracking depth so a nested "data" name doesn't close it early.
+		entry := []token{tok}
+		depth := 1
+		for depth > 0 {
+			nt, nerr := tz.next()
+			if nerr != nil {
+				ch <- model.PartResult{Error: fmt.Errorf("resx: %w", nerr)}
+				return
+			}
+			if nt.kind == tokEOF {
+				break // unterminated <data>; emit what we have as verbatim below
+			}
+			entry = append(entry, nt)
+			switch {
+			case nt.kind == tokStartTag && nt.name == "data":
+				depth++
+			case nt.kind == tokEndTag && nt.name == "data":
+				depth--
+			}
+		}
+
+		if !r.isTranslatableData(tok) {
+			for _, e := range entry {
+				r.skeletonStore.WriteText([]byte(e.raw))
+			}
+			continue
+		}
+		blockCounter++
+		if !r.emitDataBlock(ctx, ch, tok, entry, blockCounter) {
+			return
+		}
+		r.emitEntrySkeleton(entry, blockCounter)
+	}
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// emitEntrySkeleton writes a single translatable <data> entry's skeleton: the
+// bytes up to and including the <value> start tag, a ref, then the bytes from
+// </value> onward. Mirrors emitSkeleton's per-entry handling (a <value>-less
+// entry stays fully verbatim).
+func (r *Reader) emitEntrySkeleton(entry []token, counter int) {
+	valStart, valEnd := locateChild(entry, "value")
+	if valStart < 0 {
+		for _, e := range entry {
+			r.skeletonStore.WriteText([]byte(e.raw))
+		}
+		return
+	}
+	var b strings.Builder
+	for _, e := range entry[:valStart+1] {
+		b.WriteString(e.raw)
+	}
+	r.skeletonStore.WriteText([]byte(b.String()))
+	r.skeletonStore.WriteRef("tu" + strconv.Itoa(counter))
+	b.Reset()
+	for _, e := range entry[valEnd:] {
+		b.WriteString(e.raw)
+	}
+	r.skeletonStore.WriteText([]byte(b.String()))
+}
+
+func (r *Reader) readBuffered(ctx context.Context, ch chan<- model.PartResult) {
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
 	// across CLI/server/WASM — see core/safeio).
