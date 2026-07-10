@@ -138,6 +138,15 @@ if [ "$which" = both ] || [ "$which" = kapi ]; then
     bin.install_symlink bin/"kapi" => "kdiff"
   end
 
+  # First exec of a newly installed binary pays macOS Gatekeeper's one-time
+  # assessment (an XProtect scan proportional to binary size plus an online
+  # notarization lookup — 1-3s for kapi). Absorb it at install time so the
+  # user's first `kapi` command starts fast. `--version` exits before touching
+  # any user config or project state; elsewhere this is a harmless ~20ms no-op.
+  def post_install
+    system bin/"kapi", "--version"
+  end
+
   test do
     system "#{bin}/kapi", "version"
     assert_match "grep", shell_output("#{bin}/kgrep --help 2>&1")
@@ -173,6 +182,12 @@ if [ "$which" = both ] || [ "$which" = bowrain ]; then
     kapi_share = HOMEBREW_PREFIX/"share/kapi/plugins"
     kapi_share.mkpath
     ln_sf plugin_dir, kapi_share/"bowrain"
+  end
+
+  # Absorb macOS Gatekeeper's one-time first-exec assessment of the plugin
+  # binary at install time instead of stalling the first bowrain command.
+  def post_install
+    system pkgshare/"plugins/bowrain/kapi-bowrain", "version"
   end
 
   test do
