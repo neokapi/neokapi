@@ -35,19 +35,7 @@ jobs:
           path: bowrain/apps/pulse/dist
           retention-days: 7
 
-  trigger-deploy:
-    name: Trigger Deploy
-    needs: build
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
-      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
-    steps:
-      - name: Deploy pulse web assets
-        env:
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          gh workflow run deploy-pulse-web.yml \
-            --repo neokapi/bowrain-infra \
-            -f environment="$ENVIRONMENT" \
-            -f runId="$RUN_ID"
+# Deploy dispatch removed 2026-07-10: the Azure per-target workflows in
+# neokapi/bowrain-infra were deleted in its Terraform consolidation, and Azure
+# is being replaced by the AWS environment (strategy roadmap epic 002). The
+# build job stays as CI validation; epic 002/008 adds image publishing + deploy.

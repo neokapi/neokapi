@@ -10,6 +10,7 @@ WORKDIR /src
 
 # Cache module downloads (identical to server — shared cache layer).
 COPY go.work go.mod go.sum ./
+COPY host/go.mod host/go.sum ./host/
 COPY cli/go.mod cli/go.sum ./cli/
 COPY kapi/go.mod kapi/go.sum ./kapi/
 COPY apps/kapi-desktop/go.mod apps/kapi-desktop/go.sum ./apps/kapi-desktop/
@@ -23,7 +24,8 @@ COPY bowrain/plugin/schema/go.mod bowrain/plugin/schema/go.sum ./bowrain/plugin/
 # the workspace (all modules present after `COPY . .`).
 RUN export GOWORK=off \
     && go mod download \
-    && cd cli && go mod download \
+    && cd host && go mod download \
+    && cd ../cli && go mod download \
     && cd ../kapi && go mod download \
     && cd ../bowrain && go mod download \
     && cd core && go mod download \
