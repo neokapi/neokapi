@@ -60,6 +60,39 @@ bound depth). Context (ITS rules, translatable-attr resolution) is resolved by a
 **upward** walk of that ancestor stack. It still `io.ReadAll`s, but only for
 byte-offset skeleton slicing — the same incidental dependency as JSON.
 
+### The `encoding/xml` substrate vs. ITS — two independent concerns
+
+A crucial distinction (an earlier spike conflated them):
+
+- **The substrate blocker is `encoding/xml` giving no raw source bytes.** The
+  byte-exact skeleton records `[start,end)` offsets (`InputOffset()`) during the
+  walk and slices the *original buffer* at the end — hence `io.ReadAll`. This is
+  a **mechanism** problem shared by every `encoding/xml`-based reader (`xml`,
+  `tmx`, `ts`). It is **not** fixed by `x/net/html` — that is an HTML5 tokenizer
+  (no namespaces; different CDATA/PI/DOCTYPE/entity semantics), right for the
+  HTML reader (which already uses its `Raw()`), wrong for the XML family. It is
+  fixed by a **capturing reader** over `doc.Reader` (a sliding window exposing
+  `slice(start,end)` + `discardTo(offset)`) so `InputOffset()` ranges resolve to
+  raw bytes without holding the whole document, plus **incremental prefix
+  emission** (flush skeleton text/refs and discard the buffer prefix as ranges
+  become *decided* — no future token can nest in them — reusing the existing
+  sort + `removeOverlappingParents` over the decided prefix). No stdlib fork.
+- **ITS 2.0 global rules are a `core/formats/xml`-only concern.** The `its`
+  package is imported by exactly one reader. `<its:rules>` carry document-wide
+  XPath selectors with last-rule-wins precedence and can appear anywhere (or be
+  externally linked), so resolving them is inherently whole-document. **Local
+  ITS markup + inheritance is streaming-safe** (ancestor-only, on the element
+  stack). There is no community "streaming ITS" profile — Okapi's `ITSEngine`,
+  GNOME `itstool`, and the W3C reference implementations all build the tree and
+  apply XPath; XLIFF side-steps it by pre-resolving global rules at extraction.
+  Whole-document ITS is correct where it is actually used.
+
+So ITS does **not** force the whole XML family into memory. `tmx`/`ts` don't use
+ITS and stream unconditionally on the substrate; generic `xml` streams **except**
+when the document declares global ITS rules, where it correctly falls back to the
+buffered walk. The one honest `O(document)` island — generic XML *with* global
+ITS rules — is explicitly scoped, not a family-wide constraint.
+
 ## JSON: implemented (streaming reader, wired and gated)
 
 JSON is now a **full production implementation**, not a spike. The streaming
@@ -113,7 +146,8 @@ Validation:
 | **HTML** | Ancestor-stack streamable (tokenizer path) | The skeleton path is tokenizer-based; the DOM `html.Parse` path is for normalization/error-recovery. |
 | arb, designtokens, xcstrings | Substrate = **whole-JSON buffer** | `io.ReadAll` + `json.Unmarshal` into a typed tree, writer rebuilds from the tree — not JSON's forward tokenizer walk. Need JSON's ancestor-stack substrate; do **not** mark streaming yet. |
 | i18next | Substrate = **JSON** (streaming) | **Done** — wraps the streaming JSON reader/writer, declares `StreamingReader`/`StreamingWriter`. |
-| resx, ts, tmx, androidxml | Substrate = **XML** | Whole-buffer tokenizer + byte-faithful splice; inherit XML's verdict (the parser-swap), do **not** mark streaming yet. |
+| **xml, tmx, ts** | Substrate = **`encoding/xml`** | `xml.Decoder` + `InputOffset()` byte-offset skeleton. Streamable via a **capturing reader** (resolves offsets to raw bytes without `io.ReadAll`) + **incremental prefix emission**. `tmx`/`ts` stream unconditionally; `xml` gates on *no global ITS rules* (see below). |
+| resx, androidxml | Substrate = **custom tokenizer** | `newTokenizer(string(content))` + whole-buffer `.original` layer property (not `encoding/xml`, not a byte-offset skeleton). A genuinely different substrate — needs a streaming variant of their own tokenizer; follow-up. |
 | messageformat | **Done** (streaming pair) | Line-buffered `bufio` reader + `StreamSkeletonWrite` writer; parse errors surface on the Read channel. |
 | applestrings | Line/record but **whole-buffer transcode** | Whole-document UTF-16→UTF-8 transcode + BOM detection before parsing; de-prioritized. |
 | **YAML** | **Hard** | `yaml.v3` materializes the whole `Node` AST; aliases are forward references; byte mapping needs pre-computed line offsets. Streaming needs a different parser. |
@@ -159,13 +193,14 @@ line/record conversion, and marking a writer streaming while its reader
   ever touched, per review §5.5). Streaming these means adopting JSON's
   ancestor-stack tokenizer as their substrate — the JSON-substrate follow-up,
   not a per-format PR.
-- **resx, androidxml** — substrate = **whole-buffer XML tokenizer**: the reader
-  `io.ReadAll`s then `newTokenizer(string(content)).tokenize()` over the whole
-  string and retains every byte (`resx.original` / `androidxml.original` layer
-  property, or the byte-range skeleton) for byte-faithful splice-on-write. This
-  is the same byte-range-slicing blocker as the XML family — it needs the whole
-  source buffer + an incremental tokenizer, i.e. the XML parser-swap, not a
-  cheap pass.
+- **resx, androidxml** — substrate = **custom whole-buffer tokenizer**: the
+  reader `io.ReadAll`s then `newTokenizer(string(content)).tokenize()` over the
+  whole string and retains every byte (`resx.original` / `androidxml.original`
+  layer property) for byte-faithful splice-on-write. Unlike `xml`/`tmx`/`ts`
+  these do **not** use `encoding/xml`, so the capturing-reader substrate does not
+  drop in — they need a streaming variant of their *own* tokenizer plus dropping
+  the `.original` whole-buffer retention. Tracked as a follow-up, separate from
+  the `encoding/xml` group.
 - **applestrings** — the `.strings` grammar *is* line/record-oriented, but the
   reader does a **whole-buffer UTF-16→UTF-8 transcode + BOM detection**
   (`decodeToUTF8(raw)`) before parsing and retains the original bytes for
@@ -196,11 +231,17 @@ JSON above is the reference implementation. The same shape applies to the rest:
 
 Per-format status / next:
 
-- **JSON** — done (this PR).
-- **XML** — `xml.Decoder` + iterative `elementFrame` stack already; convert the
-  byte-offset skeleton to incremental prefix emission. The XML/JSON-substrate
-  catalogs (resx/ts/tmx/androidxml; arb/i18next/designtokens/xcstrings) follow
-  their substrate.
+- **JSON** — done (#1024).
+- **`encoding/xml` group (xml, tmx, ts)** — capturing reader (`slice`/`discardTo`)
+  + incremental prefix emission over the decided-frontier. `xml` is **ITS-gated**
+  (stream only when `skeletonStore != nil && ValidationMode()==Off` **and** no
+  global `<its:rules>`/external rules; buffered fallback otherwise); `tmx`/`ts`
+  stream unconditionally. `tmx` additionally needs lang-tagged skeleton refs
+  (`WriteLang`, #1140) for its multi-`<tuv>`-per-`<tu>` model, buffering one
+  bounded `<tu>` at a time.
+- **resx, androidxml** — custom-tokenizer substrate (not `encoding/xml`); need a
+  streaming variant of their own tokenizer + dropping `.original` retention.
+  Follow-up.
 - **HTML** — the tokenizer skeleton path is streamable; the DOM path stays for
   normalization.
 - **YAML, Markdown** — blocked by `yaml.v3` / `goldmark` full-AST parsers; need a

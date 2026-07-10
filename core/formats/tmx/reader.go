@@ -1,6 +1,7 @@
 package tmx
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/xml"
@@ -28,8 +29,16 @@ type Reader struct {
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
 
-// Ensure Reader implements SkeletonStoreEmitter.
-var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+// Ensure Reader implements SkeletonStoreEmitter and StreamingReader.
+var (
+	_ format.SkeletonStoreEmitter = (*Reader)(nil)
+	_ format.StreamingReader      = (*Reader)(nil)
+)
+
+// StreamingReader marks that the reader can read incrementally from doc.Reader
+// (via a bounded CaptureReader window) without materialising the whole document
+// — see readStreaming. The file-runner uses this to concurrent-feed the reader.
+func (r *Reader) StreamingReader() {}
 
 // NewReader creates a new TMX reader.
 func NewReader() *Reader {
@@ -79,8 +88,10 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
-// readContent uses streaming XML parsing to handle TMX features including
-// inline codes, DTD declarations, and both xml:lang and lang attributes.
+// readContent builds the document layer, then dispatches to the streaming or
+// buffered walk. Both share walkTokens; they differ only in where raw skeleton
+// bytes come from (a bounded CaptureReader window vs. the whole transcoded
+// buffer) and whether the reader holds the document in memory.
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
@@ -102,8 +113,28 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
-	// across CLI/server/WASM — see core/safeio).
-	content, err := io.ReadAll(docBudget.Reader(r.Doc.Reader))
+	// across CLI/server/WASM — see core/safeio). Peek (non-consuming) resolves
+	// the BOM-detected encoding without reading the whole document.
+	br := bufio.NewReader(docBudget.Reader(r.Doc.Reader))
+	head, _ := br.Peek(3)
+	enc, _ := coreenc.Detect(head)
+
+	// Streaming path: same-format skeleton round-trip, validation off, UTF-8
+	// input. The UTF-16 transcode (coreenc.ToUTF8) is inherently whole-document,
+	// so non-UTF-8 inputs fall back to the buffered walk. StreamingReader is
+	// declared so the file-runner concurrent-feeds and the reader stays bounded.
+	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff && enc == "utf-8" {
+		r.readStreaming(ctx, ch, layer, locale, br)
+		return
+	}
+	r.readBuffered(ctx, ch, layer, locale, br)
+}
+
+// readBuffered is the whole-document fallback: it reads and (when needed)
+// transcodes the entire input, then walks a decoder over the buffer. Raw
+// skeleton bytes come from the buffer; nothing is discarded.
+func (r *Reader) readBuffered(ctx context.Context, ch chan<- model.PartResult, layer *model.Layer, locale model.LocaleID, br io.Reader) {
+	content, err := io.ReadAll(br)
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("tmx: reading: %w", err)}
 		return
@@ -120,32 +151,79 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("tmx: transcoding to UTF-8: %w", err)}
 		return
 	}
-	content = utf8Bytes
-	rawText := string(content)
+	rawText := string(utf8Bytes)
 
-	decoder := xml.NewDecoder(strings.NewReader(rawText))
-	// Enable tolerance for DTD declarations and entity references.
+	rawAt := func(start, end int64) string { return rawText[start:end] }
+	r.walkTokens(ctx, ch, newTMXDecoder(strings.NewReader(rawText)), layer, locale, rawAt, func(int64) {}, hadUTF8BOM)
+}
+
+// readStreaming walks the decoder over a bounded CaptureReader window: raw
+// skeleton bytes are sliced from the window and the window is discarded as each
+// TU completes, so peak reader memory is O(read-ahead + current TU), not the
+// document size. Reached only for UTF-8 input (no transcode required).
+func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult, layer *model.Layer, locale model.LocaleID, br *bufio.Reader) {
+	// Strip a leading UTF-8 BOM so CaptureReader offsets (and the decoder) see
+	// post-BOM bytes, matching the buffered path; the BOM is re-emitted as the
+	// first skeleton text below.
+	hadUTF8BOM := false
+	if head, _ := br.Peek(3); len(head) >= 3 && head[0] == 0xEF && head[1] == 0xBB && head[2] == 0xBF {
+		_, _ = br.Discard(3)
+		hadUTF8BOM = true
+	}
+	cr := format.NewCaptureReader(br)
+	var sliceErr error
+	rawAt := func(start, end int64) string {
+		b, ok := cr.Slice(start, end)
+		if !ok {
+			if sliceErr == nil {
+				sliceErr = fmt.Errorf("tmx: skeleton range [%d,%d) outside capture window", start, end)
+			}
+			return ""
+		}
+		return string(b)
+	}
+	r.walkTokens(ctx, ch, newTMXDecoder(cr), layer, locale, rawAt, cr.DiscardTo, hadUTF8BOM)
+	if sliceErr != nil {
+		ch <- model.PartResult{Error: sliceErr}
+	}
+}
+
+// newTMXDecoder builds an xml.Decoder configured for TMX's lenient dialect
+// (DTD declarations, HTML entity/auto-close tolerance).
+func newTMXDecoder(r io.Reader) *xml.Decoder {
+	decoder := xml.NewDecoder(r)
 	decoder.Strict = false
 	decoder.AutoClose = xml.HTMLAutoClose
 	decoder.Entity = xml.HTMLEntity
+	return decoder
+}
+
+// walkTokens is the shared TMX token walk. rawAt returns the raw source bytes
+// for an absolute byte range (from the buffer or the CaptureReader window);
+// discard releases window bytes below an offset (a no-op in buffered mode).
+// Skeleton is emitted incrementally — segments are non-overlapping leaves in
+// document order, so a monotonic emit frontier reproduces the byte-exact
+// skeleton without a whole-buffer post-pass. On success it emits PartLayerEnd.
+func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, decoder *xml.Decoder, layer *model.Layer, locale model.LocaleID, rawAt func(start, end int64) string, discard func(int64), hadUTF8BOM bool) {
+	srcLang := ""
 
 	var (
 		version        string
 		headerProps    = map[string]string{}
-		srcLang        string
 		blockCount     int
 		headerNotes    []string
 		headerPropList []headerProp // header-level <prop> and <note> elements
 	)
 
-	// Skeleton tracking: collect seg positions for byte-exact reconstruction
-	type segPos struct {
-		startOffset int // byte offset of start of <seg> content (after <seg> tag)
-		endOffset   int // byte offset of end of <seg> content (before </seg> tag)
-		tuIdx       int // which TU (0-based)
-		lang        string
-	}
-	var segPositions []segPos
+	// Incremental skeleton frontier: emitPos is the absolute byte offset up to
+	// which skeleton has been emitted; the BOM (if any) is emitted lazily before
+	// the first segment; segSeen gates trailing emission so a seg-less document
+	// emits no skeleton (matching the prior whole-buffer behavior).
+	var (
+		emitPos    int64
+		bomEmitted bool
+		segSeen    bool
+	)
 
 	var (
 		currentTU      *tuState
@@ -384,18 +462,24 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 			case "seg":
 				if inSeg && segBuilder != nil && currentTUV != nil {
-					// Record seg position for skeleton before consuming the end tag
+					// Emit skeleton incrementally: the bytes from the last emit
+					// frontier up to this seg's content are skeleton text; the
+					// seg content itself becomes a ref keyed "tuIdx:lang" (which
+					// the writer resolves to the right variant). InputOffset() is
+					// past </seg>, so back up by its length to find the content end.
 					if r.skeletonStore != nil {
-						// InputOffset() is now past </seg>, so we need to find the </seg> start
 						endOff := decoder.InputOffset()
-						segEndTag := "</seg>"
-						segEndPos := max(int(endOff)-len(segEndTag), 0)
-						segPositions = append(segPositions, segPos{
-							startOffset: int(segStartOff),
-							endOffset:   segEndPos,
-							tuIdx:       tuCount - 1,
-							lang:        currentTUV.lang,
-						})
+						segEndPos := max(endOff-int64(len("</seg>")), 0)
+						if hadUTF8BOM && !bomEmitted {
+							r.skelText("\ufeff")
+							bomEmitted = true
+						}
+						if segStartOff > emitPos {
+							r.skelText(rawAt(emitPos, segStartOff))
+						}
+						r.skelRef(fmt.Sprintf("%d:%s", tuCount-1, currentTUV.lang))
+						emitPos = segEndPos
+						segSeen = true
 					}
 					currentTUV.seg = segBuilder.build()
 					inSeg = false
@@ -425,6 +509,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						return
 					}
 					currentTU = nil
+					// The TU is fully processed and its skeleton emitted up to
+					// emitPos; release the capture window below it (no-op when
+					// buffered). Bytes between here and the next seg are retained
+					// until that seg's skeleton text is emitted.
+					discard(emitPos)
 				}
 
 			case "bpt", "ept", "ph", "it", "hi":
@@ -454,28 +543,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 	}
 
-	// Build skeleton from collected seg positions
-	if r.skeletonStore != nil && len(segPositions) > 0 {
-		// Re-emit the original UTF-8 BOM so the writer's output
-		// matches BOM-prefixed source fixtures byte-for-byte.
-		if hadUTF8BOM {
-			r.skelText("\ufeff")
-		}
-		skelPos := 0
-		for _, sp := range segPositions {
-			// Write skeleton text from skelPos to seg content start
-			if sp.startOffset > skelPos {
-				r.skelText(rawText[skelPos:sp.startOffset])
-			}
-			// Write skeleton ref for this seg content
-			// Use "tuIdx:lang" as the ref ID so the writer can look up the right text
-			refID := fmt.Sprintf("%d:%s", sp.tuIdx, sp.lang)
-			r.skelRef(refID)
-			skelPos = sp.endOffset
-		}
-		// Write remaining skeleton text
-		if skelPos < len(rawText) {
-			r.skelText(rawText[skelPos:])
+	// Trailing skeleton: emit the tail bytes after the last seg. Gated on
+	// segSeen so a document with no translatable segments emits no skeleton at
+	// all (matching the prior whole-buffer behavior). InputOffset() at EOF is
+	// the total post-BOM byte length.
+	if r.skeletonStore != nil && segSeen {
+		total := decoder.InputOffset()
+		if total > emitPos {
+			r.skelText(rawAt(emitPos, total))
 		}
 		r.skelFlush()
 	}
