@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-06T15:06:52Z",
+  "generatedAt": "2026-07-10T16:02:04Z",
   "commands": [
     {
       "id": "brand",
@@ -732,6 +732,143 @@
       "examples": [
         "kapi brand-voice-check messages.json --target-lang fr",
         "kapi brand-voice-check app.xliff --target-lang de"
+      ],
+      "offlineCapable": false,
+      "runnableInBrowser": true,
+      "demoMode": true
+    },
+    {
+      "id": "brand-voice-infer",
+      "path": [
+        "brand-voice-infer"
+      ],
+      "use": "brand-voice-infer [files...]",
+      "short": "Infer a draft brand voice profile from a content corpus using an LLM provider",
+      "groupID": "analysis",
+      "flags": [
+        {
+          "name": "api-key",
+          "usage": "API key for the AI provider",
+          "type": "string"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "credential",
+          "usage": "saved credential name to use (see 'kapi credentials list')",
+          "type": "string"
+        },
+        {
+          "name": "domain",
+          "usage": "Subject domain hint for the analysis (e.g. medical legal technology)",
+          "type": "string"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "max-examples",
+          "usage": "Maximum before/after examples to infer",
+          "default": "3",
+          "type": "int"
+        },
+        {
+          "name": "model",
+          "usage": "AI model name",
+          "type": "string"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "profile-name",
+          "usage": "Name for the inferred draft profile",
+          "type": "string"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "provider",
+          "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))",
+          "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
