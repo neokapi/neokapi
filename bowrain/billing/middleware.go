@@ -105,24 +105,69 @@ func QuotaGuard(store BillingStore, onBlock ...GuardEventFunc) echo.MiddlewareFu
 			}
 
 			if remaining <= 0 {
-				retryAfter := WeekEnd(time.Now().UTC())
-				c.Response().Header().Set("Retry-After", retryAfter.Format(time.RFC1123))
-				if len(onBlock) > 0 && onBlock[0] != nil {
-					onBlock[0]("billing.credits_exhausted", workspaceID, map[string]any{
-						"plan": string(plan),
-						"path": c.Path(),
-					})
-				}
-				return c.JSON(http.StatusTooManyRequests, map[string]any{
-					"error":       "credits_exhausted",
-					"resets_at":   retryAfter.Format(time.RFC3339),
-					"retry_after": int(time.Until(retryAfter).Seconds()),
-				})
+				return creditsExhaustedResponse(c, plan, onBlock...)
 			}
 
 			return next(c)
 		}
 	}
+}
+
+// creditsExhaustedResponse writes the standard 429 credits-exhausted payload
+// (with a Retry-After of the next weekly reset) and fires the optional analytics
+// callback. Shared by QuotaGuard (middleware) and GuardSyncCredits (handler).
+func creditsExhaustedResponse(c echo.Context, plan Plan, onBlock ...GuardEventFunc) error {
+	retryAfter := WeekEnd(time.Now().UTC())
+	c.Response().Header().Set("Retry-After", retryAfter.Format(time.RFC1123))
+	if len(onBlock) > 0 && onBlock[0] != nil {
+		workspaceID, _ := c.Get("workspace_id").(string)
+		onBlock[0]("billing.credits_exhausted", workspaceID, map[string]any{
+			"plan": string(plan),
+			"path": c.Path(),
+		})
+	}
+	return c.JSON(http.StatusTooManyRequests, map[string]any{
+		"error":       "credits_exhausted",
+		"resets_at":   retryAfter.Format(time.RFC3339),
+		"retry_after": int(time.Until(retryAfter).Seconds()),
+	})
+}
+
+// GuardSyncCredits enforces the weekly-credit gate from inside a handler, where
+// BYO is known from the parsed request body. It returns a non-nil echo 429 error
+// when the workspace is out of platform credits and the request is NOT BYO; nil
+// (allow) otherwise. It is the body-aware counterpart to the QuotaGuard
+// middleware: a synchronous AI route that accepts a bring-your-own key
+// (provider_config_id / api_key) cannot be wrapped by QuotaGuard, because the
+// middleware cannot see the body to know the request burns no credits.
+//
+// Like QuotaGuard, it degrades to allow when billing is not configured, the plan
+// is empty or enterprise, there is no workspace context, or the balance is
+// unreadable — so a self-hosted or misconfigured deployment is never blocked.
+func GuardSyncCredits(c echo.Context, store BillingStore, byo bool, onBlock ...GuardEventFunc) error {
+	if byo || store == nil {
+		return nil
+	}
+	planStr, _ := c.Get(contextKeyWorkspacePlan).(string)
+	if planStr == "" {
+		return nil
+	}
+	plan := Plan(planStr)
+	if plan == PlanEnterprise {
+		return nil
+	}
+	workspaceID, _ := c.Get("workspace_id").(string)
+	if workspaceID == "" {
+		return nil
+	}
+	remaining, err := store.CheckCredits(c.Request().Context(), workspaceID)
+	if err != nil {
+		return nil
+	}
+	if remaining <= 0 {
+		return creditsExhaustedResponse(c, plan, onBlock...)
+	}
+	return nil
 }
 
 // AdminGuard returns Echo middleware that verifies the JWT was issued by the

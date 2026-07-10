@@ -2,11 +2,12 @@ package billing
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"maps"
 	"strconv"
-	"time"
 
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/billingportal/session"
@@ -119,12 +120,16 @@ func (c *StripeClient) ReportMeterEvent(ctx context.Context, customerID, eventNa
 	}
 	maps.Copy(params.Payload, dimensions)
 
-	// Idempotency key prevents duplicate meter events on retries.
-	// Uses workspace_id + operation_type + timestamp bucket (per-second).
+	// Idempotency key prevents duplicate meter events on retries. It is derived
+	// deterministically from the correlation reference id (job/chunk/message),
+	// NOT a wall-clock bucket: a retry of the same deduction reuses the exact key
+	// (Stripe de-duplicates it), and two distinct deductions never collide the
+	// way a per-second timestamp bucket did (Epic 004).
 	wsID := dimensions["workspace_id"]
 	op := dimensions["operation_type"]
-	if wsID != "" {
-		params.Identifier = stripe.String(fmt.Sprintf("%s-%s-%s-%d", wsID, eventName, op, time.Now().Unix()))
+	refID := dimensions["reference_id"]
+	if wsID != "" || refID != "" {
+		params.Identifier = stripe.String(meterEventIdentifier(wsID, eventName, op, refID))
 	}
 
 	// Detached from the caller's cancellation (a best-effort meter event should
@@ -132,6 +137,18 @@ func (c *StripeClient) ReportMeterEvent(ctx context.Context, customerID, eventNa
 	if _, err := c.sc.V2BillingMeterEvents.Create(context.WithoutCancel(ctx), params); err != nil {
 		slog.Info("stripe meter event error", "error", err)
 	}
+}
+
+// meterEventIdentifier derives a deterministic Stripe meter-event idempotency
+// key from the billing dimensions. The same (workspace, event, operation,
+// reference) always maps to the same identifier, so a retried report is
+// de-duplicated by Stripe rather than double-counted, and distinct references
+// never collide. Callers must pass a reference id that is unique per logical
+// deduction and stable across retries (e.g. "<jobID>:<chunkOffset>"). Hashing
+// keeps the identifier a fixed, charset-safe length regardless of input.
+func meterEventIdentifier(workspaceID, eventName, op, refID string) string {
+	sum := sha256.Sum256([]byte(workspaceID + "|" + eventName + "|" + op + "|" + refID))
+	return hex.EncodeToString(sum[:])
 }
 
 // CreatePaymentCheckout creates a one-time payment checkout session (e.g. credit packs).

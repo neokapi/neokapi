@@ -213,6 +213,11 @@ func (s *PgBillingStore) ListSubscriptions(ctx context.Context, limit, offset in
 // Credits
 // ---------------------------------------------------------------------------
 
+// GetCurrentAllocation returns the current week's PLAN allocation only. It is
+// the weekly-allowance bucket that drives EnsureWeeklyAllocation (has this week
+// been granted yet?) and the low-credit threshold notifications. It deliberately
+// excludes purchased packs — spendable balance (plan + purchased) is
+// CheckCredits, and spending cascades across both in DeductCredits (Epic 004).
 func (s *PgBillingStore) GetCurrentAllocation(ctx context.Context, workspaceID string) (*CreditAllocation, error) {
 	now := time.Now().UTC()
 	ws := WeekStart(now)
@@ -232,7 +237,30 @@ func (s *PgBillingStore) GetCurrentAllocation(ctx context.Context, workspaceID s
 	return &alloc, nil
 }
 
+// allocationRow is a locked credit_allocations row being drawn from in DeductCredits.
+type allocationRow struct {
+	id    string
+	total int64
+	used  int64
+	found bool
+}
+
+// avail is the spendable remainder in this bucket, floored at zero (a bucket
+// already driven negative by a prior overage does not absorb more here).
+func (a allocationRow) avail() int64 {
+	return max(a.total-a.used, 0)
+}
+
+// DeductCredits charges amount against a workspace's credits, cascading across
+// sources: draw from the weekly plan allowance first, then non-expiring
+// purchased packs (Epic 004). Any overage once both are exhausted is recorded
+// against the plan bucket (or purchased when no plan bucket exists) so the debt
+// is never lost. One immutable ledger entry is written per bucket touched.
 func (s *PgBillingStore) DeductCredits(ctx context.Context, workspaceID string, amount int64, op string, refID string) error {
+	if amount <= 0 {
+		return nil
+	}
+
 	now := time.Now().UTC()
 	ws := WeekStart(now)
 	we := WeekEnd(now)
@@ -243,46 +271,139 @@ func (s *PgBillingStore) DeductCredits(ctx context.Context, workspaceID string, 
 	}
 	defer tx.Rollback() //nolint:errcheck // rollback is a no-op after commit
 
-	// Update allocation.
-	var allocID string
-	var creditsTotal, creditsUsed int64
-	err = tx.QueryRowContext(ctx,
-		`UPDATE credit_allocations
-		 SET credits_used = credits_used + $1
-		 WHERE workspace_id = $2 AND week_start = $3 AND week_end = $4 AND source = 'plan'
-		 RETURNING id, credits_total, credits_used`,
-		amount, workspaceID, ws, we).
-		Scan(&allocID, &creditsTotal, &creditsUsed)
+	// Lock both buckets FOR UPDATE in a fixed order (plan, then purchased) so
+	// concurrent deductions on the same workspace serialize deterministically.
+	plan, err := lockAllocation(ctx, tx,
+		`SELECT id, credits_total, credits_used FROM credit_allocations
+		 WHERE workspace_id = $1 AND week_start = $2 AND week_end = $3 AND source = 'plan' FOR UPDATE`,
+		workspaceID, ws, we)
 	if err != nil {
-		return fmt.Errorf("deduct credits: %w", err)
+		return fmt.Errorf("lock plan allocation: %w", err)
+	}
+	purchased, err := lockAllocation(ctx, tx,
+		`SELECT id, credits_total, credits_used FROM credit_allocations
+		 WHERE workspace_id = $1 AND source = 'purchased' FOR UPDATE`,
+		workspaceID)
+	if err != nil {
+		return fmt.Errorf("lock purchased allocation: %w", err)
+	}
+	if !plan.found && !purchased.found {
+		return fmt.Errorf("deduct credits: no allocation for workspace %s", workspaceID)
 	}
 
-	balanceAfter := creditsTotal - creditsUsed
+	// Cascade the charge: plan first, then purchased.
+	remaining := amount
+	var planDelta, purchasedDelta int64
+	if plan.found {
+		d := min(remaining, plan.avail())
+		planDelta += d
+		remaining -= d
+	}
+	if purchased.found && remaining > 0 {
+		d := min(remaining, purchased.avail())
+		purchasedDelta += d
+		remaining -= d
+	}
+	if remaining > 0 {
+		// Both buckets exhausted; record the overage so it isn't lost. Prefer
+		// the plan bucket (it refills weekly); fall back to purchased.
+		if plan.found {
+			planDelta += remaining
+		} else {
+			purchasedDelta += remaining
+		}
+	}
 
-	// Insert ledger entry.
-	_, err = tx.ExecContext(ctx,
-		`INSERT INTO credit_ledger (workspace_id, allocation_id, amount, balance_after, operation, reference_id)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		workspaceID, allocID, -amount, balanceAfter, op, refID)
-	if err != nil {
-		return fmt.Errorf("insert ledger entry: %w", err)
+	if planDelta != 0 {
+		if err := s.applyDeduction(ctx, tx, workspaceID, plan, planDelta, op, refID); err != nil {
+			return err
+		}
+	}
+	if purchasedDelta != 0 {
+		if err := s.applyDeduction(ctx, tx, workspaceID, purchased, purchasedDelta, op, refID); err != nil {
+			return err
+		}
 	}
 
 	return tx.Commit()
 }
 
-func (s *PgBillingStore) CheckCredits(ctx context.Context, workspaceID string) (int64, error) {
-	alloc, err := s.GetCurrentAllocation(ctx, workspaceID)
-	if err != nil {
-		return 0, err
+// lockAllocation runs a `SELECT ... FOR UPDATE` returning a single allocation
+// row. A missing row yields found=false (not an error), so callers can cascade
+// across whichever buckets exist.
+func lockAllocation(ctx context.Context, tx *sql.Tx, query string, args ...any) (allocationRow, error) {
+	var a allocationRow
+	err := tx.QueryRowContext(ctx, query, args...).Scan(&a.id, &a.total, &a.used)
+	switch {
+	case err == nil:
+		a.found = true
+		return a, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return a, nil
+	default:
+		return a, err
 	}
-	return alloc.CreditsTotal - alloc.CreditsUsed, nil
 }
 
-func (s *PgBillingStore) GrantCredits(ctx context.Context, workspaceID string, amount int64, source string) error {
+// applyDeduction adds delta to a bucket's credits_used and appends the matching
+// (debit) ledger entry, within the caller's transaction.
+func (s *PgBillingStore) applyDeduction(ctx context.Context, tx *sql.Tx, workspaceID string, bucket allocationRow, delta int64, op, refID string) error {
+	newUsed := bucket.used + delta
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE credit_allocations SET credits_used = $1 WHERE id = $2`, newUsed, bucket.id); err != nil {
+		return fmt.Errorf("update allocation: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO credit_ledger (workspace_id, allocation_id, amount, balance_after, operation, reference_id)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		workspaceID, bucket.id, -delta, bucket.total-newUsed, op, refID); err != nil {
+		return fmt.Errorf("insert ledger entry: %w", err)
+	}
+	return nil
+}
+
+// CheckCredits returns the workspace's total spendable balance: this week's
+// remaining plan allowance plus all non-expiring purchased credits (Epic 004).
+// When the workspace has neither a plan allocation for the week nor any
+// purchased credits, it returns the "no allocation" error so callers (the
+// enqueue pre-check, QuotaGuard) degrade to allowing the request.
+func (s *PgBillingStore) CheckCredits(ctx context.Context, workspaceID string) (int64, error) {
 	now := time.Now().UTC()
 	ws := WeekStart(now)
 	we := WeekEnd(now)
+
+	var planRemaining int64
+	planErr := s.db.QueryRowContext(ctx,
+		`SELECT credits_total - credits_used FROM credit_allocations
+		 WHERE workspace_id = $1 AND week_start = $2 AND week_end = $3 AND source = 'plan'`,
+		workspaceID, ws, we).Scan(&planRemaining)
+	if planErr != nil && !errors.Is(planErr, sql.ErrNoRows) {
+		return 0, fmt.Errorf("get plan credits: %w", planErr)
+	}
+
+	var purchasedRemaining int64
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COALESCE(SUM(credits_total - credits_used), 0) FROM credit_allocations
+		 WHERE workspace_id = $1 AND source = 'purchased'`,
+		workspaceID).Scan(&purchasedRemaining); err != nil {
+		return 0, fmt.Errorf("sum purchased credits: %w", err)
+	}
+
+	if errors.Is(planErr, sql.ErrNoRows) {
+		if purchasedRemaining != 0 {
+			return purchasedRemaining, nil
+		}
+		// No plan allocation and no purchased credits: preserve the historical
+		// "no allocation" signal so callers degrade gracefully.
+		return 0, fmt.Errorf("check credits: %w", planErr)
+	}
+	return planRemaining + purchasedRemaining, nil
+}
+
+func (s *PgBillingStore) GrantCredits(ctx context.Context, workspaceID string, amount int64, source string) error {
+	// Plan grants land in the current week; purchased packs land in the
+	// non-expiring sentinel week so they survive weekly rollovers (Epic 004).
+	ws, we := allocationWeek(source, time.Now().UTC())
 	allocID := id.New()
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -496,10 +617,12 @@ func (s *PgBillingStore) GetUpsellOpportunities(ctx context.Context) ([]UpsellOp
 func (s *PgBillingStore) GetPlatformMetrics(ctx context.Context) (*PlatformMetrics, error) {
 	var m PlatformMetrics
 
-	// Active workspaces (with at least one member).
+	// Active workspaces: those with a current weekly plan allocation. Restricted
+	// to source='plan' so non-expiring purchased packs (which carry a sentinel
+	// week spanning "now") don't inflate the count (Epic 004).
 	err := s.db.QueryRowContext(ctx,
 		`SELECT COUNT(DISTINCT workspace_id) FROM credit_allocations
-		 WHERE week_start <= NOW() AND week_end > NOW()`).Scan(&m.ActiveWorkspaces)
+		 WHERE week_start <= NOW() AND week_end > NOW() AND source = 'plan'`).Scan(&m.ActiveWorkspaces)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("active workspaces: %w", err)
 	}
