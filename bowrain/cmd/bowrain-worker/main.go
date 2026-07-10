@@ -15,6 +15,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/neokapi/neokapi/bowrain/agent"
+	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
@@ -78,6 +79,10 @@ func validateWorkerDBURL(dbURL string, insecureDev bool) error {
 }
 
 func runWorker(dbURL string) error {
+	if err := guardSecretsKey(os.Getenv("BOWRAIN_SECRETS_KEY"), dbURL); err != nil {
+		return err
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
@@ -167,13 +172,32 @@ func runWorker(dbURL string) error {
 
 	credStore := credentials.NewStore(credentialsPath)
 
+	// Per-workspace AI provider store (Epic 004). Resolves a job's saved BYO
+	// provider config from Postgres, scoped to the job's workspace, with the API
+	// key sealed at rest under the same BOWRAIN_SECRETS_KEY cipher as connector
+	// secrets. Replaces the machine-global keychain CredStore for worker
+	// translation providers.
+	providerStore := bstore.NewProviderConfigStore(pgdb.DB, secretsCipher)
+
 	// Build translation worker dependencies.
 	translationDeps := &jobs.WorkerDeps{
-		JobStore:     pgJS,
-		ContentStore: cs,
-		CredStore:    credStore,
-		Queue:        translationQueue,
-		QuotaStore:   pgQS,
+		JobStore:      pgJS,
+		ContentStore:  cs,
+		CredStore:     credStore,
+		ProviderStore: providerStore,
+		Queue:         translationQueue,
+		QuotaStore:    pgQS,
+	}
+
+	// Wire billing credit deduction + Stripe meter reporting into the worker
+	// (Epic 004). Without this, async auto-translate records ai_usage and
+	// enforces the token abuse cap but never deducts credits or fires Stripe
+	// meters. Only platform-key jobs are metered (resolved.Source); BYO-key jobs
+	// burn no credits. Degrades gracefully in self-hosted mode where the billing
+	// store can't be built — the worker just skips credit deduction (mirrors the
+	// server's nil-BillingHooks behavior).
+	if hooks := buildWorkerBillingHooks(pgdb); hooks != nil {
+		translationDeps.BillingHooks = hooks
 	}
 
 	// Configure blob store for async sync push processing (Bowrain AD-009).
@@ -331,6 +355,18 @@ func runWorker(dbURL string) error {
 		}
 		defer cleanup()
 
+		// Wire billing credit deduction + Stripe meter reporting into the agent
+		// worker (Epic 004). In queue mode the API server delegates @bravo
+		// processing to this worker via sendQueuedStream, which never touches
+		// billingHooks — so this worker's processAgentJob is the ONLY place bravo
+		// message tokens and container time get billed. Without this, every @bravo
+		// message in a queue-mode deployment burns zero credits and fires zero
+		// Stripe meters. Mirrors translationDeps above; nil in self-hosted/unbilled
+		// deployments (no STRIPE_SECRET_KEY).
+		if hooks := buildWorkerBillingHooks(pgdb); hooks != nil {
+			agentDeps.BillingHooks = hooks
+		}
+
 		g.Go(func() error {
 			return jobs.RunAgentWorker(ctx, agentDeps)
 		})
@@ -433,6 +469,58 @@ func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusCon
 		PubSub:     pubsub,
 		JWTSecret:  jwtSecret,
 	}, cleanup, nil
+}
+
+// buildWorkerBillingHooks constructs the worker's billing usage hooks: the
+// Postgres-backed billing store for credit deduction plus the Stripe client for
+// meter reporting. It is gated on STRIPE_SECRET_KEY — the signal that this is a
+// billed, metered SaaS deployment. Without Stripe there are no subscriptions and
+// therefore no weekly credit allocations, so every platform job's DeductCredits
+// would return "no allocation for workspace" and log once per chunk on an
+// otherwise-unbilled self-hosted deployment (Epic 004). Returning nil in that
+// case makes the worker skip credit deduction cleanly (mirrors the server's
+// nil-BillingHooks behavior). Migrations are namespaced + idempotent, so
+// re-running them here (the server also runs them) is safe.
+func buildWorkerBillingHooks(pgdb *storage.PgDB) *billing.UsageHooks {
+	stripeKey := os.Getenv("STRIPE_SECRET_KEY")
+	if stripeKey == "" {
+		slog.Info("worker billing disabled: no STRIPE_SECRET_KEY (self-hosted / unbilled deployment)")
+		return nil
+	}
+	billingStore, err := billing.NewPgBillingStore(pgdb)
+	if err != nil {
+		slog.Warn("worker billing disabled: failed to init billing store", "error", err)
+		return nil
+	}
+	hooks := &billing.UsageHooks{
+		Store:  billingStore,
+		Stripe: billing.NewStripeClient(stripeKey),
+	}
+	slog.Info("worker billing credit deduction + Stripe meter reporting enabled")
+	return hooks
+}
+
+// guardSecretsKey enforces that a multi-tenant Postgres deployment configures a
+// secrets key. crypto.NewCipher("") is a nil, pass-through cipher, so an ABSENT
+// key silently stores every tenant's AI provider key and connector secret in
+// PLAINTEXT in Postgres (only an INVALID key aborts at startup). On a billed SaaS
+// deployment (STRIPE_SECRET_KEY set) this is a hard startup failure; on a
+// self-hosted Postgres deployment it is a loud error-level warning for operators
+// who knowingly accept plaintext-at-rest. Non-Postgres (dev/SQLite) is exempt.
+func guardSecretsKey(secretsKey, databaseURL string) error {
+	if secretsKey != "" {
+		return nil
+	}
+	if !strings.HasPrefix(databaseURL, "postgres://") && !strings.HasPrefix(databaseURL, "postgresql://") {
+		return nil
+	}
+	if os.Getenv("STRIPE_SECRET_KEY") != "" {
+		return errors.New("BOWRAIN_SECRETS_KEY is required on a billed multi-tenant deployment: " +
+			"without it every workspace's AI provider key and connector secret is stored in plaintext in Postgres")
+	}
+	slog.Error("BOWRAIN_SECRETS_KEY is not set: workspace AI provider keys and connector secrets " +
+		"will be stored UNENCRYPTED in Postgres; set a 32-byte base64 key before storing tenant secrets")
+	return nil
 }
 
 func envOrDefault(key, fallback string) string {

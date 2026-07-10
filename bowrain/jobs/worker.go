@@ -33,10 +33,15 @@ type WorkerDeps struct {
 	JobStore     JobStore
 	ContentStore store.ContentStore
 	CredStore    *credentials.Store
-	Queue        Queue
-	QuotaStore   QuotaStore              // optional; nil disables quota enforcement
-	Platform     *PlatformProviderConfig // optional; nil disables platform provider
-	BillingHooks *billing.UsageHooks     // optional; nil disables billing credit deduction
+	// ProviderStore resolves per-workspace BYO AI provider configs from Postgres
+	// (Epic 004). It replaces the machine-global keychain/file CredStore for
+	// worker translation jobs that carry a saved ProviderConfigID. Optional; when
+	// nil, a job that names a saved config cannot be resolved.
+	ProviderStore ProviderConfigResolver
+	Queue         Queue
+	QuotaStore    QuotaStore              // optional; nil disables quota enforcement
+	Platform      *PlatformProviderConfig // optional; nil disables platform provider
+	BillingHooks  *billing.UsageHooks     // optional; nil disables billing credit deduction
 	// LogFunc is called to emit structured automation logs (Bowrain AD-013).
 	// Signature: func(stepID, level, message string, data map[string]string).
 	// Optional; nil disables run logging.
@@ -178,7 +183,10 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		return processSyncPushJob(ctx, deps, job)
 	}
 
-	// Check quota before starting.
+	// Check the monthly token quota before starting. This is the internal abuse
+	// cap (see jobs.QuotaStore) — a hard ceiling to bound runaway usage — not the
+	// user-facing credit ledger (bowrain/billing). It applies to platform and BYO
+	// jobs alike; credit deduction (below, per chunk) is platform-only.
 	if deps.QuotaStore != nil {
 		remaining, err := deps.QuotaStore.CheckQuota(ctx, job.WorkspaceSlug)
 		if err != nil {
@@ -278,11 +286,14 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		return fmt.Errorf("set total blocks: %w", err)
 	}
 
-	// Resolve AI provider.
-	prov, limiter, err := resolveProvider(ctx, deps, job)
+	// Resolve AI provider. resolved.Source (platform vs byo) is the hybrid-AI
+	// billing gate consumed at the credit-deduction site below.
+	resolved, err := resolveProvider(ctx, deps, job)
 	if err != nil {
 		return fmt.Errorf("resolve provider: %w", err)
 	}
+	prov := resolved.LLM
+	limiter := resolved.Limiter
 
 	// Default batch/concurrency for automation jobs if not explicitly set.
 	batchSz := 20
@@ -365,9 +376,16 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 			})
 		}
 
-		// Deduct billing credits and report to Stripe Meters.
-		if deps.BillingHooks != nil && job.WorkspaceID != "" {
-			deps.BillingHooks.DeductTokens(ctx, job.WorkspaceID, chunkTokens, "ai_translation", job.ID)
+		// Deduct billing credits and report to Stripe Meters — but only for the
+		// platform-held key (resolved.Source, the shared hybrid-AI gate from
+		// resolveProvider). A workspace bring-your-own key still recorded usage
+		// above (the ai_usage abuse cap) but burns NO credits (Epic 004). The
+		// per-chunk reference id ("<jobID>:<chunkOffset>") is deterministic and
+		// unique per deduction, so the Stripe meter idempotency key neither
+		// collides across chunks nor double-reports on a retried chunk.
+		if deps.BillingHooks != nil && job.WorkspaceID != "" && resolved.Source == ProviderSourcePlatform {
+			deps.BillingHooks.DeductTokens(ctx, job.WorkspaceID, chunkTokens, "ai_translation",
+				fmt.Sprintf("%s:%d", job.ID, i))
 		}
 
 		// Update progress.
@@ -455,30 +473,61 @@ func startLeaseHeartbeat(ctx context.Context, store JobStore, jobID string, epoc
 	}
 }
 
-// resolveProvider creates the appropriate LLM provider for the job.
-func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob) (aiprovider.LLMProvider, *rate.Limiter, error) {
+// resolveProvider creates the appropriate LLM provider for the job and reports
+// its billing source (Epic 004 hybrid AI). A job with an empty or "platform"
+// ProviderConfigID uses the env-configured platform provider (metered in
+// credits). A job that names a saved config resolves it from the per-workspace
+// Postgres store — scoped to the job's workspace — and its BYO key burns no
+// credits. This deliberately no longer touches the machine-global keychain/file
+// CredStore for saved provider keys.
+func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob) (*ResolvedProvider, error) {
 	if job.IsPlatformProvider() {
 		if deps.Platform == nil {
-			return nil, nil, errors.New("platform provider not configured " +
+			return nil, errors.New("platform provider not configured " +
 				"(set BOWRAIN_PLATFORM_PROVIDER + key for self-hosted/local, " +
 				"or BOWRAIN_OPENAI_ENDPOINT for Azure OpenAI)")
 		}
 		prov, ptype, err := deps.Platform.build(job.Model)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		limiter := rate.NewLimiter(providerRateLimit(ptype), 1)
-		return prov, limiter, nil
+		return &ResolvedProvider{
+			LLM:     prov,
+			Limiter: rate.NewLimiter(providerRateLimit(ptype), 1),
+			Source:  ProviderSourcePlatform,
+		}, nil
 	}
 
-	// User-configured provider via credential store.
-	prov, err := credentials.NewProvider(deps.CredStore, job.ProviderConfigID)
-	if err != nil {
-		return nil, nil, err
+	// Per-workspace BYO provider: resolve the saved config (with its sealed key
+	// decrypted) from Postgres, scoped strictly to this job's durable billing
+	// workspace id (now persisted on the job). Slug is deliberately not used — it
+	// is mutable and reusable, so it must never authorize secret retrieval.
+	if deps.ProviderStore == nil {
+		return nil, errors.New("per-workspace provider store not configured; " +
+			"cannot resolve saved provider config " + job.ProviderConfigID)
 	}
-	cfg, _ := deps.CredStore.Get(job.ProviderConfigID)
-	limiter := rate.NewLimiter(providerRateLimit(cfg.ProviderType), 1)
-	return prov, limiter, nil
+	cfg, err := deps.ProviderStore.Resolve(ctx, job.WorkspaceID, job.ProviderConfigID)
+	if err != nil {
+		return nil, fmt.Errorf("resolve provider config %q: %w", job.ProviderConfigID, err)
+	}
+
+	model := cfg.Model
+	if model == "" {
+		model = job.Model
+	}
+	prov, err := aiprovider.NewProvider(aiprovider.ProviderID(cfg.Type), aiprovider.Config{
+		APIKey:  cfg.APIKey,
+		Model:   model,
+		BaseURL: cfg.BaseURL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("build provider %q: %w", cfg.Type, err)
+	}
+	return &ResolvedProvider{
+		LLM:     prov,
+		Limiter: rate.NewLimiter(providerRateLimit(cfg.Type), 1),
+		Source:  ProviderSourceBYO,
+	}, nil
 }
 
 // estimateTokens provides a rough token count estimate for a batch of blocks.

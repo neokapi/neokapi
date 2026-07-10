@@ -20,6 +20,12 @@ func TestHasFeature(t *testing.T) {
 		{"pro has git connectors", PlanPro, FeatureConnectorsGit, nil, true},
 		{"pro has no bravo code exec", PlanPro, FeatureBravoCodeExec, nil, false},
 		{"team has bravo code exec", PlanTeam, FeatureBravoCodeExec, nil, true},
+		// FeatureBravo is dark by default: false on every plan, override-only.
+		{"free has no bravo", PlanFree, FeatureBravo, nil, false},
+		{"pro has no bravo", PlanPro, FeatureBravo, nil, false},
+		{"team has no bravo", PlanTeam, FeatureBravo, nil, false},
+		{"enterprise has no bravo", PlanEnterprise, FeatureBravo, nil, false},
+		{"override enables bravo for dogfooding", PlanFree, FeatureBravo, map[Feature]bool{FeatureBravo: true}, true},
 		{"team has no sso", PlanTeam, FeatureSSOSAML, nil, false},
 		{"enterprise has sso", PlanEnterprise, FeatureSSOSAML, nil, true},
 		{"enterprise has all features", PlanEnterprise, FeatureCustomMT, nil, true},
@@ -53,6 +59,7 @@ func TestMinimumPlanFor(t *testing.T) {
 		{FeatureBravoCodeExec, PlanTeam},
 		{FeatureConnectorsCustom, PlanTeam},
 		{FeatureSSOSAML, PlanEnterprise},
+		{FeatureBravo, Plan("")}, // dark on every plan → no minimum plan
 	}
 
 	for _, tt := range tests {

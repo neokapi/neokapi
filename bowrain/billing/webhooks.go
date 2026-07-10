@@ -146,10 +146,12 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 		return nil
 	}
 
-	// Handle one-time credit pack purchase.
+	// Handle one-time credit pack purchase. Purchased packs are non-expiring
+	// (SourcePurchased) — they persist across weekly rollovers until spent, and
+	// spend draws from them only after the weekly plan allowance (Epic 004).
 	if sess.Metadata["type"] == "credit_pack" {
 		creditPackAmount := int64(500_000) // 500K credits per pack
-		if err := h.store.GrantCredits(ctx, workspaceID, creditPackAmount, "purchased"); err != nil {
+		if err := h.store.GrantCredits(ctx, workspaceID, creditPackAmount, SourcePurchased); err != nil {
 			return fmt.Errorf("grant credits: %w", err)
 		}
 		return h.store.RecordBillingEvent(ctx, &BillingEvent{

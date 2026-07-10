@@ -16,11 +16,10 @@ func TestMain(m *testing.M) {
 		goleak.IgnoreTopFunction("github.com/jackc/pgx/v5/pgxpool.(*Pool).backgroundHealthCheck"),
 		goleak.IgnoreTopFunction("database/sql.(*DB).connectionOpener"),
 		goleak.IgnoreTopFunction("database/sql.(*DB).connectionCleaner"),
-		// When pgtest falls back to a testcontainers-started PostgreSQL (no
-		// BOWRAIN_TEST_POSTGRES_URL, not -short), Ryuk's reaper connection
-		// goroutine lives for the whole test binary by design. Ignore it, as
-		// event/main_test.go already does.
-		goleak.IgnoreAnyFunction("github.com/testcontainers/testcontainers-go.(*Reaper).connect.func1"),
+		// testcontainers keeps a Ryuk reaper connection alive for the whole test
+		// binary to tear down the shared container on exit — same process-lifetime
+		// rationale as the pool goroutines above.
+		goleak.IgnoreTopFunction("github.com/testcontainers/testcontainers-go.(*Reaper).connect.func1"),
 	)
 }
 

@@ -1,12 +1,49 @@
 package server
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/id"
 )
+
+// isPlatformProviderConfig reports whether a job's provider_config_id selects the
+// platform-held key (metered in credits) rather than a workspace bring-your-own
+// key. Mirrors jobs.TranslationJob.IsPlatformProvider for the enqueue path.
+func isPlatformProviderConfig(providerConfigID string) bool {
+	return providerConfigID == "" || providerConfigID == "platform"
+}
+
+// insufficientPlatformCredits reports whether a translation job must be refused
+// at enqueue because it would run on the platform-held key with no spendable
+// credits (Epic 004). Deduction is post-hoc, so without this guard a zero-credit
+// workspace could start a large platform job and drive the ledger deeply
+// negative. It never blocks:
+//   - BYO jobs (a real provider_config_id) — they burn no credits;
+//   - self-hosted / unbilled deployments (nil billing store, empty workspace);
+//   - workspaces with no allocation yet or an unreadable balance (CheckCredits
+//     error) — the pre-check degrades to allowing, like QuotaGuard.
+func (s *Server) insufficientPlatformCredits(ctx context.Context, workspaceID, providerConfigID string) bool {
+	if s.BillingStore == nil || workspaceID == "" {
+		return false
+	}
+	if !isPlatformProviderConfig(providerConfigID) {
+		return false // BYO — never metered in credits
+	}
+	remaining, err := s.BillingStore.CheckCredits(ctx, workspaceID)
+	if err != nil {
+		return false // no allocation / unreadable → allow (degrade gracefully)
+	}
+	return remaining <= 0
+}
+
+// errInsufficientCredits is the enqueue-refusal payload for a zero-credit
+// platform-key job. It points the caller at the two ways forward.
+var errInsufficientCredits = ErrorResponse{
+	Error: "insufficient credits: purchase a credit pack, wait for the weekly reset, or configure your own AI provider key",
+}
 
 // HandleCreateTranslationJob creates a new async translation job and enqueues it.
 // POST /api/v1/:ws/jobs/translate
@@ -40,9 +77,22 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 		providerConfigID = "platform"
 	}
 
+	// The billing workspace ID (set by WorkspaceAccessMiddleware) drives credit
+	// deduction in the worker; carry it on the job so platform runs are metered.
+	wsID, _ := c.Get("workspace_id").(string)
+
+	ctx := c.Request().Context()
+
+	// Credit pre-check (Epic 004): refuse a platform-key job on a zero-credit
+	// workspace up front, before it runs and drives the ledger negative.
+	if s.insufficientPlatformCredits(ctx, wsID, providerConfigID) {
+		return c.JSON(http.StatusPaymentRequired, errInsufficientCredits)
+	}
+
 	job := &jobs.TranslationJob{
 		ID:               id.New(),
 		WorkspaceSlug:    ws,
+		WorkspaceID:      wsID,
 		ProjectID:        req.ProjectID,
 		ItemName:         req.ItemName,
 		TargetLocale:     req.TargetLocale,
@@ -53,7 +103,6 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 		Status:           jobs.StatusQueued,
 	}
 
-	ctx := c.Request().Context()
 	if err := s.JobStore.CreateJob(ctx, job); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}

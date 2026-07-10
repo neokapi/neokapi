@@ -34,7 +34,7 @@ func (h *UsageHooks) DeductTokens(ctx context.Context, workspaceID string, token
 	// Check credit thresholds for notifications.
 	h.checkCreditThresholds(ctx, workspaceID)
 
-	h.reportMeter(ctx, workspaceID, "ai_token_usage", int64(tokens), op)
+	h.reportMeter(ctx, workspaceID, "ai_token_usage", int64(tokens), op, refID)
 }
 
 // DeductContainerTime deducts container-time credits and reports to Stripe.
@@ -48,17 +48,18 @@ func (h *UsageHooks) DeductContainerTime(ctx context.Context, workspaceID string
 		slog.Info("billing: deduct container credits for", "id", workspaceID, "error", err)
 	}
 
-	h.reportMeter(ctx, workspaceID, "container_time_usage", int64(duration.Seconds()), "bravo_container")
+	h.reportMeter(ctx, workspaceID, "container_time_usage", int64(duration.Seconds()), "bravo_container", refID)
 }
 
-// checkCreditThresholds sends notifications when credits cross warning/exhaustion thresholds.
+// checkCreditThresholds sends notifications when credits cross warning/exhaustion
+// thresholds. Exhaustion is judged on the FULL spendable balance (plan +
+// purchased) via CheckCredits — not the plan-only allocation — so a workspace
+// that just bought a top-up pack is not wrongly told it is out of credits when
+// only the weekly plan bucket is depleted (Epic 004). The 80%-used warning still
+// tracks the weekly plan allowance, which is what resets and what an upgrade
+// affects.
 func (h *UsageHooks) checkCreditThresholds(ctx context.Context, workspaceID string) {
 	if h.Notifier == nil || h.GetOwnerEmail == nil {
-		return
-	}
-
-	alloc, err := h.Store.GetCurrentAllocation(ctx, workspaceID)
-	if err != nil || alloc == nil || alloc.CreditsTotal == 0 {
 		return
 	}
 
@@ -67,18 +68,25 @@ func (h *UsageHooks) checkCreditThresholds(ctx context.Context, workspaceID stri
 		return
 	}
 
-	remaining := alloc.CreditsTotal - alloc.CreditsUsed
-	usagePct := float64(alloc.CreditsUsed) / float64(alloc.CreditsTotal)
-
-	if remaining <= 0 {
+	// Exhaustion: the true spendable balance across both buckets.
+	if spendable, err := h.Store.CheckCredits(ctx, workspaceID); err == nil && spendable <= 0 {
 		h.Notifier.NotifyCreditsExhausted(ctx, email, workspaceID)
-	} else if usagePct >= 0.8 {
+		return
+	}
+
+	// Warning: 80% of the weekly plan allowance consumed.
+	alloc, err := h.Store.GetCurrentAllocation(ctx, workspaceID)
+	if err != nil || alloc == nil || alloc.CreditsTotal == 0 {
+		return
+	}
+	if usagePct := float64(alloc.CreditsUsed) / float64(alloc.CreditsTotal); usagePct >= 0.8 {
 		h.Notifier.NotifyCreditsWarning(ctx, email, workspaceID, alloc.CreditsUsed, alloc.CreditsTotal)
 	}
 }
 
-// reportMeter fires a Stripe meter event asynchronously.
-func (h *UsageHooks) reportMeter(ctx context.Context, workspaceID, eventName string, value int64, op string) {
+// reportMeter fires a Stripe meter event asynchronously. refID is the
+// correlation id used to derive the deterministic idempotency key (Epic 004).
+func (h *UsageHooks) reportMeter(ctx context.Context, workspaceID, eventName string, value int64, op, refID string) {
 	if h.Stripe == nil {
 		return
 	}
@@ -96,5 +104,6 @@ func (h *UsageHooks) reportMeter(ctx context.Context, workspaceID, eventName str
 	go h.Stripe.ReportMeterEvent(context.WithoutCancel(ctx), sub.StripeCustomerID, eventName, value, map[string]string{
 		"workspace_id":   workspaceID,
 		"operation_type": op,
+		"reference_id":   refID,
 	})
 }

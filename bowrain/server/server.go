@@ -73,6 +73,12 @@ type Server struct {
 	// CredentialStore manages AI provider credentials.
 	CredentialStore *credentials.Store
 
+	// ProviderStore holds workspace-scoped AI provider configs in Postgres
+	// (Epic 004), sealed at rest under BOWRAIN_SECRETS_KEY. It is the
+	// multi-tenant, keychain-free replacement for CredentialStore on the
+	// /:ws/providers surface. Nil until PostgreSQL stores are initialized.
+	ProviderStore *bstore.ProviderConfigStore
+
 	// EmailSender sends raw transactional emails. Prefer Mailer for
 	// template-rendered messages. Kept for backward compatibility with tests.
 	// Nil if email is not configured.
@@ -389,14 +395,16 @@ func NewServer(cfg Config) *Server {
 			slog.Warn("failed to open PostgreSQL stores", "error", err)
 		} else {
 			s.ContentStore = pg.Content
-			// Encrypt secret columns (connector credentials) at rest when a key
-			// is configured. The key was validated at startup; log defensively.
+			// Encrypt secret columns (connector credentials, AI provider keys) at
+			// rest when a key is configured. The key was validated at startup; log
+			// defensively. The same cipher seals the provider_configs store below.
+			secretsCipher, cerr := crypto.NewCipher(cfg.SecretsKey)
+			if cerr != nil {
+				slog.Error("invalid secrets key; connector config and provider keys stored unencrypted", "error", cerr)
+				secretsCipher = nil
+			}
 			if pgStore, ok := pg.Content.(*bstore.PostgresStore); ok {
-				if secretsCipher, cerr := crypto.NewCipher(cfg.SecretsKey); cerr == nil {
-					pgStore.SetSecretsCipher(secretsCipher)
-				} else {
-					slog.Error("invalid secrets key; connector config stored unencrypted", "error", cerr)
-				}
+				pgStore.SetSecretsCipher(secretsCipher)
 			}
 			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
 			s.JobStore = pg.Job
@@ -404,6 +412,9 @@ func NewServer(cfg Config) *Server {
 			s.QuotaStore = pg.Quota
 			s.wsStores.pgDB = pg.DB
 			pgSQL := pg.DB.DB // embedded *sql.DB
+			// Workspace-scoped AI provider configs (Epic 004), sealed at rest with
+			// the same cipher. Backs the /:ws/providers handlers.
+			s.ProviderStore = bstore.NewProviderConfigStore(pgSQL, secretsCipher)
 			s.AuditLogger = event.NewAuditLogger(pgSQL, s.EventBus)
 			if cfg.AuditRetentionDays > 0 {
 				s.AuditRetention = event.NewAuditRetentionCleaner(
@@ -1027,6 +1038,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		if s.AuthStore != nil {
 			wsSpecific.Use(WorkspaceAccessMiddleware(s.AuthStore))
 			wsSpecific.Use(WeeklyAllocationMiddleware(s.BillingStore))
+			// Load per-workspace feature overrides so PlanGuard (and the
+			// entitlements surfaced to clients) honor admin-granted overrides.
+			wsSpecific.Use(FeatureOverridesMiddleware(s.BillingStore))
 		}
 		wsSpecific.GET("", s.HandleGetWorkspace)
 		wsSpecific.PUT("", s.HandleUpdateWorkspace)
@@ -1441,7 +1455,11 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 
 	// Actions — Bowrain AD-011: /:ws/:id/actions/:ref/<verb>
 	g.POST("/:id/actions/:ref/pseudo-translate", s.HandlePseudoTranslate)
-	g.POST("/:id/actions/:ref/ai-translate", s.HandleAITranslate, aiLimit, billing.QuotaGuard(s.BillingStore, s.billingGuardEvent()))
+	// ai-translate enforces the weekly-credit gate INSIDE the handler via
+	// billing.GuardSyncCredits (not QuotaGuard middleware) so it can exempt
+	// bring-your-own-key requests, which the middleware cannot see in the body.
+	// A per-IP AI throttle (003) still fronts it so a client cannot burst spend.
+	g.POST("/:id/actions/:ref/ai-translate", s.HandleAITranslate, aiLimit)
 	g.POST("/:id/actions/:ref/tm-translate", s.HandleTMTranslate)
 	g.POST("/:id/actions/:ref/export", s.HandleExportTranslatedFile)
 	g.POST("/:id/actions/:ref/qa-check", s.HandleQACheckFile)

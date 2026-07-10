@@ -11,6 +11,20 @@ import (
 )
 
 // QuotaStore tracks AI token usage per workspace and project.
+//
+// Accounting model (Epic 004 — hybrid AI providers and credits):
+//
+//   - Credits (bowrain/billing) are the single user-facing ledger. The weekly
+//     plan allowance + purchased top-up packs are what a workspace spends, sees,
+//     and is billed on. Deduction happens via billing.UsageHooks.DeductTokens.
+//   - This QuotaStore (the ai_usage / ai_quotas tables) is an INTERNAL ABUSE
+//     CAP, not a product meter. RecordUsage keeps a full record of every AI call
+//     (including bring-your-own-key calls, which burn no credits) and CheckQuota
+//     enforces a hard monthly token ceiling (DefaultMonthlyQuota) to bound
+//     runaway or abusive usage. It is never surfaced as the spendable balance.
+//
+// Keep recording usage for BOTH platform and BYO calls — the abuse cap must see
+// all traffic — while credit deduction is gated to platform-key calls only.
 type QuotaStore interface {
 	// CheckQuota returns the remaining tokens for a workspace (across all models).
 	// Returns (remaining, error). A negative remaining means over quota.
@@ -45,8 +59,13 @@ type UsageSummary struct {
 	PeriodStart     time.Time `json:"period_start"`
 }
 
-// DefaultMonthlyQuota is the default token quota per workspace per month.
-const DefaultMonthlyQuota int64 = 10_000_000 // 10M tokens
+// DefaultMonthlyQuota is the default monthly token ceiling per workspace. This
+// is an INTERNAL ABUSE CAP, not the product ledger — credits (bowrain/billing)
+// are the user-facing spend unit (Epic 004). It exists only to bound runaway or
+// abusive token usage (including on bring-your-own keys, which burn no credits);
+// it is deliberately set far above any normal weekly credit allowance so it
+// never fires for legitimate use.
+const DefaultMonthlyQuota int64 = 10_000_000 // 10M tokens/month (abuse ceiling)
 
 // quotaMigrations defines the schema for AI usage tracking.
 var quotaMigrations = []storage.Migration{

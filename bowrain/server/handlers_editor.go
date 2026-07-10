@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -545,8 +547,19 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 		return err
 	}
 
+	// Weekly-credit gate (Epic 004), BYO-aware. This synchronous route is not
+	// wrapped by QuotaGuard because the middleware cannot see the request body:
+	// a workspace out of platform credits but carrying its own key (saved
+	// provider_config_id or inline api_key) must still be allowed, mirroring the
+	// async enqueue pre-check. BYO burns no credits, so it is never gated.
+	byo := (req.ProviderConfigID != "" && req.ProviderConfigID != "platform") || req.APIKey != ""
+	if err := billing.GuardSyncCredits(c, s.BillingStore, byo, s.billingGuardEvent()); err != nil {
+		return err
+	}
+
 	wsID, _ := c.Get("workspace_id").(string)
-	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname, req, s.CredentialStore, s.BillingHooks, wsID)
+	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, s.ProviderStore, s.QuotaStore,
+		pid, streamParam(c), fname, req, s.BillingHooks, wsID, c.Param("ws"))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -938,110 +951,112 @@ func (s *Server) HandleDeleteTMEntry(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// HandleListProviderConfigs lists all saved AI provider configurations.
+// providerStoreToResponse projects a stored provider config onto the API view
+// (never the API key). Epic 004: the provider store is workspace-scoped Postgres.
+func providerStoreToResponse(c bstore.ProviderConfig) ProviderConfigResponse {
+	return ProviderConfigResponse{
+		ID:           c.ID,
+		Name:         c.Name,
+		ProviderType: c.Type,
+		Model:        c.Model,
+		BaseURL:      c.BaseURL,
+	}
+}
+
+// HandleListProviderConfigs lists the calling workspace's saved AI provider
+// configurations (Epic 004). Scoped to the :ws workspace; a read is gated by
+// PermManageConnectors (the same capability that governs writes) so provider
+// settings never leak across tenants. API keys are never returned.
 func (s *Server) HandleListProviderConfigs(c echo.Context) error {
-	// Provider configs expose credential metadata (provider, model, endpoints);
-	// gate listing behind the same permission as save/delete/test so a caller
-	// without connector-management rights cannot enumerate them.
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
-	if s.CredentialStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
+	if s.ProviderStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "providers not configured"})
 	}
-
-	// Partition by workspace: the credential store is a single global store
-	// shared by every workspace, so return only configs owned by the request's
-	// workspace. Without this any member with manage_connectors in one workspace
-	// could enumerate every tenant's provider/model/endpoint metadata.
 	wsID, _ := c.Get("workspace_id").(string)
-	out := make([]ProviderConfigResponse, 0)
-	for _, cfg := range s.CredentialStore.List() {
-		if cfg.WorkspaceID != wsID {
-			continue
-		}
-		out = append(out, toProviderConfigResponse(cfg))
+	if wsID == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "workspace not resolved"})
 	}
 
+	configs, err := s.ProviderStore.List(c.Request().Context(), wsID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	out := make([]ProviderConfigResponse, len(configs))
+	for i, cfg := range configs {
+		out[i] = providerStoreToResponse(cfg)
+	}
 	return c.JSON(http.StatusOK, out)
 }
 
-// HandleSaveProviderConfig creates or updates a provider configuration.
+// HandleSaveProviderConfig creates or updates a provider configuration for the
+// calling workspace (Epic 004). The API key is sealed at rest in Postgres; an
+// empty api_key on update leaves the stored key unchanged. This no longer writes
+// to the OS keychain, so it works in a headless production container.
 func (s *Server) HandleSaveProviderConfig(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
-	if s.CredentialStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
+	if s.ProviderStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "providers not configured"})
+	}
+	wsID, _ := c.Get("workspace_id").(string)
+	if wsID == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "workspace not resolved"})
 	}
 
 	var req SaveProviderConfigRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-
-	// Stamp the owning workspace so the config is partitioned on the shared store
-	// (List/Delete filter by it). On an update (req.ID set), verify the existing
-	// config belongs to this workspace before letting the caller overwrite it —
-	// otherwise a caller could hijack another tenant's config by id.
-	wsID, _ := c.Get("workspace_id").(string)
-	cfg := req.toCredentials()
-	cfg.WorkspaceID = wsID
-	if cfg.ID != "" {
-		existing, err := s.CredentialStore.Get(cfg.ID)
-		if err == nil && existing.WorkspaceID != wsID {
-			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "provider config not found"})
-		}
+	if req.Name == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name is required"})
 	}
 
-	saved, err := s.CredentialStore.Upsert(cfg)
+	saved, err := s.ProviderStore.Upsert(c.Request().Context(), &bstore.ProviderConfig{
+		ID:            req.ID,
+		WorkspaceID:   wsID,
+		WorkspaceSlug: c.Param("ws"),
+		Name:          req.Name,
+		Type:          req.ProviderType,
+		Model:         req.Model,
+		BaseURL:       req.BaseURL,
+		APIKey:        req.APIKey, // sealed on write; empty preserves the stored key
+	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: fmt.Sprintf("save provider config: %s", err)})
 	}
-
-	if req.APIKey != "" {
-		if err := s.CredentialStore.SetAPIKey(saved.ID, req.APIKey); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: fmt.Sprintf("save API key: %s", err)})
-		}
-	}
-
-	result := toProviderConfigResponse(saved)
-	return c.JSON(http.StatusCreated, result)
+	return c.JSON(http.StatusCreated, providerStoreToResponse(saved))
 }
 
-// HandleDeleteProviderConfig removes a provider configuration.
+// HandleDeleteProviderConfig removes a provider configuration owned by the
+// calling workspace (Epic 004). A config that belongs to another workspace is
+// indistinguishable from a missing one (404).
 func (s *Server) HandleDeleteProviderConfig(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
-	if s.CredentialStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
+	if s.ProviderStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "providers not configured"})
+	}
+	wsID, _ := c.Get("workspace_id").(string)
+	if wsID == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "workspace not resolved"})
 	}
 
-	id := c.Param("id")
-	// Verify workspace ownership before deleting: Remove takes a global id, so an
-	// unscoped delete would let a caller destroy another tenant's provider config
-	// (and its keychain API key) via /api/v1/<their-ws>/providers/<victim-id>.
-	wsID, _ := c.Get("workspace_id").(string)
-	existing, err := s.CredentialStore.Get(id)
-	if err != nil || existing.WorkspaceID != wsID {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "provider config not found"})
-	}
-	if err := s.CredentialStore.Remove(id); err != nil {
+	if err := s.ProviderStore.Delete(c.Request().Context(), wsID, c.Param("id")); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
-	_ = s.CredentialStore.DeleteAPIKey(id) // best-effort
-
 	return c.NoContent(http.StatusNoContent)
 }
 
-// HandleTestProviderConfig tests a provider configuration.
+// HandleTestProviderConfig tests a provider configuration by making a live
+// request. It uses the request-supplied raw API key directly (an unstored BYO
+// key) and never persists anything, so it needs no provider store.
 func (s *Server) HandleTestProviderConfig(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
-	}
-	if s.CredentialStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
 	}
 
 	var req SaveProviderConfigRequest
@@ -1049,8 +1064,7 @@ func (s *Server) HandleTestProviderConfig(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	cfg := req.toCredentials()
-	prov := editorCreateProvider(cfg.ProviderType, req.APIKey, cfg.Model)
+	prov := editorCreateProvider(req.ProviderType, req.APIKey, req.Model)
 	defer prov.Close()
 
 	if _, err := prov.Chat(c.Request().Context(), []aiprovider.Message{
