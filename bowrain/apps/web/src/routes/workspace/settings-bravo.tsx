@@ -19,6 +19,10 @@ export function SettingsBravoRoute() {
   const { activeWorkspace } = useWorkspace();
   const api = useApi();
   const ws = activeWorkspace?.slug ?? "";
+  // @bravo is dark by default (epic 015). Only load config/usage when entitled;
+  // otherwise this route is reachable only by direct URL and must not fire the
+  // now-gated (403) endpoints.
+  const bravoEnabled = Boolean(activeWorkspace?.features?.bravo);
 
   const [config, setConfig] = useState<BravoConfig | null>(null);
   const [tools, setTools] = useState<BravoToolInfo[]>([]);
@@ -32,7 +36,7 @@ export function SettingsBravoRoute() {
   }, [activeWorkspace]);
 
   useEffect(() => {
-    if (!ws) return;
+    if (!ws || !bravoEnabled) return;
     void api
       .bravoGetConfig(ws)
       .then(setConfig)
@@ -45,7 +49,7 @@ export function SettingsBravoRoute() {
       .bravoGetUsage(ws)
       .then(setUsage)
       .catch(() => {});
-  }, [api, ws]);
+  }, [api, ws, bravoEnabled]);
 
   const handleSave = useCallback(
     async (partial: Partial<BravoConfig>) => {
@@ -73,6 +77,19 @@ export function SettingsBravoRoute() {
   );
 
   if (!activeWorkspace) return null;
+
+  if (!bravoEnabled) {
+    return (
+      <div className="mx-auto w-full max-w-3xl py-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>@bravo Agent</CardTitle>
+            <CardDescription>The @bravo agent is not enabled for this workspace.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   if (!config) return <SettingsSkeleton />;
 

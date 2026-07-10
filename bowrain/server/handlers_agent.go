@@ -484,8 +484,16 @@ func (s *Server) HandleGetBravoUsage(c echo.Context) error {
 }
 
 // registerBravoRoutes registers all @bravo agent endpoints on a workspace group.
+//
+// The whole group is gated behind billing.FeatureBravo, which is dark by default
+// (false on every plan; see billing/plans.go) — so @bravo is off for all
+// workspaces at launch and can be enabled per-workspace via a control-plane
+// feature override (for founder dogfooding) or by flipping the plan matrix once
+// the runtime + billing guardrails are hardened. Un-entitled workspaces get a
+// 403 upgrade_required from PlanGuard before reaching any handler.
 func (s *Server) registerBravoRoutes(g *echo.Group) {
 	bravo := g.Group("/bravo")
+	bravo.Use(billing.PlanGuard(billing.FeatureBravo))
 
 	bravo.POST("/conversations", s.HandleCreateBravoConversation)
 	bravo.GET("/conversations", s.HandleListBravoConversations)

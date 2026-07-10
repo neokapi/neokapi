@@ -24,6 +24,13 @@ var ValidPlans = map[Plan]bool{
 type Feature string
 
 const (
+	// FeatureBravo gates the entire @bravo agent surface (chat panel, settings,
+	// routes). It is dark by default — false on every plan — because @bravo's
+	// self-hostable runtime is not launch-safe (see epic 015 / AD-016). The only
+	// way to enable it is a per-workspace FeatureOverride via the control plane,
+	// which lets the founder dogfood it without shipping it to customers. Flip a
+	// plan's entry to true once the runtime + billing guardrails are hardened.
+	FeatureBravo            Feature = "bravo"
 	FeatureBravoCodeExec    Feature = "bravo-code-exec"
 	FeatureConnectorsGit    Feature = "connectors-git"
 	FeatureConnectorsCustom Feature = "connectors-custom"
@@ -36,6 +43,7 @@ const (
 // This is the source of truth for feature gating.
 var PlanFeatures = map[Plan]map[Feature]bool{
 	PlanFree: {
+		FeatureBravo:            false,
 		FeatureBravoCodeExec:    false,
 		FeatureConnectorsGit:    false,
 		FeatureConnectorsCustom: false,
@@ -44,6 +52,7 @@ var PlanFeatures = map[Plan]map[Feature]bool{
 		FeatureCustomMT:         false,
 	},
 	PlanPro: {
+		FeatureBravo:            false,
 		FeatureBravoCodeExec:    false,
 		FeatureConnectorsGit:    true,
 		FeatureConnectorsCustom: false,
@@ -52,6 +61,7 @@ var PlanFeatures = map[Plan]map[Feature]bool{
 		FeatureCustomMT:         true,
 	},
 	PlanTeam: {
+		FeatureBravo:            false,
 		FeatureBravoCodeExec:    true,
 		FeatureConnectorsGit:    true,
 		FeatureConnectorsCustom: true,
@@ -60,6 +70,7 @@ var PlanFeatures = map[Plan]map[Feature]bool{
 		FeatureCustomMT:         true,
 	},
 	PlanEnterprise: {
+		FeatureBravo:            false,
 		FeatureBravoCodeExec:    true,
 		FeatureConnectorsGit:    true,
 		FeatureConnectorsCustom: true,

@@ -122,8 +122,12 @@ export function AppShell<V extends string = string>({
     sidebarProps.sidebarContext?.level === "workspace"
       ? sidebarProps.sidebarContext.activeView
       : undefined;
-  const subNavItems = activeView ? subNavConfig[activeView] : undefined;
-  const showSecondary = !!(subNavItems && onSubNavChange);
+  // hiddenSubNavIds arrives via sidebarProps (inherited from AppSidebarProps) and
+  // is also spread to AppSidebar below, so both sub-nav render paths stay in sync.
+  const subNavItems = activeView
+    ? subNavConfig[activeView]?.filter((item) => !sidebarProps.hiddenSubNavIds?.includes(item.id))
+    : undefined;
+  const showSecondary = !!(subNavItems && subNavItems.length > 0 && onSubNavChange);
 
   const lastSubNavRef = useRef<{ items: SubNavItem[]; title: string } | null>(null);
   if (subNavItems && activeView) {

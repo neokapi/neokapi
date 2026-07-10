@@ -917,6 +917,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		if s.AuthStore != nil {
 			wsSpecific.Use(WorkspaceAccessMiddleware(s.AuthStore))
 			wsSpecific.Use(WeeklyAllocationMiddleware(s.BillingStore))
+			// Load per-workspace feature overrides so PlanGuard (and the
+			// entitlements surfaced to clients) honor admin-granted overrides.
+			wsSpecific.Use(FeatureOverridesMiddleware(s.BillingStore))
 		}
 		wsSpecific.GET("", s.HandleGetWorkspace)
 		wsSpecific.PUT("", s.HandleUpdateWorkspace)

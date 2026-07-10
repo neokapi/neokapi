@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, type ReactNode } from "react";
 import { identifyUser } from "../posthog";
 import {
   Outlet,
@@ -145,6 +145,18 @@ function ConnectedTopBar({
 function ConnectedBravoTrigger() {
   const { state, actions } = useBravo();
   return <BravoPanelTrigger onClick={actions.togglePanel} active={state.panelOpen} />;
+}
+
+/**
+ * Mounts BravoProvider only when @bravo is entitled for the workspace. @bravo is
+ * dark by default (billing.FeatureBravo is false on every plan; epic 015): the
+ * server returns `features.bravo` on the workspace, gated by plan + per-workspace
+ * override. When off we render children without the provider so no @bravo network
+ * calls or chrome exist; the trigger/panel are also withheld (they useBravo() and
+ * would throw without the provider).
+ */
+function MaybeBravoProvider({ enabled, children }: { enabled: boolean; children: ReactNode }) {
+  return enabled ? <BravoProvider>{children}</BravoProvider> : <>{children}</>;
 }
 
 /** @bravo chat panel — renders as an assistant-ui powered sidebar. */
@@ -684,6 +696,10 @@ export function WorkspaceLayout() {
 
   const isEditor = activeView === "translate";
 
+  // @bravo is dark by default (epic 015): only surface it when the server reports
+  // the workspace is entitled (plan matrix + per-workspace override).
+  const bravoEnabled = Boolean(activeWorkspace.features?.bravo);
+
   return (
     <AuthProvider initialUser={user}>
       <WorkspaceProvider
@@ -691,7 +707,7 @@ export function WorkspaceLayout() {
         initialWorkspace={activeWorkspace}
         initialWorkspaces={workspaces}
       >
-        <BravoProvider>
+        <MaybeBravoProvider enabled={bravoEnabled}>
           <StreamActionsProvider>
             <AppShell
               workspaces={workspaces}
@@ -701,6 +717,7 @@ export function WorkspaceLayout() {
               activeView={effectiveView}
               onViewChange={handleViewChange}
               extraNavItems={workspaceExtraNavItems}
+              hiddenSubNavIds={bravoEnabled ? undefined : ["bravo"]}
               user={user}
               onSignOut={serverMode === "server" ? handleSignOut : undefined}
               collapsed={sidebarCollapsed}
@@ -767,10 +784,10 @@ export function WorkspaceLayout() {
                       />
                     ) : undefined
                   }
-                  beforeAvatarSlot={<ConnectedBravoTrigger />}
+                  beforeAvatarSlot={bravoEnabled ? <ConnectedBravoTrigger /> : undefined}
                 />
               }
-              rightPanelSlot={<ConnectedBravoPanel />}
+              rightPanelSlot={bravoEnabled ? <ConnectedBravoPanel /> : undefined}
               contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
             >
               <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
@@ -778,7 +795,7 @@ export function WorkspaceLayout() {
               </StreamProvider>
             </AppShell>
           </StreamActionsProvider>
-        </BravoProvider>
+        </MaybeBravoProvider>
 
         <CreateWorkspaceDialog
           open={showCreateWs}
