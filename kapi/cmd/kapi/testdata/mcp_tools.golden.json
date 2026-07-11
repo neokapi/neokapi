@@ -2034,9 +2034,6 @@
       ],
       "title": "Recycle",
       "toolMeta": {
-        "aliases": [
-          "tm-leverage"
-        ],
         "cardinality": "bilingual",
         "category": "translation",
         "consumes": [
