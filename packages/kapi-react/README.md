@@ -272,7 +272,7 @@ Ideal for SSR/SSG (Next.js, Remix, Astro) where the locale is known at build or 
 
 ### Runtime/OTA mode (dynamic loading)
 
-Set `mode: 'runtime'` for apps that switch languages without rebuilding. The plugin emits lightweight `t()` and `tx()` calls (~2KB runtime).
+Set `mode: 'runtime'` for apps that switch languages without rebuilding. The plugin emits lightweight `__t()` and `__tx()` lookups (~2KB runtime).
 
 ```ts
 neokapi({ mode: "runtime" });
@@ -302,20 +302,32 @@ The runtime provides:
 ```ts
 import {
   t,
-  tx,
   useNeokapi,
+  NeokapiProvider,
   setTranslations,
   loadTranslations,
   loadTranslationChunk,
 } from "@neokapi/kapi-react/runtime";
 
-t(hash, fallback, params?)                        // String translation with ICU support
-tx(hash, fallback, elements, params?)             // Rich JSX translation (inline elements preserved)
-useNeokapi()                                      // React hook — re-renders on translation change
-setTranslations(locale, dict, { merge? })         // Set/merge translations synchronously
-loadTranslations(locale, url, { merge? })         // Fetch and activate (or merge) translations from URL
-loadTranslationChunk(locale, url)                 // Fetch one chunk and merge (deduped per locale+url)
+t(text, context?, params?)                 // Mark a JS string for translation (see below)
+useNeokapi()                               // React hook — re-renders on translation change
+<NeokapiProvider>                          // Makes a subtree repaint on locale switches
+setTranslations(locale, dict, { merge? })  // Set/merge translations synchronously
+loadTranslations(locale, url | urls[], { merge? })
+                                           // Fetch and activate; array = fallback chain,
+                                           // primary first, most-specific wins
+loadTranslationChunk(locale, url)          // Fetch one chunk and merge (deduped per locale+url)
 ```
+
+The plugin rewrites JSX text and `t()` calls into internal `__t` /
+`__tx` lookups at build time — those two are implementation detail,
+not API.
+
+> **Runtime mode is browser-only.** The dictionary is a module-level
+> store with no per-request isolation, so runtime-mode components must
+> not render on a server that serves concurrent locales. For SSR/RSC,
+> use inline mode (per-locale builds) — its output is plain JSX with
+> no runtime at all.
 
 ### Code splitting — lazy-load translations per route
 
@@ -361,16 +373,16 @@ For app-wide loading (no code splitting), keep using `loadTranslations(locale, u
 
 ### Inline elements in runtime mode
 
-Text with `<a>`, `<strong>`, or other inline elements uses `tx()` instead of `t()`. The plugin detects this automatically — no developer action needed.
+Text with `<a>`, `<strong>`, or other inline elements uses the rich `__tx()` lookup instead of `__t()`. The plugin detects this automatically — no developer action needed.
 
 ```jsx
 // Developer writes:
 <p>Click <a href="/settings">here</a> to manage your account.</p>
 
 // Plugin emits (runtime mode):
-<p>{tx("9qR", "Click {=m0} to continue.", { "=m0": <a href="/settings">here</a> })}</p>
+<p>{__tx("9qR", "Click {=m0} to continue.", { "=m0": <a href="/settings">here</a> })}</p>
 
-// tx() resolves translation, preserving the <a> element:
+// __tx() resolves translation, preserving the <a> element:
 // German: "Klicken Sie {=m0}, um Ihr Konto zu verwalten." → <a> inserted at {=m0}
 ```
 
@@ -561,7 +573,46 @@ Plurals and gender are **translator-driven**. The developer writes plain English
 }
 ```
 
-The runtime resolves ICU using `Intl.PluralRules` (built into all browsers, zero polyfill). In inline mode, ICU is resolved at build time.
+The runtime resolves ICU using `Intl.PluralRules` (built into all
+browsers, zero polyfill). In inline mode, ICU-bearing blocks keep a
+tiny runtime call with the **translated template baked in** — the
+plural pivot is a runtime value, so the form choice can't happen at
+build time, but no dictionary is fetched and everything else on the
+page stays pure JSX.
+
+## Number, Date, and Time Formatting
+
+The runtime resolves ICU formatting arguments through the built-in
+`Intl` APIs — no formatter library ships to the browser:
+
+```json
+{
+  "aB3x9": "Total: {total, number, currency/EUR}",
+  "cD4y1": "{pct, number, percent} complete",
+  "eF5z2": "Due {when, date, long} at {when, time, short}"
+}
+```
+
+Supported: `{x, number}` (locale separators), `number, integer`,
+`number, percent`, `number, currency/EUR`; `{d, date, short|medium|
+long|full}` and `{t, time, …}` (accepting `Date`, epoch numbers, or
+ISO strings). `#` inside plural branches is locale-number-formatted.
+
+## Key Stability
+
+Every string's key is a 64-bit content hash of its **flat template**
+(text with `{name}` / `{=mN}` tokens) plus a descriptor that is the
+element's **own tag only** — never its ancestors. Wrapping a
+`<p>` in a `<div>`, a `<Card>`, or three layout containers does not
+change its key, so refactors never orphan translations. Keys change
+when the text changes, the element type changes, or you add explicit
+context (`data-i18n-note`, `t(text, context)`).
+
+Mapping a component **itself** in `componentMap` (e.g. `Hint → p`)
+changes that element's descriptor — the plugin warns when an unmapped
+component has translatable text so you map it before translating, not
+after. Upgrading from a pre-2.0 catalog? `kapi-react migrate-keys`
+rewrites dictionaries and `.klf` trees in place (see CLI below).
 
 ## Translatability Rules
 
@@ -573,12 +624,15 @@ The plugin automatically determines what to translate using W3C HTML5 defaults:
 | `button`, `label`, `legend`, `option` | `script`, `style`, `textarea` | `header`, `footer`, `article`   |
 | `span`, `strong`, `em`, `a`, `b`, `i` |                               | `table`, `ul`, `ol`, `dl`       |
 
-**Translatable attributes:** `alt`, `title`, `placeholder`, `aria-label`, `aria-description`,
-`aria-placeholder`, `aria-roledescription`, `aria-valuetext`, `subtitle`, `description`,
-`label`, `heading`, `caption`, `helpText`, `helperText`, `errorMessage`, `hint`,
-`tooltip`, `emptyMessage`, `emptyStateText`, `filterPlaceholder`. Extracted from any
-element (mapped or not), so `<PageHeader title="Translation Memories" />` works
-without a componentMap entry.
+**Translatable attributes.** HTML/ARIA attributes — `alt`, `title`,
+`placeholder`, `aria-label`, `aria-description`, `aria-placeholder`,
+`aria-roledescription`, `aria-valuetext` — extract from **any**
+element. Convention props — `subtitle`, `description`, `label`,
+`heading`, `caption`, `helpText`, `helperText`, `errorMessage`,
+`hint`, `tooltip`, `emptyMessage`, `emptyStateText`,
+`filterPlaceholder` — extract from **PascalCase components only**
+(so `<PageHeader title="Translation Memories" />` works without a
+componentMap entry, while `<div label="enum-key">` is left alone).
 
 ### Auto-promotion for containers
 
@@ -760,7 +814,7 @@ pay nothing for the import.
 
 ## CLI
 
-Two subcommands, run via `vp run` or `vpx kapi-react`:
+Run via `vp run` or `vpx kapi-react`:
 
 ```bash
 vpx kapi-react extract [options]
@@ -785,6 +839,20 @@ Options:
                           Defaults to every locale found on block.targets
                           and in manifest.project.targetLocales.
   --out <dir>             Output directory (default: "public/translations")
+
+vpx kapi-react explain <file-or-glob>... [--extracted]
+
+  Prints every element's W3C ITS classification, why it was or wasn't
+  extracted (promotion, translate="no", block-level children, …), and
+  the hash it received — the audit trail for the zero-config claims.
+
+vpx kapi-react migrate-keys [--dicts <dir>] [--klf <dir>] [--dry-run]
+
+  One-shot migration from the pre-2.0 key scheme (32-bit hash over the
+  full ancestor path). Re-extracts the current sources computing both
+  hashes per block and rewrites compiled dictionaries and .klf trees in
+  place, preserving targets. Orphans are kept and reported; recover
+  them via kapi's TM after re-extracting.
 ```
 
 The boundary is: `kapi-react` emits extracted blocks (as KLF files
