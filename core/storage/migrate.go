@@ -2,11 +2,11 @@ package storage
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -25,21 +25,7 @@ var validTableName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 // the project TM) would otherwise race to apply the same versions. Keyed by
 // path, so unrelated databases never wait on each other; in-memory databases
 // are excluded (each is private to its pool).
-var (
-	migrateLocksMu sync.Mutex
-	migrateLocks   = map[string]*sync.Mutex{}
-)
-
-func migrateLock(path string) *sync.Mutex {
-	migrateLocksMu.Lock()
-	defer migrateLocksMu.Unlock()
-	l, ok := migrateLocks[path]
-	if !ok {
-		l = &sync.Mutex{}
-		migrateLocks[path] = l
-	}
-	return l
-}
+var migrateLocks pathLocks
 
 // Migrate applies schema migrations to the database using a namespaced migration
 // tracking table. Each subsystem (sievepen, termbase) should use a distinct
@@ -54,7 +40,7 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 		return fmt.Errorf("invalid migration table name: %q", tableName)
 	}
 	if db.Path() != "" && !isMemoryDSN(db.Path()) {
-		l := migrateLock(db.Path())
+		l := migrateLocks.get(db.Path())
 		l.Lock()
 		defer l.Unlock()
 	}
@@ -99,11 +85,18 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 	return nil
 }
 
+// errLostRace marks the one non-lock condition applyMigration retries: another
+// applier committed this migration's version row between our in-transaction
+// re-check and our own insert. Only the version-row INSERT raises it. A UNIQUE
+// violation from a migration's *own* statements is a real fault — retrying it
+// for the whole window would bury the actual error under a timeout — so the
+// retry predicate tests this sentinel rather than the error text.
+var errLostRace = errors.New("migration version already recorded by a concurrent applier")
+
 // applyMigration applies one migration, tolerating a concurrent applier in
 // another process: the version is re-checked inside the transaction, a lost
-// race (unique-constraint on the version row, or the migration's DDL already
-// present) retries and then reads as already-applied, and transient lock
-// contention retries within a bounded window.
+// race on the version row retries and then reads as already-applied, and
+// transient lock contention retries within a bounded window.
 func applyMigration(db *DB, tableName string, m Migration) error {
 	const window = 15 * time.Second
 	delay := 10 * time.Millisecond
@@ -114,7 +107,7 @@ func applyMigration(db *DB, tableName string, m Migration) error {
 			_ = applied
 			return nil
 		}
-		retryable := isBusyErr(err) || isUniqueErr(err)
+		retryable := isBusyErr(err) || errors.Is(err, errLostRace)
 		if !retryable || time.Now().After(deadline) {
 			return err
 		}
@@ -158,8 +151,13 @@ func tryApplyMigration(db *DB, tableName string, m Migration) (bool, error) {
 		m.Version, m.Description,
 	); err != nil {
 		_ = tx.Rollback()
-		if isBusyErr(err) || isUniqueErr(err) {
-			return false, err // retryable; a unique hit means another applier won
+		if isBusyErr(err) {
+			return false, err // retryable
+		}
+		if isUniqueErr(err) {
+			// Another applier recorded this version first: retry, re-check, and
+			// read it as already-applied.
+			return false, fmt.Errorf("%w: migration %d: %w", errLostRace, m.Version, err)
 		}
 		return false, fmt.Errorf("record migration %d: %w", m.Version, err)
 	}

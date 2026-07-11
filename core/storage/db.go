@@ -40,23 +40,53 @@ type DB struct {
 	path string
 }
 
-// openMu serializes Open's create-and-apply-pragmas sequence within the
-// process. Two connections racing to switch a fresh database's journal mode
-// to WAL can hit SQLite's deadlock-avoidance path, which returns
-// "database is locked" IMMEDIATELY — bypassing busy_timeout entirely — so a
-// concurrent first open of the same file (converge workers each opening the
-// project TM) failed spuriously. Opens are millisecond-scale; one process-wide
-// mutex is cheaper than a per-path map and removes the race for every caller.
+// pathLocks hands out one mutex per database file, so callers that must
+// serialize on a given database never serialize against unrelated ones.
+type pathLocks struct {
+	mu sync.Mutex
+	m  map[string]*sync.Mutex
+}
+
+func (p *pathLocks) get(path string) *sync.Mutex {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.m == nil {
+		p.m = map[string]*sync.Mutex{}
+	}
+	l, ok := p.m[path]
+	if !ok {
+		l = &sync.Mutex{}
+		p.m[path] = l
+	}
+	return l
+}
+
+// openLocks serializes Open's create-and-apply-pragmas sequence per database
+// file. Two connections racing to switch a fresh database's journal mode to
+// WAL can hit SQLite's deadlock-avoidance path, which returns "database is
+// locked" IMMEDIATELY — bypassing busy_timeout entirely — so a concurrent
+// first open of the same file (converge workers each opening the project TM)
+// failed spuriously.
+//
+// The lock is held across applyPragmasRetry, whose retry window is measured in
+// seconds when a cross-process opener holds the file, so it must be per-path:
+// a process-wide lock would park every other database's Open — TM, termbase,
+// block store — behind one worker's wait. In-memory databases are private to
+// their pool and need no lock at all.
+//
 // (Cross-process first-open races remain covered by the DSN busy_timeout,
 // which handles the plain-contention case.)
-var openMu sync.Mutex
+var openLocks pathLocks
 
 // Open opens a SQLite database at the given path with shared pragmas.
 // Use ":memory:" for in-memory databases (useful for testing).
 // Parent directories must already exist; the file is created on demand.
 func Open(dbPath string) (*DB, error) {
-	openMu.Lock()
-	defer openMu.Unlock()
+	if !isMemoryDSN(dbPath) {
+		l := openLocks.get(dbPath)
+		l.Lock()
+		defer l.Unlock()
+	}
 	// Set the busy timeout in the DSN so every pooled connection waits for locks
 	// from the moment it is established — before any pragma runs. Without this,
 	// the very first `PRAGMA journal_mode=WAL` can hit "database is locked" when a
