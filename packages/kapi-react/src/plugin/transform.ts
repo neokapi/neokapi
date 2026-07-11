@@ -448,14 +448,12 @@ function walkModule(
     if (node.type === "JSXFragment" && fragmentVisitor) {
       const frag = node as JSXFragment;
       const { skipChildren } = fragmentVisitor(frag, jsxAncestors);
-      if (skipChildren) {
-        // Consumed fragments still surface conditional JSX inside
-        // expression containers, mirroring element behavior.
-        for (const child of frag.children || []) {
-          if (child.type === "JSXExpressionContainer") walk(child, jsxAncestors);
-        }
-        return;
-      }
+      // A consumed fragment's children were captured verbatim into
+      // its op — descending would emit ops nested inside that range
+      // (the op-disjointness check throws). Same rule as consumed
+      // elements. (The extract walker DOES revisit expression
+      // containers — it only emits blocks, never ops.)
+      if (skipChildren) return;
       for (const child of frag.children || []) walk(child, jsxAncestors);
       return;
     }

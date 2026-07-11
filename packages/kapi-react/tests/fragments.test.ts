@@ -71,3 +71,20 @@ describe("fragment transform (runtime mode)", () => {
     expect(out?.match(/__t\(/g)?.length).toBe(2);
   });
 });
+
+describe("consumed fragments with conditional JSX (TMFacetSidebar regression)", () => {
+  it("emits ONE op for the whole fragment — never nested ops inside its range", () => {
+    const code = `const x = (
+      <>
+        {hiddenCount} more
+        {hiddenSelected > 0 && (
+          <span className="ml-1">({hiddenSelected} selected)</span>
+        )}
+      </>
+    );`;
+    // Pre-fix this threw "[neokapi] overlapping transform ops".
+    const out = rt(code);
+    expect(out).toContain("__tx(");
+    expect(() => parseSync(out as string, { syntax: "typescript", tsx: true })).not.toThrow();
+  });
+});
