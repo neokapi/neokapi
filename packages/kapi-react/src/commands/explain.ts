@@ -19,7 +19,7 @@ type ExplainConfig = Pick<PluginOptions, "componentMap" | "rules">;
 const OUTCOME_LABEL: Record<ExplainDecision["outcome"], string> = {
   extracted: "extracted",
   "extracted-promoted": "extracted (container promoted: direct text + inline children)",
-  "skipped-translate-no": "skipped — translate=\"no\" on self or ancestor",
+  "skipped-translate-no": 'skipped — translate="no" on self or ancestor',
   "skipped-not-translatable": "skipped — classified non-translatable",
   "skipped-no-text": "skipped — no translator-editable text",
   "skipped-block-children": "skipped — has block-level children (they extract separately)",
@@ -71,7 +71,9 @@ export async function runExplain(args: string[]): Promise<void> {
         `  L${String(d.line).padEnd(4)} ${tagLabel.padEnd(28)} [${classLabel}] ${OUTCOME_LABEL[d.outcome]}${hash}${note}`,
       );
       for (const [attr, attrHash] of Object.entries(d.attributes)) {
-        console.log(`  ${"".padEnd(5)} ${`  ↳ ${attr}`.padEnd(28)} [attribute] extracted  hash=${attrHash}`);
+        console.log(
+          `  ${"".padEnd(5)} ${`  ↳ ${attr}`.padEnd(28)} [attribute] extracted  hash=${attrHash}`,
+        );
       }
     }
   }

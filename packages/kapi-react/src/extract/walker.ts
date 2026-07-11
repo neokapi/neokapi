@@ -568,9 +568,7 @@ class BlockCollector {
       const legacyPath = legacyJSXPath(ancestors, el, this.componentMap);
       const legacyContext =
         branchIndex === null ? `${legacyPath}[${name}]` : `${legacyPath}[${name}::${branchIndex}]`;
-      const legacyDesc = locNote
-        ? `${legacyContext}${CONTEXT_SEPARATOR}${locNote}`
-        : legacyContext;
+      const legacyDesc = locNote ? `${legacyContext}${CONTEXT_SEPARATOR}${locNote}` : legacyContext;
       this.onKeyPair({ legacyHash: legacyHashKey(text, legacyDesc), hash });
     }
 

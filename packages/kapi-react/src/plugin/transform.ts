@@ -282,7 +282,18 @@ export function transform(
       return { skipChildren: r.consumed };
     },
     (frag, ancestors) => {
-      const r = processFragment(frag, ancestors, buf, componentMap, mode, dict, options, s, ops, hashes);
+      const r = processFragment(
+        frag,
+        ancestors,
+        buf,
+        componentMap,
+        mode,
+        dict,
+        options,
+        s,
+        ops,
+        hashes,
+      );
       if (r.runtime === "runtime-t") needsT = true;
       if (r.runtime === "runtime-tx") {
         needsT = true;
@@ -534,9 +545,7 @@ function processElement(
     ops,
     hashes,
   );
-  let usedRuntime: "runtime-t" | "runtime-tx" | null = attrResult.usedRuntime
-    ? "runtime-t"
-    : null;
+  let usedRuntime: "runtime-t" | "runtime-tx" | null = attrResult.usedRuntime ? "runtime-t" : null;
 
   // In review mode, attribute-only elements still get a stamp so the
   // overlay can reach placeholder/aria strings.

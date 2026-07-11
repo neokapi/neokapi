@@ -37,9 +37,7 @@ describe("hash stability — refactors that must NOT change the key", () => {
 
   it("wrapping in layout containers", () => {
     expect(singleHash("<div><p>Save changes</p></div>")).toBe(base);
-    expect(singleHash("<div><section><main><p>Save changes</p></main></section></div>")).toBe(
-      base,
-    );
+    expect(singleHash("<div><section><main><p>Save changes</p></main></section></div>")).toBe(base);
   });
 
   it("wrapping in unmapped components", () => {

@@ -64,8 +64,7 @@ export function neokapiDecorator(opts: NeokapiStorybookOptions): Decorator {
   const byValue = new Map(opts.locales.map((l) => [l.value, l]));
 
   return (Story, context) => {
-    const value =
-      (context.globals.locale as string | undefined) ?? opts.locales[0]?.value ?? "en";
+    const value = (context.globals.locale as string | undefined) ?? opts.locales[0]?.value ?? "en";
 
     // Decorators render as React components, so hooks are available.
     const [applied, setApplied] = useState<string | null>(null);

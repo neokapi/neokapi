@@ -51,7 +51,9 @@ describe("review-mode stamping", () => {
   it("stamps both when an element has content and attributes", () => {
     const out = rt('<button aria-label="Close dialog">Save</button>');
     expect(out).toContain(`data-kapi-id="${hashKey("Save", "button")}"`);
-    expect(out).toContain(`data-kapi-attr="aria-label:${hashKey("Close dialog", "button[aria-label]")}"`);
+    expect(out).toContain(
+      `data-kapi-attr="aria-label:${hashKey("Close dialog", "button[aria-label]")}"`,
+    );
   });
 
   it("emits nothing extra when review is off", () => {
@@ -190,15 +192,20 @@ describe("handleReviewRequest", () => {
     const store = new ReviewStore(join(dir, "i18n"));
 
     const res = fakeRes();
-    const handled = handleReviewRequest(store, { method: "GET" } as never, res as never, `/${hash}`);
+    const handled = handleReviewRequest(
+      store,
+      { method: "GET" } as never,
+      res as never,
+      `/${hash}`,
+    );
     expect(handled).toBe(true);
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body).sourceText).toBe("Welcome back");
 
     const res2 = fakeRes();
-    expect(
-      handleReviewRequest(store, { method: "POST" } as never, res2 as never, `/${hash}`),
-    ).toBe(false);
+    expect(handleReviewRequest(store, { method: "POST" } as never, res2 as never, `/${hash}`)).toBe(
+      false,
+    );
   });
 
   it("GET annotations returns the by-hash map", () => {

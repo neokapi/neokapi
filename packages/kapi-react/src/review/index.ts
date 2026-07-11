@@ -180,7 +180,8 @@ async function openPanel(endpoint: string, hash: string, el: Element): Promise<v
   closePanel();
   const locale = activeLocale();
   const target = payload.targets[locale]?.text ?? "";
-  const loc = el.getAttribute("data-kapi-loc") ?? `${payload.properties.file}:${payload.properties.line}`;
+  const loc =
+    el.getAttribute("data-kapi-loc") ?? `${payload.properties.file}:${payload.properties.line}`;
 
   const panel = document.createElement("div");
   panel.id = "kapi-review-panel";
@@ -244,7 +245,9 @@ function shortType(t: string): string {
 }
 
 function annotationSummary(data: unknown): string | null {
-  if (data === null || typeof data !== "object") return data == null ? null : String(data);
+  if (typeof data === "string") return data;
+  if (typeof data === "number" || typeof data === "boolean") return JSON.stringify(data);
+  if (data === null || typeof data !== "object") return null;
   const d = data as Record<string, unknown>;
   for (const key of ["message", "term", "text", "match", "note", "summary"]) {
     if (typeof d[key] === "string") return d[key] as string;

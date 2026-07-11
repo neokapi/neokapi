@@ -73,7 +73,10 @@ describe("loadTranslations fallback chain", () => {
   });
 
   it("single-URL form keeps its original contract", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ x: "X" })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ x: "X" })),
+    );
     await loadTranslations("de", "/t/de.json", { syncDocumentLocale: false });
     expect(__t("x", "src")).toBe("X");
   });

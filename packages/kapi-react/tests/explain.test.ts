@@ -27,7 +27,7 @@ describe("onDecision explain channel", () => {
     expect(div?.outcome).toBe("extracted-promoted");
   });
 
-  it("reports translate=\"no\" skips", () => {
+  it('reports translate="no" skips', () => {
     const [d] = explain('<h1 translate="no">Skip</h1>');
     expect(d.outcome).toBe("skipped-translate-no");
   });

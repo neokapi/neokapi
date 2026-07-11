@@ -83,7 +83,8 @@ describe("# inside plural branches", () => {
 
 describe("composition", () => {
   it("nests formatting inside plural branches", () => {
-    const msg = "{n, plural, one {{total, number, currency/USD} for one} other {{total, number, currency/USD} for #}}";
+    const msg =
+      "{n, plural, one {{total, number, currency/USD} for one} other {{total, number, currency/USD} for #}}";
     expect(resolveICU(msg, { n: 3, total: 12 }, "en")).toBe("$12.00 for 3");
   });
 });

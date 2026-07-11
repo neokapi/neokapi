@@ -179,8 +179,7 @@ function formatValue(
     if (Number.isNaN(n)) return String(raw);
     return formatNumber(n, style, locale);
   }
-  const date =
-    raw instanceof Date ? raw : new Date(typeof raw === "number" ? raw : String(raw));
+  const date = raw instanceof Date ? raw : new Date(typeof raw === "number" ? raw : String(raw));
   if (Number.isNaN(date.getTime())) return String(raw);
   const styleValue = isDateTimeStyle(style) ? style : "medium";
   try {
@@ -199,7 +198,7 @@ function isDateTimeStyle(style: string): style is "short" | "medium" | "long" | 
 
 function formatNumber(n: number, style: string, locale: string): string {
   try {
-    if (style === "" ) return new Intl.NumberFormat(locale).format(n);
+    if (style === "") return new Intl.NumberFormat(locale).format(n);
     if (style === "integer") {
       return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(n);
     }

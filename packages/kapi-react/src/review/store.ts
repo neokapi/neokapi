@@ -139,7 +139,7 @@ export class ReviewStore {
         if (!anchor?.block) continue;
         const list = this.annotations.get(anchor.block) ?? [];
         list.push({
-          id: String(rec.id ?? ""),
+          id: typeof rec.id === "string" ? rec.id : "",
           annotationType,
           anchor,
           data: rec.data,

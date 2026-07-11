@@ -176,7 +176,9 @@ describe("extractDocument — element blocks", () => {
     const block = onlyBlock(extract("<li><button>Save</button></li>"));
     expect(block.properties.jsxPath).toBe("button");
     // Wrapping the same button deeper must NOT change its hash.
-    const wrapped = onlyBlock(extract("<div><section><li><button>Save</button></li></section></div>"));
+    const wrapped = onlyBlock(
+      extract("<div><section><li><button>Save</button></li></section></div>"),
+    );
     expect(wrapped.hash).toBe(block.hash);
   });
 });

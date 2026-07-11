@@ -32,9 +32,7 @@ describe("fragment extraction", () => {
   it("extracts mixed text + params + inline elements in a fragment", () => {
     const doc = extract("const x = <>Welcome <strong>{user.name}</strong>!</>;");
     expect(doc?.blocks.length).toBe(1);
-    expect(doc!.blocks[0].hash).toBe(
-      hashKey("Welcome {=m0}{user.name}{/=m0}!", "fragment"),
-    );
+    expect(doc!.blocks[0].hash).toBe(hashKey("Welcome {=m0}{user.name}{/=m0}!", "fragment"));
   });
 
   it("leaves fragments with block-level children to their inner blocks", () => {
@@ -43,7 +41,7 @@ describe("fragment extraction", () => {
     expect(paths).toEqual(["h1", "p"]);
   });
 
-  it("respects ancestor translate=\"no\"", () => {
+  it('respects ancestor translate="no"', () => {
     const doc = extract('const x = <div translate="no">{cond && <>skip me</>}</div>;');
     expect(doc).toBeNull();
   });

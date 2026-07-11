@@ -15,7 +15,9 @@ const PAYLOAD = {
   targets: { de: { text: "Willkommen zurück" } },
   properties: { file: "src/Page.tsx", line: 4, component: "Page", element: "h1" },
   placeholders: [],
-  annotations: [{ id: "a1", annotationType: "@neokapi/term-detector", data: { term: "Willkommen" } }],
+  annotations: [
+    { id: "a1", annotationType: "@neokapi/term-detector", data: { term: "Willkommen" } },
+  ],
 };
 
 function altClick(el: Element): void {
