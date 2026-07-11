@@ -64,13 +64,6 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "word_count",
-		Description: "Count translatable words in a file",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input WordCountInput) (*mcp.CallToolResult, WordCountOutput, error) {
-		return handleWordCount(ctx, a, input)
-	})
-
-	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_tools",
 		Description: "List all available processing tools",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, ListToolsOutput, error) {
@@ -136,19 +129,6 @@ type RunFlowOutput struct {
 	FlowName   string `json:"flow_name"`
 	InputPath  string `json:"input_path"`
 	OutputPath string `json:"output_path"`
-}
-
-type WordCountInput struct {
-	Path       string `json:"path" jsonschema:"File path to count words in"`
-	Format     string `json:"format,omitempty" jsonschema:"Override format detection"`
-	SourceLang string `json:"source_lang,omitempty" jsonschema:"Source language (default: en)"`
-	Project    string `json:"project,omitempty" jsonschema:"Path to .kapi project file for scoped format detection"`
-}
-
-type WordCountOutput struct {
-	WordCount  int    `json:"word_count"`
-	BlockCount int    `json:"block_count"`
-	Format     string `json:"format"`
 }
 
 type PseudoTranslateInput struct {
@@ -409,38 +389,6 @@ func handleListFlows() (*mcp.CallToolResult, ListFlowsOutput, error) {
 		})
 	}
 	return nil, ListFlowsOutput{Flows: flows, Total: len(flows)}, nil
-}
-
-func handleWordCount(ctx context.Context, a *cli.App, input WordCountInput) (*mcp.CallToolResult, WordCountOutput, error) {
-	fmtName, reader, err := openReader(ctx, a, input.Path, input.Format, input.SourceLang, input.Project)
-	if err != nil {
-		return nil, WordCountOutput{}, err
-	}
-	defer reader.Close()
-
-	var wordCount, blockCount int
-	for result := range reader.Read(ctx) {
-		if result.Error != nil {
-			return nil, WordCountOutput{}, fmt.Errorf("read error: %w", result.Error)
-		}
-		if result.Part.Type == model.PartBlock {
-			blk, ok := result.Part.Resource.(*model.Block)
-			if !ok {
-				continue
-			}
-			if !blk.Translatable {
-				continue
-			}
-			wordCount += blk.WordCount()
-			blockCount++
-		}
-	}
-
-	return nil, WordCountOutput{
-		WordCount:  wordCount,
-		BlockCount: blockCount,
-		Format:     fmtName,
-	}, nil
 }
 
 func handleListTools(a *cli.App) (*mcp.CallToolResult, ListToolsOutput, error) {

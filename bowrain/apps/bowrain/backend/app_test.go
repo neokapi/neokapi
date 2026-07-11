@@ -42,7 +42,7 @@ func TestListTools(t *testing.T) {
 	tools := app.ListTools()
 	// The exact count drifts as tools are added/removed; assert a floor and
 	// the specific tools below rather than a brittle hardcoded number.
-	assert.GreaterOrEqual(t, len(tools), 40, "expected at least 40 tools")
+	assert.GreaterOrEqual(t, len(tools), 28, "expected at least 28 tools")
 
 	names := make(map[string]bool)
 	for _, tl := range tools {
@@ -51,8 +51,6 @@ func TestListTools(t *testing.T) {
 	assert.True(t, names["translate"])
 	assert.True(t, names["qa"])
 	assert.True(t, names["pseudo-translate"])
-	assert.True(t, names["word-count"])
-	assert.True(t, names["char-count"])
 	assert.True(t, names["search-replace"])
 	assert.True(t, names["tag-protect"])
 	assert.True(t, names["term-check"])

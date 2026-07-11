@@ -278,26 +278,26 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	seen := make([]int, len(blocks)) // per-block count of findings already mapped
 
 	// Hygiene — always on, no configuration needed.
-	a.runFamily(ctx, blocks, coretools.NewContentLintTool(&coretools.ContentLintConfig{}))
+	a.runFamily(ctx, blocks, check.NewContentLintTool())
 	diags = append(diags, mapBlockDeltas(blocks, seen, "hygiene", file)...)
 
 	// Length — only when a limit is set.
 	if opts.maxChars > 0 || opts.maxWords > 0 {
-		cfg := &coretools.LengthCheckConfig{CheckSource: true, MaxChars: opts.maxChars, MaxWords: opts.maxWords}
-		if err := cfg.Validate(); err != nil {
+		lengthTool, err := check.NewSourceLengthTool(opts.maxChars, opts.maxWords)
+		if err != nil {
 			return nil, err
 		}
-		a.runFamily(ctx, blocks, coretools.NewLengthCheckTool(cfg))
+		a.runFamily(ctx, blocks, lengthTool)
 		diags = append(diags, mapBlockDeltas(blocks, seen, "length", file)...)
 	}
 
 	// Pattern — forbidden (must-not-match) and required (must-match).
 	if rules := patternRules(opts.forbid, opts.require); len(rules) > 0 {
-		cfg := &coretools.PatternCheckConfig{CheckSource: true, Patterns: rules}
-		if err := cfg.Validate(); err != nil {
+		patternTool, err := check.NewSourcePatternTool(rules)
+		if err != nil {
 			return nil, err
 		}
-		a.runFamily(ctx, blocks, coretools.NewPatternCheckTool(cfg))
+		a.runFamily(ctx, blocks, patternTool)
 		diags = append(diags, mapBlockDeltas(blocks, seen, "pattern", file)...)
 	}
 
@@ -390,13 +390,13 @@ func mapBlockDeltas(blocks []*model.Block, seen []int, family, file string) []ch
 
 // patternRules builds forbidden (must-not-match) and required (must-match)
 // pattern rules from the --forbid / --require flag values.
-func patternRules(forbid, require []string) []coretools.PatternRule {
-	var rules []coretools.PatternRule
+func patternRules(forbid, require []string) []check.PatternRule {
+	var rules []check.PatternRule
 	for i, p := range forbid {
-		rules = append(rules, coretools.PatternRule{Name: fmt.Sprintf("forbidden-%d", i+1), Pattern: p, MustNotMatch: true})
+		rules = append(rules, check.PatternRule{Name: fmt.Sprintf("forbidden-%d", i+1), Pattern: p, MustNotMatch: true})
 	}
 	for i, p := range require {
-		rules = append(rules, coretools.PatternRule{Name: fmt.Sprintf("required-%d", i+1), Pattern: p, MustMatch: true})
+		rules = append(rules, check.PatternRule{Name: fmt.Sprintf("required-%d", i+1), Pattern: p, MustMatch: true})
 	}
 	return rules
 }

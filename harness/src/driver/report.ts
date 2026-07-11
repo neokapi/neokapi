@@ -98,13 +98,16 @@ function renderTermCheck(data: any): string {
   );
 }
 
-function renderWordCount(data: any): string {
-  const words = data.words ?? data.word_count ?? data.total_words ?? data.totalWords ?? 0;
-  const segs = data.segments ?? data.segment_count ?? data.blocks ?? 0;
-  const chars = data.characters ?? data.char_count ?? data.chars ?? 0;
+function renderStats(data: any): string {
+  // `kapi stats --json` emits { files: [...], total: {...} }; fall back to a
+  // flat record so older captures still render.
+  const total = data.total ?? data;
+  const words = total.words ?? total.word_count ?? 0;
+  const segs = total.segments ?? total.blocks ?? 0;
+  const chars = total.characters ?? total.chars ?? 0;
   return SHELL(
-    "Word count",
-    `<h1>Translation scope</h1><div class="sub">kapi word-count · planning a localization job</div>
+    "Content stats",
+    `<h1>Translation scope</h1><div class="sub">kapi stats · planning a localization job</div>
      <div class="card"><div style="display:flex;gap:56px">
        <div><div class="big">${Number(words).toLocaleString()}</div><div class="label">translatable words</div></div>
        <div><div class="big">${Number(segs).toLocaleString()}</div><div class="label">segments</div></div>
@@ -357,8 +360,8 @@ export function renderReport(kind: string, json: any, opts: { title?: string; su
       return renderBrand(json);
     case "term-check":
       return renderTermCheck(json);
-    case "word-count":
-      return renderWordCount(json);
+    case "stats":
+      return renderStats(json);
     case "glossary":
       return renderGlossary(json);
     case "catalog":

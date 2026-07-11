@@ -30,7 +30,7 @@ describe("buildRecipe", () => {
             target: false,
           },
         },
-        { tool: "word-count" },
+        { tool: "qa" },
       ],
     };
     const recipe = buildRecipe(spec);
@@ -99,7 +99,7 @@ describe("buildRecipe", () => {
   });
 
   it("omits defaults.tools when no presets are given", () => {
-    const recipe = buildRecipe({ steps: [{ tool: "word-count" }] });
+    const recipe = buildRecipe({ steps: [{ tool: "qa" }] });
     expect(recipe).not.toContain("  tools:");
   });
 });
@@ -166,11 +166,11 @@ describe("buildToolInfos", () => {
     expect(ait?.isSourceTransform).toBeFalsy();
   });
 
-  it("does NOT flag word-count as a transformer", () => {
+  it("does NOT flag term-check as a transformer", () => {
     const infos = buildToolInfos();
-    const wc = infos.find((t) => t.name === "word-count");
-    expect(wc).toBeDefined();
-    expect(wc?.isSourceTransform).toBeFalsy();
+    const tc = infos.find((t) => t.name === "term-check");
+    expect(tc).toBeDefined();
+    expect(tc?.isSourceTransform).toBeFalsy();
   });
 
   it("carries the canonical text-processing category for search-replace and redact", () => {

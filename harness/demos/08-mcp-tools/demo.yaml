@@ -4,7 +4,7 @@ subtitle: The same engine, exposed to the assistant as Model Context Protocol to
 kind: integration
 aspects:
   - MCP integration
-  - extract & word-count
+  - extract & stats
   - pseudo-translate
 needsAi: false
 mcp: true
@@ -18,10 +18,10 @@ prompt: >
 
 artifacts:
   - id: wordcount
-    caption: "kapi exec word-count on content.json — the real figure"
+    caption: "kapi stats on content.json — the real figure"
     source: command
-    command: kapi exec word-count content.json --json
-    report: word-count
+    command: kapi stats content.json --json
+    report: stats
     width: 1000
     height: 640
 
@@ -40,9 +40,9 @@ narration:
     kind: terminal
     text: >
       Each step is a typed tool call with a structured result, not text scraped from a
-      console. Claude asks kapi to detect the format, extract the translatable content with a
-      word count, and list the flows it offers.
-    caption: "Typed kapi exec calls over MCP, each returning structured data"
+      console. Claude asks kapi to detect the format, size the content with the stats tool,
+      and list the flows it offers.
+    caption: "Typed kapi tool calls over MCP, each returning structured data"
   - id: pseudo
     kind: terminal
     text: >

@@ -1,7 +1,7 @@
 // Helpers for the "Run this config" action in InteractiveConfig.
 //
 // Strategy:
-//   - **Formats (built-in)**: `kapi word-count --format <id> <fixture>` —
+//   - **Formats (built-in)**: `kapi stats --format <id> <fixture>` —
 //     proves the format reader works and produces real segment output. Only
 //     offered when a real fixture matches one of the format's extensions.
 //   - **Tools (built-in, direct command, default params)**: `kapi <tool-id>
@@ -103,12 +103,10 @@ const TOOL_COMMANDS = new Set([
   "scoping-report",
   "script",
   "search-replace",
-  "segment-count",
   "segmentation",
   "term-check",
   "recycle",
   "unredact",
-  "word-count",
 ]);
 
 /**
@@ -203,8 +201,8 @@ export function buildRunOptions(
 
   // ── Format entries ──────────────────────────────────────────────────────
   if (entry.kind === "format") {
-    // Show format parsing by running word-count with the format forced.
-    const cmd = `kapi word-count --format ${entry.id} ${fixture}`;
+    // Show format parsing by running stats with the format forced.
+    const cmd = `kapi stats --format ${entry.id} ${fixture}`;
     return { cmd, seed, autoRun: true };
   }
 

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
-	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	libtools "github.com/neokapi/neokapi/core/tools"
@@ -82,7 +81,7 @@ func TestToolTiering(t *testing.T) {
 		assert.False(t, sub.Hidden, "exec entry %q should be visible in `kapi exec --help`", sub.Name())
 	}
 	// Former curated tier + spot-checked demoted tools: exec-only.
-	for _, name := range []string{"translate", "pseudo-translate", "qa", "recycle", "word-count", "term-check", "content-lint", "length-check"} {
+	for _, name := range []string{"translate", "pseudo-translate", "qa", "recycle", "term-check", "case-transform", "search-replace"} {
 		assert.True(t, inGroup[name], "tool %q must be reachable under `kapi exec`", name)
 		assert.Nil(t, byName[name], "tool %q must not mount at the top level via NewToolCommands", name)
 	}
@@ -106,7 +105,7 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 
 	expectedTools := []string{
 		"translate", "pseudo-translate", "recycle", "qa",
-		"review", "word-count", "search-replace",
+		"review", "search-replace",
 		"segmentation", "script",
 	}
 	for _, name := range expectedTools {
@@ -160,8 +159,6 @@ func TestNewToolCommands_AliasesWork(t *testing.T) {
 	tools := execChildren(t, newTestApp())
 	require.NotNil(t, tools["pseudo-translate"])
 	assert.Contains(t, tools["pseudo-translate"].Aliases, "pseudo")
-	require.NotNil(t, tools["word-count"])
-	assert.Contains(t, tools["word-count"].Aliases, "wc")
 }
 
 func TestNewToolCommands_WritesOutputHasOutputFlag(t *testing.T) {
@@ -228,23 +225,4 @@ func TestAddCommandGroupsRegistersGroups(t *testing.T) {
 			root.AddCommand(cmd)
 		}, "group %q should be registered", id)
 	}
-}
-
-func TestCollectorFactories_WordCount(t *testing.T) {
-	cf, ok := CollectorFactories["word-count"]
-	require.True(t, ok, "word-count should have a collector factory")
-	collector := cf()
-	assert.NotNil(t, collector)
-}
-
-// TestCollectorFactories_SegmentCount guards the #721 fix: segment-count must
-// have a collector factory, otherwise RunToolOnFiles aggregates nothing and
-// prints empty output for every format.
-func TestCollectorFactories_SegmentCount(t *testing.T) {
-	cf, ok := CollectorFactories["segment-count"]
-	require.True(t, ok, "segment-count should have a collector factory")
-	collector := cf()
-	require.NotNil(t, collector)
-	_, isStreaming := collector.(flow.StreamingCollector)
-	assert.True(t, isStreaming, "segment-count collector should be a streaming collector")
 }

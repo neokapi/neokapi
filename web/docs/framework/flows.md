@@ -92,9 +92,9 @@ steps:
   - tool: create-target
     config: { copySource: true }
   - parallel:
-      - tool: word-count
       - tool: qa
-      - tool: char-count
+      - tool: term-check
+      - tool: xml-validation
 ```
 
 ### Transformers

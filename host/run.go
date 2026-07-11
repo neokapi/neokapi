@@ -110,6 +110,13 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	}
 
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
+	if len(inputPaths) > 0 {
+		expanded, ferr := resolveFiles(inputPaths)
+		if ferr != nil {
+			return ferr
+		}
+		inputPaths = expanded
+	}
 
 	// Resolve content patterns if no --input flag was provided. The resolved
 	// set is passed explicitly to runProjectStepsOver below (re-reading the

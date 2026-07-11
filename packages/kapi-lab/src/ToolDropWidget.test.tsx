@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import ToolDropWidget, { parseWordCountStat } from "./ToolDropWidget";
+import ToolDropWidget, { parseStatsStat } from "./ToolDropWidget";
 import PseudoTranslateWidget from "./PseudoTranslateWidget";
 import StatsWidget from "./StatsWidget";
 import SearchReplaceWidget, { buildSearchReplaceRecipe } from "./SearchReplaceWidget";
@@ -42,37 +42,35 @@ describe("buildSearchReplaceRecipe", () => {
   });
 });
 
-// ── parseWordCountStat ───────────────────────────────────────────────────────
+// ── parseStatsStat ───────────────────────────────────────────────────────────
 
-describe("parseWordCountStat", () => {
+describe("parseStatsStat", () => {
   const json = JSON.stringify({
-    total_source_words: 12,
-    document_count: 1,
-    documents: {
-      "/project/messages.json": { source_words: 12, block_count: 4 },
-    },
+    files: [{ file: "/project/messages.json", blocks: 4, words: 12, characters: 61 }],
+    total: { blocks: 4, translatable: 4, words: 12, characters: 61 },
   });
 
-  it("parses plain word-count --json into blocks/words/chars cards", () => {
-    const cards = parseWordCountStat(json);
-    expect(cards.map((c) => c.label)).toEqual(["Blocks", "Words", "~Characters"]);
+  it("parses kapi stats --json into blocks/words/characters cards", () => {
+    const cards = parseStatsStat(json);
+    expect(cards.map((c) => c.label)).toEqual(["Blocks", "Words", "Characters"]);
     expect(cards[0].value).toBe("4");
     expect(cards[1].value).toBe("12");
+    expect(cards[2].value).toBe("61");
   });
 
   it("strips ANSI colour codes the wasm build emits (CLICOLOR_FORCE=1)", () => {
     // Wrap keys/values in CSI sequences like the browser build does.
     const esc = String.fromCharCode(27); // ESC
     const colorized = json
-      .replace(/"total_source_words"/, `${esc}[1;34m"total_source_words"${esc}[0m`)
+      .replace(/"total"/, `${esc}[1;34m"total"${esc}[0m`)
       .replace(/12/g, `${esc}[33m12${esc}[0m`);
-    const cards = parseWordCountStat(colorized);
+    const cards = parseStatsStat(colorized);
     expect(cards.length).toBe(3);
     expect(cards[1].value).toBe("12");
   });
 
   it("returns no cards for unparseable output", () => {
-    expect(parseWordCountStat("not json")).toEqual([]);
+    expect(parseStatsStat("not json")).toEqual([]);
   });
 });
 
@@ -117,8 +115,8 @@ describe("ToolDropWidget (idle)", () => {
     render(
       <ToolDropWidget
         assets={null}
-        tool="word-count"
-        buildArgv={(i) => ["word-count", i, "--json"]}
+        tool="stats"
+        buildArgv={(i) => ["stats", i, "--json"]}
         sampleIds={["json"]}
         render="stat"
         autoRun={false}

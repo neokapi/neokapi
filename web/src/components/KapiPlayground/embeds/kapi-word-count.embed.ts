@@ -10,8 +10,9 @@ const config: WalkthroughEmbedConfig = {
   files: [],
   steps: [
     {
-      command: "kapi word-count messages.json",
-      narration: "Reports blocks and source words — the number you paste into a quote.",
+      command: "kapi stats messages.json",
+      narration:
+        "Reports blocks, words, characters, and segments — the numbers you paste into a quote.",
     },
   ],
 };

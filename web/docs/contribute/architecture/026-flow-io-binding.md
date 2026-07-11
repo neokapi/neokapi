@@ -342,7 +342,7 @@ Reads honour the locator by opening just that entry (`container.OpenEntry` —
 random access for ZIP, scan for TAR; the archive is not loaded whole), so
 `kapi inspect release.zip!docs/x.md` and `kcat`/`kgrep` on one inner file work.
 Inner content is attributed back as `<archive>!<entry>` everywhere a source is
-shown — `kapi inspect` records, `word-count` rows, `kgrep` match prefixes — via a
+shown — `kapi inspect` records, `kapi stats` rows, `kgrep` match prefixes — via a
 `container.entry` property the archive reader stamps on every block. Writes
 follow the binding: editing a single entry (`ksed -i 's/…/…/' release.zip!a.json`)
 splices just that entry back through the barrier sink, leaving every other member

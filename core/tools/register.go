@@ -83,53 +83,10 @@ func RegisterAll(reg *registry.ToolRegistry) {
 
 	// ── Validate ────────────────────────────────────────────────────
 
-	reg.RegisterWithSchema("word-count", func() tool.Tool {
-		cfg := &WordCountConfig{}
-		cfg.Reset()
-		return NewWordCountTool(cfg)
-	}, toolSchema(&WordCountConfig{CountSource: true, CountTarget: true}, toolMeta("word-count", "Word Count", schema.CategoryAnalysis,
-		withTags("analysis"), withAliases("wc"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoWordCount)))))
-
-	reg.RegisterWithSchema("char-count", func() tool.Tool {
-		cfg := &CharCountConfig{}
-		cfg.Reset()
-		return NewCharCountTool(cfg)
-	}, toolSchema(&CharCountConfig{CountSource: true, CountTarget: true}, toolMeta("char-count", "Character Count", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoCharCount)))))
-
-	reg.RegisterWithSchema("segment-count", func() tool.Tool {
-		return NewSegCountTool(&SegCountConfig{})
-	}, toolSchema(&SegCountConfig{}, toolMeta("segment-count", "Segment Count", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoSegCount)))))
-
 	reg.RegisterWithSchema("qa", func() tool.Tool {
 		return NewQACheckTool(NewQACheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewQACheckConfig(model.LocaleEnglish), toolMeta("qa", "Quality Check", schema.CategoryQuality,
 		withTags("quality", schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
-
-	reg.RegisterWithSchema("inconsistency-check", func() tool.Tool {
-		return NewInconsistencyCheckTool(NewInconsistencyCheckConfig(model.LocaleEnglish))
-	}, toolSchema(NewInconsistencyCheckConfig(model.LocaleEnglish), toolMeta("inconsistency-check", "Inconsistency Check", schema.CategoryQuality,
-		withTags("quality", schema.TagL10n), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
-
-	reg.RegisterWithSchema("length-check", func() tool.Tool {
-		cfg := &LengthCheckConfig{TargetLocale: model.LocaleEnglish}
-		cfg.Reset()
-		cfg.TargetLocale = model.LocaleEnglish
-		return NewLengthCheckTool(cfg)
-	}, toolSchema(&LengthCheckConfig{CheckMaxCharLength: true, MaxCharLengthBreak: 20, MaxCharLengthAbove: 200, MaxCharLengthBelow: 350, CheckMinCharLength: true, MinCharLengthBreak: 20, MinCharLengthAbove: 45, MinCharLengthBelow: 30},
-		toolMeta("length-check", "Length Check", schema.CategoryQuality,
-			withTags("quality"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
-
-	reg.RegisterWithSchema("chars-check", func() tool.Tool {
-		return NewCharsCheckTool(NewCharsCheckConfig(model.LocaleEnglish))
-	}, toolSchema(NewCharsCheckConfig(model.LocaleEnglish), toolMeta("chars-check", "Characters Check", schema.CategoryQuality,
-		withTags("quality", schema.TagL10n), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
-
-	reg.RegisterWithSchema("pattern-check", func() tool.Tool {
-		return NewPatternCheckTool(&PatternCheckConfig{TargetLocale: model.LocaleEnglish})
-	}, toolSchema(&PatternCheckConfig{}, toolMeta("pattern-check", "Pattern Check", schema.CategoryQuality,
-		withTags("quality", "regex"), withRequires("target-language"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(tgtF(model.OverlayQA)))))
 
 	reg.RegisterWithSchema("dnt-check", func() tool.Tool {
 		return NewDNTCheckTool(NewDNTCheckConfig(model.LocaleEnglish))
@@ -150,26 +107,6 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		return NewXMLValidationTool(&XMLValidationConfig{CheckSource: true, WrapRoot: true})
 	}, toolSchema(&XMLValidationConfig{CheckSource: true, WrapRoot: true}, toolMeta("xml-validation", "XML Validation", schema.CategoryQuality,
 		withTags("quality"), withCardinality(schema.Monolingual), withProduces(tgtF(model.OverlayQA)))))
-
-	reg.RegisterWithSchema("source-check", func() tool.Tool {
-		return NewSourceCheckTool(&SourceCheckConfig{})
-	}, toolSchema(&SourceCheckConfig{}, toolMeta("source-check", "Source Readiness", schema.CategoryQuality,
-		withTags("quality"), withCardinality(schema.Monolingual), withConsumes(srcF(schema.PortSource)))))
-
-	reg.RegisterWithSchema("content-lint", func() tool.Tool {
-		return NewContentLintTool(&ContentLintConfig{})
-	}, toolSchema(&ContentLintConfig{}, toolMeta("content-lint", "Content Lint", schema.CategoryTextProcessing,
-		withTags("quality"), withCardinality(schema.Monolingual), withProduces(srcF(model.OverlayQA)))))
-
-	reg.RegisterWithSchema("scoping-report", func() tool.Tool {
-		return NewScopingReportTool(&ScopingReportConfig{})
-	}, toolSchema(&ScopingReportConfig{}, toolMeta("scoping-report", "Scoping Report", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoScopingReport)))))
-
-	reg.RegisterWithSchema("repetition-analysis", func() tool.Tool {
-		return NewRepetitionAnalysisTool(&RepetitionAnalysisConfig{CaseSensitive: true})
-	}, toolSchema(&RepetitionAnalysisConfig{CaseSensitive: true}, toolMeta("repetition-analysis", "Repetition Analysis", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoRepetition)))))
 
 	// ── Transform ───────────────────────────────────────────────────
 
@@ -303,19 +240,8 @@ func RegisterAll(reg *registry.ToolRegistry) {
 }
 
 func registerConfigFactories(reg *registry.ToolRegistry) {
-	reg.SetConfigFactory("word-count", NewWordCountFromConfig)
-	reg.SetConfigFactory("char-count", NewCharCountFromConfig)
-	reg.SetConfigFactory("segment-count", NewSegCountFromConfig)
 	reg.SetConfigFactory("qa", NewQACheckFromConfig)
-	reg.SetConfigFactory("inconsistency-check", NewInconsistencyCheckFromConfig)
-	reg.SetConfigFactory("length-check", NewLengthCheckFromConfig)
-	reg.SetConfigFactory("chars-check", NewCharsCheckFromConfig)
-	reg.SetConfigFactory("pattern-check", NewPatternCheckFromConfig)
 	reg.SetConfigFactory("term-check", NewTermCheckFromConfig)
-	reg.SetConfigFactory("source-check", NewSourceCheckFromConfig)
-	reg.SetConfigFactory("content-lint", NewContentLintFromConfig)
-	reg.SetConfigFactory("scoping-report", NewScopingReportFromConfig)
-	reg.SetConfigFactory("repetition-analysis", NewRepetitionAnalysisFromConfig)
 	reg.SetConfigFactory("encoding-detect", NewEncodingDetectFromConfig)
 	reg.SetConfigFactory("pseudo-translate", NewPseudoTranslateFromConfig)
 	reg.SetConfigFactory("redact", NewRedactFromConfig)

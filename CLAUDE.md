@@ -351,7 +351,7 @@ kapi run <flow-name>            # Execute flow (inline on recipe or .kapi/flows/
 ```bash
 kapi translate -i file.xliff --target-lang fr    # Translate with AI
 kapi pseudo-translate file.json # Pseudo-translate for testing
-kapi exec word-count file.json                            # Count words
+kapi stats file.json                          # Content metrics (words, chars, segments)
 kapi run translate-qa -i file.xliff --target-lang fr  # Run composed flow
 kapi formats list             # List available formats
 kapi tools                    # List available tools

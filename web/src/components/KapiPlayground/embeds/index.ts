@@ -5,22 +5,26 @@
 // only pass <KapiGuidedEmbed id="kapi-word-count" />.
 import type { WalkthroughEmbedConfig } from "./types";
 import kapiBilingualWorkflow from "./kapi-bilingual-workflow.embed";
+import kapiKeepSourceOnBrand from "./kapi-keep-source-on-brand.embed";
 import kapiKlzWorkspace from "./kapi-klz-workspace.embed";
 import kapiOverview from "./kapi-overview.embed";
 import kapiProjectWorkflow from "./kapi-project-workflow.embed";
 import kapiPseudoTranslate from "./kapi-pseudo-translate.embed";
 import kapiReviewAndApprove from "./kapi-review-and-approve.embed";
+import kapiRewriteContent from "./kapi-rewrite-content.embed";
 import kapiTerminologyPretranslation from "./kapi-terminology-pretranslation.embed";
 import kapiTerminologyQa from "./kapi-terminology-qa.embed";
 import kapiWordCount from "./kapi-word-count.embed";
 
 export const EMBED_CONFIGS: Record<string, WalkthroughEmbedConfig> = {
   "kapi-bilingual-workflow": kapiBilingualWorkflow,
+  "kapi-keep-source-on-brand": kapiKeepSourceOnBrand,
   "kapi-klz-workspace": kapiKlzWorkspace,
   "kapi-overview": kapiOverview,
   "kapi-project-workflow": kapiProjectWorkflow,
   "kapi-pseudo-translate": kapiPseudoTranslate,
   "kapi-review-and-approve": kapiReviewAndApprove,
+  "kapi-rewrite-content": kapiRewriteContent,
   "kapi-terminology-pretranslation": kapiTerminologyPretranslation,
   "kapi-terminology-qa": kapiTerminologyQa,
   "kapi-word-count": kapiWordCount,

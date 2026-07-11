@@ -7,20 +7,13 @@ import "github.com/neokapi/neokapi/core/registry"
 // provides compile-time safety.
 const (
 	// Validate
-	WordCount          registry.ToolID = "word-count"
-	CharCount          registry.ToolID = "char-count"
-	SegmentCount       registry.ToolID = "segment-count"
-	QACheck            registry.ToolID = "qa"
-	InconsistencyCheck registry.ToolID = "inconsistency-check"
-	LengthCheck        registry.ToolID = "length-check"
-	CharsCheck         registry.ToolID = "chars-check"
-	PatternCheck       registry.ToolID = "pattern-check"
-	TermCheck          registry.ToolID = "term-check"
-	XMLValidation      registry.ToolID = "xml-validation"
-	ContentLint        registry.ToolID = "content-lint"
-	ScopingReport      registry.ToolID = "scoping-report"
-	RepetitionAnalysis registry.ToolID = "repetition-analysis"
-	BrandVocabCheck    registry.ToolID = "brand-vocab-check"
+	WordCount       registry.ToolID = "word-count"
+	CharCount       registry.ToolID = "char-count"
+	SegmentCount    registry.ToolID = "segment-count"
+	QACheck         registry.ToolID = "qa"
+	TermCheck       registry.ToolID = "term-check"
+	XMLValidation   registry.ToolID = "xml-validation"
+	BrandVocabCheck registry.ToolID = "brand-vocab-check"
 
 	// Transform
 	PseudoTranslate   registry.ToolID = "pseudo-translate"

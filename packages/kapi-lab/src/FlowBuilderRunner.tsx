@@ -37,7 +37,7 @@ import shared from "./styles.module.css";
 import styles from "./FlowBuilderRunner.module.css";
 
 // Only tools that run in the browser WASM build are offered in the palette:
-// the offline tools (segmentation, pseudo-translate, word-count, term-check,
+// the offline tools (segmentation, pseudo-translate, term-check,
 // search-replace, redact, unredact) plus the demo-provider-backed AI tools
 // (translate, qa). Listing anything else would let a learner build a
 // flow that cannot run here.
@@ -48,7 +48,6 @@ const BROWSER_SAFE_TOOLS = [
   "unredact",
   "segmentation",
   "pseudo-translate",
-  "word-count",
   "term-check",
   "entity-extract",
   "translate",

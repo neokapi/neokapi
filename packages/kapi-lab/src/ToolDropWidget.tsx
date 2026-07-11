@@ -23,7 +23,7 @@ export interface DropInput {
 //   "output" — the file the tool wrote, in the full OutputView (Blocks/Structure/
 //              Native + download). The default; best for file-producing tools.
 //   "stat"   — a compact metric card parsed from a tool's --json stdout
-//              (word-count → blocks / words). For tools that report, not rewrite.
+//              (stats → blocks / words / characters). For tools that report, not rewrite.
 //   "diff"   — before/after source text side by side, plus a download. For
 //              transforms a learner wants to compare at a glance.
 export type ToolDropRender = "output" | "stat" | "diff";
@@ -64,8 +64,8 @@ export interface ToolDropWidgetProps {
   render?: ToolDropRender;
   /**
    * For render="stat": parse the tool's captured stdout into metric cards.
-   * Receives the captured stdout (e.g. word-count --json) and returns the
-   * cards to show. Defaults to a JSON word-count parser.
+   * Receives the captured stdout (e.g. stats --json) and returns the
+   * cards to show. Defaults to the `kapi stats --json` parser.
    */
   parseStat?: (stdout: string) => ToolDropStat[];
   /** Run automatically once the runtime is ready and on input change. Default true. */
@@ -85,22 +85,18 @@ function stripAnsi(s: string): string {
   return s.replace(ANSI, "");
 }
 
-// The default stat parser understands `kapi word-count --json` output:
-//   { total_source_words, document_count, documents: { uri: { source_words, block_count } } }
-export function parseWordCountStat(stdout: string): ToolDropStat[] {
+// The default stat parser understands `kapi stats --json` output:
+//   { files: [...], total: { blocks, translatable, words, characters, segments } }
+export function parseStatsStat(stdout: string): ToolDropStat[] {
   try {
     const j = JSON.parse(stripAnsi(stdout)) as {
-      total_source_words?: number;
-      documents?: Record<string, { source_words?: number; block_count?: number }>;
+      total?: { blocks?: number; translatable?: number; words?: number; characters?: number };
     };
-    const docs = Object.values(j.documents ?? {});
-    const blocks = docs.reduce((n, d) => n + (d.block_count ?? 0), 0);
-    const words = j.total_source_words ?? docs.reduce((n, d) => n + (d.source_words ?? 0), 0);
-    const chars = words * 5; // rough: estimate characters from words (avg word ~5 chars)
+    const t = j.total ?? {};
     return [
-      { label: "Blocks", value: String(blocks) },
-      { label: "Words", value: words.toLocaleString() },
-      { label: "~Characters", value: chars.toLocaleString() },
+      { label: "Blocks", value: String(t.blocks ?? 0) },
+      { label: "Words", value: (t.words ?? 0).toLocaleString() },
+      { label: "Characters", value: (t.characters ?? 0).toLocaleString() },
     ];
   } catch {
     return [];
@@ -133,7 +129,7 @@ export default function ToolDropWidget({
   initialInput,
   acceptBinary = true,
   render = "output",
-  parseStat = parseWordCountStat,
+  parseStat = parseStatsStat,
   autoRun = true,
   className,
 }: ToolDropWidgetProps): React.ReactElement {

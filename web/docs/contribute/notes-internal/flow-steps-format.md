@@ -83,7 +83,7 @@ steps:
 steps:
   - parallel:
       - tool: translate
-      - tool: word-count
+      - tool: term-check
   - tool: qa
 ```
 

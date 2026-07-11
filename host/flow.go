@@ -50,6 +50,17 @@ type FlowCmdOptions struct {
 // RunFlow executes a flow by name with the given input files.
 func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string, opts FlowCmdOptions) error {
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
+	// Directories and globs expand exactly as the tool runner expands them
+	// (recursive, hidden dirs and junk files skipped), so the flow-backed
+	// porcelain keeps the old tool commands' ergonomics: `kapi
+	// pseudo-translate frontend/i18n` processes the catalog directory.
+	if len(inputPaths) > 0 {
+		expanded, err := resolveFiles(inputPaths)
+		if err != nil {
+			return err
+		}
+		inputPaths = expanded
+	}
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 
 	if explain, _ := cmd.Flags().GetBool("explain"); explain {

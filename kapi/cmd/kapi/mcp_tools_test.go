@@ -103,25 +103,6 @@ func TestHandleExtractContent(t *testing.T) {
 	assert.Contains(t, texts, "Hello World")
 }
 
-func TestHandleWordCount(t *testing.T) {
-	a := testApp()
-	ctx := t.Context()
-
-	fixturePath := filepath.Join("..", "..", "..", "core", "formats", "json", "testdata", "simple.json")
-	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
-		t.Skip("test fixture not found:", fixturePath)
-	}
-
-	_, out, err := handleWordCount(ctx, a, WordCountInput{
-		Path:       fixturePath,
-		SourceLang: "en",
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "json", out.Format)
-	assert.Greater(t, out.WordCount, 0)
-	assert.Greater(t, out.BlockCount, 0)
-}
-
 func TestHandleListFlows(t *testing.T) {
 	_, out, err := handleListFlows()
 	require.NoError(t, err)
@@ -150,7 +131,7 @@ func TestHandleListTools(t *testing.T) {
 		assert.NotEmpty(t, tool.Description)
 		assert.NotEmpty(t, tool.Source)
 	}
-	assert.Contains(t, names, "word-count")
+	assert.Contains(t, names, "translate")
 	assert.Contains(t, names, "pseudo-translate")
 }
 
@@ -368,30 +349,4 @@ func TestHandleExtractContentWithProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "json", out.Format, "should use built-in json, not okf_json")
 	assert.NotEmpty(t, out.Blocks)
-}
-
-func TestHandleWordCountWithProject(t *testing.T) {
-	a := testApp()
-	ctx := t.Context()
-
-	dir := t.TempDir()
-	inputDir := filepath.Join(dir, "input")
-	require.NoError(t, os.MkdirAll(inputDir, 0o755))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(inputDir, "test.json"),
-		[]byte(`{"msg": "Hello World"}`),
-		0o644,
-	))
-
-	proj := &project.KapiProject{Version: "v1"}
-	kapiPath := filepath.Join(dir, "project.kapi")
-	require.NoError(t, project.Save(kapiPath, proj))
-
-	_, out, err := handleWordCount(ctx, a, WordCountInput{
-		Path:    filepath.Join(inputDir, "test.json"),
-		Project: kapiPath,
-	})
-	require.NoError(t, err)
-	assert.Equal(t, "json", out.Format)
-	assert.Greater(t, out.WordCount, 0)
 }

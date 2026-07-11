@@ -38,7 +38,7 @@ Fill in `brand.yaml` from whatever signal is available:
   emails, docs) — derive tone and vocabulary, and turn weak→strong pairs into
   `examples` (before / after).
 - **A website** the user links — fetch a page or two (your web tool, or `curl`),
-  read the live copy, and capture its voice. For a saved page, `kapi exec word-count
+  read the live copy, and capture its voice. For a saved page, `kapi stats
   page.html` / `kapi extract` pulls the text to analyze.
 
 Keep it concrete: 2–4 personality adjectives, a handful of forbidden/competitor

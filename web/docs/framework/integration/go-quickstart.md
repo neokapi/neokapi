@@ -249,7 +249,7 @@ depth.
 - **The tool** ([`core/tools`](/framework/tools)) is a stage that satisfies the
   `Process(ctx, in, out)` contract: it consumes Parts, transforms the ones it
   handles, and relays the rest. `pseudo-translate` writes a target for each
-  Block; swap it for `word-count`, `case-transform`, or any other built-in, or
+  Block; swap it for `case-transform`, `search-replace`, or any other built-in, or
   chain several together.
 - **The pipeline** ([`core/flow`](/framework/pipeline)) is the concurrency: each
   stage is a goroutine, the stages are joined by buffered channels of Parts, and

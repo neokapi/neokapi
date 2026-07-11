@@ -231,7 +231,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     label: "Pseudo-translation",
     description:
       "The quickest end-to-end pipeline: pseudo-translate writes an accented, padded target for every block so layout and encoding issues surface before any real translation is bought.",
-    steps: [{ tool: "pseudo-translate" }, { tool: "word-count" }],
+    steps: [{ tool: "pseudo-translate" }, { tool: "qa" }],
     sampleId: "support-reply",
     walkthrough: [
       { prose: "The quickest end-to-end pipeline — run it.", run: true, select: null },
@@ -310,7 +310,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
           code: '// process(part) runs once for every Part in the document.\n/** @param {Part} part */\nfunction process(part) {\n  if (part.type === "block") {\n    part.block.source[0].content.text =\n      part.block.source[0].content.text.toUpperCase();\n  }\n  return part;\n}\n',
         },
       },
-      { tool: "word-count" },
+      { tool: "segmentation" },
     ],
     sampleId: "support-reply",
     walkthrough: [

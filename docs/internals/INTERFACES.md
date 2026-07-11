@@ -830,19 +830,36 @@ func (fb *Builder) Build() *Flow {
 // executor := flow.NewExecutor()
 // executor.Execute(ctx, f, items)
 //
-// Usage (parallel, multiple documents with collector):
-// wc := tools.NewWordCountCollector()
-// f := flow.NewFlow("word-count").
+// Usage (parallel, multiple documents with collector). A Collector aggregates
+// results across the fan-out — implement flow.Collector (Collect + Result):
+//
+// type blockCountCollector struct{ blocks int }
+//
+// func (c *blockCountCollector) Collect(_ context.Context, item *flow.Item, parts []*model.Part) error {
+//     for _, p := range parts {
+//         if p.Type == model.PartBlock {
+//             c.blocks++
+//         }
+//     }
+//     return nil
+// }
+//
+// func (c *blockCountCollector) Result() (flow.CollectorResult, error) {
+//     return flow.CollectorResult{Name: "block-count", Data: c.blocks}, nil
+// }
+//
+// cc := &blockCountCollector{}
+// f := flow.NewFlow("analyze").
 //     AddToolFactory(func() (tool.Tool, error) {
-//         return tools.NewWordCountTool(&tools.WordCountConfig{...}), nil
+//         return tools.NewQACheckTool(tools.NewQACheckConfig("fr")), nil
 //     }).Build()
 //
 // executor := flow.NewExecutor(
 //     flow.WithMaxConcurrency(8),
-//     flow.WithCollectors(wc),
+//     flow.WithCollectors(cc),
 // )
 // executor.Execute(ctx, f, items)
-// result, _ := wc.Result()
+// result, _ := cc.Result()
 ```
 
 ---

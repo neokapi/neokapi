@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-11T08:58:07Z",
+  "generatedAt": "2026-07-11T10:26:31Z",
   "commands": [
     {
       "id": "brand",
@@ -1320,360 +1320,6 @@
       "demoMode": false
     },
     {
-      "id": "exec.char-count",
-      "path": [
-        "exec",
-        "char-count"
-      ],
-      "use": "char-count [files...]",
-      "short": "Character Count",
-      "flags": [
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "count-inline",
-          "usage": "Include inline code content in character counts",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "count-source",
-          "usage": "Count characters in source text",
-          "default": "true",
-          "type": "bool"
-        },
-        {
-          "name": "count-target",
-          "usage": "Count characters in target text",
-          "default": "true",
-          "type": "bool"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi char-count messages.json",
-        "kapi char-count page.html"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "exec.chars-check",
-      "path": [
-        "exec",
-        "chars-check"
-      ],
-      "use": "chars-check [files...]",
-      "short": "Characters Check",
-      "flags": [
-        {
-          "name": "charset",
-          "usage": "Name of the character set encoding to check against (e.g. ISO-8859-1)",
-          "default": "ISO-8859-1",
-          "type": "string"
-        },
-        {
-          "name": "check-charset",
-          "usage": "Warn if a character is not included in the specified character set encoding",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "check-corrupted",
-          "usage": "Check for common corruption patterns such as mojibake",
-          "default": "true",
-          "type": "bool"
-        },
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "forbidden-chars",
-          "usage": "Characters that should not appear in target text (e.g. {}[])",
-          "type": "string"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "required-chars",
-          "usage": "Characters that must appear in target if present in source (e.g. punctuation)",
-          "type": "string"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi chars-check app.xliff --target-lang fr",
-        "kapi chars-check app.xliff --target-lang zh"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "exec.content-lint",
-      "path": [
-        "exec",
-        "content-lint"
-      ],
-      "use": "content-lint [files...]",
-      "short": "Content Lint",
-      "flags": [
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
       "id": "exec.diff-leverage",
       "path": [
         "exec",
@@ -2047,316 +1693,6 @@
       "demoMode": true
     },
     {
-      "id": "exec.inconsistency-check",
-      "path": [
-        "exec",
-        "inconsistency-check"
-      ],
-      "use": "inconsistency-check [files...]",
-      "short": "Inconsistency Check",
-      "flags": [
-        {
-          "name": "case-sensitive",
-          "usage": "Whether comparison is case-sensitive",
-          "default": "true",
-          "type": "bool"
-        },
-        {
-          "name": "check-per-file",
-          "usage": "Process each input file individually instead of comparing segments across all documents",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "check-source-inconsistency",
-          "usage": "Flag when different sources share the same translation",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "check-target-inconsistency",
-          "usage": "Flag when the same source has different translations",
-          "default": "true",
-          "type": "bool"
-        },
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "display-option",
-          "usage": "Controls how inline codes are represented: original codes or generic markers or plain text (original, generic, plain)",
-          "default": "generic",
-          "type": "string"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi inconsistency-check app.xliff --target-lang fr",
-        "kapi inconsistency-check app.xliff --target-lang de"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "exec.length-check",
-      "path": [
-        "exec",
-        "length-check"
-      ],
-      "use": "length-check [files...]",
-      "short": "Length Check",
-      "flags": [
-        {
-          "name": "check-max-char-length",
-          "usage": "Warn if target exceeds a percentage of source character length",
-          "default": "true",
-          "type": "bool"
-        },
-        {
-          "name": "check-min-char-length",
-          "usage": "Warn if target is shorter than a percentage of source character length",
-          "default": "true",
-          "type": "bool"
-        },
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "max-char-length-above",
-          "usage": "Max percentage of source length allowed for long text",
-          "default": "200",
-          "type": "int"
-        },
-        {
-          "name": "max-char-length-below",
-          "usage": "Max percentage of source length allowed for short text",
-          "default": "350",
-          "type": "int"
-        },
-        {
-          "name": "max-char-length-break",
-          "usage": "Character count threshold between short and long text for max check",
-          "default": "20",
-          "type": "int"
-        },
-        {
-          "name": "max-chars",
-          "usage": "Absolute maximum character count for target text (0 = disabled)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "max-percentage",
-          "usage": "Maximum target/source length ratio as percentage (0 = disabled)",
-          "default": "0",
-          "type": "float64"
-        },
-        {
-          "name": "max-words",
-          "usage": "Maximum word count for target text (0 = disabled)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "min-char-length-above",
-          "usage": "Min percentage of source length allowed for long text",
-          "default": "45",
-          "type": "int"
-        },
-        {
-          "name": "min-char-length-below",
-          "usage": "Min percentage of source length allowed for short text",
-          "default": "30",
-          "type": "int"
-        },
-        {
-          "name": "min-char-length-break",
-          "usage": "Character count threshold between short and long text for min check",
-          "default": "20",
-          "type": "int"
-        },
-        {
-          "name": "min-percentage",
-          "usage": "Minimum target/source length ratio as percentage (0 = disabled)",
-          "default": "0",
-          "type": "float64"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi length-check app.xliff --target-lang fr",
-        "kapi length-check app.xliff --target-lang ja"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
       "id": "exec.media-refine",
       "path": [
         "exec",
@@ -2482,110 +1818,6 @@
       "offlineCapable": false,
       "runnableInBrowser": true,
       "demoMode": true
-    },
-    {
-      "id": "exec.pattern-check",
-      "path": [
-        "exec",
-        "pattern-check"
-      ],
-      "use": "pattern-check [files...]",
-      "short": "Pattern Check",
-      "flags": [
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi pattern-check app.xliff --target-lang fr",
-        "kapi pattern-check app.xliff --target-lang de"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
     },
     {
       "id": "exec.pseudo-translate",
@@ -2744,8 +1976,20 @@
           "type": "string"
         },
         {
+          "name": "charset",
+          "usage": "Name of the character set encoding to check against (e.g. ISO-8859-1)",
+          "default": "ISO-8859-1",
+          "type": "string"
+        },
+        {
           "name": "check-absolute-max-char-length",
           "usage": "Flag target segments that exceed an absolute character count limit",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "check-charset",
+          "usage": "Warn if a target character is not included in the specified character set encoding",
           "default": "false",
           "type": "bool"
         },
@@ -2757,7 +2001,7 @@
         },
         {
           "name": "check-corrupted-characters",
-          "usage": "Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1)",
+          "usage": "Check for patterns indicating encoding corruption (mojibake",
           "default": "true",
           "type": "bool"
         },
@@ -2798,6 +2042,12 @@
           "type": "bool"
         },
         {
+          "name": "check-max-words",
+          "usage": "Flag target segments that exceed an absolute word count limit",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "check-min-char-length",
           "usage": "Flag targets shorter than a percentage of source character length",
           "default": "true",
@@ -2810,9 +2060,21 @@
           "type": "bool"
         },
         {
+          "name": "check-source-inconsistency",
+          "usage": "Flag when different source texts share the same translation",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "check-span-constraints",
           "usage": "Check non-deletable and non-cloneable span constraint violations",
           "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "check-target-inconsistency",
+          "usage": "Flag when the same source text is translated differently across the run",
+          "default": "false",
           "type": "bool"
         },
         {
@@ -2847,6 +2109,12 @@
           "type": "int"
         },
         {
+          "name": "consistency-case-sensitive",
+          "usage": "Whether consistency comparison is case-sensitive",
+          "default": "true",
+          "type": "bool"
+        },
+        {
           "name": "credential",
           "usage": "saved credential name to use (see 'kapi credentials list')",
           "type": "string"
@@ -2869,6 +2137,11 @@
           "usage": "exit with error if any file cannot be processed (default: skip with warning)",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "forbidden-chars",
+          "usage": "Characters that must not appear in target text (e.g. {}[])",
+          "type": "string"
         },
         {
           "name": "format",
@@ -2905,6 +2178,12 @@
           "name": "max-char-length-break",
           "usage": "Character count above which text is considered long for the maximum length check",
           "default": "20",
+          "type": "int"
+        },
+        {
+          "name": "max-words",
+          "usage": "Maximum number of words allowed in any target segment",
+          "default": "0",
           "type": "int"
         },
         {
@@ -2976,6 +2255,11 @@
           "name": "provider",
           "usage": "AI provider (Anthropic, OpenAI, Gemini, Azure OpenAI, Claude Code, Ollama, Demo (illustrative))",
           "default": "anthropic",
+          "type": "string"
+        },
+        {
+          "name": "required-chars",
+          "usage": "Characters that must appear in target if present in source (e.g. punctuation)",
           "type": "string"
         },
         {
@@ -3318,116 +2602,6 @@
       "demoMode": false
     },
     {
-      "id": "exec.repetition-analysis",
-      "path": [
-        "exec",
-        "repetition-analysis"
-      ],
-      "use": "repetition-analysis [files...]",
-      "short": "Repetition Analysis",
-      "flags": [
-        {
-          "name": "case-sensitive",
-          "usage": "Whether comparison is case-sensitive",
-          "default": "true",
-          "type": "bool"
-        },
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi repetition-analysis messages.json",
-        "kapi repetition-analysis app.xliff"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
       "id": "exec.review",
       "path": [
         "exec",
@@ -3562,110 +2736,6 @@
       "offlineCapable": false,
       "runnableInBrowser": true,
       "demoMode": true
-    },
-    {
-      "id": "exec.scoping-report",
-      "path": [
-        "exec",
-        "scoping-report"
-      ],
-      "use": "scoping-report [files...]",
-      "short": "Scoping Report",
-      "flags": [
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi scoping-report messages.json",
-        "kapi scoping-report app.xliff --json"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
     },
     {
       "id": "exec.script",
@@ -3958,110 +3028,6 @@
       "demoMode": false
     },
     {
-      "id": "exec.segment-count",
-      "path": [
-        "exec",
-        "segment-count"
-      ],
-      "use": "segment-count [files...]",
-      "short": "Segment Count",
-      "flags": [
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi segment-count messages.json",
-        "kapi segment-count app.xliff"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
       "id": "exec.segmentation",
       "path": [
         "exec",
@@ -4262,111 +3228,6 @@
       "offlineCapable": false,
       "runnableInBrowser": true,
       "demoMode": true
-    },
-    {
-      "id": "exec.source-check",
-      "path": [
-        "exec",
-        "source-check"
-      ],
-      "use": "source-check [files...]",
-      "short": "Source Readiness",
-      "flags": [
-        {
-          "name": "block-severity",
-          "usage": "Lowest finding severity that keeps a block from being marked checked (minor|major|critical) (minor, major, critical)",
-          "type": "string"
-        },
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
     },
     {
       "id": "exec.term-check",
@@ -4869,131 +3730,6 @@
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
         }
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "exec.word-count",
-      "path": [
-        "exec",
-        "word-count"
-      ],
-      "use": "word-count [files...]",
-      "short": "Word Count",
-      "aliases": [
-        "wc"
-      ],
-      "flags": [
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "max parallel files (0 = auto)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "count-inline",
-          "usage": "Include inline code content in word counts",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "count-source",
-          "usage": "Count words in source text",
-          "default": "true",
-          "type": "bool"
-        },
-        {
-          "name": "count-target",
-          "usage": "Count words in target text",
-          "default": "true",
-          "type": "bool"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "input file encoding",
-          "default": "UTF-8",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "override input format detection",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "output results as JSON",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "no-warn",
-          "usage": "suppress warnings for skipped files",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "fan out block processing across N goroutines (0 = off)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "show progress bar",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US)",
-          "default": "en",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "alias for --fail-on-unknown",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "write flow trace JSON to file (for flow visualization)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi word-count messages.json",
-        "kapi word-count app.xliff --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -6042,6 +4778,44 @@
       "demoMode": false
     },
     {
+      "id": "stats",
+      "path": [
+        "stats"
+      ],
+      "use": "stats [files...]",
+      "short": "Summarize content metrics for files — blocks, words, characters, segments, by role",
+      "long": "Summarize the content of one or more files: total and translatable blocks,\nword and character counts (with and without spaces), segments, and a breakdown\nby structural role (heading, paragraph, list-item, table-cell, …). Any format —\na Word document, a JSON catalog, Markdown, HTML — yields the same shape.\n\nWord, character, and segment counts cover the translatable content; block and\nrole counts cover the whole document. Prints a human table by default; --json\nemits the structured record for piping into a pipeline.\n\nWith no FILE, or when FILE is \"-\", standard input is read.",
+      "groupID": "advanced",
+      "flags": [
+        {
+          "name": "encoding",
+          "usage": "input encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "input format (default: auto-detect by extension/content)",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi stats report.docx",
+        "kapi stats --json docs/*.md | jq '.total.words'",
+        "cat page.html | kapi stats -f html"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
       "id": "termbase",
       "path": [
         "termbase"
@@ -6897,7 +5671,7 @@
       "use": "schema [tool-name]",
       "short": "Print the JSON Schema for a tool's parameters",
       "examples": [
-        "kapi tools schema word-count",
+        "kapi tools schema translate",
         "kapi tools schema pseudo-translate"
       ],
       "offlineCapable": true,

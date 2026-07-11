@@ -212,7 +212,7 @@ type LocaleCardinality string
 
 const (
     // Monolingual — operates on a single locale.
-    // Examples: word-count (source), pseudo-translate (target),
+    // Examples: case-transform (source), pseudo-translate (target),
     // encoding-detect (source).
     Monolingual LocaleCardinality = "monolingual"
 
@@ -363,7 +363,7 @@ Examples:
 
 | Flow               | Tools                                         | Passes                                 |
 | ------------------ | --------------------------------------------- | -------------------------------------- |
-| word-count         | `[word-count(mono)]`                          | `[[en]]`                               |
+| case-transform     | `[case-transform(mono)]`                      | `[[en]]`                               |
 | pseudo-translate   | `[pseudo-translate(bi, default:qps)]`         | `[[en, qps]]`                          |
 | translate          | `[translate(bi)]`                             | `[[en, de], [en, fr], [en, ja], ...]`  |
 | translate+qa       | `[translate(bi), qa(bi)]`                     | `[[en, de], [en, fr], ...]`            |
@@ -593,26 +593,22 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | `segmentation`        | Annotate blocks with a sentence-segmentation overlay (SRX-like rules)      |
 | `recycle`         | Pre-fill translations from Sievepen TM                                     |
 | `diff-leverage`       | Compare against previous version, preserve translations for unchanged text |
-| `repetition-analysis` | Analyze source text repetitions across blocks in the pipeline              |
 
 **Validate tools** — check quality without modifying:
 
 | Tool                     | Description                                                                             |
 | ------------------------ | --------------------------------------------------------------------------------------- |
-| `word-count`             | Count words per block                                                                   |
-| `char-count`             | Count characters per block                                                              |
-| `segment-count`          | Count source and target segments in blocks                                              |
 | `qa`                     | Rule-based quality checks (missing translations, whitespace, numbers, span constraints) |
 | `dnt-check`              | Flag do-not-translate spans that were translated in the target (alias `dnt`)            |
 | `placeholder-check`      | Verify placeholders/variables are preserved between source and target                   |
 | `brand-vocab-check`      | Check target text against brand vocabulary / preferred-term rules                       |
 | `term-check`             | Verify terminology usage in translations against a glossary                             |
-| `inconsistency-check`    | Check for translation inconsistencies across blocks                                     |
-| `length-check`           | Verify translation length constraints                                                   |
-| `chars-check`            | Check for invalid or unexpected characters in translations                              |
-| `pattern-check`          | Validate regex patterns in translations (placeholders, variables)                       |
 | `xml-validation`         | Validate XML well-formedness of block text                                              |
-| `scoping-report`         | Classify blocks into scoping categories based on repetition and match status            |
+
+The `qa` checkset also carries the rule families that used to be standalone
+fragment tools: length constraints (ratio and absolute character/word limits),
+invalid or forbidden characters and charset conformance, regex pattern rules
+(required and forbidden), and cross-block translation consistency.
 
 **Analyze tools** — inspect byte-level characteristics:
 
@@ -697,8 +693,8 @@ spec:
         provider: anthropic
     - tool: qa
     - parallel:
-        - tool: word-count
-        - tool: char-count
+        - tool: term-check
+        - tool: xml-validation
 ```
 
 Steps are sequential by default; `parallel:` blocks provide fan-out. The
@@ -734,7 +730,7 @@ wrong writes unrepresentable.
 | `Produce(VariantView)` | source read-only | target content (+ the above) |
 | `Transform` (edit producer) | source + target read-only | an edit plan the framework applies to source |
 
-- **Analysis / annotation** tools (qa, word-count, term-lookup,
+- **Analysis / annotation** tools (qa, term-check, term-lookup,
   entity-extract, the segmenter) set `Annotate`. `BlockView` exposes no
   source/target setter, so they *cannot* mutate content — they emit overlays,
   annotations, and properties.

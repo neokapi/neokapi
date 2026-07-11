@@ -69,11 +69,8 @@ steps:
         - whitespace
         - placeholders
         - patterns
+      checkTargetInconsistency: true
       fail_on_error: true
-
-  - tool: inconsistency-check
-    config:
-      target_locale: en-US
 ```
 
 Run it:
@@ -82,19 +79,16 @@ Run it:
 kapi run source-qa
 ```
 
-### Scoping and Word Count
+### Scoping and Content Stats
 
 Before starting a translation project, analyze the source content:
 
 ```bash
-# Word count across all source files
-kapi exec word-count -i src/locales/en/
+# Content stats (blocks, words, characters) across all source files
+kapi stats src/locales/en/*.json
 
-# Detailed scoping report
-kapi exec scoping-report -i src/locales/en/
-
-# Repetition analysis (find reusable segments)
-kapi exec repetition-analysis -i src/locales/en/
+# TM leverage, remaining work, and token estimate for the pending locales
+kapi up --plan
 ```
 
 ### Source Cleanup
@@ -160,8 +154,8 @@ jobs:
       - name: Run source QA
         run: kapi run source-qa
 
-      - name: Word count report
-        run: kapi exec word-count -i src/locales/en/ --json
+      - name: Content stats report
+        run: kapi stats src/locales/en/*.json --json
 ```
 
 This catches source-language issues at the PR stage, before they propagate to translations.
