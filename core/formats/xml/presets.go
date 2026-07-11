@@ -227,6 +227,13 @@ func DocBookConfig() *Config {
 // as a block annotation. The <comment> element is not translatable and
 // round-trips verbatim in skeleton; only the translator-facing note
 // metadata is not carried. See the test's honest note on locNote.
+//
+// Non-translatable-content surfacing (#928) is opted out: the excluded
+// ResX entries are machine data — base64-serialized .NET objects, the
+// embedded xsd schema, designer metadata, sibling <comment> tags — not
+// renderable contextual content, so surfacing them as context blocks is
+// noise (same call as the designtokens preset). Extraction yields exactly
+// the Okapi trans-unit shape; everything else stays in skeleton.
 func ResXConfig() *Config {
 	noType := Condition{Attribute: "type", Op: ConditionNotExists, Parent: true}
 	noMime := Condition{Attribute: "mimetype", Op: ConditionNotExists, Parent: true}
@@ -279,6 +286,9 @@ func ResXConfig() *Config {
 			`<(/?)\w+[^>]*?>`,
 		},
 	}
+	// Excluded ResX content is machine data, not contextual prose — keep it
+	// in skeleton instead of surfacing non-translatable context blocks.
+	cfg.SetExtractNonTranslatableContent(false)
 	cfg.compileElementRules()
 	return cfg
 }
