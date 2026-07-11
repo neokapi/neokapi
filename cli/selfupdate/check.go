@@ -181,7 +181,10 @@ func StartBackgroundRefresh(channel string) {
 	// Fully detached: no stdio and no wait, so it survives this process's
 	// exit. The child's non-TTY stderr disables its own background refresh,
 	// so it cannot respawn itself.
-	cmd := exec.Command(exe, "update", "--refresh-cache", "--channel", channel)
+	// context.Background() keeps the child fully detached (never cancelled,
+	// no wait) while satisfying noctx — the whole point is that it survives
+	// this process's exit.
+	cmd := exec.CommandContext(context.Background(), exe, "update", "--refresh-cache", "--channel", channel)
 	if err := cmd.Start(); err != nil {
 		return
 	}
