@@ -478,80 +478,6 @@
     }
   },
   {
-    "name": "chars-check",
-    "input_schema": {
-      "$id": "chars-check",
-      "properties": {
-        "charset": {
-          "default": "ISO-8859-1",
-          "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)",
-          "title": "Character Set Encoding",
-          "type": "string"
-        },
-        "checkCharset": {
-          "default": false,
-          "description": "Warn if a character is not included in the specified character set encoding",
-          "title": "Check Against Charset Encoding",
-          "type": "boolean"
-        },
-        "checkCorrupted": {
-          "default": true,
-          "description": "Check for common corruption patterns such as mojibake",
-          "title": "Check Corrupted Characters",
-          "type": "boolean"
-        },
-        "forbiddenChars": {
-          "description": "Characters that should not appear in target text (e.g. {}[])",
-          "title": "Forbidden Characters",
-          "type": "string"
-        },
-        "requiredChars": {
-          "description": "Characters that must appear in target if present in source (e.g. punctuation)",
-          "title": "Required Characters",
-          "type": "string"
-        },
-        "target_lang": {
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
-          "type": "string"
-        },
-        "text": {
-          "description": "The content (text) to run the tool over.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "Characters Check",
-      "toolMeta": {
-        "cardinality": "bilingual",
-        "category": "quality",
-        "consumes": [
-          {
-            "side": "target",
-            "type": "target"
-          }
-        ],
-        "displayName": "Characters Check",
-        "id": "chars-check",
-        "produces": [
-          {
-            "side": "target",
-            "type": "qa"
-          }
-        ],
-        "requires": [
-          "target-language"
-        ],
-        "tags": [
-          "quality",
-          "l10n"
-        ]
-      },
-      "type": "object"
-    }
-  },
-  {
     "name": "check_file",
     "input_schema": {
       "additionalProperties": false,
@@ -674,41 +600,6 @@
       "required": [
         "text"
       ],
-      "type": "object"
-    }
-  },
-  {
-    "name": "content-lint",
-    "input_schema": {
-      "$id": "content-lint",
-      "properties": {
-        "target_lang": {
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
-          "type": "string"
-        },
-        "text": {
-          "description": "The content (text) to run the tool over.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "Content Lint",
-      "toolMeta": {
-        "cardinality": "monolingual",
-        "category": "text-processing",
-        "displayName": "Content Lint",
-        "id": "content-lint",
-        "produces": [
-          {
-            "type": "qa"
-          }
-        ],
-        "tags": [
-          "quality"
-        ]
-      },
       "type": "object"
     }
   },
@@ -1031,223 +922,6 @@
     }
   },
   {
-    "name": "inconsistency-check",
-    "input_schema": {
-      "$id": "inconsistency-check",
-      "properties": {
-        "caseSensitive": {
-          "default": true,
-          "description": "Whether comparison is case-sensitive",
-          "title": "Case Sensitive",
-          "type": "boolean"
-        },
-        "checkPerFile": {
-          "default": false,
-          "description": "Process each input file individually instead of comparing segments across all documents",
-          "title": "Per-File Checking",
-          "type": "boolean"
-        },
-        "checkSourceInconsistency": {
-          "default": false,
-          "description": "Flag when different sources share the same translation",
-          "title": "Check Source Inconsistency",
-          "type": "boolean"
-        },
-        "checkTargetInconsistency": {
-          "default": true,
-          "description": "Flag when the same source has different translations",
-          "title": "Check Target Inconsistency",
-          "type": "boolean"
-        },
-        "displayOption": {
-          "default": "generic",
-          "description": "Controls how inline codes are represented: original codes or generic markers or plain text",
-          "options": [
-            {
-              "label": "original",
-              "value": "original"
-            },
-            {
-              "label": "generic",
-              "value": "generic"
-            },
-            {
-              "label": "plain",
-              "value": "plain"
-            }
-          ],
-          "title": "Inline Code Display",
-          "type": "string"
-        },
-        "target_lang": {
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
-          "type": "string"
-        },
-        "text": {
-          "description": "The content (text) to run the tool over.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "Inconsistency Check",
-      "toolMeta": {
-        "cardinality": "bilingual",
-        "category": "quality",
-        "consumes": [
-          {
-            "side": "target",
-            "type": "target"
-          }
-        ],
-        "displayName": "Inconsistency Check",
-        "id": "inconsistency-check",
-        "produces": [
-          {
-            "side": "target",
-            "type": "qa"
-          }
-        ],
-        "requires": [
-          "target-language"
-        ],
-        "tags": [
-          "quality",
-          "l10n"
-        ]
-      },
-      "type": "object"
-    }
-  },
-  {
-    "name": "length-check",
-    "input_schema": {
-      "$id": "length-check",
-      "properties": {
-        "checkMaxCharLength": {
-          "default": true,
-          "description": "Warn if target exceeds a percentage of source character length",
-          "title": "Check Maximum Length Ratio",
-          "type": "boolean"
-        },
-        "checkMinCharLength": {
-          "default": true,
-          "description": "Warn if target is shorter than a percentage of source character length",
-          "title": "Check Minimum Length Ratio",
-          "type": "boolean"
-        },
-        "maxCharLengthAbove": {
-          "default": 200,
-          "description": "Max percentage of source length allowed for long text",
-          "minimum": 0,
-          "title": "Percentage for Long Text (Max)",
-          "type": "integer"
-        },
-        "maxCharLengthBelow": {
-          "default": 350,
-          "description": "Max percentage of source length allowed for short text",
-          "minimum": 0,
-          "title": "Percentage for Short Text (Max)",
-          "type": "integer"
-        },
-        "maxCharLengthBreak": {
-          "default": 20,
-          "description": "Character count threshold between short and long text for max check",
-          "minimum": 0,
-          "title": "Short/Long Threshold (Max)",
-          "type": "integer"
-        },
-        "maxChars": {
-          "default": 0,
-          "description": "Absolute maximum character count for target text (0 = disabled)",
-          "minimum": 0,
-          "title": "Maximum Characters",
-          "type": "integer"
-        },
-        "maxPercentage": {
-          "default": 0,
-          "description": "Maximum target/source length ratio as percentage (0 = disabled)",
-          "minimum": 0,
-          "title": "Maximum Length Percentage",
-          "type": "number"
-        },
-        "maxWords": {
-          "default": 0,
-          "description": "Maximum word count for target text (0 = disabled)",
-          "minimum": 0,
-          "title": "Maximum Words",
-          "type": "integer"
-        },
-        "minCharLengthAbove": {
-          "default": 45,
-          "description": "Min percentage of source length allowed for long text",
-          "minimum": 0,
-          "title": "Percentage for Long Text (Min)",
-          "type": "integer"
-        },
-        "minCharLengthBelow": {
-          "default": 30,
-          "description": "Min percentage of source length allowed for short text",
-          "minimum": 0,
-          "title": "Percentage for Short Text (Min)",
-          "type": "integer"
-        },
-        "minCharLengthBreak": {
-          "default": 20,
-          "description": "Character count threshold between short and long text for min check",
-          "minimum": 0,
-          "title": "Short/Long Threshold (Min)",
-          "type": "integer"
-        },
-        "minPercentage": {
-          "default": 0,
-          "description": "Minimum target/source length ratio as percentage (0 = disabled)",
-          "minimum": 0,
-          "title": "Minimum Length Percentage",
-          "type": "number"
-        },
-        "target_lang": {
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
-          "type": "string"
-        },
-        "text": {
-          "description": "The content (text) to run the tool over.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "Length Check",
-      "toolMeta": {
-        "cardinality": "bilingual",
-        "category": "quality",
-        "consumes": [
-          {
-            "side": "target",
-            "type": "target"
-          }
-        ],
-        "displayName": "Length Check",
-        "id": "length-check",
-        "produces": [
-          {
-            "side": "target",
-            "type": "qa"
-          }
-        ],
-        "requires": [
-          "target-language"
-        ],
-        "tags": [
-          "quality"
-        ]
-      },
-      "type": "object"
-    }
-  },
-  {
     "name": "list_flows",
     "input_schema": {
       "additionalProperties": false,
@@ -1371,52 +1045,6 @@
     }
   },
   {
-    "name": "pattern-check",
-    "input_schema": {
-      "$id": "pattern-check",
-      "properties": {
-        "target_lang": {
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
-          "type": "string"
-        },
-        "text": {
-          "description": "The content (text) to run the tool over.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "Pattern Check",
-      "toolMeta": {
-        "cardinality": "bilingual",
-        "category": "quality",
-        "consumes": [
-          {
-            "side": "target",
-            "type": "target"
-          }
-        ],
-        "displayName": "Pattern Check",
-        "id": "pattern-check",
-        "produces": [
-          {
-            "side": "target",
-            "type": "qa"
-          }
-        ],
-        "requires": [
-          "target-language"
-        ],
-        "tags": [
-          "quality",
-          "regex"
-        ]
-      },
-      "type": "object"
-    }
-  },
-  {
     "name": "pseudo-translate",
     "input_schema": {
       "$id": "pseudo-translate",
@@ -1521,10 +1149,22 @@
           "title": "API Key",
           "type": "string"
         },
+        "charset": {
+          "default": "ISO-8859-1",
+          "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)",
+          "title": "Character Set Encoding",
+          "type": "string"
+        },
         "checkAbsoluteMaxCharLength": {
           "default": false,
           "description": "Flag target segments that exceed an absolute character count limit",
           "title": "Check Absolute Maximum Length",
+          "type": "boolean"
+        },
+        "checkCharset": {
+          "default": false,
+          "description": "Warn if a target character is not included in the specified character set encoding",
+          "title": "Check Against Charset Encoding",
           "type": "boolean"
         },
         "checkCodeDifference": {
@@ -1535,7 +1175,7 @@
         },
         "checkCorruptedCharacters": {
           "default": true,
-          "description": "Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1)",
+          "description": "Check for patterns indicating encoding corruption (mojibake",
           "title": "Check Corrupted Characters",
           "type": "boolean"
         },
@@ -1575,6 +1215,12 @@
           "title": "Check Maximum Length Ratio",
           "type": "boolean"
         },
+        "checkMaxWords": {
+          "default": false,
+          "description": "Flag target segments that exceed an absolute word count limit",
+          "title": "Check Maximum Word Count",
+          "type": "boolean"
+        },
         "checkMinCharLength": {
           "default": true,
           "description": "Flag targets shorter than a percentage of source character length",
@@ -1587,10 +1233,22 @@
           "title": "Check Patterns",
           "type": "boolean"
         },
+        "checkSourceInconsistency": {
+          "default": false,
+          "description": "Flag when different source texts share the same translation",
+          "title": "Check Source Inconsistency",
+          "type": "boolean"
+        },
         "checkSpanConstraints": {
           "default": true,
           "description": "Check non-deletable and non-cloneable span constraint violations",
           "title": "Check Span Constraints",
+          "type": "boolean"
+        },
+        "checkTargetInconsistency": {
+          "default": false,
+          "description": "Flag when the same source text is translated differently across the run",
+          "title": "Check Target Inconsistency",
           "type": "boolean"
         },
         "checkTargetSameAsSource": {
@@ -1619,10 +1277,21 @@
           "title": "Quality Checks",
           "type": "array"
         },
+        "consistencyCaseSensitive": {
+          "default": true,
+          "description": "Whether consistency comparison is case-sensitive",
+          "title": "Case-Sensitive Consistency",
+          "type": "boolean"
+        },
         "doubledWordExceptions": {
           "default": "sie;vous;nous",
           "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)",
           "title": "Doubled Word Exceptions",
+          "type": "string"
+        },
+        "forbiddenChars": {
+          "description": "Characters that must not appear in target text (e.g. {}[])",
+          "title": "Forbidden Characters",
           "type": "string"
         },
         "maxCharLengthAbove": {
@@ -1641,6 +1310,12 @@
           "default": 20,
           "description": "Character count above which text is considered long for the maximum length check",
           "title": "Short/Long Threshold (Max)",
+          "type": "integer"
+        },
+        "maxWords": {
+          "default": 0,
+          "description": "Maximum number of words allowed in any target segment",
+          "title": "Maximum Words",
           "type": "integer"
         },
         "minCharLengthAbove": {
@@ -1721,6 +1396,11 @@
             }
           ],
           "title": "AI Provider",
+          "type": "string"
+        },
+        "requiredChars": {
+          "description": "Characters that must appear in target if present in source (e.g. punctuation)",
+          "title": "Required Characters",
           "type": "string"
         },
         "strictCodeOrder": {
@@ -1842,10 +1522,27 @@
         },
         {
           "fields": [
-            "checkCorruptedCharacters"
+            "checkCorruptedCharacters",
+            "forbiddenChars",
+            "requiredChars",
+            "checkCharset",
+            "charset"
           ],
           "id": "rules:characters",
           "label": "Characters",
+          "ui:visible": {
+            "eq": "rules",
+            "field": "mode"
+          }
+        },
+        {
+          "fields": [
+            "checkTargetInconsistency",
+            "checkSourceInconsistency",
+            "consistencyCaseSensitive"
+          ],
+          "id": "rules:consistency",
+          "label": "Consistency",
           "ui:visible": {
             "eq": "rules",
             "field": "mode"
@@ -1862,7 +1559,9 @@
             "minCharLengthAbove",
             "minCharLengthBelow",
             "checkAbsoluteMaxCharLength",
-            "absoluteMaxCharLength"
+            "absoluteMaxCharLength",
+            "checkMaxWords",
+            "maxWords"
           ],
           "id": "rules:length",
           "label": "Length",
@@ -2128,47 +1827,6 @@
     }
   },
   {
-    "name": "repetition-analysis",
-    "input_schema": {
-      "$id": "repetition-analysis",
-      "properties": {
-        "caseSensitive": {
-          "default": true,
-          "description": "Whether comparison is case-sensitive",
-          "title": "Case Sensitive",
-          "type": "boolean"
-        },
-        "target_lang": {
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
-          "type": "string"
-        },
-        "text": {
-          "description": "The content (text) to run the tool over.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "Repetition Analysis",
-      "toolMeta": {
-        "cardinality": "monolingual",
-        "category": "analysis",
-        "displayName": "Repetition Analysis",
-        "id": "repetition-analysis",
-        "produces": [
-          {
-            "type": "repetition"
-          }
-        ],
-        "tags": [
-          "analysis"
-        ]
-      },
-      "type": "object"
-    }
-  },
-  {
     "name": "review",
     "input_schema": {
       "$id": "review",
@@ -2351,41 +2009,6 @@
       "required": [
         "flow_name"
       ],
-      "type": "object"
-    }
-  },
-  {
-    "name": "scoping-report",
-    "input_schema": {
-      "$id": "scoping-report",
-      "properties": {
-        "target_lang": {
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
-          "type": "string"
-        },
-        "text": {
-          "description": "The content (text) to run the tool over.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "Scoping Report",
-      "toolMeta": {
-        "cardinality": "monolingual",
-        "category": "analysis",
-        "displayName": "Scoping Report",
-        "id": "scoping-report",
-        "produces": [
-          {
-            "type": "scoping-report"
-          }
-        ],
-        "tags": [
-          "analysis"
-        ]
-      },
       "type": "object"
     }
   },
@@ -2785,60 +2408,6 @@
         "file",
         "key"
       ],
-      "type": "object"
-    }
-  },
-  {
-    "name": "source-check",
-    "input_schema": {
-      "$id": "source-check",
-      "properties": {
-        "blockSeverity": {
-          "description": "Lowest finding severity that keeps a block from being marked checked (minor|major|critical)",
-          "options": [
-            {
-              "label": "minor",
-              "value": "minor"
-            },
-            {
-              "label": "major",
-              "value": "major"
-            },
-            {
-              "label": "critical",
-              "value": "critical"
-            }
-          ],
-          "title": "Blocking severity",
-          "type": "string"
-        },
-        "target_lang": {
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
-          "type": "string"
-        },
-        "text": {
-          "description": "The content (text) to run the tool over.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "Source Readiness",
-      "toolMeta": {
-        "cardinality": "monolingual",
-        "category": "quality",
-        "consumes": [
-          {
-            "type": "source"
-          }
-        ],
-        "displayName": "Source Readiness",
-        "id": "source-check",
-        "tags": [
-          "quality"
-        ]
-      },
       "type": "object"
     }
   },

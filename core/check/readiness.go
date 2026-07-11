@@ -1,0 +1,105 @@
+package check
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
+)
+
+// SeverityLister lets annotations outside the unified quality.findings shape
+// (e.g. the brand-voice annotation) expose their finding severities to the
+// source-readiness gate without this package importing them.
+type SeverityLister interface {
+	FindingSeverities() []Severity
+}
+
+// NewSourceReadinessTool creates the source-readiness stamp (formerly the
+// source-check registry tool): a terminal check step that promotes a block's
+// SourceStatus from the `authored` baseline to `checked` once the source is
+// clean, and demotes it back to `authored` when it is not. It is the
+// source-side counterpart of a translation producer stamping a target.
+//
+// It is derived, not a checker itself: it reads the findings the upstream
+// source checks already left on the block (the unified Findings annotation
+// plus any SeverityLister annotation such as brand-voice) and decides
+// readiness from their severities, so it belongs LAST in a source-check
+// sequence. blockSeverity is the lowest finding severity that keeps a block
+// from being `checked` (minor|major|critical; empty means major): findings at
+// or above it leave the source at the `authored` baseline, anything below is
+// tolerated. An already-`approved` source that is still clean keeps its
+// approval (a clean re-check never downgrades a human sign-off).
+func NewSourceReadinessTool(blockSeverity string) (*tool.BaseTool, error) {
+	threshold, err := blockThreshold(blockSeverity)
+	if err != nil {
+		return nil, err
+	}
+	t := &tool.BaseTool{
+		ToolName:        "source-check",
+		ToolDescription: "Marks source content checked once it clears its brand/terminology checks",
+	}
+	t.Annotate = func(v tool.BlockView) error {
+		if !v.Translatable() || strings.TrimSpace(v.SourceText()) == "" {
+			return nil
+		}
+
+		worst := worstSourceFindingWeight(v)
+		blocked := worst >= threshold
+
+		switch {
+		case blocked:
+			// A blocking finding regresses readiness to the authored baseline,
+			// even if the source was previously checked or approved — the source
+			// changed (or a rule did) and no longer clears its checks.
+			v.SetSourceStatus(model.SourceStatusAuthored)
+		case v.SourceStatus().Rank() >= model.SourceStatusApproved.Rank():
+			// Clean and already approved: a re-check never undoes a human
+			// sign-off. Leave it as-is.
+		default:
+			v.SetSourceStatus(model.SourceStatusChecked)
+		}
+		return nil
+	}
+	return t, nil
+}
+
+// blockThreshold parses the blocking severity (default major) into its weight.
+func blockThreshold(blockSeverity string) (int, error) {
+	sev := SeverityMajor
+	switch strings.ToLower(strings.TrimSpace(blockSeverity)) {
+	case "":
+	case "minor":
+		sev = SeverityMinor
+	case "major":
+		sev = SeverityMajor
+	case "critical":
+		sev = SeverityCritical
+	default:
+		return 0, fmt.Errorf("source-check: blockSeverity must be one of minor|major|critical, got %q", blockSeverity)
+	}
+	return SeverityWeight(sev), nil
+}
+
+// worstSourceFindingWeight returns the highest finding-severity weight recorded
+// on the block by upstream source checks, across both the unified Findings
+// annotation and any SeverityLister annotation (e.g. brand-voice). 0 means
+// "no findings" (clean).
+func worstSourceFindingWeight(v tool.BlockView) int {
+	worst := 0
+	for _, f := range Findings(v) {
+		if w := SeverityWeight(f.Severity); w > worst {
+			worst = w
+		}
+	}
+	for _, a := range v.Annotations() {
+		if lister, ok := a.(SeverityLister); ok {
+			for _, s := range lister.FindingSeverities() {
+				if w := SeverityWeight(s); w > worst {
+					worst = w
+				}
+			}
+		}
+	}
+	return worst
+}

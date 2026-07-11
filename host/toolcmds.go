@@ -75,26 +75,12 @@ func AiProgressWriter(w *os.File) func(aiprovider.ProgressEvent) {
 //
 // AI/MT commands use demo mode (no --provider flag needed in the playground).
 var ToolExamples = map[string]string{
-	// ── Analysis ────────────────────────────────────────────────────────
-	"scoping-report": `  kapi scoping-report messages.json
-  kapi scoping-report app.xliff --json`,
-	"repetition-analysis": `  kapi repetition-analysis messages.json
-  kapi repetition-analysis app.xliff`,
-
 	// ── Quality ─────────────────────────────────────────────────────────
 	"qa": `  kapi qa app.xliff --target-lang fr
   kapi qa app.xliff --target-lang fr --provider anthropic
   kapi qa app.xliff --target-lang de --json`,
 	"term-check": `  kapi term-check app.xliff --source-lang en --target-lang fr
   kapi term-check messages.json --source-lang en --target-lang fr`,
-	"inconsistency-check": `  kapi inconsistency-check app.xliff --target-lang fr
-  kapi inconsistency-check app.xliff --target-lang de`,
-	"length-check": `  kapi length-check app.xliff --target-lang fr
-  kapi length-check app.xliff --target-lang ja`,
-	"chars-check": `  kapi chars-check app.xliff --target-lang fr
-  kapi chars-check app.xliff --target-lang zh`,
-	"pattern-check": `  kapi pattern-check app.xliff --target-lang fr
-  kapi pattern-check app.xliff --target-lang de`,
 	"brand-vocab-check": `  kapi brand-vocab-check app.xliff --target-lang fr
   kapi brand-vocab-check messages.json --target-lang de`,
 

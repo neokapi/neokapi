@@ -69,11 +69,8 @@ steps:
         - whitespace
         - placeholders
         - patterns
+      checkTargetInconsistency: true
       fail_on_error: true
-
-  - tool: inconsistency-check
-    config:
-      target_locale: en-US
 ```
 
 Run it:
@@ -90,11 +87,8 @@ Before starting a translation project, analyze the source content:
 # Content stats (blocks, words, characters) across all source files
 kapi stats src/locales/en/*.json
 
-# Detailed scoping report
-kapi exec scoping-report -i src/locales/en/
-
-# Repetition analysis (find reusable segments)
-kapi exec repetition-analysis -i src/locales/en/
+# TM leverage, remaining work, and token estimate for the pending locales
+kapi up --plan
 ```
 
 ### Source Cleanup

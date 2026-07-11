@@ -1,13 +1,12 @@
 {
-  "generatedAt": "2026-07-11T10:00:27Z",
+  "generatedAt": "2026-07-11T10:26:31Z",
   "summary": {
     "built-in/format/description": 3,
     "built-in/format/doc.examples": 3,
     "built-in/format/doc.overview": 3,
-    "built-in/tool/description": 1,
-    "built-in/tool/doc.overview": 3,
+    "built-in/tool/doc.overview": 2,
     "plugin/format/doc.overview": 1,
-    "total": 14
+    "total": 12
   },
   "gaps": [
     {
@@ -91,20 +90,6 @@
       "kind": "tool",
       "source": "built-in",
       "id": "media-refine",
-      "field": "doc.overview",
-      "detail": "no overview / rich documentation"
-    },
-    {
-      "kind": "tool",
-      "source": "built-in",
-      "id": "source-check",
-      "field": "description",
-      "detail": "no description or overview"
-    },
-    {
-      "kind": "tool",
-      "source": "built-in",
-      "id": "source-check",
       "field": "doc.overview",
       "detail": "no overview / rich documentation"
     }

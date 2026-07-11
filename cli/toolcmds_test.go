@@ -81,7 +81,7 @@ func TestToolTiering(t *testing.T) {
 		assert.False(t, sub.Hidden, "exec entry %q should be visible in `kapi exec --help`", sub.Name())
 	}
 	// Former curated tier + spot-checked demoted tools: exec-only.
-	for _, name := range []string{"translate", "pseudo-translate", "qa", "recycle", "term-check", "content-lint", "length-check"} {
+	for _, name := range []string{"translate", "pseudo-translate", "qa", "recycle", "term-check", "case-transform", "search-replace"} {
 		assert.True(t, inGroup[name], "tool %q must be reachable under `kapi exec`", name)
 		assert.Nil(t, byName[name], "tool %q must not mount at the top level via NewToolCommands", name)
 	}

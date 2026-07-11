@@ -74,11 +74,14 @@ steps:
     label: Quality checks
 ```
 
-Related validation tools cover narrower jobs — `length-check` for length ratios,
-`chars-check` for forbidden or corrupted characters, `pattern-check` for regex
-patterns such as printf placeholders, `inconsistency-check` for the same source
-translated differently across a batch, and the terminology validators
-`term-enforce` and `term-check`. The full set is in the
+These rule families are all options of the one `qa` tool: length ratios and
+absolute character/word limits (`--check-max-char-length`,
+`--check-absolute-max-char-length`, `--check-max-words`), forbidden or
+corrupted characters and charset conformance (`--forbidden-chars`,
+`--required-chars`, `--check-charset`), regex patterns such as printf
+placeholders (pattern rules in flow config), and the same source translated
+differently across a batch (`--check-target-inconsistency`). Terminology has
+its own validator, `term-check`. The full set is in the
 [Tool Reference](/tools).
 
 ## LLM-assisted review

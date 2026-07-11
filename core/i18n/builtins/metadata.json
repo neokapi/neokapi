@@ -139,36 +139,6 @@
         }
       }
     },
-    "chars-check": {
-      "displayName": "Characters Check",
-      "category": "quality",
-      "properties": {
-        "charset": {
-          "title": "Character Set Encoding",
-          "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)"
-        },
-        "checkCharset": {
-          "title": "Check Against Charset Encoding",
-          "description": "Warn if a character is not included in the specified character set encoding"
-        },
-        "checkCorrupted": {
-          "title": "Check Corrupted Characters",
-          "description": "Check for common corruption patterns such as mojibake"
-        },
-        "forbiddenChars": {
-          "title": "Forbidden Characters",
-          "description": "Characters that should not appear in target text (e.g. {}[])"
-        },
-        "requiredChars": {
-          "title": "Required Characters",
-          "description": "Characters that must appear in target if present in source (e.g. punctuation)"
-        }
-      }
-    },
-    "content-lint": {
-      "displayName": "Content Lint",
-      "category": "text-processing"
-    },
     "diff-leverage": {
       "displayName": "Diff Leverage",
       "category": "translation",
@@ -272,97 +242,6 @@
         }
       }
     },
-    "inconsistency-check": {
-      "displayName": "Inconsistency Check",
-      "category": "quality",
-      "properties": {
-        "caseSensitive": {
-          "title": "Case Sensitive",
-          "description": "Whether comparison is case-sensitive"
-        },
-        "checkPerFile": {
-          "title": "Per-File Checking",
-          "description": "Process each input file individually instead of comparing segments across all documents"
-        },
-        "checkSourceInconsistency": {
-          "title": "Check Source Inconsistency",
-          "description": "Flag when different sources share the same translation"
-        },
-        "checkTargetInconsistency": {
-          "title": "Check Target Inconsistency",
-          "description": "Flag when the same source has different translations"
-        },
-        "displayOption": {
-          "title": "Inline Code Display",
-          "description": "Controls how inline codes are represented: original codes or generic markers or plain text",
-          "options": {
-            "generic": {
-              "label": "generic"
-            },
-            "original": {
-              "label": "original"
-            },
-            "plain": {
-              "label": "plain"
-            }
-          }
-        }
-      }
-    },
-    "length-check": {
-      "displayName": "Length Check",
-      "category": "quality",
-      "properties": {
-        "checkMaxCharLength": {
-          "title": "Check Maximum Length Ratio",
-          "description": "Warn if target exceeds a percentage of source character length"
-        },
-        "checkMinCharLength": {
-          "title": "Check Minimum Length Ratio",
-          "description": "Warn if target is shorter than a percentage of source character length"
-        },
-        "maxCharLengthAbove": {
-          "title": "Percentage for Long Text (Max)",
-          "description": "Max percentage of source length allowed for long text"
-        },
-        "maxCharLengthBelow": {
-          "title": "Percentage for Short Text (Max)",
-          "description": "Max percentage of source length allowed for short text"
-        },
-        "maxCharLengthBreak": {
-          "title": "Short/Long Threshold (Max)",
-          "description": "Character count threshold between short and long text for max check"
-        },
-        "maxChars": {
-          "title": "Maximum Characters",
-          "description": "Absolute maximum character count for target text (0 = disabled)"
-        },
-        "maxPercentage": {
-          "title": "Maximum Length Percentage",
-          "description": "Maximum target/source length ratio as percentage (0 = disabled)"
-        },
-        "maxWords": {
-          "title": "Maximum Words",
-          "description": "Maximum word count for target text (0 = disabled)"
-        },
-        "minCharLengthAbove": {
-          "title": "Percentage for Long Text (Min)",
-          "description": "Min percentage of source length allowed for long text"
-        },
-        "minCharLengthBelow": {
-          "title": "Percentage for Short Text (Min)",
-          "description": "Min percentage of source length allowed for short text"
-        },
-        "minCharLengthBreak": {
-          "title": "Short/Long Threshold (Min)",
-          "description": "Character count threshold between short and long text for min check"
-        },
-        "minPercentage": {
-          "title": "Minimum Length Percentage",
-          "description": "Minimum target/source length ratio as percentage (0 = disabled)"
-        }
-      }
-    },
     "media-refine": {
       "displayName": "Media Refine",
       "description": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
@@ -414,10 +293,6 @@
         }
       }
     },
-    "pattern-check": {
-      "displayName": "Pattern Check",
-      "category": "quality"
-    },
     "pseudo-translate": {
       "displayName": "Pseudo Translate",
       "category": "translation",
@@ -449,9 +324,17 @@
           "title": "API Key",
           "description": "API key for the AI provider"
         },
+        "charset": {
+          "title": "Character Set Encoding",
+          "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)"
+        },
         "checkAbsoluteMaxCharLength": {
           "title": "Check Absolute Maximum Length",
           "description": "Flag target segments that exceed an absolute character count limit"
+        },
+        "checkCharset": {
+          "title": "Check Against Charset Encoding",
+          "description": "Warn if a target character is not included in the specified character set encoding"
         },
         "checkCodeDifference": {
           "title": "Check Code Differences",
@@ -459,7 +342,7 @@
         },
         "checkCorruptedCharacters": {
           "title": "Check Corrupted Characters",
-          "description": "Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1)"
+          "description": "Check for patterns indicating encoding corruption (mojibake"
         },
         "checkDoubleSpaces": {
           "title": "Check Double Spaces",
@@ -485,6 +368,10 @@
           "title": "Check Maximum Length Ratio",
           "description": "Flag targets longer than a percentage of source character length"
         },
+        "checkMaxWords": {
+          "title": "Check Maximum Word Count",
+          "description": "Flag target segments that exceed an absolute word count limit"
+        },
         "checkMinCharLength": {
           "title": "Check Minimum Length Ratio",
           "description": "Flag targets shorter than a percentage of source character length"
@@ -493,9 +380,17 @@
           "title": "Check Patterns",
           "description": "Verify that source patterns have expected corresponding content in the target"
         },
+        "checkSourceInconsistency": {
+          "title": "Check Source Inconsistency",
+          "description": "Flag when different source texts share the same translation"
+        },
         "checkSpanConstraints": {
           "title": "Check Span Constraints",
           "description": "Check non-deletable and non-cloneable span constraint violations"
+        },
+        "checkTargetInconsistency": {
+          "title": "Check Target Inconsistency",
+          "description": "Flag when the same source text is translated differently across the run"
         },
         "checkTargetSameAsSource": {
           "title": "Warn on Target Same as Source",
@@ -513,9 +408,17 @@
           "title": "Quality Checks",
           "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)"
         },
+        "consistencyCaseSensitive": {
+          "title": "Case-Sensitive Consistency",
+          "description": "Whether consistency comparison is case-sensitive"
+        },
         "doubledWordExceptions": {
           "title": "Doubled Word Exceptions",
           "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)"
+        },
+        "forbiddenChars": {
+          "title": "Forbidden Characters",
+          "description": "Characters that must not appear in target text (e.g. {}[])"
         },
         "maxCharLengthAbove": {
           "title": "Percentage for Long Text (Max)",
@@ -528,6 +431,10 @@
         "maxCharLengthBreak": {
           "title": "Short/Long Threshold (Max)",
           "description": "Character count above which text is considered long for the maximum length check"
+        },
+        "maxWords": {
+          "title": "Maximum Words",
+          "description": "Maximum number of words allowed in any target segment"
         },
         "minCharLengthAbove": {
           "title": "Percentage for Long Text (Min)",
@@ -588,6 +495,10 @@
             }
           }
         },
+        "requiredChars": {
+          "title": "Required Characters",
+          "description": "Characters that must appear in target if present in source (e.g. punctuation)"
+        },
         "strictCodeOrder": {
           "title": "Enforce Strict Code Order",
           "description": "Flag differences when codes appear in a different order between source and target"
@@ -616,6 +527,9 @@
         },
         "rules:characters": {
           "label": "Characters"
+        },
+        "rules:consistency": {
+          "label": "Consistency"
         },
         "rules:general": {
           "label": "General"
@@ -692,16 +606,6 @@
         }
       }
     },
-    "repetition-analysis": {
-      "displayName": "Repetition Analysis",
-      "category": "analysis",
-      "properties": {
-        "caseSensitive": {
-          "title": "Case Sensitive",
-          "description": "Whether comparison is case-sensitive"
-        }
-      }
-    },
     "review": {
       "displayName": "Review",
       "description": "Review translations with scoring using an LLM provider",
@@ -748,10 +652,6 @@
           "label": "Provider"
         }
       }
-    },
-    "scoping-report": {
-      "displayName": "Scoping Report",
-      "category": "analysis"
     },
     "script": {
       "displayName": "Script",
@@ -911,27 +811,6 @@
         },
         "srx": {
           "label": "Rule-based (hybrid SRX/UAX-29)"
-        }
-      }
-    },
-    "source-check": {
-      "displayName": "Source Readiness",
-      "category": "quality",
-      "properties": {
-        "blockSeverity": {
-          "title": "Blocking severity",
-          "description": "Lowest finding severity that keeps a block from being marked checked (minor|major|critical)",
-          "options": {
-            "critical": {
-              "label": "critical"
-            },
-            "major": {
-              "label": "major"
-            },
-            "minor": {
-              "label": "minor"
-            }
-          }
         }
       }
     },

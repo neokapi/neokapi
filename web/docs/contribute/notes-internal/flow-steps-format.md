@@ -83,7 +83,7 @@ steps:
 steps:
   - parallel:
       - tool: translate
-      - tool: repetition-analysis
+      - tool: term-check
   - tool: qa
 ```
 

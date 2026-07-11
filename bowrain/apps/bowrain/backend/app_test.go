@@ -42,7 +42,7 @@ func TestListTools(t *testing.T) {
 	tools := app.ListTools()
 	// The exact count drifts as tools are added/removed; assert a floor and
 	// the specific tools below rather than a brittle hardcoded number.
-	assert.GreaterOrEqual(t, len(tools), 35, "expected at least 35 tools")
+	assert.GreaterOrEqual(t, len(tools), 28, "expected at least 28 tools")
 
 	names := make(map[string]bool)
 	for _, tl := range tools {

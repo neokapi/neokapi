@@ -93,8 +93,8 @@ steps:
     config: { copySource: true }
   - parallel:
       - tool: qa
-      - tool: length-check
-      - tool: repetition-analysis
+      - tool: term-check
+      - tool: xml-validation
 ```
 
 ### Transformers

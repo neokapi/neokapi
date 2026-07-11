@@ -1,6 +1,9 @@
 package brand
 
-import "github.com/neokapi/neokapi/core/model"
+import (
+	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/model"
+)
 
 // BrandVoiceAnnotation carries brand voice compliance findings for a block.
 type BrandVoiceAnnotation struct {
@@ -12,3 +15,14 @@ type BrandVoiceAnnotation struct {
 
 // AnnotationType returns the type identifier for this annotation.
 func (a *BrandVoiceAnnotation) TypeName() string { return "brand-voice" }
+
+// FindingSeverities implements check.SeverityLister so the source-readiness
+// gate (core/check) folds brand-voice findings into its severity roll-up
+// without a dependency cycle.
+func (a *BrandVoiceAnnotation) FindingSeverities() []check.Severity {
+	out := make([]check.Severity, len(a.Findings))
+	for i, f := range a.Findings {
+		out[i] = f.Severity
+	}
+	return out
+}

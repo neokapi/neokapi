@@ -95,17 +95,15 @@ steps:
         label: Quality checks
         config:
           targetLocale: fr
-      - tool: length-check
-        label: Length checks
+      - tool: term-check
+        label: Terminology checks
         config:
           targetLocale: fr
-      - tool: repetition-analysis
-        label: Repetition analysis
-        config:
-          targetLocale: fr
+      - tool: xml-validation
+        label: XML validation
 ```
 
-All three analysis tools run at the same time, each in its own goroutine.
+All three check tools run at the same time, each in its own goroutine.
 
 ## Transformers
 
@@ -204,16 +202,14 @@ steps:
       expansionPercent: 30
 
   - parallel:
-      - tool: repetition-analysis
+      - tool: term-check
         config:
           targetLocale: qps-ploc
-      - tool: length-check
-        config:
-          targetLocale: qps-ploc
-          maxChars: 200
       - tool: qa
         config:
           targetLocale: qps-ploc
+          checkAbsoluteMaxCharLength: true
+          absoluteMaxCharLength: 200
 ```
 
 ### Script filtering

@@ -160,8 +160,8 @@ const (
 // management). It is a freeform Tag on ToolMeta, orthogonal to Category: the
 // CLI groups every l10n-tagged command under one "Localization:" help section
 // regardless of its schema Category, while the Category stays canonical for
-// docs and the flow editor. Generic, format-aware tools (content-lint,
-// word-count, rewrite, segmentation, …) deliberately carry no l10n tag.
+// docs and the flow editor. Generic, format-aware tools (search-replace,
+// case-transform, rewrite, segmentation, …) deliberately carry no l10n tag.
 const TagL10n = "l10n"
 
 // bridgeCategoryAliases maps the okapi-bridge category vocabulary onto the
