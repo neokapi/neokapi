@@ -503,6 +503,10 @@ func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath
 }
 
 func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string, inputPaths []string, concurrency int, outputTemplate string) error {
+	// Mirror a directory-style -o against the batch's common input root (not
+	// each file's own dir), so nested inputs keep their relative structure —
+	// the same base the exec tool runner uses.
+	outputBase := commonDirPrefix(inputPaths)
 	if concurrency <= 0 {
 		if a.ProjectContext != nil && a.ProjectContext.Concurrency > 0 {
 			concurrency = a.ProjectContext.Concurrency
@@ -589,7 +593,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 				}
 			}
 
-			fmtName, nodes, err := a.processFlowFile(ctx, cmd, flowName, inputPath, outputTemplate, recorder)
+			fmtName, nodes, err := a.processFlowFile(ctx, cmd, flowName, inputPath, outputTemplate, outputBase, recorder)
 
 			if tracePath != "" {
 				info.endUs = time.Since(batchStart).Microseconds()
@@ -671,7 +675,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 // All formats — built-in and Mode-C plugin-backed — use the standard
 // read → process → write pipeline. Plugin-backed formats are routed
 // through their daemon transparently by the registered factories.
-func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate string, recorder *flow.TraceRecorder) (string, []flow.TraceNode, error) {
+func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, outputBase string, recorder *flow.TraceRecorder) (string, []flow.TraceNode, error) {
 	fmtName := a.FormatFlag
 	if fmtName == "" {
 		// Use project-scoped detection when running in project mode.
@@ -724,14 +728,14 @@ func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputP
 	// All formats use the standard read → process → write pipeline.
 	// Plugin-backed formats are routed through their Mode-C daemon
 	// transparently by the registered factories.
-	nodes, err := a.processFlowFileNative(ctx, cmd, flowName, inputPath, outputTemplate, registryName, reader, mergedConfig, recorder)
+	nodes, err := a.processFlowFileNative(ctx, cmd, flowName, inputPath, outputTemplate, outputBase, registryName, reader, mergedConfig, recorder)
 	return fmtName, nodes, err
 }
 
 // processFlowFileNative uses the standard read → process → write pipeline.
 // When recorder is non-nil, tools are wrapped with TracingTool and reader/writer
 // events are recorded. Returns trace nodes (nil when recorder is nil).
-func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
+func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, outputBase, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
 	// Build fresh tool instances for this file (thread-safe in batch mode).
 	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
@@ -764,7 +768,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 		})
 	}
 
-	outputPath := a.resolveOutputPath(inputPath, outputTemplate)
+	outputPath := a.resolveOutputPathFrom(inputPath, outputTemplate, outputBase)
 
 	// Writer format defaults to the reader's format (same-in / same-out
 	// round-trip) but a different output extension selects a different
@@ -823,6 +827,14 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 //     in a separator or naming a directory mirrors the input beneath it. An
 //     explicit -o always wins over the project target (user override).
 func (a *App) resolveOutputPath(inputPath, outputTemplate string) string {
+	return a.resolveOutputPathFrom(inputPath, outputTemplate, filepath.Dir(inputPath))
+}
+
+// resolveOutputPathFrom is resolveOutputPath with an explicit mirror base: a
+// directory-style -o mirrors the input beneath it relative to base. Batch runs
+// pass the files' common root so nested inputs keep their structure; single
+// runs pass the file's own dir (via resolveOutputPath).
+func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) string {
 	if outputTemplate == "" {
 		if out, ok := a.projectItemTargetPath(inputPath, a.TargetLang); ok {
 			ensureParentDir(out)
@@ -833,7 +845,10 @@ func (a *App) resolveOutputPath(inputPath, outputTemplate string) string {
 		return filepath.Join(filepath.Dir(inputPath), fmt.Sprintf("%s_%s%s", name, a.TargetLang, ext))
 	}
 
-	out := expandAdhocOutputTemplate(outputTemplate, inputPath, filepath.Dir(inputPath), a.TargetLang)
+	if base == "" {
+		base = filepath.Dir(inputPath)
+	}
+	out := expandAdhocOutputTemplate(outputTemplate, inputPath, base, a.TargetLang)
 	ensureParentDir(out)
 	return out
 }
