@@ -53,7 +53,7 @@ Import once into a named termbase, verify, then check deliveries:
 kapi termbase import glossary.csv --name product-terms \
   --format csv --header -s en -t fr                 # once; persists across sessions
 kapi termbase lookup "log in" --name product-terms -s en -t fr
-kapi term-check messages_fr.json \
+kapi tool term-check messages_fr.json \
   --source-lang en --target-lang fr --termbase product-terms
 ```
 

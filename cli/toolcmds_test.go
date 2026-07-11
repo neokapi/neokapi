@@ -50,13 +50,17 @@ func TestNewToolCommandsSetsGroupID(t *testing.T) {
 	cmds := NewToolCommands(app)
 	require.NotEmpty(t, cmds)
 
-	// Only the curated tier and the `tool` group mount at the top level —
-	// no hidden aliases for the rest (hard cutover, surface A3/A7).
+	// The curated tier and the `tool` group render in root help groups; every
+	// other tool keeps a PERMANENT hidden top-level shortcut — dispatchable,
+	// but absent from help/completion/reference (surface A3, shortcut form).
 	for _, cmd := range cmds {
-		require.Truef(t, TopLevelTools[cmd.Name()] || cmd.Name() == "tool",
-			"unexpected top-level tool command %q — non-curated tools live under `kapi tool` only", cmd.Use)
-		assert.NotEmpty(t, cmd.GroupID, "visible command %q should have GroupID set", cmd.Use)
-		assert.False(t, cmd.Hidden, "curated command %q must stay visible", cmd.Use)
+		if TopLevelTools[cmd.Name()] || cmd.Name() == "tool" {
+			assert.NotEmpty(t, cmd.GroupID, "visible command %q should have GroupID set", cmd.Use)
+			assert.False(t, cmd.Hidden, "curated command %q must stay visible", cmd.Use)
+			continue
+		}
+		assert.True(t, cmd.Hidden, "shortcut %q must stay hidden", cmd.Use)
+		assert.Empty(t, cmd.GroupID, "shortcut %q must not claim a help group", cmd.Use)
 	}
 }
 
@@ -88,10 +92,13 @@ func TestToolTiering(t *testing.T) {
 			assert.False(t, c.Hidden)
 		}
 	}
-	// Spot-check demoted tools: under `tool` only — no top-level spelling.
+	// Spot-check demoted tools: documented under `tool`, plus a hidden
+	// top-level shortcut that dispatches identically.
 	for _, name := range []string{"term-check", "content-lint", "length-check"} {
 		assert.True(t, inGroup[name], "tool %q must be reachable under `kapi tool`", name)
-		assert.Nil(t, byName[name], "tool %q must not mount at the top level", name)
+		if c := byName[name]; assert.NotNil(t, c, "tool %q should keep a hidden top-level shortcut", name) {
+			assert.True(t, c.Hidden, "shortcut %q must be hidden", name)
+		}
 	}
 }
 
