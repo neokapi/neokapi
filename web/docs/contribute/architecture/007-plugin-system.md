@@ -157,12 +157,12 @@ never changes what an existing kapi verb means (plugins extend kapi the way
 - A plugin command whose name collides with a built-in attaches under the
   group **only**; the built-in keeps the top-level verb. This is a supported
   layout for verbs whose plugin semantics differ from core (bowrain's
-  `config`, `ls`).
+  `config`, whose recipe keys the built-in also covers positionally).
 - A command with `"hidden": true` is dispatch **plumbing** consumed by a
   built-in rather than typed by users — bowrain's `server-status` (merged
-  into `kapi status`) and `server-up` (the server venue behind `kapi up`).
-  Hidden commands stay routable but are omitted from `--help` and
-  completion.
+  into `kapi status`), `server-up` (the server venue behind `kapi up`),
+  and `server-ls` (the sync column on `kapi ls`). Hidden commands stay
+  routable but are omitted from `--help` and completion.
 - A plugin that needs to participate in a core verb uses a
   `command_contribution` (bowrain's `init --server`) or hidden plumbing the
   built-in dispatches — never a same-name command.

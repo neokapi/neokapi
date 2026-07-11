@@ -84,6 +84,10 @@ func NewLsCmd(a *App) *cobra.Command {
 		Long: `List the files matched by the project's content collections (honoring the
 exclude list). With --stats, also show per-file block and word counts.
 
+In a server-connected project (a recipe with a server: block, with the
+bowrain plugin installed) a SYNC column reports each file's pending-push
+standing ("2 to push" / "synced"), derived from the sync cache.
+
   kapi ls
   kapi ls src/
   kapi ls --stats`,
@@ -139,6 +143,10 @@ exclude list). With --stats, also show per-file block and word counts.
 			}
 			sort.Slice(out.Files, func(i, j int) bool { return out.Files[i].Path < out.Files[j].Path })
 			out.Total = len(out.Files)
+			// Connected project: fold in the per-file sync standing via the
+			// plugin's server-ls plumbing (a SYNC column, like status's
+			// server section) — the built-in owns the verb in every install.
+			a.MergeServerLs(cmd, proj, &out, args)
 			return output.Print(cmd, out)
 		},
 	}

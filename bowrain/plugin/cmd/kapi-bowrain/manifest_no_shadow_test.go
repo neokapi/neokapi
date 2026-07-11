@@ -33,8 +33,7 @@ func TestManifestNeverShadowsBuiltins(t *testing.T) {
 	// the plugin's version lives under `kapi bowrain <verb>`. Grow this list
 	// only with a matching docs update.
 	groupScoped := map[string]bool{
-		"config": true, // built-in: app config; plugin: recipe/server settings
-		"ls":     true, // built-in: tracked files; plugin: sync-aware listing (Mode-C)
+		"config": true, // built-in: app config (+ positional recipe keys); plugin: --global bowrain.yaml
 	}
 
 	for _, c := range m.Capabilities.Commands {
@@ -59,4 +58,5 @@ func TestManifestNeverShadowsBuiltins(t *testing.T) {
 	}
 	assert.True(t, plumbing["server-status"], "kapi status depends on the hidden server-status plumbing")
 	assert.True(t, plumbing["server-up"], "kapi up's server venue depends on the hidden server-up plumbing")
+	assert.True(t, plumbing["server-ls"], "kapi ls's sync column depends on the hidden server-ls plumbing")
 }

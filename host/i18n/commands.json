@@ -156,7 +156,7 @@
         },
         "long": "kapi parses any format into one unified content model, edits the content\ninside it, checks it, and writes it back byte-for-byte. At heart, both a\nlocalization engine and the tool that keeps your source content on brand:\nconvert formats, translate with AI, and run quality checks across a wide range\nof file types.",
         "ls": {
-          "long": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats",
+          "long": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\nIn a server-connected project (a recipe with a server: block, with the\nbowrain plugin installed) a SYNC column reports each file's pending-push\nstanding (\"2 to push\" / \"synced\"), derived from the sync cache.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats",
           "short": "List the files the project's content tracks"
         },
         "mcp": {

@@ -141,15 +141,16 @@ With the plugin installed, `kapi` exposes:
   existing kapi verb means. New verbs attach top-level: `push`, `pull`,
   `diff` (local-vs-server block diff; the format-aware file differ's
   kapi-side spelling is `kdiff` only, so the name is free), `auth`,
-  `stream`, `ui`, `workspace`. Verbs whose bowrain semantics differ from a
-  built-in live under the plugin group only — `kapi config`
-  (recipe/server settings vs the built-in app config), `kapi bowrain ls`
-  (sync-aware listing). Participation in core verbs happens
+  `stream`, `ui`, `workspace`. The one group-scoped verb is
+  `kapi bowrain config`, kept for the `--global` bowrain.yaml niche — the
+  built-in `kapi config` covers the recipe keys positionally
+  (`kapi config server.url …`). Participation in core verbs happens
   through a command contribution (`kapi init --server …`) and hidden
   dispatch plumbing (`server-status`, merged into `kapi status`;
-  `server-up`, the server venue behind `kapi up`) — never a replacement
-  command. Sync state — including which tracked files changed vs the
-  server — is `kapi status` (the home of the former `ls --dirty`).
+  `server-up`, the server venue behind `kapi up`; `server-ls`, the SYNC
+  column on `kapi ls`) — never a replacement command. Sync state lives on
+  the built-ins: aggregate standing in `kapi status`, per-file pending
+  counts in `kapi ls`.
 
 These commands separate three concerns. **Transport** is `push` and `pull`:
 pure data movement that makes the local checkout and the server replica
