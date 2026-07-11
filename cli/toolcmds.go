@@ -18,11 +18,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TopLevelTools is the curated tier of registry tools that keep a visible
-// top-level verb (surface strategy A3). Every other CLI-visible tool mounts
-// under `kapi tool <name>` only — no top-level spelling. Presentation only:
-// the registry's Category/Tags stay canonical and `kapi tools list` remains
-// the discovery surface for the full set.
+// TopLevelTools is the curated tier of registry tools that keep a VISIBLE
+// top-level verb (surface strategy A3). Every other CLI-visible tool is
+// documented as `kapi tool <name>` and additionally mounts top-level as a
+// hidden, permanent shortcut — `kapi term-check …` works, but it appears in
+// no help, completion, or docs (the shortcut must not pollute the surface).
+// Presentation only: the registry's Category/Tags stay canonical and
+// `kapi tools list` remains the discovery surface for the full set.
 var TopLevelTools = map[string]bool{
 	"translate":        true,
 	"pseudo-translate": true,
@@ -81,18 +83,23 @@ Discover tools and their options with 'kapi tools list' and
 		sub := newToolCommand(a, entry)
 		sub.GroupID = "" // the tool group renders one flat list, not the root's help groups
 		toolGroup.AddCommand(sub)
-		if TopLevelTools[toolName] {
-			cmds = append(cmds, newToolCommand(a, entry))
+		top := newToolCommand(a, entry)
+		if !TopLevelTools[toolName] {
+			// Permanent hidden shortcut: dispatches like the `kapi tool`
+			// spelling, invisible everywhere (help, completion, reference).
+			top.Hidden = true
+			top.GroupID = ""
 		}
+		cmds = append(cmds, top)
 	}
 
 	return append(cmds, toolGroup)
 }
 
 // newToolCommand builds the cobra command for one CLI-visible registry tool.
-// Called up to twice per tool — once for the `kapi tool` group and once for
-// the curated tier's top-level verb — so it must stay free of registration
-// side effects.
+// Called twice per tool — once for the `kapi tool` group and once for the
+// top-level verb (visible for the curated tier, hidden shortcut otherwise) —
+// so it must stay free of registration side effects.
 func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	toolName := string(entry.Info.Name)
 	info := entry.Info

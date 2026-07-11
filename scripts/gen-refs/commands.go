@@ -209,6 +209,12 @@ func collectCommands(cmd *cobra.Command, parentPath []string, toolNames map[stri
 		if sub.Name() == "help" {
 			continue
 		}
+		// Hidden commands are shortcuts and machine plumbing (the hidden
+		// top-level tool dispatch, engine, toolbox proxies): they must not
+		// surface in the reference — the docs document the visible surface.
+		if sub.Hidden {
+			continue
+		}
 
 		path := append(append([]string{}, parentPath...), sub.Name())
 		dotPath := strings.Join(path, ".")

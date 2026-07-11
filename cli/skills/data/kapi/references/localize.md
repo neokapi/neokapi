@@ -32,7 +32,7 @@ Run these as written — don't guess flags. When in doubt, `kapi <cmd> --help`.
 kapi extract --target-lang fr                  # → out/<name>.en-to-fr.xliff (one --target-lang)
 kapi merge -i out/*.xliff                       # -i is REQUIRED and repeatable; positional paths are ignored
 kapi check --ship --json                              # the gate: brand + terminology + QA in one shot (prefer this)
-kapi term-check ./locales/fr.json --target-lang fr   # file is POSITIONAL; there is no --source/--target
+kapi tool term-check ./locales/fr.json --target-lang fr   # file is POSITIONAL; there is no --source/--target
 kapi termbase lookup "board" -t fr              # approved wording; termbase uses -s/-t, not --*-lang
 kapi brand guide                                # the voice to follow (no flag inside a project)
 ```
@@ -65,11 +65,11 @@ as unfinished until kapi confirms the result:
 ```bash
 kapi merge -i out/*.xliff            # write translations back into the target files + TM
 kapi check --ship --json                   # in a project: brand + terminology + QA in one gate
-kapi term-check ./locales/fr.json    # one-off, no project: terminology check on the file
+kapi tool term-check ./locales/fr.json    # one-off, no project: terminology check on the file
 ```
 
 `kapi check --ship` is the gate inside a project — read its findings, fix them, and re-run
-until it passes. For a one-off file with no project, `kapi term-check` (plus the QA in
+until it passes. For a one-off file with no project, `kapi tool term-check` (plus the QA in
 `kapi run translate-qa`) plays the same role. Either way, a clean result, not a
 written file, is the finish line.
 
@@ -136,7 +136,7 @@ target drift never blocks.
 ```bash
 kapi termbase import glossary.csv --format csv -s en -t fr --local   # also: json, tbx
 kapi termbase lookup "checkout" -s en -t fr --json
-kapi term-check ./locales/fr.json --json                            # flag wrong/missing terms
+kapi tool term-check ./locales/fr.json --json                            # flag wrong/missing terms
 ```
 
 Use the approved (preferred) term; avoid deprecated/forbidden ones. A bound

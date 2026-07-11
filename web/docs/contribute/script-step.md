@@ -110,7 +110,7 @@ The function form works identically with `--code`, `--script-file`, and the YAML
 ### Inline code
 
 ```bash
-kapi script -i input.xliff --code 'if (part.type === "block") {
+kapi tool script -i input.xliff --code 'if (part.type === "block") {
   var text = part.block.source[0].content.text;
   if (text.length > 100) { skip(); }
 }'
@@ -119,7 +119,7 @@ kapi script -i input.xliff --code 'if (part.type === "block") {
 ### Script file
 
 ```bash
-kapi script -i input.xliff --script-file filter.js
+kapi tool script -i input.xliff --script-file filter.js
 ```
 
 Where `filter.js` contains:

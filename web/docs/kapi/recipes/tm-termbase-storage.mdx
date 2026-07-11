@@ -114,7 +114,7 @@ through their own `--tm` and `--termbase` flags:
 
 ```bash
 kapi recycle messages.json --target-lang fr --tm corporate-en-fr
-kapi term-check messages_fr.json --source-lang en --target-lang fr \
+kapi tool term-check messages_fr.json --source-lang en --target-lang fr \
   --termbase product-terms
 ```
 
@@ -141,7 +141,7 @@ keeps alongside its TM and termbase. Approving a unit (`kapi apply` with
 
 `kapi tm` and `kapi termbase` take the locale with `-s`/`--source-locale` and
 `-t`/`--target-locale`. The tool commands that read these stores
-(`kapi recycle`, `kapi term-check`) instead use the processing flags
+(`kapi recycle`, `kapi tool term-check`) instead use the processing flags
 `--source-lang` and `--target-lang`, consistent with the other tools.
 
 ## In a project

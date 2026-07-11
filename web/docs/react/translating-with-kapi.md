@@ -83,11 +83,11 @@ Only the blocks added since the last pass are sent to the LLM; everything alread
 
 ## Quality assurance
 
-`kapi qa` runs placeholder, inline-code, whitespace, and length checks against a translated archive; `kapi term-check` enforces a glossary:
+`kapi qa` runs placeholder, inline-code, whitespace, and length checks against a translated archive; `kapi tool term-check` enforces a glossary:
 
 ```bash
 kapi qa i18n/ --target-lang fr                                # placeholder, code, length, consistency
-kapi term-check i18n/ --target-lang fr --termbase fr-termbase.csv   # terminology
+kapi tool term-check i18n/ --target-lang fr --termbase fr-termbase.csv   # terminology
 ```
 
 `qa` covers:
@@ -119,11 +119,11 @@ Pass `--tm <name-or-path>` to leverage a specific TM. See [Translation memory](/
 
 ## Terminology consistency
 
-For apps with a large product vocabulary, keep terms rendered consistently with a termbase. Import the glossary, then gate translations with `kapi term-check` so any target that diverges from an approved term is flagged:
+For apps with a large product vocabulary, keep terms rendered consistently with a termbase. Import the glossary, then gate translations with `kapi tool term-check` so any target that diverges from an approved term is flagged:
 
 ```bash
 kapi termbase import product-terms.csv -s en -t fr
-kapi term-check i18n/ --target-lang fr --termbase product-terms.csv
+kapi tool term-check i18n/ --target-lang fr --termbase product-terms.csv
 ```
 
 To feed terminology into the translation step itself rather than only checking it afterward, compose a [flow](/framework/flows) that runs term lookup before `translate` — the matched terms become glossary context in the prompt.
@@ -177,7 +177,7 @@ anything that breaks, the same author → check → revise loop you'd run by han
 > "Translate the strings in `i18n/` to French and German — keep the placeholders and
 > inline elements intact — then run QA and fix anything that fails."
 
-Claude translates in place (locale-additive), runs `kapi qa` / `kapi term-check`, and
+Claude translates in place (locale-additive), runs `kapi qa` / `kapi tool term-check`, and
 loops on the findings until the archive passes; you `kapi-react compile` the result as
 usual. Nothing about your components changes — only the catalogue.
 
