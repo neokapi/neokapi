@@ -1,0 +1,201 @@
+/*
+ * typeset.css — the neokapi "typeset" prose layer.
+ *
+ * Implements the shadcn/typeset contract
+ * (https://ui.shadcn.com/docs/changelog/2026-07-typeset): one CSS file that
+ * styles everything inside a `.typeset` container, driven by three controls —
+ *
+ *   --typeset-size     base text size (everything else derives from it)
+ *   --typeset-leading  line-height / vertical rhythm
+ *   --typeset-flow     space between blocks
+ *
+ * Design rules carried over from upstream:
+ *   • zero-specificity `:where()` selectors, so a caller's own utility class
+ *     (Tailwind) or a `not-typeset` subtree always wins;
+ *   • `@layer components`, so Tailwind's `utilities` layer overrides it;
+ *   • `margin-block-start`-only flow (stream-stable — appending a block never
+ *     reflows the one above it), no `:last-child` / `:has()`;
+ *   • colors map to our theme tokens, so it themes light/dark for free.
+ *
+ * Owned + editable per the typeset philosophy ("the file lives in your
+ * project"). Rendering is done by react-markdown; this only styles the output.
+ * See web/docs/contribute/notes-internal/markdown-in-ui.md.
+ *
+ * Usage: wrap rendered markdown/HTML in `.typeset` (optionally a variant like
+ * `.typeset-docs`). Opt a subtree out with `not-typeset` / `data-not-typeset`.
+ */
+
+@layer components {
+  .typeset {
+    --typeset-font-body: inherit;
+    --typeset-font-heading: var(--font-sans, inherit);
+    --typeset-font-mono: var(--font-mono, ui-monospace, monospace);
+    --typeset-size: 1em;
+    --typeset-leading: 1.7;
+    --typeset-flow: 1.1em;
+
+    font-family: var(--typeset-font-body);
+    font-size: var(--typeset-size);
+    line-height: var(--typeset-leading);
+    color: var(--foreground);
+    overflow-wrap: break-word;
+  }
+
+  /* Variants — override only the three controls. */
+  .typeset-docs {
+    --typeset-size: 0.875rem;
+    --typeset-leading: 1.7;
+    --typeset-flow: 0.75em;
+  }
+  .typeset-chat {
+    --typeset-leading: 1.6;
+    --typeset-flow: 0.9em;
+  }
+
+  /* ── Flow: each block gets top space; the first child does not. ────────── */
+  :where(.typeset > * + *) {
+    margin-block-start: var(--typeset-flow);
+  }
+
+  /* ── Headings — sizes derive from --typeset-size. ──────────────────────── */
+  :where(.typeset h1, .typeset h2, .typeset h3, .typeset h4, .typeset h5, .typeset h6) {
+    font-family: var(--typeset-font-heading);
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--foreground);
+  }
+  :where(.typeset h1) {
+    font-size: calc(var(--typeset-size) * 1.5);
+  }
+  :where(.typeset h2) {
+    font-size: calc(var(--typeset-size) * 1.3);
+  }
+  :where(.typeset h3) {
+    font-size: calc(var(--typeset-size) * 1.15);
+  }
+  :where(.typeset h4, .typeset h5, .typeset h6) {
+    font-size: var(--typeset-size);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  /* A heading opens a section: more space above, less below. */
+  :where(.typeset :is(h1, h2, h3, h4, h5, h6) + *) {
+    margin-block-start: calc(var(--typeset-flow) * 0.5);
+  }
+
+  /* ── Emphasis. ─────────────────────────────────────────────────────────── */
+  :where(.typeset strong) {
+    font-weight: 600;
+    color: var(--foreground);
+  }
+  :where(.typeset em) {
+    font-style: italic;
+  }
+
+  /* ── Links. ────────────────────────────────────────────────────────────── */
+  :where(.typeset a) {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-color: color-mix(in oklab, var(--primary) 40%, transparent);
+  }
+  :where(.typeset a:hover) {
+    text-decoration-color: var(--primary);
+  }
+
+  /* ── Lists. ────────────────────────────────────────────────────────────── */
+  :where(.typeset ul) {
+    padding-inline-start: 1.4em;
+    list-style: disc;
+  }
+  :where(.typeset ol) {
+    padding-inline-start: 1.4em;
+    list-style: decimal;
+  }
+  :where(.typeset li + li) {
+    margin-block-start: calc(var(--typeset-flow) * 0.35);
+  }
+  :where(.typeset li > ul, .typeset li > ol) {
+    margin-block-start: calc(var(--typeset-flow) * 0.35);
+  }
+
+  /* ── Code. ─────────────────────────────────────────────────────────────── */
+  :where(.typeset :not(pre) > code) {
+    font-family: var(--typeset-font-mono);
+    font-size: 0.9em;
+    background: var(--muted);
+    border-radius: calc(var(--radius) * 0.5);
+    padding: 0.1em 0.35em;
+  }
+  :where(.typeset pre) {
+    font-family: var(--typeset-font-mono);
+    font-size: 0.85em;
+    line-height: 1.6;
+    background: var(--muted);
+    border-radius: var(--radius);
+    padding: 0.85em 1em;
+    overflow-x: auto;
+  }
+  :where(.typeset pre code) {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  /* ── Blockquote. ───────────────────────────────────────────────────────── */
+  :where(.typeset blockquote) {
+    border-inline-start: 2px solid var(--border);
+    padding-inline-start: 0.9em;
+    color: var(--muted-foreground);
+    font-style: italic;
+  }
+
+  /* ── Rule. ─────────────────────────────────────────────────────────────── */
+  :where(.typeset hr) {
+    border: 0;
+    border-block-start: 1px solid var(--border);
+    margin-block-start: calc(var(--typeset-flow) * 1.4);
+  }
+
+  /* ── Tables (scroll on overflow rather than break the page). ───────────── */
+  :where(.typeset table) {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 0.95em;
+  }
+  :where(.typeset thead) {
+    border-block-end: 2px solid var(--border);
+  }
+  :where(.typeset th) {
+    text-align: start;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    padding: 0.35em 0.75em 0.35em 0;
+  }
+  :where(.typeset td) {
+    border-block-end: 1px solid var(--border);
+    padding: 0.35em 0.75em 0.35em 0;
+    vertical-align: top;
+  }
+
+  /* ── Media. ────────────────────────────────────────────────────────────── */
+  :where(.typeset img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: calc(var(--radius) * 0.75);
+  }
+
+  /* ── Opt-out: a marked subtree drops back to plain flow. Because every rule
+   *    above is zero-specificity :where(), a component's own styles already
+   *    win; this resets the inherited rhythm/spacing for good measure. ─────── */
+  :where(.typeset .not-typeset),
+  :where(.typeset [data-not-typeset]) {
+    --typeset-flow: 0px;
+  }
+  :where(.typeset .not-typeset > * + *),
+  :where(.typeset [data-not-typeset] > * + *) {
+    margin-block-start: 0;
+  }
+}
