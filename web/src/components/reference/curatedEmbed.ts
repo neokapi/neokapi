@@ -54,7 +54,7 @@ export function formatPreviewSample(entry: ReferenceEntry): string | null {
  * meaningful. Each maps to the fixture to feed it. Kept to JSON-friendly
  * transforms so the in-browser run is fast and deterministic.
  *
- * Pure-analysis tools (word-count, char-count, scoping-report, …) print to
+ * Pure-analysis tools (scoping-report, encoding-detect, …) print to
  * stdout rather than producing an output file, so a before/after pane would be
  * empty — those pages are static-only.
  */

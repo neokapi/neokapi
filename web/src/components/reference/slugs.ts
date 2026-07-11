@@ -40,7 +40,7 @@ export function formatSlug(entry: ReferenceEntry): string {
 
 /**
  * Tool slug. Tool ids collide across sources — `pseudo-translate`,
- * `word-count`, `create-target`, … exist as BOTH a built-in and an Okapi-bridge
+ * `case-transform`, `create-target`, … exist as BOTH a built-in and an Okapi-bridge
  * tool. `source:id` is unique, so a built-in tool keeps its bare id and an
  * Okapi-bridge tool is suffixed with `-okapi` only when its id also exists as a
  * built-in. Non-colliding Okapi tools keep their bare id so most URLs stay

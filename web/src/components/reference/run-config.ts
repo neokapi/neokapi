@@ -103,12 +103,10 @@ const TOOL_COMMANDS = new Set([
   "scoping-report",
   "script",
   "search-replace",
-  "segment-count",
   "segmentation",
   "term-check",
   "recycle",
   "unredact",
-  "word-count",
 ]);
 
 /**
