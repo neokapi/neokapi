@@ -1,22 +1,41 @@
 /**
- * Lightweight ICU MessageFormat resolver for plural and select.
+ * Lightweight ICU MessageFormat resolver.
  *
  * Handles:
  *   {count, plural, one {# message} other {# messages}}
  *   {gender, select, male {his} female {her} other {their}}
+ *   {n, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}
+ *   {price, number}  {pct, number, percent}  {n, number, integer}
+ *   {total, number, currency/EUR}
+ *   {when, date}  {when, date, short|medium|long|full}
+ *   {when, time}  {when, time, short|medium|long|full}
  *   Nested token substitution within branches
  *
- * Uses Intl.PluralRules (built into all modern browsers, zero polyfill).
- * ~1KB minified — compare to @formatjs/intl-messageformat at 20KB+.
+ * Formatting goes through Intl.PluralRules / Intl.NumberFormat /
+ * Intl.DateTimeFormat (built into all modern engines, zero polyfill).
+ * Still ~1.5KB minified — compare to @formatjs/intl-messageformat at
+ * 20KB+. `#` inside plural branches is locale-number-formatted.
  */
+
+export type ICUParamValue = string | number | Date;
+
+/**
+ * True when `text` contains an ICU argument this resolver handles.
+ * The runtime uses this to decide whether a lookup result needs the
+ * resolver at all — keep it cheap.
+ */
+export function hasICUSyntax(text: string): boolean {
+  return /\{[^{},]+,\s*(plural|select|selectordinal|number|date|time)\s*[,}]/.test(text);
+}
 
 /**
  * Resolve an ICU MessageFormat string with the given parameters.
- * Returns the resolved string with all plural/select branches evaluated.
+ * Returns the resolved string with all plural/select branches
+ * evaluated and number/date/time arguments formatted for `locale`.
  */
 export function resolveICU(
   text: string,
-  params: Record<string, string | number> | undefined,
+  params: Record<string, ICUParamValue> | undefined,
   locale?: string,
 ): string {
   if (!params) return text;
@@ -25,7 +44,7 @@ export function resolveICU(
 
 function parseAndResolve(
   text: string,
-  params: Record<string, string | number>,
+  params: Record<string, ICUParamValue>,
   locale: string,
 ): string {
   let result = "";
@@ -48,7 +67,7 @@ function parseAndResolve(
 function parseExpression(
   text: string,
   start: number,
-  params: Record<string, string | number>,
+  params: Record<string, ICUParamValue>,
   locale: string,
 ): { value: string; end: number } {
   // Skip opening {
@@ -68,12 +87,28 @@ function parseExpression(
 
   // Skip comma
   i++;
-  // Read the type (plural, select, selectordinal)
+  // Read the type (plural, select, selectordinal, number, date, time)
   while (i < text.length && text[i] === " ") i++;
   const typeStart = i;
-  while (i < text.length && text[i] !== ",") i++;
+  while (i < text.length && text[i] !== "," && text[i] !== "}") i++;
   const type = text.slice(typeStart, i).trim();
-  i++; // skip comma
+
+  // ── Formatting arguments: no branches, an optional style ──
+  if (type === "number" || type === "date" || type === "time") {
+    let style = "";
+    if (text[i] === ",") {
+      i++;
+      const styleStart = i;
+      while (i < text.length && text[i] !== "}") i++;
+      style = text.slice(styleStart, i).trim();
+    }
+    if (text[i] === "}") i++;
+    const raw = params[varName];
+    if (raw === undefined) return { value: `{${varName}}`, end: i };
+    return { value: formatValue(type, raw, style, locale), end: i };
+  }
+
+  if (text[i] === ",") i++; // skip comma before branches
 
   // Parse the branches
   const branches: Record<string, string> = {};
@@ -118,8 +153,8 @@ function parseExpression(
       const category = rules.select(count);
       selectedBranch = branches[category] ?? branches["other"] ?? "";
     }
-    // Resolve # as the count value
-    selectedBranch = selectedBranch.replaceAll("#", String(count));
+    // Resolve # as the locale-formatted count value
+    selectedBranch = selectedBranch.replaceAll("#", formatNumber(count, "", locale));
   } else {
     // select: exact string match
     selectedBranch = branches[String(paramValue)] ?? branches["other"] ?? "";
@@ -129,6 +164,60 @@ function parseExpression(
   const resolved = parseAndResolve(selectedBranch, params, locale);
 
   return { value: resolved, end: i };
+}
+
+// ─── Intl formatting ─────────────────────────────────────────
+
+function formatValue(
+  type: "number" | "date" | "time",
+  raw: ICUParamValue,
+  style: string,
+  locale: string,
+): string {
+  if (type === "number") {
+    const n = typeof raw === "number" ? raw : Number(raw);
+    if (Number.isNaN(n)) return String(raw);
+    return formatNumber(n, style, locale);
+  }
+  const date =
+    raw instanceof Date ? raw : new Date(typeof raw === "number" ? raw : String(raw));
+  if (Number.isNaN(date.getTime())) return String(raw);
+  const styleValue = isDateTimeStyle(style) ? style : "medium";
+  try {
+    return new Intl.DateTimeFormat(
+      locale,
+      type === "date" ? { dateStyle: styleValue } : { timeStyle: styleValue },
+    ).format(date);
+  } catch {
+    return String(raw);
+  }
+}
+
+function isDateTimeStyle(style: string): style is "short" | "medium" | "long" | "full" {
+  return style === "short" || style === "medium" || style === "long" || style === "full";
+}
+
+function formatNumber(n: number, style: string, locale: string): string {
+  try {
+    if (style === "" ) return new Intl.NumberFormat(locale).format(n);
+    if (style === "integer") {
+      return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(n);
+    }
+    if (style === "percent") {
+      return new Intl.NumberFormat(locale, { style: "percent" }).format(n);
+    }
+    // `currency/EUR` (also tolerated with the `::` skeleton prefix).
+    const currency = /^(?:::)?currency\/([A-Za-z]{3})$/.exec(style);
+    if (currency) {
+      return new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: currency[1].toUpperCase(),
+      }).format(n);
+    }
+    return new Intl.NumberFormat(locale).format(n);
+  } catch {
+    return String(n);
+  }
 }
 
 /**

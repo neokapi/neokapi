@@ -30,7 +30,7 @@ import {
   useSyncExternalStore,
   useCallback,
 } from "react";
-import { resolveICU } from "./icu.ts";
+import { hasICUSyntax, resolveICU, type ICUParamValue } from "./icu.ts";
 
 // ─── Translation store ───────────────────────────────────────
 
@@ -115,15 +115,47 @@ export function setTranslations(
 /**
  * Fetch a translation file from a URL and activate it. Forwards
  * `syncDocumentLocale` and `merge` to `setTranslations`.
+ *
+ * Pass an array for a **runtime fallback chain**, primary first:
+ *
+ *     loadTranslations("de-AT", [
+ *       "/translations/de-AT.json",   // most specific wins
+ *       "/translations/de.json",      // fills the gaps
+ *     ]);
+ *
+ * Dictionaries merge fallback-first so the primary overrides. The
+ * primary fetch failing rejects (same contract as the single-URL
+ * form); a fallback that 404s or fails merely contributes nothing.
  */
 export async function loadTranslations(
   locale: string,
-  url: string,
+  url: string | string[],
   options: SetTranslationsOptions = {},
 ): Promise<void> {
-  const response = await fetch(url);
-  const translations = await response.json();
-  setTranslations(locale, translations, options);
+  if (!Array.isArray(url)) {
+    const response = await fetch(url);
+    const translations = await response.json();
+    setTranslations(locale, translations, options);
+    return;
+  }
+  const [primary, ...fallbacks] = url;
+  const primaryResponse = await fetch(primary);
+  const primaryDict = (await primaryResponse.json()) as Record<string, string>;
+  const fallbackDicts = await Promise.all(
+    fallbacks.map(async (u) => {
+      try {
+        const res = await fetch(u);
+        if (!res.ok) return {};
+        return (await res.json()) as Record<string, string>;
+      } catch {
+        return {};
+      }
+    }),
+  );
+  const merged: Record<string, string> = {};
+  for (let i = fallbackDicts.length - 1; i >= 0; i--) Object.assign(merged, fallbackDicts[i]);
+  Object.assign(merged, primaryDict);
+  setTranslations(locale, merged, options);
 }
 
 /**
@@ -231,12 +263,12 @@ export function setStringTransform(fn: ((text: string) => string) | null): void 
 export function __t(
   hash: string,
   fallback: string,
-  params?: Record<string, string | number>,
+  params?: Record<string, ICUParamValue>,
 ): string {
   let text = dict[hash] ?? fallback;
 
-  // Resolve ICU plural/select if present
-  if (text.includes(", plural,") || text.includes(", select,")) {
+  // Resolve ICU (plural/select/number/date/time) if present
+  if (hasICUSyntax(text)) {
     text = resolveICU(text, params, currentLocale);
   }
 
@@ -266,7 +298,7 @@ export function __tx(
   hash: string,
   fallback: string,
   elements: Record<string, ReactNode>,
-  params?: Record<string, string | number>,
+  params?: Record<string, ICUParamValue>,
 ): ReactNode {
   // Use a translation only when it's structurally compatible with this call
   // site — every element marker it carries must be bound by `elements`. A stale
@@ -289,7 +321,7 @@ export function __tx(
   }
 
   // Resolve ICU
-  if (text.includes(", plural,") || text.includes(", select,")) {
+  if (hasICUSyntax(text)) {
     text = resolveICU(text, params, currentLocale);
   }
 

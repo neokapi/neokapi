@@ -23,6 +23,7 @@ import {
 import { buildJSXPath, FRAGMENT_DESCRIPTOR } from "./jsx-path.ts";
 import { collectTIdentifiers, walkTCalls } from "./messages.ts";
 import { buildRuns } from "./runs.ts";
+import { getTranslatability } from "../plugin/defaults.ts";
 import { hasTranslatableText, isAllInlineContent, resolvePolicy } from "./translatable.ts";
 import type { Warning, WarningCollector } from "./warnings.ts";
 
@@ -59,6 +60,36 @@ export interface WalkerOptions extends ExtractOptions {
    * not have produced (fragments). Used by `kapi-react migrate-keys`.
    */
   onKeyPair?: (pair: { legacyHash: string | null; hash: string }) => void;
+  /**
+   * Diagnostic channel for `kapi-react explain`: called once per JSX
+   * element with the gate decisions that led to extraction or not.
+   */
+  onDecision?: (decision: ExplainDecision) => void;
+}
+
+/** One element's translatability decision trail. */
+export interface ExplainDecision {
+  line: number;
+  tag: string;
+  /** Resolved HTML element (componentMap / manifests), or the raw tag. */
+  htmlElement: string;
+  /** W3C table classification of the resolved element. */
+  classification: "yes" | "no" | "container";
+  /** Final outcome for the element's children. */
+  outcome:
+    | "extracted"
+    | "extracted-promoted"
+    | "skipped-translate-no"
+    | "skipped-not-translatable"
+    | "skipped-no-text"
+    | "skipped-block-children"
+    | "skipped-empty";
+  /** Rule-supplied or data-i18n-note translator context, if any. */
+  locNote?: string;
+  /** Hash of the emitted block (extraction outcomes only). */
+  hash?: string;
+  /** Attribute blocks emitted on this element: attr name → hash. */
+  attributes: Record<string, string>;
 }
 
 /**
@@ -128,6 +159,7 @@ class BlockCollector {
   private readonly filename: string;
   private readonly warnings: WarningCollector | undefined;
   private readonly onKeyPair: WalkerOptions["onKeyPair"];
+  private readonly onDecision: WalkerOptions["onDecision"];
   private readonly out: Block[] = [];
   private readonly seenHashes = new Set<string>();
   /**
@@ -144,6 +176,7 @@ class BlockCollector {
     this.filename = opts.filename;
     this.warnings = opts.warnings;
     this.onKeyPair = opts.onKeyPair;
+    this.onDecision = opts.onDecision;
   }
 
   setSpanBase(base: number): void {
@@ -165,10 +198,28 @@ class BlockCollector {
   visit(el: JSXElement, ancestors: readonly JSXElement[], component: string): boolean {
     const tag = getTagName(el);
     if (!tag) return false;
+    const attrDecisions: Record<string, string> = {};
+    const explain = this.onDecision
+      ? (outcome: ExplainDecision["outcome"], extra?: Partial<ExplainDecision>) => {
+          const mappedTag = resolveHTMLElement(tag, this.componentMap) ?? tag;
+          this.onDecision?.({
+            line: lineFromOffset(this.code, el.span.start),
+            tag,
+            htmlElement: mappedTag,
+            classification: getTranslatability(mappedTag),
+            outcome,
+            attributes: attrDecisions,
+            ...extra,
+          });
+        }
+      : null;
     // W3C translate inheritance: nearest explicit setting on self
     // or an ancestor wins. `translate="yes"` re-enables translation
     // inside a `translate="no"` subtree. Mirrored in plugin/transform.ts.
-    if (nearestTranslate(el, ancestors) === "no") return false;
+    if (nearestTranslate(el, ancestors) === "no") {
+      explain?.("skipped-translate-no");
+      return false;
+    }
 
     // For unmapped React components we still want to consider
     // their direct text — the user's source is the ground truth,
@@ -190,10 +241,23 @@ class BlockCollector {
     // works without needing a componentMap entry. jsxPath uses the
     // raw tag for unmapped components, so hash parity holds across
     // extract + transform.
-    this.emitAttributeBlocks(el, ancestors, policy.locNote, component);
+    this.emitAttributeBlocks(el, ancestors, policy.locNote, component, attrDecisions);
 
     const willEmit =
       policy.translate && hasTranslatableText(el) && isAllInlineContent(el, this.componentMap);
+
+    if (explain && !willEmit) {
+      // Most-specific reason first: structural blockers (block-level
+      // children, no editable text) explain a skip better than the
+      // classification, which for containers is merely the default.
+      if (!isAllInlineContent(el, this.componentMap)) {
+        explain("skipped-block-children", { locNote: policy.locNote });
+      } else if (!hasTranslatableText(el)) {
+        explain("skipped-no-text", { locNote: policy.locNote });
+      } else {
+        explain("skipped-not-translatable", { locNote: policy.locNote });
+      }
+    }
 
     // Only flag `{obj.label}`-style splice risks when the parent
     // ISN'T going to emit a block. When it does, the expression
@@ -214,7 +278,11 @@ class BlockCollector {
       this.warn("unknown-component", tag, el);
     }
 
-    this.emitElementBlock(el, ancestors, policy.locNote, component);
+    const emittedHash = this.emitElementBlock(el, ancestors, policy.locNote, component);
+    explain?.(policy.promoted ? "extracted-promoted" : "extracted", {
+      locNote: policy.locNote,
+      hash: emittedHash ?? undefined,
+    });
     return true;
   }
 
@@ -364,17 +432,17 @@ class BlockCollector {
     ancestors: readonly JSXElement[],
     locNote: string | undefined,
     component: string,
-  ): void {
+  ): string | null {
     const jsxPath = buildJSXPath(ancestors, el, this.componentMap);
     const desc = locNote ? `${jsxPath}${CONTEXT_SEPARATOR}${locNote}` : jsxPath;
     const { runs, flatText, placeholders } = buildRuns(el, {
       componentMap: this.componentMap,
       sourceSlice: (start, end) => this.sliceSource(start, end),
     });
-    if (flatText === "") return;
+    if (flatText === "") return null;
 
     const hash = hashKey(flatText, desc);
-    if (this.seenHashes.has(hash)) return;
+    if (this.seenHashes.has(hash)) return hash;
     this.seenHashes.add(hash);
 
     if (this.onKeyPair) {
@@ -397,6 +465,7 @@ class BlockCollector {
       placeholders,
       properties: blockProperties(this.filename, el, this.code, jsxPath, component, locNote),
     });
+    return hash;
   }
 
   // ─── Attribute blocks ───────────────────────────────────────
@@ -406,6 +475,7 @@ class BlockCollector {
     ancestors: readonly JSXElement[],
     locNote: string | undefined,
     component: string,
+    attrDecisions?: Record<string, string>,
   ): void {
     for (const attr of el.opening.attributes ?? []) {
       if (attr.type !== "JSXAttribute") continue;
@@ -416,7 +486,16 @@ class BlockCollector {
 
       // Plain string literal: single block (the dominant case).
       if (attr.value.type === "StringLiteral") {
-        this.emitOneAttributeBlock(el, ancestors, locNote, component, name, attr.value.value, null);
+        const h = this.emitOneAttributeBlock(
+          el,
+          ancestors,
+          locNote,
+          component,
+          name,
+          attr.value.value,
+          null,
+        );
+        if (h && attrDecisions) attrDecisions[name] = h;
         continue;
       }
 
@@ -474,15 +553,15 @@ class BlockCollector {
     name: string,
     text: string,
     branchIndex: number | null,
-  ): void {
-    if (!text.trim()) return;
+  ): string | null {
+    if (!text.trim()) return null;
 
     const jsxPath = buildJSXPath(ancestors, el, this.componentMap);
     const context =
       branchIndex === null ? `${jsxPath}[${name}]` : `${jsxPath}[${name}::${branchIndex}]`;
     const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
     const hash = hashKey(text, desc);
-    if (this.seenHashes.has(hash)) return;
+    if (this.seenHashes.has(hash)) return hash;
     this.seenHashes.add(hash);
 
     if (this.onKeyPair) {
@@ -505,6 +584,7 @@ class BlockCollector {
       placeholders: [],
       properties: blockProperties(this.filename, el, this.code, context, component, locNote),
     });
+    return hash;
   }
 
   // ─── Source helpers ─────────────────────────────────────────
