@@ -11,9 +11,10 @@ seed:
 files: []
 
 steps:
-  - comment: Pseudo-translate to find UI truncation bugs early
+  - comment: The pre-flight check — prove the UI is ready before buying any translation
   - command: kapi pseudo-translate messages.json -o messages.fr.json
     narration: >-
-      Expands every string with locale-shaped accent characters so truncation
-      and missing-string bugs surface immediately on screen.
-  - comment: Diacritics make missing or truncated strings visible at a glance
+      Expands every string with locale-shaped accent characters and length
+      padding, so truncation, concatenation, and hardcoded-string bugs surface
+      before any real translation is bought. No AI provider, no keys.
+  - comment: When the UI holds up, `kapi translate` produces the real translations for ad-hoc files — or `kapi up` converges a whole project.

@@ -44,3 +44,8 @@ committed decision, so a `{ reviewed: … }` gate now counts it.
 Commit `.kapi-state.json` and the approval travels with the project — the same
 loop a server-backed project runs by pushing its state to a remote instead of
 committing a file. The decision is the carrier; the caches are just speed.
+
+The gate is the consequence: `kapi check --ship` exits 3 while a required
+review is missing, and clears once the decisions land — nothing re-translated,
+the recorded decision is what lifts it. The kapi-up-loop walkthrough shows
+that block-then-clear moment end to end.

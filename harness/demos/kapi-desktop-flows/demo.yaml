@@ -19,13 +19,16 @@ narration:
   - id: title
     kind: title
     text: >-
-      A project's flows are the pipelines it runs over its content.
+      A project needs no flow definitions to translate: Kapi ships a built-in
+      default flow — translation-memory reuse, then AI translation, then
+      checks.
 
   - id: intro
     kind: desktop
     beat: intro
     text: >-
-      We'll open the KapiMart sample to see the flows it carries.
+      Bring up to date runs that default flow as it stands. We'll open the
+      KapiMart sample to see when a project defines its own.
 
   - id: open-project
     kind: desktop
@@ -40,8 +43,9 @@ narration:
     beat: library
     caption: The Flows tab lists the pipelines defined in the project.
     text: >-
-      The Flows tab in the Toolbox lists the pipelines defined in the project,
-      saved alongside it and shared through version control.
+      The Flows tab in the Toolbox is the escape hatch: pipelines the project
+      defines when the default is not enough, saved alongside it and shared
+      through version control.
 
   - id: library-zoom
     kind: desktop
@@ -63,36 +67,33 @@ narration:
     beat: pipeline
     caption: Source flows through AI translation, then a quality check.
     text: >-
-      The source flows through AI translation and then a quality check before it
-      is written back — steps you can reorder, add to, or build into your own.
+      The source flows through AI translation and then a quality check before
+      it is written back — the same shape as the built-in default, now yours
+      to reorder, add to, or extend.
 
   - id: outro
     kind: outro
     text: >-
-      Project flows — composed visually, saved with the project, run anywhere.
+      The default flow covers most projects with zero configuration. When it
+      doesn't, compose your own — visually, saved with the project, run
+      anywhere.
 
 # Norwegian Bokmål narration (full coverage — required for published demos).
 # Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology
 # (flow → flyt; "pipeline" stays English in nb).
+#
+# nb narration removed 2026-07: the English narration was re-framed around the
+# built-in default flow (custom flows as the escape hatch), so the previous nb
+# read is stale end to end. Regenerate the full nb block via the TM pipeline
+# before publishing — do not hand-translate.
 locales:
   nb:
     narration:
-      - id: title
-        text: >-
-          Flytene i et prosjekt er pipelinene det kjører over innholdet sitt.
-      - id: intro
-        text: >-
-          Vi åpner KapiMart-eksemplet for å se flytene det bærer med seg.
       - id: open-project
         text: >-
           KapiMart åpnes fra startskjermen, med sitt eget innhold, egne
           innstillinger og egne flyter.
         caption: KapiMart — åpnet fra startskjermen.
-      - id: library
-        text: >-
-          Flyter-fanen i verktøykassen lister pipelinene som er definert i prosjektet, lagret
-          sammen med det og delt gjennom versjonskontroll.
-        caption: Flyter definert i prosjektet.
       - id: library-zoom
         text: >-
           Hver av dem er en navngitt sekvens av steg — en ren oversettelse, en
@@ -103,13 +104,3 @@ locales:
         text: >-
           Åpner du translate-and-qa, ser du pipelinen dens.
         caption: En åpnet flyt viser pipelinen sin.
-      - id: pipeline
-        text: >-
-          Kilden flyter gjennom KI-oversettelse og deretter en
-          kvalitetskontroll før den skrives tilbake — steg du kan stokke om,
-          legge til, eller bygge dine egne av.
-        caption: Kilden går gjennom KI-oversettelse, så en kvalitetskontroll.
-      - id: outro
-        text: >-
-          Prosjektflyter — satt sammen visuelt, lagret med prosjektet, kjørt
-          hvor som helst.

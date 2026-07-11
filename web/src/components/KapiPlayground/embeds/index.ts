@@ -14,6 +14,8 @@ import kapiReviewAndApprove from "./kapi-review-and-approve.embed";
 import kapiRewriteContent from "./kapi-rewrite-content.embed";
 import kapiTerminologyPretranslation from "./kapi-terminology-pretranslation.embed";
 import kapiTerminologyQa from "./kapi-terminology-qa.embed";
+import kapiUnderTheHood from "./kapi-under-the-hood.embed";
+import kapiUpLoop from "./kapi-up-loop.embed";
 import kapiWordCount from "./kapi-word-count.embed";
 
 export const EMBED_CONFIGS: Record<string, WalkthroughEmbedConfig> = {
@@ -27,6 +29,8 @@ export const EMBED_CONFIGS: Record<string, WalkthroughEmbedConfig> = {
   "kapi-rewrite-content": kapiRewriteContent,
   "kapi-terminology-pretranslation": kapiTerminologyPretranslation,
   "kapi-terminology-qa": kapiTerminologyQa,
+  "kapi-under-the-hood": kapiUnderTheHood,
+  "kapi-up-loop": kapiUpLoop,
   "kapi-word-count": kapiWordCount,
 };
 

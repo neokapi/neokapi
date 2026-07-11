@@ -39,19 +39,21 @@ narration:
   - id: title
     kind: title
     text: >
-      Four target languages from one English file, one of them in a non-Latin script. The
-      request is the same shape it would be for one language.
+      Four target languages from one English file, one of them in a non-Latin script. In a
+      kapi project this is one reconciliation, not four translation jobs.
   - id: prompt
     kind: prompt
     text: >
-      The request lists the languages and where each file should go. It doesn't say to run
-      one command per language, or how to keep the placeholders — the skill handles that.
+      The request lists the languages and where each file should go. It doesn't say how —
+      the skill sets the four locales as project targets and lets kapi reconcile them.
   - id: work
     kind: terminal
     text: >
-      Claude translates the file once per language with Gemini. Because kapi parses the JSON,
-      every key and every interpolation placeholder is carried through; only the values change.
-    caption: "One source file, four languages — keys and placeholders carried through"
+      kapi up --plan first previews the pending work — the units, the translation-memory
+      leverage, and a token estimate — before anything is spent. Then one kapi up pass
+      converges all four locales together. Because kapi parses the JSON, every key and every
+      interpolation placeholder is carried through; only the values change.
+    caption: "kapi up --plan previews the work; one up pass converges all four locales"
   - id: ja
     kind: artifact
     artifact: ja
@@ -62,8 +64,8 @@ narration:
     kind: artifact
     artifact: de
     text: >
-      And German, with its longer compound words. Same keys, same placeholders. The next
-      language is the same request again.
+      And German, with its longer compound words, from the same pass. Same keys, same
+      placeholders. Adding a market later is one more target locale in the recipe.
   - id: outro
     kind: outro
     text: >

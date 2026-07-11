@@ -1,0 +1,163 @@
+# Unified scene spec (W3, issue #661). See kapi-overview.scene.yaml for the
+# full schema. Regenerate with:
+#   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-up-loop
+#
+# The convergence trust moment, end to end: preview the work (`up --plan`),
+# produce (`up` fills every target from the TM, then parks — the ship gate
+# wants review, and review needs a person), read the worklist
+# (`status --review`), watch the gate block (`check --ship`, exit 3), record
+# the decision (`apply`), and watch the same gate clear (exit 0).
+#
+# mode: video — `kapi up` and `kapi check` are not wired into the wasm build
+# (kapi/cmd/kapi-wasm-cli), and the exit-code beats are the point of the
+# recording. The embed below is the focused offline subset: the project seeds
+# already produced (messages.fr.json committed), so `status --review`,
+# `apply`, and the closing `status` run live against the in-memory filesystem
+# — the same park → decide → shippable arc, minus the native-only verbs.
+#
+# Fully offline in every venue: the recipe's tm-recycle flow leverages the TM
+# only — no LLM, no network. The ship gate is translated: 100 + reviewed: 100,
+# so production alone can never clear it: the human decision is the last mile.
+
+id: kapi-up-loop
+scene: up-loop
+mode: video
+
+# Steps the offline embed runs (status --review / apply / status). The
+# generator builds the embed config from the steps marked `offline: true`.
+# The embed seeds the project *already produced*: messages.fr.json carries the
+# TM's French, exactly what `kapi up` materializes in the recording.
+embed:
+  files:
+    - path: demo.kapi
+      content: |
+        version: v1
+        name: demo
+        defaults:
+          source_language: en
+          target_languages: [fr]
+          flow: tm-recycle
+          materialize: on-converge
+        ship_gate: { translated: 100, reviewed: 100 }
+        content:
+          - path: messages.json
+            target: "messages.{lang}.json"
+        flows:
+          tm-recycle:
+            steps:
+              - tool: recycle
+    - path: messages.json
+      content: |
+        {
+          "greeting": "Hello, World!",
+          "farewell": "See you tomorrow",
+          "items": {
+            "cart": "Your cart is empty"
+          }
+        }
+    - path: messages.fr.json
+      content: |
+        {
+          "greeting": "Bonjour le monde !",
+          "farewell": "À demain",
+          "items": {
+            "cart": "Votre panier est vide"
+          }
+        }
+    - path: review.jsonl
+      content: |
+        {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"reviewed"}
+        {"kind":"review","file":"messages.fr.json","id":"farewell","locale":"fr","status":"reviewed"}
+        {"kind":"review","file":"messages.fr.json","id":"items.cart","locale":"fr","status":"reviewed"}
+
+tape:
+  width: 1000
+  height: 700
+  theme: Dracula
+  padding: 20
+  fontSize: 16
+
+# Recording fixtures: the kit catalog, the TM that supplies the French, the
+# recipe with a translated+reviewed ship gate, and the reviewer's change-set.
+# The recording starts from an unproduced project — `kapi up` does the work.
+seed:
+  - messages.json
+files:
+  - path: project.tmx
+    content: |
+      <?xml version="1.0" encoding="UTF-8"?>
+      <tmx version="1.4">
+        <header creationtool="neokapi" creationtoolversion="1.0"
+                segtype="sentence" o-tmf="unknown" adminlang="en"
+                srclang="en" datatype="plaintext"/>
+        <body>
+          <tu>
+            <tuv xml:lang="en"><seg>Hello, World!</seg></tuv>
+            <tuv xml:lang="fr"><seg>Bonjour le monde !</seg></tuv>
+          </tu>
+          <tu>
+            <tuv xml:lang="en"><seg>See you tomorrow</seg></tuv>
+            <tuv xml:lang="fr"><seg>À demain</seg></tuv>
+          </tu>
+          <tu>
+            <tuv xml:lang="en"><seg>Your cart is empty</seg></tuv>
+            <tuv xml:lang="fr"><seg>Votre panier est vide</seg></tuv>
+          </tu>
+        </body>
+      </tmx>
+  - path: demo.kapi
+    content: |
+      version: v1
+      name: demo
+      defaults:
+        source_language: en
+        target_languages: [fr]
+        flow: tm-recycle
+        materialize: on-converge
+      ship_gate: { translated: 100, reviewed: 100 }
+      content:
+        - path: messages.json
+          target: "messages.{lang}.json"
+      flows:
+        tm-recycle:
+          steps:
+            - tool: recycle
+  - path: review.jsonl
+    content: |
+      {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"reviewed"}
+      {"kind":"review","file":"messages.fr.json","id":"farewell","locale":"fr","status":"reviewed"}
+      {"kind":"review","file":"messages.fr.json","id":"items.cart","locale":"fr","status":"reviewed"}
+
+steps:
+  - comment: The ship gate wants translated 100% and reviewed 100%. A machine can meet the first; only a person can meet the second.
+  - command: kapi tm import project.tmx
+    narration: Seed the project TM. The recipe's flow leverages it before any AI is asked — this scene never calls a provider.
+    offline: false
+  - command: kapi up --plan
+    narration: --plan previews the work without doing any. Per locale it reports the pending units, the exact TM leverage, what remains for AI, and a token estimate. No provider calls, no writes.
+    offline: false
+  - command: kapi up
+    narration: up produces. The TM fills every fr unit, then the loop stops — the gate also wants review, and review needs a person. fr parks. Parking is the hand-off, not a failure; up exits zero.
+    offline: false
+  - command: kapi status --review
+    narration: The worklist — every translated unit not yet approved, addressed by file, id, and locale, exactly as a review change-set names it.
+    # offline:true — runs live in the embed against the pre-produced project.
+    # smoke:false — needs the multi-file project seeded; W7 runs commands in
+    # isolation (same policy as kapi-review-and-approve).
+    offline: true
+    smoke: false
+  - command: kapi check --ship
+    narration: The gate says no. Reviewed coverage is 0%, so check --ship fails with exit code 3 — the enforcement point a release pipeline runs.
+    offline: false
+  - comment: A person reads the three translations and records the decisions.
+  - command: kapi apply review.jsonl
+    narration: apply records each review decision in the committed state store, bound to the translation's content hash. The decision is the one thing no cache can rebuild.
+    offline: true
+    smoke: false
+  - command: kapi check --ship
+    narration: The same gate now passes — exit code 0. Nothing was re-translated; the recorded decisions cleared it.
+    offline: false
+  - command: kapi status
+    narration: fr is shippable — translated 100%, reviewed 100%. Produce, park, decide, release — the loop is auditable end to end.
+    offline: true
+    smoke: false

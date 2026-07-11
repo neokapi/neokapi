@@ -49,8 +49,8 @@ narration:
     caption: The project opens to its collections and ship standing.
     text: >-
       The project opens to one surface: its content collections, and each
-      locale's standing against the ship gate — how much is translated,
-      reviewed, and ready.
+      locale's ladder toward the ship gate — drafted, translated, reviewed,
+      ready.
 
   - id: project-settings
     kind: desktop
@@ -66,13 +66,14 @@ narration:
     caption: Each collection defines which files belong to the project.
     text: >-
       Each collection defines which files belong to the project — glob patterns
-      the engine reads from and writes back to. Bring up to date runs the
-      default flow until every gated scope ships, or parks for review.
+      the engine reads from and writes back to. Bring up to date is the
+      project's one main action: it runs the default flow, pass after pass,
+      until every gated scope ships or parks what needs a person.
 
   - id: outro
     kind: outro
     text: >-
-      That's a project — created, structured, and ready to translate.
+      That's a project — created, structured, and one click from up to date.
 
 # Norwegian Bokmål narration (full coverage — required for published demos).
 # Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology.
@@ -95,25 +96,12 @@ locales:
           Eller start fra KapiMart — et ferdig eksempelprosjekt med
           innholdssamlinger, målspråk og et fylt oversettelsesminne.
         caption: Eller start fra KapiMart-eksemplet.
-      - id: project-home
-        text: >-
-          Prosjektet åpner til én flate: innholdssamlingene, og hvert språks
-          status mot leveringsporten — hvor mye som er oversatt, gjennomgått og
-          klart.
-        caption: Prosjektet åpner til samlingene og leveringsstatusen.
+      # nb narration for ids `project-home`, `content`, and `outro` removed
+      # 2026-07: the English beats were re-narrated (per-locale ladder, Bring
+      # up to date as the main action). Regenerate via the TM pipeline before
+      # publishing — do not hand-translate.
       - id: project-settings
         text: >-
           Prosjektinnstillinger er der du velger kildespråket og språkene du
           oversetter til, ved siden av tillegg og prosesseringsvalg.
         caption: "Prosjektinnstillinger: språk, tillegg, prosessering."
-      - id: content
-        text: >-
-          Hver samling definerer hvilke filer som hører til prosjektet —
-          glob-mønstre motoren leser fra og skriver tilbake til. Oppdater
-          kjører standardflyten til hver port er klar, eller parkerer for
-          gjennomgang.
-        caption: Hver samling definerer hvilke filer som hører til prosjektet.
-      - id: outro
-        text: >-
-          Det er et prosjekt — opprettet, strukturert og klart til
-          oversettelse.

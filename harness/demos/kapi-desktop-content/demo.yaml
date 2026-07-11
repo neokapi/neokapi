@@ -67,11 +67,15 @@ narration:
     text: >-
       Inside a collection, every matched file is listed with the format Kapi
       detected for it — Markdown, JSON, properties, Office documents and more.
+      On a server-connected project, a sync column shows what still has to be
+      pushed.
 
   - id: outro
     kind: outro
     text: >-
-      That's a project's content — grouped, matched, and ready to translate.
+      Edit a source file and the project re-extracts it automatically — the
+      content stays in step with the working tree. That's a project's content:
+      grouped, matched, and ready to bring up to date.
 
 # Norwegian Bokmål narration (full coverage — required for published demos).
 # Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology.
@@ -106,13 +110,6 @@ locales:
           kontraktene og malene — hvert et glob-mønster som motoren leser fra
           og skriver tilbake til.
         caption: Mønstrene er gruppert i navngitte samlinger.
-      - id: files
-        text: >-
-          I en samling står hver fil som treffes, med formatet Kapi har
-          gjenkjent for den — Markdown, JSON, properties, Office-dokumenter og
-          mer.
-        caption: Hver treff-fil viser formatet Kapi har gjenkjent.
-      - id: outro
-        text: >-
-          Det er innholdet i et prosjekt — gruppert, truffet og klart til
-          oversettelse.
+      # nb narration for ids `files` and `outro` removed 2026-07: the English
+      # beats were re-narrated (SYNC column, auto re-extract). Regenerate the
+      # nb entries via the TM pipeline before publishing — do not hand-translate.
