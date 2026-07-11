@@ -51,8 +51,8 @@ export const Inline: Story = {
     <div className="max-w-xs rounded-md border border-border p-3">
       <div className="line-clamp-2 text-[11px] text-muted-foreground">
         <Markdown inline>
-          Translate blocks with an **AI provider** — supports `--target-lang` and a
-          [brand voice](https://neokapi.org).
+          Translate blocks with an **AI provider** — supports `--target-lang` and a [brand
+          voice](https://neokapi.org).
         </Markdown>
       </div>
     </div>
@@ -66,15 +66,11 @@ export const RawStringComparison: Story = {
     return (
       <div className="max-w-lg space-y-3 text-sm">
         <div className="rounded-md border border-destructive/30 p-3">
-          <div className="mb-1 text-xs font-semibold text-destructive">
-            ✗ Raw string in JSX
-          </div>
+          <div className="mb-1 text-xs font-semibold text-destructive">✗ Raw string in JSX</div>
           <p className="text-muted-foreground">{src}</p>
         </div>
         <div className="rounded-md border border-border p-3">
-          <div className="mb-1 text-xs font-semibold text-muted-foreground">
-            ✓ &lt;Markdown&gt;
-          </div>
+          <div className="mb-1 text-xs font-semibold text-muted-foreground">✓ &lt;Markdown&gt;</div>
           <Markdown className="text-muted-foreground">{src}</Markdown>
         </div>
       </div>

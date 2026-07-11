@@ -54,9 +54,7 @@ const blockComponents: Partial<Components> = {
   h1: ({ children }) => (
     <h1 className="mt-4 mb-2 text-base font-semibold first:mt-0">{children}</h1>
   ),
-  h2: ({ children }) => (
-    <h2 className="mt-4 mb-2 text-sm font-semibold first:mt-0">{children}</h2>
-  ),
+  h2: ({ children }) => <h2 className="mt-4 mb-2 text-sm font-semibold first:mt-0">{children}</h2>,
   h3: ({ children }) => (
     <h3 className="mt-3 mb-1.5 text-sm font-semibold first:mt-0">{children}</h3>
   ),
@@ -111,7 +109,9 @@ const inlineComponents: Partial<Components> = {
   ),
   ul: ({ children }) => <span>{children}</span>,
   ol: ({ children }) => <span>{children}</span>,
-  li: ({ children }) => <span className="[&:not(:first-child)]:before:content-['·_']">{children}</span>,
+  li: ({ children }) => (
+    <span className="[&:not(:first-child)]:before:content-['·_']">{children}</span>
+  ),
   h1: ({ children }) => <span className="font-semibold">{children}</span>,
   h2: ({ children }) => <span className="font-semibold">{children}</span>,
   h3: ({ children }) => <span className="font-semibold">{children}</span>,
