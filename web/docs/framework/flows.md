@@ -22,6 +22,12 @@ Flows separate _what to do_ from _how it runs_. A flow describes the chain; the
 generated list of flows that ship in a given build is the `kapi flows` command
 and the [Command Reference](/commands).
 
+In the CLI, a flow is the abstraction behind `kapi run <flow>` — one named
+flow, one pass. `kapi up` loops the project's default flow (`defaults.flow`,
+or the built-in default when none is set) until the project's gates are met.
+How the two verbs relate, and where the raw tool layer sits underneath, is
+[Understanding the CLI layers](/kapi/direct-execution-layer).
+
 ## A flow is a sequence of tools
 
 At its simplest, a flow is a list of tools that Parts stream through in order.

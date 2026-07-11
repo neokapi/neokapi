@@ -14,6 +14,12 @@ and matches them in three tiers with entity-aware adaptation. The same engine
 backs the `kapi tm` commands, the `recycle` pipeline tool, and the Go
 library.
 
+In the CLI, the TM is the engine under `kapi exec recycle` — the single-tool
+leverage pass — and under the first step of `kapi up`'s default flow, which
+recycles from memory before any AI translation runs. See
+[Understanding the CLI layers](/kapi/direct-execution-layer) for how the
+single-tool, flow, and convergence surfaces relate.
+
 ## Content-aware matching
 
 Each entry is indexed under three keys, tried in order, so the highest-quality

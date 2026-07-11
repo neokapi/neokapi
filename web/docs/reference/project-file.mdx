@@ -87,6 +87,10 @@ defaults:
 | `requires` | map            | Plugin name → semver constraint that gates loading; the recipe refuses to load without a registered plugin  |
 | `flows`    | map            | Named flow definitions (see [Flow Steps](#flow-steps))                                                       |
 | `defaults` | Defaults       | Processing defaults (see [Defaults](#defaults); source/target languages live here)                          |
+| `ship_gate` | Gate          | A single catch-all ship gate (see [Ship gates](#ship-gates))                                                |
+| `ship_gates` | ShipGateRule[] | Scoped ship-gate rules; the most specific matching rule wins (see [Ship gates](#ship-gates))               |
+| `gates`    | map            | Named gate registry a `ship_gates` rule can reference by name (see [Ship gates](#ship-gates))               |
+| `source_gate` | Gate        | Coverage gate over the source authoring ladder (see [source_gate](#source_gate))                            |
 
 ### ContentEntry
 
@@ -287,6 +291,114 @@ flows:
             config:
               provider: anthropic
 ```
+
+## Ship gates
+
+Ship gates decide when localized content is *shippable*: coverage thresholds
+over the target lifecycle ladder (`draft` → `translated` → `reviewed` →
+`signed-off`), enforced by [`kapi check --ship`](/reference/commands/check) and
+driven toward by [`kapi up`](/reference/commands/up). The model — ladders,
+derived state, review — is [Convergence](/kapi/convergence); this section is
+the schema. All four keys are top-level (siblings of `defaults`) and optional:
+with none set, nothing is gated.
+
+| Field         | Type           | Description                                                                                       |
+| ------------- | -------------- | ------------------------------------------------------------------------------------------------- |
+| `ship_gate`   | Gate           | A single catch-all gate: state name → threshold                                                    |
+| `ship_gates`  | ShipGateRule[] | Scoped rules, each a selector plus a gate; when present it replaces `ship_gate`                    |
+| `gates`       | map            | Named gate registry; a `ship_gates` rule references an entry with `gate: <name>`                   |
+| `source_gate` | Gate           | A gate over the source authoring ladder (`authored` → `checked` → `approved`)                      |
+
+### Gate and thresholds
+
+A gate maps a lifecycle state to a threshold. A scope clears the gate when, for
+every threshold, at least that percent of its units are at that state or higher
+on the ladder. A threshold is written in one of two forms:
+
+| Form     | Example                        | Meaning                                                                 |
+| -------- | ------------------------------ | ----------------------------------------------------------------------- |
+| Short    | `reviewed: 80`                 | At least 80% at *reviewed* or higher; approver class defaults to `human` |
+| Extended | `reviewed: {pct: 80, by: any}` | `pct` (0–100) plus an explicit approver class `by`                      |
+
+`pct` must be 0–100; a threshold of 0 means "not required". `by` selects the
+**approver class** for the decision rungs (*reviewed*, *signed-off*): `human`
+(the default) counts only decisions made by a person or an agent acting for
+one, `any` also counts autonomous AI approvals. The short form always means
+`by: human` — an AI-approved unit never satisfies it. See
+[approver classes](/kapi/convergence#approver-classes) for the rationale.
+
+**Simple form** — one bar for the whole project:
+
+```yaml
+ship_gate: { translated: 100, reviewed: 80 }
+```
+
+Every unit translated, the important 80% reviewed by a person; the long tail
+ships machine-translated.
+
+**Extended thresholds** — the same shape with explicit `pct`/`by`:
+
+```yaml
+ship_gate:
+  translated: 100
+  reviewed: { pct: 100, by: any }
+```
+
+Fully reviewed, but autonomous AI review decisions count toward the bar.
+
+### ShipGateRule
+
+`ship_gates` is an ordered rule list. Each rule has:
+
+| Field  | Type            | Description                                                                                   |
+| ------ | --------------- | ---------------------------------------------------------------------------------------------- |
+| `when` | Selector        | Optional match: `locales` and/or `collections` (string lists). Omitted = catch-all default     |
+| `gate` | Gate or string  | An inline threshold map, or the name of an entry in the `gates` registry                       |
+
+An empty selector axis matches everything, so a rule with no `when:` is the
+default. When several rules match a (collection, locale) unit, the rule
+constraining the **most axes** wins wholesale; among equal specificity, the
+earliest-listed wins.
+
+**Scoped rules** — different scopes answer to different bars:
+
+```yaml
+ship_gates:
+  - when: { locales: [de-DE] } # contractually reviewed market
+    gate: { translated: 100, reviewed: 100 }
+  - when: { collections: [Legal] } # regulated content, every locale
+    gate: { translated: 100, signed-off: 100 }
+  - gate: { translated: 100, reviewed: 80 } # the default
+```
+
+**Named gates** — define once in the `gates` registry, reference by name:
+
+```yaml
+gates:
+  contractual: { translated: 100, reviewed: { pct: 100, by: human } }
+  machine: { translated: 100, reviewed: { pct: 100, by: any } }
+
+ship_gates:
+  - when: { locales: [de-DE, ja-JP] }
+    gate: contractual
+  - gate: machine
+```
+
+A tiered per-market strategy built from these pieces is worked through in
+[Tier gates per market](/kapi/recipes/machine-ship-strategy).
+
+### source_gate
+
+The source-side counterpart: a single gate over the authoring ladder
+(`authored` → `checked` → `approved`), gating the author's own content rather
+than the translations.
+
+```yaml
+source_gate: { checked: 100 }
+```
+
+Every source unit clears its bound brand and terminology checks before
+`kapi check --ship` passes.
 
 ## Key Properties
 

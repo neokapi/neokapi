@@ -28,6 +28,13 @@ local machine.
 For the architecture and design decisions behind this, see
 [AD-020: Content Redaction](/contribute/architecture/020-redaction).
 
+In the CLI, `redact` and `unredact` are pipeline steps: the built-in
+`secure-translate` flow runs redact → translate → unredact
+(`kapi run secure-translate`), a project flow can place the same steps around
+its own pipeline, and `kapi extract --redact` protects a translator hand-off.
+See [Understanding the CLI layers](/kapi/direct-execution-layer) for the
+flow and single-tool surfaces.
+
 ## How it stays local
 
 A redacted span becomes a **placeholder** — the same protected inline-code
