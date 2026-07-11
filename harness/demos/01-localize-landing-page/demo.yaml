@@ -42,10 +42,11 @@ narration:
   - id: work
     kind: terminal
     text: >
-      Claude reads the page, recognises a translation task, and calls kapi. kapi parses the
-      HTML, separates the readable text from the markup, sends the text to Gemini, and writes
-      the translation back into the same structure.
-    caption: "Claude calls kapi; kapi translates the text and writes it back into the HTML"
+      Claude reads the page, recognises a translation task, and calls kapi translate. kapi
+      parses the HTML, separates the readable text from the markup, reuses any translation
+      memory it has, sends the rest to the configured AI provider, and runs deterministic
+      checks over the result before writing it back into the same structure.
+    caption: "Claude calls kapi translate; the text round-trips back into the HTML"
   - id: before
     kind: artifact
     artifact: before

@@ -3,33 +3,68 @@
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-rewrite-content
 #
 # STATUS: script authored, NOT yet recorded. The docs reference it via a
-# <PendingMedia> placeholder until the owner approves regeneration via the harness.
+# <PendingMedia> placeholder until the owner approves regeneration via the
+# harness. (This walkthrough also has no <id>.md prompt file yet.)
+#
+# Surface note (2026-07): the former top-level `kapi rewrite` verb is gone.
+# Editing is the inspect → apply pipeline: `kapi inspect` emits one anchored
+# record per block (text + content_hash + role), the edit is authored against
+# those anchors (by you, or by an AI with the blocks as context), and
+# `kapi apply` lands it through the byte-faithful round-trip —
+# drift-guarded by content_hash, previewable with --diff. No AI provider is
+# required by either command.
+#
+# The edits.jsonl content hashes below are real: they anchor the two body
+# paragraphs of release-notes.md exactly as `kapi inspect --jsonl` reports
+# them. Editing release-notes.md invalidates them by design (drift guard).
+#
+# Wasm note: `kapi apply` runs in the browser embed; `kapi inspect` and
+# `kapi check` are not wired into the wasm build, so those steps are
+# offline: false (tape + narration only).
 
 id: kapi-rewrite-content
 scene: rewrite-content
 mode: interactive
 
-seed:
-  - release-notes.md
-files: []
+seed: []
+files:
+  - path: release-notes.md
+    content: |
+      # Lumen Notes 2.4
+
+      ## Highlights
+
+      This release delivers a game-changing editor that is blazing fast.
+
+      Bug fixes utilize the new sync engine to resolve conflicts.
+  - path: edits.jsonl
+    content: |
+      {"kind":"content","file":"release-notes.md","id":"tu3","content_hash":"7216da8380519e37fc04ad5723a5049bd8c3c9219dfb17820bec8b1089e68c5b","text":"This release adds a faster editor."}
+      {"kind":"content","file":"release-notes.md","id":"tu4","content_hash":"40595e5937457a195231467a018a632154fa96c40f4680a26594cad24b6056ea","text":"Bug fixes use the new sync engine to resolve conflicts."}
 
 steps:
-  - comment: Inspect the file so you know which blocks you are editing
-  - command: kapi inspect release-notes.md
+  - comment: Inspect the file so an edit can target the right blocks
+  - command: kapi inspect release-notes.md --jsonl
     narration: >-
-      One anchored record per content block — text, a stable content-hash, and
-      its structural role — so an instruction can target the right content.
-  - comment: Preview the rewrite as a diff before touching the file
-  - command: kapi rewrite release-notes.md --instruction "Make the tone more concise and active" --diff
+      One anchored record per content block — the text, a stable content
+      hash, and its structural role — so an instruction, a person, or an AI
+      can address exactly the blocks to change.
+    offline: false
+  - comment: Author the change as a typed change-set, then preview it as a diff
+  - command: kapi apply edits.jsonl --diff
     narration: >-
-      Rewrite edits only the text inside each block and shows a reviewable diff;
-      the format, structure, and inline codes round-trip back byte-for-byte.
+      apply is the one write verb, the sibling of inspect. Each entry is one
+      reviewed change, bound to its block's content hash — if the file drifted,
+      the entry refuses to land. --diff previews and writes nothing.
   - comment: Apply in place once the diff looks right
-  - command: kapi rewrite release-notes.md --instruction "Make the tone more concise and active" -i
+  - command: kapi apply edits.jsonl
     narration: >-
-      The same command with -i writes the change back into the original file,
-      preserving everything but the leaf text.
+      The same change-set writes the text back through the byte-faithful
+      round-trip — format, structure, and inline codes preserved; only the
+      leaf text changes.
   - comment: Verify the result with a check
   - command: kapi check release-notes.md
     narration: >-
-      Close the loop — confirm the rewritten content still passes the checkset.
+      Close the loop — confirm the rewritten content still passes the
+      checkset.
+    offline: false

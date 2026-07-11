@@ -27,8 +27,10 @@ narration:
     kind: desktop
     beat: intro
     text: >-
-      With kapi, checks run like tests over content. Bowrain adds the loop — the
-      corrections a team keeps making become the checks, reviewed and shared.
+      With kapi alone, checks are local — a checkset bound to one project's
+      recipe, versioned with that repository. Bowrain versions them for the
+      organisation: the corrections a team keeps making become checks, reviewed,
+      promoted, and enforced everywhere the org generates content.
 
   - id: candidates
     kind: desktop

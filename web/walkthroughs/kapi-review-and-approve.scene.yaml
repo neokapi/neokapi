@@ -68,3 +68,4 @@ steps:
   - command: kapi status
     narration: reviewed coverage climbs to 33% — derived straight back from the committed decision. Commit .kapi-state.json and the approval travels with the project; a {reviewed} gate now sees it.
     smoke: false
+  - comment: The gate is the consequence — `kapi check --ship` exits 3 while a required review is missing, and clears once the decisions land. See the kapi-up-loop walkthrough for the block-then-clear moment end to end.

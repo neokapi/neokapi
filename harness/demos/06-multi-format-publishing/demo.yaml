@@ -57,8 +57,8 @@ narration:
     kind: terminal
     text: >
       kapi reads Markdown and Java properties as distinct formats. For the guide, it
-      translates the prose with Gemini and writes Markdown back: the headings, the bold text,
-      the list, and the blockquote stay where they were.
+      translates the prose with the configured AI provider and writes Markdown back: the
+      headings, the bold text, the list, and the blockquote stay where they were.
     caption: "kapi translates README.md and writes Markdown back, structure intact"
   - id: properties
     kind: terminal

@@ -21,7 +21,8 @@ scenes:
 Pre-translation is the cheap, deterministic phase that runs before any
 machine or human translator sees the content. Leverage existing TM, run
 pseudo-translation on the rest, and pre-flag any terminology violations
-— all in seconds, no API key required.
+— all in seconds, no API key required. It is the front half of the default
+flow `kapi up` loops over a project, run here one move at a time.
 
 ## Scene 1 — termbase-pretranslation (terminal)
 
@@ -31,5 +32,7 @@ The output of each step is the input to the next.
 
 ## Closing
 
-The same three steps fit into a `kapi run` flow so this becomes one
-command in CI.
+In a project, `kapi up` runs this sequence for you — TM leverage first,
+AI translation where pseudo-translation stands in here, and the bound
+checks after each pass. Compose the same steps into a named flow for
+`kapi run <flow>` when CI needs exactly one pass.
