@@ -161,11 +161,11 @@ commands from inside a project tree:
 surfaces as a CLI error asking for an explicit `--project`. The resolution
 helper (`AddProjectFlag` / `ResolveProjectPath`) lives in `cli/project.go`
 once and is reused by the project-aware commands — `run`, `extract`,
-`merge`, `brand`, and `verify` — plus any future project-aware command.
+`merge`, `brand`, and `check` — plus any future project-aware command.
 
 :::warning `-p` means `--project` only on project-aware commands
 The `-p` shorthand binds to `--project` **only** on the project-aware
-commands listed above (`run`, `extract`, `merge`, `brand`, `verify`),
+commands listed above (`run`, `extract`, `merge`, `brand`, `check`),
 where `AddProjectFlag` registers it. On ad-hoc tool commands (such as
 `kapi translate` or `kapi pseudo-translate`), there is no `--project`
 flag — the same `-p` shorthand is already taken by `--progress` (the

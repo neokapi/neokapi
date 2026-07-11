@@ -11,7 +11,7 @@ const ERROR_PATTERNS: RegExp[] = [
   /\bException\b/,
   /Traceback \(most recent call last\)/,
   /(^|\n)panic:/,
-  // Exit 3 is kapi's quality-gate code (brand --min-score / `kapi verify`): an expected
+  // Exit 3 is kapi's quality-gate code (brand --min-score / `kapi check --ship`): an expected
   // step in the produce→verify→fix loop, not a failure. Flag other non-zero exits.
   /Exit code (1|2|[4-9])\b/i,
   /exit status (1|2|[4-9])\b/,

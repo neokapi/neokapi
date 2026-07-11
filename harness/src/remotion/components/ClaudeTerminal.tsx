@@ -126,7 +126,7 @@ const ToolResult: React.FC<{ ev: Extract<TimelineEvent, { kind: "tool_result" }>
   );
 };
 
-// The kapi verify Stop hook fired and refused to let Claude finish. Render it as
+// The kapi check Stop hook fired and refused to let Claude finish. Render it as
 // a distinct gate card so it reads as "kapi stopped me", not just another result.
 const HookBlock: React.FC<{ ev: Extract<TimelineEvent, { kind: "hook_block" }> }> = ({ ev }) => (
   <div
@@ -137,7 +137,7 @@ const HookBlock: React.FC<{ ev: Extract<TimelineEvent, { kind: "hook_block" }> }
       background: "rgba(244,113,103,0.08)",
     }}
   >
-    <div style={mono({ color: theme.termRed, fontWeight: 700 })}>✗ kapi verify — blocked (Stop hook)</div>
+    <div style={mono({ color: theme.termRed, fontWeight: 700 })}>✗ kapi check --ship — blocked (Stop hook)</div>
     {ev.findings.slice(0, 4).map((f, i) => (
       <div key={i} style={mono({ color: theme.termText, fontSize: FS - 3, whiteSpace: "pre-wrap", marginTop: 3 })}>
         {f}
@@ -158,7 +158,7 @@ const HookPass: React.FC = () => (
       background: "rgba(126,231,135,0.08)",
     }}
   >
-    <div style={mono({ color: theme.termGreen, fontWeight: 700 })}>✓ kapi verify — passed</div>
+    <div style={mono({ color: theme.termGreen, fontWeight: 700 })}>✓ kapi check --ship — passed</div>
   </div>
 );
 

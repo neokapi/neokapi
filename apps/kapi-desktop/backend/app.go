@@ -90,7 +90,7 @@ type App struct {
 
 	// convergence is the shared host.App used to derive convergence reports
 	// (per-locale coverage, ship gates, source readiness, the review queue) — the
-	// same file-based derivation `kapi status` / `kapi verify` use, so the desktop
+	// same file-based derivation `kapi status` / `kapi check --ship` use, so the desktop
 	// project view shows the same numbers as the CLI. Built lazily so its format
 	// and tool registries register once, not per request.
 	convergence   *host.App

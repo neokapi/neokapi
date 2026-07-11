@@ -217,7 +217,7 @@ export type TimelineEvent =
   | { i: number; kind: "command"; text: string }
   | { i: number; kind: "output"; text: string; isError: boolean }
   | { i: number; kind: "comment"; text: string }
-  // The kapi verify Stop hook fired and blocked Claude from finishing, with the
+  // The kapi check Stop hook fired and blocked Claude from finishing, with the
   // gate findings to fix. `findings` are the parsed "ERROR/WARNING [gate] …" lines.
   | { i: number; kind: "hook_block"; reason: string; findings: string[] }
   // A later Stop fired and the gates passed — Claude is allowed to finish.

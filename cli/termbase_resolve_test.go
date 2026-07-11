@@ -41,7 +41,7 @@ content:
 
 // TestResolveTermbaseCmdPath_ProjectAware asserts that with no flag inside a
 // project, the termbase commands resolve the project's bound termbase — matching
-// what `kapi verify` and `kapi term-check` use.
+// what `kapi check --ship` and `kapi term-check` use.
 func TestResolveTermbaseCmdPath_ProjectAware(t *testing.T) {
 	root, bound := writeTermbaseProject(t)
 	t.Chdir(root)

@@ -120,7 +120,7 @@ export async function captureDemo(m: DemoManifest, opts: CaptureOptions = {}): P
     "--output-format",
     "stream-json",
     "--verbose",
-    // Surface Stop-hook firing in the stream so the kapi verify hook (block →
+    // Surface Stop-hook firing in the stream so the kapi check hook (block →
     // fix → pass) is recorded and can be shown in the video.
     "--include-hook-events",
     "--permission-mode",

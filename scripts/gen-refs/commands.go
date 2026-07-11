@@ -26,10 +26,6 @@ var offlineOverride = map[string]bool{
 	"translate":          false,
 	"brand-voice-check":  false,
 	"brand-voice-review": false,
-	// verify is project-oriented and can invoke an AI-backed QA gate (needs a
-	// key); it is not wired into the browser build. (init is pure local
-	// scaffolding and IS runnable in the browser — see wasmRunnableTop.)
-	"verify": false,
 	// Credentials — require the OS keychain (cgo, subprocess).
 	"credentials":        false,
 	"credentials.add":    false,

@@ -1,7 +1,7 @@
 // Package convergence is the framework-owned model of a project's localization
 // convergence: the per-(collection, locale) target coverage and ship-gate
 // standing, the source authoring readiness, and the review queue — the derived
-// picture `kapi status`, `kapi status --review`, and `kapi verify --ship` report.
+// picture `kapi status`, `kapi status --review`, and `kapi check --ship` report.
 //
 // It owns the report TYPES and the per-block ladder helpers (the meaning of the
 // draft→translated→reviewed→signed-off and authored→checked→approved ladders), so
