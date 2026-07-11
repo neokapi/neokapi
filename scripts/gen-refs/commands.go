@@ -153,8 +153,11 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	// panic; not called during metadata extraction.
 	app.Config = cliconfig.NewAppConfig()
 
-	// Porcelain (#1078 C1): `kapi up` reconciles the project toward its gates.
+	// Porcelain (#1078 C1): `kapi up` reconciles the project toward its gates;
+	// translate/pseudo-translate are the flow-backed produce verbs.
 	root.AddCommand(cli.NewUpCmd(app))
+	root.AddCommand(cli.NewTranslateCmd(app))
+	root.AddCommand(cli.NewPseudoTranslateCmd(app))
 
 	// Primary commands.
 	runCmd := cli.NewRunCmd(app, cli.RunCmdOptions{})

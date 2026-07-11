@@ -139,7 +139,7 @@ jobs:
         run: kapi translate
 
       - name: Run QA checks
-        run: kapi qa
+        run: kapi exec qa
 ```
 
 ## Example: Push source on Push to Main

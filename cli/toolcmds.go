@@ -12,30 +12,19 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
 
-// TopLevelTools is the curated tier of registry tools that keep a visible
-// top-level verb (surface strategy A3): the everyday five. Every other
-// CLI-visible tool has exactly one spelling, `kapi exec <name>` — no hidden
-// top-level shortcut. The verb pairing mirrors flows: `kapi flows` lists /
-// `kapi run <flow>` runs; `kapi tools` lists / `kapi exec <tool>` runs.
-// Presentation only: the registry's Category/Tags stay canonical.
-var TopLevelTools = map[string]bool{
-	"translate":        true,
-	"pseudo-translate": true,
-	"qa":               true,
-	"recycle":          true,
-	"word-count":       true,
-}
-
 // NewToolCommands creates the CLI surface for the registry's CLI-visible
-// tools: the curated TopLevelTools tier as visible top-level verbs, plus the
-// `kapi exec` group command hosting the full set. The registry stays the
-// single source of truth for tool metadata.
+// tools: every tool has exactly one spelling, `kapi exec <name>`. There is
+// no curated top-level tier — the top-level verbs are porcelain (up,
+// translate, pseudo-translate, check, stats, …), each a guardrailed
+// workflow rather than a raw tool. The verb pairing mirrors flows:
+// `kapi flows` lists / `kapi run <flow>` runs; `kapi tools` lists /
+// `kapi exec <tool>` runs one tool. The registry stays the single source
+// of truth for tool metadata.
 func NewToolCommands(a *App) []*cobra.Command {
 	if a.ToolReg == nil {
 		return nil
@@ -62,14 +51,16 @@ func NewToolCommands(a *App) []*cobra.Command {
 
 	toolGroup := &cobra.Command{
 		Use:     "exec",
-		Short:   "Execute any registry tool on files (the full set behind the curated top-level verbs)",
+		Short:   "Execute one registry tool on files (the raw layer under the porcelain verbs)",
 		GroupID: "advanced",
-		Long: `Execute any CLI-visible registry tool on files. The everyday tools
-(translate, pseudo-translate, qa, recycle, word-count) also live at the top
-level; the rest of the registry — format converters, checks, extractors,
-redaction — executes here, keeping 'kapi --help' navigable. The verb pairs
-with 'kapi run <flow>' the way 'kapi tools' pairs with 'kapi flows': run
-composes a pipeline, exec executes one tool.
+		Long: `Execute any CLI-visible registry tool on files — one tool, one pass, no
+guardrails around it. The top-level verbs are porcelain workflows over this
+layer: 'kapi translate' wraps recycle → translate → checks, 'kapi up'
+reconciles a whole project, 'kapi check' verifies, 'kapi stats' measures.
+Reach for exec when you want exactly one tool's behavior — a bare
+'exec translate' with no TM pass, a single 'exec term-check', a format
+converter. The verb pairs with 'kapi run <flow>' the way 'kapi tools' pairs
+with 'kapi flows': run composes a pipeline, exec executes one tool.
 
 Discover tools and their options with 'kapi tools list' and
 'kapi tools schema <name>'.`,
@@ -84,18 +75,13 @@ Discover tools and their options with 'kapi tools list' and
 		sub := newToolCommand(a, entry)
 		sub.GroupID = "" // the exec group renders one flat list, not the root's help groups
 		toolGroup.AddCommand(sub)
-		if TopLevelTools[toolName] {
-			cmds = append(cmds, newToolCommand(a, entry))
-		}
 	}
 
 	return append(cmds, toolGroup)
 }
 
-// newToolCommand builds the cobra command for one CLI-visible registry tool.
-// Called up to twice per tool — once for the `kapi exec` group and once for
-// the curated tier's top-level verb — so it must stay free of registration
-// side effects.
+// newToolCommand builds the cobra command for one CLI-visible registry tool,
+// mounted under the `kapi exec` group.
 func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	toolName := string(entry.Info.Name)
 	info := entry.Info
@@ -107,26 +93,10 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 		short = info.DisplayName
 	}
 
-	// Localization tools (translate, recycle, the bilingual checks,
-	// pseudo-translate, …) collapse under one "Localization:" help group,
-	// regardless of their schema Category. Everything else keeps its
-	// category-named group. The schema Category is left untouched so docs
-	// and the flow editor still see the canonical category.
-	groupID := info.Category
-	// Localization tools collapse under the "Localization:" group: those
-	// explicitly tagged l10n, plus every translation-category tool (the
-	// translation category has no own group — see schema.CategoryTranslation —
-	// so an untagged MT/translate tool must still land here, not in a
-	// now-undefined "translation" group).
-	if HasTag(info.Tags, schema.TagL10n) || info.Category == schema.CategoryTranslation {
-		groupID = "localization"
-	}
-
 	cmd := &cobra.Command{
 		Use:     toolName + " [files...]",
 		Aliases: info.Aliases,
 		Short:   short,
-		GroupID: groupID,
 		Example: ToolExamples[toolName],
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

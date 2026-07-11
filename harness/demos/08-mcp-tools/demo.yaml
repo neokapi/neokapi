@@ -18,9 +18,9 @@ prompt: >
 
 artifacts:
   - id: wordcount
-    caption: "kapi word-count on content.json — the real figure"
+    caption: "kapi exec word-count on content.json — the real figure"
     source: command
-    command: kapi word-count content.json --json
+    command: kapi exec word-count content.json --json
     report: word-count
     width: 1000
     height: 640

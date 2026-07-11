@@ -60,7 +60,7 @@ Run it from the CLI against a bilingual file. The command below parses an XLIFF
 file and reports its findings as JSON:
 
 <RunnableSnippet
-  cmd="kapi qa app.xliff --target-lang fr --json"
+  cmd="kapi exec qa app.xliff --target-lang fr --json"
   seed={["app.xliff"]}
 />
 

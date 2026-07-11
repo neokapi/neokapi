@@ -37,8 +37,8 @@ The assistant runs `kapi stats --json` over the content, multiplies out the rate
 Point at a file, a directory, or a glob; totals roll up into one figure:
 
 ```bash
-kapi word-count messages.json
-kapi word-count ./locales --json
+kapi exec word-count messages.json
+kapi exec word-count ./locales --json
 kapi stats --json docs/*.md          # richer: blocks, segments, by-role breakdown
 ```
 

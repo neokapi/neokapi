@@ -17,26 +17,19 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 }
 
 // Porcelain comes first: "Work:" holds the everyday project verbs
-// (init, add, up, status, apply, check) and "Assets:" the standing resources
-// (tm, termbase, brand, models, credentials). The tool-category groups
-// (localization/analysis) remain for the curated top-level tool tier, whose
-// GroupID derives from each tool's schema Category (see TopLevelTools and
-// the routing in NewToolCommands — the rest of the registry lives under
-// `kapi exec` and renders no root group). "Advanced:" collects the plumbing
-// (run, flows, exec, tools, extract, merge, pack/unpack/info, inspect,
-// stats, formats, plugin, config, hook, mcp, registry). Standard commands
-// (version, update, completion) stay ungrouped under cobra's "Additional
-// Commands:".
+// (init, add, up, status, apply, check), "Localization:" the flow-backed
+// produce verbs (translate, pseudo-translate — guardrailed built-in flows,
+// not raw tools), and "Assets:" the standing resources (tm, termbase,
+// brand, models, credentials). "Advanced:" collects the plumbing (run,
+// flows, exec, tools, extract, merge, pack/unpack/info, inspect, stats,
+// formats, plugin, config, hook, mcp). Standard commands (version, update,
+// completion) stay ungrouped under cobra's "Additional Commands:". Raw
+// registry tools render no root group at all — they live under `kapi exec`.
 func AddCommandGroups(a *App, cmd *cobra.Command) {
 	cmd.AddGroup(
 		&cobra.Group{ID: "work", Title: "Work:"},
-		&cobra.Group{ID: "assets", Title: "Assets:"},
-		// The localization toolchain (translate, recycle, qa,
-		// pseudo-translate) groups here regardless of each tool's
-		// schema Category — see schema.TagL10n and the routing in
-		// NewToolCommands.
 		&cobra.Group{ID: "localization", Title: "Localization:"},
-		&cobra.Group{ID: "analysis", Title: "Analysis:"},
+		&cobra.Group{ID: "assets", Title: "Assets:"},
 		&cobra.Group{ID: "advanced", Title: "Advanced:"},
 	)
 }

@@ -32,8 +32,11 @@ func KapiCommandSet(a *App) []*cobra.Command {
 	var cmds []*cobra.Command
 
 	// Porcelain (#1078 C1): `kapi up` reconciles the project toward its ship
-	// gates; the bare `kapi run` remains as the custom-flow surface.
+	// gates; `kapi translate` / `kapi pseudo-translate` run the guardrailed
+	// built-in flows over ad-hoc files; the bare `kapi run` remains as the
+	// custom-flow surface.
 	cmds = append(cmds, NewUpCmd(a))
+	cmds = append(cmds, NewTranslateCmd(a), NewPseudoTranslateCmd(a))
 
 	// Primary commands.
 	runCmd := NewRunCmd(a, RunCmdOptions{})

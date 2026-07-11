@@ -42,7 +42,7 @@ kapi run secure-translate -i src/locales/en.json --target-lang fr
 **Reuse past translations** — fill from TM first, translate only what's left ([the deterministic version](/kapi/recipes/pre-translate-with-tm)):
 
 ```bash
-kapi recycle src/locales/en.json --target-lang fr
+kapi exec recycle src/locales/en.json --target-lang fr
 ```
 
 **Keep terminology and quality consistent** — import the glossary once, then gate:

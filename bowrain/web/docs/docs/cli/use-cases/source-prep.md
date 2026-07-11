@@ -25,7 +25,7 @@ Run quality checks directly on source files without any server connection:
 
 ```bash
 # Run QA checks on source content
-kapi qa -i src/locales/en/ --source-lang en
+kapi exec qa -i src/locales/en/ --source-lang en
 
 # Check terminology consistency
 kapi exec term-check -i src/locales/en/ --termbase glossary.tbx
@@ -88,7 +88,7 @@ Before starting a translation project, analyze the source content:
 
 ```bash
 # Word count across all source files
-kapi word-count -i src/locales/en/
+kapi exec word-count -i src/locales/en/
 
 # Detailed scoping report
 kapi exec scoping-report -i src/locales/en/
@@ -161,7 +161,7 @@ jobs:
         run: kapi run source-qa
 
       - name: Word count report
-        run: kapi word-count -i src/locales/en/ --json
+        run: kapi exec word-count -i src/locales/en/ --json
 ```
 
 This catches source-language issues at the PR stage, before they propagate to translations.
