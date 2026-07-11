@@ -41,16 +41,26 @@ The primitive lives at
 and is exported from `@neokapi/ui-primitives`. `@neokapi/ui` (bowrain's shared
 package) re-exports it, so bowrain apps import it from `@neokapi/ui`.
 
-- It wraps `react-markdown` + `remark-gfm` (GitHub-flavoured markdown: tables,
-  strikethrough, autolinks, task lists).
-- Styling is expressed as Tailwind utilities on the element map — **not** a
-  global `prose`/`.typeset` class and **not** `@tailwindcss/typography` (which
-  the repo does not ship). This means it renders correctly in any consumer whose
-  Tailwind build scans `@neokapi/ui-primitives/src`, which every app that imports
-  `styles/theme-tokens.css` already does — no per-app CSS wiring.
-- `inline` collapses paragraphs to inline flow and degrades block constructs
-  (headings, lists, rules) to lightweight inline equivalents, so a one-line
-  clamped row never shows literal markup.
+- It wraps `react-markdown` + `remark-gfm` for rendering (GitHub-flavoured
+  markdown: tables, strikethrough, autolinks, task lists) and renders
+  react-markdown's default HTML.
+- Block styling is the shared **`.typeset`** layer
+  ([`packages/ui/src/styles/typeset.css`](https://github.com/neokapi/neokapi/blob/main/packages/ui/src/styles/typeset.css)),
+  our implementation of the [shadcn/typeset](https://ui.shadcn.com/docs/changelog/2026-07-typeset)
+  contract: one CSS file, three controls (`--typeset-size` / `--typeset-leading`
+  / `--typeset-flow`) that everything else derives from, zero-specificity
+  `:where()` rules in `@layer components` (so Tailwind utilities still override),
+  `margin-block-start`-only flow (stream-stable), and colours mapped to our theme
+  tokens (themes light/dark for free). It is **not** `@tailwindcss/typography`
+  (which the repo does not ship). Variants: `.typeset-docs` (default) and
+  `.typeset-chat` (the `variant` prop). Opt a subtree out with `not-typeset` /
+  `data-not-typeset`.
+- The CSS is `@import`ed from `styles/theme-tokens.css`, which every app already
+  imports — so there is **no per-app CSS wiring**.
+- `inline` mode is a small bespoke path (typeset is block-oriented): it collapses
+  paragraphs to inline flow and degrades block constructs (headings, lists,
+  rules) to lightweight inline equivalents, so a one-line clamped row never shows
+  literal markup.
 - Empty/whitespace input renders nothing.
 
 Do **not** hand-roll another renderer (a local `react-markdown` wrapper, a regex
