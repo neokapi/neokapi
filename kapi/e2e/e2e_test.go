@@ -186,8 +186,9 @@ func TestTermCheckWithTermbase(t *testing.T) {
 
 	// Step 2: term-check against the termbase — exercises flag parsing,
 	// termbase loading and processing. It runs as an informational QA pass
-	// (exit 0; no stdout), so a clean run is the assertion.
-	kapi(t, "term-check", pseudoOut,
+	// (exit 0; no stdout), so a clean run is the assertion. term-check is not
+	// in the curated TopLevelTools tier, so it mounts under `kapi tool`.
+	kapi(t, "tool", "term-check", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
 		"--termbase", tb)
@@ -266,17 +267,18 @@ func TestTMExport(t *testing.T) {
 	assert.Contains(t, content, "Paramètres")
 }
 
-// TestTMLeverage exercises standalone `kapi tm-leverage` against an external TM
-// via --tm. It accepts --tm (and a project .kapi/tm.db), and — since the #700
-// fix wired SourceLocale from --source-lang — it fills targets from exact TM
-// matches: "Settings" and "File upload" (both in project.tmx) are leveraged into
-// their French equivalents in the output.
+// TestTMLeverage exercises standalone `kapi recycle` (the curated top-level
+// verb for TM leverage; the old tm-leverage tool is gone) against an external
+// TM via --tm. It accepts --tm (and a project .kapi/tm.db), and — since the
+// #700 fix wired SourceLocale from --source-lang — it fills targets from
+// exact TM matches: "Settings" and "File upload" (both in project.tmx) are
+// leveraged into their French equivalents in the output.
 func TestTMLeverage(t *testing.T) {
 	tmFile := importedTM(t)
 	tmp := t.TempDir()
 
 	out := filepath.Join(tmp, "leveraged.json")
-	kapi(t, "tm-leverage", filepath.Join(testdata, "messages_en.json"),
+	kapi(t, "recycle", filepath.Join(testdata, "messages_en.json"),
 		"--tm", tmFile,
 		"--source-lang", "en",
 		"--target-lang", "fr",
@@ -313,8 +315,9 @@ func TestFullPipeline(t *testing.T) {
 		"--target-lang", "fr")
 	assert.FileExists(t, qaOut)
 
-	// Step 3: Terminology QA against the glossary (informational, exit 0, no stdout).
-	kapi(t, "term-check", pseudoOut,
+	// Step 3: Terminology QA against the glossary (informational, exit 0, no
+	// stdout). Mounted under `kapi tool` (not a curated top-level verb).
+	kapi(t, "tool", "term-check", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
 		"--termbase", tb)
