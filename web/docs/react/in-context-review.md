@@ -62,9 +62,9 @@ The `.klf` tree is already the contract between developers and translators — i
 
 It also means review works with no server, no account, and no network — `git clone && vp dev` and you are reviewing.
 
-## Where this goes next
+## Reviewers without a checkout
 
-The local overlay is the first half. The same DOM stamping and the same block hashes let a **staging build** point the overlay at Bowrain instead of the local filesystem, so a reviewer with no checkout — a regional marketing lead, a legal reviewer, a customer's in-country distributor — opens the staging URL and reviews in place, with their edits landing as target updates in the platform. That's the Bowrain half of the story, and it's tracked separately.
+The overlay talks to an endpoint, and the local KLF middleware is just the endpoint that needs no infrastructure. Point `initKapiReview({ endpoint })` at a different one — on a staging deployment, say — and the same stamping and the same block hashes let a reviewer with no repository, no toolchain, and no local server review the app in place. What changes is where the target is written; the client contract does not.
 
 ## Next
 
