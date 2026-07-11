@@ -89,12 +89,23 @@ export interface DemoManifest {
   /**
    * Per-locale narration overlays, keyed by BCP-47 locale (e.g. "nb").
    *
-   * The default `narration` array is the English (en) master and stays the
-   * single source of scene structure: ids, kinds, beats, artifacts, holds and
-   * timing all come from it. A locale overlay only re-voices scenes — each
-   * entry references a scene `id` and supplies the locale's spoken `text`
-   * (and optionally a `caption`); everything else is inherited from the
-   * master scene.
+   * NOT authored in demo.yaml (an inline `locales:` block is rejected at
+   * load time). Overlays are populated by loadManifest from GENERATED
+   * sidecar files — `demo.<locale>.yaml` next to demo.yaml, produced by the
+   * dogfood l10n pipeline (`make l10n-demos`, TM-driven; see the
+   * demo-narration entry in the root neokapi.kapi). Never hand-edit a
+   * sidecar: fix the TM seed (l10n/tm/demo-narration-<lang>.klftm) and
+   * regenerate.
+   *
+   * The `narration` array in demo.yaml is the English (en) master and stays
+   * the single source of scene structure: ids, kinds, beats, artifacts,
+   * holds and timing all come from it. A locale overlay only re-voices
+   * scenes — each entry references a scene `id` and supplies the locale's
+   * spoken `text` (and optionally a `caption`); everything else is
+   * inherited from the master scene. Sidecar entries whose text is still
+   * English (a TM miss — pending translation work) or whose scene id no
+   * longer exists (source drift) are dropped at load time, so a stale
+   * sidecar degrades gracefully to English.
    *
    * Scenes without an override fall back to the English text, EXCEPT for
    * published demos (`publishAs` set): there the narrate stage requires full
@@ -110,8 +121,13 @@ export interface DemoManifest {
   locales?: Record<string, DemoLocaleOverlay>;
 }
 
-/** One locale's overlay over the authored demo (see DemoManifest.locales). */
+/** One locale's overlay over the authored demo (see DemoManifest.locales).
+ *  Built by loadManifest from a generated demo.<locale>.yaml sidecar. */
 export interface DemoLocaleOverlay {
+  /** Localized demo title, when the sidecar carries a translation. */
+  title?: string;
+  /** Localized demo subtitle, when the sidecar carries a translation. */
+  subtitle?: string;
   /** Scene-by-scene narration overrides, matched to NarrationSpec by `id`. */
   narration: NarrationOverrideSpec[];
 }

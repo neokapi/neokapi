@@ -1058,14 +1058,34 @@ l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → host/
 	@echo "Note: rebuild the binary (make build) to embed the refreshed cli catalogs —"
 	@echo "bin/kapi only shows the new translations after a rebuild."
 
+# Demo-video narration sidecars: generated demo.<lang>.yaml next to each
+# demo.yaml (the harness overlays them at load time; EN falls back when a
+# string is still untranslated). Driven through the recipe's tm-recycle flow
+# so the yaml keyPathPatterns in neokapi.kapi bind (only narration/caption/
+# title/subtitle are translatable — never ids, beats, commands, or timings).
+# Sidecars are generated only for the demos listed here — the ones with
+# reviewed nb narration in the TM (l10n/tm/demo-narration-nb.klftm); add a
+# demo dir once its narration has been translated.
+L10N_DEMO_DIRS := 05-ai-checks-guardrail 09-toolbox-find-replace \
+	kapi-bilingual-workflow kapi-desktop-config kapi-desktop-content \
+	kapi-desktop-explorer kapi-desktop-flows kapi-desktop-projects
+
+l10n-demos: l10n-seed ## Demo narration → harness/demos/<id>/demo.<lang>.yaml sidecars (TM-driven)
+	@for lang in $(L10N_LANGS); do \
+		for d in $(L10N_DEMO_DIRS); do \
+			./bin/kapi run tm-recycle -i harness/demos/$$d/demo.yaml \
+				--target-lang $$lang -o harness/demos/$$d/demo.$$lang.yaml -q || exit 1; \
+		done; \
+	done
+
 # (The former l10n-landing target is gone with web/landing: the landing page
 # was folded into the Docusaurus home, so its strings localize through the
 # docs-site path. l10n/tm/landing-nb.klftm stays — the TM leverages that copy
 # wherever it resurfaces.)
-l10n: l10n-builtins l10n-desktop l10n-cli ## Rebuild all dogfood localization outputs from the l10n/ seeds
+l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos ## Rebuild all dogfood localization outputs from the l10n/ seeds
 
-l10n-verify: l10n-builtins l10n-cli ## CI gate: Go-side l10n artifacts regenerate byte-identically from the seeds
-	git diff --exit-code core/i18n/builtins core/i18n/catalogs host/i18n/commands.json host/i18n/catalogs
+l10n-verify: l10n-builtins l10n-cli l10n-demos ## CI gate: committed l10n artifacts regenerate byte-identically from the seeds
+	git diff --exit-code core/i18n/builtins core/i18n/catalogs host/i18n/commands.json host/i18n/catalogs ':(glob)harness/demos/*/demo.*.yaml'
 
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install

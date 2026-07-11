@@ -11,6 +11,8 @@
 #   kapi-desktop-ui  — KLF catalogs extracted from the React frontend by
 #                      @neokapi/kapi-react → public/translations/<locale>.json
 #   docs             — the Docusaurus site → web/i18n/<locale>/ tree
+#   demo-narration   — harness demo scripts → generated demo.<lang>.yaml
+#                      sidecars (harness/demos/<id>/, overlaid at load time)
 #
 # Drive it with the l10n-* Makefile targets. Seeds (brand voice, termbase,
 # reviewed TM) live under l10n/.
@@ -28,6 +30,19 @@ defaults:
   termbase: .kapi/termbase.db
   tm:
     fuzzy_threshold: 75
+  # YAML surface = the harness demo scripts (the only yaml content items).
+  # Only the spoken/displayed keys are translatable — never ids, beats,
+  # commands, paths, or timings. Declared here (not per-item) because the
+  # flow-run path that l10n-demos drives binds reader config from
+  # defaults.formats; extract/up/merge merge these same defaults per item.
+  formats:
+    yaml:
+      config:
+        keyPathPatterns:
+          - title
+          - subtitle
+          - narration.*.text
+          - narration.*.caption
   exclude:
     - "**/node_modules/**"
     - "**/.git/**"
@@ -68,7 +83,28 @@ content:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
         target: web/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
+  - name: demo-narration
+    items:
+      # Narrated demo-video scripts. The English demo.yaml is the master;
+      # localized narration is GENERATED into committed demo.<lang>.yaml
+      # sidecars (make l10n-demos, TM-driven) that the harness overlays at
+      # load time. Never hand-edit a sidecar — fix the TM seed instead
+      # (l10n/tm/demo-narration-<lang>.klftm). Translatable keys are
+      # selected by defaults.formats.yaml.config.keyPathPatterns above.
+      - path: harness/demos/*/demo.yaml
+        format:
+          name: yaml
+        target: harness/demos/{dir}/demo.{lang}.yaml
 flows:
+  # Exact-match TM leverage only (no AI, no checks): the deterministic pass
+  # behind `make l10n-demos`. Named tm-recycle so it does not shadow the
+  # built-in `recycle`/`translate` flows (built-ins win in `kapi run`).
+  tm-recycle:
+    steps:
+      - tool: recycle
+        config:
+          fillTarget: true
+          fillTargetThreshold: 100
   # TM-driven translation: reviewed translations live in the project TM
   # (seeded from l10n/tm/*.tmx); exact matches fill the target, terminology
   # compliance is checked against the project termbase.

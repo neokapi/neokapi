@@ -1,8 +1,52 @@
 import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
-import type { DemoManifest } from "../types.ts";
+import type { DemoLocaleOverlay, DemoManifest } from "../types.ts";
 import { DEMOS_DIR, demoSrcDir } from "./paths.ts";
+
+/** A generated localized sidecar next to demo.yaml: demo.<bcp47>.yaml. */
+const LOCALE_SIDECAR_RE = /^demo\.([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,8})*)\.yaml$/;
+
+/**
+ * Load the generated demo.<locale>.yaml sidecars for a demo into locale
+ * overlays (see DemoManifest.locales). A sidecar is a full localized copy of
+ * demo.yaml produced by the dogfood l10n pipeline (`make l10n-demos`); only
+ * the localized narration fields are lifted into the overlay:
+ *
+ *  - a scene whose text is still identical to the English master is a TM
+ *    miss (pending translation) and is skipped — EN fallback, not an error;
+ *  - a scene id the master no longer has is source drift: warn and skip, so
+ *    a stale sidecar never blocks loading (regenerate via `make l10n-demos`);
+ *  - title/subtitle ride along when the sidecar carries a translation.
+ */
+function loadLocaleSidecars(id: string, m: DemoManifest): Record<string, DemoLocaleOverlay> | undefined {
+  const dir = demoSrcDir(id);
+  const overlays: Record<string, DemoLocaleOverlay> = {};
+  for (const entry of fs.readdirSync(dir)) {
+    const match = LOCALE_SIDECAR_RE.exec(entry);
+    if (!match) continue;
+    const locale = match[1];
+    const sidecar = YAML.parse(fs.readFileSync(path.join(dir, entry), "utf8")) as Partial<DemoManifest>;
+    const overlay: DemoLocaleOverlay = { narration: [] };
+    if (sidecar.title?.trim() && sidecar.title !== m.title) overlay.title = sidecar.title;
+    if (sidecar.subtitle?.trim() && sidecar.subtitle !== m.subtitle) overlay.subtitle = sidecar.subtitle;
+    for (const s of sidecar.narration ?? []) {
+      if (!s?.id || !s.text?.trim()) continue;
+      const master = m.narration.find((n) => n.id === s.id);
+      if (!master) {
+        console.warn(`demo ${id}: ${entry} carries scene "${s.id}" which demo.yaml no longer has — regenerate via 'make l10n-demos'`);
+        continue;
+      }
+      if (s.text === master.text) continue; // untranslated (TM miss) — EN fallback
+      const caption = s.caption && s.caption !== master.caption ? s.caption : undefined;
+      overlay.narration.push({ id: s.id, text: s.text, ...(caption ? { caption } : {}) });
+    }
+    if (overlay.narration.length > 0 || overlay.title || overlay.subtitle) {
+      overlays[locale] = overlay;
+    }
+  }
+  return Object.keys(overlays).length > 0 ? overlays : undefined;
+}
 
 /** List demo ids (directories under demos/ that contain a demo.yaml), sorted. */
 export function listDemoIds(): string[] {
@@ -49,21 +93,15 @@ export function loadManifest(id: string): DemoManifest {
       throw new Error(`demo ${id}: narration scene "${n.id}" is kind=desktop but has no beat id`);
     }
   }
-  // Locale overlays (see DemoManifest.locales): each override must point at an
-  // existing scene id and carry text. Full-coverage enforcement for published
-  // demos happens at narrate time (localizeManifest), where the locale is known.
-  for (const [loc, overlay] of Object.entries(m.locales ?? {})) {
-    if (!Array.isArray(overlay?.narration)) {
-      throw new Error(`demo ${id}: locales.${loc} must have a "narration" array`);
-    }
-    for (const o of overlay.narration) {
-      if (!o.id || !m.narration.find((s) => s.id === o.id)) {
-        throw new Error(`demo ${id}: locales.${loc} overrides unknown scene "${o.id}"`);
-      }
-      if (!o.text?.trim()) {
-        throw new Error(`demo ${id}: locales.${loc} scene "${o.id}" has empty text`);
-      }
-    }
+  // Locale overlays are GENERATED, never authored: an inline `locales:` block
+  // is hand-maintained target-language content inside a source file, which the
+  // repo's l10n contract forbids (CLAUDE.md "Target-language drift"). The
+  // overlays load from demo.<locale>.yaml sidecars instead.
+  if (m.locales) {
+    throw new Error(
+      `demo ${id}: inline "locales:" blocks are no longer supported — localized narration lives in generated demo.<lang>.yaml sidecars (make l10n-demos). Fold the translations into l10n/tm/demo-narration-<lang>.klftm and delete the block.`,
+    );
   }
+  m.locales = loadLocaleSidecars(id, m);
   return m;
 }

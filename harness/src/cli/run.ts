@@ -52,8 +52,8 @@ function parseArgs(argv: string[]) {
   let docsDir: string | undefined;
   // Narration/render/publish locale. Default "en" = exactly today's behavior
   // (unsuffixed outputs); a non-default locale (e.g. nb) narrates from the
-  // demo's `locales.<locale>` overlay and suffixes every derived asset. Also
-  // settable via HARNESS_LOCALE (the flag wins).
+  // demo's generated demo.<locale>.yaml sidecar overlay and suffixes every
+  // derived asset. Also settable via HARNESS_LOCALE (the flag wins).
   let locale: string | undefined;
   for (const a of argv) {
     if (a === "--list") list = true;
@@ -160,12 +160,13 @@ async function main() {
   }
   for (const m of manifests) {
     if (only.includes("narrate")) {
-      // A non-default locale narrates only demos that carry that overlay, so a
-      // broad selection (`published`) doesn't abort on the un-translated ones.
-      // Translated published demos still hard-fail on partial coverage inside
-      // narrateDemo (localizeManifest).
+      // A non-default locale narrates only demos with a generated
+      // demo.<locale>.yaml sidecar overlay (make l10n-demos), so a broad
+      // selection (`published`) doesn't abort on the un-translated ones.
+      // Translated published demos still hard-fail on partial coverage
+      // inside narrateDemo (localizeManifest).
       if (!isDefaultLocale(locale) && !m.locales?.[locale]) {
-        console.log(`\n━━ narrate · ${m.id} [${locale}] ━━\n  · no locales.${locale} overlay — skipping`);
+        console.log(`\n━━ narrate · ${m.id} [${locale}] ━━\n  · no demo.${locale}.yaml sidecar — skipping`);
         continue;
       }
       console.log(`\n━━ narrate · ${m.id}${isDefaultLocale(locale) ? "" : ` [${locale}]`} ━━`);

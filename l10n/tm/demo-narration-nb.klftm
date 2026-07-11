@@ -1,0 +1,1392 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-tm-format",
+  "entries": [
+    {
+      "id": "demo-narration-nb:03d6abf05c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "kapi check reports the do-not-translate and placeholder findings"
+          }
+        ],
+        "nb": [
+          {
+            "text": "kapi check rapporterer funnene for ikke-oversettbart og plassholdere"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:040010b502",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Each concept carries a definition and its approved terms across languages. A status badge marks the preferred wording, and flags the terms that are deprecated."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hvert begrep bærer en definisjon og de godkjente termene sine på tvers av språk. Et statusmerke markerer den foretrukne ordlyden, og flagger termene som er utgått."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:054da705b5",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The memory is searchable too."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Minnet er også søkbart."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:05df89f6c0",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Source and target languages sit across the top."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kildespråk og målspråk ligger øverst."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:0cf07abb6f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Opening a glossary shows every concept it holds."
+          }
+        ],
+        "nb": [
+          {
+            "text": "En åpnet ordliste viser hvert begrep den inneholder."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:0f3abba736",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "That's the terminology and translation memory at the heart of kapi, browsable in one place."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Det er terminologien og oversettelsesminnet i hjertet av kapi — å bla i på ett sted."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:1190587ba9",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The translation memory works the same way."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oversettelsesminnet fungerer på samme måte."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:15fbf68c6c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Extract, translate, merge: a clean bilingual round-trip through any CAT tool, with the translation memory in the loop on both sides.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Trekk ut, oversett, flett: en ren tospråklig rundtur gjennom hvilket som helst CAT-verktøy, med oversettelsesminnet i løkka på begge sider.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:198edc316e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Content is one card per collection."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Innholdet er ett kort per samling."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:1b0cdd161d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "New Project asks only for a name."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Nytt prosjekt spør bare om et navn."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:237927eedf",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "And plugins extend Kapi — adding formats, connectors and tools beyond the built-in set."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Og tillegg utvider Kapi — med formater, koblinger og verktøy utover det innebygde."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:25364672f3",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The translation memory works the same way. We cross over and open the memory for the Acme app."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oversettelsesminnet fungerer på samme måte. Vi går over og åpner minnet for Acme-appen."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:28353b7670",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "KapiMart — a ready-made sample project."
+          }
+        ],
+        "nb": [
+          {
+            "text": "KapiMart — et ferdig eksempelprosjekt."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:2954e0f65b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "It opens to a home screen. A new project starts right here."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Den åpner til en startskjerm. Et nytt prosjekt starter rett her."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:2cf925c1c5",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Patterns are grouped into collections — the website, the online store, the contracts and the templates — each a glob that the engine reads from and writes back to."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Mønstrene er gruppert i samlinger — nettstedet, nettbutikken, kontraktene og malene — hvert et glob-mønster som motoren leser fra og skriver tilbake til."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:2d4c907a56",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "AI Credentials hold the providers Kapi translates with — Anthropic, OpenAI, Gemini. The keys live in your operating system's keychain, never on disk."
+          }
+        ],
+        "nb": [
+          {
+            "text": "KI-legitimasjon holder leverandørene Kapi oversetter med — Anthropic, OpenAI, Gemini. Nøklene ligger i operativsystemets nøkkelring, aldri på disk."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:2eadd8ba49",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "KapiMart — opened from the home screen."
+          }
+        ],
+        "nb": [
+          {
+            "text": "KapiMart — åpnet fra startskjermen."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:3153928610",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Each flow is a named sequence of steps."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hver flyt er en navngitt sekvens av steg."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:3234d13096",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Full-text search finds a term in an instant. Here, the invoice concept, with its approved translations."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Fulltekstsøk finner en term på et øyeblikk. Her: faktura-begrepet, med de godkjente oversettelsene sine."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:36a2b453e3",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "kgrep searches that text across all three files at once, and finds every mention of the product name.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "kgrep søker i den teksten på tvers av alle tre filene samtidig, og finner hver forekomst av produktnavnet.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:3e154b29ab",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Here's a React app's English strings. We seed the project's translation memory from a corporate TMX, then run extract — and kapi writes one bilingual XLIFF per target locale, pre-filling every segment the memory already knows.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Her er de engelske strengene i en React-app. Vi mater prosjektets oversettelsesminne fra en TMX fra konsernet, og kjører så extract — og kapi skriver én tospråklig XLIFF per målspråk, ferdig utfylt med hvert segment minnet allerede kjenner.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:4015882680",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "From the home screen, the gear at the bottom opens Settings."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Fra startskjermen åpner tannhjulet nederst Innstillinger."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:44529c325b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Here's a sales team's collateral: a Markdown pitch, a Word proposal, and an Excel price list. kcat reads the text straight out of the Word document and the spreadsheet, as plain lines.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Her er salgsmateriellet til et team: en pitch i Markdown, et forslag i Word og en prisliste i Excel. kcat leser teksten rett ut av Word-dokumentet og regnearket, som rene linjer.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:466b1730fb",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "one ksed renames across all three, in place"
+          }
+        ],
+        "nb": [
+          {
+            "text": "én ksed endrer navnet i alle tre, direkte i filene"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:4e2a560923",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Plugins extend the formats and tools available."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Tillegg utvider formatene og verktøyene som er tilgjengelige."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:51a1fc0b70",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "And one ksed renames the product everywhere, in place — each file saved back in its own format.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Og én ksed gir produktet nytt navn overalt, direkte i filene — hver fil lagres tilbake i sitt eget format.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:538c12d7f8",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Names are held as placeholders, ready to reuse."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Navn holdes som plassholdere, klare til gjenbruk."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:56dcdea86d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "What if you could run classic CLI tools — like cat and grep, or even sed — across both text and the content inside binary formats, like Word and Excel documents? Well, now you can.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hva om du kunne kjøre klassiske kommandolinjeverktøy — som cat og grep, eller til og med sed — på både tekst og innholdet i binære formater, som Word- og Excel-dokumenter? Nå kan du det.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:573f8f112e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The Termbases section lists each glossary stored on disk, with its size and when it last changed."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Termbase-seksjonen lister hver ordliste lagret på disk, med størrelsen og når den sist ble endret."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:575f47e221",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "apply the fixes, re-run the check"
+          }
+        ],
+        "nb": [
+          {
+            "text": "rett feilene, kjør kontrollen på nytt"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:59ea36175e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Settings gathers appearance, AI credentials, plugins and locales under one roof."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Innstillinger samler utseende, KI-legitimasjon, tillegg og språk under ett tak."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:5bce95e646",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Checks that keep AI output in line, the way tests keep code in line: deterministic, multilingual, and run on every change.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kontroller som holder KI-resultater i sjakk, slik tester holder koden i sjakk: deterministiske, flerspråklige, og kjørt ved hver endring.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:5c7e3beb48",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Appearance, providers, plugins — configured once, used everywhere."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Utseende, leverandører, tillegg — konfigurert én gang, brukt overalt."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:632c568c2a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The Termbases section lists each glossary on disk."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Termbase-seksjonen lister hver ordliste på disk."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:6af5f05e06",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "kcat reads the text inside the .docx and the .xlsx"
+          }
+        ],
+        "nb": [
+          {
+            "text": "kcat leser teksten inni .docx- og .xlsx-filene"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:6dfc16bc17",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "An AI translated this app into German. Most of it is fine — but two things would break in production: a placeholder was dropped, and the product name was translated.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "En KI har oversatt denne appen til tysk. Det meste er bra — men to ting ville sviktet i produksjon: en plassholder er borte, og produktnavnet er oversatt.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:6f254ae2aa",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The French source is localized — every key preserved, every value translated — and the memory is warmer for the next extract.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Den franske kilden er lokalisert — hver nøkkel bevart, hver verdi oversatt — og minnet er varmere til neste uttrekk.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:750a199c71",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Appearance follows the system, or pin light or dark."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Utseendet følger systemet, eller låses til lyst eller mørkt."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:79285b6e45",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Opening the product glossary brings up every concept it holds — eight here — with an activity chart of recent edits across the top."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Åpner du produktordlisten, får du opp hvert begrep den inneholder — åtte her — med et aktivitetsdiagram over de siste endringene øverst."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:7e942f4ad6",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "We'll open a sample project to see how that content is organised."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vi åpner et eksempelprosjekt for å se hvordan innholdet er organisert."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:91fceb5e24",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Each entry pairs a source string with its translations."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hver oppføring parer en kildestreng med oversettelsene."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:94ee3c02e2",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Kapi Desktop keeps all its configuration in one place."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kapi Desktop samler all konfigurasjon på ett sted."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:9a5cbefab6",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Or start from KapiMart — a ready-made sample project with content collections, target languages, and a stocked translation memory."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Eller start fra KapiMart — et ferdig eksempelprosjekt med innholdssamlinger, målspråk og et fylt oversettelsesminne."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:9d12796b28",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Kapi Desktop — let's create and set up a localisation project."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kapi Desktop — la oss opprette og sette opp et lokaliseringsprosjekt."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:9e629bbed6",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Most serious localization runs on bilingual exchange files — XLIFF — that a translator opens in a CAT tool, fills in, and sends back. kapi is the engineering glue on either side of that hand-off.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Det meste av seriøs lokalisering går via tospråklige utvekslingsfiler — XLIFF — som en oversetter åpner i CAT-verktøyet sitt, fyller ut og sender tilbake. kapi er det tekniske limet på hver side av den overleveringen.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:a9223102e5",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Each concept carries a definition and its approved terms."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hvert begrep har en definisjon og godkjente termer."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:af03fa5102",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Opening a flow shows its pipeline."
+          }
+        ],
+        "nb": [
+          {
+            "text": "En åpnet flyt viser pipelinen sin."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:b3a84b5afb",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "merge reconciles the return and absorbs it into TM, with provenance"
+          }
+        ],
+        "nb": [
+          {
+            "text": "merge fletter returen inn og tar den opp i minnet, med full sporbarhet"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:b48908a16b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "It opens to a calm home screen. Everything a translator leans on — the glossaries and the remembered translations — sits one click away in the sidebar."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Den åpner til en rolig startskjerm. Alt en oversetter støtter seg på — ordlistene og de lagrede oversettelsene — ligger ett klikk unna i sidefeltet."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:b66072ae24",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Opening translate-and-qa reveals its pipeline."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Åpner du translate-and-qa, ser du pipelinen dens."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:b724899c0b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Each one is a named sequence of steps — a plain translate, a translate with quality checks, and a pseudo-translation for testing."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hver av dem er en navngitt sekvens av steg — en ren oversettelse, en oversettelse med kvalitetskontroller, og en pseudooversettelse for testing."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:b73d02c803",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Full-text search finds a term fast."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Fulltekstsøk finner en term raskt."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:bae6dbaa0a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "AI Credentials — keys live in the OS keychain."
+          }
+        ],
+        "nb": [
+          {
+            "text": "KI-legitimasjon — nøklene ligger i nøkkelringen til operativsystemet."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:bf174f48c9",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The translator fills the remaining targets and returns the files. Merge applies them back onto the source, absorbs every accepted segment into the memory, and tm audit traces exactly which return each entry came from.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oversetteren fyller ut resten og sender filene tilbake. Merge fletter dem tilbake i kilden, tar hvert godkjente segment opp i minnet, og tm audit sporer nøyaktig hvilken retur hver oppføring kom fra.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:c020441b5e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Patterns are grouped into named collections."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Mønstrene er gruppert i navngitte samlinger."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:c34c17cc2b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Appearance follows your system, or you can pin light or dark. The interface itself can even run in pseudo-English for localisation testing."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Utseendet følger systemet ditt, eller du kan låse det til lyst eller mørkt. Selve grensesnittet kan til og med kjøre i pseudoengelsk for lokaliseringstesting."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:c3f897787f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Names and other entities are held as placeholders, so a remembered translation can be reused later with a different value."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Navn og andre entiteter holdes som plassholdere, slik at en lagret oversettelse kan gjenbrukes senere med en annen verdi."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:c543afbdc3",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "KapiMart is a ready-made sample — a small store with documentation, a storefront, contracts and templates."
+          }
+        ],
+        "nb": [
+          {
+            "text": "KapiMart er et ferdig eksempel — en liten butikk med dokumentasjon, en nettbutikk, kontrakter og maler."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:c68dc7ffb9",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "extract emits one XLIFF per locale, pre-filled from TM"
+          }
+        ],
+        "nb": [
+          {
+            "text": "extract lager én XLIFF per språk, forhåndsutfylt fra oversettelsesminnet"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:c6d898f7c9",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Settings — appearance, credentials, plugins, locales."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Innstillinger — utseende, legitimasjon, tillegg, språk."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:ca286dad42",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Or start from the KapiMart sample."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Eller start fra KapiMart-eksemplet."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:cc2f2f1f0c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Kapi Desktop — the visual companion to the kapi command line."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kapi Desktop — den visuelle følgesvennen til kapi-kommandolinjen."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:cfca4f0d6a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "KapiMart opens from the home screen, with its own content, settings and flows."
+          }
+        ],
+        "nb": [
+          {
+            "text": "KapiMart åpnes fra startskjermen, med sitt eget innhold, egne innstillinger og egne flyter."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:d04914fd86",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The source language and the locales it translates into sit across the top of the project."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kildespråket og språkene det oversettes til ligger øverst i prosjektet."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:d30b7c9546",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The proposal is still a valid Word document — heading and structure intact. Only the words changed.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Forslaget er fortsatt et gyldig Word-dokument — overskrift og struktur er intakt. Bare ordene er endret.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:d31bd7718a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "kgrep finds the product name across every format"
+          }
+        ],
+        "nb": [
+          {
+            "text": "kgrep finner produktnavnet på tvers av alle formatene"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:d4674312b4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "New Project asks only for a name — here, the Acme Help Center. Kapi derives the folder and the rest from it."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Nytt prosjekt spør bare om et navn — her: Acme Help Center. Kapi utleder mappen og resten fra det."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:d5e405f760",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "kcat, kgrep and ksed: grep, sed and cat, for the words inside any of the more than fifty file formats neokapi reads.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "kcat, kgrep og ksed: grep, sed og cat, for ordene inni alle de over femti filformatene neokapi leser.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:d84812b270",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Content is organised as one card per collection: each card carries the patterns that define what belongs to it, and the files they match."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Innholdet er organisert som ett kort per samling: hvert kort bærer mønstrene som definerer hva som hører til, og filene de treffer."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:d92024f193",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Now it passes. With the gate on, this is what stops a bad translation from shipping — in continuous integration, or inside an assistant's fix-loop.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Nå passerer den. Med porten på er det dette som stopper en dårlig oversettelse fra å gå ut — i kontinuerlig integrasjon, eller i en assistents rettesløyfe.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:de0c5834dc",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "And the memory is searchable too — every string that mentions the word invite."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Og minnet er søkbart, det også — hver streng som nevner ordet invite."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:dfb6e2c27f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Project Settings: languages, plugins, processing."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Prosjektinnstillinger: språk, tillegg, prosessering."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:dfc4dd65aa",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Project Settings is where you choose the source language and the locales you're translating into, alongside plugins and processing options."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Prosjektinnstillinger er der du velger kildespråket og språkene du oversetter til, ved siden av tillegg og prosesseringsvalg."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:e3cad089f2",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Each entry pairs a source string with its translations. Inline formatting, like bold text and links, is preserved as tags rather than literal markup."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hver oppføring parer en kildestreng med oversettelsene sine. Formatering i teksten, som fet skrift og lenker, bevares som tagger i stedet for rå markup."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:f0f82ebc7a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "kapi check reads the German against the English and runs the rules like tests — do-not-translate, placeholder integrity, terminology. It reports exactly what broke: the count placeholder is missing, and Acme Cloud was translated.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "kapi check leser den tyske oversettelsen mot den engelske kilden og kjører reglene som tester — ikke-oversettbare navn, plassholderintegritet, terminologi. Den rapporterer nøyaktig hva som røk: antall-plassholderen mangler, og Acme Cloud er oversatt.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:f90e64dcd4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "We apply the two corrections — restore the placeholder, keep the product name verbatim — and run the very same check again.\n"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vi retter de to feilene — gjenoppretter plassholderen og lar produktnavnet stå urørt — og kjører nøyaktig samme kontroll på nytt.\n"
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    },
+    {
+      "id": "demo-narration-nb:fb145e3899",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "In Kapi, a project's content is the set of files it translates."
+          }
+        ],
+        "nb": [
+          {
+            "text": "I Kapi er innholdet i et prosjekt settet av filer det oversetter."
+          }
+        ]
+      },
+      "created": "2026-07-11T00:00:00Z",
+      "updated": "2026-07-11T00:00:00Z"
+    }
+  ]
+}

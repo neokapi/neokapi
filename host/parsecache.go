@@ -16,14 +16,89 @@ import (
 // Part.Resource is an interface, so it is serialized as a tagged union keyed by
 // the PartType. Exactly one payload field is set per part. It is the per-part
 // record the streaming document cache (docCache) appends to its log.
+//
+// Blocks and Layers are wrapped (cachedBlock/cachedLayer) because their
+// Annotations map holds Payload interface values: raw json.Unmarshal cannot
+// rehydrate an interface, so a reader that annotates at parse time (e.g. the
+// YAML reader's comment notes) would fail on replay. The wrappers shadow the
+// Annotations field with a typed envelope that carries each payload's
+// registered type name (map keys are usually — but not always — the type
+// name, so the name travels explicitly).
 type cachedPart struct {
 	Type   model.PartType    `json:"t"`
-	Block  *model.Block      `json:"b,omitempty"`
-	Layer  *model.Layer      `json:"l,omitempty"`
+	Block  *cachedBlock      `json:"b,omitempty"`
+	Layer  *cachedLayer      `json:"l,omitempty"`
 	Data   *model.Data       `json:"d,omitempty"`
 	Media  *model.Media      `json:"m,omitempty"`
 	GStart *model.GroupStart `json:"gs,omitempty"`
 	GEnd   *model.GroupEnd   `json:"ge,omitempty"`
+}
+
+// cachedAnno is the serialized form of one annotation payload: the payload
+// registry type name plus the payload's own JSON.
+type cachedAnno struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data,omitempty"`
+}
+
+// cachedBlock shadows Block.Annotations with the typed envelope (the embedded
+// field is suppressed by the outer one under encoding/json's depth rule).
+type cachedBlock struct {
+	*model.Block
+	Annotations map[string]cachedAnno `json:"Annotations,omitempty"`
+}
+
+// cachedLayer is the Layer counterpart of cachedBlock.
+type cachedLayer struct {
+	*model.Layer
+	Annotations map[string]cachedAnno `json:"Annotations,omitempty"`
+}
+
+// toCachedAnnotations envelopes a Payload map for serialization. Payloads that
+// fail to marshal are dropped (the cache is a regenerable parse accelerator,
+// never a source of truth).
+func toCachedAnnotations(m map[string]model.Payload) map[string]cachedAnno {
+	if len(m) == 0 {
+		return nil
+	}
+	out := make(map[string]cachedAnno, len(m))
+	for k, p := range m {
+		if p == nil {
+			continue
+		}
+		data, err := json.Marshal(p)
+		if err != nil {
+			continue
+		}
+		out[k] = cachedAnno{Type: p.TypeName(), Data: data}
+	}
+	return out
+}
+
+// fromCachedAnnotations rehydrates the envelope through the payload registry.
+// Entries with an unregistered type name are dropped rather than failing the
+// replay — same posture as toCachedAnnotations.
+func fromCachedAnnotations(cm map[string]cachedAnno) map[string]model.Payload {
+	if len(cm) == 0 {
+		return nil
+	}
+	out := make(map[string]model.Payload, len(cm))
+	for k, ca := range cm {
+		p, ok := model.NewPayload(ca.Type)
+		if !ok {
+			continue
+		}
+		if len(ca.Data) > 0 {
+			if err := json.Unmarshal(ca.Data, p); err != nil {
+				continue
+			}
+		}
+		out[k] = p
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func toCachedParts(parts []*model.Part) []cachedPart {
@@ -35,9 +110,9 @@ func toCachedParts(parts []*model.Part) []cachedPart {
 		cp := cachedPart{Type: p.Type}
 		switch r := p.Resource.(type) {
 		case *model.Block:
-			cp.Block = r
+			cp.Block = &cachedBlock{Block: r, Annotations: toCachedAnnotations(r.Annotations)}
 		case *model.Layer:
-			cp.Layer = r
+			cp.Layer = &cachedLayer{Layer: r, Annotations: toCachedAnnotations(r.Annotations)}
 		case *model.Data:
 			cp.Data = r
 		case *model.Media:
@@ -64,9 +139,15 @@ func fromCachedParts(cps []cachedPart) []*model.Part {
 		var res model.Resource
 		switch cp.Type {
 		case model.PartBlock:
-			res = cp.Block
+			if cp.Block != nil && cp.Block.Block != nil {
+				cp.Block.Block.Annotations = fromCachedAnnotations(cp.Block.Annotations)
+				res = cp.Block.Block
+			}
 		case model.PartLayerStart, model.PartLayerEnd:
-			res = cp.Layer
+			if cp.Layer != nil && cp.Layer.Layer != nil {
+				cp.Layer.Layer.Annotations = fromCachedAnnotations(cp.Layer.Annotations)
+				res = cp.Layer.Layer
+			}
 		case model.PartData:
 			res = cp.Data
 		case model.PartMedia:

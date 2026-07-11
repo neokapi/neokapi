@@ -417,8 +417,8 @@ function geminiLiveNarrate(
 export interface NarrateOptions {
   force?: boolean;
   /** BCP-47 narration locale (default "en"). Non-default locales synthesize
-   *  from the demo's `locales.<locale>` overlay into suffixed outputs
-   *  (narration-<locale>.json + audio-<locale>/). */
+   *  from the demo's generated demo.<locale>.yaml sidecar overlay into
+   *  suffixed outputs (narration-<locale>.json + audio-<locale>/). */
   locale?: string;
 }
 

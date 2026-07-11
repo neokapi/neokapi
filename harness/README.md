@@ -95,23 +95,27 @@ Switch with `NARRATION_BACKEND=elevenlabs pnpm run demo <id> -- --only=narrate -
 ## Localized videos (`--locale`)
 
 Demos carry their narration in English in `narration:` (the master — scene
-structure, beats, holds and timing all come from it). A demo can add per-locale
-overlays under `locales:`, each entry re-voicing an existing scene by `id`:
+structure, beats, holds and timing all come from it), and `demo.yaml` is
+English-only. Localized narration lives in **generated** sidecar files next to
+it — `demo.<locale>.yaml`, a TM-driven localized copy produced by the repo's
+dogfood l10n pipeline:
 
-```yaml
-locales:
-  nb:
-    narration:
-      - id: title
-        text: >-
-          Kapi Desktop — den visuelle følgesvennen til kapi-kommandolinjen.
-        caption: optional localized on-screen caption
+```bash
+make -C .. l10n-demos    # regenerate the committed demo.<lang>.yaml sidecars
 ```
 
-Scenes without an override fall back to English — except for published demos
-(`publishAs`), where the narrate stage requires full coverage so a shipped
-video never mixes languages. Translations follow `l10n/brand-voice.yaml` (nb
-override) and `l10n/termbase.csv`.
+At load time the harness overlays a sidecar's localized narration text /
+captions (and title/subtitle) onto the English master by scene `id`; sidecar
+entries still identical to the English text are TM misses (pending
+translation) and simply fall back to English. Never hand-edit a sidecar or
+author an inline `locales:` block (the loader rejects it) — corrections go
+into the TM seed `l10n/tm/demo-narration-<lang>.klftm`, then regenerate.
+Freshness is CI-gated by `make l10n-verify`.
+
+Scenes without a translated override fall back to English — except for
+published demos (`publishAs`), where the narrate stage requires full coverage
+so a shipped video never mixes languages. Translations follow
+`l10n/brand-voice.yaml` (nb override) and the project termbase.
 
 Select the locale with `--locale=<bcp47>` (or `HARNESS_LOCALE`) on the
 narrate/render/publish stages. The default (`en`) keeps today's unsuffixed

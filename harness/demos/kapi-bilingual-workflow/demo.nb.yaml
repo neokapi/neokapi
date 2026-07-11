@@ -51,31 +51,23 @@ narration:
   - id: title
     kind: title
     text: >
-      Most serious localization runs on bilingual exchange files — XLIFF — that a
-      translator opens in a CAT tool, fills in, and sends back. kapi is the
-      engineering glue on either side of that hand-off.
+      Det meste av seriøs lokalisering går via tospråklige utvekslingsfiler — XLIFF — som en oversetter åpner i CAT-verktøyet sitt, fyller ut og sender tilbake. kapi er det tekniske limet på hver side av den overleveringen.
   - id: extract
     kind: terminal
     text: >
-      Here's a React app's English strings. We seed the project's translation
-      memory from a corporate TMX, then run extract — and kapi writes one bilingual
-      XLIFF per target locale, pre-filling every segment the memory already knows.
-    caption: "extract emits one XLIFF per locale, pre-filled from TM"
+      Her er de engelske strengene i en React-app. Vi mater prosjektets oversettelsesminne fra en TMX fra konsernet, og kjører så extract — og kapi skriver én tospråklig XLIFF per målspråk, ferdig utfylt med hvert segment minnet allerede kjenner.
+    caption: "extract lager én XLIFF per språk, forhåndsutfylt fra oversettelsesminnet"
   - id: merge
     kind: terminal
     text: >
-      The translator fills the remaining targets and returns the files. Merge
-      applies them back onto the source, absorbs every accepted segment into the
-      memory, and tm audit traces exactly which return each entry came from.
-    caption: "merge reconciles the return and absorbs it into TM, with provenance"
+      Oversetteren fyller ut resten og sender filene tilbake. Merge fletter dem tilbake i kilden, tar hvert godkjente segment opp i minnet, og tm audit sporer nøyaktig hvilken retur hver oppføring kom fra.
+    caption: "merge fletter returen inn og tar den opp i minnet, med full sporbarhet"
   - id: fr
     kind: artifact
     artifact: fr
     text: >
-      The French source is localized — every key preserved, every value translated
-      — and the memory is warmer for the next extract.
+      Den franske kilden er lokalisert — hver nøkkel bevart, hver verdi oversatt — og minnet er varmere til neste uttrekk.
   - id: outro
     kind: outro
     text: >
-      Extract, translate, merge: a clean bilingual round-trip through any CAT tool,
-      with the translation memory in the loop on both sides.
+      Trekk ut, oversett, flett: en ren tospråklig rundtur gjennom hvilket som helst CAT-verktøy, med oversettelsesminnet i løkka på begge sider.

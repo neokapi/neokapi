@@ -1,0 +1,55 @@
+id: kapi-desktop-config
+title: Configure Kapi Desktop
+subtitle: Appearance, AI providers, and plugins — in one place.
+tagline: the visual companion to the kapi command line
+kind: use-case
+publishAs: kapi-desktop-config
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read — uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - Appearance
+  - AI providers
+  - Plugins
+  - Keychain-backed keys
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Kapi Desktop samler all konfigurasjon på ett sted.
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      Fra startskjermen åpner tannhjulet nederst Innstillinger.
+  - id: open-settings
+    kind: desktop
+    beat: open-settings
+    caption: Innstillinger — utseende, legitimasjon, tillegg, språk.
+    text: >-
+      Innstillinger samler utseende, KI-legitimasjon, tillegg og språk under ett tak.
+  - id: general
+    kind: desktop
+    beat: general
+    caption: Utseendet følger systemet, eller låses til lyst eller mørkt.
+    text: >-
+      Utseendet følger systemet ditt, eller du kan låse det til lyst eller mørkt. Selve grensesnittet kan til og med kjøre i pseudoengelsk for lokaliseringstesting.
+  - id: credentials
+    kind: desktop
+    beat: credentials
+    caption: KI-legitimasjon — nøklene ligger i nøkkelringen til operativsystemet.
+    text: >-
+      KI-legitimasjon holder leverandørene Kapi oversetter med — Anthropic, OpenAI, Gemini. Nøklene ligger i operativsystemets nøkkelring, aldri på disk.
+  - id: plugins
+    kind: desktop
+    beat: plugins
+    caption: Tillegg utvider formatene og verktøyene som er tilgjengelige.
+    text: >-
+      Og tillegg utvider Kapi — med formater, koblinger og verktøy utover det innebygde.
+  - id: outro
+    kind: outro
+    text: >-
+      Utseende, leverandører, tillegg — konfigurert én gang, brukt overalt.

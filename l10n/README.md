@@ -83,16 +83,19 @@ intermediates, `l10n/review/`).
 
 1. **Source — human-owned.** The seeds here (`tm/*.klftm`,
    `termbase.klftb`, `brand-voice.yaml`), the Docusaurus theme JSONs under
-   `web/i18n/<locale>/`, and harness narration. Tooling may have
-   written the first draft, but humans own the content; nothing
-   regenerates them. Corrections land here.
+   `web/i18n/<locale>/`, and the English harness narration in
+   `harness/demos/*/demo.yaml`. Tooling may have written the first
+   draft, but humans own the content; nothing regenerates them.
+   Corrections land here.
 2. **Committed-generated — machine-owned, drift-gated.** The embedded MO
-   catalogs, `commands.json`/`metadata.json` inventories, and the
-   frontend runtime catalogs (`public/translations/<locale>.json`).
-   Committed because `go:embed` needs them at build time (regenerating
-   needs a built kapi — a bootstrap cycle) and the apps ship them as
-   static assets. `make l10n-verify` (CI: the l10n-drift job) fails on
-   any byte drift from the seeds. Never hand-edit.
+   catalogs, `commands.json`/`metadata.json` inventories, the frontend
+   runtime catalogs (`public/translations/<locale>.json`), and the demo
+   narration sidecars (`harness/demos/*/demo.<lang>.yaml`, from
+   `make l10n-demos`). Committed because `go:embed` needs them at build
+   time (regenerating needs a built kapi — a bootstrap cycle) and the
+   apps ship them as static assets. `make l10n-verify` (CI: the
+   l10n-drift job) fails on any byte drift from the seeds. Never
+   hand-edit.
 3. **Materialized targets — derived but checkpointed.** The translated
    docs pages under `web/i18n/<locale>/.../current/`. Derived from
    source + TM, but committed deliberately: re-materialization is not a
