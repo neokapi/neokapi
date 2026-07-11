@@ -205,9 +205,10 @@ func TestQACheckWithoutTermbase(t *testing.T) {
 		"--target-lang", "fr")
 
 	qaOut := filepath.Join(tmp, "qa.json")
-	// qa annotates rather than gates; tolerate a non-zero exit and
-	// assert it produced the output file.
-	_, _ = kapiAllowFail(t, "qa", pseudoOut,
+	// The raw qa tool annotates rather than gates (the porcelain gate is
+	// `kapi check`); tolerate a non-zero exit and assert it produced the
+	// output file.
+	_, _ = kapiAllowFail(t, "exec", "qa", pseudoOut,
 		"-o", qaOut,
 		"--source-lang", "en",
 		"--target-lang", "fr")
@@ -267,9 +268,9 @@ func TestTMExport(t *testing.T) {
 	assert.Contains(t, content, "Paramètres")
 }
 
-// TestTMLeverage exercises standalone `kapi recycle` (the curated top-level
-// verb for TM leverage; the old tm-leverage tool is gone) against an external
-// TM via --tm. It accepts --tm (and a project .kapi/tm.db), and — since the
+// TestTMLeverage exercises TM leverage via `kapi exec recycle` (the raw
+// registry layer — the porcelain surface folded TM reuse into `kapi translate`
+// and retired the standalone top-level verb) against an external TM via --tm. It accepts --tm (and a project .kapi/tm.db), and — since the
 // #700 fix wired SourceLocale from --source-lang — it fills targets from
 // exact TM matches: "Settings" and "File upload" (both in project.tmx) are
 // leveraged into their French equivalents in the output.
@@ -278,7 +279,7 @@ func TestTMLeverage(t *testing.T) {
 	tmp := t.TempDir()
 
 	out := filepath.Join(tmp, "leveraged.json")
-	kapi(t, "recycle", filepath.Join(testdata, "messages_en.json"),
+	kapi(t, "exec", "recycle", filepath.Join(testdata, "messages_en.json"),
 		"--tm", tmFile,
 		"--source-lang", "en",
 		"--target-lang", "fr",
@@ -309,7 +310,7 @@ func TestFullPipeline(t *testing.T) {
 
 	// Step 2: Rule-based QA — writes annotated output.
 	qaOut := filepath.Join(tmp, "step2_qa.json")
-	_, _ = kapiAllowFail(t, "qa", pseudoOut,
+	_, _ = kapiAllowFail(t, "exec", "qa", pseudoOut,
 		"-o", qaOut,
 		"--source-lang", "en",
 		"--target-lang", "fr")
