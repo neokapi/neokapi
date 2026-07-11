@@ -16,39 +16,49 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "demo.kapi",
       content:
-        "version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\ncontent: []\nflows:\n  translate:\n    steps:\n      - tool: recycle\n",
+        'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\n  flow: tm-recycle\ncontent:\n  - path: messages.json\n    target: "messages.{lang}.json"\nflows:\n  tm-recycle:\n    steps:\n      - tool: recycle\n',
     },
   ],
   steps: [
     {
       command: "kapi init --name demo --source-locale en --target-locale fr",
       narration:
-        "init scaffolds the {name}.kapi recipe and the .kapi/ state dir with empty content. It is idempotent — safe to re-run on an existing project.",
+        "init scaffolds the {name}.kapi recipe and the .kapi/ state dir. It is idempotent — safe to re-run on an existing project.",
     },
     {
-      command: "kapi add messages.json",
+      command: "kapi ls",
       narration:
-        "add registers messages.json under the recipe's content so extract/run/merge know what to process — no -i needed afterwards.",
+        "ls lists the files the recipe's content tracks. Here one JSON catalog, mapped to a messages.{lang}.json target per locale.",
     },
     {
       command: "kapi tm import project.tmx",
       narration:
-        "tm import loads existing translations into the project TM (.kapi/tm.db) — the source of the real fr target below.",
+        "tm import loads existing translations into the project TM (.kapi/tm.db). The flow leverages it before any AI is asked.",
     },
     {
-      command: "kapi extract",
+      command: "kapi status",
       narration:
-        "extract reads every content glob in the recipe into the project store — one batch, all target locales, no -i needed.",
+        "status derives each locale's standing from the working tree. fr is at zero — pending work, never a build failure.",
     },
     {
-      command: "kapi run translate -i messages.json",
+      command: "kapi run tm-recycle -i messages.json",
       narration:
-        "The translate flow leverages the TM, committing real fr targets to the project store. No LLM, fully offline — exact/fuzzy TM matches fill the targets.",
+        "run executes one pass of one named flow. In a project the pass is process-only — it commits results to the project store, not to files.",
     },
     {
       command: "kapi merge",
       narration:
-        "merge replays the stored fr translations onto the source and writes the localized file (out/fr/messages.json).",
+        "merge materializes the localized files from the store — it replays the stored fr targets onto the source and writes messages.fr.json.",
+    },
+    {
+      command: "kapi status",
+      narration:
+        "The grid up converges toward — fr translated 100%. Coverage is derived from the files on every run, never tracked as state.",
+    },
+    {
+      command: "kapi extract --target-lang fr",
+      narration:
+        "extract emits a bilingual XLIFF per target locale, pre-filled from the TM — the handoff a human translator works in. merge applies the returned file. up automates this loop; the plumbing stays addressable.",
     },
   ],
 };

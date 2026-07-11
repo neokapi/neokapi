@@ -41,8 +41,9 @@ narration:
     text: >
       Each step is a typed tool call with a structured result, not text scraped from a
       console. Claude asks kapi to detect the format, size the content with the stats tool,
-      and list the flows it offers.
-    caption: "Typed kapi tool calls over MCP, each returning structured data"
+      and list the flows it offers — the same registry tools kapi up and the porcelain verbs
+      drive; on the command line, kapi exec is the raw doorway to them.
+    caption: "Typed MCP tool calls into kapi, each returning structured data"
   - id: pseudo
     kind: terminal
     text: >

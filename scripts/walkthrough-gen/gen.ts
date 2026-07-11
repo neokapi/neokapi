@@ -87,11 +87,12 @@ interface CommandStep {
   // offline: false → tape + narration only; never run in the embed.
   offline?: boolean;
   // smoke: whether to include this command in the .md smoke_contract that W7
-  // (scripts/verify-snippets/harness.ts) re-runs. W7 runs each command in
-  // ISOLATION (fresh cwd, only the scene's library fixtures seeded), so set
-  // smoke: false on steps that consume a file produced by an earlier step in
-  // the sequence — they only make sense inside the warm embed session.
-  // Defaults to the value of `offline`.
+  // (scripts/verify-snippets/harness.ts) re-runs. W7 gives each walkthrough
+  // its own sandbox dir seeded from the spec (kit `seed` fixtures + inline
+  // `files`, embed override honored) and re-seeds those before EVERY command,
+  // so set smoke: false on steps that only make sense inside the warm embed
+  // session (e.g. they depend on state a native-only `offline: false` step
+  // would have produced first). Defaults to the value of `offline`.
   smoke?: boolean;
 }
 type Step = CommentStep | CommandStep;

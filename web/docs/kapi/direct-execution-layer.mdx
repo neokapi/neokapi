@@ -1,0 +1,155 @@
+---
+title: Understanding the CLI layers
+description: The plumbing under kapi's porcelain verbs — exec runs one registry tool, run composes tools into a named flow, extract and merge carry the translator hand-off, and kapi up is the loop that drives the same flow toward the project's gates.
+keywords: [kapi, exec, run, flow, extract, merge, plumbing, porcelain, CLI layers, tools]
+---
+
+import { LanesDiagram } from "@neokapi/docs-shared";
+
+# Understanding the CLI layers
+
+Most users run `kapi up` and stop: it reconciles the whole project toward its
+ship gates, and the porcelain verbs around it — `status`, `check`, `apply`,
+`translate` — cover the daily work. This page is the layer underneath, for the
+localization engineer who wants to know what those verbs are made of, or needs
+to run one piece of the machinery on its own.
+
+The layers form one model, not separate features. At the bottom is a registry
+of **tools** — translate, recycle, qa, term-check, redact, and the rest (list
+them with `kapi tools list`; the [tool reference](/tools) documents each). A
+**flow** composes tools into a named pipeline. The porcelain verbs are
+workflows over those two layers: `kapi translate` wraps recycle → translate →
+checks, and `kapi up` loops a flow until the project's gates are met.
+
+<LanesDiagram
+  handoff="composes"
+  lanes={[
+    {
+      title: "Porcelain",
+      sub: "kapi up · translate · check · status",
+      role: "qa",
+      steps: [
+        "loop the default flow over pending units",
+        "re-derive coverage before each pass",
+        "run the bound checks, evaluate the gates",
+        "park what needs a person",
+      ],
+    },
+    {
+      title: "Flows",
+      sub: "kapi run <flow>",
+      role: "translate",
+      steps: [
+        "one named flow, one pass",
+        "an ordered composition of tools",
+        "no gate loop, no parking",
+      ],
+    },
+    {
+      title: "Tools",
+      sub: "kapi exec <tool>",
+      role: "annotate",
+      steps: [
+        "one registry tool, one pass",
+        "no TM pass, no checks around it",
+        "discover with kapi tools list",
+      ],
+    },
+  ]}
+  caption="Each layer composes the one below: a flow is an ordered list of tools; kapi up is a flow in a loop with coverage, checks, and gates around it."
+/>
+
+## `exec` — one tool, one pass
+
+`kapi exec <tool>` executes a single registry tool on the files you name — one
+tool, one pass, no guardrails around it. These are the same tools a flow runs:
+`exec translate` is a bare AI translate with no TM pass before it and no checks
+after it; `exec term-check` runs just the terminology check; `exec recycle`
+runs just the TM leverage. Discover a tool's options with
+`kapi tools schema <name>`.
+
+```bash
+kapi exec translate app.json --target-lang fr    # bare translate, no TM, no checks
+kapi exec term-check locales/fr.json --target-lang fr
+kapi exec recycle app.json --target-lang fr      # TM leverage only
+```
+
+Reach for `exec` when you want exactly one tool's behavior — isolating a step
+while debugging a flow, or a one-off check on a file. See the
+[`exec` reference](/reference/commands/exec).
+
+## `run` — compose tools into a flow
+
+`kapi run <flow>` runs a named [flow](/framework/flows) — an ordered
+composition of tools — for one pass. Built-in flows cover the common
+compositions (`translate`, `translate-qa`, `secure-translate`; `kapi flows`
+lists what your build ships), and a project recipe defines its own under
+`flows:`.
+
+```bash
+kapi run translate-qa -i app.xliff --target-lang fr   # translate, then LLM-judged QA
+kapi run secure-translate -i notes.md --target-lang de # redact → translate → unredact
+kapi run pseudo -p myproject.kapi                      # a project-defined flow
+```
+
+A flow is also what `kapi up` loops: `defaults.flow` names the project's
+default, and without one `up` runs the built-in default — TM reuse (recycle)
+followed by AI translate. `run` executes the composition once and stops;
+it re-derives no coverage and consults no gates. See the
+[`run` reference](/reference/commands/run).
+
+## `extract` / `merge` — the translator hand-off
+
+Not every pass is a tool run. When a person does the translation, `kapi
+extract` emits one bilingual file per source → target pair — XLIFF 2.x or PO
+for a third-party CAT tool, a lossless `.klz` for a recipient working in kapi —
+pre-filled from the project TM. `kapi merge` applies the returned file back
+onto the project, restoring the original formats through the skeleton captured
+at extract time and absorbing the corrections into the TM.
+
+```bash
+kapi extract --target-lang fr          # → out/<name>.en-to-fr.xliff, TM pre-filled
+kapi merge -i out/app.en-US-to-fr-FR.xliff
+```
+
+Extract and merge sit at the same altitude as `run`: they move work through an
+external pass instead of a tool pass, and the result lands in the same project
+state the porcelain re-derives. The workflow — carriers, TM provenance, vendor
+rounds — is covered in [Hand off to translators](/kapi/bilingual-workflow);
+the flags are in the [`extract`](/reference/commands/extract) and
+[`merge`](/reference/commands/merge) references.
+
+## What `kapi up` adds
+
+Seen from this layer, `kapi up` is *run the default flow, in a loop, with the
+project machinery around it*. Each pass:
+
+1. **re-derives coverage** from the working tree (re-extracting when source
+   files changed),
+2. **runs the flow** for the locales still short of their gate — the same
+   composition `run` would execute once,
+3. **runs the bound checks** over what was produced, so a unit with failing
+   findings cannot lift its locale over the gate,
+4. **evaluates the gates** and either loops, stops converged, or **parks**
+   what needs a person.
+
+None of that is available piecemeal from the lower layers — `run` and `exec`
+skip the coverage derivation, the checks, and the gates by design. The full
+model is [Convergence](/kapi/convergence).
+
+## When to reach for each
+
+| You want                                                        | Reach for                                            |
+| --------------------------------------------------------------- | ---------------------------------------------------- |
+| The daily reconcile: everything toward the gates                 | `kapi up`                                            |
+| One guardrailed translation pass over named files                | `kapi translate`                                     |
+| A specific composition, one pass, no gate loop                   | `kapi run <flow>`                                    |
+| Exactly one tool's behavior, nothing around it                   | `kapi exec <tool>`                                   |
+| A person translates: hand the work out and take it back          | `kapi extract` / `kapi merge`                        |
+
+## See also
+
+- [Convergence](/kapi/convergence) — the model behind `up`, `status`, and the gates.
+- [Flows](/framework/flows) — how a flow is authored and executed.
+- [Hand off to translators](/kapi/bilingual-workflow) — the bilingual interchange workflow.
+- [`exec`](/reference/commands/exec), [`run`](/reference/commands/run), [`extract`](/reference/commands/extract), [`merge`](/reference/commands/merge) — command reference.

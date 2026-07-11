@@ -37,8 +37,9 @@ const config: WalkthroughEmbedConfig = {
       narration: "Produce a target file to QA.",
     },
     {
-      command: "kapi term-check pseudo_fr.json --source-lang en --target-lang fr",
-      narration: "Flags target segments that violate the seeded terminology.",
+      command: "kapi exec term-check pseudo_fr.json --source-lang en --target-lang fr",
+      narration:
+        "Flags target segments that violate the seeded terminology — the same check kapi up binds after every pass, so a violating unit cannot lift its locale over the gate.",
     },
   ],
 };

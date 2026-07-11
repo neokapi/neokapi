@@ -51,17 +51,22 @@ narration:
     text: >
       Track the files you want translated, then push. Push is pure transport — it
       moves the source up to the server, like git push; it does not translate on
-      its own. kapi status then shows the standing, exactly like git status.
+      its own. kapi status then shows the standing: the per-locale coverage grid,
+      plus the server line, the terms line, and the venue line — which server this
+      project belongs to, what the org's terms require, and where the loop will
+      run.
     caption: "kapi push — source up to the server"
   - id: up
     kind: terminal
     text: >
-      kapi up is the convergence verb. On a connected project it runs the loop on
-      the Bowrain server — the team's keys, shared memory, and gates — streams the
-      progress back into your terminal, and pulls the results into the same files
-      and format you started with. Anything a machine can't finish is parked in
-      your team's review queue. This is the command your CI runs to keep every
-      locale up to date.
+      kapi up is the convergence verb, and it prints its venue first — server,
+      because the recipe declares one. The loop runs on the Bowrain server — the
+      team's keys, shared memory, and gates — streams the progress back into your
+      terminal, and pulls the results into the same files and format you started
+      with. Anything a machine can't finish is parked in your team's review queue.
+      Before spending anything, kapi up --plan previews the pending work
+      and its cost. This is the command your CI runs to keep every locale up to
+      date.
     caption: "kapi up — reconcile the project on the server"
   - id: outro
     kind: outro

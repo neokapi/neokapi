@@ -87,6 +87,13 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
   another stack already uses — with the specific tools that make that stack
   maintainable. See [references/i18n.md](references/i18n.md).
 
+**Advanced:** the porcelain verbs compose a lower layer you can drive directly —
+`kapi exec <tool>` runs one registry tool with nothing around it, `kapi run <flow>`
+runs one named flow for one pass, and `kapi extract`/`kapi merge` carry the
+translator hand-off. Reach for them only when a task needs exactly one tool or one
+custom pipeline; the layer model is
+[Understanding the CLI layers](https://neokapi.github.io/kapi/direct-execution-layer).
+
 ## Prerequisites
 
 - The `kapi` binary on PATH (`kapi version`).

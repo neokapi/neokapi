@@ -48,10 +48,11 @@ narration:
   - id: work
     kind: terminal
     text: >
-      Claude checks how kapi expects react-i18next catalogs to be laid out, runs a quick
-      pseudo-translation pass to confirm the English file is ready, then translates it into
-      French and German. Because kapi understands the i18next format, the interpolation
-      placeholders and the plural keys are carried through unchanged.
+      Claude checks how kapi expects react-i18next catalogs to be laid out, runs a
+      pseudo-translation pass to confirm the English file is ready, then runs kapi translate
+      for French and for German. Because kapi understands the i18next format, the
+      interpolation placeholders and the plural keys are carried through unchanged — and the
+      built-in checks verify they survived.
     caption: "Claude confirms the layout, checks readiness, then translates fr and de"
   - id: fr
     kind: artifact

@@ -6,29 +6,29 @@ const config: WalkthroughEmbedConfig = {
   id: "kapi-rewrite-content",
   scene: "rewrite-content",
   mode: "interactive",
-  seed: ["release-notes.md"],
-  files: [],
+  seed: [],
+  files: [
+    {
+      path: "release-notes.md",
+      content:
+        "# Lumen Notes 2.4\n\n## Highlights\n\nThis release delivers a game-changing editor that is blazing fast.\n\nBug fixes utilize the new sync engine to resolve conflicts.\n",
+    },
+    {
+      path: "edits.jsonl",
+      content:
+        '{"kind":"content","file":"release-notes.md","id":"tu3","content_hash":"7216da8380519e37fc04ad5723a5049bd8c3c9219dfb17820bec8b1089e68c5b","text":"This release adds a faster editor."}\n{"kind":"content","file":"release-notes.md","id":"tu4","content_hash":"40595e5937457a195231467a018a632154fa96c40f4680a26594cad24b6056ea","text":"Bug fixes use the new sync engine to resolve conflicts."}\n',
+    },
+  ],
   steps: [
     {
-      command: "kapi inspect release-notes.md",
+      command: "kapi apply edits.jsonl --diff",
       narration:
-        "One anchored record per content block — text, a stable content-hash, and its structural role — so an instruction can target the right content.",
+        "apply is the one write verb, the sibling of inspect. Each entry is one reviewed change, bound to its block's content hash — if the file drifted, the entry refuses to land. --diff previews and writes nothing.",
     },
     {
-      command:
-        'kapi rewrite release-notes.md --instruction "Make the tone more concise and active" --diff',
+      command: "kapi apply edits.jsonl",
       narration:
-        "Rewrite edits only the text inside each block and shows a reviewable diff; the format, structure, and inline codes round-trip back byte-for-byte.",
-    },
-    {
-      command:
-        'kapi rewrite release-notes.md --instruction "Make the tone more concise and active" -i',
-      narration:
-        "The same command with -i writes the change back into the original file, preserving everything but the leaf text.",
-    },
-    {
-      command: "kapi check release-notes.md",
-      narration: "Close the loop — confirm the rewritten content still passes the checkset.",
+        "The same change-set writes the text back through the byte-faithful round-trip — format, structure, and inline codes preserved; only the leaf text changes.",
     },
   ],
 };

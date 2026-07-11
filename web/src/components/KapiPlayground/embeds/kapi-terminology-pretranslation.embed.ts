@@ -22,19 +22,24 @@ const config: WalkthroughEmbedConfig = {
   steps: [
     {
       command: "kapi tm import project.tmx -s en -t fr",
-      narration: "Load existing translation memory.",
+      narration:
+        "Load existing translation memory — the store up leverages before any AI is asked.",
     },
     {
-      command: "kapi recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr",
-      narration: "Fill exact/fuzzy matches from the TM; the rest stay untranslated.",
+      command:
+        "kapi exec recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr",
+      narration:
+        "recycle is the first step of up's default flow. Exact and fuzzy matches fill from the TM; the rest stay untranslated.",
     },
     {
       command: "kapi pseudo-translate step1_tm.json -o step2_translated.json",
-      narration: "Everything the TM did not cover gets a locale-shaped placeholder.",
+      narration:
+        "Everything the TM did not cover gets a locale-shaped placeholder — in up's default flow, this is where AI translation runs instead.",
     },
     {
-      command: "kapi term-check step2_translated.json --source-lang en --target-lang fr",
-      narration: "Pre-flag terminology violations before any vendor sees the content.",
+      command: "kapi exec term-check step2_translated.json --source-lang en --target-lang fr",
+      narration:
+        "The same terminology check up runs over each pass's output. Pre-flag violations before any vendor sees the content.",
     },
   ],
 };

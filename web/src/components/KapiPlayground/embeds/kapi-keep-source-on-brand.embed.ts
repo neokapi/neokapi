@@ -6,28 +6,24 @@ const config: WalkthroughEmbedConfig = {
   id: "kapi-keep-source-on-brand",
   scene: "keep-source-on-brand",
   mode: "interactive",
-  seed: ["product-page.md", "brand.yaml"],
-  files: [],
+  seed: [],
+  files: [
+    {
+      path: "brand.yaml",
+      content:
+        'name: Lumen Notes\ndescription: Plain, direct product voice for Lumen Notes pages.\n\ntone:\n  personality: [clear, direct, calm]\n  formality: neutral\n  guidelines: Address the reader as "you". State what the product does; avoid hype.\n\nstyle:\n  active_voice: true\n\nvocabulary:\n  preferred_terms:\n    - term: sign in\n      note: not "log in"\n  forbidden_terms:\n    - term: utilize\n      replacement: use\n      severity: minor\n    - term: game-changing\n      replacement: ""\n      severity: major\n  competitor_terms:\n    - term: NoteCorp\n      replacement: other note apps\n      severity: major\n',
+    },
+    {
+      path: "product-page.md",
+      content:
+        "# Lumen Notes\n\nLumen Notes keeps every note in plain Markdown files you own.\n\n## Why teams switch\n\nOur game-changing sync engine means you can utilize your notes\nanywhere. Unlike NoteCorp, Lumen Notes works offline first.\n\n## Get started\n\nLog in, create a notebook, and invite your team.\n",
+    },
+  ],
   steps: [
     {
       command: "kapi stats product-page.md",
       narration:
-        "A quick content-metrics overview — blocks, words, and a by-role breakdown — so you know the shape of what you are about to check.",
-    },
-    {
-      command: "kapi brand check product-page.md --profile brand.yaml",
-      narration:
-        "The brand profile carries the vocabulary, forbidden terms, and tone rules. The check returns a 0-100 score and one located finding per off-brand block.",
-    },
-    {
-      command: "kapi brand check product-page.md --profile brand.yaml --json",
-      narration:
-        "The same Report as machine-readable JSON: the stable rule id is the key an AI fix-loop tracks across iterations.",
-    },
-    {
-      command: "kapi brand rewrite product-page.md --profile brand.yaml --diff",
-      narration:
-        "Rewrite applies the brand guidance and shows a reviewable diff — only the text changes; the document round-trips back in the same format.",
+        "A content-metrics overview — blocks, words, and a by-role breakdown — so you know the shape of what you are about to check.",
     },
   ],
 };

@@ -106,6 +106,40 @@ The source ladder has its own optional bar, `source_gate` (e.g.
 A gate never fails an ordinary build. Target-language drift is expected work, not
 a break; a gate is a **release** check you opt into (see below).
 
+### Approver classes: who counts as a reviewer {#approver-classes}
+
+*Reviewed* and *signed-off* are decision rungs — someone approved this exact
+translation. A threshold's **approver class** (`by`, in the extended form
+`reviewed: { pct: 100, by: human }`) decides whose decisions count toward it.
+The default is `human`: only a decision made by a person, or an agent acting
+for one, satisfies the threshold — and the short form (`reviewed: 80`) always
+means `by: human`. `by: any` also counts autonomous AI approvals — decisions
+recorded under an `ai/…` identity, such as an AI pre-review that auto-approves
+what it scores clean. An AI-approved unit reads as reviewed in `kapi status`
+(with an `(ai)` qualifier) but does not satisfy a human threshold: an
+autonomous AI approving its own work never silently ships a gate that was
+written when *reviewed* could only mean a person. The default is policy, not a
+fixed rule — a recipe opts a scope in explicitly, so tiers coexist:
+
+```yaml
+gates:
+  contractual: { translated: 100, reviewed: { pct: 100, by: human } }
+  standard: { translated: 100, reviewed: 80 } # short form — by: human implied
+  machine: { translated: 100, reviewed: { pct: 100, by: any } }
+
+ship_gates:
+  - when: { locales: [de] } # contractual market: a person approves every unit
+    gate: contractual
+  - when: { locales: [fr, es] }
+    gate: standard
+  - gate: machine # the long tail: autonomous AI review counts
+```
+
+The full schema — threshold forms, rule selection, the named registry — is in
+the [project-file reference](/reference/project-file#ship-gates); a worked
+per-market strategy is
+[Tier gates per market](/kapi/recipes/machine-ship-strategy).
+
 ## Seeing it: `status` and `check`
 
 `kapi status` is the derived dashboard — coverage per locale and each scope's
@@ -223,9 +257,48 @@ per line (plan, pass, per-locale progress, checks, parked/converged), with the
 structured result as the final record. The same events feed the Kapi Desktop
 passes view.
 
+
 `kapi run <flow>` remains the escape hatch for a **custom** pipeline — one named
 flow, one pass, no gate loop. Reach for it when you want a specific composition;
 reach for `kapi up` for the daily reconcile.
+
+### Drift, watched end to end
+
+Because state is derived, recovery from a source edit is observable at every
+step. Take a German scope fully caught up under
+`ship_gate: { translated: 100, reviewed: 80 }`:
+
+```bash
+kapi status
+# scope    units   draft  translated  reviewed  signed-off  ship
+# de          42    100%        100%      100%         0%  ✓ shippable
+```
+
+Edit one source string. Nothing flags the change and no state is written — the
+next derivation simply reads the working tree: the affected unit's translation
+no longer corresponds to its source, so the unit falls back to *pending* and
+the approval bound to the old pair no longer applies:
+
+```bash
+kapi status
+# scope    units   draft  translated  reviewed  signed-off  ship
+# de          42    100%         98%       98%         0%  pending (translated 98%<100%)
+```
+
+One pass closes what a machine can close — the changed unit is re-translated,
+TM first, then AI:
+
+```bash
+kapi up --passes 1
+kapi status
+# scope    units   draft  translated  reviewed  signed-off  ship
+# de          42    100%        100%       98%         0%  ✓ shippable
+```
+
+*Translated* recovers to 100% and the scope clears its gate again — the 80%
+`reviewed` threshold left room for the re-opened unit, which now sits in the
+review worklist (`kapi status --review`). Under `reviewed: 100` the scope would
+instead stay *pending* until a person re-approves that unit.
 
 ## One verb, two venues
 
@@ -313,7 +386,29 @@ The decision is bound to the **content hash** of the translation it blesses, so
 editing that translation afterwards drops the unit back below *reviewed* — an
 approval can't silently outlive the text it approved. Once recorded, coverage reads
 the unit as *reviewed*, `reviewed%` climbs, and a `{ reviewed: … }` gate flips to
-shippable. The state file is committed with your sources, so the decision travels
+shippable.
+
+<PhaseFlow
+  nodes={[
+    { label: "approve", sub: "kapi apply · kind: review", role: "annotate" },
+    {
+      label: "decision + content hash",
+      sub: ".kapi-state.json",
+      role: "io",
+      edge: "records hash(translation)",
+    },
+    { label: "translation edited", role: "translate", edge: "the stored hash no longer matches" },
+    {
+      label: "unit reads below reviewed",
+      role: "qa",
+      edge: "re-derived on the next run",
+      loop: ["re-approve with kapi apply", "binds to the new hash"],
+    },
+  ]}
+  caption="An approval binds to the content hash of the translation it blesses: edit the text and the unit falls below reviewed until someone approves the new pair."
+/>
+
+The state file is committed with your sources, so the decision travels
 with the project (a server-connected project pushes it to the remote instead,
 where parked units enter the team's assignment and review queue).
 

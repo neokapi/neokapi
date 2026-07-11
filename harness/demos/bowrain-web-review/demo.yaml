@@ -27,8 +27,10 @@ narration:
     kind: desktop
     beat: intro
     text: >-
-      A developer pushes content to Bowrain with kapi; in the workspace, it
-      becomes projects a team can review together.
+      With kapi alone, review is single-player: kapi status --review lists what
+      awaits a decision, and kapi apply records it in the project state store.
+      Push the project to Bowrain and the same decisions get a team surface —
+      projects a workspace reviews together.
 
   - id: open-project
     kind: desktop
@@ -70,4 +72,5 @@ narration:
     kind: outro
     text: >-
       Reviewed on the server, then pulled back into the repository with kapi —
-      one round trip, governed end to end.
+      the same review state the single-player loop records, now carried by the
+      workspace. One round trip, governed end to end.

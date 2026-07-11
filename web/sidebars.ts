@@ -94,6 +94,11 @@ const sidebars: SidebarsConfig = {
         { type: "doc", id: "kapi/recipes/translate-content", label: "Translate with your AI" },
         { type: "doc", id: "kapi/recipes/review-and-approve", label: "Review & approve" },
         { type: "doc", id: "kapi/recipes/gate-localization-in-ci", label: "Ship gates & CI" },
+        {
+          type: "doc",
+          id: "kapi/recipes/machine-ship-strategy",
+          label: "Tier gates per market",
+        },
         { type: "doc", id: "kapi/recipes/choose-a-translation-provider", label: "Choose a model" },
         { type: "doc", id: "kapi/recipes/estimate-cost", label: "Estimate a run's cost" },
         {
@@ -111,6 +116,21 @@ const sidebars: SidebarsConfig = {
           label: "Where translations & terms live",
         },
         { type: "doc", id: "kapi/bilingual-workflow", label: "Hand off to translators" },
+      ],
+    },
+    {
+      // The plumbing track. Unlike the section headings above, this one is a
+      // real collapsible menu (collapsed by default) so the advanced material
+      // doesn't crowd the everyday sidebar.
+      type: "category",
+      label: "Advanced",
+      collapsed: true,
+      items: [
+        {
+          type: "doc",
+          id: "kapi/direct-execution-layer",
+          label: "Understanding the CLI layers",
+        },
       ],
     },
     {

@@ -49,11 +49,12 @@ narration:
     caption: Input, tools, output — wired together.
     text: >-
       Input flows into the tools — here AI translate, then a quality check — and
-      out the other side. The same flows kapi runs on the command line, composed
-      and edited visually.
+      out the other side. These are the flows a server-run kapi up executes: when
+      a connected project reconciles, this pipeline is what the server loops on
+      the org's keys and shared memory.
 
   - id: outro
     kind: outro
     text: >-
-      Visual pipelines on the desktop, the open kapi engine underneath — built
-      once, run anywhere the team needs them.
+      Visual pipelines on the desktop, the open kapi engine underneath. Compose a
+      flow once, and every kapi up against the workspace converges through it.

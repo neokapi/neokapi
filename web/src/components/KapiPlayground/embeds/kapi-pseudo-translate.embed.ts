@@ -12,7 +12,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi pseudo-translate messages.json -o messages.fr.json",
       narration:
-        "Expands every string with locale-shaped accent characters so truncation and missing-string bugs surface immediately on screen.",
+        "Expands every string with locale-shaped accent characters and length padding, so truncation, concatenation, and hardcoded-string bugs surface before any real translation is bought. No AI provider, no keys.",
     },
   ],
 };

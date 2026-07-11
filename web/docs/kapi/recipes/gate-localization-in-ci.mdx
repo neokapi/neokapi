@@ -72,8 +72,20 @@ kapi finds the recipe by walking up from the working directory, so no project pa
 </TabItem>
 </Tabs>
 
+## File checks vs project gates
+
+Two bars, one command. A bare `kapi check <files>` gates the **files you
+name** — a checkset over their content, findings and a severity gate, no
+project needed: the test runner. `kapi check --ship` gates the **project** —
+coverage against the recipe's [`ship_gates:`](/reference/project-file#ship-gates)
+plus the bound quality gates, across every target language: the release bar.
+Use the first while content is being written, the second before it ships; see
+[Check content like tests](/kapi/recipes/verify-content) for the file-level
+half.
+
 ## Next
 
 - [Convergence](/kapi/convergence) — gates, ladders, and the derived-state model.
+- [Tier gates per market](/kapi/recipes/machine-ship-strategy) — different review bars per locale, one enforcement job.
 - [Review & approve](/kapi/recipes/review-and-approve) — raising the `reviewed` coverage a gate measures.
 - [Check content like tests](/kapi/recipes/verify-content) — the file-level checkset and Report.

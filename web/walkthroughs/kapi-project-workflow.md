@@ -6,40 +6,50 @@ scenes:
   - id: project-workflow
     kind: terminal
     binary: kapi
-    duration_budget_seconds: 45
+    duration_budget_seconds: 55
     fixtures:
       - messages.json
     smoke_contract:
       - kapi init --name demo --source-locale en --target-locale fr
-      - kapi add messages.json
+      - kapi ls
       - kapi tm import project.tmx
-      - kapi extract
+      - kapi status
+      - kapi extract --target-lang fr
 ---
 
 ## Story
 
-A `.kapi` project is the recommended day-to-day working model: capture the
-languages, the content globs, and the reusable flows once in a committed recipe,
-then drive the project without repeating flags. The recipe sits beside a
-`.kapi/` state directory — the project store that accumulates block overlays and
-translation memory as you work.
+A `.kapi` project is the day-to-day working model: capture the languages, the
+content globs, and the flows once in a committed recipe, then drive the project
+without repeating flags. The recipe sits beside a `.kapi/` state directory —
+the project store that accumulates block overlays and translation memory as
+you work.
 
-The loop is `init` → `add` the content → seed the TM → `extract` → run a flow →
-`merge`. `init` scaffolds an empty-content recipe; `kapi add` declares which
-files the project localizes. A run inside a project is **process-only**: it
-commits results to the store rather than writing files, so passes stay cheap and
-the store recycles each pass's work. When you want the localized files on disk,
-`merge` replays the store onto each source.
+The verb that drives it is `kapi up`. It treats the recipe as the desired
+state: it runs the project's flow across every target locale, pass after pass,
+until each ship gate is met or the remainder parks for a person. `kapi status`
+shows the derived standing before and after — a locale that is behind is
+pending work, never a build failure.
+
+Under the hood, `up` loops plumbing you can run by hand. `kapi run <flow>`
+executes one pass of one named flow; inside a project a pass is
+**process-only** — it commits results to the project store rather than writing
+files. `kapi merge` materializes the localized files from the store. And when
+a person does the translating, `kapi extract` emits a bilingual file
+pre-filled from the TM, and `merge` applies the return.
 
 ## Scene 1 — project-workflow (terminal)
 
-Scaffold a project with `kapi init`, declare the content with `kapi add`, seed
-the project translation memory with `kapi tm import`, extract the recipe's
-content into the project store, run the declared `translate` flow (it leverages
-the TM to fill real `fr` targets — no LLM, fully offline) process-only, then
-`merge` the localized file out — the full project lifecycle, no flags repeated.
+Scaffold a project with `kapi init`, list the tracked content with `kapi ls`,
+seed the project translation memory with `kapi tm import`, and read the
+before-grid with `kapi status`. Then `kapi up` converges the project — the
+recipe's TM-only flow fills real `fr` targets, no LLM, fully offline. The
+closing beats run the plumbing by hand: one `kapi run` pass into the store,
+`kapi merge` to write `messages.fr.json`, the after-grid at 100%, and
+`kapi extract` as the translator handoff.
 
 ## Closing
 
-Commit the `.kapi` recipe and anyone who clones the repository runs the same
-flows with the same configuration — the project is the portable contract.
+Commit the `.kapi` recipe and anyone who clones the repository converges the
+same project with one command — the recipe is the portable contract, and
+`kapi up` is the verb that reconciles reality to it.

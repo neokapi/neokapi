@@ -74,9 +74,9 @@ narration:
   - id: translate
     kind: terminal
     text: >
-      A pseudo-translation checks the app is ready to localize. Then kapi translates the
-      strings into Japanese — keeping the name placeholder exactly where the code expects it —
-      and compiles them into a dictionary the app loads at runtime.
+      A pseudo-translation is the pre-flight check that the app is ready to localize. Then
+      kapi translate produces the Japanese — keeping the name placeholder exactly where the
+      code expects it — and the strings compile into a dictionary the app loads at runtime.
     caption: "Pseudo-translate for readiness, then translate to Japanese and compile"
   - id: english
     kind: artifact
@@ -94,9 +94,9 @@ narration:
     kind: artifact
     artifact: japanese
     text: >
-      And the same app, now in Japanese — in this demo it is just AI generated Japanese, but
-      Kapi could just as well have looped this through human review and more advanced workflows
-      with automated compliance checks.
+      And the same app, now in Japanese. Here the translation is machine output, unreviewed.
+      In a kapi project the same strings would flow toward a ship gate — checks after every
+      pass, and a review worklist for what needs a person.
   - id: outro
     kind: outro
     text: >

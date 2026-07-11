@@ -13,6 +13,12 @@ one engine: deterministic QA rules, terminology enforcement, placeholder and
 do-not-translate integrity, and [brand voice](/framework/checks/brand-voice) are
 not separate systems — they are check families that share one model.
 
+In the CLI, checks run in `kapi check` (and, project-wide, `kapi check
+--ship`), and inside `kapi up`'s loop — each pass runs the project's bound
+checks over what was produced. `kapi exec` runs a single check tool (`qa`,
+`term-check`, `brand-voice-check`) on its own. See
+[Understanding the CLI layers](/kapi/direct-execution-layer).
+
 ## Checks are tests for AI output
 
 Run as a gate, a check behaves like a test: it is deterministic and repeatable,
