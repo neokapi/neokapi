@@ -229,10 +229,18 @@ func TestTermEnforceItemOnlineHitsServer(t *testing.T) {
 // item op to its core/client method.
 func TestReplayItemActions(t *testing.T) {
 	app, hits := itemOpServer(t, map[string]func(http.ResponseWriter, *http.Request){
-		"POST /items/main":                    func(w http.ResponseWriter, _ *http.Request) { _ = json.NewEncoder(w).Encode(apiclient.EditorProject{ID: "p1"}) },
-		"DELETE /items/main":                  func(w http.ResponseWriter, _ *http.Request) { _ = json.NewEncoder(w).Encode(apiclient.EditorProject{ID: "p1"}) },
-		"POST /actions/main/pseudo-translate": func(w http.ResponseWriter, _ *http.Request) { _ = json.NewEncoder(w).Encode(apiclient.EditorTranslationStats{}) },
-		"POST /actions/main/tm-translate":     func(w http.ResponseWriter, _ *http.Request) { _ = json.NewEncoder(w).Encode(apiclient.EditorTranslationStats{}) },
+		"POST /items/main": func(w http.ResponseWriter, _ *http.Request) {
+			_ = json.NewEncoder(w).Encode(apiclient.EditorProject{ID: "p1"})
+		},
+		"DELETE /items/main": func(w http.ResponseWriter, _ *http.Request) {
+			_ = json.NewEncoder(w).Encode(apiclient.EditorProject{ID: "p1"})
+		},
+		"POST /actions/main/pseudo-translate": func(w http.ResponseWriter, _ *http.Request) {
+			_ = json.NewEncoder(w).Encode(apiclient.EditorTranslationStats{})
+		},
+		"POST /actions/main/tm-translate": func(w http.ResponseWriter, _ *http.Request) {
+			_ = json.NewEncoder(w).Encode(apiclient.EditorTranslationStats{})
+		},
 	})
 
 	ctx := t.Context()
