@@ -8,6 +8,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/project"
+
+	"github.com/neokapi/neokapi/host/flowdef"
 )
 
 // RunCmdOptions configures the run command.
@@ -23,6 +25,18 @@ func BuiltinComposedFlowNames() map[string]bool {
 	names := make(map[string]bool)
 	for _, fi := range builtinComposedFlows() {
 		names[fi.Name] = true
+	}
+	return names
+}
+
+// BuiltinFlowNames returns every built-in catalog flow ID, single-node flows
+// included — the resolution set for `kapi run <flow>` and the flow-backed
+// porcelain. (BuiltinComposedFlowNames stays the ≥2-tool subset used by
+// listings that present "composed" pipelines.)
+func BuiltinFlowNames() map[string]bool {
+	names := make(map[string]bool)
+	for _, def := range flowdef.BuiltInFlows() {
+		names[def.ID] = true
 	}
 	return names
 }
@@ -79,7 +93,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	}
 
 	// Check if it's a built-in flow first (project can reference built-in flows).
-	if BuiltinComposedFlowNames()[flowName] {
+	if BuiltinFlowNames()[flowName] {
 		return a.RunFlow(cmd.Context(), cmd, flowName, FlowCmdOptions{
 			FallbackRunE: opts.FallbackRunE,
 		})

@@ -60,8 +60,8 @@ Use -p to run a flow from a .kapi project file:
 				FallbackRunE: fallbackRunE,
 			}
 
-			// Built-in composed flow — run directly.
-			if BuiltinComposedFlowNames()[flowName] {
+			// Built-in catalog flow — run directly.
+			if BuiltinFlowNames()[flowName] {
 				return a.RunFlow(cmd.Context(), cmd, flowName, flowOpts)
 			}
 
