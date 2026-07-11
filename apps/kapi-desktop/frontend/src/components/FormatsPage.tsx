@@ -3,8 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { t } from "@neokapi/kapi-react/runtime";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {
   FileText,
   ArrowLeft,
@@ -26,6 +24,7 @@ import {
   SchemaForm,
   Card,
   CardContent,
+  Markdown,
   Skeleton,
   Input,
   Tabs,
@@ -266,9 +265,9 @@ function FormatSection({
 
                   {/* Doc overview snippet (only when pre-loaded, e.g. Storybook) */}
                   {filterDoc && (
-                    <p className="mt-1 text-[11px] leading-snug text-muted-foreground line-clamp-2">
-                      {filterDoc.overview}
-                    </p>
+                    <div className="mt-1 text-[11px] leading-snug text-muted-foreground line-clamp-2">
+                      <Markdown inline>{filterDoc.overview}</Markdown>
+                    </div>
                   )}
 
                   {f.extensions && f.extensions.length > 0 && (
@@ -545,8 +544,10 @@ function FormatDetail({
 
       {/* Overview from docs */}
       {filterDoc && (
-        <div className="mb-6 rounded-lg border border-primary/15 bg-primary/[0.03] px-4 py-3 text-[13px] leading-relaxed text-foreground/85 [&_a]:text-primary/80 [&_a]:underline [&_a]:underline-offset-2 [&_code]:px-1 [&_code]:py-px [&_code]:rounded [&_code]:bg-muted [&_code]:text-[0.9em] [&_code]:font-mono">
-          <Markdown remarkPlugins={[remarkGfm]}>{filterDoc.overview}</Markdown>
+        <div className="mb-6 rounded-lg border border-primary/15 bg-primary/[0.03] px-4 py-3">
+          <Markdown className="text-[13px] leading-relaxed text-foreground/85">
+            {filterDoc.overview}
+          </Markdown>
         </div>
       )}
 
@@ -611,7 +612,9 @@ function FormatDetail({
                   {p.name}
                   {p.source && <span className="ml-1 text-[9px] opacity-60">({p.source})</span>}
                   {p.description && (
-                    <span className="ml-1 text-muted-foreground">— {p.description}</span>
+                    <span className="ml-1 text-muted-foreground">
+                      — <Markdown inline>{p.description}</Markdown>
+                    </span>
                   )}
                 </Button>
                 {p.source === "user" && (

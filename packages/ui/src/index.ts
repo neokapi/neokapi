@@ -118,6 +118,7 @@ export {
   InputGroupTextarea,
 } from "./components/ui/input-group";
 export { Label } from "./components/ui/label";
+export { Markdown, type MarkdownProps } from "./components/ui/markdown";
 export { Badge, badgeVariants } from "./components/ui/badge";
 export {
   Popover,

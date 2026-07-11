@@ -44,8 +44,10 @@ type Spec struct {
 	// MimeType is the primary mime type. Variants may override.
 	MimeType string `yaml:"mime_type"`
 
-	// Description is human-readable prose describing what this format
-	// is for. Rendered on the docs site.
+	// Description is human-readable markdown prose describing what this
+	// format is for. Rendered on the docs site and in the app UIs through
+	// the shared Markdown primitive — see
+	// web/docs/contribute/notes-internal/markdown-in-ui.md.
 	Description string `yaml:"description,omitempty"`
 
 	// Variants enumerates sub-formats sharing one filter (e.g. openxml
@@ -107,10 +109,11 @@ type Spec struct {
 // Variant is one sub-format inside a multi-variant filter (docx, xlsx,
 // pptx for openxml; opendocument-text vs spreadsheet for odf, etc.).
 type Variant struct {
-	ID          string `yaml:"id"`
-	Name        string `yaml:"name"`
-	Extension   string `yaml:"extension"`
-	MimeType    string `yaml:"mime_type"`
+	ID        string `yaml:"id"`
+	Name      string `yaml:"name"`
+	Extension string `yaml:"extension"`
+	MimeType  string `yaml:"mime_type"`
+	// Description is markdown — see markdown-in-ui.md.
 	Description string `yaml:"description,omitempty"`
 }
 
@@ -168,9 +171,10 @@ func (s *Spec) validateParity() error {
 
 // ConfigKey is one configuration option recognised by the format.
 type ConfigKey struct {
-	Key         string   `yaml:"key"`
-	Type        string   `yaml:"type"` // "boolean" | "string" | "string_list" | "int" | "string_map"
-	Default     any      `yaml:"default"`
+	Key     string `yaml:"key"`
+	Type    string `yaml:"type"` // "boolean" | "string" | "string_list" | "int" | "string_map"
+	Default any    `yaml:"default"`
+	// Description is markdown (config key help) — see markdown-in-ui.md.
 	Description string   `yaml:"description"`
 	AppliesTo   []string `yaml:"applies_to,omitempty"` // variant ids; empty = all
 	OkapiParam  string   `yaml:"okapi_param,omitempty"`
@@ -178,8 +182,9 @@ type ConfigKey struct {
 
 // Feature is one named behavior of the format.
 type Feature struct {
-	ID          string   `yaml:"id"`
-	Name        string   `yaml:"name"`
+	ID   string `yaml:"id"`
+	Name string `yaml:"name"`
+	// Description is markdown — see markdown-in-ui.md.
 	Description string   `yaml:"description"`
 	AppliesTo   []string `yaml:"applies_to,omitempty"` // variant ids; empty = all
 

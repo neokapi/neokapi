@@ -5,6 +5,7 @@ import {
   CollapsibleTrigger,
   Input,
   Label,
+  Markdown,
   Switch,
   cn,
 } from "@neokapi/ui-primitives";
@@ -150,7 +151,9 @@ function ParameterGroupSection({
 
       <CollapsibleContent className="mt-2 ml-6 space-y-3">
         {group.description && (
-          <p className="text-xs text-muted-foreground mb-2">{group.description}</p>
+          <Markdown inline className="text-xs text-muted-foreground mb-2">
+            {group.description}
+          </Markdown>
         )}
         {group.fields.map((fieldName) => {
           const schema = properties[fieldName];

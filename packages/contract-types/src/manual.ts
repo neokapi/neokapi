@@ -37,6 +37,7 @@ export type ConditionExpr =
 export interface ParameterGroup {
   id: string;
   label: string;
+  /** Markdown — see markdown-in-ui.md. */
   description?: string;
   collapsible?: boolean;
   collapsed?: boolean;
@@ -63,6 +64,7 @@ export interface ConditionalOptions {
 export interface PropertySchema {
   type: string;
   title?: string;
+  /** Markdown (config field help) — see markdown-in-ui.md. */
   description?: string;
   default?: unknown;
   deprecated?: boolean;
@@ -128,6 +130,7 @@ export interface ComponentSchema {
   $id?: string;
   $version?: string;
   title: string;
+  /** Markdown. Render via the shared `Markdown` primitive — see markdown-in-ui.md. */
   description?: string;
   type: string;
 
@@ -146,8 +149,9 @@ export interface ComponentSchema {
 
 /** Per-parameter documentation; handed to SchemaForm's `paramDocs` unchanged. */
 export interface ToolDocParam {
+  /** Markdown (parameter help). Render via the shared `Markdown` primitive — see markdown-in-ui.md. */
   description?: string;
-  /** Alias for description used in okapi-bridge doc files. */
+  /** Markdown. Alias for description used in okapi-bridge doc files. */
   help?: string;
   notes?: string[];
   introducedIn?: string;
@@ -163,15 +167,15 @@ export interface ToolDocParam {
 export interface ToolDoc {
   /** Display name (e.g. "JSON Filter", "Batch Translation Step"). */
   displayName?: string;
-  /** Rich overview paragraph describing the tool's purpose and behavior. */
+  /** Markdown. Rich overview describing the tool's purpose and behavior — see markdown-in-ui.md. */
   overview?: string;
   /** Per-parameter documentation keyed by parameter path. */
   parameters?: Record<string, ToolDocParam>;
-  /** Known limitations. */
+  /** Markdown items. Known limitations. */
   limitations?: string[];
-  /** Processing notes / tips. */
+  /** Markdown items. Processing notes / tips. */
   processingNotes?: string[];
-  /** Usage examples. */
+  /** Usage examples; each `description` is markdown. */
   examples?: Array<{ title: string; description?: string; input?: string; output?: string }>;
   /** URL to external wiki/docs page. */
   wikiUrl?: string;

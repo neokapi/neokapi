@@ -27,7 +27,7 @@ type Entry struct {
 	Source      string `json:"source"`
 	Kind        string `json:"kind"`
 	DisplayName string `json:"displayName"`
-	Description string `json:"description,omitempty"`
+	Description string `json:"description,omitempty"` // markdown
 
 	// Format-only metadata.
 	Extensions []string `json:"extensions,omitempty"`
@@ -90,11 +90,16 @@ type EntryGroupMember struct {
 
 // Doc mirrors the bridge doc.json shape and the @neokapi/flow-editor ToolDoc
 // type, with an added `config` field on examples for YAML config snippets.
+//
+// Overview, Limitations, ProcessingNotes (and the per-parameter/example
+// help below) are markdown — rendered through the shared Markdown primitive
+// in the app UIs and through web/'s reference Markdown wrapper on the docs
+// site. See web/docs/contribute/notes-internal/markdown-in-ui.md.
 type Doc struct {
-	Overview        string              `json:"overview,omitempty"`
+	Overview        string              `json:"overview,omitempty"` // markdown
 	Parameters      map[string]DocParam `json:"parameters,omitempty"`
-	Limitations     []string            `json:"limitations,omitempty"`
-	ProcessingNotes []string            `json:"processingNotes,omitempty"`
+	Limitations     []string            `json:"limitations,omitempty"`     // markdown items
+	ProcessingNotes []string            `json:"processingNotes,omitempty"` // markdown items
 	Examples        []DocExample        `json:"examples,omitempty"`
 	WikiURL         string              `json:"wikiUrl,omitempty"`
 }
@@ -102,8 +107,8 @@ type Doc struct {
 // DocParam is per-parameter help. Field set matches ToolDocParam so it can be
 // handed to SchemaForm's paramDocs unchanged.
 type DocParam struct {
-	Description  string       `json:"description,omitempty"`
-	Help         string       `json:"help,omitempty"`
+	Description  string       `json:"description,omitempty"` // markdown
+	Help         string       `json:"help,omitempty"`        // markdown (alias of Description)
 	Values       string       `json:"values,omitempty"`
 	Notes        []string     `json:"notes,omitempty"`
 	Examples     []string     `json:"examples,omitempty"`
@@ -121,7 +126,7 @@ type DocDepends struct {
 // DocExample is a worked configuration example.
 type DocExample struct {
 	Title       string `json:"title"`
-	Description string `json:"description,omitempty"`
+	Description string `json:"description,omitempty"` // markdown
 	Config      string `json:"config,omitempty"`
 	Input       string `json:"input,omitempty"`
 	Output      string `json:"output,omitempty"`
@@ -155,7 +160,7 @@ type CommandEntry struct {
 	Use string `json:"use"`
 	// Short is the one-line description.
 	Short string `json:"short,omitempty"`
-	// Long is the multi-line description.
+	// Long is the multi-line description (markdown — see markdown-in-ui.md).
 	Long string `json:"long,omitempty"`
 	// Aliases is the list of alternative command names.
 	Aliases []string `json:"aliases,omitempty"`

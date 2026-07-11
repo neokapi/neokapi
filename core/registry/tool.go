@@ -24,8 +24,11 @@ type ConfigPreprocessor func(toolName string, requires []string, config map[stri
 
 // ToolInfo holds metadata about a registered tool.
 type ToolInfo struct {
-	Name        ToolID   `json:"name"`
-	DisplayName string   `json:"display_name,omitempty"`
+	Name        ToolID `json:"name"`
+	DisplayName string `json:"display_name,omitempty"`
+	// Description is markdown (inline emphasis/code/links). UIs render it
+	// through the shared Markdown primitive — see
+	// web/docs/contribute/notes-internal/markdown-in-ui.md.
 	Description string   `json:"description,omitempty"`
 	Category    string   `json:"category,omitempty"`
 	Source      string   `json:"source,omitempty"` // "built-in", plugin name

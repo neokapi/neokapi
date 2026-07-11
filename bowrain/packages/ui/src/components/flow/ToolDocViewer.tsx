@@ -1,5 +1,4 @@
-import { Button, cn } from "@neokapi/ui-primitives";
-import * as React from "react";
+import { Button, Markdown, cn } from "@neokapi/ui-primitives";
 import { ExternalLinkIcon } from "lucide-react";
 
 export interface ToolDocViewerProps {
@@ -15,18 +14,12 @@ export interface ToolDocViewerProps {
 
 /**
  * Renders full-page documentation for a tool or format.
- * Content is fullDoc markdown from the docs extraction pipeline.
- *
- * Uses simple HTML rendering of trusted markdown content.
- * The content comes from our own docs pipeline (not user input),
- * so it is safe to render directly. For untrusted content,
- * use a sanitizer like DOMPurify.
+ * Content is fullDoc markdown from the docs extraction pipeline, rendered
+ * through the shared typeset {@link Markdown} primitive (react-markdown +
+ * remark-gfm) — the same renderer used everywhere else markdown metadata is
+ * displayed. See `web/docs/contribute/notes-internal/markdown-in-ui.md`.
  */
 export function ToolDocViewer({ content, wikiUrl, title, className }: ToolDocViewerProps) {
-  // Simple markdown → HTML conversion for headings, bold, code, lists.
-  // Content is trusted (from our docs pipeline, not user input).
-  const html = React.useMemo(() => markdownToHtml(content), [content]);
-
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {(title || wikiUrl) && (
@@ -47,47 +40,7 @@ export function ToolDocViewer({ content, wikiUrl, title, className }: ToolDocVie
           )}
         </div>
       )}
-      {/* Safe: content is from our own docs pipeline, not user input */}
-      <div
-        className="prose prose-sm dark:prose-invert max-w-none"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+      <Markdown>{content}</Markdown>
     </div>
   );
-}
-
-/** Minimal markdown → HTML for documentation rendering. */
-function markdownToHtml(md: string): string {
-  return (
-    md
-      // Fenced code blocks
-      .replace(
-        /```(\w*)\n([\s\S]*?)```/g,
-        (_m, lang, code) =>
-          `<pre><code class="language-${lang}">${escapeHtml(code.trim())}</code></pre>`,
-      )
-      // Inline code
-      .replace(/`([^`]+)`/g, "<code>$1</code>")
-      // Headings
-      .replace(/^#### (.+)$/gm, "<h4>$1</h4>")
-      .replace(/^### (.+)$/gm, "<h3>$1</h3>")
-      .replace(/^## (.+)$/gm, "<h2>$1</h2>")
-      .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-      // Bold
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      // Blockquotes
-      .replace(/^> (.+)$/gm, "<blockquote>$1</blockquote>")
-      // Unordered lists
-      .replace(/^- (.+)$/gm, "<li>$1</li>")
-      .replace(/(<li>.*<\/li>\n?)+/g, (m) => `<ul>${m}</ul>`)
-      // Horizontal rules
-      .replace(/^---$/gm, "<hr>")
-      // Paragraphs (double newline)
-      .replace(/\n\n/g, "</p><p>")
-      .replace(/^(.+)$/gm, (m) => (m.startsWith("<") ? m : `<p>${m}</p>`))
-  );
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

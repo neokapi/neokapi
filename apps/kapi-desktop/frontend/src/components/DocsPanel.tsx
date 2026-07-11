@@ -1,6 +1,4 @@
 import { useState } from "react";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {
   BookOpen,
   ChevronDown,
@@ -12,7 +10,7 @@ import {
   Info,
   GitBranch,
 } from "lucide-react";
-import { Button, Card, SimpleTooltip } from "@neokapi/ui-primitives";
+import { Button, Card, Markdown, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { FilterDoc, StepDoc, ParameterDoc } from "../types/api";
 
 type DocEntry = FilterDoc | StepDoc;
@@ -391,47 +389,12 @@ function ExampleEntry({
   );
 }
 
-// --- Markdown renderer (Tailwind-styled) ---
+// --- Markdown renderer ---
+// Thin alias over the shared typeset primitive so existing call sites keep
+// their terse `<Md>` form. All markdown styling lives in @neokapi/ui-primitives.
 
 function Md({ children }: { children: string }) {
-  return (
-    <Markdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        p: ({ children: c }) => <p className="mb-1 last:mb-0">{c}</p>,
-        a: ({ href, children: c }) => (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary/80 hover:text-primary underline underline-offset-2 decoration-primary/30"
-          >
-            {c}
-          </a>
-        ),
-        code: ({ children: c }) => (
-          <code className="px-1 py-px rounded bg-muted text-[0.9em] font-mono">{c}</code>
-        ),
-        strong: ({ children: c }) => <strong className="font-semibold">{c}</strong>,
-        ul: ({ children: c }) => <ul className="mt-1 ml-3 list-disc space-y-0.5">{c}</ul>,
-        ol: ({ children: c }) => <ol className="mt-1 ml-3 list-decimal space-y-0.5">{c}</ol>,
-        table: ({ children: c }) => (
-          <table className="my-2 w-full text-[0.95em] border-collapse">{c}</table>
-        ),
-        thead: ({ children: c }) => <thead className="border-b-2 border-border">{c}</thead>,
-        th: ({ children: c }) => (
-          <th className="text-left py-1 pr-3 font-semibold text-[0.9em] text-muted-foreground">
-            {c}
-          </th>
-        ),
-        td: ({ children: c }) => (
-          <td className="py-1 pr-3 border-b border-border align-top">{c}</td>
-        ),
-      }}
-    >
-      {children}
-    </Markdown>
-  );
+  return <Markdown>{children}</Markdown>;
 }
 
 // --- Inline parameter help tooltip ---

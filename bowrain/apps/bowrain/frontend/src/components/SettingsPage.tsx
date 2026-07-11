@@ -9,6 +9,7 @@ import {
   Badge,
   Card,
   CardContent,
+  Markdown,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -596,7 +597,9 @@ function ToolsSection({ tools }: { tools: ToolInfo[] }) {
           <Card key={t.name}>
             <CardContent className="py-3">
               <div className="font-semibold mb-1">{t.name}</div>
-              <div className="text-[13px] text-muted-foreground">{t.description}</div>
+              <Markdown inline className="text-[13px] text-muted-foreground">
+                {t.description}
+              </Markdown>
             </CardContent>
           </Card>
         ))}
@@ -615,7 +618,9 @@ function FlowsSection({ flows }: { flows: FlowInfo[] }) {
           <Card key={f.name}>
             <CardContent className="py-3">
               <div className="font-semibold mb-1">{f.name}</div>
-              <div className="text-[13px] text-muted-foreground">{f.description}</div>
+              <Markdown inline className="text-[13px] text-muted-foreground">
+                {f.description}
+              </Markdown>
             </CardContent>
           </Card>
         ))}

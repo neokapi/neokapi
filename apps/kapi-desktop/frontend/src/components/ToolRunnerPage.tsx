@@ -27,6 +27,7 @@ import {
   CardContent,
   Label,
   Input,
+  Markdown,
   ScrollArea,
   LoadingSpinner,
   SimpleTooltip,
@@ -260,9 +261,9 @@ export function ToolRunnerPage({
                               <BookOpen size={9} className="text-primary/50 shrink-0" />
                             )}
                           </div>
-                          <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
-                            {tool.description}
-                          </p>
+                          <div className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
+                            <Markdown inline>{tool.description}</Markdown>
+                          </div>
                           {tool.tags && tool.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {tool.tags.slice(0, 3).map((tag) => (
@@ -373,7 +374,9 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
           <h2 className="text-lg font-semibold text-foreground">
             {tool.display_name || tool.name}
           </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">{tool.description}</p>
+          <Markdown className="text-sm text-muted-foreground mt-0.5">
+            {tool.description}
+          </Markdown>
           <div className="flex items-center gap-2 mt-2">
             {/* meta.label is pre-resolved via t() in categoryMeta(). */}
             <span
