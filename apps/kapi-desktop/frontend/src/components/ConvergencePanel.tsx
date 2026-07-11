@@ -42,7 +42,7 @@ export interface ConvergencePanelProps {
  * target lifecycle ladder with each scope's ship-gate standing, source-authoring
  * readiness, and the review queue (translated units awaiting a human). A "Bring
  * up to date" action runs the project's default flow over every locale. It shows
- * the same derived state `kapi status` / `kapi verify` report — the desktop
+ * the same derived state `kapi status` / `kapi check --ship` report — the desktop
  * embodiment of the convergence model.
  */
 export function ConvergencePanel({

@@ -55,7 +55,7 @@ func (a *App) convergenceCLI() *host.App {
 // GetConvergence returns the derived convergence report for a project tab: the
 // per-(collection, locale) target coverage and ship-gate standing, the source
 // authoring readiness, and the review queue. It is the same file-based
-// derivation `kapi status`, `kapi status --review`, and `kapi verify --ship`
+// derivation `kapi status`, `kapi status --review`, and `kapi check --ship`
 // report, computed in-process so the desktop and the CLI agree to the unit.
 //
 // A project with no recipe path yet (unsaved) returns an empty report rather

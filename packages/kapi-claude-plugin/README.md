@@ -40,9 +40,9 @@ the session's working directory and both **fail-open** (outside a project, or if
 they cannot run, the assistant proceeds normally):
 
 - **`Stop` → `kapi hook stop`.** When the assistant tries to finish, it runs the
-  project's `kapi verify` gates — brand voice, terminology, translation QA — and,
-  if a gate is failing, keeps the assistant working with the findings to fix. The
-  skill makes the verify loop the default; this hook makes it a guarantee.
+  project's `kapi check --ship` gates — brand voice, terminology, translation QA —
+  and, if a gate is failing, keeps the assistant working with the findings to fix.
+  The skill makes the check loop the default; this hook makes it a guarantee.
 - **`PreToolUse` (Edit/Write/MultiEdit) → `kapi hook pre-edit`.** Denies direct
   hand-edits to files the project *generates* as translation targets (a
   `kapi merge` output), steering the change through the source + round-trip

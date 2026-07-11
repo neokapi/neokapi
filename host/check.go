@@ -73,13 +73,14 @@ func (a *App) RunCheck(cmd Command, args []string) error {
 	return nil
 }
 
-// runShipCheck is `kapi check --ship`: the project gate mode that absorbed
-// the old `kapi verify` (#1078 C1). It routes through the shared verify engine
-// (RunVerify/computeVerify), so a release gate and the hidden verify alias
-// evaluate a project identically. Flag defaults that differ between the file
-// checkset and the project gates are mapped here: an untouched --min-score
-// means the brand-gate threshold (DefaultBrandMinScore), and an untouched
-// --source-lang defers to the project's source_language.
+// runShipCheck is `kapi check --ship`: the project gate mode that absorbed the
+// retired `kapi verify` (#1078 C1) — kapi retires spellings outright rather than
+// carrying aliases, so this is now the only way in. It routes through the shared
+// verify engine (RunVerify/computeVerify), which the Stop hook also drives, so a
+// release gate and the hook evaluate a project identically. Flag defaults that
+// differ between the file checkset and the project gates are mapped here: an
+// untouched --min-score means the brand-gate threshold (DefaultBrandMinScore),
+// and an untouched --source-lang defers to the project's source_language.
 func (a *App) runShipCheck(cmd Command, args []string) error {
 	if !cmd.Flags().Changed("min-score") {
 		_ = cmd.Flags().Set("min-score", strconv.Itoa(DefaultBrandMinScore))

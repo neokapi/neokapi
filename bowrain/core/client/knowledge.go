@@ -24,7 +24,7 @@ import (
 // JSON-decode pattern of the rest of the client and lets kapi read the governed
 // vocabulary through the bowrain plugin — the concept pull folded into
 // `kapi pull`/`kapi sync` and the knowledge-graph MCP tools — so offline
-// `kapi verify` gates against the same truth.
+// `kapi check --ship` gates against the same truth.
 
 // ---------------------------------------------------------------------------
 // Response DTOs (mirror the server handlers' JSON shapes)

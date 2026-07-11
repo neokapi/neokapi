@@ -30,7 +30,7 @@ result, and is the checker — no second model is called.** Two first-class loop
 realize this: an **edit** loop for existing content (`kapi inspect` → assistant
 edits → `kapi apply`) and a **create** loop for content authored from scratch
 (author a generative format → `kapi inspect`/`kapi stats` parse it as the first
-check → `kapi check`/`verify` gate → revise). An AI provider is the unattended
+check → `kapi check` gate → revise). An AI provider is the unattended
 fallback only.
 
 ## Context

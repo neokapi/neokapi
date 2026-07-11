@@ -45,7 +45,7 @@ Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known 
 kapi init                      # scaffold <dir>.kapi + .kapi/ state (source-only)
 kapi add "docs/**/*.md"        # declare the content; format auto-detected
 kapi stats                     # blocks, words, characters for what's tracked
-kapi check                     # run the project's checkset; exit 3 on gate fail
+kapi check --ship              # run the project's gates; exit 3 when one is unmet
 ```
 
 For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`, …) pre-fills the content mapping — `kapi init --list-presets` lists them. The recipe is plain YAML:
