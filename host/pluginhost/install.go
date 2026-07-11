@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -200,6 +202,12 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 		// Non-fatal; install succeeded.
 		logf("Warning: write installed metadata: " + err.Error())
 	}
+
+	// Absorb macOS's one-time first-exec assessment of the new plugin binary
+	// here (it stalls the binary's first exec — proportional to size, up to
+	// ~1s for the larger plugins) rather than on the plugin's first real
+	// dispatch mid-workflow.
+	prewarmFirstExec(ctx, filepath.Join(pluginDir, filepath.FromSlash(m.Binary)))
 
 	logf(fmt.Sprintf("✓ Installed %s %s to %s", opts.PluginName, version, pluginDir))
 
@@ -438,6 +446,28 @@ func withinDir(dir, candidate string) bool {
 // (i.e. does not start with ".." and is not absolute).
 func relWithin(rel string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
+}
+
+// prewarmFirstExec execs a freshly installed plugin binary once so macOS's
+// one-time Gatekeeper assessment of the new inode (XProtect scan + online
+// notarization lookup) happens at install time instead of stalling the
+// plugin's first dispatch. `<binary> version` is the standard probe every
+// plugin answers (the same one `kapi plugins doctor` uses); the assessment
+// completes at exec time, so even a plugin that mishandles the verb has been
+// warmed. Best-effort and darwin-only — no other platform stalls first exec.
+func prewarmFirstExec(ctx context.Context, binPath string) {
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	if _, err := os.Stat(binPath); err != nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binPath, "version")
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	_ = cmd.Run()
 }
 
 // Uninstall is owned by the plugin system: see (*Host).Remove, which deletes a

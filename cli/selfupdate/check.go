@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -136,32 +137,55 @@ func CachedLatest(ctx context.Context, channel string) (latest string, err error
 //
 // The flow is split so the command's hot path is never blocked by the network:
 //
-//   - StartBackgroundRefresh kicks off a detached, time-bounded fetch that only
-//     writes the cache file. Started in the root PreRun, it has the whole
-//     command's runtime to complete.
+//   - StartBackgroundRefresh, run in the root PreRun, spawns a detached
+//     `kapi update --refresh-cache` child when the cache is stale. The child
+//     outlives this process, fetches the latest version, and rewrites the
+//     cache file. It must be a separate process: most kapi commands finish in
+//     milliseconds, so an in-process goroutine is abandoned before the fetch
+//     completes and the cache goes permanently stale.
 //   - RenderNotice reads the cache file only (never the network) and prints the
 //     "update available" line. Run in the root PostRun, it shows whatever the
 //     latest completed refresh found — this run's or a prior run's.
 //
 // Net effect, like npm's update-notifier: zero added latency, and the notice
-// surfaces on this or a subsequent invocation.
+// surfaces on a subsequent invocation.
 
-// backgroundRefreshTimeout bounds the detached check so a slow/hung network
-// can't keep a goroutine (and its sockets) alive indefinitely.
+// backgroundRefreshTimeout bounds the in-process fallback fetch so a slow/hung
+// network can't keep a goroutine (and its sockets) alive indefinitely.
 const backgroundRefreshTimeout = 5 * time.Second
 
-// StartBackgroundRefresh launches a detached cache refresh unless notifications
-// are disabled. It returns immediately; the goroutine is best-effort and its
-// result is discarded (it only updates the on-disk cache).
+// StartBackgroundRefresh keeps the update-check cache warm without ever
+// blocking the command. It returns immediately; the refresh is best-effort and
+// its result is discarded (it only updates the on-disk cache).
 func StartBackgroundRefresh(channel string) {
 	if NotifyDisabled() {
 		return
 	}
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), backgroundRefreshTimeout)
-		defer cancel()
-		_, _ = CachedLatest(ctx, channel)
-	}()
+	if channel == "" {
+		channel = version.Channel()
+	}
+	if st, ok := readCache(cachePath()); ok && st.Channel == channel && time.Since(st.CheckedAt) < cacheTTL {
+		return // cache is fresh — nothing to refresh
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		// Can't respawn ourselves; fetch in-process. Abandoned if the command
+		// finishes first — best-effort either way.
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), backgroundRefreshTimeout)
+			defer cancel()
+			_, _ = CachedLatest(ctx, channel)
+		}()
+		return
+	}
+	// Fully detached: no stdio and no wait, so it survives this process's
+	// exit. The child's non-TTY stderr disables its own background refresh,
+	// so it cannot respawn itself.
+	cmd := exec.Command(exe, "update", "--refresh-cache", "--channel", channel)
+	if err := cmd.Start(); err != nil {
+		return
+	}
+	_ = cmd.Process.Release()
 }
 
 // RenderNotice prints an "update available" line to w if the cache (already on

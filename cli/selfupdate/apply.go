@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/neokapi/neokapi/host/pluginhost/registry"
 )
@@ -65,7 +67,31 @@ func Apply(ctx context.Context, rel *Release, onProgress func(downloaded, total 
 	if err := replaceBinary(exe, bin); err != nil {
 		return fmt.Errorf("replace %s: %w", exe, err)
 	}
+	// Absorb macOS's one-time first-exec assessment of the new binary here,
+	// while the user is already waiting on the update, instead of stalling
+	// their next command by 1-3s.
+	PrewarmFirstExec(ctx, exe)
 	return nil
+}
+
+// PrewarmFirstExec execs a freshly installed binary once so macOS's one-time
+// Gatekeeper assessment of the new inode (an XProtect scan proportional to
+// binary size plus an online notarization lookup — 1-3s for a binary kapi's
+// size) happens now rather than on the user's next command. `--version` is
+// cobra's built-in flag: it short-circuits before any hook, so the run touches
+// no config, cache, or project state. Best-effort — on any failure the next
+// exec simply pays the assessment as before. No-op off darwin: no other
+// platform stalls first exec this way.
+func PrewarmFirstExec(ctx context.Context, exe string) {
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, exe, "--version")
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	_ = cmd.Run()
 }
 
 // verifySignature enforces the cosign keyless signature with pinned trust.

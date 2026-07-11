@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -20,6 +22,7 @@ func NewUpdateCmd(a *App) *cobra.Command {
 	var channel string
 	var run bool
 	var checkOnly bool
+	var refreshCache bool
 
 	cmd := &cobra.Command{
 		Use:   "update",
@@ -46,6 +49,17 @@ SHA-256 and cosign signature, and replaces the binary in place.
 			// (KAPI_UPDATE_CHANNEL), defaulting to stable.
 			if channel == "" && a.Config != nil {
 				channel = a.Config.UpdateChannel()
+			}
+
+			// Hidden background mode: refresh the update-check cache and exit
+			// silently. StartBackgroundRefresh spawns this as a detached child
+			// so the fetch survives the (typically millisecond-fast) parent.
+			// Errors are irrelevant — a failed refresh just means no notice.
+			if refreshCache {
+				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				defer cancel()
+				_, _ = selfupdate.CachedLatest(ctx, channel)
+				return nil
 			}
 
 			rel, err := selfupdate.FetchLatest(ctx, channel)
@@ -86,6 +100,8 @@ SHA-256 and cosign signature, and replaces the binary in place.
 	cmd.Flags().StringVar(&channel, "channel", "", "release channel (stable, beta); defaults to update.channel config")
 	cmd.Flags().BoolVar(&run, "run", false, "on a managed install, run the package-manager upgrade for me")
 	cmd.Flags().BoolVar(&checkOnly, "check", false, "only report whether an update is available")
+	cmd.Flags().BoolVar(&refreshCache, "refresh-cache", false, "refresh the update-check cache and exit (internal)")
+	_ = cmd.Flags().MarkHidden("refresh-cache")
 	return cmd
 }
 
