@@ -1,0 +1,85 @@
+id: kapi-desktop-explorer
+title: Browse a termbase and translation memory
+subtitle: A visual tour of terminology and translation memory in Kapi Desktop.
+tagline: the visual companion to the kapi command line
+kind: use-case
+publishAs: kapi-desktop-explorer
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read — uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - Termbases
+  - Translation memory
+  - Multi-locale terms
+  - Inline formatting
+  - Entity placeholders
+
+# A "desktop" demo replays the recorded Kapi Desktop screencast (public/<id>/
+# screencast.{json,webm}) inside the macOS window frame. Each narration scene of
+# kind "desktop" names a `beat` from screencast.json and inherits that beat's
+# zoom region; the scene plays the beat's slice fit to the narration length.
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Kapi Desktop — den visuelle følgesvennen til kapi-kommandolinjen.
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      Den åpner til en rolig startskjerm. Alt en oversetter støtter seg på — ordlistene og de lagrede oversettelsene — ligger ett klikk unna i sidefeltet.
+  - id: termbases
+    kind: desktop
+    beat: open-termbases
+    caption: Termbase-seksjonen lister hver ordliste på disk.
+    text: >-
+      Termbase-seksjonen lister hver ordliste lagret på disk, med størrelsen og når den sist ble endret.
+  - id: glossary
+    kind: desktop
+    beat: open-glossary
+    caption: En åpnet ordliste viser hvert begrep den inneholder.
+    text: >-
+      Åpner du produktordlisten, får du opp hvert begrep den inneholder — åtte her — med et aktivitetsdiagram over de siste endringene øverst.
+  - id: concept
+    kind: desktop
+    beat: inspect-concept
+    caption: Hvert begrep har en definisjon og godkjente termer.
+    text: >-
+      Hvert begrep bærer en definisjon og de godkjente termene sine på tvers av språk. Et statusmerke markerer den foretrukne ordlyden, og flagger termene som er utgått.
+  - id: search-term
+    kind: desktop
+    beat: search-term
+    caption: Fulltekstsøk finner en term raskt.
+    text: >-
+      Fulltekstsøk finner en term på et øyeblikk. Her: faktura-begrepet, med de godkjente oversettelsene sine.
+  - id: open-tm
+    kind: desktop
+    beat: open-tm
+    caption: Oversettelsesminnet fungerer på samme måte.
+    text: >-
+      Oversettelsesminnet fungerer på samme måte. Vi går over og åpner minnet for Acme-appen.
+  - id: inspect-tm
+    kind: desktop
+    beat: inspect-tm
+    caption: Hver oppføring parer en kildestreng med oversettelsene.
+    text: >-
+      Hver oppføring parer en kildestreng med oversettelsene sine. Formatering i teksten, som fet skrift og lenker, bevares som tagger i stedet for rå markup.
+  - id: entity
+    kind: desktop
+    beat: entity
+    caption: Navn holdes som plassholdere, klare til gjenbruk.
+    text: >-
+      Navn og andre entiteter holdes som plassholdere, slik at en lagret oversettelse kan gjenbrukes senere med en annen verdi.
+  - id: search-tm
+    kind: desktop
+    beat: search-tm
+    caption: Minnet er også søkbart.
+    text: >-
+      Og minnet er søkbart, det også — hver streng som nevner ordet invite.
+  - id: outro
+    kind: outro
+    text: >-
+      Det er terminologien og oversettelsesminnet i hjertet av kapi — å bla i på ett sted.

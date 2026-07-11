@@ -1,5 +1,5 @@
 id: kapi-desktop-projects
-title: Create and manage a project
+title: Opprett og håndter et prosjekt
 subtitle: Set up a localisation project in Kapi Desktop.
 tagline: the visual companion to the kapi command line
 kind: use-case
@@ -19,30 +19,24 @@ narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop — let's create and set up a localisation project.
-
+      Kapi Desktop — la oss opprette og sette opp et lokaliseringsprosjekt.
   - id: intro
     kind: desktop
     beat: intro
     text: >-
-      It opens to a home screen. A new project starts right here.
-
+      Den åpner til en startskjerm. Et nytt prosjekt starter rett her.
   - id: new-project
     kind: desktop
     beat: new-project
-    caption: New Project asks only for a name.
+    caption: Nytt prosjekt spør bare om et navn.
     text: >-
-      New Project asks only for a name — here, the Acme Help Center. Kapi
-      derives the folder and the rest from it.
-
+      Nytt prosjekt spør bare om et navn — her: Acme Help Center. Kapi utleder mappen og resten fra det.
   - id: templates
     kind: desktop
     beat: templates
-    caption: Or start from the KapiMart sample.
+    caption: Eller start fra KapiMart-eksemplet.
     text: >-
-      Or start from KapiMart — a ready-made sample project with content
-      collections, target languages, and a stocked translation memory.
-
+      Eller start fra KapiMart — et ferdig eksempelprosjekt med innholdssamlinger, målspråk og et fylt oversettelsesminne.
   - id: project-home
     kind: desktop
     beat: project-home
@@ -55,11 +49,9 @@ narration:
   - id: project-settings
     kind: desktop
     beat: project-settings
-    caption: "Project Settings: languages, plugins, processing."
+    caption: "Prosjektinnstillinger: språk, tillegg, prosessering."
     text: >-
-      Project Settings is where you choose the source language and the locales
-      you're translating into, alongside plugins and processing options.
-
+      Prosjektinnstillinger er der du velger kildespråket og språkene du oversetter til, ved siden av tillegg og prosesseringsvalg.
   - id: content
     kind: desktop
     beat: content
