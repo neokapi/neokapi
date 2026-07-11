@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-11T09:46:41Z",
+  "generatedAt": "2026-07-11T10:00:27Z",
   "commands": [
     {
       "id": "brand",
@@ -5688,6 +5688,44 @@
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "stats",
+      "path": [
+        "stats"
+      ],
+      "use": "stats [files...]",
+      "short": "Summarize content metrics for files — blocks, words, characters, segments, by role",
+      "long": "Summarize the content of one or more files: total and translatable blocks,\nword and character counts (with and without spaces), segments, and a breakdown\nby structural role (heading, paragraph, list-item, table-cell, …). Any format —\na Word document, a JSON catalog, Markdown, HTML — yields the same shape.\n\nWord, character, and segment counts cover the translatable content; block and\nrole counts cover the whole document. Prints a human table by default; --json\nemits the structured record for piping into a pipeline.\n\nWith no FILE, or when FILE is \"-\", standard input is read.",
+      "groupID": "advanced",
+      "flags": [
+        {
+          "name": "encoding",
+          "usage": "input encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "input format (default: auto-detect by extension/content)",
+          "type": "string"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi stats report.docx",
+        "kapi stats --json docs/*.md | jq '.total.words'",
+        "cat page.html | kapi stats -f html"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
       "demoMode": false
     },
     {
