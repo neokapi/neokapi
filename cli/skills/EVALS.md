@@ -38,6 +38,10 @@ a false-trigger on a negative is fixed by narrowing it. Re-run after any change.
 | 9 | "Add i18n to this React app." | i18n | | |
 | 10 | "Set kapi up for this project." | bootstrap | | |
 | 11 | "Bring our project's Norwegian translations up to date and flag what still needs review." | localize (convergence) | | |
+| 12 | "Which i18n library should we use for our Next.js app?" | i18n (advice — must quote toil grades, not just pick one) | | |
+| 13 | "Internationalize this Flutter app and translate it to German." | i18n (detect → flutter.md → gen_l10n + preset) | | |
+| 14 | "Our app has hardcoded strings everywhere — make it translatable." | i18n (retrofit; lint/pseudo-translate sweep) | | |
+| 15 | "Localize this Android app into French." | i18n (androidxml, --format flag) | | |
 
 Scenario 11 is the convergence loop end to end: read state (`kapi status`),
 converge (`kapi run`), then surface the review queue (`kapi status --review`) —
@@ -51,6 +55,7 @@ converge (`kapi run`), then surface the review queue (`kapi status --review`) �
 | 2 | "Write a Python script to parse these log files." | code authoring | |
 | 3 | "Fix the failing unit test in `auth_test.go`." | code/test task | |
 | 4 | "What's the capital of France?" | general knowledge | |
+| 5 | "Format this date according to the user's locale." | locale-aware *code*, not content/catalog work | |
 
 ## Notes
 
