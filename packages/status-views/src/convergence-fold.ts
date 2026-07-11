@@ -1,67 +1,80 @@
-import type { ConvergenceEvent } from "../types/api";
+// The convergence event protocol and the one fold over it, shared across the
+// Apache/AGPL boundary.
+//
+// core/convergence.Event is the single protocol every venue speaks — the CLI's
+// live renderer, `kapi up --json`, the desktop's job feed, the server's SSE
+// stream. Every surface therefore needs the same fold: events in, render model
+// out. It lives here, once. (It used to live three times — kapi-desktop,
+// bowrain's UI package, and Go — and a locale that read "pending" on one
+// surface and "shippable" on another was the predictable result.)
+//
+// The fold is pure: no network, no DOM. Callers adapt their own transport
+// (Wails job feed, EventSource) into ConvergenceEvent and fold it here.
+
+import type {
+  ConvergenceLocaleRow,
+  ConvergencePassView,
+  ConvergenceRunModel,
+  LocaleRowState,
+} from "./convergence-model";
+
+/** Discriminator for a convergence run's progress events. */
+export type ConvergenceEventType =
+  | "pass_start"
+  | "locale_start"
+  | "unit_progress"
+  | "locale_done"
+  | "pass_done"
+  | "materialized"
+  | "log"
+  | "done";
 
 /**
- * runReducer folds a server-side convergence run's SSE event stream into a
- * render model. The stream (bowrain/server/handlers_convergence.go) replays a
- * run's persisted events from seq 0, then follows live until the terminal
- * `done` event — so the same fold serves a finished run and a live one.
+ * One progress event of a convergence run — the flat, type-discriminated
+ * protocol (core/convergence.Event). Fields are populated per `type` and
+ * omitted when zero.
  *
- * The reducer is pure: it never touches the network or the DOM. The web Runs
- * surface reduces the events an EventSource delivers; tests reduce fixtures.
+ * A run is a sequence of passes; within a pass every pending locale runs the
+ * default flow (concurrently), and after the pass coverage is re-derived with
+ * the project's bound checks. The stream ends with exactly one `done`.
  */
+export interface ConvergenceEvent {
+  type: ConvergenceEventType;
 
-/** A locale's lifecycle within a pass, mirroring the CLI live renderer. */
-export type LocaleRowState = "queued" | "running" | "done";
+  // Pass-scoped (pass_start, pass_done; `pass` stamps locale-scoped events too).
+  pass?: number;
+  maxPasses?: number;
+  pending?: string[];
 
-/** One locale's live cell in a pass: unit progress + the TM/AI split. */
-export interface ConvergenceLocaleRow {
-  locale: string;
-  /** Denominator a progress bar renders against (0 until locale_start). */
-  units: number;
-  /** Committed targets so far in this pass. */
-  done: number;
-  viaTM: number;
-  viaAI: number;
-  state: LocaleRowState;
-  /**
-   * Authoritative per-locale ship verdict (shippable | parked | pending). The
-   * live stream is state-less, so this stays undefined while streaming — the
-   * badge falls back to `state` (the coverage-derived lifecycle) — and is only
-   * set from the run's terminal standing (or a compat state-carrying event).
-   */
-  localeState?: string;
-}
+  // Pre-pass auto-extract on drift (pass_start).
+  extractedFiles?: number;
+  extractedBlocks?: number;
 
-/** One pass of a run: its live locale rows plus the post-derivation summary. */
-export interface ConvergencePassView {
-  pass: number;
-  /** Cap on passes (0 when unknown). */
-  maxPasses: number;
-  rows: ConvergenceLocaleRow[];
-  /** True once the pass's post-derivation (pass_done) has arrived. */
-  settled: boolean;
+  // Locale-scoped (locale_start, unit_progress, locale_done).
+  locale?: string;
+  units?: number;
+  done?: number;
+  viaTM?: number;
+  viaAI?: number;
+
+  // Post-derivation (pass_done).
   produced?: number;
   producedDelta?: number;
   failingChecks?: number;
-  /** Locales still short of their gate after the pass. */
-  pending?: string[];
-}
 
-/** The reduced run model the live view renders. */
-export interface ConvergenceRunModel {
-  passes: ConvergencePassView[];
-  /** Human-readable run log lines (auto-extract, transport notes). */
-  logs: string[];
-  materializedFiles?: number;
-  /** "converged" | "parked" once the run's done event arrived. */
-  finalState?: string;
-  /** True once the terminal `done` event has been folded in. */
-  done: boolean;
+  // locale_done → shippable|parked|pending; done → converged|parked|failed|canceled.
+  state?: string;
+
+  // Materialized file count (materialized).
+  files?: number;
+
+  // Log line (log).
+  message?: string;
 }
 
 /** A fresh, empty run model — the fold's identity. */
 export function emptyRunModel(): ConvergenceRunModel {
-  return { passes: [], logs: [], done: false };
+  return { passes: [], logs: [], done: false, live: true };
 }
 
 function newRow(locale: string): ConvergenceLocaleRow {
@@ -70,10 +83,10 @@ function newRow(locale: string): ConvergenceLocaleRow {
 
 /**
  * deriveRowState derives a locale's lifecycle from coverage alone. The live
- * stream does not carry a per-locale ship state, so the streaming badge is
+ * stream does not carry a per-locale ship verdict, so the streaming badge is
  * driven by progress: all units covered → done, some work started → running,
- * else queued. The authoritative shippable/parked verdict comes from the run's
- * terminal standing (REST), never inferred here.
+ * else queued. The authoritative shippable/parked verdict arrives separately
+ * (a run's terminal standing), never inferred here.
  */
 function deriveRowState(row: ConvergenceLocaleRow): LocaleRowState {
   if (row.units > 0 && row.done >= row.units) return "done";
@@ -93,8 +106,8 @@ function ensureRow(pass: ConvergencePassView, locale: string): ConvergenceLocale
 
 /**
  * applyEvent folds one event into the model, mutating and returning it. The
- * model is the accumulator; callers that need immutability should clone first
- * (see reduceRun, which rebuilds from scratch).
+ * model is the accumulator; a caller that needs immutability (React) clones the
+ * snapshot it hands to render.
  */
 export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): ConvergenceRunModel {
   // The pass a locale-scoped event belongs to: prefer the event's own pass
@@ -116,7 +129,7 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
         settled: false,
       });
       if (ev.extractedFiles || ev.extractedBlocks) {
-        model.logs.push(
+        model.logs?.push(
           `Extracted ${ev.extractedBlocks ?? 0} blocks from ${ev.extractedFiles ?? 0} files`,
         );
       }
@@ -152,9 +165,9 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
         row.viaAI = ev.viaAI ?? row.viaAI;
         // locale_done is terminal for the row within this pass.
         row.state = "done";
-        // The live stream is state-less; only adopt a per-locale ship verdict
-        // when the event actually carries one (compat streams / final standing
-        // replayed as events). Never clobber a prior verdict with undefined.
+        // The live stream is state-less; only adopt a ship verdict when the
+        // event actually carries one. Never clobber a prior verdict with
+        // undefined.
         if (ev.state) row.localeState = ev.state;
       }
       break;
@@ -174,7 +187,7 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
       model.materializedFiles = ev.files;
       break;
     case "log":
-      if (ev.message) model.logs.push(ev.message);
+      if (ev.message) model.logs?.push(ev.message);
       break;
     case "done":
       model.finalState = ev.state;

@@ -194,20 +194,21 @@ export { WorkspaceLanguageSettings } from "./components/WorkspaceLanguageSetting
 export { AutomationsPage } from "./components/AutomationsPage";
 export { AutomationRuleEditor } from "./components/AutomationRuleEditor";
 export { AutomationRunsPage } from "./components/AutomationRunsPage";
-// The convergence run view is the shared Apache component (@neokapi/status-views),
-// consumed by both bowrain's Runs surface and kapi-desktop's Runner. bowrain's
-// SSE reducer (convergence/runReducer) folds into its render model.
+// The convergence run view AND the fold that feeds it are the shared Apache
+// pieces (@neokapi/status-views), consumed by both bowrain's Runs surface and
+// kapi-desktop's Runner: one event protocol, one state machine, two surfaces.
+// Re-exported here so bowrain's apps keep importing their UI from one place.
 export { ConvergenceRunView } from "@neokapi/status-views";
 export type { ConvergenceRunViewProps } from "@neokapi/status-views";
 export { ConvergenceRunsList } from "./components/ConvergenceRunsList";
 export type { ConvergenceRunsListProps } from "./components/ConvergenceRunsList";
-export { reduceRun, applyEvent, emptyRunModel } from "./convergence/runReducer";
+export { reduceRun, applyEvent, emptyRunModel } from "@neokapi/status-views";
 export type {
   ConvergenceRunModel,
   ConvergencePassView,
   ConvergenceLocaleRow,
   LocaleRowState,
-} from "./convergence/runReducer";
+} from "@neokapi/status-views";
 export { AutomationHistory } from "./components/AutomationHistory";
 export { NotificationCenter } from "./components/NotificationCenter";
 export { ActivityIndicator, TaskIndicator } from "./components/ActivityTaskIndicators";

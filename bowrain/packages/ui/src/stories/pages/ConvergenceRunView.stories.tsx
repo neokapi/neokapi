@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ConvergenceRunView } from "@neokapi/status-views";
-import { reduceRun } from "../../convergence/runReducer";
+import { reduceRun } from "@neokapi/status-views";
 import type { ConvergenceEvent, ConvergenceRun } from "../../types/api";
 
 const run: ConvergenceRun = {

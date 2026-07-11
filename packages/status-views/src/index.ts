@@ -15,3 +15,9 @@ export type {
   ConvergenceRunHeader,
   ParkedScope,
 } from "./convergence-model";
+
+// The convergence event protocol and the one fold over it. Every surface that
+// renders a run — kapi-desktop's job feed, bowrain's SSE stream — folds with
+// this rather than carrying its own copy of the state machine.
+export { reduceRun, applyEvent, emptyRunModel } from "./convergence-fold";
+export type { ConvergenceEvent, ConvergenceEventType } from "./convergence-fold";

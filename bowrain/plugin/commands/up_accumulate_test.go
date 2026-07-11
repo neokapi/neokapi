@@ -15,7 +15,7 @@ import (
 // clobbering it with the streamed empty state (regression: a converged server
 // run printed every locale as "pending").
 func TestRunAccumulator_PreservesFinalStandingState(t *testing.T) {
-	acc := &runAccumulator{}
+	acc := newRunAccumulator()
 	// Stream: a pass, per-locale done (no State), terminal converged.
 	acc.observe(convergence.Event{Type: convergence.EventLocaleStart, Locale: "fr-FR", Units: 10})
 	acc.observe(convergence.Event{Type: convergence.EventLocaleDone, Locale: "fr-FR", Units: 10, Done: 10, ViaAI: 10})
@@ -42,7 +42,7 @@ func TestRunAccumulator_PreservesFinalStandingState(t *testing.T) {
 // TestRunAccumulator_ParkedFromFinalStanding: a parked run's parked locale is
 // taken from the final standing and recorded as a parked scope.
 func TestRunAccumulator_ParkedFromFinalStanding(t *testing.T) {
-	acc := &runAccumulator{}
+	acc := newRunAccumulator()
 	acc.observe(convergence.Event{Type: convergence.EventLocaleDone, Locale: "de-DE", Units: 10, Done: 6, ViaAI: 6})
 	acc.observe(convergence.Event{Type: convergence.EventDone, State: convergence.RunParked})
 
@@ -64,22 +64,22 @@ func TestRunAccumulator_ParkedFromFinalStanding(t *testing.T) {
 // TestRunAccumulator_TerminalError: a failed/canceled run surfaces a non-nil
 // error (so `kapi up` exits non-zero), while converged/parked do not.
 func TestRunAccumulator_TerminalError(t *testing.T) {
-	failed := &runAccumulator{}
+	failed := newRunAccumulator()
 	failed.observe(convergence.Event{Type: convergence.EventDone, State: convergence.RunFailed})
 	err := failed.terminalError(&apiclient.ConvergenceRun{State: "failed", Error: "provider outage"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "provider outage")
 
-	canceled := &runAccumulator{}
+	canceled := newRunAccumulator()
 	canceled.observe(convergence.Event{Type: convergence.EventDone, State: convergence.RunCanceled})
 	require.Error(t, canceled.terminalError(nil))
 
 	// Fallback to the persisted final state when the stream was cut before the
 	// terminal frame (sawDone never set).
-	cut := &runAccumulator{}
+	cut := newRunAccumulator()
 	require.Error(t, cut.terminalError(&apiclient.ConvergenceRun{State: "failed"}))
 
-	ok := &runAccumulator{}
+	ok := newRunAccumulator()
 	ok.observe(convergence.Event{Type: convergence.EventDone, State: convergence.RunConverged})
 	assert.NoError(t, ok.terminalError(nil))
 }

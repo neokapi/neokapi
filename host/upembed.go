@@ -31,8 +31,6 @@ type UpOptions struct {
 	// OnEvent receives the run's convergence.Event stream — the one protocol
 	// every surface renders a run from. Events arrive one at a time.
 	OnEvent func(convergence.Event)
-	// OnPass receives a structured snapshot after each pass.
-	OnPass func(ConvergePassEvent)
 	// LogWriter receives the run's human-readable log lines (auto-extract
 	// notes, per-step output). Discarded when nil.
 	LogWriter io.Writer
@@ -89,7 +87,6 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 		materialize: opts.Materialize,
 		jobs:        opts.Jobs,
 		onEvent:     opts.OnEvent,
-		onPass:      opts.OnPass,
 		capture:     &result,
 	})
 	if err != nil {

@@ -28,7 +28,9 @@ const convergeJobsDefault = 4
 // This is an explicit field-by-field copy, NOT a struct copy: App carries a
 // sync.Once (pluginRuntimeOnce), and the plugin runtime must be pre-seeded
 // from the parent so workers never race to build daemon pools of their own.
-// When App grows a new field, decide here whether workers share or own it.
+// When App grows a new field, decide whether workers share or own it and say
+// so in convergeWorkerFields — TestConvergeWorker_CoversEveryAppField fails
+// until you do, so a new field can't silently go missing from every worker.
 func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 	return &App{
 		FormatReg:  a.FormatReg,
@@ -70,6 +72,58 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		// fresh Once sees the seed and never builds a second runtime.
 		pluginRuntime: a.ensurePluginRuntime(),
 	}
+}
+
+// workerFieldPolicy says what a converge worker does with one App field.
+type workerFieldPolicy int
+
+const (
+	// fieldShared: the worker reads the parent's value (immutable during a run).
+	fieldShared workerFieldPolicy = iota
+	// fieldOwned: the worker gets its own value — the per-run mutable state that
+	// made App single-locale, plus the fresh sync.Once.
+	fieldOwned
+)
+
+// convergeWorkerFields classifies every App field for the worker clone. It
+// exists so the clone can be checked for completeness: App is copied
+// field-by-field (it holds a sync.Once, so a struct copy is out), and a field
+// added to App but forgotten here would silently read as its zero value inside
+// every converge worker — a project context or credential store that is simply
+// absent once a run fans out. TestConvergeWorker_CoversEveryAppField reconciles
+// this map against App's actual fields and against what the clone produces.
+var convergeWorkerFields = map[string]workerFieldPolicy{
+	"FormatReg":           fieldShared,
+	"ToolReg":             fieldShared,
+	"SchemaReg":           fieldShared,
+	"PluginHost":          fieldShared,
+	"Config":              fieldShared,
+	"Verbose":             fieldShared,
+	"Quiet":               fieldOwned, // workers are silent; the parent owns the terminal
+	"AssumeYes":           fieldShared,
+	"CfgFile":             fieldShared,
+	"PluginDir":           fieldShared,
+	"Lang":                fieldShared,
+	"FormatFlag":          fieldShared,
+	"Encoding":            fieldShared,
+	"SourceLang":          fieldShared,
+	"TargetLang":          fieldOwned, // the whole point: one worker, one locale
+	"TMBackend":           fieldShared,
+	"TBBackend":           fieldShared,
+	"Credentials":         fieldShared,
+	"AISetupIOOverride":   fieldShared,
+	"RegistryResolver":    fieldShared,
+	"FallbackRunE":        fieldShared,
+	"ExtraFlows":          fieldShared,
+	"ProjectContext":      fieldShared,
+	"ProjectBindings":     fieldShared,
+	"convergeWriteFiles":  fieldShared,
+	"docCache":            fieldShared,
+	"translator":          fieldShared,
+	"pluginRuntime":       fieldShared, // pre-seeded, never rebuilt per worker
+	"projectFlowTools":    fieldOwned,  // each worker builds its own tool instances
+	"convergeProgressTap": fieldOwned,  // one tap per locale
+	"pluginRuntimeOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded runtime
 }
 
 // convergeTap is the trailing read-only step a converge worker appends to its

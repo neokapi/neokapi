@@ -55,13 +55,10 @@ type RunEvent struct {
 	// "converge_event") — the per-pass/per-locale stream (pass_start,
 	// locale_start, unit_progress, locale_done, pass_done, materialized, done)
 	// the live run view renders locale rows from, the same protocol the CLI's
-	// live renderer and the server's SSE stream speak. Converge carries the
-	// synthesized per-pass summary (when type == "converge_pass"), kept for
-	// backwards compatibility with the passes view. ConvergeResult carries the
-	// final structured outcome (on the run's "complete").
-	ConvergeEvent  *convergence.Event      `json:"converge_event,omitempty"`
-	Converge       *host.ConvergePassEvent `json:"converge,omitempty"`
-	ConvergeResult *host.ConvergeOutput    `json:"converge_result,omitempty"`
+	// live renderer and the server's SSE stream speak. ConvergeResult carries
+	// the final structured outcome (on the run's "complete").
+	ConvergeEvent  *convergence.Event   `json:"converge_event,omitempty"`
+	ConvergeResult *host.ConvergeOutput `json:"converge_result,omitempty"`
 }
 
 // runner manages flow execution state with proper synchronization.

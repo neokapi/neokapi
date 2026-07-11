@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
@@ -118,22 +119,24 @@ func TestBringUpToDate_RunsSharedUpEngine(t *testing.T) {
 		assert.True(t, lc.Shippable, "%s clears translated:100", lc.Locale)
 	}
 
-	// The event stream carries the convergence shape: per-pass snapshots and a
-	// final structured result (what the runner's passes view renders).
+	// The event stream carries the convergence protocol: typed per-pass/locale
+	// events and a final structured result (what the runner's run view renders).
 	events := app.GetRunEvents()
 	var passes int
 	var result *host.ConvergeOutput
 	for _, ev := range events {
-		if ev.Type == "converge_pass" {
-			passes++
-			require.NotNil(t, ev.Converge)
-			assert.Positive(t, ev.Converge.Produced)
+		if ev.Type == "converge_event" {
+			require.NotNil(t, ev.ConvergeEvent)
+			if ev.ConvergeEvent.Type == convergence.EventPassDone {
+				passes++
+				assert.Positive(t, ev.ConvergeEvent.Produced)
+			}
 		}
 		if ev.Type == "complete" {
 			result = ev.ConvergeResult
 		}
 	}
-	assert.Positive(t, passes, "at least one converge_pass event")
+	assert.Positive(t, passes, "at least one pass_done event")
 	require.NotNil(t, result, "the complete event carries the structured result")
 	assert.True(t, result.Converged)
 	assert.Empty(t, result.ParkedScopes)

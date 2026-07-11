@@ -21,7 +21,6 @@ type (
 	ConvergeLocaleResult          = host.ConvergeLocaleResult
 	ConvergeOptions               = host.ConvergeOptions
 	ConvergeOutput                = host.ConvergeOutput
-	ConvergePassEvent             = host.ConvergePassEvent
 	CredentialListOutput          = host.CredentialListOutput
 	CredentialRow                 = host.CredentialRow
 	CredentialSavedOutput         = host.CredentialSavedOutput

@@ -186,7 +186,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	} else if !app.Quiet {
 		sink = cli.NewConvergeEventRenderer(stderr, isatty.IsTerminal(os.Stderr.Fd()))
 	}
-	acc := &runAccumulator{}
+	acc := newRunAccumulator()
 	onEvent := func(ev convergence.Event) {
 		acc.observe(ev)
 		if sink != nil {

@@ -8,16 +8,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/id"
 )
 
-// Convergence-run lifecycle states (strategy 2026-07-kapi-up doc 03).
+// Convergence-run lifecycle states (strategy 2026-07-kapi-up doc 03). The
+// terminal states ARE the core/convergence wire values — a run row and the
+// stream's done event report the same string, so they are defined once.
 const (
-	ConvergenceRunRunning   = "running"
-	ConvergenceRunConverged = "converged"
-	ConvergenceRunParked    = "parked"
-	ConvergenceRunCanceled  = "canceled"
-	ConvergenceRunFailed    = "failed"
+	ConvergenceRunRunning   = "running" // no wire equivalent: a run is only "running" server-side
+	ConvergenceRunConverged = convergence.RunConverged
+	ConvergenceRunParked    = convergence.RunParked
+	ConvergenceRunCanceled  = convergence.RunCanceled
+	ConvergenceRunFailed    = convergence.RunFailed
 )
 
 // ConvergenceRun is one server-side goal-seeking reconciliation of a project
@@ -40,16 +43,10 @@ type ConvergenceRun struct {
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
 }
 
-// ConvergenceLocaleStanding is one locale's rollup within a run, mirroring the
-// convergence.Event locale fields.
-type ConvergenceLocaleStanding struct {
-	Locale   string `json:"locale"`
-	State    string `json:"state"` // shippable | parked | pending
-	Units    int    `json:"units,omitempty"`
-	Produced int    `json:"produced,omitempty"`
-	ViaTM    int    `json:"viaTM,omitempty"`
-	ViaAI    int    `json:"viaAI,omitempty"`
-}
+// ConvergenceLocaleStanding is one locale's rollup within a run. It is the
+// framework's standing type: the run row persists exactly what
+// core/convergence.Standing folds out of the event stream.
+type ConvergenceLocaleStanding = convergence.LocaleStanding
 
 // ConvergenceRunStore persists convergence runs and their event streams. A
 // single store serves both PostgreSQL and SQLite: SQLite-compatible `$N`

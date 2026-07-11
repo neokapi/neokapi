@@ -615,57 +615,11 @@ export interface ConvergePlan {
   versionStale: boolean;
 }
 
-/**
- * One typed progress event of a convergence run (core/convergence.Event) — the
- * single protocol every venue speaks (CLI live renderer, `kapi up --json`, the
- * server's SSE stream, and this desktop run view). Fields are populated per
- * `type`; unused fields stay undefined.
- *
- * A run is a sequence of passes; within a pass every pending locale runs the
- * default flow (concurrently), and after the pass coverage is re-derived. The
- * stream ends with exactly one `done`.
- */
-export interface ConvergeEvent {
-  type:
-    | "pass_start"
-    | "locale_start"
-    | "unit_progress"
-    | "locale_done"
-    | "pass_done"
-    | "materialized"
-    | "log"
-    | "done";
-
-  // Pass-scoped (pass_start, pass_done; `pass` stamps every locale event too).
-  pass?: number;
-  maxPasses?: number;
-  pending?: string[];
-
-  // Pre-pass auto-extract on drift (pass_start).
-  extractedFiles?: number;
-  extractedBlocks?: number;
-
-  // Locale-scoped (locale_start, unit_progress, locale_done).
-  locale?: string;
-  units?: number;
-  done?: number;
-  viaTM?: number;
-  viaAI?: number;
-
-  // Post-derivation (pass_done).
-  produced?: number;
-  producedDelta?: number;
-  failingChecks?: number;
-
-  // State: locale_done → shippable|parked|pending; done → converged|parked.
-  state?: string;
-
-  // Materialized file count (materialized).
-  files?: number;
-
-  // Log line (log).
-  message?: string;
-}
+// One typed progress event of a convergence run (core/convergence.Event) — the
+// single protocol every venue speaks (CLI live renderer, `kapi up --json`, the
+// server's SSE stream, and this desktop run view). The type and the one fold
+// over it are shared with bowrain via @neokapi/status-views.
+export type { ConvergenceEvent as ConvergeEvent } from "@neokapi/status-views";
 
 /**
  * Where a project's `kapi up` runs (backend ProjectServer). A recipe with a
@@ -679,17 +633,6 @@ export interface ProjectServer {
   /** Server host (no scheme) — the short label a venue badge renders. */
   host?: string;
   serverURL?: string;
-}
-
-/** One structured pass snapshot of a convergence run (cli.ConvergePassEvent). */
-export interface ConvergePassEvent {
-  pass: number;
-  extractedFiles?: number;
-  extractedBlocks?: number;
-  produced: number;
-  producedDelta: number;
-  failingChecks?: number;
-  pendingLocales?: string[];
 }
 
 /** A gated (collection, locale) scope still short of its gate after a run. */

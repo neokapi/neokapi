@@ -92,46 +92,4 @@ describe("reduceConvergeRun (typed converge_event stream)", () => {
     expect(model.materializedFiles).toBe(12);
     expect(model.finalState).toBe("converged");
   });
-
-  it("degrades to the converge_pass summary path when no typed events exist", () => {
-    const events: RunEvent[] = [
-      {
-        type: "converge_pass",
-        flow_id: "up",
-        converge: {
-          pass: 1,
-          extractedBlocks: 128,
-          produced: 40,
-          producedDelta: 40,
-          failingChecks: 2,
-          pendingLocales: ["de-DE"],
-        },
-      },
-    ];
-    const model = reduceConvergeRun(events);
-    expect(model.live).toBe(false);
-    expect(model.passes[0]).toMatchObject({
-      pass: 1,
-      settled: true,
-      produced: 40,
-      rows: [],
-      pending: ["de-DE"],
-    });
-  });
-
-  it("prefers the typed stream and ignores converge_pass when both are present", () => {
-    const events: RunEvent[] = [
-      ce({ type: "pass_start", pass: 1, maxPasses: 6, pending: ["fr-FR"] }),
-      ce({ type: "pass_done", pass: 1, produced: 10, producedDelta: 10, pending: [] }),
-      {
-        type: "converge_pass",
-        flow_id: "up",
-        converge: { pass: 1, produced: 999, producedDelta: 999 },
-      },
-    ];
-    const model = reduceConvergeRun(events);
-    expect(model.live).toBe(true);
-    expect(model.passes).toHaveLength(1);
-    expect(model.passes[0].produced).toBe(10);
-  });
 });

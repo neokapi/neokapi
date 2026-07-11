@@ -39,48 +39,14 @@ func ExecPluginSubcommandPath(ctx context.Context, route *CommandRoute, subPath 
 	return runSubprocess(ctx, route.Plugin, cmdArgs)
 }
 
-// runSubprocess execs the plugin binary with args, inheriting the
-// process's stdio. ctx is propagated to exec.CommandContext so that a
-// SIGTERM/SIGINT to the kapi process (which cobra translates into a
-// cancelled command context) terminates the plugin child instead of
-// leaving it running until it finishes on its own.
-//
-//nolint:contextcheck // the nil-ctx guard is an API fallback for embedded/desktop callers; ctx is otherwise threaded straight into exec.CommandContext
+// runSubprocess execs the plugin binary with args, inheriting the process's
+// stdio. ctx is propagated to exec.CommandContext so that a SIGTERM/SIGINT to
+// the kapi process (which cobra translates into a cancelled command context)
+// terminates the plugin child instead of leaving it running until it finishes
+// on its own.
 func runSubprocess(ctx context.Context, p *Plugin, args []string) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	cmd := exec.CommandContext(ctx, p.BinaryPath, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	// Pass useful context to the plugin via env. The plugin's argv
-	// already carries the user's intent; env carries kapi-side state.
-	env := os.Environ()
-	env = append(env, "KAPI_PLUGIN_DIR="+p.Dir)
-	env = append(env, "KAPI_PLUGIN_NAME="+p.Name())
-	env = append(env, "KAPI_PLUGIN_VERSION="+p.Version())
-	cmd.Env = env
-
-	if err := cmd.Run(); err != nil {
-		// If the parent context was cancelled (e.g. SIGTERM/SIGINT to
-		// kapi), exec.CommandContext has already killed the child. Don't
-		// mistake the resulting non-zero exit for a real plugin exit code:
-		// surface the context error so the caller stops cleanly.
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return fmt.Errorf("plugin %q: %w", p.Name(), ctxErr)
-		}
-		// Propagate exit codes cleanly: return an error that carries the
-		// plugin's exit code so cli.Run's ExitCode() emits the right code
-		// via the exitCoder interface, without bypassing App.Shutdown.
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			return withPluginExitCode(exitErr.ExitCode(), fmt.Errorf("plugin %q: %w", p.Name(), err))
-		}
-		return fmt.Errorf("plugin %q: %w", p.Name(), err)
-	}
-	return nil
+	_, err := execPlugin(ctx, p, args, false)
+	return err
 }
 
 // CaptureStdout runs the route's top-level Mode-A command capturing its
@@ -91,23 +57,39 @@ func runSubprocess(ctx context.Context, p *Plugin, args []string) error {
 // leaking plugin diagnostics into a structured host output.
 func (r *CommandRoute) CaptureStdout(ctx context.Context, args ...string) ([]byte, error) {
 	cmdArgs := append([]string{"command", r.Command.Name}, args...)
-	return runSubprocessCaptured(ctx, r.Plugin, cmdArgs)
+	return execPlugin(ctx, r.Plugin, cmdArgs, true)
 }
 
-// runSubprocessCaptured mirrors runSubprocess but buffers stdout (returned to
-// the caller) and discards stderr. Cancellation semantics match runSubprocess.
+// execPlugin is the one plugin-subprocess launch: same env, same cancellation
+// semantics, same exit-code propagation, differing only in where the child's
+// output goes. When capture is false the child inherits the host's stdio; when
+// true its stdout is buffered and returned (stdin closed, stderr discarded).
+//
+// It is one function on purpose: the capturing variant used to be a copy, and
+// the copy had quietly lost exit-code propagation — a plugin that failed under
+// CaptureStdout reported a generic error and kapi exited 1 instead of the
+// plugin's own code.
 //
 //nolint:contextcheck // the nil-ctx guard is an API fallback for embedded/desktop callers; ctx is otherwise threaded straight into exec.CommandContext
-func runSubprocessCaptured(ctx context.Context, p *Plugin, args []string) ([]byte, error) {
+func execPlugin(ctx context.Context, p *Plugin, args []string, capture bool) ([]byte, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	cmd := exec.CommandContext(ctx, p.BinaryPath, args...)
-	var out bytes.Buffer
-	cmd.Stdin = nil
-	cmd.Stdout = &out
-	cmd.Stderr = io.Discard
 
+	var out bytes.Buffer
+	if capture {
+		cmd.Stdin = nil
+		cmd.Stdout = &out
+		cmd.Stderr = io.Discard
+	} else {
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	// Pass useful context to the plugin via env. The plugin's argv already
+	// carries the user's intent; env carries kapi-side state.
 	env := os.Environ()
 	env = append(env, "KAPI_PLUGIN_DIR="+p.Dir)
 	env = append(env, "KAPI_PLUGIN_NAME="+p.Name())
@@ -115,10 +97,21 @@ func runSubprocessCaptured(ctx context.Context, p *Plugin, args []string) ([]byt
 	cmd.Env = env
 
 	if err := cmd.Run(); err != nil {
+		// If the parent context was cancelled (e.g. SIGTERM/SIGINT to kapi),
+		// exec.CommandContext has already killed the child. Don't mistake the
+		// resulting non-zero exit for a real plugin exit code: surface the
+		// context error so the caller stops cleanly.
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, fmt.Errorf("plugin %q: %w", p.Name(), ctxErr)
 		}
-		return nil, fmt.Errorf("plugin %q: %w", p.Name(), err)
+		// Propagate exit codes cleanly: return an error that carries the
+		// plugin's exit code so cli.Run's ExitCode() emits the right code via
+		// the exitCoder interface, without bypassing App.Shutdown.
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return out.Bytes(), withPluginExitCode(exitErr.ExitCode(), fmt.Errorf("plugin %q: %w", p.Name(), err))
+		}
+		return out.Bytes(), fmt.Errorf("plugin %q: %w", p.Name(), err)
 	}
 	return out.Bytes(), nil
 }
