@@ -236,6 +236,8 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(cli.NewToolsCmd(app))
 	root.AddCommand(cli.NewFormatsCmd(app))
 	root.AddCommand(cli.NewPresetsCmd(app))
+	root.AddCommand(cli.NewTranslateCmd(app))
+	root.AddCommand(cli.NewPseudoTranslateCmd(app))
 	root.AddCommand(cli.NewVersionCmd(app, "kapi"))
 
 	// TM and termbase commands backed by the in-memory fixture data
