@@ -6,6 +6,12 @@
 // in web/walkthroughs/*.md scene specs, then runs each via kapiRun and
 // asserts a zero exit code.
 //
+// Each walkthrough's commands run in a per-walkthrough sandbox dir seeded
+// from its .scene.yaml sandbox — the kit `seed:` fixtures plus the inline
+// `files:` (honoring an `embed:` override) — so the verifier exercises the
+// same files the interactive embed does, and walkthroughs cannot leak
+// recipes/files into each other.
+//
 // Editable snippets (prop `editable` present) are captured but NOT
 // exit-code-asserted — they're starting-point templates the reader completes.
 //
@@ -79,11 +85,18 @@ const FIXTURES: Record<string, string> = {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface InlineFile {
+  path:    string;
+  content: string;
+}
+
 interface SnippetEntry {
-  source:   string;   // display label (file:line or "walkthrough:file#scene")
-  cmd:      string;   // full command string (may start with "kapi ")
-  seed:     string[]; // fixture names to write before running
-  editable: boolean;  // if true: capture but don't assert exit code
+  source:     string;       // display label (file:line or "walkthrough:file#scene")
+  cmd:        string;       // full command string (may start with "kapi ")
+  seed:       string[];     // fixture names to write before running
+  files:      InlineFile[]; // scene-declared inline files to write before running
+  sandboxDir: string;       // cwd the command runs in (per-walkthrough isolation)
+  editable:   boolean;      // if true: capture but don't assert exit code
 }
 
 // ── Discovery: RunnableSnippet in MDX ────────────────────────────────────────
@@ -134,7 +147,14 @@ function extractRunnableSnippets(filePath: string): SnippetEntry[] {
 
     const lineNo = content.slice(0, start).split("\n").length;
     const relPath = filePath.replace(REPO_ROOT + "/", "");
-    entries.push({ source: `${relPath}:${lineNo}`, cmd, seed, editable });
+    entries.push({
+      source: `${relPath}:${lineNo}`,
+      cmd,
+      seed,
+      files: [],
+      sandboxDir: "/project",
+      editable,
+    });
   }
 
   return entries;
@@ -199,6 +219,108 @@ function parseWalkthroughFrontMatter(content: string): { id: string; scenes: Wal
   return { id, scenes };
 }
 
+// ── Scene sandbox: seed + inline files from the .scene.yaml spec ──────────────
+//
+// The .scene.yaml is the single authored source (W3): its `seed:` names kit
+// fixtures and its `files:` carries inline file content — the exact sandbox
+// the interactive embed runs against. The verifier reads that same sandbox so
+// each smoke_contract command sees the files its scene declares. When an
+// `embed:` override is present (video walkthroughs with an offline subset),
+// the embed's seed/files win — mirroring scripts/walkthrough-gen/gen.ts.
+//
+// Parsed with a schema-specific reader (top-level `seed:`/`files:`/`embed:`
+// keys, `- path:` items, `content: |` block scalars) — this script must run
+// with zero npm dependencies in CI.
+
+interface SceneSandbox {
+  seed:  string[];
+  files: InlineFile[];
+}
+
+function parseSceneSandbox(text: string): SceneSandbox {
+  const lines = text.split("\n");
+
+  function indentOf(line: string): number {
+    return line.match(/^\s*/)![0].length;
+  }
+
+  // A `seed:` list — items are "- name" lines indented past the key.
+  function parseSeedList(start: number, keyIndent: number): string[] {
+    const out: string[] = [];
+    for (let i = start; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+      const m = line.match(/^(\s*)-\s+(.+)$/);
+      if (m && m[1].length > keyIndent) { out.push(m[2].trim()); continue; }
+      break;
+    }
+    return out;
+  }
+
+  // A `files:` list — items are "- path: <p>" followed by "content: |" blocks.
+  function parseFileList(start: number, keyIndent: number): InlineFile[] {
+    const out: InlineFile[] = [];
+    let i = start;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (!line.trim()) { i++; continue; }
+      if (indentOf(line) <= keyIndent) break;
+      const pathM = line.match(/^\s*-\s+path:\s*(.+)$/);
+      if (!pathM) break;
+      const path = pathM[1].trim().replace(/^["']|["']$/g, "");
+      i++;
+      while (i < lines.length && !lines[i].trim()) i++;
+      let content = "";
+      const contentM = lines[i]?.match(/^(\s*)content:\s*\|-?\s*$/);
+      if (contentM) {
+        const contentIndent = contentM[1].length;
+        i++;
+        const block: string[] = [];
+        let blockIndent = -1;
+        while (i < lines.length) {
+          const bl = lines[i];
+          if (bl.trim() === "") { block.push(""); i++; continue; }
+          if (indentOf(bl) <= contentIndent) break;
+          if (blockIndent === -1) blockIndent = indentOf(bl);
+          block.push(bl.slice(blockIndent));
+          i++;
+        }
+        while (block.length && block[block.length - 1] === "") block.pop();
+        content = block.length ? block.join("\n") + "\n" : "";
+      }
+      out.push({ path, content });
+    }
+    return out;
+  }
+
+  let topSeed: string[] = [];
+  let topFiles: InlineFile[] = [];
+  let embedSeed: string[] | null = null;
+  let embedFiles: InlineFile[] | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^seed:\s*$/.test(line)) topSeed = parseSeedList(i + 1, 0);
+    else if (/^files:\s*$/.test(line)) topFiles = parseFileList(i + 1, 0);
+    else if (/^embed:\s*$/.test(line)) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const l2 = lines[j];
+        if (l2.trim() && indentOf(l2) === 0) break; // next top-level key
+        if (/^\s{2}seed:\s*$/.test(l2)) embedSeed = parseSeedList(j + 1, 2);
+        else if (/^\s{2}files:\s*$/.test(l2)) embedFiles = parseFileList(j + 1, 2);
+      }
+    }
+  }
+
+  return { seed: embedSeed ?? topSeed, files: embedFiles ?? topFiles };
+}
+
+function loadSceneSandbox(walkthroughsDir: string, id: string): SceneSandbox {
+  const scenePath = join(walkthroughsDir, `${id}.scene.yaml`);
+  if (!existsSync(scenePath)) return { seed: [], files: [] };
+  return parseSceneSandbox(readFileSync(scenePath, "utf8"));
+}
+
 function loadWalkthroughSnippets(walkthroughsDir: string): SnippetEntry[] {
   const entries: SnippetEntry[] = [];
   if (!existsSync(walkthroughsDir)) return entries;
@@ -210,15 +332,25 @@ function loadWalkthroughSnippets(walkthroughsDir: string): SnippetEntry[] {
     const fm = parseWalkthroughFrontMatter(content);
     if (!fm) continue;
 
+    // The scene spec's sandbox (kit seed + inline files) — what the embed runs.
+    const sandbox = loadSceneSandbox(walkthroughsDir, fm.id);
+
     for (const scene of fm.scenes) {
       if (!scene.smoke_contract || scene.smoke_contract.length === 0) continue;
-      // Only seed fixtures that exist in our fixture library.
-      const seed = (scene.fixtures ?? []).filter((f) => f in FIXTURES);
+      // Union of the front matter's fixture names and the scene spec's seed,
+      // restricted to fixtures that exist in our fixture library.
+      const seed = [...new Set([...(scene.fixtures ?? []), ...sandbox.seed])]
+        .filter((f) => f in FIXTURES);
       for (const cmd of scene.smoke_contract) {
         entries.push({
-          source:   `walkthroughs/${file}#${scene.id}`,
+          source: `walkthroughs/${file}#${scene.id}`,
           cmd,
           seed,
+          files: sandbox.files,
+          // Each walkthrough gets its own sandbox dir: state persists across
+          // the walkthrough's own smoke commands (init → tm import → status)
+          // but one walkthrough's recipe/files never leak into another's.
+          sandboxDir: `/sandbox/${fm.id}`,
           editable: false, // smoke_contract entries are always auto-run
         });
       }
@@ -298,7 +430,7 @@ async function runCommand(argv: string[]): Promise<RunResult> {
 
 // ── Fixture seeding ───────────────────────────────────────────────────────────
 
-function seedFixtures(fixtureNames: string[]): void {
+function seedFixtures(sandboxDir: string, fixtureNames: string[], files: InlineFile[] = []): void {
   const vol = (globalThis as any).__kapiVol;
   for (const name of fixtureNames) {
     const content = FIXTURES[name];
@@ -306,14 +438,23 @@ function seedFixtures(fixtureNames: string[]): void {
       console.warn(c.yellow(`  [warn] fixture "${name}" not in library — skipping`));
       continue;
     }
-    vol.writeFile(`/project/${name}`, enc.encode(content));
+    vol.writeFile(`${sandboxDir}/${name}`, enc.encode(content));
+  }
+  // Scene-declared inline files (may be nested, e.g. src/locales/en/app.json).
+  for (const f of files) {
+    const abs = `${sandboxDir}/${f.path}`;
+    const parent = abs.slice(0, abs.lastIndexOf("/"));
+    if (parent && parent !== sandboxDir) vol.mkdirp(parent);
+    vol.writeFile(abs, enc.encode(f.content));
   }
 }
 
-function resetCwd(): void {
+function resetCwd(sandboxDir: string): void {
+  const vol  = (globalThis as any).__kapiVol;
   const proc = (globalThis as any).__kapiMemProcess;
+  vol?.mkdirp(sandboxDir);
   if (proc?.chdir) {
-    try { proc.chdir("/project"); } catch { /* ignore */ }
+    try { proc.chdir(sandboxDir); } catch { /* ignore */ }
   }
 }
 
@@ -325,16 +466,12 @@ function resetCwd(): void {
 
 const WASM_UNSUPPORTED = [
   /bilingual-project/,
-  /\.tmx\b/,
   /\.db\b/,
   // "fixtures/" path prefix — walkthroughs use a real fixtures dir that
   // only exists when running the native binary. Works with or without a
   // leading slash: `fixtures/foo` or `/fixtures/foo`.
   /\bfixtures\//,
   /\bsamples\//,
-  /\.kapi\b/,
-  /glossary\.csv/,
-  /messages_en\.json/,
 ];
 
 function shouldSkipForWasm(cmd: string): boolean {
@@ -417,8 +554,8 @@ async function main() {
     // Strip leading "kapi " — kapiRun receives argv without the binary name.
     const argv = rawCmd.replace(/^kapi\s+/, "").trim().split(/\s+/).filter(Boolean);
 
-    resetCwd();
-    seedFixtures(snippet.seed);
+    resetCwd(snippet.sandboxDir);
+    seedFixtures(snippet.sandboxDir, snippet.seed, snippet.files);
 
     console.log(`  ${c.bold("RUN ")} ${rawCmd}`);
 

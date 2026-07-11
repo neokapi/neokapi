@@ -43,8 +43,8 @@ steps:
   - command: kapi termbase search encrypt -s en
     narration: Search across every concept in the termbase.
   - comment: Pseudo-translate, then check terminology against the termbase
-  # pseudo-translate references messages_en.json, which W7 skip-lists — it stays
-  # in smoke_contract (honestly skipped) and runs live in the embed.
+  # pseudo-translate runs against the scene's inline messages_en.json — W7
+  # seeds the same sandbox the embed does, so both venues run it live.
   - command: kapi pseudo-translate messages_en.json -o pseudo_fr.json
     narration: Produce a target file to QA.
   - command: kapi exec term-check pseudo_fr.json --source-lang en --target-lang fr

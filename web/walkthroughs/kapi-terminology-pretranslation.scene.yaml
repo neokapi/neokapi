@@ -43,9 +43,9 @@ files:
 
 steps:
   - comment: This is the front half of the default flow `kapi up` loops — run here one move at a time.
-  # tm import / recycle reference .tmx / messages_en.json fixtures, which W7
-  # skip-lists (native-binary only). They stay in smoke_contract so W7 keeps
-  # tracking them (honestly skipped), and run live in the embed.
+  # tm import / recycle run against the scene's inline project.tmx /
+  # messages_en.json — W7 seeds the same sandbox the embed does, so both
+  # venues run them live.
   - command: kapi tm import project.tmx -s en -t fr
     narration: Load existing translation memory — the store up leverages before any AI is asked.
   - comment: Step 1 — leverage translation memory
