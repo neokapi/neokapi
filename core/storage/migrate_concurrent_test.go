@@ -59,9 +59,7 @@ func TestMigrate_ConcurrentOpenersOfSameDB(t *testing.T) {
 	var wg sync.WaitGroup
 	errs := make([]error, workers)
 	for i := range workers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			db, err := storage.Open(path)
 			if err != nil {
 				errs[i] = err
@@ -69,7 +67,7 @@ func TestMigrate_ConcurrentOpenersOfSameDB(t *testing.T) {
 			}
 			defer db.Close()
 			errs[i] = storage.Migrate(db, "testns", migrations)
-		}()
+		})
 	}
 	wg.Wait()
 	for i, err := range errs {
