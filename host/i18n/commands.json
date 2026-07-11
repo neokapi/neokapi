@@ -45,9 +45,6 @@
             "short": "Validate a brand voice profile YAML (structure, enums, regex, terms)"
           }
         },
-        "cat": {
-          "short": "Print the text/content inside files (use kcat)"
-        },
         "check": {
           "long": "Run content checks over one or more files and return structured findings\nplus a pass/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual localization checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --json emits the kapi.check/v1 Report.\n\nProject gate mode (--ship): it runs the\nproject's bound quality gates (brand, terminology, QA) plus its ship/source\ncoverage gates over the project's content, and exits non-zero when any gate is\nunmet — the pre-release bar. Target drift never blocks an ordinary build (see\n'kapi status'); --ship is the explicit, opt-in enforcement point. With no file\narguments it inspects the project's content x target languages; pass files to\ngate just those.\n\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n0 (report mode) for a fix-loop.",
           "short": "Verify content against a checkset and gate on severity, like tests over code"
@@ -72,9 +69,6 @@
             "short": "Set a config value (persists to the global config file)"
           },
           "short": "Get or set kapi configuration (app config subcommands, recipe keys positionally)"
-        },
-        "convert": {
-          "short": "Convert files between formats (use kconv)"
         },
         "credentials": {
           "add": {
@@ -126,9 +120,6 @@
           },
           "short": "List supported file formats"
         },
-        "grep": {
-          "short": "Search the text/content inside files (use kgrep)"
-        },
         "hook": {
           "long": "Glue commands for AI coding assistants. Each subcommand reads the\nassistant's hook payload on stdin and writes the assistant's expected response\non stdout. These are wired up by the assistant's plugin, not run by hand.",
           "pre-edit": {
@@ -154,8 +145,20 @@
           "long": "Parse each file into one record per content block: the text, a stable\ncontent-hash anchor, and the block's structural role (heading, list-item,\ntable-cell, …) and nesting level. Any format — a Word document, a JSON catalog,\nMarkdown, HTML — yields the same shape, so an AI agent or RAG pipeline can read\ncontent, retrieve against the anchors, and write edits back to the same blocks.\n\nPrints a JSON array by default; --jsonl streams one JSON object per line (JSONL)\nfor piping into an ingestion pipeline; --yaml emits a YAML sequence.\nWith no FILE, or when FILE is \"-\", standard input is read.",
           "short": "Parse any format into anchored, structured content blocks"
         },
+        "kcat": {
+          "short": "Print the text/content inside files (use kcat)"
+        },
+        "kconv": {
+          "short": "Convert files between formats (use kconv)"
+        },
         "kdiff": {
           "short": "Compare the text/content of files (use kdiff)"
+        },
+        "kgrep": {
+          "short": "Search the text/content inside files (use kgrep)"
+        },
+        "ksed": {
+          "short": "Stream-edit the text/content inside files (use ksed)"
         },
         "long": "kapi parses any format into one unified content model, edits the content\ninside it, checks it, and writes it back byte-for-byte. At heart, both a\nlocalization engine and the tool that keeps your source content on brand:\nconvert formats, translate with AI, and run quality checks across a wide range\nof file types.",
         "ls": {
@@ -290,9 +293,6 @@
           "example": "  kapi run translate-qa -i app.xliff --target-lang fr\n  kapi run translate-qa -i messages.json --target-lang de\n  kapi run pseudo -p myproject.kapi         # a project-defined flow",
           "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\nTo reconcile the whole project toward its ship gates, use 'kapi up' —\nrun is the escape hatch for one named pipeline, one pass.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi",
           "short": "Run a composed flow (a named multi-tool pipeline)"
-        },
-        "sed": {
-          "short": "Stream-edit the text/content inside files (use ksed)"
         },
         "short": "A format-aware content toolkit — parse, edit, check, and localize any format",
         "stats": {

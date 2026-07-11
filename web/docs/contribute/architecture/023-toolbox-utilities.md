@@ -72,11 +72,13 @@ built into the `kapi` binary. They are reachable two ways:
   returns a standalone root for that utility instead of the full kapi command
   tree. The standalone root owns the app lifecycle (config load, `Init`,
   `Shutdown`) so the utility behaves identically however it is launched.
-- **As hidden kapi subcommands.** `kapi grep`, `kapi sed`, `kapi cat`,
-  `kapi convert`, and `kapi diff` are thin proxies (`NewToolboxProxies`) with `DisableFlagParsing`
-  set, so kapi's persistent flags are *not* merged into them. Each proxy
+- **As hidden kapi subcommands.** `kapi kgrep`, `kapi ksed`, `kapi kcat`,
+  `kapi kconv`, and `kapi kdiff` are thin proxies (`NewToolboxProxies`) with `DisableFlagParsing`
+  set, so kapi's persistent flags are *not* merged into them. The proxies carry
+  the k-names verbatim — one consistent spelling that keeps every bare verb
+  free (bare `kapi diff` is the bowrain plugin's sync diff). Each proxy
   delegates the raw argument list to the very same standalone command the symlink
-  runs, so `kapi grep` and `kgrep` behave identically. They are hidden from
+  runs, so `kapi kgrep` and `kgrep` behave identically. They are hidden from
   `kapi --help` so the help steers users to the dedicated
   `kgrep`/`ksed`/`kcat`/`kconv` names.
 

@@ -78,17 +78,18 @@ brew install neokapi/tap/kapi-cli  # macOS/Linux
 winget install Neokapi.KapiCli     # Windows
 ```
 
-Every utility is also reachable as a `kapi` subcommand —
-`kapi grep`, `kapi sed`, `kapi cat`, `kapi kdiff`, `kapi convert` — which behaves
-identically to the matching short name on every platform. (The differ's
-subcommand keeps the `kdiff` name: bare `kapi diff` is the connected-project
-sync diff, not a file diff.)
+Every utility is also reachable as a `kapi` subcommand under the same name —
+`kapi kgrep`, `kapi ksed`, `kapi kcat`, `kapi kdiff`, `kapi kconv` — which
+behaves identically to the standalone short name on every platform. (The
+proxies carry the k-names so every bare verb stays free: bare `kapi diff` is
+the connected-project sync diff, not a file diff.)
 
 :::note Windows
 The Homebrew install adds the short names (`kgrep`, `ksed`, `kcat`, `kdiff`,
 `kconv`) as aliases of the `kapi` binary. The winget package installs the single
-`kapi` command, so on Windows use the subcommand form — `kapi grep`, `kapi sed`,
-`kapi cat`, `kapi kdiff`, `kapi convert` — which is exactly equivalent.
+`kapi` command, so on Windows use the subcommand form — `kapi kgrep`,
+`kapi ksed`, `kapi kcat`, `kapi kdiff`, `kapi kconv` — which is exactly
+equivalent.
 :::
 
 ## Conventions shared across the toolbox

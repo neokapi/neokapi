@@ -9,7 +9,7 @@ import (
 
 // newGrepCmd builds the grep command with the full classic option surface.
 // It is used as the standalone `kgrep` root and, via newToolboxProxies, behind
-// the detached `kapi grep` subcommand — never as a plain child of the kapi root
+// the detached `kapi kgrep` subcommand — never as a plain child of the kapi root
 // (which would shadow -v/-c with kapi's global flags).
 func newGrepCmd(a *App) *cobra.Command {
 	var (

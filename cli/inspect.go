@@ -12,7 +12,7 @@ import (
 // NewInspectCmd builds `kapi inspect`: parse any format into one anchored,
 // structured record per content block — the text, a stable content-hash anchor,
 // and the block's structural role and nesting level. The same record shape backs
-// `kapi convert <doc> --to json|yaml`. Prints a JSON array by default; --jsonl
+// `kapi kconv <doc> --to json|yaml`. Prints a JSON array by default; --jsonl
 // streams one object per line, --yaml emits a YAML sequence.
 func NewInspectCmd(a *App) *cobra.Command {
 	var (
