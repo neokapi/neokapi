@@ -48,8 +48,9 @@ export async function runMigrateKeys(args: string[]): Promise<void> {
   const mapping = new Map<string, string>();
   const conflicts: string[] = [];
   let files = 0;
+  const globOptions = { exclude: [...opts.ignoreGlobs] };
   for (const pattern of srcGlobs) {
-    for await (const file of glob(pattern)) {
+    for await (const file of glob(pattern, globOptions)) {
       files++;
       const code = readFileSync(file, "utf-8");
       extractDocument(code, {
@@ -159,6 +160,7 @@ function* walkKlf(dir: string): Generator<string> {
 
 interface MigrateArgs {
   srcGlobs: string[];
+  ignoreGlobs: string[];
   configPath: string | null;
   dictsDir: string | null;
   klfDir: string | null;
@@ -170,6 +172,7 @@ interface MigrateArgs {
 function parseArgs(args: string[]): MigrateArgs {
   const parsed: MigrateArgs = {
     srcGlobs: [],
+    ignoreGlobs: [],
     configPath: null,
     dictsDir: null,
     klfDir: null,
@@ -187,6 +190,9 @@ function parseArgs(args: string[]): MigrateArgs {
         return parsed;
       case "--src":
         if (value) parsed.srcGlobs.push(args[++i]);
+        break;
+      case "--ignore":
+        if (value) parsed.ignoreGlobs.push(args[++i]);
         break;
       case "--config":
         if (value) parsed.configPath = args[++i];
@@ -232,6 +238,7 @@ Run once when upgrading to @neokapi/kapi-react 2.x, commit the result.
 
 Options:
   --src <glob>      Source files to scan (repeatable; default: "src/**/*.{tsx,jsx}")
+  --ignore <glob>   Exclude pattern (repeatable) — mirror your extract flags
   --config <path>   Config file with componentMap, rules, …
   --dicts <dir>     Rewrite every {locale}.json dictionary in this directory
   --klf <dir>       Rewrite block hashes in every .klf under this directory
