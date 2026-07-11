@@ -94,12 +94,21 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 			return m.HeapAlloc
 		}
 
+		// Sample ~256 times regardless of document size (stride scales with n)
+		// rather than at a fixed stride. A streaming reader's live heap fluctuates
+		// by a bounded, document-size-independent amount (up to ~64 in-flight parts
+		// queued in its channel), so a fixed stride samples the 20x-larger run 20x
+		// more often and reliably catches that bounded burst while the small run
+		// misses it — which made the ps*3 ratio bound flaky for this low-footprint
+		// format. Equal sample density makes ps and pl estimate the same bounded
+		// working set, so the ratio reflects real scaling, not sampling luck.
+		stride := max(n/256, 1)
 		base := liveHeap()
 		count := 0
 		for res := range reader.Read(context.Background()) {
 			require.NoError(t, res.Error)
 			count++ // drain without retaining parts, so the test itself is bounded
-			if count%256 == 0 {
+			if count%stride == 0 {
 				if h := liveHeap(); h > base && h-base > peak {
 					peak = h - base
 				}
