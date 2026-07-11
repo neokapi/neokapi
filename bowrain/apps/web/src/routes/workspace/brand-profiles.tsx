@@ -12,7 +12,9 @@ import type { WorkspaceRouteContext } from "..";
 export function BrandProfilesRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });
-  const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const { activeWorkspace, brandScanAvailable } = useRouteContext({
+    strict: false,
+  }) as WorkspaceRouteContext;
 
   useEffect(() => {
     if (activeWorkspace) {
@@ -40,6 +42,20 @@ export function BrandProfilesRoute() {
     });
   }, [navigate, workspace]);
 
+  const handleScanBrand = useCallback(() => {
+    void navigate({
+      to: "/$workspace/brand/scan",
+      params: { workspace: workspace ?? "" },
+    });
+  }, [navigate, workspace]);
+
+  const handleLocalLane = useCallback(() => {
+    void navigate({
+      to: "/$workspace/brand/voice/mcp-guide",
+      params: { workspace: workspace ?? "" },
+    });
+  }, [navigate, workspace]);
+
   const handleDelete = useCallback(
     async (profileId: string) => {
       await deleteMutation.mutateAsync(profileId);
@@ -57,6 +73,10 @@ export function BrandProfilesRoute() {
       onSelect={handleSelect}
       onCreate={handleCreate}
       onDelete={handleDelete}
+      // Only servers running the brand-scan job system get the hosted-scan
+      // CTA; the local lane (kapi Agent Skill) is always available.
+      onScanBrand={brandScanAvailable ? handleScanBrand : undefined}
+      onLocalLane={handleLocalLane}
     />
   );
 }

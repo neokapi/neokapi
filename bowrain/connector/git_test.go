@@ -133,6 +133,31 @@ func TestNewGitConnectorAcceptsSafeConfig(t *testing.T) {
 	assert.Equal(t, "feature/x", c.branch)
 }
 
+// TestNewGitConnectorHardeningConfig: the shallow / no-redirect knobs used by
+// one-shot harvesters (the brand scan) parse into the expected clone behavior
+// and stay off by default.
+func TestNewGitConnectorHardeningConfig(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+
+	hardened, err := NewGitConnector(reg, map[string]string{
+		"repo":                  "https://github.com/org/repo.git",
+		"shallow":               "true",
+		"http_follow_redirects": "false",
+	})
+	require.NoError(t, err)
+	assert.True(t, hardened.shallow)
+	assert.True(t, hardened.noRedirects)
+	assert.Equal(t, []string{"-c", "http.followRedirects=false"}, hardened.globalArgs())
+
+	plain, err := NewGitConnector(reg, map[string]string{
+		"repo": "https://github.com/org/repo.git",
+	})
+	require.NoError(t, err)
+	assert.False(t, plain.shallow)
+	assert.False(t, plain.noRedirects)
+	assert.Nil(t, plain.globalArgs())
+}
+
 func TestNewGitConnectorDefaultsBranchToMain(t *testing.T) {
 	reg := registry.NewFormatRegistry()
 

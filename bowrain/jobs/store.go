@@ -15,8 +15,18 @@ type JobStore interface {
 	CreateJob(ctx context.Context, job *TranslationJob) error
 	GetJob(ctx context.Context, id string) (*TranslationJob, error)
 	ListJobs(ctx context.Context, workspaceSlug string, limit int) ([]*TranslationJob, error)
-	UpdateJobProgress(ctx context.Context, id string, doneBlocks, totalBlocks int) error
+	// UpdateJobProgress records translation progress. Guarded by the claim
+	// epoch (status 'processing' AND claim_epoch == epoch) so a stale worker
+	// can neither regress the fresh owner's progress nor falsely refresh its
+	// heartbeat; a lost-lease write is a silent no-op.
+	UpdateJobProgress(ctx context.Context, id string, epoch int64, doneBlocks, totalBlocks int) error
 	UpdateJobStatus(ctx context.Context, id string, status JobStatus, errMsg string) error
+	// FailJob marks the job failed with errMsg — but only while the caller
+	// still holds the lease (status 'processing' AND claim_epoch == epoch), so
+	// a stale worker's permanent error cannot overwrite a fresh owner's
+	// completed run. Returns owner=false when the lease was lost, in which
+	// case nothing was written.
+	FailJob(ctx context.Context, id string, epoch int64, errMsg string) (owner bool, err error)
 	DeleteJob(ctx context.Context, id string) error
 	ListJobsByPushID(ctx context.Context, pushID string) ([]*TranslationJob, error)
 	// ClaimJob atomically transitions a job from queued to processing and bumps
@@ -39,8 +49,10 @@ type JobStore interface {
 	// returned so the caller re-delivers it; once the budget is exhausted the
 	// job is marked 'failed' with errMsg and (false, nil) is returned. A job
 	// that is no longer 'processing' (raced to a terminal state) yields
-	// (false, nil).
-	RetryOrFail(ctx context.Context, id string, maxAttempts int, errMsg string) (retry bool, err error)
+	// (false, nil). Epoch-guarded: a stale worker's transient error must not
+	// knock the fresh owner's in-flight run back to 'queued' (spawning a
+	// duplicate) or eat its retry budget.
+	RetryOrFail(ctx context.Context, id string, epoch int64, maxAttempts int, errMsg string) (retry bool, err error)
 	// SweepStaleProcessing recovers jobs stuck in 'processing' longer than
 	// olderThan (a worker crashed after ClaimJob). Jobs with retry budget left
 	// are reset to 'queued' — their IDs are returned so the caller can
@@ -188,7 +200,7 @@ func (s *jobStore) ListJobs(ctx context.Context, workspaceSlug string, limit int
 	return scanJobs(rows)
 }
 
-func (s *jobStore) UpdateJobProgress(ctx context.Context, id string, doneBlocks, totalBlocks int) error {
+func (s *jobStore) UpdateJobProgress(ctx context.Context, id string, epoch int64, doneBlocks, totalBlocks int) error {
 	progress := 0
 	if totalBlocks > 0 {
 		progress = doneBlocks * 100 / totalBlocks
@@ -196,8 +208,8 @@ func (s *jobStore) UpdateJobProgress(ctx context.Context, id string, doneBlocks,
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE translation_jobs
 		 SET done_blocks = $1, total_blocks = $2, progress = $3, updated_at = NOW()
-		 WHERE id = $4`,
-		doneBlocks, totalBlocks, progress, id)
+		 WHERE id = $4 AND status = 'processing' AND claim_epoch = $5`,
+		doneBlocks, totalBlocks, progress, id, epoch)
 	if err != nil {
 		return fmt.Errorf("update job progress: %w", err)
 	}
@@ -232,7 +244,7 @@ func (s *jobStore) RenewLease(ctx context.Context, id string, epoch int64) (bool
 	return n == 1, nil
 }
 
-func (s *jobStore) RetryOrFail(ctx context.Context, id string, maxAttempts int, errMsg string) (bool, error) {
+func (s *jobStore) RetryOrFail(ctx context.Context, id string, epoch int64, maxAttempts int, errMsg string) (bool, error) {
 	if maxAttempts < 1 {
 		maxAttempts = 1
 	}
@@ -241,7 +253,9 @@ func (s *jobStore) RetryOrFail(ctx context.Context, id string, maxAttempts int, 
 	// redelivery can re-claim it), otherwise it is marked 'failed'. RETURNING
 	// reflects the post-update row, so `status = 'queued'` is the retry verdict.
 	// The `status = 'processing'` guard makes a race with a completing worker a
-	// no-op (ErrNoRows → no retry).
+	// no-op (ErrNoRows → no retry), and the claim_epoch guard makes a STALE
+	// worker's transient error a no-op so it cannot requeue (duplicate-run) the
+	// fresh owner's in-flight job or eat its retry budget.
 	var requeued bool
 	err := s.db.QueryRowContext(ctx,
 		`UPDATE translation_jobs
@@ -249,9 +263,9 @@ func (s *jobStore) RetryOrFail(ctx context.Context, id string, maxAttempts int, 
 		     status = CASE WHEN attempts + 1 < $2 THEN 'queued' ELSE 'failed' END,
 		     error  = CASE WHEN attempts + 1 < $2 THEN error ELSE $3 END,
 		     updated_at = NOW()
-		 WHERE id = $1 AND status = 'processing'
+		 WHERE id = $1 AND status = 'processing' AND claim_epoch = $4
 		 RETURNING status = 'queued'`,
-		id, maxAttempts, errMsg).Scan(&requeued)
+		id, maxAttempts, errMsg, epoch).Scan(&requeued)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -335,6 +349,19 @@ func (s *jobStore) UpdateJobStatus(ctx context.Context, id string, status JobSta
 		return fmt.Errorf("update job status: %w", err)
 	}
 	return nil
+}
+
+func (s *jobStore) FailJob(ctx context.Context, id string, epoch int64, errMsg string) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs
+		 SET status = 'failed', error = $1, updated_at = NOW()
+		 WHERE id = $2 AND status = 'processing' AND claim_epoch = $3`,
+		errMsg, id, epoch)
+	if err != nil {
+		return false, fmt.Errorf("fail job: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
 }
 
 func (s *jobStore) DeleteJob(ctx context.Context, id string) error {

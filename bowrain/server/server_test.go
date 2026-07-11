@@ -48,6 +48,9 @@ func TestInfoEndpoint(t *testing.T) {
 	assert.NotEmpty(t, resp.Formats)
 	assert.NotNil(t, resp.Tools)
 	assert.NotEmpty(t, resp.Locales)
+	// The default (SQLite/standalone) server has no brand-scan job system, so
+	// the web app must be told to hide the hosted-scan entry points.
+	assert.False(t, resp.Features["brand_scan"])
 }
 
 func TestInfoEndpointServerMode(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/id"
@@ -35,13 +36,17 @@ func (q *resurrectingQuota) GetUsageSummary(context.Context, string) (*UsageSumm
 func (q *resurrectingQuota) RecordUsage(ctx context.Context, _ AIUsageRecord) error {
 	q.calls++
 	if q.calls == 1 {
-		// Requeue the (apparently stale) processing job, then re-claim it as a
-		// fresh worker — advancing claim_epoch past the running worker's lease.
-		retry, err := q.store.RetryOrFail(ctx, q.jobID, defaultMaxJobAttempts, "simulated stall")
+		// Sweep the (apparently stale) processing job back to 'queued' — the
+		// negative threshold makes the fresh heartbeat look stale, exactly what
+		// the real sweeper does to an abandoned row — then re-claim it as a
+		// fresh worker, advancing claim_epoch past the running worker's lease.
+		// (RetryOrFail is epoch-guarded now, so it can no longer stand in for
+		// the sweeper here.)
+		requeued, _, err := q.store.SweepStaleProcessing(ctx, -time.Minute, defaultMaxJobAttempts)
 		if err != nil {
 			return err
 		}
-		if !retry {
+		if len(requeued) == 0 {
 			return errors.New("resurrection setup: job did not requeue")
 		}
 		ok, _, err := q.store.ClaimJob(ctx, q.jobID)

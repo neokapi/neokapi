@@ -192,7 +192,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		if err != nil {
 			slog.WarnContext(ctx, "quota check failed", "workspace", job.WorkspaceSlug, "error", err)
 		} else if remaining <= 0 {
-			_ = deps.JobStore.UpdateJobStatus(ctx, jobID, StatusFailed, "workspace AI quota exceeded")
+			_, _ = deps.JobStore.FailJob(ctx, jobID, epoch, "workspace AI quota exceeded")
 			return fmt.Errorf("workspace %s quota exceeded", job.WorkspaceSlug)
 		}
 	}
@@ -215,7 +215,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 			return nil
 		}
 		if isTransientError(err) {
-			retry, rerr := deps.JobStore.RetryOrFail(ctx, jobID, deps.maxJobAttempts(), err.Error())
+			retry, rerr := deps.JobStore.RetryOrFail(ctx, jobID, epoch, deps.maxJobAttempts(), err.Error())
 			if rerr != nil {
 				slog.WarnContext(ctx, "retry bookkeeping failed", "job_id", jobID, "error", rerr)
 			}
@@ -232,7 +232,16 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 				map[string]string{"item": job.ItemName, "locale": job.TargetLocale})
 			return err
 		}
-		_ = deps.JobStore.UpdateJobStatus(ctx, jobID, StatusFailed, err.Error())
+		// Epoch-guarded terminal write: a stale worker's permanent error must
+		// not overwrite a fresh owner's run.
+		owner, ferr := deps.JobStore.FailJob(ctx, jobID, epoch, err.Error())
+		if ferr != nil {
+			slog.WarnContext(ctx, "failure bookkeeping failed", "job_id", jobID, "error", ferr)
+		} else if !owner {
+			slog.InfoContext(ctx, "job lease lost; leaving fresh owner's run untouched",
+				"job_id", jobID)
+			return nil
+		}
 		emitLog(deps, job.StepID, "error",
 			"Translation failed: "+err.Error(),
 			map[string]string{"item": job.ItemName, "locale": job.TargetLocale})
@@ -282,7 +291,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	}
 
 	totalBlocks := len(storedBlocks)
-	if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, 0, totalBlocks); err != nil {
+	if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, epoch, 0, totalBlocks); err != nil {
 		return fmt.Errorf("set total blocks: %w", err)
 	}
 
@@ -389,7 +398,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		}
 
 		// Update progress.
-		if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, end, totalBlocks); err != nil {
+		if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, epoch, end, totalBlocks); err != nil {
 			slog.WarnContext(ctx, "update progress failed", "job_id", job.ID, "error", err)
 		}
 		job.DoneBlocks = end
@@ -431,6 +440,12 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	return nil
 }
 
+// leaseRenewer is the lease-heartbeat surface shared by every leased job
+// store (translation, brand scan).
+type leaseRenewer interface {
+	RenewLease(ctx context.Context, id string, epoch int64) (owner bool, err error)
+}
+
 // startLeaseHeartbeat launches a goroutine that refreshes the job's updated_at
 // on jobHeartbeatInterval while the caller holds the lease (epoch). It keeps a
 // slow-but-live job from being swept as stale. The returned stop func blocks
@@ -438,7 +453,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 // green. Ownership loss is not acted on here (it only stops the heartbeat and
 // logs) — the per-chunk RenewLease gate is the authoritative place that halts
 // billing/persistence, so cancellation semantics stay simple.
-func startLeaseHeartbeat(ctx context.Context, store JobStore, jobID string, epoch int64) func() {
+func startLeaseHeartbeat(ctx context.Context, store leaseRenewer, jobID string, epoch int64) func() {
 	stop := make(chan struct{})
 	done := make(chan struct{})
 	go func() {

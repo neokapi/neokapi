@@ -207,6 +207,25 @@ func TestFetchURLExported(t *testing.T) {
 	}
 }
 
+// TestVetPublicHost: the exported host policy rejects forbidden IP literals
+// without any DNS lookup and accepts public ones.
+func TestVetPublicHost(t *testing.T) {
+	for _, host := range []string{
+		"127.0.0.1",
+		"::1",
+		"10.0.0.5",
+		"192.168.1.1",
+		"169.254.169.254",
+		"100.64.0.1",
+		"0.0.0.0",
+	} {
+		t.Run(host, func(t *testing.T) {
+			require.Error(t, VetPublicHost(context.Background(), host))
+		})
+	}
+	require.NoError(t, VetPublicHost(context.Background(), "203.0.113.7"))
+}
+
 func TestForbiddenAddr(t *testing.T) {
 	tests := []struct {
 		addr string

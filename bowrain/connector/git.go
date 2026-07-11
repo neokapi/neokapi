@@ -131,12 +131,22 @@ type GitConnector struct {
 	branch         string
 	localPath      string
 	patterns       []string // glob patterns to discover resource files
+	shallow        bool     // clone with --depth 1 --no-tags
+	noRedirects    bool     // pin http.followRedirects=false on remote commands
 	formatRegistry *registry.FormatRegistry
 	fileConnector  *FileConnector
 	config         map[string]string
 }
 
 // NewGitConnector creates a new GitConnector.
+//
+// Optional hardening config keys (used by one-shot harvesters of
+// user-supplied repositories such as the brand scan):
+//   - "shallow": "true" clones with --depth 1 --no-tags, bounding the fetch
+//     to the tip of the single requested branch.
+//   - "http_follow_redirects": "false" pins http.followRedirects=false on
+//     every remote git command, so a vetted host cannot redirect the smart
+//     HTTP transfer to another (possibly internal) destination.
 func NewGitConnector(formatReg *registry.FormatRegistry, config map[string]string) (*GitConnector, error) {
 	repoURL := config["repo"]
 	if repoURL == "" {
@@ -172,9 +182,20 @@ func NewGitConnector(formatReg *registry.FormatRegistry, config map[string]strin
 		branch:         branch,
 		localPath:      localPath,
 		patterns:       patterns,
+		shallow:        config["shallow"] == "true",
+		noRedirects:    config["http_follow_redirects"] == "false",
 		formatRegistry: formatReg,
 		config:         config,
 	}, nil
+}
+
+// globalArgs returns the git global flags (placed before the subcommand) the
+// connector's hardening config asks for.
+func (c *GitConnector) globalArgs() []string {
+	if !c.noRedirects {
+		return nil
+	}
+	return []string{"-c", "http.followRedirects=false"}
 }
 
 func (c *GitConnector) ID() string                  { return c.id }
@@ -197,7 +218,8 @@ func (c *GitConnector) ensureRepo(ctx context.Context) error {
 	if _, err := os.Stat(filepath.Join(c.localPath, ".git")); err == nil {
 		// Repo exists, pull latest. The "--" separator ensures the remote and
 		// branch are treated as positional arguments, never options.
-		cmd := gitCommand(ctx, "-C", c.localPath, "pull", "origin", "--", c.branch)
+		args := append(c.globalArgs(), "-C", c.localPath, "pull", "origin", "--", c.branch)
+		cmd := gitCommand(ctx, args...)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("git pull: %s: %w", string(out), err)
 		}
@@ -206,7 +228,12 @@ func (c *GitConnector) ensureRepo(ctx context.Context) error {
 
 	// Clone. The "--" separator ensures the repo URL and local path are treated
 	// as positional arguments, never options.
-	cmd := gitCommand(ctx, "clone", "--branch", c.branch, "--single-branch", "--", c.repoURL, c.localPath)
+	args := append(c.globalArgs(), "clone")
+	if c.shallow {
+		args = append(args, "--depth", "1", "--no-tags")
+	}
+	args = append(args, "--branch", c.branch, "--single-branch", "--", c.repoURL, c.localPath)
+	cmd := gitCommand(ctx, args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git clone: %s: %w", string(out), err)
 	}
@@ -285,7 +312,8 @@ func (c *GitConnector) Publish(ctx context.Context, items []*platconn.ContentIte
 	// Push — if this fails, roll back the commit to avoid leaving the repo
 	// in a dirty state with unpushed changes. The "--" separator ensures the
 	// branch is treated as a positional refspec, never an option.
-	pushCmd := gitCommand(ctx, "-C", c.localPath, "push", "origin", "--", c.branch)
+	pushArgs := append(c.globalArgs(), "-C", c.localPath, "push", "origin", "--", c.branch)
+	pushCmd := gitCommand(ctx, pushArgs...)
 	if out, err := pushCmd.CombinedOutput(); err != nil {
 		// Attempt to undo the commit while keeping the working tree intact.
 		resetCmd := gitCommand(ctx, "-C", c.localPath, "reset", "--soft", "HEAD~1")

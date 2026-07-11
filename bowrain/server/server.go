@@ -235,6 +235,12 @@ type Server struct {
 	// ExtractionQueue enqueues extraction job IDs. Nil when not configured.
 	ExtractionQueue jobs.Queue
 
+	// BrandScanStore persists AI brand-scan job state (epic 016). Nil when not configured.
+	BrandScanStore jobs.BrandScanJobStore
+
+	// BrandScanQueue enqueues brand-scan job IDs. Nil when not configured.
+	BrandScanQueue jobs.Queue
+
 	// dashboardCache caches translation dashboard stats per project/stream.
 	dashboardCache sync.Map // map[string]*dashboardCacheEntry
 
@@ -409,6 +415,7 @@ func NewServer(cfg Config) *Server {
 			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
 			s.JobStore = pg.Job
 			s.ExtractionJobStore = pg.Extraction
+			s.BrandScanStore = pg.BrandScan
 			s.QuotaStore = pg.Quota
 			s.wsStores.pgDB = pg.DB
 			pgSQL := pg.DB.DB // embedded *sql.DB
@@ -463,6 +470,12 @@ func NewServer(cfg Config) *Server {
 		} else {
 			s.ExtractionQueue = eq
 		}
+		bq, err := jobs.NewServiceBusQueue(context.Background(), cfg.ServiceBusConnection, "brand-scan-jobs")
+		if err != nil {
+			slog.Warn("failed to connect to Service Bus brand-scan queue", "error", err)
+		} else {
+			s.BrandScanQueue = bq
+		}
 	case cfg.NATSURL != "":
 		q, err := jobs.NewNATSQueue(cfg.NATSURL)
 		if err != nil {
@@ -475,6 +488,12 @@ func NewServer(cfg Config) *Server {
 			slog.Warn("failed to connect to NATS extraction queue", "error", err)
 		} else {
 			s.ExtractionQueue = eq
+		}
+		bq, err := jobs.NewNATSBrandScanQueue(cfg.NATSURL)
+		if err != nil {
+			slog.Warn("failed to connect to NATS brand-scan queue", "error", err)
+		} else {
+			s.BrandScanQueue = bq
 		}
 	}
 
@@ -1293,6 +1312,14 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/brand-profiles/:id/evaluate-rule", s.HandleEvaluateRulePromotion)
 	g.GET("/brand-profiles/starter-packs", s.HandleListStarterPacks)
 
+	// AI brand onboarding scans — epic 016: /:ws/brand-scans. The scan
+	// endpoint burns platform credits (QuotaGuard + the handler's 402
+	// pre-check); the draft tester is deterministic (aiLimit only).
+	g.POST("/brand-scans/uploads", s.HandleBrandScanUploads)
+	g.POST("/brand-scans", s.HandleCreateBrandScan, aiLimit, billing.QuotaGuard(s.BillingStore))
+	g.GET("/brand-scans/:id", s.HandleGetBrandScan)
+	g.POST("/brand-scans/check-draft", s.HandleCheckBrandDraft, aiLimit)
+
 	// Translation jobs — Bowrain AD-011: /:ws/jobs
 	g.POST("/jobs/translate", s.HandleCreateTranslationJob)
 	g.GET("/jobs", s.HandleListJobs)
@@ -1693,6 +1720,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	if s.ExtractionQueue != nil {
 		collectErr("extraction-queue", s.ExtractionQueue.Close())
+	}
+	if s.BrandScanQueue != nil {
+		collectErr("brand-scan-queue", s.BrandScanQueue.Close())
 	}
 	if s.PostHogClient != nil {
 		collectErr("posthog", s.PostHogClient.Close())

@@ -588,6 +588,44 @@ export {
   useCreateFromStarter,
 } from "./hooks/useBrandApi";
 
+// Brand scan (AI brand onboarding — epic 016)
+export {
+  BrandScanInput,
+  BrandScanProgress,
+  BrandScanReview,
+  BrandScanLiveTester,
+  BrandScanLocalLaneCard,
+  MAX_SCAN_URLS,
+  MAX_SCAN_FILES,
+} from "./brand-scan";
+export type {
+  BrandScanInputProps,
+  BrandScanProgressProps,
+  BrandScanReviewProps,
+  BrandScanLiveTesterProps,
+  BrandScanLocalLaneCardProps,
+} from "./brand-scan";
+export {
+  useUploadBrandScanSources,
+  useStartBrandScan,
+  useBrandScanJob,
+  useCheckBrandDraft,
+  brandScanPollInterval,
+} from "./hooks/useBrandScanApi";
+export type {
+  BrandScanRequest,
+  BrandScanUpload,
+  BrandScanUploadResult,
+  BrandScanFieldEvidence,
+  BrandScanEvidence,
+  BrandScanTerm,
+  BrandScanSource,
+  BrandScanDraft,
+  BrandScanStatus,
+  BrandScanJob,
+  BrandScanCheckResult,
+} from "./types/api";
+
 // Brand knowledge graph (AD-021) — concepts, graph, markets, change-sets
 export {
   useConcepts,

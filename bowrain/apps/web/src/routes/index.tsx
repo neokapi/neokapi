@@ -60,6 +60,13 @@ export interface RouterContext {
 
 export interface WorkspaceRouteContext {
   serverMode: "standalone" | "server";
+  /**
+   * Whether this deployment runs the brand-scan job system (the server's
+   * `features.brand_scan` capability bit). Gates the hosted-scan entry points
+   * so servers without it (SQLite/standalone) do not advertise a flow that
+   * would fail with "brand scan system not configured".
+   */
+  brandScanAvailable: boolean;
   user: User;
   workspaces: Workspace[];
   activeWorkspace: Workspace;
@@ -242,6 +249,7 @@ const workspaceRoute = createRoute({
 
     return {
       serverMode,
+      brandScanAvailable: config.features?.brand_scan === true,
       user,
       workspaces,
       activeWorkspace,
@@ -447,6 +455,22 @@ const brandDashboardRoute = createRoute({
   path: "dashboard",
   pendingComponent: DashboardSkeleton,
   component: lazyRouteComponent(() => import("./workspace/brand-dashboard"), "BrandDashboardRoute"),
+});
+
+// Brand scan (AI brand onboarding — epic 016): paste/link/upload/repo intake,
+// then a polled job page that flips into the confidence/attribution review.
+const brandScanRoute = createRoute({
+  getParentRoute: () => brandRoute,
+  path: "scan",
+  pendingComponent: SettingsSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/brand-scan"), "BrandScanRoute"),
+});
+
+const brandScanJobRoute = createRoute({
+  getParentRoute: () => brandRoute,
+  path: "scan/$jobId",
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/brand-scan-job"), "BrandScanJobRoute"),
 });
 
 // Voice — the brand-voice profiles + correction loop, re-homed under the hub.
@@ -677,6 +701,8 @@ const routeTree = rootRoute.addChildren([
       brandExperimentDetailRoute,
       brandActivityRoute,
       brandDashboardRoute,
+      brandScanRoute,
+      brandScanJobRoute,
       brandVoiceRoute.addChildren([
         brandVoiceIndexRoute,
         brandVoiceEditorRoute,

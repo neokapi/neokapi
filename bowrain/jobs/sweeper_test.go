@@ -95,12 +95,12 @@ func TestRetryOrFail_RequeuesUntilBudgetExhausted(t *testing.T) {
 	ctx := context.Background()
 
 	job := newQueuedJob(t, store)
-	ok, _, err := store.ClaimJob(ctx, job.ID)
+	ok, epoch, err := store.ClaimJob(ctx, job.ID)
 	require.NoError(t, err)
 	require.True(t, ok)
 
 	// Attempt 1: budget left (0 < 3) → requeued.
-	retry, err := store.RetryOrFail(ctx, job.ID, 3, "boom-1")
+	retry, err := store.RetryOrFail(ctx, job.ID, epoch, 3, "boom-1")
 	require.NoError(t, err)
 	assert.True(t, retry, "first transient failure should requeue")
 	got, err := store.GetJob(ctx, job.ID)
@@ -109,22 +109,30 @@ func TestRetryOrFail_RequeuesUntilBudgetExhausted(t *testing.T) {
 	assert.Equal(t, 1, attemptsOf(t, db, job.ID))
 
 	// A requeued job can be re-claimed.
-	ok, _, err = store.ClaimJob(ctx, job.ID)
+	ok, epoch, err = store.ClaimJob(ctx, job.ID)
 	require.NoError(t, err)
 	require.True(t, ok, "requeued job must be re-claimable")
 
+	// A stale-epoch retry (an abandoned worker's transient error) is a no-op:
+	// it must not knock the fresh claim back to 'queued' (spawning a duplicate
+	// run) or eat its retry budget.
+	retry, err = store.RetryOrFail(ctx, job.ID, epoch-1, 3, "stale boom")
+	require.NoError(t, err)
+	assert.False(t, retry, "stale epoch must not requeue")
+	assert.Equal(t, 1, attemptsOf(t, db, job.ID), "stale epoch must not eat retry budget")
+
 	// Attempt 2: budget left (1 < 3) → requeued.
-	retry, err = store.RetryOrFail(ctx, job.ID, 3, "boom-2")
+	retry, err = store.RetryOrFail(ctx, job.ID, epoch, 3, "boom-2")
 	require.NoError(t, err)
 	assert.True(t, retry)
 	assert.Equal(t, 2, attemptsOf(t, db, job.ID))
 
-	ok, _, err = store.ClaimJob(ctx, job.ID)
+	ok, epoch, err = store.ClaimJob(ctx, job.ID)
 	require.NoError(t, err)
 	require.True(t, ok)
 
 	// Attempt 3: budget exhausted (2 + 1 >= 3) → failed, no more retries.
-	retry, err = store.RetryOrFail(ctx, job.ID, 3, "boom-final")
+	retry, err = store.RetryOrFail(ctx, job.ID, epoch, 3, "boom-final")
 	require.NoError(t, err)
 	assert.False(t, retry, "exhausted budget must not requeue")
 	got, err = store.GetJob(ctx, job.ID)
@@ -144,7 +152,7 @@ func TestRetryOrFail_NonProcessingIsNoop(t *testing.T) {
 	ctx := context.Background()
 
 	job := newQueuedJob(t, store) // still 'queued', never claimed
-	retry, err := store.RetryOrFail(ctx, job.ID, 3, "boom")
+	retry, err := store.RetryOrFail(ctx, job.ID, 0, 3, "boom")
 	require.NoError(t, err)
 	assert.False(t, retry, "a non-processing job must not be requeued")
 

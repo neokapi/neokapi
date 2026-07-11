@@ -1,5 +1,6 @@
 // IOPort is defined once in the shared @neokapi/contract-types package (#817).
 import type { IOPort } from "@neokapi/contract-types";
+import type { VoiceProfile } from "../brand/types";
 export type { IOPort };
 
 /** User info from auth system */
@@ -401,6 +402,12 @@ export interface ConfigResponse {
   version: string;
   commit: string;
   build_date: string;
+  /**
+   * Deployment-level capabilities the app gates UI on. `brand_scan` is true
+   * only when the server runs the brand-scan job system (PostgreSQL store +
+   * queue); without it the hosted-scan entry points are hidden.
+   */
+  features?: { brand_scan?: boolean };
 }
 
 /** Static version.json served alongside the web SPA */
@@ -1505,4 +1512,98 @@ export interface PostHogDemandResponse {
   source: PostHogDemandSourceInfo;
   cached_at: string;
   cached: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Brand scan (AI brand onboarding — epic 016)
+// ---------------------------------------------------------------------------
+
+/**
+ * Request body for POST /api/v1/{ws}/brand-scans. At least one source
+ * (paste_text, urls, repo_url, or upload_keys) is required.
+ */
+export interface BrandScanRequest {
+  /** Freeform pasted text, used as-is. */
+  paste_text?: string;
+  /** Public https pages to fetch (max 5). */
+  urls?: string[];
+  /** Git repository whose docs/README are read for brand signal. */
+  repo_url?: string;
+  /** Blob keys returned by the brand-scan upload endpoint. */
+  upload_keys?: string[];
+  /** Name for the drafted profile. */
+  profile_name?: string;
+  /** Subject domain hint passed to the inference tool. */
+  domain?: string;
+}
+
+/** One stored upload from POST /api/v1/{ws}/brand-scans/uploads. */
+export interface BrandScanUpload {
+  key: string;
+  filename: string;
+  size: number;
+}
+
+/** Response of the brand-scan upload endpoint. */
+export interface BrandScanUploadResult {
+  uploads: BrandScanUpload[];
+  /** Files that were not stored (disallowed type, oversize, deferred pdf/pptx). */
+  skipped?: SkippedFile[];
+}
+
+/** Model confidence and source rationale for one inferred profile field. */
+export interface BrandScanFieldEvidence {
+  /** 0–1 confidence in the inference for the field. */
+  confidence: number;
+  /** Short note describing the corpus evidence the inference rests on. */
+  source: string;
+}
+
+/** Evidence sidecar keyed by field name (tone, style, vocabulary, examples). */
+export interface BrandScanEvidence {
+  fields: Record<string, BrandScanFieldEvidence>;
+}
+
+/** One candidate glossary term extracted from the corpus. */
+export interface BrandScanTerm {
+  term: string;
+  definition: string;
+  domain: string;
+}
+
+/** One corpus source that contributed to the scan. */
+export interface BrandScanSource {
+  kind: string;
+  label: string;
+  runes: number;
+}
+
+/** The reviewable output of a completed brand scan. */
+export interface BrandScanDraft {
+  profile: VoiceProfile;
+  evidence: BrandScanEvidence;
+  terms: BrandScanTerm[];
+  sources: BrandScanSource[];
+  truncated: boolean;
+}
+
+export type BrandScanStatus = "queued" | "processing" | "completed" | "failed";
+
+/** State of a brand-scan job from GET /api/v1/{ws}/brand-scans/{id}. */
+export interface BrandScanJob {
+  id: string;
+  status: BrandScanStatus;
+  progress: number;
+  message: string;
+  tokens_used: number;
+  error?: string;
+  /** Present only when status is "completed". */
+  draft?: BrandScanDraft;
+}
+
+/** Result of the stateless draft check (live tester). */
+export interface BrandScanCheckResult {
+  /** core/brand.BrandComplianceScore — the roll-up plus per-dimension detail. */
+  score: { overall: number; dimensions?: unknown[]; word_count?: number };
+  findings: unknown[];
 }

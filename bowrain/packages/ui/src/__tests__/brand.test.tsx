@@ -290,11 +290,24 @@ describe("BrandProfileList", () => {
 
   it("shows empty state when no profiles", () => {
     renderList([]);
+    // Without onScanBrand (a server without the brand-scan job system) the
+    // empty state must not advertise the hosted scan.
     expect(
       screen.getByText(
-        "No brand voice profiles yet. Create one to define your brand's writing style.",
+        "No brand voice profiles yet. Define one by hand, or draft one locally with the kapi Agent Skill.",
       ),
     ).toBeInTheDocument();
+    expect(screen.queryByText("Scan your brand")).not.toBeInTheDocument();
+    // The local lane (kapi Agent Skill) is always positioned in the empty state.
+    expect(screen.getByText("Have a codebase?")).toBeInTheDocument();
+  });
+
+  it("shows the scan CTA in the empty state when onScanBrand is provided", async () => {
+    const user = userEvent.setup();
+    const onScanBrand = vi.fn();
+    renderList([], { onScanBrand });
+    await user.click(screen.getByText("Scan your brand"));
+    expect(onScanBrand).toHaveBeenCalled();
   });
 
   it("search filters profiles", async () => {

@@ -10,8 +10,9 @@ import {
 import { useState, useCallback, useMemo } from "react";
 import type { VoiceProfile } from "./types";
 import { BrandProfileCard } from "./BrandProfileCard";
+import { BrandScanLocalLaneCard } from "../brand-scan/BrandScanLocalLaneCard";
 import { ListCapRow } from "../components/ListCapRow";
-import { Plus, Search } from "../components/icons";
+import { Plus, Search, Sparkles } from "../components/icons";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 
 /** Hard render cap for the profile grid. */
@@ -22,6 +23,10 @@ interface BrandProfileListProps {
   onSelect: (profile: VoiceProfile) => void;
   onCreate: () => void;
   onDelete: (profileId: string) => Promise<void>;
+  /** Opens the AI brand scan (epic 016). Renders the empty-state CTA when set. */
+  onScanBrand?: () => void;
+  /** Opens the local-lane guidance (kapi Agent Skill). */
+  onLocalLane?: () => void;
 }
 
 export function BrandProfileList({
@@ -29,6 +34,8 @@ export function BrandProfileList({
   onSelect,
   onCreate,
   onDelete,
+  onScanBrand,
+  onLocalLane,
 }: BrandProfileListProps) {
   useSetBreadcrumb(null);
   const [deleteTarget, setDeleteTarget] = useState<VoiceProfile | null>(null);
@@ -79,13 +86,31 @@ export function BrandProfileList({
       )}
 
       {profiles.length === 0 ? (
-        <div className="text-center py-16 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            No brand voice profiles yet. Create one to define your brand's writing style.
-          </p>
-          <Button onClick={onCreate}>
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> New Profile
-          </Button>
+        <div className="py-12 flex flex-col items-center space-y-6">
+          <div className="text-center space-y-4 max-w-md">
+            <p className="text-sm text-muted-foreground">
+              {onScanBrand
+                ? "No brand voice profiles yet. Scan your existing material to draft one, or define it by hand."
+                : "No brand voice profiles yet. Define one by hand, or draft one locally with the kapi Agent Skill."}
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              {onScanBrand && (
+                <Button onClick={onScanBrand}>
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Scan your brand
+                </Button>
+              )}
+              <Button variant={onScanBrand ? "outline" : "default"} onClick={onCreate}>
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> New Profile
+              </Button>
+            </div>
+            {onScanBrand && (
+              <p className="text-xs text-muted-foreground">
+                Paste text, add links, or drop your marketing files — the scan drafts a voice
+                profile and glossary for your review.
+              </p>
+            )}
+          </div>
+          <BrandScanLocalLaneCard onLearnMore={onLocalLane} className="w-full max-w-md" />
         </div>
       ) : filteredProfiles.length === 0 ? (
         <div className="text-center py-12">
