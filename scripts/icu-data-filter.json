@@ -1,0 +1,12 @@
+{
+    "strategy": "additive",
+    "featureFilters": {
+        "brkitr_rules": "include",
+        "brkitr_dictionaries": "include",
+        "brkitr_tree": "include",
+        "normalization": "include",
+        "translit": "include",
+        "cnvalias": "include",
+        "uemoji": "include"
+    }
+}

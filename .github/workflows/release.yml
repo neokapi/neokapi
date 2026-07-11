@@ -120,9 +120,10 @@ jobs:
   # The kapi-bowrain plugin is built and released separately by
   # release-bowrain.yml (tag bowrain-v*).
   #
-  # ICU provisioning differs per OS (see the per-OS steps): brew on macOS,
-  # built-from-source (PIC, static) on Linux, MSYS2 mingw on Windows. All feed
-  # scripts/gen-icu-static-pc.sh, which forces static linking.
+  # ICU provisioning (see the per-OS steps): built from source with the
+  # trimmed data set (scripts/icu-data-filter.json) on macOS + Linux; MSYS2
+  # mingw (full ICU data — no filtered-source path there yet) on Windows. All
+  # feed scripts/gen-icu-static-pc.sh, which forces static linking.
   #
   # NOTE: this matrix is new and only macOS has been validated locally; the
   # Linux (source ICU + PIE/PIC) and Windows (MSYS2 mingw, -static C++ runtime,
@@ -171,22 +172,39 @@ jobs:
           mkdir -p apps/kapi-desktop/frontend/dist && touch apps/kapi-desktop/frontend/dist/placeholder
 
       # ---- ICU provisioning (sets PKG_CONFIG_PATH for the static .pc) ----
-      - name: Provision static ICU (macOS)
+      # macOS and Linux build ICU from source with the trimmed data set
+      # (scripts/icu-data-filter.json — break iteration + normalization only),
+      # which cuts ~27MB of unused ICU data out of every shipped binary and
+      # shortens macOS Gatekeeper's first-exec scan. The build (~5-10 min) is
+      # cached on the ICU version + filter + script hash.
+      - name: Cache static ICU
+        if: matrix.target.goos != 'windows'
+        id: icu-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/icu-static
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+
+      - name: Provision static ICU (macOS, from source, trimmed data)
         if: matrix.target.goos == 'darwin'
+        env:
+          # Match the Go build's deployment target so the ICU objects do too.
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
         run: |
-          brew install pkg-config icu4c@78
-          PCDIR=$(bash scripts/gen-icu-static-pc.sh)
+          brew install pkg-config
+          [ -f "$HOME/icu-static/lib/libicuuc.a" ] || bash scripts/build-icu-static.sh "$HOME/icu-static"
+          PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
           {
             echo "PKG_CONFIG_PATH=${PCDIR}"
             echo "MACOSX_DEPLOYMENT_TARGET=11.0"
           } >> "$GITHUB_ENV"
 
-      - name: Provision static ICU (Linux, from source)
+      - name: Provision static ICU (Linux, from source, trimmed data)
         if: matrix.target.goos == 'linux'
         run: |
-          sudo apt-get update && sudo apt-get install -y build-essential pkg-config curl
-          ICU_PREFIX=$(bash scripts/build-icu-static.sh /opt/icu-static)
-          PCDIR=$(ICU_PREFIX="$ICU_PREFIX" bash scripts/gen-icu-static-pc.sh)
+          sudo apt-get update && sudo apt-get install -y build-essential pkg-config curl python3 unzip
+          [ -f "$HOME/icu-static/lib/libicuuc.a" ] || bash scripts/build-icu-static.sh "$HOME/icu-static"
+          PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
           echo "PKG_CONFIG_PATH=${PCDIR}" >> "$GITHUB_ENV"
 
       # ---- Build (macOS / Linux) ----
@@ -201,6 +219,17 @@ jobs:
           set -euo pipefail
           mkdir -p out
           ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi ./cmd/kapi )
+
+      # Guard the trimmed ICU data: run the packages that exercise ICU at
+      # runtime (UAX-29 segmentation incl. dictionary scripts, FTS5 ICU
+      # tokenizer incl. its transliterator fold pipeline) against the exact
+      # static ICU the binary just linked. If a future feature starts using an
+      # ICU service whose data the filter excludes, this fails the release
+      # instead of shipping a binary that errors at runtime — the fix is one
+      # line in scripts/icu-data-filter.json.
+      - name: ICU trimmed-data smoke test
+        if: matrix.target.goos != 'windows'
+        run: go test -tags fts5 -count=1 ./core/segment/... ./core/storage/
 
       # ---- Build (Windows, MSYS2 mingw + static ICU) ----
       - name: Set up MSYS2 (Windows)
@@ -627,28 +656,37 @@ jobs:
             echo "LDFLAGS=-w -s -X github.com/neokapi/neokapi/core/version.Version=${REF_NAME#v} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
 
+      # macOS and Linux build ICU from source with the trimmed data set
+      # (scripts/icu-data-filter.json), same as the CLI job — see that job's
+      # provisioning comment. Cached on the ICU version + filter + script hash.
+      - name: Cache static ICU
+        if: runner.os != 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ~/icu-static
+          key: icu-static-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
+
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev build-essential curl pkg-config
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev build-essential curl pkg-config python3 unzip
           # Statically link our ICU usage (FTS5 tokenizer + UAX-29) so the
           # distributed Linux binary doesn't bind to the build host's libicu
           # major version. Built PIC + from source, same as the CLI. GTK/WebKit
           # still load the system libicu at runtime — that's their own, separate,
           # version-suffixed dependency and does not clash with our static copy.
-          ICU_PREFIX=$(bash scripts/build-icu-static.sh /opt/icu-static)
-          PCDIR=$(ICU_PREFIX="$ICU_PREFIX" bash scripts/gen-icu-static-pc.sh)
+          [ -f "$HOME/icu-static/lib/libicuuc.a" ] || bash scripts/build-icu-static.sh "$HOME/icu-static"
+          PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
           echo "PKG_CONFIG_PATH=${PCDIR}" >> "$GITHUB_ENV"
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
+        env:
+          # Match the app build's deployment target so the ICU objects do too.
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
         run: |
           brew install pkg-config
-          # macOS ships ICU at /usr/lib/libicucore.dylib, but no headers and no
-          # versioned symbols. Install icu4c (keg-only) for its headers + static
-          # archives.
-          brew install icu4c
           # Force STATIC ICU linking. A distributed/notarized .app must not
           # depend on a Homebrew icu dylib: it is absent on users' machines, and
           # even when present its code signature has a different Team ID than the
@@ -656,10 +694,11 @@ jobs:
           # override .pc files link libicu*.a by absolute path instead, leaving
           # only the Apple-signed /usr/lib/libc++.1.dylib at runtime.
           # See scripts/gen-icu-static-pc.sh.
-          PCDIR=$(bash scripts/gen-icu-static-pc.sh)
+          [ -f "$HOME/icu-static/lib/libicuuc.a" ] || bash scripts/build-icu-static.sh "$HOME/icu-static"
+          PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
           {
             echo "PKG_CONFIG_PATH=${PCDIR}"
-            echo "CPPFLAGS=-I$(brew --prefix icu4c)/include"
+            echo "CPPFLAGS=-I$HOME/icu-static/include"
           } >> "$GITHUB_ENV"
 
       # Windows: mingw toolchain + static ICU for the cgo build step below.
