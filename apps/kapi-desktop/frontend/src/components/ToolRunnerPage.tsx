@@ -374,9 +374,7 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
           <h2 className="text-lg font-semibold text-foreground">
             {tool.display_name || tool.name}
           </h2>
-          <Markdown className="text-sm text-muted-foreground mt-0.5">
-            {tool.description}
-          </Markdown>
+          <Markdown className="text-sm text-muted-foreground mt-0.5">{tool.description}</Markdown>
           <div className="flex items-center gap-2 mt-2">
             {/* meta.label is pre-resolved via t() in categoryMeta(). */}
             <span
