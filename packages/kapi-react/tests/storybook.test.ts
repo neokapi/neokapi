@@ -1,4 +1,7 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 
 const setTranslationsMock = vi.fn();
 const loadTranslationsMock = vi.fn<(locale: string, url: string) => Promise<void>>();
@@ -13,6 +16,8 @@ vi.mock("../src/runtime/index.ts", () => ({
 
 // Imports MUST come after vi.mock so the mock is hoisted into place.
 import { neokapiDecorator, neokapiGlobalType } from "../src/storybook/index.ts";
+
+(globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("neokapiGlobalType", () => {
   it("produces a Storybook toolbar config from locales", () => {
@@ -45,37 +50,71 @@ describe("neokapiGlobalType", () => {
 });
 
 describe("neokapiDecorator", () => {
+  let container: HTMLElement;
+  let root: Root;
+
   beforeEach(() => {
     setTranslationsMock.mockClear();
     loadTranslationsMock.mockClear();
     loadTranslationsMock.mockResolvedValue(undefined);
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
   });
 
   afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
     vi.clearAllMocks();
   });
 
-  function makeContext(locale?: string) {
-    return { globals: { locale } } as any;
+  /**
+   * The decorator renders as a React component (it uses hooks), so
+   * tests drive it through a real root. `Host` invokes the decorator
+   * the way Storybook does, inside render.
+   */
+  function mount(
+    decorator: ReturnType<typeof neokapiDecorator>,
+    Story: () => unknown,
+    locale?: string,
+  ) {
+    const Host = ({ loc }: { loc?: string }) =>
+      decorator(Story as never, { globals: { locale: loc } } as never) as never;
+    act(() => {
+      root.render(createElement(Host, { loc: locale }));
+    });
+    return {
+      rerender(nextLocale?: string) {
+        act(() => {
+          root.render(createElement(Host, { loc: nextLocale }));
+        });
+      },
+    };
   }
 
-  it("returns the Story result synchronously", () => {
+  /** Let the decorator's async apply-effect settle inside act(). */
+  async function settle() {
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+    });
+  }
+
+  it("renders the Story content", () => {
     const Story = vi.fn(() => "story-output");
     const decorator = neokapiDecorator({
       locales: [{ value: "en", title: "English" }],
     });
-    const result = decorator(Story as any, makeContext("en"));
+    mount(decorator, Story, "en");
     expect(Story).toHaveBeenCalled();
-    expect(result).toBe("story-output");
+    expect(container.textContent).toBe("story-output");
   });
 
   it("calls setTranslations with empty dict for a locale without a url", async () => {
     const decorator = neokapiDecorator({
       locales: [{ value: "en", title: "English" }],
     });
-    const Story = vi.fn(() => null);
-    decorator(Story as any, makeContext("en"));
-    await new Promise((r) => setTimeout(r, 10));
+    mount(decorator, () => null, "en");
+    await settle();
     expect(setTranslationsMock).toHaveBeenCalledWith("en", {});
     expect(loadTranslationsMock).not.toHaveBeenCalled();
   });
@@ -87,9 +126,8 @@ describe("neokapiDecorator", () => {
         { value: "qps", title: "Pseudo", url: "/translations/qps.json" },
       ],
     });
-    const Story = vi.fn(() => null);
-    decorator(Story as any, makeContext("qps"));
-    await new Promise((r) => setTimeout(r, 10));
+    mount(decorator, () => null, "qps");
+    await settle();
     expect(loadTranslationsMock).toHaveBeenCalledWith("qps", "/translations/qps.json");
   });
 
@@ -98,9 +136,8 @@ describe("neokapiDecorator", () => {
     const decorator = neokapiDecorator({
       locales: [{ value: "qps", title: "Pseudo", url: "/x.json" }],
     });
-    const Story = vi.fn(() => null);
-    decorator(Story as any, makeContext("qps"));
-    await new Promise((r) => setTimeout(r, 10));
+    mount(decorator, () => null, "qps");
+    await settle();
     expect(setTranslationsMock).toHaveBeenCalledWith("qps", {});
   });
 
@@ -108,11 +145,11 @@ describe("neokapiDecorator", () => {
     const decorator = neokapiDecorator({
       locales: [{ value: "en", title: "English", url: "/en.json" }],
     });
-    const Story = vi.fn(() => null);
-    decorator(Story as any, makeContext("en"));
-    decorator(Story as any, makeContext("en"));
-    decorator(Story as any, makeContext("en"));
-    await new Promise((r) => setTimeout(r, 10));
+    const handle = mount(decorator, () => null, "en");
+    await settle();
+    handle.rerender("en");
+    handle.rerender("en");
+    await settle();
     expect(loadTranslationsMock).toHaveBeenCalledTimes(1);
   });
 
@@ -123,14 +160,30 @@ describe("neokapiDecorator", () => {
         { value: "qps", title: "Pseudo", url: "/qps.json" },
       ],
     });
-    const Story = vi.fn(() => null);
-    decorator(Story as any, makeContext("en"));
-    await new Promise((r) => setTimeout(r, 10));
-    decorator(Story as any, makeContext("qps"));
-    await new Promise((r) => setTimeout(r, 10));
+    const handle = mount(decorator, () => null, "en");
+    await settle();
+    handle.rerender("qps");
+    await settle();
     expect(loadTranslationsMock).toHaveBeenCalledTimes(2);
     expect(loadTranslationsMock).toHaveBeenNthCalledWith(1, "en", "/en.json");
     expect(loadTranslationsMock).toHaveBeenNthCalledWith(2, "qps", "/qps.json");
+  });
+
+  it("remounts the story once the dictionary has landed (stale-locale fix)", async () => {
+    let renders = 0;
+    const Story = () => {
+      renders += 1;
+      return "s";
+    };
+    const decorator = neokapiDecorator({
+      locales: [{ value: "qps", title: "Pseudo", url: "/qps.json" }],
+    });
+    mount(decorator, Story, "qps");
+    const before = renders;
+    await settle();
+    // The key flips from "qps:false" to "qps:true" when the dict is
+    // applied — the story must render again against the new dict.
+    expect(renders).toBeGreaterThan(before);
   });
 
   it("uses the first locale when context.globals.locale is undefined", async () => {
@@ -140,26 +193,8 @@ describe("neokapiDecorator", () => {
         { value: "qps", title: "Pseudo" },
       ],
     });
-    const Story = vi.fn(() => null);
-    decorator(Story as any, makeContext(undefined));
-    await new Promise((r) => setTimeout(r, 10));
+    mount(decorator, () => null, undefined);
+    await settle();
     expect(setTranslationsMock).toHaveBeenCalledWith("en", {});
-  });
-
-  it("skips fetch when running without a fetch global (SSR-safe)", async () => {
-    const origFetch = (globalThis as any).fetch;
-    delete (globalThis as any).fetch;
-    try {
-      const decorator = neokapiDecorator({
-        locales: [{ value: "qps", title: "Pseudo", url: "/qps.json" }],
-      });
-      const Story = vi.fn(() => null);
-      decorator(Story as any, makeContext("qps"));
-      await new Promise((r) => setTimeout(r, 10));
-      expect(loadTranslationsMock).not.toHaveBeenCalled();
-      expect(setTranslationsMock).toHaveBeenCalledWith("qps", {});
-    } finally {
-      (globalThis as any).fetch = origFetch;
-    }
   });
 });

@@ -21,7 +21,11 @@ import { beforeAll, describe, expect, it } from "vitest";
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(here, "..");
 const repoRoot = resolve(pkgRoot, "..", "..");
-const oxlintBin = join(repoRoot, "node_modules", ".bin", "oxlint");
+// Resolve the REAL oxlint binary from the oxlint package. The
+// repo-root `.bin/oxlint` shim is vite-plus's IDE wrapper (it refuses
+// to lint and prints "run: vp lint"), so going through it breaks this
+// integration test.
+const oxlintBin = join(repoRoot, "node_modules", "oxlint", "bin", "oxlint");
 const fixture = resolve(pkgRoot, "examples", "common-mistakes.jsx");
 
 let pluginPath = "";

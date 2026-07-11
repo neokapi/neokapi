@@ -8,26 +8,28 @@
  * what `__t()` / `__tx()` look up at render time.
  */
 
-import { parseSync, type JSXElement, type Module } from "@swc/core";
+import { parseSync, type JSXElement, type JSXFragment, type Module } from "@swc/core";
 
 import type { Block, Document, Run } from "@neokapi/kapi-format";
 
 import {
+  ancestorTranslate,
   getTagName,
   labelLikeMemberExpr,
   lineFromOffset,
   nearestTranslate,
   resolveHTMLElement,
 } from "./ast.ts";
-import { buildJSXPath } from "./jsx-path.ts";
+import { buildJSXPath, FRAGMENT_DESCRIPTOR } from "./jsx-path.ts";
 import { collectTIdentifiers, walkTCalls } from "./messages.ts";
 import { buildRuns } from "./runs.ts";
 import { hasTranslatableText, isAllInlineContent, resolvePolicy } from "./translatable.ts";
 import type { Warning, WarningCollector } from "./warnings.ts";
 
-import { translatableAttributes } from "../plugin/defaults.ts";
+import { isTranslatableAttribute } from "../plugin/defaults.ts";
 import { hashKey } from "../plugin/hash.ts";
 import { resolveLibraryComponentMap } from "../plugin/manifests.ts";
+import { legacyExprToName, legacyHashKey, legacyJSXPath } from "../migrate/legacy.ts";
 import { CONTEXT_SEPARATOR, type PluginOptions } from "../types.ts";
 
 export type ExtractOptions = Pick<PluginOptions, "componentMap" | "rules" | "communityManifestDir">;
@@ -50,6 +52,13 @@ export interface WalkerOptions extends ExtractOptions {
    * React component.
    */
   warnings?: WarningCollector;
+  /**
+   * Migration channel: when set, the walker also computes each
+   * block's v1 (pre-2.0) hash and reports the (legacyHash, hash)
+   * pair. `legacyHash` is null for blocks the v1 extractor could
+   * not have produced (fragments). Used by `kapi-react migrate-keys`.
+   */
+  onKeyPair?: (pair: { legacyHash: string | null; hash: string }) => void;
 }
 
 /**
@@ -78,8 +87,11 @@ export function extractDocument(code: string, opts: WalkerOptions): Document | n
   const fallbackComponent = basename(opts.filename);
   const collector = new BlockCollector(code, { ...opts, componentMap: effectiveMap });
   collector.setSpanBase(findBaseOffset(ast));
-  walkJsx(ast, (el, ancestors, component) =>
-    collector.visit(el, ancestors, component || fallbackComponent),
+  walkJsx(
+    ast,
+    (el, ancestors, component) => collector.visit(el, ancestors, component || fallbackComponent),
+    (frag, ancestors, component) =>
+      collector.visitFragment(frag, ancestors, component || fallbackComponent),
   );
 
   const tNames = collectTIdentifiers(ast);
@@ -115,6 +127,7 @@ class BlockCollector {
   private readonly rules: NonNullable<ExtractOptions["rules"]>;
   private readonly filename: string;
   private readonly warnings: WarningCollector | undefined;
+  private readonly onKeyPair: WalkerOptions["onKeyPair"];
   private readonly out: Block[] = [];
   private readonly seenHashes = new Set<string>();
   /**
@@ -130,6 +143,7 @@ class BlockCollector {
     this.rules = opts.rules ?? [];
     this.filename = opts.filename;
     this.warnings = opts.warnings;
+    this.onKeyPair = opts.onKeyPair;
   }
 
   setSpanBase(base: number): void {
@@ -201,6 +215,46 @@ class BlockCollector {
     }
 
     this.emitElementBlock(el, ancestors, policy.locNote, component);
+    return true;
+  }
+
+  /**
+   * Visits a JSX fragment (`<>…</>`). Fragments carry no attributes,
+   * so only ancestor `translate` state and the promotion rule (direct
+   * text + all-inline children) apply. Emitted blocks use the fixed
+   * `fragment` descriptor.
+   */
+  visitFragment(frag: JSXFragment, ancestors: readonly JSXElement[], component: string): boolean {
+    if (ancestorTranslate(ancestors) === "no") return false;
+    if (!hasTranslatableText(frag) || !isAllInlineContent(frag, this.componentMap)) return false;
+
+    const { runs, flatText, placeholders } = buildRuns(frag, {
+      componentMap: this.componentMap,
+      sourceSlice: (start, end) => this.sliceSource(start, end),
+    });
+    if (flatText === "") return false;
+
+    const hash = hashKey(flatText, FRAGMENT_DESCRIPTOR);
+    if (this.seenHashes.has(hash)) return true;
+    this.seenHashes.add(hash);
+    this.onKeyPair?.({ legacyHash: null, hash });
+
+    const line = lineFromOffset(this.code, frag.span.start);
+    this.out.push({
+      id: `${this.filename}:${line}:${this.out.length}`,
+      hash,
+      translatable: true,
+      type: "jsx:element",
+      source: runs,
+      placeholders,
+      properties: {
+        file: this.filename,
+        line,
+        component,
+        jsxPath: FRAGMENT_DESCRIPTOR,
+        element: "fragment",
+      },
+    });
     return true;
   }
 
@@ -280,6 +334,7 @@ class BlockCollector {
     const hash = hashKey(text, desc);
     if (this.seenHashes.has(hash)) return;
     this.seenHashes.add(hash);
+    this.onKeyPair?.({ legacyHash: legacyHashKey(text, desc), hash });
 
     const line = lineFromOffset(this.code, node.span.start);
     const properties: Block["properties"] = {
@@ -322,6 +377,17 @@ class BlockCollector {
     if (this.seenHashes.has(hash)) return;
     this.seenHashes.add(hash);
 
+    if (this.onKeyPair) {
+      const legacyFlat = buildRuns(el, {
+        componentMap: this.componentMap,
+        sourceSlice: (start, end) => this.sliceSource(start, end),
+        exprName: legacyExprToName,
+      }).flatText;
+      const legacyPath = legacyJSXPath(ancestors, el, this.componentMap);
+      const legacyDesc = locNote ? `${legacyPath}${CONTEXT_SEPARATOR}${locNote}` : legacyPath;
+      this.onKeyPair({ legacyHash: legacyHashKey(legacyFlat, legacyDesc), hash });
+    }
+
     this.out.push({
       id: `${this.filename}:${lineFromOffset(this.code, el.span.start)}:${this.out.length}`,
       hash,
@@ -345,7 +411,7 @@ class BlockCollector {
       if (attr.type !== "JSXAttribute") continue;
       if (attr.name.type !== "Identifier") continue;
       const name = attr.name.value;
-      if (!translatableAttributes.has(name)) continue;
+      if (!isTranslatableAttribute(name, getTagName(el) ?? "")) continue;
       if (!attr.value) continue;
 
       // Plain string literal: single block (the dominant case).
@@ -419,6 +485,16 @@ class BlockCollector {
     if (this.seenHashes.has(hash)) return;
     this.seenHashes.add(hash);
 
+    if (this.onKeyPair) {
+      const legacyPath = legacyJSXPath(ancestors, el, this.componentMap);
+      const legacyContext =
+        branchIndex === null ? `${legacyPath}[${name}]` : `${legacyPath}[${name}::${branchIndex}]`;
+      const legacyDesc = locNote
+        ? `${legacyContext}${CONTEXT_SEPARATOR}${locNote}`
+        : legacyContext;
+      this.onKeyPair({ legacyHash: legacyHashKey(text, legacyDesc), hash });
+    }
+
     const idSuffix = branchIndex === null ? name : `${name}:${branchIndex}`;
     this.out.push({
       id: `${this.filename}:${lineFromOffset(this.code, el.span.start)}:${idSuffix}`,
@@ -480,6 +556,11 @@ function blockProperties(
 function walkJsx(
   module: Module,
   visit: (el: JSXElement, ancestors: readonly JSXElement[], component: string) => boolean,
+  visitFragment?: (
+    frag: JSXFragment,
+    ancestors: readonly JSXElement[],
+    component: string,
+  ) => boolean,
 ): void {
   const base = findBaseOffset(module);
   const ancestors: JSXElement[] = [];
@@ -519,6 +600,20 @@ function walkJsx(
       if (el.opening) descend(el.opening);
       if (el.closing) descend(el.closing);
       ancestors.pop();
+    } else if (node.type === "JSXFragment") {
+      const frag = node as JSXFragment;
+      const currentComponent = components[components.length - 1] ?? "";
+      const emitted = visitFragment ? visitFragment(frag, [...ancestors], currentComponent) : false;
+      // Same consumption rule as elements: an emitted fragment block
+      // captured its inline children; only expression containers may
+      // still surface their own inner blocks.
+      if (emitted) {
+        for (const child of frag.children ?? []) {
+          if (child.type === "JSXExpressionContainer") descend(child);
+        }
+      } else {
+        for (const child of frag.children ?? []) descend(child);
+      }
     } else {
       for (const key of Object.keys(node)) {
         if (key === "type") continue;

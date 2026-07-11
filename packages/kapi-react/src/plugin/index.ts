@@ -77,8 +77,112 @@ export const unpluginFactory = (options: PluginOptions = {}) => {
         emitManifest(this, bundle);
       },
     },
+
+    // Webpack 5 / Rspack: rebuild the chunk → module-resource mapping
+    // from the chunk graph and emit the same manifest asset the
+    // Vite/Rollup path produces. Without this, `kapi-react split` had
+    // nothing to consume under the exact stacks the Next.js docs
+    // steer users to, and route-level lazy loading silently no-oped.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    webpack(compiler: any) {
+      if (options.mode !== "runtime") return;
+      const { webpack } = compiler;
+      compiler.hooks.thisCompilation.tap("neokapi-react", (compilation: any) => {
+        compilation.hooks.processAssets.tap(
+          {
+            name: "neokapi-react",
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
+          },
+          () => {
+            const bundle: BundleLike = {};
+            for (const chunk of compilation.chunks) {
+              const modules: Record<string, unknown> = {};
+              for (const mod of compilation.chunkGraph.getChunkModulesIterable(chunk)) {
+                const resource = (mod as { resource?: string }).resource;
+                if (resource) modules[resource] = true;
+              }
+              const name: string = chunk.name ?? chunk.id?.toString() ?? "chunk";
+              bundle[name] = { type: "chunk", name, modules };
+            }
+            const manifest = buildChunkManifest(bundle, hashesByFile);
+            compilation.emitAsset(
+              MANIFEST_FILENAME,
+              new webpack.sources.RawSource(JSON.stringify(manifest, null, 2)),
+            );
+          },
+        );
+      });
+    },
+
+    // esbuild: with a metafile, map outputs → inputs for real
+    // per-chunk manifests; without one, fall back to a single-chunk
+    // manifest (better than silently emitting nothing) and say so.
+    esbuild: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setup(build: any) {
+        if (options.mode !== "runtime") return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        build.onEnd(async (result: any) => {
+          const outdir = build.initialOptions.outdir;
+          if (!outdir) return;
+          const bundle: BundleLike = {};
+          if (result.metafile) {
+            for (const [outFile, output] of Object.entries(
+              result.metafile.outputs as Record<string, { inputs: Record<string, unknown> }>,
+            )) {
+              if (!outFile.endsWith(".js") && !outFile.endsWith(".mjs")) continue;
+              const modules: Record<string, unknown> = {};
+              for (const input of Object.keys(output.inputs)) {
+                modules[input] = true;
+                // hashesByFile keys are absolute; metafile inputs are
+                // outdir-relative — index both spellings.
+                modules[resolvePath(input)] = true;
+              }
+              const name = basenameNoExt(outFile);
+              bundle[name] = { type: "chunk", name, modules };
+            }
+          } else {
+            const modules: Record<string, unknown> = {};
+            for (const id of hashesByFile.keys()) modules[id] = true;
+            bundle["main"] = { type: "chunk", name: "main", modules };
+            console.warn(
+              "[neokapi] esbuild build has no metafile — emitting a single-chunk " +
+                "translations-manifest.json. Pass `metafile: true` for per-chunk splitting.",
+            );
+          }
+          const manifest = buildChunkManifest(bundle, hashesByFile);
+          const { writeFile, mkdir } = await import("node:fs/promises");
+          await mkdir(outdir, { recursive: true });
+          await writeFile(
+            joinPath(outdir, MANIFEST_FILENAME),
+            JSON.stringify(manifest, null, 2),
+            "utf8",
+          );
+        });
+      },
+    },
   };
 };
+
+// Tiny path helpers — avoid a static node:path import in a module
+// that also loads in non-Node bundler sandboxes.
+function joinPath(dir: string, file: string): string {
+  return dir.endsWith("/") ? dir + file : `${dir}/${file}`;
+}
+
+function basenameNoExt(p: string): string {
+  const base = p.slice(p.lastIndexOf("/") + 1);
+  const dot = base.lastIndexOf(".");
+  return dot > 0 ? base.slice(0, dot) : base;
+}
+
+function resolvePath(p: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const proc = (globalThis as any).process;
+  const cwd: string = proc?.cwd?.() ?? "";
+  if (!cwd || p.startsWith("/") || /^[A-Za-z]:/.test(p)) return p;
+  return joinPath(cwd, p);
+}
 
 export const unplugin = /* #__PURE__ */ createUnplugin(unpluginFactory);
 

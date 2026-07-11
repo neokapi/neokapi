@@ -121,7 +121,9 @@ function matchesRule(rule: Rule, htmlElement: string, el: JSXElement): boolean {
  * `jsx:element` placeholder in the parent's runs, same as any other
  * inline element.
  */
-export function isAllInlineContent(el: JSXElement, componentMap: Record<string, string>): boolean {
+export type HasChildren = Pick<JSXElement, "children">;
+
+export function isAllInlineContent(el: HasChildren, componentMap: Record<string, string>): boolean {
   for (const child of el.children ?? []) {
     if (child.type === "JSXText" || child.type === "JSXExpressionContainer") continue;
     if (child.type === "JSXElement") {
@@ -163,7 +165,7 @@ function isChildless(el: JSXElement): boolean {
  * `hasTranslatableText` applies the same rule so extract and
  * transform stay aligned.
  */
-export function hasTranslatableText(el: JSXElement): boolean {
+export function hasTranslatableText(el: HasChildren): boolean {
   for (const child of el.children ?? []) {
     if (child.type === "JSXText" && child.value.trim().length > 0) return true;
     if (child.type === "JSXElement") {

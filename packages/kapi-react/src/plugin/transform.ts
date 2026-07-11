@@ -10,17 +10,18 @@
  * to keep the output as JSX for the downstream React plugin.
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { parseSync, type JSXElement, type Module } from "@swc/core";
+import { parseSync, type JSXElement, type JSXFragment, type Module } from "@swc/core";
 
 import {
+  ancestorTranslate,
   getTagName,
   lineFromOffset,
   nearestTranslate,
   resolveHTMLElement,
 } from "../extract/ast.ts";
-import { buildJSXPath } from "../extract/jsx-path.ts";
+import { buildJSXPath, FRAGMENT_DESCRIPTOR } from "../extract/jsx-path.ts";
 import { buildRuns, type Occurrence } from "../extract/runs.ts";
 import { hasTranslatableText, isAllInlineContent, resolvePolicy } from "../extract/translatable.ts";
 import { collectTIdentifiers, walkTCalls } from "../extract/messages.ts";
@@ -30,7 +31,7 @@ import {
   formatWarning,
   type WarningCollector,
 } from "../extract/warnings.ts";
-import { translatableAttributes } from "./defaults.ts";
+import { isTranslatableAttribute } from "./defaults.ts";
 import { hashKey } from "./hash.ts";
 import { CONTEXT_SEPARATOR, type PluginOptions } from "../types.ts";
 
@@ -127,18 +128,33 @@ function makeOffsetConverter(ast: Module, code: string): (offset: number) => num
 
 // ─── Translation loading ─────────────────────────────────────
 
-let translationCache: Record<string, Record<string, string>> = {};
+/**
+ * Per-file dict cache keyed by path and invalidated by mtime, so a
+ * long-lived dev server picks up edits to `translations/*.json`
+ * without a restart. The stat costs microseconds per transform call;
+ * the old process-lifetime cache served stale translations forever.
+ */
+const dictFileCache = new Map<string, { mtimeMs: number; dict: Record<string, string> }>();
 
 /**
  * Load a single translation JSON file. Returns flat {hash: text} dict.
  */
 function loadSingleDict(dir: string, locale: string): Record<string, string> | null {
   const filePath = join(dir, `${locale}.json`);
-  if (!existsSync(filePath)) return null;
+  let mtimeMs: number;
+  try {
+    mtimeMs = statSync(filePath).mtimeMs;
+  } catch {
+    return null;
+  }
+  const cached = dictFileCache.get(filePath);
+  if (cached && cached.mtimeMs === mtimeMs) return cached.dict;
   try {
     const raw = readFileSync(filePath, "utf-8");
     const data = JSON.parse(raw);
-    return data[locale] || data;
+    const dict = data[locale] || data;
+    dictFileCache.set(filePath, { mtimeMs, dict });
+    return dict;
   } catch {
     return null;
   }
@@ -151,9 +167,6 @@ function loadSingleDict(dir: string, locale: string): Record<string, string> | n
  */
 function loadTranslationDict(options: PluginOptions): Record<string, string> | null {
   if (!options.locale) return null;
-
-  const cacheKey = `${options.locale}:${options.fallbackLocales?.join(",") || ""}:${options.translationsDir || ""}`;
-  if (translationCache[cacheKey]) return translationCache[cacheKey];
 
   const dir = options.translationsDir || "./translations";
 
@@ -176,7 +189,6 @@ function loadTranslationDict(options: PluginOptions): Record<string, string> | n
 
   if (Object.keys(merged).length === 0) return null;
 
-  translationCache[cacheKey] = merged;
   return merged;
 }
 
@@ -243,30 +255,42 @@ export function transform(
   let needsT = false;
   let needsTx = false;
 
-  walkModule(ast, (el, ancestors) => {
-    const r = processElement(
-      el,
-      ancestors,
-      buf,
-      filename,
-      componentMap,
-      rules,
-      mode,
-      dict,
-      options,
-      s,
-      ops,
-      warnings,
-      code,
-      hashes,
-    );
-    if (r.runtime === "runtime-t") needsT = true;
-    if (r.runtime === "runtime-tx") {
-      needsT = true;
-      needsTx = true;
-    }
-    return { skipChildren: r.consumed };
-  });
+  walkModule(
+    ast,
+    (el, ancestors) => {
+      const r = processElement(
+        el,
+        ancestors,
+        buf,
+        filename,
+        componentMap,
+        rules,
+        mode,
+        dict,
+        options,
+        s,
+        ops,
+        warnings,
+        code,
+        hashes,
+      );
+      if (r.runtime === "runtime-t") needsT = true;
+      if (r.runtime === "runtime-tx") {
+        needsT = true;
+        needsTx = true;
+      }
+      return { skipChildren: r.consumed };
+    },
+    (frag, ancestors) => {
+      const r = processFragment(frag, ancestors, buf, componentMap, mode, dict, options, s, ops, hashes);
+      if (r.runtime === "runtime-t") needsT = true;
+      if (r.runtime === "runtime-tx") {
+        needsT = true;
+        needsTx = true;
+      }
+      return { skipChildren: r.consumed };
+    },
+  );
 
   // User-facing `t("text", params?)` calls. Same matching rule as
   // JSX extraction — only calls bound to the runtime import are
@@ -417,9 +441,24 @@ export function transform(
 function walkModule(
   module: Module,
   visitor: (el: JSXElement, ancestors: JSXElement[]) => { skipChildren: boolean },
+  fragmentVisitor?: (frag: JSXFragment, ancestors: JSXElement[]) => { skipChildren: boolean },
 ) {
   function walk(node: any, jsxAncestors: JSXElement[]) {
     if (!node || typeof node !== "object") return;
+    if (node.type === "JSXFragment" && fragmentVisitor) {
+      const frag = node as JSXFragment;
+      const { skipChildren } = fragmentVisitor(frag, jsxAncestors);
+      if (skipChildren) {
+        // Consumed fragments still surface conditional JSX inside
+        // expression containers, mirroring element behavior.
+        for (const child of frag.children || []) {
+          if (child.type === "JSXExpressionContainer") walk(child, jsxAncestors);
+        }
+        return;
+      }
+      for (const child of frag.children || []) walk(child, jsxAncestors);
+      return;
+    }
     if (node.type === "JSXElement") {
       const el = node as JSXElement;
       const { skipChildren } = visitor(el, jsxAncestors);
@@ -544,6 +583,96 @@ function processElement(
   const paramList: ParamInfo[] = occurrences.map((o) => convertOccurrence(o, s));
   const hk = hashKey(text, desc);
 
+  const blockRuntime = emitBlockContent({
+    hk,
+    text,
+    paramList,
+    mode,
+    dict,
+    options,
+    buf,
+    contentStart,
+    contentEnd,
+    ops,
+    hashes,
+  });
+  if (blockRuntime) usedRuntime = blockRuntime;
+
+  removeDataI18nAttrs(el, buf, s, ops);
+  return { runtime: usedRuntime, consumed: true };
+}
+
+/**
+ * Fragment-rooted blocks (`<>text {name}</>`): no attributes, no
+ * rules — ancestor `translate` state plus the promotion rule (direct
+ * text, all-inline children) decide. Content splices between the
+ * `<>` and `</>` markers; descriptor is the fixed `fragment`.
+ */
+function processFragment(
+  frag: JSXFragment,
+  ancestors: JSXElement[],
+  buf: Buffer,
+  componentMap: Record<string, string>,
+  mode: "inline" | "runtime",
+  dict: Record<string, string> | null,
+  options: PluginOptions,
+  s: (offset: number) => number,
+  ops: TransformOp[],
+  hashes: Set<string>,
+): ProcessResult {
+  if (ancestorTranslate(ancestors) === "no") return { runtime: null, consumed: false };
+  if (!hasTranslatableText(frag) || !isAllInlineContent(frag, componentMap)) {
+    return { runtime: null, consumed: false };
+  }
+
+  const contentStart = s(frag.opening.span.end);
+  const contentEnd = s(frag.closing.span.start);
+
+  const { flatText: text, occurrences } = buildRuns(frag, {
+    componentMap,
+    sourceSlice: (start, end) => bslice(buf, s(start), s(end)),
+  });
+  if (text === "") return { runtime: null, consumed: false };
+  const paramList: ParamInfo[] = occurrences.map((o) => convertOccurrence(o, s));
+  const hk = hashKey(text, FRAGMENT_DESCRIPTOR);
+
+  const runtime = emitBlockContent({
+    hk,
+    text,
+    paramList,
+    mode,
+    dict,
+    options,
+    buf,
+    contentStart,
+    contentEnd,
+    ops,
+    hashes,
+  });
+  return { runtime, consumed: true };
+}
+
+/**
+ * Shared block-content emission for elements and fragments: inline
+ * splicing (with ICU routed through the runtime) or the
+ * `{__t(...)}` / `{__tx(...)}` runtime call.
+ */
+function emitBlockContent(args: {
+  hk: string;
+  text: string;
+  paramList: ParamInfo[];
+  mode: "inline" | "runtime";
+  dict: Record<string, string> | null;
+  options: PluginOptions;
+  buf: Buffer;
+  contentStart: number;
+  contentEnd: number;
+  ops: TransformOp[];
+  hashes: Set<string>;
+}): "runtime-t" | "runtime-tx" | null {
+  const { hk, text, paramList, mode, dict, options, buf, contentStart, contentEnd, ops, hashes } =
+    args;
+
   // ICU (plural/select) pivots are runtime values — the chosen form
   // can't be known at build time, so ICU-bearing blocks always route
   // through the runtime resolver, with the translated template baked
@@ -576,25 +705,26 @@ function processElement(
       const insert = buildRuntimeCall(hk, translated ?? text, paramList, buf, {
         fallbackOverride: translated ?? text,
       });
-      ops.push({ offset: contentStart, deleteCount: contentEnd - contentStart, insert: insert.code });
-      usedRuntime = insert.usedTx ? "runtime-tx" : "runtime-t";
-    } else {
-      const inlined = inlineTranslation(translated ?? text, paramList, buf);
       ops.push({
         offset: contentStart,
         deleteCount: contentEnd - contentStart,
-        insert: inlined,
+        insert: insert.code,
       });
+      return insert.usedTx ? "runtime-tx" : "runtime-t";
     }
-  } else {
-    const insert = buildRuntimeCall(hk, text, paramList, buf, {});
-    ops.push({ offset: contentStart, deleteCount: contentEnd - contentStart, insert: insert.code });
-    hashes.add(hk);
-    usedRuntime = insert.usedTx ? "runtime-tx" : "runtime-t";
+    const inlined = inlineTranslation(translated ?? text, paramList, buf);
+    ops.push({
+      offset: contentStart,
+      deleteCount: contentEnd - contentStart,
+      insert: inlined,
+    });
+    return null;
   }
 
-  removeDataI18nAttrs(el, buf, s, ops);
-  return { runtime: usedRuntime, consumed: true };
+  const insert = buildRuntimeCall(hk, text, paramList, buf, {});
+  ops.push({ offset: contentStart, deleteCount: contentEnd - contentStart, insert: insert.code });
+  hashes.add(hk);
+  return insert.usedTx ? "runtime-tx" : "runtime-t";
 }
 
 /**
@@ -860,7 +990,7 @@ function processAttributes(
     if (attr.name.type !== "Identifier") continue;
 
     const attrName = attr.name.value;
-    if (!translatableAttributes.has(attrName)) continue;
+    if (!isTranslatableAttribute(attrName, getTagName(el) ?? "")) continue;
     if (!attr.value) continue;
 
     const jsxPath = buildJSXPath(ancestors, el, componentMap);

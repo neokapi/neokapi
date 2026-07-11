@@ -86,6 +86,14 @@ export function nearestTranslate(
 ): "yes" | "no" | null {
   const self = getStringAttr(el, "translate");
   if (self === "yes" || self === "no") return self;
+  return ancestorTranslate(ancestors);
+}
+
+/**
+ * The ancestor half of `nearestTranslate` — used directly for JSX
+ * fragments, which carry no attributes of their own.
+ */
+export function ancestorTranslate(ancestors: readonly JSXElement[]): "yes" | "no" | null {
   // Ancestors are ordered root → parent; walk from the nearest
   // (deepest) outward so closer settings win.
   for (let i = ancestors.length - 1; i >= 0; i--) {

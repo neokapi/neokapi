@@ -20,6 +20,7 @@
  *   };
  */
 
+import { createElement, Fragment, useEffect, useState } from "react";
 import type { Decorator } from "@storybook/react-vite";
 
 export interface NeokapiLocale {
@@ -51,35 +52,48 @@ async function getRuntime() {
 
 /**
  * Locale-switching decorator. Applies translations whenever the user
- * picks a new value from the toolbar. Falls back to the empty
- * dictionary (source text) when the translation file can't be fetched
- * or when running in an SSR context without `fetch`.
+ * picks a new value from the toolbar, then re-keys the story once the
+ * dictionary has actually landed — the plugin's `__t`/`__tx` call
+ * sites don't subscribe to the store, so without the remount a story
+ * kept rendering the previous locale until the next interaction.
+ * Falls back to the empty dictionary (source text) when the
+ * translation file can't be fetched or when running in an SSR
+ * context without `fetch`.
  */
 export function neokapiDecorator(opts: NeokapiStorybookOptions): Decorator {
   const byValue = new Map(opts.locales.map((l) => [l.value, l]));
-  let lastApplied: string | null = null;
 
   return (Story, context) => {
-    const value = (context.globals.locale as string | undefined) ?? opts.locales[0]?.value;
+    const value =
+      (context.globals.locale as string | undefined) ?? opts.locales[0]?.value ?? "en";
 
-    if (value && value !== lastApplied) {
-      lastApplied = value;
+    // Decorators render as React components, so hooks are available.
+    const [applied, setApplied] = useState<string | null>(null);
+
+    useEffect(() => {
+      let cancelled = false;
       void (async () => {
         const runtime = await getRuntime();
         const locale = byValue.get(value);
         if (!locale?.url || typeof fetch === "undefined") {
           runtime.setTranslations(value, {});
-          return;
+        } else {
+          try {
+            await runtime.loadTranslations(value, locale.url);
+          } catch {
+            runtime.setTranslations(value, {});
+          }
         }
-        try {
-          await runtime.loadTranslations(value, locale.url);
-        } catch {
-          runtime.setTranslations(value, {});
-        }
+        if (!cancelled) setApplied(value);
       })();
-    }
+      return () => {
+        cancelled = true;
+      };
+    }, [value]);
 
-    return Story();
+    // Key on (locale, landed?) — the story remounts once when the
+    // dict is active, so non-subscribing lookups re-read it.
+    return createElement(Fragment, { key: `${value}:${applied === value}` }, Story());
   };
 }
 

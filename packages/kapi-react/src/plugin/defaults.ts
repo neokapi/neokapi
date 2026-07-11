@@ -124,25 +124,10 @@ export const containerElements = new Set([
 ]);
 
 /**
- * Attributes extracted as translatable string literals regardless of
- * the host element. Three buckets:
- *
- *   1. HTML standard: alt, title, placeholder — user-visible text
- *      on standard elements.
- *   2. ARIA: aria-label / aria-description / aria-placeholder /
- *      aria-roledescription / aria-valuetext — always user-visible.
- *   3. React-component conventions: subtitle, description, label,
- *      heading, caption, helpText, helperText, errorMessage, hint,
- *      tooltip, emptyMessage, emptyStateText, filterPlaceholder.
- *      These are the prop names UI libraries (shadcn, mui, radix
- *      wrappers, our own `<PageHeader>` / `<EmptyState>` /
- *      `<SelectableList>` / `<FlowsWorkspace>`) use for visible
- *      text. Adding them to the default set means `<PageHeader
- *      title="Translation Memories" />` just works.
- *
- * Opt out a specific site with `translate="no"` or a rule selector.
+ * HTML-standard + ARIA attributes carrying user-visible text — always
+ * extracted, on any host element.
  */
-export const translatableAttributes = new Set([
+export const htmlTranslatableAttributes = new Set([
   "alt",
   "title",
   "placeholder",
@@ -151,6 +136,22 @@ export const translatableAttributes = new Set([
   "aria-placeholder",
   "aria-roledescription",
   "aria-valuetext",
+]);
+
+/**
+ * React-component prop-name conventions: the names UI libraries
+ * (shadcn, mui, radix wrappers, our own `<PageHeader>` /
+ * `<EmptyState>` / `<SelectableList>`) use for visible text. Adding
+ * them to the default set means `<PageHeader title="Translation
+ * Memories" />` just works.
+ *
+ * Scoped to **PascalCase components only** — on plain HTML elements
+ * these generic names (`label`, `data`, `heading`, …) are far more
+ * often DOM props, enum keys, or data-binding fields than
+ * user-visible copy, and extracting them swept up strings nobody
+ * wanted translated.
+ */
+export const componentTranslatableAttributes = new Set([
   "subtitle",
   "description",
   "label",
@@ -165,6 +166,29 @@ export const translatableAttributes = new Set([
   "emptyStateText",
   "filterPlaceholder",
 ]);
+
+/**
+ * Union of both buckets — the full prop-name vocabulary. Prefer
+ * `isTranslatableAttribute` for extraction decisions (it applies the
+ * component scoping); this set exists for tools that only need the
+ * vocabulary (lint rules, docs).
+ */
+export const translatableAttributes = new Set([
+  ...htmlTranslatableAttributes,
+  ...componentTranslatableAttributes,
+]);
+
+/**
+ * Extraction predicate: HTML/ARIA attributes on any element;
+ * convention props only on PascalCase components. Opt out a specific
+ * site with `translate="no"` or a rule selector.
+ */
+export function isTranslatableAttribute(attrName: string, tag: string): boolean {
+  if (htmlTranslatableAttributes.has(attrName)) return true;
+  if (!componentTranslatableAttributes.has(attrName)) return false;
+  const first = tag[0] ?? "";
+  return first >= "A" && first <= "Z";
+}
 
 export function getTranslatability(htmlElement: string): "yes" | "no" | "container" {
   if (nonTranslatableElements.has(htmlElement)) return "no";
