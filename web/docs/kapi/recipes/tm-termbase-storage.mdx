@@ -86,7 +86,7 @@ directory tree from the current directory, git-style.
 
 This is the same `tm.db` that [`kapi extract`](/reference/commands/extract)
 pre-fills from and [`kapi merge`](/reference/commands/merge) writes back to, and
-the same termbase that [`kapi term-check`](/reference/commands/term-check)
+the same termbase that [`kapi tool term-check`](/reference/commands/tool-term-check)
 enforces — so a project-mode `kapi tm lookup` or `kapi termbase lookup` sees
 exactly the store the round-trip uses, with no flag needed.
 
@@ -104,7 +104,7 @@ different store even from inside a project.
 
 The tool commands that consume a store —
 [`kapi recycle`](/reference/commands/recycle) and
-[`kapi term-check`](/reference/commands/term-check) — follow the same precedence
+[`kapi tool term-check`](/reference/commands/tool-term-check) — follow the same precedence
 through their own `--tm` and `--termbase` flags:
 
 - `--tm <name|path>` / `--termbase <name|path>` — a bare name (no separators)
@@ -151,7 +151,7 @@ authoritative `.kapi/tm.db` and termbase with no `--name`, `--local`, or `--file
 flag — the third storage model above. This is the same store
 [`kapi extract`](/reference/commands/extract) pre-fills from,
 [`kapi merge`](/reference/commands/merge) writes back to, and
-[`kapi term-check`](/reference/commands/term-check) enforces, so lookups, recycle,
+[`kapi tool term-check`](/reference/commands/tool-term-check) enforces, so lookups, recycle,
 and the round-trip all see one shared memory and glossary. See
 [Create your first project](/kapi/get-started/first-project).
 
