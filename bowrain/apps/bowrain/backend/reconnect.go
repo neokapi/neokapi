@@ -2,8 +2,11 @@ package backend
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
+
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 )
 
 // goOffline transitions the app to offline state and starts the reconnection goroutine.
@@ -106,8 +109,27 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 			break
 		}
 
+		// A pass makes progress when at least one change leaves the pending set
+		// (completed or terminally failed). A pass with no progress means every
+		// change failed transiently while the connection stayed up; re-peeking
+		// immediately would spin a tight retry loop against the server, so stop
+		// and leave the rest for the next reconnect (MarkFailed's attempt cap
+		// eventually retires serial offenders).
+		progressed := false
 		for _, change := range changes {
 			if err := a.replayChange(ctx, change); err != nil {
+				var statusErr *apiclient.StatusError
+				if errors.As(err, &statusErr) && statusErr.Permanent() {
+					// The server rejected the change outright (4xx) — e.g. a queued
+					// review of a block whose translation no longer exists (422) or a
+					// deleted block (404). Retrying the identical request can never
+					// succeed, so retire it and keep draining the queue.
+					slog.Warn("bowrain: dropping permanently failed change", "change_id", change.ID, "operation", change.Operation, "error", err)
+					_ = a.offlineQueue.MarkFailedPermanent(change.ID, err.Error())
+					progressed = true
+					continue
+				}
+
 				slog.Warn("bowrain: replay failed for change", "change_id", change.ID, "operation", change.Operation, "error", err)
 				_ = a.offlineQueue.MarkFailed(change.ID, err.Error())
 
@@ -121,10 +143,19 @@ func (a *App) replayPendingChanges(ctx context.Context) {
 				continue
 			}
 			_ = a.offlineQueue.MarkCompleted(change.ID)
+			progressed = true
+		}
+
+		if !progressed {
+			slog.Warn("bowrain: replay made no progress; leaving remaining changes pending for the next reconnect")
+			break
 		}
 	}
 
 	_ = a.offlineQueue.PurgeCompleted()
+	if failed := a.offlineQueue.FailedCount(); failed > 0 {
+		slog.Warn("bowrain: some offline changes were permanently rejected by the server", "count", failed)
+	}
 	slog.Info("bowrain: pending changes replayed")
 }
 

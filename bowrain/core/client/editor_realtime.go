@@ -37,16 +37,24 @@ type EditorChangeEvent struct {
 	AvatarURL string `json:"avatarUrl,omitempty"`
 }
 
-// ReviewBlock sets or clears a block target's reviewed QA flag (the
-// translation-status property, distinct from the governance status lifecycle).
+// ReviewBlock sets or clears the reviewed status on the block's target for ONE
+// locale — the per-locale model.Target.Status ladder rung, distinct from the
+// governance status lifecycle. The server rejects reviewing a locale that has
+// no non-empty translation (422).
+//
+// status optionally picks the rung a clearing call (reviewed=false) demotes
+// to: "" or "translated" for a plain un-review, "draft" for a reviewer
+// rejection (the unit re-enters the work queue). It must be empty when
+// reviewed is true.
 //
 // PUT /api/v1/:ws/:id/blocks/main/:bid/review
-func (c *BowrainClient) ReviewBlock(ctx context.Context, ws, projectID, itemName, blockID, targetLocale string, reviewed bool) error {
+func (c *BowrainClient) ReviewBlock(ctx context.Context, ws, projectID, itemName, blockID, targetLocale string, reviewed bool, status string) error {
 	body := struct {
 		TargetLocale string `json:"target_locale"`
 		ItemName     string `json:"item_name,omitempty"`
 		Reviewed     bool   `json:"reviewed"`
-	}{TargetLocale: targetLocale, ItemName: itemName, Reviewed: reviewed}
+		Status       string `json:"status,omitempty"`
+	}{TargetLocale: targetLocale, ItemName: itemName, Reviewed: reviewed, Status: status}
 	return c.editorDo(ctx, http.MethodPut, blockPath(ws, projectID, blockID, "/review"), nil, body, nil)
 }
 

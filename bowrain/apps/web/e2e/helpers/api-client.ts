@@ -60,7 +60,44 @@ export async function authenticate(
   });
   if (!pollResp.ok) throw new Error(`Device poll failed: ${pollResp.status}`);
   const pollData = await pollResp.json();
-  return pollData.access_token;
+  const token = pollData.access_token;
+
+  // Step 4: Complete onboarding (idempotent). A real user goes through the
+  // onboarding screen after first sign-in, which creates their PERSONAL
+  // workspace — project claiming (POST /projects/claim) requires it.
+  await ensureOnboarded(token);
+
+  return token;
+}
+
+/** Complete onboarding for the token's user if needed (creates the personal
+ *  workspace). Idempotent: if the user already onboarded, the server returns
+ *  the existing personal workspace regardless of the requested slug. */
+export async function ensureOnboarded(token: string): Promise<void> {
+  const stateResp = await fetch(`${API}/auth/me/onboarding`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!stateResp.ok) throw new Error(`GET onboarding state failed: ${stateResp.status}`);
+  const state = await stateResp.json();
+  if (!state.needs_onboarding) return;
+
+  // The suggestion can be rejected server-side (e.g. "admin" derived from
+  // admin@example.com is a reserved word), so fall back to a fixed slug.
+  const candidates = [state.suggested_slug, "e2e-demo-user"].filter(Boolean) as string[];
+  let lastError = "";
+  for (const slug of candidates) {
+    const resp = await fetch(`${API}/auth/me/onboarding`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ slug }),
+    });
+    if (resp.ok) return;
+    lastError = `${resp.status} ${await resp.text()}`;
+  }
+  throw new Error(`Complete onboarding failed: ${lastError}`);
 }
 
 // --- Helpers ---
@@ -128,6 +165,9 @@ export async function getOrCreateWorkspace(
 }
 
 // --- Editor Projects ---
+// Routes follow Bowrain AD-011's flat scheme: /:ws/projects (collection) and
+// /:ws/:projectId (project) — the same endpoints the web app's RestApiAdapter
+// uses (bowrain/packages/ui/src/api/rest-adapter.ts).
 
 export async function createEditorProject(
   token: string,
@@ -136,7 +176,7 @@ export async function createEditorProject(
   sourceLocale: string,
   targetLocales: string[],
 ): Promise<{ id: string; name: string }> {
-  const p = await apiPost(`/workspaces/${wsSlug}/editor/projects`, token, {
+  const p = await apiPost(`/${wsSlug}/projects`, token, {
     name,
     default_source_language: sourceLocale,
     target_languages: targetLocales,
@@ -148,7 +188,7 @@ export async function listEditorProjects(
   token: string,
   wsSlug: string,
 ): Promise<Array<{ id: string; name: string }>> {
-  return apiGet(`/workspaces/${wsSlug}/editor/projects`, token);
+  return apiGet(`/${wsSlug}/projects`, token);
 }
 
 /** Fetch a single project with its items (needed to resolve item IDs for URLs). */
@@ -157,7 +197,7 @@ export async function getEditorProject(
   wsSlug: string,
   projectId: string,
 ): Promise<{ id: string; name: string; items: Array<{ id: string; name: string }> }> {
-  return apiGet(`/workspaces/${wsSlug}/editor/projects/${projectId}`, token);
+  return apiGet(`/${wsSlug}/${projectId}`, token);
 }
 
 /** Find an item ID by filename within a project's items array. */
@@ -175,7 +215,7 @@ export async function deleteEditorProject(
   wsSlug: string,
   projectId: string,
 ): Promise<void> {
-  await apiDelete(`/workspaces/${wsSlug}/editor/projects/${projectId}`, token);
+  await apiDelete(`/${wsSlug}/${projectId}`, token);
 }
 
 /** Delete all editor projects in the workspace. */
@@ -200,7 +240,7 @@ export async function uploadFile(
   const formData = new FormData();
   formData.append("files", new Blob([fileContent]), fileName);
 
-  const resp = await fetch(`${API}/workspaces/${wsSlug}/editor/projects/${projectId}/files`, {
+  const resp = await fetch(`${API}/${wsSlug}/${projectId}/items/main`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body: formData,
@@ -229,11 +269,10 @@ export async function pseudoTranslateFile(
   fileName: string,
   targetLocale: string,
 ): Promise<{ total_blocks: number; translated_blocks: number }> {
-  return apiPost(
-    `/workspaces/${wsSlug}/editor/projects/${projectId}/file-pseudo/${encodeURIComponent(fileName)}`,
-    token,
-    { target_locale: targetLocale },
-  );
+  return apiPost(`/${wsSlug}/${projectId}/actions/main/pseudo-translate`, token, {
+    item: fileName,
+    target_locale: targetLocale,
+  });
 }
 
 // --- TM Seeding ---
@@ -253,7 +292,7 @@ export async function seedTMEntries(
   const filePath = entriesPath || path.resolve(__dirname, "../seed/tm-entries.json");
   const entries: TMEntry[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   for (const entry of entries) {
-    await apiPost(`/workspaces/${wsSlug}/tm`, token, entry);
+    await apiPost(`/${wsSlug}/translation-memory`, token, entry);
   }
   return entries.length;
 }
@@ -282,7 +321,7 @@ export async function seedConcepts(
   const filePath = conceptsPath || path.resolve(__dirname, "../seed/concepts.json");
   const concepts: Concept[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   for (const concept of concepts) {
-    await apiPost(`/workspaces/${wsSlug}/terms`, token, concept);
+    await apiPost(`/${wsSlug}/concepts`, token, concept);
   }
   return concepts.length;
 }
@@ -301,11 +340,11 @@ export async function createInvite(
   if (email) body.email = email;
   if (maxUses !== undefined) body.max_uses = maxUses;
   if (ttlDays !== undefined) body.ttl_days = ttlDays;
-  return apiPost(`/workspaces/${wsSlug}/invites`, token, body);
+  return apiPost(`/${wsSlug}/invites`, token, body);
 }
 
 export async function listInvites(token: string, wsSlug: string): Promise<Invite[]> {
-  return apiGet(`/workspaces/${wsSlug}/invites`, token);
+  return apiGet(`/${wsSlug}/invites`, token);
 }
 
 export async function acceptInvite(token: string, code: string): Promise<void> {

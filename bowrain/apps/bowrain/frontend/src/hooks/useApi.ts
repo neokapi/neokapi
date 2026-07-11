@@ -197,8 +197,10 @@ export function useConnection() {
       blockID: string,
       targetLocale: string,
       reviewed: boolean,
+      // Demotion rung for reviewed=false: "" (translated) or "draft" (reject).
+      status: string = "",
     ): Promise<void> => {
-      return Backend.ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed);
+      return Backend.ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed, status);
     },
     [],
   );

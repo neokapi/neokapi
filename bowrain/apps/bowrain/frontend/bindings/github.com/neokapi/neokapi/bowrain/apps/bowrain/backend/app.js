@@ -73,7 +73,16 @@ export function AddConceptRelation(workspaceSlug, conceptID, req) {
 }
 
 /**
- * AddItems imports items into a project, auto-detecting format and extracting blocks.
+ * AddItems imports items into a project. Local file ingest is a server-side
+ * concern (CLAUDE.md): when connected, files are uploaded to the server, which
+ * parses and extracts blocks — the local store is a cache filled lazily on
+ * read. Only offline does the desktop parse locally, seeding the cache and
+ * queueing the upload for replay on reconnect.
+ * 
+ * This one stays hand-written rather than using writeThroughResult: it does
+ * pre-work (collectUploadFiles) that can short-circuit before any server call,
+ * and the file paths, not the collected bytes, drive the local fallback — a
+ * shape the generic helper deliberately does not model.
  * @param {string} projectID
  * @param {string[]} filePaths
  * @returns {$CancellablePromise<$models.ProjectInfo | null>}
@@ -184,9 +193,9 @@ export function ConfigureConnector(connectorType, config) {
 }
 
 /**
- * ConnectToServer establishes a gRPC connection to the given server URL.
- * The URL should be the HTTP base URL (e.g. "http://localhost:8080").
- * gRPC port is discovered from the server health endpoint.
+ * ConnectToServer establishes a REST/SSE connection to the given server URL
+ * using stored credentials. The URL should be the HTTP base URL
+ * (e.g. "http://localhost:8080").
  * @param {string} serverURL
  * @returns {$CancellablePromise<void>}
  */
@@ -572,6 +581,16 @@ export function GetCurrentWorkspace() {
  */
 export function GetDefaultServerURL() {
     return $Call.ByID(3615231647);
+}
+
+/**
+ * GetFailedChangesCount returns the number of queued offline changes the
+ * server permanently rejected on replay (4xx). Exposed to the frontend so it
+ * can surface that some offline edits did not apply.
+ * @returns {$CancellablePromise<number>}
+ */
+export function GetFailedChangesCount() {
+    return $Call.ByID(1119355181);
 }
 
 /**
@@ -1141,7 +1160,10 @@ export function PromoteRule(workspaceSlug, profileID, rule) {
 }
 
 /**
- * PseudoTranslateItem pseudo-translates all blocks in an item.
+ * PseudoTranslateItem pseudo-translates all blocks in an item. When connected
+ * the action runs on the server (source of truth) and the local cache is
+ * refreshed from the result; on failure or offline it runs locally against the
+ * cache and queues the action for replay on reconnect.
  * @param {string} projectID
  * @param {string} itemName
  * @param {string} targetLocale
@@ -1206,7 +1228,9 @@ export function RemoveConnector(connectorID) {
 }
 
 /**
- * RemoveItem removes an item from the project.
+ * RemoveItem removes an item from the project. When connected the removal is
+ * sent to the server (source of truth) with the local cache updated to match;
+ * on failure or offline it updates the cache and queues the removal for replay.
  * @param {string} projectID
  * @param {string} itemName
  * @returns {$CancellablePromise<$models.ProjectInfo | null>}
@@ -1280,15 +1304,19 @@ export function ResolveConceptComment(workspaceSlug, conceptID, commentID, resol
 
 /**
  * ReviewBlock marks a block as reviewed or un-reviewed for a target locale.
+ * status optionally picks the rung an un-review (reviewed=false) demotes to:
+ * "" or "translated" for a plain un-review, "draft" for a reviewer rejection
+ * (the unit re-enters the work queue). It must be empty when reviewed is true.
  * @param {string} projectID
  * @param {string} itemName
  * @param {string} blockID
  * @param {string} targetLocale
  * @param {boolean} reviewed
+ * @param {string} status
  * @returns {$CancellablePromise<void>}
  */
-export function ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed) {
-    return $Call.ByID(1353546789, projectID, itemName, blockID, targetLocale, reviewed);
+export function ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed, status) {
+    return $Call.ByID(1353546789, projectID, itemName, blockID, targetLocale, reviewed, status);
 }
 
 /**
@@ -1359,7 +1387,7 @@ export function StartLogin(serverURL) {
 }
 
 /**
- * StartWatching opens a WatchProject stream for the given project.
+ * StartWatching opens a change-event subscription for the given project.
  * Call StopWatching to close the stream when navigating away.
  * @param {string} projectID
  * @returns {$CancellablePromise<void>}
@@ -1400,7 +1428,9 @@ export function SubmitChangeset(workspaceSlug, changesetID) {
 }
 
 /**
- * TMTranslateItem leverages translation memory to translate blocks.
+ * TMTranslateItem leverages translation memory to translate blocks. Routing
+ * mirrors PseudoTranslateItem: server-first when connected, local cache with a
+ * queued replay when offline.
  * @param {string} projectID
  * @param {string} itemName
  * @param {string} targetLocale
@@ -1413,7 +1443,11 @@ export function TMTranslateItem(projectID, itemName, targetLocale) {
 }
 
 /**
- * TermEnforceItem runs terminology enforcement on a project item.
+ * TermEnforceItem runs terminology enforcement on a project item. When
+ * connected the check is owned by the server (which runs the framework
+ * term-enforce tool over the authoritative content); when offline it runs the
+ * same framework tool against the local cache. It is a read-only check, so
+ * there is nothing to queue for replay.
  * @param {string} projectID
  * @param {string} itemName
  * @param {string} targetLocale
@@ -1443,8 +1477,10 @@ export function TryAutoConnect() {
 }
 
 /**
- * UpdateBlockTarget updates the target text for a specific block.
- * When connected, sends to server. On failure, queues for later replay and updates local cache.
+ * UpdateBlockTarget updates the target text for a specific block. The local
+ * cache is authoritative for block edits, so a successful server write is still
+ * reconciled into the cache; an offline or failed write queues the op and
+ * updates the cache alone.
  * @param {$models.UpdateBlockRequest} req
  * @returns {$CancellablePromise<void>}
  */
@@ -1463,7 +1499,10 @@ export function UpdateBlockTargetRuns(req) {
 }
 
 /**
- * UpdateConcept updates an existing concept in the termbase.
+ * UpdateConcept updates an existing concept in the termbase. The server is
+ * authoritative for the termbase, so a successful online update skips the local
+ * mirror; the local write runs only offline (queued for replay) or in pure
+ * local mode.
  * @param {$models.UpdateConceptRequest} req
  * @returns {$CancellablePromise<void>}
  */
@@ -1494,7 +1533,9 @@ export function UpdateMemberRole(workspaceSlug, userID, role) {
 }
 
 /**
- * UpdatePresence reports the user's current position to the server.
+ * UpdatePresence reports the user's current editing focus to the server, which
+ * fans it out to other watchers over the SSE relay. Best-effort — a failure is
+ * logged and swallowed (per-cursor presence is carried over Yjs awareness).
  * @param {string} projectID
  * @param {string} itemName
  * @param {string} blockID
@@ -1505,7 +1546,9 @@ export function UpdatePresence(projectID, itemName, blockID) {
 }
 
 /**
- * UpdateTMEntry updates an existing TM entry.
+ * UpdateTMEntry updates an existing TM entry. The server is authoritative for
+ * the TM, so a successful online update skips the local mirror; the local write
+ * runs only offline (queued for replay) or in pure local mode.
  * @param {$models.TMUpdateRequest} req
  * @returns {$CancellablePromise<void>}
  */

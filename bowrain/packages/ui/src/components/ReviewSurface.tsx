@@ -12,7 +12,7 @@ import {
 import { VirtualList, type VirtualListHandle } from "@neokapi/editor-grid";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ErrorNotice } from "../errors";
-import type { ProjectInfo, BlockInfo, FileQAResult } from "../types/api";
+import type { ProjectInfo, BlockInfo, FileQAResult, ReviewDemotion } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useLocales } from "../hooks/useLocales";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
@@ -20,10 +20,15 @@ import { FormattedSourceDisplay } from "./editor/FormattedSourceDisplay";
 import { CollapsedTargetCell } from "./editor/GridTargetRenderer";
 import { ProblemsPanel } from "./editor/ProblemsPanel";
 import {
+  captureTargetStatus,
   getBlockStatus,
+  getTargetText,
+  rollbackTargetStatus,
   statusBadgeClass,
   statusLabel,
+  withTargetStatus,
   type BlockStatus,
+  type TargetStatusSnapshot,
 } from "./editor/blockStatus";
 import { ArrowLeft, Check, X, AlertTriangle } from "./icons";
 
@@ -60,7 +65,9 @@ export function ReviewSurface({
   const [targetLocale, setTargetLocale] = useState(project.target_languages[0] || "");
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [error, setError] = useState<unknown>(null);
+  const [error, setError] = useState<{ title: string; cause?: unknown; retry?: boolean } | null>(
+    null,
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [fileQAResults, setFileQAResults] = useState<FileQAResult[]>([]);
   const [qaLoading, setQaLoading] = useState(false);
@@ -89,7 +96,7 @@ export function ReviewSurface({
       const b = await getFileBlocks(project.id, fileName);
       setBlocks(b || []);
     } catch (e) {
-      setError(e);
+      setError({ title: "Couldn't load the blocks", cause: e, retry: true });
     }
   }, [getFileBlocks, project.id, fileName]);
 
@@ -136,28 +143,111 @@ export function ReviewSurface({
     });
   }, [visible]);
 
-  const setStatus = useCallback((block: BlockInfo, status: "reviewed" | "draft") => {
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.id === block.id
-          ? { ...b, properties: { ...b.properties, "translation-status": status } }
-          : b,
-      ),
-    );
-  }, []);
+  // Persist a per-block review decision: optimistic per-locale Target.Status
+  // write (matches what a reload fetches), server call, rollback on failure.
+  // The rollback snapshot is captured inside the setBlocks updater — from the
+  // state the write actually replaced — and restores only the status field, so
+  // a target save that lands while the review call is in flight is preserved.
+  // `demoteTo` picks the rung a clearing call (reviewed=false) lands on:
+  // "draft" for a reviewer rejection, otherwise translated.
+  const setStatus = useCallback(
+    async (block: BlockInfo, reviewed: boolean, demoteTo?: ReviewDemotion) => {
+      // Clearing the review state of a locale with no translation is a no-op:
+      // the server treats it as an idempotent 200 success, so an optimistic
+      // write here would fabricate a phantom {text: "", status} entry that no
+      // rollback ever removes (approval is guarded by the button and the
+      // server's 422).
+      if (!reviewed && !getTargetText(block, targetLocale).trim()) return;
+      let snapshot: TargetStatusSnapshot = { existed: false, status: "" };
+      setBlocks((prev) =>
+        prev.map((b) => {
+          if (b.id !== block.id) return b;
+          snapshot = captureTargetStatus(b, targetLocale);
+          return withTargetStatus(
+            b,
+            targetLocale,
+            reviewed ? "reviewed" : (demoteTo ?? "translated"),
+          );
+        }),
+      );
+      try {
+        await api.reviewBlock(project.id, fileName, block.id, targetLocale, reviewed, demoteTo);
+      } catch (e) {
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === block.id ? rollbackTargetStatus(b, targetLocale, snapshot) : b,
+          ),
+        );
+        setError({
+          title: reviewed
+            ? "Couldn't mark the block as reviewed"
+            : "Couldn't update the review status",
+          cause: e,
+        });
+      }
+    },
+    [api, project.id, fileName, targetLocale],
+  );
 
-  const bulkMarkReviewed = useCallback(() => {
-    if (selected.size === 0) return;
-    setBlocks((prev) =>
-      prev.map((b) =>
-        selected.has(b.id)
-          ? { ...b, properties: { ...b.properties, "translation-status": "reviewed" } }
-          : b,
-      ),
-    );
-    setMessage(`Marked ${selected.size} block(s) as reviewed`);
-    setSelected(new Set());
-  }, [selected]);
+  // While a bulk pass runs, single approve/reject clicks and a second bulk
+  // click are disabled: an interleaved single call would race the loop's
+  // optimistic writes and rollbacks. The ref guards re-entrancy synchronously
+  // (state updates are async); the state drives the disabled buttons.
+  const bulkInFlight = useRef(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  // Bulk mark-reviewed loops the per-block endpoint sequentially (no bulk
+  // route). Resilient: a failing block is rolled back and the loop continues.
+  // Each block's rollback snapshot is captured inside the setBlocks updater at
+  // its own optimistic-write time, never from a pre-loop copy of the state.
+  const bulkMarkReviewed = useCallback(async () => {
+    if (bulkInFlight.current || selected.size === 0) return;
+    bulkInFlight.current = true;
+    setBulkBusy(true);
+    try {
+      // Skip untranslated blocks: the server categorically 422s an approval of
+      // an empty translation, so looping them in would only produce guaranteed
+      // per-block failures (select-all on filter=all includes them).
+      const targetIds = blocks
+        .filter(
+          (b) => selected.has(b.id) && b.translatable && getTargetText(b, targetLocale).trim(),
+        )
+        .map((b) => b.id);
+      setSelected(new Set());
+      let reviewed = 0;
+      let failed = 0;
+      let lastError: unknown = null;
+      for (const blockId of targetIds) {
+        let snapshot: TargetStatusSnapshot = { existed: false, status: "" };
+        setBlocks((prev) =>
+          prev.map((b) => {
+            if (b.id !== blockId) return b;
+            snapshot = captureTargetStatus(b, targetLocale);
+            return withTargetStatus(b, targetLocale, "reviewed");
+          }),
+        );
+        try {
+          await api.reviewBlock(project.id, fileName, blockId, targetLocale, true);
+          reviewed++;
+        } catch (e) {
+          failed++;
+          lastError = e;
+          setBlocks((prev) =>
+            prev.map((b) =>
+              b.id === blockId ? rollbackTargetStatus(b, targetLocale, snapshot) : b,
+            ),
+          );
+        }
+      }
+      if (reviewed > 0) setMessage(`Marked ${reviewed} block(s) as reviewed`);
+      if (failed > 0) {
+        setError({ title: `Couldn't mark ${failed} block(s) as reviewed`, cause: lastError });
+      }
+    } finally {
+      bulkInFlight.current = false;
+      setBulkBusy(false);
+    }
+  }, [selected, blocks, api, project.id, fileName, targetLocale]);
 
   const bulkApplyTM = useCallback(async () => {
     if (selected.size === 0) return;
@@ -297,7 +387,7 @@ export function ReviewSurface({
         <Button
           size="sm"
           onClick={bulkMarkReviewed}
-          disabled={selected.size === 0}
+          disabled={selected.size === 0 || bulkBusy}
           data-testid="bulk-mark-reviewed"
         >
           <Check className="w-3.5 h-3.5 mr-1" /> Mark reviewed
@@ -307,14 +397,18 @@ export function ReviewSurface({
       {/* Messages */}
       {error != null && (
         <ErrorNotice
-          error={error}
-          title="Couldn't load the blocks"
+          error={error.cause}
+          title={error.title}
           variant="inline"
           className="mb-2"
-          onRetry={() => {
-            setError(null);
-            void loadBlocks();
-          }}
+          onRetry={
+            error.retry
+              ? () => {
+                  setError(null);
+                  void loadBlocks();
+                }
+              : undefined
+          }
         />
       )}
       {message && (
@@ -421,8 +515,13 @@ export function ReviewSurface({
                   size="sm"
                   variant="ghost"
                   className="h-7 text-[11px] px-2"
-                  onClick={() => setStatus(block, "reviewed")}
-                  disabled={status === "reviewed"}
+                  onClick={() => void setStatus(block, true)}
+                  disabled={
+                    status === "reviewed" ||
+                    bulkBusy ||
+                    // No non-empty translation → the server 422s the approval.
+                    !getTargetText(block, targetLocale).trim()
+                  }
                   data-testid={`approve-${block.id}`}
                 >
                   <Check className="w-3.5 h-3.5 mr-1" /> Approve
@@ -431,7 +530,16 @@ export function ReviewSurface({
                   size="sm"
                   variant="ghost"
                   className="h-7 text-[11px] px-2 text-destructive hover:text-destructive"
-                  onClick={() => setStatus(block, "draft")}
+                  // A rejection demotes the target to draft so the unit
+                  // re-enters the work queue (host's rejected → draft
+                  // mapping), not merely back to translated.
+                  onClick={() => void setStatus(block, false, "draft")}
+                  disabled={
+                    bulkBusy ||
+                    // Nothing to reject on an untranslated block (and a
+                    // clearing call for it is a server-side no-op).
+                    !getTargetText(block, targetLocale).trim()
+                  }
                   data-testid={`reject-${block.id}`}
                 >
                   <X className="w-3.5 h-3.5 mr-1" /> Reject

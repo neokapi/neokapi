@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { UnifiedTargetEditor } from "../../components/UnifiedTargetEditor";
 import type { BlockInfo } from "../../types/api";
+import { getTargetText } from "../../components/editor/blockStatus";
 
 function makeMessagesBlock(targets: Record<string, string>): BlockInfo {
   return {
@@ -106,7 +107,7 @@ function Wrapper({ block, locale = "de" }: { block: BlockInfo; locale?: string }
         <strong>Source:</strong> <code>{block.source}</code>
       </div>
       <div style={{ marginBottom: 12, fontSize: 14 }}>
-        <strong>Target ({locale}):</strong> <code>{block.targets[locale] ?? "(empty)"}</code>
+        <strong>Target ({locale}):</strong> <code>{getTargetText(block, locale) || "(empty)"}</code>
       </div>
       {open ? (
         <UnifiedTargetEditor

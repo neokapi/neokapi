@@ -9,7 +9,10 @@
 import type { ApiAdapter } from "../api/adapter";
 import type {
   BlockInfo,
+  ReviewDemotion,
+  SkippedFile,
   TranslationStats,
+  UploadFilesResult,
   WordCountResult,
   TMMatchInfo,
   BlockTermMatch,
@@ -152,7 +155,44 @@ ${script}
 </html>`;
 }
 
-export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
+/** One recorded `reviewBlock` invocation (for component-test assertions). */
+export interface ReviewBlockCall {
+  workspaceSlug: string;
+  projectId: string;
+  itemName: string;
+  blockId: string;
+  targetLocale: string;
+  reviewed: boolean;
+  stream?: string;
+  demoteTo?: ReviewDemotion;
+}
+
+/**
+ * The mock adapter plus test hooks: recorded review calls and a failure
+ * toggle so tests can assert the optimistic-update rollback path.
+ */
+export interface MockAdapter extends ApiAdapter {
+  /** `reviewBlock` invocations in call order. */
+  reviewBlockCalls: ReviewBlockCall[];
+  /** When true, `reviewBlock` rejects instead of applying. */
+  failReviewBlock: boolean;
+}
+
+/** File extensions the mock "server" pretends to have format readers for. */
+const MOCK_KNOWN_EXTENSIONS = new Set([
+  "json",
+  "html",
+  "htm",
+  "md",
+  "mdx",
+  "xliff",
+  "xlf",
+  "po",
+  "yaml",
+  "yml",
+]);
+
+export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
   // Mutable copy so updates are reflected in subsequent reads
   const _blocks: BlockInfo[] = blocks
     ? blocks.map((b) => ({
@@ -177,7 +217,22 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     throw new Error("Not implemented in mock");
   };
 
-  return {
+  // Replace a target's text while preserving its per-locale review status —
+  // the server's SetTargetText/SetTargetRuns preserve Target.Status, so the
+  // mock must not clobber a {text, status} entry with a bare string.
+  const setTargetPreservingStatus = (blk: BlockInfo, locale: string, text: string) => {
+    const entry = blk.targets[locale];
+    const status = entry != null && typeof entry === "object" ? entry.status : undefined;
+    blk.targets[locale] = status ? { text, status } : text;
+  };
+
+  const reviewBlockCalls: ReviewBlockCall[] = [];
+
+  const adapter: MockAdapter = {
+    // --- Test hooks -------------------------------------------------------
+    reviewBlockCalls,
+    failReviewBlock: false,
+
     // --- Config ---------------------------------------------------------
     getConfig: async () => ({
       mode: "standalone",
@@ -286,7 +341,17 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     getProject: async () => sampleProject,
     updateProject: async () => sampleProject,
     deleteProject: noop,
-    uploadFiles: notImpl,
+    uploadFiles: async (_ws, _projectId, files): Promise<UploadFilesResult> => {
+      // Simulate the server's per-file skip behaviour: files without a known
+      // format extension are reported in `skipped` instead of imported.
+      const skipped: SkippedFile[] = files
+        .filter((f) => !MOCK_KNOWN_EXTENSIONS.has(f.name.split(".").pop()?.toLowerCase() ?? ""))
+        .map((f) => ({
+          name: f.name,
+          reason: `no format reader for ".${f.name.split(".").pop() ?? ""}"`,
+        }));
+      return skipped.length > 0 ? { ...sampleProject, skipped } : { ...sampleProject };
+    },
     removeFile: notImpl,
 
     // --- Archive / Recycle Bin ----------------------------------------------------
@@ -317,7 +382,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     updateBlockTarget: async (_ws, req) => {
       const blk = _blocks.find((b) => b.id === req.block_id);
       if (blk) {
-        blk.targets[req.target_locale] = req.text;
+        setTargetPreservingStatus(blk, req.target_locale, req.text);
         blk.targets_coded = blk.targets_coded ?? {};
         blk.targets_coded[req.target_locale] = req.text;
       }
@@ -329,7 +394,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
         blk.targets_coded = blk.targets_coded ?? {};
         blk.targets_coded[req.target_locale] = req.coded_text;
         // Also write plain text (strip Unicode markers)
-        blk.targets[req.target_locale] = req.coded_text.replace(/[\uE001\uE002\uE003]/g, "");
+        setTargetPreservingStatus(
+          blk,
+          req.target_locale,
+          req.coded_text.replace(/[\uE001\uE002\uE003]/g, ""),
+        );
       }
     },
 
@@ -406,6 +475,41 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     revertBatch: async () => ({ reverted: 0 }),
     restoreToPoint: async () => ({ restored: 0 }),
     setBlockStatus: async () => {},
+
+    // --- Per-locale review (Target.Status ladder) -------------------------
+    reviewBlock: async (
+      workspaceSlug,
+      projectId,
+      itemName,
+      blockId,
+      targetLocale,
+      reviewed,
+      stream,
+      demoteTo,
+    ) => {
+      reviewBlockCalls.push({
+        workspaceSlug,
+        projectId,
+        itemName,
+        blockId,
+        targetLocale,
+        reviewed,
+        stream,
+        demoteTo,
+      });
+      if (adapter.failReviewBlock) throw new Error("reviewBlock failed (mock)");
+      const blk = _blocks.find((b) => b.id === blockId);
+      if (blk) {
+        const entry = blk.targets[targetLocale];
+        const text = typeof entry === "string" ? entry : (entry?.text ?? "");
+        blk.targets[targetLocale] = {
+          text,
+          // A rejection (reviewed=false + demoteTo "draft") lands on draft;
+          // a plain un-review on translated (mirrors HandleReviewBlock).
+          status: reviewed ? "reviewed" : demoteTo === "draft" ? "draft" : "translated",
+        };
+      }
+    },
 
     // --- Governance (#778) -----------------------------------------------
     listGroups: async () => [],
@@ -946,4 +1050,5 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     billingCreatePortal: async () => ({ url: "#" }),
     billingGetLedger: async () => [],
   };
+  return adapter;
 }

@@ -169,7 +169,11 @@ export { ReviewSurface } from "./components/ReviewSurface";
 export { PreProcessSurface } from "./components/PreProcessSurface";
 export { TranslationDashboard } from "./components/TranslationDashboard";
 export { UnifiedTargetEditor } from "./components/UnifiedTargetEditor";
-export type { UnifiedTargetEditorProps, UnifiedSaveResult } from "./components/UnifiedTargetEditor";
+export type {
+  UnifiedTargetEditorProps,
+  UnifiedTargetEditorHandle,
+  UnifiedSaveResult,
+} from "./components/UnifiedTargetEditor";
 export { toKapiBlock } from "./components/blockAdapter";
 export { LanguageLabel, localeDisplayName } from "./components/LanguageLabel";
 export { LocaleCompletionChart } from "./components/LocaleCompletionChart";
@@ -291,6 +295,10 @@ export { TableView } from "./components/editor/TableView";
 export { CollapsedTargetCell, RowTagWarning } from "./components/editor/GridTargetRenderer";
 export {
   getBlockStatus,
+  getTargetStatus,
+  getTargetText,
+  withTargetEntry,
+  withTargetStatus,
   statusLabel,
   statusDotClass,
   statusBorderClass,
@@ -365,10 +373,16 @@ export type {
   Membership,
   ProjectInfo,
   ProjectItem,
+  SkippedFile,
+  UploadFilesResult,
   ConfigResponse,
   WebVersionInfo,
   SpanInfo,
   BlockInfo,
+  TargetEntry,
+  TargetInfo,
+  TargetStatus,
+  ReviewDemotion,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
   AITranslateFileRequest,

@@ -118,6 +118,22 @@ jobs:
           cache-from: type=gha,scope=bowrain-server
           cache-to: type=gha,mode=max,scope=bowrain-server
 
+      - name: Build and push worker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: bowrain/docker/bowrain-worker/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/neokapi/bowrain-worker:${{ steps.meta.outputs.tag }}
+            ghcr.io/neokapi/bowrain-worker:e2e
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            COMMIT=${{ steps.meta.outputs.commit }}
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
+          cache-from: type=gha,scope=bowrain-worker
+          cache-to: type=gha,mode=max,scope=bowrain-worker
+
       - name: Build and push web image
         uses: docker/build-push-action@v7
         with:
@@ -162,17 +178,15 @@ jobs:
           cache-to: type=gha,mode=max,scope=bowrain-keycloak
 
   # ── Bowrain server Docker stack E2E ────────────────────────────────────────
-  # Non-blocking pending rehabilitation (#867): this integration job had not run
-  # in CI for weeks (the image build was broken). With the build fixed it now
-  # runs, but needs real work to go green — the async bowrain-worker (+redis) is
-  # not in the E2E compose (sync push never completes), and the web-app e2e
-  # (bowrain/apps/web/e2e: claim-flow, routing, open-in-desktop) fails against
-  # the stack. Keep it running + visible, but don't gate the workflow on it.
+  # Rehabilitated (#867) and BLOCKING: the async bowrain-worker (+redis) now
+  # runs in the E2E compose so sync push completes, and the web-app Playwright
+  # suite (bowrain/apps/web/e2e: claim-flow, routing, open-in-desktop,
+  # editor-happy-path) runs against the stack. This is the launch smoke test —
+  # it gates the workflow.
   bowrain-e2e:
     name: Bowrain E2E (Docker)
     runs-on: ubuntu-latest
     needs: build-images
-    continue-on-error: true
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -188,11 +202,14 @@ jobs:
 
       - name: Start E2E stack
         env:
-          IMAGE_TAG: e2e
+          # Pin to the per-commit tag pushed by build-images — the mutable :e2e
+          # tag races when two workflow runs overlap.
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          export BOWRAIN_SERVER_IMAGE=ghcr.io/neokapi/bowrain-server:e2e
-          export BOWRAIN_WEB_IMAGE=ghcr.io/neokapi/bowrain-web:e2e
-          export BOWRAIN_KEYCLOAK_IMAGE=ghcr.io/neokapi/bowrain-keycloak:e2e
+          export BOWRAIN_SERVER_IMAGE=ghcr.io/neokapi/bowrain-server:$IMAGE_TAG
+          export BOWRAIN_WORKER_IMAGE=ghcr.io/neokapi/bowrain-worker:$IMAGE_TAG
+          export BOWRAIN_WEB_IMAGE=ghcr.io/neokapi/bowrain-web:$IMAGE_TAG
+          export BOWRAIN_KEYCLOAK_IMAGE=ghcr.io/neokapi/bowrain-keycloak:$IMAGE_TAG
           docker compose -f bowrain/e2e/server/compose.yaml up -d --wait
         timeout-minutes: 5
 

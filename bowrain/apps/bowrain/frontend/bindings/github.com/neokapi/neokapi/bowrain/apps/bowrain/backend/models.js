@@ -308,6 +308,13 @@ export class BlockInfo {
         if (/** @type {any} */(false)) {
             /**
              * @member
+             * @type {{ [_ in string]?: BlockTargetInfo } | undefined}
+             */
+            this["targets"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
              * @type {{ [_ in string]?: RunInfo[] } | undefined}
              */
             this["targetRuns"] = undefined;
@@ -337,19 +344,65 @@ export class BlockInfo {
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType5;
-        const $$createField2_0 = $$createType6;
-        const $$createField4_0 = $$createType7;
+        const $$createField2_0 = $$createType7;
+        const $$createField3_0 = $$createType8;
+        const $$createField5_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sourceRuns" in $$parsedSource) {
             $$parsedSource["sourceRuns"] = $$createField1_0($$parsedSource["sourceRuns"]);
         }
+        if ("targets" in $$parsedSource) {
+            $$parsedSource["targets"] = $$createField2_0($$parsedSource["targets"]);
+        }
         if ("targetRuns" in $$parsedSource) {
-            $$parsedSource["targetRuns"] = $$createField2_0($$parsedSource["targetRuns"]);
+            $$parsedSource["targetRuns"] = $$createField3_0($$parsedSource["targetRuns"]);
         }
         if ("properties" in $$parsedSource) {
-            $$parsedSource["properties"] = $$createField4_0($$parsedSource["properties"]);
+            $$parsedSource["properties"] = $$createField5_0($$parsedSource["properties"]);
         }
         return new BlockInfo(/** @type {Partial<BlockInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * BlockTargetInfo is one locale's committed target as exposed to the frontend:
+ * plain text plus the per-locale review status (model.Target.Status — the
+ * ladder "" | draft | translated | reviewed | signed-off). The shared editor
+ * reads review state as block.targets[locale].status; the legacy block-global
+ * properties["translation-status"] is a read fallback only.
+ */
+export class BlockTargetInfo {
+    /**
+     * Creates a new BlockTargetInfo instance.
+     * @param {Partial<BlockTargetInfo>} [$$source = {}] - The source object to create the BlockTargetInfo.
+     */
+    constructor($$source = {}) {
+        if (!("text" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["text"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["status"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BlockTargetInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {BlockTargetInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BlockTargetInfo(/** @type {Partial<BlockTargetInfo>} */($$parsedSource));
     }
 }
 
@@ -414,7 +467,7 @@ export class BlockTermMatch {
      * @returns {BlockTermMatch}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType8;
+        const $$createField1_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_terms" in $$parsedSource) {
             $$parsedSource["target_terms"] = $$createField1_0($$parsedSource["target_terms"]);
@@ -524,7 +577,7 @@ export class CollabSession {
      * @returns {CollabSession}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType9;
+        const $$createField3_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("user" in $$parsedSource) {
             $$parsedSource["user"] = $$createField3_0($$parsedSource["user"]);
@@ -648,7 +701,7 @@ export class ConceptInfo {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType3;
-        const $$createField4_0 = $$createType7;
+        const $$createField4_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField3_0($$parsedSource["terms"]);
@@ -1007,8 +1060,8 @@ export class FlowDefinitionInfo {
      * @returns {FlowDefinitionInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType11;
-        const $$createField4_0 = $$createType13;
+        const $$createField3_0 = $$createType13;
+        const $$createField4_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("nodes" in $$parsedSource) {
             $$parsedSource["nodes"] = $$createField3_0($$parsedSource["nodes"]);
@@ -1127,8 +1180,8 @@ export class FlowNodeInfo {
      * @returns {FlowNodeInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType14;
-        const $$createField5_0 = $$createType15;
+        const $$createField4_0 = $$createType16;
+        const $$createField5_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
@@ -1208,8 +1261,8 @@ export class FormatInfo {
      * @returns {FormatInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType8;
-        const $$createField3_0 = $$createType8;
+        const $$createField2_0 = $$createType10;
+        const $$createField3_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("mime_types" in $$parsedSource) {
             $$parsedSource["mime_types"] = $$createField2_0($$parsedSource["mime_types"]);
@@ -1487,7 +1540,7 @@ export class MarketArgs {
      * @returns {MarketArgs}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType8;
+        const $$createField2_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField2_0($$parsedSource["locales"]);
@@ -1675,7 +1728,7 @@ export class PcOpenRunInfo {
      * @returns {PcOpenRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType17;
+        const $$createField6_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -1752,7 +1805,7 @@ export class PlaceholderRunInfo {
      * @returns {PlaceholderRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType17;
+        const $$createField6_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -1808,7 +1861,7 @@ export class PluginInfo {
      * @returns {PluginInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType8;
+        const $$createField3_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("formats" in $$parsedSource) {
             $$parsedSource["formats"] = $$createField3_0($$parsedSource["formats"]);
@@ -1850,7 +1903,7 @@ export class PluralRunInfo {
      * @returns {PluralRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType6;
+        const $$createField1_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField1_0($$parsedSource["forms"]);
@@ -1972,8 +2025,8 @@ export class ProjectInfo {
      * @returns {ProjectInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType8;
-        const $$createField5_0 = $$createType19;
+        const $$createField3_0 = $$createType10;
+        const $$createField5_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField3_0($$parsedSource["target_languages"]);
@@ -2263,13 +2316,13 @@ export class RunInfo {
      * @returns {RunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType21;
-        const $$createField1_0 = $$createType23;
-        const $$createField2_0 = $$createType25;
-        const $$createField3_0 = $$createType27;
-        const $$createField4_0 = $$createType29;
-        const $$createField5_0 = $$createType31;
-        const $$createField6_0 = $$createType33;
+        const $$createField0_0 = $$createType23;
+        const $$createField1_0 = $$createType25;
+        const $$createField2_0 = $$createType27;
+        const $$createField3_0 = $$createType29;
+        const $$createField4_0 = $$createType31;
+        const $$createField5_0 = $$createType33;
+        const $$createField6_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("text" in $$parsedSource) {
             $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
@@ -2395,7 +2448,7 @@ export class SelectRunInfo {
      * @returns {SelectRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType6;
+        const $$createField1_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cases" in $$parsedSource) {
             $$parsedSource["cases"] = $$createField1_0($$parsedSource["cases"]);
@@ -2692,7 +2745,7 @@ export class TMSearchResult {
      * @returns {TMSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType35;
+        const $$createField0_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2842,7 +2895,7 @@ export class TermEnforceResult {
      * @returns {TermEnforceResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType8;
+        const $$createField3_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("expected" in $$parsedSource) {
             $$parsedSource["expected"] = $$createField3_0($$parsedSource["expected"]);
@@ -2943,7 +2996,7 @@ export class TermLookupResult {
      * @returns {TermLookupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType37;
+        const $$createField0_0 = $$createType39;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("matches" in $$parsedSource) {
             $$parsedSource["matches"] = $$createField0_0($$parsedSource["matches"]);
@@ -3069,7 +3122,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType39;
+        const $$createField0_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -3213,10 +3266,10 @@ export class ToolInfo {
      * @returns {ToolInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType8;
-        const $$createField6_0 = $$createType8;
-        const $$createField7_0 = $$createType41;
-        const $$createField8_0 = $$createType41;
+        const $$createField5_0 = $$createType10;
+        const $$createField6_0 = $$createType10;
+        const $$createField7_0 = $$createType43;
+        const $$createField8_0 = $$createType43;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("requires" in $$parsedSource) {
             $$parsedSource["requires"] = $$createField5_0($$parsedSource["requires"]);
@@ -3543,7 +3596,7 @@ export class Validity {
      * @returns {Validity}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType7;
+        const $$createField2_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
             $$parsedSource["tags"] = $$createField2_0($$parsedSource["tags"]);
@@ -3644,8 +3697,8 @@ export class WordCountResult {
      * @returns {WordCountResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType42;
-        const $$createField3_0 = $$createType42;
+        const $$createField2_0 = $$createType44;
+        const $$createField3_0 = $$createType44;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_words" in $$parsedSource) {
             $$parsedSource["target_words"] = $$createField2_0($$parsedSource["target_words"]);
@@ -3730,40 +3783,42 @@ const $$createType2 = TermInfo.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = RunInfo.createFrom;
 const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $Create.Map($Create.Any, $$createType5);
-const $$createType7 = $Create.Map($Create.Any, $Create.Any);
-const $$createType8 = $Create.Array($Create.Any);
-const $$createType9 = CollabUser.createFrom;
-const $$createType10 = FlowNodeInfo.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = FlowEdgeInfo.createFrom;
+const $$createType6 = BlockTargetInfo.createFrom;
+const $$createType7 = $Create.Map($Create.Any, $$createType6);
+const $$createType8 = $Create.Map($Create.Any, $$createType5);
+const $$createType9 = $Create.Map($Create.Any, $Create.Any);
+const $$createType10 = $Create.Array($Create.Any);
+const $$createType11 = CollabUser.createFrom;
+const $$createType12 = FlowNodeInfo.createFrom;
 const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = $Create.Map($Create.Any, $Create.Any);
-const $$createType15 = PositionInfo.createFrom;
-const $$createType16 = RunConstraintsInfo.createFrom;
-const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = ProjectItem.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = TextRunInfo.createFrom;
-const $$createType21 = $Create.Nullable($$createType20);
-const $$createType22 = PlaceholderRunInfo.createFrom;
+const $$createType14 = FlowEdgeInfo.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = $Create.Map($Create.Any, $Create.Any);
+const $$createType17 = PositionInfo.createFrom;
+const $$createType18 = RunConstraintsInfo.createFrom;
+const $$createType19 = $Create.Nullable($$createType18);
+const $$createType20 = ProjectItem.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = TextRunInfo.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = PcOpenRunInfo.createFrom;
+const $$createType24 = PlaceholderRunInfo.createFrom;
 const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = PcCloseRunInfo.createFrom;
+const $$createType26 = PcOpenRunInfo.createFrom;
 const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = SubRunInfo.createFrom;
+const $$createType28 = PcCloseRunInfo.createFrom;
 const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = PluralRunInfo.createFrom;
+const $$createType30 = SubRunInfo.createFrom;
 const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = SelectRunInfo.createFrom;
+const $$createType32 = PluralRunInfo.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = TMEntryInfo.createFrom;
-const $$createType35 = $Create.Array($$createType34);
-const $$createType36 = TermMatchInfo.createFrom;
+const $$createType34 = SelectRunInfo.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);
+const $$createType36 = TMEntryInfo.createFrom;
 const $$createType37 = $Create.Array($$createType36);
-const $$createType38 = ConceptInfo.createFrom;
+const $$createType38 = TermMatchInfo.createFrom;
 const $$createType39 = $Create.Array($$createType38);
-const $$createType40 = IOPort.createFrom;
+const $$createType40 = ConceptInfo.createFrom;
 const $$createType41 = $Create.Array($$createType40);
-const $$createType42 = $Create.Map($Create.Any, $Create.Any);
+const $$createType42 = IOPort.createFrom;
+const $$createType43 = $Create.Array($$createType42);
+const $$createType44 = $Create.Map($Create.Any, $Create.Any);

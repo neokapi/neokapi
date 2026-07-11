@@ -302,7 +302,10 @@ export type { ResolvedConstraints } from "./components/editor/tagConstraints";
 
 // Inline code editor — Lexical-based rich text editing with visual tag chips
 export { InlineCodeEditor } from "./components/editor/InlineCodeEditor";
-export type { InlineCodeEditorProps } from "./components/editor/InlineCodeEditor";
+export type {
+  InlineCodeEditorProps,
+  InlineCodeEditorHandle,
+} from "./components/editor/InlineCodeEditor";
 export { TagChipNode, $createTagChipNode, $isTagChipNode } from "./components/editor/TagChipNode";
 export { TagPalette } from "./components/editor/TagPalette";
 export { TagValidationBar } from "./components/editor/TagValidationBar";

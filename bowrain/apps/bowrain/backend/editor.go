@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -123,18 +124,46 @@ func blockInfoToBlock(bi BlockInfo) *model.Block {
 	for locale, runs := range bi.TargetRuns {
 		b.SetTargetRuns(model.LocaleID(locale), runInfosToRuns(runs))
 	}
+	// Carry the per-locale target text and review status (model.Target.Status)
+	// into the cache so an offline reload round-trips review state.
+	for locale, ti := range bi.Targets {
+		loc := model.LocaleID(locale)
+		if b.Target(loc) == nil && ti.Text != "" {
+			// The targets map carries committed text the runs map didn't
+			// (plain-text blocks travel without targets_runs).
+			b.SetTargetText(loc, ti.Text)
+		}
+		if t := b.Target(loc); t != nil && ti.Status != "" {
+			t.Status = model.TargetStatus(ti.Status)
+		}
+	}
 	return b
 }
 
 // storedBlockToBlockInfo converts a StoredBlock to a BlockInfo.
 func storedBlockToBlockInfo(sb *store.StoredBlock, targetLocales []string) BlockInfo {
 	targetRuns := make(map[string][]RunInfo, len(targetLocales))
+	// Mirror the server's storedBlockToInfoResponse: targets carries, per
+	// locale, the committed plain text plus the per-locale review status
+	// (model.Target.Status), so the shared editor reads the same shape online
+	// and offline.
+	targets := make(map[string]BlockTargetInfo, len(targetLocales))
 	for _, locale := range targetLocales {
-		runs := sb.Block.TargetRuns(model.LocaleID(locale))
-		if len(runs) == 0 {
-			continue
+		loc := model.LocaleID(locale)
+		if runs := sb.Block.TargetRuns(loc); len(runs) > 0 {
+			targetRuns[locale] = runsToRunInfos(runs)
 		}
-		targetRuns[locale] = runsToRunInfos(runs)
+		text := sb.Block.TargetText(loc)
+		status := ""
+		if t := sb.Block.Target(loc); t != nil {
+			status = string(t.Status)
+		}
+		if text != "" || status != "" {
+			targets[locale] = BlockTargetInfo{Text: text, Status: status}
+		}
+	}
+	if len(targets) == 0 {
+		targets = nil
 	}
 
 	props := make(map[string]string, len(sb.Block.Properties))
@@ -143,6 +172,7 @@ func storedBlockToBlockInfo(sb *store.StoredBlock, targetLocales []string) Block
 	return BlockInfo{
 		ID:           sb.Block.ID,
 		SourceRuns:   runsToRunInfos(sb.Block.SourceRuns()),
+		Targets:      targets,
 		TargetRuns:   targetRuns,
 		Translatable: sb.Block.Translatable,
 		Properties:   props,
@@ -323,34 +353,75 @@ func (a *App) updateBlockTargetRunsLocal(req UpdateBlockTargetRunsRequest) error
 }
 
 // ReviewBlock marks a block as reviewed or un-reviewed for a target locale.
-func (a *App) ReviewBlock(projectID, itemName, blockID, targetLocale string, reviewed bool) error {
+// status optionally picks the rung an un-review (reviewed=false) demotes to:
+// "" or "translated" for a plain un-review, "draft" for a reviewer rejection
+// (the unit re-enters the work queue). It must be empty when reviewed is true.
+func (a *App) ReviewBlock(projectID, itemName, blockID, targetLocale string, reviewed bool, status string) error {
 	op := reviewBlockOp{
 		ProjectID: projectID, ItemName: itemName, BlockID: blockID,
-		TargetLocale: targetLocale, Reviewed: reviewed,
+		TargetLocale: targetLocale, Reviewed: reviewed, Status: status,
 	}
 	return a.writeThroughVoid(op,
 		func() error {
 			client, ws := a.editorRemote()
-			return client.ReviewBlock(context.Background(), ws, projectID, itemName, blockID, targetLocale, reviewed)
+			return client.ReviewBlock(context.Background(), ws, projectID, itemName, blockID, targetLocale, reviewed, status)
 		},
 		nil, // reconcile the local cache on success
-		func() error { return a.reviewBlockLocal(projectID, blockID, reviewed) },
+		func() error { return a.reviewBlockLocal(projectID, blockID, targetLocale, reviewed, status) },
 	)
 }
 
-func (a *App) reviewBlockLocal(projectID, blockID string, reviewed bool) error {
+// legacyTranslationStatusProperty is the pre-per-locale review flag: a
+// block-GLOBAL property the old scheme wrote. Review state now lives on the
+// per-locale model.Target.Status (mirroring the server's HandleReviewBlock);
+// the property is write-never, kept only as a read fallback for cached blocks
+// written before the change, and cleared on un-review when there is no target
+// to demote.
+const legacyTranslationStatusProperty = "translation-status"
+
+// reviewBlockLocal applies a review decision to the locally cached block with
+// the same per-locale semantics as the server's HandleReviewBlock: the status
+// lives on the block's target for ONE locale (reviewing fr never touches de).
+// Approving a block with no non-empty translation for the locale is an error
+// (the server's 422); un-reviewing a locale with no target clears the legacy
+// block-global property if present and is otherwise a no-op. status picks the
+// demotion rung for reviewed=false ("draft" for a rejection, otherwise
+// translated), mirroring the server's optional status field.
+func (a *App) reviewBlockLocal(projectID, blockID, targetLocale string, reviewed bool, status string) error {
 	ctx := context.Background()
 	sb, err := a.store.GetBlock(ctx, projectID, "main", blockID)
 	if err != nil {
 		return err
 	}
-	if sb.Block.Properties == nil {
-		sb.Block.Properties = make(map[string]string)
-	}
+
+	loc := model.LocaleID(targetLocale)
+	target := sb.Block.Target(loc)
+
 	if reviewed {
-		sb.Block.Properties["translation-status"] = "reviewed"
+		if target == nil || strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
+			return fmt.Errorf("block %q has no %s translation to review: translate it first", blockID, targetLocale)
+		}
+		if target.Status == model.TargetStatusSignedOff {
+			// Signed-off sits above reviewed on the ladder; re-approving must
+			// not demote it (mirrors the server's HandleReviewBlock no-op).
+			return nil
+		}
+		target.Status = model.TargetStatusReviewed
 	} else {
-		sb.Block.Properties["translation-status"] = "translated"
+		if target == nil {
+			// Nothing to demote. Clear the legacy block-global flag if present so
+			// a block reviewed under the old scheme can be un-reviewed at all.
+			if _, ok := sb.Block.Properties[legacyTranslationStatusProperty]; ok {
+				delete(sb.Block.Properties, legacyTranslationStatusProperty)
+				return a.store.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
+			}
+			return nil
+		}
+		if status == string(model.TargetStatusDraft) {
+			target.Status = model.TargetStatusDraft
+		} else {
+			target.Status = model.TargetStatusTranslated
+		}
 	}
 	return a.store.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
 }

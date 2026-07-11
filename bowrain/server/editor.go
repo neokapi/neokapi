@@ -8,6 +8,8 @@ import (
 	"io"
 	"maps"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -140,8 +142,19 @@ type ProjectInfoResponse struct {
 	Collections           []CollectionResponse  `json:"collections,omitempty"`
 	Streams               []store.Stream        `json:"streams,omitempty"`
 	ActiveStream          string                `json:"active_stream,omitempty"`
-	CreatedAt             string                `json:"created_at"`
-	ModifiedAt            string                `json:"modified_at"`
+	// Skipped lists uploaded files that were NOT imported and why (unsupported
+	// extension, no reader, parse failure). Only set on the upload responses;
+	// absent/empty means every file imported.
+	Skipped    []SkippedFileResponse `json:"skipped,omitempty"`
+	CreatedAt  string                `json:"created_at"`
+	ModifiedAt string                `json:"modified_at"`
+}
+
+// SkippedFileResponse names one uploaded file that was not imported and the
+// reason it was skipped.
+type SkippedFileResponse struct {
+	Name   string `json:"name"`
+	Reason string `json:"reason"`
 }
 
 // ProjectItemResponse describes an item within a project.
@@ -159,16 +172,31 @@ type ProjectItemResponse struct {
 // BlockInfoResponse is a serializable representation of a translatable block.
 // Inline markup travels as RFC 0001 Run sequences (source_runs / targets_runs),
 // the same content model the gRPC editor uses; there is no coded-text form.
+//
+// Targets carries, per locale, the committed target's plain text AND its
+// per-locale review status (model.Target.Status — the ladder the convergence /
+// coverage engine consumes), so the editor reads status as
+// block.targets[locale].status. Blocks written before per-locale status carry
+// only the legacy block-global Properties["translation-status"], which readers
+// use as a fallback when targets[locale].status is empty.
 type BlockInfoResponse struct {
-	ID             string                 `json:"id"`
-	Source         string                 `json:"source"`
-	SourceRuns     []model.Run            `json:"source_runs,omitempty"`
-	Targets        map[string]string      `json:"targets"`
-	TargetsRuns    map[string][]model.Run `json:"targets_runs,omitempty"`
-	Translatable   bool                   `json:"translatable"`
-	HasInlineCodes bool                   `json:"has_inline_codes"`
-	Properties     map[string]string      `json:"properties"`
-	Entities       []EntityInfoResponse   `json:"entities,omitempty"`
+	ID             string                     `json:"id"`
+	Source         string                     `json:"source"`
+	SourceRuns     []model.Run                `json:"source_runs,omitempty"`
+	Targets        map[string]BlockTargetInfo `json:"targets"`
+	TargetsRuns    map[string][]model.Run     `json:"targets_runs,omitempty"`
+	Translatable   bool                       `json:"translatable"`
+	HasInlineCodes bool                       `json:"has_inline_codes"`
+	Properties     map[string]string          `json:"properties"`
+	Entities       []EntityInfoResponse       `json:"entities,omitempty"`
+}
+
+// BlockTargetInfo is one locale's committed target in the blocks payload:
+// plain text plus the target's lifecycle status ("" | draft | translated |
+// reviewed | signed-off, model.TargetStatus).
+type BlockTargetInfo struct {
+	Text   string `json:"text"`
+	Status string `json:"status,omitempty"`
 }
 
 // EntityInfoResponse represents an entity annotation on a block.
@@ -474,74 +502,46 @@ func editorCreateProject(ctx context.Context, cs store.ContentStore, ws, name, s
 }
 
 // editorAddFiles parses uploaded files, stores items and blocks in ContentStore.
+// Files that cannot be imported (unknown extension, no reader, parse failure)
+// are reported per-file in the response's Skipped list rather than silently
+// dropped or failing the whole batch; the importable files still land.
 func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, stream string, files map[string][]byte) (*ProjectInfoResponse, error) {
-	proj, err := cs.GetProject(ctx, projectID)
-	if err != nil {
-		return nil, fmt.Errorf("get project: %w", err)
-	}
-
-	for itemName, data := range files {
-		ext := filepath.Ext(itemName)
-		fmtName, err := formatReg.Detector().DetectByExtension(ext)
-		if err != nil {
-			continue
-		}
-
-		reader, err := formatReg.NewReader(registry.FormatID(fmtName))
-		if err != nil {
-			continue
-		}
-
-		doc := &model.RawDocument{
-			URI:          itemName,
-			SourceLocale: proj.DefaultSourceLanguage,
-			Encoding:     "UTF-8",
-			Reader:       io.NopCloser(bytes.NewReader(data)),
-		}
-
-		result, err := editor.ParseItem(ctx, reader, doc, string(proj.DefaultSourceLanguage), fmtName, itemName)
-		if err != nil {
-			return nil, err
-		}
-
-		item := &store.Item{
-			Name:        itemName,
-			Format:      fmtName,
-			ItemType:    "file",
-			BlockIndex:  result.BlockIndexJSON,
-			PreviewHTML: result.PreviewHTML,
-			Properties:  map[string]string{},
-		}
-		if err := cs.StoreItem(ctx, projectID, stream, item); err != nil {
-			return nil, fmt.Errorf("store item %q: %w", itemName, err)
-		}
-
-		if len(result.Blocks) > 0 {
-			if err := cs.StoreBlocksForItem(ctx, projectID, stream, itemName, result.Blocks); err != nil {
-				return nil, fmt.Errorf("store blocks for %q: %w", itemName, err)
-			}
-		}
-	}
-
-	return editorBuildProjectInfo(ctx, cs, proj, stream)
+	return editorAddFilesInternal(ctx, cs, formatReg, projectID, stream, "", files)
 }
 
-// editorAddFilesToCollection parses uploaded files and stores them in a specific collection.
+// editorAddFilesToCollection parses uploaded files and stores them in a specific
+// collection. Per-file import failures are reported like editorAddFiles.
 func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, stream, collectionID string, files map[string][]byte) (*ProjectInfoResponse, error) {
+	return editorAddFilesInternal(ctx, cs, formatReg, projectID, stream, collectionID, files)
+}
+
+// editorAddFilesInternal is the shared upload path: it parses each file,
+// stores item + blocks (tagged with collectionID when non-empty), collects
+// per-file skip reasons, and returns the project info with Skipped set.
+// Storage errors stay hard errors — they are infrastructure failures, not
+// per-file input problems.
+func editorAddFilesInternal(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, stream, collectionID string, files map[string][]byte) (*ProjectInfoResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("get project: %w", err)
+	}
+
+	var skipped []SkippedFileResponse
+	skip := func(name, reason string) {
+		skipped = append(skipped, SkippedFileResponse{Name: name, Reason: reason})
 	}
 
 	for itemName, data := range files {
 		ext := filepath.Ext(itemName)
 		fmtName, err := formatReg.Detector().DetectByExtension(ext)
 		if err != nil {
+			skip(itemName, fmt.Sprintf("unsupported file type %q: %s", ext, err))
 			continue
 		}
 
 		reader, err := formatReg.NewReader(registry.FormatID(fmtName))
 		if err != nil {
+			skip(itemName, fmt.Sprintf("no reader for format %q: %s", fmtName, err))
 			continue
 		}
 
@@ -554,7 +554,8 @@ func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, form
 
 		result, err := editor.ParseItem(ctx, reader, doc, string(proj.DefaultSourceLanguage), fmtName, itemName)
 		if err != nil {
-			return nil, err
+			skip(itemName, fmt.Sprintf("parse as %s failed: %s", fmtName, err))
+			continue
 		}
 
 		item := &store.Item{
@@ -577,7 +578,14 @@ func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, form
 		}
 	}
 
-	return editorBuildProjectInfo(ctx, cs, proj, stream)
+	info, err := editorBuildProjectInfo(ctx, cs, proj, stream)
+	if err != nil {
+		return nil, err
+	}
+	// Map iteration is unordered; sort for a deterministic response.
+	sort.Slice(skipped, func(i, j int) bool { return skipped[i].Name < skipped[j].Name })
+	info.Skipped = skipped
+	return info, nil
 }
 
 // editorRemoveFile removes an item and its blocks from ContentStore.
@@ -620,7 +628,10 @@ func editorUpdateBlockTarget(ctx context.Context, cs store.ContentStore, project
 		return err
 	}
 
-	sb.Block.SetTargetText(model.LocaleID(req.TargetLocale), req.Text)
+	loc := model.LocaleID(req.TargetLocale)
+	oldRuns := sb.Block.TargetRuns(loc)
+	sb.Block.SetTargetText(loc, req.Text)
+	demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
 
 	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
 }
@@ -633,9 +644,36 @@ func editorUpdateBlockTargetRuns(ctx context.Context, cs store.ContentStore, pro
 		return err
 	}
 
-	sb.Block.SetTargetRuns(model.LocaleID(req.TargetLocale), req.Runs)
+	loc := model.LocaleID(req.TargetLocale)
+	oldRuns := sb.Block.TargetRuns(loc)
+	sb.Block.SetTargetRuns(loc, req.Runs)
+	demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
 
 	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
+}
+
+// demoteStaleReviewOnEdit drops a reviewed/signed-off Target.Status back to
+// translated when an edit actually changed the target's content. A review
+// decision judges ONE specific translation, so rewriting the text invalidates
+// the stale approval — the host review model binds every decision to the
+// content hash of the translation it judges for exactly this reason
+// (host/convergereport.go). Without the demotion, an edited-after-approval
+// target would keep counting as reviewed in convergence/coverage and ship
+// gates forever. Statuses at or below translated are left alone: they are not
+// review decisions, and SetTargetText/SetTargetRuns deliberately preserve
+// provenance.
+func demoteStaleReviewOnEdit(b *model.Block, locale model.LocaleID, oldRuns []model.Run) {
+	t := b.Target(locale)
+	if t == nil {
+		return
+	}
+	if t.Status != model.TargetStatusReviewed && t.Status != model.TargetStatusSignedOff {
+		return
+	}
+	if reflect.DeepEqual(oldRuns, t.Runs) {
+		return
+	}
+	t.Status = model.TargetStatusTranslated
 }
 
 // editorPseudoTranslate pseudo-translates all blocks for an item.
@@ -1201,10 +1239,16 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 
 // storedBlockToInfoResponse converts a StoredBlock to a BlockInfoResponse.
 func storedBlockToInfoResponse(sb *store.StoredBlock, targetLocales []string) BlockInfoResponse {
-	targets := make(map[string]string, len(targetLocales))
+	targets := make(map[string]BlockTargetInfo, len(targetLocales))
 	for _, locale := range targetLocales {
-		if t := sb.Block.TargetText(model.LocaleID(locale)); t != "" {
-			targets[locale] = t
+		loc := model.LocaleID(locale)
+		text := sb.Block.TargetText(loc)
+		status := ""
+		if t := sb.Block.Target(loc); t != nil {
+			status = string(t.Status)
+		}
+		if text != "" || status != "" {
+			targets[locale] = BlockTargetInfo{Text: text, Status: status}
 		}
 	}
 

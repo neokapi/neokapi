@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
   ProjectView,
   useApi,
   useStream,
@@ -18,8 +22,10 @@ import {
   useStreamActions,
   ConfirmDialog,
   ProjectMemberManager,
+  X,
 } from "@neokapi/ui";
 import type {
+  SkippedFile,
   StreamVisibility,
   StreamMergeResult,
   StreamDiffResult,
@@ -51,9 +57,13 @@ export function ProjectDetailRoute() {
     void queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
   }, [queryClient, ws, project.id]);
 
+  // Files the server declined to import on the last upload (and why).
+  const [uploadSkipped, setUploadSkipped] = useState<SkippedFile[]>([]);
+
   const handleUploadFiles = useCallback(
     async (files: File[]) => {
-      await adapter.uploadFiles(ws, project.id, files, activeStream);
+      const result = await adapter.uploadFiles(ws, project.id, files, activeStream);
+      setUploadSkipped(result.skipped ?? []);
       invalidateProject();
     },
     [ws, adapter, project.id, activeStream, invalidateProject],
@@ -130,7 +140,14 @@ export function ProjectDetailRoute() {
 
   const handleUploadToCollection = useCallback(
     async (collectionId: string, files: File[]) => {
-      await adapter.uploadToCollection(ws, project.id, collectionId, files, activeStream);
+      const result = await adapter.uploadToCollection(
+        ws,
+        project.id,
+        collectionId,
+        files,
+        activeStream,
+      );
+      setUploadSkipped(result.skipped ?? []);
       invalidateProject();
     },
     [ws, adapter, project.id, activeStream, invalidateProject],
@@ -234,6 +251,39 @@ export function ProjectDetailRoute() {
 
   return (
     <>
+      {/* Files the server declined to import on the last upload */}
+      {uploadSkipped.length > 0 && (
+        <Alert
+          variant="destructive"
+          className="mb-3 relative pr-10"
+          data-testid="upload-skipped-alert"
+        >
+          <AlertTitle>
+            {uploadSkipped.length === 1
+              ? "1 file was not imported"
+              : `${uploadSkipped.length} files were not imported`}
+          </AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc pl-4">
+              {uploadSkipped.map((f) => (
+                <li key={f.name}>
+                  <span className="font-medium">{f.name}</span> — {f.reason}
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute top-2 right-2 h-6 w-6 p-0"
+            onClick={() => setUploadSkipped([])}
+            aria-label="Dismiss"
+            data-testid="upload-skipped-dismiss"
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        </Alert>
+      )}
       <ProjectView
         project={project}
         onBack={() => navigate({ to: "/$workspace", params: { workspace: workspace ?? ws } })}

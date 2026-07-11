@@ -130,6 +130,23 @@ export async function injectMockBackend(page: Page) {
     const projectFiles: Record<string, Record<string, any>> = {};
     const providerConfigs: Record<string, any> = {};
 
+    // Per-locale target entries are either a bare string (legacy payloads) or
+    // a {text, status} object carrying the per-locale Target.Status (mirrors
+    // the server's BlockTargetInfo). All mock reads go through this helper so
+    // both shapes work — the same rule as the frontend's getTargetText.
+    const targetText = (block: any, locale: string): string => {
+      const entry = block?.targets?.[locale];
+      if (entry == null) return "";
+      return typeof entry === "string" ? entry : (entry.text ?? "");
+    };
+    // Replace a target's text while preserving its per-locale status, the way
+    // the server's SetTargetText/SetTargetRuns preserve Target.Status.
+    const setTargetPreservingStatus = (block: any, locale: string, text: string) => {
+      const entry = block.targets[locale];
+      const status = entry != null && typeof entry === "object" ? entry.status : undefined;
+      block.targets[locale] = status ? { text, status } : text;
+    };
+
     // Call IDs from the generated bindings (app.js)
     // Regenerate by running: grep -E '(export function|ByID)' bindings/.../app.js | paste - -
     const IDS = {
@@ -592,21 +609,38 @@ export async function injectMockBackend(page: Page) {
       if (!files || !files[itemName]) return;
       const block = files[itemName].find((b: any) => b.id === req.block_id);
       if (block) {
-        block.targets[req.target_locale] = req.text;
+        setTargetPreservingStatus(block, req.target_locale, req.text);
       }
     };
 
-    mock[IDS.UpdateBlockTargetCoded] = (req: any) => {
+    // The desktop adapter converts the editor's coded text + spans to an RFC
+    // 0001 Run sequence (WailsApiAdapter.updateBlockTargetCoded \u2192
+    // Backend.UpdateBlockTargetRuns), so the request carries `runs`, not
+    // coded_text. (This handler was previously registered under a
+    // non-existent IDS.UpdateBlockTargetCoded key, i.e. dead code.)
+    mock[IDS.UpdateBlockTargetRuns] = (req: any) => {
       const itemName = req.item_name || req.file_name;
       const files = projectFiles[req.project_id];
       if (!files || !files[itemName]) return;
       const block = files[itemName].find((b: any) => b.id === req.block_id);
-      if (block) {
-        const plain = req.coded_text.replace(/[\uE001-\uE003]/g, "");
-        block.targets[req.target_locale] = plain;
-        if (!block.targets_coded) block.targets_coded = {};
-        block.targets_coded[req.target_locale] = req.coded_text;
+      if (!block) return;
+      let plain = "";
+      let coded = "";
+      for (const run of req.runs ?? []) {
+        if (run.text) {
+          plain += run.text.text;
+          coded += run.text.text;
+        } else if (run.pcOpen) {
+          coded += "\uE001";
+        } else if (run.pcClose) {
+          coded += "\uE002";
+        } else if (run.ph) {
+          coded += "\uE003";
+        }
       }
+      setTargetPreservingStatus(block, req.target_locale, plain);
+      if (!block.targets_coded) block.targets_coded = {};
+      block.targets_coded[req.target_locale] = coded;
     };
 
     mock[IDS.PseudoTranslateItem] = (projectID: string, itemName: string, targetLocale: string) => {
@@ -619,8 +653,9 @@ export async function injectMockBackend(page: Page) {
         if (b.translatable) {
           b.targets[targetLocale] = `[${b.source}]`;
           if (!b.properties) b.properties = {};
+          // The retired block-global "translation-status" property is never
+          // written; getBlockStatus derives "draft" from the origin.
           b.properties["translation-origin"] = "pseudo";
-          b.properties["translation-status"] = "draft";
           translated++;
           wordCount += b.source.split(/\s+/).length;
         }
@@ -636,7 +671,7 @@ export async function injectMockBackend(page: Page) {
       let translated = 0;
       let wordCount = 0;
       for (const b of blocks) {
-        if (!b.translatable || b.targets[targetLocale]) continue;
+        if (!b.translatable || targetText(b, targetLocale)) continue;
         // Find exact or fuzzy match from TM
         const exact = entries.find(
           (e: any) =>
@@ -646,7 +681,6 @@ export async function injectMockBackend(page: Page) {
           b.targets[targetLocale] = (exact as any).target;
           if (!b.properties) b.properties = {};
           b.properties["translation-origin"] = "tm";
-          b.properties["translation-status"] = "draft";
           translated++;
           wordCount += b.source.split(/\s+/).length;
         }
@@ -667,8 +701,8 @@ export async function injectMockBackend(page: Page) {
         if (b.translatable) {
           sourceWords += b.source.split(/\s+/).length;
           sourceChars += b.source.length;
-          for (const [locale, text] of Object.entries(b.targets)) {
-            const t = text as string;
+          for (const locale of Object.keys(b.targets)) {
+            const t = targetText(b, locale);
             targetWords[locale] = (targetWords[locale] || 0) + t.split(/\s+/).length;
             targetChars[locale] = (targetChars[locale] || 0) + t.length;
           }
@@ -738,8 +772,9 @@ export async function injectMockBackend(page: Page) {
       if (!files || !files[itemName]) return "";
       const block = files[itemName].find((b: any) => b.id === blockID);
       if (!block) return "";
-      if (targetLocale && block.targets[targetLocale]) {
-        return block.targets[targetLocale];
+      const rendered = targetLocale ? targetText(block, targetLocale) : "";
+      if (rendered) {
+        return rendered;
       }
       return block.source;
     };
@@ -1113,9 +1148,9 @@ export async function injectMockBackend(page: Page) {
       const concepts = Object.values(termsStore);
       const results: any[] = [];
       for (const b of files[itemName]) {
-        if (!b.translatable || !b.targets[targetLocale]) continue;
+        if (!b.translatable || !targetText(b, targetLocale)) continue;
         const srcLower = b.source.toLowerCase();
-        const tgtLower = b.targets[targetLocale].toLowerCase();
+        const tgtLower = targetText(b, targetLocale).toLowerCase();
         for (const c of concepts) {
           const concept = c as any;
           const srcTerms = concept.terms.filter((t: any) =>
@@ -1131,7 +1166,7 @@ export async function injectMockBackend(page: Page) {
                 concept_id: concept.id,
                 expected: tgtTerms.map((tt: any) => tt.text),
                 source_text: b.source,
-                target_text: b.targets[targetLocale],
+                target_text: targetText(b, targetLocale),
                 source_locale: "en",
                 target_locale: targetLocale,
               });
@@ -1258,14 +1293,33 @@ export async function injectMockBackend(page: Page) {
       blockID: string,
       targetLocale: string,
       reviewed: boolean,
+      status?: string,
     ) => {
       const files = projectFiles[_projectID];
       if (!files || !files[itemName]) return;
       const block = files[itemName].find((b: any) => b.id === blockID);
-      if (block) {
-        if (!block.properties) block.properties = {};
-        block.properties["translation-status"] = reviewed ? "reviewed" : "translated";
+      if (!block) return;
+      // Mirror the server's HandleReviewBlock: review state is the per-locale
+      // {text, status} target entry (the Target.Status ladder), never the
+      // legacy block-global properties["translation-status"]; approving an
+      // empty translation is rejected (the server 422s it).
+      const text = targetText(block, targetLocale);
+      if (reviewed && !text.trim()) {
+        throw new Error(
+          `block "${blockID}" has no ${targetLocale} translation to review: translate it first`,
+        );
       }
+      if (!reviewed && block.targets[targetLocale] == null) {
+        // Un-reviewing a no-target locale clears a stuck legacy flag; no-op otherwise.
+        if (block.properties) delete block.properties["translation-status"];
+        return;
+      }
+      block.targets[targetLocale] = {
+        text,
+        // A rejection (reviewed=false + status "draft") demotes to draft;
+        // a plain un-review lands on translated (server's optional status).
+        status: reviewed ? "reviewed" : status === "draft" ? "draft" : "translated",
+      };
     };
 
     mock[IDS.StartWatching] = () => {};

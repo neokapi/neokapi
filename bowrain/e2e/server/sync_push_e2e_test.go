@@ -23,18 +23,13 @@ import (
 
 // TestSyncPushE2E exercises the full sync push protocol against a live server+worker.
 //
-// Prerequisites:
-//   - docker compose up -d (postgres, nats, redis)
-//   - make dev-server (terminal 1)
-//   - make dev-worker (terminal 2)
+// Prerequisites (all provided by bowrain/e2e/server/compose.yaml):
+//   - docker compose -f e2e/server/compose.yaml up -d --wait
+//     (postgres, nats, redis, bowrain-server, bowrain-worker)
+//
+// Re-enabled for #867: the E2E compose now runs the async bowrain-worker
+// (+ redis), so the committed push is ingested and completes.
 func TestSyncPushE2E(t *testing.T) {
-	// Quarantined (#867): the push commits but never completes because the E2E
-	// docker stack (bowrain/e2e/server/compose.yaml) runs no async bowrain-worker
-	// (+ redis) to process it — it stays in_progress until the 15s timeout. The
-	// URL routing is correct (init/diff/chunk/commit all 2xx). Re-enable once the
-	// worker is built into Build E2E Images and added to the E2E compose.
-	t.Skip("Quarantined (#867): E2E stack runs no async worker; push never completes")
-
 	token := getTestToken(t)
 
 	// 1. Create workspace + project.
@@ -112,7 +107,8 @@ func TestSyncPushE2E(t *testing.T) {
 	require.NoError(t, err)
 
 	chunkURL := fmt.Sprintf("%s/sync/main/push/chunks/%s/0", basePath, uploadID)
-	req, _ := http.NewRequest(http.MethodPut, serverURL+chunkURL, nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPut, serverURL+chunkURL, nil)
+	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Body = io.NopCloser(bytesReader(chunkData))
@@ -154,7 +150,7 @@ func TestSyncPushE2E(t *testing.T) {
 
 	// 7. Poll push status until completed (worker must be running).
 	var pushStatus string
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		time.Sleep(500 * time.Millisecond)
 		statusResp := apiRequest(t, http.MethodGet,
 			basePath+"/sync/main/status?push_id="+pushID, token, "")

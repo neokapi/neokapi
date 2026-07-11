@@ -110,19 +110,22 @@ func (o updateBlockTargetRunsOp) replay(ctx context.Context, client *apiclient.B
 	return client.UpdateBlockTargetRuns(ctx, ws, o.ProjectID, o.BlockID, o.TargetLocale, runInfosToRuns(o.Runs))
 }
 
-// reviewBlockOp queues a block review/un-review.
+// reviewBlockOp queues a block review/un-review. Status is the optional
+// demotion rung for reviewed=false ("draft" for a rejection; empty means
+// translated), mirroring the server's review body.
 type reviewBlockOp struct {
 	ProjectID    string `json:"project_id"`
 	ItemName     string `json:"item_name"`
 	BlockID      string `json:"block_id"`
 	TargetLocale string `json:"target_locale"`
 	Reviewed     bool   `json:"reviewed"`
+	Status       string `json:"status,omitempty"`
 }
 
 func (reviewBlockOp) opKind() opKind { return opReviewBlock }
 
 func (o reviewBlockOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
-	return client.ReviewBlock(ctx, ws, o.ProjectID, o.ItemName, o.BlockID, o.TargetLocale, o.Reviewed)
+	return client.ReviewBlock(ctx, ws, o.ProjectID, o.ItemName, o.BlockID, o.TargetLocale, o.Reviewed, o.Status)
 }
 
 // --- Translation-memory ops ---

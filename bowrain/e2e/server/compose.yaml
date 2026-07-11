@@ -40,6 +40,8 @@ services:
         condition: service_started
       nats:
         condition: service_started
+      redis:
+        condition: service_healthy
     environment:
       BOWRAIN_JWT_SECRET: dev-secret-change-in-production
       BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain?sslmode=disable
@@ -52,12 +54,51 @@ services:
       BOWRAIN_GRPC_PORT: "9080"
       BOWRAIN_WEB_UI_DIR: /web
       BOWRAIN_NATS_URL: nats://nats:4222
+      BOWRAIN_REDIS_URL: redis://redis:6379
+      # Shared with the worker — push payloads land here for async ingestion.
+      BLOB_STORAGE_LOCAL_DIR: /data/blobs
+      # The e2e suites hammer the pre-auth endpoints (a device-auth flow per
+      # spec file, an anonymous project per claim test), which trips the
+      # production anti-abuse caps on repeated runs. The caps themselves are
+      # covered by Go tests; give the browser suite generous headroom.
+      BOWRAIN_RL_ANON_PER_MIN: "600"
+      BOWRAIN_RL_ANON_BURST: "100"
+      BOWRAIN_RL_AUTH_PER_MIN: "600"
+      BOWRAIN_RL_AUTH_BURST: "100"
     volumes:
       - web-dist:/web:ro
+      - blob-data:/data
     ports:
       - "8080:8080"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Async worker: processes sync-push ingestion + platform translation jobs
+  # from NATS. Without it a `kapi push` commits but never completes (#867).
+  # BOWRAIN_PLATFORM_PROVIDER=demo keeps translation offline-deterministic.
+  bowrain-worker:
+    image: ${BOWRAIN_WORKER_IMAGE:-ghcr.io/neokapi/bowrain-worker:e2e}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    environment:
+      BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain?sslmode=disable
+      BOWRAIN_NATS_URL: nats://nats:4222
+      BOWRAIN_REDIS_URL: redis://redis:6379
+      # Same shared volume as the server (note: worker uses LOCAL_BLOB_DIR).
+      LOCAL_BLOB_DIR: /data/blobs
+      BOWRAIN_PLATFORM_PROVIDER: demo
+    volumes:
+      - blob-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -98,7 +139,16 @@ services:
     volumes:
       - nats-data:/data
 
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   web-dist:
   pgdata:
   nats-data:
+  blob-data:

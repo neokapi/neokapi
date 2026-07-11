@@ -1,9 +1,11 @@
+import { codedToRuns } from "@neokapi/ui-primitives";
 import type { ApiAdapter } from "./adapter";
 import type {
   User,
   Workspace,
   Membership,
   ProjectInfo,
+  UploadFilesResult,
   ConfigResponse,
   BlockInfo,
   UpdateBlockRequest,
@@ -99,6 +101,7 @@ import type {
   EmailChangeRequestResponse,
   EmailChangeConfirmResponse,
   SlugReservation,
+  ReviewDemotion,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -857,7 +860,7 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     files: File[],
     stream?: string,
-  ): Promise<ProjectInfo> {
+  ): Promise<UploadFilesResult> {
     const formData = new FormData();
     for (const file of files) {
       formData.append("files", file);
@@ -997,12 +1000,13 @@ export class RestApiAdapter implements ApiAdapter {
     collectionId: string,
     files: File[],
     stream?: string,
-  ): Promise<ProjectInfo> {
+  ): Promise<UploadFilesResult> {
     const formData = new FormData();
     for (const file of files) {
       formData.append("files", file);
     }
-    const url = `${this.projectEp(workspaceSlug, projectId)}/collections/${collectionId}/files/${this.ref(stream)}`;
+    // Server route (Bowrain AD-011): /:ws/:id/collections/:ref/:cid/items
+    const url = `${this.projectEp(workspaceSlug, projectId)}/collections/${this.ref(stream)}/${encodeURIComponent(collectionId)}/items`;
     const resp = await fetch(`${this.baseUrl}${url}`, {
       method: "POST",
       headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
@@ -1043,9 +1047,19 @@ export class RestApiAdapter implements ApiAdapter {
     workspaceSlug: string,
     req: UpdateBlockTargetCodedRequest,
   ): Promise<void> {
+    // The @neokapi/ui editor still authors coded text + spans; the server
+    // consumes RFC 0001 runs (PUT .../runs — there is no /coded route), so
+    // convert at the boundary, exactly like WailsApiAdapter does for the
+    // desktop backend.
     await this.fetchJSON(
-      `${this.projectEp(workspaceSlug, req.project_id)}/blocks/${this.ref(req.stream)}/${req.block_id}/coded`,
-      { method: "PUT", body: JSON.stringify(req) },
+      `${this.projectEp(workspaceSlug, req.project_id)}/blocks/${this.ref(req.stream)}/${req.block_id}/runs`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          target_locale: req.target_locale,
+          runs: codedToRuns(req.coded_text, req.spans),
+        }),
+      },
     );
   }
 
@@ -1220,6 +1234,32 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/status`,
       { method: "PUT", body: JSON.stringify({ status, reason }) },
+    );
+  }
+
+  async reviewBlock(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    blockId: string,
+    targetLocale: string,
+    reviewed: boolean,
+    stream?: string,
+    demoteTo?: ReviewDemotion,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/review`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          item_name: itemName,
+          target_locale: targetLocale,
+          reviewed,
+          // The demotion rung only applies to a clearing call; the server
+          // rejects status alongside reviewed=true.
+          status: !reviewed && demoteTo ? demoteTo : undefined,
+        }),
+      },
     );
   }
 
