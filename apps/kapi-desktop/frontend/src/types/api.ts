@@ -85,6 +85,7 @@ export interface FormatSpec {
 }
 
 export interface FlowSpec {
+  /** Markdown — see markdown-in-ui.md. */
   description?: string;
   steps: FlowStep[];
 }
@@ -104,6 +105,7 @@ export interface FlowIssue {
 
 export interface FlowInfo {
   name: string;
+  /** Markdown — see markdown-in-ui.md. */
   description: string;
   step_count: number;
   valid: boolean;
@@ -115,6 +117,7 @@ export type LocaleCardinality = "monolingual" | "bilingual" | "multilingual";
 export interface ToolInfo {
   name: string;
   display_name?: string;
+  /** Markdown — see markdown-in-ui.md. */
   description: string;
   category: string;
   source?: string;
@@ -189,6 +192,7 @@ export interface PluginInfo {
   id: string;
   version: string;
   framework_version?: string;
+  /** Markdown — see markdown-in-ui.md. */
   description?: string;
   type: string;
   formats?: string[];
@@ -345,31 +349,43 @@ export interface PluginDocs {
   concepts?: Record<string, ConceptDoc>;
 }
 
+// The *Doc `overview`, `limitations`, `processingNotes`, per-parameter
+// help, and example `description` fields are markdown — render them through
+// the shared `Markdown` primitive (@neokapi/ui-primitives). See
+// web/docs/contribute/notes-internal/markdown-in-ui.md.
+
 export interface FilterDoc {
   filterName: string;
+  /** Markdown. */
   overview: string;
   filterId?: string;
   wikiUrl?: string;
   parameters?: Record<string, ParameterDoc>;
+  /** Markdown items. */
   limitations?: string[];
+  /** Markdown items. */
   processingNotes?: string[];
   examples?: DocExample[];
 }
 
 export interface StepDoc {
   filterName: string; // actually the step display name
+  /** Markdown. */
   overview: string;
   stepId?: string;
   wikiUrl?: string;
   parameters?: Record<string, ParameterDoc>;
+  /** Markdown items. */
   limitations?: string[];
+  /** Markdown items. */
   processingNotes?: string[];
   examples?: DocExample[];
 }
 
 export interface ParameterDoc {
+  /** Markdown (parameter help). */
   description?: string;
-  /** Alias for description used in okapi-bridge doc files. */
+  /** Markdown. Alias for description used in okapi-bridge doc files. */
   help?: string;
   notes?: string[];
   introducedIn?: string;
@@ -385,6 +401,7 @@ export interface ParameterDependency {
 
 export interface DocExample {
   title: string;
+  /** Markdown. */
   description?: string;
   input?: string;
   output?: string;

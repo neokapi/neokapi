@@ -27,8 +27,9 @@ const (
 // It captures the visual graph (nodes + edges) as well as the tool configurations
 // needed to reconstruct a runnable Flow.
 type FlowDefinition struct {
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Description is markdown — see markdown-in-ui.md.
 	Description string     `json:"description,omitempty"`
 	Nodes       []FlowNode `json:"nodes"`
 	Edges       []FlowEdge `json:"edges"`

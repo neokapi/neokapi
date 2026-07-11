@@ -32,6 +32,7 @@ export type ReferenceKind = "format" | "tool";
 /** A worked configuration example. */
 export interface ReferenceExample {
   title: string;
+  /** Markdown — see markdown-in-ui.md. */
   description?: string;
   /** Fenced YAML configuration snippet. */
   config?: string;
@@ -40,11 +41,16 @@ export interface ReferenceExample {
 }
 
 /** Rich reference documentation for an entry. `parameters` is handed to
- *  SchemaForm as its `paramDocs` prop unchanged. */
+ *  SchemaForm as its `paramDocs` prop unchanged.
+ *  `overview`, `limitations`, and `processingNotes` are markdown — see
+ *  markdown-in-ui.md. */
 export interface ReferenceDoc {
+  /** Markdown. */
   overview?: string;
   parameters?: Record<string, ToolDocParam>;
+  /** Markdown items. */
   limitations?: string[];
+  /** Markdown items. */
   processingNotes?: string[];
   examples?: ReferenceExample[];
   wikiUrl?: string;
@@ -56,6 +62,7 @@ export interface ReferenceEntry {
   source: ReferenceSource;
   kind: ReferenceKind;
   displayName: string;
+  /** Markdown — see markdown-in-ui.md. */
   description?: string;
 
   // Format-only metadata.
@@ -143,7 +150,7 @@ export interface CommandEntry {
   use: string;
   /** One-line description. */
   short?: string;
-  /** Multi-line description. */
+  /** Markdown. Multi-line description — see markdown-in-ui.md. */
   long?: string;
   /** Alternative command names. */
   aliases?: string[];

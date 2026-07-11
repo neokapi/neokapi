@@ -55,7 +55,9 @@ type Manifest struct {
 	// Version is the plugin's semver (e.g., "1.4.0").
 	Version string `json:"version"`
 
-	// Description is a one-line human-readable description.
+	// Description is a one-line human-readable description. Markdown
+	// (inline emphasis/code/links) — rendered through the shared Markdown
+	// primitive in the UIs. See markdown-in-ui.md.
 	Description string `json:"description,omitempty"`
 
 	// Homepage is the plugin's documentation URL.

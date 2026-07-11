@@ -16,9 +16,10 @@ import (
 //   - (no prefix)   — neokapi data/metadata (formatMeta, toolMeta, presets)
 //   - x-okapi-*     — Okapi bridge internals (produced by okapi-bridge only)
 type ComponentSchema struct {
-	ID          string `json:"$id,omitempty"`
-	Version     string `json:"$version,omitempty"`
-	Title       string `json:"title"`
+	ID      string `json:"$id,omitempty"`
+	Version string `json:"$version,omitempty"`
+	Title   string `json:"title"`
+	// Description is markdown — see markdown-in-ui.md.
 	Description string `json:"description,omitempty"`
 	Type        string `json:"type"` // "object"
 
@@ -72,6 +73,7 @@ type ToolMeta struct {
 	ID          string `json:"id"`
 	Category    string `json:"category,omitempty"` // canonical: see Category* consts (translation/quality/analysis/text-processing/convert/pipeline)
 	DisplayName string `json:"displayName,omitempty"`
+	// Description is markdown — see markdown-in-ui.md.
 	Description string `json:"description,omitempty"`
 
 	// Tags are freeform classification labels for UI filtering and grouping.
@@ -204,8 +206,9 @@ const (
 
 // ParameterGroup defines a UI grouping of parameters.
 type ParameterGroup struct {
-	ID          string   `json:"id"`
-	Label       string   `json:"label"`
+	ID    string `json:"id"`
+	Label string `json:"label"`
+	// Description is markdown — see markdown-in-ui.md.
 	Description string   `json:"description,omitempty"`
 	Collapsible *bool    `json:"collapsible,omitempty"`
 	Collapsed   bool     `json:"collapsed,omitempty"`
@@ -243,8 +246,9 @@ type ConditionExpr struct {
 
 // PropertySchema represents a single parameter's schema.
 type PropertySchema struct {
-	Type        string `json:"type"`
-	Title       string `json:"title,omitempty"`
+	Type  string `json:"type"`
+	Title string `json:"title,omitempty"`
+	// Description is markdown (config field help) — see markdown-in-ui.md.
 	Description string `json:"description,omitempty"`
 	Default     any    `json:"default,omitempty"`
 	Deprecated  bool   `json:"deprecated,omitempty"`

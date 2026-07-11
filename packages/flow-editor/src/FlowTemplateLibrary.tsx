@@ -10,6 +10,7 @@ import {
   CardAction,
   CardDescription,
   CardFooter,
+  Markdown,
 } from "@neokapi/ui-primitives";
 import type { FlowSpec } from "./types";
 import { FLOW_TEMPLATES, type FlowTemplate } from "./templates";
@@ -151,7 +152,9 @@ function TemplateCard({
             </SimpleTooltip>
           </CardAction>
         )}
-        <CardDescription>{template.description}</CardDescription>
+        <CardDescription>
+          <Markdown inline>{template.description}</Markdown>
+        </CardDescription>
       </CardHeader>
       <CardFooter className="gap-2">
         <Layers size={11} className="text-muted-foreground" />

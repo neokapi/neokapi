@@ -97,6 +97,7 @@ export {
   SelectValue,
   SelectContent,
   SelectItem,
+  Markdown,
   Separator,
   Sheet,
   SheetTrigger,
@@ -132,7 +133,7 @@ export {
   TooltipTrigger,
   TooltipContent,
 } from "@neokapi/ui-primitives";
-export type { ChartConfig } from "@neokapi/ui-primitives";
+export type { ChartConfig, MarkdownProps } from "@neokapi/ui-primitives";
 
 // Icons (Lucide)
 export * from "./components/icons";

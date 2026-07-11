@@ -5,6 +5,7 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
+  Markdown,
   ScrollArea,
   SimpleTooltip,
 } from "@neokapi/ui-primitives";
@@ -263,7 +264,9 @@ function PaletteItem({
               </SimpleTooltip>
             )}
           </div>
-          <div className="text-[10px] leading-tight text-muted-foreground">{tool.description}</div>
+          <div className="text-[10px] leading-tight text-muted-foreground">
+            <Markdown inline>{tool.description}</Markdown>
+          </div>
           {/* Tags + IO contract badges */}
           <div className="mt-0.5 flex flex-wrap gap-0.5">
             {tool.tags?.slice(0, 3).map((tag) => (

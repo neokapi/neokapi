@@ -16,6 +16,7 @@ import {
   Button,
   Badge,
   ItemCard,
+  Markdown,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -364,7 +365,7 @@ export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {})
                         </div>
                         {plugin.description && (
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            {plugin.description}
+                            <Markdown inline>{plugin.description}</Markdown>
                           </div>
                         )}
                         {/* Download progress bar */}
@@ -485,7 +486,9 @@ function InstalledPluginCard({
             </Badge>
           </div>
           {plugin.description && (
-            <div className="text-xs text-muted-foreground mt-0.5">{plugin.description}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              <Markdown inline>{plugin.description}</Markdown>
+            </div>
           )}
           {plugin.formats && plugin.formats.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">

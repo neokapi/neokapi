@@ -1,6 +1,7 @@
 import {
   Input,
   Label,
+  Markdown,
   Select,
   SelectContent,
   SelectItem,
@@ -151,7 +152,9 @@ function renderProperty(
         <div className="flex flex-col">
           <Label className="text-sm">{label}</Label>
           {prop.description && (
-            <span className="text-xs text-muted-foreground">{prop.description}</span>
+            <Markdown inline className="text-xs text-muted-foreground">
+              {prop.description}
+            </Markdown>
           )}
         </div>
         <Switch
@@ -185,7 +188,9 @@ function renderProperty(
           </SelectContent>
         </Select>
         {prop.description && (
-          <span className="text-xs text-muted-foreground">{prop.description}</span>
+          <Markdown inline className="text-xs text-muted-foreground">
+            {prop.description}
+          </Markdown>
         )}
       </div>
     );
@@ -272,9 +277,9 @@ export function ToolConfigPanel({
                 )}
                 <span>{prop.title || key}</span>
                 {prop.description && (
-                  <span className="ml-auto text-xs font-normal text-muted-foreground">
+                  <Markdown inline className="ml-auto text-xs font-normal text-muted-foreground">
                     {prop.description}
-                  </span>
+                  </Markdown>
                 )}
               </button>
               {!isCollapsed && (

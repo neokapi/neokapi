@@ -1,7 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { t } from "@neokapi/kapi-react/runtime";
 import { X, GitBranch } from "lucide-react";
-import { cn, SchemaForm, Button, Badge, ScrollArea, SimpleTooltip } from "@neokapi/ui-primitives";
+import {
+  cn,
+  SchemaForm,
+  Button,
+  Badge,
+  Markdown,
+  ScrollArea,
+  SimpleTooltip,
+} from "@neokapi/ui-primitives";
 import { IoContract } from "./nodes/PortChip";
 import { getCategoryStyle } from "./category";
 import { createDebouncedSync, type DebouncedSync } from "./debouncedSync";
@@ -400,7 +408,9 @@ function DocsSidebar({ doc }: { doc: ToolDoc }) {
             >
               <div className="font-semibold text-[10px] text-foreground">{ex.title}</div>
               {ex.description && (
-                <div className="text-[10px] text-muted-foreground mt-0.5">{ex.description}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  <Markdown inline>{ex.description}</Markdown>
+                </div>
               )}
               {ex.input && (
                 <pre className="text-[9px] font-mono bg-background rounded-sm px-1.5 py-1 mt-1 overflow-auto max-h-[60px] whitespace-pre-wrap text-foreground">
@@ -480,10 +490,12 @@ function DocParamRow({ name, param }: { name: string; param: ToolDocParam }) {
           </span>
         )}
       </div>
-      <div className="text-[10px] text-muted-foreground leading-snug">{param.description}</div>
+      <div className="text-[10px] text-muted-foreground leading-snug">
+        <Markdown inline>{param.description}</Markdown>
+      </div>
       {param.notes?.map((note, i) => (
         <div key={i} className="text-[9px] text-muted-foreground mt-0.5 italic opacity-80">
-          {note}
+          <Markdown inline>{note}</Markdown>
         </div>
       ))}
       {param.dependsOn?.map((dep, i) => (

@@ -23,6 +23,7 @@ import {
   Skeleton,
   Label,
   Input,
+  Markdown,
   ScrollArea,
   ItemCard,
   ConfirmDeleteButton,
@@ -596,7 +597,7 @@ export function FlowsPage({
                       </div>
                       {item.description && (
                         <div className="text-[10px] text-muted-foreground truncate mt-0.5">
-                          {item.description}
+                          <Markdown inline>{item.description}</Markdown>
                         </div>
                       )}
                     </div>
@@ -678,7 +679,7 @@ function FlowCard({
           </div>
           {item.description && (
             <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-              {item.description}
+              <Markdown inline>{item.description}</Markdown>
             </div>
           )}
           <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
