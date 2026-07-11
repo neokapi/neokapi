@@ -152,7 +152,7 @@ jobs:
       # release.yml's build-cli job. Cached on the filter + script hash.
       - name: Cache static ICU
         if: matrix.target.goos != 'windows'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/icu-static
           key: icu-static-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
@@ -656,7 +656,7 @@ jobs:
       # filter + script hash.
       - name: Cache static ICU
         if: runner.os != 'Windows'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/icu-static
           key: icu-static-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-icu-static.sh', 'scripts/icu-data-filter.json') }}
