@@ -100,7 +100,7 @@ kapi run my-flow
 | `kapi status`           | Show sync state                   |
 | `kapi translate`     | Translate with AI                 |
 | `kapi pseudo-translate` | Generate pseudo-translations      |
-| `kapi qa`         | Run quality checks                |
+| `kapi exec qa`         | Run quality checks                |
 | `kapi run <flow>`       | Execute a composed or custom flow |
 | `kapi flows`            | List available flows              |
 | `kapi tools`            | List available tools              |

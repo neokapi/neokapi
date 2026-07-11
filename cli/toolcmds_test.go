@@ -48,21 +48,20 @@ func TestCLIToolCategories(t *testing.T) {
 func TestNewToolCommandsSetsGroupID(t *testing.T) {
 	app := newTestApp()
 	cmds := NewToolCommands(app)
-	require.NotEmpty(t, cmds)
 
-	// Only the curated tier and the `exec` group mount at the top level:
-	// every other tool's one and only spelling is `kapi exec <name>`.
-	for _, cmd := range cmds {
-		require.Truef(t, TopLevelTools[cmd.Name()] || cmd.Name() == "exec",
-			"unexpected top-level tool command %q — non-curated tools live under `kapi exec` only", cmd.Use)
-		assert.NotEmpty(t, cmd.GroupID, "visible command %q should have GroupID set", cmd.Use)
-		assert.False(t, cmd.Hidden, "curated command %q must stay visible", cmd.Use)
-	}
+	// Exec-only model: NewToolCommands returns exactly one top-level
+	// command — the exec group — and nothing else. Porcelain verbs
+	// (translate, pseudo-translate) come from KapiCommandSet, not here.
+	require.Len(t, cmds, 1, "NewToolCommands mounts only the exec group at the top level")
+	execCmd := cmds[0]
+	assert.Equal(t, "exec", execCmd.Name())
+	assert.Equal(t, "advanced", execCmd.GroupID)
+	assert.False(t, execCmd.Hidden)
 }
 
-// TestToolTiering pins the surface-A3 contract: every CLI-visible tool is
-// reachable under `kapi exec <name>`, and only the curated TopLevelTools tier
-// is visible at the top level.
+// TestToolTiering pins the exec-only contract: every CLI-visible tool is
+// reachable under `kapi exec <name>` and none mounts at the top level —
+// including the former curated tier, whose jobs moved to porcelain verbs.
 func TestToolTiering(t *testing.T) {
 	app := newTestApp()
 	cmds := NewToolCommands(app)
@@ -82,16 +81,10 @@ func TestToolTiering(t *testing.T) {
 		inGroup[sub.Name()] = true
 		assert.False(t, sub.Hidden, "exec entry %q should be visible in `kapi exec --help`", sub.Name())
 	}
-	for name := range TopLevelTools {
-		assert.True(t, inGroup[name], "curated tool %q must also be reachable under `kapi exec`", name)
-		if c := byName[name]; assert.NotNil(t, c, "curated tool %q missing at top level", name) {
-			assert.False(t, c.Hidden)
-		}
-	}
-	// Spot-check demoted tools: under `exec` only — no top-level spelling.
-	for _, name := range []string{"term-check", "content-lint", "length-check"} {
+	// Former curated tier + spot-checked demoted tools: exec-only.
+	for _, name := range []string{"translate", "pseudo-translate", "qa", "recycle", "word-count", "term-check", "content-lint", "length-check"} {
 		assert.True(t, inGroup[name], "tool %q must be reachable under `kapi exec`", name)
-		assert.Nil(t, byName[name], "tool %q must not mount at the top level", name)
+		assert.Nil(t, byName[name], "tool %q must not mount at the top level via NewToolCommands", name)
 	}
 }
 
@@ -130,71 +123,53 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 	}
 }
 
-// TestLocalizationGroupRouting verifies that l10n-tagged tools collapse under
-// the "localization" help group while generic, format-aware tools keep their
-// category-named group. The schema Category is untouched (see
-// TestCLIToolCategories) — only the cobra GroupID is rerouted.
-func TestLocalizationGroupRouting(t *testing.T) {
-	app := newTestApp()
-	cmds := NewToolCommands(app)
-	require.NotEmpty(t, cmds)
-
-	groupByName := make(map[string]string)
-	for _, cmd := range cmds {
-		groupByName[cmd.Name()] = cmd.GroupID
-	}
-
-	// Localization toolchain → "localization", regardless of schema Category.
-	// Group routing is only observable on the curated tier now (demoted
-	// aliases are hidden and carry no group — see TestToolTiering).
-	for _, name := range []string{"recycle", "translate", "pseudo-translate", "qa"} {
-		assert.Equal(t, "localization", groupByName[name],
-			"l10n tool %q should route to the localization group", name)
-	}
-
-	// Generic / deliberately-untagged curated tools keep their category group.
-	assert.Equal(t, schema.CategoryAnalysis, groupByName["word-count"],
-		"generic tool word-count should keep its category group")
-}
+// The old localization/analysis help-group routing retired with the curated
+// tier: exec children render in one flat list, and the localization group is
+// owned by the flow-backed porcelain verbs (see kapicmds.go).
 
 // TestRecycleAlias proves the tm-leverage → recycle rename is complete: the
 // canonical command is `recycle` and the old spelling is gone (hard cutover —
 // no transition aliases).
-func TestRecycleAlias(t *testing.T) {
-	app := newTestApp()
-	cmds := NewToolCommands(app)
-
-	var recycle *cobra.Command
-	for _, cmd := range cmds {
-		if cmd.Name() == "recycle" {
-			recycle = cmd
+// execChildren returns the exec group's children by name.
+func execChildren(t *testing.T, app *App) map[string]*cobra.Command {
+	t.Helper()
+	byName := map[string]*cobra.Command{}
+	for _, cmd := range NewToolCommands(app) {
+		if cmd.Name() != "exec" {
+			continue
 		}
-		assert.NotEqual(t, "tm-leverage", cmd.Name(),
-			"tm-leverage must not be a primary command name — it is an alias")
+		for _, sub := range cmd.Commands() {
+			byName[sub.Name()] = sub
+		}
 	}
-	require.NotNil(t, recycle, "expected a `recycle` command")
+	require.NotEmpty(t, byName, "exec group should host the registry tools")
+	return byName
+}
+
+func TestRecycleAlias(t *testing.T) {
+	tools := execChildren(t, newTestApp())
+	recycle := tools["recycle"]
+	require.NotNil(t, recycle, "expected `exec recycle`")
 	assert.NotContains(t, recycle.Aliases, "tm-leverage",
 		"the tm-leverage spelling is retired outright")
+	assert.NotContains(t, tools, "tm-leverage",
+		"tm-leverage must not be a command name")
 }
 
 func TestNewToolCommands_AliasesWork(t *testing.T) {
-	app := newTestApp()
-	cmds := NewToolCommands(app)
-
-	aliasMap := make(map[string][]string)
-	for _, cmd := range cmds {
-		if len(cmd.Aliases) > 0 {
-			aliasMap[cmd.Name()] = cmd.Aliases
-		}
-	}
-
-	assert.Contains(t, aliasMap["pseudo-translate"], "pseudo")
-	assert.Contains(t, aliasMap["word-count"], "wc")
+	tools := execChildren(t, newTestApp())
+	require.NotNil(t, tools["pseudo-translate"])
+	assert.Contains(t, tools["pseudo-translate"].Aliases, "pseudo")
+	require.NotNil(t, tools["word-count"])
+	assert.Contains(t, tools["word-count"].Aliases, "wc")
 }
 
 func TestNewToolCommands_WritesOutputHasOutputFlag(t *testing.T) {
 	app := newTestApp()
-	cmds := NewToolCommands(app)
+	var cmds []*cobra.Command
+	for _, c := range execChildren(t, app) {
+		cmds = append(cmds, c)
+	}
 
 	for _, cmd := range cmds {
 		info := app.ToolReg.ToolInfo(registry.ToolID(cmd.Name()))

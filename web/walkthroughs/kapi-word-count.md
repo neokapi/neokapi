@@ -10,18 +10,18 @@ scenes:
     fixtures:
       - messages.json
     smoke_contract:
-      - kapi word-count messages.json
+      - kapi exec word-count messages.json
 ---
 
 ## Story
 
 You need to estimate the cost of a translation before kicking off a vendor
-job. `kapi word-count` reads any supported format and outputs a quick
+job. `kapi exec word-count` reads any supported format and outputs a quick
 breakdown so you can put a number on the bill.
 
 ## Scene 1 — word-count (terminal)
 
-Point `kapi word-count` at a JSON message catalog and watch it report
+Point `kapi exec word-count` at a JSON message catalog and watch it report
 word and block counts. The output is the kind of number
 you paste into a quote.
 

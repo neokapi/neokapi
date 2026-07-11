@@ -102,7 +102,7 @@ kapi
 Commands fall into categories:
 
 - **Format operations** — `kapi formats`, `kapi extract`, `kapi merge`
-- **Tools** — `kapi pseudo-translate`, `kapi word-count`, `kapi translate`;
+- **Tools** — `kapi pseudo-translate`, `kapi exec word-count`, `kapi translate`;
   every LLM and MT engine is selected on the single `kapi translate` command
   with `--provider` (e.g. `kapi translate --provider deepl`) rather than a
   per-engine command; `kapi run <flow>`
@@ -122,7 +122,7 @@ Most commands are one-shot by default:
 ```bash
 kapi translate file.xliff --target-lang fr
 kapi pseudo-translate file.json
-kapi word-count file.json
+kapi exec word-count file.json
 ```
 
 On project-aware commands, the `-p` / `--project` flag switches into

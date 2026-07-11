@@ -19,10 +19,21 @@ func BuiltInFlows() []flow.FlowDefinition {
 		{
 			ID:          "translate",
 			Name:        "Translate",
-			Description: "Translate content with an LLM or MT provider",
+			Description: "Translate with guardrails: TM reuse, then AI translate, then deterministic checks",
 			Source:      registry.SourceBuiltIn,
+			// The porcelain `kapi translate` runs this flow, so the pitch
+			// command carries the three pillars: recycle leverages a bound
+			// TM (a no-op without one), translate produces, and the
+			// deterministic qa pass verifies placeholders/tags before the
+			// result is written. The raw tool stays at `kapi exec translate`.
 			Nodes: []flow.FlowNode{
-				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 0, Y: 100}},
+				{ID: "recycle", Type: flow.NodeTool, Name: "recycle", Label: "TM Reuse", Position: flow.NodePosition{X: 0, Y: 100}},
+				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 250, Y: 100}},
+				{ID: "qa", Type: flow.NodeTool, Name: "qa", Label: "Checks", Position: flow.NodePosition{X: 500, Y: 100}},
+			},
+			Edges: []flow.FlowEdge{
+				{ID: "e-recycle-translate", Source: "recycle", Target: "translate"},
+				{ID: "e-translate-qa", Source: "translate", Target: "qa"},
 			},
 		},
 		{

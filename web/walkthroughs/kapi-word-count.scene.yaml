@@ -12,6 +12,6 @@ files: []
 
 steps:
   - comment: Count words in a JSON file
-  - command: kapi word-count messages.json
+  - command: kapi exec word-count messages.json
     narration: Reports blocks and source words — the number you paste into a quote.
   - comment: Word count helps estimate translation costs

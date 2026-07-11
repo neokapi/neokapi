@@ -111,7 +111,7 @@ The result is recorded so it is **auditable, not blind**:
 Run [segmentation](/framework/segmentation) before `recycle` to enable this.
 
 ```bash
-kapi recycle -i input.html -o output.html --source-lang en --target-lang fr --tm project-tm
+kapi exec recycle -i input.html -o output.html --source-lang en --target-lang fr --tm project-tm
 ```
 
 ```yaml

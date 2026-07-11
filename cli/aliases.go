@@ -98,6 +98,7 @@ var (
 	BoolFlag                     = host.BoolFlag
 	BuildAISetupChoices          = host.BuildAISetupChoices
 	BuildModelRows               = host.BuildModelRows
+	BuiltinFlowNames             = host.BuiltinFlowNames
 	BuiltinComposedFlowNames     = host.BuiltinComposedFlowNames
 	CmdContext                   = host.CmdContext
 	CollectAllPresets            = host.CollectAllPresets

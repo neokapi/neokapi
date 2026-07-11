@@ -83,10 +83,10 @@ Only the blocks added since the last pass are sent to the LLM; everything alread
 
 ## Quality assurance
 
-`kapi qa` runs placeholder, inline-code, whitespace, and length checks against a translated archive; `kapi exec term-check` enforces a glossary:
+`kapi exec qa` runs placeholder, inline-code, whitespace, and length checks against a translated archive; `kapi exec term-check` enforces a glossary:
 
 ```bash
-kapi qa i18n/ --target-lang fr                                # placeholder, code, length, consistency
+kapi exec qa i18n/ --target-lang fr                                # placeholder, code, length, consistency
 kapi exec term-check i18n/ --target-lang fr --termbase fr-termbase.csv   # terminology
 ```
 
@@ -96,7 +96,7 @@ kapi exec term-check i18n/ --target-lang fr --termbase fr-termbase.csv   # termi
 - **Length bounds** — flag targets that grow or shrink beyond configurable percentages of the source (useful for fixed-width UI containers).
 - **Consistency** — double spaces, doubled words, leading/trailing whitespace, target-identical-to-source, and more (each individually toggleable).
 
-`term-check` flags targets that violate the glossary — e.g. a brand term that must stay untranslated. (`kapi qa --check-terminology` folds the project termbase into the QA pass instead of running a separate command.)
+`term-check` flags targets that violate the glossary — e.g. a brand term that must stay untranslated. (`kapi exec qa --check-terminology` folds the project termbase into the QA pass instead of running a separate command.)
 
 QA results can fail your build — a common CI pattern is `extract → translate → qa`, exiting non-zero on any category you gate on.
 
@@ -108,10 +108,10 @@ QA results can fail your build — a common CI pattern is `extract → translate
 kapi tm import historical-translations.xliff -s en -t fr
 ```
 
-Then pre-fill matches before the AI pass: `kapi recycle` writes exact and high-scoring fuzzy matches into the target, and `translate --skip-matched` translates only what's left:
+Then pre-fill matches before the AI pass: `kapi exec recycle` writes exact and high-scoring fuzzy matches into the target, and `translate --skip-matched` translates only what's left:
 
 ```bash
-kapi recycle i18n/ --target-lang fr            # fill targets from the TM (defaults to the project TM)
+kapi exec recycle i18n/ --target-lang fr            # fill targets from the TM (defaults to the project TM)
 kapi translate i18n/ --target-lang fr --skip-matched
 ```
 
@@ -177,7 +177,7 @@ anything that breaks, the same author → check → revise loop you'd run by han
 > "Translate the strings in `i18n/` to French and German — keep the placeholders and
 > inline elements intact — then run QA and fix anything that fails."
 
-Claude translates in place (locale-additive), runs `kapi qa` / `kapi exec term-check`, and
+Claude translates in place (locale-additive), runs `kapi exec qa` / `kapi exec term-check`, and
 loops on the findings until the archive passes; you `kapi-react compile` the result as
 usual. Nothing about your components changes — only the catalogue.
 
