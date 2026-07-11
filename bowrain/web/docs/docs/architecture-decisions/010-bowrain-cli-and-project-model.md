@@ -131,7 +131,7 @@ opened; push/pull is invoked by spawning `kapi-bowrain`.
 With the plugin installed, `kapi` exposes:
 
 - Framework commands (built into `kapi`): `up`, `run`, `extract`, `merge`,
-  `add`, `rm`, `ls`, `flows`, `tool`, `tools`, `formats`, `plugin`,
+  `add`, `rm`, `ls`, `flows`, `exec`, `tools`, `formats`, `plugin`,
   `termbase`, `tm`, `credentials`, `mcp`, `version`. The
   local project-content commands `add`/`rm`/`ls` are core — they edit and
   list the `.kapi` recipe's content, which is local configuration, not a

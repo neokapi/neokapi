@@ -42,7 +42,7 @@ narration:
       Each step is a typed tool call with a structured result, not text scraped from a
       console. Claude asks kapi to detect the format, extract the translatable content with a
       word count, and list the flows it offers.
-    caption: "Typed kapi tool calls over MCP, each returning structured data"
+    caption: "Typed kapi exec calls over MCP, each returning structured data"
   - id: pseudo
     kind: terminal
     text: >

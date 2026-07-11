@@ -43,7 +43,7 @@ defaults:
   `brand.yaml` (or `.kapi/brand.yaml`) in the project; `kapi brand check <file>`,
   `brand rewrite`, and `brand guide` then resolve it with no flag.
 - **Glossary / termbase** — import terms into the project termbase
-  (`kapi termbase import glossary.csv -s en -t fr`); `kapi tool term-check <file>` and
+  (`kapi termbase import glossary.csv -s en -t fr`); `kapi exec term-check <file>` and
   the translation flow enforce it with no `--termbase` flag.
 - **Locales + content** — `kapi run <flow>`, `kapi extract`, and `kapi merge`
   apply the project's locales and content globs without `-i` / `--target-lang`.

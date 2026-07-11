@@ -18,13 +18,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TopLevelTools is the curated tier of registry tools that keep a VISIBLE
-// top-level verb (surface strategy A3). Every other CLI-visible tool is
-// documented as `kapi tool <name>` and additionally mounts top-level as a
-// hidden, permanent shortcut — `kapi term-check …` works, but it appears in
-// no help, completion, or docs (the shortcut must not pollute the surface).
-// Presentation only: the registry's Category/Tags stay canonical and
-// `kapi tools list` remains the discovery surface for the full set.
+// TopLevelTools is the curated tier of registry tools that keep a visible
+// top-level verb (surface strategy A3): the everyday five. Every other
+// CLI-visible tool has exactly one spelling, `kapi exec <name>` — no hidden
+// top-level shortcut. The verb pairing mirrors flows: `kapi flows` lists /
+// `kapi run <flow>` runs; `kapi tools` lists / `kapi exec <tool>` runs.
+// Presentation only: the registry's Category/Tags stay canonical.
 var TopLevelTools = map[string]bool{
 	"translate":        true,
 	"pseudo-translate": true,
@@ -35,7 +34,7 @@ var TopLevelTools = map[string]bool{
 
 // NewToolCommands creates the CLI surface for the registry's CLI-visible
 // tools: the curated TopLevelTools tier as visible top-level verbs, plus the
-// `kapi tool` group command hosting the full set. The registry stays the
+// `kapi exec` group command hosting the full set. The registry stays the
 // single source of truth for tool metadata.
 func NewToolCommands(a *App) []*cobra.Command {
 	if a.ToolReg == nil {
@@ -62,13 +61,15 @@ func NewToolCommands(a *App) []*cobra.Command {
 	})
 
 	toolGroup := &cobra.Command{
-		Use:     "tool",
-		Short:   "Run any registry tool on files (the full set behind the curated top-level verbs)",
+		Use:     "exec",
+		Short:   "Execute any registry tool on files (the full set behind the curated top-level verbs)",
 		GroupID: "advanced",
-		Long: `Run any CLI-visible registry tool on files. The everyday tools (translate,
-pseudo-translate, qa, recycle, word-count) also live at the top level; the
-rest of the registry — format converters, checks, extractors, redaction — is
-mounted here to keep 'kapi --help' navigable.
+		Long: `Execute any CLI-visible registry tool on files. The everyday tools
+(translate, pseudo-translate, qa, recycle, word-count) also live at the top
+level; the rest of the registry — format converters, checks, extractors,
+redaction — executes here, keeping 'kapi --help' navigable. The verb pairs
+with 'kapi run <flow>' the way 'kapi tools' pairs with 'kapi flows': run
+composes a pipeline, exec executes one tool.
 
 Discover tools and their options with 'kapi tools list' and
 'kapi tools schema <name>'.`,
@@ -81,25 +82,20 @@ Discover tools and their options with 'kapi tools list' and
 			continue // a dedicated command owns this verb (see BespokeToolCommands)
 		}
 		sub := newToolCommand(a, entry)
-		sub.GroupID = "" // the tool group renders one flat list, not the root's help groups
+		sub.GroupID = "" // the exec group renders one flat list, not the root's help groups
 		toolGroup.AddCommand(sub)
-		top := newToolCommand(a, entry)
-		if !TopLevelTools[toolName] {
-			// Permanent hidden shortcut: dispatches like the `kapi tool`
-			// spelling, invisible everywhere (help, completion, reference).
-			top.Hidden = true
-			top.GroupID = ""
+		if TopLevelTools[toolName] {
+			cmds = append(cmds, newToolCommand(a, entry))
 		}
-		cmds = append(cmds, top)
 	}
 
 	return append(cmds, toolGroup)
 }
 
 // newToolCommand builds the cobra command for one CLI-visible registry tool.
-// Called twice per tool — once for the `kapi tool` group and once for the
-// top-level verb (visible for the curated tier, hidden shortcut otherwise) —
-// so it must stay free of registration side effects.
+// Called up to twice per tool — once for the `kapi exec` group and once for
+// the curated tier's top-level verb — so it must stay free of registration
+// side effects.
 func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	toolName := string(entry.Info.Name)
 	info := entry.Info

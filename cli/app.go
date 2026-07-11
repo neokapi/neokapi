@@ -22,8 +22,8 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 // (localization/analysis) remain for the curated top-level tool tier, whose
 // GroupID derives from each tool's schema Category (see TopLevelTools and
 // the routing in NewToolCommands — the rest of the registry lives under
-// `kapi tool` and renders no root group). "Advanced:" collects the plumbing
-// (run, flows, tool, tools, extract, merge, pack/unpack/info, inspect,
+// `kapi exec` and renders no root group). "Advanced:" collects the plumbing
+// (run, flows, exec, tools, extract, merge, pack/unpack/info, inspect,
 // stats, formats, plugin, config, hook, mcp, registry). Standard commands
 // (version, update, completion) stay ungrouped under cobra's "Additional
 // Commands:".
