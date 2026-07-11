@@ -134,7 +134,9 @@ describe("extractDocument — element blocks", () => {
     // renders as vanilla JSX at runtime.
     const doc = extract("<button>{show && <span>Save</span>}</button>");
     expect(doc.blocks.find((b) => b.properties.jsxPath === "button")).toBeUndefined();
-    const inner = doc.blocks.find((b) => b.properties.jsxPath === "button > span");
+    const inner = doc.blocks.find(
+      (b) => b.properties.jsxPath === "span" && b.properties.element === "span",
+    );
     expect(inner).toBeTruthy();
     expect(textRun(inner?.source[0]).text).toBe("Save");
   });
@@ -170,9 +172,12 @@ describe("extractDocument — element blocks", () => {
     expect(block.properties.component).toBe("PlainFile");
   });
 
-  it("builds a nested jsxPath for `<li><button>Save</button></li>`", () => {
+  it("uses the element's own tag as descriptor — ancestors excluded (v2)", () => {
     const block = onlyBlock(extract("<li><button>Save</button></li>"));
-    expect(block.properties.jsxPath).toBe("li > button");
+    expect(block.properties.jsxPath).toBe("button");
+    // Wrapping the same button deeper must NOT change its hash.
+    const wrapped = onlyBlock(extract("<div><section><li><button>Save</button></li></section></div>"));
+    expect(wrapped.hash).toBe(block.hash);
   });
 });
 
@@ -293,10 +298,10 @@ describe("extractDocument — multiple blocks", () => {
     const doc = extract(code, "Page.tsx");
     expect(doc.blocks.length).toBeGreaterThanOrEqual(4);
     const paths = doc.blocks.map((b) => b.properties.jsxPath);
-    expect(paths).toContain("div > h1");
-    expect(paths).toContain("div > p");
-    expect(paths).toContain("div > button");
-    expect(paths).toContain("div > input[placeholder]");
+    expect(paths).toContain("h1");
+    expect(paths).toContain("p");
+    expect(paths).toContain("button");
+    expect(paths).toContain("input[placeholder]");
   });
 
   it("deduplicates identical hashes within a file", () => {

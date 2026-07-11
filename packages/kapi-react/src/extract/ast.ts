@@ -109,39 +109,55 @@ export function hasAttr(el: JSXElement, name: string): boolean {
 }
 
 /**
- * Computes a short reference name for an expression used inside a JSX
+ * Computes a reference name for an expression used inside a JSX
  * container:
  *   {count}           → "count"
  *   {user.name}       → "user.name"
+ *   {a.b.c}           → "a.b.c"
  *   {formatDate(d)}   → "formatDate"
- *   {fmt.date(d)}     → "date"
+ *   {fmt.date(d)}     → "fmt.date"
  *
- * Other shapes fall back to "value"; callers disambiguate collisions
- * through `dedupName`. Extract and transform must agree on this
- * mapping, since it feeds the hash input template.
+ * Member chains keep their full dotted path so `{a.b.c}` and `{x.c}`
+ * in the same block never collide (v1 collapsed both to "c", which
+ * made hashes order-dependent through `dedupName`). Other shapes
+ * fall back to "value"; callers disambiguate collisions through
+ * `dedupName`. Extract and transform must agree on this mapping,
+ * since it feeds the hash input template. The v1 behavior is frozen
+ * in `src/migrate/legacy.ts`.
  */
 export function exprToName(expr: Expression): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anyExpr = expr as any;
   if (anyExpr.type === "Identifier") return anyExpr.value;
   if (anyExpr.type === "MemberExpression") {
-    const prop = anyExpr.property;
-    if (prop?.type === "Identifier") {
-      const obj = anyExpr.object;
-      if (obj?.type === "Identifier" && obj.value) {
-        return `${obj.value}.${prop.value}`;
-      }
-      return prop.value ?? "value";
-    }
+    return memberPath(anyExpr) ?? "value";
   }
   if (anyExpr.type === "CallExpression") {
     const callee = anyExpr.callee;
     if (callee?.type === "Identifier") return callee.value;
-    if (callee?.type === "MemberExpression" && callee.property?.type === "Identifier") {
-      return callee.property.value;
+    if (callee?.type === "MemberExpression") {
+      return memberPath(callee) ?? "value";
     }
   }
   return "value";
+}
+
+/**
+ * Full dotted path of a (non-computed) member chain, or null when a
+ * link isn't a plain identifier (computed access, private names,
+ * call results in the middle of the chain).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function memberPath(node: any): string | null {
+  const prop = node.property;
+  if (!prop || prop.type !== "Identifier") return null;
+  const obj = node.object;
+  if (obj?.type === "Identifier" && obj.value) return `${obj.value}.${prop.value}`;
+  if (obj?.type === "MemberExpression") {
+    const inner = memberPath(obj);
+    return inner ? `${inner}.${prop.value}` : null;
+  }
+  return null;
 }
 
 /**

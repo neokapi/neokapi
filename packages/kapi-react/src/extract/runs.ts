@@ -62,6 +62,38 @@ export interface BuildRunsOptions {
    * there and runs.ts stays source-string-free.
    */
   sourceSlice(start: number, end: number): string;
+  /**
+   * Override the expression → placeholder-name mapping. The
+   * migrate-keys command passes the legacy naming function here to
+   * reproduce v1 flat templates; everything else uses the default.
+   */
+  exprName?: (expr: Expression) => string;
+}
+
+/**
+ * One template-token occurrence with its raw SWC byte spans. The
+ * transform maps these through its offset converter to splice source
+ * text; spans are recorded verbatim from the AST (same domain the
+ * caller's `sourceSlice` receives).
+ *
+ * Unlike `placeholders` (deduped by name for Block metadata), this
+ * list has one entry per appearance, in template order — the shape
+ * the transform's params/elements objects are built from.
+ */
+export interface Occurrence {
+  name: string;
+  kind: "var" | "node" | "element" | "paired" | "pivot";
+  /** Span of the bare expression (or the whole element). */
+  exprStart: number;
+  exprEnd: number;
+  /** Span including the `{…}` container (or the whole element). */
+  fullStart: number;
+  fullEnd: number;
+  /** Paired elements only: opening / closing tag spans. */
+  openStart?: number;
+  openEnd?: number;
+  closeStart?: number;
+  closeEnd?: number;
 }
 
 export interface BuildRunsResult {
@@ -73,6 +105,8 @@ export interface BuildRunsResult {
    */
   flatText: string;
   placeholders: Placeholder[];
+  /** Per-appearance token spans, in template order. */
+  occurrences: Occurrence[];
 }
 
 interface BuilderState {
@@ -84,29 +118,39 @@ interface BuilderState {
   usedNames: Set<string>;
   /** dedup keyed by placeholder name for the metadata table. */
   placeholders: Map<string, Placeholder>;
+  occurrences: Occurrence[];
   componentMap: Record<string, string>;
   sourceSlice: BuildRunsOptions["sourceSlice"];
+  exprName: (expr: Expression) => string;
 }
 
 /**
  * Public entry: walk a translatable JSX element's children and emit
- * runs + the flat text template. Call once per Block.
+ * runs + the flat text template. Call once per Block. Accepts a bare
+ * children array too, so JSX fragments (`<>…</>`) reuse the same
+ * builder.
  */
-export function buildRuns(el: JSXElement, opts: BuildRunsOptions): BuildRunsResult {
+export function buildRuns(
+  el: JSXElement | { children?: readonly JSXElementChild[] },
+  opts: BuildRunsOptions,
+): BuildRunsResult {
   const state: BuilderState = {
     runs: [],
     flatText: "",
     idSeq: 0,
     usedNames: new Set(),
     placeholders: new Map(),
+    occurrences: [],
     componentMap: opts.componentMap,
     sourceSlice: opts.sourceSlice,
+    exprName: opts.exprName ?? exprToName,
   };
   walkChildren(el.children ?? [], state);
   return {
     runs: trimEdgeWhitespace(state.runs),
     flatText: state.flatText.trim(),
     placeholders: Array.from(state.placeholders.values()),
+    occurrences: state.occurrences,
   };
 }
 
@@ -148,6 +192,8 @@ function appendExpression(state: BuilderState, node: JSXExpressionContainer): vo
 
   const src = spanSlice(expr, state);
 
+  const exprSpan = (expr as { span?: { start: number; end: number } }).span;
+
   if (containsJSX(expr)) {
     // {cond && <X/>} / {cond ? <A/> : <B/>} — optional node. Equivs
     // get synthesized like the transform side so hash inputs line up.
@@ -168,10 +214,20 @@ function appendExpression(state: BuilderState, node: JSXExpressionContainer): vo
       sourceExpr: src,
       optional: true,
     });
+    if (exprSpan) {
+      state.occurrences.push({
+        name: equiv,
+        kind: "node",
+        exprStart: exprSpan.start,
+        exprEnd: exprSpan.end,
+        fullStart: exprSpan.start,
+        fullEnd: exprSpan.end,
+      });
+    }
     return;
   }
 
-  const rawName = exprToName(expr as Expression);
+  const rawName = state.exprName(expr as Expression);
   const equiv = dedupName(rawName, state.usedNames);
   state.runs.push({
     ph: {
@@ -187,6 +243,16 @@ function appendExpression(state: BuilderState, node: JSXExpressionContainer): vo
     kind: "variable",
     sourceExpr: src,
   });
+  if (exprSpan) {
+    state.occurrences.push({
+      name: equiv,
+      kind: "var",
+      exprStart: exprSpan.start,
+      exprEnd: exprSpan.end,
+      fullStart: node.span.start,
+      fullEnd: node.span.end,
+    });
+  }
 }
 
 function appendJsxElement(state: BuilderState, el: JSXElement): void {
@@ -239,6 +305,14 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
       jsType: "ReactNode",
       sourceExpr: src,
     });
+    state.occurrences.push({
+      name: equiv,
+      kind: "element",
+      exprStart: el.span.start,
+      exprEnd: el.span.end,
+      fullStart: el.span.start,
+      fullEnd: el.span.end,
+    });
     return;
   }
 
@@ -285,6 +359,18 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
     jsType: "ReactNode",
     sourceExpr: wholeSrc,
   });
+  state.occurrences.push({
+    name: equiv,
+    kind: "paired",
+    exprStart: el.span.start,
+    exprEnd: el.span.end,
+    fullStart: el.span.start,
+    fullEnd: el.span.end,
+    openStart: el.opening.span.start,
+    openEnd: el.opening.span.end,
+    closeStart: el.closing?.span.start,
+    closeEnd: el.closing?.span.end,
+  });
 }
 
 // ─── Plural / Select ─────────────────────────────────────────────
@@ -300,6 +386,7 @@ function appendPluralRun(state: BuilderState, el: JSXElement, info: PluralInfo):
     jsType: "number",
     sourceExpr: pivotSourceFromEl(state, el, info.pivotSource),
   });
+  recordPivotOccurrence(state, el, "count", pivotEquiv);
 
   const forms: Partial<Record<PluralFormKey, Run[]>> = {};
   const formFlat = new Map<PluralFormKey, string>();
@@ -327,6 +414,7 @@ function appendSelectRun(state: BuilderState, el: JSXElement, info: SelectInfo):
     jsType: "string",
     sourceExpr: pivotSourceFromEl(state, el, info.pivotSource),
   });
+  recordPivotOccurrence(state, el, "value", pivotEquiv);
 
   const cases: Record<string, Run[]> = {};
   const caseFlat = new Map<string, string>();
@@ -369,6 +457,43 @@ function buildNestedFormRuns(
   state.runs = savedRuns;
   state.flatText = savedFlat;
   return { runs, flatText };
+}
+
+/**
+ * Records the pivot prop of a `<Plural>` / `<Select>` as a param
+ * occurrence so the transform emits `{ count: items.length }` in the
+ * runtime call and `resolveICU` can evaluate the rule. Mirrors the
+ * placeholder registration: NOT deduped against usedNames (form
+ * bodies referencing the pivot share the name by design).
+ */
+function recordPivotOccurrence(
+  state: BuilderState,
+  el: JSXElement,
+  propName: "count" | "value",
+  pivotName: string,
+): void {
+  for (const attr of el.opening.attributes ?? []) {
+    if (attr.type !== "JSXAttribute" || attr.name.type !== "Identifier") continue;
+    if (attr.name.value !== propName) continue;
+    const value = attr.value;
+    if (!value) return;
+    let span: { start: number; end: number } | undefined;
+    if (value.type === "JSXExpressionContainer") {
+      span = (value.expression as { span?: { start: number; end: number } }).span;
+    } else if (value.type === "StringLiteral") {
+      span = value.span;
+    }
+    if (!span) return;
+    state.occurrences.push({
+      name: pivotName,
+      kind: "pivot",
+      exprStart: span.start,
+      exprEnd: span.end,
+      fullStart: span.start,
+      fullEnd: span.end,
+    });
+    return;
+  }
 }
 
 function pivotSourceFromEl(state: BuilderState, el: JSXElement, fallback: string): string {

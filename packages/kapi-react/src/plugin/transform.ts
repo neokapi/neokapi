@@ -15,22 +15,13 @@ import { join } from "node:path";
 import { parseSync, type JSXElement, type Module } from "@swc/core";
 
 import {
-  containsJSX,
-  dedupName,
-  exprToName,
   getTagName,
   lineFromOffset,
   nearestTranslate,
   resolveHTMLElement,
 } from "../extract/ast.ts";
 import { buildJSXPath } from "../extract/jsx-path.ts";
-import {
-  isPluralTag,
-  isSelectTag,
-  parsePlural,
-  parseSelect,
-  type PluralFormKey,
-} from "../extract/plural.ts";
+import { buildRuns, type Occurrence } from "../extract/runs.ts";
 import { hasTranslatableText, isAllInlineContent, resolvePolicy } from "../extract/translatable.ts";
 import { collectTIdentifiers, walkTCalls } from "../extract/messages.ts";
 import { resolveLibraryComponentMap } from "./manifests.ts";
@@ -277,17 +268,18 @@ export function transform(
     return { skipChildren: r.consumed };
   });
 
-  // User-facing `t("text", params?)` calls: rewrite to
-  // `__t("hash", "text", params)` so runtime dict lookup applies.
-  // Same matching rule as JSX extraction — only calls bound to
-  // the runtime import are touched, not a random local `t()`.
+  // User-facing `t("text", params?)` calls. Same matching rule as
+  // JSX extraction — only calls bound to the runtime import are
+  // touched, not a random local `t()`.
   //
-  // Note on inline mode: for JSX, inline mode inlines the
-  // translated string verbatim (zero runtime lookup). For t()
-  // calls the savings are marginal and implementing both paths
-  // doubles the test surface, so we always emit __t() here. In
-  // inline mode the plugin still ships the hash-keyed dict as
-  // part of the runtime bundle, same as today.
+  // Runtime mode: rewrite to `__t("hash", "text", params)` so the
+  // OTA dict lookup applies.
+  //
+  // Inline mode: resolve against the dict at build time. A literal
+  // call with no params and no ICU collapses to a plain string
+  // literal (zero runtime); params or translator-driven ICU keep a
+  // `__t` call with the *translated* text baked in as the fallback —
+  // still no dict fetch, the runtime only does substitution/ICU.
   const tNames = collectTIdentifiers(ast);
   // Slice via the UTF-8 buffer, not code.slice — SWC spans are byte
   // offsets; code.slice is UTF-16 code-unit indexed. Any non-ASCII
@@ -313,6 +305,40 @@ export function transform(
 
     const desc = `t${CONTEXT_SEPARATOR}${call.context ?? ""}`;
     const hash = hashKey(call.text, desc);
+
+    if (mode === "inline") {
+      const translated = dict?.[hash];
+      if (translated === undefined && options.strict !== false) {
+        const msg = `[neokapi] Missing translation for "${call.text}" (hash: ${hash}, locale: ${options.locale})`;
+        if (options.strict === "error") throw new Error(msg);
+        console.warn(msg);
+      }
+      const resolved = translated ?? call.text;
+      const hasICU = /\{[^{}]+,\s*(plural|select|selectordinal)\s*,/.test(resolved);
+      if (!call.paramsSrc && !hasICU) {
+        // Fully static: collapse to a plain string literal.
+        ops.push({
+          offset: callStart,
+          deleteCount: callEnd - callStart,
+          insert: JSON.stringify(resolved),
+        });
+        continue;
+      }
+      // Params and/or ICU: keep a runtime call with the translated
+      // text baked in — substitution/plural rules run at render time,
+      // no dict involved.
+      const args = call.paramsSrc
+        ? `"${hash}", ${JSON.stringify(resolved)}, ${call.paramsSrc}`
+        : `"${hash}", ${JSON.stringify(resolved)}`;
+      ops.push({
+        offset: callStart,
+        deleteCount: callEnd - callStart,
+        insert: `__t(${args})`,
+      });
+      needsT = true;
+      continue;
+    }
+
     const fallbackLiteral = JSON.stringify(call.text);
     const args = call.paramsSrc
       ? `"${hash}", ${fallbackLiteral}, ${call.paramsSrc}`
@@ -507,10 +533,22 @@ function processElement(
   if (contentStart === null || contentEnd === null)
     return { runtime: usedRuntime, consumed: false };
 
-  const { text, paramList } = extractTextTemplate(el, s);
+  // Single source of truth for the flat template + token spans: the
+  // same builder the extractor uses (extract/runs.ts). Hash parity
+  // between extract and transform holds by construction.
+  const { flatText: text, occurrences } = buildRuns(el, {
+    componentMap,
+    sourceSlice: (start, end) => bslice(buf, s(start), s(end)),
+  });
+  if (text === "") return { runtime: usedRuntime, consumed: false };
+  const paramList: ParamInfo[] = occurrences.map((o) => convertOccurrence(o, s));
   const hk = hashKey(text, desc);
 
-  const hasInlineElements = paramList.some((p) => p.name.startsWith("="));
+  // ICU (plural/select) pivots are runtime values — the chosen form
+  // can't be known at build time, so ICU-bearing blocks always route
+  // through the runtime resolver, with the translated template baked
+  // in as the fallback in inline mode (no dict fetch needed).
+  const hasICU = paramList.some((p) => p.kind === "pivot");
 
   if (mode === "inline") {
     const translated = dict?.[hk];
@@ -525,318 +563,252 @@ function processElement(
       }
     }
 
-    const inlined = inlineTranslation(translated || text, paramList, buf);
-    ops.push({
-      offset: contentStart,
-      deleteCount: contentEnd - contentStart,
-      insert: inlined,
-    });
-  } else if (hasInlineElements) {
-    // ── Runtime mode with inline elements → use tx() ──
-    const regularParams = paramList.filter((p) => !p.name.startsWith("="));
-    const elementParams = paramList.filter((p) => p.name.startsWith("="));
+    // Translator-driven ICU: the source had no <Plural>/<Select>,
+    // but the translation introduces `{x, plural, …}` — also a
+    // runtime decision, so route it the same way.
+    const translatorICU =
+      translated !== undefined && /\{[^{}]+,\s*(plural|select|selectordinal)\s*,/.test(translated);
 
-    const elementsObj = `{ ${elementParams.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.fullStart, p.fullEnd)}`).join(", ")} }`;
-    const paramsObj =
-      regularParams.length > 0
-        ? `, { ${regularParams.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.exprStart, p.exprEnd)}`).join(", ")} }`
-        : "";
-    const fallbackText = `"${text.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-
-    ops.push({
-      offset: contentStart,
-      deleteCount: contentEnd - contentStart,
-      insert: `{__tx("${hk}", ${fallbackText}, ${elementsObj}${paramsObj})}`,
-    });
-    hashes.add(hk);
-    usedRuntime = "runtime-tx";
+    if (hasICU || translatorICU) {
+      // Bake the translated ICU template into a runtime call. The
+      // dict lookup misses (inline builds load no dict) and the
+      // baked fallback carries the translation.
+      const insert = buildRuntimeCall(hk, translated ?? text, paramList, buf, {
+        fallbackOverride: translated ?? text,
+      });
+      ops.push({ offset: contentStart, deleteCount: contentEnd - contentStart, insert: insert.code });
+      usedRuntime = insert.usedTx ? "runtime-tx" : "runtime-t";
+    } else {
+      const inlined = inlineTranslation(translated ?? text, paramList, buf);
+      ops.push({
+        offset: contentStart,
+        deleteCount: contentEnd - contentStart,
+        insert: inlined,
+      });
+    }
   } else {
-    // ── Runtime mode, text only → use t() ──
-    const paramsObj =
-      paramList.length > 0
-        ? `, { ${paramList.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.exprStart, p.exprEnd)}`).join(", ")} }`
-        : "";
-    const fallbackExpr = buildFallbackExpr(text, paramList, buf);
-    ops.push({
-      offset: contentStart,
-      deleteCount: contentEnd - contentStart,
-      insert: `{__t("${hk}", ${fallbackExpr}${paramsObj})}`,
-    });
+    const insert = buildRuntimeCall(hk, text, paramList, buf, {});
+    ops.push({ offset: contentStart, deleteCount: contentEnd - contentStart, insert: insert.code });
     hashes.add(hk);
-    usedRuntime = "runtime-t";
+    usedRuntime = insert.usedTx ? "runtime-tx" : "runtime-t";
   }
 
   removeDataI18nAttrs(el, buf, s, ops);
   return { runtime: usedRuntime, consumed: true };
 }
 
+/**
+ * Emit the `{__tx(...)}` / `{__t(...)}` runtime call for a block.
+ * Used by runtime mode always, and by inline mode for ICU-bearing
+ * blocks (where `fallbackOverride` carries the translated template).
+ */
+function buildRuntimeCall(
+  hk: string,
+  text: string,
+  paramList: ParamInfo[],
+  buf: Buffer,
+  opts: { fallbackOverride?: string },
+): { code: string; usedTx: boolean } {
+  const hasInlineElements = paramList.some((p) => p.name.startsWith("="));
+  if (hasInlineElements) {
+    const regularParams = paramList.filter((p) => !p.name.startsWith("="));
+    const elementParams = paramList.filter((p) => p.name.startsWith("="));
+    const elementsObj = `{ ${elementParams.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.fullStart, p.fullEnd)}`).join(", ")} }`;
+    const paramsObj =
+      regularParams.length > 0
+        ? `, { ${regularParams.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.exprStart, p.exprEnd)}`).join(", ")} }`
+        : "";
+    const fallbackText = JSON.stringify(opts.fallbackOverride ?? text);
+    return {
+      code: `{__tx("${hk}", ${fallbackText}, ${elementsObj}${paramsObj})}`,
+      usedTx: true,
+    };
+  }
+  const paramsObj =
+    paramList.length > 0
+      ? `, { ${paramList.map((p) => `${JSON.stringify(p.name)}: ${bslice(buf, p.exprStart, p.exprEnd)}`).join(", ")} }`
+      : "";
+  const fallbackExpr =
+    opts.fallbackOverride !== undefined
+      ? JSON.stringify(opts.fallbackOverride)
+      : buildFallbackExpr(text, paramList, buf);
+  return { code: `{__t("${hk}", ${fallbackExpr}${paramsObj})}`, usedTx: false };
+}
+
+/** Map a raw-span Occurrence into converted byte offsets. */
+function convertOccurrence(o: Occurrence, s: (n: number) => number): ParamInfo {
+  return {
+    name: o.name,
+    kind: o.kind,
+    exprStart: s(o.exprStart),
+    exprEnd: s(o.exprEnd),
+    fullStart: s(o.fullStart),
+    fullEnd: s(o.fullEnd),
+    openStart: o.openStart !== undefined ? s(o.openStart) : undefined,
+    openEnd: o.openEnd !== undefined ? s(o.openEnd) : undefined,
+    closeStart: o.closeStart !== undefined ? s(o.closeStart) : undefined,
+    closeEnd: o.closeEnd !== undefined ? s(o.closeEnd) : undefined,
+  };
+}
+
 // ─── Text Extraction ─────────────────────────────────────────
 
 type ParamInfo = {
   name: string;
+  kind: Occurrence["kind"];
   exprStart: number;
   exprEnd: number;
   fullStart: number;
   fullEnd: number;
+  /** Paired elements only: opening / closing tag spans (converted). */
+  openStart?: number;
+  openEnd?: number;
+  closeStart?: number;
+  closeEnd?: number;
 };
-
-/**
- * True if an AST node contains a JSXElement or JSXFragment anywhere in
- * its subtree. Used to detect expression containers whose runtime value
- * is a ReactNode rather than a string (see #5).
- */
-interface TemplateState {
-  paramList: ParamInfo[];
-  paramNames: Set<string>;
-  /**
-   * Running counter for positional `{=mN}` tokens. Bumps once per
-   * expression-container or JSXElement child — regardless of
-   * whether the child ends up with an `=m` name or a named param —
-   * so extract and transform agree on the N values for the same
-   * inline JSX placement. Pivot props of `<Plural>` / `<Select>` do
-   * NOT bump this counter; they're registered separately by
-   * `registerPivot` and kept out of the element-numbering stream.
-   */
-  elementIndex: number;
-}
-
-function extractTextTemplate(
-  el: JSXElement,
-  s: (offset: number) => number,
-): { text: string; paramList: ParamInfo[] } {
-  const state: TemplateState = {
-    paramList: [],
-    paramNames: new Set(),
-    elementIndex: 0,
-  };
-  const text = walkChildrenForTemplate(el.children ?? [], state, s);
-  return { text: text.trim(), paramList: state.paramList };
-}
-
-function walkChildrenForTemplate(
-  children: readonly import("@swc/core").JSXElementChild[],
-  state: TemplateState,
-  s: (offset: number) => number,
-): string {
-  let text = "";
-  for (const child of children) {
-    if (child.type === "JSXText") {
-      text += child.value.replace(/\s+/g, " ");
-      continue;
-    }
-    if (child.type === "JSXExpressionContainer") {
-      if (child.expression.type === "JSXEmptyExpression") continue;
-      const expr = child.expression as { span: { start: number; end: number } };
-      const myIndex = state.elementIndex++;
-
-      // If the expression contains JSX anywhere (e.g. `cond && <X/>`,
-      // `a ? <X/> : <Y/>`, `fn(<X/>)`), its runtime value is a
-      // ReactNode and must be captured as an element token. See #5.
-      if (containsJSX(child.expression)) {
-        const implicitName = `=m${myIndex}`;
-        text += `{${implicitName}}`;
-        state.paramList.push({
-          name: implicitName,
-          exprStart: s(expr.span.start),
-          exprEnd: s(expr.span.end),
-          fullStart: s(expr.span.start),
-          fullEnd: s(expr.span.end),
-        });
-        continue;
-      }
-
-      const rawName = exprToName(child.expression);
-      const name = dedupName(rawName, state.paramNames);
-      text += `{${name}}`;
-      state.paramList.push({
-        name,
-        exprStart: s(expr.span.start),
-        exprEnd: s(expr.span.end),
-        fullStart: s(child.span.start),
-        fullEnd: s(child.span.end),
-      });
-      continue;
-    }
-    if (child.type !== "JSXElement") continue;
-
-    const tag = getTagName(child);
-    // Plural/Select don't consume an `=mN` slot — they produce the
-    // ICU sub-template inline. Their pivot is registered separately.
-    if (tag && isPluralTag(tag)) {
-      const icu = buildPluralTemplate(child, state, s);
-      if (icu) {
-        text += icu;
-        continue;
-      }
-    }
-    if (tag && isSelectTag(tag)) {
-      const icu = buildSelectTemplate(child, state, s);
-      if (icu) {
-        text += icu;
-        continue;
-      }
-    }
-
-    const childStart = s(child.span.start);
-    const childEnd = s(child.span.end);
-    const implicitName = `=m${state.elementIndex++}`;
-    state.paramList.push({
-      name: implicitName,
-      exprStart: childStart,
-      exprEnd: childEnd,
-      fullStart: childStart,
-      fullEnd: childEnd,
-    });
-    const innerChildren = child.children ?? [];
-    if (innerChildren.length === 0) {
-      // Zero children → standalone marker. Runtime substitutes the
-      // element directly when no matching `{/=mN}` close exists.
-      text += `{${implicitName}}`;
-      continue;
-    }
-    // Has children → paired markers around the recursively-walked
-    // inner content. Runtime cloneElements the wrapping element with
-    // the rendered inner content as its children.
-    text += `{${implicitName}}`;
-    text += walkChildrenForTemplate(innerChildren, state, s);
-    text += `{/${implicitName}}`;
-  }
-  return text;
-}
-
-/**
- * Build the ICU `{pivot, plural, ...}` template for a `<Plural>`
- * element, inlining each form's content through the same walker so
- * inline elements (`<strong>`) inside a form become `{=mN}` tokens
- * in the paramList. The pivot variable is registered as a named
- * param so the runtime can pass it at call time.
- */
-function buildPluralTemplate(
-  el: JSXElement,
-  state: TemplateState,
-  s: (offset: number) => number,
-): string | null {
-  const info = parsePlural(el);
-  if (!info) return null;
-  const pivotName = registerPivot(
-    el,
-    "count",
-    info.pivotName,
-    state.paramList,
-    state.paramNames,
-    s,
-  );
-  if (!pivotName) return null;
-  const parts: string[] = [];
-  for (const form of info.forms) {
-    const formText = walkChildrenForTemplate(form.el.children ?? [], state, s);
-    parts.push(`${form.key} {${formText.trim()}}`);
-  }
-  return `{${pivotName}, plural, ${parts.join(" ")}}`;
-}
-
-function buildSelectTemplate(
-  el: JSXElement,
-  state: TemplateState,
-  s: (offset: number) => number,
-): string | null {
-  const info = parseSelect(el);
-  if (!info) return null;
-  const pivotName = registerPivot(
-    el,
-    "value",
-    info.pivotName,
-    state.paramList,
-    state.paramNames,
-    s,
-  );
-  if (!pivotName) return null;
-  const parts: string[] = [];
-  for (const c of info.cases) {
-    const formText = walkChildrenForTemplate(c.el.children ?? [], state, s);
-    parts.push(`${c.key} {${formText.trim()}}`);
-  }
-  if (info.otherEl) {
-    const formText = walkChildrenForTemplate(info.otherEl.children ?? [], state, s);
-    parts.push(`other {${formText.trim()}}`);
-  }
-  return `{${pivotName}, select, ${parts.join(" ")}}`;
-}
-
-/**
- * Registers the pivot prop of a `<Plural>` / `<Select>` as a named
- * param so the plugin emits `{ count: items.length }` in the runtime
- * call and the runtime's `resolveICU` can evaluate the rule.
- */
-/**
- * Pivot is NOT added to `paramNames`. Form bodies commonly reference
- * the pivot variable (`<Other>{count} items</Other>`); we want that
- * `{count}` to resolve to the pivot's value, not a deduped
- * `count_2`. The pivot param entry is emitted once here — if form
- * bodies reference the same name, they'll push a duplicate
- * ParamInfo that happens to share the name. That's fine: the
- * emitted params object ends up with `{ count: count }` the first
- * time and benign repeats after. Runtime substitution walks the
- * template tokens, not the paramList.
- */
-function registerPivot(
-  el: JSXElement,
-  propName: "count" | "value",
-  pivotName: string,
-  paramList: ParamInfo[],
-  _paramNames: Set<string>,
-  s: (offset: number) => number,
-): string | null {
-  for (const attr of el.opening.attributes ?? []) {
-    if (attr.type !== "JSXAttribute" || attr.name.type !== "Identifier") continue;
-    if (attr.name.value !== propName) continue;
-    const value = attr.value;
-    if (!value) return null;
-    if (value.type === "JSXExpressionContainer") {
-      const expr = value.expression as { span: { start: number; end: number } };
-      paramList.push({
-        name: pivotName,
-        exprStart: s(expr.span.start),
-        exprEnd: s(expr.span.end),
-        fullStart: s(expr.span.start),
-        fullEnd: s(expr.span.end),
-      });
-      return pivotName;
-    }
-    if (value.type === "StringLiteral") {
-      paramList.push({
-        name: pivotName,
-        exprStart: s(value.span.start),
-        exprEnd: s(value.span.end),
-        fullStart: s(value.span.start),
-        fullEnd: s(value.span.end),
-      });
-      return pivotName;
-    }
-  }
-  return null;
-}
-
-// Silence unused-import warnings when only a subset of plural helpers
-// is referenced in a tsc context — keeps the lint narrow to real usage.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _PluralFormKeyUsed = PluralFormKey;
 
 // ─── Inline Translation ──────────────────────────────────────
 
+/**
+ * Escape a literal text segment for insertion as JSX children.
+ * `<`, `>`, `{`, `}` would otherwise change the parse; entities
+ * render back to the original characters. `&` stays untouched so
+ * entities a translator typed deliberately keep working.
+ */
+/**
+ * Escape a translated string for a JSX attribute value literal.
+ * JSX attribute strings have no backslash escapes — a `"` must be
+ * the `&quot;` entity (decoded by React at parse time).
+ */
+function escapeJSXAttr(text: string): string {
+  return text.replace(/"/g, "&quot;");
+}
+
+function escapeJSXText(text: string): string {
+  return text
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\{/g, "&#123;")
+    .replace(/\}/g, "&#125;");
+}
+
+type InlineTok = { start: number; end: number; key: string; kind: "open" | "close" };
+
+/**
+ * Rebuild translated JSX from a flat template at build time.
+ * Mirrors the runtime `__tx` renderer: `{name}` tokens become
+ * `{expr}` containers, standalone `{=mN}` tokens splice the whole
+ * child element/expression source, and paired `{=mN}…{/=mN}` ranges
+ * wrap the recursively-rendered inner content in the child's
+ * opening/closing tags — so `<a>here</a>` keeps its (translated)
+ * inner text inside the anchor, in whatever order the translator
+ * put the tokens. Tokens the template carries but the call site
+ * doesn't know (translator artifacts) render as escaped text so a
+ * raw `{foo}` can never break the parse or reference a stray
+ * variable.
+ */
 function inlineTranslation(translatedText: string, paramList: ParamInfo[], buf: Buffer): string {
-  const tokenMap = new Map<string, string>();
+  const byName = new Map<string, ParamInfo>();
   for (const param of paramList) {
-    if (param.name.startsWith("=")) {
-      tokenMap.set(param.name, bslice(buf, param.fullStart, param.fullEnd));
-    } else {
-      tokenMap.set(param.name, `{${bslice(buf, param.exprStart, param.exprEnd)}}`);
+    if (!byName.has(param.name)) byName.set(param.name, param);
+  }
+
+  const tokens: InlineTok[] = [];
+  // Token names: `=mN` element markers or identifier-ish param names
+  // (letters, digits, `_`, `$`, dots from member expressions). The
+  // shape deliberately can't match an ICU header like
+  // `{count, plural, …}` — ICU-bearing text never reaches this
+  // function (it routes through the runtime call instead).
+  const re = /\{(\/?)([=A-Za-z_$][\w.$]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(translatedText)) !== null) {
+    tokens.push({
+      start: m.index,
+      end: m.index + m[0].length,
+      key: m[2],
+      kind: m[1] === "/" ? "close" : "open",
+    });
+  }
+
+  // LIFO open/close matching, same as the runtime renderer.
+  const closeOf = new Map<number, number>();
+  const openStack: number[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i];
+    if (tok.kind === "open") {
+      openStack.push(i);
+      continue;
+    }
+    for (let j = openStack.length - 1; j >= 0; j--) {
+      if (tokens[openStack[j]].key === tok.key) {
+        closeOf.set(openStack[j], i);
+        openStack.splice(j, 1);
+        break;
+      }
     }
   }
 
-  return translatedText.replace(/\{([^}]+)\}/g, (match, tokenName) => {
-    return tokenMap.get(tokenName) ?? match;
-  });
+  const render = (charStart: number, charEnd: number, tokFrom: number, tokTo: number): string => {
+    let out = "";
+    let cursor = charStart;
+    let i = tokFrom;
+    while (i <= tokTo && i < tokens.length) {
+      const tok = tokens[i];
+      if (tok.start >= charEnd) break;
+      if (tok.start > cursor) out += escapeJSXText(translatedText.slice(cursor, tok.start));
+
+      const param = byName.get(tok.key);
+      if (tok.kind === "open") {
+        const closeIdx = closeOf.get(i);
+        if (closeIdx !== undefined && closeIdx <= tokTo) {
+          const close = tokens[closeIdx];
+          const inner = render(tok.end, close.start, i + 1, closeIdx - 1);
+          if (param && param.openStart !== undefined && param.closeStart !== undefined) {
+            out +=
+              bslice(buf, param.openStart, param.openEnd as number) +
+              inner +
+              bslice(buf, param.closeStart, param.closeEnd as number);
+          } else if (param) {
+            // Paired in the translation but not a paired element at
+            // the call site — substitute the element/expression and
+            // keep the inner content beside it.
+            out += renderStandalone(param, buf) + inner;
+          } else {
+            out += inner;
+          }
+          cursor = close.end;
+          i = closeIdx + 1;
+          continue;
+        }
+        if (param) {
+          out += renderStandalone(param, buf);
+        } else {
+          // Unknown token — translator artifact. Escape it as text.
+          out += escapeJSXText(translatedText.slice(tok.start, tok.end));
+        }
+        cursor = tok.end;
+      } else {
+        // Unmatched close — drop it rather than leak a raw token.
+        cursor = tok.end;
+      }
+      i++;
+    }
+    if (cursor < charEnd) out += escapeJSXText(translatedText.slice(cursor, charEnd));
+    return out;
+  };
+
+  return render(0, translatedText.length, 0, tokens.length - 1);
+}
+
+function renderStandalone(param: ParamInfo, buf: Buffer): string {
+  if (param.name.startsWith("=")) {
+    // Whole element / JSX-bearing expression: splice its source. A
+    // jsx:node occurrence (bare expression like `cond && <X/>`) needs
+    // re-wrapping in an expression container.
+    const src = bslice(buf, param.fullStart, param.fullEnd);
+    return param.kind === "node" ? `{${src}}` : src;
+  }
+  return `{${bslice(buf, param.exprStart, param.exprEnd)}}`;
 }
 
 // ─── Runtime Fallback Expression ─────────────────────────────
@@ -910,7 +882,7 @@ function processAttributes(
         ops.push({
           offset: valueStart,
           deleteCount: valueEnd - valueStart,
-          insert: `"${translated}"`,
+          insert: `"${escapeJSXAttr(translated)}"`,
         });
       } else {
         ops.push({
@@ -952,7 +924,9 @@ function processAttributes(
           ops.push({
             offset: start,
             deleteCount: end - start,
-            insert: `"${translated}"`,
+            // These literals sit inside a JS expression container
+            // (`{cond ? "A" : "B"}`), so JSON escaping applies.
+            insert: JSON.stringify(translated),
           });
         } else {
           ops.push({

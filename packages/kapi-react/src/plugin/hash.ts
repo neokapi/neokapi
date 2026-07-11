@@ -1,70 +1,46 @@
 /**
- * Jenkins hash + base62 encoding for hash keys.
- * Copied from babel-plugin-neokapi to avoid a runtime dependency on it.
+ * v2 key hashing: FNV-1a 64-bit over `JSON.stringify(text) + "|" + desc`,
+ * base62-encoded (≤ 11 chars).
+ *
+ * 64 bits gives collision headroom for million-string corpora that the
+ * old 32-bit Jenkins hash (~50% birthday collision odds around 80k
+ * strings) did not. The v1 scheme lives on only in
+ * `src/migrate/legacy.ts` for `kapi-react migrate-keys`.
  */
 
-function toUtf8(str: string) {
-  const result = [];
-  const len = str.length;
-  for (let i = 0; i < len; i++) {
-    let charcode = str.charCodeAt(i);
-    if (charcode < 0x80) {
-      result.push(charcode);
-    } else if (charcode < 0x8_00) {
-      result.push(0xc0 | (charcode >> 6), 0x80 | (charcode & 0x3f));
-    } else if (charcode < 0xd8_00 || charcode >= 0xe0_00) {
-      result.push(
-        0xe0 | (charcode >> 12),
-        0x80 | ((charcode >> 6) & 0x3f),
-        0x80 | (charcode & 0x3f),
-      );
-    } else {
-      i++;
-      charcode = 0x1_00_00 + (((charcode & 0x3_ff) << 10) | (str.charCodeAt(i) & 0x3_ff));
-      result.push(
-        0xf0 | (charcode >> 18),
-        0x80 | ((charcode >> 12) & 0x3f),
-        0x80 | ((charcode >> 6) & 0x3f),
-        0x80 | (charcode & 0x3f),
-      );
-    }
-  }
-  return result;
-}
+const FNV_OFFSET = 0xcbf29ce484222325n;
+const FNV_PRIME = 0x100000001b3n;
+const MASK64 = 0xffffffffffffffffn;
 
-function jenkinsHash(str: string): number {
-  if (!str) return 0;
-  const utf8 = toUtf8(str);
-  let hash = 0;
-  for (let i = 0; i < utf8.length; i++) {
-    hash += utf8[i];
-    hash = (hash + (hash << 10)) >>> 0;
-    hash ^= hash >>> 6;
+function fnv1a64(str: string): bigint {
+  // Hash UTF-8 bytes so non-ASCII text hashes identically across
+  // JS engines and the Go implementation, should one ever exist.
+  const bytes = Buffer.from(str, "utf8");
+  let hash = FNV_OFFSET;
+  for (let i = 0; i < bytes.length; i++) {
+    hash ^= BigInt(bytes[i]);
+    hash = (hash * FNV_PRIME) & MASK64;
   }
-  hash = (hash + (hash << 3)) >>> 0;
-  hash ^= hash >>> 11;
-  hash = (hash + (hash << 15)) >>> 0;
   return hash;
 }
 
 const BaseNSymbols = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-function uintToBaseN(numberArg: number, base: number) {
-  let number = numberArg;
-  if (base < 2 || base > 62 || number < 0) return "";
-  let output = "";
-  do {
-    output = BaseNSymbols.charAt(number % base).concat(output);
-    number = Math.floor(number / base);
-  } while (number > 0);
-  return output;
+function bigintToBase62(value: bigint): string {
+  if (value === 0n) return "0";
+  let n = value;
+  let out = "";
+  while (n > 0n) {
+    out = BaseNSymbols[Number(n % 62n)] + out;
+    n /= 62n;
+  }
+  return out;
 }
 
 /**
- * Compute the hash key from text and description.
- * Compute the hash key from text and description.
+ * Compute the hash key from flat text and descriptor.
  */
 export function hashKey(text: string, desc: string): string {
   const key = JSON.stringify(text) + "|" + desc;
-  return uintToBaseN(jenkinsHash(key), 62);
+  return bigintToBase62(fnv1a64(key));
 }
