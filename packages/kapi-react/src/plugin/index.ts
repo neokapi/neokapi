@@ -26,7 +26,29 @@ interface EmitContext {
 
 const MANIFEST_FILENAME = "translations-manifest.json";
 
-export const unpluginFactory = (options: PluginOptions = {}) => {
+/** Review mode: explicit option, or the KAPI_REVIEW=1 env toggle. */
+function reviewEnabled(options: PluginOptions): boolean {
+  if (options.review !== undefined) return options.review;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const env = (globalThis as any).process?.env?.KAPI_REVIEW;
+  return env === "1" || env === "true";
+}
+
+/** Set once the dev server mounted the middleware — gates injection. */
+let reviewDevServerActive = false;
+
+const REVIEW_VIRTUAL_ID = "virtual:kapi-react-review";
+
+export const unpluginFactory = (rawOptions: PluginOptions = {}) => {
+  // Resolve the review toggle once (option or KAPI_REVIEW env) so the
+  // transform, middleware, and html injection agree.
+  const options: PluginOptions = { ...rawOptions, review: reviewEnabled(rawOptions) };
+  if (options.review && options.mode !== "runtime") {
+    console.warn(
+      "[neokapi] review mode needs mode: 'runtime' (live dictionary lookups); " +
+        "stamping data-kapi-* attributes anyway, but in-place repaint won't work.",
+    );
+  }
   // module id → hashes the transform emitted into `__t`/`__tx` calls.
   // Consumed by the Vite/Rollup `generateBundle` hook to emit the
   // per-chunk manifest (issue #406). Only populated in runtime mode.
@@ -70,6 +92,55 @@ export const unpluginFactory = (options: PluginOptions = {}) => {
     vite: {
       generateBundle(this: EmitContext, _opts: unknown, bundle: BundleLike) {
         emitManifest(this, bundle);
+      },
+
+      // ── In-context review (dev server only) ──
+      // Mounts the review middleware and injects the overlay client.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async configureServer(server: any) {
+        if (!reviewEnabled(options)) return;
+        const { ReviewStore, handleReviewRequest } = await import("../review/store.ts");
+        const store = new ReviewStore(options.reviewKlfDir ?? "i18n");
+        const base = "/__kapi/review";
+        server.middlewares.use(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (req: any, res: any, next: () => void) => {
+            const url: string = req.url ?? "";
+            if (!url.startsWith(base)) return next();
+            const handled = handleReviewRequest(store, req, res, url.slice(base.length));
+            if (!handled) next();
+          },
+        );
+        reviewDevServerActive = true;
+      },
+
+      // The overlay bootstrap lives in a virtual module so the bare
+      // `@neokapi/kapi-react/review` import resolves through Vite's
+      // pipeline — an inline script tag would hit the browser's
+      // native resolver and fail on the bare specifier.
+      resolveId(id: string) {
+        if (id === REVIEW_VIRTUAL_ID) return "\0" + REVIEW_VIRTUAL_ID;
+        return null;
+      },
+      load(id: string) {
+        if (id === "\0" + REVIEW_VIRTUAL_ID) {
+          return "import { initKapiReview } from '@neokapi/kapi-react/review';\ninitKapiReview();\n";
+        }
+        return null;
+      },
+
+      transformIndexHtml(html: string) {
+        if (!reviewEnabled(options) || !reviewDevServerActive) return html;
+        return {
+          html,
+          tags: [
+            {
+              tag: "script",
+              attrs: { type: "module", src: `/@id/__x00__${REVIEW_VIRTUAL_ID}` },
+              injectTo: "body" as const,
+            },
+          ],
+        };
       },
     },
     rollup: {

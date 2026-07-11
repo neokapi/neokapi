@@ -37,6 +37,14 @@ import { hasICUSyntax, resolveICU, type ICUParamValue } from "./icu.ts";
 let currentLocale = "";
 let dict: Record<string, string> = {};
 let version = 0;
+/**
+ * Remount generation for <NeokapiProvider>. Same-locale dict merges
+ * deliberately do NOT remount the subtree (chunk loads must not churn
+ * mounted state); `refreshTranslations()` bumps this to force one —
+ * the in-context review overlay uses it to repaint an edited string
+ * in place.
+ */
+let generation = 0;
 const listeners = new Set<() => void>();
 
 // Deduplicates concurrent `loadTranslationChunk` calls for the same
@@ -533,7 +541,18 @@ export function useNeokapi() {
  */
 export function NeokapiProvider({ children }: { children: ReactNode }): ReactNode {
   useNeokapi(); // subscribe → re-render this provider when the store changes
-  return createElement(Fragment, { key: currentLocale }, children);
+  return createElement(Fragment, { key: `${currentLocale}:${generation}` }, children);
+}
+
+/**
+ * Force every <NeokapiProvider> subtree to remount against the
+ * current dictionary. Use after a same-locale dict merge that must
+ * repaint already-mounted components (the review overlay's in-place
+ * edits); ordinary chunk loads should NOT call this.
+ */
+export function refreshTranslations(): void {
+  generation++;
+  notify();
 }
 
 // ─── JS-context escape hatch ─────────────────────────────────

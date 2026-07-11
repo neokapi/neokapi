@@ -523,7 +523,7 @@ function processElement(
   // Extract translatable attributes from every element (mapped or
   // not) — `translatableAttributes` is keyed on prop name, not host
   // element, so `<PageHeader title="Termbases" />` just works.
-  let usedRuntime: "runtime-t" | "runtime-tx" | null = processAttributes(
+  const attrResult = processAttributes(
     el,
     ancestors,
     componentMap,
@@ -533,13 +533,31 @@ function processElement(
     s,
     ops,
     hashes,
-  )
+  );
+  let usedRuntime: "runtime-t" | "runtime-tx" | null = attrResult.usedRuntime
     ? "runtime-t"
     : null;
 
-  if (!policy.translate) return { runtime: usedRuntime, consumed: false };
-  if (!hasTranslatableText(el)) return { runtime: usedRuntime, consumed: false };
-  if (!isAllInlineContent(el, componentMap)) return { runtime: usedRuntime, consumed: false };
+  // In review mode, attribute-only elements still get a stamp so the
+  // overlay can reach placeholder/aria strings.
+  const stampAttrsOnly = () => {
+    if (options.review) {
+      stampReviewAttributes(el, buf, s, ops, filename, code, null, attrResult.pairs);
+    }
+  };
+
+  if (!policy.translate) {
+    stampAttrsOnly();
+    return { runtime: usedRuntime, consumed: false };
+  }
+  if (!hasTranslatableText(el)) {
+    stampAttrsOnly();
+    return { runtime: usedRuntime, consumed: false };
+  }
+  if (!isAllInlineContent(el, componentMap)) {
+    stampAttrsOnly();
+    return { runtime: usedRuntime, consumed: false };
+  }
 
   // Record warnings for elements whose translatability had to be
   // inferred. Must happen after all gating checks so we don't
@@ -596,6 +614,9 @@ function processElement(
   });
   if (blockRuntime) usedRuntime = blockRuntime;
 
+  if (options.review) {
+    stampReviewAttributes(el, buf, s, ops, filename, code, hk, attrResult.pairs);
+  }
   removeDataI18nAttrs(el, buf, s, ops);
   return { runtime: usedRuntime, consumed: true };
 }
@@ -980,8 +1001,9 @@ function processAttributes(
   s: (offset: number) => number,
   ops: TransformOp[],
   hashes: Set<string>,
-): boolean {
+): { usedRuntime: boolean; pairs: Array<[string, string]> } {
   let usedRuntime = false;
+  const pairs: Array<[string, string]> = [];
 
   for (const attr of el.opening.attributes || []) {
     if (attr.type !== "JSXAttribute") continue;
@@ -1003,6 +1025,7 @@ function processAttributes(
       const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
       const hk = hashKey(text, desc);
 
+      pairs.push([attrName, hk]);
       const valueStart = s(attr.value.span.start);
       const valueEnd = s(attr.value.span.end);
       if (mode === "inline") {
@@ -1045,6 +1068,7 @@ function processAttributes(
         const context = `${jsxPath}[${attrName}::${branchIndex}]`;
         const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
         const hk = hashKey(text, desc);
+        pairs.push([`${attrName}::${branchIndex}`, hk]);
         const start = s(literal.span.start);
         const end = s(literal.span.end);
         if (mode === "inline") {
@@ -1070,7 +1094,50 @@ function processAttributes(
     }
   }
 
-  return usedRuntime;
+  return { usedRuntime, pairs };
+}
+
+// ─── Review-mode stamping ────────────────────────────────────
+
+/**
+ * Insert `data-kapi-id` / `data-kapi-loc` / `data-kapi-attr`
+ * attributes into the element's opening tag so the review overlay
+ * can map a DOM node back to its block(s). Insertion lands just
+ * before the tag's closing `>` (or `/>`), which keeps it disjoint
+ * from attribute-value ops (inside the tag) and the content op
+ * (after the tag).
+ */
+function stampReviewAttributes(
+  el: JSXElement,
+  buf: Buffer,
+  s: (n: number) => number,
+  ops: TransformOp[],
+  filename: string,
+  code: string,
+  blockHash: string | null,
+  attrPairs: Array<[string, string]>,
+): void {
+  if (!blockHash && attrPairs.length === 0) return;
+  const openEnd = s(el.opening.span.end);
+  // Walk back over the closing bracket sequence: `>`, `/>`, `/ >`.
+  let insertAt = openEnd - 1; // at the `>`
+  while (insertAt > 0 && (buf[insertAt - 1] === 0x2f || buf[insertAt - 1] === 0x20)) insertAt--;
+
+  const line = lineFromOffset(code, s(el.span.start));
+  const parts: string[] = [];
+  if (blockHash) parts.push(`data-kapi-id="${blockHash}"`);
+  if (attrPairs.length > 0) {
+    const spec = attrPairs.map(([name, h]) => `${name}:${h}`).join(" ");
+    parts.push(`data-kapi-attr="${spec}"`);
+  }
+  // Bundlers pass absolute module ids; the loc should read like the
+  // extract-side `properties.file` (project-relative).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cwd: string = (globalThis as any).process?.cwd?.() ?? "";
+  let relFile = filename;
+  if (cwd && relFile.startsWith(cwd)) relFile = relFile.slice(cwd.length).replace(/^\/+/, "");
+  parts.push(`data-kapi-loc="${relFile.replace(/"/g, "")}:${line}"`);
+  ops.push({ offset: insertAt, deleteCount: 0, insert: ` ${parts.join(" ")}` });
 }
 
 // ─── Local helpers ───────────────────────────────────────────

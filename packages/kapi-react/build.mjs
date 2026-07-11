@@ -39,6 +39,8 @@ const entryPoints = [
   "src/runtime/plural.tsx",
   "src/runtime/pseudo.ts",
   "src/storybook/index.ts",
+  "src/review/index.ts",
+  "src/review/store.ts",
 ];
 
 // Rewrites ./foo.ts → ./foo.js in relative imports so the emitted JS

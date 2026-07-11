@@ -773,6 +773,37 @@ type PluginOptions = {
 };
 ```
 
+## In-Context Review
+
+Review translations *inside your running app*. With `review: true`
+(or `KAPI_REVIEW=1`) the plugin stamps every extracted element with
+`data-kapi-id` / `data-kapi-attr` / `data-kapi-loc`, mounts a review
+middleware on the Vite dev server, and injects a small overlay:
+
+```ts
+// vite.config.ts — dev only; never ship review builds
+neokapi({ mode: "runtime", review: true });
+```
+
+- **⌥/Alt+hover** outlines any translated element; **⌥/Alt+click**
+  opens the review panel: source text, translator note, and an
+  editable target for the active locale.
+- **Saving writes straight into the local `.klf` file** — your
+  review is a git diff — and the live UI repaints in place (no
+  reload).
+- **terms/QA** in the floating toolbar paints terminology matches
+  and QA findings from stand-off annotation files (`*.klfl`, e.g.
+  produced by `kapi run term-check` / `qa` over `i18n/`) onto the
+  live page via the CSS Custom Highlight API — zero DOM mutation,
+  no layout shift.
+- Edits broadcast over SSE, so every open browser window of the dev
+  server repaints together.
+
+The middleware serves the KLF tree at `reviewKlfDir` (default:
+`i18n`). Review mode needs `mode: "runtime"` for live repaint;
+production builds ignore the review flag unless you set it
+explicitly — don't.
+
 ## Storybook Integration
 
 Preview your components in each locale via a toolbar dropdown. Wire up
