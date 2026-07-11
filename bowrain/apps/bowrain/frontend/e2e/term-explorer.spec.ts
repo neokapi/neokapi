@@ -1,9 +1,15 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
-/** Creates a project and returns with the project view visible (before opening term explorer). */
-async function createProject(page: any) {
+/**
+ * E2E for the shared @neokapi/ui-primitives TermbaseBrowser as mounted by the
+ * bowrain desktop (App.tsx renders it via useTermbaseBrowserAdapter when the
+ * project view's "open-terms-btn" is clicked).
+ */
+
+/** Creates a project and returns with the project view visible (before opening the termbase browser). */
+async function createProject(page: Page) {
   await setupLocalApp(page);
 
   // Create project
@@ -16,101 +22,54 @@ async function createProject(page: any) {
   await expect(page.getByTestId("back-to-projects")).toBeVisible();
 }
 
-/** Opens the terminology explorer from the project view. */
-async function openTerms(page: any) {
-  await page.evaluate(() => {
-    (document.querySelector('[data-testid="open-terms-btn"]') as HTMLElement)?.click();
-  });
-  await expect(page.getByTestId("term-explorer")).toBeVisible();
+/** Opens the termbase browser from the project view. */
+async function openTerms(page: Page) {
+  await page.getByTestId("open-terms-btn").click();
+  await expect(page.getByTestId("termbase-browser")).toBeVisible();
 }
 
-/** Creates a project and opens the term explorer. */
-async function createProjectAndOpenTerms(page: any) {
+/** Creates a project and opens the termbase browser. */
+async function createProjectAndOpenTerms(page: Page) {
   await createProject(page);
   await openTerms(page);
 }
 
-/** Helper: set value on an input by test ID (handles both direct inputs and wrappers). */
-async function setInput(page: any, testId: string, value: string) {
-  const wrapper = page.getByTestId(testId);
-  // If the testid is directly on an <input>, use it; otherwise find a child input.
-  const tagName = await wrapper.evaluate((el: Element) => el.tagName.toLowerCase());
-  const input = tagName === "input" ? wrapper : wrapper.locator("input").first();
-  await input.clear();
-  await input.fill(value);
+/** The "N concepts" count under the termbase browser toolbar. */
+function countText(page: Page, pattern: RegExp) {
+  return expect(page.getByTestId("termbase-browser").getByText(pattern)).toBeVisible();
 }
 
-/** Helper: click by test ID using native DOM click. */
-function clickTestId(page: any, testId: string) {
-  return page.evaluate((tid: string) => {
-    (document.querySelector(`[data-testid="${tid}"]`) as HTMLElement)?.click();
-  }, testId);
-}
-
-/** Helper: click first element matching a selector prefix. */
-function clickFirst(page: any, selectorPrefix: string) {
-  return page.evaluate((prefix: string) => {
-    (document.querySelector(`[data-testid^="${prefix}"]`) as HTMLElement)?.click();
-  }, selectorPrefix);
-}
-
-test.describe("Term Explorer", () => {
-  test("should open term explorer and show empty state", async ({ page }) => {
+test.describe("Termbase Browser", () => {
+  test("should open termbase browser and show empty state", async ({ page }) => {
     await createProjectAndOpenTerms(page);
 
-    await expect(page.getByTestId("term-empty-state")).toBeVisible();
-    await expect(page.getByTestId("term-count-badge")).toContainText("0 concepts");
+    await countText(page, /^0 concepts$/);
+    await expect(page.getByText("No concepts yet.")).toBeVisible();
   });
 
   test("should add a concept and see it in the list", async ({ page }) => {
     await createProjectAndOpenTerms(page);
 
-    // Click Add Concept
-    await clickTestId(page, "term-add-btn");
-    await expect(page.getByTestId("term-add-form")).toBeVisible();
+    // Open the add dialog
+    await page.getByRole("button", { name: "Add Concept" }).click();
+    await expect(page.getByText("New Concept")).toBeVisible();
 
     // Fill in domain and definition
-    await setInput(page, "term-add-domain", "IT");
-    await setInput(page, "term-add-definition", "A computer term");
+    await page.getByPlaceholder("e.g. Legal, Medical").fill("IT");
+    await page.getByPlaceholder("Concept definition").fill("A computer term");
 
-    // Fill in the first term (source)
-    await page.evaluate(() => {
-      const inputs = document.querySelectorAll(
-        '[data-testid="term-add-form"] input[placeholder="Term text"]',
-      );
-      if (inputs[0]) {
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
-          inputs[0],
-          "database",
-        );
-        inputs[0].dispatchEvent(new Event("input", { bubbles: true }));
-        inputs[0].dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
+    // First term (source)
+    await page.getByPlaceholder("Term", { exact: true }).first().fill("database");
 
-    // Fill in the second term (target)
-    await page.evaluate(() => {
-      const inputs = document.querySelectorAll(
-        '[data-testid="term-add-form"] input[placeholder="Term text"]',
-      );
-      if (inputs[1]) {
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
-          inputs[1],
-          "base de données",
-        );
-        inputs[1].dispatchEvent(new Event("input", { bubbles: true }));
-        inputs[1].dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
+    // Add a second term (target)
+    await page.getByRole("button", { name: "+ Add term" }).click();
+    await page.getByPlaceholder("Term", { exact: true }).nth(1).fill("base de données");
 
     // Submit
-    await clickTestId(page, "term-add-submit");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
 
     // Wait for list to update
-    await expect(page.getByTestId("term-empty-state")).not.toBeVisible({ timeout: 5000 });
-    await expect(page.getByTestId("term-count-badge")).toContainText("1 concept");
-
-    // Verify concept content
+    await countText(page, /^1 concept$/);
     await expect(page.getByText("database")).toBeVisible();
     await expect(page.getByText("base de données")).toBeVisible();
     await expect(page.getByText("IT", { exact: true })).toBeVisible();
@@ -119,7 +78,7 @@ test.describe("Term Explorer", () => {
   test("should search concepts by text", async ({ page }) => {
     await createProject(page);
 
-    // Add two concepts via mock backend before opening term explorer
+    // Add two concepts via mock backend before opening the termbase browser
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -149,28 +108,20 @@ test.describe("Term Explorer", () => {
     await openTerms(page);
 
     // Verify both concepts are shown initially
-    await expect(page.getByTestId("term-count-badge")).toContainText("2 concepts");
+    await countText(page, /^2 concepts$/);
 
-    // Type in search box and press Enter to commit the search
-    const searchInput = page.getByTestId("term-search-input").locator("input").first();
-    await searchInput.fill("database");
-    await searchInput.press("Enter");
+    // Live search narrows the list
+    await page.getByPlaceholder("Search terminology...").fill("database");
 
-    // Wait for results
-    await page.waitForTimeout(500);
-
-    // Should show only 1 concept
-    await expect(page.getByTestId("term-count-badge")).toContainText("1 concept");
-    // Use a scoped locator to avoid matching the search badge
-    await expect(
-      page.locator('[data-testid^="term-concept-"]').getByText("database"),
-    ).toBeVisible();
+    await countText(page, /^1 concept$/);
+    await expect(page.locator('[data-testid^="concept-"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid^="concept-"]').first()).toContainText("database");
   });
 
-  test("should filter by target locale", async ({ page }) => {
+  test("should scope concepts to the active target locale", async ({ page }) => {
     await createProject(page);
 
-    // Add concepts with different locales before opening term explorer
+    // Add concepts with different target locales before opening the browser
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -197,24 +148,18 @@ test.describe("Term Explorer", () => {
 
     await openTerms(page);
 
-    // Should show 2 concepts initially
-    await expect(page.getByTestId("term-count-badge")).toContainText("2 concepts");
-
-    // Select "de" from the target locale filter using the FilterBar:
-    // type "target:de" into the search input and press Enter
-    const searchInput = page.getByTestId("term-search-input").locator("input").first();
-    await searchInput.fill("target:de");
-    await searchInput.press("Enter");
-    await page.waitForTimeout(400);
-
-    // Should show only 1 concept
-    await expect(page.getByTestId("term-count-badge")).toContainText("1 concept");
+    // The browser scopes to the project's first target locale (fr), so only
+    // the concept with a French term is in scope; the German one is filtered.
+    await countText(page, /^1 concept$/);
+    await expect(page.locator('[data-testid^="concept-"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid^="concept-"]').first()).toContainText("serveur");
+    await expect(page.getByText("Netzwerk")).not.toBeVisible();
   });
 
   test("should edit a concept", async ({ page }) => {
     await createProject(page);
 
-    // Add a concept before opening term explorer
+    // Add a concept before opening the termbase browser
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -233,28 +178,17 @@ test.describe("Term Explorer", () => {
 
     await openTerms(page);
 
-    // Click Edit button
-    await clickFirst(page, "term-edit-btn-");
+    // Enter edit mode (Edit reveals on hover)
+    const card = page.locator('[data-testid^="concept-"]').first();
+    await card.hover();
+    await card.getByRole("button", { name: "Edit" }).click();
 
     // Edit the domain
-    await page.evaluate(() => {
-      const row = document.querySelector('[data-testid^="term-concept-"]');
-      if (!row) return;
-      const inputs = row.querySelectorAll("input");
-      // First input is domain
-      if (inputs[0]) {
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
-          inputs[0],
-          "Healthcare",
-        );
-        inputs[0].dispatchEvent(new Event("input", { bubbles: true }));
-        inputs[0].dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
+    const domainInput = page.getByPlaceholder("Domain", { exact: true });
+    await domainInput.fill("Healthcare");
 
-    // Click Save
-    await clickFirst(page, "term-save-btn-");
-    await page.waitForTimeout(500);
+    // Save
+    await page.getByRole("button", { name: "Save", exact: true }).click();
 
     // Verify updated domain
     await expect(page.getByText("Healthcare")).toBeVisible();
@@ -263,7 +197,7 @@ test.describe("Term Explorer", () => {
   test("should delete a concept with confirmation", async ({ page }) => {
     await createProject(page);
 
-    // Add a concept before opening term explorer
+    // Add a concept before opening the termbase browser
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -272,7 +206,10 @@ test.describe("Term Explorer", () => {
         backend.AddConcept({
           project_id: pid,
           domain: "Test",
-          terms: [{ text: "delete me", locale: "en", status: "proposed" }],
+          terms: [
+            { text: "delete me", locale: "en", status: "proposed" },
+            { text: "supprime-moi", locale: "fr", status: "proposed" },
+          ],
         });
       }
     });
@@ -280,28 +217,26 @@ test.describe("Term Explorer", () => {
     await openTerms(page);
 
     // Verify concept is present
-    await expect(page.getByTestId("term-count-badge")).toContainText("1 concept");
+    await countText(page, /^1 concept$/);
 
-    // Click Delete button
-    await clickFirst(page, "term-delete-btn-");
-
-    // Confirm deletion
-    await clickFirst(page, "term-confirm-delete-");
-    await page.waitForTimeout(500);
+    // Two-click delete: Delete then Confirm
+    const card = page.locator('[data-testid^="concept-"]').first();
+    await card.hover();
+    await card.getByRole("button", { name: "Delete" }).click();
+    await card.getByRole("button", { name: "Confirm" }).click();
 
     // Should show empty state
-    await expect(page.getByTestId("term-count-badge")).toContainText("0 concepts");
-    await expect(page.getByTestId("term-empty-state")).toBeVisible();
+    await countText(page, /^0 concepts$/);
+    await expect(page.getByText("No concepts yet.")).toBeVisible();
   });
 
-  test("should navigate back to project view", async ({ page }) => {
+  test("should navigate back to the projects dashboard", async ({ page }) => {
     await createProjectAndOpenTerms(page);
 
-    // Click back button
-    await clickTestId(page, "term-back-btn");
+    // The sidebar back button leaves the project (and closes the browser)
+    await page.getByTestId("sidebar-home").click();
 
-    // Should be back at project view
-    await expect(page.getByTestId("back-to-projects")).toBeVisible();
-    await expect(page.getByTestId("open-terms-btn")).toBeVisible();
+    await expect(page.getByTestId("termbase-browser")).not.toBeVisible();
+    await expect(page.getByText("Terms Test")).toBeVisible();
   });
 });

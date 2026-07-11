@@ -1,9 +1,15 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
-/** Creates a project and returns with the project view visible (before opening TM explorer). */
-async function createProject(page: any) {
+/**
+ * E2E for the shared @neokapi/ui-primitives TMBrowser as mounted by the
+ * bowrain desktop (App.tsx renders it via useTMBrowserAdapter when the
+ * project view's "open-tm-btn" is clicked).
+ */
+
+/** Creates a project and returns with the project view visible (before opening the TM browser). */
+async function createProject(page: Page) {
   await setupLocalApp(page);
 
   // Create project
@@ -16,81 +22,53 @@ async function createProject(page: any) {
   await expect(page.getByTestId("back-to-projects")).toBeVisible();
 }
 
-/** Opens the TM explorer from the project view. */
-async function openTM(page: any) {
-  await page.evaluate(() => {
-    (document.querySelector('[data-testid="open-tm-btn"]') as HTMLElement)?.click();
-  });
-  await expect(page.getByTestId("tm-explorer")).toBeVisible();
+/** Opens the TM browser from the project view. */
+async function openTM(page: Page) {
+  await page.getByTestId("open-tm-btn").click();
+  await expect(page.getByTestId("tm-browser")).toBeVisible();
 }
 
-/** Creates a project and opens the TM explorer. */
-async function createProjectAndOpenTM(page: any) {
+/** Creates a project and opens the TM browser. */
+async function createProjectAndOpenTM(page: Page) {
   await createProject(page);
   await openTM(page);
 }
 
-/** Helper: set value on an input by test ID (handles both direct inputs and wrappers). */
-async function setInput(page: any, testId: string, value: string) {
-  const wrapper = page.getByTestId(testId);
-  // If the testid is directly on an <input>, use it; otherwise find a child input.
-  const tagName = await wrapper.evaluate((el: Element) => el.tagName.toLowerCase());
-  const input = tagName === "input" ? wrapper : wrapper.locator("input").first();
-  await input.clear();
-  await input.fill(value);
+/** The "N entries" count in the TM browser toolbar. */
+function countText(page: Page, pattern: RegExp) {
+  return expect(page.getByTestId("tm-browser").getByText(pattern)).toBeVisible();
 }
 
-/** Helper: click by test ID using native DOM click. */
-function clickTestId(page: any, testId: string) {
-  return page.evaluate((tid: string) => {
-    (document.querySelector(`[data-testid="${tid}"]`) as HTMLElement)?.click();
-  }, testId);
-}
-
-/** Helper: click first element matching a selector prefix. */
-function clickFirst(page: any, selectorPrefix: string) {
-  return page.evaluate((prefix: string) => {
-    (document.querySelector(`[data-testid^="${prefix}"]`) as HTMLElement)?.click();
-  }, selectorPrefix);
-}
-
-test.describe("TM Explorer", () => {
-  test("should open TM explorer and show empty state", async ({ page }) => {
+test.describe("TM Browser", () => {
+  test("should open TM browser and show empty state", async ({ page }) => {
     await createProjectAndOpenTM(page);
 
-    await expect(page.getByTestId("tm-empty-state")).toBeVisible();
-    await expect(page.getByTestId("tm-count-badge")).toContainText("0 entries");
+    await countText(page, /^0 entries/);
+    await expect(page.getByText("No entries yet.")).toBeVisible();
   });
 
   test("should add an entry and see it in the list", async ({ page }) => {
     await createProjectAndOpenTM(page);
 
-    // Click Add Entry
-    await clickTestId(page, "tm-add-entry-btn");
-    await expect(page.getByTestId("tm-add-form")).toBeVisible();
+    // Open the add dialog and fill it in
+    await page.getByRole("button", { name: "Add Entry" }).click();
+    const dialog = page.getByRole("dialog", { name: "Add TM Entry" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByPlaceholder("Source text").fill("Hello");
+    await dialog.getByPlaceholder("Target text").fill("Bonjour");
+    await dialog.getByRole("button", { name: "Add", exact: true }).click();
 
-    // Fill in the form
-    await setInput(page, "tm-add-source-input", "Hello");
-    await setInput(page, "tm-add-target-input", "Bonjour");
-
-    // Submit
-    await clickTestId(page, "tm-add-submit");
-
-    // Wait for list to update
-    await expect(page.getByTestId("tm-empty-state")).not.toBeVisible({ timeout: 5000 });
-    await expect(page.getByTestId("tm-count-badge")).toContainText("1 entry");
-
-    // Verify entry content (use td selector to avoid matching filter dropdowns)
-    const sourceCell = page.locator('td[data-testid^="tm-source-"]').first();
-    await expect(sourceCell).toContainText("Hello");
-    const targetCell = page.locator('td[data-testid^="tm-target-"]').first();
-    await expect(targetCell).toContainText("Bonjour");
+    // Entry appears in the list
+    await countText(page, /^1 entry/);
+    const entry = page.locator('[data-testid^="tm-entry-"]').first();
+    await expect(entry).toContainText("Hello");
+    await expect(entry).toContainText("Bonjour");
   });
 
   test("should search entries by text", async ({ page }) => {
     await createProject(page);
 
-    // Add two entries via mock backend before opening TM explorer
+    // Add two entries via mock backend before opening the TM browser
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -104,54 +82,47 @@ test.describe("TM Explorer", () => {
     await openTM(page);
 
     // Verify both entries are shown initially
-    await expect(page.getByTestId("tm-count-badge")).toContainText("2 entries");
+    await countText(page, /^2 entries/);
 
-    // Type in search box and press Enter to commit the search
-    const searchInput = page.getByTestId("tm-search-input").locator("input").first();
-    await searchInput.fill("Hello");
-    await searchInput.press("Enter");
-
-    // Wait for results
-    await page.waitForTimeout(500);
+    // Search is submitted on Enter
+    const search = page.getByTestId("tm-search");
+    await search.fill("Hello");
+    await search.press("Enter");
 
     // Should show only 1 entry (the "Hello World" one)
-    await expect(page.getByTestId("tm-count-badge")).toContainText("1 entry");
+    await countText(page, /^1 entry/);
+    await expect(page.locator('[data-testid^="tm-entry-"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid^="tm-entry-"]').first()).toContainText("Hello World");
   });
 
-  test("should filter entries by target locale", async ({ page }) => {
+  test("should scope entries to the active target locale", async ({ page }) => {
     await createProject(page);
 
-    // Add entries in different locales before opening TM explorer
+    // Add entries in different target locales before opening the TM browser
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
       const pid = projects[0]?.id;
       if (pid) {
         backend.AddTMEntry(pid, "Hello", "Bonjour", "en", "fr");
-        backend.AddTMEntry(pid, "Hello", "Hallo", "en", "de");
+        backend.AddTMEntry(pid, "Good morning", "Guten Morgen", "en", "de");
       }
     });
 
     await openTM(page);
 
-    // Should show 2 entries initially
-    await expect(page.getByTestId("tm-count-badge")).toContainText("2 entries");
-
-    // Select "de" from the target locale filter using the FilterBar:
-    // type "target:de" into the search input and press Enter
-    const searchInput = page.getByTestId("tm-search-input").locator("input").first();
-    await searchInput.fill("target:de");
-    await searchInput.press("Enter");
-    await page.waitForTimeout(400);
-
-    // Should show only 1 entry
-    await expect(page.getByTestId("tm-count-badge")).toContainText("1 entry");
+    // The bilingual view defaults to the project's first target locale (fr),
+    // so only the French entry is in scope; the German one is filtered out.
+    await countText(page, /^1 entry/);
+    await expect(page.locator('[data-testid^="tm-entry-"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid^="tm-entry-"]').first()).toContainText("Bonjour");
+    await expect(page.getByText("Guten Morgen")).not.toBeVisible();
   });
 
   test("should edit an entry target", async ({ page }) => {
     await createProject(page);
 
-    // Add an entry before opening TM explorer
+    // Add an entry before opening the TM browser
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -163,41 +134,27 @@ test.describe("TM Explorer", () => {
 
     await openTM(page);
 
-    // Click Edit button using evaluate to avoid Playwright click hangs
-    await clickFirst(page, "tm-edit-btn-");
+    const entry = page.locator('[data-testid^="tm-entry-"]').first();
+    await expect(entry).toContainText("Bonjour");
 
-    // Wait for edit input to appear
-    const editInput = page.locator('[data-testid^="tm-edit-input-"]').first();
-    await expect(editInput).toBeVisible({ timeout: 5000 });
+    // Enter the variant inline editor (Edit reveals on hover)
+    await entry.hover();
+    await entry.getByRole("button", { name: "Edit" }).first().click();
 
-    // Set new value and save
-    await page.evaluate(() => {
-      const input = document.querySelector('[data-testid^="tm-edit-input-"]') as HTMLInputElement;
-      if (input) {
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
-          input,
-          "Salut",
-        );
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
+    // Replace the target text; Enter commits the edit
+    const editor = entry.locator('[contenteditable="true"]').first();
+    await expect(editor).toBeVisible();
+    await editor.fill("Salut");
+    await editor.press("Enter");
 
-    // Click Save
-    await clickFirst(page, "tm-save-btn-");
-
-    // Wait for update
-    await page.waitForTimeout(500);
-
-    // Verify updated target (use td selector to avoid matching filter dropdowns)
-    const targetCell = page.locator('td[data-testid^="tm-target-"]').first();
-    await expect(targetCell).toContainText("Salut");
+    // Verify updated target
+    await expect(entry).toContainText("Salut");
   });
 
   test("should delete an entry", async ({ page }) => {
     await createProject(page);
 
-    // Add an entry before opening TM explorer
+    // Add an entry before opening the TM browser
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -210,27 +167,26 @@ test.describe("TM Explorer", () => {
     await openTM(page);
 
     // Verify entry is present
-    await expect(page.getByTestId("tm-count-badge")).toContainText("1 entry");
+    await countText(page, /^1 entry/);
 
-    // Click Delete using evaluate
-    await clickFirst(page, "tm-delete-btn-");
-
-    // Wait for update
-    await page.waitForTimeout(500);
+    // Two-click delete: Delete then Confirm
+    const entry = page.locator('[data-testid^="tm-entry-"]').first();
+    await entry.hover();
+    await entry.getByRole("button", { name: "Delete" }).click();
+    await entry.getByRole("button", { name: "Confirm" }).click();
 
     // Should show empty state
-    await expect(page.getByTestId("tm-count-badge")).toContainText("0 entries");
-    await expect(page.getByTestId("tm-empty-state")).toBeVisible();
+    await countText(page, /^0 entries/);
+    await expect(page.getByText("No entries yet.")).toBeVisible();
   });
 
-  test("should navigate back to project view", async ({ page }) => {
+  test("should navigate back to the projects dashboard", async ({ page }) => {
     await createProjectAndOpenTM(page);
 
-    // Click back button
-    await clickTestId(page, "tm-back-btn");
+    // The sidebar back button leaves the project (and closes the browser)
+    await page.getByTestId("sidebar-home").click();
 
-    // Should be back at project view
-    await expect(page.getByTestId("back-to-projects")).toBeVisible();
-    await expect(page.getByTestId("open-tm-btn")).toBeVisible();
+    await expect(page.getByTestId("tm-browser")).not.toBeVisible();
+    await expect(page.getByText("TM Test")).toBeVisible();
   });
 });

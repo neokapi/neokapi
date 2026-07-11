@@ -1,70 +1,49 @@
-import { type Page, expect } from "@playwright/test";
+import { type Page, type Locator, expect } from "@playwright/test";
 
 /**
- * Select a single locale from a LocaleSelect component.
- * The component has a trigger button that opens a dropdown with searchable options.
- * Clicking an option automatically closes the dropdown.
+ * Helpers for the Combobox-based LocaleSelect / MultiLocaleSelect components
+ * (bowrain/packages/ui/src/components/LocaleSelect.tsx). Both render a
+ * searchable combobox input inside a `data-testid={testId}` container; the
+ * option list opens in a portal while typing. MultiLocaleSelect additionally
+ * renders selected chips with `${testId}-remove-${code}` remove buttons and
+ * gives its input/options `${testId}-search` / `${testId}-option-${code}`
+ * test ids.
  */
-export async function selectLocale(page: Page, testId: string, code: string) {
-  await page.evaluate(
-    ({ testId }: { testId: string }) => {
-      const trigger = document.querySelector(`[data-testid="${testId}-trigger"]`) as HTMLElement;
-      if (trigger) trigger.click();
-    },
-    { testId },
-  );
-  await page.waitForTimeout(50);
-  await page.evaluate(
-    ({ testId, code }: { testId: string; code: string }) => {
-      const option = document.querySelector(
-        `[data-testid="${testId}-option-${code}"]`,
-      ) as HTMLElement;
-      if (option) option.click();
-    },
-    { testId, code },
-  );
-  await page.waitForTimeout(50);
+
+function comboboxInput(page: Page, testId: string): Locator {
+  return page.getByTestId(testId).getByRole("combobox");
 }
 
 /**
- * Select multiple locales from a MultiLocaleSelect component.
- * The dropdown stays open between selections (by design), so we
- * dismiss it after all selections by clicking outside.
+ * Select a single locale from a LocaleSelect component by typing into its
+ * combobox and picking the matching "Name (code)" option.
+ */
+export async function selectLocale(page: Page, testId: string, code: string) {
+  const input = comboboxInput(page, testId);
+  await input.click();
+  await input.fill(code);
+  await page
+    .getByRole("option", { name: `(${code})` })
+    .first()
+    .click();
+}
+
+/**
+ * Add locales to a MultiLocaleSelect component. Each add remounts the picker
+ * (search resets, popup closes), so open + type + pick per code.
  */
 export async function selectMultiLocales(page: Page, testId: string, codes: string[]) {
-  // Open the dropdown
-  await page.evaluate(
-    ({ testId }: { testId: string }) => {
-      const chips = document.querySelector(`[data-testid="${testId}-chips"]`) as HTMLElement;
-      if (chips) chips.click();
-    },
-    { testId },
-  );
-  await page.waitForTimeout(50);
-
-  // Click each option in sequence
   for (const code of codes) {
-    await page.evaluate(
-      ({ testId, code }: { testId: string; code: string }) => {
-        const option = document.querySelector(
-          `[data-testid="${testId}-option-${code}"]`,
-        ) as HTMLElement;
-        if (option) option.click();
-      },
-      { testId, code },
-    );
-    await page.waitForTimeout(50);
+    // Already selected (e.g. the form's default target) — the picker excludes
+    // selected locales from its options, so adding again would find nothing.
+    if (await page.getByTestId(`${testId}-remove-${code}`).isVisible()) continue;
+    const search = page.getByTestId(`${testId}-search`);
+    await search.click();
+    await search.fill(code);
+    await page.getByTestId(`${testId}-option-${code}`).click();
+    // The chip appearing confirms the selection landed before the next add.
+    await expect(page.getByTestId(`${testId}-remove-${code}`)).toBeVisible();
   }
-
-  // Close the dropdown by dispatching a mousedown outside the wrapper
-  await page.evaluate(
-    ({ testId: _testId }: { testId: string }) => {
-      // Dispatch mousedown on body, outside the wrapper, to trigger click-outside close
-      document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-    },
-    { testId },
-  );
-  await page.waitForTimeout(50);
 }
 
 /**
@@ -74,39 +53,15 @@ export async function selectMultiLocalesHuman(
   page: Page,
   testId: string,
   codes: string[],
-  humanTypeFn: (page: Page, locator: any, text: string) => Promise<void>,
+  humanTypeFn: (page: Page, locator: Locator, text: string) => Promise<void>,
 ) {
   for (const code of codes) {
-    // Open dropdown if not already open
     const search = page.getByTestId(`${testId}-search`);
-    if (!(await search.isVisible().catch(() => false))) {
-      const chips = page.getByTestId(`${testId}-chips`);
-      await chips.click();
-      await page.waitForTimeout(200);
-    }
-
-    // Type to search
+    await search.click();
     await humanTypeFn(page, search, code);
-    await page.waitForTimeout(200);
-
-    // Click option
-    await page.evaluate(
-      ({ testId, code }: { testId: string; code: string }) => {
-        const option = document.querySelector(
-          `[data-testid="${testId}-option-${code}"]`,
-        ) as HTMLElement;
-        if (option) option.click();
-      },
-      { testId, code },
-    );
-    await page.waitForTimeout(200);
+    await page.getByTestId(`${testId}-option-${code}`).click();
+    await expect(page.getByTestId(`${testId}-remove-${code}`)).toBeVisible();
   }
-
-  // Close dropdown
-  await page.evaluate(() => {
-    document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-  });
-  await page.waitForTimeout(100);
 }
 
 /**
@@ -116,45 +71,24 @@ export async function selectLocaleHuman(
   page: Page,
   testId: string,
   code: string,
-  humanTypeFn: (page: Page, locator: any, text: string) => Promise<void>,
+  humanTypeFn: (page: Page, locator: Locator, text: string) => Promise<void>,
 ) {
-  await page.getByTestId(`${testId}-trigger`).click();
-  await page.waitForTimeout(200);
-
-  const search = page.getByTestId(`${testId}-search`);
-  await humanTypeFn(page, search, code);
-  await page.waitForTimeout(200);
-
-  await page.evaluate(
-    ({ testId, code }: { testId: string; code: string }) => {
-      const option = document.querySelector(
-        `[data-testid="${testId}-option-${code}"]`,
-      ) as HTMLElement;
-      if (option) option.click();
-    },
-    { testId, code },
-  );
-  await page.waitForTimeout(200);
+  const input = comboboxInput(page, testId);
+  await input.click();
+  await humanTypeFn(page, input, code);
+  await page
+    .getByRole("option", { name: `(${code})` })
+    .first()
+    .click();
 }
 
 /**
  * Remove all existing locale chips from a MultiLocaleSelect component.
  */
 export async function clearMultiLocales(page: Page, testId: string) {
-  const removed = await page.evaluate(
-    ({ testId }: { testId: string }) => {
-      const buttons = document.querySelectorAll(`[data-testid^="${testId}-remove-"]`);
-      // Click in reverse order so indices stay stable
-      const arr = Array.from(buttons) as HTMLElement[];
-      for (let i = arr.length - 1; i >= 0; i--) {
-        arr[i].click();
-      }
-      return arr.length;
-    },
-    { testId },
-  );
-  if (removed > 0) {
-    await page.waitForTimeout(50);
+  const chips = page.locator(`[data-testid^="${testId}-remove-"]`);
+  while ((await chips.count()) > 0) {
+    await chips.first().click();
   }
 }
 
@@ -174,7 +108,7 @@ export async function setMultiLocalesHuman(
   page: Page,
   testId: string,
   codes: string[],
-  humanTypeFn: (page: Page, locator: any, text: string) => Promise<void>,
+  humanTypeFn: (page: Page, locator: Locator, text: string) => Promise<void>,
 ) {
   await clearMultiLocales(page, testId);
   await selectMultiLocalesHuman(page, testId, codes, humanTypeFn);
@@ -193,8 +127,8 @@ export async function expectLocaleChips(page: Page, testId: string, codes: strin
 }
 
 /**
- * Assert that a single-locale trigger displays the expected locale.
+ * Assert that a single-locale combobox displays the expected locale code.
  */
 export async function expectSourceLocale(page: Page, testId: string, code: string) {
-  await expect(page.getByTestId(`${testId}-trigger`)).toContainText(code, { ignoreCase: true });
+  await expect(comboboxInput(page, testId)).toHaveValue(new RegExp(code, "i"));
 }

@@ -578,14 +578,29 @@ export class WailsApiAdapter implements ApiAdapter {
     limit: number,
   ): Promise<TMSearchResult> {
     // Bowrain TM API takes projectID as first arg; pass empty string for workspace-level
-    return Backend.GetTMEntries(
+    const result = (await Backend.GetTMEntries(
       "",
       query,
       sourceLocale,
       targetLocale,
       offset,
       limit,
-    ) as Promise<TMSearchResult>;
+    )) as {
+      entries?: Array<Record<string, unknown>>;
+      total_count: number;
+    };
+    // The Wails backend names the locale fields source_locale/target_locale;
+    // the shared ApiAdapter contract (REST shape) uses source_language/
+    // target_language. Map so shared consumers (TMBrowser adapter) see the
+    // contract shape.
+    return {
+      entries: (result.entries ?? []).map((e) => ({
+        ...e,
+        source_language: e.source_locale,
+        target_language: e.target_locale,
+      })),
+      total_count: result.total_count,
+    } as TMSearchResult;
   }
   async getTMCount(): Promise<number> {
     return Backend.GetTMCount("") as Promise<number>;

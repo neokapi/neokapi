@@ -95,7 +95,10 @@ function ComboboxContent({
         align={align}
         alignOffset={alignOffset}
         anchor={anchor}
-        className={cn("isolate z-50", portalThemeClass)}
+        // pointer-events-auto: a modal Radix dialog sets `pointer-events: none`
+        // on <body> while open; this portal renders outside the dialog, so
+        // re-enable pointer events or the popup is unclickable inside dialogs.
+        className={cn("isolate z-50 pointer-events-auto", portalThemeClass)}
       >
         <ComboboxPrimitive.Popup
           data-slot="combobox-content"
