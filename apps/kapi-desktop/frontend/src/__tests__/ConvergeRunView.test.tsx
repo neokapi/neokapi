@@ -114,33 +114,3 @@ describe("ConvergeRunView — live locale rows", () => {
     expect(screen.getByText(/Cancelled — the run stopped/)).toBeInTheDocument();
   });
 });
-
-describe("ConvergeRunView — compatibility (converge_pass only)", () => {
-  it("renders pass summaries without locale rows when only converge_pass events exist", () => {
-    const passEvents: RunEvent[] = [
-      {
-        type: "converge_pass",
-        flow_id: "up",
-        converge: {
-          pass: 1,
-          extractedBlocks: 128,
-          produced: 40,
-          producedDelta: 40,
-          failingChecks: 3,
-          pendingLocales: ["de-DE"],
-        },
-      },
-      {
-        type: "converge_pass",
-        flow_id: "up",
-        converge: { pass: 2, produced: 43, producedDelta: 3, failingChecks: 0, pendingLocales: [] },
-      },
-    ];
-    const { container } = render(<ConvergeRunView events={passEvents} running />);
-    expect(screen.getByText("Pass 1")).toBeInTheDocument();
-    expect(screen.getByText("Pass 2")).toBeInTheDocument();
-    expect(screen.getByText(/produced 40/)).toBeInTheDocument();
-    expect(screen.getByText("checks failing 3")).toBeInTheDocument();
-    expect(container.querySelectorAll('[data-slot="converge-locale-row"]')).toHaveLength(0);
-  });
-});

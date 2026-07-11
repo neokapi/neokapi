@@ -22,8 +22,7 @@ export interface RunEvent {
     | "error"
     | "complete"
     | "pipeline_metrics"
-    | "converge_event"
-    | "converge_pass";
+    | "converge_event";
   flow_id: string;
   message?: string;
   file_index?: number;
@@ -37,8 +36,6 @@ export interface RunEvent {
    * the per-pass/per-locale stream the live run view reduces into locale rows.
    */
   converge_event?: import("../types/api").ConvergeEvent;
-  /** One pass snapshot of a convergence run (type == "converge_pass"). */
-  converge?: import("../types/api").ConvergePassEvent;
   /** Final structured convergence result (on a convergence run's "complete"). */
   converge_result?: import("../types/api").ConvergeOutput;
 }

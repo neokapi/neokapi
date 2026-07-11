@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import type { ConvergenceEvent } from "../types/api";
-import { reduceRun, applyEvent, emptyRunModel } from "./runReducer";
+import { reduceRun, applyEvent, emptyRunModel } from "../convergence-fold";
+import type { ConvergenceEvent } from "../convergence-fold";
 
 /** A representative two-locale, single-pass converging run. */
 function convergingRun(): ConvergenceEvent[] {

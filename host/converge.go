@@ -40,35 +40,9 @@ type ConvergeOptions struct {
 	// one protocol every surface renders a run from (CLI live view, NDJSON,
 	// desktop run view, server SSE). Called from one goroutine at a time.
 	onEvent func(convergence.Event)
-	// onPass, when set, receives a structured snapshot after each pass — the
-	// hook an embedding UI (the desktop runner) renders its passes view from.
-	onPass func(ConvergePassEvent)
 	// capture, when non-nil, receives the final ConvergeOutput instead of it
 	// being printed through the command's output formatter (embedders).
 	capture *ConvergeOutput
-}
-
-// ConvergePassEvent is the structured per-pass progress of a convergence run,
-// emitted through ConvergeOptions.onPass / UpOptions.OnPass after each pass's
-// post-derivation. It carries what the desktop's convergence view renders:
-// "pass N: extracted X, produced Y, checks failing Z" plus the locales still
-// short of their gate.
-type ConvergePassEvent struct {
-	Pass int `json:"pass"`
-	// ExtractedFiles/ExtractedBlocks report the pre-pass auto-extract on
-	// drift; both zero when the block store was already in sync.
-	ExtractedFiles  int `json:"extractedFiles,omitempty"`
-	ExtractedBlocks int `json:"extractedBlocks,omitempty"`
-	// Produced is the count of units at ≥ draft (any committed target) after
-	// the pass; ProducedDelta is the pass's progress over that metric.
-	Produced      int `json:"produced"`
-	ProducedDelta int `json:"producedDelta"`
-	// FailingChecks counts produced units that fail the project's bound
-	// checks after the pass (they read at draft for gating).
-	FailingChecks int `json:"failingChecks,omitempty"`
-	// PendingLocales are the locales still short of their gate after the pass
-	// (the candidates to park if the loop stalls).
-	PendingLocales []string `json:"pendingLocales,omitempty"`
 }
 
 // ConvergeLocaleResult is the per-locale outcome of a convergence run.
@@ -237,33 +211,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		jobs = convergeJobsDefault
 	}
 
-	// The desktop's passes view listens on onPass (ConvergePassEvent); it is
-	// synthesized from the event stream's pass_start/pass_done pairs so the
-	// engine speaks exactly one protocol.
 	onEvent := opts.onEvent
-	if opts.onPass != nil {
-		inner := onEvent
-		var lastStart convergence.Event
-		onEvent = func(ev convergence.Event) {
-			switch ev.Type {
-			case convergence.EventPassStart:
-				lastStart = ev
-			case convergence.EventPassDone:
-				opts.onPass(ConvergePassEvent{
-					Pass:            ev.Pass,
-					ExtractedFiles:  lastStart.ExtractedFiles,
-					ExtractedBlocks: lastStart.ExtractedBlocks,
-					Produced:        ev.Produced,
-					ProducedDelta:   ev.ProducedDelta,
-					FailingChecks:   ev.FailingChecks,
-					PendingLocales:  ev.Pending,
-				})
-			}
-			if inner != nil {
-				inner(ev)
-			}
-		}
-	}
 	emitter := convergence.NewEmitter(onEvent)
 
 	// The venue-neutral loop (core/convergence.Loop) owns the semantics —

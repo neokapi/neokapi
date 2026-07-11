@@ -968,55 +968,11 @@ export interface ConvergenceRun {
   finished_at?: string;
 }
 
-/** Discriminator for a convergence run's progress events. */
-export type ConvergenceEventType =
-  | "pass_start"
-  | "locale_start"
-  | "unit_progress"
-  | "locale_done"
-  | "pass_done"
-  | "materialized"
-  | "log"
-  | "done";
-
-/**
- * One progress event of a convergence run — the flat, Type-discriminated
- * protocol streamed over the run's SSE endpoint. Mirrors
- * core/convergence.Event; fields are populated per Type and omitted when zero.
- */
-export interface ConvergenceEvent {
-  type: ConvergenceEventType;
-
-  // Pass-scoped (pass_start, pass_done; Pass also stamps locale-scoped events).
-  pass?: number;
-  maxPasses?: number;
-  pending?: string[];
-
-  // Pre-pass auto-extract on drift (pass_start).
-  extractedFiles?: number;
-  extractedBlocks?: number;
-
-  // Locale-scoped (locale_start, unit_progress, locale_done).
-  locale?: string;
-  units?: number;
-  done?: number;
-  viaTM?: number;
-  viaAI?: number;
-
-  // Post-derivation (pass_done).
-  produced?: number;
-  producedDelta?: number;
-  failingChecks?: number;
-
-  // locale_done → shippable|parked|pending; done → converged|parked.
-  state?: string;
-
-  // Materialized file count (materialized).
-  files?: number;
-
-  // Log line (log).
-  message?: string;
-}
+// The convergence event protocol is the framework's (core/convergence.Event),
+// shared with kapi-desktop through @neokapi/status-views — which also owns the
+// one fold over it. Re-exported here so bowrain callers keep a single import
+// site for their API types.
+export type { ConvergenceEvent, ConvergenceEventType } from "@neokapi/status-views";
 
 // ---------------------------------------------------------------------------
 // Activity & Task types (Bowrain AD-014)

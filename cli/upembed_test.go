@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -15,16 +16,24 @@ import (
 
 // TestRunUp_EmbeddedConverge: the exported RunUp drives the same engine as
 // `kapi up` — auto-extract on drift, loop to the gate, materialized targets —
-// and returns the structured result with per-pass events instead of printing.
+// and returns the structured result, streaming the convergence.Event
+// protocol instead of printing.
 func TestRunUp_EmbeddedConverge(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
-	var passes []ConvergePassEvent
+	var starts, passes []convergence.Event
 	var log bytes.Buffer
 	out, err := a.RunUp(context.Background(), recipe, "", UpOptions{
 		UntilGate: true,
-		OnPass:    func(ev ConvergePassEvent) { passes = append(passes, ev) },
+		OnEvent: func(ev convergence.Event) {
+			switch ev.Type {
+			case convergence.EventPassStart:
+				starts = append(starts, ev)
+			case convergence.EventPassDone:
+				passes = append(passes, ev)
+			}
+		},
 		LogWriter: &log,
 	})
 	require.NoError(t, err)
@@ -43,15 +52,21 @@ func TestRunUp_EmbeddedConverge(t *testing.T) {
 		require.NoError(t, rerr, "RunUp must materialize %s", f)
 	}
 
-	// One structured pass event: the pre-pass auto-extract populated the
-	// missing store, and the pass produced both units.
+	// One pass, reported through the event protocol: pass_start carries the
+	// pre-pass auto-extract that populated the missing store, pass_done the
+	// post-derivation. An embedder listening on OnEvent gets the auto-extract as
+	// structured data, so the engine does not also print the plain run-log note.
+	require.Len(t, starts, 1)
+	assert.Equal(t, 1, starts[0].Pass)
+	assert.Positive(t, starts[0].ExtractedBlocks, "missing store triggers auto-extract")
+	assert.Positive(t, starts[0].ExtractedFiles)
+	assert.NotContains(t, log.String(), "Extracted", "the note rides the event stream, not the log")
+
 	require.Len(t, passes, 1)
 	assert.Equal(t, 1, passes[0].Pass)
-	assert.Positive(t, passes[0].ExtractedBlocks, "missing store triggers auto-extract")
 	assert.Equal(t, 2, passes[0].Produced)
 	assert.Equal(t, 2, passes[0].ProducedDelta)
-	assert.Empty(t, passes[0].PendingLocales)
-	assert.Contains(t, log.String(), "Extracted", "auto-extract note lands in the log writer")
+	assert.Empty(t, passes[0].Pending)
 }
 
 // TestRunUp_ParksUnreachableGate: a gate the flow cannot satisfy parks with

@@ -133,9 +133,9 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 // loop-to-gate over the project's default flow, auto-extract on block-store
 // drift before each pass, bound checks in the loop, and the recipe's
 // materialize policy. It returns once the run is launched; per-pass progress
-// streams through the run-event channel as "converge_pass" events and the
-// final structured result rides the "complete" event, so the runner renders
-// passes rather than raw flow logs. Whatever the loop can't carry to the ship
+// streams through the run-event channel as typed "converge_event" events and
+// the final structured result rides the "complete" event, so the runner renders
+// passes and locale rows rather than raw flow logs. Whatever the loop can't carry to the ship
 // gate parks for review (never an error).
 func (a *App) BringUpToDate(tabID string) error {
 	op := a.getOpenProject(tabID)
@@ -204,11 +204,11 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 	})
 	out, err := capp.RunUp(ctx, projectPath, sourceLang, host.UpOptions{
 		UntilGate: true,
-		// OnEvent is the primary stream the live run view renders from: one
-		// typed event per pass/locale transition. Log events degrade to the
-		// existing progress lines (auto-extract notes) so the generic job feed
-		// and reconnect path keep working; every other event rides as a typed
-		// "converge_event" the frontend reduces into per-locale rows.
+		// OnEvent is the stream the live run view renders from: one typed event
+		// per pass/locale transition. Log events degrade to the existing
+		// progress lines (auto-extract notes) so the generic job feed and
+		// reconnect path keep working; every other event rides as a typed
+		// "converge_event" the frontend folds into per-locale rows.
 		OnEvent: func(ev convergence.Event) {
 			if ev.Type == convergence.EventLog {
 				if msg := strings.TrimSpace(ev.Message); msg != "" {
@@ -218,19 +218,6 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 			}
 			e := ev
 			a.emitRunEvent(RunEvent{Type: "converge_event", FlowID: flowName, ConvergeEvent: &e})
-		},
-		// OnPass keeps emitting the per-pass summary "converge_pass" event for
-		// backwards compatibility during the transition — the engine synthesizes
-		// it from the same event stream, so the two views never disagree.
-		OnPass: func(ev host.ConvergePassEvent) {
-			pass := ev
-			a.emitRunEvent(RunEvent{
-				Type:     "converge_pass",
-				FlowID:   flowName,
-				Converge: &pass,
-				Message: fmt.Sprintf("Pass %d: extracted %d, produced %d (+%d), checks failing %d",
-					pass.Pass, pass.ExtractedBlocks, pass.Produced, pass.ProducedDelta, pass.FailingChecks),
-			})
 		},
 		LogWriter: &runEventWriter{app: a, flowID: flowName},
 	})

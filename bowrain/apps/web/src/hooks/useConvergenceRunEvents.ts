@@ -167,6 +167,9 @@ function snapshot(m: ConvergenceRunModel): ConvergenceRunModel {
   return {
     ...m,
     passes: m.passes.map((p) => ({ ...p, rows: p.rows.map((r) => ({ ...r })) })),
-    logs: m.logs.slice(),
+    // The shared model types logs as optional (a surface may not collect them);
+    // the fold always initializes it, so this is a type-level guard, not a case
+    // the stream reaches.
+    logs: m.logs?.slice() ?? [],
   };
 }

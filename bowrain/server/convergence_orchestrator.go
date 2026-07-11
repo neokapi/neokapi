@@ -252,9 +252,9 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 		o.mu.Unlock()
 	}()
 
-	standing := newStandingTracker()
+	standing := convergence.NewStanding()
 	emit := convergence.NewEmitter(func(ev convergence.Event) {
-		standing.observe(ev)
+		standing.Observe(ev)
 		payload, _ := json.Marshal(ev)
 		seq, err := store.AppendEvent(context.WithoutCancel(ctx), run.ID, payload)
 		if err != nil {
@@ -270,9 +270,9 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 		// Persist the run-row rollup at pass boundaries (cheap, keeps ListRuns
 		// and the active-run guard current without a write per unit_progress).
 		if ev.Type == convergence.EventPassDone || ev.Type == convergence.EventLocaleDone {
-			run.Passes = standing.passes
-			run.FailingChecks = standing.failingChecks
-			run.Standing = standing.snapshot()
+			run.Passes = standing.Passes()
+			run.FailingChecks = standing.FailingChecks()
+			run.Standing = standing.Locales()
 			_ = store.UpdateRun(context.WithoutCancel(ctx), run)
 		}
 	})
@@ -287,7 +287,7 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	finished := time.Now().UTC()
 	run.FinishedAt = &finished
 	run.Passes = res.Passes
-	run.FailingChecks = standing.failingChecks
+	run.FailingChecks = standing.FailingChecks()
 
 	// The error field carries the cause the CLI prints for a failed/canceled
 	// run (cancellation surfaces as a loop error too, so it is checked first and
@@ -315,7 +315,7 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	// per-locale standing (parked locales) into the snapshot the run records.
 	emit.Emit(convergence.Event{Type: convergence.EventDone, State: run.State})
 
-	run.Standing = standing.snapshot()
+	run.Standing = standing.Locales()
 	_ = store.UpdateRun(context.WithoutCancel(ctx), run)
 
 	// On completion (converged OR parked), a workflow-enabled project's content
@@ -553,90 +553,3 @@ func (o *convergenceOrchestrator) createCompletionReviewTasks(ctx context.Contex
 	o.server.createReviewTasks(ctx, event.AutomationAction{Config: map[string]string{"mode": "review"}}, ev, "")
 }
 
-// standingTracker rolls the event stream into the per-locale run standing +
-// pass/failing-check counters the run row records.
-type standingTracker struct {
-	mu            sync.Mutex
-	passes        int
-	failingChecks int
-	order         []string
-	locales       map[string]bstore.ConvergenceLocaleStanding
-}
-
-func newStandingTracker() *standingTracker {
-	return &standingTracker{locales: map[string]bstore.ConvergenceLocaleStanding{}}
-}
-
-func (t *standingTracker) observe(ev convergence.Event) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	switch ev.Type {
-	case convergence.EventPassStart:
-		if ev.Pass > t.passes {
-			t.passes = ev.Pass
-		}
-	case convergence.EventLocaleStart:
-		if _, ok := t.locales[ev.Locale]; !ok {
-			t.order = append(t.order, ev.Locale)
-		}
-		cur := t.locales[ev.Locale]
-		cur.Locale = ev.Locale
-		cur.Units = ev.Units
-		cur.State = convergence.LocalePending
-		t.locales[ev.Locale] = cur
-	case convergence.EventUnitProgress, convergence.EventLocaleDone:
-		if _, ok := t.locales[ev.Locale]; !ok {
-			t.order = append(t.order, ev.Locale)
-		}
-		cur := t.locales[ev.Locale]
-		cur.Locale = ev.Locale
-		if ev.Units > 0 {
-			cur.Units = ev.Units
-		}
-		cur.Produced = ev.Done
-		cur.ViaTM = ev.ViaTM
-		cur.ViaAI = ev.ViaAI
-		if ev.Type == convergence.EventLocaleDone {
-			cur.State = convergence.LocaleShippable
-			if ev.Done < cur.Units {
-				cur.State = convergence.LocalePending
-			}
-		}
-		t.locales[ev.Locale] = cur
-	case convergence.EventPassDone:
-		t.passes = ev.Pass
-		t.failingChecks = ev.FailingChecks
-		// Locales still pending after the pass are the park candidates.
-		pendingSet := map[string]bool{}
-		for _, l := range ev.Pending {
-			pendingSet[l] = true
-		}
-		for l, cur := range t.locales {
-			if pendingSet[l] {
-				cur.State = convergence.LocalePending
-			} else if cur.State == convergence.LocalePending {
-				cur.State = convergence.LocaleShippable
-			}
-			t.locales[l] = cur
-		}
-	case convergence.EventDone:
-		if ev.State == convergence.RunParked {
-			for l, cur := range t.locales {
-				if cur.State != convergence.LocaleShippable {
-					cur.State = convergence.LocaleParked
-					t.locales[l] = cur
-				}
-			}
-		}
-	}
-}
-
-func (t *standingTracker) snapshot() []bstore.ConvergenceLocaleStanding {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	out := make([]bstore.ConvergenceLocaleStanding, 0, len(t.order))
-	for _, l := range t.order {
-		out = append(out, t.locales[l])
-	}
-	return out
-}

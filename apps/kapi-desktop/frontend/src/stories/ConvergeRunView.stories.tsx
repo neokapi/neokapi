@@ -144,36 +144,3 @@ export const Parked: Story = {
     onOpenReview: () => {},
   },
 };
-
-/** Compatibility: an older run that stored only per-pass summaries (no typed
- *  locale stream) still renders its passes. */
-export const CompatPassSummaries: Story = {
-  args: {
-    events: [
-      {
-        type: "converge_pass",
-        flow_id: "up",
-        converge: {
-          pass: 1,
-          extractedBlocks: 214,
-          produced: 178,
-          producedDelta: 178,
-          failingChecks: 9,
-          pendingLocales: ["de-DE", "ja-JP"],
-        },
-      },
-      {
-        type: "converge_pass",
-        flow_id: "up",
-        converge: {
-          pass: 2,
-          produced: 205,
-          producedDelta: 27,
-          failingChecks: 2,
-          pendingLocales: ["ja-JP"],
-        },
-      },
-    ],
-    running: true,
-  },
-};

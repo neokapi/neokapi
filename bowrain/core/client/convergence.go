@@ -41,15 +41,10 @@ type ConvergenceRun struct {
 }
 
 // ConvergenceLocaleStanding is one locale's standing within a run — the final
-// (or latest) per-locale rollup, matching the convergence.Event locale fields.
-type ConvergenceLocaleStanding struct {
-	Locale   string `json:"locale"`
-	State    string `json:"state"` // shippable | parked | pending
-	Units    int    `json:"units,omitempty"`
-	Produced int    `json:"produced,omitempty"`
-	ViaTM    int    `json:"viaTM,omitempty"`
-	ViaAI    int    `json:"viaAI,omitempty"`
-}
+// (or latest) per-locale rollup. It is the framework's standing type: the
+// server persists what core/convergence.Standing folds out of the event
+// stream, and this is the same shape coming back over the wire.
+type ConvergenceLocaleStanding = convergence.LocaleStanding
 
 // StartConvergenceRunRequest is the POST body to start a run.
 type StartConvergenceRunRequest struct {
