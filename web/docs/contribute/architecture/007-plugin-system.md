@@ -147,6 +147,26 @@ stdin / stdout / stderr inherited; env block carries
 `KAPI_PLUGIN_DIR`, `KAPI_PLUGIN_NAME`, `KAPI_PLUGIN_VERSION`. Exit
 code propagated. The plugin doesn't keep state across calls.
 
+Command attachment follows the **no-shadowing rule**: installing a plugin
+never changes what an existing kapi verb means (plugins extend kapi the way
+`gh` extends `git`). Concretely:
+
+- Every plugin command also attaches under a per-plugin group command —
+  `kapi <group> <verb>` (e.g. `kapi bowrain ls`), where `group` is the
+  manifest's plugin-level `group` field, falling back to the plugin name.
+- A plugin command whose name collides with a built-in attaches under the
+  group **only**; the built-in keeps the top-level verb. This is a supported
+  layout for verbs whose plugin semantics differ from core (bowrain's
+  `config`, whose recipe keys the built-in also covers positionally).
+- A command with `"hidden": true` is dispatch **plumbing** consumed by a
+  built-in rather than typed by users — bowrain's `server-status` (merged
+  into `kapi status`), `server-up` (the server venue behind `kapi up`),
+  and `server-ls` (the sync column on `kapi ls`). Hidden commands stay
+  routable but are omitted from `--help` and completion.
+- A plugin that needs to participate in a core verb uses a
+  `command_contribution` (bowrain's `init --server`) or hidden plumbing the
+  built-in dispatches — never a same-name command.
+
 #### Mode B — session subprocess
 
 Used for `mcp_tools`. kapi spawns one plugin process per `kapi mcp`

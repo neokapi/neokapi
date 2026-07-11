@@ -52,7 +52,7 @@ func TestLocalePresets_AppliedPerLocale(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(real, project.StateDirName), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(real, "en.json"), []byte(`{"greeting":"Hello"}`), 0o644))
 
-	out, err := runConverge(t, a, recipe)
+	out, err := runConverge(t, a, recipe, ConvergeOptions{})
 	require.NoError(t, err, out)
 
 	de, err := os.ReadFile(filepath.Join(real, "de-DE.json"))

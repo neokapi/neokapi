@@ -59,9 +59,9 @@ narration:
   - id: verify
     kind: terminal
     text: >
-      Then it runs kapi verify, which checks the result against the glossary and looks for
+      Then it runs kapi check --ship, which checks the result against the glossary and looks for
       dropped placeholders or untranslated text. When that comes back clean, the work is done.
-    caption: "kapi verify confirms terminology and placeholders before it's called done"
+    caption: "kapi check --ship confirms terminology and placeholders before it's called done"
   - id: glossary
     kind: artifact
     artifact: glossary

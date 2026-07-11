@@ -8,38 +8,36 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/host/config"
 	"github.com/spf13/cobra"
 )
 
 var configGlobal bool
 
+// configCmd lives under the plugin group (`kapi bowrain config`): the
+// built-in `kapi config` owns the top-level verb under the no-shadowing
+// rule and already covers the recipe keys positionally (name,
+// source_language, preset, server.url, …), so this command's remaining
+// niche is the bowrain global config file (--global).
 var configCmd = &cobra.Command{
 	Use:   "config [key] [value]",
-	Short: "View or change settings",
-	Long: `View or set configuration values.
+	Short: "View or change bowrain settings (--global for ~/.config/bowrain/bowrain.yaml)",
+	Long: `View or set bowrain configuration values.
 
 With no arguments, shows the path to the config file.
 With one argument (key), prints the current value.
 With two arguments (key value), sets the value.
 
-Use --global to read/write the global config file (~/.config/bowrain/bowrain.yaml).
-Without --global, reads/writes the project recipe (<project>/<name>.kapi).
-
-Project keys (no --global):
-  project.name
-  source_language
-  server.url
-  server.stream
-  preset
+Use --global to read/write the global config file (~/.config/bowrain/bowrain.yaml)
+— e.g. the default server URL that 'kapi init' offers for new projects.
+Without --global, reads/writes the project recipe, same as the built-in
+positional form ('kapi config server.url …'), which is the documented
+spelling.
 
 Examples:
-  kapi config project.name                       # Print project name
-  kapi config project.name "My Project"          # Set project name
-  kapi config server.url                         # Print project server URL
-  kapi config --global server.url                # Print global server URL
-  kapi config --global server.url https://bowrain.example.com  # Set global server URL`,
+  kapi bowrain config --global server.url        # Print the default server URL
+  kapi bowrain config --global server.url https://bowrain.example.com`,
 	Args: cobra.MaximumNArgs(2),
 	RunE: runConfig,
 }

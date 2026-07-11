@@ -253,3 +253,51 @@ content:
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "content[0].items[0].max_size:")
 }
+
+// InertProjectExtras reports extras whose DependsOn sibling is missing —
+// and stays silent for satisfied dependencies, dependency-free extensions,
+// and extras this binary has no extension for (forward compatibility).
+func TestInertProjectExtras(t *testing.T) {
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
+
+	RegisterExtensionGroup("platform", []Extension{
+		{Name: "server", Scope: ScopeProject},
+		{Name: "automations", Scope: ScopeProject, DependsOn: "server"},
+		{Name: "hooks", Scope: ScopeProject, DependsOn: "server"},
+		{Name: "stream", Scope: ScopeProject},
+	})
+
+	load := func(t *testing.T, recipe string) *KapiProject {
+		t.Helper()
+		p := &KapiProject{}
+		require.NoError(t, yaml.Unmarshal([]byte(recipe), p))
+		return p
+	}
+
+	// Dependency missing → both dependent fields report, sorted; the
+	// dependency-free extension and the unknown key stay silent.
+	p := load(t, `
+version: v1
+name: t
+hooks:
+  pre-push: [echo]
+automations: []
+stream: main
+some_future_key: 1
+`)
+	assert.Equal(t, []InertExtra{
+		{Name: "automations", DependsOn: "server"},
+		{Name: "hooks", DependsOn: "server"},
+	}, p.InertProjectExtras())
+
+	// Dependency present → nothing to report.
+	p = load(t, `
+version: v1
+name: t
+server:
+  url: https://x.example/w/p
+automations: []
+`)
+	assert.Empty(t, p.InertProjectExtras())
+}

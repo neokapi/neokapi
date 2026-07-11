@@ -262,7 +262,7 @@ func TestToolboxProxiesDetached(t *testing.T) {
 	app := newToolboxApp(t)
 
 	t.Run("all three are hidden and flag-detached", func(t *testing.T) {
-		for _, name := range []string{"grep", "sed", "cat"} {
+		for _, name := range []string{"kgrep", "ksed", "kcat"} {
 			c := findCmd(NewToolboxProxies(app), name)
 			require.NotNil(t, c, "proxy %q must exist", name)
 			assert.True(t, c.Hidden, "%q must be hidden from kapi --help", name)
@@ -273,8 +273,8 @@ func TestToolboxProxiesDetached(t *testing.T) {
 	dir := t.TempDir()
 	path := writeToolboxFile(t, dir, "en.json", `{"a":"hello world","b":"nope"}`)
 
-	t.Run("kapi grep -v inverts (not verbose)", func(t *testing.T) {
-		grep := findCmd(NewToolboxProxies(app), "grep")
+	t.Run("kapi kgrep -v inverts (not verbose)", func(t *testing.T) {
+		grep := findCmd(NewToolboxProxies(app), "kgrep")
 		out, err := captureStdout(t, func() error {
 			grep.SetArgs([]string{"-v", "world", path})
 			return grep.Execute()
@@ -284,7 +284,7 @@ func TestToolboxProxiesDetached(t *testing.T) {
 	})
 
 	t.Run("kapi grep -c counts (not config)", func(t *testing.T) {
-		grep := findCmd(NewToolboxProxies(app), "grep")
+		grep := findCmd(NewToolboxProxies(app), "kgrep")
 		out, err := captureStdout(t, func() error {
 			grep.SetArgs([]string{"-c", "world", path})
 			return grep.Execute()
@@ -295,7 +295,7 @@ func TestToolboxProxiesDetached(t *testing.T) {
 
 	t.Run("kapi sed -i.bak edits in place via proxy", func(t *testing.T) {
 		p := writeToolboxFile(t, dir, "s.json", `{"x":"foo"}`)
-		sed := findCmd(NewToolboxProxies(app), "sed")
+		sed := findCmd(NewToolboxProxies(app), "ksed")
 		sed.SetArgs([]string{"-i.bak", "s/foo/bar/", p})
 		require.NoError(t, sed.Execute())
 		edited, _ := os.ReadFile(p)

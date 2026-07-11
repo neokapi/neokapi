@@ -4,12 +4,13 @@ import "github.com/spf13/cobra"
 
 // NewStatusCmd creates `kapi status`: a project dashboard showing per-locale
 // translation coverage and ship-gate standing — the informational counterpart
-// to `kapi verify` (the gate). State is derived from the project's content ×
+// to `kapi check --ship` (the gate). State is derived from the project's content ×
 // target files, so it is always current with the working tree.
 //
-// When a plugin provides its own `status` (e.g. kapi-bowrain's sync status), the
-// plugin's command takes precedence and this built-in is not registered (see the
-// command wiring in cmd/kapi/root.go).
+// The built-in owns the verb in every install (the no-shadowing rule): a
+// server-connected project gets its sync section merged in via the plugin's
+// hidden `server-status` plumbing (see host.appendServerStatus), never via a
+// replacement command.
 func NewStatusCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "status",
@@ -20,7 +21,7 @@ translated and whether it clears its ship gate — a derived dashboard, like
 git status. Coverage is recomputed from the content × target files on every run;
 nothing is tracked as state.
 
-This is the informational counterpart to 'kapi verify' (the quality gate). It
+This is the informational counterpart to 'kapi check --ship' (the quality gate). It
 never fails: a locale that is behind is reported as pending, not an error —
 target-language drift is normal, expected work, not a build break.`,
 		Args: cobra.NoArgs,

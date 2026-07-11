@@ -246,7 +246,7 @@ offline.
 Terminology also reaches a project's local files and CI through ordinary sync. A
 [`kapi pull`](/cli/commands/pull) snapshots the workspace's governed concepts and
 their relations into the project's local termbase, and
-[`kapi verify --terms`](/cli/use-cases/brand-terminology-ci) then gates offline
+[`kapi check --ship --terms`](/cli/use-cases/brand-terminology-ci) then gates offline
 against exactly the terminology the hub shows — the pattern documented in
 [Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci). A
 [`kapi push`](/cli/commands/push) sends local terminology edits back: ordinary

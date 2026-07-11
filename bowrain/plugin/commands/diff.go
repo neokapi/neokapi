@@ -10,6 +10,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// diffCmd owns `kapi diff` when the plugin is installed: the format-aware
+// file differ's kapi-side spelling is kdiff only, so the name is free — no
+// built-in collides and the no-shadowing rule holds.
 var diffCmd = &cobra.Command{
 	Use:   "diff [paths...]",
 	Short: "Show differences between local and remote",

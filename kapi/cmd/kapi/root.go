@@ -85,14 +85,16 @@ func init() {
 	// (cli.KapiCommandSet is the single source of truth for what `kapi`
 	// exposes, so the localization inventory can never drift from the
 	// binary).
+	//
+	// Built-ins always register: installing a plugin must never change what
+	// an existing verb means (the no-shadowing rule — plugins extend kapi
+	// the way gh extends git). A plugin that needs to participate in a core
+	// verb does so through a contribution (bowrain's init --server), a
+	// hidden plumbing command the built-in dispatches (server-status under
+	// kapi status, server-up under kapi up), or its plugin group
+	// (kapi bowrain config). pluginattach enforces this: a plugin command
+	// colliding with a built-in attaches group-only.
 	for _, cmd := range cli.KapiCommandSet(app) {
-		// A plugin may provide its own version of a built-in command (e.g.
-		// kapi-bowrain's `status` shows server sync state). A built-in shadows a
-		// plugin command of the same name, so to let the plugin win we skip
-		// registering the built-in when a plugin already declares that command.
-		if app.PluginHost != nil && app.PluginHost.CommandRoute(cmd.Name()) != nil {
-			continue
-		}
 		rootCmd.AddCommand(cmd)
 	}
 

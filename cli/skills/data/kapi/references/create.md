@@ -42,11 +42,11 @@ and parse again.
 ## 3. Gate on brand and terminology
 
 Run the content rules. For a one-off file, `kapi check`; in a project,
-`kapi verify` runs every bound gate (brand voice, terminology, QA) together:
+`kapi check --ship` runs every bound gate (brand voice, terminology, QA) together:
 
 ```bash
 kapi check draft.md --profile-file brand.yaml --json   # one-off
-kapi verify --json                                       # in a project
+kapi check --ship --json                                       # in a project
 ```
 
 The check exits 0 when the gate passes and 3 when it fails, with one finding per
@@ -93,12 +93,12 @@ kapi apply changeset.jsonl
 - The **term** entry upserts the glossary term: it is written into the project's
   committed termbase source (`.klftb`) and the existing import compiles it into
   the `.kapi/termbase.db` cache. `git diff` shows the one new term; the next
-  `kapi verify` enforces it.
+  `kapi check --ship` enforces it.
 
 The asset kinds `kapi apply` accepts — `term`, `tm`, `brand`, `recipe` — and
 their fields are summarized in [edit.md](edit.md); the brand-vocabulary case is
 detailed in [brand.md](brand.md). Asset entries require a `.kapi` project (the
 committed source and recipe live there).
 
-After applying, run `kapi verify` (or `kapi check`) once more to confirm the
+After applying, run `kapi check --ship` (or `kapi check`) once more to confirm the
 draft is clean and the new rule passes.

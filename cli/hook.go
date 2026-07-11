@@ -22,14 +22,14 @@ on stdout. These are wired up by the assistant's plugin, not run by hand.`,
 }
 
 // newHookStopCmd implements the Claude Code `Stop` hook: it runs the current
-// project's `kapi verify` gates and, when they fail, tells Claude to keep
+// project's `kapi check --ship` gates and, when they fail, tells Claude to keep
 // working (with the findings) instead of finishing. This turns the verify gate
 // into a hard guardrail — the assistant cannot end a turn with a project that
 // is off-brand, off-terminology, or with broken placeholders.
 func newHookStopCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "stop",
-		Short: "Claude Code Stop hook: keep working until the project's kapi verify gates pass",
+		Short: "Claude Code Stop hook: keep working until the project's kapi check --ship gates pass",
 		Long: `Claude Code Stop hook. Reads the Stop-event JSON on stdin, runs the
 verify gates for the project in the session's working directory, and:
 

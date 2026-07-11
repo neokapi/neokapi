@@ -56,7 +56,6 @@ func KapiCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewStatsCmd(a))
 	cmds = append(cmds,
 		NewStatusCmd(a),
-		NewVerifyCmd(a),
 		NewCheckCmd(a),
 		NewHookCmd(a),
 		NewInitCmd(a),
@@ -72,7 +71,6 @@ func KapiCommandSet(a *App) []*cobra.Command {
 		NewFormatsCmd(a),
 		NewPluginCmd(a),
 		NewModelsCmd(a),
-		NewRegistryCmd(a),
 		NewTermbaseCmd(a),
 		NewTMCmd(a),
 		NewBrandCmd(a),
@@ -83,13 +81,6 @@ func KapiCommandSet(a *App) []*cobra.Command {
 		NewCompletionCmd(a),
 	)
 
-	// Hidden one-release aliases (#1078 C1 verb folds). `verify` hides itself
-	// (NewVerifyCmd); `ollama` and `presets` forward with a pointer note.
-	cmds = append(cmds,
-		deprecatedAlias(NewOllamaCmd(a), "note: `kapi ollama` moved to `kapi models ollama`; this top-level alias will be removed in a future release."),
-		deprecatedAlias(NewPresetsCmd(a), "note: `kapi presets` is deprecated — use `kapi init --list-presets` / `kapi init --preset <name>`; this alias will be removed in a future release."),
-	)
-
 	// Top-level tool commands (declarative opt-in via the tool registry).
 	cmds = append(cmds, NewToolCommands(a)...)
 
@@ -97,8 +88,10 @@ func KapiCommandSet(a *App) []*cobra.Command {
 	mcpCmd.GroupID = "advanced"
 	cmds = append(cmds, mcpCmd)
 
+	// The engine gRPC server is machine plumbing (the desktop and embedders
+	// spawn it; humans don't type it) — routable but out of --help.
 	engineCmd := NewEngineCmd(a)
-	engineCmd.GroupID = "advanced"
+	engineCmd.Hidden = true
 	cmds = append(cmds, engineCmd)
 
 	return cmds

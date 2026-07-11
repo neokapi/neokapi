@@ -25,7 +25,7 @@ import (
 	"github.com/neokapi/neokapi/host/output"
 )
 
-// Gate names for `kapi verify`.
+// Gate names for the project gates (`kapi check --ship`).
 const (
 	gateBrand  = "brand"
 	gateTerms  = "terminology"
@@ -68,7 +68,7 @@ type verifySummary struct {
 	Warnings int `json:"warnings"` // findings with severity "warning"
 }
 
-// verifyOutput is the single structured result of a `kapi verify` run.
+// verifyOutput is the single structured result of a project-gates run.
 type verifyOutput struct {
 	Pass    bool               `json:"pass"`
 	Gates   []verifyGateResult `json:"gates"`
@@ -174,7 +174,7 @@ func (a *App) RunVerify(cmd Command, args []string) error {
 }
 
 // computeVerify runs the selected gates and returns the structured result
-// without printing or mapping to an exit code. Both `kapi verify` and the
+// without printing or mapping to an exit code. Both `kapi check --ship` and the
 // Claude Code stop hook (`kapi hook stop`) call this so they evaluate a project
 // identically. The returned error is operational (no project, load failure);
 // a failing gate is reported in verifyOutput.Pass, not as an error.
@@ -183,7 +183,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 
 	// The verify path threads cmd.Context() into ctx-aware TM/termbase lookups
 	// (e.g. ResolveProjectGlossary). When computeVerify runs outside cobra's
-	// Execute — the Stop hook builds a fresh NewVerifyCmd(), and tests call
+	// Execute — the Stop hook builds a fresh EnvCommand with the verify flags, and tests call
 	// RunVerify directly — that context is nil, which panics deep in
 	// database/sql and then deadlocks on the deferred store Close. Seed a real
 	// context once here so every downstream cmd.Context() is non-nil.
@@ -201,6 +201,9 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		return verifyOutput{}, fmt.Errorf("load project: %w", err)
 	}
 	root := filepath.Dir(projectPath)
+	// A gate run is where a silently-inert recipe field (automations:
+	// without server:) is most misleading — surface it here and in status.
+	a.WarnInertRecipeFields(cmd, proj)
 
 	sel := resolveGateSelection(cmd)
 	localeFilter, _ := cmd.Flags().GetString("locale")

@@ -24,18 +24,46 @@ type StatusOutput struct {
 	// pure local project. The cli module stays platform-neutral: it is populated
 	// by shelling the plugin, never by importing bowrain.
 	Server *StatusServerSection `json:"server,omitempty"`
+	// Venue reports where `kapi up` would run the convergence loop. Present
+	// only when the recipe declares a server: block — the venue of a plain
+	// local project is not ambiguous, so it stays silent.
+	Venue *StatusVenue `json:"venue,omitempty"`
+}
+
+// StatusVenue names the effective convergence venue for a server-connected
+// recipe: where `kapi up` would run, the recipe's server.converge policy,
+// and a note when the venue degrades (server declared but plumbing absent).
+type StatusVenue struct {
+	// Venue is "server" or "local".
+	Venue string `json:"venue"`
+	// ConvergePolicy echoes the recipe's server.converge value, when set.
+	ConvergePolicy string `json:"converge_policy,omitempty"`
+	// Note explains a degraded venue (e.g. the bowrain plugin is missing,
+	// so a declared server cannot converge from this machine).
+	Note string `json:"note,omitempty"`
 }
 
 // StatusServerSection is the connected-server standing merged into
 // `kapi status`: ahead/behind transport counts plus any in-flight convergence
 // runs. It mirrors the JSON the kapi-bowrain `server-status` command emits.
 type StatusServerSection struct {
-	ServerURL   string            `json:"server_url,omitempty"`
-	Project     string            `json:"project,omitempty"`
-	PendingPush int               `json:"pending_push"`
-	PendingPull int               `json:"pending_pull"`
-	LastSync    string            `json:"last_sync,omitempty"`
-	ActiveRuns  []StatusActiveRun `json:"active_runs,omitempty"`
+	ServerURL   string             `json:"server_url,omitempty"`
+	Project     string             `json:"project,omitempty"`
+	PendingPush int                `json:"pending_push"`
+	PendingPull int                `json:"pending_pull"`
+	LastSync    string             `json:"last_sync,omitempty"`
+	ActiveRuns  []StatusActiveRun  `json:"active_runs,omitempty"`
+	Terminology *StatusTerminology `json:"terminology,omitempty"`
+}
+
+// StatusTerminology is the local snapshot standing of the workspace's
+// governed terminology: when the last concept pull ran and what it carried.
+// nil when no concept pull has ever recorded a baseline — rendered as
+// never-synced so stale local term checks are visible, not silent.
+type StatusTerminology struct {
+	PulledAt  string `json:"pulled_at"`
+	Concepts  int    `json:"concepts"`
+	Relations int    `json:"relations"`
 }
 
 // StatusActiveRun is one in-flight server convergence run in the status report.
@@ -56,11 +84,25 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 		writeSourceLine(w, *o.Source)
 	}
 	if len(o.Locales) == 0 {
+		// The server and venue standing still render below: a connected
+		// project with nothing tracked yet must not hide where `up` would run.
 		fmt.Fprintln(w, "No localized content tracked (no content collections with target locales).")
-		return nil
+	} else {
+		o.writeCoverageGrid(w)
 	}
-	// Header. The scope is the locale, or "locale/collection" when the project
-	// has named collections with their own gates.
+	if o.Server != nil {
+		writeServerLine(w, *o.Server)
+	}
+	if o.Venue != nil {
+		writeVenueLine(w, *o.Venue)
+	}
+	return nil
+}
+
+// writeCoverageGrid renders the per-locale coverage table. The scope column
+// is the locale, or "locale/collection" when the project has named
+// collections with their own gates.
+func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 	fmt.Fprintf(w, "%-14s %6s", "scope", "units")
 	for _, s := range statusLadder {
 		fmt.Fprintf(w, " %11s", s)
@@ -80,10 +122,20 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintln(w)
 	}
-	if o.Server != nil {
-		writeServerLine(w, *o.Server)
+}
+
+// writeVenueLine renders the one-line convergence-venue standing for a
+// server-connected recipe: where `kapi up` would run and under which
+// server.converge policy.
+func writeVenueLine(w io.Writer, v StatusVenue) {
+	fmt.Fprintf(w, "venue   %s", v.Venue)
+	if v.ConvergePolicy != "" {
+		fmt.Fprintf(w, " · converge: %s", v.ConvergePolicy)
 	}
-	return nil
+	if v.Note != "" {
+		fmt.Fprintf(w, " (%s)", v.Note)
+	}
+	fmt.Fprintln(w)
 }
 
 // writeServerLine renders the one-line connected-server standing beneath the
@@ -103,6 +155,11 @@ func writeServerLine(w io.Writer, s StatusServerSection) {
 		fmt.Fprintf(w, " · run %s %s%s", r.ID, r.State, passes)
 	}
 	fmt.Fprintln(w)
+	if t := s.Terminology; t != nil {
+		fmt.Fprintf(w, "terms   synced %s · %d concepts · %d relations\n", t.PulledAt, t.Concepts, t.Relations)
+	} else {
+		fmt.Fprintln(w, "terms   never synced — kapi pull snapshots the workspace terminology for offline checks")
+	}
 }
 
 // sourceLadder is the column order for the source-readiness line.
@@ -215,6 +272,8 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			out.Source = &src
 		}
 		a.appendServerStatus(cmd, proj, &out)
+		out.Venue = a.statusVenue(proj)
+		a.WarnInertRecipeFields(cmd, proj)
 		return output.Print(cmd, out)
 	})
 }
@@ -251,6 +310,25 @@ func (a *App) appendServerStatus(cmd Command, proj *project.KapiProject, out *St
 		return
 	}
 	out.Server = &section
+}
+
+// statusVenue derives the effective convergence venue for the status report.
+// nil for a recipe with no server: block (no ambiguity to report). With a
+// server: block, the venue is "server" when a plugin provides the server-up
+// plumbing `kapi up` dispatches to, otherwise a degraded "local" with a note.
+func (a *App) statusVenue(proj *project.KapiProject) *StatusVenue {
+	spec, ok := serverRecipeSpec(proj)
+	if !ok {
+		return nil
+	}
+	v := &StatusVenue{ConvergePolicy: spec.Converge}
+	if a.PluginHost != nil && a.PluginHost.CommandRoute("server-up") != nil {
+		v.Venue = "server"
+		return v
+	}
+	v.Venue = "local"
+	v.Note = "bowrain plugin not installed — kapi up converges on this machine and does not push"
+	return v
 }
 
 // AddStatusFlags registers the status command's flag surface on cmd —

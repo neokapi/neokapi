@@ -14,10 +14,11 @@ import (
 )
 
 var (
-	pullLocales []string
-	pullForce   bool
-	pullDryRun  bool
-	pullStream  string
+	pullLocales      []string
+	pullForce        bool
+	pullDryRun       bool
+	pullStream       string
+	pullConceptsOnly bool
 )
 
 var pullCmd = &cobra.Command{
@@ -111,6 +112,27 @@ func runPull(cmd *cobra.Command, args []string) error {
 		conn.SetStream(pullStream)
 	}
 
+	// --concepts: terminology-only transport. Snapshot the workspace's
+	// governed concepts into the bound termbase and record the baseline,
+	// without moving any content blocks and without firing pull hooks — the
+	// explicit re-sync for stale local term checks (see `kapi status`'s
+	// terms line). The deferred conn.Close() persists the baseline.
+	if pullConceptsOnly {
+		cres, baseline, cerr := conceptPull(cmd.Context(), proj, pullDryRun)
+		if cerr != nil {
+			return cerr
+		}
+		if baseline != nil {
+			conn.SetConceptBaseline(baseline)
+		}
+		out := output.PullOutput{Stream: conn.Stream(), DryRun: pullDryRun}
+		if cres != nil {
+			out.ConceptsPulled = cres.Concepts
+			out.ConceptRelationsPulled = cres.Relations
+		}
+		return output.Print(cmd, out)
+	}
+
 	result, err := doPull(cmd.Context(), conn, pullLocales, pullForce, pullDryRun)
 	if err != nil {
 		return err
@@ -162,5 +184,6 @@ func init() {
 	pullCmd.Flags().BoolVar(&pullForce, "force", false, "Re-download everything, even unchanged content")
 	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false, "Show what would change without writing files")
 	pullCmd.Flags().StringVar(&pullStream, "stream", "", "Source stream (default: auto-detect from git/CI)")
+	pullCmd.Flags().BoolVar(&pullConceptsOnly, "concepts", false, "Sync only the workspace terminology (concepts + relations) into the local termbase; no content transport, no hooks")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(pullCmd) })
 }

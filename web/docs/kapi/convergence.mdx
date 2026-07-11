@@ -257,10 +257,14 @@ for the open-source `kapi` binary, which carries no server code. In a
 `kapi up` runs on the server by default: it pushes the drift, the server
 converges on the org's keys and shared assets, progress streams back live into
 the same terminal view, results pull down, and parked units land in the *team's*
-review queue. Nothing about the run's output tells you which venue produced it —
-that is what makes one verb over two venues feel like one thing. `kapi up --local`
-overrides the venue for one run, converging on your machine and then pushing the
-results so the server is never left stale.
+review queue. The run's event stream is identical in either venue, and the venue
+itself is never implicit: whenever a `server:` block makes the choice ambiguous,
+`kapi up` prints the resolved venue as its first line, and `kapi status` reports
+the effective venue and `server.converge` policy alongside the coverage grid.
+`kapi up --local` overrides the venue for one run, converging on your machine and
+then pushing the results so the server is never left stale; `kapi up --server`
+requires the server venue, failing rather than falling back to a local run (for
+CI that must never spend local keys).
 
 Because transport is pure, **`kapi push` no longer translates behind your back**:
 server-side continuous convergence is an explicit, per-project policy the way

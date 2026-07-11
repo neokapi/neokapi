@@ -16,7 +16,7 @@ The loop is two commands:
 1. [`kapi pull`](/cli/commands/pull) fetches translations and, when the project
    is claimed into a workspace, also snapshots the workspace's governed concepts
    and their relations into the project's local termbase (`.kapi/termbase.db`).
-2. `kapi verify --terms` checks the project's target files against that termbase
+2. `kapi check --ship --terms` checks the project's target files against that termbase
    and exits non-zero when a file violates it.
 
 Pull the truth once, then verify offline — no per-file server round-trip, and
@@ -39,10 +39,10 @@ the gate enforces exactly what the hub shows.
 kapi pull
 
 # 2. Gate the project's target files against it.
-kapi verify --terms
+kapi check --ship --terms
 ```
 
-`kapi verify --terms` runs only the terminology gate. With no gate flag, `kapi
+`kapi check --ship --terms` runs only the terminology gate. With no gate flag, `kapi
 verify` runs every bound gate (brand, terminology, QA); naming `--terms`
 restricts it to terminology — and, because the gate is requested explicitly, an
 unbound termbase becomes a reported failure rather than a silent skip, so CI
@@ -52,7 +52,7 @@ Scope the check to one locale with `--locale`, or point at a specific glossary
 with `--termbase`:
 
 ```bash
-kapi verify --terms --locale fr
+kapi check --ship --terms --locale fr
 ```
 
 ## In GitHub Actions
@@ -86,7 +86,7 @@ jobs:
         run: kapi pull
 
       - name: Gate against governed terminology
-        run: kapi verify --terms
+        run: kapi check --ship --terms
 ```
 
 The `auth-token` and `server` inputs export `BOWRAIN_AUTH_TOKEN` and
@@ -95,7 +95,7 @@ gate exits non-zero and fails the job.
 
 ## Exit codes
 
-`kapi verify` returns a single exit code the CI runner gates on:
+`kapi check --ship` returns a single exit code the CI runner gates on:
 
 | Exit | Meaning                                                                 |
 | ---- | ---------------------------------------------------------------------- |
@@ -111,7 +111,7 @@ gating, where the non-zero exit is the point.
 Add `--json` to feed the structured findings to another tool:
 
 ```bash
-kapi verify --terms --json
+kapi check --ship --terms --json
 ```
 
 ## Keeping the snapshot fresh

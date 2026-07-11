@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -73,15 +74,23 @@ func convergeFixture(t *testing.T, targets []model.LocaleID, shipGate gate.Gate)
 
 // runConverge invokes `kapi run --project <recipe> [flags]` with NO flow
 // argument (the convergence path), capturing combined output.
-func runConverge(t *testing.T, a *App, recipe string, flags ...string) (string, error) {
+// runConverge drives the shared convergence engine the way `kapi up` does
+// (bare `kapi run` no longer converges — run takes a flow name only).
+func runConverge(t *testing.T, a *App, recipe string, opts ConvergeOptions) (string, error) {
 	t.Helper()
-	cmd := NewRunCmd(a, RunCmdOptions{})
-	args := append([]string{"--project", recipe}, flags...)
-	cmd.SetArgs(args)
+	cmd := NewEnvCommand(context.Background(), "up")
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	err := cmd.Execute()
+	proj, perr := a.LoadProjectInteractive(cmd.Context(), recipe, LoadProjectInteractiveOptions{AssumeYes: a.AssumeYes})
+	if perr != nil {
+		return out.String(), perr
+	}
+	a.InitRegistries()
+	if opts.MaxPasses == 0 {
+		opts.MaxPasses = ConvergeMaxPassesDefault
+	}
+	err := a.RunDefaultFlowConverge(cmd, proj, recipe, opts)
 	return out.String(), err
 }
 
@@ -92,7 +101,7 @@ func TestConverge_MaterializesFilesAndConverges(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
-	out, err := runConverge(t, a, recipe)
+	out, err := runConverge(t, a, recipe, ConvergeOptions{})
 	require.NoError(t, err, out)
 
 	// Both target files materialized (file-derived coverage reads them).
@@ -114,7 +123,7 @@ func TestConverge_AllTargetLocales(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO", "de-DE"}, gate.Gate{"translated": {Pct: 100}})
 
-	out, err := runConverge(t, a, recipe)
+	out, err := runConverge(t, a, recipe, ConvergeOptions{})
 	require.NoError(t, err, out)
 
 	for _, loc := range []string{"nb-NO", "de-DE"} {
@@ -139,7 +148,7 @@ func TestConverge_NoDefaultFlowUsesBuiltin(t *testing.T) {
 	proj.Flows = nil
 	require.NoError(t, project.Save(recipe, proj))
 
-	out, runErr := runConverge(t, a, recipe)
+	out, runErr := runConverge(t, a, recipe, ConvergeOptions{})
 	require.NoError(t, runErr, out)
 	assert.Contains(t, out, `Ran flow "default (built-in)"`)
 	assert.Contains(t, out, "Converged: every gated scope is shippable")
@@ -156,7 +165,7 @@ func TestConverge_MissingExplicitDefaultFlow(t *testing.T) {
 	proj.Defaults.Flow = "nope"
 	require.NoError(t, project.Save(recipe, proj))
 
-	_, runErr := runConverge(t, a, recipe)
+	_, runErr := runConverge(t, a, recipe, ConvergeOptions{})
 	require.Error(t, runErr)
 	assert.Contains(t, runErr.Error(), `default flow "nope" not found`)
 }
@@ -167,7 +176,7 @@ func TestConverge_UntilGateParksUnreachableGate(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": {Pct: 100}})
 
-	out, err := runConverge(t, a, recipe, "--until-gate", "--max-passes", "2")
+	out, err := runConverge(t, a, recipe, ConvergeOptions{UntilGate: true, MaxPasses: 2})
 	require.NoError(t, err, "parked work is reported, never a build failure")
 
 	assert.Contains(t, out, "parked (needs human)", "reviewed:100 cannot be reached by an automated flow")

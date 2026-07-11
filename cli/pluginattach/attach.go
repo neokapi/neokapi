@@ -49,6 +49,22 @@ func AttachCommands(parent *cobra.Command, host *pluginhost.Host, onConflict fun
 
 // AttachCommandsWithOptions is the AttachCommands variant that takes
 // AttachOptions. Prefer this in new code.
+//
+// Attachment follows the no-shadowing rule (plugins extend kapi, they never
+// override it):
+//
+//   - Every plugin command also attaches under a per-plugin group command
+//     (`kapi <group> <verb>`, e.g. `kapi bowrain config`), giving docs an
+//     unambiguous spelling. The group is the manifest's plugin-level `group`
+//     field, falling back to the plugin name.
+//   - A plugin command whose name collides with a built-in attaches under
+//     the group ONLY — the built-in always keeps the top-level verb. This is
+//     a supported layout, not an error, so it does not warn per invocation.
+//     (Plugin-vs-plugin name collisions never reach here: pluginhost.NewHost
+//     drops both routes and reports the conflict.)
+//   - Commands marked hidden in the manifest (dispatch plumbing such as
+//     bowrain's server-status / server-up) attach hidden: routable, absent
+//     from --help and completion.
 func AttachCommandsWithOptions(parent *cobra.Command, host *pluginhost.Host, opts AttachOptions) {
 	if host == nil {
 		return
@@ -58,18 +74,74 @@ func AttachCommandsWithOptions(parent *cobra.Command, host *pluginhost.Host, opt
 		onConflict = func(string) {}
 	}
 
-	// Build the set of built-in command names so we can shadow-warn.
-	builtin := map[string]bool{}
+	// The set of command names already taken at the top level (built-ins
+	// first, then plugin commands as they attach).
+	taken := map[string]bool{}
 	for _, c := range parent.Commands() {
-		builtin[c.Name()] = true
+		taken[c.Name()] = true
+	}
+
+	// Per-plugin group parents (`kapi bowrain …`), created lazily.
+	groups := map[string]*cobra.Command{}
+	groupFor := func(route *pluginhost.CommandRoute) *cobra.Command {
+		name := route.Plugin.Manifest.Group
+		if name == "" {
+			name = route.Plugin.Name()
+		}
+		if g, ok := groups[name]; ok {
+			return g
+		}
+		g := &cobra.Command{
+			Use:         name,
+			Short:       fmt.Sprintf("Commands from the %s plugin", route.Plugin.Name()),
+			Annotations: map[string]string{"plugin": route.Plugin.Name()},
+		}
+		groups[name] = g
+		if taken[name] {
+			// A group whose name collides with a built-in cannot attach; its
+			// members stay top-level-only. This should never happen for
+			// well-named plugins.
+			onConflict(fmt.Sprintf("plugin group %q collides with a built-in command — group spelling unavailable", name))
+		} else {
+			parent.AddCommand(g)
+			taken[name] = true
+		}
+		return g
 	}
 
 	for _, route := range host.CommandRoutes() {
-		if builtin[route.Command.Name] {
-			onConflict(fmt.Sprintf("command %q from plugin %q is shadowed by a built-in command", route.Command.Name, route.Plugin.Name()))
+		// Group spelling first: always available, collision-free by scope.
+		group := groupFor(route)
+		groupChild := buildCobraCommandWithDispatch(route, opts.DaemonPool)
+		groupChild.Hidden = route.Command.Hidden
+		group.AddCommand(groupChild)
+
+		if taken[route.Command.Name] {
+			// The built-in keeps the verb; the plugin's version lives in its
+			// group. Supported layout — no per-invocation warning. (Routes are
+			// name-unique: plugin-vs-plugin collisions are already resolved,
+			// with a conflict report, in pluginhost.NewHost.)
 			continue
 		}
-		parent.AddCommand(buildCobraCommandWithDispatch(route, opts.DaemonPool))
+		top := buildCobraCommandWithDispatch(route, opts.DaemonPool)
+		top.Hidden = route.Command.Hidden
+		parent.AddCommand(top)
+		taken[route.Command.Name] = true
+	}
+
+	// Drop group parents that ended up with only hidden children: an empty-
+	// looking `kapi bowrain` entry in --help would be noise.
+	for _, g := range groups {
+		visible := false
+		for _, c := range g.Commands() {
+			if !c.Hidden {
+				visible = true
+				break
+			}
+		}
+		if !visible {
+			g.Hidden = true
+		}
 	}
 }
 

@@ -13,7 +13,7 @@ import (
 // toolbox utility (kgrep / ksed / kcat / kconv / kdiff, with an optional .exe suffix), or nil
 // when it does not — signalling the caller to run the normal kapi root. The
 // returned command owns the app lifecycle (config load, Init, Shutdown) so the
-// utility behaves identically whether launched as `kgrep` or `kapi grep`.
+// utility behaves identically whether launched as `kgrep` or `kapi kgrep`.
 func BusyboxRoot(app *App, prog string) *cobra.Command {
 	prog = strings.TrimSuffix(strings.ToLower(filepath.Base(prog)), ".exe")
 	var cmd *cobra.Command
@@ -57,12 +57,12 @@ func BusyboxRoot(app *App, prog string) *cobra.Command {
 	return cmd
 }
 
-// NewToolboxProxies returns the hidden `kapi grep|sed|cat` subcommands. Each is
+// NewToolboxProxies returns the hidden `kapi kgrep|ksed|kcat|kconv|kdiff` subcommands. Each is
 // a thin proxy with DisableFlagParsing set, so kapi's persistent flags are NOT
 // merged into it — the toolbox utilities keep their full classic option surface
 // (including -v / -c, which kapi's globals would otherwise shadow). The proxy
 // delegates the raw argument list to the very same standalone command the
-// kgrep / ksed / kcat binaries run, so `kapi grep` and `kgrep` behave
+// kgrep / ksed / kcat binaries run, so `kapi kgrep` and `kgrep` behave
 // identically. They are Hidden so `kapi --help` steers users to the dedicated
 // kgrep / ksed / kcat commands.
 func NewToolboxProxies(a *App) []*cobra.Command {
@@ -86,11 +86,17 @@ func NewToolboxProxies(a *App) []*cobra.Command {
 			},
 		}
 	}
+	// The proxies carry the k-names verbatim (`kapi kgrep` = `kgrep`):
+	// one consistent, collision-free spelling that keeps every bare verb
+	// (grep, cat, diff, …) available to real commands — bare `kapi diff`
+	// belongs to the bowrain plugin's local-vs-server sync diff. The
+	// proxies keep the toolbox reachable where the busybox symlinks don't
+	// exist (the winget install ships one kapi binary).
 	return []*cobra.Command{
-		proxy("grep", "Search the text/content inside files (use kgrep)", func() *cobra.Command { return newGrepCmd(a) }, nil),
-		proxy("sed", "Stream-edit the text/content inside files (use ksed)", func() *cobra.Command { return newSedCmd(a) }, NormalizeSedInPlaceArgs),
-		proxy("cat", "Print the text/content inside files (use kcat)", func() *cobra.Command { return newCatCmd(a) }, nil),
-		proxy("convert", "Convert files between formats (use kconv)", func() *cobra.Command { return newConvCmd(a) }, nil),
-		proxy("diff", "Compare the text/content of files (use kdiff)", func() *cobra.Command { return newDiffCmd(a) }, nil),
+		proxy("kgrep", "Search the text/content inside files (use kgrep)", func() *cobra.Command { return newGrepCmd(a) }, nil),
+		proxy("ksed", "Stream-edit the text/content inside files (use ksed)", func() *cobra.Command { return newSedCmd(a) }, NormalizeSedInPlaceArgs),
+		proxy("kcat", "Print the text/content inside files (use kcat)", func() *cobra.Command { return newCatCmd(a) }, nil),
+		proxy("kconv", "Convert files between formats (use kconv)", func() *cobra.Command { return newConvCmd(a) }, nil),
+		proxy("kdiff", "Compare the text/content of files (use kdiff)", func() *cobra.Command { return newDiffCmd(a) }, nil),
 	}
 }

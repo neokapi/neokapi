@@ -51,6 +51,7 @@ kapi push --force
 | ----------- | ----------------------------------------- | ------- |
 | `--force`   | Push all blocks, ignoring sync cache      | `false` |
 | `--dry-run` | Show what would be pushed without sending | `false` |
+| `--concepts` | Sync only local terminology edits to the workspace (direct edits + governed change-set) — no content transport, no hooks | `false` |
 
 ## What Happens
 

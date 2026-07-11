@@ -179,7 +179,7 @@ the footprint of a concept before proposing anything.
 - **CLI and CI.** Governed terminology rides ordinary project sync through the
   bowrain plugin. `kapi pull` snapshots the workspace's governed concepts and
   their relations into the project's local termbase, and — decisive for CI —
-  `kapi verify --terms` then gates offline against the same truth the hub
+  `kapi check --ship --terms` then gates offline against the same truth the hub
   shows. `kapi push` sends local concept edits back: ordinary edits apply
   directly through the concept endpoints, while governed edits (a banned or
   preferred term, an un-forbidding, a `REPLACED_BY` relation, a concept delete)

@@ -296,6 +296,13 @@ type Command struct {
 	// a bare string (a leaf subcommand) or an object carrying its own
 	// nested subcommands; see Subcommand.UnmarshalJSON.
 	Subcommands []Subcommand `json:"subcommands,omitempty"`
+
+	// Hidden marks plumbing commands that exist for kapi itself to
+	// dispatch (e.g. bowrain's server-status, consumed by kapi status;
+	// server-up, consumed by kapi up's server venue) rather than for
+	// users to type. Hidden commands are omitted from --help and shell
+	// completion but stay routable.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 // Subcommand describes one nested subcommand under a Command (or under
@@ -466,6 +473,12 @@ type SchemaExtension struct {
 	// JSONSchema is the path (relative to the plugin dir) to the
 	// JSON Schema validating values under this key.
 	JSONSchema string `json:"json_schema,omitempty"`
+
+	// DependsOn optionally names a sibling extras key at the same scope
+	// that must be present for this extension to have any effect (e.g.
+	// bowrain's automations depend on "server"). Hosts surface a set-but-
+	// inert field via kapi status/check instead of failing the load.
+	DependsOn string `json:"depends_on,omitempty"`
 }
 
 // DaemonConfig declares Mode-C daemon behavior. Only present for

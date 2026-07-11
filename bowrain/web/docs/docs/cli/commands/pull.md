@@ -12,7 +12,7 @@ When the project is claimed into a workspace, pull also snapshots the
 workspace's governed concepts and their relations into the project's bound
 termbase (`.kapi/termbase.db`) and records a baseline, so a later
 [`kapi push`](/cli/commands/push) can diff local terminology edits against it
-and [`kapi verify --terms`](/cli/use-cases/brand-terminology-ci) gates offline
+and [`kapi check --ship --terms`](/cli/use-cases/brand-terminology-ci) gates offline
 against the same governed vocabulary. See
 [Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci).
 
@@ -51,6 +51,7 @@ kapi pull --force
 | `--locale`  | Target locales to pull (repeatable)              | all     |
 | `--force`   | Pull from beginning, ignoring sync cursor        | `false` |
 | `--dry-run` | Show what would be pulled without changing files | `false` |
+| `--concepts` | Sync only the workspace terminology (concepts + relations) into the local termbase — no content transport, no hooks | `false` |
 
 ## What Happens
 
@@ -93,7 +94,7 @@ Pull from Bowrain Server to:
 - **Fetch translations** completed by team members
 - **Get AI/MT suggestions** generated on the server
 - **Sync governed terminology** — the workspace's concepts and relations into
-  the local termbase, so [`kapi verify --terms`](/cli/use-cases/brand-terminology-ci)
+  the local termbase, so [`kapi check --ship --terms`](/cli/use-cases/brand-terminology-ci)
   can gate offline
 - **Update source content** that entered Bowrain through another connector
 

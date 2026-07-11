@@ -8,7 +8,7 @@ import (
 )
 
 // newSedCmd builds the sed command. Used as the standalone `ksed` root and,
-// via newToolboxProxies, behind the detached `kapi sed` subcommand.
+// via newToolboxProxies, behind the detached `kapi ksed` subcommand.
 func newSedCmd(a *App) *cobra.Command {
 	var (
 		scripts   []string

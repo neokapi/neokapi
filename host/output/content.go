@@ -52,6 +52,22 @@ type LsEntry struct {
 	Format string `json:"format"`
 	Blocks int    `json:"blocks,omitempty"` // only with --stats
 	Words  int    `json:"words,omitempty"`  // only with --stats
+	// Dirty is the count of blocks changed locally since the last sync,
+	// merged from the connected server's plumbing. nil when the project
+	// has no server: block (or the plumbing is unavailable).
+	Dirty *int `json:"dirty,omitempty"`
+}
+
+// syncCell renders one entry's sync column: pending push count or "synced".
+func syncCell(d *int) string {
+	switch {
+	case d == nil:
+		return "-"
+	case *d == 0:
+		return "synced"
+	default:
+		return fmt.Sprintf("%d to push", *d)
+	}
 }
 
 // LsOutput is the result of `kapi ls`.
@@ -61,6 +77,9 @@ type LsOutput struct {
 	Blocks   int       `json:"blocks,omitempty"`
 	Words    int       `json:"words,omitempty"`
 	HasStats bool      `json:"-"`
+	// HasSync marks that per-file sync standing was merged in from the
+	// connected server's plumbing (kapi ls's sync column).
+	HasSync bool `json:"-"`
 }
 
 // FormatText renders the file list, with block/word columns when --stats is set.
@@ -79,7 +98,11 @@ func (o LsOutput) FormatText(w io.Writer) error {
 
 	if !o.HasStats {
 		for _, f := range o.Files {
-			fmt.Fprintf(w, "%-*s %s\n", pathW, f.Path, f.Format)
+			if o.HasSync {
+				fmt.Fprintf(w, "%-*s %-12s %s\n", pathW, f.Path, f.Format, syncCell(f.Dirty))
+			} else {
+				fmt.Fprintf(w, "%-*s %s\n", pathW, f.Path, f.Format)
+			}
 		}
 		fmt.Fprintf(w, "\n%d file(s)\n", o.Total)
 		return nil
@@ -92,10 +115,18 @@ func (o LsOutput) FormatText(w io.Writer) error {
 		}
 	}
 	fmtW += 2
-	fmt.Fprintf(w, "  %-*s %-*s %8s %8s\n", pathW, "PATH", fmtW, "FORMAT", "BLOCKS", "WORDS")
-	fmt.Fprintf(w, "  %-*s %-*s %8s %8s\n", pathW, "----", fmtW, "------", "------", "-----")
-	for _, f := range o.Files {
-		fmt.Fprintf(w, "  %-*s %-*s %8d %8d\n", pathW, f.Path, fmtW, f.Format, f.Blocks, f.Words)
+	if o.HasSync {
+		fmt.Fprintf(w, "  %-*s %-*s %8s %8s %12s\n", pathW, "PATH", fmtW, "FORMAT", "BLOCKS", "WORDS", "SYNC")
+		fmt.Fprintf(w, "  %-*s %-*s %8s %8s %12s\n", pathW, "----", fmtW, "------", "------", "-----", "----")
+		for _, f := range o.Files {
+			fmt.Fprintf(w, "  %-*s %-*s %8d %8d %12s\n", pathW, f.Path, fmtW, f.Format, f.Blocks, f.Words, syncCell(f.Dirty))
+		}
+	} else {
+		fmt.Fprintf(w, "  %-*s %-*s %8s %8s\n", pathW, "PATH", fmtW, "FORMAT", "BLOCKS", "WORDS")
+		fmt.Fprintf(w, "  %-*s %-*s %8s %8s\n", pathW, "----", fmtW, "------", "------", "-----")
+		for _, f := range o.Files {
+			fmt.Fprintf(w, "  %-*s %-*s %8d %8d\n", pathW, f.Path, fmtW, f.Format, f.Blocks, f.Words)
+		}
 	}
 	fmt.Fprintf(w, "\n%d file(s), %d blocks, %d words\n", o.Total, o.Blocks, o.Words)
 	return nil

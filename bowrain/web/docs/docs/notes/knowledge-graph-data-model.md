@@ -301,7 +301,7 @@ commands. Governed terminology rides ordinary project transport instead
   (`GET /:ws/concepts/:cid/relations`, bounded fan-out), writes both into the
   project's bound termbase via the framework termbase API (`AddConcept` /
   `AddRelation`), and records a `ConceptBaseline` in the sync cache. The snapshot
-  is identical in shape to a local termbase, so `kapi verify --terms` then gates
+  is identical in shape to a local termbase, so `kapi check --ship --terms` then gates
   offline in CI against governed terminology.
 - **`kapi push`** diffs the local termbase against that baseline. Ordinary edits
   (definitions, notes, non-governed terms, non-`REPLACED_BY` relations) go up

@@ -45,7 +45,7 @@ Each finding carries a stable rule id (<check>.<category>) and a block location,
 so an assistant can fix the exact block and track rules across iterations. Output
 is a human table by default; --json emits the kapi.check/v1 Report.
 
-Project gate mode (--ship) absorbs the former 'kapi verify': it runs the
+Project gate mode (--ship): it runs the
 project's bound quality gates (brand, terminology, QA) plus its ship/source
 coverage gates over the project's content, and exits non-zero when any gate is
 unmet — the pre-release bar. Target drift never blocks an ordinary build (see
@@ -82,9 +82,9 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 	f.String("validate", "off", "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the Report; strict also fails the gate on a Major+ structure/encoding problem)")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
 
-	// Project gate mode (--ship): the absorbed `kapi verify` surface.
+	// Project gate mode (--ship): the project gates surface.
 	AddProjectFlag(cmd)
-	f.Bool("ship", false, "project gate mode: run the project's bound gates (brand, terminology, QA) plus its ship/source coverage gates; exit non-zero when unmet (absorbs `kapi verify` — the pre-release bar)")
+	f.Bool("ship", false, "project gate mode: run the project's bound gates (brand, terminology, QA) plus its ship/source coverage gates; exit non-zero when unmet — the pre-release bar")
 	f.String("locale", "", "with --ship: scope the target-side gates to a single target locale (e.g. fr)")
 	f.String("termbase", "", "with --ship: named termbase or glossary path for the terminology gate (defaults to the project termbase)")
 

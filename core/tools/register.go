@@ -237,11 +237,11 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// ── Enrich ──────────────────────────────────────────────────────
 
 	// "recycle" is the canonical id for TM leverage (pre-fill from translation
-	// memory). "tm-leverage" stays as a hidden CLI alias for back-compat.
+	// memory).
 	reg.RegisterWithSchema("recycle", func() tool.Tool {
 		return NewTMLeverageTool(&TMLeverageConfig{FuzzyThreshold: 70, Provider: NullTMProvider{}})
 	}, toolSchema(&TMLeverageConfig{FuzzyThreshold: 70}, toolMeta("recycle", "Recycle", schema.CategoryTranslation,
-		withTags("translation", schema.TagL10n), withAliases("tm-leverage"), withWritesOutput(), withRequires("target-language", "tm"), withCardinality(schema.Bilingual), withConsumes(optF(srcF(model.OverlaySegmentation))), withProduces(srcF(model.AnnoTMMatch), srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)), withSideEffects(schema.SideEffectTMRead))))
+		withTags("translation", schema.TagL10n), withWritesOutput(), withRequires("target-language", "tm"), withCardinality(schema.Bilingual), withConsumes(optF(srcF(model.OverlaySegmentation))), withProduces(srcF(model.AnnoTMMatch), srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)), withSideEffects(schema.SideEffectTMRead))))
 
 	reg.RegisterWithSchema("diff-leverage", func() tool.Tool {
 		return NewDiffLeverageTool(&DiffLeverageConfig{CaseSensitive: true, PreviousTexts: map[string]PreviousBlock{}})

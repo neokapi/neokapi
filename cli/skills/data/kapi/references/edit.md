@@ -85,11 +85,11 @@ applied change-set is safe.
 ## 4. Verify
 
 A written file is not the finish line — a clean check is. In a project, run
-`kapi verify`; for a one-off file, `kapi check`:
+`kapi check --ship`; for a one-off file, `kapi check`:
 
 ```bash
 kapi check report.docx --json     # one-off: deterministic content rules
-kapi verify --json                 # in a project: brand + terminology + QA gates
+kapi check --ship --json                 # in a project: brand + terminology + QA gates
 ```
 
 Read the findings, fix the flagged blocks through another `apply` pass, and

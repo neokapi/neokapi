@@ -41,6 +41,11 @@ func NewPluginCmd(a *App) *cobra.Command {
 	cmd.AddCommand(newPluginRebuildCacheCmd(a))
 	cmd.AddCommand(newPluginVerifyCmd(a))
 	cmd.AddCommand(newPluginDoctorCmd(a))
+	// Plugin registries are plugin configuration: `kapi plugin registry
+	// list/add/remove` is the canonical (and only) home.
+	registry := NewRegistryCmd(a)
+	registry.GroupID = ""
+	cmd.AddCommand(registry)
 	return cmd
 }
 

@@ -91,10 +91,10 @@ Before starting a translation project, analyze the source content:
 kapi word-count -i src/locales/en/
 
 # Detailed scoping report
-kapi scoping-report -i src/locales/en/
+kapi tool scoping-report -i src/locales/en/
 
 # Repetition analysis (find reusable segments)
-kapi repetition-analysis -i src/locales/en/
+kapi tool repetition-analysis -i src/locales/en/
 ```
 
 ### Source Cleanup

@@ -6,7 +6,7 @@ import (
 )
 
 // newCatCmd builds the cat command. Used as the standalone `kcat` root and,
-// via newToolboxProxies, behind the detached `kapi cat` subcommand.
+// via newToolboxProxies, behind the detached `kapi kcat` subcommand.
 func newCatCmd(a *App) *cobra.Command {
 	var (
 		number    bool

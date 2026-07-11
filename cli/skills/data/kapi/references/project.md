@@ -71,16 +71,16 @@ kapi merge -i out/*.xliff            # writes translations into the target files
 
 ## Verify, and fix until it passes
 
-Treat your output as a draft until kapi passes it. `kapi verify` runs the project's
+Treat your output as a draft until kapi passes it. `kapi check --ship` runs the project's
 gates together — brand voice score, terminology against the bound glossary, and
 translation QA (placeholders preserved, nothing left untranslated) — and reports
 the exact findings:
 
 ```bash
-kapi verify --json --no-fail         # report: read `pass` + findings; always exits 0
+kapi check --ship --json --no-fail         # report: read `pass` + findings; always exits 0
 ```
 
-Exit 3 from `kapi verify` means "not on-spec yet", not a crash — it's the gate giving
+Exit 3 from `kapi check --ship` means "not on-spec yet", not a crash — it's the gate giving
 you findings to act on. While you're iterating, pass `--no-fail` so it always exits 0
 and you read the `pass` field; drop `--no-fail` in CI, where the non-zero exit blocks
 the build. Read the findings, fix them, and run it again — loop until it passes. This is the
@@ -88,4 +88,4 @@ gate that makes the result trustworthy regardless of how you produced it.
 
 For unattended runs (CI, no assistant), `kapi translate` / `kapi run translate-qa`
 call a configured provider instead — the project's brand voice and glossary still apply,
-and `kapi verify` is the same gate in the pipeline.
+and `kapi check --ship` is the same gate in the pipeline.

@@ -278,16 +278,19 @@ func TestUp_MaterializeSkipsParkedLocale(t *testing.T) {
 	assert.NotContains(t, out, "Materialized", "a parked locale must not materialize")
 }
 
-// TestRun_BareRunPointsAtUp: the no-argument `kapi run` keeps working but
-// prints the one-release pointer to `kapi up` on stderr.
-func TestRun_BareRunPointsAtUp(t *testing.T) {
+// TestRun_BareRunErrors: `kapi run` takes a flow name only — the bare form
+// errors and points at `kapi up` (hard cutover; run never converges).
+func TestRun_BareRunErrors(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
-	out, err := runConverge(t, a, recipe)
-	require.NoError(t, err, out)
-	assert.Contains(t, out, "note: `kapi up` is the new home of the no-argument run; `kapi run` keeps custom-flow semantics.")
-	assert.Contains(t, out, "Converged", "the bare run still converges")
+	cmd := NewRunCmd(a, RunCmdOptions{})
+	cmd.SetArgs([]string{"--project", recipe})
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	err := cmd.Execute()
+	require.Error(t, err, "bare run must not converge")
+	assert.Contains(t, err.Error(), "kapi up")
 }
 
 // TestUp_FirstRunInlineWizard: a provider-less `kapi up` on a TTY runs the

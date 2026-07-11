@@ -15,11 +15,16 @@ const Group = "bowrain"
 func init() {
 	coreproj.RegisterExtensionGroup(Group, []coreproj.Extension{
 		// ── Project-level top-level keys ──────────────────────────
+		// Everything except server: itself only acts around the server
+		// relationship (hooks/automations fire on push/pull, assets and
+		// brand_voice seed server-side stores), so each declares
+		// DependsOn: "server" — set without it, the field is inert and
+		// kapi status/check surface that instead of silently ignoring it.
 		{Name: "server", Scope: coreproj.ScopeProject, Decoder: serverDecoder},
-		{Name: "hooks", Scope: coreproj.ScopeProject, Decoder: hooksDecoder},
-		{Name: "automations", Scope: coreproj.ScopeProject, Decoder: automationsDecoder},
-		{Name: "assets", Scope: coreproj.ScopeProject, Decoder: assetsDecoder},
-		{Name: "brand_voice", Scope: coreproj.ScopeProject, Decoder: brandVoiceDecoder},
+		{Name: "hooks", Scope: coreproj.ScopeProject, Decoder: hooksDecoder, DependsOn: "server"},
+		{Name: "automations", Scope: coreproj.ScopeProject, Decoder: automationsDecoder, DependsOn: "server"},
+		{Name: "assets", Scope: coreproj.ScopeProject, Decoder: assetsDecoder, DependsOn: "server"},
+		{Name: "brand_voice", Scope: coreproj.ScopeProject, Decoder: brandVoiceDecoder, DependsOn: "server"},
 
 		// ── Per-item keys ─────────────────────────────────────────
 		{Name: "collection", Scope: coreproj.ScopeItem, Decoder: stringDecoder},

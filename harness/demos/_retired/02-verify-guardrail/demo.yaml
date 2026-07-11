@@ -66,10 +66,10 @@ narration:
   - id: verify
     kind: terminal
     text: >
-      Then it runs kapi verify: brand voice, terminology, and placeholders, all in one gate.
+      Then it runs kapi check --ship: brand voice, terminology, and placeholders, all in one gate.
       Because it translated against the project's rules, every check comes back green — and
       only then does it call the work done.
-    caption: "kapi verify — brand, terminology, placeholders: all green"
+    caption: "kapi check --ship — brand, terminology, placeholders: all green"
   - id: before
     kind: artifact
     artifact: before

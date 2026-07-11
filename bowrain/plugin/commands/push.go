@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	pushForce  bool
-	pushDryRun bool
-	pushStream string
+	pushForce        bool
+	pushDryRun       bool
+	pushStream       string
+	pushConceptsOnly bool
 )
 
 var pushCmd = &cobra.Command{
@@ -88,6 +89,28 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*Pu
 }
 
 func runPush(cmd *cobra.Command, args []string) error {
+	// --concepts: terminology-only transport. Reconcile local termbase edits
+	// against the pulled baseline (direct edits + governed change-set) without
+	// moving any content blocks and without firing push hooks — the mirror of
+	// `kapi pull --concepts`.
+	if pushConceptsOnly {
+		proj, err := project.FindProject("")
+		if err != nil {
+			return err
+		}
+		out := output.PushOutput{DryRun: pushDryRun}
+		if cres, cerr := conceptPush(cmd.Context(), proj, pushDryRun); cerr != nil {
+			return cerr
+		} else if cres != nil {
+			out.ConceptsApplied = cres.ConceptsApplied
+			out.RelationsApplied = cres.RelationsApplied
+			out.ConceptsProposed = cres.ConceptsProposed
+			out.ChangesetID = cres.ChangesetID
+			out.ChangesetURL = cres.ChangesetURL
+		}
+		return output.Print(cmd, out)
+	}
+
 	// Run pre-push automations.
 	if proj := findProjectForAutomations(); proj != nil {
 		if err := runLocalAutomations(cmd, proj, "pre-push"); err != nil {
@@ -147,5 +170,6 @@ func init() {
 	pushCmd.Flags().BoolVar(&pushForce, "force", false, "Re-upload everything, even unchanged blocks")
 	pushCmd.Flags().BoolVar(&pushDryRun, "dry-run", false, "Show what would be uploaded without sending")
 	pushCmd.Flags().StringVar(&pushStream, "stream", "", "Target stream (default: auto-detect from git/CI)")
+	pushCmd.Flags().BoolVar(&pushConceptsOnly, "concepts", false, "Sync only local terminology edits to the workspace (direct edits + governed change-set); no content transport, no hooks")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(pushCmd) })
 }

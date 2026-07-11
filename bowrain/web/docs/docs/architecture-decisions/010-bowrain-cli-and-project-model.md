@@ -9,8 +9,9 @@ title: "AD-010: Bowrain CLI and Project Model"
 ## Summary
 
 Bowrain ships as a **manifest-driven kapi plugin**, not as part of the
-`kapi` binary. The bowrain commands (`push`, `pull`, `up`, `status`,
-`init`, `auth`, …), the source connector that implements push/pull against
+`kapi` binary. The bowrain commands (`push`, `pull`, `auth`, the
+`kapi bowrain …` group, the `server-up`/`server-status` plumbing behind the
+built-in `up`/`status`, …), the source connector that implements push/pull against
 bowrain-server, the bowrain MCP tools, and the recipe-schema decoders that
 validate `server:`/`hooks:`/`automations:` all live in `bowrain/plugin/`
 and compile into a standalone plugin binary, `kapi-bowrain` (built from
@@ -129,30 +130,42 @@ opened; push/pull is invoked by spawning `kapi-bowrain`.
 
 With the plugin installed, `kapi` exposes:
 
-- Framework commands (built into `kapi`): `run`, `extract`, `merge`,
-  `add`, `rm`, `ls`, `flows`, `tools`, `formats`, `plugins`, `registry`,
-  `presets`, `termbase`, `tm`, `credentials`, `mcp`, `version`. The
+- Framework commands (built into `kapi`): `up`, `run`, `extract`, `merge`,
+  `add`, `rm`, `ls`, `flows`, `tool`, `tools`, `formats`, `plugin`,
+  `termbase`, `tm`, `credentials`, `mcp`, `version`. The
   local project-content commands `add`/`rm`/`ls` are core — they edit and
   list the `.kapi` recipe's content, which is local configuration, not a
   server concern (a server-connected project just declares `requires: bowrain`).
-- Bowrain commands (contributed by the `kapi-bowrain` manifest): `init`,
-  `push`, `pull`, `up`, `status`, `diff`, `config`,
-  `auth`, `stream`, `serve`, `ui`, `workspace`. Sync state — including which
-  tracked files changed vs the server — is `kapi status` (the home of the
-  former `ls --dirty`).
+- Bowrain commands (contributed by the `kapi-bowrain` manifest) follow the
+  **no-shadowing rule**: installing the plugin never changes what an
+  existing kapi verb means. New verbs attach top-level: `push`, `pull`,
+  `diff` (local-vs-server block diff; the format-aware file differ's
+  kapi-side spelling is `kdiff` only, so the name is free), `auth`,
+  `stream`, `ui`, `workspace`. The one group-scoped verb is
+  `kapi bowrain config`, kept for the `--global` bowrain.yaml niche — the
+  built-in `kapi config` covers the recipe keys positionally
+  (`kapi config server.url …`). Participation in core verbs happens
+  through a command contribution (`kapi init --server …`) and hidden
+  dispatch plumbing (`server-status`, merged into `kapi status`;
+  `server-up`, the server venue behind `kapi up`; `server-ls`, the SYNC
+  column on `kapi ls`) — never a replacement command. Sync state lives on
+  the built-ins: aggregate standing in `kapi status`, per-file pending
+  counts in `kapi ls`.
 
 These commands separate three concerns. **Transport** is `push` and `pull`:
 pure data movement that makes the local checkout and the server replica
 consistent (Merkle diff, conflicts, terminology hand-off), never producing
-translations. **Convergence** is `up` (the plugin declares the verb in its
-manifest, overriding the built-in when installed): in a server-connected project
-`kapi up` runs the convergence loop *on the server* by default — it pushes drift, the server
-converges on the org's keys and shared assets, progress streams back live, and
-results pull down; `kapi up --local` runs the loop on this machine and pushes
-the results. **Venue** — where `up`'s compute executes — is therefore a property
-of the project (`server:` presence plus the `server.converge` policy below), not
-a separate verb. There is no `sync` verb: pushing and then waiting for the server
-to translate is exactly what `kapi up` expresses in a connected project.
+translations. **Convergence** is `up`: the built-in owns the verb in every
+install and resolves the venue itself — when the recipe declares `server:`
+and the plugin is installed, `kapi up` prints the resolved venue and
+dispatches the run to the hidden `server-up` plumbing, which pushes drift,
+converges on the server (org keys, shared assets), streams progress back
+live, and pulls the results down; `kapi up --local` runs the loop on this
+machine and pushes the results. **Venue** — where `up`'s compute executes —
+is therefore a property of the project (`server:` presence plus the
+`server.converge` policy below), not a separate verb. There is no `sync`
+verb: pushing and then waiting for the server to translate is exactly what
+`kapi up` expresses in a connected project.
 
 Each bowrain capability is dispatched according to its manifest entry:
 

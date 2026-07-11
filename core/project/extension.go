@@ -68,6 +68,13 @@ type Extension struct {
 	// extension is registered as a marker only (so HasExtensionGroup
 	// reports the Group present) without doing schema validation.
 	Decoder ExtensionDecoder
+	// DependsOn optionally names a sibling extras key at the same scope
+	// that must be present for this extension to have any effect (e.g.
+	// bowrain's hooks/automations depend on "server" — they only run
+	// around push/pull). A recipe that sets this key without its
+	// dependency parses fine but the field is inert; hosts surface that
+	// via InertProjectExtras rather than failing the load.
+	DependsOn string
 }
 
 // The registry state lives in the internal extregistry package so the public
@@ -86,7 +93,7 @@ func RegisterExtension(ext Extension) {
 	if ext.Decoder != nil {
 		decode = ext.Decoder.Decode
 	}
-	if !extregistry.Register(int(ext.Scope), ext.Name, extregistry.Entry{Group: ext.Group, Decode: decode}) {
+	if !extregistry.Register(int(ext.Scope), ext.Name, extregistry.Entry{Group: ext.Group, Decode: decode, DependsOn: ext.DependsOn}) {
 		panic(fmt.Sprintf("project: RegisterExtension: duplicate registration for %s/%s", ext.Scope, ext.Name))
 	}
 }
@@ -144,11 +151,41 @@ func extensionFor(scope Scope, name string) (Extension, bool) {
 	if !ok {
 		return Extension{}, false
 	}
-	x := Extension{Name: name, Scope: scope, Group: e.Group}
+	x := Extension{Name: name, Scope: scope, Group: e.Group, DependsOn: e.DependsOn}
 	if e.Decode != nil {
 		x.Decoder = ExtensionDecoderFunc(e.Decode)
 	}
 	return x, true
+}
+
+// InertExtra describes a project-scope extras key whose registered
+// extension declares a DependsOn sibling that the recipe does not set:
+// the field parses and round-trips, but nothing acts on it.
+type InertExtra struct {
+	// Name is the inert extras key (e.g. "automations").
+	Name string
+	// DependsOn is the missing sibling key it needs (e.g. "server").
+	DependsOn string
+}
+
+// InertProjectExtras reports the project-scope extras in p that are inert
+// because the sibling key their extension depends on is absent. Sorted by
+// name for stable output. Extras with no registered extension (unknown to
+// this binary) are never reported — forward compatibility stays intact.
+func (p *KapiProject) InertProjectExtras() []InertExtra {
+	var out []InertExtra
+	for name := range p.Extras {
+		ext, ok := extensionFor(ScopeProject, name)
+		if !ok || ext.DependsOn == "" {
+			continue
+		}
+		if _, present := p.Extras[ext.DependsOn]; present {
+			continue
+		}
+		out = append(out, InertExtra{Name: name, DependsOn: ext.DependsOn})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
 }
 
 // validateExtras walks one Extras map and runs any registered decoder

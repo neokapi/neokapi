@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -62,23 +61,4 @@ func TestCheckShip_NoFailReportsButExitsZero(t *testing.T) {
 	out, runErr := captureStdout(t, func() error { return a.RunCheck(cmd, nil) })
 	require.NoError(t, runErr, "--no-fail downgrades a failing gate to report-only")
 	assert.Contains(t, out, "FAIL", "the verdict is still reported")
-}
-
-// TestVerifyAlias_HiddenAndForwards: `kapi verify` survives as a hidden
-// one-release alias that prints a deprecation pointer and forwards to the
-// same engine `kapi check --ship` uses.
-func TestVerifyAlias_HiddenAndForwards(t *testing.T) {
-	root, _ := writeVerifyProject(t)
-	t.Chdir(root)
-
-	a := &App{}
-	cmd := NewVerifyCmd(a)
-	assert.True(t, cmd.Hidden, "verify is a hidden alias (#1078 one-release policy)")
-	assert.Empty(t, cmd.GroupID, "hidden aliases are excluded from the help groups")
-
-	var stderr bytes.Buffer
-	cmd.SetErr(&stderr)
-	_, runErr := captureStdout(t, func() error { return cmd.RunE(cmd, nil) })
-	require.ErrorIs(t, runErr, ErrQualityGate, "the alias still gates")
-	assert.Contains(t, stderr.String(), "note: `kapi verify` is deprecated — use `kapi check --ship`")
 }

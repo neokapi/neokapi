@@ -67,7 +67,7 @@ func TestHookStop_BlocksOnFailingProject(t *testing.T) {
 
 	require.NotEmpty(t, raw, "a failing project must produce a block decision")
 	assert.Equal(t, "block", dec.Decision, "the hook must keep Claude working")
-	assert.Contains(t, dec.Reason, "kapi verify", "the reason should point at the gate")
+	assert.Contains(t, dec.Reason, "kapi check --ship", "the reason should point at the gate")
 	assert.Contains(t, dec.Reason, "Enregistrer", "the terminology finding should be surfaced to Claude")
 }
 

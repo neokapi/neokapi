@@ -42,7 +42,7 @@ Ask for enforcement, or for curation:
 
 > Check the French files against our glossary and fix what drifts.
 
-The assistant looks up approved terms before it writes (`kapi termbase lookup`), runs `term-check` after, and fixes flagged targets through the round-trip. It can also grow the glossary: candidate terms it spots (or `kapi term-extract` surfaces) land as `kind:"term"` change-set entries through `kapi apply` — written to the committed glossary source, for you to approve in `git diff`.
+The assistant looks up approved terms before it writes (`kapi termbase lookup`), runs `term-check` after, and fixes flagged targets through the round-trip. It can also grow the glossary: candidate terms it spots (or `kapi tool term-extract` surfaces) land as `kind:"term"` change-set entries through `kapi apply` — written to the committed glossary source, for you to approve in `git diff`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">

@@ -6,7 +6,7 @@ import (
 )
 
 // newConvCmd builds the convert command (standalone `kconv` root and the hidden
-// `kapi convert` proxy).
+// `kapi kconv` proxy).
 func newConvCmd(a *App) *cobra.Command {
 	var (
 		to        string

@@ -140,6 +140,8 @@ var (
 	NewConvergeEventRenderer     = host.NewConvergeEventRenderer
 	NewConvergeRenderer          = host.NewConvergeRenderer
 	NewEnvCommand                = host.NewEnvCommand
+	RecipeConfigGet              = host.RecipeConfigGet
+	RecipeConfigSet              = host.RecipeConfigSet
 	NewMatcher                   = host.NewMatcher
 	NewSedTool                   = host.NewSedTool
 	NormalizeSedInPlaceArgs      = host.NormalizeSedInPlaceArgs

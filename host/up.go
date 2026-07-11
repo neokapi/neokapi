@@ -55,6 +55,39 @@ func AddUpFlags(cmd Command) {
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 }
 
+// ServerRecipeURL reports whether the recipe at projectPath declares a
+// server: block, and the declared URL when parsable. Best-effort: a load or
+// decode error reports no server — ExecuteUp surfaces real load failures.
+func (a *App) ServerRecipeURL(projectPath string) (hasServer bool, url string) {
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return false, ""
+	}
+	spec, ok := serverRecipeSpec(proj)
+	return ok, spec.URL
+}
+
+// serverRecipeSpecFields is the venue-relevant subset of the recipe's
+// server: block. The full extension schema is owned by the bowrain plugin;
+// reading the raw extension node keeps the venue decision plugin-free.
+type serverRecipeSpecFields struct {
+	URL      string `yaml:"url"`
+	Converge string `yaml:"converge"`
+}
+
+// serverRecipeSpec decodes the venue-relevant fields of a loaded project's
+// server: block. ok reports whether the block is present at all; decode
+// errors leave the fields empty (best-effort — schema validation happens at
+// project load when the plugin's extension decoder is registered).
+func serverRecipeSpec(proj *project.KapiProject) (spec serverRecipeSpecFields, ok bool) {
+	node, found := proj.Extras["server"]
+	if !found {
+		return spec, false
+	}
+	_ = node.Decode(&spec)
+	return spec, true
+}
+
 // WarnIfServerRecipeConvergingLocally prints a one-line stderr warning when a
 // recipe declares a server: block but the built-in up (no bowrain plugin) is
 // about to converge it locally: the run spends the user's own AI provider and
@@ -64,11 +97,7 @@ func (a *App) WarnIfServerRecipeConvergingLocally(cmd Command, projectPath strin
 	if a.Quiet {
 		return
 	}
-	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
-	if err != nil {
-		return
-	}
-	if _, hasServer := proj.Extras["server"]; !hasServer {
+	if hasServer, _ := a.ServerRecipeURL(projectPath); !hasServer {
 		return
 	}
 	fmt.Fprintln(cmd.ErrOrStderr(),
