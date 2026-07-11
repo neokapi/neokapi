@@ -28,7 +28,7 @@ func (a *App) OpenTermbaseSQLite(cmd Command) (termbase.TermBase, string, error)
 // subcommand operates on. An explicit --name/--file/--local flag always wins.
 // Otherwise, when run inside a .kapi project, it defaults to the project's bound
 // termbase (defaults.termbase, else <root>/.kapi/termbase.db) so that
-// `kapi termbase lookup`/`import` see the same glossary that `kapi verify` and
+// `kapi termbase lookup`/`import` see the same glossary that `kapi check --ship` and
 // `kapi term-check` enforce — without it, a lookup inside a project silently
 // hit an empty ./termbase.db. Falls back to ./termbase.db outside a project.
 func (a *App) ResolveTermbaseCmdPath(cmd Command) (string, error) {

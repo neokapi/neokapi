@@ -12,7 +12,7 @@ When the project is claimed into a workspace, pull also snapshots the
 workspace's governed concepts and their relations into the project's bound
 termbase (`.kapi/termbase.db`) and records a baseline, so a later
 [`kapi push`](/cli/commands/push) can diff local terminology edits against it
-and [`kapi verify --terms`](/cli/use-cases/brand-terminology-ci) gates offline
+and [`kapi check --ship --terms`](/cli/use-cases/brand-terminology-ci) gates offline
 against the same governed vocabulary. See
 [Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci).
 
@@ -85,7 +85,7 @@ This is efficient because the server's change log is indexed by locale.
 
 - [`kapi push`](/cli/commands/push) — Send local changes to server
 - [`kapi status`](/cli/commands/status) — Show sync state
-- [`kapi bowrain diff`](/cli/commands/diff) — Show detailed changes
+- [`kapi diff`](/cli/commands/diff) — Show detailed changes
 
 ## When to Use
 
@@ -94,7 +94,7 @@ Pull from Bowrain Server to:
 - **Fetch translations** completed by team members
 - **Get AI/MT suggestions** generated on the server
 - **Sync governed terminology** — the workspace's concepts and relations into
-  the local termbase, so [`kapi verify --terms`](/cli/use-cases/brand-terminology-ci)
+  the local termbase, so [`kapi check --ship --terms`](/cli/use-cases/brand-terminology-ci)
   can gate offline
 - **Update source content** that entered Bowrain through another connector
 

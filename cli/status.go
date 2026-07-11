@@ -4,7 +4,7 @@ import "github.com/spf13/cobra"
 
 // NewStatusCmd creates `kapi status`: a project dashboard showing per-locale
 // translation coverage and ship-gate standing — the informational counterpart
-// to `kapi verify` (the gate). State is derived from the project's content ×
+// to `kapi check --ship` (the gate). State is derived from the project's content ×
 // target files, so it is always current with the working tree.
 //
 // The built-in owns the verb in every install (the no-shadowing rule): a
@@ -21,7 +21,7 @@ translated and whether it clears its ship gate — a derived dashboard, like
 git status. Coverage is recomputed from the content × target files on every run;
 nothing is tracked as state.
 
-This is the informational counterpart to 'kapi verify' (the quality gate). It
+This is the informational counterpart to 'kapi check --ship' (the quality gate). It
 never fails: a locale that is behind is reported as pending, not an error —
 target-language drift is normal, expected work, not a build break.`,
 		Args: cobra.NoArgs,

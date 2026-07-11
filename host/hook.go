@@ -114,14 +114,14 @@ func readStopHookInput(r io.Reader) stopHookInput {
 }
 
 // hookBlockReason renders the failing gates' findings as the instruction fed
-// back to Claude. It mirrors what the assistant would see from `kapi verify`
+// back to Claude. It mirrors what the assistant would see from `kapi check --ship`
 // so the guidance is consistent however the assistant arrives at it.
 func hookBlockReason(out verifyOutput) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "kapi verify has not passed yet — %d of %d gate(s) failing. ",
+	fmt.Fprintf(&b, "kapi check --ship has not passed yet — %d of %d gate(s) failing. ",
 		out.Summary.Failed, out.Summary.Gates)
 	b.WriteString("Fix the findings below in the affected files, then finish; ")
-	b.WriteString("kapi verify re-checks before you can stop.\n\n")
+	b.WriteString("kapi check --ship re-checks before you can stop.\n\n")
 
 	shown := 0
 	for _, g := range out.Gates {
@@ -151,7 +151,7 @@ func hookBlockReason(out verifyOutput) string {
 		fmt.Fprintf(&b, "  … and %d more.\n", out.Summary.Findings-shown)
 	}
 
-	b.WriteString("\nRun `kapi verify` to see the full report. ")
+	b.WriteString("\nRun `kapi check --ship` to see the full report. ")
 	b.WriteString("A finding on a source file means the source needs fixing too, not just the translation.")
 	return b.String()
 }
@@ -282,7 +282,7 @@ func preEditDenyReason(root, targetAbs, sourceAbs, locale string) string {
 			"never passes through kapi's terminology, placeholder, and brand-voice gates.\n\n"+
 			"Don't edit the target directly. To revise the %s translation, route it through kapi: "+
 			"`kapi extract --target-lang %s` → fill the targets (follow `kapi brand guide` and the "+
-			"glossary, keep placeholders intact) → `kapi merge -i out/*.xliff` → `kapi verify`. "+
+			"glossary, keep placeholders intact) → `kapi merge -i out/*.xliff` → `kapi check --ship`. "+
 			"To change the meaning for every language, edit the source %s instead and re-run the round-trip.",
 		target, source, locale, locale, locale, source,
 	)

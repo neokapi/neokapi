@@ -45,30 +45,11 @@
             "short": "Validate a brand voice profile YAML (structure, enums, regex, terms)"
           }
         },
-        "brand-voice-check": {
-          "example": "  kapi brand-voice-check messages.json --target-lang fr\n  kapi brand-voice-check app.xliff --target-lang de",
-          "short": "Check text against a brand voice profile using an LLM provider"
-        },
-        "brand-voice-infer": {
-          "short": "Infer a draft brand voice profile from a content corpus using an LLM provider"
-        },
-        "case-transform": {
-          "example": "  kapi case-transform messages.json --mode upper\n  kapi case-transform messages.json --mode lower",
-          "short": "Case Transform"
-        },
         "cat": {
           "short": "Print the text/content inside files (use kcat)"
         },
-        "char-count": {
-          "example": "  kapi char-count messages.json\n  kapi char-count page.html",
-          "short": "Character Count"
-        },
-        "chars-check": {
-          "example": "  kapi chars-check app.xliff --target-lang fr\n  kapi chars-check app.xliff --target-lang zh",
-          "short": "Characters Check"
-        },
         "check": {
-          "long": "Run content checks over one or more files and return structured findings\nplus a pass/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual localization checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --json emits the kapi.check/v1 Report.\n\nProject gate mode (--ship) absorbs the former 'kapi verify': it runs the\nproject's bound quality gates (brand, terminology, QA) plus its ship/source\ncoverage gates over the project's content, and exits non-zero when any gate is\nunmet — the pre-release bar. Target drift never blocks an ordinary build (see\n'kapi status'); --ship is the explicit, opt-in enforcement point. With no file\narguments it inspects the project's content x target languages; pass files to\ngate just those.\n\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n0 (report mode) for a fix-loop.",
+          "long": "Run content checks over one or more files and return structured findings\nplus a pass/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual localization checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --json emits the kapi.check/v1 Report.\n\nProject gate mode (--ship): it runs the\nproject's bound quality gates (brand, terminology, QA) plus its ship/source\ncoverage gates over the project's content, and exits non-zero when any gate is\nunmet — the pre-release bar. Target drift never blocks an ordinary build (see\n'kapi status'); --ship is the explicit, opt-in enforcement point. With no file\narguments it inspects the project's content x target languages; pass files to\ngate just those.\n\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n0 (report mode) for a fix-loop.",
           "short": "Verify content against a checkset and gate on severity, like tests over code"
         },
         "completion": {
@@ -76,24 +57,21 @@
           "short": "Generate shell completion script"
         },
         "config": {
-          "example": "  kapi config set ai.provider ollama\n  kapi config set ai.model llama3.2:3b\n  kapi config get ai.provider\n  kapi config list",
+          "example": "  kapi config set ai.provider ollama   # app config\n  kapi config get ai.provider\n  kapi config list\n  kapi config name                     # recipe: print the project name\n  kapi config name \"My Project\"        # recipe: set the project name\n  kapi config server.url https://bowrain.example/acme/app",
           "get": {
             "short": "Print a single config value"
           },
           "list": {
             "short": "List all configured values"
           },
-          "long": "Read and write kapi's app configuration (the global config file, typically ~/.config/kapi/kapi.yaml).\n\nCommon keys:\n  ai.provider   default AI provider for ai-translate / ai-qa / brand-voice-check / flows\n                (e.g. `ollama` to default to a free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider/--model flag, inline config, or project recipe default always overrides these.",
+          "long": "Read and write configuration.\n\nApp configuration (the global config file, typically ~/.config/kapi/kapi.yaml)\nuses the subcommands. Common keys:\n  ai.provider   default AI provider for translate / qa / brand-voice-check / flows\n                (e.g. `ollama` to default to a free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider/--model flag, inline config, or project recipe default always overrides these.\n\nProject recipe fields use the positional form: with one argument the key is\nprinted, with two it is set and the recipe saved. Core keys: name,\nsource_language, preset. Dotted keys edit a registered recipe block\n(e.g. server.url, server.stream on a connected project).",
           "path": {
             "short": "Print the global config file path"
           },
           "set": {
             "short": "Set a config value (persists to the global config file)"
           },
-          "short": "Get or set kapi configuration"
-        },
-        "content-lint": {
-          "short": "Content Lint"
+          "short": "Get or set kapi configuration (app config subcommands, recipe keys positionally)"
         },
         "convert": {
           "short": "Convert files between formats (use kconv)"
@@ -114,15 +92,6 @@
             "short": "Test that a credential's API key is accessible"
           }
         },
-        "diff": {
-          "short": "Compare the text/content of files (use kdiff)"
-        },
-        "diff-leverage": {
-          "short": "Diff Leverage"
-        },
-        "encoding-detect": {
-          "short": "Encoding Detect"
-        },
         "engine": {
           "serve": {
             "example": "  kapi engine serve\n  kapi engine serve --socket /tmp/my-engine.sock\n  kapi engine serve --stdio",
@@ -130,9 +99,6 @@
             "short": "Serve the EngineService gRPC API on a local Unix socket or stdio"
           },
           "short": "Serve the content engine as a local gRPC API"
-        },
-        "entity-extract": {
-          "short": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both"
         },
         "extract": {
           "example": "  kapi extract -p app.kapi --no-tm\n  kapi extract -p app.kapi --target-lang fr\n  kapi extract -p app.kapi --target-lang fr,de,es\n  kapi extract src/*.json -o work.klz --target-lang fr,qps   # ad-hoc .klz workspace",
@@ -172,12 +138,8 @@
           "short": "Integration hooks for AI coding assistants (Claude Code)",
           "stop": {
             "long": "Claude Code Stop hook. Reads the Stop-event JSON on stdin, runs the\nverify gates for the project in the session's working directory, and:\n\n  - emits nothing (exit 0) when the project passes, when there is no .kapi\n    project, or when verify cannot run — Claude is free to finish; or\n  - emits {\"decision\":\"block\",\"reason\":\"…findings…\"} (exit 0) when a gate\n    fails, so Claude keeps working and fixes the findings before stopping.\n\nWire it up via the kapi Claude Code plugin (hooks/hooks.json). It fails open:\nanything other than a clean gate failure lets Claude stop, so a missing project\nor a verify error never traps the assistant. Claude Code caps consecutive\nblocks, so an unfixable finding cannot loop forever.",
-            "short": "Claude Code Stop hook: keep working until the project's kapi verify gates pass"
+            "short": "Claude Code Stop hook: keep working until the project's kapi check --ship gates pass"
           }
-        },
-        "inconsistency-check": {
-          "example": "  kapi inconsistency-check app.xliff --target-lang fr\n  kapi inconsistency-check app.xliff --target-lang de",
-          "short": "Inconsistency Check"
         },
         "info": {
           "example": "  kapi info work.klz",
@@ -192,10 +154,6 @@
           "long": "Parse each file into one record per content block: the text, a stable\ncontent-hash anchor, and the block's structural role (heading, list-item,\ntable-cell, …) and nesting level. Any format — a Word document, a JSON catalog,\nMarkdown, HTML — yields the same shape, so an AI agent or RAG pipeline can read\ncontent, retrieve against the anchors, and write edits back to the same blocks.\n\nPrints a JSON array by default; --jsonl streams one JSON object per line (JSONL)\nfor piping into an ingestion pipeline; --yaml emits a YAML sequence.\nWith no FILE, or when FILE is \"-\", standard input is read.",
           "short": "Parse any format into anchored, structured content blocks"
         },
-        "length-check": {
-          "example": "  kapi length-check app.xliff --target-lang fr\n  kapi length-check app.xliff --target-lang ja",
-          "short": "Length Check"
-        },
         "long": "kapi parses any format into one unified content model, edits the content\ninside it, checks it, and writes it back byte-for-byte. At heart, both a\nlocalization engine and the tool that keeps your source content on brand:\nconvert formats, translate with AI, and run quality checks across a wide range\nof file types.",
         "ls": {
           "long": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats",
@@ -203,9 +161,6 @@
         },
         "mcp": {
           "short": "Start MCP server (stdio) exposing kapi's content tools (read, edit, check, brand, localize)"
-        },
-        "media-refine": {
-          "short": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM"
         },
         "merge": {
           "example": "  kapi merge                     # materialize localized files from the project store\n  kapi merge -i out/app.en-US-to-fr-FR.xliff\n  kapi merge -i file1.xliff -i file2.xliff\n  kapi merge -i vendor-return/ --no-tm-update\n  kapi merge work.klz -o l10n/   # emit localized files from a .klz workspace",
@@ -255,32 +210,10 @@
           },
           "short": "Manage attached LLMs and ML models"
         },
-        "ollama": {
-          "install": {
-            "long": "Show the platform-appropriate command to install the Ollama runtime. With --run on\nmacOS (and Homebrew present), kapi runs `brew install ollama` for you.",
-            "short": "Print how to install the Ollama runtime (or install it on macOS with --run)"
-          },
-          "list": {
-            "short": "List models installed on the Ollama server"
-          },
-          "long": "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n(GPU-accelerated) translation. Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest — `kapi models ollama pull \u003cmodel\u003e` installs\na model, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
-          "pull": {
-            "long": "Install a model so kapi can translate with it locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
-            "short": "Download a model onto the Ollama server"
-          },
-          "short": "Manage the local Ollama runtime for on-device translation",
-          "status": {
-            "short": "Show whether the Ollama runtime is installed, running, and which models are present"
-          }
-        },
         "pack": {
           "example": "  kapi pack -o snapshot.klz   # a .kapi project\n  kapi pack work.klz         # eject a .klz workspace's cache",
           "long": "Snapshot a .kapi project's working state — the block-store overlays, the\nauthoritative translation memory, and the termbase — into a portable .klz.\nRegenerable caches and secrets are excluded. Move the snapshot to another\nmachine and \"kapi unpack\" it to resume work there.",
           "short": "Snapshot a .kapi project's working state into a .klz"
-        },
-        "pattern-check": {
-          "example": "  kapi pattern-check app.xliff --target-lang fr\n  kapi pattern-check app.xliff --target-lang de",
-          "short": "Pattern Check"
         },
         "plugin": {
           "doctor": {
@@ -334,19 +267,6 @@
             "short": "Re-verify an installed plugin's manifest and binary"
           }
         },
-        "presets": {
-          "example": "  kapi presets list\n  kapi presets show AndroidStrings",
-          "list": {
-            "example": "  kapi presets list\n  kapi presets list --format okf_xml",
-            "short": "List available presets"
-          },
-          "short": "Manage format and framework presets",
-          "show": {
-            "example": "  kapi presets show AndroidStrings\n  kapi presets show okf_xml:AndroidStrings",
-            "long": "Show detailed configuration for a preset.\n\nAccepts a bare preset name (searched across all formats) or the\nqualified format:preset syntax (e.g. okf_xml:AndroidStrings).",
-            "short": "Show preset details"
-          }
-        },
         "pseudo-translate": {
           "example": "  kapi pseudo-translate messages.json -o messages.pseudo.json\n  kapi pseudo-translate app.xliff -o app.pseudo.xliff --target-lang qps",
           "short": "Pseudo Translate"
@@ -359,80 +279,27 @@
           "example": "  kapi recycle app.xliff --target-lang fr\n  kapi recycle messages.json --target-lang de",
           "short": "Recycle"
         },
-        "redact": {
-          "short": "Replace sensitive spans with protected placeholders before processing"
-        },
-        "registry": {
-          "add": {
-            "short": "Add a registry to global config"
-          },
-          "list": {
-            "short": "List configured registries"
-          },
-          "remove": {
-            "short": "Remove a registry from global config"
-          },
-          "short": "Manage plugin registries"
-        },
-        "repetition-analysis": {
-          "example": "  kapi repetition-analysis messages.json\n  kapi repetition-analysis app.xliff",
-          "short": "Repetition Analysis"
-        },
-        "review": {
-          "example": "  kapi review app.xliff --target-lang fr\n  kapi review messages.json --target-lang de",
-          "short": "Review translations with scoring using an LLM provider"
-        },
         "rm": {
           "long": "Stop tracking files matching the given patterns.\n\nIf a pattern matches one added with 'kapi add', the mapping is removed.\nOtherwise the pattern is added to the exclude list so those files are skipped.\n\n  kapi rm \"src/**/*.html\"       # remove the mapping\n  kapi rm \"src/legacy/*.html\"   # exclude matching files",
           "short": "Remove file patterns from the project's content"
         },
         "run": {
-          "example": "  kapi run                                  # converge the project's default flow\n  kapi run --until-gate                     # loop until every gated scope ships\n  kapi run translate-qa -i app.xliff --target-lang fr\n  kapi run translate-qa -i messages.json --target-lang de",
-          "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\n\nWith no flow name, kapi runs the project's default flow (defaults.flow) over\nall content across every target language — bringing the project up to date in\none pass. Add --until-gate to loop that pass until every gated scope is\nshippable (or a pass stalls), parking whatever still needs a human. Convergence\nnever fails the build: parked, drifted target content is normal toil, reported\nrather than thrown.\n\nThe no-argument run's porcelain home is 'kapi up', which loops to the gates by\ndefault; 'kapi run' keeps custom-flow semantics.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi",
-          "short": "Run a composed flow, or converge the project's default flow"
-        },
-        "scoping-report": {
-          "example": "  kapi scoping-report messages.json\n  kapi scoping-report app.xliff --json",
-          "short": "Scoping Report"
-        },
-        "script": {
-          "short": "Script"
-        },
-        "search-replace": {
-          "example": "  kapi search-replace messages.json --find \"foo\" --replace \"bar\"\n  kapi search-replace page.html --find \"colour\" --replace \"color\"",
-          "short": "Search and Replace"
+          "example": "  kapi run translate-qa -i app.xliff --target-lang fr\n  kapi run translate-qa -i messages.json --target-lang de\n  kapi run pseudo -p myproject.kapi         # a project-defined flow",
+          "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\nTo reconcile the whole project toward its ship gates, use 'kapi up' —\nrun is the escape hatch for one named pipeline, one pass.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi",
+          "short": "Run a composed flow (a named multi-tool pipeline)"
         },
         "sed": {
           "short": "Stream-edit the text/content inside files (use ksed)"
         },
-        "segment-count": {
-          "example": "  kapi segment-count messages.json\n  kapi segment-count app.xliff",
-          "short": "Segment Count"
-        },
-        "segmentation": {
-          "example": "  kapi segmentation messages.json\n  kapi segmentation app.xliff",
-          "short": "Split source text into sentence or chunk segments (stand-off overlay)"
-        },
         "short": "A format-aware content toolkit — parse, edit, check, and localize any format",
-        "source-check": {
-          "short": "Source Readiness"
-        },
         "stats": {
           "example": "  kapi stats report.docx\n  kapi stats --json docs/*.md | jq '.total.words'\n  cat page.html | kapi stats -f html",
           "long": "Summarize the content of one or more files: total and translatable blocks,\nword and character counts (with and without spaces), segments, and a breakdown\nby structural role (heading, paragraph, list-item, table-cell, …). Any format —\na Word document, a JSON catalog, Markdown, HTML — yields the same shape.\n\nWord, character, and segment counts cover the translatable content; block and\nrole counts cover the whole document. Prints a human table by default; --json\nemits the structured record for piping into a pipeline.\n\nWith no FILE, or when FILE is \"-\", standard input is read.",
           "short": "Summarize content metrics for files — blocks, words, characters, segments, by role"
         },
         "status": {
-          "long": "Show, per target locale, how much of the project's tracked content is\ntranslated and whether it clears its ship gate — a derived dashboard, like\ngit status. Coverage is recomputed from the content × target files on every run;\nnothing is tracked as state.\n\nThis is the informational counterpart to 'kapi verify' (the quality gate). It\nnever fails: a locale that is behind is reported as pending, not an error —\ntarget-language drift is normal, expected work, not a build break.",
+          "long": "Show, per target locale, how much of the project's tracked content is\ntranslated and whether it clears its ship gate — a derived dashboard, like\ngit status. Coverage is recomputed from the content × target files on every run;\nnothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending, not an error —\ntarget-language drift is normal, expected work, not a build break.",
           "short": "Show per-locale translation coverage and ship-gate standing"
-        },
-        "term-check": {
-          "example": "  kapi term-check app.xliff --source-lang en --target-lang fr\n  kapi term-check messages.json --source-lang en --target-lang fr",
-          "short": "Terminology Check"
-        },
-        "term-extract": {
-          "example": "  kapi term-extract messages.json\n  kapi term-extract app.xliff --provider anthropic",
-          "short": "Extract candidate terminology from content using an LLM provider"
         },
         "termbase": {
           "example": "  kapi termbase stats\n  kapi termbase lookup \"dashboard\" -s en -t fr\n  kapi termbase import glossary.csv -s en -t fr",
@@ -645,9 +512,6 @@
           "example": "  kapi unpack snapshot.klz",
           "short": "Rehydrate a project's working state from a .klz snapshot"
         },
-        "unredact": {
-          "short": "Restore original values into redacted content after processing"
-        },
         "up": {
           "example": "  kapi up                # loop the default flow until every gated scope ships or parks\n  kapi up --plan         # dry run: pending work, TM leverage, and a token estimate per locale\n  kapi up --passes 1     # a single pass over every locale that needs work\n  kapi up --materialize  # also write localized files for the shippable locales\n  kapi up --local        # connected project: converge on this machine, then push the results\n  kapi up -p app.kapi    # reconcile an explicit project recipe",
           "long": "Reconcile the project toward its ship gates: treat the recipe as the desired\nstate and run the project's default flow (defaults.flow) over all content\nacross every target language, looping until every gated scope is shippable or\nparked for a human.\n\nWithout defaults.flow, up runs the built-in default flow — TM reuse (recycle)\nfollowed by AI translate — so a recipe needs no flow YAML at all to converge.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a unit with failing findings (dropped placeholders, glossary\nviolations) counts as drafted, not translated, so it cannot lift its locale\nover the gate until fixed. --no-checks opts out.\n\nWhen the loop ends, the materialize policy decides whether localized files\nare written from the project store: 'defaults.materialize: on-converge' (or\nthe --materialize flag) writes them for every locale whose gated scopes are\nall shippable; the default ('manual') leaves that to 'kapi merge'.\n\nVenue: in a server-connected project (a recipe with a server: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default — on\nthe org's keys, against the org's shared TM and terminology — and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever a server:\nblock is present. Without a server: block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale) — units missing a target, exact TM\nleverage, the remaining AI work, and a rough token estimate — computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
@@ -657,10 +521,6 @@
           "example": "  kapi update",
           "long": "Update the kapi binary itself.\n\nIf kapi was installed via a package manager (Homebrew, winget, apt, …), this\nprints the exact upgrade command — pass --run to execute it for you. If kapi was\ninstalled by direct download, it downloads the latest release, verifies its\nSHA-256 and cosign signature, and replaces the binary in place.\n\n  kapi update            # check and update (or print the upgrade command)\n  kapi update --check    # only report whether an update is available\n  kapi update --run      # on a managed install, run the package manager for me",
           "short": "Update kapi to the latest release"
-        },
-        "verify": {
-          "long": "Deprecated: use 'kapi check --ship', which absorbs this command.\n\nRun a project's bound quality gates in a single shot and\nreturn a single structured pass/fail plus actionable findings.\n\nGates (each runs only when the project binds the resource it needs):\n\n  brand        If a brand voice is bound (defaults.brand_voice), score the\n               source-language content against it. Fails when the score is\n               below the threshold (default 80, override with --min-score).\n  terminology  If a termbase is bound (defaults.termbase), check that target\n               files use the required translations from the project glossary.\n  qa           For translated target files, check placeholder/tag integrity\n               against the source and flag untranslated/empty targets.\n\nWith no file arguments, verify inspects the project's content: brand on the\nsource files, terminology and QA on the target files derived from each\ncontent item's target template and the project target languages.\n\nPass file paths to verify just those files instead.\n\nSelecting gates (--brand/--terms/--qa) and missing bindings: with no gate flag,\nevery gate runs and a gate whose binding is missing (no defaults.brand_voice, no\ndefaults.termbase) is skipped silently — there is nothing to check. But when you\nexplicitly request a gate whose binding is missing, verify does not skip it: it\nfails the gate with a clear \"misconfigured\" finding, so a CI run that asked for\n--brand or --terms cannot pass by silently doing nothing. Bind the resource in\nthe .kapi project, drop the flag, or pass --no-fail to keep it report-only.\n\nExit codes: 0 pass, 3 when any gate fails (including a requested-but-unbound\ngate), 1 for operational errors. Exit 3 means \"not on-spec yet\", not a crash — in\nan assistant fix-loop, read the findings and fix. Pass --no-fail to always exit 0\n(report mode) when looping; omit it for CI gating.",
-          "short": "Run a project's bound quality gates (brand, terminology, QA) in one shot"
         },
         "version": {
           "example": "  kapi version",

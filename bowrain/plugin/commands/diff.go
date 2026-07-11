@@ -10,10 +10,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// diffCmd lives under the plugin group (`kapi bowrain diff`): the built-in
-// `kapi diff` (the format-aware kdiff file differ) keeps the top-level verb
-// under the no-shadowing rule, and pluginattach mounts this colliding name
-// group-only.
+// diffCmd owns `kapi diff` when the plugin is installed: the format-aware
+// file differ's kapi-side spelling is kdiff only, so the name is free — no
+// built-in collides and the no-shadowing rule holds.
 var diffCmd = &cobra.Command{
 	Use:   "diff [paths...]",
 	Short: "Show differences between local and remote",
@@ -26,9 +25,9 @@ last-synced server state, plus the count of remote changes available to pull.
 Use --verbose to list the changed block ids/keys with a source preview.
 
 Examples:
-  kapi bowrain diff
-  kapi bowrain diff src/locales/
-  kapi bowrain diff --verbose`,
+  kapi diff
+  kapi diff src/locales/
+  kapi diff --verbose`,
 	RunE: runDiff,
 }
 

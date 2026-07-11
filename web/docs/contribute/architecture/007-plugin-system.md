@@ -152,12 +152,12 @@ never changes what an existing kapi verb means (plugins extend kapi the way
 `gh` extends `git`). Concretely:
 
 - Every plugin command also attaches under a per-plugin group command —
-  `kapi <group> <verb>` (e.g. `kapi bowrain diff`), where `group` is the
+  `kapi <group> <verb>` (e.g. `kapi bowrain ls`), where `group` is the
   manifest's plugin-level `group` field, falling back to the plugin name.
 - A plugin command whose name collides with a built-in attaches under the
   group **only**; the built-in keeps the top-level verb. This is a supported
   layout for verbs whose plugin semantics differ from core (bowrain's
-  `config`, `ls`, `diff`).
+  `config`, `ls`).
 - A command with `"hidden": true` is dispatch **plumbing** consumed by a
   built-in rather than typed by users — bowrain's `server-status` (merged
   into `kapi status`) and `server-up` (the server venue behind `kapi up`).

@@ -50,19 +50,13 @@ func TestNewToolCommandsSetsGroupID(t *testing.T) {
 	cmds := NewToolCommands(app)
 	require.NotEmpty(t, cmds)
 
-	// The curated tier and the `tool` group render in root help groups; the
-	// demoted top-level aliases are hidden with no group (surface A3).
+	// Only the curated tier and the `tool` group mount at the top level —
+	// no hidden aliases for the rest (hard cutover, surface A3/A7).
 	for _, cmd := range cmds {
-		if TopLevelTools[cmd.Name()] || cmd.Name() == "tool" {
-			assert.NotEmpty(t, cmd.GroupID,
-				"visible command %q should have GroupID set", cmd.Use)
-			assert.False(t, cmd.Hidden, "curated command %q must stay visible", cmd.Use)
-			continue
-		}
-		assert.True(t, cmd.Hidden,
-			"non-curated top-level tool %q must be a hidden one-release alias", cmd.Use)
-		assert.Empty(t, cmd.GroupID,
-			"hidden alias %q must not claim a help group", cmd.Use)
+		require.Truef(t, TopLevelTools[cmd.Name()] || cmd.Name() == "tool",
+			"unexpected top-level tool command %q — non-curated tools live under `kapi tool` only", cmd.Use)
+		assert.NotEmpty(t, cmd.GroupID, "visible command %q should have GroupID set", cmd.Use)
+		assert.False(t, cmd.Hidden, "curated command %q must stay visible", cmd.Use)
 	}
 }
 
@@ -94,12 +88,10 @@ func TestToolTiering(t *testing.T) {
 			assert.False(t, c.Hidden)
 		}
 	}
-	// Spot-check demoted tools: under `tool`, hidden alias on top.
+	// Spot-check demoted tools: under `tool` only — no top-level spelling.
 	for _, name := range []string{"term-check", "content-lint", "length-check"} {
 		assert.True(t, inGroup[name], "tool %q must be reachable under `kapi tool`", name)
-		if c := byName[name]; assert.NotNil(t, c, "tool %q should keep a top-level alias", name) {
-			assert.True(t, c.Hidden, "top-level %q must be hidden", name)
-		}
+		assert.Nil(t, byName[name], "tool %q must not mount at the top level", name)
 	}
 }
 
@@ -107,10 +99,16 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 	app := newTestApp()
 	cmds := NewToolCommands(app)
 
-	// Verify specific tools are present.
+	// Verify specific tools are present (the full set lives under `kapi
+	// tool`; the curated tier additionally mounts top-level).
 	names := make(map[string]bool)
 	for _, cmd := range cmds {
 		names[cmd.Name()] = true
+		if cmd.Name() == "tool" {
+			for _, sub := range cmd.Commands() {
+				names[sub.Name()] = true
+			}
+		}
 	}
 
 	expectedTools := []string{
@@ -122,7 +120,7 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 		assert.True(t, names[name], "expected CLI command for %q", name)
 	}
 
-	// Internal tools should NOT be present.
+	// Internal tools should NOT be present anywhere.
 	internalTools := []string{
 		"create-target", "remove-target", "layer-processor",
 		"span-classify", "batch",
@@ -159,9 +157,9 @@ func TestLocalizationGroupRouting(t *testing.T) {
 		"generic tool word-count should keep its category group")
 }
 
-// TestRecycleAlias proves the tm-leverage → recycle rename: the canonical
-// command is `recycle`, and `tm-leverage` survives as a hidden alias so older
-// muscle memory and recipes keep working.
+// TestRecycleAlias proves the tm-leverage → recycle rename is complete: the
+// canonical command is `recycle` and the old spelling is gone (hard cutover —
+// no transition aliases).
 func TestRecycleAlias(t *testing.T) {
 	app := newTestApp()
 	cmds := NewToolCommands(app)
@@ -175,8 +173,8 @@ func TestRecycleAlias(t *testing.T) {
 			"tm-leverage must not be a primary command name — it is an alias")
 	}
 	require.NotNil(t, recycle, "expected a `recycle` command")
-	assert.Contains(t, recycle.Aliases, "tm-leverage",
-		"recycle should carry tm-leverage as a back-compat alias")
+	assert.NotContains(t, recycle.Aliases, "tm-leverage",
+		"the tm-leverage spelling is retired outright")
 }
 
 func TestNewToolCommands_AliasesWork(t *testing.T) {

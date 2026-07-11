@@ -21,7 +21,7 @@ kapi preserves structure, tags, and placeholders (round-trip). Add `--credential
 
 **Ongoing / app localization, or translating it yourself under brand + terminology
 guardrails** — bind a project first (`kapi init`), then `kapi extract → fill the
-targets → kapi merge → kapi verify` (below). `kapi extract` and `kapi merge` operate
+targets → kapi merge → kapi check --ship` (below). `kapi extract` and `kapi merge` operate
 on a project; run them inside one (or with `-p <recipe>`), never on a bare file path.
 
 ## Commands at a glance (use these exact forms)
@@ -31,13 +31,13 @@ Run these as written — don't guess flags. When in doubt, `kapi <cmd> --help`.
 ```bash
 kapi extract --target-lang fr                  # → out/<name>.en-to-fr.xliff (one --target-lang)
 kapi merge -i out/*.xliff                       # -i is REQUIRED and repeatable; positional paths are ignored
-kapi verify --json                              # the gate: brand + terminology + QA in one shot (prefer this)
+kapi check --ship --json                              # the gate: brand + terminology + QA in one shot (prefer this)
 kapi term-check ./locales/fr.json --target-lang fr   # file is POSITIONAL; there is no --source/--target
 kapi termbase lookup "board" -t fr              # approved wording; termbase uses -s/-t, not --*-lang
 kapi brand guide                                # the voice to follow (no flag inside a project)
 ```
 
-Inside a project, prefer `kapi verify` over running `term-check`/QA by hand — it
+Inside a project, prefer `kapi check --ship` over running `term-check`/QA by hand — it
 runs every bound gate together and pairs source↔target for you.
 
 ## Translate the content yourself, through kapi (don't hand-translate files)
@@ -64,11 +64,11 @@ as unfinished until kapi confirms the result:
 
 ```bash
 kapi merge -i out/*.xliff            # write translations back into the target files + TM
-kapi verify --json                   # in a project: brand + terminology + QA in one gate
+kapi check --ship --json                   # in a project: brand + terminology + QA in one gate
 kapi term-check ./locales/fr.json    # one-off, no project: terminology check on the file
 ```
 
-`kapi verify` is the gate inside a project — read its findings, fix them, and re-run
+`kapi check --ship` is the gate inside a project — read its findings, fix them, and re-run
 until it passes. For a one-off file with no project, `kapi term-check` (plus the QA in
 `kapi run translate-qa`) plays the same role. Either way, a clean result, not a
 written file, is the finish line.

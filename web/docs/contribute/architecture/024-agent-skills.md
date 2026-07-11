@@ -102,7 +102,7 @@ There is no `kapi skills` user command; the binary neither carries nor installs
 the skill. Distribution is the plugin: a marketplace
 (`packages/kapi-claude-plugin/.claude-plugin/marketplace.json`, name
 `neokapi-plugins`) hosting the `kapi` plugin — the skill plus two project-scoped,
-fail-open hooks: a **Stop** hook that runs `kapi verify` and keeps the assistant
+fail-open hooks: a **Stop** hook that runs `kapi check --ship` and keeps the assistant
 working until the gates are green, and a **PreToolUse** hook that blocks direct
 hand-edits of files the project generates as translation targets. Users install
 with `/plugin marketplace add neokapi/claude-plugins` then
@@ -149,7 +149,7 @@ separate model) applied to editing and creation.
 - **Create new content.** When there is no frozen source, the assistant authors a
   **generative** format (one whose writer can produce a document from the content
   model alone) and uses `kapi inspect` / `kapi stats` to parse it back as the
-  first check, then `kapi check` / `kapi verify` as the brand-and-terminology
+  first check, then `kapi check` / `kapi check --ship` as the brand-and-terminology
   gate, revising until green. Binary formats (`.docx`, `.pptx`) are editable but
   not generative — authored elsewhere, edited in place.
 

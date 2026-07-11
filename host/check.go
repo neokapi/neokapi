@@ -74,7 +74,7 @@ func (a *App) RunCheck(cmd Command, args []string) error {
 }
 
 // runShipCheck is `kapi check --ship`: the project gate mode that absorbed
-// `kapi verify` (#1078 C1). It routes through the shared verify engine
+// the old `kapi verify` (#1078 C1). It routes through the shared verify engine
 // (RunVerify/computeVerify), so a release gate and the hidden verify alias
 // evaluate a project identically. Flag defaults that differ between the file
 // checkset and the project gates are mapped here: an untouched --min-score

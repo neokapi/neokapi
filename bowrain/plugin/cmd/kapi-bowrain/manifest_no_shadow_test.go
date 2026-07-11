@@ -35,7 +35,6 @@ func TestManifestNeverShadowsBuiltins(t *testing.T) {
 	groupScoped := map[string]bool{
 		"config": true, // built-in: app config; plugin: recipe/server settings
 		"ls":     true, // built-in: tracked files; plugin: sync-aware listing (Mode-C)
-		"diff":   true, // built-in: format-aware file diff (kdiff proxy); plugin: local-vs-server sync diff
 	}
 
 	for _, c := range m.Capabilities.Commands {

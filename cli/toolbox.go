@@ -91,6 +91,8 @@ func NewToolboxProxies(a *App) []*cobra.Command {
 		proxy("sed", "Stream-edit the text/content inside files (use ksed)", func() *cobra.Command { return newSedCmd(a) }, NormalizeSedInPlaceArgs),
 		proxy("cat", "Print the text/content inside files (use kcat)", func() *cobra.Command { return newCatCmd(a) }, nil),
 		proxy("convert", "Convert files between formats (use kconv)", func() *cobra.Command { return newConvCmd(a) }, nil),
-		proxy("diff", "Compare the text/content of files (use kdiff)", func() *cobra.Command { return newDiffCmd(a) }, nil),
+		// No `diff` proxy: kdiff is the file differ's canonical (and only)
+		// kapi-side spelling, which frees `kapi diff` for the bowrain
+		// plugin's local-vs-server sync diff.
 	}
 }

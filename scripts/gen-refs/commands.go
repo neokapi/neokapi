@@ -162,7 +162,7 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	root.AddCommand(runCmd)
 	root.AddCommand(cli.NewExtractCmd(app, cli.ExtractCmdOptions{}))
 	root.AddCommand(cli.NewMergeCmd(app, cli.MergeCmdOptions{}))
-	root.AddCommand(cli.NewVerifyCmd(app))
+	root.AddCommand(cli.NewCheckCmd(app))
 	root.AddCommand(cli.NewInitCmd(app))
 
 	// Management commands.
@@ -171,8 +171,6 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	root.AddCommand(cli.NewFormatsCmd(app))
 	root.AddCommand(cli.NewPluginCmd(app))
 	root.AddCommand(cli.NewModelsCmd(app))
-	root.AddCommand(cli.NewRegistryCmd(app))
-	root.AddCommand(cli.NewPresetsCmd(app))
 	root.AddCommand(cli.NewTermbaseCmd(app))
 	root.AddCommand(cli.NewTMCmd(app))
 	root.AddCommand(cli.NewBrandCmd(app))

@@ -130,20 +130,21 @@ opened; push/pull is invoked by spawning `kapi-bowrain`.
 
 With the plugin installed, `kapi` exposes:
 
-- Framework commands (built into `kapi`): `run`, `extract`, `merge`,
-  `add`, `rm`, `ls`, `flows`, `tools`, `formats`, `plugins`, `registry`,
-  `presets`, `termbase`, `tm`, `credentials`, `mcp`, `version`. The
+- Framework commands (built into `kapi`): `up`, `run`, `extract`, `merge`,
+  `add`, `rm`, `ls`, `flows`, `tool`, `tools`, `formats`, `plugin`,
+  `termbase`, `tm`, `credentials`, `mcp`, `version`. The
   local project-content commands `add`/`rm`/`ls` are core — they edit and
   list the `.kapi` recipe's content, which is local configuration, not a
   server concern (a server-connected project just declares `requires: bowrain`).
 - Bowrain commands (contributed by the `kapi-bowrain` manifest) follow the
   **no-shadowing rule**: installing the plugin never changes what an
   existing kapi verb means. New verbs attach top-level: `push`, `pull`,
-  `auth`, `stream`, `ui`, `workspace`. Verbs whose bowrain semantics differ
-  from a built-in live under the plugin group only — `kapi bowrain config`
+  `diff` (local-vs-server block diff; the format-aware file differ's
+  kapi-side spelling is `kdiff` only, so the name is free), `auth`,
+  `stream`, `ui`, `workspace`. Verbs whose bowrain semantics differ from a
+  built-in live under the plugin group only — `kapi config`
   (recipe/server settings vs the built-in app config), `kapi bowrain ls`
-  (sync-aware listing), `kapi bowrain diff` (local-vs-server block diff vs
-  the built-in format-aware file diff). Participation in core verbs happens
+  (sync-aware listing). Participation in core verbs happens
   through a command contribution (`kapi init --server …`) and hidden
   dispatch plumbing (`server-status`, merged into `kapi status`;
   `server-up`, the server venue behind `kapi up`) — never a replacement

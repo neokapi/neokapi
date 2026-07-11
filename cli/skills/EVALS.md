@@ -16,7 +16,7 @@ For each scenario, start a clean conversation, paste the prompt, and record:
 
 - **Triggered?** — did the skill load (the assistant reads `SKILL.md`/a reference,
   or reaches for `kapi inspect`/`apply`/`translate`/`verify`)?
-- **Completed?** — did it run the loop through to a green gate (`kapi verify` /
+- **Completed?** — did it run the loop through to a green gate (`kapi check --ship` /
   `kapi check` passing), not just start?
 
 Targets: **~100% trigger on positives, 0 false-triggers on negatives.** A miss on

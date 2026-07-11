@@ -3,14 +3,14 @@ title: config
 sidebar_position: 2
 ---
 
-# kapi bowrain config
+# kapi config
 
 View or set configuration values for the current project or global settings.
 
 ## Usage
 
 ```bash
-kapi bowrain config [key] [value] [flags]
+kapi config [key] [value] [flags]
 ```
 
 ## Description
@@ -26,20 +26,20 @@ Use `--global` to read/write the global config file (`~/.config/bowrain/bowrain.
 
 ```bash
 # Show path to the project recipe
-kapi bowrain config
+kapi config
 
 # Read a recipe value
-kapi bowrain config name
-kapi bowrain config server.url
+kapi config name
+kapi config server.url
 
 # Set a recipe value
-kapi bowrain config name "My Project"
+kapi config name "My Project"
 
 # Read global config
-kapi bowrain config --global server.url
+kapi config --global server.url
 
 # Set global config (applies to all projects)
-kapi bowrain config --global server.url https://bowrain.cloud
+kapi config --global server.url https://bowrain.cloud
 ```
 
 ## Options
@@ -75,11 +75,11 @@ overrides global values for the current project.
 For example, set the server URL globally so all `kapi init` commands use it:
 
 ```bash
-kapi bowrain config --global server.url https://bowrain.cloud
+kapi config --global server.url https://bowrain.cloud
 ```
 
 Then override it for a specific project if needed:
 
 ```bash
-kapi bowrain config server.url https://staging.bowrain.cloud
+kapi config server.url https://staging.bowrain.cloud
 ```

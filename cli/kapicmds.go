@@ -56,7 +56,6 @@ func KapiCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewStatsCmd(a))
 	cmds = append(cmds,
 		NewStatusCmd(a),
-		NewVerifyCmd(a),
 		NewCheckCmd(a),
 		NewHookCmd(a),
 		NewInitCmd(a),
@@ -80,18 +79,6 @@ func KapiCommandSet(a *App) []*cobra.Command {
 		NewVersionCmd(a, "kapi"),
 		NewUpdateCmd(a),
 		NewCompletionCmd(a),
-	)
-
-	// Hidden one-release aliases (#1078 C1 verb folds). `verify` hides itself
-	// (NewVerifyCmd); `ollama` and `presets` forward with a pointer note.
-	// Removal is gated on a RELEASE that ships both the alias and its new
-	// home: as of 2026-07-10 the #1078 C1 folds (verify/ollama/presets/bare
-	// run) have not appeared in any tagged release yet, so every alias
-	// stays. Drop them in the first release AFTER one that carried them.
-	cmds = append(cmds,
-		deprecatedAlias(NewOllamaCmd(a), "note: `kapi ollama` moved to `kapi models ollama`; this top-level alias will be removed in a future release."),
-		deprecatedAlias(NewPresetsCmd(a), "note: `kapi presets` is deprecated — use `kapi init --list-presets` / `kapi init --preset <name>`; this alias will be removed in a future release."),
-		deprecatedAlias(NewRegistryCmd(a), "note: `kapi registry` moved to `kapi plugin registry`; this top-level alias will be removed in a future release."),
 	)
 
 	// Top-level tool commands (declarative opt-in via the tool registry).

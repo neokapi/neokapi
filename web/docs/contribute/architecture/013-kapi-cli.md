@@ -107,7 +107,7 @@ Commands fall into categories:
   with `--provider` (e.g. `kapi translate --provider deepl`) rather than a
   per-engine command; `kapi run <flow>`
 - **Plugins** — `kapi plugin list/install/update`
-- **Presets** — `kapi presets list`
+- **Presets** — `kapi init --list-presets list`
 - **Terminology and TM** — `kapi termbase`, `kapi tm`
 
 Tools run as top-level commands (`kapi pseudo-translate`); composed

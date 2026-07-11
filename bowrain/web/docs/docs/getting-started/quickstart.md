@@ -106,7 +106,7 @@ kapi run my-flow
 | `kapi tools`            | List available tools              |
 | `kapi push`             | Upload to server                  |
 | `kapi pull`             | Fetch from server                 |
-| `kapi bowrain config`           | View or set configuration         |
+| `kapi config`           | View or set configuration         |
 
 ## Next Steps
 

@@ -7,23 +7,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// and behaves like kdiff (so -q is brief, not kapi's --quiet global).
-func TestDiffProxyDetached(t *testing.T) {
+// TestNoDiffProxy: the file differ's kapi-side spelling is kdiff only —
+// there is no hidden `kapi diff` proxy, freeing the verb for the bowrain
+// plugin's local-vs-server sync diff.
+func TestNoDiffProxy(t *testing.T) {
 	app := newToolboxApp(t)
-	c := findCmd(NewToolboxProxies(app), "diff")
-	require.NotNil(t, c)
-	assert.True(t, c.Hidden)
-	assert.True(t, c.DisableFlagParsing)
-
-	dir := t.TempDir()
-	a := writeToolboxFile(t, dir, "a.json", `{"k":"one"}`)
-	b := writeToolboxFile(t, dir, "b.json", `{"k":"two"}`)
-	out, err := captureStdout(t, func() error {
-		c.SetArgs([]string{"-q", a, b})
-		return c.Execute()
-	})
-	require.ErrorIs(t, err, ErrSilentExit, "-q is brief (diff status), not kapi's --quiet")
-	assert.Contains(t, out, "differ")
+	assert.Nil(t, findCmd(NewToolboxProxies(app), "diff"),
+		"`kapi diff` must not be occupied by a toolbox proxy")
 }
 
 func TestBusyboxRoot(t *testing.T) {

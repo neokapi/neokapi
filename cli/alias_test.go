@@ -10,26 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDeprecatedAlias_PrintsNoteAndForwards: a deprecated alias is hidden,
-// detached from help groups, and every runnable subcommand prints the pointer
-// note on stderr before running the original RunE.
-func TestDeprecatedAlias_PrintsNoteAndForwards(t *testing.T) {
-	a := &App{}
-	cmd := deprecatedAlias(NewPresetsCmd(a), "note: presets moved")
-
-	assert.True(t, cmd.Hidden)
-	assert.Empty(t, cmd.GroupID)
-
-	var stdout, stderr bytes.Buffer
-	cmd.SetOut(&stdout)
-	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"list"})
-	require.NoError(t, cmd.Execute())
-
-	assert.Contains(t, stderr.String(), "note: presets moved", "the note goes to stderr")
-	assert.Contains(t, stdout.String(), "react-i18next", "the original command still runs")
-}
-
 // TestModelsAbsorbsOllama: `kapi models ollama` is the canonical home of the
 // Ollama runtime management commands.
 func TestModelsAbsorbsOllama(t *testing.T) {
@@ -54,8 +34,9 @@ func TestModelsAbsorbsOllama(t *testing.T) {
 }
 
 // TestKapiCommandSet_PorcelainLayout: the kapi command set exposes the
-// convergence porcelain — `up` in the Work group — and ships the one-release
-// hidden aliases (verify, ollama, presets) excluded from help.
+// convergence porcelain — `up` in the Work group — and the retired fold
+// spellings (verify, ollama, presets, registry) are gone outright: this
+// project breaks compatibility instead of carrying transition aliases.
 func TestKapiCommandSet_PorcelainLayout(t *testing.T) {
 	a := processOnlyApp(t)
 	byName := map[string]*cobra.Command{}
@@ -67,11 +48,8 @@ func TestKapiCommandSet_PorcelainLayout(t *testing.T) {
 	require.NotNil(t, up, "kapi up is registered")
 	assert.Equal(t, "work", up.GroupID)
 
-	for _, alias := range []string{"verify", "ollama", "presets"} {
-		c := byName[alias]
-		require.NotNil(t, c, "%s stays registered as an alias", alias)
-		assert.True(t, c.Hidden, "%s is hidden from help", alias)
-		assert.Empty(t, c.GroupID, "%s carries no help group", alias)
+	for _, gone := range []string{"verify", "ollama", "presets", "registry"} {
+		assert.Nil(t, byName[gone], "%s must not be registered — its home moved (check --ship, models ollama, init --list-presets, plugin registry)", gone)
 	}
 
 	// Porcelain grouping: Work and Assets hold the everyday verbs.

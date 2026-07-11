@@ -232,7 +232,7 @@ bowrain/apps/bowrain/frontend/e2e/
 ├── settings.spec.ts            — Settings page, theme toggle
 ├── term-explorer.spec.ts       — Terminology CRUD
 ├── tm-explorer.spec.ts         — Translation memory CRUD
-├── tm-leverage.spec.ts         — TM leverage in translation
+├── recycle.spec.ts         — TM leverage in translation
 └── translation-editor.spec.ts  — Block editing, status, word count
 ```
 

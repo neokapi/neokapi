@@ -126,7 +126,7 @@ kapi apply changeset.jsonl
 The `brand` entry is written into the project's committed brand voice profile
 YAML (the `defaults.brand_voice.profile_file` the recipe binds), and the existing
 import compiles it into the local brand store. `git diff` shows the one new rule;
-the next `kapi brand check` / `kapi verify` enforces it. `list` is `forbidden`,
+the next `kapi brand check` / `kapi check --ship` enforces it. `list` is `forbidden`,
 `competitor`, or `preferred`; the entry requires a `.kapi` project. (Add an
 approved term instead with a `term` entry — see [create.md](create.md).)
 

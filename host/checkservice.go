@@ -10,7 +10,7 @@ import (
 
 // This file is the exported, cobra-free surface of the bilingual check
 // pipeline (read → pair → run → collect) — the same primitives `kapi check`
-// and `kapi verify` are built from, callable by an embedding surface (the
+// and `kapi check --ship` are built from, callable by an embedding surface (the
 // Kapi Desktop) so it cannot drift into a parallel reimplementation.
 
 // ReadBlocksForCheck reads a file's translatable blocks through its format

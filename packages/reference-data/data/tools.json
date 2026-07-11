@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-10T21:48:30Z",
+  "generatedAt": "2026-07-11T04:57:44Z",
   "kind": "tool",
   "entries": [
     {
@@ -3353,9 +3353,6 @@
       "sideEffects": [
         "tm-read"
       ],
-      "aliases": [
-        "tm-leverage"
-      ],
       "schema": {
         "$id": "recycle",
         "title": "Recycle",
@@ -3394,10 +3391,7 @@
           "sideEffects": [
             "tm-read"
           ],
-          "writesOutput": true,
-          "aliases": [
-            "tm-leverage"
-          ]
+          "writesOutput": true
         },
         "properties": {
           "downgradeIdenticalBestMatches": {

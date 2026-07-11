@@ -19,11 +19,10 @@ import (
 )
 
 // TopLevelTools is the curated tier of registry tools that keep a visible
-// top-level verb (surface strategy A3, extending the #1078 C1 folds). Every
-// other CLI-visible tool mounts under `kapi tool <name>`, keeping a hidden
-// one-release alias at the top level so existing invocations don't break.
-// Presentation only: the registry's Category/Tags stay canonical and
-// `kapi tools list` remains the discovery surface for the full set.
+// top-level verb (surface strategy A3). Every other CLI-visible tool mounts
+// under `kapi tool <name>` only — no top-level spelling. Presentation only:
+// the registry's Category/Tags stay canonical and `kapi tools list` remains
+// the discovery surface for the full set.
 var TopLevelTools = map[string]bool{
 	"translate":        true,
 	"pseudo-translate": true,
@@ -33,10 +32,9 @@ var TopLevelTools = map[string]bool{
 }
 
 // NewToolCommands creates the CLI surface for the registry's CLI-visible
-// tools: the curated TopLevelTools tier as visible top-level verbs, every
-// other tool as a hidden one-release top-level alias, and the `kapi tool`
-// group command hosting the full set. The registry stays the single source
-// of truth for tool metadata.
+// tools: the curated TopLevelTools tier as visible top-level verbs, plus the
+// `kapi tool` group command hosting the full set. The registry stays the
+// single source of truth for tool metadata.
 func NewToolCommands(a *App) []*cobra.Command {
 	if a.ToolReg == nil {
 		return nil
@@ -83,21 +81,18 @@ Discover tools and their options with 'kapi tools list' and
 		sub := newToolCommand(a, entry)
 		sub.GroupID = "" // the tool group renders one flat list, not the root's help groups
 		toolGroup.AddCommand(sub)
-		top := newToolCommand(a, entry)
-		if !TopLevelTools[toolName] {
-			top = deprecatedAlias(top, fmt.Sprintf("note: `kapi %s` moved to `kapi tool %s`; this top-level alias will be removed in a future release.", toolName, toolName))
+		if TopLevelTools[toolName] {
+			cmds = append(cmds, newToolCommand(a, entry))
 		}
-		cmds = append(cmds, top)
 	}
 
 	return append(cmds, toolGroup)
 }
 
 // newToolCommand builds the cobra command for one CLI-visible registry tool.
-// Called twice per tool — once for the `kapi tool` group and once for the
-// top-level verb (visible for the curated TopLevelTools tier, hidden
-// one-release alias otherwise) — so it must stay free of registration side
-// effects.
+// Called up to twice per tool — once for the `kapi tool` group and once for
+// the curated tier's top-level verb — so it must stay free of registration
+// side effects.
 func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	toolName := string(entry.Info.Name)
 	info := entry.Info

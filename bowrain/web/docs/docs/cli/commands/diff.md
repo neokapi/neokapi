@@ -3,7 +3,7 @@ title: diff
 sidebar_position: 3
 ---
 
-# kapi bowrain diff
+# kapi diff
 
 Show the translation blocks that changed locally relative to the last sync —
 like `git diff --stat`, but for content. For each file it reports how many
@@ -11,26 +11,26 @@ blocks were added, changed, or removed locally versus the last-synced server
 state, and (when a server is configured) the number of remote changes available
 to pull.
 
-Without a server, `kapi bowrain diff` still works: it compares against the local sync
+Without a server, `kapi diff` still works: it compares against the local sync
 cache, so it stays useful offline.
 
 ## Usage
 
 ```bash
-kapi bowrain diff [paths...] [flags]
+kapi diff [paths...] [flags]
 ```
 
 ## Examples
 
 ```bash
 # Summarize all local changes since the last sync
-kapi bowrain diff
+kapi diff
 
 # Limit to a directory
-kapi bowrain diff src/locales/
+kapi diff src/locales/
 
 # List the changed block ids/keys with a source preview
-kapi bowrain diff --verbose
+kapi diff --verbose
 ```
 
 Example output:
