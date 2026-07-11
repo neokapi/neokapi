@@ -170,6 +170,26 @@ func runWorker(dbURL string) error {
 	}
 	defer extractionQueue.Close()
 
+	// Set up the brand-scan job queue (epic 016). The server's brand
+	// onboarding scan endpoint enqueues; this worker consumes. Mirrors the
+	// extraction queue selection exactly.
+	var brandScanQueue jobs.Queue
+	switch {
+	case serviceBusConn != "":
+		brandScanQueue, err = jobs.NewServiceBusQueue(ctx, serviceBusConn, "brand-scan-jobs")
+		if err != nil {
+			return fmt.Errorf("connect to Service Bus (brand scan): %w", err)
+		}
+	case natsURL != "":
+		brandScanQueue, err = jobs.NewNATSBrandScanQueue(natsURL)
+		if err != nil {
+			return fmt.Errorf("connect to NATS (brand scan): %w", err)
+		}
+	default:
+		brandScanQueue = jobs.NewChannelQueue(64)
+	}
+	defer brandScanQueue.Close()
+
 	credStore := credentials.NewStore(credentialsPath)
 
 	// Per-workspace AI provider store (Epic 004). Resolves a job's saved BYO
@@ -346,6 +366,51 @@ func runWorker(dbURL string) error {
 		slog.Info("starting extraction worker")
 		return jobs.RunExtractionWorker(ctx, extractionDeps)
 	})
+
+	// Brand-scan worker (AI brand onboarding, epic 016). Scans run on the
+	// platform provider only and deduct credits via the same billing hooks as
+	// translation, so the wiring mirrors translationDeps: nil hooks (no
+	// STRIPE_SECRET_KEY) degrade cleanly to unmetered scans.
+	pgBSS, err := jobs.NewBrandScanJobStore(pgdb)
+	if err != nil {
+		return fmt.Errorf("open PostgreSQL brand-scan job store: %w", err)
+	}
+	brandScanDeps := &jobs.BrandScanWorkerDeps{
+		Store:        pgBSS,
+		Queue:        brandScanQueue,
+		BlobStore:    blobStore,
+		Platform:     translationDeps.Platform,
+		BillingHooks: translationDeps.BillingHooks,
+		QuotaStore:   pgQS,
+		LogFunc: func(stepID, level, message string, data map[string]string) {
+			slog.Info("brand-scan: "+message, "job_id", stepID, "level", level)
+		},
+	}
+	g.Go(func() error {
+		slog.Info("starting brand-scan worker")
+		return jobs.RunBrandScanWorker(ctx, brandScanDeps)
+	})
+
+	// Brand-scan stale-job sweeper: same crash backstop as the translation
+	// sweeper (a worker dying between claim and completion leaves the row in
+	// 'processing' with no pending redelivery).
+	brandScanSweeper := jobs.NewStaleJobSweeper(pgBSS, brandScanQueue, 0, 0, 0)
+	g.Go(func() error {
+		slog.Info("starting brand-scan stale-job sweeper")
+		return brandScanSweeper.Run(ctx)
+	})
+
+	// Brand-scan upload retention: uploaded source envelopes (customer brand
+	// material) are deleted once their job has been terminal for the retention
+	// window. The window is what keeps Regenerate — which reuses the original
+	// upload keys — working across a review session.
+	if blobStore != nil {
+		brandScanUploadSweeper := jobs.NewBrandScanUploadSweeper(pgBSS, blobStore, 0, 0)
+		g.Go(func() error {
+			slog.Info("starting brand-scan upload sweeper")
+			return brandScanUploadSweeper.Run(ctx)
+		})
+	}
 
 	// Agent worker (optional — runs when BOWRAIN_AGENT_RUNTIME=aca is set).
 	if agentRuntime := os.Getenv("BOWRAIN_AGENT_RUNTIME"); agentRuntime == "aca" {

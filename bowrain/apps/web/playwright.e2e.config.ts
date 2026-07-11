@@ -7,6 +7,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   testMatch: [
+    "brand-scan-onboarding.spec.ts",
     "claim-flow.spec.ts",
     "editor-happy-path.spec.ts",
     "open-in-desktop.spec.ts",

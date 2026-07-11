@@ -15,14 +15,24 @@ const (
 	defaultSweepInterval     = 5 * time.Minute
 )
 
-// StaleJobSweeper periodically recovers translation jobs stuck in 'processing'
-// after a worker crashed between ClaimJob (queued→processing) and completion.
-// Such a job has no NAK pending, so nothing else would ever recover it: the
-// sweeper resets it to 'queued' (with attempt tracking) and re-enqueues it, or
-// fails it once its retry budget is exhausted. It is the crash backstop to the
+// StaleSweepStore is the store surface the sweeper drives: sweeping stalled
+// 'processing' rows back to 'queued' (or failing them), and rolling back a
+// requeue whose re-enqueue failed. Both the translation JobStore and the
+// BrandScanJobStore satisfy it, so one sweeper implementation recovers every
+// leased job type.
+type StaleSweepStore interface {
+	SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) (requeued []string, failed int, err error)
+	RevertSweepRequeue(ctx context.Context, id string, staleThreshold time.Duration) error
+}
+
+// StaleJobSweeper periodically recovers jobs stuck in 'processing' after a
+// worker crashed between claim (queued→processing) and completion. Such a job
+// has no NAK pending, so nothing else would ever recover it: the sweeper
+// resets it to 'queued' (with attempt tracking) and re-enqueues it, or fails
+// it once its retry budget is exhausted. It is the crash backstop to the
 // in-flight NAK retry in the worker loop.
 type StaleJobSweeper struct {
-	store       JobStore
+	store       StaleSweepStore
 	queue       Queue
 	threshold   time.Duration
 	interval    time.Duration
@@ -31,7 +41,7 @@ type StaleJobSweeper struct {
 
 // NewStaleJobSweeper builds a sweeper. Zero threshold/interval/maxAttempts use
 // the package defaults.
-func NewStaleJobSweeper(store JobStore, queue Queue, threshold, interval time.Duration, maxAttempts int) *StaleJobSweeper {
+func NewStaleJobSweeper(store StaleSweepStore, queue Queue, threshold, interval time.Duration, maxAttempts int) *StaleJobSweeper {
 	if threshold <= 0 {
 		threshold = defaultStaleJobThreshold
 	}

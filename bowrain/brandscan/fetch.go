@@ -41,6 +41,18 @@ func FetchURL(ctx context.Context, rawURL string) (string, error) {
 	return newFetcher().fetch(ctx, rawURL)
 }
 
+// VetPublicHost resolves host and rejects it when any resolved address falls
+// in a forbidden range — the same address policy FetchURL enforces (loopback,
+// private, link-local, CGNAT, multicast, unspecified). It exists for other
+// paths that hand a user-supplied host to a network client the fetcher does
+// not own (the brand-scan repository clone). Callers whose client re-resolves
+// DNS itself (a git subprocess) must treat the vet as a pre-check, not a
+// rebinding-proof pin, and should disable redirect following on that client.
+func VetPublicHost(ctx context.Context, host string) error {
+	_, err := newFetcher().vetHost(ctx, host)
+	return err
+}
+
 // lookupFunc resolves a hostname to IP addresses. Injectable for tests so
 // the SSRF checks can be exercised without real DNS.
 type lookupFunc func(ctx context.Context, host string) ([]netip.Addr, error)

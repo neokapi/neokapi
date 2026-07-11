@@ -21,6 +21,11 @@ const (
 	natsExtractionSubject    = "EXTRACTION_JOBS.extract"
 	natsExtractionConsumer   = "extraction-worker"
 
+	// Brand-scan jobs (epic 016) likewise get their own WorkQueue stream.
+	natsBrandScanStreamName = "BRAND_SCAN_JOBS"
+	natsBrandScanSubject    = "BRAND_SCAN_JOBS.scan"
+	natsBrandScanConsumer   = "brand-scan-worker"
+
 	natsMaxDeliver = 3
 	natsAckWait    = 5 * time.Minute
 	natsFetchWait  = 5 * time.Second
@@ -47,6 +52,13 @@ func NewNATSQueue(url string) (*NATSQueue, error) {
 // extraction worker consumes).
 func NewNATSExtractionQueue(url string) (*NATSQueue, error) {
 	return newNATSQueue(url, natsExtractionStreamName, natsExtractionSubject, natsExtractionConsumer)
+}
+
+// NewNATSBrandScanQueue is NewNATSQueue for the brand-scan-jobs stream
+// (epic 016: the brand onboarding scan endpoint enqueues here and the
+// brand-scan worker consumes).
+func NewNATSBrandScanQueue(url string) (*NATSQueue, error) {
+	return newNATSQueue(url, natsBrandScanStreamName, natsBrandScanSubject, natsBrandScanConsumer)
 }
 
 func newNATSQueue(url, stream, subject, durable string) (*NATSQueue, error) {

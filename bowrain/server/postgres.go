@@ -28,6 +28,7 @@ type pgStores struct {
 	Auth       auth.AuthStore
 	Job        jobs.JobStore
 	Extraction jobs.ExtractionJobStore
+	BrandScan  jobs.BrandScanJobStore
 	Quota      jobs.QuotaStore
 	Brand      corebrand.BrandStore
 	Knowledge  knowledge.Store
@@ -130,7 +131,12 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		return nil, fmt.Errorf("init PostgreSQL extraction job store: %w", err)
 	}
 
-	stores := &pgStores{Content: cs, Auth: as, Job: js, Extraction: es, Quota: qs, Brand: bs, DB: db}
+	bsj, err := jobs.NewBrandScanJobStore(db)
+	if err != nil {
+		return nil, fmt.Errorf("init PostgreSQL brand-scan job store: %w", err)
+	}
+
+	stores := &pgStores{Content: cs, Auth: as, Job: js, Extraction: es, BrandScan: bsj, Quota: qs, Brand: bs, DB: db}
 	if ks != nil {
 		stores.Knowledge = ks
 	}

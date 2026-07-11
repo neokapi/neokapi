@@ -113,6 +113,10 @@ import type {
   Pilot,
   StartPilotRequest,
   ReviewDemotion,
+  BrandScanRequest,
+  BrandScanUploadResult,
+  BrandScanJob,
+  BrandScanCheckResult,
 } from "@neokapi/ui";
 
 import { codedToRuns } from "./codedToRuns";
@@ -146,6 +150,9 @@ export class WailsApiAdapter implements ApiAdapter {
       version: v.version,
       commit: v.commit,
       build_date: v.build_date,
+      // The desktop app has no brand-scan job system (the adapter's scan
+      // methods throw), so the hosted-scan entry points stay hidden.
+      features: { brand_scan: false },
     };
   }
 
@@ -1128,6 +1135,29 @@ export class WailsApiAdapter implements ApiAdapter {
       opts?.minScore ?? 0,
       opts?.dropPoints ?? 0,
     ) as Promise<DriftResult>;
+  }
+
+  // --- Brand scan (epic 016) — a server-side worker job; the desktop app
+  // does not expose the hosted scan (the local kapi Agent Skill lane covers
+  // local onboarding) ---
+  async uploadBrandScanSources(_ws: string, _files: File[]): Promise<BrandScanUploadResult> {
+    throw new Error("not implemented in desktop app");
+  }
+
+  async startBrandScan(_ws: string, _req: BrandScanRequest): Promise<{ job_id: string }> {
+    throw new Error("not implemented in desktop app");
+  }
+
+  async getBrandScan(_ws: string, _jobId: string): Promise<BrandScanJob> {
+    throw new Error("not implemented in desktop app");
+  }
+
+  async checkBrandDraft(
+    _ws: string,
+    _profile: VoiceProfile,
+    _text: string,
+  ): Promise<BrandScanCheckResult> {
+    throw new Error("not implemented in desktop app");
   }
 
   // --- Activities (Bowrain AD-014, not yet supported in desktop) ---

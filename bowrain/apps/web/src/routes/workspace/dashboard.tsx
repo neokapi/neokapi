@@ -10,7 +10,9 @@ export function ProjectDashboardRoute() {
   const { workspace } = useParams({ strict: false });
   const adapter = useApi();
   const queryClient = useQueryClient();
-  const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const { activeWorkspace, brandScanAvailable } = useRouteContext({
+    strict: false,
+  }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
 
   useEffect(() => {
@@ -62,6 +64,13 @@ export function ProjectDashboardRoute() {
     [ws, adapter, invalidateProjects],
   );
 
+  const handleScanBrand = useCallback(() => {
+    void navigate({
+      to: "/$workspace/brand/scan",
+      params: { workspace: workspace ?? ws },
+    });
+  }, [navigate, workspace, ws]);
+
   const [archiveProjectId, setArchiveProjectId] = useState<string | null>(null);
   const confirmArchiveProject = useCallback(async () => {
     if (!archiveProjectId) return;
@@ -81,6 +90,8 @@ export function ProjectDashboardRoute() {
         onEditProject={handleEditProject}
         onArchiveProject={setArchiveProjectId}
         workspaceLanguages={activeWorkspace.languages}
+        // Hosted-scan CTA only where the server runs the brand-scan job system.
+        onScanBrand={brandScanAvailable ? handleScanBrand : undefined}
       />
 
       <ConfirmDialog

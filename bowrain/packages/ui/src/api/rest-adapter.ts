@@ -102,6 +102,10 @@ import type {
   EmailChangeConfirmResponse,
   SlugReservation,
   ReviewDemotion,
+  BrandScanRequest,
+  BrandScanUploadResult,
+  BrandScanJob,
+  BrandScanCheckResult,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -2058,6 +2062,55 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(this.brandEp(workspaceSlug) + "/from-starter", {
       method: "POST",
       body: JSON.stringify({ pack, ...(name ? { name } : {}) }),
+    });
+  }
+
+  // ── Brand scan (AI brand onboarding — epic 016) ─────────────────────────────
+
+  private brandScanEp(ws: string) {
+    return `/api/v1/${ws}/brand-scans`;
+  }
+
+  async uploadBrandScanSources(
+    workspaceSlug: string,
+    files: File[],
+  ): Promise<BrandScanUploadResult> {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("files", file);
+    }
+    const resp = await fetch(`${this.baseUrl}${this.brandScanEp(workspaceSlug)}/uploads`, {
+      method: "POST",
+      headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
+      credentials: "same-origin",
+      body: formData,
+    });
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`${resp.status}: ${body}`);
+    }
+    return resp.json();
+  }
+
+  async startBrandScan(workspaceSlug: string, req: BrandScanRequest): Promise<{ job_id: string }> {
+    return this.fetchJSON(this.brandScanEp(workspaceSlug), {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async getBrandScan(workspaceSlug: string, jobId: string): Promise<BrandScanJob> {
+    return this.fetchJSON(`${this.brandScanEp(workspaceSlug)}/${encodeURIComponent(jobId)}`);
+  }
+
+  async checkBrandDraft(
+    workspaceSlug: string,
+    profile: VoiceProfile,
+    text: string,
+  ): Promise<BrandScanCheckResult> {
+    return this.fetchJSON(`${this.brandScanEp(workspaceSlug)}/check-draft`, {
+      method: "POST",
+      body: JSON.stringify({ profile, text }),
     });
   }
 

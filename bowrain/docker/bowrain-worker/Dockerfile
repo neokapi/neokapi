@@ -44,7 +44,8 @@ RUN CGO_ENABLED=0 cd bowrain && go build \
 
 # ── Stage 2: Minimal runtime ─────────────────────────────────────────────
 FROM alpine:3.24
-RUN apk add --no-cache ca-certificates tzdata
+# git: brand-scan repo sources shell out to the git binary (bowrain/connector).
+RUN apk add --no-cache ca-certificates tzdata git
 
 COPY --from=builder /out/bowrain-worker /usr/local/bin/bowrain-worker
 

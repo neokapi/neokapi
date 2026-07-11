@@ -92,6 +92,10 @@ import type {
   SlugReservation,
   UploadFilesResult,
   ReviewDemotion,
+  BrandScanRequest,
+  BrandScanUploadResult,
+  BrandScanJob,
+  BrandScanCheckResult,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -772,6 +776,20 @@ export interface ApiAdapter {
     pack: string,
     name?: string,
   ): Promise<VoiceProfile>;
+
+  // Brand scan (AI brand onboarding — epic 016). A scan drafts a voice
+  // profile + candidate glossary from pasted text, fetched pages, uploaded
+  // files, and repo docs; the draft is reviewed and approved by a human via
+  // the ordinary createBrandProfile/createConcept surface.
+  uploadBrandScanSources(workspaceSlug: string, files: File[]): Promise<BrandScanUploadResult>;
+  startBrandScan(workspaceSlug: string, req: BrandScanRequest): Promise<{ job_id: string }>;
+  getBrandScan(workspaceSlug: string, jobId: string): Promise<BrandScanJob>;
+  /** Stateless deterministic check of sample text against an in-progress draft. */
+  checkBrandDraft(
+    workspaceSlug: string,
+    profile: VoiceProfile,
+    text: string,
+  ): Promise<BrandScanCheckResult>;
 
   // Audit log
   listWorkspaceAuditLog(workspaceSlug: string, query?: AuditQuery): Promise<AuditEntry[]>;

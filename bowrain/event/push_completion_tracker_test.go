@@ -25,11 +25,14 @@ func (s *stubJobStore) GetJob(ctx context.Context, id string) (*jobs.Translation
 func (s *stubJobStore) ListJobs(ctx context.Context, workspaceSlug string, limit int) ([]*jobs.TranslationJob, error) {
 	return nil, nil
 }
-func (s *stubJobStore) UpdateJobProgress(ctx context.Context, id string, doneBlocks, totalBlocks int) error {
+func (s *stubJobStore) UpdateJobProgress(ctx context.Context, id string, epoch int64, doneBlocks, totalBlocks int) error {
 	return nil
 }
 func (s *stubJobStore) UpdateJobStatus(ctx context.Context, id string, status jobs.JobStatus, errMsg string) error {
 	return nil
+}
+func (s *stubJobStore) FailJob(ctx context.Context, id string, epoch int64, errMsg string) (bool, error) {
+	return true, nil
 }
 func (s *stubJobStore) DeleteJob(ctx context.Context, id string) error { return nil }
 func (s *stubJobStore) ClaimJob(ctx context.Context, id string) (bool, int64, error) {
@@ -38,7 +41,7 @@ func (s *stubJobStore) ClaimJob(ctx context.Context, id string) (bool, int64, er
 func (s *stubJobStore) RenewLease(ctx context.Context, id string, epoch int64) (bool, error) {
 	return true, nil
 }
-func (s *stubJobStore) RetryOrFail(ctx context.Context, id string, maxAttempts int, errMsg string) (bool, error) {
+func (s *stubJobStore) RetryOrFail(ctx context.Context, id string, epoch int64, maxAttempts int, errMsg string) (bool, error) {
 	return false, nil
 }
 func (s *stubJobStore) SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) ([]string, int, error) {

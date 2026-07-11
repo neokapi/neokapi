@@ -85,6 +85,8 @@ export interface ProjectDashboardProps {
   onArchiveProject?: (projectId: string) => void;
   /** Workspace languages for locale pickers. */
   workspaceLanguages?: string[];
+  /** Opens the AI brand scan (epic 016) from the first-run empty state. */
+  onScanBrand?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -273,9 +275,11 @@ function PathwayCard({ icon, title, description, action, onClick, glow: _glow }:
 function OnboardingView({
   onStartCreate,
   onCreateSampleProject,
+  onScanBrand,
 }: {
   onStartCreate: () => void;
   onCreateSampleProject?: () => void;
+  onScanBrand?: () => void;
 }) {
   return (
     <div className="flex flex-col items-center" data-testid="empty-projects">
@@ -321,17 +325,29 @@ function OnboardingView({
         />
       </div>
 
-      {/* Sample project CTA */}
-      {onCreateSampleProject && (
-        <button
-          type="button"
-          onClick={onCreateSampleProject}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
-        >
-          <Sparkles className="w-3 h-3" />
-          Or try a sample project to explore Bowrain
-        </button>
-      )}
+      {/* Secondary CTAs */}
+      <div className="flex flex-col items-center gap-2">
+        {onScanBrand && (
+          <button
+            type="button"
+            onClick={onScanBrand}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3 h-3" />
+            Or scan your brand first — draft a voice profile and glossary from your material
+          </button>
+        )}
+        {onCreateSampleProject && (
+          <button
+            type="button"
+            onClick={onCreateSampleProject}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3 h-3" />
+            Or try a sample project to explore Bowrain
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -349,6 +365,7 @@ export function ProjectDashboard({
   onEditProject,
   onArchiveProject,
   workspaceLanguages,
+  onScanBrand,
 }: ProjectDashboardProps) {
   const { getDisplayName } = useLocales();
   const [showCreate, setShowCreate] = useState(false);
@@ -362,6 +379,7 @@ export function ProjectDashboard({
         <OnboardingView
           onStartCreate={() => setShowCreate(true)}
           onCreateSampleProject={onCreateSampleProject}
+          onScanBrand={onScanBrand}
         />
       ) : (
         <div>

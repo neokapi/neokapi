@@ -100,6 +100,20 @@ export const TEST_IDS = {
     profileNameInput: "brand-profile-name-input",
   },
 
+  // ── Brand scan (AI brand onboarding — epic 016) ──────────────────
+  brandScan: {
+    input: "brand-scan-input",
+    urlInput: "brand-scan-url-input",
+    fileDrop: "brand-scan-file-drop",
+    start: "brand-scan-start",
+    progress: "brand-scan-progress",
+    review: "brand-scan-review",
+    fieldConfidence: "brand-scan-field-confidence",
+    termRow: "brand-scan-term-row",
+    liveTester: "brand-scan-live-tester",
+    approve: "brand-scan-approve",
+  },
+
   // ── Settings ──────────────────────────────────────────────────────
   settings: {
     nav: "settings-nav",

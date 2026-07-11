@@ -61,6 +61,16 @@ func ExtractFile(data []byte, filename, contentType string) (string, error) {
 	return text, nil
 }
 
+// CheckFileSupported reports whether ExtractFile can handle a file of this
+// name/content type, without reading any bytes. It returns nil for
+// allowlisted types and the same descriptive error ExtractFile would return
+// otherwise — including the "deferred" pdf/pptx message — so upload
+// endpoints can validate (and explain skips) before storing anything.
+func CheckFileSupported(filename, contentType string) error {
+	_, err := readerForFile(filename, contentType)
+	return err
+}
+
 // readersByExt maps allowlisted file extensions to reader factories.
 var readersByExt = map[string]func() format.DataFormatReader{
 	".md":       func() format.DataFormatReader { return markdown.NewReader() },

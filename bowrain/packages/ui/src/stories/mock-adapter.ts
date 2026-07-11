@@ -20,7 +20,13 @@ import type {
   BlockHistoryEntry,
   QAIssue,
   FileQAResult,
+  BrandScanRequest,
+  BrandScanUploadResult,
+  BrandScanCheckResult,
+  BrandScanDraft,
+  BrandScanJob,
 } from "../types/api";
+import type { VoiceProfile } from "../brand/types";
 import type {
   AutomationRule,
   AutomationEvent,
@@ -176,7 +182,130 @@ export interface MockAdapter extends ApiAdapter {
   reviewBlockCalls: ReviewBlockCall[];
   /** When true, `reviewBlock` rejects instead of applying. */
   failReviewBlock: boolean;
+  /** `startBrandScan` invocations in call order. */
+  startBrandScanCalls: BrandScanRequest[];
+  /** `uploadBrandScanSources` invocations — filenames per call. */
+  uploadBrandScanSourcesCalls: string[][];
+  /** `checkBrandDraft` invocations in call order. */
+  checkBrandDraftCalls: { profileName: string; text: string }[];
+  /**
+   * States returned by successive `getBrandScan` calls: each call consumes
+   * the next entry; the last entry repeats. Tests overwrite this to simulate
+   * queued → processing → completed/failed progressions.
+   */
+  brandScanJobStates: BrandScanJob[];
 }
+
+// ---------------------------------------------------------------------------
+// Brand-scan fixtures (deterministic — stories and tests assert on these)
+// ---------------------------------------------------------------------------
+
+/** Deterministic drafted profile for the brand-scan review fixtures. */
+export const sampleBrandScanProfile: VoiceProfile = {
+  id: "",
+  name: "Acme Brand Voice",
+  description: "Drafted from 3 sources by the brand scan.",
+  tone: {
+    personality: ["precise", "helpful", "direct"],
+    formality: "neutral",
+    emotion: "warm",
+    humor: "none",
+  },
+  style: {
+    active_voice: true,
+    sentence_length: "medium",
+    person_pov: "second",
+    contractions: "sometimes",
+  },
+  vocabulary: {
+    preferred_terms: [{ term: "workspace", note: "Preferred over 'account'." }],
+    forbidden_terms: [{ term: "synergy", severity: "major" }],
+    competitor_terms: [{ term: "QuickPay" }],
+  },
+  examples: [
+    {
+      before: "Leverage our synergistic platform.",
+      after: "Use the workspace to publish in every language.",
+      category: "vocabulary",
+    },
+  ],
+  workspace_id: "ws-1",
+  version: 0,
+  created_at: "2026-07-01T00:00:00Z",
+  updated_at: "2026-07-01T00:00:00Z",
+};
+
+/** Deterministic completed brand-scan draft (profile + evidence + terms). */
+export const sampleBrandScanDraft: BrandScanDraft = {
+  profile: sampleBrandScanProfile,
+  evidence: {
+    fields: {
+      tone: { confidence: 0.82, source: "Consistent register across brand-guide.docx" },
+      style: { confidence: 0.71, source: "Short imperative sentences on the landing pages" },
+      vocabulary: { confidence: 0.9, source: "Glossary section in brand-guide.docx" },
+      examples: { confidence: 0.55, source: "Rewrites derived from the blog posts" },
+    },
+  },
+  terms: [
+    {
+      term: "workspace",
+      definition: "The shared container for projects and members.",
+      domain: "product",
+    },
+    {
+      term: "stream",
+      definition: "A named line of content development within a project.",
+      domain: "product",
+    },
+    {
+      term: "convergence",
+      definition: "The process that settles translations against checks.",
+      domain: "product",
+    },
+  ],
+  sources: [
+    { kind: "upload", label: "brand-guide.docx", runes: 48210 },
+    { kind: "url", label: "https://acme.example/about", runes: 9120 },
+    { kind: "paste", label: "pasted text", runes: 1834 },
+  ],
+  truncated: false,
+};
+
+/** A completed brand-scan job carrying the sample draft. */
+export const sampleBrandScanJob: BrandScanJob = {
+  id: "scan-1",
+  status: "completed",
+  progress: 100,
+  message: "done",
+  tokens_used: 12840,
+  draft: sampleBrandScanDraft,
+};
+
+/** File extensions the mock brand-scan upload endpoint accepts. */
+const BRAND_SCAN_KNOWN_EXTENSIONS = new Set([
+  "md",
+  "markdown",
+  "html",
+  "htm",
+  "xhtml",
+  "txt",
+  "text",
+  "csv",
+  "tsv",
+  "docx",
+  "xlsx",
+  "odt",
+  "ods",
+  "odp",
+  "epub",
+  "xml",
+  "json",
+  "yaml",
+  "yml",
+]);
+
+/** Extensions recognized but deferred (need a pdf/pptx text extractor). */
+const BRAND_SCAN_DEFERRED_EXTENSIONS = new Set(["pdf", "ppt", "pptx", "pptm", "ppsx", "potx"]);
 
 /** File extensions the mock "server" pretends to have format readers for. */
 const MOCK_KNOWN_EXTENSIONS = new Set([
@@ -227,11 +356,19 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
   };
 
   const reviewBlockCalls: ReviewBlockCall[] = [];
+  const startBrandScanCalls: BrandScanRequest[] = [];
+  const uploadBrandScanSourcesCalls: string[][] = [];
+  const checkBrandDraftCalls: { profileName: string; text: string }[] = [];
+  let brandScanPollIndex = 0;
 
   const adapter: MockAdapter = {
     // --- Test hooks -------------------------------------------------------
     reviewBlockCalls,
     failReviewBlock: false,
+    startBrandScanCalls,
+    uploadBrandScanSourcesCalls,
+    checkBrandDraftCalls,
+    brandScanJobStates: [sampleBrandScanJob],
 
     // --- Config ---------------------------------------------------------
     getConfig: async () => ({
@@ -239,6 +376,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       version: "0.0.0-storybook",
       commit: "storybook",
       build_date: "unknown",
+      // The mock backend answers every brand-scan call, so the capability is on.
+      features: { brand_scan: true },
     }),
 
     // --- Auth -----------------------------------------------------------
@@ -846,6 +985,59 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       },
     ],
     createProfileFromStarter: notImpl,
+
+    // --- Brand scan (epic 016) -------------------------------------------
+    uploadBrandScanSources: async (_ws, files): Promise<BrandScanUploadResult> => {
+      uploadBrandScanSourcesCalls.push(files.map((f) => f.name));
+      const uploads: BrandScanUploadResult["uploads"] = [];
+      const skipped: SkippedFile[] = [];
+      for (const f of files) {
+        const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+        if (BRAND_SCAN_DEFERRED_EXTENSIONS.has(ext)) {
+          skipped.push({
+            name: f.name,
+            reason: "unsupported (deferred: needs pdf/pptx text extractor)",
+          });
+        } else if (!BRAND_SCAN_KNOWN_EXTENSIONS.has(ext)) {
+          skipped.push({ name: f.name, reason: `no text extractor for ".${ext}"` });
+        } else {
+          uploads.push({ key: `blob-${f.name}`, filename: f.name, size: f.size });
+        }
+      }
+      return skipped.length > 0 ? { uploads, skipped } : { uploads };
+    },
+    startBrandScan: async (_ws, req) => {
+      startBrandScanCalls.push(req);
+      brandScanPollIndex = 0;
+      return { job_id: sampleBrandScanJob.id };
+    },
+    getBrandScan: async (_ws, jobId): Promise<BrandScanJob> => {
+      const states = adapter.brandScanJobStates;
+      const state = states[Math.min(brandScanPollIndex, states.length - 1)];
+      brandScanPollIndex++;
+      return { ...state, id: jobId };
+    },
+    checkBrandDraft: async (_ws, profile, text): Promise<BrandScanCheckResult> => {
+      checkBrandDraftCalls.push({ profileName: profile.name, text });
+      // Deterministic: forbidden/competitor terms in the sample text lower
+      // the score and surface findings, mirroring the vocabulary matcher.
+      const rules = [
+        ...(profile.vocabulary.forbidden_terms ?? []),
+        ...(profile.vocabulary.competitor_terms ?? []),
+      ];
+      const findings = rules
+        .filter((r) => text.toLowerCase().includes(r.term.toLowerCase()))
+        .map((r) => ({
+          // Server shape: core/check.Finding serializes the grouping field as
+          // `category` (NOT the UI's `dimension`) — the live tester normalizes.
+          category: "vocabulary",
+          severity: r.severity ?? "major",
+          message: `Uses the term "${r.term}"`,
+          position: { start: 0, end: r.term.length },
+          original_text: r.term,
+        }));
+      return { score: { overall: findings.length > 0 ? 62 : 96 }, findings };
+    },
     getTranslationDashboard: async () => ({
       locale_stats: [],
       item_stats: [],

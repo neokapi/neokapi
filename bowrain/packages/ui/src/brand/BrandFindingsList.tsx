@@ -39,7 +39,7 @@ export function BrandFindingsList({ findings, className }: BrandFindingsListProp
               <p className="text-xs text-muted-foreground">Suggestion: {finding.suggestion}</p>
             )}
             <div className="flex gap-2 text-[10px] text-muted-foreground">
-              <span className="capitalize">{finding.dimension.replace("_", " ")}</span>
+              <span className="capitalize">{(finding.dimension ?? "").replace("_", " ")}</span>
               {finding.original_text && (
                 <span className="truncate max-w-[200px]">
                   &ldquo;{finding.original_text}&rdquo;
