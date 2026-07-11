@@ -82,7 +82,7 @@ defaults:
 | Field      | Type           | Description                                                                                                  |
 | ---------- | -------------- | ----------------------------------------------------------------------------------------------------------- |
 | `content`  | ContentEntry[] | File patterns to process (see [ContentEntry](#contententry))                                                |
-| `preset`   | string         | A framework [preset](/reference/commands/presets) name (e.g., `nextjs`, `react-intl`) applied to formats    |
+| `preset`   | string         | A framework preset name (see [`kapi init`](/reference/commands/init) `--list-presets`) (e.g., `nextjs`, `react-intl`) applied to formats    |
 | `plugins`  | map            | Plugin requirements keyed by name (e.g., `okapi: "^1.47.0"`)                                                 |
 | `requires` | map            | Plugin name → semver constraint that gates loading; the recipe refuses to load without a registered plugin  |
 | `flows`    | map            | Named flow definitions (see [Flow Steps](#flow-steps))                                                       |

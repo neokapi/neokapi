@@ -82,6 +82,11 @@ func runConverge(t *testing.T, a *App, recipe string, opts ConvergeOptions) (str
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
+	// Bind the fixture recipe explicitly: downstream TM/termbase resolution
+	// reads the project flag, and without it the upward walk would bind to
+	// the repo's dogfood .kapi on a dev machine (and nothing on CI).
+	AddProjectFlag(cmd)
+	require.NoError(t, cmd.Flags().Set("project", recipe))
 	proj, perr := a.LoadProjectInteractive(cmd.Context(), recipe, LoadProjectInteractiveOptions{AssumeYes: a.AssumeYes})
 	if perr != nil {
 		return out.String(), perr
