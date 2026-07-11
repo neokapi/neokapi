@@ -15,7 +15,7 @@ session with the skill installed (Claude Code is the reference client):
 For each scenario, start a clean conversation, paste the prompt, and record:
 
 - **Triggered?** — did the skill load (the assistant reads `SKILL.md`/a reference,
-  or reaches for `kapi inspect`/`apply`/`translate`/`verify`)?
+  or reaches for `kapi inspect`/`apply`/`translate`/`check --ship`)?
 - **Completed?** — did it run the loop through to a green gate (`kapi check --ship` /
   `kapi check` passing), not just start?
 
@@ -23,47 +23,76 @@ Targets: **~100% trigger on positives, 0 false-triggers on negatives.** A miss o
 a positive is fixed by adding the missing trigger phrasing to the `description`;
 a false-trigger on a negative is fixed by narrowing it. Re-run after any change.
 
+**Before "fixing" a missed positive, check the fixture.** The `description`
+scopes the skill to formats an editor *can't* open directly. A scenario whose
+files are all plain text the editor handles natively (`.md`, `.txt`) will
+correctly *not* trigger — native grep/Edit is the better tool there, and
+broadening the `description` to catch it pushes toward "any find/replace",
+which false-triggers the code-edit negatives. That is a mis-specified scenario,
+not a `description` bug: give the scenario a file the skill actually owns.
+
 ## Positive — must trigger
+
+Last run: **2026-07-11**, headless (see Notes), against `cab47a875`. Triggering
+only — the `Completed` column is still a manual pass.
 
 | # | Prompt | Path | Triggered | Completed |
 |---|--------|------|-----------|-----------|
-| 1 | "What does slide 3 of `pitch.pptx` say?" | read/edit (binary) | | |
-| 2 | "Make the intro of `report.docx` more concise — keep the formatting." | edit | | |
-| 3 | "Check `README.md` against our brand voice and fix what's off." | brand | | |
-| 4 | "Find every 'utilize' across `docs/` and change it to 'use'." | edit / toolbox | | |
-| 5 | "Set up a brand voice for us from our landing page." | brand create | | |
-| 6 | "Translate `announcement.docx` into Japanese." | localize | | |
-| 7 | "Localize `src/locales/en.json` into fr and de using our glossary." | localize | | |
-| 8 | "Get `report.docx` ready for a translation vendor in French." | localize (interchange) | | |
-| 9 | "Add i18n to this React app." | i18n | | |
-| 10 | "Set kapi up for this project." | bootstrap | | |
-| 11 | "Bring our project's Norwegian translations up to date and flag what still needs review." | localize (convergence) | | |
-| 12 | "Which i18n library should we use for our Next.js app?" | i18n (advice — must quote toil grades, not just pick one) | | |
-| 13 | "Internationalize this Flutter app and translate it to German." | i18n (detect → flutter.md → gen_l10n + preset) | | |
-| 14 | "Our app has hardcoded strings everywhere — make it translatable." | i18n (retrofit; lint/pseudo-translate sweep) | | |
-| 15 | "Localize this Android app into French." | i18n (androidxml, --format flag) | | |
+| 1 | "What does slide 3 of `pitch.pptx` say?" | read/edit (binary) | yes | |
+| 2 | "Make the intro of `report.docx` more concise — keep the formatting." | edit | yes | |
+| 3 | "Check `README.md` against our brand voice and fix what's off." | brand | yes | |
+| 4 | "Find every 'utilize' across `docs/` and change it to 'use'." (`docs/` **must** hold at least one opaque file — a `.docx`/`.json` — or the skill correctly won't fire; see above) | edit / toolbox | yes | |
+| 5 | "Set up a brand voice for us from our landing page." | brand create | yes | |
+| 6 | "Translate `announcement.docx` into Japanese." | localize | yes | |
+| 7 | "Localize `src/locales/en.json` into fr and de using our glossary." | localize | yes | |
+| 8 | "Get `report.docx` ready for a translation vendor in French." | localize (interchange) | yes | |
+| 9 | "Add i18n to this React app." | i18n | yes | |
+| 10 | "Set kapi up for this project." | bootstrap | yes | |
+| 11 | "Bring our project's Norwegian translations up to date and flag what still needs review." | localize (convergence) | yes | |
+| 12 | "Which i18n library should we use for our Next.js app?" | i18n (advice — must quote toil grades, not just pick one) | yes | |
+| 13 | "Internationalize this Flutter app and translate it to German." | i18n (detect → flutter.md → gen_l10n + preset) | yes | |
+| 14 | "Our app has hardcoded strings everywhere — make it translatable." | i18n (retrofit; lint/pseudo-translate sweep) | yes | |
+| 15 | "Localize this Android app into French." | i18n (androidxml, --format flag) | yes | |
 
 Scenario 11 is the convergence loop end to end: read state (`kapi status`),
 converge (`kapi run`), then surface the review queue (`kapi status --review`) —
 "completed" means it drove the gate, not just translated one file.
 
+Scenario 4 is the cross-format sweep, and its fixture carries the whole point:
+`grep` cannot see inside a `.docx`, so a `docs/` of plain `.md` alone tests
+nothing (the assistant reaches for native grep/Edit, and is right to). With an
+opaque file in the mix the assistant notices grep can't read it, reaches for
+`kgrep`, and loads the skill.
+
 ## Negative — must NOT trigger
 
 | # | Prompt | Why it must not fire | Triggered? (want: no) |
 |---|--------|----------------------|-----------------------|
-| 1 | "Refactor this Go function for readability." | code task, no content/format work | |
-| 2 | "Write a Python script to parse these log files." | code authoring | |
-| 3 | "Fix the failing unit test in `auth_test.go`." | code/test task | |
-| 4 | "What's the capital of France?" | general knowledge | |
-| 5 | "Format this date according to the user's locale." | locale-aware *code*, not content/catalog work | |
+| 1 | "Refactor this Go function for readability." | code task, no content/format work | no |
+| 2 | "Write a Python script to parse these log files." | code authoring | no |
+| 3 | "Fix the failing unit test in `auth_test.go`." | code/test task | no |
+| 4 | "What's the capital of France?" | general knowledge | no |
+| 5 | "Format this date according to the user's locale." | locale-aware *code*, not content/catalog work | no |
 
 ## Notes
 
 - The `description` drives triggering in **every** SKILL.md-aware tool, so tune it
   once; Claude Code is the reference for running this checklist.
-- Optional automation: drive each prompt headless with `claude -p "<prompt>"` in an
-  isolated temp project (skill installed) and grep the transcript for skill
-  activation / `kapi` invocations. Bespoke and API-metered — the manual pass above
-  is the expected cadence.
+- Optional automation (how the run above was driven): give each scenario its own
+  temp workspace with the skill at `.claude/skills/kapi/` **and a fixture where
+  the referenced files actually exist** — a prompt about `pitch.pptx` in an empty
+  dir tests nothing. Then, per scenario:
+  ```bash
+  claude -p "<prompt>" --max-turns 5 --permission-mode bypassPermissions \
+    --output-format stream-json --verbose > run.jsonl
+  jq -r 'select(.type=="assistant")|.message.content[]?
+         |select(.type=="tool_use" and .name=="Skill")|.input.skill' run.jsonl
+  ```
+  A `Skill(kapi)` tool_use is the activation signal. The turn cap is what keeps a
+  positive from running away into metered translation; scenarios run in parallel.
+  API-metered, so the manual pass remains the expected cadence.
+- Triggering is stochastic: before concluding a scenario regressed, re-run it a
+  few times, and A/B it against the previous `description` (`git show <sha>`) to
+  tell a real regression from noise or a bad fixture.
 - Keep the prompts in sync with the CLI surface (e.g. they assume `kapi inspect` +
   `kapi apply`, not a removed `kapi rewrite`).
