@@ -99,7 +99,7 @@ matter.
 ```tsx
 // blocks result
 <DualExample
-  command="kapi word-count messages.json"
+  command="kapi stats messages.json"
   seed={["messages.json"]}
   result={{ kind: "blocks", sample: "messages.json", title: "messages.json (parsed)" }}
 />

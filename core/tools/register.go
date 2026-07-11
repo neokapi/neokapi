@@ -83,25 +83,6 @@ func RegisterAll(reg *registry.ToolRegistry) {
 
 	// ── Validate ────────────────────────────────────────────────────
 
-	reg.RegisterWithSchema("word-count", func() tool.Tool {
-		cfg := &WordCountConfig{}
-		cfg.Reset()
-		return NewWordCountTool(cfg)
-	}, toolSchema(&WordCountConfig{CountSource: true, CountTarget: true}, toolMeta("word-count", "Word Count", schema.CategoryAnalysis,
-		withTags("analysis"), withAliases("wc"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoWordCount)))))
-
-	reg.RegisterWithSchema("char-count", func() tool.Tool {
-		cfg := &CharCountConfig{}
-		cfg.Reset()
-		return NewCharCountTool(cfg)
-	}, toolSchema(&CharCountConfig{CountSource: true, CountTarget: true}, toolMeta("char-count", "Character Count", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoCharCount)))))
-
-	reg.RegisterWithSchema("segment-count", func() tool.Tool {
-		return NewSegCountTool(&SegCountConfig{})
-	}, toolSchema(&SegCountConfig{}, toolMeta("segment-count", "Segment Count", schema.CategoryAnalysis,
-		withTags("analysis"), withCardinality(schema.Monolingual), withProduces(srcF(model.AnnoSegCount)))))
-
 	reg.RegisterWithSchema("qa", func() tool.Tool {
 		return NewQACheckTool(NewQACheckConfig(model.LocaleEnglish))
 	}, toolSchema(NewQACheckConfig(model.LocaleEnglish), toolMeta("qa", "Quality Check", schema.CategoryQuality,
@@ -303,9 +284,6 @@ func RegisterAll(reg *registry.ToolRegistry) {
 }
 
 func registerConfigFactories(reg *registry.ToolRegistry) {
-	reg.SetConfigFactory("word-count", NewWordCountFromConfig)
-	reg.SetConfigFactory("char-count", NewCharCountFromConfig)
-	reg.SetConfigFactory("segment-count", NewSegCountFromConfig)
 	reg.SetConfigFactory("qa", NewQACheckFromConfig)
 	reg.SetConfigFactory("inconsistency-check", NewInconsistencyCheckFromConfig)
 	reg.SetConfigFactory("length-check", NewLengthCheckFromConfig)

@@ -131,7 +131,7 @@ Once connected, your AI assistant can call these tools:
 | `detect_format`    | Detect a file's format from its path                             |
 | `extract_content`  | Read a file's blocks (`id`, `content_hash`, placeholder `source_text`, `word_count`) — the read leg |
 | `apply_edits`      | Apply a typed change-set (content + asset edits) — the write leg, no provider |
-| `word_count`       | Count translatable words in a file                               |
+| `stats`            | Content metrics per file and in total — blocks, words, characters, segments, by-role |
 | `run_flow`         | Run a processing flow (pseudo-translate, QA check, etc.)         |
 | `pseudo_translate` | Pseudo-translate a file for localization QA                      |
 | `list_flows`       | List available processing flows                                  |
@@ -152,7 +152,7 @@ Ask your AI assistant:
 
 > How many translatable words are in `src/locales/en.json`?
 
-The assistant calls `word_count` with the file path and returns a structured answer with word and block counts.
+The assistant calls `stats` with the file path and returns a structured answer with word, block, character, and segment counts.
 
 ### "What formats can you handle?"
 
@@ -222,13 +222,17 @@ Execute a processing flow on a file.
 | `target_lang` | string | yes\*    | Target language (\*optional for `pseudo-translate`, defaults to `qps`)   |
 | `output_path` | string | no       | Output file path (default: auto-generated as `<base>_<lang><ext>`)       |
 
-### word_count
+### stats
 
-| Parameter     | Type   | Required | Description                     |
-| ------------- | ------ | -------- | ------------------------------- |
-| `path`        | string | yes      | File path to count              |
-| `format`      | string | no       | Override format detection       |
-| `source_lang` | string | no       | Source language (default: `en`) |
+Per-file and total content metrics — blocks (translatable and not), words,
+characters (with and without spaces, plus the unique-character inventory),
+segments when available, and a by-role breakdown. The same JSON
+`kapi stats --json` emits.
+
+| Parameter | Type   | Required | Description                                                        |
+| --------- | ------ | -------- | ------------------------------------------------------------------ |
+| `files`   | array  | yes      | Paths of the files to summarize                                    |
+| `format`  | string | no       | Input format override applied to every file (default: auto-detect) |
 
 ### detect_format
 

@@ -64,7 +64,7 @@ func bindingProvidedPorts(source string) map[string]bool {
 		// The content store / archive carries the source plus every persisted
 		// port, including tool-computed ones.
 		m := sourceDerivablePorts()
-		for _, t := range []string{string(model.OverlayQA), model.AnnoTMMatch, model.AnnoWordCount} {
+		for _, t := range []string{string(model.OverlayQA), model.AnnoTMMatch} {
 			m[portKey(t, model.SideTarget)] = true
 			m[portKey(t, model.SideSource)] = true
 		}

@@ -238,6 +238,10 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(cli.NewPresetsCmd(app))
 	root.AddCommand(cli.NewTranslateCmd(app))
 	root.AddCommand(cli.NewPseudoTranslateCmd(app))
+	// stats sizes content (blocks/words/chars/segments) — pure reader-side
+	// aggregation, so the docs snippet verifier can run `kapi stats` in the
+	// browser playground.
+	root.AddCommand(cli.NewStatsCmd(app))
 	root.AddCommand(cli.NewVersionCmd(app, "kapi"))
 
 	// TM and termbase commands backed by the in-memory fixture data
@@ -245,7 +249,7 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(cli.NewTMCmd(app))
 	root.AddCommand(cli.NewTermbaseCmd(app))
 
-	// Top-level tool commands (pseudo-translate, word-count, term-check, …).
+	// Top-level tool commands (pseudo-translate, term-check, …).
 	for _, c := range cli.NewToolCommands(app) {
 		root.AddCommand(c)
 	}

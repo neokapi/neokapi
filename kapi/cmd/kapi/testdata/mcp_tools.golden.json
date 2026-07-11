@@ -478,59 +478,6 @@
     }
   },
   {
-    "name": "char-count",
-    "input_schema": {
-      "$id": "char-count",
-      "properties": {
-        "countInline": {
-          "default": false,
-          "description": "Include inline code content in character counts",
-          "title": "Count Inline Codes",
-          "type": "boolean"
-        },
-        "countSource": {
-          "default": true,
-          "description": "Count characters in source text",
-          "title": "Count Source",
-          "type": "boolean"
-        },
-        "countTarget": {
-          "default": true,
-          "description": "Count characters in target text",
-          "title": "Count Target",
-          "type": "boolean"
-        },
-        "target_lang": {
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
-          "type": "string"
-        },
-        "text": {
-          "description": "The content (text) to run the tool over.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "Character Count",
-      "toolMeta": {
-        "cardinality": "monolingual",
-        "category": "analysis",
-        "displayName": "Character Count",
-        "id": "char-count",
-        "produces": [
-          {
-            "type": "char-count"
-          }
-        ],
-        "tags": [
-          "analysis"
-        ]
-      },
-      "type": "object"
-    }
-  },
-  {
     "name": "chars-check",
     "input_schema": {
       "$id": "chars-check",
@@ -2591,41 +2538,6 @@
     }
   },
   {
-    "name": "segment-count",
-    "input_schema": {
-      "$id": "segment-count",
-      "properties": {
-        "target_lang": {
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
-          "type": "string"
-        },
-        "text": {
-          "description": "The content (text) to run the tool over.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "Segment Count",
-      "toolMeta": {
-        "cardinality": "monolingual",
-        "category": "analysis",
-        "displayName": "Segment Count",
-        "id": "segment-count",
-        "produces": [
-          {
-            "type": "seg-count"
-          }
-        ],
-        "tags": [
-          "analysis"
-        ]
-      },
-      "type": "object"
-    }
-  },
-  {
     "name": "segmentation",
     "input_schema": {
       "$id": "segmentation",
@@ -2927,6 +2839,32 @@
           "quality"
         ]
       },
+      "type": "object"
+    }
+  },
+  {
+    "name": "stats",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "description": "paths of the files to summarize",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "format": {
+          "description": "input format override applied to every file (default: auto-detect by extension/content)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "files"
+      ],
       "type": "object"
     }
   },
@@ -3436,90 +3374,6 @@
           "type": "string"
         }
       },
-      "type": "object"
-    }
-  },
-  {
-    "name": "word-count",
-    "input_schema": {
-      "$id": "word-count",
-      "properties": {
-        "countInline": {
-          "default": false,
-          "description": "Include inline code content in word counts",
-          "title": "Count Inline Codes",
-          "type": "boolean"
-        },
-        "countSource": {
-          "default": true,
-          "description": "Count words in source text",
-          "title": "Count Source",
-          "type": "boolean"
-        },
-        "countTarget": {
-          "default": true,
-          "description": "Count words in target text",
-          "title": "Count Target",
-          "type": "boolean"
-        },
-        "target_lang": {
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
-          "type": "string"
-        },
-        "text": {
-          "description": "The content (text) to run the tool over.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "title": "Word Count",
-      "toolMeta": {
-        "aliases": [
-          "wc"
-        ],
-        "cardinality": "monolingual",
-        "category": "analysis",
-        "displayName": "Word Count",
-        "id": "word-count",
-        "produces": [
-          {
-            "type": "word-count"
-          }
-        ],
-        "tags": [
-          "analysis"
-        ]
-      },
-      "type": "object"
-    }
-  },
-  {
-    "name": "word_count",
-    "input_schema": {
-      "additionalProperties": false,
-      "properties": {
-        "format": {
-          "description": "Override format detection",
-          "type": "string"
-        },
-        "path": {
-          "description": "File path to count words in",
-          "type": "string"
-        },
-        "project": {
-          "description": "Path to .kapi project file for scoped format detection",
-          "type": "string"
-        },
-        "source_lang": {
-          "description": "Source language (default: en)",
-          "type": "string"
-        }
-      },
-      "required": [
-        "path"
-      ],
       "type": "object"
     }
   }

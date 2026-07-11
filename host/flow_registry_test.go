@@ -63,7 +63,7 @@ func TestDefaultParallelBlocks_AIFlows(t *testing.T) {
 func TestDefaultParallelBlocks_CPUFlows(t *testing.T) {
 	app := newTestApp()
 	assert.Equal(t, 0, app.defaultParallelBlocks("pseudo-translate"))
-	assert.Equal(t, 0, app.defaultParallelBlocks("word-count"))
+	assert.Equal(t, 0, app.defaultParallelBlocks("search-replace"))
 }
 
 func TestDefaultParallelBlocks_Unknown(t *testing.T) {

@@ -91,16 +91,16 @@ steps:
       copySource: true
 
   - parallel:
-      - tool: word-count
-        label: Count words
-        config:
-          targetLocale: fr
       - tool: qa
         label: Quality checks
         config:
           targetLocale: fr
-      - tool: char-count
-        label: Count characters
+      - tool: length-check
+        label: Length checks
+        config:
+          targetLocale: fr
+      - tool: repetition-analysis
+        label: Repetition analysis
         config:
           targetLocale: fr
 ```
@@ -204,7 +204,7 @@ steps:
       expansionPercent: 30
 
   - parallel:
-      - tool: word-count
+      - tool: repetition-analysis
         config:
           targetLocale: qps-ploc
       - tool: length-check

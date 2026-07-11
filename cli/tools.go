@@ -27,7 +27,7 @@ func NewToolsCmd(a *App) *cobra.Command {
 	schemaCmd := &cobra.Command{
 		Use:     "schema [tool-name]",
 		Short:   "Print the JSON Schema for a tool's parameters",
-		Example: "  kapi tools schema word-count\n  kapi tools schema pseudo-translate",
+		Example: "  kapi tools schema translate\n  kapi tools schema pseudo-translate",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.ToolSchema(cmd, args[0])

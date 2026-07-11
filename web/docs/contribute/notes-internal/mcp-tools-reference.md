@@ -111,25 +111,37 @@ into the cache. No AI provider is used.
 
 **Output:** `ok` plus the per-block content outcome (`applied` / `skipped` / `stale` / `guard_failed`) and a per-entry `assets` result. `ok` is false when an edit drifted or was rejected, signalling the caller to re-read and retry.
 
-### `word_count`
+### `stats`
 
-Count translatable words in a file.
+Size files before processing them: per-file and total content metrics —
+blocks (translatable and not), words, characters (with and without spaces,
+plus the unique-character inventory), segments when available, and a by-role
+breakdown. Returns the same JSON `kapi stats --json` emits.
 
 **Input:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | string | yes | File path to count words in |
-| `format` | string | no | Override format detection |
-| `source_lang` | string | no | Source language (default: `en`) |
-| `project` | string | no | Path to `.kapi` project file for scoped format detection |
+| `files` | array | yes | Paths of the files to summarize |
+| `format` | string | no | Input format override applied to every file (default: auto-detect) |
 
 **Output:**
 
 ```json
 {
-  "format": "json",
-  "word_count": 42,
-  "block_count": 5
+  "files": [
+    {
+      "file": "messages.json",
+      "blocks": 5,
+      "translatable": 5,
+      "non_translatable": 0,
+      "words": 42,
+      "characters": 230,
+      "characters_no_space": 195,
+      "unique_characters": 31,
+      "segments": 0
+    }
+  ],
+  "total": { "blocks": 5, "translatable": 5, "non_translatable": 0, "words": 42, "characters": 230, "characters_no_space": 195, "unique_characters": 31, "segments": 0 }
 }
 ```
 
@@ -197,14 +209,14 @@ List all available processing tools (built-in and plugin-provided).
 **Input:** none
 
 **Output** (one element shown; `total` is `len(tools)`, runtime-dependent —
-see the generated [Tool Reference](/reference/tools/word-count)):
+see the generated [Tool Reference](/reference/tools/translate)):
 
 ```jsonc
 {
   "tools": [
     {
-      "name": "word-count",
-      "description": "Count translatable words in content",
+      "name": "pseudo-translate",
+      "description": "Generate pseudo-translations for testing",
       "source": "built-in"
     }
     // …one entry per registered tool
@@ -319,7 +331,7 @@ Search a local translation memory for prior translations of source text.
 | `cli/mcp.go`                      | Shared `mcp` subcommand + server bootstrap (`NewMCPCmd`) |
 | `cli/mcp_brand.go`                | Shared brand/terminology/TM MCP tools registered via `RegisterMCPToolFactory` (`brand_guide`, `brand_check`, `brand_rewrite`, `term_lookup`, `tm_search`) + their input/output types |
 | `kapi/cmd/kapi/root.go`           | Wires the kapi root command, including `mcp`   |
-| `kapi/cmd/kapi/mcp_tools.go`      | kapi MCP tool handlers + input/output types (`list_formats`, `detect_format`, `extract_content`, `run_flow`, `list_flows`, `word_count`, `list_tools`, `pseudo_translate`) |
+| `kapi/cmd/kapi/mcp_tools.go`      | kapi MCP tool handlers + input/output types (`list_formats`, `detect_format`, `extract_content`, `run_flow`, `list_flows`, `list_tools`, `pseudo_translate`) |
 | `kapi/cmd/kapi/mcp_tools_test.go` | Unit tests for kapi MCP handlers     |
 
 ## Testing

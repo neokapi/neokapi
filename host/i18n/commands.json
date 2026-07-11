@@ -106,10 +106,6 @@
             "example": "  kapi case-transform messages.json --mode upper\n  kapi case-transform messages.json --mode lower",
             "short": "Case Transform"
           },
-          "char-count": {
-            "example": "  kapi char-count messages.json\n  kapi char-count page.html",
-            "short": "Character Count"
-          },
           "chars-check": {
             "example": "  kapi chars-check app.xliff --target-lang fr\n  kapi chars-check app.xliff --target-lang zh",
             "short": "Characters Check"
@@ -176,10 +172,6 @@
             "example": "  kapi search-replace messages.json --find \"foo\" --replace \"bar\"\n  kapi search-replace page.html --find \"colour\" --replace \"color\"",
             "short": "Search and Replace"
           },
-          "segment-count": {
-            "example": "  kapi segment-count messages.json\n  kapi segment-count app.xliff",
-            "short": "Segment Count"
-          },
           "segmentation": {
             "example": "  kapi segmentation messages.json\n  kapi segmentation app.xliff",
             "short": "Split source text into sentence or chunk segments (stand-off overlay)"
@@ -202,10 +194,6 @@
           },
           "unredact": {
             "short": "Restore original values into redacted content after processing"
-          },
-          "word-count": {
-            "example": "  kapi word-count messages.json\n  kapi word-count app.xliff --json",
-            "short": "Word Count"
           }
         },
         "extract": {
@@ -495,7 +483,7 @@
             "short": "List available processing tools"
           },
           "schema": {
-            "example": "  kapi tools schema word-count\n  kapi tools schema pseudo-translate",
+            "example": "  kapi tools schema translate\n  kapi tools schema pseudo-translate",
             "short": "Print the JSON Schema for a tool's parameters"
           },
           "short": "List available processing tools"

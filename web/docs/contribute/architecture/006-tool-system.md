@@ -212,7 +212,7 @@ type LocaleCardinality string
 
 const (
     // Monolingual — operates on a single locale.
-    // Examples: word-count (source), pseudo-translate (target),
+    // Examples: repetition-analysis (source), pseudo-translate (target),
     // encoding-detect (source).
     Monolingual LocaleCardinality = "monolingual"
 
@@ -363,7 +363,7 @@ Examples:
 
 | Flow               | Tools                                         | Passes                                 |
 | ------------------ | --------------------------------------------- | -------------------------------------- |
-| word-count         | `[word-count(mono)]`                          | `[[en]]`                               |
+| repetition-analysis | `[repetition-analysis(mono)]`                | `[[en]]`                               |
 | pseudo-translate   | `[pseudo-translate(bi, default:qps)]`         | `[[en, qps]]`                          |
 | translate          | `[translate(bi)]`                             | `[[en, de], [en, fr], [en, ja], ...]`  |
 | translate+qa       | `[translate(bi), qa(bi)]`                     | `[[en, de], [en, fr], ...]`            |
@@ -599,9 +599,6 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 
 | Tool                     | Description                                                                             |
 | ------------------------ | --------------------------------------------------------------------------------------- |
-| `word-count`             | Count words per block                                                                   |
-| `char-count`             | Count characters per block                                                              |
-| `segment-count`          | Count source and target segments in blocks                                              |
 | `qa`                     | Rule-based quality checks (missing translations, whitespace, numbers, span constraints) |
 | `dnt-check`              | Flag do-not-translate spans that were translated in the target (alias `dnt`)            |
 | `placeholder-check`      | Verify placeholders/variables are preserved between source and target                   |
@@ -697,8 +694,8 @@ spec:
         provider: anthropic
     - tool: qa
     - parallel:
-        - tool: word-count
-        - tool: char-count
+        - tool: length-check
+        - tool: repetition-analysis
 ```
 
 Steps are sequential by default; `parallel:` blocks provide fan-out. The
@@ -734,7 +731,7 @@ wrong writes unrepresentable.
 | `Produce(VariantView)` | source read-only | target content (+ the above) |
 | `Transform` (edit producer) | source + target read-only | an edit plan the framework applies to source |
 
-- **Analysis / annotation** tools (qa, word-count, term-lookup,
+- **Analysis / annotation** tools (qa, repetition-analysis, term-lookup,
   entity-extract, the segmenter) set `Annotate`. `BlockView` exposes no
   source/target setter, so they *cannot* mutate content — they emit overlays,
   annotations, and properties.

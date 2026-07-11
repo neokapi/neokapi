@@ -20,7 +20,7 @@ import { StatsWidget } from "@site/src/components/Lab";
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-Open the project — each content collection lists its matched files with per-file and collection totals, so the volume of a job is visible before you run anything. For a loose file, the word-count and stats tools run as **quick tools** from the Toolbox.
+Open the project — each content collection lists its matched files with per-file and collection totals, so the volume of a job is visible before you run anything. For a loose file, the stats tool runs as a **quick tool** from the Toolbox.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
@@ -34,15 +34,15 @@ The assistant runs `kapi stats --json` over the content, multiplies out the rate
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-Point at a file, a directory, or a glob; totals roll up into one figure:
+Point at a file or a glob; per-file rows plus a grand total:
 
 ```bash
-kapi exec word-count messages.json
-kapi exec word-count ./locales --json
-kapi stats --json docs/*.md          # richer: blocks, segments, by-role breakdown
+kapi stats messages.json
+kapi stats --json ./locales/*.json
+kapi stats --json docs/*.md          # blocks, words, characters, segments, by-role breakdown
 ```
 
-In a project, run with no arguments to count the recipe's declared content. Flags: [`word-count`](/reference/commands/exec-word-count); the field-by-field output is in the reference, not restated here.
+For every flag and the field-by-field JSON output, see `kapi stats --help`.
 
 </TabItem>
 </Tabs>

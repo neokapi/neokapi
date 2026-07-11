@@ -33,11 +33,11 @@ The output is accented text like `▒ Ĥéļļö, Ŵöŕļđ! ▒` that exposes 
 strings and layout problems. With no `--target-lang`, kapi uses the `qps`
 pseudo-locale; pass `--target-lang` to target a real locale.
 
-## Count words
+## Size the content
 
 Estimate translation volume for cost planning:
 
-<RunnableSnippet cmd="kapi exec word-count messages.json" seed={["messages.json"]} />
+<RunnableSnippet cmd="kapi stats messages.json" seed={["messages.json"]} />
 
 ## Explore formats, tools, and flows
 
@@ -52,7 +52,7 @@ List every format kapi understands, then the processing tools and composable flo
 With `editable`, the command is placed at the prompt instead of running
 automatically — press **Enter** when you're ready, or tweak it first:
 
-<RunnableSnippet cmd="kapi exec word-count messages.json --json" seed={["messages.json"]} editable />
+<RunnableSnippet cmd="kapi stats messages.json --json" seed={["messages.json"]} editable />
 
 For a full interactive terminal, open the [CLI Playground](/playground-cli).
 

@@ -3,6 +3,7 @@ package tools
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
@@ -240,6 +241,16 @@ func absoluteLengthFindings(text, subject string, maxChars, maxWords int) []chec
 		}
 	}
 	return findings
+}
+
+// countWords counts the number of words in a text string.
+// Words are sequences of non-whitespace characters separated by whitespace.
+func countWords(text string) int {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return 0
+	}
+	return len(strings.Fields(text))
 }
 
 // longOrShort returns "long" or "short" depending on whether the given length

@@ -831,18 +831,18 @@ func (fb *Builder) Build() *Flow {
 // executor.Execute(ctx, f, items)
 //
 // Usage (parallel, multiple documents with collector):
-// wc := tools.NewWordCountCollector()
-// f := flow.NewFlow("word-count").
+// sc := tools.NewScopingCollector()
+// f := flow.NewFlow("scoping-report").
 //     AddToolFactory(func() (tool.Tool, error) {
-//         return tools.NewWordCountTool(&tools.WordCountConfig{...}), nil
+//         return tools.NewScopingReportTool(&tools.ScopingReportConfig{...}), nil
 //     }).Build()
 //
 // executor := flow.NewExecutor(
 //     flow.WithMaxConcurrency(8),
-//     flow.WithCollectors(wc),
+//     flow.WithCollectors(sc),
 // )
 // executor.Execute(ctx, f, items)
-// result, _ := wc.Result()
+// result, _ := sc.Result()
 ```
 
 ---

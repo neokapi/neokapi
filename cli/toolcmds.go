@@ -64,6 +64,15 @@ with 'kapi flows': run composes a pipeline, exec executes one tool.
 
 Discover tools and their options with 'kapi tools list' and
 'kapi tools schema <name>'.`,
+		// Fail loudly on a tool name that doesn't exist (or no longer exists —
+		// e.g. the retired count tools, whose job moved to `kapi stats`) instead
+		// of silently printing help with exit 0.
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+			return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+		},
 	}
 
 	var cmds []*cobra.Command

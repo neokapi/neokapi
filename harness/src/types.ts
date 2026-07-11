@@ -169,7 +169,7 @@ export interface ArtifactSpec {
   /** For "url": extra ms to wait after load before the screenshot (e.g. for a client locale swap). */
   settleMs?: number;
   /** For "report": the kind of kapi report to render. */
-  report?: "brand" | "term-check" | "word-count" | "glossary" | "catalog" | "markdown" | "json" | "code";
+  report?: "brand" | "term-check" | "stats" | "glossary" | "catalog" | "markdown" | "json" | "code";
   /** For "report" catalog/json: optional title + subtitle on the rendered card. */
   reportTitle?: string;
   reportSub?: string;

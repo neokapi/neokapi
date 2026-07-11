@@ -116,7 +116,7 @@ func TestListTools_JSONOutputMatchesLocalized(t *testing.T) {
 	app.InitRegistries()
 
 	cat := makeMoCatalog(t, "fr-FR",
-		[3]string{"tools.word-count.DisplayName", "Word Count", "Comptage de mots"},
+		[3]string{"tools.search-replace.DisplayName", "Search and Replace", "Recherche et remplacement"},
 	)
 	app.translator = i18n.NewTranslator("fr-FR", cat)
 
@@ -124,22 +124,22 @@ func TestListTools_JSONOutputMatchesLocalized(t *testing.T) {
 	// result flows into the typed output struct the JSON encoder sees.
 	var info *output.ToolInfo
 	for _, entry := range app.ToolReg.CLITools() {
-		if entry.Info.Name != registry.ToolID("word-count") {
+		if entry.Info.Name != registry.ToolID("search-replace") {
 			continue
 		}
-		scope := "tools.word-count"
+		scope := "tools.search-replace"
 		DisplayName := app.T().T(i18n.Scope(scope+".DisplayName"), entry.Info.DisplayName)
 		desc := app.T().T(i18n.Scope(scope+".description"), entry.Info.Description)
 		if desc == "" {
 			desc = DisplayName
 		}
 		info = &output.ToolInfo{
-			Name:        "word-count",
+			Name:        "search-replace",
 			Description: desc,
 			Category:    entry.Info.Category,
 			Source:      "builtin",
 		}
 	}
 	require.NotNil(t, info)
-	assert.Equal(t, "Comptage de mots", info.Description)
+	assert.Equal(t, "Recherche et remplacement", info.Description)
 }

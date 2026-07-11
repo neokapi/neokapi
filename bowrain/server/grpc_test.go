@@ -148,9 +148,9 @@ func TestGRPCFlowExecution(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Execute a flow with word-count tool.
+	// Execute a flow with the case-transform tool.
 	stream, err := client.ExecuteFlow(ctx, &pb.ExecuteFlowRequest{
-		FlowConfig: "name: test-flow\ntools:\n  - word-count",
+		FlowConfig: "name: test-flow\ntools:\n  - case-transform",
 		ProjectId:  proj.Id,
 	})
 	require.NoError(t, err)

@@ -146,7 +146,7 @@ termbase also feeds the translation step.
 
 ```bash
 kapi formats list --json                 # what reads and writes
-kapi exec word-count ./report.docx --json     # translatable word/segment count
+kapi stats ./report.docx --json          # translatable word/segment count
 ```
 
 Direct round-trip, or a bilingual extract → translate → merge cycle for vendor

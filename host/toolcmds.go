@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/flow"
-	coretools "github.com/neokapi/neokapi/core/tools"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -38,10 +37,7 @@ func HasTag(tags []string, want string) bool {
 
 // CollectorFactories maps tool names to streaming collector factories.
 // Only tools that aggregate results across files need a collector.
-var CollectorFactories = map[string]func() flow.Collector{
-	"word-count":    func() flow.Collector { return coretools.NewStreamingWordCountCollector() },
-	"segment-count": func() flow.Collector { return coretools.NewStreamingSegCountCollector() },
-}
+var CollectorFactories = map[string]func() flow.Collector{}
 
 // AiProgressWriter returns a ProgressEvent callback that writes a single
 // rewriting status line to w. Thinking summaries and block counters are
@@ -80,12 +76,6 @@ func AiProgressWriter(w *os.File) func(aiprovider.ProgressEvent) {
 // AI/MT commands use demo mode (no --provider flag needed in the playground).
 var ToolExamples = map[string]string{
 	// ── Analysis ────────────────────────────────────────────────────────
-	"word-count": `  kapi word-count messages.json
-  kapi word-count app.xliff --json`,
-	"char-count": `  kapi char-count messages.json
-  kapi char-count page.html`,
-	"segment-count": `  kapi segment-count messages.json
-  kapi segment-count app.xliff`,
 	"scoping-report": `  kapi scoping-report messages.json
   kapi scoping-report app.xliff --json`,
 	"repetition-analysis": `  kapi repetition-analysis messages.json

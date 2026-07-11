@@ -115,23 +115,12 @@ func (a *App) RunStats(cmd Command, args []string) error {
 		return err
 	}
 
-	out := StatsOutput{Total: StatsRecord{ByRole: map[string]int{}}}
-	for _, file := range files {
-		recs, ferr := a.fileStats(ctx, file)
-		if ferr != nil {
-			if ctx.Err() != nil {
-				return ferr
-			}
-			hadError = true
-			fmt.Fprintf(cmd.ErrOrStderr(), "kapi stats: %s: %v\n", DisplayName(file), ferr)
-			continue
-		}
-		// One row per source: a plain file yields a single record; an archive
-		// yields one per inner entry (keyed `<archive>!<entry>`).
-		for _, rec := range recs {
-			out.Files = append(out.Files, rec)
-			out.Total.add(rec)
-		}
+	out, err := a.ComputeStats(ctx, files, func(file string, ferr error) {
+		hadError = true
+		fmt.Fprintf(cmd.ErrOrStderr(), "kapi stats: %s: %v\n", DisplayName(file), ferr)
+	})
+	if err != nil {
+		return err
 	}
 
 	if err := output.Print(cmd, out); err != nil {
@@ -141,6 +130,35 @@ func (a *App) RunStats(cmd Command, args []string) error {
 		return WithExitCode(ExitUsage, ErrSilentExit)
 	}
 	return nil
+}
+
+// ComputeStats streams each file and aggregates the per-file records plus the
+// grand total — the compute path shared by `kapi stats` and the stats MCP tool.
+// When onError is non-nil a failing file is reported through it and skipped;
+// with a nil onError the first failure is fatal. Context cancellation is
+// always fatal.
+func (a *App) ComputeStats(ctx context.Context, files []string, onError func(file string, err error)) (StatsOutput, error) {
+	out := StatsOutput{Total: StatsRecord{ByRole: map[string]int{}}}
+	for _, file := range files {
+		recs, ferr := a.fileStats(ctx, file)
+		if ferr != nil {
+			if ctx.Err() != nil {
+				return out, ferr
+			}
+			if onError == nil {
+				return out, fmt.Errorf("%s: %w", DisplayName(file), ferr)
+			}
+			onError(file, ferr)
+			continue
+		}
+		// One row per source: a plain file yields a single record; an archive
+		// yields one per inner entry (keyed `<archive>!<entry>`).
+		for _, rec := range recs {
+			out.Files = append(out.Files, rec)
+			out.Total.add(rec)
+		}
+	}
+	return out, nil
 }
 
 // fileStats streams one source's blocks and computes content metrics, bucketed

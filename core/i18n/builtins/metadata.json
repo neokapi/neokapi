@@ -139,24 +139,6 @@
         }
       }
     },
-    "char-count": {
-      "displayName": "Character Count",
-      "category": "analysis",
-      "properties": {
-        "countInline": {
-          "title": "Count Inline Codes",
-          "description": "Include inline code content in character counts"
-        },
-        "countSource": {
-          "title": "Count Source",
-          "description": "Count characters in source text"
-        },
-        "countTarget": {
-          "title": "Count Target",
-          "description": "Count characters in target text"
-        }
-      }
-    },
     "chars-check": {
       "displayName": "Characters Check",
       "category": "quality",
@@ -835,10 +817,6 @@
         }
       }
     },
-    "segment-count": {
-      "displayName": "Segment Count",
-      "category": "analysis"
-    },
     "segmentation": {
       "displayName": "Segmentation",
       "description": "Split source text into sentence or chunk segments (stand-off overlay)",
@@ -1097,24 +1075,6 @@
       "displayName": "Unredact",
       "description": "Restore original values into redacted content after processing",
       "category": "text-processing"
-    },
-    "word-count": {
-      "displayName": "Word Count",
-      "category": "analysis",
-      "properties": {
-        "countInline": {
-          "title": "Count Inline Codes",
-          "description": "Include inline code content in word counts"
-        },
-        "countSource": {
-          "title": "Count Source",
-          "description": "Count words in source text"
-        },
-        "countTarget": {
-          "title": "Count Target",
-          "description": "Count words in target text"
-        }
-      }
     }
   },
   "formats": {

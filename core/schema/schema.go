@@ -115,7 +115,7 @@ type ToolMeta struct {
 	// concurrently for IO-bound tools (e.g., AI-powered). 0 means sequential.
 	DefaultParallelBlocks int `json:"defaultParallelBlocks,omitempty"`
 
-	// Aliases lists alternative CLI command names (e.g., "wc" for "word-count").
+	// Aliases lists alternative CLI command names (e.g., "dnt" for "dnt-check").
 	Aliases []string `json:"aliases,omitempty"`
 }
 
