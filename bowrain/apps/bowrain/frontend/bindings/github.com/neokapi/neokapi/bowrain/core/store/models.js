@@ -85,6 +85,16 @@ export class Project {
              */
             this["workspace_id"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * ConvergePolicy is the server-side continuous-convergence policy
+             * (on-push | manual): whether a completed push starts a convergence run on
+             * the server's own clock. Empty is treated as on-push (the connected default).
+             * @member
+             * @type {string | undefined}
+             */
+            this["converge_policy"] = undefined;
+        }
         if (!("archived" in $$source)) {
             /**
              * @member

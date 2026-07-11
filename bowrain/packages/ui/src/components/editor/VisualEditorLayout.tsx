@@ -14,7 +14,7 @@ import type {
 import type { VisualEditorMode, PreviewContentMode } from "./visual-editor-types";
 import { DocumentPreview } from "./DocumentPreview";
 import { VisualEditorCard } from "./VisualEditorCard";
-import type { UnifiedSaveResult } from "../UnifiedTargetEditor";
+import type { UnifiedSaveResult, UnifiedTargetEditorHandle } from "../UnifiedTargetEditor";
 import { TermSidebar } from "./TermSidebar";
 import { ProblemsPanel } from "./ProblemsPanel";
 import { useVisualEditorKeyboard } from "./useVisualEditorKeyboard";
@@ -28,6 +28,13 @@ interface VisualEditorLayoutProps {
   project: ProjectInfo;
   fileName: string;
   blocks: BlockInfo[];
+  /**
+   * Full (unfiltered) block list for the document preview. The iframe shows
+   * the whole document regardless of any search filter, so target/pseudo
+   * content pushes must cover every block — while `blocks` (possibly
+   * filtered) drives card navigation and selection. Defaults to `blocks`.
+   */
+  previewBlocks?: BlockInfo[];
   selectedIndex: number;
   editingIndex: number | null;
   targetLocale: string;
@@ -56,6 +63,8 @@ interface VisualEditorLayoutProps {
   onDeleteNote?: (noteId: string) => void;
   // Term creation (enrich mode)
   onTermCreate?: (req: AddConceptRequest) => Promise<void>;
+  /** Ref receiving the open target editor's imperative handle (term insert at cursor). */
+  targetEditorRef?: React.Ref<UnifiedTargetEditorHandle>;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +99,7 @@ export function VisualEditorLayout({
   project,
   fileName,
   blocks,
+  previewBlocks,
   selectedIndex,
   editingIndex,
   targetLocale,
@@ -114,6 +124,7 @@ export function VisualEditorLayout({
   onAddNote,
   onDeleteNote,
   onTermCreate,
+  targetEditorRef,
 }: VisualEditorLayoutProps) {
   // ── Visual-only view state (owned here, not lifted) ────────────────────
   const [editorMode, setEditorMode] = useState<VisualEditorMode>("translate");
@@ -346,7 +357,7 @@ export function VisualEditorLayout({
           targetLocale={targetLocale}
           selectedBlockId={currentBlock.id}
           onBlockSelect={handleBlockSelect}
-          blocks={blocks}
+          blocks={previewBlocks ?? blocks}
           previewContentMode={previewContentMode}
           spacerHeight={spacerHeight}
           onSpacerPosition={handleSpacerPosition}
@@ -384,6 +395,7 @@ export function VisualEditorLayout({
             onAddNote={onAddNote}
             onDeleteNote={onDeleteNote}
             onTermCreate={onTermCreate}
+            targetEditorRef={targetEditorRef}
             onPrev={selectedIndex > 0 ? () => onNavigate(selectedIndex - 1) : undefined}
             onNext={
               selectedIndex < blocks.length - 1 ? () => onNavigate(selectedIndex + 1) : undefined

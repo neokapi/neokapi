@@ -14,12 +14,16 @@ import type {
 import type { VisualEditorMode } from "./visual-editor-types";
 import { SourceCellDisplay } from "./SourceCellDisplay";
 import { FormattedSourceDisplay } from "./FormattedSourceDisplay";
-import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
+import {
+  UnifiedTargetEditor,
+  type UnifiedSaveResult,
+  type UnifiedTargetEditorHandle,
+} from "../UnifiedTargetEditor";
 import { HighlightedSource } from "./HighlightedSource";
 import { VisualEditorToolbar } from "./VisualEditorToolbar";
 import { TermCreationPopover } from "./TermCreationPopover";
 import { ContextPanel } from "./ContextPanel";
-import { getBlockStatus, statusConfig } from "./blockStatus";
+import { getBlockStatus, getTargetText, statusConfig } from "./blockStatus";
 import { InlineCodeLegend } from "@neokapi/ui-primitives";
 import { FormatVocabularyBadge } from "./FormatVocabularyBadge";
 import {
@@ -70,6 +74,8 @@ export interface VisualEditorCardProps {
   // Navigation
   onPrev?: () => void;
   onNext?: () => void;
+  /** Ref receiving the open target editor's imperative handle (term insert at cursor). */
+  targetEditorRef?: React.Ref<UnifiedTargetEditorHandle>;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,6 +110,7 @@ export function VisualEditorCard({
   onTermCreate,
   onPrev,
   onNext,
+  targetEditorRef,
 }: VisualEditorCardProps) {
   const [tmExpanded, setTmExpanded] = useState(true);
   const [historyExpanded, setHistoryExpanded] = useState(false);
@@ -120,8 +127,8 @@ export function VisualEditorCard({
 
   const sourceSpans = block.source_spans || [];
   const sourceCodedText = block.source_coded || block.source;
-  const targetText = block.targets[targetLocale] || "";
-  const targetCodedText = block.targets_coded?.[targetLocale] || block.targets[targetLocale] || "";
+  const targetText = getTargetText(block, targetLocale);
+  const targetCodedText = block.targets_coded?.[targetLocale] || targetText;
   const hasTargetSpans = block.has_spans && !!block.targets_coded?.[targetLocale];
 
   const qaErrors = qaIssues?.filter((i) => i.severity === "error") || [];
@@ -355,7 +362,7 @@ export function VisualEditorCard({
       {referenceLocales && referenceLocales.length > 0 && (
         <div className="px-4 pb-2">
           {referenceLocales.map((refLocale) => {
-            const refText = block.targets[refLocale];
+            const refText = getTargetText(block, refLocale);
             if (!refText) return null;
             return (
               <div
@@ -383,6 +390,7 @@ export function VisualEditorCard({
             locale={targetLocale}
             onSave={onSave}
             onCancel={onCancel}
+            handleRef={targetEditorRef}
           />
         ) : (
           <div
@@ -500,7 +508,14 @@ export function VisualEditorCard({
               Reject
               <span className="ml-1.5 text-[10px] text-muted-foreground">(Ctrl+Shift+R)</span>
             </Button>
-            <Button size="sm" onClick={onApprove} data-testid="approve-btn">
+            {/* An untranslated block has no reviewable target — the server
+                categorically rejects the approval, so don't offer it. */}
+            <Button
+              size="sm"
+              onClick={onApprove}
+              disabled={!targetText.trim()}
+              data-testid="approve-btn"
+            >
               <Check className="w-3.5 h-3.5 mr-1" />
               Approve
               <span className="ml-1.5 text-[10px] text-muted-foreground">(Ctrl+Shift+A)</span>

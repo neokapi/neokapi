@@ -90,6 +90,8 @@ import type {
   EmailChangeRequestResponse,
   EmailChangeConfirmResponse,
   SlugReservation,
+  UploadFilesResult,
+  ReviewDemotion,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -322,7 +324,7 @@ export interface ApiAdapter {
     projectId: string,
     files: File[],
     stream?: string,
-  ): Promise<ProjectInfo>;
+  ): Promise<UploadFilesResult>;
   removeFile(
     workspaceSlug: string,
     projectId: string,
@@ -359,7 +361,7 @@ export interface ApiAdapter {
     collectionId: string,
     files: File[],
     stream?: string,
-  ): Promise<ProjectInfo>;
+  ): Promise<UploadFilesResult>;
 
   // PostHog locale-demand connector (project-scoped, phase 0, read-only).
   // The personal API key is write-only: config reads return a masked tail.
@@ -482,6 +484,24 @@ export interface ApiAdapter {
     blockId: string,
     status: BlockWorkflowStatus,
     reason?: string,
+  ): Promise<void>;
+  /**
+   * Mark a block's target for `targetLocale` as reviewed (or back down the
+   * ladder when `reviewed` is false) — the per-locale `Target.Status` review
+   * ladder, distinct from the governance workflow lifecycle above. `demoteTo`
+   * picks the rung a clearing call lands on: omitted/"translated" for a plain
+   * un-review, "draft" for a reviewer rejection (re-enters the work queue).
+   * It is ignored when `reviewed` is true.
+   */
+  reviewBlock(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    blockId: string,
+    targetLocale: string,
+    reviewed: boolean,
+    stream?: string,
+    demoteTo?: ReviewDemotion,
   ): Promise<void>;
 
   // Governance (#778): groups, deny rules, separation-of-duties, role overrides

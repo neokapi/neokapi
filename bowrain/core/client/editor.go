@@ -103,13 +103,25 @@ type EditorTermEnforceResult struct {
 	TargetLocale string   `json:"target_locale"`
 }
 
-// EditorBlock mirrors BlockInfoResponse. Runs travel as canonical model.Run.
+// EditorBlockTarget mirrors BlockTargetInfo: one locale's committed target
+// text plus its per-locale review status (the model.Target.Status ladder,
+// "" | draft | translated | reviewed | signed-off). The desktop reads review
+// state from here — the legacy block-global Properties["translation-status"]
+// is write-never on the server and only a read fallback for old blocks.
+type EditorBlockTarget struct {
+	Text   string `json:"text"`
+	Status string `json:"status,omitempty"`
+}
+
+// EditorBlock mirrors BlockInfoResponse. Runs travel as canonical model.Run;
+// Targets carries each locale's committed text and per-locale review status.
 type EditorBlock struct {
-	ID           string                 `json:"id"`
-	SourceRuns   []model.Run            `json:"source_runs,omitempty"`
-	TargetRuns   map[string][]model.Run `json:"targets_runs,omitempty"`
-	Translatable bool                   `json:"translatable"`
-	Properties   map[string]string      `json:"properties"`
+	ID           string                       `json:"id"`
+	SourceRuns   []model.Run                  `json:"source_runs,omitempty"`
+	Targets      map[string]EditorBlockTarget `json:"targets,omitempty"`
+	TargetRuns   map[string][]model.Run       `json:"targets_runs,omitempty"`
+	Translatable bool                         `json:"translatable"`
+	Properties   map[string]string            `json:"properties"`
 }
 
 // EditorTMMatch mirrors TMMatchInfoResponse.
@@ -201,6 +213,31 @@ type EditorSaveProviderRequest struct {
 // editor never selected a stream, so the REST calls target the default "main".
 const editorRef = "main"
 
+// StatusError is a non-2xx HTTP response from the server. Callers that need to
+// distinguish a permanent client error (4xx — the request itself was rejected
+// and retrying the same request can never succeed) from a transient failure
+// unwrap it with errors.As; the desktop offline-queue replay uses it to retire
+// permanently failing queued operations instead of retrying them forever.
+type StatusError struct {
+	StatusCode int
+	Path       string
+	Body       string
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("%s failed (HTTP %d): %s", e.Path, e.StatusCode, e.Body)
+}
+
+// Permanent reports whether retrying the identical request can never succeed:
+// any 4xx except 408 (request timeout) and 429 (rate limited), which are
+// transient by definition.
+func (e *StatusError) Permanent() bool {
+	if e.StatusCode == http.StatusRequestTimeout || e.StatusCode == http.StatusTooManyRequests {
+		return false
+	}
+	return e.StatusCode >= 400 && e.StatusCode < 500
+}
+
 // editorDo issues an editor request against an absolute path under the server
 // base URL, optionally sending a JSON body and decoding a JSON response. It
 // accepts any 2xx status. A nil out skips decoding (for 204 responses).
@@ -235,7 +272,7 @@ func (c *BowrainClient) editorDo(ctx context.Context, method, path string, query
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("%s failed (HTTP %d): %s", strings.TrimPrefix(path, "/"), resp.StatusCode, string(respBody))
+		return &StatusError{StatusCode: resp.StatusCode, Path: strings.TrimPrefix(path, "/"), Body: string(respBody)}
 	}
 	if out != nil && resp.StatusCode != http.StatusNoContent {
 		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {

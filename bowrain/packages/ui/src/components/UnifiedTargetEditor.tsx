@@ -18,7 +18,7 @@
  */
 
 import type { ReactElement } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 
 import {
   Button,
@@ -32,6 +32,7 @@ import {
   codedToRuns,
   parsePluralFormForChips,
   runsToCoded,
+  type InlineCodeEditorHandle,
   type SpanInfo as PrimitiveSpanInfo,
 } from "@neokapi/ui-primitives";
 
@@ -39,6 +40,7 @@ import type { Block, PluralForm, Run } from "@neokapi/kapi-format";
 import { flattenRuns, pluralPivotCandidates } from "@neokapi/kapi-format";
 
 import { toKapiBlock } from "./blockAdapter";
+import { getTargetText } from "./editor/blockStatus";
 import type { BlockInfo, SpanInfo } from "../types/api";
 
 /** CLDR plural-form display order. */
@@ -47,6 +49,17 @@ const FORMS: readonly PluralForm[] = ["zero", "one", "two", "few", "many", "othe
 export type UnifiedSaveResult =
   | { kind: "flat"; codedText: string; spans: PrimitiveSpanInfo[] }
   | { kind: "plural"; text: string };
+
+/**
+ * Imperative surface of an open target editor. `insertText` inserts plain
+ * text at the current Lexical cursor of the mounted editor body (the flat
+ * editor, or the active plural form's editor) — it does NOT persist; the
+ * insertion becomes part of the user's in-progress edit and lands on save.
+ * Used by the Translate surface's term-insert affordance.
+ */
+export interface UnifiedTargetEditorHandle {
+  insertText: (text: string) => void;
+}
 
 export interface UnifiedTargetEditorProps {
   /** The block being edited. */
@@ -68,6 +81,12 @@ export interface UnifiedTargetEditorProps {
    * for in-cell editing where vertical space matters.
    */
   compact?: boolean;
+  /**
+   * Optional ref receiving the editor's imperative handle
+   * (`UnifiedTargetEditorHandle`) while it is mounted. React nulls the ref
+   * on unmount, so `ref.current` doubles as an "is an editor open" probe.
+   */
+  handleRef?: React.Ref<UnifiedTargetEditorHandle>;
 }
 
 /**
@@ -85,8 +104,14 @@ export function UnifiedTargetEditor({
   onSave,
   onCancel,
   compact,
+  handleRef,
 }: UnifiedTargetEditorProps): ReactElement {
-  const sourceSpans = block.source_spans ?? [];
+  // Stable identity: `block.source_spans ?? []` would mint a NEW array every
+  // render for span-less blocks, which recomputes `initial` below and makes
+  // the reset effect wipe in-progress edits (flatState → seeded state) on any
+  // parent re-render — the Lexical DOM keeps the text, but Save then submits
+  // the stale (empty) state.
+  const sourceSpans = useMemo(() => block.source_spans ?? [], [block.source_spans]);
   const adaptedBlock = useMemo(() => toKapiBlock(block), [block]);
   const candidates = useMemo(() => pluralPivotCandidates(adaptedBlock as Block), [adaptedBlock]);
 
@@ -103,6 +128,18 @@ export function UnifiedTargetEditor({
     initial.forms,
   );
   const [saving, setSaving] = useState(false);
+
+  // Forward `insertText` to whichever InlineCodeEditor body is mounted
+  // (the flat editor, or the active plural form — they share one slot,
+  // re-keyed on mode/form, so a single inner ref always points at it).
+  const innerEditorRef = useRef<InlineCodeEditorHandle | null>(null);
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      insertText: (text: string) => innerEditorRef.current?.insertText(text),
+    }),
+    [],
+  );
 
   // Reset everything when the (block, locale) tuple changes — eg the
   // translator clicks a different cell.
@@ -209,6 +246,7 @@ export function UnifiedTargetEditor({
         onCancel={onCancel}
         onChange={handleEditorChange}
         compact={compact}
+        handleRef={innerEditorRef}
       />
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onCancel} disabled={saving}>
@@ -351,7 +389,7 @@ interface SeededState {
 }
 
 function seedInitialState(block: BlockInfo, locale: string, sourceSpans: SpanInfo[]): SeededState {
-  const rawTarget = block.targets[locale] ?? "";
+  const rawTarget = getTargetText(block, locale);
   const codedTarget = block.targets_coded?.[locale] ?? "";
 
   // Plural targets always live in `targets[locale]` as ICU syntax —

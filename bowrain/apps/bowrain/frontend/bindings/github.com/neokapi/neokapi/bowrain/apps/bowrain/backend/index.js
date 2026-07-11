@@ -14,6 +14,7 @@ export {
     AddConceptRequest,
     AddObservationArgs,
     BlockInfo,
+    BlockTargetInfo,
     BlockTermMatch,
     CandidateRuleArgs,
     CollabSession,

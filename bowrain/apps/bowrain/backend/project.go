@@ -114,13 +114,24 @@ type RunInfo struct {
 	Select  *SelectRunInfo      `json:"select,omitempty"`
 }
 
+// BlockTargetInfo is one locale's committed target as exposed to the frontend:
+// plain text plus the per-locale review status (model.Target.Status — the
+// ladder "" | draft | translated | reviewed | signed-off). The shared editor
+// reads review state as block.targets[locale].status; the legacy block-global
+// properties["translation-status"] is a read fallback only.
+type BlockTargetInfo struct {
+	Text   string `json:"text"`
+	Status string `json:"status,omitempty"`
+}
+
 // BlockInfo is a serializable representation of a translatable block.
 type BlockInfo struct {
-	ID           string               `json:"id"`
-	SourceRuns   []RunInfo            `json:"sourceRuns,omitempty"`
-	TargetRuns   map[string][]RunInfo `json:"targetRuns,omitempty"`
-	Translatable bool                 `json:"translatable"`
-	Properties   map[string]string    `json:"properties"`
+	ID           string                     `json:"id"`
+	SourceRuns   []RunInfo                  `json:"sourceRuns,omitempty"`
+	Targets      map[string]BlockTargetInfo `json:"targets,omitempty"`
+	TargetRuns   map[string][]RunInfo       `json:"targetRuns,omitempty"`
+	Translatable bool                       `json:"translatable"`
+	Properties   map[string]string          `json:"properties"`
 }
 
 // UpdateBlockRequest holds parameters for updating a block target.

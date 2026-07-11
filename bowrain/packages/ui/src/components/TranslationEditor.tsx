@@ -11,11 +11,12 @@ import {
   TabsList,
   TabsTrigger,
 } from "@neokapi/ui-primitives";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ErrorNotice } from "../errors";
 import type {
   ProjectInfo,
   BlockInfo,
+  ReviewDemotion,
   WordCountResult,
   TMMatchInfo,
   BlockTermMatch,
@@ -33,9 +34,18 @@ import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { EntityMarkPopover } from "./editor/EntityMarkPopover";
 import { VisualEditorLayout } from "./editor/VisualEditorLayout";
 import { TableView } from "./editor/TableView";
-import { getBlockStatus } from "./editor/blockStatus";
+import {
+  captureTargetStatus,
+  getBlockStatus,
+  getTargetText,
+  rollbackTargetStatus,
+  statusAfterEdit,
+  withTargetEntry,
+  withTargetStatus,
+  type TargetStatusSnapshot,
+} from "./editor/blockStatus";
 import { ArrowLeft, ArrowUp, ArrowDown } from "./icons";
-import { type UnifiedSaveResult } from "./UnifiedTargetEditor";
+import { type UnifiedSaveResult, type UnifiedTargetEditorHandle } from "./UnifiedTargetEditor";
 
 /** The Translate editor exposes two views the user toggles between. */
 export type TranslateView = "visual" | "table";
@@ -111,6 +121,12 @@ export function TranslationEditor({
     position: { x: number; y: number };
   } | null>(null);
 
+  // Imperative handle of the currently-open target editor (Visual card or
+  // Table cell — only one mounts at a time). React nulls it on unmount, so
+  // `targetEditorRef.current` doubles as an "is an editor open" probe for
+  // the term-insert-at-cursor path.
+  const targetEditorRef = useRef<UnifiedTargetEditorHandle | null>(null);
+
   const { getDisplayName } = useLocales();
   const fullApi = useApi();
   const { activeWorkspace } = useWorkspace();
@@ -161,17 +177,32 @@ export function TranslationEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadBlocks, loadWordCount, reloadSignal]);
 
-  // Filter blocks by search
+  // Filter blocks by search — one filter state shared by both views: the
+  // Table rows and the Visual card list navigate the same filtered set.
   const filteredBlocks = searchQuery
     ? blocks.filter(
         (b) =>
           b.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (b.targets[targetLocale] || "").toLowerCase().includes(searchQuery.toLowerCase()),
+          getTargetText(b, targetLocale).toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : blocks;
 
+  // Keep the selection inside the filtered range (a narrowing query would
+  // otherwise leave selectedIndex dangling past the end and blank the
+  // Visual card).
+  useEffect(() => {
+    setSelectedIndex((i) => Math.max(0, Math.min(i, filteredBlocks.length - 1)));
+  }, [filteredBlocks.length]);
+
+  // Changing the query reshuffles which block sits at each index, so close
+  // any open editor rather than let it silently re-seed on another block.
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setEditingIndex(null);
+  }, []);
+
   const translatableBlocks = filteredBlocks.filter((b) => b.translatable);
-  const translatedCount = translatableBlocks.filter((b) => b.targets[targetLocale]).length;
+  const translatedCount = translatableBlocks.filter((b) => getTargetText(b, targetLocale)).length;
   const progress =
     translatableBlocks.length > 0
       ? Math.round((translatedCount / translatableBlocks.length) * 100)
@@ -338,12 +369,19 @@ export function TranslationEditor({
             spans: result.spans,
           });
           const plainText = result.codedText.replace(/[\uE001-\uE003]/g, "");
+          // Write the {text, status} object shape a reload would fetch: a
+          // bare-string entry here would drop the per-locale status until the
+          // next reload. statusAfterEdit mirrors the server's rule \u2014 a changed
+          // text invalidates a stale reviewed/signed-off status (demoted to
+          // translated), identical content keeps it.
           setBlocks((prev) =>
             prev.map((b) =>
               b.id === block.id
                 ? {
-                    ...b,
-                    targets: { ...b.targets, [targetLocale]: plainText },
+                    ...withTargetEntry(b, targetLocale, {
+                      text: plainText,
+                      status: statusAfterEdit(b, targetLocale, plainText),
+                    }),
                     targets_coded: {
                       ...b.targets_coded,
                       [targetLocale]: result.codedText,
@@ -372,8 +410,10 @@ export function TranslationEditor({
             prev.map((b) =>
               b.id === block.id
                 ? {
-                    ...b,
-                    targets: { ...b.targets, [targetLocale]: result.text },
+                    ...withTargetEntry(b, targetLocale, {
+                      text: result.text,
+                      status: statusAfterEdit(b, targetLocale, result.text),
+                    }),
                     targets_coded: { ...b.targets_coded, [targetLocale]: "" },
                   }
                 : b,
@@ -415,20 +455,54 @@ export function TranslationEditor({
     }
   };
 
-  const handleMarkReviewed = useCallback(() => {
-    const block = filteredBlocks[selectedIndex];
-    if (!block) return;
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.id === block.id
-          ? {
-              ...b,
-              properties: { ...b.properties, "translation-status": "reviewed" },
-            }
-          : b,
-      ),
-    );
-  }, [filteredBlocks, selectedIndex]);
+  // Persist a review decision: optimistic per-locale Target.Status write
+  // (the shape a reload would fetch), server call, rollback + error on failure.
+  // The rollback snapshot is captured inside the setBlocks updater — from the
+  // state the write actually replaced, not a possibly stale component-scope
+  // block — and restores only the status field, so a target save that lands
+  // while the review call is in flight is preserved. `demoteTo` picks the rung
+  // a clearing call (reviewed=false) lands on: "draft" for a reviewer
+  // rejection, otherwise translated.
+  const applyReview = useCallback(
+    async (block: BlockInfo, reviewed: boolean, demoteTo?: ReviewDemotion): Promise<boolean> => {
+      // Clearing the review state of a locale with no translation is a no-op:
+      // the server treats it as an idempotent 200 success, so an optimistic
+      // write here would fabricate a phantom {text: "", status} entry that no
+      // rollback ever removes (approval is guarded by the callers and the
+      // server's 422).
+      if (!reviewed && !getTargetText(block, targetLocale).trim()) return true;
+      let snapshot: TargetStatusSnapshot = { existed: false, status: "" };
+      setBlocks((prev) =>
+        prev.map((b) => {
+          if (b.id !== block.id) return b;
+          snapshot = captureTargetStatus(b, targetLocale);
+          return withTargetStatus(
+            b,
+            targetLocale,
+            reviewed ? "reviewed" : (demoteTo ?? "translated"),
+          );
+        }),
+      );
+      try {
+        await api.reviewBlock(project.id, fileName, block.id, targetLocale, reviewed, demoteTo);
+        return true;
+      } catch (e) {
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === block.id ? rollbackTargetStatus(b, targetLocale, snapshot) : b,
+          ),
+        );
+        setError({
+          title: reviewed
+            ? "Couldn't mark the block as reviewed"
+            : "Couldn't update the review status",
+          cause: e,
+        });
+        return false;
+      }
+    },
+    [api, project.id, fileName, targetLocale],
+  );
 
   // Visual card handlers.
   const handleVisualSave = useCallback(
@@ -440,24 +514,29 @@ export function TranslationEditor({
   );
 
   const handleVisualApprove = useCallback(() => {
-    handleMarkReviewed();
-    if (selectedIndex < filteredBlocks.length - 1) setSelectedIndex(selectedIndex + 1);
-  }, [handleMarkReviewed, selectedIndex, filteredBlocks.length]);
+    const block = filteredBlocks[selectedIndex];
+    // An untranslated block has nothing to review — the server categorically
+    // 422s it, so don't fire a call that can only fail (mirrors the server's
+    // no-empty-translation rule client-side; the card also disables Approve).
+    if (!block || !getTargetText(block, targetLocale).trim()) return;
+    const index = selectedIndex;
+    const total = filteredBlocks.length;
+    // Only advance once the review persisted: advancing optimistically would
+    // bounce the reviewer to the next block and then surface the rollback +
+    // error for a block no longer on screen.
+    void applyReview(block, true).then((ok) => {
+      if (ok) setSelectedIndex((i) => (i === index && i < total - 1 ? i + 1 : i));
+    });
+  }, [filteredBlocks, selectedIndex, targetLocale, applyReview]);
 
   const handleVisualReject = useCallback(() => {
     const block = filteredBlocks[selectedIndex];
     if (!block) return;
-    setBlocks((prev) =>
-      prev.map((b) =>
-        b.id === block.id
-          ? {
-              ...b,
-              properties: { ...b.properties, "translation-status": "draft" },
-            }
-          : b,
-      ),
-    );
-  }, [selectedIndex, filteredBlocks]);
+    // A rejection demotes the target to draft so the unit re-enters the work
+    // queue (host's rejected → draft mapping) — not merely back to translated,
+    // which would leave the rejected text passing translated-coverage gates.
+    void applyReview(block, false, "draft");
+  }, [selectedIndex, filteredBlocks, applyReview]);
 
   const handleApplyTM = useCallback(
     (index: number) => {
@@ -489,14 +568,19 @@ export function TranslationEditor({
     [tmMatches, filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale],
   );
 
-  // Insert a target term: append it to the selected block's target and persist.
-  // Works whether or not a cell is being edited — the appended text lands in the
-  // saved target and reloads into the editor on next open.
+  // Insert a target term. When a target editor is open for the selected
+  // block, insert at its Lexical cursor — the term joins the user's
+  // in-progress edit and persists on their explicit save. With no editor
+  // open, fall back to appending to the stored target and persisting.
   const handleInsertTerm = useCallback(
     (text: string) => {
       const block = filteredBlocks[selectedIndex];
       if (!block || !block.translatable) return;
-      const existing = block.targets[targetLocale] || "";
+      if (editingIndex !== null && targetEditorRef.current) {
+        targetEditorRef.current.insertText(text);
+        return;
+      }
+      const existing = getTargetText(block, targetLocale);
       const next = existing ? `${existing} ${text}` : text;
       void api
         .updateBlockTarget({
@@ -515,7 +599,7 @@ export function TranslationEditor({
         })
         .catch((e) => setError({ title: "Couldn't insert the term", cause: e }));
     },
-    [filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale],
+    [filteredBlocks, selectedIndex, editingIndex, api, project.id, fileName, targetLocale],
   );
 
   const handleRunFileQA = useCallback(() => {
@@ -665,20 +749,19 @@ export function TranslationEditor({
         </Button>
       </div>
 
-      {/* Toolbar: search (Table view only — Visual drives navigation inline) */}
-      {view === "table" && (
-        <div className="flex gap-2 py-2 items-center flex-wrap backdrop-blur-sm">
-          <div className="flex-1" />
-          <input
-            type="text"
-            placeholder="Search blocks..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-3 py-1.5 bg-muted border border-border rounded-md text-foreground text-sm outline-none w-[200px]"
-            data-testid="search-input"
-          />
-        </div>
-      )}
+      {/* Toolbar: search — one box, one filter state, shared by both views
+          (Table rows and the Visual card list navigate the same filtered set). */}
+      <div className="flex gap-2 py-2 items-center flex-wrap backdrop-blur-sm">
+        <div className="flex-1" />
+        <input
+          type="text"
+          placeholder="Search blocks..."
+          value={searchQuery}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="px-3 py-1.5 bg-muted border border-border rounded-md text-foreground text-sm outline-none w-[200px]"
+          data-testid="search-input"
+        />
+      </div>
 
       {/* Progress bar */}
       <div
@@ -714,6 +797,7 @@ export function TranslationEditor({
                 project={project}
                 fileName={fileName}
                 blocks={filteredBlocks}
+                previewBlocks={blocks}
                 selectedIndex={selectedIndex}
                 editingIndex={editingIndex}
                 targetLocale={targetLocale}
@@ -738,6 +822,7 @@ export function TranslationEditor({
                 onAddNote={handleAddNote}
                 onDeleteNote={handleDeleteNote}
                 onTermCreate={handleTermCreate}
+                targetEditorRef={targetEditorRef}
               />
             </div>
           ) : (
@@ -753,6 +838,7 @@ export function TranslationEditor({
               onStartEditing={startEditing}
               onCancelEditing={() => setEditingIndex(null)}
               onSave={handleUnifiedSave}
+              targetEditorRef={targetEditorRef}
             />
           )}
         </div>

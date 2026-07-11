@@ -230,10 +230,21 @@ export interface Run {
   select?: { pivot: string; cases: Record<string, Run[]> };
 }
 
+/**
+ * One locale's committed target: plain text plus the per-locale review status
+ * (the model.Target.Status ladder, "" | draft | translated | reviewed |
+ * signed-off). Mirrors the Wails backend `BlockTargetInfo`.
+ */
+export interface BlockTargetInfo {
+  text: string;
+  status?: string;
+}
+
 /** Translation block info. Inline markup travels as RFC 0001 Run sequences. */
 export interface BlockInfo {
   id: string;
   sourceRuns?: Run[];
+  targets?: Record<string, BlockTargetInfo>;
   targetRuns?: Record<string, Run[]>;
   translatable: boolean;
   properties: Record<string, string>;

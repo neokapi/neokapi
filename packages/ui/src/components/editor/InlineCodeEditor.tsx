@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useImperativeHandle, useRef } from "react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
@@ -33,6 +33,21 @@ import { SelectionToolbarPlugin } from "./SelectionToolbarPlugin";
 import { IntellisensePlugin } from "./IntellisensePlugin";
 import { validateTags, type TagValidationResult } from "./tagSemantics";
 
+/**
+ * Narrow imperative surface over the live Lexical editor. Exposed via the
+ * optional `handleRef` prop so wrappers (e.g. `UnifiedTargetEditor`) can
+ * insert text — a terminology suggestion, say — at the current selection
+ * without owning the Lexical instance themselves.
+ */
+export interface InlineCodeEditorHandle {
+  /**
+   * Insert plain text at the current Lexical selection (replacing it when
+   * non-collapsed). Falls back to the end of the content when the editor
+   * holds no selection yet, then refocuses the editor.
+   */
+  insertText: (text: string) => void;
+}
+
 export interface InlineCodeEditorProps {
   initialCodedText: string;
   initialSpans: SpanInfo[];
@@ -49,6 +64,8 @@ export interface InlineCodeEditorProps {
   onChange?: (codedText: string, spans: SpanInfo[]) => void;
   /** When true, hides the tag palette and preview for compact inline editing. */
   compact?: boolean;
+  /** Optional ref receiving the imperative `InlineCodeEditorHandle`. */
+  handleRef?: React.Ref<InlineCodeEditorHandle>;
 }
 
 /** Read the Lexical editor state and convert to coded text + spans. */
@@ -266,11 +283,34 @@ export function InlineCodeEditor({
   onCancel,
   onChange,
   compact,
+  handleRef,
 }: InlineCodeEditorProps) {
   const editorRef = useRef<LexicalEditor | null>(null);
   const [validation, setValidation] = useState<TagValidationResult | null>(null);
   const [currentSpans, setCurrentSpans] = useState<SpanInfo[]>(initialSpans);
   const [currentCodedText, setCurrentCodedText] = useState(initialCodedText);
+
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      insertText: (text: string) => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        editor.update(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            selection.insertText(text);
+          } else {
+            // No live selection (editor never focused): insert at the end.
+            $getRoot().selectEnd().insertText(text);
+          }
+        });
+        // Hand focus back so the user keeps typing where the text landed.
+        editor.focus();
+      },
+    }),
+    [],
+  );
 
   const handleSave = useCallback(() => {
     if (!editorRef.current) return;

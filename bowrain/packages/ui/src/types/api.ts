@@ -267,6 +267,21 @@ export interface ProjectInfo {
   modified_at: string;
 }
 
+/** A file the server declined to import during an upload, and why. */
+export interface SkippedFile {
+  name: string;
+  reason: string;
+}
+
+/**
+ * Response of the upload endpoints: the refreshed project plus the files that
+ * were not imported (undetected format, unreadable, …). A missing/empty
+ * `skipped` means every file was imported.
+ */
+export interface UploadFilesResult extends ProjectInfo {
+  skipped?: SkippedFile[];
+}
+
 /** Item within a project */
 export interface ProjectItem {
   id: string;
@@ -414,13 +429,47 @@ export interface SpanInfo {
   can_reorder?: boolean;
 }
 
+/**
+ * Per-locale lifecycle status of a committed translation — the framework's
+ * `model.Target.Status` ladder ("" = no committed status yet).
+ */
+export type TargetStatus = "" | "draft" | "translated" | "reviewed" | "signed-off";
+
+/**
+ * The rung a clearing review call (`reviewed: false`) demotes a target to:
+ * "translated" for a plain un-review (the default), "draft" for a reviewer
+ * REJECTION — the unit re-enters the work queue, matching the host review
+ * service's rejected → draft mapping.
+ */
+export type ReviewDemotion = "translated" | "draft";
+
+/**
+ * A per-locale committed target in the blocks payload: the plain text plus its
+ * lifecycle status (mirrors the server's per-locale `model.Target`). Targets
+ * maps are keyed by `VariantKey.MarshalText` — for tone/channel-free variants
+ * that is the plain locale string (e.g. "fr").
+ */
+export interface TargetInfo {
+  text?: string;
+  status?: TargetStatus;
+}
+
+/**
+ * A `targets` map entry. New server payloads carry `TargetInfo` objects with
+ * per-locale status; legacy payloads (and plain optimistic writes) carry the
+ * target text as a bare string. Read through `getTargetText` /
+ * `getBlockStatus` in `components/editor/blockStatus.ts` rather than indexing
+ * directly.
+ */
+export type TargetEntry = string | TargetInfo;
+
 /** Translation block info */
 export interface BlockInfo {
   id: string;
   source: string;
   source_coded?: string;
   source_spans?: SpanInfo[];
-  targets: Record<string, string>;
+  targets: Record<string, TargetEntry>;
   targets_coded?: Record<string, string>;
   translatable: boolean;
   has_spans: boolean;

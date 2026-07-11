@@ -2,6 +2,7 @@ import { cn } from "@neokapi/ui-primitives";
 import { useMemo } from "react";
 import { validateTags, parsePluralFormForChips } from "@neokapi/ui-primitives";
 import type { BlockInfo, SpanInfo } from "../../types/api";
+import { getTargetText } from "./blockStatus";
 import { FormattedSourceDisplay } from "./FormattedSourceDisplay";
 import { AlertTriangle } from "../icons";
 
@@ -30,7 +31,7 @@ export function CollapsedTargetCell({
   testId: string;
 }) {
   const sourceSpans = block.source_spans ?? [];
-  const rawTarget = block.targets[locale] ?? "";
+  const rawTarget = getTargetText(block, locale);
   const codedTarget = block.targets_coded?.[locale] ?? "";
 
   // Plural takes priority — it lives in `targets[locale]` only.

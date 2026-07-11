@@ -3,7 +3,11 @@ import { VirtualList } from "@neokapi/editor-grid";
 import type { BlockInfo } from "../../types/api";
 import { FormattedSourceDisplay } from "./FormattedSourceDisplay";
 import { HighlightedSource } from "./HighlightedSource";
-import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
+import {
+  UnifiedTargetEditor,
+  type UnifiedSaveResult,
+  type UnifiedTargetEditorHandle,
+} from "../UnifiedTargetEditor";
 import { CollapsedTargetCell } from "./GridTargetRenderer";
 import { getBlockStatus, statusDotClass, statusBorderClass } from "./blockStatus";
 
@@ -20,6 +24,8 @@ export interface TableViewProps {
   onStartEditing: (index: number) => void;
   onCancelEditing: () => void;
   onSave: (index: number, result: UnifiedSaveResult) => void | Promise<void>;
+  /** Ref receiving the open target editor's imperative handle (term insert at cursor). */
+  targetEditorRef?: React.Ref<UnifiedTargetEditorHandle>;
 }
 
 /**
@@ -46,6 +52,7 @@ export function TableView({
   onStartEditing,
   onCancelEditing,
   onSave,
+  targetEditorRef,
 }: TableViewProps) {
   return (
     <VirtualList<BlockInfo>
@@ -138,6 +145,7 @@ export function TableView({
                   locale={targetLocale}
                   onSave={(result) => void onSave(index, result)}
                   onCancel={onCancelEditing}
+                  handleRef={targetEditorRef}
                 />
               ) : (
                 <CollapsedTargetCell

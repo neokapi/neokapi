@@ -80,8 +80,8 @@ test.describe("Routing", () => {
     const itemId = findItemId(proj, "about-us.html");
     await page.goto(`/${wsSlug}/p/${projectId}/s/main/${itemId}/translate`);
 
-    // Editor should load (layout switcher is always visible regardless of mode)
-    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 30000 });
+    // Editor should load (Visual/Table view switcher is always visible)
+    await expect(page.getByTestId("view-switcher")).toBeVisible({ timeout: 30000 });
 
     // URL should contain the item ID
     expect(page.url()).toContain(`/s/main/${itemId}/translate`);
@@ -91,18 +91,19 @@ test.describe("Routing", () => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/memory`);
 
-    // TM explorer should be visible
-    await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 10000 });
+    // TM browser should be visible
+    await expect(page.getByTestId("tm-browser")).toBeVisible({ timeout: 10000 });
     expect(page.url()).toContain("/memory");
   });
 
-  test("deep link to termbase loads correctly", async ({ page }) => {
+  test("legacy termbase deep link redirects to Brand · Concepts", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/termbase`);
 
-    // Term explorer should be visible
-    await expect(page.getByTestId("term-explorer")).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain("/termbase");
+    // Terminology lives inside the brand graph now: /termbase is a legacy
+    // redirect to the Concepts section of the Brand hub.
+    await expect(page).toHaveURL(new RegExp(`/${wsSlug}/brand/concepts`), { timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "Concepts" })).toBeVisible({ timeout: 10000 });
   });
 
   test("deep link to settings loads correctly", async ({ page }) => {
@@ -131,15 +132,11 @@ test.describe("Routing", () => {
     await page.goto(`/${wsSlug}`);
     await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 10000 });
 
-    // Navigate to memory via sidebar
+    // Navigate to memory via sidebar (Termbase has no sidebar entry anymore —
+    // it is reached from the Memory surface / direct URL, covered above).
     await page.getByTestId("nav-memory").click();
-    await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId("tm-browser")).toBeVisible({ timeout: 10000 });
     expect(page.url()).toContain("/memory");
-
-    // Navigate to termbase via sidebar
-    await page.getByTestId("nav-termbase").click();
-    await expect(page.getByTestId("term-explorer")).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain("/termbase");
 
     // Navigate to settings via sidebar
     await page.getByTestId("nav-settings").click();
@@ -160,15 +157,15 @@ test.describe("Routing", () => {
 
     // Navigate to memory
     await page.getByTestId("nav-memory").click();
-    await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId("tm-browser")).toBeVisible({ timeout: 10000 });
 
-    // Navigate to termbase
-    await page.getByTestId("nav-termbase").click();
-    await expect(page.getByTestId("term-explorer")).toBeVisible({ timeout: 10000 });
+    // Navigate to settings
+    await page.getByTestId("nav-settings").click();
+    await expect(page.getByTestId(TEST_IDS.settings.heading)).toBeVisible({ timeout: 10000 });
 
     // Go back — should be on memory
     await page.goBack();
-    await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId("tm-browser")).toBeVisible({ timeout: 10000 });
     expect(page.url()).toContain("/memory");
 
     // Go back again — should be on dashboard
@@ -177,7 +174,7 @@ test.describe("Routing", () => {
 
     // Go forward — should be on memory
     await page.goForward();
-    await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId("tm-browser")).toBeVisible({ timeout: 10000 });
     expect(page.url()).toContain("/memory");
   });
 

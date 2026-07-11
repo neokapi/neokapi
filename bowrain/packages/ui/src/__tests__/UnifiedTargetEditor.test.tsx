@@ -1,8 +1,13 @@
+import { createRef } from "react";
 import { describe, it, expect, vi } from "vite-plus/test";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { UnifiedTargetEditor, type UnifiedSaveResult } from "../components/UnifiedTargetEditor";
+import {
+  UnifiedTargetEditor,
+  type UnifiedSaveResult,
+  type UnifiedTargetEditorHandle,
+} from "../components/UnifiedTargetEditor";
 import type { BlockInfo } from "../types/api";
 
 function makeBlock(overrides: Partial<BlockInfo> = {}): BlockInfo {
@@ -185,6 +190,69 @@ describe("UnifiedTargetEditor — form tabs", () => {
     await user.click(oneTab);
     expect(oneTab.getAttribute("aria-selected")).toBe("true");
     expect(screen.getByTestId("form-tab-other").getAttribute("aria-selected")).toBe("false");
+  });
+});
+
+describe("UnifiedTargetEditor — imperative insertText handle", () => {
+  it("exposes the handle via handleRef while mounted", () => {
+    const ref = createRef<UnifiedTargetEditorHandle>();
+    const block = makeBlock({
+      source: "Hello",
+      source_spans: [],
+      has_spans: false,
+      targets: { de: "Bonjour" },
+    });
+    const { unmount } = render(
+      <UnifiedTargetEditor
+        block={block}
+        locale="de"
+        onSave={vi.fn()}
+        onCancel={vi.fn()}
+        handleRef={ref}
+      />,
+    );
+    expect(ref.current).not.toBeNull();
+    unmount();
+    // React nulls the ref on unmount — callers use this as the
+    // "is an editor open" probe for the insert-at-cursor path.
+    expect(ref.current).toBeNull();
+  });
+
+  it("inserts text at the Lexical selection without persisting; the text lands on save", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const ref = createRef<UnifiedTargetEditorHandle>();
+    const block = makeBlock({
+      source: "Hello",
+      source_spans: [],
+      has_spans: false,
+      targets: { de: "Bonjour" },
+    });
+    render(
+      <UnifiedTargetEditor
+        block={block}
+        locale="de"
+        onSave={onSave}
+        onCancel={vi.fn()}
+        handleRef={ref}
+      />,
+    );
+
+    act(() => ref.current!.insertText(" monde"));
+
+    // Insertion joins the in-progress edit — nothing is saved yet.
+    expect(onSave).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByTestId("unified-target-editor").textContent).toContain("monde"),
+    );
+
+    await user.click(screen.getByTestId("unified-save"));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const arg = onSave.mock.calls[0][0] as UnifiedSaveResult;
+    expect(arg.kind).toBe("flat");
+    if (arg.kind === "flat") {
+      expect(arg.codedText).toBe("Bonjour monde");
+    }
   });
 });
 

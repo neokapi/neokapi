@@ -92,10 +92,10 @@ test.describe("Open in Desktop", () => {
     await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     // The "Open in Bowrain Desktop" banner should appear in server mode.
-    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).toBeVisible({
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopBanner)).toBeVisible({
       timeout: 10000,
     });
-    await expect(page.getByTestId("open-in-desktop-btn")).toBeVisible();
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).toBeVisible();
   });
 
   test("generates correct deep link URL", async ({ page }) => {
@@ -103,7 +103,7 @@ test.describe("Open in Desktop", () => {
     // Navigate directly to the project detail route
     await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
-    const btn = page.getByTestId("open-in-desktop-btn");
+    const btn = page.getByTestId(TEST_IDS.editor.openInDesktopButton);
     await expect(btn).toBeVisible({ timeout: 10000 });
 
     // Read the deep link from the data-href attribute (no clicking needed).
@@ -121,15 +121,15 @@ test.describe("Open in Desktop", () => {
     await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     // Banner should be visible.
-    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).toBeVisible({
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopBanner)).toBeVisible({
       timeout: 10000,
     });
 
     // Dismiss the banner.
-    await page.getByTestId("dismiss-open-in-desktop").click();
+    await page.getByTestId(TEST_IDS.editor.openInDesktopDismiss).click();
 
     // Banner should disappear.
-    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).not.toBeVisible();
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopBanner)).not.toBeVisible();
 
     // Verify localStorage was set.
     const dismissed = await page.evaluate(() =>
@@ -143,7 +143,7 @@ test.describe("Open in Desktop", () => {
     await page.getByText("Desktop Test Project").first().click();
 
     // Banner should still be hidden.
-    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).not.toBeVisible();
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopBanner)).not.toBeVisible();
   });
 
   test("shows download fallback when app not installed", async ({ page }) => {
@@ -154,12 +154,14 @@ test.describe("Open in Desktop", () => {
     await page.evaluate(() => localStorage.removeItem("bowrain-open-in-desktop-dismissed"));
     await page.reload();
 
-    await expect(page.getByTestId("open-in-desktop-btn")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId(TEST_IDS.editor.openInDesktopButton)).toBeVisible({
+      timeout: 10000,
+    });
 
     // Intercept bowrain:// navigation before clicking.
     await interceptDeepLinks(page);
 
-    await page.getByTestId("open-in-desktop-btn").click();
+    await page.getByTestId(TEST_IDS.editor.openInDesktopButton).click();
 
     // After ~1.5s without window blur, the fallback should appear.
     await expect(page.getByTestId(TEST_IDS.editor.desktopNotFoundMessage)).toBeVisible({

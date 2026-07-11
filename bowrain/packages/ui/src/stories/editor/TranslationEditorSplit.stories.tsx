@@ -8,6 +8,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { TranslationEditor } from "../../components/TranslationEditor";
 import type { BlockInfo } from "../../types/api";
+import { getTargetText } from "../../components/editor/blockStatus";
 import { sampleProject } from "../fixtures";
 import { withProviders } from "../decorators";
 
@@ -74,7 +75,9 @@ function MockDocumentPreview({
             }}
             className={block.id === selectedBlockId ? "bg-accent" : "hover:bg-accent/50"}
           >
-            <span style={{ fontSize: 13 }}>{block.targets[targetLocale] || block.source}</span>
+            <span style={{ fontSize: 13 }}>
+              {getTargetText(block, targetLocale) || block.source}
+            </span>
           </div>
         ))}
       </div>

@@ -110,6 +110,65 @@ func TestUpdateBlockTargetOffline(t *testing.T) {
 func TestReviewBlockOffline(t *testing.T) {
 	app := newTestApp(t)
 
+	proj, err := app.CreateProject("Test", "en", []string{"fr", "de"})
+	require.NoError(t, err)
+
+	tmpDir := t.TempDir()
+	writeTestFile(t, tmpDir, "hello.txt", "Hello World")
+	_, err = app.AddItems(proj.ID, []string{tmpDir + "/hello.txt"})
+	require.NoError(t, err)
+
+	blocks, err := app.GetItemBlocks(proj.ID, "hello.txt")
+	require.NoError(t, err)
+	require.NotEmpty(t, blocks)
+
+	// First set targets for both locales.
+	for _, tgt := range []struct{ locale, text string }{{"fr", "Bonjour"}, {"de", "Hallo"}} {
+		err = app.UpdateBlockTarget(UpdateBlockRequest{
+			ProjectID:    proj.ID,
+			ItemName:     "hello.txt",
+			BlockID:      blocks[0].ID,
+			TargetLocale: tgt.locale,
+			Text:         tgt.text,
+		})
+		require.NoError(t, err)
+	}
+
+	// Mark fr as reviewed.
+	err = app.ReviewBlock(proj.ID, "hello.txt", blocks[0].ID, "fr", true, "")
+	require.NoError(t, err)
+
+	// Verify the per-locale review status: fr is reviewed, de untouched, and
+	// the legacy block-global property is no longer written.
+	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
+	require.NoError(t, err)
+	assert.Equal(t, "reviewed", blocks[0].Targets["fr"].Status)
+	assert.Empty(t, blocks[0].Targets["de"].Status)
+	assert.NotContains(t, blocks[0].Properties, "translation-status")
+
+	// Unmark reviewed.
+	err = app.ReviewBlock(proj.ID, "hello.txt", blocks[0].ID, "fr", false, "")
+	require.NoError(t, err)
+
+	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
+	require.NoError(t, err)
+	assert.Equal(t, "translated", blocks[0].Targets["fr"].Status)
+	assert.Empty(t, blocks[0].Targets["de"].Status)
+
+	// Reject (reviewed=false with status "draft"): the target re-enters the
+	// work queue at the draft rung, mirroring the server's optional status.
+	err = app.ReviewBlock(proj.ID, "hello.txt", blocks[0].ID, "fr", false, "draft")
+	require.NoError(t, err)
+
+	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
+	require.NoError(t, err)
+	assert.Equal(t, "draft", blocks[0].Targets["fr"].Status)
+	assert.Empty(t, blocks[0].Targets["de"].Status)
+}
+
+func TestReviewBlockOfflineNoTranslation(t *testing.T) {
+	app := newTestApp(t)
+
 	proj, err := app.CreateProject("Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
@@ -122,32 +181,14 @@ func TestReviewBlockOffline(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, blocks)
 
-	// First set a target.
-	err = app.UpdateBlockTarget(UpdateBlockRequest{
-		ProjectID:    proj.ID,
-		ItemName:     "hello.txt",
-		BlockID:      blocks[0].ID,
-		TargetLocale: "fr",
-		Text:         "Bonjour",
-	})
-	require.NoError(t, err)
+	// Approving a block with no translation mirrors the server's 422.
+	err = app.ReviewBlock(proj.ID, "hello.txt", blocks[0].ID, "fr", true, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "has no fr translation to review")
 
-	// Mark as reviewed.
-	err = app.ReviewBlock(proj.ID, "hello.txt", blocks[0].ID, "fr", true)
+	// Un-reviewing a locale with no target is an idempotent no-op.
+	err = app.ReviewBlock(proj.ID, "hello.txt", blocks[0].ID, "fr", false, "")
 	require.NoError(t, err)
-
-	// Verify the review status.
-	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
-	require.NoError(t, err)
-	assert.Equal(t, "reviewed", blocks[0].Properties["translation-status"])
-
-	// Unmark reviewed.
-	err = app.ReviewBlock(proj.ID, "hello.txt", blocks[0].ID, "fr", false)
-	require.NoError(t, err)
-
-	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
-	require.NoError(t, err)
-	assert.Equal(t, "translated", blocks[0].Properties["translation-status"])
 }
 
 func TestGetServerWorkspacesOffline(t *testing.T) {

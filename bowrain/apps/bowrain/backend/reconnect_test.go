@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -128,6 +129,68 @@ func TestReplayPendingChangesNoClient(t *testing.T) {
 	assert.Contains(t, changes[0].LastError, "not connected")
 }
 
+// TestReplayPendingChangesPermanent4xx verifies that a queued change the
+// server permanently rejects (4xx — e.g. the review endpoint's 422 for a block
+// with no translation) is marked terminally failed after ONE attempt and the
+// replay loop drains past it instead of busy-looping on the same change.
+func TestReplayPendingChangesPermanent4xx(t *testing.T) {
+	calls := 0
+	app, _ := newGovTestApp(t, func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = w.Write([]byte(`{"error":"block has no fr translation to review"}`))
+	})
+	q := newTestQueue(t)
+	if app.offlineQueue != nil {
+		app.offlineQueue.Close()
+	}
+	app.offlineQueue = q
+
+	_ = q.Enqueue("review_block", reviewBlockOp{
+		ProjectID: "p1", ItemName: "hello.txt", BlockID: "b1",
+		TargetLocale: "fr", Reviewed: true,
+	})
+
+	app.replayPendingChanges(context.Background())
+
+	assert.Equal(t, 1, calls, "a permanently rejected change must not be retried")
+	assert.Equal(t, 0, q.PendingCount())
+	assert.Equal(t, 1, q.FailedCount())
+}
+
+// TestReplayPendingChangesNoProgress verifies that a replay pass in which
+// every change fails transiently (server 5xx while the connection stays up)
+// stops after one pass instead of spinning a tight retry loop; the change
+// stays pending for the next reconnect.
+func TestReplayPendingChangesNoProgress(t *testing.T) {
+	calls := 0
+	app, _ := newGovTestApp(t, func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	q := newTestQueue(t)
+	if app.offlineQueue != nil {
+		app.offlineQueue.Close()
+	}
+	app.offlineQueue = q
+
+	_ = q.Enqueue("review_block", reviewBlockOp{
+		ProjectID: "p1", ItemName: "hello.txt", BlockID: "b1",
+		TargetLocale: "fr", Reviewed: true,
+	})
+
+	app.replayPendingChanges(context.Background())
+
+	assert.Equal(t, 1, calls, "a no-progress pass must stop, not re-peek immediately")
+	assert.Equal(t, 1, q.PendingCount())
+
+	changes, err := q.PeekPending(10)
+	require.NoError(t, err)
+	require.Len(t, changes, 1)
+	assert.Equal(t, 1, changes[0].Attempts)
+	assert.Contains(t, changes[0].LastError, "HTTP 500")
+}
+
 func TestReplayChangeNoClient(t *testing.T) {
 	app := newTestApp(t)
 
@@ -250,13 +313,15 @@ func TestOfflineQueueIntegrationWithReviewBlock(t *testing.T) {
 	app.mu.Unlock()
 
 	// Review — should succeed locally and enqueue.
-	err = app.ReviewBlock(proj.ID, "hello.txt", blocks[0].ID, "fr", true)
+	err = app.ReviewBlock(proj.ID, "hello.txt", blocks[0].ID, "fr", true, "")
 	require.NoError(t, err)
 
-	// Verify local review.
+	// Verify local review: per-locale Target.Status, not the legacy
+	// block-global property (write-never since the per-locale migration).
 	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
 	require.NoError(t, err)
-	assert.Equal(t, "reviewed", blocks[0].Properties["translation-status"])
+	assert.Equal(t, "reviewed", blocks[0].Targets["fr"].Status)
+	assert.NotContains(t, blocks[0].Properties, "translation-status")
 
 	// Verify queued.
 	changes, err := q.PeekPending(10)

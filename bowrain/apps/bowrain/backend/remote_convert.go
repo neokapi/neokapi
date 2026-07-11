@@ -76,6 +76,12 @@ func editorBlockToInfo(b apiclient.EditorBlock) BlockInfo {
 		Translatable: b.Translatable,
 		Properties:   b.Properties,
 	}
+	if len(b.Targets) > 0 {
+		info.Targets = make(map[string]BlockTargetInfo, len(b.Targets))
+		for locale, t := range b.Targets {
+			info.Targets[locale] = BlockTargetInfo{Text: t.Text, Status: t.Status}
+		}
+	}
 	if len(b.TargetRuns) > 0 {
 		info.TargetRuns = make(map[string][]RunInfo, len(b.TargetRuns))
 		for locale, runs := range b.TargetRuns {

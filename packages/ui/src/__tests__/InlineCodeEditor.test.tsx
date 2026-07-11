@@ -89,3 +89,35 @@ describe("InlineCodeEditor — onChange wiring", () => {
     expect(c.querySelector('[contenteditable="true"]')).not.toBeNull();
   });
 });
+
+describe("InlineCodeEditor \u2014 imperative insertText handle", () => {
+  it("exposes insertText via handleRef and routes it through the Lexical selection", async () => {
+    const handleRef: {
+      current: import("../components/editor/InlineCodeEditor").InlineCodeEditorHandle | null;
+    } = { current: null };
+    const onChange = vi.fn();
+    const c = renderToContainer(
+      createElement(InlineCodeEditor, {
+        initialCodedText: "Bonjour",
+        initialSpans: [],
+        sourceSpans: [],
+        onSave: vi.fn(),
+        onCancel: vi.fn(),
+        onChange,
+        handleRef,
+      }),
+    );
+    expect(handleRef.current).not.toBeNull();
+
+    // Lexical reconciles updates at the microtask boundary — await the flush.
+    await act(async () => {
+      handleRef.current!.insertText(" monde");
+    });
+
+    // The insertion lands in the contenteditable and surfaces through the
+    // EditorObserverPlugin's onChange with the combined coded text.
+    expect(c.querySelector('[contenteditable="true"]')!.textContent).toContain("monde");
+    const last = onChange.mock.calls.at(-1);
+    expect(last?.[0]).toBe("Bonjour monde");
+  });
+});

@@ -254,3 +254,68 @@ func TestReplayItemActions(t *testing.T) {
 	assert.True(t, hitsContain(*hits, "POST", "/actions/main/pseudo-translate"))
 	assert.True(t, hitsContain(*hits, "POST", "/actions/main/tm-translate"))
 }
+
+// TestPermanentRejectionSurfacesToCaller verifies a connected mutation the
+// server rejects outright (permanent 4xx — e.g. a 422 review of a block whose
+// translation was deleted concurrently) is returned to the caller as-is: the
+// app stays connected, nothing is enqueued for replay (retrying the identical
+// request can never succeed), and the local cache is not touched.
+func TestPermanentRejectionSurfacesToCaller(t *testing.T) {
+	app, _ := itemOpServer(t, map[string]func(http.ResponseWriter, *http.Request){
+		"PUT /review": func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = w.Write([]byte(`{"error":"block has no fr translation to review"}`))
+		},
+	})
+	q := newTestQueue(t)
+	if app.offlineQueue != nil {
+		app.offlineQueue.Close()
+	}
+	app.offlineQueue = q
+
+	err := app.ReviewBlock("p1", "hello.txt", "b1", "fr", true, "")
+	require.Error(t, err)
+	var statusErr *apiclient.StatusError
+	require.ErrorAs(t, err, &statusErr)
+	assert.Equal(t, http.StatusUnprocessableEntity, statusErr.StatusCode)
+
+	assert.Equal(t, StateConnected, app.GetConnectionState().State,
+		"a semantic rejection is not a connectivity failure")
+	changes, err := q.PeekPending(10)
+	require.NoError(t, err)
+	assert.Empty(t, changes, "a permanently rejected op must not be queued for replay")
+}
+
+// TestTransportFailureStillGoesOffline locks the other half of the split the
+// permanent-rejection path introduces: a connected mutation that fails at the
+// transport level (server unreachable) still drops to offline mode and
+// enqueues the op for replay.
+func TestTransportFailureStillGoesOffline(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	app := newTestApp(t)
+	q := newTestQueue(t)
+	if app.offlineQueue != nil {
+		app.offlineQueue.Close()
+	}
+	app.offlineQueue = q
+	app.mu.Lock()
+	app.connState = StateConnected
+	app.serverURL = srv.URL
+	app.activeWS = "acme"
+	app.remoteHTTP = apiclient.NewEditorClient(srv.URL, "tok-xyz")
+	app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok-xyz"}
+	app.mu.Unlock()
+	srv.Close() // connection refused from here on
+
+	// The local fallback also errors (no such cached block) — the assertions
+	// below are about the offline transition and the queued replay op.
+	_ = app.ReviewBlock("p1", "hello.txt", "b1", "fr", true, "")
+
+	assert.Equal(t, StateOffline, app.GetConnectionState().State)
+	changes, err := q.PeekPending(10)
+	require.NoError(t, err)
+	require.Len(t, changes, 1)
+	assert.Equal(t, "review_block", changes[0].Operation)
+}

@@ -112,6 +112,7 @@ import type {
   MergeResult,
   Pilot,
   StartPilotRequest,
+  ReviewDemotion,
 } from "@neokapi/ui";
 
 import { codedToRuns } from "./codedToRuns";
@@ -726,6 +727,32 @@ export class WailsApiAdapter implements ApiAdapter {
     return { restored: 0 };
   }
   async setBlockStatus(): Promise<void> {}
+  async reviewBlock(
+    _ws: string,
+    projectId: string,
+    itemName: string,
+    blockId: string,
+    targetLocale: string,
+    reviewed: boolean,
+    _stream?: string,
+    demoteTo?: ReviewDemotion,
+  ): Promise<void> {
+    // Delegates to the Go backend, which calls the server's review endpoint
+    // and queues the operation for replay when offline (backend/offlineop.go).
+    // Desktop mode is stream-unaware by design: the entire desktop editor
+    // surface is pinned to the "main" stream (editorRef in
+    // bowrain/core/client/editor.go), so the adapter accepts and ignores the
+    // stream parameter — same as rollbackBlock/getBlockHistory above. The
+    // demotion rung only applies to a clearing call (reviewed=false).
+    return Backend.ReviewBlock(
+      projectId,
+      itemName,
+      blockId,
+      targetLocale,
+      reviewed,
+      (!reviewed && demoteTo) || "",
+    );
+  }
   async listGroups(): Promise<Group[]> {
     return [];
   }

@@ -136,6 +136,52 @@ func TestOfflineQueueMarkFailed(t *testing.T) {
 	assert.Equal(t, "connection refused", changes[0].LastError)
 }
 
+func TestOfflineQueueMarkFailedCapsAttempts(t *testing.T) {
+	q := newTestQueue(t)
+
+	_ = q.Enqueue("op1", nil)
+	changes, err := q.PeekPending(10)
+	require.NoError(t, err)
+	require.Len(t, changes, 1)
+	id := changes[0].ID
+
+	// Transient failures up to the cap keep the change pending…
+	for range maxReplayAttempts - 1 {
+		require.NoError(t, q.MarkFailed(id, "network timeout"))
+	}
+	assert.Equal(t, 1, q.PendingCount())
+
+	// …and the attempt that reaches the cap retires it terminally.
+	require.NoError(t, q.MarkFailed(id, "network timeout"))
+	assert.Equal(t, 0, q.PendingCount())
+	assert.Equal(t, 1, q.FailedCount())
+
+	remaining, err := q.PeekPending(10)
+	require.NoError(t, err)
+	assert.Empty(t, remaining)
+}
+
+func TestOfflineQueueMarkFailedPermanent(t *testing.T) {
+	q := newTestQueue(t)
+
+	_ = q.Enqueue("op1", nil)
+	_ = q.Enqueue("op2", nil)
+	changes, err := q.PeekPending(10)
+	require.NoError(t, err)
+	require.Len(t, changes, 2)
+
+	// A permanent failure leaves the pending set on the first strike.
+	require.NoError(t, q.MarkFailedPermanent(changes[0].ID, "review failed (HTTP 422): no translation"))
+
+	assert.Equal(t, 1, q.PendingCount())
+	assert.Equal(t, 1, q.FailedCount())
+
+	remaining, err := q.PeekPending(10)
+	require.NoError(t, err)
+	require.Len(t, remaining, 1)
+	assert.Equal(t, "op2", remaining[0].Operation)
+}
+
 func TestOfflineQueuePurgeCompleted(t *testing.T) {
 	q := newTestQueue(t)
 

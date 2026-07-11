@@ -153,6 +153,16 @@ func (a *App) GetPendingChangesCount() int {
 	return a.offlineQueue.PendingCount()
 }
 
+// GetFailedChangesCount returns the number of queued offline changes the
+// server permanently rejected on replay (4xx). Exposed to the frontend so it
+// can surface that some offline edits did not apply.
+func (a *App) GetFailedChangesCount() int {
+	if a.offlineQueue == nil {
+		return 0
+	}
+	return a.offlineQueue.FailedCount()
+}
+
 // ConnectToServer establishes a REST/SSE connection to the given server URL
 // using stored credentials. The URL should be the HTTP base URL
 // (e.g. "http://localhost:8080").

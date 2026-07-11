@@ -33,7 +33,7 @@ func apiRequest(t *testing.T, method, path, token string, body string) *http.Res
 	if body != "" {
 		bodyReader = strings.NewReader(body)
 	}
-	req, err := http.NewRequest(method, serverURL+path, bodyReader)
+	req, err := http.NewRequestWithContext(t.Context(), method, serverURL+path, bodyReader)
 	require.NoError(t, err)
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
@@ -41,6 +41,18 @@ func apiRequest(t *testing.T, method, path, token string, body string) *http.Res
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	return resp
+}
+
+// postForm posts URL-encoded form values with a test-scoped context.
+func postForm(t *testing.T, path string, form url.Values) *http.Response {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost,
+		serverURL+path, strings.NewReader(form.Encode()))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	return resp
@@ -80,8 +92,7 @@ func TestInfo(t *testing.T) {
 func TestDeviceAuthFlow(t *testing.T) {
 	// Step 1: Start device auth.
 	form := url.Values{"client_id": {"e2e-test"}}
-	resp, err := http.PostForm(serverURL+"/api/v1/auth/device/start", form)
-	require.NoError(t, err)
+	resp := postForm(t, "/api/v1/auth/device/start", form)
 	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -102,8 +113,7 @@ func TestDeviceAuthFlow(t *testing.T) {
 		"email":     {"admin@example.com"},
 		"name":      {"Admin User"},
 	}
-	verifyResp, err := http.PostForm(serverURL+"/api/v1/auth/device/verify", verifyForm)
-	require.NoError(t, err)
+	verifyResp := postForm(t, "/api/v1/auth/device/verify", verifyForm)
 	defer verifyResp.Body.Close()
 	require.Equal(t, http.StatusOK, verifyResp.StatusCode)
 
@@ -114,9 +124,8 @@ func TestDeviceAuthFlow(t *testing.T) {
 		"grant_type":  {"urn:ietf:params:oauth:grant-type:device_code"},
 	}
 
-	for i := 0; i < 10; i++ {
-		pollResp, err := http.PostForm(serverURL+"/api/v1/auth/device/poll", pollForm)
-		require.NoError(t, err)
+	for range 10 {
+		pollResp := postForm(t, "/api/v1/auth/device/poll", pollForm)
 
 		body, _ := io.ReadAll(pollResp.Body)
 		pollResp.Body.Close()
@@ -146,8 +155,10 @@ func TestDeviceAuthFlow(t *testing.T) {
 func TestWorkspaceCRUD(t *testing.T) {
 	token := getTestToken(t)
 
-	// Create workspace.
-	body := `{"name":"E2E Workspace","slug":"e2e-ws"}`
+	// Create workspace. Unique slug per run so the test stays re-runnable
+	// against a reused stack (slugs are globally unique server-side).
+	slug := fmt.Sprintf("e2e-ws-%d", time.Now().UnixMilli())
+	body := fmt.Sprintf(`{"name":"E2E Workspace","slug":"%s"}`, slug)
 	resp := apiRequest(t, http.MethodPost, "/api/v1/workspaces", token, body)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 	ws := readJSON(t, resp)
@@ -165,21 +176,22 @@ func TestWorkspaceCRUD(t *testing.T) {
 
 	found := false
 	for _, w := range workspaces {
-		if w["slug"] == "e2e-ws" {
+		if w["slug"] == slug {
 			found = true
 			break
 		}
 	}
-	assert.True(t, found, "expected to find e2e-ws workspace")
+	assert.True(t, found, "expected to find the created workspace in the list")
 }
 
 // TestProjectInWorkspace tests creating a project inside a workspace.
 func TestProjectInWorkspace(t *testing.T) {
 	token := getTestToken(t)
 
-	// Ensure workspace exists.
+	// Ensure workspace exists (idempotent: 409 on reruns is fine).
 	body := `{"name":"Project Test WS","slug":"proj-ws"}`
-	apiRequest(t, http.MethodPost, "/api/v1/workspaces", token, body)
+	wsResp := apiRequest(t, http.MethodPost, "/api/v1/workspaces", token, body)
+	wsResp.Body.Close()
 
 	// Create project in workspace.
 	projBody := `{"name":"Test Project","default_source_language":"en","target_languages":["fr","de"]}`
@@ -205,8 +217,7 @@ func getTestToken(t *testing.T) string {
 
 	// Start device auth.
 	form := url.Values{"client_id": {"e2e-test"}}
-	resp, err := http.PostForm(serverURL+"/api/v1/auth/device/start", form)
-	require.NoError(t, err)
+	resp := postForm(t, "/api/v1/auth/device/start", form)
 	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -222,8 +233,7 @@ func getTestToken(t *testing.T) string {
 		"email":     {"admin@example.com"},
 		"name":      {"Admin User"},
 	}
-	verifyResp, err := http.PostForm(serverURL+"/api/v1/auth/device/verify", verifyForm)
-	require.NoError(t, err)
+	verifyResp := postForm(t, "/api/v1/auth/device/verify", verifyForm)
 	verifyResp.Body.Close()
 
 	// Poll for token.
@@ -231,9 +241,8 @@ func getTestToken(t *testing.T) string {
 		"device_code": {startResp.DeviceCode},
 		"grant_type":  {"urn:ietf:params:oauth:grant-type:device_code"},
 	}
-	for i := 0; i < 10; i++ {
-		pollResp, err := http.PostForm(serverURL+"/api/v1/auth/device/poll", pollForm)
-		require.NoError(t, err)
+	for range 10 {
+		pollResp := postForm(t, "/api/v1/auth/device/poll", pollForm)
 		body, _ := io.ReadAll(pollResp.Body)
 		pollResp.Body.Close()
 
@@ -252,8 +261,7 @@ func getTestToken(t *testing.T) string {
 
 // TestWebUI verifies the embedded web UI serves index.html at /.
 func TestWebUI(t *testing.T) {
-	resp, err := http.Get(serverURL + "/")
-	require.NoError(t, err)
+	resp := apiRequest(t, http.MethodGet, "/", "", "")
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -261,5 +269,5 @@ func TestWebUI(t *testing.T) {
 	require.NoError(t, err)
 	// The web UI should serve an HTML page.
 	assert.Contains(t, resp.Header.Get("Content-Type"), "text/html")
-	assert.Contains(t, string(body), "<html", fmt.Sprintf("expected HTML response, got: %.100s", body))
+	assert.Contains(t, string(body), "<html", "expected HTML response, got: %.100s", body)
 }

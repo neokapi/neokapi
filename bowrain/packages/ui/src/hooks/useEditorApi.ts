@@ -4,6 +4,7 @@ import { useWorkspace } from "../context/WorkspaceContext";
 import { useStream } from "../context/StreamContext";
 import type {
   BlockInfo,
+  ReviewDemotion,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
   AITranslateFileRequest,
@@ -106,6 +107,28 @@ export function useEditorApi() {
     [api, ws, activeStream],
   );
 
+  const reviewBlock = useCallback(
+    async (
+      projectId: string,
+      itemName: string,
+      blockId: string,
+      targetLocale: string,
+      reviewed: boolean,
+      demoteTo?: ReviewDemotion,
+    ): Promise<void> =>
+      api.reviewBlock(
+        ws,
+        projectId,
+        itemName,
+        blockId,
+        targetLocale,
+        reviewed,
+        activeStream,
+        demoteTo,
+      ),
+    [api, ws, activeStream],
+  );
+
   const addBlockNote = useCallback(
     async (projectId: string, blockId: string, text: string): Promise<BlockNote> =>
       api.addBlockNote(ws, projectId, blockId, text),
@@ -161,6 +184,7 @@ export function useEditorApi() {
       lookupTermsForBlock,
       getBlockHistory,
       rollbackBlock,
+      reviewBlock,
       addBlockNote,
       listBlockNotes,
       deleteBlockNote,
@@ -181,6 +205,7 @@ export function useEditorApi() {
       lookupTermsForBlock,
       getBlockHistory,
       rollbackBlock,
+      reviewBlock,
       addBlockNote,
       listBlockNotes,
       deleteBlockNote,

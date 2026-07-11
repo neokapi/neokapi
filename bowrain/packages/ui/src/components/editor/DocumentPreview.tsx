@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useEditorApi } from "../../hooks/useEditorApi";
 import type { BlockInfo } from "../../types/api";
 import type { PreviewContentMode } from "./visual-editor-types";
+import { getTargetText } from "./blockStatus";
 import { pseudoTranslate, pseudoTranslateCoded } from "./pseudoTranslate";
 import { cn } from "@neokapi/ui-primitives";
 
@@ -203,9 +204,9 @@ export function DocumentPreview({
           { type: "kat-update-block", blockId: block.id, html: pseudoBlockToHTML(block) },
           "*",
         );
-      } else if (showTarget && block.targets[targetLocale]) {
+      } else if (showTarget && getTargetText(block, targetLocale)) {
         cw.postMessage(
-          { type: "kat-update-block", blockId: block.id, text: block.targets[targetLocale] },
+          { type: "kat-update-block", blockId: block.id, text: getTargetText(block, targetLocale) },
           "*",
         );
       } else {
@@ -224,7 +225,7 @@ export function DocumentPreview({
 
     let cancelled = false;
     for (const block of blocks) {
-      if (block.targets[targetLocale]) {
+      if (getTargetText(block, targetLocale)) {
         renderBlockHTML(projectId, block.id, targetLocale)
           .then((html) => {
             if (!cancelled) {

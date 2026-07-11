@@ -18,7 +18,7 @@ func TestReviewBlock(t *testing.T) {
 		"PUT /api/v1/acme/p1/blocks/main/b1/review": {200, `{"ok":true,"block_id":"b1","reviewed":true}`},
 	})
 
-	err := c.ReviewBlock(context.Background(), "acme", "p1", "a.json", "b1", "fr", true)
+	err := c.ReviewBlock(context.Background(), "acme", "p1", "a.json", "b1", "fr", true, "")
 	require.NoError(t, err)
 	assert.Equal(t, http.MethodPut, got.method)
 	assert.Equal(t, "/api/v1/acme/p1/blocks/main/b1/review", got.path)
@@ -28,7 +28,26 @@ func TestReviewBlock(t *testing.T) {
 	assert.Equal(t, "fr", body["target_locale"])
 	assert.Equal(t, "a.json", body["item_name"])
 	assert.Equal(t, true, body["reviewed"])
+	_, hasStatus := body["status"]
+	assert.False(t, hasStatus, "empty status must be omitted from the wire body")
 	assert.Equal(t, "Bearer tok", got.auth)
+}
+
+// TestReviewBlockReject: a reviewer rejection travels as reviewed=false plus
+// status:"draft" — the rung the server demotes the target to so the unit
+// re-enters the work queue.
+func TestReviewBlockReject(t *testing.T) {
+	c, got := editorServer(t, map[string]route{
+		"PUT /api/v1/acme/p1/blocks/main/b1/review": {200, `{"ok":true,"block_id":"b1","reviewed":false}`},
+	})
+
+	err := c.ReviewBlock(context.Background(), "acme", "p1", "a.json", "b1", "fr", false, "draft")
+	require.NoError(t, err)
+
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(got.body, &body))
+	assert.Equal(t, false, body["reviewed"])
+	assert.Equal(t, "draft", body["status"])
 }
 
 func TestReportPresence(t *testing.T) {

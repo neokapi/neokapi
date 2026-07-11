@@ -127,15 +127,53 @@ func (q *OfflineQueue) MarkCompleted(id int64) error {
 	return err
 }
 
-// MarkFailed records a replay failure, incrementing the attempt count.
+// maxReplayAttempts caps how many replay attempts a pending change gets before
+// it is marked terminally failed. Without a cap, a change that keeps failing
+// while the connection stays up would be re-selected by every replay pass
+// forever and the queue could never drain past it.
+const maxReplayAttempts = 5
+
+// MarkFailed records a transient replay failure, incrementing the attempt
+// count. A change that reaches maxReplayAttempts is marked terminally failed
+// ('failed', excluded from PeekPending) so the queue drains past it.
 func (q *OfflineQueue) MarkFailed(id int64, errMsg string) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
 	_, err := q.db.Exec(
-		`UPDATE pending_changes SET attempts = attempts + 1, last_error = ? WHERE id = ?`,
+		`UPDATE pending_changes
+		 SET attempts = attempts + 1, last_error = ?,
+		     status = CASE WHEN attempts + 1 >= ? THEN 'failed' ELSE status END
+		 WHERE id = ?`,
+		errMsg, maxReplayAttempts, id)
+	return err
+}
+
+// MarkFailedPermanent marks a change as terminally failed: the server rejected
+// it with a permanent (4xx) error, so retrying the identical request can never
+// succeed. The change leaves the pending set immediately (status 'failed') —
+// replay must not busy-loop on it — but stays in the queue for inspection
+// until Clear.
+func (q *OfflineQueue) MarkFailedPermanent(id int64, errMsg string) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	_, err := q.db.Exec(
+		`UPDATE pending_changes SET attempts = attempts + 1, last_error = ?, status = 'failed' WHERE id = ?`,
 		errMsg, id)
 	return err
+}
+
+// FailedCount returns the number of terminally failed changes — queued offline
+// mutations the server permanently rejected on replay. Exposed so the UI can
+// surface that some offline edits did not apply.
+func (q *OfflineQueue) FailedCount() int {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	var count int
+	_ = q.db.QueryRow(`SELECT COUNT(*) FROM pending_changes WHERE status = 'failed'`).Scan(&count)
+	return count
 }
 
 // PurgeCompleted removes all completed changes from the queue.
