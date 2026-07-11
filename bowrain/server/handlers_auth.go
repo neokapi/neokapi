@@ -446,7 +446,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
 	}
 
-	oauth2Token, err := oauth2Cfg.Exchange(ctx, code, oauth2.VerifierOption(entry.CodeVerifier))
+	oauth2Token, err := oauth2Cfg.Exchange(oidcCtx, code, oauth2.VerifierOption(entry.CodeVerifier))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "code exchange: " + err.Error()})
 	}
@@ -689,7 +689,7 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
 	}
 
-	oauth2Token, err := oauth2Cfg.Exchange(ctx, code, oauth2.VerifierOption(verifyEntry.CodeVerifier))
+	oauth2Token, err := oauth2Cfg.Exchange(oidcCtx, code, oauth2.VerifierOption(verifyEntry.CodeVerifier))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "code exchange: " + err.Error()})
 	}
@@ -824,7 +824,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
 	}
 
-	oauth2Token, err := oauth2Cfg.Exchange(ctx, code, oauth2.VerifierOption(webEntry.CodeVerifier))
+	oauth2Token, err := oauth2Cfg.Exchange(oidcCtx, code, oauth2.VerifierOption(webEntry.CodeVerifier))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "code exchange: " + err.Error()})
 	}

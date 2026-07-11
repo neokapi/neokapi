@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -924,4 +925,69 @@ func TestLogoutClearsCookies(t *testing.T) {
 	}
 	assert.True(t, foundSession, "logout should set session cookie with MaxAge=-1")
 	assert.True(t, foundRefresh, "logout should set refresh cookie with MaxAge=-1")
+}
+
+// TestOIDCCodeExchangeUsesInternalURL is the regression test for the
+// split-URL deployment (compose.full.yaml, any Docker network): discovery
+// advertises endpoints at the browser-facing PUBLIC URL, which is not
+// reachable from inside the server container, so the token exchange must go
+// through the oidcContext rewriting client (public → internal), exactly like
+// discovery and JWKS do. Before the fix, Exchange ran on the plain request
+// context and dialed the public host — web, desktop, and device logins all
+// failed with "connection refused" on any stack where the public hostname
+// does not resolve from the server.
+func TestOIDCCodeExchangeUsesInternalURL(t *testing.T) {
+	const publicURL = "http://public-keycloak.invalid:8180/realms/bowrain"
+
+	var tokenHits atomic.Int32
+	mockOIDC := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/.well-known/openid-configuration":
+			w.Header().Set("Content-Type", "application/json")
+			// Endpoints advertised at the PUBLIC url, mirroring Keycloak's
+			// KC_HOSTNAME behavior; only the rewrite client can reach them.
+			_, _ = w.Write([]byte(`{
+				"issuer": "` + publicURL + `",
+				"authorization_endpoint": "` + publicURL + `/protocol/openid-connect/auth",
+				"token_endpoint": "` + publicURL + `/protocol/openid-connect/token",
+				"jwks_uri": "` + publicURL + `/protocol/openid-connect/certs"
+			}`))
+		case "/protocol/openid-connect/token":
+			tokenHits.Add(1)
+			// Malformed on purpose: reaching this endpoint at all proves the
+			// rewrite; the handler then fails fast without a real IdP.
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":"invalid_grant"}`))
+		}
+	}))
+	defer mockOIDC.Close()
+
+	cfg := DefaultConfig()
+	cfg.JWTSecret = "test-secret"
+	cfg.OIDCIssuerURL = mockOIDC.URL
+	cfg.OIDCPublicURL = publicURL
+	cfg.OIDCClientID = "test-client"
+	srv := shutdownOnCleanup(t, NewServer(cfg))
+	initTestStores(t, srv)
+
+	ctx := t.Context()
+	require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixWebAuth, "test-state",
+		&webAuthEntry{CodeVerifier: "verifier-123", Nonce: "nonce-123"}, authStateTTL))
+
+	e := echo.New()
+	e.GET("/callback", srv.HandleAuthCallback)
+	req := httptest.NewRequest(http.MethodGet, "/callback?code=test-code&state=test-state", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	// The oauth2 library may retry once with the alternate client-auth style
+	// on a 400, so assert at-least-one arrival rather than an exact count.
+	assert.GreaterOrEqual(t, tokenHits.Load(), int32(1),
+		"the code exchange must reach the token endpoint via the public→internal rewrite client")
+	// The mock rejects the grant, so the handler reports the exchange error —
+	// but over the INTERNAL transport, not a dial to the public host.
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.Contains(t, rec.Body.String(), "invalid_grant")
+	assert.NotContains(t, rec.Body.String(), "public-keycloak.invalid",
+		"no request may dial the public hostname directly")
 }
