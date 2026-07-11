@@ -70,7 +70,7 @@ Use -p to run a flow from a .kapi project file:
 				return fallbackRunE(cmd, flowName, args)
 			}
 
-			return fmt.Errorf("unknown flow: %q\nUse \"flows\" to list available flows, or run a tool directly (e.g. \"kapi %s\")", flowName, flowName)
+			return fmt.Errorf("unknown flow: %q\nUse \"flows\" to list available flows, or execute a tool directly (\"kapi exec %s\")", flowName, flowName)
 		},
 	}
 

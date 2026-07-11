@@ -50,22 +50,18 @@ func TestNewToolCommandsSetsGroupID(t *testing.T) {
 	cmds := NewToolCommands(app)
 	require.NotEmpty(t, cmds)
 
-	// The curated tier and the `tool` group render in root help groups; every
-	// other tool keeps a PERMANENT hidden top-level shortcut — dispatchable,
-	// but absent from help/completion/reference (surface A3, shortcut form).
+	// Only the curated tier and the `exec` group mount at the top level:
+	// every other tool's one and only spelling is `kapi exec <name>`.
 	for _, cmd := range cmds {
-		if TopLevelTools[cmd.Name()] || cmd.Name() == "tool" {
-			assert.NotEmpty(t, cmd.GroupID, "visible command %q should have GroupID set", cmd.Use)
-			assert.False(t, cmd.Hidden, "curated command %q must stay visible", cmd.Use)
-			continue
-		}
-		assert.True(t, cmd.Hidden, "shortcut %q must stay hidden", cmd.Use)
-		assert.Empty(t, cmd.GroupID, "shortcut %q must not claim a help group", cmd.Use)
+		require.Truef(t, TopLevelTools[cmd.Name()] || cmd.Name() == "exec",
+			"unexpected top-level tool command %q — non-curated tools live under `kapi exec` only", cmd.Use)
+		assert.NotEmpty(t, cmd.GroupID, "visible command %q should have GroupID set", cmd.Use)
+		assert.False(t, cmd.Hidden, "curated command %q must stay visible", cmd.Use)
 	}
 }
 
 // TestToolTiering pins the surface-A3 contract: every CLI-visible tool is
-// reachable under `kapi tool <name>`, and only the curated TopLevelTools tier
+// reachable under `kapi exec <name>`, and only the curated TopLevelTools tier
 // is visible at the top level.
 func TestToolTiering(t *testing.T) {
 	app := newTestApp()
@@ -75,30 +71,27 @@ func TestToolTiering(t *testing.T) {
 	byName := map[string]*cobra.Command{}
 	for _, cmd := range cmds {
 		byName[cmd.Name()] = cmd
-		if cmd.Name() == "tool" {
+		if cmd.Name() == "exec" {
 			toolGroup = cmd
 		}
 	}
-	require.NotNil(t, toolGroup, "the `kapi tool` group command must exist")
+	require.NotNil(t, toolGroup, "the `kapi exec` group command must exist")
 
 	inGroup := map[string]bool{}
 	for _, sub := range toolGroup.Commands() {
 		inGroup[sub.Name()] = true
-		assert.False(t, sub.Hidden, "tool-group entry %q should be visible in `kapi tool --help`", sub.Name())
+		assert.False(t, sub.Hidden, "exec entry %q should be visible in `kapi exec --help`", sub.Name())
 	}
 	for name := range TopLevelTools {
-		assert.True(t, inGroup[name], "curated tool %q must also be reachable under `kapi tool`", name)
+		assert.True(t, inGroup[name], "curated tool %q must also be reachable under `kapi exec`", name)
 		if c := byName[name]; assert.NotNil(t, c, "curated tool %q missing at top level", name) {
 			assert.False(t, c.Hidden)
 		}
 	}
-	// Spot-check demoted tools: documented under `tool`, plus a hidden
-	// top-level shortcut that dispatches identically.
+	// Spot-check demoted tools: under `exec` only — no top-level spelling.
 	for _, name := range []string{"term-check", "content-lint", "length-check"} {
-		assert.True(t, inGroup[name], "tool %q must be reachable under `kapi tool`", name)
-		if c := byName[name]; assert.NotNil(t, c, "tool %q should keep a hidden top-level shortcut", name) {
-			assert.True(t, c.Hidden, "shortcut %q must be hidden", name)
-		}
+		assert.True(t, inGroup[name], "tool %q must be reachable under `kapi exec`", name)
+		assert.Nil(t, byName[name], "tool %q must not mount at the top level", name)
 	}
 }
 
@@ -111,7 +104,7 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 	names := make(map[string]bool)
 	for _, cmd := range cmds {
 		names[cmd.Name()] = true
-		if cmd.Name() == "tool" {
+		if cmd.Name() == "exec" {
 			for _, sub := range cmd.Commands() {
 				names[sub.Name()] = true
 			}

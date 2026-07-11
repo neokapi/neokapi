@@ -107,7 +107,7 @@ point the engine at your own SRX file (an explicit `--source-srx-path` overrides
 the adaptive default in either mode):
 
 ```bash
-kapi tool segmentation src/locales/en.json --engine srx \
+kapi exec segmentation src/locales/en.json --engine srx \
   --source-srx-path .kapi/rules.srx
 ```
 
@@ -132,20 +132,20 @@ for the protocol and isolation design. The plugin must be installed
 
 ## CLI usage
 
-`kapi tool segmentation` annotates files in place with a segmentation overlay:
+`kapi exec segmentation` annotates files in place with a segmentation overlay:
 
 ```bash
 # Sentence-segment the source with the default SRX engine
-kapi tool segmentation src/locales/en.json
+kapi exec segmentation src/locales/en.json
 
 # Use a custom SRX rule file
-kapi tool segmentation README.md --engine srx --source-srx-path .kapi/rules.srx
+kapi exec segmentation README.md --engine srx --source-srx-path .kapi/rules.srx
 
 # Semantic chunks via an LLM provider
-kapi tool segmentation docs/guide.md --engine llm --provider anthropic
+kapi exec segmentation docs/guide.md --engine llm --provider anthropic
 
 # ML segmentation with SaT
-kapi tool segmentation transcript.txt --engine sat --sat-model sat-3l-sm
+kapi exec segmentation transcript.txt --engine sat --sat-model sat-3l-sm
 ```
 
 Useful flags: `--segment-source` (default true) / `--segment-target` to choose
@@ -155,7 +155,7 @@ whitespace by default** — so a segment is the clean sentence and the
 inter-sentence whitespace is left uncovered (keeping TM keys stable, regardless
 of which engine ran); pass `--trim-leading-whitespace=false` /
 `--trim-trailing-whitespace=false` to keep the raw surrounding whitespace.
-`kapi tool segment-count` reports the segment count per block without changing the
+`kapi exec segment-count` reports the segment count per block without changing the
 content. For every flag, see the [command reference](/commands).
 
 ## In a flow and a recipe

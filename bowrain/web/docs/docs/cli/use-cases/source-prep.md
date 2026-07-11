@@ -28,7 +28,7 @@ Run quality checks directly on source files without any server connection:
 kapi qa -i src/locales/en/ --source-lang en
 
 # Check terminology consistency
-kapi tool term-check -i src/locales/en/ --termbase glossary.tbx
+kapi exec term-check -i src/locales/en/ --termbase glossary.tbx
 
 # Validate XML/HTML structure in source strings
 kapi xml-validation -i src/locales/en/
@@ -91,10 +91,10 @@ Before starting a translation project, analyze the source content:
 kapi word-count -i src/locales/en/
 
 # Detailed scoping report
-kapi tool scoping-report -i src/locales/en/
+kapi exec scoping-report -i src/locales/en/
 
 # Repetition analysis (find reusable segments)
-kapi tool repetition-analysis -i src/locales/en/
+kapi exec repetition-analysis -i src/locales/en/
 ```
 
 ### Source Cleanup

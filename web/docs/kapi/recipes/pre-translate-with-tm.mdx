@@ -43,7 +43,7 @@ kapi tm import project.tmx -s en -t fr        # 1. load past work (see tm stats)
 kapi recycle messages_en.json -o step1.json \
   --source-lang en --target-lang fr           # 2. fill exact + fuzzy matches
 kapi pseudo-translate step1.json -o step2.json  # 3. mark what the TM missed
-kapi tool term-check step2.json --source-lang en --target-lang fr \
+kapi exec term-check step2.json --source-lang en --target-lang fr \
   --termbase product-terms                    # 4. pre-flag terminology drift
 ```
 

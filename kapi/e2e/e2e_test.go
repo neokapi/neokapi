@@ -187,8 +187,8 @@ func TestTermCheckWithTermbase(t *testing.T) {
 	// Step 2: term-check against the termbase — exercises flag parsing,
 	// termbase loading and processing. It runs as an informational QA pass
 	// (exit 0; no stdout), so a clean run is the assertion. term-check is not
-	// in the curated TopLevelTools tier, so it mounts under `kapi tool`.
-	kapi(t, "tool", "term-check", pseudoOut,
+	// in the curated TopLevelTools tier, so it executes via `kapi exec`.
+	kapi(t, "exec", "term-check", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
 		"--termbase", tb)
@@ -316,8 +316,8 @@ func TestFullPipeline(t *testing.T) {
 	assert.FileExists(t, qaOut)
 
 	// Step 3: Terminology QA against the glossary (informational, exit 0, no
-	// stdout). Mounted under `kapi tool` (not a curated top-level verb).
-	kapi(t, "tool", "term-check", pseudoOut,
+	// stdout). Executes via `kapi exec` (not a curated top-level verb).
+	kapi(t, "exec", "term-check", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
 		"--termbase", tb)
