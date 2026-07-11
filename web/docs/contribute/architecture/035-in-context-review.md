@@ -1,0 +1,148 @@
+---
+id: 035-in-context-review
+sidebar_position: 35
+title: "AD-035: In-Context Review"
+description: "Architecture decision: review translations on the running app — build-time DOM stamping maps pixels to block hashes, a dev-server middleware serves and writes back the local KLF tree, and a framework-free overlay paints terminology and QA findings with the CSS Custom Highlight API."
+keywords: [in-context review, live editing, DOM stamping, CSS Custom Highlight API, KLF write-back, terminology, QA, SSE, kapi-react, architecture decision, neokapi]
+---
+
+# AD-035: In-Context Review
+
+## Summary
+
+Translations are reviewed **on the running app**, not in a file. A
+build-time transform stamps each extracted element with its block hash;
+a dev-server middleware serves and writes the local KLF tree; a
+framework-free browser overlay maps a click back to a block, edits its
+target, and writes it into the `.klf` on disk. Terminology and QA
+findings from stand-off `*.klfl` files are painted onto the live text
+with the CSS Custom Highlight API — no DOM mutation.
+
+## Context
+
+The file format throws context away. A reviewer looking at a
+spreadsheet row cannot see that "Save" landed on a 40-pixel button,
+that the German wraps to two lines, or that the register is wrong for a
+destructive-action dialog. Everything that makes a translation right or
+wrong is a property of *where it renders*, and that is exactly what the
+extraction step discards.
+
+The TMS platforms know this — Tolgee, Crowdin, and Locize all ship some
+form of in-context editing. But each is bound to its own hosted
+service: the strings live in their database, the reviewer needs their
+account, and the app has to be wired to their SDK. None of them can
+review a string that lives in a `.klf` in your repo, and none can show
+your QA findings on top of it.
+
+The mechanism is the hard part. Mapping a rendered pixel back to a
+source string has historically meant either (a) inspecting React's
+fiber tree for debug source info — dead, React 19 removed
+`_debugSource` — or (b) smuggling identifiers into the *text itself* as
+zero-width characters (Tolgee) or private-use markers (Crowdin), which
+corrupts the string, breaks `===` comparisons, leaks into copy/paste,
+and cannot represent an attribute at all.
+
+## Decision
+
+### Stamp the DOM at build time
+
+Under `review: true` (or `KAPI_REVIEW=1`), the transform adds to each
+extracted element:
+
+| Attribute        | Carries                                             |
+| ---------------- | --------------------------------------------------- |
+| `data-kapi-id`   | the block hash                                      |
+| `data-kapi-loc`  | `file:line` — jump-to-source                        |
+| `data-kapi-attr` | hashes of the element's translatable **attributes** |
+
+The identifier goes in an *attribute*, never in the text. The rendered
+string stays byte-identical to production, `===` still works, copy/paste
+is clean, and attribute blocks (which have no text node to hide a
+marker in) are addressable on the same footing as children. The plugin
+already visits every extracted element to rewrite it, so the stamp is
+free — no separate traversal, and no runtime identification machinery.
+
+This is dev/staging only, and gated behind an explicit flag: it puts
+source paths in the DOM and mounts a middleware that writes to disk.
+
+### The dev server serves the KLF tree
+
+`/__kapi/review` (mounted by the Vite plugin, plain Node `http` so it
+ports to any dev server) over the local KLF directory:
+
+| Route              | Purpose                                       |
+| ------------------ | --------------------------------------------- |
+| `GET /{hash}`      | block payload — source runs, targets, notes   |
+| `PUT /{hash}`      | write a target back into the `.klf`           |
+| `GET /annotations` | stand-off findings, keyed by block hash       |
+| `GET /events`      | SSE — updates broadcast to every open tab     |
+
+The index is rebuilt whenever any `.klf` / `.klfl` mtime drifts, so an
+out-of-band `kapi translate` or `kapi exec qa` shows up without a
+restart.
+
+### Write back to the `.klf`, not to a database
+
+A reviewed target is written into the block's `.klf` file as a target
+run. The obvious alternative — a review database with comments,
+states, and an approve button — was rejected.
+
+The `.klf` tree is *already* the contract between developers and
+translators: `extract` produces it, `kapi translate` fills it, QA reads
+it, `compile` ships it. Writing a reviewed target into it makes the
+review a **git diff** — reviewable in a PR, revertable, attributable,
+and consumed by the very next `compile` with no synchronisation step. A
+reviewer's fix travels the identical path as a translator's, because it
+is the identical artifact. It also means review needs no server, no
+account, and no network: `git clone && vp dev`.
+
+The cost is that local review has no workflow state (assignment,
+approval, threaded comments). That is deliberate — those belong to the
+platform tier (see [Related](#related)), and the same stamping and the
+same hashes carry the overlay there unchanged.
+
+### Paint findings with the CSS Custom Highlight API
+
+Terminology and QA results are stand-off annotations (`*.klfl`)
+anchored to run-index ranges — the framework's existing overlay model
+([AD-002](002-content-model.md)). The browser renders them via
+[`CSS.highlights`](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Custom_Highlight_API):
+`Range` objects are registered in a named `Highlight` and styled with
+`::highlight(kapi-term)`.
+
+Nothing is inserted into the DOM. The classic approach — wrapping
+matched text in `<span class="highlight">` — mutates the tree React
+owns, which means layout shifts, hydration mismatches, and a React
+re-render silently discarding the highlights. Custom Highlight paints
+in the text renderer, *beside* the DOM: React's tree is untouched, so
+what the reviewer sees is the app, not the app plus the instrument.
+
+The mapping from a stand-off range to a `Range` is direct, because both
+are offsets into the same flat text the block already carries.
+
+## Consequences
+
+- **The reviewer sees the app.** Every property that only exists at
+  render time — truncation, wrapping, tone-in-place, a term that reads
+  wrong next to the button beside it — is visible at review time.
+- **Review is a diff.** No import/export, no sync step, no platform
+  dependency for the local tier.
+- **QA and terminology become visual.** The checks kapi already runs
+  stop being a list of line numbers and become marks on the words they
+  are about — which is the only form in which a reviewer will act on
+  them.
+- **The stamp is the seam.** The same `data-kapi-id` that lets the
+  local overlay find a `.klf` block lets a staging overlay find a
+  platform block. The Tier-2 (Bowrain) surface is a different backend
+  behind the same client contract, not a different feature.
+- **Not for production.** Stamping and the write-back middleware are
+  flag-gated; shipping them would leak source paths and mount a writer.
+
+## Related
+
+- [AD-019: kapi-react extraction model](019-kapi-react.md) — the block
+  hashes, the transform, and the KLF the review tier reads and writes
+- [AD-002: Content Model](002-content-model.md) — stand-off overlays
+  and run-anchored ranges, the shape the annotations arrive in
+- [AD-008: Project Model](008-project-model.md) — the `.kapi` recipe and
+  the KLF interchange the review writes into

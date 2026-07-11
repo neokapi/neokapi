@@ -135,7 +135,9 @@ while the English source stays flat. The target-side data model is handled by `@
 
 `<Plural>` / `<Select>` are authoring components — at render time a locale switch doesn't remount them, it re-evaluates the form via `Intl.PluralRules` / the case map. `Intl.PluralRules` ships in every modern browser and Node, so no polyfill.
 
-In inline mode the plugin resolves the pivot at build time when the dict is available, emitting just the form's JSX for the target locale. In runtime mode the full plural template stays in the bundle and resolves per render.
+The pivot — the count or the case value — is a runtime value, so the form cannot be chosen at build time. Plural and select blocks therefore keep a runtime call **in both modes**: inline mode bakes the translated ICU template in as the call's fallback, so the dictionary fetch disappears, but the ~2 kB ICU resolver stays. This is the one documented exception to inline mode's zero-runtime rule (see [Runtime vs. inline modes](./modes#the-icu-exception)).
+
+Inside a plural branch, `#` is replaced by the count **formatted for the active locale** — `1.234` in `de`, `1,234` in `en`.
 
 ## Next
 

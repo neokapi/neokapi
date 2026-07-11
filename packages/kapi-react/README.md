@@ -262,7 +262,7 @@ When no `locale` or `mode` is set, the plugin does nothing. Source text renders 
 
 ### Inline mode (build-time translation)
 
-Set `locale` to inline translations at build time. Output is pure translated JSX — **zero runtime shipped to the browser**.
+Set `locale` to inline translations at build time. Output is pure translated JSX — **zero runtime shipped to the browser**, with one documented exception: blocks carrying ICU (`<Plural>`, `<Select>`, or a translator-added `{n, number}`) keep a runtime call, because the pivot is only known at render. See [Inline mode and ICU](#inline-mode-and-icu).
 
 ```ts
 neokapi({ locale: "de", translationsDir: "./translations" });
@@ -307,6 +307,7 @@ import {
   setTranslations,
   loadTranslations,
   loadTranslationChunk,
+  refreshTranslations,
 } from "@neokapi/kapi-react/runtime";
 
 t(text, context?, params?)                 // Mark a JS string for translation (see below)
@@ -317,6 +318,8 @@ loadTranslations(locale, url | urls[], { merge? })
                                            // Fetch and activate; array = fallback chain,
                                            // primary first, most-specific wins
 loadTranslationChunk(locale, url)          // Fetch one chunk and merge (deduped per locale+url)
+refreshTranslations()                      // Force a repaint after an in-place dict edit
+                                           // (same locale, so no remount would otherwise fire)
 ```
 
 The plugin rewrites JSX text and `t()` calls into internal `__t` /
@@ -331,7 +334,7 @@ not API.
 
 ### Code splitting — lazy-load translations per route
 
-For large SPAs, you can split the runtime catalog along the same lines the bundler splits code. The Vite/Rollup plugin emits a `translations-manifest.json` listing the hashes each output chunk needs; the `kapi-react split` CLI turns a master `{locale}.json` into per-chunk subsets; the runtime's `loadTranslationChunk()` helper fetches them lazily and merges each subset into the active dict.
+For large SPAs, you can split the runtime catalog along the same lines the bundler splits code. The plugin emits a `translations-manifest.json` listing the hashes each output chunk needs — under Vite, Rollup, webpack, Rspack, and esbuild (esbuild needs `metafile: true`); the `kapi-react split` CLI turns a master `{locale}.json` into per-chunk subsets; the runtime's `loadTranslationChunk()` helper fetches them lazily and merges each subset into the active dict.
 
 ```tsx
 // routes.tsx — React Router v6+ lazy routes
@@ -574,11 +577,16 @@ Plurals and gender are **translator-driven**. The developer writes plain English
 ```
 
 The runtime resolves ICU using `Intl.PluralRules` (built into all
-browsers, zero polyfill). In inline mode, ICU-bearing blocks keep a
-tiny runtime call with the **translated template baked in** — the
-plural pivot is a runtime value, so the form choice can't happen at
-build time, but no dictionary is fetched and everything else on the
-page stays pure JSX.
+browsers, zero polyfill).
+
+### Inline mode and ICU
+
+In inline mode, ICU-bearing blocks keep a tiny runtime call with the
+**translated template baked in** — the plural pivot is a runtime value,
+so the form choice can't happen at build time, but no dictionary is
+fetched and everything else on the page stays pure JSX. If your app
+uses no plurals and no ICU formats, inline mode ships nothing; if it
+uses one, it ships the ~2 kB resolver.
 
 ## Number, Date, and Time Formatting
 
@@ -769,6 +777,8 @@ type PluginOptions = {
   }>;
   communityManifestDir?: string; // Path to library i18n manifests
   warnUnmapped?: boolean; // Warn about unmapped components (default: true in dev)
+  review?: boolean; // In-context review mode (or KAPI_REVIEW=1) — dev/staging only
+  reviewKlfDir?: string; // KLF tree review serves + writes back to (default: "i18n")
 };
 ```
 
@@ -937,7 +947,7 @@ like `<a>here</a>` are preserved through every step.
 | Source code changes     |      **None**       |    Every line    |    Every line    |    Every line    |
 | Manual translation keys |       **No**        |       Yes        |        No        |        No        |
 | Build tool dependency   |   unplugin (any)    |       None       |    Babel/SWC     |      Babel       |
-| Runtime bundle (inline) |      **0 KB**       |      ~8 KB       |      ~3 KB       |      ~5 KB       |
+| Runtime bundle (inline) | **0 KB** (~2 KB w/ ICU) |      ~8 KB       |      ~3 KB       |      ~5 KB       |
 | Runtime bundle (OTA)    |      **~2 KB**      |      ~8 KB       |      ~3 KB       |      ~5 KB       |
 | Plural/gender           |  Translator-driven  | Developer-driven | Developer-driven | Developer-driven |
 | React version           |         18+         |      16.8+       |      16.14+      |     19 only      |

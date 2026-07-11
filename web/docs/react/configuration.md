@@ -22,6 +22,10 @@ neokapi({
   componentMap: { TabsTrigger: "button" },
   rules: [{ selector: ".hero-caption", translate: false }],
   strict: "warn",
+  warnUnmapped: false,
+  communityManifestDir: "./i18n-manifests",
+  review: false,
+  reviewKlfDir: "i18n",
   onWarning: (msg) => logger.warn(msg),
 });
 ```
@@ -171,6 +175,19 @@ neokapi({
 
 Pair with [`@neokapi/kapi-react-lint`](./linting) to get a fully-enforced "no authoring mistakes land on main" story.
 
+### `review` / `reviewKlfDir`
+
+Turn on [in-context review](./in-context-review): the transform stamps `data-kapi-id` / `data-kapi-loc` / `data-kapi-attr` onto extracted elements, the dev server mounts the review middleware at `/__kapi/review` over `reviewKlfDir` (default `i18n`), and the overlay is injected into `index.html`.
+
+```ts
+neokapi({
+  review: true, // or KAPI_REVIEW=1
+  reviewKlfDir: "i18n",
+});
+```
+
+Dev and staging only — never ship a production build with it on.
+
 ## CLI flags
 
 `kapi-react extract`:
@@ -209,9 +226,32 @@ kapi-react compile \
   --locale fr            # optional — filter to a single locale
 ```
 
-The extract CLI reads the same `componentMap` / `rules` from a JSON config file:
+`kapi-react explain` (audit what extracts, and why):
 
-```json title="i18n.config.json"
+```bash
+kapi-react explain src/Settings.tsx
+kapi-react explain "src/**/*.tsx" --extracted   # only the elements that extracted
+```
+
+```text
+L3    <div>          [container] skipped — has block-level children (they extract separately)
+L4    <h1>           [translatable] extracted  hash=cYEMc2v3JVx
+L6    <code>         [non-translatable] skipped — classified non-translatable
+L7    <input>        [container] skipped — no translator-editable text
+        ↳ placeholder [attribute] extracted  hash=i42kuGUFbb4
+```
+
+Every line is the W3C ITS classification, the gate that fired, and the hash the block got. Reach for it when a string you expected didn't make the catalog, or one you didn't expect did.
+
+`kapi-react split` slices master dicts into per-chunk subsets for lazy loading — see [Lazy loading per route](./modes#lazy-loading-per-route-code-splitting).
+
+### Share one config between the CLI and the plugin
+
+The `componentMap` and `rules` feed the **hash**. If the extract CLI and the build plugin disagree about them, the two sides compute different keys for the same element, and every affected string silently falls back to source text — a failure with no error message anywhere.
+
+So don't maintain two copies. Keep one JSON file and have both sides read it:
+
+```json title="kapi-react.config.json"
 {
   "componentMap": {
     "TabsTrigger": "button",
@@ -221,7 +261,17 @@ The extract CLI reads the same `componentMap` / `rules` from a JSON config file:
 }
 ```
 
-Keep the Vite config and `i18n.config.json` in sync — both sides need the same map for hashes to align.
+```ts title="vite.config.ts"
+import kapiReactConfig from "./kapi-react.config.json";
+
+neokapi({ mode: "runtime", ...kapiReactConfig });
+```
+
+```bash
+kapi-react extract --config kapi-react.config.json
+```
+
+The file name is yours to choose — the CLI takes it via `--config` and the plugin just takes the object. What matters is that there is exactly one of them.
 
 ## Storybook integration
 
@@ -338,7 +388,7 @@ rules: [
 
 ### Per attribute on a component
 
-There's no built-in "don't translate this prop" — the assumption is that props in `translatableAttributes` always carry user-visible text. If you have a component that reuses one of those names for something internal (e.g. `description="internal-id"`), rename the prop or use a `[selector]` rule with a class.
+The convention props (`label`, `description`, `heading`, …) only extract on PascalCase components, so `<div label="draft-pending">` is already left alone. If one of *your* components reuses one of those names for something internal (`description="internal-id"`), rename the prop, mark the element `translate="no"`, or scope it out with a `[selector]` rule.
 
 ### Per file (glob-based)
 
@@ -352,10 +402,10 @@ Hash changed; run `kapi-react extract` and update the translation dict. A stale 
 
 ### "My custom component's text isn't getting translated"
 
-Check:
+Run `kapi-react explain <file>` — it prints the decision for every element on the page, so you rarely have to guess. The usual causes:
 
 1. Does the component have direct JSXText children? The `<MyWidget>some text</MyWidget>` pattern auto-extracts with a warning.
-2. Is the prop in `translatableAttributes`? `<MyWidget helpText="…" />` yes, `<MyWidget tooltipText="…" />` no (add it via rules or — if it's a convention — open an issue).
+2. Is the prop translatable *here*? HTML/ARIA names extract anywhere; convention names like `helpText` extract on PascalCase components only.
 3. Is the text a JS variable? Use `t()`.
 
 ### "Warnings are flooding my console"
@@ -364,15 +414,18 @@ You're probably building Storybook or running tests with the plugin active. Rout
 
 ### "Hash mismatch between extract and transform"
 
-Almost always a `componentMap` desync — the Vite plugin and the CLI must use the same map. Either point both at a shared JSON config (`--config i18n.config.json`) or share a TS module both import from.
+Almost always a `componentMap` desync — the plugin and the CLI computed different keys because they were configured differently. [Share one config file](#share-one-config-between-the-cli-and-the-plugin) between them. `kapi-react explain` prints the hash each element gets, so you can compare it against the `.klf` directly.
 
 ### "A string renders in English in a pseudo build, but the component looks translatable"
 
 Usually one of these three:
 
-1. **Stale Vite dep cache** — the plugin got cached from before a
-   change. Kill any running dev server and `rm -rf node_modules/.vite`
-   before restarting.
+1. **A stale build, not a stale dict.** The plugin re-reads a
+   translation file whenever its mtime changes, so re-running
+   `kapi-react compile` while the dev server is up is enough — you
+   don't need to restart it. If a *code* change seems not to have
+   landed, that's Vite's dep cache: kill the dev server and
+   `rm -rf node_modules/.vite`.
 2. **Linked workspace package** — your app's extract only walks
    its own `src/**` by default. A JSX string in a linked workspace
    package gets the runtime `__t()` rewrite (via Vite's plugin)

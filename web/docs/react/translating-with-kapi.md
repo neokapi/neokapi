@@ -68,7 +68,9 @@ See [Translation](/framework/translation) for the full provider and configuratio
 
 ### Context carries through
 
-Every block in the KLF directory carries its `jsxPath` (e.g. `"div > button"`), its component name, and any `data-i18n-note` annotation. The AI translator gets that context as part of the prompt — so a `<Button>Close</Button>` in a dialog gets a different translation than a `<a>Close</a>` in a list-item's delete action.
+Every block in the KLF directory carries its element (`"button"`, `"p"`, …), its file and line, its component name, and any `data-i18n-note` annotation. The AI translator gets that context as part of the prompt — so a `<button>Close</button>` gets a different translation than an `<a>Close</a>` in a list-item's delete action.
+
+Where the element alone isn't enough to disambiguate — two buttons both reading "Open", one a verb and one a state — add the note explicitly with `data-i18n-note` or `t(text, context)`. That note is part of the key, so the two strings separate for the translator and stay separate.
 
 ### Translate a subset
 

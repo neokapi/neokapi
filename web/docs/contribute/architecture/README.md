@@ -66,6 +66,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | [013](013-kapi-cli.md)     | Kapi CLI     | Standalone CLI, output formats, credential store, MCP server |
 | [014](014-kapi-desktop.md) | Kapi Desktop | Wails v3 app, flow editor, runner, plugin manager            |
 | [019](019-kapi-react.md)   | Kapi React   | React i18n runtime, build-time extraction, `__tx` re-attach  |
+| [035](035-in-context-review.md) | In-Context Review | DOM stamping, KLF write-back over a dev middleware, Highlight-API term/QA painting |
 | [023](023-toolbox-utilities.md) | Toolbox Utilities | kcat/kgrep/ksed busybox multi-call, block-text projection, exit codes |
 | [024](024-agent-skills.md) | Agent Skills | embedded SKILL.md routers, `.claude/skills` install, kapi-*/bowrain-* split |
 | [027](027-visual-editor-data-model.md) | Visual Editor | ContentTree→RenderDoc projection, vocabulary/overlay rendering, shared preview kit, edit→commit round-trip |

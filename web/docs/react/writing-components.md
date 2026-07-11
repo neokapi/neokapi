@@ -16,7 +16,8 @@ Almost everything you already write is translatable. This page walks through the
 - **Direct text inside an unmapped React component** → extracted, with a warning and a suggestion to add a `componentMap` entry.
 - **Inline elements with children** (`<strong>foo</strong>`, `<a href="…">here</a>`, `<em>{name}</em>`) → captured as one translatable block; the inline element becomes a **paired marker** wrapping its inner content, so the translator sees the inner words and can move the wrapping around.
 - **Zero-children inline elements** (`<br/>`, `<Icon/>`, `<Spinner/>`, `<Badge/>`) → become **standalone markers** (`{=mN}` with no matching close) in the surrounding text.
-- **A set of attributes** — `title`, `subtitle`, `description`, `label`, `placeholder`, `alt`, `helpText`, `tooltip`, `aria-*` — on any element → extracted.
+- **HTML and ARIA text attributes** — `alt`, `title`, `placeholder`, `aria-label`, … — on **any** element → extracted.
+- **React prop-name conventions** — `label`, `description`, `heading`, `helpText`, `tooltip`, … — on **PascalCase components only** → extracted. On a plain `<div>` these names are usually DOM props or enum keys, not copy.
 - **Translatable attributes with string-literal ternaries** (`title={cond ? "A" : "B"}`) → each branch extracted as its own block.
 - **Non-translatable elements** (`<code>`, `<pre>`, `<kbd>`, `<var>`, `<script>`, `<style>`, `<textarea>`) → skipped.
 - **Elements marked `translate="no"`** (or any ancestor) → skipped.
@@ -98,6 +99,18 @@ neokapi({
 });
 ```
 
+### Fragments
+
+A fragment root with inline content extracts as one block, same as a promoted container:
+
+```tsx
+<>
+  Signed in as <strong>{user.name}</strong>.
+</>
+```
+
+The fragment has no tag of its own, so its descriptor is the literal `fragment` — meaning a fragment and a `<p>` carrying the same words hash apart, and moving content between them is a re-key. Prefer a real element when the content is a paragraph; fragments are for the cases where the surrounding markup genuinely can't take a wrapper.
+
 ### Unknown components
 
 Component libraries like shadcn, Radix, MUI, and your own internal components render to HTML but kapi-react can't know which one. By default, an unmapped React component with direct translatable text is extracted anyway, with a warning that suggests how to stabilise the hash:
@@ -129,13 +142,15 @@ neokapi({
 
 ### Translatable attributes
 
-These attribute names are extracted on any element (mapped or not):
+Two buckets, with different scopes:
 
-| Bucket            | Names                                                                                                                 |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
-| HTML              | `alt`, `title`, `placeholder`                                                                                         |
-| ARIA              | `aria-label`, `aria-description`, `aria-placeholder`, `aria-roledescription`, `aria-valuetext`                        |
-| React conventions | `subtitle`, `description`, `label`, `heading`, `caption`, `helpText`, `helperText`, `errorMessage`, `hint`, `tooltip` |
+| Bucket            | Extracted on              | Names                                                                                                                                                              |
+| ----------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| HTML              | any element               | `alt`, `title`, `placeholder`                                                                                                                                      |
+| ARIA              | any element               | `aria-label`, `aria-description`, `aria-placeholder`, `aria-roledescription`, `aria-valuetext`                                                                      |
+| React conventions | **PascalCase components** | `subtitle`, `description`, `label`, `heading`, `caption`, `helpText`, `helperText`, `errorMessage`, `hint`, `tooltip`, `emptyMessage`, `emptyStateText`, `filterPlaceholder` |
+
+The HTML and ARIA names are standardised: wherever they appear, they carry user-visible text. The convention names are not — `label` on a `<Field>` is copy, but `label` on a `<div>` is far more often a DOM prop, an enum key, or a data-binding field. Scoping that bucket to PascalCase components is what keeps `<div label="draft-pending">` out of your translator's queue.
 
 So these all work out of the box:
 
@@ -346,11 +361,13 @@ rules: [{ selector: ".legal-copy", locNote: "Legal team must review" }];
 | ----------------------------------------- | ---------- | ------------------------------------------------------------------------ |
 | `<h1>Hello</h1>`                          | ✓          | standard translatable element                                            |
 | `<div>Hello</div>`                        | ✓          | auto-promoted silently                                                   |
+| `<>Hello <b>you</b></>`                   | ✓          | fragment root; descriptor is `fragment`                                  |
 | `<Button><Icon/>Save</Button>`            | ✓          | "Save" extracts with `{=m0}` standalone for the icon                     |
 | `<TabsTrigger>Hello</TabsTrigger>`        | ✓          | warning suggests `componentMap`                                          |
-| `<PageHeader title="Hi" />`               | ✓          | `title` in the translatable-attributes set                               |
+| `<PageHeader title="Hi" />`               | ✓          | `title` is an HTML attribute — any element                              |
 | `<PageHeader title={cond ? "A" : "B"} />` | ✓          | both branches — one block each                                           |
-| `<MyComp description="Hi" />`             | ✓          | `description` too                                                        |
+| `<MyComp description="Hi" />`             | ✓          | `description` is a convention prop — components only                     |
+| `<div label="draft-pending" />`           | ✗          | convention prop on a plain element — not copy                            |
 | `<p>Click <a>here</a></p>`                | ✓          | one block, `<a>` becomes paired `{=m0}…{/=m0}`                           |
 | `<code>foo</code>`                        | ✗          | non-translatable element                                                 |
 | `<h1 translate="no">X</h1>`               | ✗          | explicit opt-out (suppresses lint too)                                   |

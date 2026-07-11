@@ -313,6 +313,7 @@ const sidebars: SidebarsConfig = {
     "react/pipeline",
     "react/modes",
     "react/translating-with-kapi",
+    "react/in-context-review",
     "react/linting",
     "react/configuration",
     "react/alternatives",
