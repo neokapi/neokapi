@@ -30,7 +30,6 @@ import type { Warning, WarningCollector } from "./warnings.ts";
 import { isTranslatableAttribute } from "../plugin/defaults.ts";
 import { hashKey } from "../plugin/hash.ts";
 import { resolveLibraryComponentMap } from "../plugin/manifests.ts";
-import { legacyExprToName, legacyHashKey, legacyJSXPath } from "../migrate/legacy.ts";
 import { CONTEXT_SEPARATOR, type PluginOptions } from "../types.ts";
 
 export type ExtractOptions = Pick<PluginOptions, "componentMap" | "rules" | "communityManifestDir">;
@@ -53,13 +52,6 @@ export interface WalkerOptions extends ExtractOptions {
    * React component.
    */
   warnings?: WarningCollector;
-  /**
-   * Migration channel: when set, the walker also computes each
-   * block's v1 (pre-2.0) hash and reports the (legacyHash, hash)
-   * pair. `legacyHash` is null for blocks the v1 extractor could
-   * not have produced (fragments). Used by `kapi-react migrate-keys`.
-   */
-  onKeyPair?: (pair: { legacyHash: string | null; hash: string }) => void;
   /**
    * Diagnostic channel for `kapi-react explain`: called once per JSX
    * element with the gate decisions that led to extraction or not.
@@ -158,7 +150,6 @@ class BlockCollector {
   private readonly rules: NonNullable<ExtractOptions["rules"]>;
   private readonly filename: string;
   private readonly warnings: WarningCollector | undefined;
-  private readonly onKeyPair: WalkerOptions["onKeyPair"];
   private readonly onDecision: WalkerOptions["onDecision"];
   private readonly out: Block[] = [];
   private readonly seenHashes = new Set<string>();
@@ -175,7 +166,6 @@ class BlockCollector {
     this.rules = opts.rules ?? [];
     this.filename = opts.filename;
     this.warnings = opts.warnings;
-    this.onKeyPair = opts.onKeyPair;
     this.onDecision = opts.onDecision;
   }
 
@@ -305,7 +295,6 @@ class BlockCollector {
     const hash = hashKey(flatText, FRAGMENT_DESCRIPTOR);
     if (this.seenHashes.has(hash)) return true;
     this.seenHashes.add(hash);
-    this.onKeyPair?.({ legacyHash: null, hash });
 
     const line = lineFromOffset(this.code, frag.span.start);
     this.out.push({
@@ -402,7 +391,6 @@ class BlockCollector {
     const hash = hashKey(text, desc);
     if (this.seenHashes.has(hash)) return;
     this.seenHashes.add(hash);
-    this.onKeyPair?.({ legacyHash: legacyHashKey(text, desc), hash });
 
     const line = lineFromOffset(this.code, node.span.start);
     const properties: Block["properties"] = {
@@ -444,17 +432,6 @@ class BlockCollector {
     const hash = hashKey(flatText, desc);
     if (this.seenHashes.has(hash)) return hash;
     this.seenHashes.add(hash);
-
-    if (this.onKeyPair) {
-      const legacyFlat = buildRuns(el, {
-        componentMap: this.componentMap,
-        sourceSlice: (start, end) => this.sliceSource(start, end),
-        exprName: legacyExprToName,
-      }).flatText;
-      const legacyPath = legacyJSXPath(ancestors, el, this.componentMap);
-      const legacyDesc = locNote ? `${legacyPath}${CONTEXT_SEPARATOR}${locNote}` : legacyPath;
-      this.onKeyPair({ legacyHash: legacyHashKey(legacyFlat, legacyDesc), hash });
-    }
 
     this.out.push({
       id: `${this.filename}:${lineFromOffset(this.code, el.span.start)}:${this.out.length}`,
@@ -563,14 +540,6 @@ class BlockCollector {
     const hash = hashKey(text, desc);
     if (this.seenHashes.has(hash)) return hash;
     this.seenHashes.add(hash);
-
-    if (this.onKeyPair) {
-      const legacyPath = legacyJSXPath(ancestors, el, this.componentMap);
-      const legacyContext =
-        branchIndex === null ? `${legacyPath}[${name}]` : `${legacyPath}[${name}::${branchIndex}]`;
-      const legacyDesc = locNote ? `${legacyContext}${CONTEXT_SEPARATOR}${locNote}` : legacyContext;
-      this.onKeyPair({ legacyHash: legacyHashKey(text, legacyDesc), hash });
-    }
 
     const idSuffix = branchIndex === null ? name : `${name}:${branchIndex}`;
     this.out.push({

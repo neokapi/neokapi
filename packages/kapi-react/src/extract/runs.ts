@@ -62,12 +62,6 @@ export interface BuildRunsOptions {
    * there and runs.ts stays source-string-free.
    */
   sourceSlice(start: number, end: number): string;
-  /**
-   * Override the expression → placeholder-name mapping. The
-   * migrate-keys command passes the legacy naming function here to
-   * reproduce v1 flat templates; everything else uses the default.
-   */
-  exprName?: (expr: Expression) => string;
 }
 
 /**
@@ -121,7 +115,6 @@ interface BuilderState {
   occurrences: Occurrence[];
   componentMap: Record<string, string>;
   sourceSlice: BuildRunsOptions["sourceSlice"];
-  exprName: (expr: Expression) => string;
 }
 
 /**
@@ -143,7 +136,6 @@ export function buildRuns(
     occurrences: [],
     componentMap: opts.componentMap,
     sourceSlice: opts.sourceSlice,
-    exprName: opts.exprName ?? exprToName,
   };
   walkChildren(el.children ?? [], state);
   return {
@@ -227,7 +219,7 @@ function appendExpression(state: BuilderState, node: JSXExpressionContainer): vo
     return;
   }
 
-  const rawName = state.exprName(expr as Expression);
+  const rawName = exprToName(expr as Expression);
   const equiv = dedupName(rawName, state.usedNames);
   state.runs.push({
     ph: {
@@ -559,8 +551,7 @@ function spanSlice(node: unknown, state: BuilderState): string {
 
 /**
  * Trim leading / trailing purely-whitespace text runs. Whitespace
- * between structural runs stays. Mirrors `text.trim()` in the legacy
- * flat extractor.
+ * between structural runs stays.
  */
 function trimEdgeWhitespace(runs: Run[]): Run[] {
   if (runs.length === 0) return runs;

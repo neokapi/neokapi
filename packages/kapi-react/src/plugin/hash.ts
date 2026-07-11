@@ -2,10 +2,9 @@
  * v2 key hashing: FNV-1a 64-bit over `JSON.stringify(text) + "|" + desc`,
  * base62-encoded (≤ 11 chars).
  *
- * 64 bits gives collision headroom for million-string corpora that the
- * old 32-bit Jenkins hash (~50% birthday collision odds around 80k
- * strings) did not. The v1 scheme lives on only in
- * `src/migrate/legacy.ts` for `kapi-react migrate-keys`.
+ * 64 bits gives collision headroom for million-string corpora that a
+ * 32-bit hash (~50% birthday collision odds around 80k strings) does
+ * not.
  */
 
 const FNV_OFFSET = 0xcbf29ce484222325n;

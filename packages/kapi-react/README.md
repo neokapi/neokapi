@@ -611,8 +611,7 @@ context (`data-i18n-note`, `t(text, context)`).
 Mapping a component **itself** in `componentMap` (e.g. `Hint → p`)
 changes that element's descriptor — the plugin warns when an unmapped
 component has translatable text so you map it before translating, not
-after. Upgrading from a pre-2.0 catalog? `kapi-react migrate-keys`
-rewrites dictionaries and `.klf` trees in place (see CLI below).
+after.
 
 ## Translatability Rules
 
@@ -876,14 +875,6 @@ vpx kapi-react explain <file-or-glob>... [--extracted]
   Prints every element's W3C ITS classification, why it was or wasn't
   extracted (promotion, translate="no", block-level children, …), and
   the hash it received — the audit trail for the zero-config claims.
-
-vpx kapi-react migrate-keys [--dicts <dir>] [--klf <dir>] [--dry-run]
-
-  One-shot migration from the pre-2.0 key scheme (32-bit hash over the
-  full ancestor path). Re-extracts the current sources computing both
-  hashes per block and rewrites compiled dictionaries and .klf trees in
-  place, preserving targets. Orphans are kept and reported; recover
-  them via kapi's TM after re-extracting.
 ```
 
 The boundary is: `kapi-react` emits extracted blocks (as KLF files

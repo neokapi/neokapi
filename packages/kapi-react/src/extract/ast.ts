@@ -130,8 +130,7 @@ export function hasAttr(el: JSXElement, name: string): boolean {
  * made hashes order-dependent through `dedupName`). Other shapes
  * fall back to "value"; callers disambiguate collisions through
  * `dedupName`. Extract and transform must agree on this mapping,
- * since it feeds the hash input template. The v1 behavior is frozen
- * in `src/migrate/legacy.ts`.
+ * since it feeds the hash input template.
  */
 export function exprToName(expr: Expression): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
