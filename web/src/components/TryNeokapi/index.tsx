@@ -7,18 +7,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@neokapi/ui-primitives";
-import HeroProcess from "./HeroProcess";
+import HeroLoop from "./HeroLoop";
 import styles from "./styles.module.css";
 
-// The docs landing centerpiece. The hero is a zero-wasm process "show"
-// (HeroProcess): baked RenderDoc frames rendered through the shared FormatPreview
-// that auto-advance through the kapi way — Declare → Reconcile → Produce →
-// Converge → Review → Shipped, the anatomy of `kapi up` — with a stepper and
-// typewriter/crossfade transitions. Clicking it opens a modal (the ui-primitives Dialog) that boots
-// the kapi WASM engine and drives a single coherent surface: a FileBrowser of
-// real sample files across formats, opening into a DocumentViewer powered by
-// live extraction (inspect + inspectAnnotated) with a real pseudo-translate
-// target — so the instant teaser and the live proof tell the same story.
+// The docs landing centerpiece. The hero is a zero-wasm "content loop"
+// (HeroLoop): two coupled, repeating cycles that convey convergence — an inner
+// single-language content cycle (Shape → Write → Check → Ship, repeat) and a
+// coupled multilingual cycle (Read → Prep → Recycle → Translate → Check → Ship,
+// repeat × every language). A single active highlight travels each row of verb
+// pills and its return arc, continuously, so the loop reads as "content stays
+// converged — you don't re-run a pipeline." Pure SVG/CSS/JS, no engine boot.
+// Clicking the card opens a modal (the ui-primitives Dialog) that boots the kapi
+// WASM engine and drives a single coherent surface: a FileBrowser of real sample
+// files across formats, opening into a DocumentViewer powered by live extraction
+// (inspect + inspectAnnotated) with a real pseudo-translate target — so the
+// instant teaser and the live proof tell the same story.
 //
 // The page stays zero-wasm on load: nothing boots the engine until the reader
 // opens the modal. The heavy modal body (which imports the lab runtime) is
@@ -45,7 +48,7 @@ export default function TryNeokapi(): React.ReactElement {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <HeroProcess onOpen={() => setOpen(true)} />
+      <HeroLoop onOpen={() => setOpen(true)} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         {/* Cap the modal to the viewport and lay it out as a flex column so the
