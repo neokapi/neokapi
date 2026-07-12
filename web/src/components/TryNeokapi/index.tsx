@@ -7,36 +7,39 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@neokapi/ui-primitives";
-import { HeroReelFallback } from "./HeroReel";
+import { HeroKineticFallback } from "./HeroKinetic";
 import styles from "./styles.module.css";
 
-// HeroReel drives Motion animation + client timers, so it is loaded client-only:
-// on the server (and until the client mounts) we render the static HeroReelFallback
-// so Motion never enters the SSR bundle. This keeps the docs build SSR-safe.
-const LazyHeroReel = React.lazy(() => import("./HeroReel"));
+// HeroKinetic drives Motion animation + client timers, so it is loaded
+// client-only: on the server (and until the client mounts) we render the static
+// HeroKineticFallback so Motion never enters the SSR bundle. This keeps the docs
+// build SSR-safe.
+const LazyHeroKinetic = React.lazy(() => import("./HeroKinetic"));
 
-function HeroReelClient({ onOpen }: { onOpen: () => void }): React.ReactElement {
+function HeroKineticClient({ onOpen }: { onOpen: () => void }): React.ReactElement {
   return (
-    <BrowserOnly fallback={<HeroReelFallback onOpen={onOpen} />}>
+    <BrowserOnly fallback={<HeroKineticFallback onOpen={onOpen} />}>
       {() => (
-        <Suspense fallback={<HeroReelFallback onOpen={onOpen} />}>
-          <LazyHeroReel onOpen={onOpen} />
+        <Suspense fallback={<HeroKineticFallback onOpen={onOpen} />}>
+          <LazyHeroKinetic onOpen={onOpen} />
         </Suspense>
       )}
     </BrowserOnly>
   );
 }
 
-// The docs landing centerpiece. The hero is a zero-wasm, cinematic "content
-// loop" reel (HeroReel): a self-playing Motion sequence that loops through four
-// phases — a "The Content Loop" title card pulses in, the single-language loop
-// (Shape → Write → Check) animates and visibly iterates (Write⇄Check) and
-// converges into a persistent green ship gate; a "Going Multilingual" title card
-// pulses in, the localization loop (Read → Prep → Recycle → Translate → Check)
-// streams formats, memory, and languages and converges into the same green gate.
-// The recurring gate is the convergence climax — the loop that resolves, not a
-// pipeline. Pure JS animation, no engine boot; guarded behind BrowserOnly with a
-// static SSR fallback. Under prefers-reduced-motion it shows a static frame.
+// The docs landing centerpiece. The hero is a zero-wasm, kinetic-type reel
+// (HeroKinetic): a self-playing two-column Motion sequence. LEFT, a kinetic verb
+// stack — the active verb large + dark, passed verbs receded, SHIP resolving
+// large + green with a ✓. RIGHT, a live brand-guide asset that transforms as
+// each verb fires: its voice/terms/tone rows populate (Shape), a body block
+// writes in (Write), green ✓ marks + a "brand ✓" chip appear (Check), and an "on
+// brand" seal stamps (Ship). It then goes multilingual — the verbs recede and
+// SHIP resolves as 出荷 / Versand / Envío while the asset gains a de·ja·fr
+// switcher, localizes a rule, and ships in every language. The abstract verbs
+// act on a concrete artifact. Pure JS animation, no engine boot; guarded behind
+// BrowserOnly with a static SSR fallback. Under prefers-reduced-motion it shows a
+// static finished frame.
 // Clicking the card opens a modal (the ui-primitives Dialog) that boots the kapi
 // WASM engine and drives a single coherent surface: a FileBrowser of real sample
 // files across formats, opening into a DocumentViewer powered by live extraction
@@ -68,7 +71,7 @@ export default function TryNeokapi(): React.ReactElement {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <HeroReelClient onOpen={() => setOpen(true)} />
+      <HeroKineticClient onOpen={() => setOpen(true)} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         {/* Cap the modal to the viewport and lay it out as a flex column so the
