@@ -196,8 +196,8 @@ what a tool does, the built-in tools fall into a few broad kinds:
 | **Convert**   | Adjust representation                     | encoding conversion, line-break normalization        |
 
 Enrich and validate tools commonly use the [Block annotation
-system](/framework/content-model) rather than rewriting text: a TM-leverage tool
-attaches candidate matches, a QA tool attaches findings, and downstream tools or
+system](/framework/content-model) rather than rewriting text: the `recycle` tool
+attaches candidate TM matches, a QA tool attaches findings, and downstream tools or
 an editor read those annotations. This shared annotation channel is how
 [translation memory](/framework/translation-memory),
 [terminology](/framework/terminology), and [brand voice](/framework/checks/brand-voice)
