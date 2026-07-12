@@ -5,20 +5,22 @@ import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { FRAMES, HERO_FILENAME, READ_FORMATS, STAGES } from "./heroStages";
 import styles from "./styles.module.css";
 
-// The hero: an auto-playing, six-stage "show" of kapi end to end —
-// Read → Pre-process → Pseudo-translate → Leverage → Translate (ja) → Merge —
-// rendered through the shared FormatPreview on BAKED data (heroStages.ts), so the
-// page pulls ZERO wasm on load. The slide is an Acme pitch deck on ONE persistent
-// card (on a peeking stack) — it never re-mounts, so prior results (redaction,
-// terms, earlier text) stay put while each stage animates its own change in place.
+// The hero: an auto-playing, six-stage "show" of the kapi way — one command,
+// Declare → Reconcile → Produce → Converge → Review → Shipped (the anatomy of
+// `kapi up`) — rendered through the shared FormatPreview on BAKED data
+// (heroStages.ts), so the page pulls ZERO wasm on load. The slide is an Acme
+// pitch deck on ONE persistent card (on a peeking stack) — it never re-mounts, so
+// prior results (redaction, terms, produced text) stay put while each stage
+// animates its own change in place.
 //
 // Each stage plays in two beats: it first HOLDS the previous stage's result (the
 // "before" view) for ~2s, then animates into its own target ("after") view — so
-// e.g. Pseudo-translate shows the source (already redacted, terms marked) for 2s,
-// then the text rolls to the accented pseudo form. The card tints by the CURRENT
-// stage's locale, so the background stays consistent for the whole stage and only
-// changes at the boundary between stages. Prev/next arrows step through stages, a
-// counter + caption name the stage, and a CTA opens the live modal.
+// e.g. Produce shows the reconciled source (redacted, terms marked) for 2s, then
+// the text rolls to the target with TM reuse and AI production together. The card
+// tints by the CURRENT stage's locale, so the background stays consistent for the
+// whole stage and only changes at the boundary between stages. Prev/next arrows
+// step through stages, a counter + caption name the stage, and a CTA opens the
+// live modal.
 //
 // prefers-reduced-motion: no auto-advance, no hold, no roll; step with arrows.
 
@@ -128,7 +130,7 @@ export default function HeroProcess({ onOpen }: HeroProcessProps): React.ReactEl
             <span className={styles.deckBackFar} aria-hidden="true" />
             <span className={styles.deckBackNear} aria-hidden="true" />
             <div
-              className={clsx(styles.heroStage, shownStage.key === "read" && styles.heroStageRead)}
+              className={clsx(styles.heroStage, shownStage.key === "declare" && styles.heroStageRead)}
             >
               <span className={styles.deckLabel} aria-hidden="true">
                 <span className={styles.deckLabelLocale}>{stageLocale}</span>/{HERO_FILENAME}
@@ -152,7 +154,7 @@ export default function HeroProcess({ onOpen }: HeroProcessProps): React.ReactEl
                 flush
                 className={styles.heroDoc}
               />
-              {shownStage.key === "read" && (
+              {shownStage.key === "declare" && (
                 <div className={styles.heroFormats} aria-hidden="true">
                   <span className={styles.heroFormatsLabel}>reads</span>
                   {READ_FORMATS.map((f) => (

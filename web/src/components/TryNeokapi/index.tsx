@@ -12,9 +12,9 @@ import styles from "./styles.module.css";
 
 // The docs landing centerpiece. The hero is a zero-wasm process "show"
 // (HeroProcess): baked RenderDoc frames rendered through the shared FormatPreview
-// that auto-advance through kapi end to end — Read → Pre-process → Pseudo →
-// Leverage → Translate (ja) → Merge — with a stepper and typewriter/crossfade
-// transitions. Clicking it opens a modal (the ui-primitives Dialog) that boots
+// that auto-advance through the kapi way — Declare → Reconcile → Produce →
+// Converge → Review → Shipped, the anatomy of `kapi up` — with a stepper and
+// typewriter/crossfade transitions. Clicking it opens a modal (the ui-primitives Dialog) that boots
 // the kapi WASM engine and drives a single coherent surface: a FileBrowser of
 // real sample files across formats, opening into a DocumentViewer powered by
 // live extraction (inspect + inspectAnnotated) with a real pseudo-translate
