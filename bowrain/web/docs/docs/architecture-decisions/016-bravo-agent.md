@@ -16,6 +16,11 @@ MCP cloud endpoint, using a short-lived scoped token so every tool
 call executes as the invoking user. Three operating modes — Ask,
 Co-worker, and Voice — map to progressively broader write authority.
 
+@bravo is **dark by default**: the `FeatureBravo` gate is off on every plan,
+so the surface is not enabled for customers, and it is turned on only through
+a per-workspace feature override for internal dogfooding. See the
+[feature matrix](018-billing-and-plans.md#feature-matrix).
+
 ## Context
 
 Many localization workflows are repetitive (batch-translating, running

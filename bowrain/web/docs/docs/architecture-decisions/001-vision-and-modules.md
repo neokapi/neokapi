@@ -148,7 +148,7 @@ imports `bowrain/core/project`.
 | `billing/`               | Subscription and quota management                             |
 | `jobs/`                  | Background job processor                                      |
 | `brand/`                 | Brand voice profiles, tag dimensions                          |
-| `graph/`                 | Apache AGE and SQLite graph store backends                    |
+| `graph/`                 | Brand knowledge graph — plain-SQL (default) and Apache AGE (opt-in) backends |
 | `analytics/`             | Usage analytics and reporting                                 |
 | `sievepen/`              | SQLite + PostgreSQL TM implementation                         |
 | `termbase/`              | SQLite + PostgreSQL termbase implementation                   |

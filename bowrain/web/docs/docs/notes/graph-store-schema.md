@@ -7,10 +7,15 @@ title: "Graph Store Schema"
 
 This note provides implementation details for [AD-006](/architecture-decisions/006-graph-concept-storage).
 
+The server runs the plain-SQL backend on standard PostgreSQL by default
+(`SQLGraphStore`); Apache AGE is an opt-in backend selected with
+`BOWRAIN_GRAPH_BACKEND=age`. Both are ports of the framework's SQLite
+adjacency-table reference.
+
 ## Framework: SQLite Adjacency Table DDL
 
 ```sql
--- cli/storage/graph/sqlite.go
+-- host/storage/graph/sqlite.go
 CREATE TABLE IF NOT EXISTS graph_nodes (
     id TEXT PRIMARY KEY,
     label TEXT NOT NULL,
@@ -46,9 +51,23 @@ CREATE INDEX IF NOT EXISTS idx_graph_nodes_label ON graph_nodes(label);
 - Foreign keys enforce referential integrity on edges
 - Indexes on source, target, label enable efficient traversal queries
 
-## Server: Apache AGE Cypher DDL
+## Server (default): SQL Adjacency Tables on PostgreSQL
 
-AGE uses a property graph model accessed through Cypher queries via `ag_catalog.cypher()`:
+The default backend, `SQLGraphStore` (`bowrain/graph/sql.go`), ports the
+SQLite reference above to standard PostgreSQL: `graph_nodes` / `graph_edges`
+with `jsonb` properties (queried via containment), nullable RFC3339 validity
+bounds, Go-side tag filtering, and a recursive-CTE `ShortestPath`. It needs
+no extension, so it runs on stock PostgreSQL and managed RDS/Aurora.
+`EnsureGraph` creates the schema at wiring time under an advisory lock, and
+`graph_edges` foreign keys use `ON DELETE CASCADE`. Raw Cypher is not
+supported on this backend (`CypherQuery`/`CypherExec` return
+`core/graph.ErrCypherNotSupported`).
+
+## Server (opt-in): Apache AGE Cypher DDL
+
+AGE (`bowrain/graph/age.go`, selected with `BOWRAIN_GRAPH_BACKEND=age`) uses
+a property graph model accessed through Cypher queries via
+`ag_catalog.cypher()`, and requires an AGE-enabled PostgreSQL:
 
 ```sql
 -- Graph creation (bowrain/graph/age.go)
@@ -196,9 +215,12 @@ SELECT path_nodes, path_edges FROM bfs WHERE node = ? LIMIT 1
 | ------------------- | ----------------------------------------------------------- |
 | `EventBlockCreated` | Create Concept node with `project_id` and `name` properties |
 | `EventBlockUpdated` | Update node properties                                      |
-| `EventBlockDeleted` | Delete node (AGE: DETACH DELETE cascades edges)             |
+| `EventBlockDeleted` | Delete node (edges cascade: SQL `ON DELETE CASCADE`, AGE `DETACH DELETE`) |
 
-The syncer uses a 10-second context timeout per event and logs errors without failing.
+The syncer is backend-agnostic (it takes a `core/graph.GraphStore`), uses a
+10-second context timeout per event, and logs errors without failing. The
+graph is a derived projection, so it can be rebuilt from the relational
+stores at any time.
 
 ## Implementation Files
 
@@ -210,16 +232,18 @@ The syncer uses a 10-second context timeout per event and logs errors without fa
 | `core/graph/store.go`         | GraphStore interface              |
 | `core/graph/validity.go`      | Validity, Scope, matching logic   |
 | `core/graph/labels.go`        | SKOS-aligned edge label constants |
-| `cli/storage/graph/sqlite.go` | SQLite adjacency table backend    |
+| `host/storage/graph/sqlite.go` | SQLite adjacency-table reference   |
 
 ### Server (`bowrain/`)
 
 | File                             | Purpose                                                  |
 | -------------------------------- | -------------------------------------------------------- |
+| `bowrain/graph/sql.go`          | `SQLGraphStore` — default plain-SQL backend on PostgreSQL |
 | `bowrain/graph/cypher.go`       | CypherStore sub-interface                                |
-| `bowrain/graph/age.go`          | Apache AGE backend (implements GraphStore + CypherStore) |
+| `bowrain/graph/age.go`          | `AGEGraphStore` — opt-in AGE backend (GraphStore + CypherStore) |
 | `bowrain/graph/agtype.go`       | agtype parser (vertex, edge, path, scalar)               |
 | `bowrain/graph/time.go`         | Time formatting helpers for AGE                          |
-| `bowrain/graph/afterconnect.go` | pgx AfterConnect hook for AGE extension                  |
-| `bowrain/graph/factory.go`      | GraphStore factory                                       |
+| `bowrain/graph/afterconnect.go` | pgx AfterConnect hook for AGE extension (AGE only)       |
+| `bowrain/server/postgres.go`    | Backend selection (`BOWRAIN_GRAPH_BACKEND`)              |
 | `bowrain/graph/sync.go`         | Event-driven graph sync                                  |
+| `bowrain/graph/NOTES.md`        | Backend selection and parity notes                       |

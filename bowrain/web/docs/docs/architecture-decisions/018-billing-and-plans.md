@@ -37,6 +37,10 @@ model — and they can mix free and paid tiers across the same user.
 | **Team**       | $20 / seat/mo | 2 M tokens (40×)    | Unlimited + code exec       | Unlimited | Monthly       |
 | **Enterprise** | Custom        | Custom              | Custom                      | Unlimited | Annual        |
 
+The @bravo column records the intended per-plan design; @bravo is currently
+dark on every plan (see the [feature matrix](#feature-matrix)) and is not
+surfaced as a customer feature.
+
 One credit equals one AI token (input or output). Operations cost:
 
 | Operation                    | Credit cost      |
@@ -61,6 +65,42 @@ binge-drought pattern.
 | Team       | Configurable: soft block or auto-purchase credit packs                  |
 | Enterprise | No limits (custom agreement)                                            |
 
+### AI providers and credits
+
+AI operations run on one of two provider sources, chosen per workspace
+(`ProviderSource` in `jobs/resolved_provider.go`):
+
+- **Platform** — the shared, platform-managed provider. Work metered against
+  the workspace's credits. This is the **default**: a workspace with no
+  provider configured (or one set to `platform`) runs here.
+- **Bring-your-own (BYO)** — a per-workspace provider key the workspace saves.
+  BYO work runs on the workspace's own key and **spends no credits** (usage is
+  still recorded for the abuse cap). A configured BYO key overrides the
+  platform default.
+
+Selection is a single predicate (`TranslationJob.IsPlatformProvider`): an empty
+or `platform` provider config routes to the platform provider; any other saved
+config routes to BYO. Credits are deducted only when the resolved source is the
+platform provider, so BYO is free of credit cost while platform work draws
+down the allocation. The same distinction gates the synchronous editor path,
+which treats a request carrying a BYO provider config or an inline API key as
+BYO and skips the credit guard.
+
+Credits come from two buckets, both recorded in `credit_allocations` with a
+`source` column:
+
+- **Plan** (`source = 'plan'`) — the weekly allocation for the workspace's
+  tier (the *AI credits / week* column above). Unspent plan credits expire at
+  the weekly reset.
+- **Purchased** (`source = 'purchased'`) — one-time credit packs bought through
+  Stripe. Purchased credits do not expire at the weekly reset; they persist and
+  accumulate.
+
+When credits are spent, the plan bucket is drawn down first and purchased
+credits cover the remainder, so the expiring balance is used before the
+durable one. A workspace's spendable balance is this week's remaining plan
+credits plus all remaining purchased credits.
+
 ### Feature matrix
 
 Features are gated by plan using a compile-time matrix in
@@ -68,7 +108,7 @@ Features are gated by plan using a compile-time matrix in
 
 | Feature               | Free | Pro | Team     | Enterprise |
 | --------------------- | ---- | --- | -------- | ---------- |
-| @bravo chat           | yes  | yes | yes      | yes        |
+| @bravo chat           | –    | –   | –        | –          |
 | @bravo code execution | –    | –   | yes      | yes        |
 | Git connectors        | –    | yes | yes      | yes        |
 | Custom connectors     | –    | –   | yes      | yes        |
@@ -80,6 +120,15 @@ Features are gated by plan using a compile-time matrix in
 
 The matrix is the default authorization path: zero latency, no external
 calls, deployed with the binary.
+
+`FeatureBravo` gates the entire @bravo surface (chat panel, settings, routes)
+and is **dark on every plan** — its self-hostable runtime is not launch-ready
+(see [AD-016](016-bravo-agent.md)). The only way to enable it is a
+per-workspace [feature override](#per-workspace-feature-overrides) through the
+control plane, used for internal dogfooding, so @bravo is not surfaced as a
+customer feature. The `@bravo code execution` sub-gate reflects the intended
+per-plan split for when the surface is enabled, but it has no effect while
+`FeatureBravo` is off.
 
 ### Per-workspace feature overrides
 

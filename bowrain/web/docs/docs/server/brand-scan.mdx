@@ -1,0 +1,147 @@
+---
+title: Brand scan
+sidebar_label: Brand scan
+description: Brand scan reads a corpus of existing brand material — pasted text, web pages, uploaded documents, or a public git repository — and drafts a brand voice profile and glossary candidates for review before you adopt them.
+keywords: [brand scan, onboarding, brand voice, voice profile, glossary, terminology, corpus, inference, bowrain]
+---
+
+import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
+
+# Brand scan
+
+Adopting a brand voice from scratch means transcribing rules a team already
+follows but has rarely written down. **Brand scan** shortens that first step: it
+reads a corpus of existing brand material and drafts a
+[brand voice profile](/server/brand-voice) and candidate glossary terms, which
+you review and edit before saving. It is an onboarding aid, not an authority —
+nothing it produces is enforced until you adopt it through the ordinary brand
+surfaces.
+
+Brand scan runs before any bring-your-own provider key exists, so it always uses
+platform AI credits. The [credits](#credits-and-quota) it spends are reported on
+the job as it runs.
+
+## The flow
+
+A scan reads the sources you give it, assembles them into one corpus, drafts a
+voice profile from that corpus, and extracts glossary candidates — then hands
+back a draft for review.
+
+<PhaseFlow
+  nodes={[
+    { label: "Sources", sub: "paste, URL, upload, git repo" },
+    { label: "Corpus", sub: "assembled + source-tagged", edge: "read sources" },
+    { label: "Voice profile draft", sub: "tone, style, vocabulary, examples", edge: "infer" },
+    { label: "Glossary candidates", sub: "term + definition + domain", edge: "extract terms" },
+    { label: "Review", sub: "edit, test, then adopt", edge: "return draft" },
+  ]}
+  caption="A scan reads sources into one corpus, infers a voice profile, extracts glossary candidates, and returns a draft to review. Nothing is saved to the brand until you adopt it."
+/>
+
+The scan runs asynchronously. Creating one returns a job id; poll the scan until
+it reports `completed` and read the draft it carries. The lifecycle is `queued`
+→ `processing` → `completed` (or `failed`), and while processing the job reports
+a progress percentage and a phase label — reading sources, assembling the
+corpus, drafting the voice, extracting terms.
+
+## Sources
+
+A scan accepts any combination of four source kinds, assembled into a single
+source-tagged corpus:
+
+- **Paste** — brand copy or a style guide pasted directly as text.
+- **URL** — public web pages the scan fetches and reads as text. URL fetching is
+  restricted to `https` and refuses private, loopback, and link-local addresses,
+  re-checking on every redirect, so a scan cannot be pointed at internal
+  infrastructure.
+- **Upload** — documents uploaded ahead of the scan. Uploads are validated
+  against an allowlist of text-bearing formats (Markdown, HTML, plain text, CSV
+  and TSV, DOCX, XLSX, ODF, EPUB, XML, JSON, and YAML) before any bytes are
+  stored; unsupported files are reported back rather than silently dropped. PDF
+  and PowerPoint are not yet supported and are rejected with an explanatory
+  message. Per-file and per-batch size limits apply, and stored uploads are
+  swept after a retention window so a "regenerate" during review can reuse the
+  same files.
+- **Git repository** — a public `https` git repository, shallow-cloned; the scan
+  reads its Markdown files.
+
+The corpus is bounded: sources are read up to a total budget, and a scan reports
+which sources it read and which it skipped, so a corpus that was trimmed to fit
+is visible rather than silent.
+
+## What a scan drafts
+
+### Voice profile
+
+The scan drafts a [voice profile](/server/brand-voice) with the same shape a
+hand-authored one has — tone (personality, formality, emotion, humour), style
+rules (active voice, sentence length, point of view, contractions, prohibited
+patterns), vocabulary (preferred, forbidden, and competitor terms), and
+before/after examples. The draft is named to signal it needs review before it is
+adopted.
+
+Each inferred section carries **evidence**: a confidence score and a short note
+citing what in the corpus supports it. The evidence travels alongside the draft
+so a reviewer can weigh each section rather than accept the whole profile
+blindly. It is a review aid, kept separate from the profile itself, so the
+profile still round-trips through the ordinary profile format.
+
+### Glossary candidates
+
+Alongside the voice profile, the scan extracts **glossary candidates** — terms
+found in the corpus, each with an optional definition and domain, deduplicated
+and merged with the profile's preferred terms. These are candidates for the
+[terminology](/server/terminology) hub, not governed concepts; adopting them is
+a separate, deliberate step.
+
+## Review, then adopt
+
+A scan never writes to the brand on its own. It produces a draft; adopting it is
+a deliberate second action, so the [separation between curation and
+governance](/server/brand#tiered-governance) holds from the very first profile.
+
+<SwimlaneDiagram
+  actors={[
+    { label: "You", sub: "manage_brand", role: "io" },
+    { label: "Brand scan", sub: "async job", role: "qa" },
+    { label: "Brand", sub: "profiles + terminology" },
+  ]}
+  messages={[
+    { from: 0, to: 1, label: "create scan from sources" },
+    { from: 1, to: 1, label: "read → infer → extract", detail: "spends platform credits" },
+    { from: 1, to: 0, label: "return draft + evidence" },
+    { from: 0, to: 1, label: "test edited draft against sample text", detail: "no AI cost" },
+    { from: 0, to: 2, label: "adopt: save profile, promote terms" },
+  ]}
+  caption="A scan returns a draft you review; adopting it saves a voice profile and promotes glossary candidates through the ordinary brand surfaces."
+/>
+
+While reviewing, you can **test a draft** against a sample of your own text: the
+scan scores the sample against the (possibly edited) draft profile using the
+deterministic vocabulary matcher — no AI call, no credit cost — so you can adjust
+the draft and see the effect before committing to it.
+
+When the draft is ready, you adopt it through the ordinary surfaces: the edited
+voice profile is saved as a [brand voice profile](/server/brand-voice), and the
+glossary candidates are promoted through [terminology](/server/terminology). The
+scan itself creates neither — it only hands you a draft to carry forward.
+
+## Credits and quota
+
+Because onboarding happens before a workspace has configured a
+bring-your-own provider key, a scan always runs on **platform AI credits** — the
+same [hybrid credits model](/architecture-decisions/018-billing-and-plans#ai-providers-and-credits)
+that governs the rest of the platform's AI operations. A scan is refused up front
+if the workspace has no spendable credits, and the credits it spends
+(one credit per token) are metered per phase and reported on the job as
+`tokens_used`. On a self-hosted deployment with billing disabled, no credits are
+deducted.
+
+## Under the hood
+
+- [AD-021: The brand knowledge graph](/architecture-decisions/021-brand-knowledge-graph) —
+  the brand surfaces a scan feeds into.
+- [Brand voice & corrections](/server/brand-voice) — the profile a scan drafts,
+  and how a saved profile is enforced.
+- [AD-018: Billing and plans](/architecture-decisions/018-billing-and-plans) —
+  the credits a scan spends.

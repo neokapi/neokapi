@@ -86,6 +86,7 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "server/brand",
+        "server/brand-scan",
         "server/brand-voice",
       ],
     },
