@@ -27,20 +27,23 @@ destructive-action dialog. Everything that makes a translation right or
 wrong is a property of *where it renders*, and that is exactly what the
 extraction step discards.
 
-The TMS platforms know this — Tolgee, Crowdin, and Locize all ship some
-form of in-context editing. But each is bound to its own hosted
-service: the strings live in their database, the reviewer needs their
-account, and the app has to be wired to their SDK. None of them can
-review a string that lives in a `.klf` in your repo, and none can show
-your QA findings on top of it.
+In-context editing is an established idea. The open question is how a
+rendered pixel maps back to a source string.
 
-The mechanism is the hard part. Mapping a rendered pixel back to a
-source string has historically meant either (a) inspecting React's
-fiber tree for debug source info — dead, React 19 removed
-`_debugSource` — or (b) smuggling identifiers into the *text itself* as
-zero-width characters (Tolgee) or private-use markers (Crowdin), which
-corrupts the string, breaks `===` comparisons, leaks into copy/paste,
-and cannot represent an attribute at all.
+Two mechanisms were considered and not taken:
+
+- **Fiber inspection.** Reading React's internal tree for debug source
+  information is no longer viable — React 19 removed `_debugSource`.
+- **In-band markers.** Encoding the identifier into the rendered *text*
+  (invisible characters, private-use code points) needs no build step,
+  but the rendered string is then not the string the app computed:
+  equality comparisons, measurement, and copy/paste all see the marker,
+  and an attribute value has no text node to carry one at all. Review
+  must be observation-free — the app under review has to behave exactly
+  as it does in production.
+
+What we want is an out-of-band channel the build already has an
+opportunity to write, and that the rendered text never sees.
 
 ## Decision
 

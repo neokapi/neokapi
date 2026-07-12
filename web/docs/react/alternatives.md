@@ -79,12 +79,12 @@ Typed, per-message functions generated at build time. A message `welcome` become
 
 Paraglide's typed-function model gives strong refactoring support but requires the ids-as-function-names model. kapi-react is source-text-as-key; the two can coexist in a codebase if needed, but usually you pick one.
 
-## What none of them do
+## Where kapi-react is unusual
 
-Two of kapi-react's properties have no counterpart in the libraries above:
+Two properties are worth calling out because they follow from choices the table above doesn't capture:
 
-- **Keys survive refactoring.** Every library here either makes you invent the key (react-i18next, FormatJS, Paraglide) or derives it from the source text. kapi-react derives it from the source text *and the element*, and deliberately not from the ancestors — so wrapping a section in a new `<div>` doesn't orphan a single translation. Libraries that hash a structural path lose the translation the moment you move the element; libraries that hash text alone can't tell a button's "Open" from a menu item's.
-- **[Review happens on the running app](./in-context-review).** The others hand a translator a file. kapi-react hands them the app: ALT+click a string to see its source and edit its target, with terminology and QA findings painted onto the live text, and the edit written straight back to the `.klf` as a git diff. The TMS platforms (Tolgee, Crowdin, Locize) offer in-context editing, but only against their own hosted service — not against a file in your repo, and not with your QA findings on top.
+- **Keys survive refactoring.** The key is derived from the source text *and the element's own tag*, and deliberately not from its ancestors. Wrapping a section in a new `<div>`, moving a paragraph into a `<Card>`, restructuring the page around it — none of these change a key, so none of them orphan a translation. The element is still enough to keep a button's "Open" distinct from a menu item's; where it isn't, you disambiguate explicitly with a note.
+- **[Review happens on the running app](./in-context-review).** ALT+click a string to see its source and edit its target, with terminology and QA findings painted onto the live text, and the edit written straight back to the `.klf` as a git diff. Review needs no account and no network — the strings are files in your repository, so a reviewer with a checkout is a reviewer.
 
 ## Which to pick
 

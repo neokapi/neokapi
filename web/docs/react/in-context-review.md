@@ -1,73 +1,62 @@
 ---
 sidebar_position: 10
 title: In-Context Review
-description: Review and fix translations on the running React app — ALT+click any string to see its source and edit its target, with terms and QA findings painted onto the live text.
-keywords: [in-context review, translation review, live editing, QA, terminology, CSS Custom Highlight API, kapi-react]
+description: Review and fix translations on the running React app — ALT+click any string to see its source and edit its target, with terminology and QA findings marked on the live text.
+keywords: [in-context review, translation review, live editing, QA, terminology, kapi-react]
 ---
 
 # In-context review
 
-A translator reviewing a spreadsheet of strings cannot see that "Save" landed on a button 40 pixels wide, that the German for "Cancel" now wraps to two lines, or that the tone is wrong for a destructive-action dialog. Context is exactly what the file format threw away.
+A translator working from a file cannot see that "Save" landed on a button 40 pixels wide, that the German for "Cancel" now wraps to two lines, or that the tone is wrong for a dialog that deletes something. Review mode puts the review back on the app: run it, hold ALT, and every translatable string on the page becomes something you can inspect and fix in place.
 
-Review mode puts the review back on the app. Run the dev server, hold ALT, and every translatable string on the page is live: hover to see it outlined, click to open its source, its current target, and any terminology or QA findings against it. Edit the target, save, and the app repaints — and the change lands in the `.klf` file on disk, as a line in a diff you can read and commit.
-
-## Turning it on
+## Turn it on
 
 ```ts title="vite.config.ts"
 neokapi({
   review: true, // or set KAPI_REVIEW=1
-  reviewKlfDir: "i18n", // the KLF tree to serve and write back to (default)
 });
 ```
 
-Three things switch on together:
-
-1. **The transform stamps the DOM.** Every extracted element gets `data-kapi-id` (its block hash), `data-kapi-loc` (`file:line`), and `data-kapi-attr` for attribute blocks. This is what maps a pixel on screen back to a block on disk.
-2. **The dev server mounts `/__kapi/review`.** It reads and writes your local KLF tree — `GET /{hash}` for a block's payload, `PUT /{hash}` to write a target, `GET /annotations` for stand-off findings, and an SSE stream so several open tabs stay in sync.
-3. **The overlay is injected** into `index.html`, so there is nothing to import and nothing to remember to remove.
+Start the dev server. There is nothing to import and no component to add.
 
 :::warning Dev and staging only
-Review mode stamps hashes and source locations into your DOM and mounts a middleware that writes to disk. Never enable it for a production build you ship.
+Review mode adds review data to your markup and lets the browser write to your translation files. Never enable it for a production build you ship.
 :::
 
-## Using it
+## Review a string
 
-Hold **ALT** and the page becomes reviewable — hovering outlines any translatable element. **ALT+click** opens the panel:
+Hold **ALT** — hovering now outlines every translatable element. **ALT+click** one to open its panel:
 
-- **Source** — the block's source runs, with inline elements and placeholders shown as the translator sees them.
+- **Source** — the original text, with its links, bold spans, and placeholders shown the way a translator sees them.
 - **Target** — the current translation, editable.
-- **Note** — the `data-i18n-note` or `t()` context, if the developer left one.
-- **Findings** — terminology and QA annotations attached to this block.
+- **Note** — the context the developer left, if any (`data-i18n-note`, or `t(text, context)`).
+- **Findings** — terminology and QA issues against this string.
 
-Saving writes the target into the `.klf` and repaints the running app immediately. You are not looking at a preview of what the change would do; you are looking at the change.
+Type a fix, save, and the app repaints immediately. You are not previewing the change; you are looking at it.
 
-## Terms and QA, painted on the live text
+The fix is written into the `.klf` file the string came from — so it shows up as a line in `git diff`, travels through review in a pull request like any other change, and is picked up by the next `kapi-react compile` with no extra step. A reviewer's edit takes exactly the same path as a translator's, because it is the same file.
 
-Point kapi's checks at the same KLF tree and their findings become visible *on the rendered page*:
+## See terminology and QA on the page
+
+Run kapi's checks against the same `i18n/` directory and their findings appear on the rendered text:
 
 ```bash
 kapi exec qa i18n/ --target-lang de
 kapi exec term-check i18n/ --target-lang de --termbase de-termbase.csv
 ```
 
-Both write stand-off annotation files (`*.klfl`) next to the blocks they describe. The overlay reads them and highlights the exact character ranges — a glossary term that wasn't used, a placeholder that went missing, a target that runs 60% longer than the source and is about to break the button it lives in.
-
-The highlighting uses the [CSS Custom Highlight API](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Custom_Highlight_API): ranges are painted by the browser's text renderer without inserting a single node into the DOM. React's tree is untouched, so nothing you see is an artifact of being observed — no wrapper spans changing layout, no re-render loops, no hydration mismatches. Turn the overlay off and the DOM is byte-identical to what it was.
-
-## Why write back to the `.klf`
-
-The obvious design is a review database: comments, states, an approve button. Review mode deliberately does the boring thing instead and edits the file.
-
-The `.klf` tree is already the contract between developers and translators — it's what `extract` produces, what `kapi translate` fills in, what QA reads. Writing a reviewed target back into it means the review is a **git diff**: reviewable in a PR, revertable, attributable, and picked up by the very next `kapi-react compile` with no sync step. A reviewer's fix travels the same path as a translator's, because it is the same artifact.
-
-It also means review works with no server, no account, and no network — `git clone && vp dev` and you are reviewing.
+A glossary term that wasn't used, a placeholder that went missing in translation, a string that runs 60% longer than its source and is about to break the button it lives in — each is marked on the words it's about, in the place it happens. Re-run a check while the app is open and the marks update; you don't need to restart anything.
 
 ## Reviewers without a checkout
 
-The overlay talks to an endpoint, and the local KLF middleware is just the endpoint that needs no infrastructure. Point `initKapiReview({ endpoint })` at a different one — on a staging deployment, say — and the same stamping and the same block hashes let a reviewer with no repository, no toolchain, and no local server review the app in place. What changes is where the target is written; the client contract does not.
+Review talks to an endpoint, and the local one — reading and writing the `.klf` files in your repository — is simply the endpoint that needs no infrastructure. Point it at a different endpoint on a staging deployment and a reviewer with no repository and no toolchain can review the app in place:
+
+```ts
+initKapiReview({ endpoint: "https://staging.example.com/review" });
+```
 
 ## Next
 
 - [Translating with kapi](./translating-with-kapi) — where the terminology and QA findings come from.
 - [Configuration](./configuration#review--reviewklfdir) — the `review` and `reviewKlfDir` options.
-- [Pipeline](./pipeline) — how a reviewed `.klf` flows back into the app.
+- [AD-035](/contribute/architecture/035-in-context-review) — how it works underneath, and why.
