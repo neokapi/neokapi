@@ -35,7 +35,7 @@ protocols specific to bowrain) live in [Implementation Notes](/notes/index).
 | ------------------------------------------------ | ----------------------- | -------------------------------------------------------- |
 | [004](004-content-store.md)                      | Content Store           | PostgreSQL-backed versioned block store                   |
 | [005](005-streams.md)                            | Streams                 | Git-like branching at the content layer                   |
-| [006](006-graph-concept-storage.md)              | Graph Concept Storage   | Apache AGE / SQLite graph backends                        |
+| [006](006-graph-concept-storage.md)              | Graph Concept Storage   | Plain-SQL (default) / Apache AGE (opt-in) graph backends  |
 | [007](007-media-and-blob-storage.md)             | Media and Blob Storage  | Content-addressed BlobStore, asset metadata               |
 
 ## Connectivity

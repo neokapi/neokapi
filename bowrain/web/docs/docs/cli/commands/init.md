@@ -144,7 +144,7 @@ The server URL is resolved from (first match wins):
 Set it once globally with:
 
 ```bash
-kapi config --global server.url https://bowrain.cloud
+kapi bowrain config --global server.url https://bowrain.cloud
 ```
 
 ## Project Discovery

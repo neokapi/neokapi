@@ -16,8 +16,8 @@ installed, every command below runs as `kapi <command>`.
 kapi
 +-- init             # Initialize a new .kapi project (recipe + state dir)
 |   +-- --name, --source, --targets, --server, --project, --anonymous, --email, --preset
-+-- config           # View or set configuration values
-|   +-- --global (use ~/.config/kapi/kapi.yaml instead of <dir-name>.kapi)
++-- config           # Built-in: recipe keys positionally (name, server.url, …)
++-- bowrain config   # Plugin (group-scoped): --global ~/.config/bowrain/bowrain.yaml
 +-- ls               # List tracked files with optional stats
 |   +-- --stats/-s, --dirty/-d, [paths...]
 +-- add              # Add file patterns to track
@@ -27,9 +27,9 @@ kapi
 +-- status           # Show sync state (local vs remote)
 +-- diff             # Show changes between local and remote
 +-- pull             # Pull from Bowrain Server -> update local files
-|   +-- --force, --dry-run, --locale (repeatable)
+|   +-- --force, --dry-run, --locale (repeatable), --stream, --concepts
 +-- push             # Push local files -> update Bowrain Server
-|   +-- --force, --dry-run, [paths...]
+|   +-- --force, --dry-run, --stream, --concepts, [paths...]
 +-- serve            # Start local dashboard (web UI)
 |   +-- --port 3000, --no-open
 +-- auth             # Authentication with Bowrain Server
@@ -37,12 +37,15 @@ kapi
 |   +-- logout       # Remove stored token
 |   +-- status       # Show current user, server URL
 |   +-- claim        # Claim anonymous project
+|   +-- token        # Manage API tokens (create, list, delete)
++-- workspace        # Manage workspaces (list, create)
++-- stream           # Manage content streams (list, create, diff, merge, archive, status)
 +-- run FLOW         # Execute a flow (inline on recipe, .kapi/flows/, or built-in)
 +-- <tool>           # Run a tool directly (pseudo-translate, translate, qa, etc.)
 +-- flows            # List available flows
 +-- tools            # List available tools
 +-- sync             # Sync operations (push + translate + pull)
-+-- ui               # Open project in Bowrain web UI
++-- ui               # Launch the Bowrain desktop app
 +-- termbase         # Terminology management
 |   +-- list         # List terminology entries
 +-- formats          # Format listing

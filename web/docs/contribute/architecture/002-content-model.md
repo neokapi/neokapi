@@ -215,7 +215,7 @@ The `Properties` map carries arbitrary key-value metadata that tools and
 connectors attach as blocks flow through the pipeline. Examples:
 
 - `"translation-origin": "tm"` — how the translation was produced
-- `"word-count": 42` — count from the wordcount tool
+- `"word-count": 42` — a word-count annotation attached by a metrics pass (`kapi stats`)
 - `"cms-path": "/en/blog/post-1"` — source location in a CMS
 
 Properties are serialized and carried through the pipeline. Tools add

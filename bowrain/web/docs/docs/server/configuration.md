@@ -21,7 +21,10 @@ flags. The worker is configured **only** through environment variables.
 Bowrain Server requires **PostgreSQL**. There is no SQLite or file backend. The
 connection string must use the `postgres://` or `postgresql://` scheme — the
 server refuses to start otherwise. The schema is created automatically on first
-start, and migrations run on startup.
+start, and migrations run on startup. The brand knowledge graph runs on the
+same stock PostgreSQL by default (no extension required); Apache AGE is an
+opt-in upgrade — see [`BOWRAIN_GRAPH_BACKEND`](#core) and
+[AD-006](/architecture-decisions/006-graph-concept-storage).
 
 ```bash
 BOWRAIN_DATABASE_URL=postgres://bowrain:password@localhost/bowrain
@@ -40,6 +43,7 @@ All Bowrain variables use the `BOWRAIN_` prefix; a few external integrations
 | --- | --- | --- |
 | `BOWRAIN_DATABASE_URL` | _(empty)_ | PostgreSQL connection string (`postgres://…`) — **required** |
 | `BOWRAIN_DATABASE_AUTH` | _(empty)_ | `azure` to use Entra ID managed-identity tokens; otherwise password auth from the URL |
+| `BOWRAIN_GRAPH_BACKEND` | `sql` | Brand knowledge graph backend: unset/`sql` runs on stock PostgreSQL; `age` opts into Apache AGE (requires an AGE-enabled PostgreSQL) |
 | `BOWRAIN_PORT` | `8080` | HTTP port to listen on (gRPC is multiplexed onto the same port) |
 | `BOWRAIN_HOST` | `0.0.0.0` | Address to bind to |
 | `BOWRAIN_DATA_DIR` | _(empty)_ | Directory for temporary files during processing |
@@ -133,6 +137,25 @@ falls back to local mock responses.
 | `POSTHOG_API_KEY` / `POSTHOG_HOST` | PostHog analytics |
 | `BOWRAIN_AUDIT_RETENTION_DAYS` | Prune audit-log rows older than N days (0 = keep forever) |
 | `BOWRAIN_AUDIT_SIEM_WEBHOOK_URL` | Forward every audit event as NDJSON to an external SIEM |
+
+### Rate limiting
+
+Abuse-prone endpoints carry per-IP rate limits. Each knob is an integer; when
+unset, unparsable, or non-positive, the compiled default applies. The tightest
+caps are on the unauthenticated and email-sending routes. All limits are
+requests per minute except the claim-email cap, which is per hour.
+
+| Variable | Default | Limits |
+| --- | --- | --- |
+| `BOWRAIN_RL_ANON_PER_MIN` | `10` | Anonymous project creation (unauthenticated) |
+| `BOWRAIN_RL_ANON_BURST` | `5` | Burst for the anonymous limiter |
+| `BOWRAIN_RL_CLAIM_EMAIL_PER_HOUR` | `5` | Claim emails per client IP (hourly) |
+| `BOWRAIN_RL_AUTH_PER_MIN` | `30` | Pre-auth token endpoints |
+| `BOWRAIN_RL_AUTH_BURST` | `15` | Burst for the auth limiter |
+| `BOWRAIN_RL_INVITE_PER_MIN` | `20` | Invite routes (may send email) |
+| `BOWRAIN_RL_INVITE_BURST` | `10` | Burst for the invite limiter |
+| `BOWRAIN_RL_AI_PER_MIN` | `20` | AI-consuming routes (AI translate, brand check, brand scan, @bravo) |
+| `BOWRAIN_RL_AI_BURST` | `10` | Burst for the AI limiter |
 
 ### Azure integration
 

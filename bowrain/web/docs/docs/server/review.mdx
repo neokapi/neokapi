@@ -16,6 +16,9 @@ on producing translations, while Review is focused on accepting them.
 
 The Review surface steps through a file block by block — source, target, and the
 draft→translated→reviewed status — with approvals recorded against the workspace.
+Review status is tracked **per locale**: a block's status is a property of each
+target variant, so reviewing the French target never changes the German one, and
+the status you see is for the locale you are reviewing.
 
 <ThemedVideo
   sources={{
