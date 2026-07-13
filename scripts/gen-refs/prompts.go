@@ -21,14 +21,14 @@ type PromptDataset struct {
 
 // PromptEntry is one prompt, with its rendered turns.
 type PromptEntry struct {
-	ID      string `json:"id"`
-	Tool    string `json:"tool"`
-	Summary string `json:"summary"`
-	// Structured is false for a prompt still built inline at its call site. Its
-	// text cannot be rendered here, and the page says so rather than paraphrasing
-	// it from memory.
-	Structured bool         `json:"structured"`
-	Turns      []PromptTurn `json:"turns,omitempty"`
+	ID      string       `json:"id"`
+	Tool    string       `json:"tool"`
+	Summary string       `json:"summary"`
+	Turns   []PromptTurn `json:"turns,omitempty"`
+	// Attachment names a non-text part sent with the turns — a cropped image, a
+	// speech clip. Listed rather than rendered: it is the user's data, not prompt
+	// text, and showing it as text would misrepresent what was sent.
+	Attachment string `json:"attachment,omitempty"`
 }
 
 // PromptTurn is one message of a rendered prompt, with its sections attributed.
@@ -55,7 +55,7 @@ func collectPromptDataset(now string) PromptDataset {
 			ID:         c.ID,
 			Tool:       c.Tool,
 			Summary:    c.Summary,
-			Structured: c.Structured,
+			Attachment: c.Attachment,
 		}
 		for _, t := range c.Turns {
 			turn := PromptTurn{Role: t.Role}

@@ -49,22 +49,24 @@ function Prompt({ entry }: { entry: PromptEntry }) {
         {entry.summary} Sent by <code>{entry.tool}</code>.
       </p>
 
-      {!entry.structured && (
-        <div className="theme-admonition alert alert--secondary prompt-entry__inline">
-          <p>
-            This prompt is still built inline at its call site, so its text cannot be rendered here.
-            Run the tool with <code>--explain-prompts</code> to see exactly what it sends — that
-            path always shows the real thing.
-          </p>
-        </div>
-      )}
-
       {entry.turns?.map((turn) => (
         <div key={turn.role} className="prompt-turn">
           <h4>{turn.role}</h4>
           {turn.sections.map((s, i) => (
             <SectionBlock key={`${s.kind}-${i}`} section={s} />
           ))}
+          {/* The media prompts also send binary data on the user turn. It is
+              named, not rendered — printing it as if it were text would
+              misrepresent what kapi actually sent. */}
+          {turn.role === "user" && entry.attachment && (
+            <div className="prompt-section" data-kind="attachment">
+              <div className="prompt-section__meta">
+                <code>attachment</code>
+                <span>· {entry.attachment}</span>
+                <span className="prompt-section__owner">your document</span>
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </section>

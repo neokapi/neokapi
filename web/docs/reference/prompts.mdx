@@ -27,8 +27,13 @@ The sections below carry an owner:
   a [termbase](/framework/terminology).
 - **your document** — the `content`. Data, never instruction.
 
-Placeholders like `<your content>` mark where your text is substituted. For the
-exact prompt of a real run — with your glossary and voice guide in place — use
-`--explain-prompts`. See [Prompts](/framework/prompts).
+Placeholders like `<your content>` mark where your text is substituted.
+
+The `media.refine.*` prompts also carry an **attachment** — a cropped image, a
+speech clip, a video frame. It is named rather than shown: it is your data, not
+prompt text, and rendering it as text would misrepresent what was sent.
+
+For the exact prompt of a real run — with your glossary and voice guide in place
+— use `--explain-prompts`. See [Prompts](/framework/prompts).
 
 <PromptReference />

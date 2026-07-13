@@ -1,12 +1,11 @@
 {
-  "generatedAt": "2026-07-13T16:31:50Z",
+  "generatedAt": "2026-07-13T16:59:00Z",
   "version": "v2",
   "prompts": [
     {
       "id": "translate.single",
       "tool": "translate",
       "summary": "Translate one block. Carries the placeholder rule, plus the inline-tag rule when the block has markup.",
-      "structured": true,
       "turns": [
         {
           "role": "system",
@@ -39,7 +38,6 @@
       "id": "translate.batch",
       "tool": "translate",
       "summary": "Translate several blocks in one call, numbered so the structured reply maps back by index.",
-      "structured": true,
       "turns": [
         {
           "role": "system",
@@ -77,7 +75,6 @@
       "id": "brand.check",
       "tool": "brand-voice-check",
       "summary": "Score text against a brand voice profile and report tone, style and compliance issues.",
-      "structured": true,
       "turns": [
         {
           "role": "system",
@@ -111,7 +108,6 @@
       "id": "brand.infer",
       "tool": "brand-voice-infer",
       "summary": "Draft a brand voice profile from a corpus of your existing content.",
-      "structured": true,
       "turns": [
         {
           "role": "system",
@@ -139,7 +135,6 @@
       "id": "quality.check",
       "tool": "qa (AI mode)",
       "summary": "Find quality issues in a finished translation.",
-      "structured": true,
       "turns": [
         {
           "role": "system",
@@ -167,7 +162,6 @@
       "id": "review",
       "tool": "review",
       "summary": "Score a translation 0-100 and report findings by severity.",
-      "structured": true,
       "turns": [
         {
           "role": "system",
@@ -195,7 +189,6 @@
       "id": "term.extract",
       "tool": "term-extract",
       "summary": "Propose terminology candidates from source content.",
-      "structured": true,
       "turns": [
         {
           "role": "system",
@@ -223,19 +216,155 @@
       "id": "entity.extract",
       "tool": "entity-extract",
       "summary": "Identify entities and do-not-translate spans, and classify terminology candidates.",
-      "structured": false
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You are a localization specialist analyzing source content for a translation project.\n\nGiven text blocks, identify:\n\n1. Named entities: people, organizations, products, locations, dates, times, currencies, measurements. For each, indicate whether it should be marked do-not-translate (DNT).\n   - Person names: usually DNT unless the project localizes names\n   - Brand/product names: usually DNT\n   - Dates/times/currencies/measurements: usually NOT DNT (they need locale-specific formatting)\n   - Locations: context-dependent\n\n2. Terminology candidates: domain-specific terms that should be translated consistently across the project. These are words/phrases that carry specific meaning in this context and would benefit from a termbase entry. Exclude common words.\n   - \"dnt\" = never translate (brand names, acronyms that stay in source language)\n   - \"consistent\" = translate, but the same way everywhere\n   - \"free\" = translate naturally, no consistency requirement\n\nReport character offsets relative to each block's text. Only report genuinely useful entities and terms — quality over quantity."
+            },
+            {
+              "kind": "glossary",
+              "origin": "termbase (1 known term)",
+              "heading": "Existing terms (do not re-propose):",
+              "text": "\u003ca term you already have\u003e"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "source blocks (1)",
+              "text": "Analyze these 1 text block from a en localization project:\n\nBlock (id: \u003cblock id\u003e):\n\"\u003cyour content\u003e\""
+            }
+          ]
+        }
+      ]
     },
     {
-      "id": "media.refine",
+      "id": "media.refine.image",
       "tool": "media-refine",
-      "summary": "Re-read a cropped image line, speech clip or video frame that OCR or ASR got wrong.",
-      "structured": false
+      "summary": "Re-read a cropped image line that OCR read with low confidence.",
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You transcribe a single line cropped from a document image. Return only the exact text you read, with no commentary. If the crop is unreadable, return [illegible]."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "neighbouring blocks",
+              "text": "Surrounding lines for context:\n- \u003cthe line above\u003e\n- \u003cthe line below\u003e\n\nRe-read the highlighted unit and return only its exact text:"
+            }
+          ]
+        }
+      ],
+      "attachment": "the image region cropped to the block's bounding box"
+    },
+    {
+      "id": "media.refine.audio",
+      "tool": "media-refine",
+      "summary": "Re-listen to a speech clip that ASR transcribed with low confidence.",
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You transcribe a single short speech clip. Return only the exact words spoken, with no commentary. If the clip is unintelligible, return [illegible]."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "neighbouring blocks",
+              "text": "Surrounding lines for context:\n- \u003cthe line above\u003e\n- \u003cthe line below\u003e\n\nRe-read the highlighted unit and return only its exact text:"
+            }
+          ]
+        }
+      ],
+      "attachment": "the speech clip cut from the block's timing span"
+    },
+    {
+      "id": "media.refine.video",
+      "tool": "media-refine",
+      "summary": "Re-read on-screen text in a video frame that OCR read with low confidence.",
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You transcribe the on-screen text in a region of a single video frame. Return only the exact text you read, with no commentary. If it is unreadable, return [illegible]."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "neighbouring blocks",
+              "text": "Surrounding lines for context:\n- \u003cthe line above\u003e\n- \u003cthe line below\u003e\n\nRe-read the highlighted unit and return only its exact text:"
+            }
+          ]
+        }
+      ],
+      "attachment": "the video frame at the block's timestamp"
     },
     {
       "id": "segment",
       "tool": "segment (llm engine)",
       "summary": "Split text into segments, reproducing the source verbatim.",
-      "structured": false
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "Split the user's text into coherent, contiguous chunks suitable for translation. Prefer sentence or clause boundaries so each chunk stands on its own. The source language is en."
+            },
+            {
+              "kind": "constraint",
+              "origin": "framework",
+              "text": "Every chunk must be a verbatim, contiguous slice of the input text; concatenating the chunks in order (ignoring leading/trailing whitespace) must reconstruct the input exactly. Do not translate, paraphrase, reorder, add, or drop any content."
+            },
+            {
+              "kind": "constraint",
+              "origin": "framework",
+              "text": "Return a JSON object {\"chunks\": [\"...\", ...]}."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "source block",
+              "text": "\u003cyour content\u003e"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

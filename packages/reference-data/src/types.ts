@@ -212,12 +212,12 @@ export interface PromptEntry {
   /** The tool or command that sends it. */
   tool: string;
   summary: string;
-  /**
-   * False for a prompt still built inline at its call site, whose text cannot be
-   * rendered here. Reported honestly rather than paraphrased from memory.
-   */
-  structured: boolean;
   turns?: PromptTurn[];
+  /**
+   * A non-text part sent with the turns — a cropped image, a speech clip. Named
+   * rather than rendered: it is the user's data, not prompt text.
+   */
+  attachment?: string;
 }
 
 /** Top-level document for prompts.json. */

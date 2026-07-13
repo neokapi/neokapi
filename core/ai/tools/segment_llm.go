@@ -136,12 +136,14 @@ func (s *llmSegmenter) Segment(ctx context.Context, runs []model.Run, loc model.
 		lang = string(loc)
 	}
 
-	userPrompt := s.buildPrompt(txt, lang)
+	turns := prompt.Segment{
+		Language:      lang,
+		MaxChunkRunes: s.maxChunkRunes,
+		Instruction:   s.instruction,
+	}.Turns(txt)
+
 	ctx = prompt.WithID(ctx, prompt.IDSegment)
-	resp, err := s.provider.ChatStructured(ctx,
-		[]aiprovider.Message{aiprovider.TextMessage("user", userPrompt)},
-		chunkSchema(),
-	)
+	resp, err := s.provider.ChatStructured(ctx, aiprovider.MessagesFromTurns(turns), chunkSchema())
 	if err != nil || resp == nil {
 		// Provider failed: leave the block whole.
 		return nil, nil
@@ -162,31 +164,6 @@ func (s *llmSegmenter) Segment(ctx context.Context, runs []model.Run, loc model.
 		return nil, nil
 	}
 	return fl.Spans(breaks), nil
-}
-
-// buildPrompt renders the chunking instruction sent to the model. It asks for a
-// JSON object of contiguous chunks that reconstruct the input, honoring an
-// optional user instruction and a soft size hint.
-func (s *llmSegmenter) buildPrompt(txt, lang string) string {
-	var b strings.Builder
-	b.WriteString("Split the following text into coherent, contiguous chunks suitable for translation. ")
-	b.WriteString("Prefer sentence or clause boundaries so each chunk stands on its own. ")
-	b.WriteString("Every chunk must be a verbatim, contiguous slice of the input text; ")
-	b.WriteString("concatenating the chunks in order (ignoring leading/trailing whitespace) must reconstruct the input exactly. ")
-	b.WriteString("Do not translate, paraphrase, reorder, add, or drop any content.")
-	if lang != "" {
-		fmt.Fprintf(&b, " The source language is %s.", lang)
-	}
-	if s.maxChunkRunes > 0 {
-		fmt.Fprintf(&b, " Aim for chunks no longer than about %d characters, but never split mid-word.", s.maxChunkRunes)
-	}
-	if instr := strings.TrimSpace(s.instruction); instr != "" {
-		b.WriteString("\n\nAdditional instruction: ")
-		b.WriteString(instr)
-	}
-	b.WriteString("\n\nReturn a JSON object {\"chunks\": [\"...\", ...]}.\n\nText:\n")
-	b.WriteString(txt)
-	return b.String()
 }
 
 // alignChunks converts an ordered chunk list into strictly-increasing interior

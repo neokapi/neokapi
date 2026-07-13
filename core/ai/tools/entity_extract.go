@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/ai/ner"
@@ -443,45 +445,19 @@ func extractionSchema() aiprovider.JSONSchema {
 	}
 }
 
-const extractionSystemPrompt = `You are a localization specialist analyzing source content for a translation project.
-
-Given text blocks, identify:
-
-1. Named entities: people, organizations, products, locations, dates, times, currencies, measurements. For each, indicate whether it should be marked do-not-translate (DNT).
-   - Person names: usually DNT unless the project localizes names
-   - Brand/product names: usually DNT
-   - Dates/times/currencies/measurements: usually NOT DNT (they need locale-specific formatting)
-   - Locations: context-dependent
-
-2. Terminology candidates: domain-specific terms that should be translated consistently across the project. These are words/phrases that carry specific meaning in this context and would benefit from a termbase entry. Exclude common words.
-   - "dnt" = never translate (brand names, acronyms that stay in source language)
-   - "consistent" = translate, but the same way everywhere
-   - "free" = translate naturally, no consistency requirement
-
-Report character offsets relative to each block's text. Only report genuinely useful entities and terms — quality over quantity.`
-
 func (t *AIEntityExtractTool) extractWithLLM(ctx context.Context, entries []extractionEntry) (*llmExtractionResult, error) {
-	var userPrompt strings.Builder
-
-	fmt.Fprintf(&userPrompt, "Analyze these %d text blocks from a %s localization project:\n\n", len(entries), t.locale)
-
+	blocks := make([]prompt.EntityBlock, 0, len(entries))
 	for _, entry := range entries {
-		fmt.Fprintf(&userPrompt, "Block (id: %s):\n\"%s\"\n\n", entry.blockID, entry.text)
+		blocks = append(blocks, prompt.EntityBlock{ID: entry.blockID, Text: entry.text})
 	}
 
-	if len(t.knownTerms) > 0 {
-		userPrompt.WriteString("Existing terms (do not re-propose):")
-		for term := range t.knownTerms {
-			fmt.Fprintf(&userPrompt, " %s,", term)
-		}
-		userPrompt.WriteByte('\n')
-	}
+	turns := prompt.EntityExtract{
+		Locale:     t.locale,
+		KnownTerms: slices.Collect(maps.Keys(t.knownTerms)),
+	}.Turns(blocks)
 
 	ctx = prompt.WithID(ctx, prompt.IDEntityExtract)
-	resp, err := t.llm.ChatStructured(ctx, []aiprovider.Message{
-		aiprovider.TextMessage("system", extractionSystemPrompt),
-		aiprovider.TextMessage("user", userPrompt.String()),
-	}, extractionSchema())
+	resp, err := t.llm.ChatStructured(ctx, aiprovider.MessagesFromTurns(turns), extractionSchema())
 	if err != nil {
 		return nil, err
 	}

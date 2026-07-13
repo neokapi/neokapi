@@ -15,8 +15,15 @@ const (
 	IDTermExtract     = "term.extract"
 	IDQualityCheck    = "quality.check"
 	IDReview          = "review"
-	IDMediaRefine     = "media.refine"
 	IDSegment         = "segment"
+
+	// media-refine sends a different prompt per modality, and each ships a
+	// different kind of the user's data — a cropped image, a speech clip, a video
+	// frame. One "media.refine" ID would hide that distinction from --explain and
+	// from the reference, which is precisely the distinction a user cares about.
+	IDMediaRefineImage = "media.refine.image"
+	IDMediaRefineAudio = "media.refine.audio"
+	IDMediaRefineVideo = "media.refine.video"
 )
 
 // IDs returns every prompt ID kapi ships, in a stable order. The prompt
@@ -28,11 +35,13 @@ func IDs() []string {
 		IDTranslateBatch,
 		IDBrandCheck,
 		IDBrandInfer,
-		IDEntityExtract,
-		IDTermExtract,
 		IDQualityCheck,
 		IDReview,
-		IDMediaRefine,
+		IDTermExtract,
+		IDEntityExtract,
+		IDMediaRefineImage,
+		IDMediaRefineAudio,
+		IDMediaRefineVideo,
 		IDSegment,
 	}
 }

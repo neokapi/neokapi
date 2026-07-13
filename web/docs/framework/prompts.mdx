@@ -231,18 +231,25 @@ Worth stating plainly, because prompts are easy to imagine bigger than they are:
 Every LLM call kapi makes carries a prompt id, so it can be named in
 `--explain-prompts` and cited in a bug report:
 
-| Prompt             | Sent by                                  |
-| ------------------ | ---------------------------------------- |
-| `translate.single` | `translate`, one block at a time         |
-| `translate.batch`  | `translate`, several blocks in one call  |
-| `brand.check`      | `brand-voice-check`                      |
-| `brand.infer`      | `brand-voice-infer` (drafting a profile) |
-| `entity.extract`   | `entity-extract`                         |
-| `term.extract`     | `term-extract`                           |
-| `quality.check`    | `qa`, in AI mode                         |
-| `review`           | `review`                                 |
-| `media.refine`     | `media-refine` (OCR/ASR re-read)         |
-| `segment`          | `segment`, with the LLM engine           |
+| Prompt               | Sent by                                  |
+| -------------------- | ---------------------------------------- |
+| `translate.single`   | `translate`, one block at a time         |
+| `translate.batch`    | `translate`, several blocks in one call  |
+| `brand.check`        | `brand-voice-check`                      |
+| `brand.infer`        | `brand-voice-infer` (drafting a profile) |
+| `quality.check`      | `qa`, in AI mode                         |
+| `review`             | `review`                                 |
+| `term.extract`       | `term-extract`                           |
+| `entity.extract`     | `entity-extract`                         |
+| `media.refine.image` | `media-refine`, re-reading an image crop |
+| `media.refine.audio` | `media-refine`, re-hearing a speech clip |
+| `media.refine.video` | `media-refine`, re-reading a video frame |
+| `segment`            | `segment`, with the LLM engine           |
+
+The three `media.refine.*` prompts are listed separately because they are
+separate prompts, and because each ships a different kind of your data — a
+cropped image, a clip of audio, a video frame. Collapsing them into one id would
+hide the distinction you are most likely to care about.
 
 If a call ever appears in `--explain-prompts` without an id, that is a bug —
 report it. An unlabelled call is an undocumented use of your content.

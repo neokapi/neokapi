@@ -33,8 +33,16 @@
   border-left-color: var(--ifm-color-primary);
 }
 
-.prompt-section[data-kind="content"] {
+.prompt-section[data-kind="content"],
+.prompt-section[data-kind="attachment"] {
   border-left-color: var(--ifm-color-success);
+}
+
+/* An attachment has no rendered text — it is the user's binary data, named so
+   the page doesn't imply the turn was text-only. */
+.prompt-section[data-kind="attachment"] .prompt-section__meta {
+  margin-bottom: 0;
+  font-style: italic;
 }
 
 .prompt-section__meta {
@@ -58,8 +66,4 @@
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 0.85rem;
-}
-
-.prompt-entry__inline {
-  margin-block: 0.75rem;
 }
