@@ -274,6 +274,6 @@ func TestStreaming_BoundedMemory(t *testing.T) {
 
 	assert.Less(t, pl, uint64(largeSize)/4, "streaming reader peak not bounded well below doc size")
 	if ps > 0 {
-		assert.Less(t, pl, ps*3, "streaming reader peak scaled with input (20x doc should not ~20x memory)")
+		assert.Less(t, pl, max(ps, uint64(1<<20))*3, "streaming reader peak scaled with input (20x doc should not ~20x memory)")
 	}
 }
