@@ -190,3 +190,6 @@ pdfium-work/
 # nfpm binary-staging dir (release.yml deb/rpm build); the staged kapi binary
 # must never be committed.
 packaging/.stage/
+
+# Operator tool built ad hoc via `go run`/`go build` (bowrain/cmd/stripe-provision)
+/stripe-provision

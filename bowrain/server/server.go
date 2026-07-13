@@ -729,7 +729,7 @@ func NewServer(cfg Config) *Server {
 			s.WebhookHandler = billing.NewWebhookHandler(s.BillingStore, cfg.StripeWebhookSecret)
 			// Wire plan syncer so webhooks update workspace.plan.
 			if s.AuthStore != nil {
-				s.WebhookHandler.SetPlanSyncer(&planSyncAdapter{authStore: s.AuthStore})
+				s.WebhookHandler.SetPlanSyncer(s.planSyncer())
 			}
 			// PostHog wiring deferred to after PostHog init below.
 		}
@@ -1121,12 +1121,19 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// Billing routes (Bowrain AD-018, workspace-scoped)
 		billingGroup := wsSpecific.Group("/billing")
 		billingGroup.GET("", s.HandleGetBilling)
+		billingGroup.GET("/plans", s.HandleListPlans)
 		billingGroup.GET("/usage", s.HandleGetBillingUsage)
 		billingGroup.GET("/model-usage", s.HandleGetBillingModelUsage)
-		billingGroup.POST("/checkout", s.HandleCreateCheckout)
-		billingGroup.POST("/portal", s.HandleCreatePortal)
 		billingGroup.GET("/invoices", s.HandleGetInvoices)
-		billingGroup.POST("/buy-credits", s.HandleBuyCredits)
+		// The three POSTs each reach out to Stripe and mint an object (a Checkout
+		// session, a portal session, and — on first checkout — a Customer that is
+		// only persisted later by the webhook). An owner looping any of them would
+		// accumulate orphaned Stripe objects and API cost, so throttle the
+		// money-moving verbs. The GETs above power the billing page and stay
+		// unthrottled.
+		billingGroup.POST("/checkout", s.HandleCreateCheckout, aiLimit)
+		billingGroup.POST("/portal", s.HandleCreatePortal, aiLimit)
+		billingGroup.POST("/buy-credits", s.HandleBuyCredits, aiLimit)
 	}
 
 	// Stripe webhook (no auth, signature-verified) (Bowrain AD-018).

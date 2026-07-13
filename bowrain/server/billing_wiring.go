@@ -2,29 +2,16 @@ package server
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 )
 
-// planSyncAdapter implements billing.WorkspacePlanSyncer by updating the
-// workspace's cached Plan and StripeCustomerID via the AuthStore.
-type planSyncAdapter struct {
-	authStore auth.AuthStore
-}
-
-func (a *planSyncAdapter) SyncWorkspacePlan(ctx context.Context, workspaceID, plan, stripeCustomerID string) error {
-	w, err := a.authStore.GetWorkspace(ctx, workspaceID)
-	if err != nil {
-		return fmt.Errorf("get workspace %s: %w", workspaceID, err)
-	}
-	w.Plan = plan
-	if stripeCustomerID != "" {
-		w.StripeCustomerID = stripeCustomerID
-	}
-	return a.authStore.UpdateWorkspace(ctx, w)
+// planSyncer builds the workspace plan-cache syncer. It lives in the auth package
+// because the worker's trial sweeper syncs plans too, and the two must not drift.
+func (s *Server) planSyncer() *auth.PlanSyncer {
+	return auth.NewPlanSyncer(s.AuthStore)
 }
 
 // ownerEmailResolver resolves the workspace owner's email for billing notifications.

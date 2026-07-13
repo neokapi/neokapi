@@ -46,8 +46,14 @@ func (c *StripeClient) CreateCustomer(_ context.Context, workspaceID, email, nam
 
 // CheckoutOptions configures optional checkout behavior.
 type CheckoutOptions struct {
-	Metadata  map[string]string
-	TrialDays int64 // 0 = no trial
+	Metadata map[string]string
+	// Quantity is the subscription quantity — for a per-seat plan (Team) this is
+	// the seat count Stripe multiplies the per-seat price by. Zero means 1.
+	Quantity int64
+	// TrialDays puts the Stripe subscription into a trial. Unused at launch: the
+	// 14-day Pro trial is local and card-free (billing.SetupTrial), because a
+	// Stripe trial requires collecting a card at signup. See AD-018.
+	TrialDays int64
 }
 
 // CreateCheckoutSession creates a Stripe Checkout session for subscribing to a plan.
@@ -62,13 +68,14 @@ func (c *StripeClient) CreateCheckoutSession(_ context.Context, customerID, pric
 
 // CreateCheckoutSessionWithOptions creates a Stripe Checkout session with full options.
 func (c *StripeClient) CreateCheckoutSessionWithOptions(customerID, priceID, successURL, cancelURL string, opts CheckoutOptions) (string, error) {
+	quantity := max(opts.Quantity, 1)
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(customerID),
 		Mode:     stripe.String(string(stripe.CheckoutSessionModeSubscription)),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				Price:    stripe.String(priceID),
-				Quantity: stripe.Int64(1),
+				Quantity: &quantity,
 			},
 		},
 		SuccessURL: stripe.String(successURL),

@@ -94,7 +94,7 @@ func TestPlanSyncAdapter_SyncWorkspacePlan(t *testing.T) {
 		StripeCustomerID: "",
 	}
 
-	adapter := &planSyncAdapter{authStore: store}
+	adapter := auth.NewPlanSyncer(store)
 	err := adapter.SyncWorkspacePlan(t.Context(), "ws-1", "pro", "cus_123")
 	require.NoError(t, err)
 
@@ -111,7 +111,7 @@ func TestPlanSyncAdapter_SyncWorkspacePlan_PreservesExistingCustomerID(t *testin
 		StripeCustomerID: "cus_existing",
 	}
 
-	adapter := &planSyncAdapter{authStore: store}
+	adapter := auth.NewPlanSyncer(store)
 	err := adapter.SyncWorkspacePlan(t.Context(), "ws-1", "enterprise", "")
 	require.NoError(t, err)
 
@@ -123,7 +123,7 @@ func TestPlanSyncAdapter_SyncWorkspacePlan_PreservesExistingCustomerID(t *testin
 func TestPlanSyncAdapter_SyncWorkspacePlan_WorkspaceNotFound(t *testing.T) {
 	store := newMockAuthStoreForBilling()
 
-	adapter := &planSyncAdapter{authStore: store}
+	adapter := auth.NewPlanSyncer(store)
 	err := adapter.SyncWorkspacePlan(t.Context(), "ws-missing", "pro", "cus_123")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ws-missing")

@@ -56,14 +56,22 @@ short-horizon feedback users expect from AI products (Claude's 5-hour
 window is the nearest precedent), and avoids the month-one/month-four
 binge-drought pattern.
 
-**Overage handling.**
+**Overage handling.** Every paid plan behaves the same way: when the weekly
+allowance runs out, AI operations are blocked (`QuotaGuard`, HTTP 429) until
+either the Monday reset or the workspace buys a credit pack. There is no
+auto-purchase: a workspace can only be charged by a human choosing to be.
 
-| Plan       | Overage behavior                                                        |
-| ---------- | ----------------------------------------------------------------------- |
-| Free       | Hard block until Monday reset                                           |
-| Pro        | Soft block + option to buy a one-time credit pack ($5 = 200 K tokens)   |
-| Team       | Configurable: soft block or auto-purchase credit packs                  |
-| Enterprise | No limits (custom agreement)                                            |
+| Plan       | Overage behavior                                                      |
+| ---------- | --------------------------------------------------------------------- |
+| Free       | Blocked until the Monday reset                                        |
+| Pro        | Blocked; may buy a credit pack ($5 = 200 K credits, does not expire)  |
+| Team       | Blocked; may buy a credit pack (same pack)                            |
+| Enterprise | No limits (custom agreement)                                          |
+
+The pack size is one constant, `billing.CreditPackCredits`; the $5 lives in
+Stripe. They are set together by the provisioning tool
+(`bowrain/cmd/stripe-provision`), which is also what writes the
+`bowrain_plan` price metadata the webhook reads.
 
 ### AI providers and credits
 
@@ -106,17 +114,28 @@ credits plus all remaining purchased credits.
 Features are gated by plan using a compile-time matrix in
 `billing/plans.go`:
 
-| Feature               | Free | Pro | Team     | Enterprise |
-| --------------------- | ---- | --- | -------- | ---------- |
-| @bravo chat           | –    | –   | –        | –          |
-| @bravo code execution | –    | –   | yes      | yes        |
-| Git connectors        | –    | yes | yes      | yes        |
-| Custom connectors     | –    | –   | yes      | yes        |
-| API access            | –    | yes | yes      | yes        |
-| SSO / SAML            | –    | –   | –        | yes        |
-| Custom MT providers   | –    | yes | yes      | yes        |
-| Max projects          | 1    | 10  | unlimited| unlimited  |
-| Max seats             | 1    | 3   | unlimited| unlimited  |
+| Feature               | Free | Pro | Team     | Enterprise | Enforced at                    |
+| --------------------- | ---- | --- | -------- | ---------- | ------------------------------ |
+| @bravo chat           | –    | –   | –        | –          | `PlanGuard` on the bravo routes |
+| @bravo code execution | –    | –   | yes      | yes        | (moot while @bravo is dark)    |
+| Git connectors        | –    | yes | yes      | yes        | `RequireFeature` in `HandleAddConnector` |
+| Custom connectors     | –    | –   | yes      | yes        | reserved — no such feature yet |
+| API access            | –    | yes | yes      | yes        | `PlanGuard` on the token group |
+| SSO / SAML            | –    | –   | –        | yes        | reserved — no such feature yet |
+| Max projects          | 1    | 10  | unlimited| unlimited  | workspace limits               |
+| Max seats             | 1    | 3   | unlimited| unlimited  | workspace limits               |
+
+The **Enforced at** column is part of the decision, not documentation colour: a
+feature in this matrix with nothing enforcing it is a plan boundary the product
+does not actually hold. Git connectors sat in that state until epic 005 — sold as
+Pro, available on Free. Rows marked *reserved* gate a capability that does not
+exist yet; they are inert by construction (there is no route to guard), and the
+pricing surfaces must not advertise them until there is.
+
+A feature flag that gates nothing real does not belong here at all: the
+`custom-mt-providers` flag was removed when MT providers were dropped from the
+product, rather than left in the matrix promising a capability the code no longer
+has.
 
 The matrix is the default authorization path: zero latency, no external
 calls, deployed with the binary.
@@ -176,12 +195,18 @@ the minimum qualifying plan so the frontend renders a contextual
 upgrade prompt instead of a generic error.
 
 ```go
-connectors := ws.Group("/connectors")
-connectors.Use(billing.PlanGuard(billing.FeatureConnectorsGit))
+bravo := ws.Group("/bravo")
+bravo.Use(billing.PlanGuard(billing.FeatureBravo))
 
-agentExec := ws.Group("/agent/exec")
-agentExec.Use(billing.PlanGuard(billing.FeatureBravoCodeExec))
+tokens := ws.Group("/tokens")
+tokens.Use(billing.PlanGuard(billing.FeatureAPIAccess))
 ```
+
+**`billing.RequireFeature(c, feature)`** is the same gate for a decision that
+can only be made after the body is read — a connector's *type* decides whether
+the request needs a paid feature, and every connector type posts to one route.
+It returns the identical `403 upgrade_required` payload, so the client's upgrade
+prompt does not care which one blocked it.
 
 **`QuotaGuard()`** rejects requests when weekly credits are exhausted.
 Returns `429 Too Many Requests` with `Retry-After` set to the next
@@ -191,45 +216,144 @@ Seat and project limits are enforced at mutation time (add member,
 create project) — no middleware needed because the check depends on
 the target of the operation.
 
+### Trials
+
+A new workspace gets a **14-day Pro trial with no card** (`billing.SetupTrial`,
+called on workspace creation): plan `pro`, status `trialing`, Pro weekly credits,
+and a `trial_ends_at` deadline. When the deadline passes, the **trial sweeper** in
+`bowrain-worker` (`billing.TrialSweeper`, hourly) moves the workspace to Free and
+records a `trial_expired` event.
+
+The sweeper is the *only* thing that can end this trial, which is why it is not
+optional and not gated on Stripe: no Stripe subscription exists for a card-free
+trial, so no Stripe event will ever downgrade the workspace. A deployment that
+grants trials without running the sweeper grants Pro forever — which is precisely
+what happened before epic 005.
+
+The downgrade updates the subscription *and* the denormalized `workspaces.plan`
+cache in one statement (`ExpireTrials`). This is deliberate: the cache is what
+the hot path reads, including the weekly-credit grant, so a downgrade that
+updated the subscription but failed to update the cache as a separate step would
+leave the workspace off `trialing` (never re-swept) yet still cached as Pro —
+re-granted 500K Pro credits every week for nothing. One statement means a failure
+rolls back both and the next tick retries; a checkout converting the trial
+mid-sweep serializes on the same row lock and the paid plan wins.
+
+The rejected alternative is a Stripe-side trial (`CheckoutOptions.TrialDays`):
+it would end itself, but it requires collecting a card at signup, which is the
+wrong trade for self-serve. The trial's credits for the current week are not
+clawed back on downgrade — the weekly allowance was granted up front, and
+revoking it mid-week would fail jobs already running; the workspace drops to Free
+allowances at the next weekly reset.
+
 ### Stripe integration
 
-**Products and prices.**
+**Products and prices** are created by `bowrain/cmd/stripe-provision` (idempotent;
+run once per Stripe account, test mode then live). Dollar amounts live in Stripe,
+not in the code:
 
 ```
-bowrain-pro          $25/mo flat subscription
-bowrain-team-seat    $20/mo per seat, quantity-based subscription
-bowrain-credits      $5 per 200 K pack, one-time metered via Stripe Meters
-bowrain-enterprise   custom, manual invoicing
+bowrain_pro_monthly        $25/mo flat subscription       metadata bowrain_plan=pro
+bowrain_team_monthly_seat  $20/mo per seat (licensed)     metadata bowrain_plan=team
+bowrain_credit_pack        $5 one-time, 200 K credits
+(enterprise)               custom, manual invoicing
 ```
 
-**Stripe Meters API** (v2) tracks real-time AI consumption:
+The `bowrain_plan` **price metadata is a contract**, not a label: it is what the
+webhook reads to decide which plan a subscription is
+(`billing.planFromSubscription`). A price created without it makes plan detection
+fall back to guessing from the quantity.
+
+**Stripe Meters API** (v2) records AI consumption for observability:
 
 ```
-Meter: bowrain_ai_tokens
-  - event_name: ai_token_usage
-  - aggregation: sum
-  - dimensions: [workspace_id, operation_type]
+Meter event_name: ai_token_usage   (must match billing.UsageHooks exactly)
+  - aggregation: sum over the `value` payload key
+  - customer mapping: the `stripe_customer_id` payload key
+  - payload also carries: workspace_id, operation_type
 ```
+
+Meters **price nothing** — credits are the billing unit, and a meter event that
+fails is logged and dropped. They exist so token consumption is visible in Stripe
+next to the revenue. The event name is load-bearing: a meter created under any
+other name silently discards every event, because meter reporting is
+fire-and-forget by design (a billing telemetry failure must never fail a
+translation).
+
+**Why the credit ledger is ours and not Stripe's.** Stripe's billing credits
+(credit grants) are *monetary* balances applied when an invoice finalizes. Our
+credits are AI tokens, and they must be enforced **before** the call runs — the
+whole point is to not spend money with Anthropic or Gemini on behalf of a
+workspace that has none left. No invoice-time construct can do that, so the
+ledger stays in Postgres, in the same transaction as the work. (Stripe's
+token-billing product can hard-stop a call, but only by proxying every LLM request
+through Stripe's AI Gateway, which is incompatible with bring-your-own keys — those
+calls never touch Stripe.) Metronome, now Stripe-owned and Stripe's recommended
+path for new metering integrations, does not enforce at request time either; it
+would sit *under* a gate we would still have to keep. The option value is cheap:
+all token accounting funnels through one seam, `billing.UsageHooks`, so swapping
+what happens downstream of a deduction is a change to one file.
 
 **Webhook events** — subscription lifecycle flows inbound through
 `POST /api/webhooks/stripe` with signature verification:
 
-| Event                                  | Action                                       |
-| -------------------------------------- | -------------------------------------------- |
-| `checkout.session.completed`           | Activate subscription, set plan on workspace |
-| `customer.subscription.updated`        | Update plan, adjust quotas                   |
-| `customer.subscription.deleted`        | Downgrade to Free                            |
-| `invoice.paid`                         | Confirm payment, grant weekly credits        |
-| `invoice.payment_failed`               | Grace period (3 days), then downgrade        |
-| `customer.subscription.trial_will_end` | Send reminder email                          |
+| Event                            | Action                                                        |
+| -------------------------------- | ------------------------------------------------------------- |
+| `checkout.session.completed`     | Activate subscription; plan + seats from the session metadata  |
+| `customer.subscription.created`  | Reconcile plan + seats from the price metadata                 |
+| `customer.subscription.updated`  | Same handler — plan, seats, status, period                     |
+| `customer.subscription.deleted`  | Downgrade to Free                                              |
+| `invoice.paid`                   | Record the payment                                             |
+| `invoice.payment_failed`         | Mark the subscription `past_due` and email the owner           |
+
+Both `created` and `updated` are handled, and this is load-bearing: Stripe
+emits `created` for a new subscription and `updated` only when something
+subsequently *changes*, so a fresh Team subscription may never produce an
+`updated` at all. The checkout session therefore carries the plan it was
+started for, and the subscription events re-derive the same plan from the
+price's `bowrain_plan` metadata.
+
+Two webhook robustness rules follow from Stripe's delivery semantics — both
+protect money, not just tidiness:
+
+- **The pack grant is idempotent on the checkout session id.** Stripe delivers
+  webhooks at-least-once, and this handler rolls its processed-event marker back
+  on any dispatch error so a genuine failure is retried. That combination would
+  let a $5 pack credit twice if the grant committed and a *later* step failed:
+  the retry re-runs the grant. So the grant, its ledger row, and its
+  `credits_purchased` event are one transaction keyed on the session id
+  (`GrantPurchasedCredits`), with a unique index on the purchase ledger row —
+  a duplicate delivery is a no-op, a concurrent one collides rather than
+  double-credits.
+- **`canceled` is terminal.** Stripe does not guarantee event ordering, so a
+  stale `subscription.updated` (status active) can be delivered *after* the
+  `subscription.deleted` that canceled it. A blind upsert would resurrect the
+  workspace to its paid plan with no live subscription behind it. An `updated`
+  for a locally-canceled subscription (status `canceled`, empty
+  `stripe_subscription_id`) is therefore ignored — reactivation always arrives
+  as a fresh checkout with a new subscription id, never as an update to the dead
+  one.
+
+**`past_due` keeps access.** A failed payment marks the subscription `past_due`
+and notifies the owner, but does not downgrade or block: access ends only when
+Stripe's dunning gives up and cancels, which arrives as
+`customer.subscription.deleted`. There is no grace-period timer in Bowrain —
+the retry schedule is configured in Stripe, where the payment state actually
+lives, and duplicating it here would mean two clocks that can disagree. The
+exposure is bounded (a workspace using a plan it has stopped paying for, for as
+long as Stripe keeps retrying) and the billing page shows the customer a banner
+throughout.
 
 ### Data model
 
 ```sql
 CREATE TABLE subscriptions (
     id                      TEXT PRIMARY KEY,
-    workspace_id            TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    stripe_customer_id      TEXT NOT NULL,
+    workspace_id            TEXT NOT NULL UNIQUE,
+    -- Nullable, and unique only among non-empty values: a local trial and an
+    -- admin plan override are subscriptions with no Stripe customer, and a
+    -- NOT NULL UNIQUE column would let only the FIRST such workspace exist.
+    stripe_customer_id      TEXT DEFAULT '',
     stripe_subscription_id  TEXT,
     plan                    TEXT NOT NULL DEFAULT 'free',
     status                  TEXT NOT NULL DEFAULT 'active',
@@ -237,11 +361,14 @@ CREATE TABLE subscriptions (
     current_period_start    TIMESTAMPTZ,
     current_period_end      TIMESTAMPTZ,
     cancel_at               TIMESTAMPTZ,
+    trial_ends_at           TIMESTAMPTZ,   -- local card-free trial; NULL once a subscription exists
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE(workspace_id),
-    UNIQUE(stripe_customer_id)
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX subscriptions_stripe_customer_id_key
+    ON subscriptions (stripe_customer_id)
+    WHERE stripe_customer_id IS NOT NULL AND stripe_customer_id != '';
 
 CREATE TABLE credit_allocations (
     id            TEXT PRIMARY KEY,
@@ -379,19 +506,33 @@ Triggered by billing lifecycle events:
 | 80% credits used    | Warning with usage breakdown and reset date                           |
 | Credits exhausted   | Blocked notice with upgrade CTA (Pro/Team) or reset countdown (Free)  |
 | Weekly credit reset | Summary of last week's usage                                          |
-| Payment failed      | Grace period notice (3 days), then downgrade warning                  |
+| Payment failed      | Notice that Stripe will retry, and that cancellation drops to Free     |
 | Subscription change | Confirmation of upgrade/downgrade with new limits                     |
+
+There is deliberately no trial-ending reminder email: the trial is card-free, so
+its end is not a charge — it is a quiet drop back to Free limits, which the
+billing page states from the day the workspace is created.
 
 ### Self-hosted: graceful billing-disabled mode
 
-Self-hosted deployments run without Stripe credentials. When
-`STRIPE_SECRET_KEY` is empty, `BillingStore` returns a synthetic
-"unlimited" subscription per workspace, `PlanGuard` becomes a no-op,
-and `QuotaGuard` never rejects. The admin control plane is optional —
-the endpoints register but the ctrl app is not deployed. The code path
-remains the same; only the values change. This keeps the open-source
-deployment experience uncompromised while letting the managed cloud
-rely on the full billing pipeline.
+Self-hosted deployments run without Stripe credentials. With no
+`STRIPE_SECRET_KEY`, no Stripe client is built, no plan lands on the request
+context, `PlanGuard` and `RequireFeature` become no-ops, and `QuotaGuard` never
+rejects. `GET /billing/plans` reports every plan as not purchasable, so the UI
+shows no upgrade buttons rather than buttons that fail. The admin control plane
+is optional — the endpoints register but the ctrl app is not deployed. This keeps
+the open-source deployment experience uncompromised while letting the managed
+cloud rely on the full billing pipeline.
+
+**A placeholder is not a configuration.** The Stripe settings are accepted only
+when they look like Stripe identifiers (`sk_`/`rk_`, `whsec_`, `price_`).
+Terraform creates the Stripe SSM parameters as literal `CHANGEME` (epic 002), and
+`STRIPE_SECRET_KEY` being non-empty is what the platform reads as *this is a
+billed deployment* — it enables checkout, turns on worker metering, and makes a
+missing `BOWRAIN_SECRETS_KEY` a hard startup failure. A placeholder that passed
+for a key would give the worst available state: billing advertised, every Stripe
+call rejected. An unprovisioned production therefore behaves exactly like a
+self-hosted install until the real values are written.
 
 ## Consequences
 

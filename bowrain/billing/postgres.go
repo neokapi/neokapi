@@ -108,6 +108,38 @@ var billingMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     4,
+		Description: "give local trials an end date so they can expire",
+		SQL: `
+			ALTER TABLE subscriptions ADD COLUMN trial_ends_at TIMESTAMPTZ;
+
+			-- Trials created before this column existed have no deadline and would
+			-- never expire. Date them from their creation so the sweeper picks them
+			-- up on the same 14-day terms they were granted under.
+			UPDATE subscriptions
+			   SET trial_ends_at = created_at + INTERVAL '14 days'
+			 WHERE status = 'trialing' AND trial_ends_at IS NULL;
+
+			CREATE INDEX idx_subscriptions_trialing
+				ON subscriptions (trial_ends_at)
+				WHERE status = 'trialing';
+		`,
+	},
+	{
+		Version:     5,
+		Description: "idempotency guard for one-time credit-pack grants",
+		SQL: `
+			-- A purchased credit-pack grant must happen exactly once per Stripe
+			-- checkout, even though the webhook can be delivered more than once and
+			-- rolls its event marker back on a partial failure. The Stripe session
+			-- id lands in reference_id; this makes a second grant for the same
+			-- session collide rather than double-credit the workspace.
+			CREATE UNIQUE INDEX credit_ledger_purchase_ref
+				ON credit_ledger (workspace_id, reference_id)
+				WHERE operation = 'purchase' AND reference_id <> '';
+		`,
+	},
 }
 
 // PgBillingStore implements BillingStore using PostgreSQL.
@@ -133,11 +165,11 @@ func (s *PgBillingStore) GetSubscription(ctx context.Context, workspaceID string
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, workspace_id, stripe_customer_id, stripe_subscription_id,
 		        plan, status, seat_count, current_period_start, current_period_end,
-		        cancel_at, created_at, updated_at
+		        cancel_at, trial_ends_at, created_at, updated_at
 		 FROM subscriptions WHERE workspace_id = $1`, workspaceID).
 		Scan(&sub.ID, &sub.WorkspaceID, &sub.StripeCustomerID, &sub.StripeSubscriptionID,
 			&plan, &status, &sub.SeatCount, &sub.CurrentPeriodStart, &sub.CurrentPeriodEnd,
-			&sub.CancelAt, &sub.CreatedAt, &sub.UpdatedAt)
+			&sub.CancelAt, &sub.TrialEndsAt, &sub.CreatedAt, &sub.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get subscription: %w", err)
 	}
@@ -160,8 +192,8 @@ func (s *PgBillingStore) UpsertSubscription(ctx context.Context, sub *Subscripti
 		`INSERT INTO subscriptions
 			(id, workspace_id, stripe_customer_id, stripe_subscription_id,
 			 plan, status, seat_count, current_period_start, current_period_end,
-			 cancel_at, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			 cancel_at, trial_ends_at, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		 ON CONFLICT (workspace_id) DO UPDATE SET
 			stripe_customer_id = EXCLUDED.stripe_customer_id,
 			stripe_subscription_id = EXCLUDED.stripe_subscription_id,
@@ -171,22 +203,104 @@ func (s *PgBillingStore) UpsertSubscription(ctx context.Context, sub *Subscripti
 			current_period_start = EXCLUDED.current_period_start,
 			current_period_end = EXCLUDED.current_period_end,
 			cancel_at = EXCLUDED.cancel_at,
+			trial_ends_at = EXCLUDED.trial_ends_at,
 			updated_at = EXCLUDED.updated_at`,
 		sub.ID, sub.WorkspaceID, sub.StripeCustomerID, sub.StripeSubscriptionID,
 		string(sub.Plan), sub.Status, sub.SeatCount,
 		sub.CurrentPeriodStart, sub.CurrentPeriodEnd,
-		sub.CancelAt, sub.CreatedAt, sub.UpdatedAt)
+		sub.CancelAt, sub.TrialEndsAt, sub.CreatedAt, sub.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("upsert subscription: %w", err)
 	}
 	return nil
 }
 
+// ExpiredTrial identifies a workspace whose local trial the sweeper just ended.
+type ExpiredTrial struct {
+	WorkspaceID      string
+	StripeCustomerID string
+}
+
+// ExpireTrials downgrades every workspace whose local trial has run out — the
+// subscription AND the denormalized workspaces.plan cache — in ONE statement, and
+// returns the workspaces it downgraded.
+//
+// Both writes must be atomic. The workspaces.plan cache is what the hot path
+// reads (WorkspaceAccessMiddleware → PlanGuard, and the weekly-credit grant): if
+// the subscription were downgraded but the cache write failed as a separate step,
+// the row would leave `trialing` and never be re-swept, leaving the workspace on
+// Pro limits and re-granted 500K Pro credits every week for nothing. Doing both
+// in one statement means a failure rolls back both and the next tick retries.
+//
+// This is the one place the billing store writes the auth-owned workspaces table
+// directly. The alternative — a separate cache-sync call after the downgrade —
+// is exactly the two-write drift above; and syncing the cache *before* the
+// downgrade would let a workspace that converts to a paid plan mid-sweep get its
+// cache clobbered to free. Atomicity is the only correct option, and billing is
+// the authority the cache mirrors.
+//
+// The row is claimed with FOR UPDATE SKIP LOCKED and the subscription UPDATE
+// re-asserts `status = 'trialing'`, so two sweepers can never both downgrade the
+// same workspace, and a checkout converting the trial mid-sweep serializes on the
+// same row lock (the re-check then excludes it, so the paid plan wins). Credits
+// already granted for the current week are left alone — clawing them back
+// mid-week would fail running jobs; the workspace drops to Free allowances at the
+// next weekly rollover.
+func (s *PgBillingStore) ExpireTrials(ctx context.Context, now time.Time, limit int) ([]ExpiredTrial, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`WITH due AS (
+			SELECT id FROM subscriptions
+			 WHERE status = 'trialing'
+			   AND trial_ends_at IS NOT NULL
+			   AND trial_ends_at <= $1
+			 ORDER BY trial_ends_at
+			 LIMIT $2
+			 FOR UPDATE SKIP LOCKED
+		 ),
+		 downgraded AS (
+			UPDATE subscriptions s
+			   SET plan = $3, status = 'active', trial_ends_at = NULL, updated_at = NOW()
+			   FROM due
+			  WHERE s.id = due.id AND s.status = 'trialing'
+			 RETURNING s.workspace_id, s.stripe_customer_id
+		 ),
+		 synced AS (
+			-- Data-modifying CTEs always run to completion even when the final
+			-- query does not read them, so this keeps the plan cache in step
+			-- within the same transaction as the downgrade.
+			UPDATE workspaces w
+			   SET plan = $3
+			   FROM downgraded
+			  WHERE w.id = downgraded.workspace_id AND w.plan IS DISTINCT FROM $3
+		 )
+		 SELECT workspace_id, stripe_customer_id FROM downgraded`,
+		now.UTC(), limit, string(PlanFree))
+	if err != nil {
+		return nil, fmt.Errorf("expire trials: %w", err)
+	}
+	defer rows.Close()
+
+	var expired []ExpiredTrial
+	for rows.Next() {
+		var e ExpiredTrial
+		var customerID sql.NullString
+		if err := rows.Scan(&e.WorkspaceID, &customerID); err != nil {
+			return nil, fmt.Errorf("scan expired trial: %w", err)
+		}
+		e.StripeCustomerID = customerID.String
+		expired = append(expired, e)
+	}
+	return expired, rows.Err()
+}
+
 func (s *PgBillingStore) ListSubscriptions(ctx context.Context, limit, offset int) ([]*Subscription, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, workspace_id, stripe_customer_id, stripe_subscription_id,
 		        plan, status, seat_count, current_period_start, current_period_end,
-		        cancel_at, created_at, updated_at
+		        cancel_at, trial_ends_at, created_at, updated_at
 		 FROM subscriptions ORDER BY created_at DESC LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list subscriptions: %w", err)
@@ -199,7 +313,7 @@ func (s *PgBillingStore) ListSubscriptions(ctx context.Context, limit, offset in
 		var plan, status string
 		if err := rows.Scan(&sub.ID, &sub.WorkspaceID, &sub.StripeCustomerID, &sub.StripeSubscriptionID,
 			&plan, &status, &sub.SeatCount, &sub.CurrentPeriodStart, &sub.CurrentPeriodEnd,
-			&sub.CancelAt, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
+			&sub.CancelAt, &sub.TrialEndsAt, &sub.CreatedAt, &sub.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan subscription: %w", err)
 		}
 		sub.Plan = Plan(plan)
@@ -398,6 +512,77 @@ func (s *PgBillingStore) CheckCredits(ctx context.Context, workspaceID string) (
 		return 0, fmt.Errorf("check credits: %w", planErr)
 	}
 	return planRemaining + purchasedRemaining, nil
+}
+
+// GrantPurchasedCredits grants one purchased credit pack, exactly once per Stripe
+// checkout, and records its billing event — all in a single transaction keyed on
+// referenceID (the Stripe session id).
+//
+// This exists because the webhook handler rolls its idempotency marker back on
+// ANY dispatch error, so a grant that commits while a later, separate write fails
+// would be re-applied by Stripe's retry — a $5 pack crediting 400K. Folding the
+// grant and its event into one transaction means a retry re-runs an
+// all-or-nothing unit, and the unique index on (workspace_id, reference_id) for
+// purchase rows makes even a concurrent double-delivery collide instead of
+// double-crediting. Returns false (no error) when this session was already
+// granted, so the caller treats the duplicate as success.
+func (s *PgBillingStore) GrantPurchasedCredits(ctx context.Context, workspaceID string, amount int64, referenceID string) (bool, error) {
+	if referenceID == "" {
+		return false, errors.New("grant purchased credits: reference id is required for idempotency")
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck // rollback is a no-op after commit
+
+	// Already granted for this checkout? A duplicate delivery lands here.
+	var already bool
+	if err := tx.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM credit_ledger
+		 WHERE workspace_id = $1 AND reference_id = $2 AND operation = 'purchase')`,
+		workspaceID, referenceID).Scan(&already); err != nil {
+		return false, fmt.Errorf("check existing grant: %w", err)
+	}
+	if already {
+		return false, tx.Commit()
+	}
+
+	// Add to the non-expiring purchased bucket (sentinel week).
+	allocID := id.New()
+	var total, used int64
+	if err := tx.QueryRowContext(ctx,
+		`INSERT INTO credit_allocations (id, workspace_id, credits_total, credits_used, week_start, week_end, source)
+		 VALUES ($1, $2, $3, 0, $4, $5, $6)
+		 ON CONFLICT (workspace_id, week_start, source) DO UPDATE SET
+			credits_total = credit_allocations.credits_total + EXCLUDED.credits_total
+		 RETURNING id, credits_total, credits_used`,
+		allocID, workspaceID, amount, purchasedWeekStart, purchasedWeekEnd, SourcePurchased).
+		Scan(&allocID, &total, &used); err != nil {
+		return false, fmt.Errorf("grant purchased credits: %w", err)
+	}
+
+	// The ledger row carries the reference; the unique index makes a racing
+	// second delivery fail here (unique violation) rather than double-grant.
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO credit_ledger (workspace_id, allocation_id, amount, balance_after, operation, reference_id)
+		 VALUES ($1, $2, $3, $4, 'purchase', $5)`,
+		workspaceID, allocID, amount, total-used, referenceID); err != nil {
+		return false, fmt.Errorf("record purchase ledger entry: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO billing_events (workspace_id, event_type, detail)
+		 VALUES ($1, 'credits_purchased', $2)`,
+		workspaceID, fmt.Sprintf("Credit pack purchased, +%d credits", amount)); err != nil {
+		return false, fmt.Errorf("record purchase event: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit purchase: %w", err)
+	}
+	return true, nil
 }
 
 func (s *PgBillingStore) GrantCredits(ctx context.Context, workspaceID string, amount int64, source string) error {

@@ -496,6 +496,8 @@ export type {
   BillingSubscription,
   CreditAllocation,
   BillingOverview,
+  BillingPlanInfo,
+  BillingPlansResponse,
   CreditLedgerEntry,
   BillingUsageBreakdown,
   ModelUsage,

@@ -412,6 +412,16 @@ func runWorker(dbURL string) error {
 		})
 	}
 
+	// Trial expiry: the 14-day Pro trial is local and card-free, so no Stripe
+	// event ever ends it — this sweep is the only thing that does. Without it
+	// every signup keeps Pro limits and Pro weekly credits indefinitely.
+	if sweeper := buildTrialSweeper(pgdb); sweeper != nil {
+		g.Go(func() error {
+			slog.Info("starting trial-expiry sweeper")
+			return sweeper.Run(ctx)
+		})
+	}
+
 	// Agent worker (optional — runs when BOWRAIN_AGENT_RUNTIME=aca is set).
 	if agentRuntime := os.Getenv("BOWRAIN_AGENT_RUNTIME"); agentRuntime == "aca" {
 		agentDeps, cleanup, err := buildAgentWorkerDeps(ctx, pgdb, serviceBusConn, azureClientID)
@@ -547,9 +557,12 @@ func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusCon
 // nil-BillingHooks behavior). Migrations are namespaced + idempotent, so
 // re-running them here (the server also runs them) is safe.
 func buildWorkerBillingHooks(pgdb *storage.PgDB) *billing.UsageHooks {
+	// A placeholder key (Terraform seeds the SSM parameter as "CHANGEME", epic
+	// 002) is not a key: treating it as one would enable credit deduction and fire
+	// every meter event at a Stripe account that rejects them.
 	stripeKey := os.Getenv("STRIPE_SECRET_KEY")
-	if stripeKey == "" {
-		slog.Info("worker billing disabled: no STRIPE_SECRET_KEY (self-hosted / unbilled deployment)")
+	if !billing.IsStripeSecretKey(stripeKey) {
+		slog.Info("worker billing disabled: no usable STRIPE_SECRET_KEY (self-hosted / unbilled / unprovisioned deployment)")
 		return nil
 	}
 	billingStore, err := billing.NewPgBillingStore(pgdb)
@@ -563,6 +576,23 @@ func buildWorkerBillingHooks(pgdb *storage.PgDB) *billing.UsageHooks {
 	}
 	slog.Info("worker billing credit deduction + Stripe meter reporting enabled")
 	return hooks
+}
+
+// buildTrialSweeper constructs the trial-expiry sweeper. Unlike the billing
+// hooks, it is NOT gated on Stripe: the trial is granted locally at workspace
+// creation on any Postgres deployment (billing.SetupTrial from the workspace
+// handler), so on a deployment that never provisions Stripe the trial would still
+// be handed out and would still never end. Whoever grants it must expire it.
+//
+// It needs only the billing store: ExpireTrials keeps the workspace plan cache in
+// step with the downgrade atomically, so no separate auth-side syncer is wired.
+func buildTrialSweeper(pgdb *storage.PgDB) *billing.TrialSweeper {
+	billingStore, err := billing.NewPgBillingStore(pgdb)
+	if err != nil {
+		slog.Warn("trial sweeper disabled: failed to init billing store", "error", err)
+		return nil
+	}
+	return billing.NewTrialSweeper(billingStore, 0)
 }
 
 // guardSecretsKey enforces that a multi-tenant Postgres deployment configures a
@@ -579,7 +609,7 @@ func guardSecretsKey(secretsKey, databaseURL string) error {
 	if !strings.HasPrefix(databaseURL, "postgres://") && !strings.HasPrefix(databaseURL, "postgresql://") {
 		return nil
 	}
-	if os.Getenv("STRIPE_SECRET_KEY") != "" {
+	if billing.IsStripeSecretKey(os.Getenv("STRIPE_SECRET_KEY")) {
 		return errors.New("BOWRAIN_SECRETS_KEY is required on a billed multi-tenant deployment: " +
 			"without it every workspace's AI provider key and connector secret is stored in plaintext in Postgres")
 	}

@@ -16,6 +16,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	"github.com/neokapi/neokapi/bowrain/observe"
@@ -50,13 +51,38 @@ func guardSecretsKey(secretsKey, databaseURL string) error {
 	if !strings.HasPrefix(databaseURL, "postgres://") && !strings.HasPrefix(databaseURL, "postgresql://") {
 		return nil
 	}
-	if os.Getenv("STRIPE_SECRET_KEY") != "" {
+	if billing.IsStripeSecretKey(os.Getenv("STRIPE_SECRET_KEY")) {
 		return errors.New("BOWRAIN_SECRETS_KEY is required on a billed multi-tenant deployment: " +
 			"without it every workspace's AI provider key and connector secret is stored in plaintext in Postgres")
 	}
 	slog.Error("BOWRAIN_SECRETS_KEY is not set: workspace AI provider keys and connector secrets " +
 		"will be stored UNENCRYPTED in Postgres; set a 32-byte base64 key before storing tenant secrets")
 	return nil
+}
+
+// acceptStripeValue returns the environment value for a Stripe setting when it
+// looks like the Stripe identifier it should be, and "" otherwise — so an
+// unprovisioned or mistyped value degrades to "this deployment does not sell",
+// never to a half-configured billing surface. The distinction between the
+// Terraform placeholder and a genuinely wrong value is worth making in the logs:
+// the first is an expected state before provisioning, the second is an operator
+// error.
+func acceptStripeValue(envVar string, valid func(string) bool, want string) string {
+	v := os.Getenv(envVar)
+	switch {
+	case v == "":
+		return ""
+	case valid(v):
+		return v
+	case billing.IsPlaceholder(v):
+		slog.Info("stripe: "+envVar+" is still the provisioning placeholder; billing stays off until it is filled in",
+			"env", envVar)
+		return ""
+	default:
+		slog.Warn("stripe: ignoring "+envVar+": not a Stripe identifier",
+			"env", envVar, "expected_prefix", want)
+		return ""
+	}
 }
 
 func run() error {
@@ -215,21 +241,16 @@ func run() error {
 	}
 
 	// Billing (Bowrain AD-018).
-	if v := os.Getenv("STRIPE_SECRET_KEY"); v != "" {
-		cfg.StripeSecretKey = v
-	}
-	if v := os.Getenv("STRIPE_WEBHOOK_SECRET"); v != "" {
-		cfg.StripeWebhookSecret = v
-	}
-	if v := os.Getenv("STRIPE_PRO_PRICE_ID"); v != "" {
-		cfg.StripeProPriceID = v
-	}
-	if v := os.Getenv("STRIPE_TEAM_PRICE_ID"); v != "" {
-		cfg.StripeTeamPriceID = v
-	}
-	if v := os.Getenv("STRIPE_CREDIT_PRICE_ID"); v != "" {
-		cfg.StripeCreditPriceID = v
-	}
+	// Stripe settings are accepted only when they look like Stripe identifiers.
+	// Terraform seeds these SSM parameters as "CHANGEME" (epic 002), and a
+	// placeholder that reads as "configured" would put the deployment in the worst
+	// state available: billing advertised, every Stripe call failing. Rejecting it
+	// here means an unprovisioned deployment simply has no checkout surface.
+	cfg.StripeSecretKey = acceptStripeValue("STRIPE_SECRET_KEY", billing.IsStripeSecretKey, "sk_… or rk_…")
+	cfg.StripeWebhookSecret = acceptStripeValue("STRIPE_WEBHOOK_SECRET", billing.IsStripeWebhookSecret, "whsec_…")
+	cfg.StripeProPriceID = acceptStripeValue("STRIPE_PRO_PRICE_ID", billing.IsStripePriceID, "price_…")
+	cfg.StripeTeamPriceID = acceptStripeValue("STRIPE_TEAM_PRICE_ID", billing.IsStripePriceID, "price_…")
+	cfg.StripeCreditPriceID = acceptStripeValue("STRIPE_CREDIT_PRICE_ID", billing.IsStripePriceID, "price_…")
 	if v := os.Getenv("POSTHOG_API_KEY"); v != "" {
 		cfg.PostHogAPIKey = v
 	}

@@ -96,6 +96,7 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
 
 .PHONY: all help \
         build-server build-worker build-kapi-bowrain-plugin build-bowrain build-headless install-kapi-bowrain-plugin \
+        stripe-provision \
         ui-deps ui-build ui-check storybook storybook-dev storybook-build \
         frontend-deps frontend-dev frontend-build frontend-check build-ui \
         web-deps web-build web-check \
@@ -134,6 +135,14 @@ build-server: ## Build the Bowrain REST server
 build-worker: ## Build the Bowrain worker
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/bowrain-worker ./cmd/bowrain-worker
+
+# Operator tool, not shipped in any image. Idempotent: safe to re-run.
+#   STRIPE_SECRET_KEY=sk_test_… make -C bowrain stripe-provision \
+#     STRIPE_WEBHOOK_URL=https://app.bowrain.cloud/api/webhooks/stripe SSM_ENV=prod
+stripe-provision: ## Create/confirm the Stripe products, prices, meter, and webhook
+	$(GO) run ./cmd/stripe-provision \
+		$(if $(STRIPE_WEBHOOK_URL),-webhook-url $(STRIPE_WEBHOOK_URL)) \
+		$(if $(SSM_ENV),-env $(SSM_ENV))
 
 build-kapi-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
 	@mkdir -p $(BIN_DIR)

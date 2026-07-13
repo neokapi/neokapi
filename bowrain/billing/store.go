@@ -18,6 +18,13 @@ type BillingStore interface {
 	CheckCredits(ctx context.Context, workspaceID string) (remaining int64, err error)
 	GrantCredits(ctx context.Context, workspaceID string, amount int64, source string) error
 
+	// GrantPurchasedCredits grants a one-time credit pack idempotently, keyed on
+	// referenceID (the Stripe checkout session id). It returns granted=false when
+	// the reference was already granted — a duplicate webhook delivery — so the
+	// caller can treat it as success without re-crediting. See the PgBillingStore
+	// implementation for why the webhook's marker-rollback makes this necessary.
+	GrantPurchasedCredits(ctx context.Context, workspaceID string, amount int64, referenceID string) (granted bool, err error)
+
 	// Ledger
 	GetLedger(ctx context.Context, workspaceID string, from, to time.Time) ([]LedgerEntry, error)
 

@@ -13,6 +13,8 @@ import {
   UsageBar,
   CreditLedger,
   type BillingOverview,
+  type BillingPlan,
+  type BillingPlansResponse,
   type BillingUsageBreakdown,
   type CreditLedgerEntry,
   type ModelUsage,
@@ -24,6 +26,18 @@ function formatTokens(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
   return String(value);
+}
+
+function formatCredits(value: number): string {
+  return value < 0 ? "Unlimited" : formatTokens(value);
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function UsageBreakdownRow({ label, value }: { label: string; value: number }) {
@@ -42,11 +56,13 @@ export function SettingsBillingRoute() {
   const ws = activeWorkspace?.slug ?? "";
 
   const [overview, setOverview] = useState<BillingOverview | null>(null);
+  const [plans, setPlans] = useState<BillingPlansResponse | null>(null);
   const [usage, setUsage] = useState<BillingUsageBreakdown | null>(null);
   const [modelUsage, setModelUsage] = useState<ModelUsage[]>([]);
   const [runnerUsage, setRunnerUsage] = useState<RunnerUsage[]>([]);
   const [ledger, setLedger] = useState<CreditLedgerEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeWorkspace) {
@@ -61,6 +77,10 @@ export function SettingsBillingRoute() {
       .then(setOverview)
       .catch(() => {})
       .finally(() => setLoaded(true));
+    void api
+      .billingGetPlans(ws)
+      .then(setPlans)
+      .catch(() => {});
     void api
       .billingGetUsage(ws)
       .then(setUsage)
@@ -80,31 +100,51 @@ export function SettingsBillingRoute() {
 
   const handleManageSubscription = useCallback(async () => {
     if (!ws) return;
+    setCheckoutError(null);
     try {
       const { url } = await api.billingCreatePortal(ws, window.location.href);
       window.location.href = url;
-    } catch {
-      // Error handling would go here
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : "Could not open the billing portal.");
     }
   }, [api, ws]);
 
+  // The client names a plan; the server resolves the price. A failure has to be
+  // shown — an upgrade button that silently does nothing is worse than one that
+  // errors, because the customer concludes the product is broken and leaves.
   const handleUpgrade = useCallback(
-    async (priceId: string) => {
+    async (plan: BillingPlan) => {
       if (!ws) return;
+      setCheckoutError(null);
       try {
         const { url } = await api.billingCreateCheckout(
           ws,
-          priceId,
+          plan,
           `${window.location.origin}/${ws}/settings/billing?success=true`,
           `${window.location.origin}/${ws}/settings/billing`,
         );
         window.location.href = url;
-      } catch {
-        // Error handling would go here
+      } catch (err) {
+        setCheckoutError(err instanceof Error ? err.message : "Could not start checkout.");
       }
     },
     [api, ws],
   );
+
+  const handleBuyCredits = useCallback(async () => {
+    if (!ws) return;
+    setCheckoutError(null);
+    try {
+      const { url } = await api.billingBuyCredits(
+        ws,
+        `${window.location.origin}/${ws}/settings/billing?credits=purchased`,
+        `${window.location.origin}/${ws}/settings/billing`,
+      );
+      window.location.href = url;
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : "Could not start the purchase.");
+    }
+  }, [api, ws]);
 
   if (!activeWorkspace) return null;
   if (!loaded) return <SettingsSkeleton />;
@@ -122,17 +162,37 @@ export function SettingsBillingRoute() {
     );
   }
 
-  const subscription = overview.subscription ?? {
-    plan: "free" as const,
-    status: "active" as const,
-    seatCount: 1,
-  };
+  const subscription = overview.subscription;
   const credits = overview.credits;
   const weekEnd = credits?.weekEnd ? new Date(credits.weekEnd) : undefined;
   const isOwner = activeWorkspace.role === "owner";
 
+  // Only plans this deployment can actually sell, and only ones above the current
+  // plan — the server decides purchasability, so no button here can 503.
+  const upgradeable = (plans?.plans ?? []).filter((p) => p.purchasable && !p.current);
+  const creditPack = plans?.credit_pack;
+
   return (
     <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
+      {checkoutError && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {checkoutError}
+        </div>
+      )}
+
+      {/* A failed payment keeps full access until Stripe's dunning finally cancels
+          the subscription (AD-018). The customer needs to know that is happening —
+          this banner is the only warning before the plan drops to Free. */}
+      {subscription.status === "past_due" && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+          Your last payment failed. Stripe will retry it; if every retry fails, the subscription is
+          canceled and the workspace drops to the Free plan.{" "}
+          {isOwner && overview.stripeCustomerId
+            ? "Update your payment method under Manage Subscription."
+            : "Ask a workspace owner to update the payment method."}
+        </div>
+      )}
+
       {/* Subscription */}
       <Card>
         <CardHeader>
@@ -146,46 +206,71 @@ export function SettingsBillingRoute() {
               <span className="text-sm text-muted-foreground">{subscription.seatCount} seats</span>
             )}
           </div>
+          {subscription.status === "trialing" && subscription.trialEndsAt && (
+            <p className="text-sm text-muted-foreground">
+              Your Pro trial ends on {formatDate(subscription.trialEndsAt)}. No card is needed —
+              after that the workspace moves to the Free plan unless you subscribe.
+            </p>
+          )}
           {subscription.cancelAt && (
             <p className="text-sm text-red-600 dark:text-red-400">
-              Cancels on{" "}
-              {new Date(subscription.cancelAt).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
+              Cancels on {formatDate(subscription.cancelAt)}
             </p>
           )}
           {isOwner && (
-            <div className="flex gap-2">
-              {subscription.plan !== "enterprise" && overview.stripeCustomerId && (
+            <div className="flex flex-wrap gap-2">
+              {overview.stripeCustomerId && (
                 <Button variant="outline" size="sm" onClick={() => void handleManageSubscription()}>
                   Manage Subscription
                 </Button>
               )}
-              {(subscription.plan === "free" || subscription.plan === "pro") && (
-                <Button size="sm" onClick={() => void handleUpgrade("stripe_team_price_id")}>
-                  Upgrade Plan
+              {upgradeable.map((plan) => (
+                <Button key={plan.id} size="sm" onClick={() => void handleUpgrade(plan.id)}>
+                  {plan.current ? plan.name : `Switch to ${plan.name}`}
+                  {plan.per_seat ? " (per seat)" : ""}
                 </Button>
-              )}
+              ))}
             </div>
+          )}
+          {isOwner && upgradeable.length === 0 && plans && (
+            <p className="text-sm text-muted-foreground">
+              No paid plans are available on this deployment.
+            </p>
           )}
         </CardContent>
       </Card>
 
       {/* Credit Usage */}
-      {credits && (
+      {credits && weekEnd && (
         <Card>
           <CardHeader>
             <CardTitle>Weekly Credit Usage</CardTitle>
             <CardDescription>AI credits reset every Monday at 00:00 UTC</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <UsageBar
               creditsUsed={credits.creditsUsed}
               creditsTotal={credits.creditsTotal}
-              weekEnd={weekEnd!}
+              weekEnd={weekEnd}
             />
+            {/* The credit pack has existed server-side since AD-018 with no way to
+                buy it: there was no button anywhere in the product. */}
+            {isOwner && creditPack?.purchasable && (
+              <div className="flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2">
+                <div className="text-sm">
+                  <p className="text-foreground">
+                    Out of credits? Add {formatCredits(creditPack.credits)} more.
+                  </p>
+                  <p className="text-muted-foreground">
+                    Top-up credits don&apos;t expire, and are used only after your weekly allowance
+                    runs out.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => void handleBuyCredits()}>
+                  Buy credits
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

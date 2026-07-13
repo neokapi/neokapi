@@ -20,7 +20,6 @@ const FEATURES = [
   "connectors-custom",
   "api-access",
   "sso-saml",
-  "custom-mt-providers",
 ] as const;
 
 interface FeatureOverrideDialogProps {

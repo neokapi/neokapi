@@ -15,8 +15,13 @@ type Subscription struct {
 	CurrentPeriodStart   time.Time  `json:"current_period_start,omitzero"`
 	CurrentPeriodEnd     time.Time  `json:"current_period_end,omitzero"`
 	CancelAt             *time.Time `json:"cancel_at,omitempty"`
-	CreatedAt            time.Time  `json:"created_at"`
-	UpdatedAt            time.Time  `json:"updated_at"`
+	// TrialEndsAt is set only for the local, card-free Pro trial (SetupTrial):
+	// it is the deadline the TrialSweeper downgrades on. Any Stripe-driven
+	// subscription write clears it — once a real subscription exists, the trial
+	// is over regardless of how much of it was left.
+	TrialEndsAt *time.Time `json:"trial_ends_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // CreditAllocation tracks weekly credit usage for a workspace.
