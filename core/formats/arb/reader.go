@@ -1,11 +1,14 @@
 package arb
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -24,8 +27,208 @@ type Reader struct {
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
 
-// Ensure Reader implements SkeletonStoreEmitter.
-var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+// Ensure Reader implements SkeletonStoreEmitter and StreamingReader.
+var (
+	_ format.SkeletonStoreEmitter = (*Reader)(nil)
+	_ format.StreamingReader      = (*Reader)(nil)
+)
+
+// StreamingReader marks the bounded-memory two-pass path (see readStreaming).
+func (r *Reader) StreamingReader() {}
+
+// scanMetadata is the bounded pass-1 pre-scan: it walks the JSON with a decoder
+// collecting only the (O(messages)) metadata — locale, message key order, and
+// the @<id> descriptions / placeholder hints — without retaining any message
+// value. It mirrors parseCatalog minus the value bodies.
+func scanMetadata(rd io.Reader) (locale string, keyOrder []string, descriptions map[string]string, hints map[string][]placeholderHint, err error) {
+	dec := json.NewDecoder(rd)
+	dec.UseNumber()
+	tok, err := dec.Token()
+	if err != nil {
+		return "", nil, nil, nil, fmt.Errorf("arb: %w", err)
+	}
+	if d, ok := tok.(json.Delim); !ok || d != '{' {
+		return "", nil, nil, nil, fmt.Errorf("arb: expected object at top level, got %v", tok)
+	}
+	descriptions = make(map[string]string)
+	hints = make(map[string][]placeholderHint)
+	seen := make(map[string]bool)
+	for dec.More() {
+		key, e := readKey(dec)
+		if e != nil {
+			return "", nil, nil, nil, e
+		}
+		switch {
+		case key == "@@locale":
+			s, e := readString(dec)
+			if e != nil {
+				return "", nil, nil, nil, fmt.Errorf("arb: @@locale: %w", e)
+			}
+			locale = s
+		case strings.HasPrefix(key, "@@"):
+			if e := skipValue(dec); e != nil {
+				return "", nil, nil, nil, fmt.Errorf("arb: skip %q: %w", key, e)
+			}
+		case strings.HasPrefix(key, "@"):
+			id := key[1:]
+			attrs, e := parseAttributes(dec)
+			if e != nil {
+				return "", nil, nil, nil, fmt.Errorf("arb: %q: %w", key, e)
+			}
+			if attrs.description != "" {
+				descriptions[id] = attrs.description
+			}
+			if len(attrs.placeholders) > 0 {
+				hints[id] = attrs.placeholders
+			}
+		default:
+			// A translatable message: record its order, validate the value is a
+			// string (as parseCatalog does), but do not retain it.
+			if _, e := readString(dec); e != nil {
+				return "", nil, nil, nil, fmt.Errorf("arb: resource %q: %w", key, e)
+			}
+			if !seen[key] {
+				seen[key] = true
+				keyOrder = append(keyOrder, key)
+			}
+		}
+	}
+	return locale, keyOrder, descriptions, hints, nil
+}
+
+// readStreaming runs the bounded two-pass. Returns false (without consuming
+// doc.Reader) for a non-file input so the caller falls back to the buffered
+// walk; true once it has handled the document.
+func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult) bool {
+	f, ferr := os.Open(r.Doc.URI)
+	if ferr != nil {
+		return false
+	}
+	locale, _, descriptions, hints, err := scanMetadata(safeio.DefaultBudget().Reader(f))
+	_ = f.Close()
+	if err != nil {
+		ch <- model.PartResult{Error: err}
+		return true
+	}
+
+	loc := model.LocaleID(locale)
+	if loc.IsEmpty() {
+		loc = r.Doc.SourceLocale
+	}
+	if loc.IsEmpty() {
+		loc = model.LocaleEnglish
+	}
+	layer := &model.Layer{
+		ID:         "doc1",
+		Name:       r.Doc.URI,
+		Format:     "arb",
+		Locale:     loc,
+		Encoding:   r.Doc.Encoding,
+		MimeType:   "application/json",
+		Properties: map[string]string{"arb.locale": locale},
+	}
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
+		return true
+	}
+
+	ss := newStreamScanner(bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader)))
+	if r.streamWalkTop(ctx, ch, ss, loc, descriptions, hints) {
+		r.skelFlush()
+	}
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+	return true
+}
+
+// streamWalkTop walks the flat top-level object from the streaming scanner,
+// mirroring skeletonTop but building and emitting each block inline (from the
+// scanned value + the pass-1 metadata) and standing a ref in for its value.
+// Returns true on success (skeleton should be flushed).
+func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, ss *streamScanner, loc model.LocaleID, descriptions map[string]string, hints map[string][]placeholderHint) bool {
+	tok, err := ss.next()
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("arb: %w", err)}
+		return false
+	}
+	if tok.typ != tokObjectStart {
+		r.skelToken(tok)
+		return true
+	}
+	r.skelToken(tok) // {
+	counter := 0
+	for {
+		tok, err := ss.next()
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("arb: %w", err)}
+			return false
+		}
+		switch tok.typ {
+		case tokEOF:
+			return true
+		case tokObjectEnd:
+			r.skelToken(tok) // }
+			// Trailing whitespace after the top-level object rides on the EOF
+			// token's prefix (mirrors emitSkeleton).
+			if eof, e := ss.next(); e == nil && eof.typ == tokEOF {
+				r.skelText(eof.prefix)
+			}
+			return true
+		case tokComma:
+			r.skelToken(tok)
+		case tokString:
+			key := tok.value
+			r.skelToken(tok) // key
+			colon, cerr := ss.next()
+			if cerr != nil {
+				ch <- model.PartResult{Error: fmt.Errorf("arb: %w", cerr)}
+				return false
+			}
+			r.skelToken(colon) // :
+			val, verr := ss.next()
+			if verr != nil {
+				ch <- model.PartResult{Error: fmt.Errorf("arb: %w", verr)}
+				return false
+			}
+			if !strings.HasPrefix(key, "@") && val.typ == tokString {
+				counter++
+				res := &resource{id: key, value: val.value, description: descriptions[key], placeholders: hints[key]}
+				block := r.blockFor(res, loc, counter)
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return false
+				}
+				r.skelText(val.prefix)
+				r.skelRef(block.ID)
+			} else {
+				// "@<id>" / "@@<global>" / unexpected — copy the value verbatim.
+				r.copyValueStream(ss, val)
+			}
+		default:
+			r.skelToken(tok)
+		}
+	}
+}
+
+// copyValueStream copies a value whose first token has already been read to the
+// skeleton verbatim; for an object/array it consumes the balanced remainder.
+func (r *Reader) copyValueStream(ss *streamScanner, first token) {
+	r.skelToken(first)
+	if first.typ != tokObjectStart && first.typ != tokArrayStart {
+		return
+	}
+	depth := 1
+	for depth > 0 {
+		t, err := ss.next()
+		if err != nil || t.typ == tokEOF {
+			return
+		}
+		r.skelToken(t)
+		switch t.typ {
+		case tokObjectStart, tokArrayStart:
+			depth++
+		case tokObjectEnd, tokArrayEnd:
+			depth--
+		}
+	}
+}
 
 // NewReader creates a new ARB reader.
 func NewReader() *Reader {
@@ -113,6 +316,16 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
+	// Streaming path: a same-format skeleton round-trip with validation off over
+	// a re-openable file. It reads via the streaming scanner, so it never holds
+	// the whole document or the message values — only the (O(messages)) metadata
+	// the pre-scan collects.
+	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
+		if r.readStreaming(ctx, ch) {
+			return
+		}
+	}
+
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
 	// across CLI/server/WASM — see core/safeio).

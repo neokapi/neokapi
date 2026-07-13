@@ -29,6 +29,14 @@ type Writer struct {
 // Ensure Writer implements SkeletonStoreConsumer.
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
+// Ensure Writer satisfies StreamingWriter: paired with the streaming reader it
+// consumes a streaming skeleton store interleaved with the Part stream, pulling
+// each block on demand, so the writer side is bounded too.
+var _ format.StreamingWriter = (*Writer)(nil)
+
+// StreamingWriter marks the bounded-memory interleaved write path.
+func (w *Writer) StreamingWriter() {}
+
 // NewWriter creates a new ARB writer.
 func NewWriter() *Writer {
 	cfg := &Config{}
@@ -53,6 +61,20 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 
 // Write consumes Parts and writes the reconstructed ARB document.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	// Streaming skeleton round-trip: interleave skeleton consumption with the
+	// Part stream, pulling each message block on demand rather than buffering the
+	// whole block map. Each value ref renders the block via the same
+	// encodeJSONString(blockValue) the buffered writeFromSkeleton uses.
+	if w.skeletonStore != nil && w.skeletonStore.IsStreaming() {
+		return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output,
+			func(block *model.Block) ([]byte, error) {
+				if block == nil {
+					return []byte(encodeJSONString("")), nil
+				}
+				return []byte(encodeJSONString(w.blockValue(block))), nil
+			}, nil)
+	}
+
 	var original []byte
 	var layerLocale string
 	repl := newReplacements()
