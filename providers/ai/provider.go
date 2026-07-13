@@ -47,17 +47,47 @@ type JSONSchema struct {
 	Strict      bool           `json:"strict,omitempty"`
 }
 
+// Message roles. A prompt declares roles semantically; each provider is
+// responsible for transporting them the way its API expects — Anthropic lifts
+// system into a top-level parameter, Claude Code passes it as
+// --append-system-prompt, OpenAI carries it as an ordinary message. Callers
+// never adapt to the provider.
+const (
+	RoleSystem    = "system"
+	RoleUser      = "user"
+	RoleAssistant = "assistant"
+)
+
 // Message represents a chat message. Content is an ordered list of parts so one
 // message can mix text with image/audio/video — a text-only message is a single
 // text part (see TextMessage).
 type Message struct {
-	Role  string        `json:"role"` // "system", "user", "assistant"
+	Role  string        `json:"role"` // RoleSystem, RoleUser, RoleAssistant
 	Parts []ContentPart `json:"parts"`
 }
 
 // TextMessage builds a text-only message — the common case.
 func TextMessage(role, text string) Message {
 	return Message{Role: role, Parts: []ContentPart{TextPart(text)}}
+}
+
+// SplitSystem separates system-role messages from the rest of the conversation,
+// joining their text with blank lines. Providers whose API carries system
+// instructions out-of-band use this so a "system" role never leaks into the
+// message list — Anthropic rejects such a message outright.
+func SplitSystem(messages []Message) (system string, rest []Message) {
+	var sys []string
+	rest = make([]Message, 0, len(messages))
+	for _, m := range messages {
+		if m.Role == RoleSystem {
+			if t := strings.TrimSpace(m.Text()); t != "" {
+				sys = append(sys, t)
+			}
+			continue
+		}
+		rest = append(rest, m)
+	}
+	return strings.Join(sys, "\n\n"), rest
 }
 
 // Text returns the concatenated text of the message's text parts (media parts
