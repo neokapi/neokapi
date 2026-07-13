@@ -133,9 +133,18 @@ func runWorker(dbURL string) error {
 		return fmt.Errorf("open PostgreSQL quota store: %w", err)
 	}
 
+	// The queue backend is selected the same way as the server (SQS first, then
+	// Service Bus, then NATS, then in-process) so both agree on the broker.
+	sqsOpts := jobs.SQSOptionsFromEnv()
+
 	// Set up translation job queue.
 	var translationQueue jobs.Queue
 	switch {
+	case jobs.SQSConfigured():
+		translationQueue, err = jobs.NewSQSQueue(ctx, sqsOpts, jobs.SQSTranslationQueue)
+		if err != nil {
+			return fmt.Errorf("connect to SQS (translation): %w", err)
+		}
 	case serviceBusConn != "":
 		translationQueue, err = jobs.NewServiceBusQueue(ctx, serviceBusConn, "translation-jobs")
 		if err != nil {
@@ -156,6 +165,11 @@ func runWorker(dbURL string) error {
 	// consumes. Mirrors the translation queue selection exactly.
 	var extractionQueue jobs.Queue
 	switch {
+	case jobs.SQSConfigured():
+		extractionQueue, err = jobs.NewSQSQueue(ctx, sqsOpts, jobs.SQSExtractionQueue)
+		if err != nil {
+			return fmt.Errorf("connect to SQS (extraction): %w", err)
+		}
 	case serviceBusConn != "":
 		extractionQueue, err = jobs.NewServiceBusQueue(ctx, serviceBusConn, "extraction-jobs")
 		if err != nil {
@@ -176,6 +190,11 @@ func runWorker(dbURL string) error {
 	// extraction queue selection exactly.
 	var brandScanQueue jobs.Queue
 	switch {
+	case jobs.SQSConfigured():
+		brandScanQueue, err = jobs.NewSQSQueue(ctx, sqsOpts, jobs.SQSBrandScanQueue)
+		if err != nil {
+			return fmt.Errorf("connect to SQS (brand scan): %w", err)
+		}
 	case serviceBusConn != "":
 		brandScanQueue, err = jobs.NewServiceBusQueue(ctx, serviceBusConn, "brand-scan-jobs")
 		if err != nil {
