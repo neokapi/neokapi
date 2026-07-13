@@ -62,11 +62,15 @@ type AITranslateConfig struct {
 	APIKey       string            `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	Model        string            `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
 	Glossary     map[string]string `json:"glossary,omitempty"     schema:"-"`
-	// Instruction is an optional caller-supplied directive applied while
-	// translating (rendered into the prompt via TranslateRequest.Directives) —
-	// e.g. a reviewer's re-translation guidance or the findings a fix pass must
-	// resolve. Programmatic (review AI actions); not a CLI flag.
-	Instruction string `json:"instruction,omitempty" schema:"-"`
+	// Instruction is a directive applied while translating, rendered into the
+	// prompt's Instruction section. It is the supported way to steer a
+	// translation without replacing the prompt: "Informal register", "keep
+	// product names in English". Also set programmatically — a reviewer's
+	// re-translation guidance, or the findings a fix pass must resolve.
+	//
+	// It feeds aiConfigFingerprint, so changing it re-translates rather than
+	// serving a cached target produced under different guidance.
+	Instruction string `json:"instruction,omitempty" schema:"title=Instruction,description=Extra guidance for the model while translating (e.g. 'informal register; keep product names in English'),widget=textarea,group=prompt"`
 	// Profile is an optional brand voice profile. When set, its guidance is
 	// injected into the translation prompt so output is on-brand at generation
 	// time. Not serializable via the schema/CLI; supplied programmatically or

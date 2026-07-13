@@ -130,6 +130,7 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	cmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
 	cmd.Flags().String("api-key", "", "API key for the AI provider")
 	cmd.Flags().String("model", "", "AI model name")
+	cmd.Flags().String("instruction", "", "extra guidance for the model while translating (e.g. \"informal register; keep product names in English\")")
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
 	cmd.Flags().Bool("pack", false, "when transforming a .klz, also eject the result to the .klz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
@@ -1059,6 +1060,12 @@ func (a *App) buildFlowTools(flowName string, cmd ...Command) ([]tool.Tool, func
 		}
 		if v, _ := cmd[0].Flags().GetString("model"); v != "" {
 			config["model"] = v
+		}
+		// --instruction steers the translation without replacing the prompt: it
+		// is rendered into the prompt's Instruction section. Tools that don't
+		// recognise the key ignore it.
+		if v, _ := cmd[0].Flags().GetString("instruction"); v != "" {
+			config["instruction"] = v
 		}
 	}
 
