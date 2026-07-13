@@ -11,10 +11,11 @@
 #   └──────────┘   push / pull       └────────────────┘   ▼
 #                                        ▲ events    ┌────────────────┐
 #                                        └────────── │ bowrain-worker │ ── upstream
-#                                          (NATS)    │  ingest + xlate │   (Gemini/…)
+#                                         (Redis)    │  ingest + xlate │   (Gemini/…)
 #                                                    └────────────────┘
-#   Jobs run on SQS (ElasticMQ), events on NATS, and push payloads/blobs in S3
-#   (MinIO) — the same managed-service code paths the AWS deployment uses.
+#   Jobs run on SQS (ElasticMQ), events on Redis Streams, and push payloads/blobs
+#   in S3 (MinIO) — the same managed-service code paths the AWS deployment uses.
+#   (NATS is gone: SQS + Redis replace it, so the box holds no queue broker.)
 #
 # Usage:
 #   cp .env.example .env            # optional: set GEMINI_API_KEY etc.
@@ -115,15 +116,6 @@ services:
       - "8025:8025"
       - "1025:1025"
 
-  nats:
-    image: nats:2-alpine
-    command: ["--jetstream", "--store_dir", "/data"]
-    ports:
-      - "4222:4222"
-      - "8222:8222"
-    volumes:
-      - nats-data:/data
-
   redis:
     image: redis:7-alpine
     ports:
@@ -168,8 +160,8 @@ services:
   # ── Job queue (SQS-compatible; mirrors Amazon SQS in production) ─────────────
   # The server enqueues and the worker consumes through the same sqsqueue code
   # path as against real SQS. ElasticMQ is the standard fully-open SQS emulator
-  # (no license). (NATS still carries the event bus until the SNS migration; the
-  # two are independent.)
+  # (no license). The event bus runs on Redis Streams (separate concern), so with
+  # jobs on SQS there is no NATS in the stack at all.
   elasticmq:
     image: softwaremill/elasticmq-native:latest
     ports:
@@ -222,8 +214,9 @@ services:
       # server runs fine without it (admin API simply stays disabled).
       BOWRAIN_SMTP_HOST: mailpit:1025
       BOWRAIN_SMTP_FROM: noreply@bowrain.local
-      BOWRAIN_NATS_URL: nats://nats:4222
       BOWRAIN_REDIS_URL: redis://redis:6379
+      # Event bus on Redis Streams (ElastiCache in prod) — no separate broker.
+      BOWRAIN_EVENT_BACKEND: redis
       # Object storage via MinIO (S3-compatible) — identical s3blob code path to
       # Amazon S3 in production. S3_PUBLIC_ENDPOINT is the host the browser uses,
       # so pre-signed URLs the server mints still resolve client-side.
@@ -252,8 +245,6 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
-      nats:
-        condition: service_started
       redis:
         condition: service_healthy
       mailpit:
@@ -275,8 +266,9 @@ services:
       dockerfile: bowrain/docker/bowrain-worker/Dockerfile
     environment:
       BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain?sslmode=disable
-      BOWRAIN_NATS_URL: nats://nats:4222
       BOWRAIN_REDIS_URL: redis://redis:6379
+      # Event bus on Redis Streams (ElastiCache in prod) — no separate broker.
+      BOWRAIN_EVENT_BACKEND: redis
       # Object storage via MinIO — same bucket and s3blob code path as the server,
       # so both read/write the same push payloads through S3, not a shared disk.
       BLOB_STORAGE_BACKEND: s3
@@ -307,8 +299,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      nats:
-        condition: service_started
+      redis:
+        condition: service_healthy
       minio-init:
         condition: service_completed_successfully
       sqs-init:
@@ -335,7 +327,6 @@ services:
 
 volumes:
   postgres-data:
-  nats-data:
   blob-data:
   minio-data:
   web-dist:
