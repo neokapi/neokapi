@@ -72,9 +72,17 @@ steps:
 Switching providers — `anthropic` to `ollama`, or vice versa — is a
 configuration change; the surrounding steps are unchanged.
 
-## Prompt engineering
+## Prompts
 
-Prompt templates in `core/ai/prompt/` are context-aware: they include
-surrounding blocks, glossary constraints,
-[TM matches](/framework/translation-memory), and format metadata. Templates are
-centralized for tuning.
+Every prompt kapi sends is built in `core/ai/prompt/`, composed from framework
+rules (return only the translation; preserve placeholders and inline tags) plus
+the steering your project declares — an instruction, a
+[brand voice profile](/framework/checks/brand-voice), and a
+[termbase](/framework/terminology). The prompt is the same for every provider;
+only the transport differs.
+
+You do not have to take that on trust: `--explain-prompts` prints the exact text
+sent to the model, attributed section by section. See [Prompts](/framework/prompts).
+
+[TM matches](/framework/translation-memory) are *not* part of the prompt —
+recycling is a separate deterministic step that runs before translation.

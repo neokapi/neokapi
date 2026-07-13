@@ -1,0 +1,262 @@
+---
+sidebar_position: 16
+title: Prompts
+description: What kapi sends to a language model on your behalf — how a prompt is composed from framework rules, your brand voice, and your glossary; how to see the exact text with --explain-prompts; and how to steer it without replacing it.
+keywords:
+  [
+    prompt,
+    LLM,
+    explain,
+    brand voice,
+    glossary,
+    instruction,
+    determinism,
+    Anthropic,
+    OpenAI,
+    Ollama,
+  ]
+---
+
+import { LanesDiagram, SwimlaneDiagram } from "@neokapi/docs-shared";
+import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+
+# Prompts
+
+When kapi translates a string, it sends a prompt to a language model on your
+behalf. This page says exactly what is in that prompt, where each part came
+from, and how to see it for yourself.
+
+Nothing here is inferred from documentation. Every prompt kapi ships can be
+printed, on demand, from the binary you are running.
+
+## Show me
+
+Add `--explain-prompts` to any command that reaches a model. It prints every
+call the run made: the prompt, the provider, the model, the reply, and the
+tokens spent.
+
+```bash
+kapi translate messages.json --target-lang fr --explain-prompts
+```
+
+Pair it with `--provider demo` — the built-in offline stub — to see the prompt a
+paid provider _would_ receive, with no API key, no network, and no spend:
+
+<RunnableSnippet
+  cmd="kapi translate messages.json --source-lang en --target-lang fr --provider demo --explain-prompts"
+  seed={["messages.json"]}
+  editable
+/>
+
+The output attributes every block of the prompt to the thing that produced it:
+
+```text
+─── LLM call 1/1 ─────────────────────────────────
+prompt:   translate.single (v2)
+provider: anthropic  model: claude-sonnet-4-20250514
+
+  ── system ──
+  [task · framework]
+  You are a software localization specialist. Translate the user's text from
+  en to fr. Return ONLY the translation, with no explanation, preamble or quoting.
+
+  [constraint · framework]
+  Preserve placeholders such as {0}, %s and {{name}} exactly.
+
+  [instruction · --instruction / recipe]
+  Instruction (apply when translating):
+  Informal register. Keep product names in English.
+
+  [glossary · termbase (12 terms)]
+  Glossary:
+  - utilize → use
+
+  ── user ──
+  [content · source block]
+  Save
+```
+
+`--explain-prompts=<path>` writes the same calls to a file as JSON, so a prompt
+can be diffed between runs or attached to a bug report.
+
+:::note
+`--explain-prompts` is not the same flag as `--explain`, which reports a flow's
+resolved source → sink bindings and does not run.
+:::
+
+## A prompt is composed, not written
+
+A kapi prompt is not a chat message. It is a document assembled from sections
+that have **different owners**, and the distinction is the whole design:
+
+<LanesDiagram
+  lanes={[
+    {
+      title: "Framework",
+      sub: "not configurable",
+      role: "io",
+      steps: [
+        "task — translate from X to Y, return only the translation",
+        "constraint — preserve placeholders",
+        "constraint — reproduce every inline tag exactly",
+      ],
+    },
+    {
+      title: "Your project",
+      sub: "the steering surface",
+      role: "translate",
+      steps: [
+        "instruction — from --instruction or the recipe",
+        "brand voice — from your voice profile",
+        "glossary — from your termbase",
+      ],
+    },
+    {
+      title: "Your document",
+      sub: "data, never instruction",
+      role: "annotate",
+      steps: ["content — the source block, and nothing else"],
+    },
+  ]}
+  handoff="one prompt"
+  caption="The sections of a kapi prompt, and who owns each."
+/>
+
+**The framework owns the task and the constraints.** A translation that drops a
+placeholder or mangles an inline tag cannot be written back into the source
+file — it breaks the round-trip that makes kapi useful at all. These rules are
+not a configuration surface, and there is no flag to remove them.
+
+**Your project owns the steering.** The instruction, the brand voice and the
+glossary are what make the output _yours_ rather than merely correct. They are
+declared in the recipe, the [brand voice profile](/framework/checks/brand-voice)
+and the [termbase](/framework/terminology) — never typed into a prompt.
+
+**Your document owns the content.** The source text is the entire user turn. It
+is data, never instruction.
+
+## Steering the model
+
+The supported way to change what the model does is to add to the steering
+sections — not to replace the prompt.
+
+| You want                              | You set                                                |
+| ------------------------------------- | ------------------------------------------------------ |
+| A one-off directive for this run      | `--instruction "informal register"`                    |
+| A standing directive for the project  | `defaults.tools.translate.instruction` in the recipe   |
+| Consistent tone and phrasing          | A [brand voice profile](/framework/checks/brand-voice) |
+| Specific terms translated a fixed way | A [termbase](/framework/terminology)                   |
+
+```yaml title="myapp.kapi"
+defaults:
+  source_language: en
+  target_languages: [fr, de]
+  brand_voice:
+    profile_file: l10n/brand-voice.yaml
+  termbase: .kapi/termbase.db
+  tools:
+    translate:
+      instruction: "Informal register. Keep product names in English."
+```
+
+Everything in that recipe is visible in the prompt, and `--explain-prompts` will
+show you which section each line landed in. If a glossary term is not reaching
+the model, this is how you find out.
+
+## Prompts are provider-neutral
+
+kapi does not keep a different prompt per vendor. A prompt declares its turns
+semantically — a system turn and a user turn — and each provider is responsible
+for carrying them the way its API expects.
+
+<SwimlaneDiagram
+  actors={[
+    { label: "core/ai/prompt", sub: "one prompt", role: "translate" },
+    { label: "Provider", sub: "transport", role: "tool" },
+    { label: "Vendor API", sub: "anthropic / openai / …", role: "io" },
+  ]}
+  messages={[
+    {
+      from: 0,
+      to: 1,
+      label: "system + user turns",
+      detail: "identical text for every provider",
+    },
+    {
+      from: 1,
+      to: 2,
+      label: "vendor-shaped request",
+      detail:
+        "Anthropic: top-level system param · OpenAI: a system message · Gemini: folded into the first user turn",
+    },
+    { from: 2, to: 1, label: "completion" },
+    { from: 1, to: 0, label: "text or structured JSON" },
+  ]}
+  caption="One prompt, many transports. The wording does not branch on the vendor."
+/>
+
+What genuinely differs between providers is **capability, not wording**: how
+structured output is requested, whether images are accepted, how a system
+instruction is carried, and a sane batch size. That variance lives behind the
+provider interface, where it belongs. Switching `--provider anthropic` to
+`--provider ollama` changes the transport and the model — not the instructions.
+
+## Determinism, and why it matters for cost
+
+The same inputs always render byte-identical prompt text. Glossary terms are
+sorted rather than emitted in map order, and no timestamp, run id or machine
+detail is ever interpolated.
+
+This is not tidiness. kapi caches translations, and the cache key is derived
+**from the text the prompt actually renders**. Change your instruction, your
+brand voice, your glossary, or the prompt itself, and the fingerprint moves, so
+the affected strings are re-translated instead of served from a cache that a
+different prompt produced. Change nothing, and nothing is re-bought.
+
+## What kapi does not send
+
+Worth stating plainly, because prompts are easy to imagine bigger than they are:
+
+- **No translation memory matches.** TM reuse is a separate, deterministic step
+  (`recycle`) that runs _before_ translate and fills what it can. Matches are
+  not offered to the model as examples.
+- **No surrounding blocks.** Each block is translated on its own, or numbered in
+  a batch. There is no rolling document context.
+- **No telemetry.** kapi sends your content to the provider _you_ configured, and
+  nowhere else.
+
+## The prompts kapi ships
+
+Every LLM call kapi makes carries a prompt id, so it can be named in
+`--explain-prompts` and cited in a bug report:
+
+| Prompt             | Sent by                                  |
+| ------------------ | ---------------------------------------- |
+| `translate.single` | `translate`, one block at a time         |
+| `translate.batch`  | `translate`, several blocks in one call  |
+| `brand.check`      | `brand-voice-check`                      |
+| `brand.infer`      | `brand-voice-infer` (drafting a profile) |
+| `entity.extract`   | `entity-extract`                         |
+| `term.extract`     | `term-extract`                           |
+| `quality.check`    | `qa`, in AI mode                         |
+| `review`           | `review`                                 |
+| `media.refine`     | `media-refine` (OCR/ASR re-read)         |
+| `segment`          | `segment`, with the LLM engine           |
+
+If a call ever appears in `--explain-prompts` without an id, that is a bug —
+report it. An unlabelled call is an undocumented use of your content.
+
+## Watch a prompt get built
+
+Rather than take the sections above on trust, build one up a layer at a time and
+read the real output at each step. This runs kapi in your browser — the same
+binary, the offline demo provider, no key and no network.
+
+<KapiGuidedEmbed id="kapi-explain-prompts" />
+
+Start bare and you get the framework's two sections plus your content. Add
+`--instruction` and a steering section appears, attributed to the flag. Translate
+a block that carries inline markup and the tag-fidelity constraint appears —
+which a plain string never sees, because constraints are earned rather than
+constant.
