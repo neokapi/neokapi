@@ -1,12 +1,16 @@
 package xcstrings
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
+	"strings"
 	"unsafe"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -22,8 +26,289 @@ type Reader struct {
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
 
-// Ensure Reader implements SkeletonStoreEmitter.
-var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+// Ensure Reader implements SkeletonStoreEmitter and StreamingReader.
+var (
+	_ format.SkeletonStoreEmitter = (*Reader)(nil)
+	_ format.StreamingReader      = (*Reader)(nil)
+)
+
+// StreamingReader marks the bounded-memory per-entry streaming path.
+func (r *Reader) StreamingReader() {}
+
+// scanHeader is the bounded pass-1 pre-scan: it reads only the top-level
+// sourceLanguage and version fields (needed for the layer, which is emitted
+// before the entries — and version can appear after "strings"), skipping the
+// "strings" body.
+func scanHeader(rd io.Reader) (sourceLanguage, version string, err error) {
+	dec := json.NewDecoder(rd)
+	tok, err := dec.Token()
+	if err != nil {
+		return "", "", fmt.Errorf("xcstrings: %w", err)
+	}
+	if d, ok := tok.(json.Delim); !ok || d != '{' {
+		return "", "", errors.New("xcstrings: expected object at top level")
+	}
+	for dec.More() {
+		key, e := readKey(dec)
+		if e != nil {
+			return "", "", e
+		}
+		switch key {
+		case "sourceLanguage":
+			if sourceLanguage, e = readString(dec); e != nil {
+				return "", "", e
+			}
+		case "version":
+			if version, e = readString(dec); e != nil {
+				return "", "", e
+			}
+		default:
+			if e := skipValue(dec); e != nil {
+				return "", "", e
+			}
+		}
+	}
+	return sourceLanguage, version, nil
+}
+
+// readStreaming runs the bounded per-entry streaming walk. Returns false
+// (without consuming doc.Reader) for a non-file input so the caller falls back
+// to the buffered walk; true once it has handled the document.
+func (r *Reader) readStreaming(ctx context.Context, ch chan<- model.PartResult) bool {
+	f, ferr := os.Open(r.Doc.URI)
+	if ferr != nil {
+		return false
+	}
+	sourceLanguage, version, err := scanHeader(safeio.DefaultBudget().Reader(f))
+	_ = f.Close()
+	if err != nil {
+		ch <- model.PartResult{Error: err}
+		return true
+	}
+
+	srcLocale := model.LocaleID(sourceLanguage)
+	if srcLocale.IsEmpty() {
+		srcLocale = r.Doc.SourceLocale
+	}
+	if srcLocale.IsEmpty() {
+		srcLocale = model.LocaleEnglish
+	}
+	layer := &model.Layer{
+		ID:             "doc1",
+		Name:           r.Doc.URI,
+		Format:         "xcstrings",
+		Locale:         srcLocale,
+		Encoding:       r.Doc.Encoding,
+		MimeType:       "application/json",
+		IsMultilingual: true,
+		Properties: map[string]string{
+			"xcstrings.sourceLanguage": sourceLanguage,
+			"xcstrings.version":        version,
+		},
+	}
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
+		return true
+	}
+
+	ss := newStreamScanner(bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader)))
+	r.streamWalkTop(ctx, ch, ss, sourceLanguage, srcLocale)
+	r.skelFlush()
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+	return true
+}
+
+// streamWalkTop walks the top-level object from the streaming scanner, emitting
+// non-"strings" structure verbatim to the skeleton and processing each entry of
+// "strings" one at a time (buffered as a bounded token slice).
+func (r *Reader) streamWalkTop(ctx context.Context, ch chan<- model.PartResult, ss *streamScanner, srcLang string, srcLocale model.LocaleID) {
+	first, err := ss.next()
+	if err != nil || first.typ != tokObjectStart {
+		r.skelToken(first)
+		return
+	}
+	r.skelToken(first) // {
+	counter := 0
+	noteCounter := 0
+	for {
+		tok, err := ss.next()
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("xcstrings: %w", err)}
+			return
+		}
+		switch tok.typ {
+		case tokEOF:
+			return
+		case tokObjectEnd:
+			r.skelToken(tok) // }
+			if eof, e := ss.next(); e == nil && eof.typ == tokEOF {
+				r.skelText(eof.prefix)
+			}
+			return
+		case tokComma:
+			r.skelToken(tok)
+		case tokString:
+			field := tok.value
+			r.skelToken(tok) // field key
+			colon, cerr := ss.next()
+			if cerr != nil {
+				ch <- model.PartResult{Error: fmt.Errorf("xcstrings: %w", cerr)}
+				return
+			}
+			r.skelToken(colon)
+			if field == "strings" {
+				r.streamWalkStrings(ctx, ch, ss, srcLang, srcLocale, &counter, &noteCounter)
+			} else {
+				val, verr := ss.next()
+				if verr != nil {
+					ch <- model.PartResult{Error: fmt.Errorf("xcstrings: %w", verr)}
+					return
+				}
+				r.copyValueStream(ss, val)
+			}
+		default:
+			r.skelToken(tok)
+		}
+	}
+}
+
+// streamWalkStrings walks the "strings" object, buffering and processing each
+// entry independently so memory stays bounded to one entry.
+func (r *Reader) streamWalkStrings(ctx context.Context, ch chan<- model.PartResult, ss *streamScanner, srcLang string, srcLocale model.LocaleID, counter, noteCounter *int) {
+	open, err := ss.next()
+	if err != nil || open.typ != tokObjectStart {
+		r.copyValueStream(ss, open)
+		return
+	}
+	r.skelToken(open) // {
+	for {
+		tok, err := ss.next()
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("xcstrings: %w", err)}
+			return
+		}
+		switch tok.typ {
+		case tokEOF, tokObjectEnd:
+			r.skelToken(tok) // }
+			return
+		case tokComma:
+			r.skelToken(tok)
+		case tokString:
+			keyTok := tok
+			colon, cerr := ss.next()
+			if cerr != nil {
+				ch <- model.PartResult{Error: fmt.Errorf("xcstrings: %w", cerr)}
+				return
+			}
+			// Buffer the entry's value object as a bounded token slice.
+			entryToks, berr := bufferValue(ss)
+			if berr != nil {
+				ch <- model.PartResult{Error: fmt.Errorf("xcstrings: %w", berr)}
+				return
+			}
+			if !r.processEntry(ctx, ch, keyTok, colon, entryToks, srcLang, srcLocale, counter, noteCounter) {
+				return
+			}
+		default:
+			r.skelToken(tok)
+		}
+	}
+}
+
+// bufferValue reads a complete JSON value (the next token and, for an
+// object/array, its balanced remainder) into a token slice.
+func bufferValue(ss *streamScanner) ([]token, error) {
+	first, err := ss.next()
+	if err != nil {
+		return nil, err
+	}
+	toks := []token{first}
+	if first.typ != tokObjectStart && first.typ != tokArrayStart {
+		return toks, nil
+	}
+	depth := 1
+	for depth > 0 {
+		t, err := ss.next()
+		if err != nil {
+			return toks, err
+		}
+		if t.typ == tokEOF {
+			return toks, nil
+		}
+		toks = append(toks, t)
+		switch t.typ {
+		case tokObjectStart, tokArrayStart:
+			depth++
+		case tokObjectEnd, tokArrayEnd:
+			depth--
+		}
+	}
+	return toks, nil
+}
+
+// processEntry emits one entry: it emits the key + colon verbatim to the
+// skeleton, reconstructs a minimal single-entry catalog to parse the entry,
+// emits the entry's blocks (emitEntry / emitCommentFallback, in lockstep with
+// the block counter), and runs the slice-based skelWalker over the buffered
+// entry tokens to emit its byte-exact skeleton (with the same counter).
+func (r *Reader) processEntry(ctx context.Context, ch chan<- model.PartResult, keyTok, colon token, entryToks []token, srcLang string, srcLocale model.LocaleID, counter, noteCounter *int) bool {
+	r.skelToken(keyTok)
+	r.skelToken(colon)
+
+	// Reconstruct `{"sourceLanguage":<src>,"strings":{<key>:<entryobj>}}` and
+	// parse it to reuse the entry model exactly.
+	var b strings.Builder
+	b.WriteString(`{"sourceLanguage":`)
+	b.WriteString(strconv.Quote(srcLang))
+	b.WriteString(`,"strings":{`)
+	b.WriteString(keyTok.raw)
+	b.WriteString(`:`)
+	for _, t := range entryToks {
+		b.WriteString(t.raw)
+	}
+	b.WriteString(`}}`)
+	entryKey := keyTok.value
+
+	before := *counter
+	cat, err := parseCatalog([]byte(b.String()))
+	if err == nil {
+		if e, ok := cat.entries[entryKey]; ok {
+			if e.ExtractionState == "stale" && !r.cfg.ExtractStale {
+				r.emitCommentFallback(ctx, ch, entryKey, e, srcLocale, noteCounter)
+			} else {
+				r.emitEntry(ctx, ch, cat, entryKey, e, srcLocale, counter, noteCounter)
+			}
+		}
+	}
+
+	// Emit the entry's byte-exact skeleton with the slice-based walker, seeded
+	// with the block counter so its Refs line up with the blocks just emitted.
+	sw := &skelWalker{r: r, tokens: entryToks, counter: before}
+	sw.walkEntry(entryKey)
+	return true
+}
+
+// copyValueStream copies a value whose first token has already been read to the
+// skeleton verbatim; for an object/array it consumes the balanced remainder.
+func (r *Reader) copyValueStream(ss *streamScanner, first token) {
+	r.skelToken(first)
+	if first.typ != tokObjectStart && first.typ != tokArrayStart {
+		return
+	}
+	depth := 1
+	for depth > 0 {
+		t, err := ss.next()
+		if err != nil || t.typ == tokEOF {
+			return
+		}
+		r.skelToken(t)
+		switch t.typ {
+		case tokObjectStart, tokArrayStart:
+			depth++
+		case tokObjectEnd, tokArrayEnd:
+			depth--
+		}
+	}
+}
 
 // NewReader creates a new Apple String Catalog reader.
 func NewReader() *Reader {
@@ -117,6 +402,16 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
+	// Streaming path: a same-format skeleton round-trip with validation off over
+	// a re-openable file. Entries are processed one at a time (buffered as a
+	// bounded token slice), so the reader never holds the whole document or the
+	// full parsed catalog — only the tiny header (sourceLanguage/version).
+	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
+		if r.readStreaming(ctx, ch) {
+			return
+		}
+	}
+
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
 	// across CLI/server/WASM — see core/safeio).
