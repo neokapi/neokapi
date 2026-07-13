@@ -1,0 +1,241 @@
+{
+  "generatedAt": "2026-07-13T16:31:50Z",
+  "version": "v2",
+  "prompts": [
+    {
+      "id": "translate.single",
+      "tool": "translate",
+      "summary": "Translate one block. Carries the placeholder rule, plus the inline-tag rule when the block has markup.",
+      "structured": true,
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You are a software localization specialist. Translate the user's text from en to fr. Return ONLY the translation, with no explanation, preamble or quoting."
+            },
+            {
+              "kind": "constraint",
+              "origin": "framework",
+              "text": "Preserve placeholders such as {0}, %s and {{name}} exactly."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "source block",
+              "text": "\u003cyour content\u003e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "translate.batch",
+      "tool": "translate",
+      "summary": "Translate several blocks in one call, numbered so the structured reply maps back by index.",
+      "structured": true,
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You are a software localization specialist. Translate each numbered segment from en to fr. Return a translation for every segment, keyed by its number."
+            },
+            {
+              "kind": "constraint",
+              "origin": "framework",
+              "text": "Preserve placeholders such as {0}, %s and {{name}} exactly."
+            },
+            {
+              "kind": "constraint",
+              "origin": "framework (block has inline codes)",
+              "text": "The text contains XML tags. Reproduce every tag exactly as it appears — do not modify, reorder, add or remove any tag — and place each one where it belongs in the target language."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "source blocks (2)",
+              "text": "[1] \u003cblock 1\u003e\n[2] \u003cblock 2\u003e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "brand.check",
+      "tool": "brand-voice-check",
+      "summary": "Score text against a brand voice profile and report tone, style and compliance issues.",
+      "structured": true,
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You are a brand voice compliance checker. Analyze the user's text against the brand voice guidelines and report any issues with tone, style, clarity, or brand compliance. Return an empty findings array if the text fully complies."
+            },
+            {
+              "kind": "voice",
+              "origin": "brand voice profile",
+              "heading": "Brand voice guidelines:",
+              "text": "\u003cyour brand voice profile\u003e"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "text to check",
+              "text": "\u003cyour content\u003e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "brand.infer",
+      "tool": "brand-voice-infer",
+      "summary": "Draft a brand voice profile from a corpus of your existing content.",
+      "structured": true,
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You are a brand voice analyst. Study the corpus below and infer a draft brand voice profile. Ground every rule in evidence from the text; do not invent rules the corpus does not support.\n\nReport:\n- tone: personality traits, formality (casual|neutral|formal|technical), emotion, humor (none|light|frequent), and short guidelines\n- style: active_voice, sentence_length (short|medium|varied), person_pov (first_plural|second|third), contractions (always|sometimes|never), and any patterns the corpus consistently avoids (as prohibited patterns)\n- vocabulary: preferred, forbidden, and competitor terms (term, replacement, note); leave lists empty when the corpus shows no evidence\n- examples: up to 3 before/after pairs (before = off-voice, after = on-voice, with an explanation)\n- evidence: for each of tone, style, vocabulary, and examples, a confidence between 0 and 1 and a short source note citing the corpus evidence"
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "content corpus",
+              "text": "Corpus:\n\u003cyour content corpus\u003e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "quality.check",
+      "tool": "qa (AI mode)",
+      "summary": "Find quality issues in a finished translation.",
+      "structured": true,
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You are a translation quality reviewer. Analyze the user's translation for quality issues. Check for: terminology, fluency, accuracy. Return all issues found, or an empty array if none."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "source and translation",
+              "text": "Source (en): \u003cyour content\u003e\nTranslation (fr): \u003cthe translation\u003e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review",
+      "tool": "review",
+      "summary": "Score a translation 0-100 and report findings by severity.",
+      "structured": true,
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You are a translation reviewer. Review the user's translation for accuracy and fluency.\n\nRespond with ONLY a JSON object in this exact shape, no other text:\n{\"score\": \u003coverall quality 0-100\u003e, \"findings\": [{\"severity\": \"critical|major|minor|info\", \"message\": \"\u003cissue\u003e\", \"suggestion\": \"\u003cimproved translation or fix, optional\u003e\"}]}\nReturn an empty findings array when the translation has no issues."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "source and translation",
+              "text": "Source (en): \u003cyour content\u003e\nTranslation (fr): \u003cthe translation\u003e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "term.extract",
+      "tool": "term-extract",
+      "summary": "Propose terminology candidates from source content.",
+      "structured": true,
+      "turns": [
+        {
+          "role": "system",
+          "sections": [
+            {
+              "kind": "task",
+              "origin": "framework",
+              "text": "You are a terminologist. Extract key terminology from the user's en text. Return notable terms, or an empty array if none found."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "sections": [
+            {
+              "kind": "content",
+              "origin": "source text",
+              "text": "\u003cyour content\u003e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "entity.extract",
+      "tool": "entity-extract",
+      "summary": "Identify entities and do-not-translate spans, and classify terminology candidates.",
+      "structured": false
+    },
+    {
+      "id": "media.refine",
+      "tool": "media-refine",
+      "summary": "Re-read a cropped image line, speech clip or video frame that OCR or ASR got wrong.",
+      "structured": false
+    },
+    {
+      "id": "segment",
+      "tool": "segment (llm engine)",
+      "summary": "Split text into segments, reproducing the source verbatim.",
+      "structured": false
+    }
+  ]
+}

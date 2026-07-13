@@ -186,3 +186,44 @@ export interface CommandDataset {
   generatedAt: string;
   commands: CommandEntry[];
 }
+
+/**
+ * One addressable piece of a prompt, and who owns it. The framework owns `task`
+ * and `constraint` (the rules that keep output usable); your project owns
+ * `instruction`, `voice` and `glossary` (the steering); your document owns
+ * `content` (data, never instruction).
+ */
+export interface PromptSection {
+  kind: "task" | "constraint" | "instruction" | "voice" | "glossary" | "content";
+  origin: string;
+  heading?: string;
+  text: string;
+}
+
+/** One message of a rendered prompt. */
+export interface PromptTurn {
+  role: "system" | "user";
+  sections: PromptSection[];
+}
+
+/** One prompt kapi sends to a language model. */
+export interface PromptEntry {
+  id: string;
+  /** The tool or command that sends it. */
+  tool: string;
+  summary: string;
+  /**
+   * False for a prompt still built inline at its call site, whose text cannot be
+   * rendered here. Reported honestly rather than paraphrased from memory.
+   */
+  structured: boolean;
+  turns?: PromptTurn[];
+}
+
+/** Top-level document for prompts.json. */
+export interface PromptDataset {
+  generatedAt: string;
+  /** The prompt catalog revision (prompt.Version). */
+  version: string;
+  prompts: PromptEntry[];
+}

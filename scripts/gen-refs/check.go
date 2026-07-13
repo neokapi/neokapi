@@ -50,6 +50,10 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) e
 	if diff := compareBuiltInGaps(filepath.Join(outDir, "reference-gaps.json"), wantGaps, wantSummary); diff != "" {
 		problems = append(problems, "reference-gaps.json: "+diff)
 	}
+	wantPrompts := collectPromptDataset("")
+	if diff := comparePrompts(filepath.Join(outDir, "prompts.json"), wantPrompts); diff != "" {
+		problems = append(problems, "prompts.json: "+diff)
+	}
 
 	if len(problems) > 0 {
 		for _, p := range problems {
@@ -58,8 +62,8 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) e
 		return fmt.Errorf("committed reference dataset is stale; run `make generate-reference-docs` and commit the result")
 	}
 
-	fmt.Printf("reference dataset is fresh (built-in subset: %d formats, %d tools, %d gaps)\n",
-		countBuiltIn(formatEntries), countBuiltIn(toolEntries), len(builtInGaps(wantGaps)))
+	fmt.Printf("reference dataset is fresh (built-in subset: %d formats, %d tools, %d gaps, %d prompts)\n",
+		countBuiltIn(formatEntries), countBuiltIn(toolEntries), len(builtInGaps(wantGaps)), len(wantPrompts.Prompts))
 	return nil
 }
 
@@ -164,4 +168,35 @@ func jsonEqual(a, b any) bool {
 		return false
 	}
 	return string(ab) == string(bb)
+}
+
+// comparePrompts gates the committed prompt reference against the live catalog.
+// Rewording any prompt kapi sends fails this until the reference is regenerated,
+// so the published prompts cannot drift away from the ones the binary uses.
+func comparePrompts(path string, want PromptDataset) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Sprintf("cannot read %s: %v", path, err)
+	}
+	var got PromptDataset
+	if err := json.Unmarshal(raw, &got); err != nil {
+		return fmt.Sprintf("cannot parse %s: %v", path, err)
+	}
+
+	// generatedAt changes every run and is not part of the contract.
+	got.GeneratedAt = ""
+	want.GeneratedAt = ""
+
+	gotJSON, err := json.Marshal(got)
+	if err != nil {
+		return fmt.Sprintf("cannot re-encode %s: %v", path, err)
+	}
+	wantJSON, err := json.Marshal(want)
+	if err != nil {
+		return fmt.Sprintf("cannot encode catalog: %v", err)
+	}
+	if string(gotJSON) != string(wantJSON) {
+		return "the committed prompt reference no longer matches the prompts kapi sends"
+	}
+	return ""
 }

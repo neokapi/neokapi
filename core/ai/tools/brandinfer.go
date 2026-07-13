@@ -95,10 +95,9 @@ func inferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, cor
 	opts = opts.withDefaults()
 	corpus = truncateRunes(corpus, opts.MaxCorpusChars)
 
+	turns := prompt.BrandInfer{Domain: opts.Domain, MaxExamples: opts.MaxExamples}.Turns(corpus)
 	ctx = prompt.WithID(ctx, prompt.IDBrandInfer)
-	resp, err := provider.ChatStructured(ctx, []aiprovider.Message{
-		aiprovider.TextMessage("user", buildInferPrompt(corpus, opts)),
-	}, brandVoiceInferSchema())
+	resp, err := provider.ChatStructured(ctx, aiprovider.MessagesFromTurns(turns), brandVoiceInferSchema())
 	if err != nil {
 		return nil, nil, usage, fmt.Errorf("brand-voice-infer: %w", err)
 	}
@@ -111,27 +110,6 @@ func inferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, cor
 
 	draft, evidence := mapInferResult(result, opts)
 	return draft, evidence, usage, nil
-}
-
-// buildInferPrompt constructs the analysis prompt. The corpus follows
-// prompt.CorpusDelimiter, which offline providers (the demo stub) rely on to
-// locate the text — the delimiter is a declared contract, not free wording.
-func buildInferPrompt(corpus string, opts InferOptions) string {
-	var b strings.Builder
-	b.WriteString("You are a brand voice analyst. Study the corpus below and infer a draft brand voice profile. ")
-	b.WriteString("Ground every rule in evidence from the text; do not invent rules the corpus does not support.\n\n")
-	b.WriteString("Report:\n")
-	b.WriteString("- tone: personality traits, formality (casual|neutral|formal|technical), emotion, humor (none|light|frequent), and short guidelines\n")
-	b.WriteString("- style: active_voice, sentence_length (short|medium|varied), person_pov (first_plural|second|third), contractions (always|sometimes|never), and any patterns the corpus consistently avoids (as prohibited patterns)\n")
-	b.WriteString("- vocabulary: preferred, forbidden, and competitor terms (term, replacement, note); leave lists empty when the corpus shows no evidence\n")
-	fmt.Fprintf(&b, "- examples: up to %d before/after pairs (before = off-voice, after = on-voice, with an explanation)\n", opts.MaxExamples)
-	b.WriteString("- evidence: for each of tone, style, vocabulary, and examples, a confidence between 0 and 1 and a short source note citing the corpus evidence\n")
-	if d := strings.TrimSpace(opts.Domain); d != "" {
-		fmt.Fprintf(&b, "\nThe content is in the %s domain.\n", d)
-	}
-	b.WriteString(prompt.CorpusDelimiter)
-	b.WriteString(corpus)
-	return b.String()
 }
 
 // brandVoiceInferSchema returns the JSON schema for structured voice-profile

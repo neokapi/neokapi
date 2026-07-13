@@ -1,0 +1,65 @@
+/* Styles for the generated prompt reference (PromptReference.tsx). */
+
+.prompt-entry {
+  margin-block: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--ifm-toc-border-color);
+}
+
+.prompt-turn h4 {
+  margin-block: 0.75rem 0.4rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.prompt-section {
+  margin-block: 0.5rem;
+  border-left: 3px solid var(--ifm-color-emphasis-300);
+  padding-left: 0.75rem;
+}
+
+/* Framework-owned sections are not a configuration surface; the project-owned
+   ones are the steering surface. The border says which is which at a glance. */
+.prompt-section[data-kind="task"],
+.prompt-section[data-kind="constraint"] {
+  border-left-color: var(--ifm-color-emphasis-500);
+}
+
+.prompt-section[data-kind="instruction"],
+.prompt-section[data-kind="voice"],
+.prompt-section[data-kind="glossary"] {
+  border-left-color: var(--ifm-color-primary);
+}
+
+.prompt-section[data-kind="content"] {
+  border-left-color: var(--ifm-color-success);
+}
+
+.prompt-section__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-bottom: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.prompt-section__owner {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.prompt-section__text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+}
+
+.prompt-entry__inline {
+  margin-block: 0.75rem;
+}

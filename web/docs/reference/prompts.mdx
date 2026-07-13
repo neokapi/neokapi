@@ -1,0 +1,34 @@
+---
+title: Prompt Reference
+description: Every prompt kapi sends to a language model, rendered from the same builders the binary uses.
+keywords: [prompt, reference, LLM, explain, brand voice, glossary]
+---
+
+import PromptReference from "@site/src/components/reference/PromptReference";
+
+# Prompt Reference
+
+Every prompt kapi sends to a language model on your behalf, with each section
+attributed to the thing that produced it.
+
+This page is **generated from the code**, not written alongside it. It is built
+from the same prompt builders the binary uses, and a CI drift gate fails the
+build if the two disagree — so it cannot describe a prompt kapi does not send.
+(The previous, hand-written description of prompts claimed they included
+surrounding blocks and TM matches. Neither was ever true.)
+
+The sections below carry an owner:
+
+- **framework** — the `task` and the `constraint`s. These are what keep output
+  usable: a translation that drops a placeholder or mangles an inline tag cannot
+  be written back into your file. Not a configuration surface.
+- **you** — `instruction`, `voice` and `glossary`. The steering surface, declared
+  with `--instruction`, a [brand voice profile](/framework/checks/brand-voice) and
+  a [termbase](/framework/terminology).
+- **your document** — the `content`. Data, never instruction.
+
+Placeholders like `<your content>` mark where your text is substituted. For the
+exact prompt of a real run — with your glossary and voice guide in place — use
+`--explain-prompts`. See [Prompts](/framework/prompts).
+
+<PromptReference />

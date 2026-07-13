@@ -247,6 +247,11 @@ Every LLM call kapi makes carries a prompt id, so it can be named in
 If a call ever appears in `--explain-prompts` without an id, that is a bug —
 report it. An unlabelled call is an undocumented use of your content.
 
+The full text of each is published in the
+[Prompt Reference](/reference/prompts), generated from the same builders the
+binary uses and drift-gated in CI — so it cannot describe a prompt kapi does not
+send.
+
 ## Watch a prompt get built
 
 Rather than take the sections above on trust, build one up a layer at a time and

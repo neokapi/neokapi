@@ -135,8 +135,14 @@ func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
 		return err
 	}
 
-	fmt.Printf("wrote %s/{formats,tools,reference-gaps,commands}.json — %d formats, %d tools, %d commands\n",
-		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands))
+	// Generate the prompt reference from the same builders the binary sends.
+	promptDataset := collectPromptDataset(now)
+	if err := writeJSON(filepath.Join(outDir, "prompts.json"), promptDataset); err != nil {
+		return err
+	}
+
+	fmt.Printf("wrote %s/{formats,tools,reference-gaps,commands,prompts}.json — %d formats, %d tools, %d commands, %d prompts\n",
+		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands), len(promptDataset.Prompts))
 	printGapSummary(report)
 	return nil
 }
