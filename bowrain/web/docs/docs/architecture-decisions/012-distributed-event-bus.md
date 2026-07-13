@@ -9,12 +9,20 @@ title: "AD-012: Distributed Event Bus"
 ## Summary
 
 Bowrain-server and bowrain-worker replicas coordinate through a shared
-event broker. The `EventBus` interface has two production backends —
-Azure Service Bus (managed) and NATS JetStream (self-hosted and local
-development) — selected at runtime from configuration. Every subscriber
-component becomes a consumer group (an ASB subscription or a JetStream
-durable consumer), so any replica can consume events with no leader
-election.
+event broker. The `EventBus` interface has three production backends —
+**Redis Streams** (the AWS default, on ElastiCache), Azure Service Bus,
+and NATS JetStream (self-hosted) — selected at runtime from
+configuration. Every `SubscribeGroup` component becomes a consumer group
+(a Redis Streams group, an ASB subscription, or a JetStream durable
+consumer), so any replica can consume events with no leader election;
+`Subscribe`/`SubscribeAll` are fan-out (every replica sees every event),
+which is what the SSE/gRPC relays need.
+
+Redis is the default on AWS because it is already a platform dependency
+(sessions, the sync-hash cache, agent pub/sub) and is managed there as
+ElastiCache — so the event bus needs no separate broker, and removing the
+standalone NATS/JetStream container is what lets the compute node hold no
+queue state.
 
 ## Context
 
@@ -41,32 +49,45 @@ type EventBus interface {
 type EventHandler func(ctx context.Context, event Event) error
 ```
 
-Three implementations:
+Four implementations:
 
-| Implementation        | Backend                   | Purpose                    |
-| --------------------- | ------------------------- | -------------------------- |
-| `ChannelEventBus`     | Go channels (in-process)  | Unit tests only            |
-| `NATSEventBus`        | NATS JetStream            | Local dev, self-hosted     |
-| `ServiceBusEventBus`  | Azure Service Bus         | Managed production         |
+| Implementation        | Backend                   | Purpose                          |
+| --------------------- | ------------------------- | -------------------------------- |
+| `ChannelEventBus`     | Go channels (in-process)  | Unit tests only                  |
+| `RedisEventBus`       | Redis Streams             | AWS production (ElastiCache), local dev |
+| `NATSEventBus`        | NATS JetStream            | Self-hosted                      |
+| `ServiceBusEventBus`  | Azure Service Bus         | Legacy Azure deployment          |
+
+`RedisEventBus` publishes with a single `XADD` (capped by `MAXLEN` so the
+stream stays bounded). `SubscribeGroup` reads via `XREADGROUP` on a Redis
+Streams consumer group — competing consumers, position preserved across
+restarts. `Subscribe`/`SubscribeAll` read the stream tail with `XREAD`
+independently, so every such subscriber sees every event (fan-out). The
+starting position is resolved synchronously at subscribe time, so an event
+published immediately afterward is not lost to a `$`-resolution race.
 
 ### Runtime selection
 
-The server picks a backend from configuration, in order:
+The server picks a backend from configuration, Redis first when opted in:
 
 ```go
 switch {
+case os.Getenv("BOWRAIN_EVENT_BACKEND") == "redis" && cfg.RedisURL != "":
+    bus = event.NewRedisEventBus(cfg.RedisURL, cfg.RedisPassword)
 case cfg.ServiceBusConnection != "":
     bus = event.NewServiceBusEventBus(cfg.ServiceBusConnection)
-case cfg.NATSUrl != "":
-    bus = event.NewNATSEventBus(cfg.NATSUrl)
+case cfg.NATSURL != "":
+    bus = event.NewNATSEventBus(cfg.NATSURL)
 default:
     bus = event.NewChannelEventBus()
 }
 ```
 
-A test binary uses the channel bus. Docker Compose sets `NATS_URL` so
-local development hits JetStream. Production sets
-`SERVICE_BUS_CONNECTION` and routes through the managed namespace.
+A test binary uses the channel bus. Docker Compose and the AWS deployment
+set `BOWRAIN_EVENT_BACKEND=redis` and point `BOWRAIN_REDIS_URL` at the
+shared Redis/ElastiCache — the same instance the session store and
+sync-hash cache already use. The worker selects the backend the same way,
+so server and worker share one broker.
 
 ### Event model
 

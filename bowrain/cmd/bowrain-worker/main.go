@@ -280,7 +280,17 @@ func runWorker(dbURL string) error {
 	translationDeps.BlobStore = blobStore
 
 	// Configure event bus for publishing EventPushCompleted after sync push (Bowrain AD-009).
-	if serviceBusConn != "" {
+	// Selection mirrors the server (createEventBus): Redis first when opted in.
+	redisURL := os.Getenv("BOWRAIN_REDIS_URL")
+	if os.Getenv("BOWRAIN_EVENT_BACKEND") == "redis" && redisURL != "" {
+		bus, err := bowevent.NewRedisEventBus(redisURL, os.Getenv("BOWRAIN_REDIS_PASSWORD"))
+		if err != nil {
+			slog.Warn("failed to create Redis event bus for worker", "error", err)
+		} else {
+			translationDeps.EventBus = bus
+			slog.Info("worker event bus configured", "backend", "redis_streams")
+		}
+	} else if serviceBusConn != "" {
 		bus, err := bowevent.NewServiceBusEventBus(serviceBusConn)
 		if err != nil {
 			slog.Warn("failed to create Service Bus event bus for worker", "error", err)

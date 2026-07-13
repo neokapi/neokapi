@@ -294,6 +294,15 @@ type Server struct {
 // NewServer creates a new Server with the given configuration.
 // createEventBus selects the event bus backend based on configuration (Bowrain AD-012).
 func createEventBus(cfg Config) platev.EventBus {
+	if os.Getenv("BOWRAIN_EVENT_BACKEND") == "redis" && cfg.RedisURL != "" {
+		bus, err := event.NewRedisEventBus(cfg.RedisURL, cfg.RedisPassword)
+		if err != nil {
+			slog.Warn("failed to create Redis event bus, falling back to in-memory", "error", err)
+			return event.NewChannelEventBus()
+		}
+		slog.Info("event bus configured", "backend", "redis-streams")
+		return bus
+	}
 	if cfg.ServiceBusConnection != "" {
 		bus, err := event.NewServiceBusEventBus(cfg.ServiceBusConnection)
 		if err != nil {
