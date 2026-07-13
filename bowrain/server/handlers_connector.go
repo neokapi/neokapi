@@ -4,9 +4,19 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 )
+
+// connectorFeature maps a connector type to the plan feature it requires. Types
+// absent from the map are available on every plan. Only entries whose feature is
+// actually sold belong here: gating a type nobody advertises would invent a
+// paywall, and leaving out one that is advertised gives it away (which is what
+// happened to git).
+var connectorFeature = map[string]billing.Feature{
+	"git": billing.FeatureConnectorsGit,
+}
 
 // ConnectorAddRequest is the request for adding a connector.
 type ConnectorAddRequest struct {
@@ -54,13 +64,26 @@ func (s *Server) HandleAddConnector(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
 	}
-	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
 
 	var req ConnectorAddRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	// Git connectors are a paid feature (AD-018), and the plan matrix has said so
+	// since it was written — but nothing enforced it, so a Free workspace could
+	// add one. The gate has to live here rather than on the route: every connector
+	// type shares this endpoint, and the type only becomes known once the body is
+	// bound. It runs before the service check so entitlement never depends on how
+	// the server happens to be wired.
+	if feature, ok := connectorFeature[req.Type]; ok {
+		if err := billing.RequireFeature(c, feature, s.billingGuardEvent()); err != nil {
+			return err
+		}
+	}
+
+	if s.Services == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)

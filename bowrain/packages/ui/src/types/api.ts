@@ -1278,7 +1278,14 @@ export type BillingPlan = "free" | "pro" | "team" | "enterprise";
 /** Billing subscription status */
 export type BillingStatus = "active" | "past_due" | "canceled" | "trialing";
 
-/** Workspace subscription state */
+/**
+ * Workspace subscription state.
+ *
+ * These billing types are the ADAPTER's output contract, not a mirror of the
+ * server's JSON: the server speaks snake_case (Go), and the REST adapter maps it
+ * into these camelCase shapes. Keep the mapping in the adapter — components and
+ * stories are written against these types.
+ */
 export interface BillingSubscription {
   plan: BillingPlan;
   status: BillingStatus;
@@ -1286,15 +1293,16 @@ export interface BillingSubscription {
   currentPeriodStart?: string;
   currentPeriodEnd?: string;
   cancelAt?: string;
+  /** Deadline of the local, card-free Pro trial. Absent once a subscription exists. */
+  trialEndsAt?: string;
 }
 
 /** Weekly credit allocation and tracking */
 export interface CreditAllocation {
   creditsTotal: number;
   creditsUsed: number;
-  weekStart: string;
+  creditsRemaining: number;
   weekEnd: string;
-  source: string;
 }
 
 /** Combined billing overview for a workspace */
@@ -1302,6 +1310,35 @@ export interface BillingOverview {
   subscription: BillingSubscription;
   credits: CreditAllocation;
   stripeCustomerId?: string;
+}
+
+/**
+ * A plan the workspace may switch to. `purchasable` is decided by the server: it
+ * is false when this deployment has no Stripe price configured for the plan (a
+ * self-hosted install, or production before billing is provisioned), and the UI
+ * renders no upgrade button rather than one that fails.
+ *
+ * There are deliberately no dollar amounts here — prices live in Stripe.
+ */
+export interface BillingPlanInfo {
+  id: BillingPlan;
+  name: string;
+  /** -1 means unlimited. */
+  weekly_credits: number;
+  max_projects: number;
+  max_seats: number;
+  per_seat: boolean;
+  purchasable: boolean;
+  current: boolean;
+}
+
+/** What this deployment can sell. */
+export interface BillingPlansResponse {
+  plans: BillingPlanInfo[];
+  credit_pack: {
+    credits: number;
+    purchasable: boolean;
+  };
 }
 
 /** Credit ledger entry (immutable transaction record) */

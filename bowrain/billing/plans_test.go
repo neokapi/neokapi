@@ -28,7 +28,7 @@ func TestHasFeature(t *testing.T) {
 		{"override enables bravo for dogfooding", PlanFree, FeatureBravo, map[Feature]bool{FeatureBravo: true}, true},
 		{"team has no sso", PlanTeam, FeatureSSOSAML, nil, false},
 		{"enterprise has sso", PlanEnterprise, FeatureSSOSAML, nil, true},
-		{"enterprise has all features", PlanEnterprise, FeatureCustomMT, nil, true},
+		{"enterprise has all features", PlanEnterprise, FeatureSSOSAML, nil, true},
 		{"free has no api access", PlanFree, FeatureAPIAccess, nil, false},
 		{"pro has api access", PlanPro, FeatureAPIAccess, nil, true},
 		{"override grants feature to free", PlanFree, FeatureConnectorsGit, map[Feature]bool{FeatureConnectorsGit: true}, true},
@@ -55,7 +55,6 @@ func TestMinimumPlanFor(t *testing.T) {
 	}{
 		{FeatureConnectorsGit, PlanPro},
 		{FeatureAPIAccess, PlanPro},
-		{FeatureCustomMT, PlanPro},
 		{FeatureBravoCodeExec, PlanTeam},
 		{FeatureConnectorsCustom, PlanTeam},
 		{FeatureSSOSAML, PlanEnterprise},

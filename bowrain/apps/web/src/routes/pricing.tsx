@@ -13,11 +13,16 @@ import { ChevronDown } from "lucide-react";
 // Plan data
 // ---------------------------------------------------------------------------
 
+// Only capabilities the product actually has and actually gates. A feature listed
+// here that nothing enforces is a promise the code does not keep — "Custom MT
+// providers" was listed for months after MT providers were removed from the
+// product, and Git connectors were listed as paid while every Free workspace
+// could use them (both fixed in epic 005).
 const freePlanFeatures: PlanFeature[] = [
   { label: "1 project", included: true },
+  { label: "Bring your own AI key (no credits used)", included: true },
   { label: "Git connectors", included: false },
   { label: "API access", included: false },
-  { label: "Custom MT providers", included: false },
 ];
 
 const proPlanFeatures: PlanFeature[] = [
@@ -25,7 +30,6 @@ const proPlanFeatures: PlanFeature[] = [
   { label: "3 seats", included: true },
   { label: "Git connectors", included: true },
   { label: "API access", included: true },
-  { label: "Custom MT providers", included: true },
   { label: "SSO/SAML", included: false },
 ];
 
@@ -33,7 +37,6 @@ const teamPlanFeatures: PlanFeature[] = [
   { label: "Everything in Pro", included: true },
   { label: "Unlimited projects", included: true },
   { label: "Unlimited seats", included: true },
-  { label: "Custom connectors", included: true },
   { label: "SSO/SAML", included: false },
 ];
 
@@ -63,16 +66,12 @@ const comparisonFeatures: ComparisonFeature[] = [
     values: { free: false, pro: true, team: true, enterprise: true },
   },
   {
-    label: "Custom Connectors",
-    values: { free: false, pro: false, team: true, enterprise: true },
-  },
-  {
     label: "API Access",
     values: { free: false, pro: true, team: true, enterprise: true },
   },
   {
-    label: "Custom MT Providers",
-    values: { free: false, pro: true, team: true, enterprise: true },
+    label: "Bring your own AI key",
+    values: { free: true, pro: true, team: true, enterprise: true },
   },
   {
     label: "SSO/SAML",
@@ -87,7 +86,11 @@ const faqItems = [
   },
   {
     q: "What happens when I run out of credits?",
-    a: "On the Free plan, AI features are paused until the next weekly reset. Pro users can purchase a one-time credit pack ($5 for 200K tokens). Team plan administrators can configure automatic credit pack purchases.",
+    a: "AI features pause until the next weekly reset. You can also buy a credit pack ($5 for 200K credits) at any time — nothing is ever purchased automatically on your behalf.",
+  },
+  {
+    q: "Can I use my own AI provider key?",
+    a: "Yes, on every plan including Free. Work that runs on your own key uses no credits at all — you pay your provider directly, and Bowrain's weekly allowance stays untouched.",
   },
   {
     q: "Can I change plans at any time?",
@@ -95,15 +98,15 @@ const faqItems = [
   },
   {
     q: "How does seat-based pricing work?",
-    a: "The Team plan is priced per seat per month. You only pay for the seats you use. There is no maximum seat count. Credits are shared across all workspace members.",
+    a: "The Team plan is priced per seat per month. You only pay for the seats you use, and credits are shared across all workspace members. Self-serve checkout covers up to 50 seats; beyond that, talk to us.",
   },
   {
     q: "Do unused credits roll over?",
-    a: "No. Credits reset each week to keep the system simple and predictable. This also ensures consistent cost distribution.",
+    a: "Weekly plan credits do not roll over — they reset each Monday, which keeps costs predictable. Credit packs are different: they never expire, and they are only drawn from after your weekly allowance runs out.",
   },
   {
     q: "Is there a free trial?",
-    a: "New accounts start on the Free plan which includes 50K weekly credits. The Free plan is free forever and includes full access to the translation editor.",
+    a: "Every new workspace starts with a 14-day Pro trial — no card required. When it ends, the workspace moves to the Free plan, which is free forever and includes 50K weekly credits and full access to the translation editor.",
   },
 ];
 

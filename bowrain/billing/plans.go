@@ -36,7 +36,6 @@ const (
 	FeatureConnectorsCustom Feature = "connectors-custom"
 	FeatureAPIAccess        Feature = "api-access"
 	FeatureSSOSAML          Feature = "sso-saml"
-	FeatureCustomMT         Feature = "custom-mt-providers"
 )
 
 // PlanFeatures defines which features are available on each plan.
@@ -49,7 +48,6 @@ var PlanFeatures = map[Plan]map[Feature]bool{
 		FeatureConnectorsCustom: false,
 		FeatureAPIAccess:        false,
 		FeatureSSOSAML:          false,
-		FeatureCustomMT:         false,
 	},
 	PlanPro: {
 		FeatureBravo:            false,
@@ -58,7 +56,6 @@ var PlanFeatures = map[Plan]map[Feature]bool{
 		FeatureConnectorsCustom: false,
 		FeatureAPIAccess:        true,
 		FeatureSSOSAML:          false,
-		FeatureCustomMT:         true,
 	},
 	PlanTeam: {
 		FeatureBravo:            false,
@@ -67,7 +64,6 @@ var PlanFeatures = map[Plan]map[Feature]bool{
 		FeatureConnectorsCustom: true,
 		FeatureAPIAccess:        true,
 		FeatureSSOSAML:          false,
-		FeatureCustomMT:         true,
 	},
 	PlanEnterprise: {
 		FeatureBravo:            false,
@@ -76,7 +72,6 @@ var PlanFeatures = map[Plan]map[Feature]bool{
 		FeatureConnectorsCustom: true,
 		FeatureAPIAccess:        true,
 		FeatureSSOSAML:          true,
-		FeatureCustomMT:         true,
 	},
 }
 
@@ -96,6 +91,62 @@ var WeeklyCredits = map[Plan]int64{
 	PlanPro:        500_000,
 	PlanTeam:       2_000_000,
 	PlanEnterprise: -1,
+}
+
+// CreditPackCredits is the credit grant for one purchased top-up pack. The pack
+// is $5 (the dollar amount lives in Stripe, DECISIONS L4); this is the credit
+// side of that same SKU, so it must stay in step with the price the provisioning
+// tool creates and with what the pricing page advertises. Packs do not expire —
+// they are drawn from only after the weekly plan allowance (Epic 004).
+const CreditPackCredits = 200_000
+
+// PerSeatPlans are the plans priced per seat: the Stripe subscription quantity
+// is the seat count, so checkout must send it and seat changes re-price.
+var PerSeatPlans = map[Plan]bool{
+	PlanTeam: true,
+}
+
+// SelfServePlans are the plans a workspace owner can subscribe to from the app.
+// Free is the downgrade target rather than a purchase, and Enterprise is sold
+// by hand, so neither is self-serve.
+var SelfServePlans = []Plan{PlanPro, PlanTeam}
+
+// PlanDisplayNames are the human-readable plan names shown in the UI.
+var PlanDisplayNames = map[Plan]string{
+	PlanFree:       "Free",
+	PlanPro:        "Pro",
+	PlanTeam:       "Team",
+	PlanEnterprise: "Enterprise",
+}
+
+// PlanInfo describes a plan to the client. It deliberately carries no dollar
+// amounts: prices live in Stripe (DECISIONS L4), and the client's only job is to
+// know which plans it may ask to check out.
+type PlanInfo struct {
+	ID            Plan   `json:"id"`
+	Name          string `json:"name"`
+	WeeklyCredits int64  `json:"weekly_credits"` // -1 = unlimited
+	MaxProjects   int    `json:"max_projects"`   // -1 = unlimited
+	MaxSeats      int    `json:"max_seats"`      // -1 = unlimited
+	PerSeat       bool   `json:"per_seat"`
+	Purchasable   bool   `json:"purchasable"`
+	Current       bool   `json:"current"`
+}
+
+// DescribePlan builds the client-facing description of a plan. purchasable is
+// decided by the caller, which knows whether the plan's Stripe price is
+// configured in this deployment.
+func DescribePlan(plan Plan, purchasable, current bool) PlanInfo {
+	return PlanInfo{
+		ID:            plan,
+		Name:          PlanDisplayNames[plan],
+		WeeklyCredits: CreditsForPlan(plan),
+		MaxProjects:   GetLimit(plan, "max-projects"),
+		MaxSeats:      GetLimit(plan, "max-seats"),
+		PerSeat:       PerSeatPlans[plan],
+		Purchasable:   purchasable,
+		Current:       current,
+	}
 }
 
 // planOrder defines the hierarchy from lowest to highest tier.

@@ -79,6 +79,8 @@ import type {
   BravoUsageSummary,
   BravoSSEHandler,
   BillingOverview,
+  BillingPlan,
+  BillingPlansResponse,
   BillingUsageBreakdown,
   CreditLedgerEntry,
   ModelUsageResponse,
@@ -935,9 +937,24 @@ export interface ApiAdapter {
     from?: string,
     to?: string,
   ): Promise<ModelUsageResponse>;
+  /** The plans this deployment can actually sell, and whether the credit pack is buyable. */
+  billingGetPlans(workspaceSlug: string): Promise<BillingPlansResponse>;
+  /**
+   * Start a subscription checkout. The client names a PLAN, never a price — the
+   * server resolves the price, so a client can neither invent one nor pick a
+   * cheaper one. `seats` applies to per-seat plans and defaults to the
+   * workspace's current member count.
+   */
   billingCreateCheckout(
     workspaceSlug: string,
-    priceId: string,
+    plan: BillingPlan,
+    successUrl: string,
+    cancelUrl: string,
+    seats?: number,
+  ): Promise<{ url: string }>;
+  /** Buy one credit pack (a one-time payment; the size and price live server-side). */
+  billingBuyCredits(
+    workspaceSlug: string,
     successUrl: string,
     cancelUrl: string,
   ): Promise<{ url: string }>;

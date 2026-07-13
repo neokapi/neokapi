@@ -342,7 +342,7 @@ func (s *Server) HandleAdminUpdatePlan(c echo.Context) error {
 
 	// Sync the plan to the workspace record.
 	if s.AuthStore != nil {
-		syncer := &planSyncAdapter{authStore: s.AuthStore}
+		syncer := s.planSyncer()
 		if err := syncer.SyncWorkspacePlan(ctx, wsID, req.Plan, ""); err != nil {
 			slog.Info("admin: failed to sync plan for workspace", "id", wsID, "error", err)
 		}

@@ -26,12 +26,32 @@ type recordingStore struct {
 	grantedCredits int64
 	grantCalls     int
 
+	// grantedRefs mirrors the store's reference-keyed idempotency: a second grant
+	// for a session id already granted is a no-op (granted=false).
+	grantedRefs map[string]bool
+
 	// processedEvents records Stripe event IDs that have been claimed, mirroring
 	// the processed_stripe_events table's ON CONFLICT DO NOTHING semantics.
 	processedEvents map[string]bool
 
-	// grantErr, when set, makes GrantCredits fail to exercise the rollback path.
+	// grantErr, when set, makes the grant fail to exercise the rollback path.
 	grantErr error
+}
+
+func (r *recordingStore) GrantPurchasedCredits(_ context.Context, _ string, amount int64, ref string) (bool, error) {
+	if r.grantErr != nil {
+		return false, r.grantErr
+	}
+	if r.grantedRefs == nil {
+		r.grantedRefs = make(map[string]bool)
+	}
+	if ref != "" && r.grantedRefs[ref] {
+		return false, nil // duplicate delivery for this session — already granted
+	}
+	r.grantedRefs[ref] = true
+	r.grantCalls++
+	r.grantedCredits += amount
+	return true, nil
 }
 
 func (r *recordingStore) UpsertSubscription(_ context.Context, sub *Subscription) error {
@@ -502,7 +522,11 @@ func signWebhook(t *testing.T, secret string, event stripe.Event) ([]byte, strin
 
 func creditPackEvent(t *testing.T, eventID, workspaceID string) stripe.Event {
 	t.Helper()
+	// A real checkout session always has an id; the pack grant is keyed on it for
+	// idempotency. Derive it from the event so duplicate deliveries of one event
+	// reuse one session id, while distinct events get distinct ones.
 	sess := stripe.CheckoutSession{
+		ID:       "cs_" + eventID,
 		Customer: &stripe.Customer{ID: "cus_pack"},
 		Metadata: map[string]string{"workspace_id": workspaceID, "type": "credit_pack"},
 	}
@@ -527,12 +551,12 @@ func TestHandleWebhook_DuplicateEventGrantsCreditsOnce(t *testing.T) {
 	// First delivery: credits granted.
 	require.NoError(t, handler.HandleWebhook(payload, header))
 	assert.Equal(t, 1, store.grantCalls)
-	assert.Equal(t, int64(500_000), store.grantedCredits)
+	assert.Equal(t, int64(CreditPackCredits), store.grantedCredits)
 
 	// Duplicate delivery of the SAME event.ID: must be a no-op (200, no grant).
 	require.NoError(t, handler.HandleWebhook(payload, header))
 	assert.Equal(t, 1, store.grantCalls, "duplicate event must not re-grant credits")
-	assert.Equal(t, int64(500_000), store.grantedCredits)
+	assert.Equal(t, int64(CreditPackCredits), store.grantedCredits)
 
 	// And again, to be sure repeated retries stay idempotent.
 	require.NoError(t, handler.HandleWebhook(payload, header))
@@ -551,7 +575,7 @@ func TestHandleWebhook_DistinctEventsGrantSeparately(t *testing.T) {
 	}
 
 	assert.Equal(t, 2, store.grantCalls, "distinct event IDs each grant once")
-	assert.Equal(t, int64(1_000_000), store.grantedCredits)
+	assert.Equal(t, int64(2*CreditPackCredits), store.grantedCredits)
 }
 
 func TestHandleWebhook_FailureRollsBackMarkerAndRetrySucceeds(t *testing.T) {
@@ -572,7 +596,7 @@ func TestHandleWebhook_FailureRollsBackMarkerAndRetrySucceeds(t *testing.T) {
 	store.grantErr = nil
 	require.NoError(t, handler.HandleWebhook(payload, header))
 	assert.Equal(t, 1, store.grantCalls)
-	assert.Equal(t, int64(500_000), store.grantedCredits)
+	assert.Equal(t, int64(CreditPackCredits), store.grantedCredits)
 }
 
 func TestHandleWebhook_UnhandledEventTypeReturnsNil(t *testing.T) {

@@ -1,8 +1,12 @@
 package server
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"net/http"
+	"slices"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -154,7 +158,61 @@ func (s *Server) HandleGetBillingModelUsage(c echo.Context) error {
 	})
 }
 
+// HandleListPlans returns the plans this deployment can sell, so the client can
+// render exactly the upgrade paths that are actually purchasable here.
+//
+// It carries no dollar amounts: prices live in Stripe (DECISIONS L4). A plan is
+// purchasable only when its Stripe price is configured — on a self-hosted or
+// not-yet-provisioned deployment every plan comes back purchasable=false and the
+// UI shows no upgrade buttons rather than buttons that 503.
+// GET /api/v1/:ws/billing/plans
+func (s *Server) HandleListPlans(c echo.Context) error {
+	wsID, _ := c.Get("workspace_id").(string)
+
+	current := billing.PlanFree
+	if s.BillingStore != nil {
+		if sub, err := s.BillingStore.GetSubscription(c.Request().Context(), wsID); err == nil && sub != nil {
+			current = sub.Plan
+		}
+	}
+
+	plans := make([]billing.PlanInfo, 0, len(billing.ValidPlans))
+	for _, p := range []billing.Plan{billing.PlanFree, billing.PlanPro, billing.PlanTeam, billing.PlanEnterprise} {
+		purchasable := s.StripeClient != nil && s.priceForPlan(p) != ""
+		plans = append(plans, billing.DescribePlan(p, purchasable, p == current))
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"plans": plans,
+		"credit_pack": map[string]any{
+			"credits":     billing.CreditPackCredits,
+			"purchasable": s.StripeClient != nil && s.Config.StripeCreditPriceID != "",
+		},
+	})
+}
+
+// priceForPlan resolves a plan to its configured Stripe price ID. Only the
+// self-serve plans have one: Free is the downgrade target rather than a purchase,
+// and Enterprise is sold by hand. An unconfigured price yields "" — the caller
+// turns that into "not purchasable", never into a call to Stripe.
+func (s *Server) priceForPlan(plan billing.Plan) string {
+	switch plan {
+	case billing.PlanPro:
+		return s.Config.StripeProPriceID
+	case billing.PlanTeam:
+		return s.Config.StripeTeamPriceID
+	default:
+		return ""
+	}
+}
+
 // HandleCreateCheckout creates a Stripe Checkout session and returns the URL.
+//
+// The client asks for a *plan*, never a price. The price is resolved here from
+// the deployment's configuration — the same server-side pattern HandleBuyCredits
+// already used for the credit pack. (Accepting a client-supplied price_id let any
+// authenticated owner check out against any price in the Stripe account,
+// including a $0 one.)
 // POST /api/v1/:ws/billing/checkout
 func (s *Server) HandleCreateCheckout(c echo.Context) error {
 	if s.StripeClient == nil {
@@ -168,19 +226,44 @@ func (s *Server) HandleCreateCheckout(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 
 	var req struct {
-		PriceID    string `json:"price_id"`
+		Plan       string `json:"plan"`
+		Seats      int    `json:"seats"`
 		SuccessURL string `json:"success_url"`
 		CancelURL  string `json:"cancel_url"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
 	}
-	if req.PriceID == "" || req.SuccessURL == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "price_id and success_url are required"})
+	if req.SuccessURL == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "success_url is required"})
+	}
+
+	plan := billing.Plan(req.Plan)
+	if !slices.Contains(billing.SelfServePlans, plan) {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "unknown plan: must be one of pro, team"})
+	}
+	priceID := s.priceForPlan(plan)
+	if priceID == "" {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "plan " + req.Plan + " is not purchasable on this deployment"})
+	}
+
+	ctx := c.Request().Context()
+
+	// Seats are the Stripe subscription quantity for a per-seat plan, so they are
+	// what the customer is charged for. Default to the workspace's current member
+	// count — the honest number — and reject anything below it, because a
+	// subscription with fewer seats than members would under-bill a workspace that
+	// is already over the limit.
+	seats := 1
+	if billing.PerSeatPlans[plan] {
+		var err error
+		seats, err = s.checkoutSeats(ctx, wsID, req.Seats)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		}
 	}
 
 	// Look up existing Stripe customer for this workspace.
-	ctx := c.Request().Context()
 	sub, _ := s.BillingStore.GetSubscription(ctx, wsID)
 	var customerID string
 	if sub != nil && sub.StripeCustomerID != "" {
@@ -198,8 +281,17 @@ func (s *Server) HandleCreateCheckout(c echo.Context) error {
 		}
 	}
 
-	url, err := s.StripeClient.CreateCheckoutSession(ctx, customerID, req.PriceID, req.SuccessURL, req.CancelURL, map[string]string{
-		"workspace_id": wsID,
+	// plan and seats ride along on the session (and, via SubscriptionData, on the
+	// subscription) so the checkout.session.completed webhook can apply the right
+	// plan immediately instead of defaulting to Pro and waiting for a subscription
+	// event that may never come.
+	url, err := s.StripeClient.CreateCheckoutSessionWithOptions(customerID, priceID, req.SuccessURL, req.CancelURL, billing.CheckoutOptions{
+		Quantity: int64(seats),
+		Metadata: map[string]string{
+			"workspace_id": wsID,
+			"plan":         string(plan),
+			"seats":        strconv.Itoa(seats),
+		},
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -210,7 +302,8 @@ func (s *Server) HandleCreateCheckout(c echo.Context) error {
 		userID, _ := c.Get("user_id").(string)
 		s.PostHogClient.CaptureEvent(userID, "billing.checkout_started", map[string]any{
 			"workspace_id": wsID,
-			"price_id":     req.PriceID,
+			"plan":         string(plan),
+			"seats":        seats,
 		})
 	}
 
@@ -218,6 +311,33 @@ func (s *Server) HandleCreateCheckout(c echo.Context) error {
 		"checkout_url": url,
 	})
 }
+
+// checkoutSeats resolves the seat count to bill for a per-seat plan: the
+// requested number, floored at the workspace's current member count (you cannot
+// buy fewer seats than you are using) and at 1.
+func (s *Server) checkoutSeats(ctx context.Context, wsID string, requested int) (int, error) {
+	members := 1
+	if s.AuthStore != nil {
+		if m, err := s.AuthStore.ListMembers(ctx, wsID); err == nil {
+			members = max(len(m), 1)
+		}
+	}
+	if requested == 0 {
+		return members, nil
+	}
+	if requested < members {
+		return 0, fmt.Errorf("seats (%d) is fewer than the workspace's current members (%d)", requested, members)
+	}
+	if requested > maxCheckoutSeats {
+		return 0, fmt.Errorf("seats (%d) exceeds the self-serve maximum (%d) — contact sales", requested, maxCheckoutSeats)
+	}
+	return requested, nil
+}
+
+// maxCheckoutSeats bounds a self-serve per-seat purchase. Beyond it the buyer is
+// an Enterprise conversation, and the cap keeps a fat-fingered (or hostile)
+// quantity from creating a five-figure subscription.
+const maxCheckoutSeats = 50
 
 // HandleCreatePortal creates a Stripe Customer Portal session and returns the URL.
 // POST /api/v1/:ws/billing/portal

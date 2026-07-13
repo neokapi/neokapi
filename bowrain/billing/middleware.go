@@ -70,6 +70,40 @@ func PlanGuard(feature Feature, onBlock ...GuardEventFunc) echo.MiddlewareFunc {
 // blocks a request. Used for analytics (e.g. PostHog).
 type GuardEventFunc func(event string, workspaceID string, props map[string]any)
 
+// RequireFeature is PlanGuard for a decision a handler can only make after
+// reading the request body — a connector's type, say, which decides whether the
+// request needs a paid feature at all. It returns nil when the workspace is
+// entitled, and otherwise writes the same 403 `upgrade_required` payload the
+// middleware writes, so the client's upgrade prompt does not have to know which
+// of the two blocked it.
+//
+// Like PlanGuard, it allows everything when no plan is on the context (billing
+// not configured — a self-hosted deployment gates nothing).
+func RequireFeature(c echo.Context, feature Feature, onBlock ...GuardEventFunc) error {
+	planStr, _ := c.Get(contextKeyWorkspacePlan).(string)
+	if planStr == "" {
+		return nil
+	}
+	if HasFeature(Plan(planStr), feature, OverridesFromContext(c)) {
+		return nil
+	}
+
+	if len(onBlock) > 0 && onBlock[0] != nil {
+		wsID, _ := c.Get("workspace_id").(string)
+		onBlock[0]("billing.feature_gate_hit", wsID, map[string]any{
+			"feature":      string(feature),
+			"plan":         planStr,
+			"minimum_plan": string(MinimumPlanFor(feature)),
+		})
+	}
+
+	return c.JSON(http.StatusForbidden, map[string]any{
+		"error":        "upgrade_required",
+		"feature":      feature,
+		"minimum_plan": MinimumPlanFor(feature),
+	})
+}
+
 // QuotaGuard returns Echo middleware that rejects requests when weekly credits
 // are exhausted. Returns 429 with Retry-After header set to next Monday 00:00 UTC.
 // When billing is not configured (store is nil or plan is empty), all requests pass.

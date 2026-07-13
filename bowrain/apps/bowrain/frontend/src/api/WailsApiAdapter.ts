@@ -86,6 +86,8 @@ import type {
   BravoUsageSummary,
   BravoSSEHandler,
   BillingOverview,
+  BillingPlan,
+  BillingPlansResponse,
   BillingUsageBreakdown,
   CreditLedgerEntry,
   ListConceptsParams,
@@ -1368,9 +1370,20 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<ModelUsageResponse> {
     throw new Error("not implemented in desktop app");
   }
+  async billingGetPlans(_ws: string): Promise<BillingPlansResponse> {
+    throw new Error("not implemented in desktop app");
+  }
   async billingCreateCheckout(
     _ws: string,
-    _priceId: string,
+    _plan: BillingPlan,
+    _successUrl: string,
+    _cancelUrl: string,
+    _seats?: number,
+  ): Promise<{ url: string }> {
+    throw new Error("not implemented in desktop app");
+  }
+  async billingBuyCredits(
+    _ws: string,
     _successUrl: string,
     _cancelUrl: string,
   ): Promise<{ url: string }> {

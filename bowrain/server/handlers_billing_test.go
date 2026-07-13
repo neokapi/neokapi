@@ -70,6 +70,11 @@ func (m *mockBillingStore) GrantCredits(_ context.Context, _ string, amount int6
 	m.grantedSource = source
 	return nil
 }
+func (m *mockBillingStore) GrantPurchasedCredits(_ context.Context, _ string, amount int64, _ string) (bool, error) {
+	m.grantedAmount = amount
+	m.grantedSource = billing.SourcePurchased
+	return true, nil
+}
 func (m *mockBillingStore) GetLedger(_ context.Context, _ string, _, _ time.Time) ([]billing.LedgerEntry, error) {
 	return m.ledger, nil
 }

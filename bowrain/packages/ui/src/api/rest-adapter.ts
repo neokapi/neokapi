@@ -90,6 +90,8 @@ import type {
   BravoSSEError,
   BravoSSEStepUp,
   BillingOverview,
+  BillingPlan,
+  BillingPlansResponse,
   BillingUsageBreakdown,
   ModelUsageResponse,
   CreditLedgerEntry,
@@ -152,6 +154,32 @@ import type {
  */
 function encodeConceptSegment(id: string): string {
   return encodeURIComponent(id).replace(/%3A/gi, ":");
+}
+
+/**
+ * The billing payloads exactly as the server sends them (Go JSON, snake_case).
+ * They exist so the mapping into the UI's camelCase billing types is typed rather
+ * than a cast: the previous code declared the server returned the UI shape, which
+ * it never did, and TypeScript had no way to notice.
+ */
+interface BillingSubscriptionDTO {
+  plan: BillingPlan;
+  status: "active" | "past_due" | "canceled" | "trialing";
+  seat_count: number;
+  stripe_customer_id?: string;
+  current_period_start?: string;
+  current_period_end?: string;
+  cancel_at?: string;
+  trial_ends_at?: string;
+}
+
+interface CreditLedgerEntryDTO {
+  id: number | string;
+  amount: number;
+  balance_after: number;
+  operation: string;
+  reference_id?: string;
+  created_at: string;
 }
 
 /**
@@ -2578,12 +2606,65 @@ export class RestApiAdapter implements ApiAdapter {
     return `/api/v1/${ws}/billing`;
   }
 
+  // The server speaks Go/snake_case; the UI types are camelCase. The mapping
+  // lives here, in the adapter, and nowhere else. (It was missing entirely: the
+  // page read overview.credits and overview.stripeCustomerId from a payload that
+  // never carried those keys, so the credit card and the Manage-Subscription
+  // button silently never rendered.)
   async billingGetOverview(workspaceSlug: string): Promise<BillingOverview> {
-    return this.fetchJSON(this.billingEp(workspaceSlug));
+    const raw = await this.fetchJSON<{
+      plan: BillingPlan;
+      status: BillingSubscriptionDTO["status"];
+      credits_total: number;
+      credits_used: number;
+      credits_remaining: number;
+      week_resets_at: string;
+      subscription?: BillingSubscriptionDTO;
+    }>(this.billingEp(workspaceSlug));
+
+    return {
+      subscription: {
+        plan: raw.subscription?.plan ?? raw.plan,
+        status: raw.subscription?.status ?? raw.status,
+        // A workspace always has at least one seat. The synthesized free-plan
+        // subscription the server returns for a workspace with no row carries
+        // seat_count 0, which `??` would happily pass through as "0 seats".
+        seatCount: Math.max(raw.subscription?.seat_count ?? 1, 1),
+        currentPeriodStart: raw.subscription?.current_period_start,
+        currentPeriodEnd: raw.subscription?.current_period_end,
+        cancelAt: raw.subscription?.cancel_at,
+        trialEndsAt: raw.subscription?.trial_ends_at,
+      },
+      credits: {
+        creditsTotal: raw.credits_total,
+        creditsUsed: raw.credits_used,
+        creditsRemaining: raw.credits_remaining,
+        weekEnd: raw.week_resets_at,
+      },
+      stripeCustomerId: raw.subscription?.stripe_customer_id || undefined,
+    };
   }
 
   async billingGetUsage(workspaceSlug: string): Promise<BillingUsageBreakdown> {
-    return this.fetchJSON(`${this.billingEp(workspaceSlug)}/usage`);
+    const raw = await this.fetchJSON<{ usage_by_operation?: Record<string, number> }>(
+      `${this.billingEp(workspaceSlug)}/usage`,
+    );
+    const byOp = raw.usage_by_operation ?? {};
+    const total = Object.values(byOp).reduce((sum, n) => sum + n, 0);
+    return {
+      aiTranslation: byOp.ai_translation ?? 0,
+      aiQualityCheck: byOp.ai_quality_check ?? 0,
+      bravoMessages: byOp.bravo_message ?? 0,
+      bravoContainer: byOp.bravo_container ?? 0,
+      // The total is the sum of everything charged, not of the four named rows —
+      // a new operation type (brand_scan, say) must land in the total rather than
+      // vanish from it.
+      total,
+    };
+  }
+
+  async billingGetPlans(workspaceSlug: string): Promise<BillingPlansResponse> {
+    return this.fetchJSON(`${this.billingEp(workspaceSlug)}/plans`);
   }
 
   async billingGetModelUsage(
@@ -2600,27 +2681,55 @@ export class RestApiAdapter implements ApiAdapter {
 
   async billingCreateCheckout(
     workspaceSlug: string,
-    priceId: string,
+    plan: BillingPlan,
+    successUrl: string,
+    cancelUrl: string,
+    seats?: number,
+  ): Promise<{ url: string }> {
+    const { checkout_url } = await this.fetchJSON<{ checkout_url: string }>(
+      `${this.billingEp(workspaceSlug)}/checkout`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          plan,
+          seats,
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+        }),
+      },
+    );
+    return { url: checkout_url };
+  }
+
+  async billingBuyCredits(
+    workspaceSlug: string,
     successUrl: string,
     cancelUrl: string,
   ): Promise<{ url: string }> {
-    return this.fetchJSON(`${this.billingEp(workspaceSlug)}/checkout`, {
-      method: "POST",
-      body: JSON.stringify({
-        price_id: priceId,
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-      }),
-    });
+    const { checkout_url } = await this.fetchJSON<{ checkout_url: string }>(
+      `${this.billingEp(workspaceSlug)}/buy-credits`,
+      {
+        method: "POST",
+        body: JSON.stringify({ success_url: successUrl, cancel_url: cancelUrl }),
+      },
+    );
+    return { url: checkout_url };
   }
 
   async billingCreatePortal(workspaceSlug: string, returnUrl: string): Promise<{ url: string }> {
-    return this.fetchJSON(`${this.billingEp(workspaceSlug)}/portal`, {
-      method: "POST",
-      body: JSON.stringify({ return_url: returnUrl }),
-    });
+    const { portal_url } = await this.fetchJSON<{ portal_url: string }>(
+      `${this.billingEp(workspaceSlug)}/portal`,
+      {
+        method: "POST",
+        body: JSON.stringify({ return_url: returnUrl }),
+      },
+    );
+    return { url: portal_url };
   }
 
+  // The ledger is the `entries` of the usage response — there is no /ledger route
+  // (the old call to one 404'd, which is why Credit Transactions was always
+  // empty).
   async billingGetLedger(
     workspaceSlug: string,
     from?: string,
@@ -2630,7 +2739,17 @@ export class RestApiAdapter implements ApiAdapter {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     const qs = params.toString();
-    return this.fetchJSON(`${this.billingEp(workspaceSlug)}/ledger${qs ? `?${qs}` : ""}`);
+    const raw = await this.fetchJSON<{ entries?: CreditLedgerEntryDTO[] }>(
+      `${this.billingEp(workspaceSlug)}/usage${qs ? `?${qs}` : ""}`,
+    );
+    return (raw.entries ?? []).map((e) => ({
+      id: String(e.id),
+      amount: e.amount,
+      balanceAfter: e.balance_after,
+      operation: e.operation,
+      referenceId: e.reference_id,
+      createdAt: e.created_at,
+    }));
   }
 
   // ── Brand knowledge graph — Concepts (AD-021) ─────────────────────────────

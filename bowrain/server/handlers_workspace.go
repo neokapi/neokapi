@@ -77,7 +77,7 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 	// Set up 14-day Pro trial for new workspaces.
 	var planSyncer billing.WorkspacePlanSyncer
 	if s.AuthStore != nil {
-		planSyncer = &planSyncAdapter{authStore: s.AuthStore}
+		planSyncer = s.planSyncer()
 	}
 	billing.SetupTrial(ctx, s.BillingStore, w.ID, planSyncer)
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/stripe/stripe-go/v82"
@@ -120,7 +121,12 @@ func (h *WebhookHandler) dispatch(ctx context.Context, event stripe.Event) error
 	switch event.Type {
 	case "checkout.session.completed":
 		return h.handleCheckoutCompleted(ctx, event)
-	case "customer.subscription.updated":
+	case "customer.subscription.created", "customer.subscription.updated":
+		// Stripe emits `created` for a new subscription and only emits `updated`
+		// when something subsequently changes — so a fresh Team purchase can be
+		// followed by no `updated` at all. Both carry the same payload shape, and
+		// the subscription's price metadata is the authoritative plan signal
+		// (planFromSubscription), so both route to the same handler.
 		return h.handleSubscriptionUpdated(ctx, event)
 	case "customer.subscription.deleted":
 		return h.handleSubscriptionDeleted(ctx, event)
@@ -149,25 +155,31 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 	// Handle one-time credit pack purchase. Purchased packs are non-expiring
 	// (SourcePurchased) — they persist across weekly rollovers until spent, and
 	// spend draws from them only after the weekly plan allowance (Epic 004).
+	//
+	// Granted idempotently on the checkout session id: Stripe delivers webhooks
+	// at-least-once and this handler's marker is rolled back on any error, so a
+	// naive grant would double-credit a $5 pack on retry. A duplicate delivery
+	// returns granted=false and is a no-op success.
 	if sess.Metadata["type"] == "credit_pack" {
-		creditPackAmount := int64(500_000) // 500K credits per pack
-		if err := h.store.GrantCredits(ctx, workspaceID, creditPackAmount, SourcePurchased); err != nil {
+		if _, err := h.store.GrantPurchasedCredits(ctx, workspaceID, CreditPackCredits, sess.ID); err != nil {
 			return fmt.Errorf("grant credits: %w", err)
 		}
-		return h.store.RecordBillingEvent(ctx, &BillingEvent{
-			WorkspaceID: workspaceID,
-			EventType:   "credits_purchased",
-			Detail:      fmt.Sprintf("Credit pack purchased, +%d credits", creditPackAmount),
-		})
+		return nil
 	}
 
+	// The plan and seat count come from the session metadata the checkout handler
+	// stamped, because the checkout handler is the only place that chose the
+	// price. Reading them here is what makes a Team purchase land on Team without
+	// waiting for a subsequent subscription event; when that event does arrive it
+	// re-derives the same plan from the price's `bowrain_plan` metadata.
+	plan := planFromMetadata(sess.Metadata)
 	sub := &Subscription{
 		WorkspaceID:          workspaceID,
 		StripeCustomerID:     sess.Customer.ID,
 		StripeSubscriptionID: sess.Subscription.ID,
-		Plan:                 PlanPro, // default; updated by subscription.updated
+		Plan:                 plan,
 		Status:               "active",
-		SeatCount:            1,
+		SeatCount:            seatsFromMetadata(sess.Metadata),
 	}
 
 	if err := h.store.UpsertSubscription(ctx, sub); err != nil {
@@ -181,14 +193,38 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 		h.tracker.CaptureEvent(workspaceID, "billing.checkout_completed", map[string]any{
 			"workspace_id": workspaceID,
 			"customer_id":  sess.Customer.ID,
+			"plan":         string(sub.Plan),
 		})
 	}
 
 	return h.store.RecordBillingEvent(ctx, &BillingEvent{
 		WorkspaceID: workspaceID,
 		EventType:   "subscription_created",
-		Detail:      "Checkout completed, customer=" + sess.Customer.ID,
+		Detail:      fmt.Sprintf("Checkout completed, plan=%s, seats=%d, customer=%s", sub.Plan, sub.SeatCount, sess.Customer.ID),
 	})
+}
+
+// planFromMetadata reads the plan the checkout handler stamped on the session.
+// An absent or unrecognized value falls back to Pro — the cheapest paid plan —
+// so a malformed event can never silently hand out a richer plan than was paid
+// for; the subscription event that follows corrects it from the price metadata.
+func planFromMetadata(md map[string]string) Plan {
+	plan := Plan(md["plan"])
+	if ValidPlans[plan] && plan != PlanFree {
+		return plan
+	}
+	return PlanPro
+}
+
+// seatsFromMetadata reads the seat count the checkout handler stamped (the
+// Stripe subscription quantity it requested). Seats are re-derived from the
+// subscription item quantity on every subsequent subscription event.
+func seatsFromMetadata(md map[string]string) int {
+	n, err := strconv.Atoi(md["seats"])
+	if err != nil || n < 1 {
+		return 1
+	}
+	return n
 }
 
 func (h *WebhookHandler) handleSubscriptionUpdated(ctx context.Context, event stripe.Event) error {
@@ -201,6 +237,22 @@ func (h *WebhookHandler) handleSubscriptionUpdated(ctx context.Context, event st
 	workspaceID := stripeSub.Metadata["workspace_id"]
 	if workspaceID == "" {
 		slog.Info("subscription.updated: no workspace_id in metadata for sub", "value", stripeSub.ID)
+		return nil
+	}
+
+	// A canceled subscription is terminal. Stripe does not guarantee event
+	// ordering, so a `subscription.updated` (status active) can be delivered
+	// AFTER the `subscription.deleted` that canceled it — and a blind upsert would
+	// resurrect the workspace to its paid plan with no live Stripe subscription
+	// behind it (Team service for free). Reactivation always arrives as a fresh
+	// checkout with a NEW subscription id, never as a stale update to the
+	// canceled one, so ignoring updates for a locally-terminal subscription is
+	// safe. `deleted` clears stripe_subscription_id, so that empty id is the
+	// tombstone we key on.
+	if existing, err := h.store.GetSubscription(ctx, workspaceID); err == nil &&
+		existing != nil && existing.Status == "canceled" && existing.StripeSubscriptionID == "" {
+		slog.Info("ignoring subscription.updated for a canceled subscription",
+			"workspace", workspaceID, "event_sub", stripeSub.ID)
 		return nil
 	}
 
