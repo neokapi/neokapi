@@ -133,6 +133,37 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Object storage (S3-compatible; mirrors Amazon S3 in production) ──────────
+  # The server and worker use the same s3blob code path here as against real S3;
+  # only the endpoint and credentials differ. This is what gives local/prod parity.
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  # One-shot: create the blob bucket, mirroring the Terraform S3 bucket in prod.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until mc alias set local http://minio:9000 minioadmin minioadmin; do
+          echo 'waiting for minio...'; sleep 1;
+        done
+        mc mb --ignore-existing local/bowrain-blobs
+        echo 'bucket ready'
+
   # ── Bowrain platform ─────────────────────────────────────────────────────────
   bowrain-server:
     image: ${BOWRAIN_SERVER_IMAGE:-bowrain-local/server:dev}
@@ -155,8 +186,17 @@ services:
       BOWRAIN_SMTP_FROM: noreply@bowrain.local
       BOWRAIN_NATS_URL: nats://nats:4222
       BOWRAIN_REDIS_URL: redis://redis:6379
-      # Shared with the worker — push payloads land here for async ingestion.
-      BLOB_STORAGE_LOCAL_DIR: /data/blobs
+      # Object storage via MinIO (S3-compatible) — identical s3blob code path to
+      # Amazon S3 in production. S3_PUBLIC_ENDPOINT is the host the browser uses,
+      # so pre-signed URLs the server mints still resolve client-side.
+      BLOB_STORAGE_BACKEND: s3
+      S3_BLOB_BUCKET: bowrain-blobs
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: http://localhost:9000
+      S3_FORCE_PATH_STYLE: "true"
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
       # Serve the SPA from the server (single origin). Populated by the `web`
       # profile's web-init container; empty otherwise (API still works).
       BOWRAIN_WEB_UI_DIR: /web
@@ -177,6 +217,8 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+      minio-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health"]
       interval: 5s
@@ -192,8 +234,16 @@ services:
       BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain?sslmode=disable
       BOWRAIN_NATS_URL: nats://nats:4222
       BOWRAIN_REDIS_URL: redis://redis:6379
-      # Same shared volume as the server (note: worker uses LOCAL_BLOB_DIR).
-      LOCAL_BLOB_DIR: /data/blobs
+      # Object storage via MinIO — same bucket and s3blob code path as the server,
+      # so both read/write the same push payloads through S3, not a shared disk.
+      BLOB_STORAGE_BACKEND: s3
+      S3_BLOB_BUCKET: bowrain-blobs
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: http://localhost:9000
+      S3_FORCE_PATH_STYLE: "true"
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
       # Upstream translation provider for "platform" jobs (auto-translate-on-push).
       # "demo" = offline deterministic stub (no key). Set to "gemini" + GEMINI_API_KEY
       # (or openai/anthropic/ollama) for real translations — see .env.example.
@@ -213,6 +263,8 @@ services:
         condition: service_healthy
       nats:
         condition: service_started
+      minio-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
       interval: 10s
@@ -237,4 +289,5 @@ volumes:
   postgres-data:
   nats-data:
   blob-data:
+  minio-data:
   web-dist:

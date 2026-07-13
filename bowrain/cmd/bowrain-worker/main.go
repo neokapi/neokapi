@@ -26,6 +26,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	blobazure "github.com/neokapi/neokapi/bowrain/storage/azureblob"
+	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corestorage "github.com/neokapi/neokapi/core/storage"
@@ -220,26 +221,38 @@ func runWorker(dbURL string) error {
 		translationDeps.BillingHooks = hooks
 	}
 
-	// Configure blob store for async sync push processing (Bowrain AD-009).
+	// Configure blob store for async sync push processing (Bowrain AD-009). The
+	// selection mirrors the server (via the shared blobcfg contract) so the two
+	// can never read the same push from different backends.
 	var blobStore corestorage.BlobStore
-	if azureStorageURL := os.Getenv("AZURE_STORAGE_ACCOUNT_URL"); azureStorageURL != "" {
-		container := envOrDefault("AZURE_STORAGE_CONTAINER", "bowrain-assets")
-		if connStr := os.Getenv("AZURE_STORAGE_CONNECTION_STRING"); connStr != "" {
-			bs, err := blobazure.NewWithConnectionString(connStr, container)
-			if err == nil {
-				blobStore = bs
-				slog.Info("using Azure Blob Storage for push processing")
-			}
+	if blobcfg.S3Configured() {
+		if bs, err := blobcfg.NewS3FromEnv(ctx); err != nil {
+			slog.Warn("failed to create S3 blob store for push processing", "error", err)
 		} else {
-			bs, err := blobazure.New(azureStorageURL, container)
-			if err == nil {
-				blobStore = bs
-				slog.Info("using Azure Blob Storage (managed identity) for push processing")
+			blobStore = bs
+			slog.Info("using S3 blob storage for push processing", "bucket", os.Getenv("S3_BLOB_BUCKET"))
+		}
+	}
+	if blobStore == nil {
+		if azureStorageURL := os.Getenv("AZURE_STORAGE_ACCOUNT_URL"); azureStorageURL != "" {
+			container := envOrDefault("AZURE_STORAGE_CONTAINER", "bowrain-assets")
+			if connStr := os.Getenv("AZURE_STORAGE_CONNECTION_STRING"); connStr != "" {
+				if bs, err := blobazure.NewWithConnectionString(connStr, container); err == nil {
+					blobStore = bs
+					slog.Info("using Azure Blob Storage for push processing")
+				}
+			} else {
+				if bs, err := blobazure.New(azureStorageURL, container); err == nil {
+					blobStore = bs
+					slog.Info("using Azure Blob Storage (managed identity) for push processing")
+				}
 			}
 		}
 	}
 	if blobStore == nil {
-		localDir := envOrDefault("LOCAL_BLOB_DIR", "/tmp/bowrain-blobs")
+		// Accept the server's BLOB_STORAGE_LOCAL_DIR too, so a shared-volume
+		// deployment can't point the two at different directories.
+		localDir := envOrDefault("BLOB_STORAGE_LOCAL_DIR", envOrDefault("LOCAL_BLOB_DIR", "/tmp/bowrain-blobs"))
 		if bs, err := bloblocal.New(localDir); err == nil {
 			blobStore = bs
 		}

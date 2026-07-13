@@ -1,11 +1,13 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/bowrain/storage/azureblob"
+	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
 	"github.com/neokapi/neokapi/bowrain/storage/localblob"
 )
 
@@ -20,6 +22,8 @@ func (s *Server) initBlobStore(cfg Config) {
 	}
 
 	switch backend {
+	case "s3":
+		s.initS3BlobStore()
 	case "azure":
 		s.initAzureBlobStore(cfg)
 	case "local":
@@ -28,6 +32,19 @@ func (s *Server) initBlobStore(cfg Config) {
 		slog.Warn("unknown blob storage backend, falling back to local", "backend", backend)
 		s.initLocalBlobStore(cfg)
 	}
+}
+
+// initS3BlobStore initializes the S3 (or S3-compatible) blob store from the
+// shared env contract. Like the other backends it degrades gracefully — a
+// misconfiguration warns rather than aborting startup.
+func (s *Server) initS3BlobStore() {
+	bs, err := blobcfg.NewS3FromEnv(context.Background())
+	if err != nil {
+		slog.Warn("failed to create S3 blob store", "error", err)
+		return
+	}
+	s.BlobStore = bs
+	slog.Info("using S3 blob storage", "bucket", os.Getenv("S3_BLOB_BUCKET"), "endpoint", os.Getenv("S3_ENDPOINT"))
 }
 
 func (s *Server) initAzureBlobStore(cfg Config) {
