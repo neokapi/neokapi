@@ -7,18 +7,44 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@neokapi/ui-primitives";
-import HeroProcess from "./HeroProcess";
+import { HeroKineticFallback } from "./HeroKinetic";
 import styles from "./styles.module.css";
 
-// The docs landing centerpiece. The hero is a zero-wasm process "show"
-// (HeroProcess): baked RenderDoc frames rendered through the shared FormatPreview
-// that auto-advance through the kapi way — Declare → Reconcile → Produce →
-// Converge → Review → Shipped, the anatomy of `kapi up` — with a stepper and
-// typewriter/crossfade transitions. Clicking it opens a modal (the ui-primitives Dialog) that boots
-// the kapi WASM engine and drives a single coherent surface: a FileBrowser of
-// real sample files across formats, opening into a DocumentViewer powered by
-// live extraction (inspect + inspectAnnotated) with a real pseudo-translate
-// target — so the instant teaser and the live proof tell the same story.
+// HeroKinetic drives Motion animation + client timers, so it is loaded
+// client-only: on the server (and until the client mounts) we render the static
+// HeroKineticFallback so Motion never enters the SSR bundle. This keeps the docs
+// build SSR-safe.
+const LazyHeroKinetic = React.lazy(() => import("./HeroKinetic"));
+
+function HeroKineticClient({ onOpen }: { onOpen: () => void }): React.ReactElement {
+  return (
+    <BrowserOnly fallback={<HeroKineticFallback onOpen={onOpen} />}>
+      {() => (
+        <Suspense fallback={<HeroKineticFallback onOpen={onOpen} />}>
+          <LazyHeroKinetic onOpen={onOpen} />
+        </Suspense>
+      )}
+    </BrowserOnly>
+  );
+}
+
+// The docs landing centerpiece. The hero is a zero-wasm, kinetic-type reel
+// (HeroKinetic): a self-playing two-column Motion sequence. LEFT, a kinetic verb
+// stack — the active verb large + dark, passed verbs receded, SHIP resolving
+// large + green with a ✓. RIGHT, a live brand-guide asset that transforms as
+// each verb fires: its voice/terms/tone rows populate (Shape), a body block
+// writes in (Write), green ✓ marks + a "brand ✓" chip appear (Check), and an "on
+// brand" seal stamps (Ship). It then goes multilingual — the verbs recede and
+// SHIP resolves as 出荷 / Versand / Envío while the asset gains a de·ja·fr
+// switcher, localizes a rule, and ships in every language. The abstract verbs
+// act on a concrete artifact. Pure JS animation, no engine boot; guarded behind
+// BrowserOnly with a static SSR fallback. Under prefers-reduced-motion it shows a
+// static finished frame.
+// Clicking the card opens a modal (the ui-primitives Dialog) that boots the kapi
+// WASM engine and drives a single coherent surface: a FileBrowser of real sample
+// files across formats, opening into a DocumentViewer powered by live extraction
+// (inspect + inspectAnnotated) with a real pseudo-translate target — so the
+// instant teaser and the live proof tell the same story.
 //
 // The page stays zero-wasm on load: nothing boots the engine until the reader
 // opens the modal. The heavy modal body (which imports the lab runtime) is
@@ -45,7 +71,7 @@ export default function TryNeokapi(): React.ReactElement {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <HeroProcess onOpen={() => setOpen(true)} />
+      <HeroKineticClient onOpen={() => setOpen(true)} />
 
       <Dialog open={open} onOpenChange={setOpen}>
         {/* Cap the modal to the viewport and lay it out as a flex column so the
