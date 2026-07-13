@@ -1,6 +1,7 @@
 package xml
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/xml"
@@ -32,6 +33,14 @@ type Reader struct {
 // Ensure Reader implements SubfilterAware and SkeletonStoreEmitter.
 var _ format.SubfilterAware = (*Reader)(nil)
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+
+// Ensure Reader implements StreamingReader: the skeleton round-trip over a
+// re-openable file input reads incrementally (bounded to one top-level subtree)
+// — see readContentStreaming. The file-runner uses this to concurrent-feed.
+var _ format.StreamingReader = (*Reader)(nil)
+
+// StreamingReader marks the bounded-memory two-pass skeleton path.
+func (r *Reader) StreamingReader() {}
 
 // NewReader creates a new XML reader.
 func NewReader() *Reader {
@@ -198,6 +207,17 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// Bounded-memory streaming: a same-format skeleton round-trip with validation
+	// off, over a re-openable file input. Pass 1 scans a re-opened copy for ITS
+	// rules (bounded); pass 2 streams the extraction from doc.Reader. Falls back
+	// to the buffered walk for non-file inputs (or when reopening fails).
+	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
+		if r.readContentStreaming(ctx, ch, layer) {
+			r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+			return
+		}
+	}
+
 	// Bound the whole-input read with the shared safeio byte budget so an
 	// unbounded/oversized stream fails with a typed error (identical limit
 	// across CLI/server/WASM — see core/safeio). The element walk itself is
@@ -238,6 +258,44 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// readContentStreaming runs the bounded-memory two-pass. It returns false —
+// without consuming doc.Reader — when the input is not a re-openable file, so
+// the caller falls back to the buffered walk. It returns true once it has
+// handled the document (streamed it, or surfaced a parse error).
+//
+// The two passes are sound because the ITS resolver is ancestor-only (selectors
+// match the element's ancestor path, never forward/descendant/sibling axes), so
+// rules extracted in pass 1 can be applied during the forward pass-2 walk — ITS
+// documents stream just like ITS-free ones.
+func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartResult, layer *model.Layer) bool {
+	// Pass 1 — extract ITS rules from a re-opened copy of the input, leaving
+	// doc.Reader untouched for pass 2. A non-file URI (a pipe, an in-memory
+	// test doc) can't be reopened, so we decline and let the buffered path run.
+	f, err := os.Open(r.Doc.URI)
+	if err != nil {
+		return false
+	}
+	embedded, externals, rerr := its.ExtractRulesReader(safeio.DefaultBudget().Reader(f))
+	f.Close()
+	if rerr != nil {
+		// The rules scan parses the whole document, so a malformed file fails
+		// here — the same well-formedness gate as the buffered path (the
+		// diagnostic is a no-op under ValidationOff).
+		ch <- model.PartResult{Error: fmt.Errorf("xml: parsing ITS rules: %w", rerr)}
+		return true
+	}
+	itsRules := r.loadExternalITSRules(externals)
+	itsRules.Append(embedded)
+	resolver := its.NewResolver(itsRules)
+
+	// Pass 2 — stream the extraction from doc.Reader through a bounded window.
+	cr := format.NewCaptureReader(bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader)))
+	var contentRanges []skelContentRange
+	var attrRanges []skelAttrRange
+	_ = r.readContentCore(ctx, ch, nil, layer, &contentRanges, &attrRanges, resolver, cr)
+	return true
 }
 
 // loadExternalITSRules walks the supplied list of `<its:rules
@@ -308,7 +366,7 @@ type skelAttrRange struct {
 }
 
 func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer, resolver *its.Resolver) {
-	_ = r.readContentCore(ctx, ch, content, layer, nil, nil, resolver)
+	_ = r.readContentCore(ctx, ch, content, layer, nil, nil, resolver, nil)
 }
 
 func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer, resolver *its.Resolver) {
@@ -320,7 +378,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 
 	var contentRanges []skelContentRange
 	var attrRanges []skelAttrRange
-	itsRanges := r.readContentCore(ctx, ch, content, layer, &contentRanges, &attrRanges, resolver)
+	itsRanges := r.readContentCore(ctx, ch, content, layer, &contentRanges, &attrRanges, resolver, nil)
 
 	// Drop any block content range that would overwrite an
 	// `<its:rules>` element — those bytes must round-trip verbatim
@@ -357,6 +415,106 @@ func filterContentRangesContainingITSRules(ranges []skelContentRange, itsRanges 
 	return out
 }
 
+// flushPending emits skeleton for the pending ranges whose bytes are now fully
+// decided — every enclosing top-level subtree has closed — then releases the
+// CaptureReader window below the emit frontier. It is the incremental,
+// bounded-memory equivalent of writeSkeletonEntries: same sort +
+// removeOverlappingParents, but per-batch and with a cross-batch parent guard.
+// Called at depth<=1 boundaries and once at EOF (flushFinal).
+func (s *xmlParseState) flushPending() {
+	store := s.reader.skeletonStore
+	if store == nil || s.cr == nil {
+		return
+	}
+	content := *s.contentRanges
+	if len(s.itsRulesRanges) > 0 {
+		// An <its:rules> element must round-trip verbatim, so drop any block
+		// content range that would overwrite it (its bytes stay skeleton text).
+		content = filterContentRangesContainingITSRules(content, s.itsRulesRanges)
+	}
+	refs := make([]skelRefEntry, 0, len(content)+len(*s.attrRanges))
+	for _, cr := range content {
+		refs = append(refs, skelRefEntry(cr))
+	}
+	for _, ar := range *s.attrRanges {
+		refs = append(refs, skelRefEntry(ar))
+	}
+	slices.SortFunc(refs, func(a, b skelRefEntry) int { return a.start - b.start })
+	refs = removeOverlappingParents(refs)
+
+	for _, ref := range refs {
+		// Cross-batch parent guard: a range starting before the emit frontier is
+		// a translatable ancestor (e.g. a translatable root) whose inner content
+		// was already emitted in an earlier batch — its bytes are already in the
+		// skeleton, so it must not be re-emitted as a ref.
+		if ref.start < s.emitPos {
+			continue
+		}
+		if ref.start > s.emitPos {
+			store.WriteText(s.win(s.emitPos, ref.start))
+		}
+		store.WriteRef(ref.blockID)
+		s.emitPos = ref.end
+	}
+	// Emit settled skeleton text past the last ref. Without this, a batch with
+	// no refs (non-translatable content) never advances emitPos, so the window
+	// would never be discarded. "Settled" means below the content of the
+	// outermost still-open frame that is accumulating real translatable text —
+	// that frame's eventual range may still fold those bytes into a ref, so they
+	// must wait; everything before it is final skeleton.
+	if safe := s.settledTextOffset(); safe > s.emitPos {
+		store.WriteText(s.win(s.emitPos, safe))
+		s.emitPos = safe
+	}
+	// Reset the per-batch pending ranges; itsRulesRanges is kept (it is tiny and
+	// a later batch's content range could still enclose an earlier rules block).
+	*s.contentRanges = (*s.contentRanges)[:0]
+	*s.attrRanges = (*s.attrRanges)[:0]
+	s.cr.DiscardTo(int64(s.emitPos))
+
+	// Bound run accumulation on long-open container frames. A still-open frame
+	// that has accumulated only whitespace / comment placeholders (no
+	// translatable text) will never produce a block — its bytes are settled
+	// skeleton already emitted above — so drop its runs. Without this a container
+	// with thousands of direct children/comments (e.g. a comment per entry) grows
+	// O(children) even though its window is bounded. Frames holding real
+	// translatable text keep their runs (they may still become a block).
+	for _, f := range s.stack {
+		if f.hasRuns && !f.preserveWS && !runsHaveNonWhitespaceText(f.runs) {
+			f.runs = nil
+			f.hasRuns = false
+		}
+	}
+}
+
+// settledTextOffset returns the highest offset up to which skeleton text is
+// final — i.e. no still-open frame's content range could cover it. It is the
+// content start of the outermost open frame that has accumulated non-whitespace
+// runs (that frame may still emit a content ref folding in later bytes), or the
+// current decoder position if no open frame is accumulating translatable text.
+func (s *xmlParseState) settledTextOffset() int {
+	for _, f := range s.stack {
+		if f.contentByteStart > 0 && f.hasRuns && runsHaveNonWhitespaceText(f.runs) {
+			return f.contentByteStart
+		}
+	}
+	return int(s.decoder.InputOffset())
+}
+
+// flushFinal flushes the last batch and emits the trailing skeleton bytes after
+// the final ref (closing tags, whitespace) at EOF.
+func (s *xmlParseState) flushFinal() {
+	store := s.reader.skeletonStore
+	if store == nil || s.cr == nil {
+		return
+	}
+	s.flushPending()
+	total := int(s.decoder.InputOffset())
+	if total > s.emitPos {
+		store.WriteText(s.win(s.emitPos, total))
+	}
+}
+
 // xmlParseState holds the mutable state for streaming XML parsing in readContentCore.
 type xmlParseState struct {
 	reader        *Reader
@@ -387,6 +545,73 @@ type xmlParseState struct {
 	// content range that fully contains an itsRulesRange so the
 	// surrounding skeleton text preserves the rules verbatim.
 	itsRulesRanges []skelByteRange
+
+	// Bounded-memory streaming mode. When cr != nil the source bytes are
+	// read from a sliding CaptureReader window (via win/srcLen) rather than a
+	// whole-document content slice, and skeleton is emitted incrementally as
+	// top-level subtrees complete (flushPending) rather than sliced in one
+	// pass at the end. emitPos is the absolute offset up to which streaming
+	// skeleton has been written. content is nil in this mode.
+	cr      *format.CaptureReader
+	emitPos int
+}
+
+// win returns the raw source bytes for the absolute range [start,end). In
+// buffered mode it slices the whole-document content; in streaming mode it
+// reads from the CaptureReader window (which retains the current subtree). The
+// returned slice must be consumed before the next decoder token / DiscardTo —
+// every caller copies (string(...)) or scans it synchronously.
+func (s *xmlParseState) win(start, end int) []byte {
+	if s.cr != nil {
+		b, _ := s.cr.Slice(int64(start), int64(end))
+		return b
+	}
+	return s.content[start:end]
+}
+
+// srcLen reports the highest source offset currently readable — len(content) in
+// buffered mode, or the bytes read so far (window extent) in streaming mode.
+// Decoder offsets never exceed it, so the existing `<= srcLen()` bounds checks
+// stay valid.
+func (s *xmlParseState) srcLen() int {
+	if s.cr != nil {
+		return int(s.cr.Base()) + s.cr.Window()
+	}
+	return len(s.content)
+}
+
+// qnameAt returns the qualified element name of the start tag at tokOffset,
+// windowed. Wraps extractElementQName on the tag slice (offset 0 == '<').
+func (s *xmlParseState) qnameAt(tokOffset int, localName string) string {
+	return extractElementQName(s.win(tokOffset, s.srcLen()), 0, localName)
+}
+
+// findCloseTagStartWin locates the '<' of `</tagName>` within [searchStart,
+// endOffset), windowed. Returns an absolute offset or -1.
+func (s *xmlParseState) findCloseTagStartWin(searchStart, endOffset int, tagName string) int {
+	seg := s.win(searchStart, endOffset)
+	r := findCloseTagStart(seg, 0, len(seg), tagName)
+	if r < 0 {
+		return -1
+	}
+	return searchStart + r
+}
+
+// findAttrValueByteRangeWin finds the byte range of an attribute value within
+// the start tag [tagStart,tagEnd), windowed, returning absolute offsets.
+func (s *xmlParseState) findAttrValueByteRangeWin(tagStart, tagEnd int, attrName, attrValue string) (int, int) {
+	seg := s.win(tagStart, tagEnd)
+	rs, re := findAttrValueByteRange(seg, 0, len(seg), attrName, attrValue)
+	if rs < 0 {
+		return -1, -1
+	}
+	return tagStart + rs, tagStart + re
+}
+
+// contentStartsWithText reports whether the element content beginning at
+// contentStart starts with character data (not a child tag), windowed.
+func (s *xmlParseState) contentStartsWithText(contentStart int) bool {
+	return elementContentStartsWithText(s.win(contentStart, s.srcLen()), 0)
 }
 
 // skelByteRange is a half-open [start, end) byte range in the source.
@@ -657,7 +882,7 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 			if closeName == "" {
 				closeName = frame.name
 			}
-			closeStart := findCloseTagStart(s.content, frame.contentByteStart, endTagOffset, closeName)
+			closeStart := s.findCloseTagStartWin(frame.contentByteStart, endTagOffset, closeName)
 			if closeStart >= 0 {
 				*s.contentRanges = append(*s.contentRanges, skelContentRange{
 					blockID: blockID,
@@ -720,10 +945,10 @@ func (s *xmlParseState) emitNonTranslatableBlock(frame *elementFrame, path strin
 			if closeName == "" {
 				closeName = frame.name
 			}
-			end = findCloseTagStart(s.content, start, endTagOffset, closeName)
+			end = s.findCloseTagStartWin(start, endTagOffset, closeName)
 		}
-		if end > start && end <= len(s.content) {
-			if renderRunsForRoundtripCheck(finalRuns, block.Type) == string(s.content[start:end]) {
+		if end > start && end <= s.srcLen() {
+			if renderRunsForRoundtripCheck(finalRuns, block.Type) == string(s.win(start, end)) {
 				*s.contentRanges = append(*s.contentRanges, skelContentRange{
 					blockID: blockID,
 					start:   start,
@@ -848,7 +1073,7 @@ func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, 
 				inlineRefs = append(inlineRefs, inlineAttrRef{attrName: attrName, blockID: blockID})
 				continue
 			}
-			attrStart, attrEnd := findAttrValueByteRange(s.content, tokOffset, contentStart, attrName, attr.Value)
+			attrStart, attrEnd := s.findAttrValueByteRangeWin(tokOffset, contentStart, attrName, attr.Value)
 			if attrStart >= 0 {
 				*s.attrRanges = append(*s.attrRanges, skelAttrRange{
 					blockID: blockID,
@@ -1068,7 +1293,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 	//     the parent.
 	if !isInline && !isExcluded && resolved.WithinText == its.Unset && !s.reader.cfg.isInlineElementNS(t.Name.Local, t.Name.Space, parentName) {
 		if parent := s.findTextFrame(); parent != nil && parent.hasRuns && !parent.isExcluded && s.isTranslatable(parent) {
-			if runsHaveNonWhitespaceText(parent.runs) && elementContentStartsWithText(s.content, contentStart) {
+			if runsHaveNonWhitespaceText(parent.runs) && s.contentStartsWithText(contentStart) {
 				isInline = true
 			}
 		}
@@ -1079,7 +1304,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 
 	frame := &elementFrame{
 		name:             t.Name.Local,
-		qname:            extractElementQName(s.content, tokOffset, t.Name.Local),
+		qname:            s.qnameAt(tokOffset, t.Name.Local),
 		localName:        t.Name.Local,
 		nsURI:            t.Name.Space,
 		attrs:            attrs,
@@ -1117,8 +1342,8 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 			// Capture verbatim source bytes for `<tag ...>...</tag>`
 			// (or `<tag .../>` for self-closing).
 			subtree := ""
-			if tokOffset >= 0 && endOffset > tokOffset && endOffset <= len(s.content) {
-				subtree = string(s.content[tokOffset:endOffset])
+			if tokOffset >= 0 && endOffset > tokOffset && endOffset <= s.srcLen() {
+				subtree = string(s.win(tokOffset, endOffset))
 			}
 			if parent != nil && parent.hasRuns && !parent.isExcluded {
 				// Mark parent inline ancestors as having content.
@@ -1188,8 +1413,8 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 				}
 				endOffset := int(s.decoder.InputOffset())
 				subtree := ""
-				if tokOffset >= 0 && endOffset > tokOffset && endOffset <= len(s.content) {
-					subtree = string(s.content[tokOffset:endOffset])
+				if tokOffset >= 0 && endOffset > tokOffset && endOffset <= s.srcLen() {
+					subtree = string(s.win(tokOffset, endOffset))
 				}
 				s.spanCounter++
 				parent.runs = append(parent.runs, model.Run{Ph: &model.PlaceholderRun{
@@ -1507,9 +1732,18 @@ func (r *Reader) addWellFormednessDiagnostic(content []byte, err error, byteOffs
 	r.AddDiagnostic(d)
 }
 
+// readContentCore drives the element walk. In buffered mode (cr == nil) it
+// decodes the whole content slice and the caller writes skeleton at the end; in
+// streaming mode (cr != nil) it decodes from the bounded CaptureReader window
+// and emits skeleton incrementally as top-level subtrees complete (flushPending),
+// so the reader never holds the whole document.
 func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer,
-	contentRanges *[]skelContentRange, attrRanges *[]skelAttrRange, resolver *its.Resolver) []skelByteRange {
+	contentRanges *[]skelContentRange, attrRanges *[]skelAttrRange, resolver *its.Resolver, cr *format.CaptureReader) []skelByteRange {
 
+	decoder := xml.NewDecoder(strings.NewReader(string(content)))
+	if cr != nil {
+		decoder = xml.NewDecoder(cr)
+	}
 	s := &xmlParseState{
 		reader:        r,
 		ctx:           ctx,
@@ -1518,8 +1752,9 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 		layer:         layer,
 		contentRanges: contentRanges,
 		attrRanges:    attrRanges,
-		decoder:       xml.NewDecoder(strings.NewReader(string(content))),
+		decoder:       decoder,
 		itsResolver:   resolver,
+		cr:            cr,
 	}
 
 	for {
@@ -1530,8 +1765,8 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 		}
 		if err != nil {
 			// RVM: surface the well-formedness error as a located structure
-			// diagnostic. The lenient path is unchanged — the error still surfaces
-			// on the channel below.
+			// diagnostic. content is nil in streaming mode, where ValidationOff
+			// makes the diagnostic a no-op, so pass what we have.
 			s.reader.addWellFormednessDiagnostic(content, err, int(s.decoder.InputOffset()))
 			ch <- model.PartResult{Error: fmt.Errorf("xml: parsing: %w", err)}
 			return nil
@@ -1542,6 +1777,13 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 			s.handleStartElement(t, tokOffset)
 		case xml.EndElement:
 			s.handleEndElement(t)
+			// A return to the document root (or above) means the just-closed
+			// top-level subtree — and every range within it — is decided; flush
+			// it and discard the window so peak memory stays bounded to one
+			// top-level subtree.
+			if cr != nil && len(s.stack) <= 1 {
+				s.flushPending()
+			}
 		case xml.CharData:
 			s.handleCharData(t)
 		case xml.ProcInst:
@@ -1550,6 +1792,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 			s.handleComment(t)
 		}
 	}
+	s.flushFinal()
 	return s.itsRulesRanges
 }
 
@@ -1900,10 +2143,10 @@ func buildStartTag(se xml.StartElement) string {
 // (`<tag attrs>`) so the writer's selfCloseStartTag transform works
 // uniformly on the captured bytes.
 func (s *xmlParseState) startTagBytes(t xml.StartElement, tokOffset, contentStart int) string {
-	if tokOffset < 0 || contentStart <= tokOffset || contentStart > len(s.content) {
+	if tokOffset < 0 || contentStart <= tokOffset || contentStart > s.srcLen() {
 		return buildStartTag(t)
 	}
-	raw := s.content[tokOffset:contentStart]
+	raw := s.win(tokOffset, contentStart)
 	// Normalize self-closing form (`<tag/>` or `<tag />`) to open form
 	// (`<tag>`) so the writer's open/close inline-code shape is
 	// consistent. The writer rewrites empty inlines back to self-close

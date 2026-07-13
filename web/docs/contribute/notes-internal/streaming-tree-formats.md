@@ -240,10 +240,19 @@ Per-format status / next:
   `tuIdx:lang` / `blockIdx:elemType`, so the multi-variant / synthesized-section
   cases need no `WriteLang`. Discard happens at the record boundary (`</tu>` /
   `</message>`), so within-record backward slices stay in the window; the
-  prologue / line-break are resolved from the peeked head. **`xml` remains** —
-  **ITS-gated** (stream only when `skeletonStore != nil && ValidationMode()==Off`
-  **and** no global `<its:rules>`/external rules; buffered fallback otherwise),
-  which needs a two-pass rules scan since global rules can appear anywhere.
+  prologue / line-break are resolved from the peeked head. **`xml` is done** —
+  it uses a **two-pass** (gated to the same-format skeleton round-trip with
+  validation off, over a re-openable **file** input): pass 1 scans a re-opened
+  copy with `its.ExtractRulesReader` (#1171) for `<its:rules>` (bounded — only
+  the rules are retained), pass 2 streams the extraction from `doc.Reader`
+  through the CaptureReader. ITS documents stream too — not just ITS-free ones —
+  because the resolver is **ancestor-only** (selectors match `ctx.Path`, never
+  forward/descendant/sibling axes). Non-file inputs (and validation mode) fall
+  back to the buffered walk. Skeleton is flushed incrementally at depth≤1
+  boundaries (per-batch `removeOverlappingParents` + an `emitPos`-skip for
+  cross-batch translatable-ancestor parents), and container frames that
+  accumulate only whitespace/comments have their runs reset each flush so a
+  container with thousands of children/comments stays bounded.
 - **resx, androidxml** — custom-tokenizer substrate (not `encoding/xml`): each
   needs a **streaming variant of its own tokenizer** + dropping `.original`
   retention (only retained when no skeleton store is wired). **`resx` and
