@@ -30,6 +30,14 @@ type Writer struct {
 // inner JSON writer, whose writeFromSkeleton path reproduces the document.
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
+// Ensure Writer satisfies StreamingWriter: Write delegates to the inner JSON
+// writer, which consumes a streaming skeleton store interleaved with the Part
+// stream — so the writer side is bounded too.
+var _ format.StreamingWriter = (*Writer)(nil)
+
+// StreamingWriter marks the bounded-memory interleaved write path (delegated).
+func (w *Writer) StreamingWriter() {}
+
 // NewWriter creates a new design-tokens writer.
 func NewWriter() *Writer {
 	cfg := &Config{}

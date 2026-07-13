@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -74,6 +75,14 @@ type Reader struct {
 // Ensure Reader emits a byte-exact skeleton by forwarding the store to the inner
 // JSON reader, which does the token-level skeleton emission.
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+
+// Ensure Reader satisfies StreamingReader: the skeleton round-trip streams via
+// the inner JSON reader (a two-pass with a bounded $deprecated pre-scan) — see
+// Open. The file-runner uses this to concurrent-feed the reader.
+var _ format.StreamingReader = (*Reader)(nil)
+
+// StreamingReader marks the bounded-memory two-pass path.
+func (r *Reader) StreamingReader() {}
 
 // NewReader creates a new design-tokens reader.
 func NewReader() *Reader {
@@ -143,18 +152,6 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	}
 	r.Doc = doc
 
-	// Read the document once: the bytes are needed both to pre-scan for string
-	// $deprecated prose (surfaced as semantic Note/Data, issue #928) and to feed
-	// the inner JSON reader. Bound by the shared safeio byte budget so an
-	// oversized stream fails with the same typed error as the inner reader.
-	data, err := io.ReadAll(safeio.DefaultBudget().Reader(doc.Reader))
-	if err != nil {
-		return fmt.Errorf("designtokens: reading: %w", err)
-	}
-	_ = doc.Reader.Close() // original fully consumed; inner reads the buffered copy
-	doc.Reader = io.NopCloser(bytes.NewReader(data))
-	r.scanDeprecated(data)
-
 	inner := jsonfmt.NewReader()
 	// Mutate the inner reader's live config in place. The JSON reader keeps a
 	// private *Config pointer that Config() returns; calling SetConfig would
@@ -167,6 +164,33 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if r.skeletonStore != nil {
 		inner.SetSkeletonStore(r.skeletonStore)
 	}
+
+	// Streaming path: a same-format skeleton round-trip with validation off over
+	// a re-openable file. Pass 1 scans a re-opened copy for $deprecated prose
+	// (bounded — only the prose is retained), leaving doc.Reader untouched for
+	// the inner JSON reader to stream in pass 2. Non-file inputs (and validation
+	// mode) fall back to the whole-document read below.
+	if r.skeletonStore != nil && r.ValidationMode() == format.ValidationOff {
+		if f, ferr := os.Open(doc.URI); ferr == nil {
+			r.scanDeprecatedStream(safeio.DefaultBudget().Reader(f))
+			_ = f.Close()
+			if err := inner.Open(ctx, doc); err != nil {
+				return err
+			}
+			r.inner = inner
+			return nil
+		}
+	}
+
+	// Buffered fallback: read the document once for both the $deprecated pre-scan
+	// and the inner JSON reader. Bound by the shared safeio byte budget.
+	data, err := io.ReadAll(safeio.DefaultBudget().Reader(doc.Reader))
+	if err != nil {
+		return fmt.Errorf("designtokens: reading: %w", err)
+	}
+	_ = doc.Reader.Close()
+	doc.Reader = io.NopCloser(bytes.NewReader(data))
+	r.scanDeprecated(data)
 	if err := inner.Open(ctx, doc); err != nil {
 		return err
 	}
@@ -237,6 +261,109 @@ func (r *Reader) scanDeprecated(data []byte) {
 	r.deprecatedNoteByDesc = make(map[string]string)
 	r.deprecatedDataText = make(map[string]string)
 	r.collectDeprecated(root, "")
+	if len(r.deprecatedNoteByDesc) == 0 {
+		r.deprecatedNoteByDesc = nil
+	}
+	if len(r.deprecatedDataText) == 0 {
+		r.deprecatedDataText = nil
+	}
+}
+
+// dtScanFrame is one open object/array in the streaming $deprecated scan.
+type dtScanFrame struct {
+	path      string
+	isObj     bool
+	key       string // current object key whose value is being read
+	expectKey bool   // next object token is a key
+	arrIdx    int    // next array element index
+	depMsg    string // this object's string $deprecated value (if any)
+	hasDep    bool
+	hasDesc   bool // this object has a string $description
+}
+
+// scanDeprecatedStream is the bounded-memory twin of scanDeprecated: it walks
+// the JSON token stream with a path stack instead of unmarshalling the whole
+// document into `any`, retaining only the (small) $deprecated prose it collects.
+// It reproduces collectDeprecated's maps exactly.
+func (r *Reader) scanDeprecatedStream(rd io.Reader) {
+	dec := json.NewDecoder(rd)
+	r.deprecatedNoteByDesc = make(map[string]string)
+	r.deprecatedDataText = make(map[string]string)
+
+	var stack []*dtScanFrame
+	childPath := func() string {
+		if len(stack) == 0 {
+			return ""
+		}
+		top := stack[len(stack)-1]
+		if top.isObj {
+			return joinDotPath(top.path, top.key)
+		}
+		return top.path + "[" + strconv.Itoa(top.arrIdx) + "]"
+	}
+	// advanceParent moves the (new) top frame past a just-completed value.
+	advanceParent := func() {
+		if len(stack) == 0 {
+			return
+		}
+		top := stack[len(stack)-1]
+		if top.isObj {
+			top.expectKey = true
+		} else {
+			top.arrIdx++
+		}
+	}
+
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			break // EOF or malformed — the inner JSON reader surfaces parse errors
+		}
+		switch t := tok.(type) {
+		case json.Delim:
+			switch t {
+			case '{':
+				stack = append(stack, &dtScanFrame{path: childPath(), isObj: true, expectKey: true})
+			case '[':
+				stack = append(stack, &dtScanFrame{path: childPath(), isObj: false})
+			case '}':
+				top := stack[len(stack)-1]
+				if top.hasDep {
+					if top.hasDesc && r.cfg.ExtractDescriptions {
+						r.deprecatedNoteByDesc[joinDotPath(top.path, "$description")] = top.depMsg
+					} else {
+						r.deprecatedDataText[joinDotPath(top.path, "$deprecated")] = top.depMsg
+					}
+				}
+				stack = stack[:len(stack)-1]
+				advanceParent()
+			case ']':
+				stack = stack[:len(stack)-1]
+				advanceParent()
+			}
+		default:
+			top := stack[len(stack)-1]
+			if top.isObj {
+				if top.expectKey {
+					top.key, _ = t.(string)
+					top.expectKey = false
+				} else {
+					if s, ok := t.(string); ok {
+						switch top.key {
+						case "$deprecated":
+							top.depMsg = s
+							top.hasDep = true
+						case "$description":
+							top.hasDesc = true
+						}
+					}
+					top.expectKey = true
+				}
+			} else {
+				top.arrIdx++
+			}
+		}
+	}
 	if len(r.deprecatedNoteByDesc) == 0 {
 		r.deprecatedNoteByDesc = nil
 	}
