@@ -140,6 +140,12 @@ least one direct non-whitespace JSXText child and only inline children
 common in real React UIs to warn on every occurrence. Opt-out via
 `translate="no"` or a `rules` entry.
 
+Fragment roots (`<>…</>`) extract on the same terms, with the reserved
+descriptor `fragment` (`FRAGMENT_DESCRIPTOR`) standing in for the tag
+they don't have. A fragment is a real authoring idiom for
+"inline content with no wrapper I'm allowed to add", and skipping it
+would push authors toward a `<span>` they don't want in the DOM.
+
 ### Component vocabulary
 
 Custom React components (`<TabsTrigger>`, `<DialogTitle>`,
@@ -154,12 +160,80 @@ mapped HTML element name rather than the React component identifier.
 | `{ Strong: "strong" }`             | Treats `<Strong>` as inline; eligible for paired pair. |
 | `{ Icon: "x-icon" }` (no html tag) | Marks `<Icon>` as opaque inline (icon-tolerant).       |
 
+The `componentMap` and the `rules` feed the hash, so the extract CLI
+and the build plugin **must** be configured identically. A desync is
+silent — both sides run without error and simply compute different
+keys, so every affected string falls back to source. Projects should
+keep one config file that both sides read.
+
+### Attribute extraction is scoped by host
+
+Translatable attributes come from two vocabularies with different
+scopes (`plugin/defaults.ts`):
+
+- `htmlTranslatableAttributes` — the HTML/ARIA names (`alt`, `title`,
+  `placeholder`, `aria-label`, …). Standardised as user-visible text,
+  so extracted on **any** element.
+- `componentTranslatableAttributes` — React's prop-name conventions
+  (`label`, `description`, `heading`, `helpText`, …). Extracted on
+  **PascalCase components only**.
+
+The scoping exists because the convention names are not reserved. On a
+plain HTML element, `label`, `heading`, or `data` are far more often
+DOM props, enum keys, or data-binding fields than copy, and extracting
+them swept strings nobody wanted translated into the catalog. A
+component author choosing `label=` for a visible prop is following a
+convention; a `<div label="draft-pending">` is not. `isTranslatableAttribute(attr, tag)`
+is the single predicate both the walker and the transform call.
+
+### Key scheme
+
+**The key is `FNV-1a 64` over `JSON.stringify(flatText) + "|" + desc`,
+base62-encoded**, where `flatText` is the block's flat template (text
+verbatim, expressions as `{name}`, inline elements as `{=mN}`) and
+`desc` is a structural descriptor.
+
+The descriptor is the element's **own resolved tag** — `"p"`,
+`"button"`, `"fragment"`, or `"t\x1F<context>"` for `t()` calls.
+Ancestors are deliberately excluded.
+
+This is the load-bearing decision of the whole model, because the key
+*is* the translator's contract. The property we need is: **a key
+changes when, and only when, a translator should look at the string
+again.** Rewording changes the key. Moving a paragraph into a new
+wrapper does not — it is a layout refactor, and the German is still
+the German.
+
+Rejected alternatives:
+
+- **Full ancestor path** (the original scheme). `"div > section > p"`
+  as the descriptor made every layout refactor a silent mass-orphaning
+  event: wrap a section in one new `<div>` and every string beneath it
+  gets a new key, loses its translation, and quietly falls back to
+  source. Structure is the *least* stable thing about a React
+  codebase; keying on it inverts the stability we want.
+- **Flat text alone.** Then `<p>Save</p>` and `<button>Save</button>`
+  collapse to one key, and a translator can never give the noun and
+  the verb different words. The immediate tag is the cheapest
+  disambiguator that survives refactoring, and it maps to a real
+  distinction (a button is not a paragraph).
+- **Developer-invented keys.** The toil this project exists to remove.
+
+Where the tag isn't enough — two buttons both reading "Open", one a
+verb and one a state — the disambiguator is *explicit*: `data-i18n-note`
+or `t(text, context)`, folded into `desc`. That is gettext's `msgctxt`
+model, and it puts the decision where it belongs: with the author who
+knows the two strings differ, not with an incidental fact about the
+DOM tree.
+
+64 bits (over the old 32) gives collision headroom for
+million-string corpora; a 32-bit hash reaches ~50% birthday-collision
+odds around 80k strings, which is inside the range a large app can hit.
+
 ### Hash and runtime dictionary
 
-Each extracted Block has a content-addressable hash derived from a
-canonical key produced by the runs builder. The hash plus a
-`fallback` string (a runtime-renderable representation of the source) plus
-the elements map drives `__t` / `__tx`:
+The hash plus a `fallback` string (a runtime-renderable representation
+of the source) plus the elements map drives `__t` / `__tx`:
 
 ```ts
 __tx(hash, fallback, elements, params);
@@ -201,6 +275,52 @@ The parser scans the resolved text once to identify pair scopes:
 The output is a `React.Fragment` of interleaved strings and elements —
 no wrapping `<span>`, so layout (e.g. shadcn-style buttons relying on
 `items-center gap-N` between direct children) is not disrupted.
+
+The runtime also resolves ICU inside the translated string: plural and
+select forms via `Intl.PluralRules`, and `{n, number}` / `{d, date}` /
+`{t, time}` skeletons via `Intl.NumberFormat` / `Intl.DateTimeFormat`
+(`runtime/icu.ts`). The format lives in the *string*, so a translator
+can add one to a target — German wants a grouped number where English
+didn't — without a source change.
+
+### One template builder, two consumers
+
+Extract and transform must agree on the flat template **byte for
+byte**: extract hashes it into the `.klf`, transform hashes it to look
+the translation back up. They are two walks over the same AST in two
+files, and for a while they were two *implementations* — which drifted,
+and shipped two correctness bugs to prove it (paired inline elements
+leaking a literal `{/=m0}` into the DOM, and `<Plural>` emitting
+unparseable JSX).
+
+The decision is therefore structural, not a fix: `extract/runs.ts`
+owns the single `buildRuns()` builder, and the transform **consumes**
+it (`plugin/transform.ts`), taking both the flat text and a list of
+per-appearance `Occurrence` spans it maps back onto the source to
+rewrite JSX. Parity is now a property of the code shape rather than of
+two authors remembering to keep two walks in step. Any future front
+end (MDX, another framework) plugs in at the same seam.
+
+### Inline mode: reconstruction, and the ICU exception
+
+Inline mode bakes the translation into the JSX at build time. For rich
+text this means **rebuilding** the element: the translated template's
+`{=mN}` / `{/=mN}` pairs are matched LIFO and each paired range is
+re-wrapped in the original child's opening and closing tags (its props
+and handlers preserved verbatim from source), while standalone tokens
+splice the child's source in. The translator may reorder and renest;
+the JSX follows. Anything the builder cannot account for is escaped as
+text rather than emitted raw — a leaked interchange token in the DOM is
+the one outcome that must be impossible.
+
+ICU is the documented exception. A plural's pivot is a runtime value,
+so no build step can choose the form; blocks carrying ICU therefore
+keep a `__tx` call **even in inline mode**, with the translated
+template baked in as the call's `fallbackOverride`. The dictionary
+fetch disappears; the ~2 kB resolver stays. The alternative — emitting
+the source-locale form, or attempting to inline a runtime choice — is
+either silently wrong or invalid JSX, which is precisely the bug this
+replaced.
 
 ### Lint validation
 
@@ -259,6 +379,9 @@ kapi-react CLI (`packages/kapi-react/src/cli.ts`) routes those through
 
 ## Related
 
+- [AD-035: In-Context Review](035-in-context-review.md) — reviewing the
+  extracted blocks on the running app; builds on the hashes and the
+  transform decided here
 - [AD-002: Content Model](002-content-model.md) — Run sequences, inline
   codes, projections at boundaries
 - [AD-005: Format System](005-format-system.md) — readers/writers and how

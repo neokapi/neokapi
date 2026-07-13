@@ -15,7 +15,7 @@ Add kapi-react to a Vite + React project. ~5 minutes; you'll finish with a runni
 npm install -D @neokapi/kapi-react
 ```
 
-The package ships a Vite plugin, extract + compile CLI subcommands, and the tiny runtime (~2 kB). No peer dependencies beyond React 18+.
+The package ships a build plugin (Vite, Rollup, webpack, Rspack, esbuild), the `extract` / `compile` / `split` / `explain` CLI subcommands, and the tiny runtime (~2 kB). No peer dependencies beyond React 18+.
 
 The [`kapi` CLI](/kapi/cli) is the translation pipeline that produces pseudo-translations from the KLF directory kapi-react extracts. Install it too:
 
@@ -135,7 +135,7 @@ async function bootstrap() {
 void bootstrap();
 ```
 
-`loadTranslations(locale, url)` fetches the dict and activates it. After it resolves, every rendered `<h1>Welcome to Acme</h1>` renders as `[Wëlcömé tö Âcmé]`.
+`loadTranslations(locale, url)` fetches the dict and activates it. After it resolves, every rendered `<h1>Welcome to Acme</h1>` renders as `[Wëlcömé tö Âcmé]`. (Pass an array of URLs instead of one to build a [fallback chain](./modes#fallback-chain) — `pt-BR` over `pt`, say.)
 
 ## 8. Add a language switcher (optional)
 

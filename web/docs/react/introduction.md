@@ -54,7 +54,7 @@ kapi-react extracts translatable content from the JSX you already write — no w
 At build time a [SWC](https://swc.rs/)-based Vite / webpack / Rollup / esbuild plugin:
 
 1. Walks your JSX and finds everything that ought to be translated (heading, button, attribute values, …).
-2. Computes a stable hash from the source text + its structural context.
+2. Computes a stable hash from the source text + the element's own tag.
 3. Emits a KLF directory archive — the exchange format your translators (or an AI) consume.
 4. Rewrites the JSX to look up the hash at render time when a translation is loaded, or inlines the translated text at build time for zero-runtime-lookup mode.
 
@@ -63,7 +63,8 @@ The source text is the identifier. When the copy changes, you change the JSX —
 ## What "no-toil" means in practice
 
 - **No `t()` wrapping for normal JSX.** `<h1>Welcome</h1>` is translatable as written — so are element children and translatable props on your own components.
-- **No key invention.** The hash of the source text + structural context is the key. The runtime dict is `{ "aB3": "Bienvenue", ... }` — not `{ "welcome.heading": "Bienvenue", ... }`.
+- **No key invention.** The hash of the source text + the element's own tag is the key. The runtime dict is `{ "aB3": "Bienvenue", ... }` — not `{ "welcome.heading": "Bienvenue", ... }`.
+- **No orphaned translations when you refactor.** Ancestors are deliberately *not* part of the key: wrap a `<p>` in a new `<div>`, move it into a `<Card>`, restructure the page around it — the key is unchanged and the translations follow. Keys change when the words change, which is exactly when a translator should look again.
 - **No translation-file edits from developers.** Developers write JSX. Translators write translations. The `.klf` archive is the contract between them.
 - **One explicit marker — `t()` — for strings that legitimately live in JS data** (button-label arrays, error messages returned from reducers, refs). That's it.
 
@@ -71,10 +72,11 @@ The source text is the identifier. When the copy changes, you change the JSX —
 
 - **Automatic JSX extraction** with W3C HTML5 translatability rules — headings, paragraphs, buttons, labels, options, `<span>`, `<strong>`, `<em>`, links, ARIA-backed attributes.
 - **Smart defaults for idiomatic React** — `<div>Label</div>`, `<section>...</section>`, and unmapped components like `<TabsTrigger>General</TabsTrigger>` auto-extract with a warning, not a silent drop.
-- **Translatable props on any component** — `title`, `subtitle`, `description`, `label`, `helpText`, `errorMessage`, `tooltip`, and the usual HTML+ARIA set. `<PageHeader title="Translation Memories" />` just works.
-- **`<Plural>` / `<Select>` authoring components** with CLDR-aware runtime resolution via `Intl.PluralRules`.
+- **Translatable props** — the HTML+ARIA set (`alt`, `title`, `placeholder`, `aria-label`, …) on any element, plus React's prop-name conventions (`subtitle`, `description`, `label`, `helpText`, …) on your own components. `<PageHeader title="Translation Memories" />` just works.
+- **`<Plural>` / `<Select>` authoring components** with CLDR-aware runtime resolution via `Intl.PluralRules`, and ICU number/date/time formatting through `Intl` — so a translator can write `{n, number}` or `{d, date, long}` into a target without a code change.
 - **`t()` escape hatch** for the small set of strings that genuinely belong in data.
 - **Two build modes** — inline (zero runtime, builds per locale) and runtime (single bundle, dict loaded OTA).
+- **[In-context review](./in-context-review) on the running app** — ALT+click any string to see its source, edit its translation, and write it straight back to the `.klf`; terms and QA findings paint onto the live text.
 - **A proper exchange format** — KLF (see [AD-008](/contribute/architecture/008-project-model)) — that carries structural context, placeholders, plural forms, and annotation overlays. Not a flat key-value JSON.
 - **Full integration with `kapi`** for pseudo-translation, AI translation, QA, TM leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
 

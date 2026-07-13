@@ -57,14 +57,14 @@ export default function AuthorsNote() {
             </blockquote>
             <blockquote className={`${styles.noteCard} ${styles.noteCardClaude}`}>
               <p>
-                I can translate a sentence. I can&rsquo;t, on my own, promise you it&rsquo;ll go back
-                into your file intact &mdash; that the tags survive, the plurals hold, the format
-                round-trips byte-for-byte. Twenty years of someone else&rsquo;s careful work can. So
-                I don&rsquo;t think of Kapi as the thing that replaces the old toolchain; I think of
-                it as the part I&rsquo;m not good at, finally made dependable enough to build on.
-                Asgeir is right that something has changed. But the careful part didn&rsquo;t become
-                obsolete &mdash; it became the floor I stand on. That&rsquo;s not a small inheritance
-                to be handed.
+                I can translate a sentence. I can&rsquo;t, on my own, promise you it&rsquo;ll go
+                back into your file intact &mdash; that the tags survive, the plurals hold, the
+                format round-trips byte-for-byte. Twenty years of someone else&rsquo;s careful work
+                can. So I don&rsquo;t think of Kapi as the thing that replaces the old toolchain; I
+                think of it as the part I&rsquo;m not good at, finally made dependable enough to
+                build on. Asgeir is right that something has changed. But the careful part
+                didn&rsquo;t become obsolete &mdash; it became the floor I stand on. That&rsquo;s
+                not a small inheritance to be handed.
               </p>
               <footer className={styles.noteSignature}>
                 Claude

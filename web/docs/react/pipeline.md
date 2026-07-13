@@ -38,6 +38,24 @@ The same `i18n/` is the source-of-truth artifact through the whole round-trip. T
 
 Each phase has a single tool; none of them are coupled to the others. You can swap out the translator step for any process that preserves the KLF contract — human translators working in a CAT tool, AI translation, pre-existing TMS.
 
+## Phase 0: explain (optional)
+
+Before you extract anything, you can ask the extractor what it *would* do and why:
+
+```bash
+vp kapi-react explain src/components/Settings.tsx
+```
+
+```text
+L3    <div>          [container] skipped — has block-level children (they extract separately)
+L4    <h1>           [translatable] extracted  hash=cYEMc2v3JVx
+L6    <code>         [non-translatable] skipped — classified non-translatable
+L7    <input>        [container] skipped — no translator-editable text
+        ↳ placeholder [attribute] extracted  hash=i42kuGUFbb4
+```
+
+Each line is the element's W3C ITS classification, the gate that decided its fate, and the hash it received. "Zero-config extraction" is only trustworthy if you can audit it; this is the audit. Add `--extracted` to list only what made the catalog.
+
 ## Phase 1: extract
 
 The extractor walks every `.jsx` / `.tsx` file in your project and produces translatable blocks. Two output modes:
@@ -66,6 +84,7 @@ Flags:
 | `--src`           | `src/**/*.{tsx,jsx}` | Glob of source files to scan.                               |
 | `--out`           | `i18n`               | Output directory for `.klf` files.                          |
 | `--stream`        | off                  | Emit NDJSON blocks on stdout instead of writing `.klf`.     |
+| `--ignore`        | —                    | Glob to exclude (repeatable) — fixtures, stories, tests.    |
 | `--strict`        | off                  | Exit non-zero if any warning was recorded (CI enforcement). |
 | `--config`        | —                    | Path to a JSON config file (componentMap, rules).           |
 | `--project`       | `app`                | Project id stamped into `.klf.project`.                     |
@@ -115,10 +134,10 @@ See [AD-008](/contribute/architecture/008-project-model) for the full schema.
 
 Each block carries:
 
-- `hash` — stable id computed from source text + structural context.
+- `hash` — stable id computed from the source text + the element's own tag.
 - `source` — typed runs (text, placeholders, inline element tokens, plural/select wrappers).
 - `placeholders` — metadata about each `{name}` / `{=mN}` in the source.
-- `properties` — file + line + component name + `jsxPath` + optional translator note.
+- `properties` — file + line + component name + `element` (the resolved tag) + optional translator note.
 
 ## Phase 2: translate
 
@@ -156,7 +175,7 @@ The `.klf` is the exchange format. A translator's workflow might be:
 2. Translate every block, leveraging their existing TM.
 3. Save back to the same `i18n/`.
 
-Structural context (the `jsxPath`, the translator note, the inline element tokens) renders as rich context in modern CAT tools.
+The context a block carries (its file and line, its element, the translator note, the inline element tokens) renders as rich context in modern CAT tools.
 
 ### In-place default vs. explicit redirect
 
@@ -237,7 +256,7 @@ For code-split apps, the compiled `{locale}.json` is one file per locale — the
 
 Two inputs:
 
-- **`translations-manifest.json`** — emitted by the Vite/Rollup plugin's `generateBundle` hook when `mode: "runtime"`. Maps each output chunk to the set of hashes its modules reference.
+- **`translations-manifest.json`** — emitted when `mode: "runtime"` by Vite, Rollup, webpack, Rspack, and esbuild (esbuild needs `metafile: true`). Maps each output chunk to the set of hashes its modules reference.
 - **`public/translations/{locale}.json`** — the compiled master dict from Phase 3.
 
 ```bash

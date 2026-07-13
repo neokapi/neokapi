@@ -24,6 +24,7 @@
 import { runExtract } from "./commands/extract.ts";
 import { runCompile } from "./commands/compile.ts";
 import { runSplit } from "./commands/split.ts";
+import { runExplain } from "./commands/explain.ts";
 
 const [, , command, ...rest] = process.argv;
 
@@ -37,6 +38,9 @@ async function main() {
       return;
     case "split":
       await runSplit(rest);
+      return;
+    case "explain":
+      await runExplain(rest);
       return;
     case undefined:
     case "--help":
@@ -56,9 +60,10 @@ function usage() {
 kapi-react — zero-config i18n for React
 
 Commands:
-  extract    Extract translatable strings from JSX/TSX source files
-  compile    Flatten a translated .klf directory into runtime dictionaries
-  split      Slice per-locale dicts into per-chunk subsets for lazy loading
+  extract       Extract translatable strings from JSX/TSX source files
+  compile       Flatten a translated .klf directory into runtime dictionaries
+  split         Slice per-locale dicts into per-chunk subsets for lazy loading
+  explain       Print each element's translatability decision (ITS audit)
 
 Run \`kapi-react <command> --help\` for per-command options.
 `);

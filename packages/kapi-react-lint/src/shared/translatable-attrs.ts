@@ -1,8 +1,13 @@
 /**
- * Attribute names that kapi-react extracts from any JSX element
- * (mapped or not). Keep in sync with packages/kapi-react's defaults.
- * Duplicated rather than imported so this package stays usable without
- * installing the full kapi-react transform.
+ * Attribute names that kapi-react extracts. Keep in sync with
+ * packages/kapi-react's defaults (`translatableAttributes`) —
+ * duplicated rather than imported so this package stays usable
+ * without installing the full kapi-react transform, and guarded by
+ * tests/attr-sync.test.ts which compares against the canonical set.
+ *
+ * Note the extractor scopes the React-convention bucket to PascalCase
+ * components; the lint vocabulary stays the union (a flagged concat
+ * in `label=` on an html element is still worth a look).
  */
 export const TRANSLATABLE_ATTRS: ReadonlySet<string> = new Set([
   // HTML
@@ -26,6 +31,9 @@ export const TRANSLATABLE_ATTRS: ReadonlySet<string> = new Set([
   "errorMessage",
   "hint",
   "tooltip",
+  "emptyMessage",
+  "emptyStateText",
+  "filterPlaceholder",
 ]);
 
 /**

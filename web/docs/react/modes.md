@@ -63,13 +63,37 @@ function AppRoot() {
 
 For a locale switcher UI: call `loadTranslations` or `setTranslations("en", {})` on change, and make sure `useNeokapi()` is called high enough in the tree for the whole visible surface to re-render.
 
+If you'd rather not think about *how high* is high enough, wrap the tree in `<NeokapiProvider>`. It subscribes on your behalf and re-keys its children on every locale change, so the whole subtree remounts and re-reads the dict — no missed corners:
+
+```tsx
+import { NeokapiProvider } from "@neokapi/kapi-react/runtime";
+
+ReactDOM.createRoot(root).render(
+  <NeokapiProvider>
+    <App />
+  </NeokapiProvider>,
+);
+```
+
+The trade-off is exactly what it sounds like: a remount discards component state below it. That's usually right on a locale switch and usually wrong mid-form. `useNeokapi()` is the surgical option; `NeokapiProvider` is the safe one.
+
+### Fallback chain
+
+`loadTranslations` takes a list of URLs as well as a single one. The list is a fallback chain — fallbacks first, primary last:
+
+```tsx
+await loadTranslations("pt-BR", ["/translations/pt.json", "/translations/pt-BR.json"]);
+```
+
+Everything is merged into one dict, with later entries overriding earlier ones — so `pt-BR` wins where it has a string, and `pt` fills the rest. A fallback that fails to load is tolerated (you get the strings you could fetch); a failing **primary** rejects, because that's a real error you want to see.
+
 Both also push the new locale onto `<html lang>` and `<html dir>` automatically — handy for screen readers, fonts, hyphenation, and RTL support. Opt out with `{ syncDocumentLocale: false }` if your app owns those attributes. Details: [Configuration → HTML `lang` and `dir`](./configuration#html-lang-and-dir-attributes).
 
 ### Lazy loading per route (code splitting)
 
 For larger apps, the single-catalog-per-locale model downloads every string even for routes the user never visits. The plugin + runtime can split translations along the same lines the bundler splits code:
 
-1. In runtime mode, the Vite/Rollup plugin emits `translations-manifest.json` next to your JS chunks — a `{chunkName: hashes[]}` map of which strings each chunk needs.
+1. In runtime mode, the plugin emits `translations-manifest.json` next to your JS chunks — a `{chunkName: hashes[]}` map of which strings each chunk needs. Vite, Rollup, webpack, Rspack, and esbuild all emit it (esbuild needs `metafile: true`).
 2. `kapi-react split` slices each master `{locale}.json` into per-chunk subsets (`{locale}/{chunkName}.json`), duplicating strings shared across chunks so each file is independently loadable.
 3. The runtime's `loadTranslationChunk(locale, url)` fetches one subset and merges it into the active dict. Concurrent requests for the same `(locale, url)` pair share a single fetch.
 
@@ -171,6 +195,24 @@ One bundle **per locale**. Every JSX text node is replaced at build time with th
 <h1>Bienvenue</h1>
 ```
 
+Rich text is rebuilt as JSX, not spliced as text — a translator is free to move the link, and the markup follows:
+
+```tsx
+// Source
+<p>Read the <a href="/docs">docs</a> first.</p>
+
+// Output (inline mode, locale=de) — the link moved, the href didn't
+<p>Lies zuerst die <a href="/docs">Dokumentation</a>.</p>
+```
+
+### The ICU exception
+
+Inline mode is zero-runtime with one documented exception: **`<Plural>`, `<Select>`, and any string a translator gave an ICU format to keep a runtime call.**
+
+The reason is structural. A plural's pivot — the count — is only known when the component renders, so no build step can pick the form. Inline mode does the half it can: the translated ICU template is baked into the call as its fallback, so there's no dictionary to fetch and no network on the critical path. What stays is the ~2 kB ICU resolver.
+
+If you have no plurals and no ICU formats, inline mode ships nothing. If you have one, you ship the resolver. It is never invalid JSX and never a silent fallback to source.
+
 ### When inline mode fits
 
 - You ship per-locale builds (`www-fr.example.com`, `www-de.example.com`).
@@ -203,9 +245,9 @@ export default defineConfig({
 
 `strict: "error"` turns missing translations into a build error — nothing untranslated ships. For markets-by-market rollouts you'd keep `strict: "warn"` (default) during development, flip to `"error"` before the final release build.
 
-### Fallback chain
+### Build-time fallback chain
 
-When a translation is missing in the primary locale, inline mode can consult fallback locales before giving up:
+Inline mode has its own fallback chain, resolved at build rather than at load (the runtime-mode equivalent is [`loadTranslations` with a URL list](#fallback-chain)). When a translation is missing in the primary locale, it consults fallback locales before giving up:
 
 ```ts
 neokapi({
@@ -236,7 +278,7 @@ Mixing modes within a single build is not supported — you pick one per deploy.
 |                         | runtime                     | inline                                       |
 | ----------------------- | --------------------------- | -------------------------------------------- |
 | Number of builds        | 1                           | 1 per locale                                 |
-| Runtime bundle cost     | ~2 kB                       | 0                                            |
+| Runtime bundle cost     | ~2 kB                       | 0, or ~2 kB if you use ICU / plurals         |
 | Dict fetch at runtime   | yes (per locale)            | no                                           |
 | Missing translation     | fallback to source text     | warn or error at build                       |
 | Hot-swap locale in-page | yes                         | full page reload / swap bundle               |

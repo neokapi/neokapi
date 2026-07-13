@@ -111,10 +111,10 @@ const label = tr("Hello"); // ← rewritten
 `t()` calls hash on a separate **channel** from JSX extraction:
 
 ```
-hash = hashKey(text, "t\x1F")
+hash = hashKey(text, "t\x1F" + context)   // context is "" when you pass none
 ```
 
-So `t("Save")` and `<button>Save</button>` produce **different** hashes. That's intentional: the JSX call site has structural context (inside a button, inside a form, etc.) that a standalone string doesn't. A translator might want German "Speichern" for the button and "Gespeichert!" for a toast's `t("Saved")` — separating channels lets them diverge.
+A JSX block's descriptor is its element (`"button"`, `"p"`); a `t()` call's is the literal `t`. So `t("Save")` and `<button>Save</button>` produce **different** hashes. That's intentional: they are different surfaces, and a translator may well want German "Speichern" for the button and "Gespeichert!" for a toast's `t("Saved")`. Separating the channels lets them diverge. Two `t()` calls with the same text collapse to one key unless you distinguish them with the second argument — `t("Open", "verb")` vs `t("Open", "adjective")` — the same `msgctxt` model gettext uses.
 
 ## Module-level `t()` gotcha
 

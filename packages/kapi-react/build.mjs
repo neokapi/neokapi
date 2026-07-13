@@ -11,6 +11,7 @@ const entryPoints = [
   "src/commands/extract.ts",
   "src/commands/compile.ts",
   "src/commands/split.ts",
+  "src/commands/explain.ts",
   "src/extract/index.ts",
   "src/extract/walker.ts",
   "src/extract/runs.ts",
@@ -36,6 +37,8 @@ const entryPoints = [
   "src/runtime/plural.tsx",
   "src/runtime/pseudo.ts",
   "src/storybook/index.ts",
+  "src/review/index.ts",
+  "src/review/store.ts",
 ];
 
 // Rewrites ./foo.ts → ./foo.js in relative imports so the emitted JS

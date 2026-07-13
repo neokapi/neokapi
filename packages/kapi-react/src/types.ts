@@ -58,6 +58,25 @@ export type PluginOptions = {
   strict?: "warn" | "error" | false;
 
   /**
+   * In-context review mode: stamp every extracted element with
+   * `data-kapi-id` (block hash), `data-kapi-loc` (file:line), and
+   * `data-kapi-attr` (attribute-block hashes) so the review overlay
+   * (`@neokapi/kapi-react/review`) can map DOM → block. In the Vite
+   * dev server this also mounts the review middleware at
+   * `/__kapi/review` (payloads from the KLF tree, write-back, SSE)
+   * and auto-injects the overlay into index.html. Enable explicitly
+   * or via the KAPI_REVIEW=1 environment variable. Never enable for
+   * production builds you ship.
+   */
+  review?: boolean;
+
+  /**
+   * KLF tree the review middleware serves and writes back to.
+   * Default: "i18n" (the extract default).
+   */
+  reviewKlfDir?: string;
+
+  /**
    * Promote extraction-time warnings (e.g. `unknown-component`) to
    * build errors. Orthogonal to `strict` above: `strict` is about
    * translation completeness at inline time, `warningsAsErrors` is

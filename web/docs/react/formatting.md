@@ -1,15 +1,55 @@
 ---
 sidebar_position: 6
 title: Formatting Dates, Numbers, and Currency
-description: How to combine kapi-react's locale with the platform Intl API and third-party formatters — date-fns, Luxon, Dinero — for locale-aware date, number, and currency display.
-keywords: [formatting, dates, numbers, currency, Intl API, date-fns, Luxon, locale, kapi-react]
+description: ICU number, date, and time formatting inside translated strings, and how to combine kapi-react's locale with the platform Intl API and third-party formatters for everything else.
+keywords: [formatting, dates, numbers, currency, ICU, Intl API, date-fns, Luxon, locale, kapi-react]
 ---
 
 # Formatting dates, numbers, currency
 
-kapi-react is strictly a translation layer — it gives you translated strings. **Formatting** (turning a `Date` into a localized string, a `number` into a price, a `Duration` into "3 hours ago") is a separate concern. You bring your own formatter; kapi-react gives you the locale.
+There are two places formatting happens, and the split matters:
 
-## The integration surface
+- **Inside a translated string** — `You have {n, number} unread messages`. The runtime formats the value through `Intl`, in the active locale, as part of resolving the string. The translator controls it; no code change.
+- **Outside a translated string** — a price in a table cell, a timestamp in a log view. That's your code's job. kapi-react gives you the locale; you bring the formatter.
+
+## Formatting inside translated strings
+
+A placeholder can carry an ICU format, and the runtime resolves it against the active locale:
+
+```tsx
+<p>You have {count} unread messages.</p>
+```
+
+The extracted template is `You have {count} unread messages.` — a bare placeholder, interpolated verbatim. But a translator can *upgrade* it in the target, because the format lives in the string, not the source:
+
+```
+Du hast {count, number} ungelesene Nachrichten.
+```
+
+Now `1234` renders as `1.234` in German and `1,234` in English, and nobody touched the JSX. The supported formats:
+
+| Format                    | Example input | `en-US`      | `de-DE`      |
+| ------------------------- | ------------- | ------------ | ------------ |
+| `{n, number}`             | `1234.5`      | `1,234.5`    | `1.234,5`    |
+| `{n, number, integer}`    | `1234.5`      | `1,235`      | `1.235`      |
+| `{n, number, percent}`    | `0.182`       | `18%`        | `18 %`       |
+| `{n, number, currency/EUR}` | `1234.5`    | `€1,234.50`  | `1.234,50 €` |
+| `{d, date}`               | a `Date`      | `Jul 11, 2026` | `11.07.2026` |
+| `{d, date, short\|medium\|long\|full}` | a `Date` | `7/11/26` … | `11.07.26` … |
+| `{t, time}`               | a `Date`      | `2:30:00 PM` | `14:30:00`   |
+| `{t, time, short\|medium\|long\|full}` | a `Date` | `2:30 PM` … | `14:30` …    |
+
+Inside a `<Plural>` branch, `#` is the count, formatted the same way — `#` in German gives `1.234`, not `1234`.
+
+Pass `Date` objects and numbers through as-is; the runtime does the conversion:
+
+```tsx
+<p>Last synced {when} — {count} items.</p>   // when: Date, count: number
+```
+
+This costs no extra bundle: it's the same `Intl` the plural resolver already uses.
+
+## Formatting outside translated strings — the integration surface
 
 Every locale-aware library on the platform takes a BCP-47 locale string — the same shape kapi-react tracks internally. Pull it out reactively via `useNeokapi()`:
 
@@ -198,7 +238,7 @@ function I18nRoot({ children }) {
 }
 ```
 
-For greenfield apps: stick with Intl. FormatJS adds ~40 kB for features kapi-react already handles (plurals, select, message interpolation) plus a bunch it doesn't (but which Intl often covers).
+For greenfield apps: stick with Intl. FormatJS adds ~40 kB for features kapi-react already handles (plurals, select, message interpolation, and number/date/time formatting inside strings) plus a bunch it doesn't (but which Intl often covers).
 
 ## Library picker
 
@@ -210,7 +250,8 @@ For greenfield apps: stick with Intl. FormatJS adds ~40 kB for features kapi-rea
 | Timezone-aware dates, heavy date math                                     | Luxon or date-fns(-tz)                                                 | Luxon is Intl-based; date-fns is older but lighter.                               |
 | Duration formatting ("3h 12m")                                            | Luxon `Duration.toHuman()` or `@formatjs/intl-durationformat` polyfill | `Intl.DurationFormat` exists in newer runtimes but isn't universally shipped yet. |
 | Legacy moment.js codebase                                                 | migrate incrementally                                                  | moment.js is maintenance-mode; Luxon is its successor from the same author.       |
-| ICU MessageFormat outside kapi-react's plural/select                      | `@formatjs/intl-messageformat` standalone                              | Just the formatter, not the whole react-intl stack.                               |
+| Number/date/time **inside** a translated string                            | ICU in the string — `{n, number}`, `{d, date, long}`                   | Built in; see the top of this page. No library.                                    |
+| ICU MessageFormat beyond that subset (ordinals, unit skeletons, …)         | `@formatjs/intl-messageformat` standalone                              | Just the formatter, not the whole react-intl stack.                               |
 
 ## Initial render and SSR
 
