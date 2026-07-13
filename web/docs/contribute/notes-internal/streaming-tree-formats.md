@@ -143,29 +143,33 @@ Validation:
 |---|---|---|
 | **JSON** | Ancestor-stack streamable | Forward walk + prefix-skeleton; PoC built here. |
 | **XML** | Ancestor-stack streamable | Already `xml.Decoder` + iterative `elementFrame` stack. |
-| **HTML** | Ancestor-stack streamable (tokenizer path) | The skeleton path is tokenizer-based; the DOM `html.Parse` path is for normalization/error-recovery. |
-| arb, designtokens, xcstrings | Substrate = **whole-JSON buffer** | `io.ReadAll` + `json.Unmarshal` into a typed tree, writer rebuilds from the tree — not JSON's forward tokenizer walk. Need JSON's ancestor-stack substrate; do **not** mark streaming yet. |
+| **HTML** | **Blocked — unbounded forward lookahead** | The leaf/container classification (`forwardScanForBlockChildren`) walks forward from an element's open until it hits either a block-level child (→ container) or the parent's own end-tag (→ leaf). That distance is unbounded — a `<td>` with a large inline body pushes `</td>` arbitrarily far ahead — and the streaming `tokenizer.Buffered()` window caps at ~4 KB (measured: a 428 KB `<td>` body exposes only 4081 buffered bytes after the start tag), so the scan exhausts and defaults to *container*, mis-classifying leaf blocks and regressing byte-exactness (#151/#608). Not a data-model limitation; a genuine parser-model blocker. Buffered stays. |
+| arb, designtokens, xcstrings | **Done** (per-entry / two-pass streaming JSON) | Each ships a bounded reader+writer: a `streamScanner`/`json.Decoder` twin produces the identical token/value sequence without `io.ReadAll`. **designtokens** & **arb** use a two-pass (pass 1 re-opens the file for a bounded metadata pre-scan — `$deprecated` / `@id` descriptions — pass 2 streams). **xcstrings** buffers one entry subtree at a time and reuses `emitEntry`/`skelWalker`. arb is a *partial* bound (retains O(messages) descriptions); designtokens/xcstrings are *full* bounds. |
 | i18next | Substrate = **JSON** (streaming) | **Done** — wraps the streaming JSON reader/writer, declares `StreamingReader`/`StreamingWriter`. |
 | **xml, tmx, ts** | Substrate = **`encoding/xml`** | `xml.Decoder` + `InputOffset()` byte-offset skeleton. Streamable via a **capturing reader** (resolves offsets to raw bytes without `io.ReadAll`) + **incremental prefix emission**. `tmx`/`ts` stream unconditionally; `xml` gates on *no global ITS rules* (see below). |
-| resx, androidxml | Substrate = **custom tokenizer** | `newTokenizer(string(content))` + whole-buffer `.original` layer property (not `encoding/xml`, not a byte-offset skeleton). A genuinely different substrate — needs a streaming variant of their own tokenizer; follow-up. |
+| resx, androidxml | **Done** (custom-tokenizer streaming) | Substrate was `newTokenizer(string(content))` + whole-buffer `.original` layer property (not `encoding/xml`). Each now ships a `streamTokenizer` reading from a bufio window that produces the identical token sequence, buffering one entry subtree at a time; `.original` retained only when no skeleton store is wired. |
 | messageformat | **Done** (streaming pair) | Line-buffered `bufio` reader + `StreamSkeletonWrite` writer; parse errors surface on the Read channel. |
 | applestrings | Line/record but **whole-buffer transcode** | Whole-document UTF-16→UTF-8 transcode + BOM detection before parsing; de-prioritized. |
 | **YAML** | **Hard** | `yaml.v3` materializes the whole `Node` AST; aliases are forward references; byte mapping needs pre-computed line offsets. Streaming needs a different parser. |
 | **Markdown / MDX** | **Hard** | `goldmark` materializes the whole AST and normalizes (nesting fixes, link-def resolution); byte mapping needs the full parse. MDX segments forward but delegates Markdown spans to goldmark. |
 | Archives (openxml/odf/epub/idml/icml) | Not applicable | Random-access zip — stream at the *entry* level (already do, #1020 §6), not within an entry. |
 
-So the ancestor-stack model covers JSON + XML + their catalogs + HTML's
-tokenizer path — the large majority of the remaining OOM surface. YAML and
-Markdown are blocked by their third-party AST parsers, which is a parser-swap
-project, not a data-model limitation.
+So the ancestor-stack model covers JSON + XML + their catalogs (arb,
+designtokens, xcstrings, i18next) + the `encoding/xml` + custom-tokenizer
+families — the large majority of the remaining OOM surface. The residue is
+blocked, not deferred: **HTML** by unbounded forward lookahead for
+leaf/container classification (see the table), and **YAML / Markdown** by their
+third-party full-AST parsers — parser-model limitations, not the data model.
 
 ### Implemented streaming pairs (as of the catalog assessment)
 
-The table above is the *theoretical* classification; the genuinely-streaming
-reader+writer pairs shipped so far are: the #1020 line/record formats, **JSON**
-(#1138), **messageformat** (this line of work), and **i18next** (which inherits
-streaming from the inner JSON reader/writer it wraps). Everything else stays
-buffered until its substrate is converted.
+The genuinely-streaming reader+writer pairs shipped so far: the #1020
+line/record formats, **JSON** (#1138), **messageformat**, **i18next** (inherits
+streaming from the JSON reader/writer it wraps), the **`encoding/xml` group**
+(xml #1211, tmx #1165, ts #1168), the **custom-tokenizer group** (resx #1169,
+androidxml #1170), and the **JSON-substrate catalogs** (designtokens #1213, arb
+#1216, xcstrings #1217). What remains buffered is parser-model-blocked (HTML,
+applestrings, YAML, Markdown — see below), not awaiting a substrate conversion.
 
 `messageformat` was the one cheap non-substrate candidate ([#1025](https://github.com/neokapi/neokapi/issues/1025)):
 its reader now parses one message per line via a `bufio` window (no
@@ -176,42 +180,34 @@ instead of from `Open` — the streaming consequence of not pre-parsing — whic
 the file runner and subfilter driver already propagate. Verified byte-exact
 through the streaming path and flat-peak on an `io.Pipe`-streamed document.
 
-### Catalog formats: do **not** convert these (false-claim risk)
+### Catalog formats: shipped, plus the two that stay buffered
 
-Assessed the app-string catalogs against the streaming precondition (`isStreamingPair`
-= `IsStreamingReader && IsStreamingWriter`; a `StreamingReader` must read
-incrementally from `doc.Reader`, never `io.ReadAll`). None is a cheap
-line/record conversion, and marking a writer streaming while its reader
-`io.ReadAll`s never wires the concurrent skeleton store — the same false claim
-#1138 removed from JSON. Per-format blocker:
+The precondition (`isStreamingPair` = `IsStreamingReader && IsStreamingWriter`; a
+`StreamingReader` must read incrementally from `doc.Reader`, never `io.ReadAll`)
+now holds for the whole JSON-substrate catalog family. What shipped, and what
+stays buffered and why:
 
-- **xcstrings, arb, designtokens** — substrate = **whole-JSON buffer**: the
-  reader `io.ReadAll`s then `json.Unmarshal`s the entire document into a typed
-  tree and the writer reconstructs from that tree. Not a forward line/record
-  walk (unlike JSON's own tokenizer path). designtokens additionally
-  `io.ReadAll`s for a `$deprecated` pre-scan (should become inline detection if
-  ever touched, per review §5.5). Streaming these means adopting JSON's
-  ancestor-stack tokenizer as their substrate — the JSON-substrate follow-up,
-  not a per-format PR.
-- **resx, androidxml** — substrate = **custom whole-buffer tokenizer**: the
-  reader `io.ReadAll`s then `newTokenizer(string(content)).tokenize()` over the
-  whole string and retains every byte (`resx.original` / `androidxml.original`
-  layer property) for byte-faithful splice-on-write. Unlike `xml`/`tmx`/`ts`
-  these do **not** use `encoding/xml`, so the capturing-reader substrate does not
-  drop in — they need a streaming variant of their *own* tokenizer plus dropping
-  the `.original` whole-buffer retention. Tracked as a follow-up, separate from
-  the `encoding/xml` group.
-- **applestrings** — the `.strings` grammar *is* line/record-oriented, but the
-  reader does a **whole-buffer UTF-16→UTF-8 transcode + BOM detection**
+- **xcstrings, arb, designtokens — done.** Each replaced its
+  `io.ReadAll`+`json.Unmarshal` substrate with a bounded `streamScanner`/
+  `json.Decoder` twin that emits the identical token/value sequence. **arb** and
+  **designtokens** use a two-pass over a re-openable file (pass 1 = bounded
+  metadata pre-scan: `@id` descriptions / `$deprecated`; pass 2 streams from
+  `doc.Reader`); **xcstrings** buffers one `strings` entry subtree at a time and
+  reuses the buffered walk's `emitEntry`/`skelWalker` for byte-exact skeleton.
+  Non-file inputs fall back to the buffered walk. arb carries a documented
+  *partial* bound (it retains O(messages) `@id` metadata — descriptions,
+  placeholder hints — but not the content bytes, so a description-free document is
+  fully bounded); designtokens and xcstrings are *full* bounds.
+- **i18next** streams via its inner JSON reader/writer (unchanged).
+- **applestrings — stays buffered.** The `.strings` grammar *is* line/record, but
+  the reader does a **whole-buffer UTF-16→UTF-8 transcode + BOM detection**
   (`decodeToUTF8(raw)`) before parsing and retains the original bytes for
   byte-faithful rewrite. The transcode is inherently whole-document for UTF-16
-  inputs, so a bounded-memory reader is not free here. De-prioritized (review
-  §5.5: per-document guard + the §5.3 `safeio` wrap is adequate).
-
-Bottom line: the only catalog that streams today is **i18next** (via its JSON
-substrate); the rest share the whole-JSON-buffer or whole-buffer-XML/transcode
-blocker and must **not** declare `StreamingReader`/`StreamingWriter` until their
-substrate is converted.
+  inputs, so a bounded reader is not free. Buffered stays (review §5.5:
+  per-document guard + the §5.3 `safeio` wrap is adequate).
+- **HTML — stays buffered.** Blocked by unbounded forward lookahead for
+  leaf/container classification (see the per-format table). Not a substrate
+  conversion; a parser-model limitation.
 
 ## Productionization plan (remaining formats)
 
@@ -261,8 +257,14 @@ Per-format status / next:
   buffers only one entry subtree at a time (`resx` the `<data>` entry; `androidxml`
   streams *through* `<resources>` and buffers each `<string>`/`<string-array>`/
   `<plurals>` subtree, reusing the buffered walk's emit handlers).
-- **HTML** — the tokenizer skeleton path is streamable; the DOM path stays for
-  normalization.
+- **arb, designtokens, xcstrings** — done (JSON-substrate streaming; see the
+  catalog section above).
+- **HTML** — **stays buffered.** Attempted and rejected: leaf/container
+  classification (`forwardScanForBlockChildren`) needs forward lookahead to the
+  parent's end-tag, whose distance is unbounded, and the streaming
+  `tokenizer.Buffered()` window caps at ~4 KB (measured). Streaming would default
+  large leaf blocks to *container* and regress byte-exactness (#151/#608). A
+  parser-model blocker, not a substrate conversion.
 - **YAML, Markdown** — blocked by `yaml.v3` / `goldmark` full-AST parsers; need a
   streaming parser swap. Out of scope for this line of work.
 
@@ -295,8 +297,13 @@ document, race-clean.
 
 ## Status
 
-JSON streaming is **implemented and shipped** in this line of work — the
-dominant structured-data OOM vector for the reader. XML and the JSON/XML-substrate
-catalogs follow the same pattern (each its own byte-exact conversion, validated by
-its existing skeleton suite). YAML/Markdown stay buffered pending a streaming
-parser swap.
+Streaming (bounded-memory reader **and** writer) is **implemented and shipped**
+for every tractable whole-document format: JSON, the `encoding/xml` group (xml,
+tmx, ts), the custom-tokenizer group (resx, androidxml), and the JSON-substrate
+catalogs (arb, designtokens, xcstrings, i18next) — each its own byte-exact
+conversion, validated by its existing skeleton suite through the streaming path
+plus a bounded-memory benchmark. The residue stays buffered by a **parser-model**
+limitation, not the data model: **HTML** (unbounded forward lookahead for
+leaf/container classification), **applestrings** (whole-document UTF-16
+transcode), and **YAML / Markdown** (yaml.v3 / goldmark full-AST parsers). Those
+are parser-swap projects, tracked separately from [#1025](https://github.com/neokapi/neokapi/issues/1025).
