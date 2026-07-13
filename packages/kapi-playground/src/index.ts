@@ -19,6 +19,10 @@ import "./styles.css";
 // Inline trigger + imperative API (light, SSR-clean — no xterm/wasm).
 export { default as RunnableSnippet } from "./RunnableSnippet";
 export type { RunnableSnippetProps } from "./RunnableSnippet";
+
+// The canonical command-line tokenizer — shared with the CI snippet verifier so
+// the docs and the thing that verifies them cannot disagree about quoting.
+export { parseArgv, parseCommand } from "./argv";
 export { openKapi, serializeSession, deserializeSession } from "./store";
 export type { OpenKapiOptions, KapiFile, BinaryKapiFile, SessionState } from "./store";
 
