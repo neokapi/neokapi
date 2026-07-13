@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
@@ -198,6 +199,9 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
 	parts := []string{
 		"ai",
+		// The prompt text itself shapes the result, so a prompt revision must
+		// re-translate rather than serve output an older prompt produced.
+		prompt.Version,
 		cfg.Provider,
 		cfg.Model,
 		string(cfg.SourceLocale),
@@ -512,22 +516,18 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 		return t.provider.Translate(ctx, req)
 	}
 
-	// Build the same prompt that Translate would, but use ChatStream
-	// so we can surface thinking progress.
-	var prompt strings.Builder
-	prompt.WriteString(fmt.Sprintf(
-		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
-		req.SourceLanguage, req.TargetLocale, req.Source,
-	))
-	prompt.WriteString(req.Directives())
+	// Same prompt Translate would build — rendered from the one builder rather
+	// than restated here, so the streaming and non-streaming paths cannot drift.
+	p := req.Prompt()
+	turns := p.Single(req.Source, req.PreserveTags)
+	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateSingle))
 
-	resp, err := t.streaming.ChatStream(ctx, []aiprovider.Message{
-		aiprovider.TextMessage("user", prompt.String()),
-	}, func(e aiprovider.ChatStreamEvent) {
-		if e.Type == aiprovider.StreamEventThinking {
-			t.emitProgress(false, e.Content)
-		}
-	})
+	resp, err := t.streaming.ChatStream(ctx, aiprovider.MessagesFromTurns(turns),
+		func(e aiprovider.ChatStreamEvent) {
+			if e.Type == aiprovider.StreamEventThinking {
+				t.emitProgress(false, e.Content)
+			}
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -547,18 +547,18 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRuns []model.Run) error {
 	sourceText := model.RunsPlaceholderText(sourceRuns)
 
-	prompt := fmt.Sprintf(
-		"Translate the following text from %s to %s. Preserve all XML tags exactly as they appear (do not modify, add, or remove any tags). Return only the translated text with tags.\n\n%s",
-		t.sourceLocale, t.targetLocale, sourceText,
-	)
-
+	// Source is the content to translate, never an instruction: PreserveTags
+	// carries the tag rule into the prompt. (This path used to pass a fully
+	// built instruction as Source, which standardTranslate then wrapped in a
+	// second instruction — so the model was handed a prompt to translate.)
 	resp, err := t.translateBlock(v.Context(), aiprovider.TranslateRequest{
-		Source:         prompt,
+		Source:         sourceText,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
 		Glossary:       t.glossary,
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
+		PreserveTags:   true,
 	})
 	if err != nil {
 		return fmt.Errorf("translate: %w", err)
@@ -774,26 +774,21 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		return t.translate(tool.NewVariantViewWithContext(ctx, entries[0].block)) //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
 	}
 
-	// Build numbered prompt.
-	var prompt strings.Builder
-	fmt.Fprintf(&prompt,
-		"Translate each numbered segment from %s to %s.\n"+
-			"Preserve any XML/HTML tags exactly as they appear.",
-		t.sourceLocale, t.targetLocale,
-	)
-	// Inject deterministic brand-voice + glossary directives.
-	prompt.WriteString(aiprovider.TranslateRequest{
-		Glossary:    t.glossary,
-		VoiceGuide:  t.voiceGuide,
-		Instruction: t.instruction,
-	}.Directives())
-	prompt.WriteString("\n\n")
-
+	texts := make([]string, len(entries))
 	for i, entry := range entries {
-		fmt.Fprintf(&prompt, "[%d] %s\n", i+1, entry.sourceText)
+		texts[i] = entry.sourceText
 	}
+	p := prompt.Translate{
+		SourceLocale: t.sourceLocale,
+		TargetLocale: t.targetLocale,
+		Glossary:     t.glossary,
+		VoiceGuide:   t.voiceGuide,
+		Instruction:  t.instruction,
+	}
+	turns := p.Batch(texts)
+	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateBatch))
 
-	messages := []aiprovider.Message{aiprovider.TextMessage("user", prompt.String())}
+	messages := aiprovider.MessagesFromTurns(turns)
 	schema := batchTranslationSchema()
 
 	var resp *aiprovider.ChatResponse

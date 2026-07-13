@@ -9,94 +9,95 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// TranslatePrompt builds prompts for translation tasks.
-type TranslatePrompt struct {
+// Translate renders the prompts for the translate tool. One builder serves
+// every path — single block, block with inline codes, and batch — so they
+// cannot drift apart.
+type Translate struct {
 	SourceLocale model.LocaleID
 	TargetLocale model.LocaleID
-	Format       string // e.g., "html", "plain", "markdown"
-	Glossary     map[string]string
-	Context      string // Additional context for the translation
-	VoiceGuide   string // brand voice guidance to apply during translation
+
+	// Instruction is a caller-supplied directive applied while translating —
+	// a reviewer's "keep it informal", or the findings a fix pass must resolve.
+	Instruction string
+	// VoiceGuide is brand voice guidance rendered from a VoiceProfile, so output
+	// is on-brand at generation time rather than only corrected afterwards.
+	VoiceGuide string
+	// Glossary pins the translation of specific terms.
+	Glossary map[string]string
 }
 
-// sortedGlossaryLines renders glossary entries deterministically (sorted by term).
-func sortedGlossaryLines(glossary map[string]string) string {
-	if len(glossary) == 0 {
-		return ""
-	}
-	keys := slices.Sorted(maps.Keys(glossary))
+// Directives renders the instruction, brand-voice and glossary blocks shared by
+// every translation prompt. Glossary terms are sorted, so the same inputs always
+// render byte-identical prompt text. Returns "" when nothing is set.
+func (t Translate) Directives() string {
 	var b strings.Builder
-	for _, k := range keys {
-		fmt.Fprintf(&b, "- %s → %s\n", k, glossary[k])
+	if ins := strings.TrimSpace(t.Instruction); ins != "" {
+		b.WriteString("\n\nInstruction (apply when translating):\n")
+		b.WriteString(ins)
+		b.WriteString("\n")
+	}
+	if g := strings.TrimSpace(t.VoiceGuide); g != "" {
+		b.WriteString("\n\nBrand voice (apply when translating):\n")
+		b.WriteString(g)
+		b.WriteString("\n")
+	}
+	if len(t.Glossary) > 0 {
+		b.WriteString("\n\nGlossary:\n")
+		for _, k := range slices.Sorted(maps.Keys(t.Glossary)) {
+			fmt.Fprintf(&b, "- %s → %s\n", k, t.Glossary[k])
+		}
 	}
 	return b.String()
 }
 
-// Build creates a system message and user message for translation.
-func (p *TranslatePrompt) Build(sourceText string) (string, string) {
-	var sysBuilder strings.Builder
-	sysBuilder.WriteString("You are a software localization specialist performing UI string translation. ")
-	sysBuilder.WriteString(fmt.Sprintf("Translate the following user interface text from %s to %s. ", p.SourceLocale, p.TargetLocale))
-	sysBuilder.WriteString("Return ONLY the translated text without any explanation, notes, or formatting. ")
-	sysBuilder.WriteString("Preserve any markup tags, placeholders ({0}, %s, {{name}}), or special formatting in the text. ")
-
-	if p.Format != "" && p.Format != "plain" {
-		sysBuilder.WriteString(fmt.Sprintf("The text is in %s format - preserve all formatting markers. ", p.Format))
+// system renders the instruction turn shared by the single and inline-code
+// paths. Task framing belongs in the system turn; only the content to translate
+// belongs in the user turn.
+func (t Translate) system(preserveTags bool) string {
+	var b strings.Builder
+	b.WriteString("You are a software localization specialist. ")
+	fmt.Fprintf(&b, "Translate the user's text from %s to %s. ", t.SourceLocale, t.TargetLocale)
+	b.WriteString("Return ONLY the translation, with no explanation, preamble or quoting. ")
+	if preserveTags {
+		b.WriteString("The text contains XML tags. Reproduce every tag exactly as it appears — do not modify, reorder, add or remove any tag — and place each one where it belongs in the target language. ")
 	}
-
-	system := sysBuilder.String()
-
-	var userBuilder strings.Builder
-	if p.Context != "" {
-		userBuilder.WriteString(fmt.Sprintf("Context: %s\n\n", p.Context))
-	}
-
-	if g := strings.TrimSpace(p.VoiceGuide); g != "" {
-		userBuilder.WriteString("Brand voice (apply when translating):\n")
-		userBuilder.WriteString(g)
-		userBuilder.WriteString("\n\n")
-	}
-
-	if lines := sortedGlossaryLines(p.Glossary); lines != "" {
-		userBuilder.WriteString("Glossary (use these translations for the given terms):\n")
-		userBuilder.WriteString(lines)
-		userBuilder.WriteString("\n")
-	}
-
-	userBuilder.WriteString("Translate:\n" + sourceText)
-
-	return system, userBuilder.String()
+	b.WriteString("Preserve placeholders such as {0}, %s and {{name}} exactly.")
+	b.WriteString(t.Directives())
+	return b.String()
 }
 
-// BuildBatch creates a prompt for batch translation of multiple segments.
-func (p *TranslatePrompt) BuildBatch(texts []string) (string, string) {
-	var sysBuilder strings.Builder
-	sysBuilder.WriteString("You are a software localization specialist performing UI string translation. ")
-	sysBuilder.WriteString(fmt.Sprintf("Your task is to translate user interface strings from %s to %s. ", p.SourceLocale, p.TargetLocale))
-	sysBuilder.WriteString("These are UI labels, error messages, and status texts from a software application. ")
-	sysBuilder.WriteString("Return ONLY the translations, one per line, in the same order as the input. ")
-	sysBuilder.WriteString("Do not add numbering, bullets, or any other formatting. ")
-	sysBuilder.WriteString("Preserve any placeholders like {0}, %s, {{name}}, etc. ")
-
-	system := sysBuilder.String()
-
-	var userBuilder strings.Builder
-	if g := strings.TrimSpace(p.VoiceGuide); g != "" {
-		userBuilder.WriteString("Brand voice (apply when translating):\n")
-		userBuilder.WriteString(g)
-		userBuilder.WriteString("\n\n")
+// Single renders the prompt for one block. preserveTags marks a block whose
+// source carries inline codes, rendered as placeholder-tagged text.
+//
+// The text to translate is the entire user turn: it is data, never instruction.
+// (The inline-code path used to build a full instruction and pass it as the
+// *source text* of another instruction, so the model was handed a prompt to
+// translate rather than content.)
+func (t Translate) Single(source string, preserveTags bool) []Turn {
+	return []Turn{
+		System(t.system(preserveTags)),
+		User(source),
 	}
-	if lines := sortedGlossaryLines(p.Glossary); lines != "" {
-		userBuilder.WriteString("Glossary:\n")
-		userBuilder.WriteString(lines)
-		userBuilder.WriteString("\n")
-	}
+}
 
-	userBuilder.WriteString("Translate each UI string below:\n")
+// Batch renders the prompt for several blocks in one call. Segments are numbered
+// so the structured response maps back by index rather than by parsing free text.
+func (t Translate) Batch(texts []string) []Turn {
+	var sys strings.Builder
+	sys.WriteString("You are a software localization specialist. ")
+	fmt.Fprintf(&sys, "Translate each numbered segment from %s to %s. ", t.SourceLocale, t.TargetLocale)
+	sys.WriteString("Reproduce any XML/HTML tags exactly as they appear. ")
+	sys.WriteString("Preserve placeholders such as {0}, %s and {{name}} exactly. ")
+	sys.WriteString("Return a translation for every segment, keyed by its number.")
+	sys.WriteString(t.Directives())
+
+	var user strings.Builder
 	for i, text := range texts {
-		userBuilder.WriteString(fmt.Sprintf("[%d] %s\n", i+1, text))
+		fmt.Fprintf(&user, "[%d] %s\n", i+1, text)
 	}
-	userBuilder.WriteString("\nReturn one translation per line, without the [N] prefix.")
 
-	return system, userBuilder.String()
+	return []Turn{
+		System(sys.String()),
+		User(strings.TrimSuffix(user.String(), "\n")),
+	}
 }

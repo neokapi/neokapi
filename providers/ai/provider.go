@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -116,33 +116,39 @@ type TranslateRequest struct {
 	VoiceGuide string `json:"voice_guide,omitempty"`
 	// Instruction is a caller-supplied directive the model should apply while
 	// translating — a reviewer's "keep it informal", or the findings a fix pass
-	// must resolve. Rendered into the prompt by Directives.
+	// must resolve.
 	Instruction string `json:"instruction,omitempty"`
+	// PreserveTags marks a source that carries inline codes rendered as
+	// placeholder-tagged text, so the prompt instructs the model to reproduce
+	// every tag exactly. Source stays pure content either way.
+	PreserveTags bool `json:"preserve_tags,omitempty"`
+}
+
+// Prompt returns the prompt builder for this request. Prompt construction lives
+// in core/ai/prompt so that every path — provider, tool, streaming, batch —
+// renders identical bytes.
+func (req TranslateRequest) Prompt() prompt.Translate {
+	return prompt.Translate{
+		SourceLocale: req.SourceLanguage,
+		TargetLocale: req.TargetLocale,
+		Instruction:  req.Instruction,
+		VoiceGuide:   req.VoiceGuide,
+		Glossary:     req.Glossary,
+	}
 }
 
 // Directives returns the deterministic instruction + brand-voice + glossary
-// block appended to translation prompts. Glossary terms are sorted so the same
-// request always yields byte-identical prompt text. Returns "" when none is set.
-func (req TranslateRequest) Directives() string {
-	var b strings.Builder
-	if ins := strings.TrimSpace(req.Instruction); ins != "" {
-		b.WriteString("\n\nInstruction (apply when translating):\n")
-		b.WriteString(ins)
-		b.WriteString("\n")
+// block shared by every translation prompt.
+func (req TranslateRequest) Directives() string { return req.Prompt().Directives() }
+
+// MessagesFromTurns converts a rendered prompt into provider messages. Each
+// provider then transports the roles as its API requires.
+func MessagesFromTurns(turns []prompt.Turn) []Message {
+	msgs := make([]Message, 0, len(turns))
+	for _, t := range turns {
+		msgs = append(msgs, TextMessage(t.Role, t.Text))
 	}
-	if g := strings.TrimSpace(req.VoiceGuide); g != "" {
-		b.WriteString("\n\nBrand voice (apply when translating):\n")
-		b.WriteString(g)
-		b.WriteString("\n")
-	}
-	if len(req.Glossary) > 0 {
-		b.WriteString("\n\nGlossary:\n")
-		keys := slices.Sorted(maps.Keys(req.Glossary))
-		for _, k := range keys {
-			fmt.Fprintf(&b, "- %s → %s\n", k, req.Glossary[k])
-		}
-	}
-	return b.String()
+	return msgs
 }
 
 // TokenUsage holds token consumption data from an AI provider call.
@@ -514,12 +520,11 @@ func standardTranslate(
 	req TranslateRequest,
 	confidence float64,
 ) (*TranslateResponse, error) {
-	prompt := fmt.Sprintf(
-		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
-		req.SourceLanguage, req.TargetLocale, req.Source,
-	) + req.Directives()
+	p := req.Prompt()
+	turns := p.Single(req.Source, req.PreserveTags)
+	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateSingle))
 
-	resp, err := chat(ctx, []Message{TextMessage("user", prompt)})
+	resp, err := chat(ctx, MessagesFromTurns(turns))
 	if err != nil {
 		return nil, err
 	}

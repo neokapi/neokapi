@@ -8,11 +8,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // ErrEmptyCorpus is returned by InferVoiceProfile when the corpus contains no
@@ -111,9 +112,9 @@ func inferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, cor
 	return draft, evidence, usage, nil
 }
 
-// buildInferPrompt constructs the analysis prompt. The corpus follows a
-// literal "Corpus:" delimiter line, which offline providers (the demo stub)
-// also rely on to locate the text.
+// buildInferPrompt constructs the analysis prompt. The corpus follows
+// prompt.CorpusDelimiter, which offline providers (the demo stub) rely on to
+// locate the text — the delimiter is a declared contract, not free wording.
 func buildInferPrompt(corpus string, opts InferOptions) string {
 	var b strings.Builder
 	b.WriteString("You are a brand voice analyst. Study the corpus below and infer a draft brand voice profile. ")
@@ -127,7 +128,7 @@ func buildInferPrompt(corpus string, opts InferOptions) string {
 	if d := strings.TrimSpace(opts.Domain); d != "" {
 		fmt.Fprintf(&b, "\nThe content is in the %s domain.\n", d)
 	}
-	b.WriteString("\nCorpus:\n")
+	b.WriteString(prompt.CorpusDelimiter)
 	b.WriteString(corpus)
 	return b.String()
 }

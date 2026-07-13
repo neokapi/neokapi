@@ -72,11 +72,8 @@ func (p *localBrowserProvider) Name() aiprovider.ProviderID { return localProvid
 func (p *localBrowserProvider) InputModalities() []aiprovider.Modality { return nil }
 
 func (p *localBrowserProvider) Translate(ctx context.Context, req aiprovider.TranslateRequest) (*aiprovider.TranslateResponse, error) {
-	prompt := fmt.Sprintf(
-		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
-		req.SourceLanguage, req.TargetLocale, req.Source,
-	) + req.Directives()
-	resp, err := p.Chat(ctx, []aiprovider.Message{aiprovider.TextMessage("user", prompt)})
+	turns := req.Prompt().Single(req.Source, req.PreserveTags)
+	resp, err := p.Chat(ctx, aiprovider.MessagesFromTurns(turns))
 	if err != nil {
 		return nil, err
 	}
