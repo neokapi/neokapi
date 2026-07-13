@@ -64,6 +64,11 @@ const (
 type Message struct {
 	Role  string        `json:"role"` // RoleSystem, RoleUser, RoleAssistant
 	Parts []ContentPart `json:"parts"`
+	// Sections attributes the message's text to what produced each piece of it
+	// (framework rule, brand voice profile, termbase, the source block). Set when
+	// the message came from a prompt builder; --explain renders it so a prompt can
+	// be traced back to its origins. Providers ignore it — they send Parts.
+	Sections []prompt.Section `json:"sections,omitempty"`
 }
 
 // TextMessage builds a text-only message — the common case.
@@ -146,7 +151,9 @@ func (req TranslateRequest) Directives() string { return req.Prompt().Directives
 func MessagesFromTurns(turns []prompt.Turn) []Message {
 	msgs := make([]Message, 0, len(turns))
 	for _, t := range turns {
-		msgs = append(msgs, TextMessage(t.Role, t.Text))
+		m := TextMessage(t.Role, t.Text)
+		m.Sections = t.Sections
+		msgs = append(msgs, m)
 	}
 	return msgs
 }

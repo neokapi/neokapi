@@ -108,7 +108,21 @@ func RenderExplain(w io.Writer, exchanges []aiprovider.Exchange) {
 
 		for _, m := range ex.Messages {
 			fmt.Fprintf(w, "\n  ── %s ──\n", m.Role)
-			writeIndented(w, m.Text())
+			if len(m.Sections) == 0 {
+				// A prompt still built inline, with no section attribution.
+				writeIndented(w, m.Text())
+				continue
+			}
+			// Attribute each block of the prompt to what produced it, so a user
+			// can see that the glossary came from their termbase and the tag rule
+			// from the framework — not one opaque wall of English.
+			for i, s := range m.Sections {
+				if i > 0 {
+					fmt.Fprintln(w)
+				}
+				fmt.Fprintf(w, "  [%s · %s]\n", s.Kind, s.Origin)
+				writeIndented(w, s.Render())
+			}
 		}
 
 		if ex.Err != "" {

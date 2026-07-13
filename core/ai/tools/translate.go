@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"sync/atomic"
 
@@ -197,31 +196,29 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 
 // aiConfigFingerprint hashes the AI translate settings that change a block's
 // output, so the session overlay cache reuses a cached target only when they are
-// unchanged. The model and provider, the source/target locales, the brand voice
-// guidance, and the glossary all shape the result; the API key, batch sizing, and
-// progress callback do not.
+// unchanged. The API key, batch sizing, and progress callback do not shape the
+// result and are excluded.
+//
+// Everything prompt-shaped — the task and constraint wording, the instruction,
+// the brand voice guidance, the glossary, the locales — enters through the
+// prompt builder's own Fingerprint, hashed from the text it actually renders.
+// Listing those inputs here by hand would mean that rewording a prompt (which
+// changes output) left the fingerprint untouched, and cached targets produced by
+// the old prompt would be served as if current.
 func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
-	parts := []string{
+	p := prompt.Translate{
+		SourceLocale: cfg.SourceLocale,
+		TargetLocale: cfg.TargetLocale,
+		Instruction:  cfg.Instruction,
+		VoiceGuide:   voiceGuide,
+		Glossary:     cfg.Glossary,
+	}
+	return tool.OverlayConfigFingerprint(
 		"ai",
-		// The prompt text itself shapes the result, so a prompt revision must
-		// re-translate rather than serve output an older prompt produced.
-		prompt.Version,
 		cfg.Provider,
 		cfg.Model,
-		string(cfg.SourceLocale),
-		string(cfg.TargetLocale),
-		voiceGuide,
-		cfg.Instruction,
-	}
-	keys := make([]string, 0, len(cfg.Glossary))
-	for k := range cfg.Glossary {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		parts = append(parts, k+"="+cfg.Glossary[k])
-	}
-	return tool.OverlayConfigFingerprint(parts...)
+		p.Fingerprint(),
+	)
 }
 
 // Process overrides BaseTool.Process to support batch + concurrent translation.

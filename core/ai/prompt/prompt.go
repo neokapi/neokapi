@@ -15,11 +15,16 @@
 // prompt in this package branches on the provider.
 package prompt
 
-// Version identifies the revision of the prompts in this package. It is folded
-// into the AI tool config fingerprint, so bumping it re-translates rather than
-// serving cached output that an older prompt produced.
+// Version is the declared revision of this prompt catalog. It is a label for
+// humans — shown by --explain, published in the prompt reference — so a prompt
+// can be cited ("translate.single v2") in a bug report or a changelog.
 //
-// Bump it whenever the rendered bytes of any prompt below change.
+// It is deliberately NOT the cache key. Cache invalidation keys off
+// Translate.Fingerprint, hashed from the text a prompt actually renders, because
+// a version constant is a step someone forgets: reword a prompt, forget the bump,
+// and cached translations produced by a prompt that no longer exists get served
+// as current. (That happened during development of this package.) Bump Version
+// when the change is worth announcing; correctness does not depend on it.
 const Version = "v2"
 
 // Role names a Turn's speaker. These mirror aiprovider's role constants; this
@@ -30,14 +35,22 @@ const (
 	RoleUser   = "user"
 )
 
-// Turn is one message of a rendered prompt.
+// Turn is one message of a rendered prompt. Text is what the model receives;
+// Sections is the same content, still attributed to what produced each piece,
+// so --explain and the reference docs can show a prompt's provenance rather than
+// an opaque wall of English.
 type Turn struct {
-	Role string
-	Text string
+	Role     string
+	Text     string
+	Sections []Section
 }
 
-// System builds a system turn.
-func System(text string) Turn { return Turn{Role: RoleSystem, Text: text} }
+// System builds a system turn from its sections.
+func System(sections ...Section) Turn {
+	return Turn{Role: RoleSystem, Text: renderSections(sections), Sections: sections}
+}
 
-// User builds a user turn.
-func User(text string) Turn { return Turn{Role: RoleUser, Text: text} }
+// User builds a user turn from its sections.
+func User(sections ...Section) Turn {
+	return Turn{Role: RoleUser, Text: renderSections(sections), Sections: sections}
+}
