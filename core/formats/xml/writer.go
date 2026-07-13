@@ -26,6 +26,15 @@ var _ format.SubfilterAware = (*Writer)(nil)
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 var _ format.WriterConfigurable = (*Writer)(nil)
 
+// Ensure Writer satisfies StreamingWriter: paired with the streaming reader it
+// pulls each block on demand from a streaming skeleton store (with a small
+// rolling window for inline attribute-ref expansion), so the writer side is
+// bounded too. See streamWrite.
+var _ format.StreamingWriter = (*Writer)(nil)
+
+// StreamingWriter marks the bounded-memory interleaved write path.
+func (w *Writer) StreamingWriter() {}
+
 // NewWriter creates a new XML writer.
 func NewWriter() *Writer {
 	return &Writer{
@@ -51,6 +60,12 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 
 // Write consumes Parts from a channel and writes reconstructed XML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	// Streaming skeleton round-trip: interleave skeleton consumption with the
+	// Part stream, pulling each block on demand rather than buffering the whole
+	// block map, so the writer side is bounded too.
+	if w.skeletonStore != nil && w.skeletonStore.IsStreaming() {
+		return w.streamWrite(ctx, parts)
+	}
 	if w.skeletonStore != nil {
 		return w.writeWithSkeletonStore(ctx, parts)
 	}
@@ -125,6 +140,82 @@ done:
 // `blocks` is also used to expand inline-attribute reference markers
 // (see writeRunsXML / expandInlineAttrRefs).
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
+	return w.replaySkeleton(func(id string) *model.Block { return blocks[id] }, blocks)
+}
+
+// streamWrite consumes a streaming skeleton store interleaved with the Part
+// stream. Blocks are pulled on demand into a rolling window (bounded): a ref
+// pulls forward to its block, stashing intervening blocks — which is exactly how
+// inline attribute-ref blocks (emitted just before their element's content
+// block) become available to renderBlockXML. The window is capped and the oldest
+// entries evicted, since a block's last use is its own ref or a neighbouring
+// element's inline expansion.
+func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) error {
+	const windowCap = 512
+	pending := make(map[string]*model.Block)
+	order := make([]string, 0, windowCap+1)
+	closed := false
+
+	pullBlock := func() (*model.Block, bool) {
+		for !closed {
+			select {
+			case <-ctx.Done():
+				closed = true
+				return nil, false
+			case p, ok := <-parts:
+				if !ok {
+					closed = true
+					return nil, false
+				}
+				if p != nil && p.Type == model.PartBlock {
+					if b, ok := p.Resource.(*model.Block); ok {
+						return b, true
+					}
+				}
+			}
+		}
+		return nil, false
+	}
+	stash := func(b *model.Block) {
+		if _, seen := pending[b.ID]; !seen {
+			order = append(order, b.ID)
+		}
+		pending[b.ID] = b
+		for len(order) > windowCap {
+			delete(pending, order[0])
+			order = order[1:]
+		}
+	}
+	blockFor := func(id string) *model.Block {
+		if b, ok := pending[id]; ok {
+			return b
+		}
+		for !closed {
+			b, ok := pullBlock()
+			if !ok {
+				break
+			}
+			stash(b)
+			if b.ID == id {
+				return b
+			}
+		}
+		return nil
+	}
+
+	err := w.replaySkeleton(blockFor, pending)
+	// Drain remaining parts so the executor's tool goroutines can finish.
+	for !closed {
+		pullBlock()
+	}
+	return err
+}
+
+// replaySkeleton walks the skeleton store, resolving each ref via blockFor (a
+// whole-map lookup in buffered mode, or an on-demand pull in streaming mode) and
+// rendering it against blocks (the live map, used for inline attribute-ref
+// expansion). Shared by writeFromSkeleton (buffered) and streamWrite.
+func (w *Writer) replaySkeleton(blockFor func(string) *model.Block, blocks map[string]*model.Block) error {
 	first := true
 	for {
 		entry, err := w.skeletonStore.Next()
@@ -165,7 +256,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 			}
 		case format.SkeletonRef:
 			first = false
-			if block, ok := blocks[string(entry.Data)]; ok {
+			if block := blockFor(string(entry.Data)); block != nil {
 				text := w.renderBlockXML(block, blocks)
 				if _, err := io.WriteString(w.Output, text); err != nil {
 					return err

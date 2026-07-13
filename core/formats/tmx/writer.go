@@ -25,6 +25,14 @@ type Writer struct {
 // Ensure Writer implements SkeletonStoreConsumer.
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
+// Ensure Writer satisfies StreamingWriter: paired with the streaming reader it
+// pulls each TU block on demand from a streaming skeleton store, so the writer
+// side is bounded too. See streamWrite.
+var _ format.StreamingWriter = (*Writer)(nil)
+
+// StreamingWriter marks the bounded-memory interleaved write path.
+func (w *Writer) StreamingWriter() {}
+
 // NewWriter creates a new TMX writer.
 func NewWriter() *Writer {
 	return &Writer{
@@ -43,6 +51,12 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 
 // Write consumes Parts from a channel and writes TMX XML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	// Streaming skeleton round-trip: interleave skeleton consumption with the
+	// Part stream, pulling each TU block on demand rather than buffering them
+	// all, so the writer side is bounded too.
+	if w.skeletonStore != nil && w.skeletonStore.IsStreaming() {
+		return w.streamWrite(ctx, parts)
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -57,6 +71,72 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			w.collectPart(part)
 		}
 	}
+}
+
+// streamWrite consumes a streaming skeleton store interleaved with the Part
+// stream. TU blocks arrive in document order, so the Nth block is tuIdx N; a
+// ref "N:lang" pulls forward to block N (the reader emits a TU's seg refs before
+// the block itself, so the pull waits for it via the channel). Blocks below the
+// current TU are evicted, keeping the pulled window at ~one TU.
+func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) error {
+	pulled := map[int]*model.Block{}
+	count := 0
+	closed := false
+	pull := func() {
+		for !closed {
+			select {
+			case <-ctx.Done():
+				closed = true
+				return
+			case p, ok := <-parts:
+				if !ok {
+					closed = true
+					return
+				}
+				if p == nil {
+					continue
+				}
+				switch p.Type {
+				case model.PartData:
+					if d, ok := p.Resource.(*model.Data); ok && d.Name == "tmx-header" {
+						w.headerProps = d.Properties
+					}
+				case model.PartBlock:
+					if b, ok := p.Resource.(*model.Block); ok {
+						pulled[count] = b
+						count++
+						return
+					}
+				}
+			}
+		}
+	}
+	lastTU := -1
+	blockAt := func(i int) *model.Block {
+		if i < 0 {
+			return nil
+		}
+		for count <= i && !closed {
+			pull()
+		}
+		// Evict TUs before the one being resolved — refs advance monotonically,
+		// so earlier blocks are no longer needed (keeps the window at ~one TU).
+		if i > lastTU {
+			for k := range pulled {
+				if k < i {
+					delete(pulled, k)
+				}
+			}
+			lastTU = i
+		}
+		return pulled[i]
+	}
+	err := w.replaySkeleton(blockAt)
+	// Drain any remaining parts so the executor's tool goroutines can finish.
+	for !closed {
+		pull()
+	}
+	return err
 }
 
 func (w *Writer) collectPart(part *model.Part) {
@@ -87,7 +167,18 @@ func (w *Writer) writeFromSkeleton() error {
 	if err := w.skeletonStore.Flush(); err != nil {
 		return fmt.Errorf("tmx writer: flush skeleton: %w", err)
 	}
+	return w.replaySkeleton(func(i int) *model.Block {
+		if i < 0 || i >= len(w.blocks) {
+			return nil
+		}
+		return w.blocks[i]
+	})
+}
 
+// replaySkeleton walks the skeleton store, resolving each "tuIdx:lang" ref via
+// blockAt (a whole-slice index in buffered mode, or an on-demand pull in
+// streaming mode). It is shared by writeFromSkeleton (buffered) and streamWrite.
+func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 	srcLang := strings.ToLower(w.headerProps["srclang"])
 	if srcLang == "" {
 		srcLang = "en"
@@ -97,14 +188,14 @@ func (w *Writer) writeFromSkeleton() error {
 	emittedLangs := map[string]bool{}
 
 	flushPendingTUVs := func(text []byte) []byte {
-		if curTU < 0 || curTU >= len(w.blocks) {
+		block := blockAt(curTU)
+		if curTU < 0 || block == nil {
 			return text
 		}
 		idx := bytes.Index(text, []byte("</tu>"))
 		if idx < 0 {
 			return text
 		}
-		block := w.blocks[curTU]
 		var inject strings.Builder
 		// Order targets deterministically (skeleton can't tell us
 		// the source's order, but pseudo-translate produces a single
@@ -156,14 +247,17 @@ func (w *Writer) writeFromSkeleton() error {
 				continue
 			}
 			tuIdx, err := strconv.Atoi(idxStr)
-			if err != nil || tuIdx < 0 || tuIdx >= len(w.blocks) {
+			if err != nil || tuIdx < 0 {
+				continue
+			}
+			block := blockAt(tuIdx)
+			if block == nil {
 				continue
 			}
 			if tuIdx != curTU {
 				curTU = tuIdx
 				emittedLangs = map[string]bool{}
 			}
-			block := w.blocks[tuIdx]
 			lang := refSuffix
 			emittedLangs[strings.ToLower(lang)] = true
 

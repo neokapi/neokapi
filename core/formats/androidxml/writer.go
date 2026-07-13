@@ -38,6 +38,14 @@ type Writer struct {
 // blocks into the source-captured skeleton.
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
+// Ensure Writer satisfies StreamingWriter: paired with the streaming reader it
+// consumes a streaming skeleton store interleaved with the Part stream, so the
+// writer side is bounded too. See the streaming branch in Write.
+var _ format.StreamingWriter = (*Writer)(nil)
+
+// StreamingWriter marks the bounded-memory interleaved write path.
+func (w *Writer) StreamingWriter() {}
+
 // NewWriter creates a new Android string-resources writer.
 func NewWriter() *Writer {
 	cfg := &Config{}
@@ -96,6 +104,19 @@ func keyFromBlock(b *model.Block) (valueKey, bool) {
 
 // Write consumes Parts and writes the reconstructed resources document.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	// Streaming skeleton round-trip: interleave skeleton consumption with the
+	// Part stream so the writer never buffers the whole block map. Each ref
+	// renders from the block pulled on demand — the same resolveValue the
+	// buffered writeFromSkeleton uses per ref.
+	if w.skeletonStore != nil && w.skeletonStore.IsStreaming() {
+		return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output,
+			func(block *model.Block) ([]byte, error) {
+				if block == nil {
+					return nil, nil
+				}
+				return []byte(w.resolveValue(block)), nil
+			}, nil)
+	}
 	if w.skeletonStore != nil {
 		return w.writeWithSkeletonStore(ctx, parts)
 	}

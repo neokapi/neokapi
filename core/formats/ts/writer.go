@@ -27,6 +27,14 @@ type Writer struct {
 // Ensure Writer implements SkeletonStoreConsumer.
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
+// Ensure Writer satisfies StreamingWriter: paired with the streaming reader it
+// pulls each message block on demand from a streaming skeleton store, so the
+// writer side is bounded too. See streamWrite.
+var _ format.StreamingWriter = (*Writer)(nil)
+
+// StreamingWriter marks the bounded-memory interleaved write path.
+func (w *Writer) StreamingWriter() {}
+
 // contextGroup holds blocks for one <context> element.
 type contextGroup struct {
 	name   string
@@ -50,6 +58,12 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 
 // Write consumes Parts from a channel and writes Qt TS XML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	// Streaming skeleton round-trip: interleave skeleton consumption with the
+	// Part stream, pulling each message block on demand rather than buffering
+	// them all, so the writer side is bounded too.
+	if w.skeletonStore != nil && w.skeletonStore.IsStreaming() {
+		return w.streamWrite(ctx, parts)
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -64,6 +78,70 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			w.collectPart(part)
 		}
 	}
+}
+
+// streamWrite consumes a streaming skeleton store interleaved with the Part
+// stream. Message blocks arrive in document order, so the Nth block is blockIdx
+// N; a "N:elemType" ref pulls forward to block N (a block has several refs —
+// source, translation — served from the same pulled block). The ts-header Data
+// part is captured for the target locale; context group parts are not needed on
+// the skeleton path. Blocks below the current index are evicted.
+func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) error {
+	pulled := map[int]*model.Block{}
+	count := 0
+	closed := false
+	pull := func() {
+		for !closed {
+			select {
+			case <-ctx.Done():
+				closed = true
+				return
+			case p, ok := <-parts:
+				if !ok {
+					closed = true
+					return
+				}
+				if p == nil {
+					continue
+				}
+				switch p.Type {
+				case model.PartData:
+					if d, ok := p.Resource.(*model.Data); ok && d.Name == "ts-header" {
+						w.headerProps = d.Properties
+					}
+				case model.PartBlock:
+					if b, ok := p.Resource.(*model.Block); ok {
+						pulled[count] = b
+						count++
+						return
+					}
+				}
+			}
+		}
+	}
+	lastIdx := -1
+	blockAt := func(i int) *model.Block {
+		if i < 0 {
+			return nil
+		}
+		for count <= i && !closed {
+			pull()
+		}
+		if i > lastIdx {
+			for k := range pulled {
+				if k < i {
+					delete(pulled, k)
+				}
+			}
+			lastIdx = i
+		}
+		return pulled[i]
+	}
+	err := w.replaySkeleton(blockAt)
+	for !closed {
+		pull()
+	}
+	return err
 }
 
 func (w *Writer) collectPart(part *model.Part) {
@@ -115,7 +193,18 @@ func (w *Writer) writeFromSkeleton() error {
 	if err := w.skeletonStore.Flush(); err != nil {
 		return fmt.Errorf("ts writer: flush skeleton: %w", err)
 	}
+	return w.replaySkeleton(func(i int) *model.Block {
+		if i < 0 || i >= len(w.allBlocks) {
+			return nil
+		}
+		return w.allBlocks[i]
+	})
+}
 
+// replaySkeleton walks the skeleton store, resolving each "blockIdx:elemType"
+// ref via blockAt (a whole-slice index in buffered mode, or an on-demand pull in
+// streaming mode). Shared by writeFromSkeleton (buffered) and streamWrite.
+func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 	// Determine target locale
 	language := w.headerProps["language"]
 	targetLocale := model.LocaleID(language)
@@ -184,10 +273,13 @@ func (w *Writer) writeFromSkeleton() error {
 				continue
 			}
 			blockIdx, err := strconv.Atoi(idxStr)
-			if err != nil || blockIdx < 0 || blockIdx >= len(w.allBlocks) {
+			if err != nil || blockIdx < 0 {
 				continue
 			}
-			block := w.allBlocks[blockIdx]
+			block := blockAt(blockIdx)
+			if block == nil {
+				continue
+			}
 			elemType := refSuffix
 
 			// For translation refs, rewrite the trailing
