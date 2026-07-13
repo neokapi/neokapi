@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
 	mttools "github.com/neokapi/neokapi/core/mt/tools"
 	"github.com/neokapi/neokapi/core/registry"
@@ -83,7 +84,8 @@ func registerMT(reg *registry.ToolRegistry) {
 // This lives entirely in the wasm wiring: it does not change native behavior,
 // where the credential-resolution preprocessor set by App.Init remains in
 // effect.
-func forceDemoProviders(reg *registry.ToolRegistry) {
+func forceDemoProviders(app *cli.App) {
+	reg := app.ToolReg
 	if reg == nil {
 		return
 	}
@@ -91,6 +93,10 @@ func forceDemoProviders(reg *registry.ToolRegistry) {
 		if config == nil {
 			config = map[string]any{}
 		}
+		// This replaces App.Init's preprocessor wholesale, so anything it
+		// contributed must be re-applied here or the browser silently sends a
+		// different prompt than the native CLI.
+		config = cli.ApplySourceLocale(app.SourceLang, config)
 		// Real in-browser providers run via a host JS bridge, not a credentialed
 		// network call: `local` (a model via WebLLM/WebGPU, transformers.js
 		// fallback) and `browser` (the on-device Translator API). Let either

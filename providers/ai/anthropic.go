@@ -41,21 +41,28 @@ func (p *AnthropicProvider) Name() ProviderID { return Anthropic }
 func (p *AnthropicProvider) InputModalities() []Modality { return []Modality{ModalityImage} }
 
 func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	return standardTranslate(ctx, p.Chat, req, 0.85)
+	return standardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
 }
 
-func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
-	apiMessages, err := toAnthropicMessages(messages)
+// buildRequest assembles the wire request. System-role messages are lifted into
+// the top-level system parameter: the Messages API accepts only user and
+// assistant roles and rejects a "system" role inside messages[].
+func (p *AnthropicProvider) buildRequest(messages []Message) (anthropicRequest, error) {
+	system, convo := SplitSystem(messages)
+	apiMessages, err := toAnthropicMessages(convo)
 	if err != nil {
-		return nil, err
+		return anthropicRequest{}, err
 	}
-
-	body := anthropicRequest{
+	return anthropicRequest{
 		Model:     p.config.Model,
 		MaxTokens: p.config.MaxTokens,
+		System:    system,
 		Messages:  apiMessages,
-	}
+	}, nil
+}
 
+// post sends a request to /v1/messages and decodes the response.
+func (p *AnthropicProvider) post(ctx context.Context, body anthropicRequest) (*anthropicResponse, error) {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("anthropic: marshal request: %w", err)
@@ -88,6 +95,19 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*Chat
 	var apiResp anthropicResponse
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
 		return nil, fmt.Errorf("anthropic: unmarshal response: %w", err)
+	}
+	return &apiResp, nil
+}
+
+func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
+	body, err := p.buildRequest(messages)
+	if err != nil {
+		return nil, err
+	}
+
+	apiResp, err := p.post(ctx, body)
+	if err != nil {
+		return nil, err
 	}
 
 	var content strings.Builder
@@ -105,7 +125,7 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*Chat
 }
 
 func (p *AnthropicProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
-	apiMessages, err := toAnthropicMessages(messages)
+	body, err := p.buildRequest(messages)
 	if err != nil {
 		return nil, err
 	}
@@ -114,57 +134,17 @@ func (p *AnthropicProvider) ChatStructured(ctx context.Context, messages []Messa
 	if toolName == "" {
 		toolName = "structured_output"
 	}
+	body.Tools = []anthropicTool{{
+		Name:        toolName,
+		Description: schema.Description,
+		InputSchema: schema.Schema,
+	}}
+	body.ToolChoice = &anthropicToolChoice{Type: "tool", Name: toolName}
 
-	body := anthropicRequest{
-		Model:     p.config.Model,
-		MaxTokens: p.config.MaxTokens,
-		Messages:  apiMessages,
-		Tools: []anthropicTool{{
-			Name:        toolName,
-			Description: schema.Description,
-			InputSchema: schema.Schema,
-		}},
-		ToolChoice: &anthropicToolChoice{
-			Type: "tool",
-			Name: toolName,
-		},
-	}
-
-	jsonBody, err := json.Marshal(body)
+	apiResp, err := p.post(ctx, body)
 	if err != nil {
-		return nil, fmt.Errorf("anthropic: marshal request: %w", err)
+		return nil, err
 	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.config.BaseURL+"/v1/messages", bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, fmt.Errorf("anthropic: create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", p.config.APIKey)
-	httpReq.Header.Set("anthropic-version", "2023-06-01")
-
-	httpResp, err := p.client.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("anthropic: request: %w", err)
-	}
-	defer httpResp.Body.Close()
-
-	respBody, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("anthropic: read response: %w", err)
-	}
-
-	if httpResp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("anthropic: API error %d: %s", httpResp.StatusCode, string(respBody))
-	}
-
-	var apiResp anthropicResponse
-	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		return nil, fmt.Errorf("anthropic: unmarshal response: %w", err)
-	}
-
-	usage := apiResp.Usage.toTokenUsage()
 
 	// Extract the tool_use input as JSON.
 	for _, block := range apiResp.Content {
@@ -176,7 +156,7 @@ func (p *AnthropicProvider) ChatStructured(ctx context.Context, messages []Messa
 			return &ChatResponse{
 				Content: string(inputJSON),
 				Model:   apiResp.Model,
-				Usage:   usage,
+				Usage:   apiResp.Usage.toTokenUsage(),
 			}, nil
 		}
 	}
@@ -233,6 +213,7 @@ func toAnthropicMessages(messages []Message) ([]anthropicMessage, error) {
 type anthropicRequest struct {
 	Model      string               `json:"model"`
 	MaxTokens  int                  `json:"max_tokens"`
+	System     string               `json:"system,omitempty"`
 	Messages   []anthropicMessage   `json:"messages"`
 	Tools      []anthropicTool      `json:"tools,omitempty"`
 	ToolChoice *anthropicToolChoice `json:"tool_choice,omitempty"`

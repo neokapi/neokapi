@@ -22,6 +22,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve as pathResolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createMemFS } from "./memfs.ts";
+import { parseCommand } from "../../packages/kapi-playground/src/argv.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -551,8 +552,11 @@ async function main() {
       continue;
     }
 
-    // Strip leading "kapi " — kapiRun receives argv without the binary name.
-    const argv = rawCmd.replace(/^kapi\s+/, "").trim().split(/\s+/).filter(Boolean);
+    // Tokenize exactly as the browser terminal does — same module, so a command
+    // that runs in the docs embed runs here, quotes and all. (This used to be a
+    // whitespace split, which shredded any quoted argument and failed a snippet
+    // in CI that worked fine in the browser it was verifying.)
+    const argv = parseCommand(rawCmd);
 
     resetCwd(snippet.sandboxDir);
     seedFixtures(snippet.sandboxDir, snippet.seed, snippet.files);

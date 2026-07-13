@@ -2709,6 +2709,12 @@
           "ui:order": 0,
           "ui:widget": "select"
         },
+        "instruction": {
+          "description": "Extra guidance for the model while translating (e.g. 'informal register; keep product names in English')",
+          "title": "Instruction",
+          "type": "string",
+          "ui:widget": "textarea"
+        },
         "model": {
           "description": "AI model name",
           "title": "Model",
@@ -2853,6 +2859,13 @@
           ],
           "id": "provider",
           "label": "Provider"
+        },
+        {
+          "fields": [
+            "instruction"
+          ],
+          "id": "prompt",
+          "label": "Prompt"
         }
       ]
     }

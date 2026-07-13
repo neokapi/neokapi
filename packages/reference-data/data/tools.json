@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-11T10:26:31Z",
+  "generatedAt": "2026-07-13T16:59:00Z",
   "kind": "tool",
   "entries": [
     {
@@ -4110,6 +4110,13 @@
               "apiKey",
               "model"
             ]
+          },
+          {
+            "id": "prompt",
+            "label": "Prompt",
+            "fields": [
+              "instruction"
+            ]
           }
         ],
         "properties": {
@@ -4153,6 +4160,12 @@
               "mt": "Translate with a plugin-provided machine-translation engine."
             },
             "ui:order": 0
+          },
+          "instruction": {
+            "type": "string",
+            "title": "Instruction",
+            "description": "Extra guidance for the model while translating (e.g. 'informal register; keep product names in English')",
+            "ui:widget": "textarea"
           },
           "model": {
             "type": "string",

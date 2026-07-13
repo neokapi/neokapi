@@ -71,31 +71,7 @@ func (p *AzureOpenAIProvider) Name() ProviderID { return AzureOpenAI }
 func (p *AzureOpenAIProvider) InputModalities() []Modality { return []Modality{ModalityImage} }
 
 func (p *AzureOpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	system := fmt.Sprintf(
-		"You are a software localization specialist. Your task is to translate user interface strings from %s to %s. "+
-			"These are UI labels, error messages, and status texts from a software application. "+
-			"Return ONLY the translated text, nothing else. Preserve any placeholders.",
-		req.SourceLanguage, req.TargetLocale,
-	)
-
-	var user strings.Builder
-	user.WriteString(req.Source)
-	user.WriteString(req.Directives())
-
-	resp, err := p.Chat(ctx, []Message{
-		TextMessage("system", system),
-		TextMessage("user", user.String()),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &TranslateResponse{
-		Translation: resp.Content,
-		Confidence:  0.85,
-		Model:       resp.Model,
-		Usage:       resp.Usage,
-	}, nil
+	return standardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
 }
 
 func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {

@@ -3,35 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import type { KapiRuntime } from "./runtime";
-
-// Split a command line into argv, honoring single/double quotes. Good enough
-// for a demo shell — no escapes, no globbing.
-function parseArgv(line: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let quote: string | null = null;
-  let has = false;
-  for (const ch of line) {
-    if (quote) {
-      if (ch === quote) quote = null;
-      else cur += ch;
-    } else if (ch === '"' || ch === "'") {
-      quote = ch;
-      has = true;
-    } else if (ch === " " || ch === "\t") {
-      if (has) {
-        out.push(cur);
-        cur = "";
-        has = false;
-      }
-    } else {
-      cur += ch;
-      has = true;
-    }
-  }
-  if (has) out.push(cur);
-  return out;
-}
+import { parseArgv } from "./argv";
 
 function longestCommonPrefix(items: string[]): string {
   if (items.length === 0) return "";

@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // AIQACheckTool checks translation quality using an LLM provider.
@@ -108,18 +109,14 @@ func (t *AIQACheckTool) annotate(v tool.BlockView) error {
 	sourceText := v.SourceText()
 	targetText := v.TargetText(t.targetLocale)
 
-	prompt := fmt.Sprintf(
-		"Analyze the following translation for quality issues. Check for: %s.\n\n"+
-			"Source (%s): %s\nTranslation (%s): %s\n\n"+
-			"Return all issues found, or an empty array if none.",
-		strings.Join(t.checks, ", "),
-		t.sourceLocale, sourceText,
-		t.targetLocale, targetText,
-	)
+	turns := prompt.QualityCheck{
+		SourceLocale: t.sourceLocale,
+		TargetLocale: t.targetLocale,
+		Checks:       t.checks,
+	}.Turns(sourceText, targetText)
 
-	resp, err := t.provider.ChatStructured(v.Context(), []aiprovider.Message{
-		aiprovider.TextMessage("user", prompt),
-	}, qaSchema())
+	ctx := prompt.WithID(v.Context(), prompt.IDQualityCheck)
+	resp, err := t.provider.ChatStructured(ctx, aiprovider.MessagesFromTurns(turns), qaSchema())
 	if err != nil {
 		return fmt.Errorf("qa: %w", err)
 	}

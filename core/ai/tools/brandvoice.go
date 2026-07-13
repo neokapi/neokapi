@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // BrandVoiceCheckTool uses an LLM to check text against brand voice guidelines.
@@ -188,11 +189,10 @@ func (t *BrandVoiceCheckTool) annotate(v tool.BlockView) error {
 		return nil
 	}
 
-	prompt := t.buildPrompt(sourceText)
-
-	resp, err := t.provider.ChatStructured(ctx, []aiprovider.Message{
-		aiprovider.TextMessage("user", prompt),
-	}, brandVoiceSchema())
+	p := prompt.BrandCheck{VoiceGuide: brand.RenderVoiceGuide(t.profile)}
+	turns := p.Turns(sourceText)
+	ctx = prompt.WithID(ctx, prompt.IDBrandCheck)
+	resp, err := t.provider.ChatStructured(ctx, aiprovider.MessagesFromTurns(turns), brandVoiceSchema())
 	if err != nil {
 		return fmt.Errorf("brand-voice-check: %w", err)
 	}
@@ -238,24 +238,4 @@ func (t *BrandVoiceCheckTool) annotate(v tool.BlockView) error {
 	})
 
 	return nil
-}
-
-// buildPrompt constructs the LLM prompt from the voice profile and text. The
-// guidelines section is rendered by brand.RenderVoiceGuide — the single source
-// of truth shared with the translate prompt and the bowrain MCP voice guide.
-func (t *BrandVoiceCheckTool) buildPrompt(text string) string {
-	var b strings.Builder
-
-	b.WriteString("You are a brand voice compliance checker. Analyze the following text against brand voice guidelines and report any issues.\n\n")
-
-	if t.profile != nil {
-		b.WriteString(brand.RenderVoiceGuide(t.profile))
-		b.WriteString("\n")
-	}
-
-	b.WriteString(fmt.Sprintf("## Text to check\n\n%s\n\n", text))
-	b.WriteString("Return findings for any issues with tone, style, clarity, or brand compliance. ")
-	b.WriteString("Return an empty findings array if the text fully complies.")
-
-	return b.String()
 }

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/av"
 	"github.com/neokapi/neokapi/core/imageops"
 	"github.com/neokapi/neokapi/core/model"
@@ -20,7 +21,9 @@ import (
 
 // RefuseToken is what the model is told to return when a slice is unreadable,
 // instead of guessing. It maps to a review flag, never to fabricated source.
-const RefuseToken = "[illegible]"
+// RefuseToken is what the model returns when a slice is illegible. It is defined
+// with the prompt that demands it, so the ask and the check cannot drift apart.
+const RefuseToken = prompt.RefuseToken
 
 // PropNeedsReview marks a block whose source the refinement tier rewrote or
 // could not read — the least-verified tier, surfaced for human review.
@@ -71,15 +74,17 @@ func (r MediaRef) localPath() (path string, cleanup func(), err error) {
 }
 
 // MediaSlicer turns a block's anchor facet into a bounded media content part for
-// the refinement LLM, declaring the input Modality the part requires and the
-// system prompt that tells the LLM how to re-read it. ImageSlicer crops the
-// geometry bbox of a raster; AudioCutter cuts a timing span out of an audio
-// track; VideoClipper extracts the frame at a block's timing and crops its
+// the refinement LLM, declaring the input Modality the part requires. ImageSlicer
+// crops the geometry bbox of a raster; AudioCutter cuts a timing span out of an
+// audio track; VideoClipper extracts the frame at a block's timing and crops its
 // on-frame geometry.
+//
+// The prompt that tells the model how to re-read the slice is not a slicer's
+// concern — it is keyed by modality in core/ai/prompt, so the prompt reference
+// can enumerate all three.
 type MediaSlicer interface {
 	Slice(ctx context.Context, src MediaRef, b *model.Block) (aiprovider.ContentPart, error)
 	Modality() aiprovider.Modality
-	SystemPrompt() string
 }
 
 // ImageSlicer crops the block's spatial (geometry) anchor out of the source
@@ -87,12 +92,6 @@ type MediaSlicer interface {
 type ImageSlicer struct{}
 
 func (ImageSlicer) Modality() aiprovider.Modality { return aiprovider.ModalityImage }
-
-func (ImageSlicer) SystemPrompt() string {
-	return "You transcribe a single line cropped from a document image. " +
-		"Return only the exact text you read, with no commentary. " +
-		"If the crop is unreadable, return " + RefuseToken + "."
-}
 
 func (ImageSlicer) Slice(_ context.Context, src MediaRef, b *model.Block) (aiprovider.ContentPart, error) {
 	g, ok := b.Geometry()
@@ -119,12 +118,6 @@ func (ImageSlicer) Slice(_ context.Context, src MediaRef, b *model.Block) (aipro
 type AudioCutter struct{}
 
 func (AudioCutter) Modality() aiprovider.Modality { return aiprovider.ModalityAudio }
-
-func (AudioCutter) SystemPrompt() string {
-	return "You transcribe a single short speech clip. " +
-		"Return only the exact words spoken, with no commentary. " +
-		"If the clip is unintelligible, return " + RefuseToken + "."
-}
 
 func (AudioCutter) Slice(ctx context.Context, src MediaRef, b *model.Block) (aiprovider.ContentPart, error) {
 	tm, ok := b.Timing()
@@ -162,12 +155,6 @@ func (AudioCutter) Slice(ctx context.Context, src MediaRef, b *model.Block) (aip
 type VideoClipper struct{}
 
 func (VideoClipper) Modality() aiprovider.Modality { return aiprovider.ModalityImage }
-
-func (VideoClipper) SystemPrompt() string {
-	return "You transcribe the on-screen text in a region of a single video frame. " +
-		"Return only the exact text you read, with no commentary. " +
-		"If it is unreadable, return " + RefuseToken + "."
-}
 
 func (VideoClipper) Slice(ctx context.Context, src MediaRef, b *model.Block) (aiprovider.ContentPart, error) {
 	tm, ok := b.Timing()
@@ -397,14 +384,18 @@ func (t *MediaRefineTool) refine(ctx context.Context, b *model.Block, all []*mod
 		return err
 	}
 
-	msgs := []aiprovider.Message{
-		aiprovider.TextMessage("system", slicer.SystemPrompt()),
-		{Role: "user", Parts: []aiprovider.ContentPart{
-			aiprovider.TextPart(refineContext(all, idx)),
-			part,
-		}},
+	// aiprovider.Modality and prompt.Modality carry the same values; the prompt
+	// package owns its own type so it takes no dependency on a provider.
+	p := prompt.MediaRefine{
+		Modality:    prompt.Modality(slicer.Modality()),
+		RefuseToken: RefuseToken,
 	}
+	msgs := aiprovider.MessagesFromTurns(p.Turns(neighbourText(all, idx)))
+	// The slice itself rides on the user turn, alongside the context text. It is
+	// data, not instruction — the same rule the text prompts follow.
+	msgs[len(msgs)-1].Parts = append(msgs[len(msgs)-1].Parts, part)
 
+	ctx = prompt.WithID(ctx, p.ID())
 	resp, err := t.provider.Chat(ctx, msgs)
 	if err != nil {
 		return err
@@ -440,23 +431,20 @@ func (t *MediaRefineTool) refine(ctx context.Context, b *model.Block, all []*mod
 	return nil
 }
 
-// refineContext gathers the immediately neighbouring block texts as a plain-text
-// hint, so the LLM has the language prior without shipping the whole page.
-func refineContext(all []*model.Block, idx int) string {
-	var b strings.Builder
-	b.WriteString("Surrounding lines for context:\n")
+// neighbourText gathers the immediately neighbouring block texts, so the LLM has
+// the language prior without shipping the whole page. Rendering them into a
+// prompt is the prompt package's job.
+func neighbourText(all []*model.Block, idx int) []string {
+	var out []string
 	for i := idx - 2; i <= idx+2; i++ {
 		if i < 0 || i >= len(all) || i == idx {
 			continue
 		}
 		if txt := strings.TrimSpace(all[i].SourceText()); txt != "" {
-			b.WriteString("- ")
-			b.WriteString(txt)
-			b.WriteByte('\n')
+			out = append(out, txt)
 		}
 	}
-	b.WriteString("\nRe-read the highlighted unit and return only its exact text:")
-	return b.String()
+	return out
 }
 
 // blockResources extracts the Block resources from a part slice, in order.

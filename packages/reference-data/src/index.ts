@@ -7,7 +7,14 @@ import formatsJson from "../data/formats.json";
 import toolsJson from "../data/tools.json";
 import gapsJson from "../data/reference-gaps.json";
 import commandsJson from "../data/commands.json";
-import type { ReferenceDataset, ReferenceEntry, ReferenceGapReport, CommandDataset } from "./types";
+import promptsJson from "../data/prompts.json";
+import type {
+  ReferenceDataset,
+  ReferenceEntry,
+  ReferenceGapReport,
+  CommandDataset,
+  PromptDataset,
+} from "./types";
 
 export * from "./types";
 
@@ -15,6 +22,9 @@ export const formats = formatsJson as unknown as ReferenceDataset;
 export const tools = toolsJson as unknown as ReferenceDataset;
 export const gaps = gapsJson as unknown as ReferenceGapReport;
 export const commands = commandsJson as unknown as CommandDataset;
+
+/** Every prompt kapi sends to a language model, rendered from the builders the binary uses. */
+export const prompts = promptsJson as unknown as PromptDataset;
 
 /** All formats and tools in one array. */
 export function allEntries(): ReferenceEntry[] {

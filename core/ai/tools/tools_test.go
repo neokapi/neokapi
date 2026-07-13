@@ -13,7 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	coretool "github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

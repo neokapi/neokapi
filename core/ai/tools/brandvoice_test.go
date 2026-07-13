@@ -8,7 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -79,11 +79,14 @@ func TestBrandVoiceCheckToolFindings(t *testing.T) {
 
 func TestBrandVoiceCheckToolPromptConstruction(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
-	var capturedPrompt string
+	var capturedSystem, capturedUser string
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		for _, m := range messages {
-			if m.Role == "user" {
-				capturedPrompt = m.Text()
+			switch m.Role {
+			case aiprovider.RoleSystem:
+				capturedSystem = m.Text()
+			case aiprovider.RoleUser:
+				capturedUser = m.Text()
 			}
 		}
 		return &aiprovider.ChatResponse{
@@ -128,14 +131,17 @@ func TestBrandVoiceCheckToolPromptConstruction(t *testing.T) {
 	require.NoError(t, err)
 	<-out
 
-	// Verify prompt includes profile elements.
-	assert.Contains(t, capturedPrompt, "warm, knowledgeable")
-	assert.Contains(t, capturedPrompt, "neutral")
-	assert.Contains(t, capturedPrompt, "active voice")
-	assert.Contains(t, capturedPrompt, "second")
-	assert.Contains(t, capturedPrompt, "The system will process your request.")
-	assert.Contains(t, capturedPrompt, "We'll process your request right away.")
-	assert.Contains(t, capturedPrompt, "Welcome to our platform")
+	// The voice guide is instruction, so it belongs in the system turn...
+	assert.Contains(t, capturedSystem, "warm, knowledgeable")
+	assert.Contains(t, capturedSystem, "neutral")
+	assert.Contains(t, capturedSystem, "active voice")
+	assert.Contains(t, capturedSystem, "second")
+	assert.Contains(t, capturedSystem, "The system will process your request.")
+	assert.Contains(t, capturedSystem, "We'll process your request right away.")
+
+	// ...and the text under review is content, so the user turn holds it and
+	// nothing else.
+	assert.Equal(t, "Welcome to our platform", capturedUser)
 
 	// Verify schema.
 	require.Len(t, mock.ChatStructuredCalls, 1)

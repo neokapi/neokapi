@@ -79,7 +79,7 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string, opts Fl
 				return errKlzTransformOutput
 			}
 			doPack, _ := cmd.Flags().GetBool("pack")
-			return a.transformKlzInPlace(ctx, inputPaths[0], flowName, func() ([]tool.Tool, func(), error) {
+			return a.transformKlzInPlace(ctx, inputPaths[0], flowName, func() ([]tool.Tool, func(), error) { //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
 				return a.buildFlowTools(flowName, cmd)
 			}, a.TargetLang, "", doPack)
 		}
@@ -130,6 +130,7 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	cmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
 	cmd.Flags().String("api-key", "", "API key for the AI provider")
 	cmd.Flags().String("model", "", "AI model name")
+	cmd.Flags().String("instruction", "", "extra guidance for the model while translating (e.g. \"informal register; keep product names in English\")")
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
 	cmd.Flags().Bool("pack", false, "when transforming a .klz, also eject the result to the .klz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
@@ -230,7 +231,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	}
 
 	// Build tools.
-	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
+	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd) //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
 	if err != nil {
 		return err
 	}
@@ -737,7 +738,7 @@ func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputP
 // events are recorded. Returns trace nodes (nil when recorder is nil).
 func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, outputBase, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
 	// Build fresh tool instances for this file (thread-safe in batch mode).
-	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
+	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd) //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
 	if err != nil {
 		return nil, err
 	}
@@ -1033,13 +1034,13 @@ func (a *App) buildFlowTools(flowName string, cmd ...Command) ([]tool.Tool, func
 		"target_locale": a.TargetLang,
 	}
 
-	// Inject the project's bound brand voice profile so built-in flows
-	// (e.g. translate-qa) run on-brand when executed inside a project.
-	// translate reads config["profile"]; tools that don't recognise it
-	// ignore the key.
-	if a.ProjectBindings != nil && a.ProjectBindings.profile != nil {
-		config["profile"] = a.ProjectBindings.profile
-	}
+	// The standing context a built-in flow runs under. Project-defined flows get
+	// this via toolFromStep; built-in flows used to get only the brand voice
+	// profile, so `kapi translate` inside a project silently ignored
+	// defaults.tools and never sent the project's terminology, while `kapi up` —
+	// the same tools, the project path — honored both. One recipe, two behaviours,
+	// depending on the verb.
+	bindings := a.resolveRunBindings(cmd...)
 
 	// Inject credential/provider flags from the command into the tool config.
 	if len(cmd) > 0 && cmd[0] != nil {
@@ -1060,6 +1061,12 @@ func (a *App) buildFlowTools(flowName string, cmd ...Command) ([]tool.Tool, func
 		if v, _ := cmd[0].Flags().GetString("model"); v != "" {
 			config["model"] = v
 		}
+		// --instruction steers the translation without replacing the prompt: it
+		// is rendered into the prompt's Instruction section. Tools that don't
+		// recognise the key ignore it.
+		if v, _ := cmd[0].Flags().GetString("instruction"); v != "" {
+			config["instruction"] = v
+		}
 	}
 
 	for _, tn := range toolNodes {
@@ -1069,6 +1076,7 @@ func (a *App) buildFlowTools(flowName string, cmd ...Command) ([]tool.Tool, func
 		if len(tn.config) > 0 {
 			toolConfig = mergeFlowNodeConfig(config, tn.config)
 		}
+		toolConfig = a.applyBindings(bindings, tn.name, a.ToolReg.Schema(registry.ToolID(tn.name)), toolConfig)
 		t, toolCleanup, err := a.buildToolByName(tn.name, toolConfig, cmd...)
 		if err != nil {
 			cleanup()
@@ -1652,6 +1660,62 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceC
 	return t, nil
 }
 
+// resolveRunBindings returns the standing context a flow run should carry.
+//
+// The project path (RunFromProject, converge) resolves bindings up front and
+// leaves them on the App. A built-in flow given explicit files — `kapi translate
+// messages.json` inside a project, `kapi run translate -i …` — does not, so it
+// used to see none: the recipe's defaults.tools were ignored and its termbase
+// never reached the model, while `kapi up` over the same recipe honored both.
+// One recipe, two behaviours, depending on the verb. Resolve them here instead.
+//
+// Outside a project there are no bindings — but `--termbase` is an explicit
+// request to use that terminology, and it used to reach only term-check (which
+// validates the output afterwards) and never translate (which could have got it
+// right the first time). That run now carries a binding set holding just the
+// glossary, so the terms are in the prompt.
+//
+// Nothing here is fatal: a recipe or termbase that cannot be read leaves the run
+// unbound rather than failing a translation over context that is, at worst,
+// advisory. The checks still report what the model got wrong.
+func (a *App) resolveRunBindings(cmd ...Command) *ProjectBindings {
+	if a.ProjectBindings != nil {
+		return a.ProjectBindings
+	}
+	if len(cmd) == 0 || cmd[0] == nil {
+		return nil
+	}
+	c := cmd[0]
+
+	if projectPath, err := ResolveProjectPath(c); err == nil && projectPath != "" {
+		if proj, err := project.Load(projectPath); err == nil {
+			b, err := a.resolveProjectBindings(c, proj, projectPath)
+			if err == nil {
+				return b
+			}
+			if !a.Quiet {
+				fmt.Fprintf(os.Stderr, "Warning: project bindings: %v\n", err)
+			}
+		}
+	}
+
+	// No project: honor an explicit --termbase on its own.
+	if tb, _ := c.Flags().GetString("termbase"); tb == "" {
+		return nil
+	}
+	glossary, err := a.ResolveProjectGlossary(c, a.TargetLang)
+	if err != nil {
+		if !a.Quiet {
+			fmt.Fprintf(os.Stderr, "Warning: --termbase: %v\n", err)
+		}
+		return nil
+	}
+	if len(glossary) == 0 {
+		return nil
+	}
+	return &ProjectBindings{glossary: glossary}
+}
+
 // ApplyProjectBindings injects the project's standing context into a step's
 // config: the tool's project preset (defaults.tools, applied under the step's
 // own keys — the step wins), then the brand-voice and glossary bindings when
@@ -1659,7 +1723,13 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceC
 // the (possibly cloned) config so the recipe's in-memory step config is never
 // mutated.
 func (a *App) ApplyProjectBindings(toolName string, s *schema.ComponentSchema, config map[string]any) map[string]any {
-	b := a.ProjectBindings
+	return a.applyBindings(a.ProjectBindings, toolName, s, config)
+}
+
+// applyBindings is ApplyProjectBindings over an explicit binding set, so a run
+// with no project (an ad-hoc `kapi translate --termbase …`) can still carry the
+// terminology the user asked for.
+func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.ComponentSchema, config map[string]any) map[string]any {
 	if b == nil {
 		return config
 	}
@@ -1687,11 +1757,44 @@ func (a *App) ApplyProjectBindings(toolName string, s *schema.ComponentSchema, c
 		}
 	}
 
-	// Glossary → termbase-requiring steps (term-check).
+	// Glossary → termbase-requiring steps (term-check), as a []GlossaryEntry.
 	if len(b.glossary) > 0 && ToolRequires(s, schema.RequiresTermbase) {
 		if _, ok := config["glossary"]; !ok {
 			clone()
 			config["glossary"] = b.glossary
+		}
+	}
+
+	// Glossary → translate steps, as the map the prompt's glossary section wants.
+	//
+	// Translate carries a Glossary that renders straight into the prompt, but it
+	// declares Requires{TargetLanguage, Credentials} — not Termbase — so the
+	// project's terminology never reached it. A project with a termbase had its
+	// terminology *checked* after the fact by term-check, yet never *enforced at
+	// generation*: the model was simply never told the terms. Wired here the way
+	// brand voice is above (not by adding Termbase to translate's Requires, which
+	// gates nothing else and would imply a termbase is mandatory).
+	//
+	// The two tools want the same key in different shapes — term-check takes the
+	// entry list, translate takes source→target — so the conversion happens here
+	// rather than either tool guessing.
+	if len(b.glossary) > 0 && isTranslateTool(toolName, s) {
+		if _, ok := config["glossary"]; !ok {
+			terms := make(map[string]string, len(b.glossary))
+			for _, e := range b.glossary {
+				if e.Source == "" || e.Target == "" {
+					continue
+				}
+				// First entry wins, so a duplicated source term resolves the same
+				// way on every run — the prompt has to be deterministic.
+				if _, dup := terms[e.Source]; !dup {
+					terms[e.Source] = e.Target
+				}
+			}
+			if len(terms) > 0 {
+				clone()
+				config["glossary"] = terms
+			}
 		}
 	}
 

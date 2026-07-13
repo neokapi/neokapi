@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,8 +79,15 @@ func TestDemoProvider_PreservesMarkup(t *testing.T) {
 
 func TestDemoProvider_BatchTranslations(t *testing.T) {
 	p := newTestDemo()
-	prompt := "Translate each numbered segment from en to fr.\n\n[1] Hello\n[2] Save\n[3] world\n"
-	resp, err := p.ChatStructured(context.Background(), []Message{TextMessage("user", prompt)}, JSONSchema{Name: "batch_translations"})
+
+	// Drive the real prompt builder, and carry intent in prompt.Meta the way the
+	// translate tool does. The demo provider reads the target locale from that
+	// metadata — it must not recover it by parsing the prompt's English.
+	pt := prompt.Translate{SourceLocale: "en", TargetLocale: "fr"}
+	turns := pt.Batch([]string{"Hello", "Save", "world"})
+	ctx := prompt.WithMeta(context.Background(), pt.Meta(prompt.IDTranslateBatch))
+
+	resp, err := p.ChatStructured(ctx, MessagesFromTurns(turns), JSONSchema{Name: "batch_translations"})
 	require.NoError(t, err)
 
 	var out struct {

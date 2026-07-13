@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 )
@@ -13,6 +14,19 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(&a.AssumeYes, "yes", "y", false, "assume yes for confirmation prompts (e.g. plugin auto-install)")
 	cmd.PersistentFlags().StringVar(&a.PluginDir, "plugin-dir", "", "plugin directory")
 	cmd.PersistentFlags().StringVar(&a.Lang, "lang", "", "UI locale for tool/format/plugin metadata (BCP-47, e.g. fr-FR); falls back to KAPI_LANG / LC_ALL / LANG")
+
+	// --explain-prompts shows exactly what kapi sends to the LLM on your behalf:
+	// the rendered prompt (including the brand voice and glossary it wove in),
+	// the model, and the reply. Bare flag prints a transcript to stderr;
+	// --explain-prompts=<path> writes the exchanges as JSON. Pair it with
+	// `--provider demo` to preview the prompts with no API key and no spend.
+	//
+	// Distinct from the flow commands' --explain, which reports resolved
+	// source → sink bindings and does not run.
+	cmd.PersistentFlags().StringVar(&a.Explain, "explain-prompts", "",
+		"show the prompts sent to the LLM: bare flag prints to stderr, --explain-prompts=<path> writes JSON")
+	cmd.PersistentFlags().Lookup("explain-prompts").NoOptDefVal = host.ExplainStderr
+
 	output.AddPersistentFlags(cmd.PersistentFlags())
 }
 

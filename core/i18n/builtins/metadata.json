@@ -908,6 +908,10 @@
             "mt": "Translate with a plugin-provided machine-translation engine."
           }
         },
+        "instruction": {
+          "title": "Instruction",
+          "description": "Extra guidance for the model while translating (e.g. 'informal register; keep product names in English')"
+        },
         "model": {
           "title": "Model",
           "description": "AI model name"
@@ -945,6 +949,9 @@
         }
       },
       "groups": {
+        "prompt": {
+          "label": "Prompt"
+        },
         "provider": {
           "label": "Provider"
         }

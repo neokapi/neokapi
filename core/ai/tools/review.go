@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // AIReviewTool reviews translations with explanations using an LLM.
@@ -170,22 +171,13 @@ func (t *AIReviewTool) annotate(v tool.BlockView) error {
 	sourceText := v.SourceText()
 	targetText := v.TargetText(t.targetLocale)
 
-	prompt := fmt.Sprintf(
-		`Review the following translation for accuracy and fluency.
+	turns := prompt.Review{
+		SourceLocale: t.sourceLocale,
+		TargetLocale: t.targetLocale,
+	}.Turns(sourceText, targetText)
 
-Source (%s): %s
-Translation (%s): %s
-
-Respond with ONLY a JSON object in this exact shape, no other text:
-{"score": <overall quality 0-100>, "findings": [{"severity": "critical|major|minor|info", "message": "<issue>", "suggestion": "<improved translation or fix, optional>"}]}
-Return an empty findings array when the translation has no issues.`,
-		t.sourceLocale, sourceText,
-		t.targetLocale, targetText,
-	)
-
-	resp, err := t.provider.Chat(v.Context(), []aiprovider.Message{
-		aiprovider.TextMessage("user", prompt),
-	})
+	ctx := prompt.WithID(v.Context(), prompt.IDReview)
+	resp, err := t.provider.Chat(ctx, aiprovider.MessagesFromTurns(turns))
 	if err != nil {
 		return fmt.Errorf("review: %w", err)
 	}

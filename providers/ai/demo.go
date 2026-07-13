@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -61,25 +62,25 @@ func (p *DemoProvider) modelName() string {
 }
 
 // Translate produces a deterministic demo translation of the source text.
-func (p *DemoProvider) Translate(_ context.Context, req TranslateRequest) (*TranslateResponse, error) {
+//
+// It goes through standardTranslate like every other provider, rather than
+// short-circuiting on req.Source: that renders the real prompt and routes it
+// through Chat, so `--provider demo --explain` previews exactly the prompt a
+// paid provider would receive — with no API key, no network and no spend. The
+// reported confidence stays 0: a stub has no real confidence.
+func (p *DemoProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	noticeOnce()
-	out := demoTranslate(req.Source, req.TargetLocale)
-	return &TranslateResponse{
-		Translation: out,
-		Confidence:  0, // honest: a stub has no real confidence
-		Model:       p.modelName(),
-		Usage:       demoUsage(req.Source, out),
-	}, nil
+	return standardTranslate(ctx, p.Name(), p.Chat, req, 0)
 }
 
 // Chat returns a deterministic demo reply. When the message looks like a
-// translation instruction (the shape translate emits for single blocks and
-// inline-code blocks) the trailing text is translated; otherwise a short,
-// clearly-labeled stub reply is returned.
-func (p *DemoProvider) Chat(_ context.Context, messages []Message) (*ChatResponse, error) {
+// translation prompt (identified by its prompt.Meta, not by its wording) the
+// user turn is translated; otherwise a short, clearly-labeled stub reply is
+// returned.
+func (p *DemoProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
 	noticeOnce()
 	last := lastUserMessage(messages)
-	content := demoChatReply(last)
+	content := demoChatReply(ctx, last)
 	return &ChatResponse{
 		Content: content,
 		Model:   p.modelName(),
@@ -95,16 +96,16 @@ func (p *DemoProvider) Chat(_ context.Context, messages []Message) (*ChatRespons
 // draft, clearly marked as illustrative. All other schemas get a neutral,
 // schema-valid response (empty arrays / zero values) so that QA and
 // brand-voice check tools run without fabricating findings.
-func (p *DemoProvider) ChatStructured(_ context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
+func (p *DemoProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
 	noticeOnce()
-	prompt := lastUserMessage(messages)
+	userTurn := lastUserMessage(messages)
 
 	var content string
 	switch schema.Name {
 	case "batch_translations":
-		content = demoBatchTranslations(prompt)
+		content = demoBatchTranslations(userTurn, demoTargetLocale(ctx))
 	case "brand_voice_inference":
-		content = demoBrandVoiceInference(prompt)
+		content = demoBrandVoiceInference(userTurn)
 	default:
 		content = neutralSchemaJSON(schema)
 	}
@@ -112,8 +113,19 @@ func (p *DemoProvider) ChatStructured(_ context.Context, messages []Message, sch
 	return &ChatResponse{
 		Content: content,
 		Model:   p.modelName(),
-		Usage:   demoUsage(prompt, content),
+		Usage:   demoUsage(userTurn, content),
 	}, nil
+}
+
+// demoTargetLocale reads the target locale from the prompt metadata the caller
+// attached to ctx. The demo provider used to regex "to <locale>" out of the
+// prompt text, which coupled it to the prompt's wording and broke silently
+// whenever the prompt changed. It reads structured intent instead.
+func demoTargetLocale(ctx context.Context) model.LocaleID {
+	if m, ok := prompt.MetaFrom(ctx); ok {
+		return model.LocaleID(m.Param("target_locale"))
+	}
+	return ""
 }
 
 // ChatStream implements StreamingLLMProvider by emitting the deterministic Chat
@@ -289,12 +301,11 @@ func matchCase(src, repl string) string {
 // prompt: lines of the form "[N] text".
 var segmentRe = regexp.MustCompile(`(?m)^\[(\d+)\]\s?(.*)$`)
 
-// demoBatchTranslations parses the numbered batch-translation prompt, finds the
-// target locale, translates each segment, and returns JSON matching the
-// batch_translations schema.
-func demoBatchTranslations(prompt string) string {
-	target := targetFromPrompt(prompt)
-
+// demoBatchTranslations parses the numbered segments out of the batch prompt's
+// user turn, translates each, and returns JSON matching the batch_translations
+// schema. The numbering is part of the prompt contract (the real response is
+// keyed by it); the target locale comes from prompt.Meta, not from the text.
+func demoBatchTranslations(userTurn string, target model.LocaleID) string {
 	type entry struct {
 		Index int    `json:"index"`
 		Text  string `json:"text"`
@@ -303,7 +314,7 @@ func demoBatchTranslations(prompt string) string {
 		Translations []entry `json:"translations"`
 	}
 
-	for _, m := range segmentRe.FindAllStringSubmatch(prompt, -1) {
+	for _, m := range segmentRe.FindAllStringSubmatch(userTurn, -1) {
 		idx, err := strconv.Atoi(m[1])
 		if err != nil {
 			continue
@@ -364,10 +375,10 @@ var demoCapStopwords = map[string]bool{
 // translator it is honest about being a stub — the guidelines and every
 // evidence note carry the ⟦demo⟧ marker. Returns JSON matching the
 // brand_voice_inference schema.
-func demoBrandVoiceInference(prompt string) string {
-	corpus := prompt
-	if idx := strings.LastIndex(prompt, "\nCorpus:\n"); idx >= 0 {
-		corpus = prompt[idx+len("\nCorpus:\n"):]
+func demoBrandVoiceInference(userTurn string) string {
+	corpus := userTurn
+	if idx := strings.LastIndex(userTurn, prompt.CorpusDelimiter); idx >= 0 {
+		corpus = userTurn[idx+len(prompt.CorpusDelimiter):]
 	}
 	corpus = strings.TrimSpace(corpus)
 
@@ -525,33 +536,14 @@ func demoBrandVoiceInference(prompt string) string {
 	return string(b)
 }
 
-// targetRe extracts the "to <locale>" target hint from the prompts that
-// translate constructs (e.g. "Translate ... from en to fr-FR.").
-var targetRe = regexp.MustCompile(`(?i)\bto\s+([A-Za-z]{2,3}(?:[-_][A-Za-z0-9]+)?)`)
-
-// targetFromPrompt best-effort extracts the target locale from a translation
-// prompt. Falls back to empty (which still yields a labeled stub).
-func targetFromPrompt(prompt string) model.LocaleID {
-	if m := targetRe.FindStringSubmatch(prompt); m != nil {
-		return model.LocaleID(m[1])
-	}
-	return ""
-}
-
 // demoChatReply translates the trailing text of a translation-style prompt, or
 // returns a short labeled stub for anything else.
-func demoChatReply(prompt string) string {
-	target := targetFromPrompt(prompt)
-	// translate's single-block prompt ends with "Text: <source>"; the
-	// inline-codes prompt puts the source on the final non-empty line.
-	if idx := strings.LastIndex(prompt, "Text: "); idx >= 0 {
-		return demoTranslate(strings.TrimSpace(prompt[idx+len("Text: "):]), target)
-	}
-	lines := strings.Split(strings.TrimRight(prompt, "\n"), "\n")
-	for i := len(lines) - 1; i >= 0; i-- {
-		if s := strings.TrimSpace(lines[i]); s != "" {
-			return demoTranslate(s, target)
-		}
+func demoChatReply(ctx context.Context, userTurn string) string {
+	// A translate prompt puts the content to translate — and nothing else — in
+	// the user turn, and identifies itself via prompt.Meta. Anything else gets a
+	// labeled stub.
+	if m, ok := prompt.MetaFrom(ctx); ok && m.ID == prompt.IDTranslateSingle {
+		return demoTranslate(strings.TrimSpace(userTurn), demoTargetLocale(ctx))
 	}
 	return "⟦demo⟧ illustrative stub response (no real language model)"
 }

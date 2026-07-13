@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // AITerminologyTool extracts terminology from Blocks using an LLM.
@@ -125,14 +126,15 @@ func (t *AITerminologyTool) annotate(v tool.BlockView) error {
 		domainHint = fmt.Sprintf(" in the %s domain", t.domain)
 	}
 
-	prompt := fmt.Sprintf(
+	userPrompt := fmt.Sprintf(
 		"Extract key terminology%s from the following %s text. "+
 			"Return notable terms, or an empty array if none found.\n\nText: %s",
 		domainHint, t.locale, sourceText,
 	)
 
-	resp, err := t.provider.ChatStructured(v.Context(), []aiprovider.Message{
-		aiprovider.TextMessage("user", prompt),
+	ctx := prompt.WithID(v.Context(), prompt.IDTermExtract)
+	resp, err := t.provider.ChatStructured(ctx, []aiprovider.Message{
+		aiprovider.TextMessage("user", userPrompt),
 	}, terminologySchema())
 	if err != nil {
 		return fmt.Errorf("term-extract: %w", err)

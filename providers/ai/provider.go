@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -47,17 +47,52 @@ type JSONSchema struct {
 	Strict      bool           `json:"strict,omitempty"`
 }
 
+// Message roles. A prompt declares roles semantically; each provider is
+// responsible for transporting them the way its API expects — Anthropic lifts
+// system into a top-level parameter, Claude Code passes it as
+// --append-system-prompt, OpenAI carries it as an ordinary message. Callers
+// never adapt to the provider.
+const (
+	RoleSystem    = "system"
+	RoleUser      = "user"
+	RoleAssistant = "assistant"
+)
+
 // Message represents a chat message. Content is an ordered list of parts so one
 // message can mix text with image/audio/video — a text-only message is a single
 // text part (see TextMessage).
 type Message struct {
-	Role  string        `json:"role"` // "system", "user", "assistant"
+	Role  string        `json:"role"` // RoleSystem, RoleUser, RoleAssistant
 	Parts []ContentPart `json:"parts"`
+	// Sections attributes the message's text to what produced each piece of it
+	// (framework rule, brand voice profile, termbase, the source block). Set when
+	// the message came from a prompt builder; --explain renders it so a prompt can
+	// be traced back to its origins. Providers ignore it — they send Parts.
+	Sections []prompt.Section `json:"sections,omitempty"`
 }
 
 // TextMessage builds a text-only message — the common case.
 func TextMessage(role, text string) Message {
 	return Message{Role: role, Parts: []ContentPart{TextPart(text)}}
+}
+
+// SplitSystem separates system-role messages from the rest of the conversation,
+// joining their text with blank lines. Providers whose API carries system
+// instructions out-of-band use this so a "system" role never leaks into the
+// message list — Anthropic rejects such a message outright.
+func SplitSystem(messages []Message) (system string, rest []Message) {
+	var sys []string
+	rest = make([]Message, 0, len(messages))
+	for _, m := range messages {
+		if m.Role == RoleSystem {
+			if t := strings.TrimSpace(m.Text()); t != "" {
+				sys = append(sys, t)
+			}
+			continue
+		}
+		rest = append(rest, m)
+	}
+	return strings.Join(sys, "\n\n"), rest
 }
 
 // Text returns the concatenated text of the message's text parts (media parts
@@ -86,33 +121,41 @@ type TranslateRequest struct {
 	VoiceGuide string `json:"voice_guide,omitempty"`
 	// Instruction is a caller-supplied directive the model should apply while
 	// translating — a reviewer's "keep it informal", or the findings a fix pass
-	// must resolve. Rendered into the prompt by Directives.
+	// must resolve.
 	Instruction string `json:"instruction,omitempty"`
+	// PreserveTags marks a source that carries inline codes rendered as
+	// placeholder-tagged text, so the prompt instructs the model to reproduce
+	// every tag exactly. Source stays pure content either way.
+	PreserveTags bool `json:"preserve_tags,omitempty"`
+}
+
+// Prompt returns the prompt builder for this request. Prompt construction lives
+// in core/ai/prompt so that every path — provider, tool, streaming, batch —
+// renders identical bytes.
+func (req TranslateRequest) Prompt() prompt.Translate {
+	return prompt.Translate{
+		SourceLocale: req.SourceLanguage,
+		TargetLocale: req.TargetLocale,
+		Instruction:  req.Instruction,
+		VoiceGuide:   req.VoiceGuide,
+		Glossary:     req.Glossary,
+	}
 }
 
 // Directives returns the deterministic instruction + brand-voice + glossary
-// block appended to translation prompts. Glossary terms are sorted so the same
-// request always yields byte-identical prompt text. Returns "" when none is set.
-func (req TranslateRequest) Directives() string {
-	var b strings.Builder
-	if ins := strings.TrimSpace(req.Instruction); ins != "" {
-		b.WriteString("\n\nInstruction (apply when translating):\n")
-		b.WriteString(ins)
-		b.WriteString("\n")
+// block shared by every translation prompt.
+func (req TranslateRequest) Directives() string { return req.Prompt().Directives() }
+
+// MessagesFromTurns converts a rendered prompt into provider messages. Each
+// provider then transports the roles as its API requires.
+func MessagesFromTurns(turns []prompt.Turn) []Message {
+	msgs := make([]Message, 0, len(turns))
+	for _, t := range turns {
+		m := TextMessage(t.Role, t.Text)
+		m.Sections = t.Sections
+		msgs = append(msgs, m)
 	}
-	if g := strings.TrimSpace(req.VoiceGuide); g != "" {
-		b.WriteString("\n\nBrand voice (apply when translating):\n")
-		b.WriteString(g)
-		b.WriteString("\n")
-	}
-	if len(req.Glossary) > 0 {
-		b.WriteString("\n\nGlossary:\n")
-		keys := slices.Sorted(maps.Keys(req.Glossary))
-		for _, k := range keys {
-			fmt.Fprintf(&b, "- %s → %s\n", k, req.Glossary[k])
-		}
-	}
-	return b.String()
+	return msgs
 }
 
 // TokenUsage holds token consumption data from an AI provider call.
@@ -429,7 +472,13 @@ func NewProvider(name ProviderID, cfg Config) (LLMProvider, error) {
 	if factory == nil {
 		return nil, fmt.Errorf("unknown AI provider: %s (supported: %s)", name, strings.Join(ProviderNames(), ", "))
 	}
-	return factory(cfg), nil
+	p := factory(cfg)
+	// Wrapping here rather than at each call site gives --explain complete
+	// coverage, including providers contributed by plugins.
+	if currentRecorder() != nil {
+		p = withRecording(p)
+	}
+	return p, nil
 }
 
 // Providers returns the list of available AI providers in display order.
@@ -473,23 +522,29 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// standardTranslate runs the common "translate this text, return only the
-// translation" prompt through a provider's Chat method and wraps the response.
-// Most LLM providers share this exact flow, differing only in the confidence
-// they report; providers needing a different prompt strategy (e.g. Azure's
-// system-prompted variant) implement Translate directly.
+// standardTranslate renders the translate prompt and runs it through a
+// provider's Chat method. Every provider's Translate delegates here, differing
+// only in the confidence it reports — no provider carries a prompt of its own.
+//
+// It records the exchange itself: a provider's Translate calls that provider's
+// own Chat, which bypasses the recording wrapper, so this is the only point that
+// sees the call. (The wrapper still records direct Chat/ChatStructured calls —
+// batch translation, brand voice, entity extraction — and the two cannot
+// double-count, because the Chat reached from here is the unwrapped inner one.)
 func standardTranslate(
 	ctx context.Context,
+	name ProviderID,
 	chat func(context.Context, []Message) (*ChatResponse, error),
 	req TranslateRequest,
 	confidence float64,
 ) (*TranslateResponse, error) {
-	prompt := fmt.Sprintf(
-		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
-		req.SourceLanguage, req.TargetLocale, req.Source,
-	) + req.Directives()
+	p := req.Prompt()
+	turns := p.Single(req.Source, req.PreserveTags)
+	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateSingle))
+	msgs := MessagesFromTurns(turns)
 
-	resp, err := chat(ctx, []Message{TextMessage("user", prompt)})
+	resp, err := chat(ctx, msgs)
+	record(ctx, name, msgs, nil, resp, err)
 	if err != nil {
 		return nil, err
 	}

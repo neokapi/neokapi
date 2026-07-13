@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"sync/atomic"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
@@ -61,11 +61,15 @@ type AITranslateConfig struct {
 	APIKey       string            `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	Model        string            `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
 	Glossary     map[string]string `json:"glossary,omitempty"     schema:"-"`
-	// Instruction is an optional caller-supplied directive applied while
-	// translating (rendered into the prompt via TranslateRequest.Directives) —
-	// e.g. a reviewer's re-translation guidance or the findings a fix pass must
-	// resolve. Programmatic (review AI actions); not a CLI flag.
-	Instruction string `json:"instruction,omitempty" schema:"-"`
+	// Instruction is a directive applied while translating, rendered into the
+	// prompt's Instruction section. It is the supported way to steer a
+	// translation without replacing the prompt: "Informal register", "keep
+	// product names in English". Also set programmatically — a reviewer's
+	// re-translation guidance, or the findings a fix pass must resolve.
+	//
+	// It feeds aiConfigFingerprint, so changing it re-translates rather than
+	// serving a cached target produced under different guidance.
+	Instruction string `json:"instruction,omitempty" schema:"title=Instruction,description=Extra guidance for the model while translating (e.g. 'informal register; keep product names in English'),widget=textarea,group=prompt"`
 	// Profile is an optional brand voice profile. When set, its guidance is
 	// injected into the translation prompt so output is on-brand at generation
 	// time. Not serializable via the schema/CLI; supplied programmatically or
@@ -192,28 +196,29 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 
 // aiConfigFingerprint hashes the AI translate settings that change a block's
 // output, so the session overlay cache reuses a cached target only when they are
-// unchanged. The model and provider, the source/target locales, the brand voice
-// guidance, and the glossary all shape the result; the API key, batch sizing, and
-// progress callback do not.
+// unchanged. The API key, batch sizing, and progress callback do not shape the
+// result and are excluded.
+//
+// Everything prompt-shaped — the task and constraint wording, the instruction,
+// the brand voice guidance, the glossary, the locales — enters through the
+// prompt builder's own Fingerprint, hashed from the text it actually renders.
+// Listing those inputs here by hand would mean that rewording a prompt (which
+// changes output) left the fingerprint untouched, and cached targets produced by
+// the old prompt would be served as if current.
 func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
-	parts := []string{
+	p := prompt.Translate{
+		SourceLocale: cfg.SourceLocale,
+		TargetLocale: cfg.TargetLocale,
+		Instruction:  cfg.Instruction,
+		VoiceGuide:   voiceGuide,
+		Glossary:     cfg.Glossary,
+	}
+	return tool.OverlayConfigFingerprint(
 		"ai",
 		cfg.Provider,
 		cfg.Model,
-		string(cfg.SourceLocale),
-		string(cfg.TargetLocale),
-		voiceGuide,
-		cfg.Instruction,
-	}
-	keys := make([]string, 0, len(cfg.Glossary))
-	for k := range cfg.Glossary {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		parts = append(parts, k+"="+cfg.Glossary[k])
-	}
-	return tool.OverlayConfigFingerprint(parts...)
+		p.Fingerprint(),
+	)
 }
 
 // Process overrides BaseTool.Process to support batch + concurrent translation.
@@ -512,22 +517,18 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 		return t.provider.Translate(ctx, req)
 	}
 
-	// Build the same prompt that Translate would, but use ChatStream
-	// so we can surface thinking progress.
-	var prompt strings.Builder
-	prompt.WriteString(fmt.Sprintf(
-		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
-		req.SourceLanguage, req.TargetLocale, req.Source,
-	))
-	prompt.WriteString(req.Directives())
+	// Same prompt Translate would build — rendered from the one builder rather
+	// than restated here, so the streaming and non-streaming paths cannot drift.
+	p := req.Prompt()
+	turns := p.Single(req.Source, req.PreserveTags)
+	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateSingle))
 
-	resp, err := t.streaming.ChatStream(ctx, []aiprovider.Message{
-		aiprovider.TextMessage("user", prompt.String()),
-	}, func(e aiprovider.ChatStreamEvent) {
-		if e.Type == aiprovider.StreamEventThinking {
-			t.emitProgress(false, e.Content)
-		}
-	})
+	resp, err := t.streaming.ChatStream(ctx, aiprovider.MessagesFromTurns(turns),
+		func(e aiprovider.ChatStreamEvent) {
+			if e.Type == aiprovider.StreamEventThinking {
+				t.emitProgress(false, e.Content)
+			}
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -547,18 +548,18 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRuns []model.Run) error {
 	sourceText := model.RunsPlaceholderText(sourceRuns)
 
-	prompt := fmt.Sprintf(
-		"Translate the following text from %s to %s. Preserve all XML tags exactly as they appear (do not modify, add, or remove any tags). Return only the translated text with tags.\n\n%s",
-		t.sourceLocale, t.targetLocale, sourceText,
-	)
-
+	// Source is the content to translate, never an instruction: PreserveTags
+	// carries the tag rule into the prompt. (This path used to pass a fully
+	// built instruction as Source, which standardTranslate then wrapped in a
+	// second instruction — so the model was handed a prompt to translate.)
 	resp, err := t.translateBlock(v.Context(), aiprovider.TranslateRequest{
-		Source:         prompt,
+		Source:         sourceText,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
 		Glossary:       t.glossary,
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
+		PreserveTags:   true,
 	})
 	if err != nil {
 		return fmt.Errorf("translate: %w", err)
@@ -774,26 +775,21 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		return t.translate(tool.NewVariantViewWithContext(ctx, entries[0].block)) //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
 	}
 
-	// Build numbered prompt.
-	var prompt strings.Builder
-	fmt.Fprintf(&prompt,
-		"Translate each numbered segment from %s to %s.\n"+
-			"Preserve any XML/HTML tags exactly as they appear.",
-		t.sourceLocale, t.targetLocale,
-	)
-	// Inject deterministic brand-voice + glossary directives.
-	prompt.WriteString(aiprovider.TranslateRequest{
-		Glossary:    t.glossary,
-		VoiceGuide:  t.voiceGuide,
-		Instruction: t.instruction,
-	}.Directives())
-	prompt.WriteString("\n\n")
-
+	texts := make([]string, len(entries))
 	for i, entry := range entries {
-		fmt.Fprintf(&prompt, "[%d] %s\n", i+1, entry.sourceText)
+		texts[i] = entry.sourceText
 	}
+	p := prompt.Translate{
+		SourceLocale: t.sourceLocale,
+		TargetLocale: t.targetLocale,
+		Glossary:     t.glossary,
+		VoiceGuide:   t.voiceGuide,
+		Instruction:  t.instruction,
+	}
+	turns := p.Batch(texts)
+	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateBatch))
 
-	messages := []aiprovider.Message{aiprovider.TextMessage("user", prompt.String())}
+	messages := aiprovider.MessagesFromTurns(turns)
 	schema := batchTranslationSchema()
 
 	var resp *aiprovider.ChatResponse

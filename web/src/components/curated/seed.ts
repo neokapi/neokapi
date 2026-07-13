@@ -75,18 +75,6 @@ export function readText(runtime: KapiRuntime, path: string): string {
   }
 }
 
-/**
- * Split a command string into an argv array. The leading "kapi" is optional and
- * stripped. Simple whitespace tokenizer with support for single- and
- * double-quoted arguments (so flags like --search "Hello, World!" work).
- */
-export function parseCommand(cmd: string): string[] {
-  const argv: string[] = [];
-  const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(cmd)) !== null) {
-    argv.push(m[1] ?? m[2] ?? m[3] ?? "");
-  }
-  if (argv[0] === "kapi") argv.shift();
-  return argv;
-}
+// Tokenizing a command line is the kit's job, not this file's — the curated
+// views, the terminal and the CI verifier must all read a command the same way.
+export { parseCommand } from "@neokapi/kapi-playground";
