@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/output"
 )
@@ -73,6 +76,44 @@ func (a *App) RunCheck(cmd Command, args []string) error {
 	return nil
 }
 
+// checkProjectSources resolves what a bare `kapi check` checks: every source
+// file the project declares as content. It is the same resolution the ship gate
+// and the brand gate use (projectSourceFiles), so "check my content" means the
+// same set of files whichever bar you hold it to.
+//
+// Outside a project there is nothing to expand to, so the file requirement
+// stands — and says how to satisfy it.
+func (a *App) checkProjectSources(cmd Command) ([]string, error) {
+	projectPath, err := ResolveProjectPath(cmd)
+	if err != nil {
+		return nil, err
+	}
+	if projectPath == "" {
+		return nil, errors.New("at least one file is required — or run inside a .kapi project to check its declared content")
+	}
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return nil, fmt.Errorf("load project: %w", err)
+	}
+	files, err := a.projectSourceFiles(proj, filepath.Dir(projectPath))
+	if err != nil {
+		return nil, err
+	}
+	if len(files) == 0 {
+		return nil, fmt.Errorf("%s declares no content to check — add some with `kapi add <glob>`", DisplayName(projectPath))
+	}
+	// The content resolver returns absolute paths; findings should read the way
+	// the user would type them, like the ones from a named file do.
+	if cwd, cerr := os.Getwd(); cerr == nil {
+		for i, f := range files {
+			if rel, rerr := filepath.Rel(cwd, f); rerr == nil && !strings.HasPrefix(rel, "..") {
+				files[i] = rel
+			}
+		}
+	}
+	return files, nil
+}
+
 // runShipCheck is `kapi check --ship`: the project gate mode that absorbed the
 // retired `kapi verify` (#1078 C1) — kapi retires spellings outright rather than
 // carrying aliases, so this is now the only way in. It routes through the shared
@@ -102,7 +143,22 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 
 	targetFile, _ := cmd.Flags().GetString("target")
 	if len(args) == 0 {
-		return check.Report{}, errors.New("at least one file is required")
+		// Bare `kapi check` inside a project checks the project: a project-aware
+		// command given nothing to narrow it to works on the whole project (as
+		// `up`, `status`, and `check --ship` do). Named files still win — they
+		// narrow the check to exactly what you named.
+		//
+		// --target is bilingual mode: it pairs ONE source with ONE translated
+		// target, so there is nothing to expand to and the file requirement
+		// stands.
+		if targetFile != "" {
+			return check.Report{}, errors.New("--target checks one source file; pass exactly one positional file")
+		}
+		files, perr := a.checkProjectSources(cmd)
+		if perr != nil {
+			return check.Report{}, perr
+		}
+		args = files
 	}
 
 	profile, err := a.resolveCheckProfile(cmd)

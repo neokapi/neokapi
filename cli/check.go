@@ -45,6 +45,9 @@ Each finding carries a stable rule id (<check>.<category>) and a block location,
 so an assistant can fix the exact block and track rules across iterations. Output
 is a human table by default; --json emits the kapi.check/v1 Report.
 
+Inside a .kapi project, check with no file arguments checks the project's
+declared content; naming files narrows it to those.
+
 Project gate mode (--ship): it runs the
 project's bound quality gates (brand, terminology, QA) plus its ship/source
 coverage gates over the project's content, and exits non-zero when any gate is
