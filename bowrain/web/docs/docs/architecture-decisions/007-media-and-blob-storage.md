@@ -10,12 +10,16 @@ title: "AD-007: Media and Blob Storage"
 
 Binary assets — images embedded in DOCX, audio files, screenshots, video
 thumbnails — flow through a dedicated data plane. The framework defines a
-`BlobStore` interface with content-addressed keys; Bowrain provides Azure
-Blob Storage and local filesystem implementations. The ContentStore
-carries asset metadata and locale variants; binaries live in blob storage.
-Clients upload and download directly via SAS URLs, bypassing the API
-server. The framework's `PartMedia` pipeline stage carries a blob
-reference rather than the binary.
+`BlobStore` interface with content-addressed keys; Bowrain provides three
+implementations — **Amazon S3** (and any S3-compatible service: MinIO,
+LocalStack), Azure Blob Storage, and a local filesystem. S3 is the
+first-class cloud backend on AWS; the same `s3blob` code targets MinIO in
+docker-compose, so local and production run one code path and differ only
+in endpoint and credentials. The ContentStore carries asset metadata and
+locale variants; binaries live in blob storage. Clients upload and
+download directly via pre-signed URLs, bypassing the API server. The
+framework's `PartMedia` pipeline stage carries a blob reference rather
+than the binary.
 
 ## Context
 
@@ -94,6 +98,47 @@ Design choices:
   `core/storage/` with no platform dependencies. Implementations live in
   `bowrain/storage/`.
 
+### Amazon S3 Adapter (Bowrain)
+
+The AWS production implementation in `bowrain/storage/s3blob/` uses the
+AWS SDK for Go v2. Credentials come from the default chain — the ECS task
+role in production, static keys from the environment locally — so no
+secret is passed through config. An endpoint override plus path-style
+addressing lets the identical code target MinIO or LocalStack:
+
+```go
+type Options struct {
+    Region         string // e.g. "eu-north-1"
+    Bucket         string
+    Prefix         string // default "blobs"
+    Endpoint       string // "" on AWS; "http://minio:9000" in compose
+    PublicEndpoint string // host used when signing URLs (browser-reachable)
+    UsePathStyle   bool   // true for MinIO/LocalStack, false for AWS
+    // Static creds are for local/tests only; production uses the task role.
+}
+```
+
+Blob naming: `{prefix}/{key[0:2]}/{key[2:4]}/{key}`, matching the local
+and Azure layouts so a bucket populated by one backend is readable by
+another. Pre-signed PUT/GET URLs are real (unlike the local backend), so
+the asset path transfers bytes directly to and from S3.
+
+`PublicEndpoint` solves the pre-signed-host gotcha: a signed URL embeds
+the host it was signed for, which must be the host a browser can reach.
+In production the server's endpoint and the public host are the same
+regional S3 domain, so it is left empty; in compose the server talks to
+`http://minio:9000` while the browser needs `http://localhost:9000`, so
+URLs are signed against the latter.
+
+The S3 store is a plain `BlobStore`, not a `ChunkedBlobStore`: the sync
+push path uploads each ≤2 MiB chunk as its own content-addressed object
+(S3 multipart requires ≥5 MiB parts, so per-chunk multipart does not
+apply), and the only `ChunkedBlobStore` method the server calls,
+`GenerateChunkUploadURLs`, drives a per-chunk-hash "direct" transport that
+is a separate follow-up. With a plain `BlobStore`, sync push runs the
+proxy transport, and commit-time validation actively confirms each chunk
+exists.
+
 ### Azure Blob Storage Adapter (Bowrain)
 
 The production implementation in `bowrain/storage/azureblob/` uses the
@@ -132,15 +177,26 @@ func (s *Store) GenerateUploadURL(ctx context.Context, key string, opts SignOpti
 }
 ```
 
-Environment variables:
+Environment variables. The server and worker resolve the backend through
+one shared contract (`bowrain/storage/blobcfg`) so they cannot drift:
 
-| Variable                          | Description        | Example                                   |
-| --------------------------------- | ------------------ | ----------------------------------------- |
-| `BLOB_STORAGE_BACKEND`            | `azure` or `local` | `azure`                                   |
-| `AZURE_STORAGE_ACCOUNT_URL`       | Account URL        | `https://myaccount.blob.core.windows.net` |
-| `AZURE_STORAGE_CONTAINER`         | Container name     | `bowrain-assets`                          |
-| `AZURE_STORAGE_CONNECTION_STRING` | Dev fallback       | `DefaultEndpointsProtocol=...`            |
-| `BLOB_STORAGE_LOCAL_DIR`          | Local root         | `/var/lib/bowrain/blobs`                  |
+| Variable                          | Description                              | Example                                   |
+| --------------------------------- | --------------------------------------- | ----------------------------------------- |
+| `BLOB_STORAGE_BACKEND`            | `s3`, `azure`, or `local`               | `s3`                                       |
+| `S3_BLOB_BUCKET`                  | S3 bucket (also selects the s3 backend) | `bowrain-blobs`                           |
+| `S3_BLOB_PREFIX`                  | Key prefix (default `blobs`)            | `blobs`                                    |
+| `AWS_REGION`                      | AWS region                              | `eu-north-1`                               |
+| `S3_ENDPOINT`                     | Endpoint override (MinIO/LocalStack)    | `http://minio:9000`                        |
+| `S3_PUBLIC_ENDPOINT`             | Browser-reachable host for signed URLs  | `http://localhost:9000`                    |
+| `S3_FORCE_PATH_STYLE`             | `true` for MinIO/LocalStack             | `true`                                     |
+| `AZURE_STORAGE_ACCOUNT_URL`       | Account URL                             | `https://myaccount.blob.core.windows.net` |
+| `AZURE_STORAGE_CONTAINER`         | Container name                          | `bowrain-assets`                          |
+| `AZURE_STORAGE_CONNECTION_STRING` | Dev fallback                            | `DefaultEndpointsProtocol=...`            |
+| `BLOB_STORAGE_LOCAL_DIR`          | Local root                              | `/var/lib/bowrain/blobs`                   |
+
+S3 credentials come from the standard AWS chain
+(`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, or the ECS task role in
+production) — never plumbed through the variables above.
 
 ### Local Filesystem Adapter
 
@@ -167,11 +223,14 @@ These proxy endpoints exist only for backends without pre-signed URL
 support. The Azure adapter always uses direct SAS upload and download.
 
 **Alignment constraint:** the API server and background worker must use
-the same blob store. In production, both use Azure Blob via Managed
-Identity. In local dev, both must point to the same filesystem directory
-(`BLOB_STORAGE_LOCAL_DIR` / `LOCAL_BLOB_DIR` set to the same path; the
-dev Makefile pins both to `/tmp/bowrain-blobs`). Misaligned stores cause
-push jobs to fail silently with "chunk download failed".
+the same blob store, or push jobs fail silently with "chunk download
+failed". Both now resolve the backend through the shared
+`bowrain/storage/blobcfg` contract, so the S3 configuration is identical
+on both by construction. For the legacy local backend, the worker accepts
+`BLOB_STORAGE_LOCAL_DIR` in addition to its historical `LOCAL_BLOB_DIR`,
+closing the one env-var name split that used to cause this. In production
+on AWS, both point at the same S3 bucket; in docker-compose, both point at
+the same MinIO bucket.
 
 ### Asset Metadata in the ContentStore
 
@@ -410,8 +469,10 @@ limits.
   company logo embedded in 50 DOCX files is stored once in blob storage.
 - Server-side processing enables capabilities the CLI can't provide:
   OCR, ASR, AI-powered image adaptation.
-- Azure Blob Storage is the first-class binary backend; local
-  filesystem serves development and testing.
+- Amazon S3 is the first-class binary backend on AWS, with MinIO giving
+  the identical code path in docker-compose; Azure Blob remains supported
+  from the earlier Azure deployment; the local filesystem serves
+  dependency-free development and testing.
 - Format readers progressively adopt `PartMedia`. Formats that don't
   emit it continue working through the existing Span sentinel approach
   unchanged.
