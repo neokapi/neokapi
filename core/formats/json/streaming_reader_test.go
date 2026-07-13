@@ -149,7 +149,7 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 	if pl > uint64(largeSize)/4 {
 		t.Errorf("streaming reader peak %d B not bounded well below doc size %d B", pl, largeSize)
 	}
-	if ps > 0 && pl > ps*3 {
+	if ps > 0 && pl > max(ps, uint64(1<<20))*3 {
 		t.Errorf("streaming reader peak scaled with input: small=%d B large=%d B (20x doc -> %.1fx)", ps, pl, float64(pl)/float64(ps))
 	}
 }

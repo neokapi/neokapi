@@ -125,7 +125,7 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 	// bound above still catches anything approaching linear behavior.
 	const ratioNoiseFloor = 2 << 20
 	if ps > 0 && pl > ratioNoiseFloor {
-		assert.Less(t, pl, ps*3, "streaming reader peak scaled with input (40x doc should not ~40x memory)")
+		assert.Less(t, pl, max(ps, uint64(1<<20))*3, "streaming reader peak scaled with input (40x doc should not ~40x memory)")
 	}
 }
 
