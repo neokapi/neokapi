@@ -68,7 +68,7 @@ func (p *GeminiProvider) InputModalities() []Modality {
 }
 
 func (p *GeminiProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	return standardTranslate(ctx, p.Chat, req, 0.85)
+	return standardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
 }
 
 func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {

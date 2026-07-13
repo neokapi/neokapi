@@ -41,7 +41,7 @@ func (p *AnthropicProvider) Name() ProviderID { return Anthropic }
 func (p *AnthropicProvider) InputModalities() []Modality { return []Modality{ModalityImage} }
 
 func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	return standardTranslate(ctx, p.Chat, req, 0.85)
+	return standardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
 }
 
 // buildRequest assembles the wire request. System-role messages are lifted into

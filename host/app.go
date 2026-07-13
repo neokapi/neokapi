@@ -43,6 +43,13 @@ type App struct {
 	CfgFile   string
 	PluginDir string
 	Lang      string // --lang / KAPI_LANG; feeds i18n.Resolve
+	// Explain is --explain: show every prompt this run sends to an LLM.
+	// ExplainStderr ("-") renders a transcript to stderr; any other value is a
+	// path to write the exchanges to as JSON. Empty disables it.
+	Explain string
+
+	// explain collects LLM exchanges while Explain is set.
+	explain *explainCollector
 
 	// Processing flags bound by AddProcessingFlags.
 	FormatFlag string
@@ -258,6 +265,10 @@ func (a *App) InitPluginHost() {
 func (a *App) Init() error {
 	a.InitRegistries()
 
+	// Install the LLM recorder before any provider is constructed, so --explain
+	// sees every call the run makes.
+	a.StartExplain()
+
 	// Initialize the shared credential store and wire credential resolution
 	// into the tool registry so AI tools auto-resolve from saved credentials.
 	a.Credentials = credentials.NewStore(credentials.DefaultPath())
@@ -270,6 +281,16 @@ func (a *App) Init() error {
 		// flag/inline → recipe defaults → app config → built-in. a.Config is
 		// loaded by the time tools run, so reading it here is safe.
 		config = ApplyAIDefaults(a.Config, toolName, requires, config)
+		// The AI prompts name the source language ("translate from en to fr"),
+		// but ToolConfigFactory only threads the *target* language, so nothing
+		// ever set sourceLocale and every prompt said "from  to fr". Thread the
+		// run's source language in here, the one point every tool config passes
+		// through. Tools without the field ignore it (unknown JSON keys).
+		if a.SourceLang != "" {
+			if _, ok := config["sourceLocale"]; !ok {
+				config["sourceLocale"] = a.SourceLang
+			}
+		}
 		return credentials.ResolveCredentials(credStore, toolName, requires, config)
 	})
 
@@ -359,6 +380,11 @@ func isGlobPattern(s string) bool {
 // Execute() returns, to ensure cleanup runs even when RunE returns an
 // error.
 func (a *App) Shutdown() {
+	// Render the --explain transcript before tearing anything down, so the user
+	// sees the prompts even when the run itself failed.
+	if err := a.FlushExplain(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 	if a.pluginRuntime != nil {
 		a.pluginRuntime.Shutdown()
 	}

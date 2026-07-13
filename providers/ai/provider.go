@@ -465,7 +465,13 @@ func NewProvider(name ProviderID, cfg Config) (LLMProvider, error) {
 	if factory == nil {
 		return nil, fmt.Errorf("unknown AI provider: %s (supported: %s)", name, strings.Join(ProviderNames(), ", "))
 	}
-	return factory(cfg), nil
+	p := factory(cfg)
+	// Wrapping here rather than at each call site gives --explain complete
+	// coverage, including providers contributed by plugins.
+	if currentRecorder() != nil {
+		p = withRecording(p)
+	}
+	return p, nil
 }
 
 // Providers returns the list of available AI providers in display order.
@@ -509,13 +515,18 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// standardTranslate runs the common "translate this text, return only the
-// translation" prompt through a provider's Chat method and wraps the response.
-// Most LLM providers share this exact flow, differing only in the confidence
-// they report; providers needing a different prompt strategy (e.g. Azure's
-// system-prompted variant) implement Translate directly.
+// standardTranslate renders the translate prompt and runs it through a
+// provider's Chat method. Every provider's Translate delegates here, differing
+// only in the confidence it reports — no provider carries a prompt of its own.
+//
+// It records the exchange itself: a provider's Translate calls that provider's
+// own Chat, which bypasses the recording wrapper, so this is the only point that
+// sees the call. (The wrapper still records direct Chat/ChatStructured calls —
+// batch translation, brand voice, entity extraction — and the two cannot
+// double-count, because the Chat reached from here is the unwrapped inner one.)
 func standardTranslate(
 	ctx context.Context,
+	name ProviderID,
 	chat func(context.Context, []Message) (*ChatResponse, error),
 	req TranslateRequest,
 	confidence float64,
@@ -523,8 +534,10 @@ func standardTranslate(
 	p := req.Prompt()
 	turns := p.Single(req.Source, req.PreserveTags)
 	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateSingle))
+	msgs := MessagesFromTurns(turns)
 
-	resp, err := chat(ctx, MessagesFromTurns(turns))
+	resp, err := chat(ctx, msgs)
+	record(ctx, name, msgs, nil, resp, err)
 	if err != nil {
 		return nil, err
 	}

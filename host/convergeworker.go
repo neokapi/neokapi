@@ -45,6 +45,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		CfgFile:   a.CfgFile,
 		PluginDir: a.PluginDir,
 		Lang:      a.Lang,
+		Explain:   a.Explain,
 
 		FormatFlag: a.FormatFlag,
 		Encoding:   a.Encoding,
@@ -104,6 +105,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"CfgFile":             fieldShared,
 	"PluginDir":           fieldShared,
 	"Lang":                fieldShared,
+	"Explain":             fieldShared,
 	"FormatFlag":          fieldShared,
 	"Encoding":            fieldShared,
 	"SourceLang":          fieldShared,
@@ -124,6 +126,11 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"projectFlowTools":    fieldOwned,  // each worker builds its own tool instances
 	"convergeProgressTap": fieldOwned,  // one tap per locale
 	"pluginRuntimeOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded runtime
+	// The parent owns the --explain collector and renders the transcript once.
+	// The LLM recorder is process-wide, so a worker's calls are still captured
+	// into the parent's collector; a worker holding its own would flush a
+	// partial transcript of just its locale.
+	"explain": fieldOwned,
 }
 
 // convergeTap is the trailing read-only step a converge worker appends to its

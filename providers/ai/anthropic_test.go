@@ -16,11 +16,22 @@ import (
 func captureAnthropic(t *testing.T, call func(p *AnthropicProvider) error) anthropicRequest {
 	t.Helper()
 
-	var got anthropicRequest
+	var (
+		got       anthropicRequest
+		decodeErr error
+	)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Never fail the test from inside the handler goroutine: record the error
+		// and assert on it from the test goroutine (testifylint go-require).
 		body, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
-		require.NoError(t, json.Unmarshal(body, &got))
+		if err == nil {
+			err = json.Unmarshal(body, &got)
+		}
+		if err != nil {
+			decodeErr = err
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
 		resp := anthropicResponse{
 			Model: "claude-sonnet-4-20250514",
@@ -29,12 +40,13 @@ func captureAnthropic(t *testing.T, call func(p *AnthropicProvider) error) anthr
 				{Type: "tool_use", Name: "structured_output", Input: map[string]any{"ok": true}},
 			},
 		}
-		require.NoError(t, json.NewEncoder(w).Encode(resp))
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
 	p := NewAnthropicProvider(Config{BaseURL: srv.URL, APIKey: "test-key"})
 	require.NoError(t, call(p))
+	require.NoError(t, decodeErr)
 	return got
 }
 

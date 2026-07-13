@@ -40,7 +40,7 @@ func (p *OpenAIProvider) Name() ProviderID { return OpenAI }
 func (p *OpenAIProvider) InputModalities() []Modality { return []Modality{ModalityImage} }
 
 func (p *OpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	return standardTranslate(ctx, p.Chat, req, 0.85)
+	return standardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
 }
 
 func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
