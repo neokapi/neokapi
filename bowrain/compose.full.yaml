@@ -6,14 +6,15 @@
 # with the kapi plugin against a self-contained local deployment.
 #
 #   ┌──────────┐  device-flow/anon   ┌────────────────┐
-#   │   kapi   │ ──────────────────▶ │ bowrain-server │ ──┐ enqueue (NATS)
+#   │   kapi   │ ──────────────────▶ │ bowrain-server │ ──┐ enqueue (SQS)
 #   │ (plugin) │ ◀────────────────── │   :8080 (API)  │   │
 #   └──────────┘   push / pull       └────────────────┘   ▼
 #                                        ▲ events    ┌────────────────┐
 #                                        └────────── │ bowrain-worker │ ── upstream
 #                                          (NATS)    │  ingest + xlate │   (Gemini/…)
 #                                                    └────────────────┘
-#   server + worker share NATS (jobs + events) and a blob volume (push payloads).
+#   Jobs run on SQS (ElasticMQ), events on NATS, and push payloads/blobs in S3
+#   (MinIO) — the same managed-service code paths the AWS deployment uses.
 #
 # Usage:
 #   cp .env.example .env            # optional: set GEMINI_API_KEY etc.
@@ -164,6 +165,43 @@ services:
         mc mb --ignore-existing local/bowrain-blobs
         echo 'bucket ready'
 
+  # ── Job queue (SQS-compatible; mirrors Amazon SQS in production) ─────────────
+  # The server enqueues and the worker consumes through the same sqsqueue code
+  # path as against real SQS. ElasticMQ is the standard fully-open SQS emulator
+  # (no license). (NATS still carries the event bus until the SNS migration; the
+  # two are independent.)
+  elasticmq:
+    image: softwaremill/elasticmq-native:latest
+    ports:
+      - "9324:9324"
+      - "9325:9325"
+
+  # One-shot: create the three job queues, mirroring the Terraform queues in prod
+  # (a visibility timeout matched to the NATS AckWait; DLQ/redrive is a prod
+  # durability concern provisioned by Terraform, not needed for local dev).
+  sqs-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      elasticmq:
+        condition: service_started
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        until aws --endpoint-url http://elasticmq:9324 sqs list-queues >/dev/null 2>&1; do
+          echo 'waiting for elasticmq...'; sleep 1;
+        done
+        for name in translation-jobs extraction-jobs brand-scan-jobs; do
+          aws --endpoint-url http://elasticmq:9324 sqs create-queue \
+            --queue-name "$$name" --attributes VisibilityTimeout=300 >/dev/null
+        done
+        echo 'sqs queues ready'
+
   # ── Bowrain platform ─────────────────────────────────────────────────────────
   bowrain-server:
     image: ${BOWRAIN_SERVER_IMAGE:-bowrain-local/server:dev}
@@ -197,6 +235,9 @@ services:
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
+      # Job queue via LocalStack (SQS-compatible) — same sqsqueue code path as AWS.
+      BOWRAIN_QUEUE_BACKEND: sqs
+      SQS_ENDPOINT: http://elasticmq:9324
       # Serve the SPA from the server (single origin). Populated by the `web`
       # profile's web-init container; empty otherwise (API still works).
       BOWRAIN_WEB_UI_DIR: /web
@@ -218,6 +259,8 @@ services:
       mailpit:
         condition: service_started
       minio-init:
+        condition: service_completed_successfully
+      sqs-init:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health"]
@@ -244,6 +287,9 @@ services:
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
+      # Job queue via LocalStack (SQS) — same queues the server enqueues to.
+      BOWRAIN_QUEUE_BACKEND: sqs
+      SQS_ENDPOINT: http://elasticmq:9324
       # Upstream translation provider for "platform" jobs (auto-translate-on-push).
       # "demo" = offline deterministic stub (no key). Set to "gemini" + GEMINI_API_KEY
       # (or openai/anthropic/ollama) for real translations — see .env.example.
@@ -264,6 +310,8 @@ services:
       nats:
         condition: service_started
       minio-init:
+        condition: service_completed_successfully
+      sqs-init:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]

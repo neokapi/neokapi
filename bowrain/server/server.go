@@ -457,6 +457,23 @@ func NewServer(cfg Config) *Server {
 	// triggerAutoExtract enqueues here and bowrain-worker's extraction
 	// worker consumes.
 	switch {
+	case jobs.SQSConfigured():
+		sqsOpts := jobs.SQSOptionsFromEnv()
+		if q, err := jobs.NewSQSQueue(context.Background(), sqsOpts, jobs.SQSTranslationQueue); err != nil {
+			slog.Warn("failed to connect to SQS translation queue", "error", err)
+		} else {
+			s.JobQueue = q
+		}
+		if eq, err := jobs.NewSQSQueue(context.Background(), sqsOpts, jobs.SQSExtractionQueue); err != nil {
+			slog.Warn("failed to connect to SQS extraction queue", "error", err)
+		} else {
+			s.ExtractionQueue = eq
+		}
+		if bq, err := jobs.NewSQSQueue(context.Background(), sqsOpts, jobs.SQSBrandScanQueue); err != nil {
+			slog.Warn("failed to connect to SQS brand-scan queue", "error", err)
+		} else {
+			s.BrandScanQueue = bq
+		}
 	case cfg.ServiceBusConnection != "":
 		q, err := jobs.NewServiceBusQueue(context.Background(), cfg.ServiceBusConnection, "translation-jobs")
 		if err != nil {
