@@ -281,16 +281,7 @@ func (a *App) Init() error {
 		// flag/inline → recipe defaults → app config → built-in. a.Config is
 		// loaded by the time tools run, so reading it here is safe.
 		config = ApplyAIDefaults(a.Config, toolName, requires, config)
-		// The AI prompts name the source language ("translate from en to fr"),
-		// but ToolConfigFactory only threads the *target* language, so nothing
-		// ever set sourceLocale and every prompt said "from  to fr". Thread the
-		// run's source language in here, the one point every tool config passes
-		// through. Tools without the field ignore it (unknown JSON keys).
-		if a.SourceLang != "" {
-			if _, ok := config["sourceLocale"]; !ok {
-				config["sourceLocale"] = a.SourceLang
-			}
-		}
+		config = ApplySourceLocale(a.SourceLang, config)
 		return credentials.ResolveCredentials(credStore, toolName, requires, config)
 	})
 

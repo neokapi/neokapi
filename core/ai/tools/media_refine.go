@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/av"
 	"github.com/neokapi/neokapi/core/imageops"
 	"github.com/neokapi/neokapi/core/model"
@@ -405,6 +406,7 @@ func (t *MediaRefineTool) refine(ctx context.Context, b *model.Block, all []*mod
 		}},
 	}
 
+	ctx = prompt.WithID(ctx, prompt.IDMediaRefine)
 	resp, err := t.provider.Chat(ctx, msgs)
 	if err != nil {
 		return err

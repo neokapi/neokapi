@@ -3,7 +3,7 @@ package tools
 import (
 	"sync"
 
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // UsageReporter is implemented by AI tools that track token usage.

@@ -173,6 +173,17 @@ func runOnce(argv []string) (code int) {
 		}
 	}()
 
+	// The browser build has no PersistentPostRun, so nothing rendered the
+	// --explain-prompts transcript: the flag parsed, the recorder captured every
+	// call, and the output was dropped on the floor. Flush it here — including
+	// when the command failed, since a failed run's prompts are the ones you most
+	// want to see.
+	defer func() {
+		if err := app.FlushExplain(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+	}()
+
 	root := buildRoot()
 	root.SetArgs(argv)
 	if err := root.Execute(); err != nil {
@@ -199,7 +210,7 @@ func buildRoot() *cobra.Command {
 			// App.Init installs a credential-resolution preprocessor; in the
 			// browser there are no credentials or network, so override it to
 			// coerce AI provider selection to the deterministic demo provider.
-			forceDemoProviders(app.ToolReg)
+			forceDemoProviders(app)
 			return nil
 		},
 	}

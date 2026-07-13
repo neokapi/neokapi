@@ -14,6 +14,31 @@ import (
 // ExplainStderr is the --explain value meaning "render to stderr".
 const ExplainStderr = "-"
 
+// ApplySourceLocale threads the run's source language into a tool config.
+//
+// The AI prompts name the source language ("translate from en to fr"), but
+// ToolConfigFactory carries only the *target* language, so nothing set
+// sourceLocale and every prompt read "translate from  to fr" — the model was
+// never told the source language. This is the one point every tool config passes
+// through. Tools without the field ignore it (unknown JSON keys are dropped on
+// the config round-trip).
+//
+// It lives here, exported, because the browser build replaces App.Init's
+// preprocessor wholesale to force demo providers; without a shared helper the
+// two would silently disagree about what reaches a prompt.
+func ApplySourceLocale(sourceLang string, config map[string]any) map[string]any {
+	if sourceLang == "" {
+		return config
+	}
+	if config == nil {
+		config = map[string]any{}
+	}
+	if _, ok := config["sourceLocale"]; !ok {
+		config["sourceLocale"] = sourceLang
+	}
+	return config
+}
+
 // explainCollector accumulates the LLM exchanges of a run so they can be
 // rendered once it finishes, rather than interleaved with the run's own output.
 type explainCollector struct {

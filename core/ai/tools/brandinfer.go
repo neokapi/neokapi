@@ -95,6 +95,7 @@ func inferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, cor
 	opts = opts.withDefaults()
 	corpus = truncateRunes(corpus, opts.MaxCorpusChars)
 
+	ctx = prompt.WithID(ctx, prompt.IDBrandInfer)
 	resp, err := provider.ChatStructured(ctx, []aiprovider.Message{
 		aiprovider.TextMessage("user", buildInferPrompt(corpus, opts)),
 	}, brandVoiceInferSchema())

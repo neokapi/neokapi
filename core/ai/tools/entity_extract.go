@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/ai/ner"
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
@@ -460,25 +461,26 @@ Given text blocks, identify:
 Report character offsets relative to each block's text. Only report genuinely useful entities and terms — quality over quantity.`
 
 func (t *AIEntityExtractTool) extractWithLLM(ctx context.Context, entries []extractionEntry) (*llmExtractionResult, error) {
-	var prompt strings.Builder
+	var userPrompt strings.Builder
 
-	fmt.Fprintf(&prompt, "Analyze these %d text blocks from a %s localization project:\n\n", len(entries), t.locale)
+	fmt.Fprintf(&userPrompt, "Analyze these %d text blocks from a %s localization project:\n\n", len(entries), t.locale)
 
 	for _, entry := range entries {
-		fmt.Fprintf(&prompt, "Block (id: %s):\n\"%s\"\n\n", entry.blockID, entry.text)
+		fmt.Fprintf(&userPrompt, "Block (id: %s):\n\"%s\"\n\n", entry.blockID, entry.text)
 	}
 
 	if len(t.knownTerms) > 0 {
-		prompt.WriteString("Existing terms (do not re-propose):")
+		userPrompt.WriteString("Existing terms (do not re-propose):")
 		for term := range t.knownTerms {
-			fmt.Fprintf(&prompt, " %s,", term)
+			fmt.Fprintf(&userPrompt, " %s,", term)
 		}
-		prompt.WriteByte('\n')
+		userPrompt.WriteByte('\n')
 	}
 
+	ctx = prompt.WithID(ctx, prompt.IDEntityExtract)
 	resp, err := t.llm.ChatStructured(ctx, []aiprovider.Message{
 		aiprovider.TextMessage("system", extractionSystemPrompt),
-		aiprovider.TextMessage("user", prompt.String()),
+		aiprovider.TextMessage("user", userPrompt.String()),
 	}, extractionSchema())
 	if err != nil {
 		return nil, err

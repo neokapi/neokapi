@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // AIReviewTool reviews translations with explanations using an LLM.
@@ -170,7 +171,7 @@ func (t *AIReviewTool) annotate(v tool.BlockView) error {
 	sourceText := v.SourceText()
 	targetText := v.TargetText(t.targetLocale)
 
-	prompt := fmt.Sprintf(
+	userPrompt := fmt.Sprintf(
 		`Review the following translation for accuracy and fluency.
 
 Source (%s): %s
@@ -183,8 +184,9 @@ Return an empty findings array when the translation has no issues.`,
 		t.targetLocale, targetText,
 	)
 
-	resp, err := t.provider.Chat(v.Context(), []aiprovider.Message{
-		aiprovider.TextMessage("user", prompt),
+	ctx := prompt.WithID(v.Context(), prompt.IDReview)
+	resp, err := t.provider.Chat(ctx, []aiprovider.Message{
+		aiprovider.TextMessage("user", userPrompt),
 	})
 	if err != nil {
 		return fmt.Errorf("review: %w", err)

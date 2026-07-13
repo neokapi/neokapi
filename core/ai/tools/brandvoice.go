@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/ai"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // BrandVoiceCheckTool uses an LLM to check text against brand voice guidelines.
@@ -188,10 +189,11 @@ func (t *BrandVoiceCheckTool) annotate(v tool.BlockView) error {
 		return nil
 	}
 
-	prompt := t.buildPrompt(sourceText)
+	userPrompt := t.buildPrompt(sourceText)
 
+	ctx = prompt.WithID(ctx, prompt.IDBrandCheck)
 	resp, err := t.provider.ChatStructured(ctx, []aiprovider.Message{
-		aiprovider.TextMessage("user", prompt),
+		aiprovider.TextMessage("user", userPrompt),
 	}, brandVoiceSchema())
 	if err != nil {
 		return fmt.Errorf("brand-voice-check: %w", err)

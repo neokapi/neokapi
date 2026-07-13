@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/segment"
@@ -135,9 +136,10 @@ func (s *llmSegmenter) Segment(ctx context.Context, runs []model.Run, loc model.
 		lang = string(loc)
 	}
 
-	prompt := s.buildPrompt(txt, lang)
+	userPrompt := s.buildPrompt(txt, lang)
+	ctx = prompt.WithID(ctx, prompt.IDSegment)
 	resp, err := s.provider.ChatStructured(ctx,
-		[]aiprovider.Message{aiprovider.TextMessage("user", prompt)},
+		[]aiprovider.Message{aiprovider.TextMessage("user", userPrompt)},
 		chunkSchema(),
 	)
 	if err != nil || resp == nil {

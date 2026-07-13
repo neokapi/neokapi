@@ -3,12 +3,51 @@ package prompt
 import "context"
 
 // Prompt IDs. A rendered prompt carries its ID so a call can be identified
-// without inspecting its text.
+// without inspecting its text. Every LLM call kapi makes on a user's behalf
+// carries one, so --explain can name it and the prompt reference can enumerate
+// it — an unlabelled call would be an undocumented use of someone's content.
 const (
 	IDTranslateSingle = "translate.single"
 	IDTranslateBatch  = "translate.batch"
+	IDBrandCheck      = "brand.check"
 	IDBrandInfer      = "brand.infer"
+	IDEntityExtract   = "entity.extract"
+	IDTermExtract     = "term.extract"
+	IDQualityCheck    = "quality.check"
+	IDReview          = "review"
+	IDMediaRefine     = "media.refine"
+	IDSegment         = "segment"
 )
+
+// IDs returns every prompt ID kapi ships, in a stable order. The prompt
+// reference is generated from it, so a new prompt appears in the docs by
+// existing rather than by someone remembering to write it up.
+func IDs() []string {
+	return []string{
+		IDTranslateSingle,
+		IDTranslateBatch,
+		IDBrandCheck,
+		IDBrandInfer,
+		IDEntityExtract,
+		IDTermExtract,
+		IDQualityCheck,
+		IDReview,
+		IDMediaRefine,
+		IDSegment,
+	}
+}
+
+// For builds metadata for a prompt that does not (yet) render through a typed
+// builder. Params are optional structured inputs a consumer may need.
+func For(id string, params map[string]string) Meta {
+	return Meta{ID: id, Version: Version, Params: params}
+}
+
+// WithID attaches metadata for a prompt with no structured params — the common
+// case for the prompts still built inline at their call site.
+func WithID(ctx context.Context, id string) context.Context {
+	return WithMeta(ctx, For(id, nil))
+}
 
 // CorpusDelimiter separates a prompt's instructions from a bulk corpus appended
 // after it. It is a declared part of the prompt contract — the demo provider

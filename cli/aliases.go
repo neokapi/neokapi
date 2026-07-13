@@ -93,6 +93,7 @@ var (
 	AiProgressWriter             = host.AiProgressWriter
 	AllKLF                       = host.AllKLF
 	ApplyAIDefaults              = host.ApplyAIDefaults
+	ApplySourceLocale            = host.ApplySourceLocale
 	ApplyMCPToolFactories        = host.ApplyMCPToolFactories
 	BoolFlag                     = host.BoolFlag
 	BuildAISetupChoices          = host.BuildAISetupChoices
