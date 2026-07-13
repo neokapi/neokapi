@@ -1694,11 +1694,44 @@ func (a *App) ApplyProjectBindings(toolName string, s *schema.ComponentSchema, c
 		}
 	}
 
-	// Glossary → termbase-requiring steps (term-check).
+	// Glossary → termbase-requiring steps (term-check), as a []GlossaryEntry.
 	if len(b.glossary) > 0 && ToolRequires(s, schema.RequiresTermbase) {
 		if _, ok := config["glossary"]; !ok {
 			clone()
 			config["glossary"] = b.glossary
+		}
+	}
+
+	// Glossary → translate steps, as the map the prompt's glossary section wants.
+	//
+	// Translate carries a Glossary that renders straight into the prompt, but it
+	// declares Requires{TargetLanguage, Credentials} — not Termbase — so the
+	// project's terminology never reached it. A project with a termbase had its
+	// terminology *checked* after the fact by term-check, yet never *enforced at
+	// generation*: the model was simply never told the terms. Wired here the way
+	// brand voice is above (not by adding Termbase to translate's Requires, which
+	// gates nothing else and would imply a termbase is mandatory).
+	//
+	// The two tools want the same key in different shapes — term-check takes the
+	// entry list, translate takes source→target — so the conversion happens here
+	// rather than either tool guessing.
+	if len(b.glossary) > 0 && isTranslateTool(toolName, s) {
+		if _, ok := config["glossary"]; !ok {
+			terms := make(map[string]string, len(b.glossary))
+			for _, e := range b.glossary {
+				if e.Source == "" || e.Target == "" {
+					continue
+				}
+				// First entry wins, so a duplicated source term resolves the same
+				// way on every run — the prompt has to be deterministic.
+				if _, dup := terms[e.Source]; !dup {
+					terms[e.Source] = e.Target
+				}
+			}
+			if len(terms) > 0 {
+				clone()
+				config["glossary"] = terms
+			}
 		}
 	}
 
