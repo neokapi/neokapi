@@ -266,9 +266,20 @@ Per-format status / next:
 - **YAML, Markdown** — blocked by `yaml.v3` / `goldmark` full-AST parsers; need a
   streaming parser swap. Out of scope for this line of work.
 
-A fully streaming **writer** (interleaved skeleton consumption) is a separable
-step that would bound the writer's block map too; the current work bounds the
-reader, which removes the document-shaped (DOM/token-slice) part of the peak.
+**Fully-streaming writers are now done too** for the `encoding/xml` +
+custom-tokenizer group (resx, androidxml, tmx, ts, xml). Each writer declares
+`StreamingWriter`, so the file-runner's `isStreamingPair` engages the concurrent
+`NewStreamingSkeletonStore` and the writer consumes skeleton entries interleaved
+with the Part stream — pulling each block on demand instead of buffering the
+whole block map. resx/androidxml use the generic `format.StreamSkeletonWrite`
+(single-block refs); tmx/ts pull blocks by arrival index for their composite
+`tuIdx:lang` / `blockIdx:elemType` refs (evicting past the current record); xml
+keeps a small rolling window so a content block's inline attribute-ref blocks
+(emitted just before it) are still resolvable. Reader and writer are both bounded
+now, so a round-trip's peak is O(read-ahead + current record), independent of
+document size. Verified: streaming-pair byte-exactness (matching the buffered
+path) + a bounded-writer benchmark holding a fraction of a MiB for a multi-MiB
+document, race-clean.
 
 ### Out of scope / caveats
 

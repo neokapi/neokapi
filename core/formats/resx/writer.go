@@ -33,6 +33,15 @@ type Writer struct {
 // from the resolved Block value looked up by ID.
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
+// Ensure Writer satisfies StreamingWriter: paired with the streaming reader it
+// consumes a streaming skeleton store interleaved with the Part stream, pulling
+// each block on demand rather than buffering the whole block map — so the writer
+// side is bounded too. See the streaming branch in Write.
+var _ format.StreamingWriter = (*Writer)(nil)
+
+// StreamingWriter marks the bounded-memory interleaved write path.
+func (w *Writer) StreamingWriter() {}
+
 // SetSkeletonStore wires a skeleton store so the writer reconstructs output from
 // the byte-exact skeleton captured at extract time, splicing each block's
 // resolved value into its <value> ref. This is the path kapi merge drives.
@@ -57,6 +66,20 @@ func (w *Writer) Config() *Config { return w.cfg }
 
 // Write consumes Parts and writes the reconstructed RESX document.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	// Streaming skeleton round-trip: interleave skeleton consumption with the
+	// Part stream so the writer never buffers the whole block map. Each <value>
+	// ref renders from the block pulled on demand — the same encodeText +
+	// resolveValue the buffered writeFromSkeleton uses per ref.
+	if w.skeletonStore != nil && w.skeletonStore.IsStreaming() {
+		return format.StreamSkeletonWrite(ctx, w.skeletonStore, parts, w.Output,
+			func(block *model.Block) ([]byte, error) {
+				if block == nil {
+					return nil, nil
+				}
+				return []byte(encodeText(w.resolveValue(block))), nil
+			}, nil)
+	}
+
 	var original []byte
 	// byName maps a <data>/@name to the output value for that entry.
 	byName := make(map[string]string)
