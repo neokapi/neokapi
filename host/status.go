@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/gate"
@@ -112,7 +113,7 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 	s := t.Styles()
 	for _, lc := range o.Locales {
 		cells := make([]string, 0, len(headers))
-		cells = append(cells, scopeLabel(lc), fmt.Sprintf("%d", lc.Total))
+		cells = append(cells, scopeLabel(lc), strconv.Itoa(lc.Total))
 		for _, rung := range statusLadder {
 			cells = append(cells, fmt.Sprintf("%d%%", lc.Pct[rung]))
 		}

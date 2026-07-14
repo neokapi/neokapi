@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/brand"
@@ -50,7 +51,7 @@ func (o BrandCheckOutput) FormatText(w io.Writer) error {
 		if d.Issues == 0 {
 			continue
 		}
-		t.Rowf(string(d.Dimension), d.Score, t.Styles().Warn.Render(fmt.Sprint(d.Issues)))
+		t.Rowf(string(d.Dimension), d.Score, t.Styles().Warn.Render(strconv.Itoa(d.Issues)))
 	}
 	t.Render()
 

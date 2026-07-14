@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"io"
+	"strconv"
 )
 
 // AddEntry is a single pattern processed by `kapi add`.
@@ -102,7 +103,7 @@ func (o LsOutput) FormatText(w io.Writer) error {
 	for _, f := range o.Files {
 		cells := []string{f.Path, s.Muted.Render(f.Format)}
 		if o.HasStats {
-			cells = append(cells, fmt.Sprint(f.Blocks), fmt.Sprint(f.Words))
+			cells = append(cells, strconv.Itoa(f.Blocks), strconv.Itoa(f.Words))
 		}
 		if o.HasSync {
 			cells = append(cells, syncCell(s, f.Dirty))
