@@ -67,7 +67,7 @@ func TestFeatureOverridesMiddleware(t *testing.T) {
 			}
 
 			var got map[billing.Feature]bool
-			h := FeatureOverridesMiddleware(tt.store)(func(c echo.Context) error {
+			h := FeatureOverridesMiddleware(tt.store, nil)(func(c echo.Context) error {
 				got = billing.OverridesFromContext(c)
 				return c.String(http.StatusOK, "ok")
 			})
@@ -92,7 +92,7 @@ func TestFeatureOverridesMiddleware_EnablesPlanGuard(t *testing.T) {
 
 	store := &mockBillingStore{overrides: []billing.FeatureOverride{{Feature: billing.FeatureBravo, Enabled: true}}}
 
-	final := FeatureOverridesMiddleware(store)(
+	final := FeatureOverridesMiddleware(store, nil)(
 		billing.PlanGuard(billing.FeatureBravo)(func(c echo.Context) error {
 			return c.String(http.StatusOK, "reached")
 		}),
@@ -105,11 +105,47 @@ func TestFeatureOverridesMiddleware_EnablesPlanGuard(t *testing.T) {
 	c2 := e.NewContext(httptest.NewRequest(http.MethodGet, "/", nil), rec2)
 	c2.Set("workspace_id", "ws1")
 	c2.Set("workspace_plan", "team")
-	blocked := FeatureOverridesMiddleware(&mockBillingStore{})(
+	blocked := FeatureOverridesMiddleware(&mockBillingStore{}, nil)(
 		billing.PlanGuard(billing.FeatureBravo)(func(c echo.Context) error {
 			return c.String(http.StatusOK, "reached")
 		}),
 	)
 	require.NoError(t, blocked(c2))
 	assert.Equal(t, http.StatusForbidden, rec2.Code, "dark feature is blocked without an override")
+}
+
+// TestFeatureOverridesMiddleware_GlobalFlagsLayer proves the precedence order:
+// instance-wide global flags override the plan matrix, and per-workspace
+// overrides in turn win over the global flags.
+func TestFeatureOverridesMiddleware_GlobalFlagsLayer(t *testing.T) {
+	e := echo.New()
+
+	globals := func() map[string]bool {
+		return map[string]bool{string(billing.FeatureBravo): true}
+	}
+
+	// Global flag alone enables FeatureBravo (no per-workspace override, no store).
+	rec := httptest.NewRecorder()
+	c := e.NewContext(httptest.NewRequest(http.MethodGet, "/", nil), rec)
+	c.Set("workspace_id", "ws1")
+	var got map[billing.Feature]bool
+	h := FeatureOverridesMiddleware(nil, globals)(func(c echo.Context) error {
+		got = billing.OverridesFromContext(c)
+		return c.String(http.StatusOK, "ok")
+	})
+	require.NoError(t, h(c))
+	assert.True(t, got[billing.FeatureBravo], "global flag must enable the feature")
+
+	// A per-workspace override of false wins over the global true.
+	rec2 := httptest.NewRecorder()
+	c2 := e.NewContext(httptest.NewRequest(http.MethodGet, "/", nil), rec2)
+	c2.Set("workspace_id", "ws1")
+	store := &mockBillingStore{overrides: []billing.FeatureOverride{{Feature: billing.FeatureBravo, Enabled: false}}}
+	var got2 map[billing.Feature]bool
+	h2 := FeatureOverridesMiddleware(store, globals)(func(c echo.Context) error {
+		got2 = billing.OverridesFromContext(c)
+		return c.String(http.StatusOK, "ok")
+	})
+	require.NoError(t, h2(c2))
+	assert.False(t, got2[billing.FeatureBravo], "per-workspace override must win over the global flag")
 }

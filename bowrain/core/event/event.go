@@ -157,6 +157,11 @@ const (
 
 	// Change-governance events
 	EventRollbackPerformed EventType = "rollback.performed"
+
+	// Platform-administration events. Emitted when instance-wide platform
+	// configuration changes in the ctrl control plane, so every server and worker
+	// refreshes its cached settings without a redeploy (fan-out subscription).
+	EventPlatformConfigChanged EventType = "platform_config.changed"
 )
 
 // Event is a typed message emitted by the system.

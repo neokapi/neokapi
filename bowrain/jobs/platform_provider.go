@@ -40,6 +40,26 @@ type PlatformProviderConfig struct {
 	BaseURL  string // optional base URL override (self-hosted endpoint / proxy)
 }
 
+// PlatformResolver returns the current platform provider configuration. When a
+// worker deps carries one, it is consulted at job time (rather than reading a
+// value fixed at startup), so a runtime config change — e.g. an admin switching
+// the platform AI provider or default model in ctrl — takes effect on the next
+// job without restarting the worker. A nil return falls back to the static
+// Platform config on the deps.
+type PlatformResolver func() *PlatformProviderConfig
+
+// activePlatform picks the resolver's current value when a resolver is present
+// and returns non-nil; otherwise it returns the static config. Either result may
+// be nil, meaning no platform provider is configured.
+func activePlatform(static *PlatformProviderConfig, resolver PlatformResolver) *PlatformProviderConfig {
+	if resolver != nil {
+		if c := resolver(); c != nil {
+			return c
+		}
+	}
+	return static
+}
+
 // Build returns the LLMProvider for a platform translation job plus the provider
 // type string used for rate limiting. jobModel is the model requested by the job
 // (set by the auto-translate automation). For the generic provider path the

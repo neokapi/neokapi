@@ -40,6 +40,10 @@ type BrandScanWorkerDeps struct {
 	// exclusively on the platform key (they are part of onboarding, before any
 	// BYO key exists), so a nil Platform fails every scan with a clear error.
 	Platform *PlatformProviderConfig
+	// PlatformResolver, when set, is consulted at job time for the current
+	// platform provider config (overrides Platform when non-nil), so a runtime
+	// change in ctrl takes effect without restarting the worker.
+	PlatformResolver PlatformResolver
 	// BillingHooks deducts platform credits for the scan's token usage.
 	// Optional; nil (self-hosted / unbilled) disables credit deduction.
 	BillingHooks *billing.UsageHooks
@@ -269,18 +273,19 @@ func executeBrandScan(ctx context.Context, deps *BrandScanWorkerDeps, job *Brand
 	// Build the platform provider. Brand scans always run on the platform key
 	// (the request carries no provider config), so credit deduction below is
 	// unconditionally platform-metered.
-	if deps.Platform == nil {
+	platform := activePlatform(deps.Platform, deps.PlatformResolver)
+	if platform == nil {
 		return errors.New("platform provider not configured " +
 			"(set BOWRAIN_PLATFORM_PROVIDER + key for self-hosted/local, " +
 			"or BOWRAIN_OPENAI_ENDPOINT for Azure OpenAI)")
 	}
-	prov, provKind, err := deps.Platform.Build("")
+	prov, provKind, err := platform.Build("")
 	if err != nil {
 		return fmt.Errorf("build platform provider: %w", err)
 	}
 	// Model label for the ai_usage abuse-cap records: the operator-configured
 	// platform model when set, otherwise the provider kind (Azure path).
-	usageModel := deps.Platform.Model
+	usageModel := platform.Model
 	if usageModel == "" {
 		usageModel = provKind
 	}

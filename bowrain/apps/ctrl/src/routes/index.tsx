@@ -16,6 +16,7 @@ import { EventsRoute } from "./events";
 import { OverridesRoute } from "./overrides";
 import { UpsellsRoute } from "./upsells";
 import { SlugReservationsRoute } from "./slug-reservations";
+import { PlatformRoute } from "./platform";
 
 // ---------------------------------------------------------------------------
 // Router context
@@ -160,6 +161,13 @@ const slugReservationsRoute = createRoute({
   component: SlugReservationsRoute,
 });
 
+const platformRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "platform",
+  beforeLoad: requireAuth,
+  component: PlatformRoute,
+});
+
 // ---------------------------------------------------------------------------
 // Route tree & router
 // ---------------------------------------------------------------------------
@@ -174,6 +182,7 @@ const routeTree = rootRoute.addChildren([
   overridesRoute,
   upsellsRoute,
   slugReservationsRoute,
+  platformRoute,
 ]);
 
 export const router = createRouter({

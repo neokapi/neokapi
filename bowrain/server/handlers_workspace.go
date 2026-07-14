@@ -41,6 +41,11 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
+	// Signups gate (ctrl-managed): when an admin closes signups, block the
+	// self-serve workspace-creation entry point.
+	if !s.PlatformConfig.SignupsOpen() {
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "signups are currently closed"})
+	}
 
 	var req WorkspaceRequest
 	if err := c.Bind(&req); err != nil {
@@ -74,12 +79,15 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 		}
 	}
 
-	// Set up 14-day Pro trial for new workspaces.
+	// Set up the trial for new workspaces using the ctrl-managed new-workspace
+	// defaults (plan + trial length), so an admin can change them without a
+	// redeploy. Falls back to the product defaults (Pro, 14 days) when unset.
 	var planSyncer billing.WorkspacePlanSyncer
 	if s.AuthStore != nil {
 		planSyncer = s.planSyncer()
 	}
-	billing.SetupTrial(ctx, s.BillingStore, w.ID, planSyncer)
+	billing.SetupTrialWith(ctx, s.BillingStore, w.ID,
+		billing.Plan(s.PlatformConfig.DefaultPlan()), s.PlatformConfig.TrialDays(), planSyncer)
 
 	// Re-read workspace to reflect synced plan in the response.
 	if updated, err := s.AuthStore.GetWorkspace(ctx, w.ID); err == nil {

@@ -16,6 +16,7 @@ import (
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corebrand "github.com/neokapi/neokapi/core/brand"
@@ -33,9 +34,10 @@ type pgStores struct {
 	Brand      corebrand.BrandStore
 	Knowledge  knowledge.Store
 	GraphStore coreg.GraphStore
-	Agent      platagent.AgentStore
-	Billing    billing.BillingStore
-	DB         *storage.PgDB // shared connection pool for TM/TB
+	Agent          platagent.AgentStore
+	Billing        billing.BillingStore
+	PlatformConfig *platformconfig.Store
+	DB             *storage.PgDB // shared connection pool for TM/TB
 }
 
 func openPostgresStores(databaseURL string) (*pgStores, error) {
@@ -180,6 +182,14 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		slog.Warn("failed to init billing store (billing features disabled)", "error", err)
 	} else {
 		stores.Billing = bils
+	}
+
+	// Initialize the instance-wide platform_config store (ctrl-managed settings).
+	pcs, err := platformconfig.NewStore(db)
+	if err != nil {
+		slog.Warn("failed to init platform_config store (using env defaults only)", "error", err)
+	} else {
+		stores.PlatformConfig = pcs
 	}
 
 	return stores, nil

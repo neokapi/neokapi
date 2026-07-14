@@ -82,6 +82,16 @@ func (s *Server) HandleCompleteOnboarding(c echo.Context) error {
 	if !ok || userID == "" {
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
 	}
+	// Signups gate (ctrl-managed): closing signups blocks new users from
+	// finalizing onboarding. Users who are already onboarded pass through
+	// (CompleteOnboarding is idempotent) so a freeze never locks out existing
+	// accounts.
+	if !s.PlatformConfig.SignupsOpen() {
+		if needs, err := s.Services.Auth.NeedsOnboarding(c.Request().Context(), userID); err != nil || needs {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "signups are currently closed"})
+		}
+	}
+
 	var req onboardingRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})

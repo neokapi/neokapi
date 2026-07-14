@@ -283,6 +283,90 @@ export function addMemberToWorkspace(
 }
 
 // ---------------------------------------------------------------------------
+// Platform configuration (instance-wide runtime settings)
+// ---------------------------------------------------------------------------
+
+export type ModelTier = "fast" | "balanced" | "flagship";
+
+export interface CatalogModel {
+  id: string;
+  name: string;
+  tier: ModelTier;
+  requires_marketplace?: boolean;
+}
+
+export interface AISettings {
+  provider: string;
+  default_model: string;
+  base_url?: string;
+  enabled_models: string[];
+  customer_choice: boolean;
+}
+
+export interface MaintenanceSettings {
+  enabled: boolean;
+  message?: string;
+}
+
+export interface WorkspaceDefaults {
+  plan: string;
+  trial_days: number;
+}
+
+export interface PlatformSnapshot {
+  ai: AISettings;
+  signups: { open: boolean };
+  maintenance: MaintenanceSettings;
+  workspace_defaults: WorkspaceDefaults;
+  features: Record<string, boolean>;
+  model_catalog: CatalogModel[];
+}
+
+export interface PlatformDefaults {
+  ai_provider: string;
+  ai_default_model: string;
+  ai_base_url: string;
+  signups_open: boolean;
+  default_plan: string;
+  trial_days: number;
+}
+
+export interface PlatformConfigResponse {
+  snapshot: PlatformSnapshot;
+  persistent: boolean;
+  defaults: PlatformDefaults;
+}
+
+// PlatformConfigUpdate is a PATCH-style body: every section/field is optional, so
+// a section can be saved without touching the rest.
+export interface PlatformConfigUpdate {
+  ai?: {
+    provider?: string;
+    default_model?: string;
+    base_url?: string;
+    enabled_models?: string[];
+    customer_choice?: boolean;
+  };
+  signups?: { open?: boolean };
+  maintenance?: { enabled?: boolean; message?: string };
+  workspace_defaults?: { plan?: string; trial_days?: number };
+  features?: Record<string, boolean>;
+}
+
+export function getPlatformConfig(): Promise<PlatformConfigResponse> {
+  return request("/platform");
+}
+
+export function updatePlatformConfig(
+  update: PlatformConfigUpdate,
+): Promise<PlatformConfigResponse> {
+  return request("/platform", {
+    method: "PUT",
+    body: JSON.stringify(update),
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Workspace slug reservations (rename grace period)
 // ---------------------------------------------------------------------------
 

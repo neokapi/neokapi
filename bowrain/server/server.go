@@ -46,6 +46,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/bowrain/mailer"
 	"github.com/neokapi/neokapi/bowrain/observe"
+	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -259,6 +260,12 @@ type Server struct {
 	// Nil when billing is not configured.
 	BillingStore billing.BillingStore
 
+	// PlatformConfig is the instance-wide settings service (ctrl-managed): AI
+	// provider/model, signups gate, maintenance, workspace defaults, global
+	// feature toggles. Always non-nil (falls back to env Defaults when the DB
+	// store is unavailable), so callers never nil-check.
+	PlatformConfig *platformconfig.Service
+
 	// StripeClient manages Stripe API interactions (Bowrain AD-018).
 	// Nil when STRIPE_SECRET_KEY is not set.
 	StripeClient *billing.StripeClient
@@ -323,6 +330,20 @@ func createEventBus(cfg Config) platev.EventBus {
 	}
 	slog.Info("event bus configured", "backend", "in-memory")
 	return event.NewChannelEventBus()
+}
+
+// platformConfigDefaults derives the instance-wide settings bootstrap defaults
+// from process config, so an un-provisioned instance behaves exactly as before
+// the platform_config store existed (DB values override these at runtime).
+func platformConfigDefaults(cfg Config) platformconfig.Defaults {
+	return platformconfig.Defaults{
+		AIProvider:     cfg.PlatformProvider,
+		AIDefaultModel: cfg.PlatformModel,
+		AIBaseURL:      cfg.PlatformBaseURL,
+		SignupsOpen:    true, // signups open unless an admin closes them
+		DefaultPlan:    string(billing.PlanPro),
+		TrialDays:      billing.DefaultTrialDays,
+	}
 }
 
 func NewServer(cfg Config) *Server {
@@ -454,11 +475,21 @@ func NewServer(cfg Config) *Server {
 			s.GraphStore = pg.GraphStore
 			s.AgentStore = pg.Agent
 			s.BillingStore = pg.Billing
+			s.PlatformConfig = platformconfig.NewService(pg.PlatformConfig, platformConfigDefaults(cfg))
 			if cfg.JWTSecret != "" {
 				s.AuthStore = pg.Auth
 				s.Services.Auth = service.NewAuthService(pg.Auth, cfg.JWTSecret)
 			}
 		}
+	}
+
+	// Always provide a platform settings service; env-only (no persistence) when
+	// no DB store initialized, so every reader can call it unconditionally.
+	if s.PlatformConfig == nil {
+		s.PlatformConfig = platformconfig.NewService(nil, platformConfigDefaults(cfg))
+	}
+	if err := s.PlatformConfig.Refresh(context.Background()); err != nil {
+		slog.Warn("platform_config: initial load failed (serving env defaults)", "error", err)
 	}
 
 	// Initialize job queues if Service Bus or NATS is configured. The
@@ -589,6 +620,18 @@ func NewServer(cfg Config) *Server {
 			resolver = &contentStoreWorkspaceResolver{store: s.ContentStore}
 		}
 		s.changeRelay = event.NewChangeRelay(s.EventBus, resolver)
+
+		// Fan-out: when instance-wide platform config changes in ctrl (on any
+		// server/worker), every instance reloads its cached settings so the
+		// change propagates cluster-wide without a redeploy. Subscribe (not
+		// SubscribeGroup) so all instances react.
+		if s.PlatformConfig != nil && s.PlatformConfig.Persistent() {
+			s.EventBus.Subscribe(platev.EventPlatformConfigChanged, func(platev.Event) {
+				if err := s.PlatformConfig.Refresh(context.Background()); err != nil {
+					slog.Warn("platform_config: reload after change event failed", "error", err)
+				}
+			})
+		}
 	}
 
 	// Wire up notification dispatcher (Bowrain AD-014).
@@ -953,6 +996,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.GET("/health", s.HandleHealth)
 	v1.GET("/ready", s.HandleReady)
 	v1.GET("/info", s.HandleInfo)
+	v1.GET("/config", s.HandleGetPublicConfig)
 	v1.GET("/badges/:proj", s.HandleProjectBadge)
 
 	// Pulse public activity dashboard (Bowrain AD-017).
@@ -1083,9 +1127,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		if s.AuthStore != nil {
 			wsSpecific.Use(WorkspaceAccessMiddleware(s.AuthStore))
 			wsSpecific.Use(WeeklyAllocationMiddleware(s.BillingStore))
-			// Load per-workspace feature overrides so PlanGuard (and the
-			// entitlements surfaced to clients) honor admin-granted overrides.
-			wsSpecific.Use(FeatureOverridesMiddleware(s.BillingStore))
+			// Resolve effective feature overrides (instance-wide global flags
+			// under per-workspace admin grants) so PlanGuard and client-surfaced
+			// entitlements honor both.
+			wsSpecific.Use(FeatureOverridesMiddleware(s.BillingStore, s.PlatformConfig.GlobalFeatures))
 		}
 		wsSpecific.GET("", s.HandleGetWorkspace)
 		wsSpecific.PUT("", s.HandleUpdateWorkspace)
@@ -1221,6 +1266,11 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		adminGroup.GET("/overrides", s.HandleAdminListOverrides)
 		adminGroup.GET("/slug-reservations", s.HandleAdminListSlugReservations)
 		adminGroup.POST("/slug-reservations/release", s.HandleAdminReleaseSlugReservation)
+
+		// Instance-wide platform configuration (AI provider/models, signups gate,
+		// maintenance banner, new-workspace defaults, global feature flags).
+		adminGroup.GET("/platform", s.HandleAdminGetPlatformConfig)
+		adminGroup.PUT("/platform", s.HandleAdminUpdatePlatformConfig)
 	}
 
 	// MCP server (brand voice resources, tools, prompts via Streamable HTTP).

@@ -41,7 +41,12 @@ type WorkerDeps struct {
 	Queue         Queue
 	QuotaStore    QuotaStore              // optional; nil disables quota enforcement
 	Platform      *PlatformProviderConfig // optional; nil disables platform provider
-	BillingHooks  *billing.UsageHooks     // optional; nil disables billing credit deduction
+	// PlatformResolver, when set, is consulted at job time for the current
+	// platform provider config so a runtime change (admin switching provider/model
+	// in ctrl) takes effect without restarting the worker. Overrides Platform when
+	// it returns non-nil.
+	PlatformResolver PlatformResolver
+	BillingHooks     *billing.UsageHooks // optional; nil disables billing credit deduction
 	// LogFunc is called to emit structured automation logs (Bowrain AD-013).
 	// Signature: func(stepID, level, message string, data map[string]string).
 	// Optional; nil disables run logging.
@@ -94,8 +99,12 @@ var providerRateLimits = map[string]rate.Limit{
 // RunWorkerWithDeps runs the translation worker loop with full dependency injection.
 func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 	slog.InfoContext(ctx, "translation worker started")
-	if deps.Platform != nil {
-		slog.InfoContext(ctx, "platform Azure OpenAI enabled", "endpoint", deps.Platform.Endpoint)
+	if p := activePlatform(deps.Platform, deps.PlatformResolver); p != nil {
+		if p.Provider != "" {
+			slog.InfoContext(ctx, "platform AI provider enabled", "provider", p.Provider, "model", p.Model)
+		} else if p.Endpoint != "" {
+			slog.InfoContext(ctx, "platform AI provider enabled", "provider", "azure-openai", "endpoint", p.Endpoint)
+		}
 	}
 	if deps.QuotaStore != nil {
 		slog.InfoContext(ctx, "AI quota enforcement enabled")
@@ -497,12 +506,13 @@ func startLeaseHeartbeat(ctx context.Context, store leaseRenewer, jobID string, 
 // CredStore for saved provider keys.
 func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob) (*ResolvedProvider, error) {
 	if job.IsPlatformProvider() {
-		if deps.Platform == nil {
+		platform := activePlatform(deps.Platform, deps.PlatformResolver)
+		if platform == nil {
 			return nil, errors.New("platform provider not configured " +
 				"(set BOWRAIN_PLATFORM_PROVIDER + key for self-hosted/local, " +
 				"or BOWRAIN_OPENAI_ENDPOINT for Azure OpenAI)")
 		}
-		prov, ptype, err := deps.Platform.Build(job.Model)
+		prov, ptype, err := platform.Build(job.Model)
 		if err != nil {
 			return nil, err
 		}
