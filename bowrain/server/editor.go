@@ -1492,11 +1492,16 @@ func editorCreateProvider(provType, apiKey, modelName string) aiprovider.LLMProv
 // the synchronous editor platform path, mirroring the worker's BOWRAIN_PLATFORM_*
 // selection so interactive and async translation resolve the same upstream. The
 // zero value (Provider == "") means no platform provider is configured.
+//
+// Values are read from the instance-wide platform_config service (ctrl-managed),
+// which falls back to the BOWRAIN_PLATFORM_* env bootstrap defaults when unset —
+// so an admin switching provider/model in ctrl takes effect on the next request
+// without a redeploy, while an un-provisioned instance behaves exactly as before.
 func (s *Server) platformProviderConfig() jobs.PlatformProviderConfig {
 	return jobs.PlatformProviderConfig{
-		Provider: s.Config.PlatformProvider,
-		Model:    s.Config.PlatformModel,
-		BaseURL:  s.Config.PlatformBaseURL,
+		Provider: s.PlatformConfig.AIProvider(),
+		Model:    s.PlatformConfig.AIDefaultModel(),
+		BaseURL:  s.PlatformConfig.AIBaseURL(),
 	}
 }
 

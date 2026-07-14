@@ -34,6 +34,7 @@ type ExtractionWorkerDeps struct {
 	KnownTermsLoader   KnownTermsLoader                                            // optional; nil disables known term filtering
 	NERProvider        ner.Provider                                                // optional; nil disables NER pass
 	Platform           *PlatformProviderConfig                                     // optional; nil disables platform provider
+	PlatformResolver   PlatformResolver                                            // optional; consulted at job time for runtime config changes (overrides Platform)
 	LogFunc            func(stepID, level, message string, data map[string]string) // optional (Bowrain AD-013)
 }
 
@@ -328,14 +329,19 @@ func resolveExtractionProvider(ctx context.Context, deps *ExtractionWorkerDeps, 
 	}
 
 	if providerConfigID == "" || providerConfigID == "platform" {
-		if deps.Platform == nil {
-			return nil, nil, errors.New("platform provider not configured (set BOWRAIN_OPENAI_ENDPOINT)")
+		platform := activePlatform(deps.Platform, deps.PlatformResolver)
+		if platform == nil {
+			return nil, nil, errors.New("platform provider not configured " +
+				"(set BOWRAIN_PLATFORM_PROVIDER + key, or BOWRAIN_OPENAI_ENDPOINT)")
 		}
-		prov, err := NewPlatformProvider(*deps.Platform, modelName)
+		// Build resolves the generic (e.g. bedrock) or Azure path from the same
+		// config; the operator-configured Model wins over the Azure-centric
+		// modelName default for non-Azure providers.
+		prov, ptype, err := platform.Build(modelName)
 		if err != nil {
 			return nil, nil, err
 		}
-		limiter := rate.NewLimiter(providerRateLimit("azureopenai"), 1)
+		limiter := rate.NewLimiter(providerRateLimit(ptype), 1)
 		return prov, limiter, nil
 	}
 

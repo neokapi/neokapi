@@ -17,12 +17,14 @@ import (
 	"github.com/neokapi/neokapi/bowrain/agent"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	bowevent "github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/observe"
+	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	blobazure "github.com/neokapi/neokapi/bowrain/storage/azureblob"
@@ -347,6 +349,44 @@ func runWorker(dbURL string) error {
 			"auto-translate jobs will fail (set BOWRAIN_PLATFORM_PROVIDER + key, or BOWRAIN_OPENAI_ENDPOINT)")
 	}
 
+	// Instance-wide platform config (ctrl-managed). The worker reads the AI
+	// provider/model from this service at job time via a resolver, so an admin
+	// switching provider/model in ctrl takes effect without a worker restart. The
+	// service's bootstrap defaults mirror the BOWRAIN_PLATFORM_* env above, so an
+	// un-provisioned instance resolves exactly as before. A distributed event bus
+	// (Redis) delivers platform_config.changed so the worker reloads on change.
+	var platformResolver jobs.PlatformResolver
+	if pcStore, err := platformconfig.NewStore(pgdb); err != nil {
+		slog.Warn("platform_config store unavailable; worker uses static env provider config", "error", err)
+	} else {
+		pcSvc := platformconfig.NewService(pcStore, platformconfig.Defaults{
+			AIProvider:     platformProvider,
+			AIDefaultModel: os.Getenv("BOWRAIN_PLATFORM_MODEL"),
+			AIBaseURL:      os.Getenv("BOWRAIN_PLATFORM_BASE_URL"),
+			SignupsOpen:    true,
+			DefaultPlan:    string(billing.PlanPro),
+			TrialDays:      billing.DefaultTrialDays,
+		})
+		if err := pcSvc.Refresh(ctx); err != nil {
+			slog.Warn("platform_config: initial worker load failed (serving env defaults)", "error", err)
+		}
+		platformResolver = func() *jobs.PlatformProviderConfig {
+			return platformConfigFromService(pcSvc, azureClientID, openaiEndpoint)
+		}
+		translationDeps.PlatformResolver = platformResolver
+
+		// Fan-out reload: every worker reacts to a config change from ctrl.
+		if bus := translationDeps.EventBus; bus != nil {
+			bus.Subscribe(platev.EventPlatformConfigChanged, func(platev.Event) {
+				if err := pcSvc.Refresh(ctx); err != nil {
+					slog.Warn("platform_config: worker reload after change event failed", "error", err)
+				} else {
+					slog.Info("platform_config: worker reloaded settings", "provider", pcSvc.AIProvider(), "model", pcSvc.AIDefaultModel())
+				}
+			})
+		}
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
 
 	// Health endpoint for liveness/readiness probes.
@@ -403,7 +443,8 @@ func runWorker(dbURL string) error {
 		// filtering reads workspace termbases that live on the server box,
 		// and NER needs per-deployment Azure config. Both are documented
 		// optional — extraction degrades to the plain LLM pass.
-		Platform: translationDeps.Platform,
+		Platform:         translationDeps.Platform,
+		PlatformResolver: platformResolver,
 		LogFunc: func(stepID, level, message string, data map[string]string) {
 			slog.Info("extraction: "+message, "step_id", stepID, "level", level)
 		},
@@ -422,12 +463,13 @@ func runWorker(dbURL string) error {
 		return fmt.Errorf("open PostgreSQL brand-scan job store: %w", err)
 	}
 	brandScanDeps := &jobs.BrandScanWorkerDeps{
-		Store:        pgBSS,
-		Queue:        brandScanQueue,
-		BlobStore:    blobStore,
-		Platform:     translationDeps.Platform,
-		BillingHooks: translationDeps.BillingHooks,
-		QuotaStore:   pgQS,
+		Store:            pgBSS,
+		Queue:            brandScanQueue,
+		BlobStore:        blobStore,
+		Platform:         translationDeps.Platform,
+		PlatformResolver: platformResolver,
+		BillingHooks:     translationDeps.BillingHooks,
+		QuotaStore:       pgQS,
 		LogFunc: func(stepID, level, message string, data map[string]string) {
 			slog.Info("brand-scan: "+message, "job_id", stepID, "level", level)
 		},
@@ -669,6 +711,32 @@ func envOrDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// platformConfigFromService builds the current platform provider config from the
+// ctrl-managed settings service, mirroring the startup BOWRAIN_PLATFORM_* switch:
+// a configured provider (e.g. "bedrock") takes the generic path with its env key,
+// otherwise an Azure OpenAI endpoint takes the managed-identity path. Provider,
+// model and base URL come from the service (so a ctrl change is picked up live);
+// the API key and Azure endpoint/client-id remain env-sourced secrets. Returns
+// nil when no provider is configured.
+func platformConfigFromService(svc *platformconfig.Service, azureClientID, openaiEndpoint string) *jobs.PlatformProviderConfig {
+	if provider := svc.AIProvider(); provider != "" {
+		apiKey := os.Getenv("BOWRAIN_PLATFORM_API_KEY")
+		if apiKey == "" {
+			apiKey = platformAPIKeyFromEnv(provider)
+		}
+		return &jobs.PlatformProviderConfig{
+			Provider: provider,
+			APIKey:   apiKey,
+			Model:    svc.AIDefaultModel(),
+			BaseURL:  svc.AIBaseURL(),
+		}
+	}
+	if openaiEndpoint != "" {
+		return &jobs.PlatformProviderConfig{Endpoint: openaiEndpoint, ClientID: azureClientID}
+	}
+	return nil
 }
 
 // platformAPIKeyFromEnv resolves a platform-provider API key from the
